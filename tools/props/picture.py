@@ -31,12 +31,24 @@ SHOT = ("clean 3D render of a single object floating in empty space, centred on 
 
 # Appended by default, because the 3D step rebuilds form and not ornament. A prop whose character
 # is a different material passes its own with --form; the two below cover most of this game.
+# The default suits a crate, a locker, a desk: things that really are plain. It says "plain, no
+# logos" on purpose, and that is a refusal, so anything meant to look like working equipment must
+# pass one of the forms below instead of inheriting this.
 FORM = "built from thick solid panels, rigid and hard edged, plain, no logos, no text"
 # For anything that flew here. Asking for a plain solid object returns concrete furniture; this
 # returns spaceflight hardware, and every feature named is big enough to survive the rebuild.
 SPACE = ("spacecraft hardware, white thermal panels with visible panel lines and fasteners, "
          "thick rigid panels, heavy bolted flanges, gold foil insulation, hard edged, industrial, "
          "no text")
+# For a machine, which has to look like it could actually work. The default forbids exactly what
+# makes equipment read as equipment: the panels, the sensors, the cables, the warning stripes. The
+# detail is not decoration here, it changes what the model takes the object to be, and enough of it
+# survives the rebuild to matter; sensor domes on stalks came through as stalks with heads.
+MACHINE = ("modern autonomous agricultural equipment, painted metal bodywork panels in white and "
+           "green, a flat solar panel on top with visible cells, black sensor domes and boxy "
+           "camera housings on short stalks, bundled cables clipped along the frame, bolted "
+           "flanges, yellow and black warning stripes on the edges, clean industrial product "
+           "design, hard edged, thick rigid panels")
 GLASS = ("thick metal ribs with flat opaque dark teal panels set between them, rigid and hard "
          "edged, no text")
 
