@@ -121,6 +121,61 @@ def with_crease_normals(mesh, angle_degrees, colours=None, steps=6):
     )
 
 
+def colour_per_vertex(mesh):
+    """One colour per vertex, whatever the mesh arrived carrying.
+
+    A generated prop already has colour per vertex. A pack model has a texture and the coordinates
+    that map the mesh onto it, so the colour is read out of the picture at each vertex. A model with
+    neither, just one flat material colour, gives that colour everywhere. Returns None when there is
+    no colour to be had, and the caller leaves the mesh alone.
+    """
+    visual = getattr(mesh, "visual", None)
+    if visual is None:
+        return None
+
+    kind = getattr(visual, "kind", None)
+    if kind == "vertex" and getattr(visual, "vertex_colors", None) is not None:
+        return np.asarray(visual.vertex_colors)[:, :3].astype(np.float64) / 255.0
+
+    if kind == "face" and getattr(visual, "face_colors", None) is not None:
+        # Spread each face's colour onto its own vertices.
+        colours = np.zeros((len(mesh.vertices), 3))
+        counts = np.zeros(len(mesh.vertices))
+        face_colours = np.asarray(visual.face_colors)[:, :3].astype(np.float64) / 255.0
+        np.add.at(colours, mesh.faces.ravel(), np.repeat(face_colours, 3, axis=0))
+        np.add.at(counts, mesh.faces.ravel(), 1.0)
+        counts[counts == 0] = 1.0
+        return colours / counts[:, None]
+
+    # A texture: trimesh reads the picture at each vertex's coordinates for us.
+    try:
+        converted = visual.to_color()
+    except Exception:
+        return None
+    if getattr(converted, "vertex_colors", None) is None:
+        return None
+    sampled = np.asarray(converted.vertex_colors)
+    if len(sampled) != len(mesh.vertices):
+        return None
+    return sampled[:, :3].astype(np.float64) / 255.0
+
+
+def flatten_to_the_look(mesh, steps=6):
+    """Give any mesh the drawn look: a few flat tones instead of a photograph or a texture.
+
+    This is what lets a bought prop and a generated one stand in the same room. A pack model's
+    painted texture and a generated prop's surface colour are both reduced the same way, so the
+    two arrive looking like one game rather than two. The outline is not done here; that is a
+    material in the engine.
+    """
+    colours = colour_per_vertex(mesh)
+    if colours is None:
+        return mesh
+    flat = np.clip(averaged_to_flats(colours, steps) * 255.0, 0, 255).astype(np.uint8)
+    mesh.visual = trimesh.visual.ColorVisuals(mesh=mesh, vertex_colors=flat)
+    return mesh
+
+
 def carry_colour_across(dense_vertices, dense_colours, new_vertices):
     """Move colour from the dense mesh onto the decimated one, by nearest point.
 
