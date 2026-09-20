@@ -66,6 +66,10 @@ SENTENCES = {
                 "them", 5.0),
     "pointing": ("a person pointing forward with one arm and shouting a question", 5.0),
     "waiting": ("a person standing still with their arms folded, watching", 5.0),
+    "checking": ("a person crouching down to look closely at something on the ground in front "
+                 "of them", 6.0),
+    "reaching": ("a person reaching up with both hands to work on something above their head",
+                 6.0),
 }
 
 
