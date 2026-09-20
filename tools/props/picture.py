@@ -13,6 +13,7 @@ import torch
 from diffusers import Flux2Pipeline
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+from card import claimed  # noqa: E402
 from paths import PICTURE_MODEL, PICTURES, make_directories  # noqa: E402
 
 # Composition only, and it refuses the ground many ways on purpose. Anything else in the picture is
@@ -42,16 +43,17 @@ GLASS = ("thick metal ribs with flat opaque dark teal panels set between them, r
 
 def make(sentence, name, seed, steps, form=FORM, shot=SHOT):
     make_directories()
-    pipeline = Flux2Pipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
-    pipeline.enable_model_cpu_offload()
-    image = pipeline(
-        prompt=f"{sentence}, {form}, {shot}",
-        num_inference_steps=steps,
-        guidance_scale=4.0,
-        height=1024,
-        width=1024,
-        generator=torch.Generator("cpu").manual_seed(seed),
-    ).images[0]
+    with claimed(f"the picture for {name}"):
+        pipeline = Flux2Pipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
+        pipeline.enable_model_cpu_offload()
+        image = pipeline(
+            prompt=f"{sentence}, {form}, {shot}",
+            num_inference_steps=steps,
+            guidance_scale=4.0,
+            height=1024,
+            width=1024,
+            generator=torch.Generator("cpu").manual_seed(seed),
+        ).images[0]
     path = PICTURES / f"{name}.png"
     image.save(path)
     return path

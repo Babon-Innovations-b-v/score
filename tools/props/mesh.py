@@ -24,6 +24,7 @@ os.environ.setdefault("SPCONV_ALGO", "native")
 os.environ.setdefault("XFORMERS_DISABLED", "1")
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from card import claimed  # noqa: E402
 from paths import MESHES, TRELLIS, make_directories, ready  # noqa: E402
 
 sys.path.insert(0, str(TRELLIS))
@@ -87,29 +88,32 @@ def loaded_pipeline():
 def build(picture, name, faces_budget, seed, steps, smooth, crease, colour=True):
     make_directories()
     started = time.time()
-    pipeline = loaded_pipeline()
-    loaded = time.time()
+    # Held until everything is off the card: a second run started before this point dies with an
+    # illegal memory access that looks like a broken model. See card.py.
+    with claimed(f"the mesh for {name}"):
+        pipeline = loaded_pipeline()
+        loaded = time.time()
 
-    result = pipeline.run(
-        load_picture(picture),
-        seed=seed,
-        formats=["mesh"],
-        sparse_structure_sampler_params={"steps": steps, "cfg_strength": 7.5},
-        slat_sampler_params={"steps": steps, "cfg_strength": 3.0},
-    )
-    generated = time.time()
-    check_licence()
+        result = pipeline.run(
+            load_picture(picture),
+            seed=seed,
+            formats=["mesh"],
+            sparse_structure_sampler_params={"steps": steps, "cfg_strength": 7.5},
+            slat_sampler_params={"steps": steps, "cfg_strength": 3.0},
+        )
+        generated = time.time()
+        check_licence()
 
-    raw = result["mesh"][0]
-    vertices = raw.vertices.detach().cpu().numpy().astype(np.float32)
-    faces = raw.faces.detach().cpu().numpy().astype(np.int32)
-    raw_faces = len(faces)
-    # The mesh decoder hands back colour per vertex alongside the normal. This is the whole
-    # reason we can keep the generated colour without baking a texture, which is the step that
-    # would have needed the non-commercial rasteriser.
-    colours = None
-    if colour and raw.vertex_attrs is not None:
-        colours = raw.vertex_attrs[:, :3].detach().cpu().numpy().astype(np.float32)
+        raw = result["mesh"][0]
+        vertices = raw.vertices.detach().cpu().numpy().astype(np.float32)
+        faces = raw.faces.detach().cpu().numpy().astype(np.int32)
+        raw_faces = len(faces)
+        # The mesh decoder hands back colour per vertex alongside the normal. This is the whole
+        # reason we can keep the generated colour without baking a texture, which is the step that
+        # would have needed the non-commercial rasteriser.
+        colours = None
+        if colour and raw.vertex_attrs is not None:
+            colours = raw.vertex_attrs[:, :3].detach().cpu().numpy().astype(np.float32)
 
     # Smooth while the mesh is still dense: the ripples are small, and there are enough
     # triangles here to lose them without dragging the shape along.
