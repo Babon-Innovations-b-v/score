@@ -41,16 +41,26 @@ SPACE = ("spacecraft hardware, white thermal panels with visible panel lines and
          "thick rigid panels, heavy bolted flanges, gold foil insulation, hard edged, industrial, "
          "no text")
 # For a machine, which has to look like it could actually work. The default forbids exactly what
-# makes equipment read as equipment: the panels, the sensors, the cables, the warning stripes. The
-# detail is not decoration here, it changes what the model takes the object to be, and enough of it
-# survives the rebuild to matter; sensor domes on stalks came through as stalks with heads.
-MACHINE = ("modern autonomous agricultural equipment, painted metal bodywork panels in white and "
-           "green, a flat solar panel on top with visible cells, black sensor domes and boxy "
-           "camera housings on short stalks, bundled cables clipped along the frame, bolted "
-           "flanges, yellow and black warning stripes on the edges, clean industrial product "
-           "design, hard edged, thick rigid panels")
+# makes equipment read as equipment: the panels, the sensors, the cables. The detail is not
+# decoration here, it changes what the model takes the object to be, and enough of it survives the
+# rebuild to matter; sensor domes on stalks came through as stalks with heads.
+#
+# This wording was terrestrial farm equipment, painted green and white with warning stripes, and
+# the owner turned it down on 2026-09-20: everything here works on a Moon base, inside pressurised
+# modules, so a machine should be built like the hardware that flew there rather than like a
+# tractor. Writing a robot from pictures of real field machinery is what produced a green cart on
+# tractor tyres for a whole day. Locked to the Moon look at the owner's word.
+MACHINE = ("machine built like spacecraft hardware, white composite and brushed aluminium panels "
+           "with visible panel lines and fasteners, gold foil insulation in its open bays, a "
+           "glowing teal screen panel, black sensor domes and camera pods, slim machined struts, "
+           "cable looms in braided sleeving, heavy bolted flanges, hard edged, clean high "
+           "technology, no dirt, no text")
 GLASS = ("thick metal ribs with flat opaque dark teal panels set between them, rigid and hard "
          "edged, no text")
+
+
+# The forms by name, so a run can ask for one without anyone pasting the wording into a script.
+FORMS = {"machine": MACHINE, "space": SPACE, "glass": GLASS}
 
 
 def make(sentence, name, seed, steps, form=FORM, shot=SHOT):
@@ -77,10 +87,13 @@ def main():
     parser.add_argument("sentence", help="what the prop is, in plain words")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--steps", type=int, default=28)
-    parser.add_argument("--form", default=FORM,
-                        help="What the prop is made of, when solid panels is the wrong answer.")
+    parser.add_argument("--form", default=None,
+                        help="What the prop is made of, in full, when none of the named ones fit.")
+    parser.add_argument("--form-named", choices=tuple(FORMS),
+                        help="One of the forms written down above: machine, space or glass.")
     args = parser.parse_args()
-    print(make(args.sentence, args.name, args.seed, args.steps, args.form))
+    form = args.form or (FORMS[args.form_named] if args.form_named else FORM)
+    print(make(args.sentence, args.name, args.seed, args.steps, form))
 
 
 if __name__ == "__main__":
