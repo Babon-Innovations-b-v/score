@@ -15,13 +15,18 @@ from diffusers import Flux2Pipeline
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 from paths import PICTURE_MODEL, PICTURES, make_directories  # noqa: E402
 
-# Composition only, and it says no ground four ways on purpose: anything else in the picture is
-# rebuilt as part of the prop, and a prop asked for in its setting comes back standing on a lump
-# of that setting.
-SHOT = ("clean 3D render of a single object centred on a plain light grey background, neutral "
-        "even studio lighting, no cast shadows, seen from above the front left corner so the top "
-        "surface and two sides are all clearly visible, whole object in frame, no ground, no "
-        "terrain, no scenery, no people")
+# Composition only, and it refuses the ground many ways on purpose. Anything else in the picture is
+# rebuilt as part of the prop, so a prop asked for in its setting comes back standing on a lump of
+# that setting. The plinth is the same fault wearing a studio coat: asked for a clean product shot
+# the model composes a display stand, and whatever the sentence names last and lowest becomes that
+# stand. A machine's working end, a drill point or a picker's grab, is named last and points down,
+# so it is exactly what gets flattened into a base plate. Hence "floating in empty space" and four
+# names for the thing we do not want under it.
+SHOT = ("clean 3D render of a single object floating in empty space, centred on a plain light grey "
+        "background, neutral even studio lighting, no cast shadows, seen from above the front left "
+        "corner so the top surface and two sides are all clearly visible, whole object in frame, "
+        "nothing underneath it, no plinth, no pedestal, no display stand, no base plate, no ground, "
+        "no terrain, no scenery, no people")
 
 # Appended by default, because the 3D step rebuilds form and not ornament. A prop whose character
 # is a different material passes its own with --form; the two below cover most of this game.
