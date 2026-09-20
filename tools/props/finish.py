@@ -68,8 +68,32 @@ def smooth_surfaces(mesh, angle_degrees):
     return labels
 
 
-def with_crease_normals(mesh, angle_degrees):
-    """Split the vertices sitting on a crease, so each side gets its own normal."""
+def averaged_to_flats(colours, steps):
+    """The generated colour, averaged into a handful of flat tones: the drawn effect.
+
+    The model returns colour that varies across a surface the way a photograph does. Sorting
+    those into a few groups and giving every vertex its group's colour keeps what the object
+    actually is, a rust-brown tank or a blue-green dome, and drops the speckle that reads as a
+    photograph rather than a drawing. Averaging per panel instead would be wrong: a dome is one
+    panel, and its glass and its frame would merge into a single grey.
+    """
+    from scipy.cluster.vq import kmeans2
+
+    usable = min(steps, len(np.unique(colours, axis=0)))
+    if usable < 2:
+        return np.repeat(colours.mean(axis=0)[None, :], len(colours), axis=0)
+    centres, labels = kmeans2(colours.astype(np.float64), usable, minit="++", seed=1)
+    # An empty group comes back as a nan centre; fall back to the colour already there.
+    centres = np.where(np.isfinite(centres), centres, colours.mean(axis=0))
+    return centres[labels]
+
+
+def with_crease_normals(mesh, angle_degrees, colours=None, steps=6):
+    """Split the vertices sitting on a crease, so each side gets its own normal.
+
+    With `colours` (one row per input vertex) the output also carries those colours averaged
+    into `steps` flat tones, which is how the generated colour becomes a drawn one.
+    """
     labels = smooth_surfaces(mesh, angle_degrees)
     faces = mesh.faces
     # One output vertex per (original vertex, smooth surface it belongs to).
@@ -83,9 +107,26 @@ def with_crease_normals(mesh, angle_degrees):
     lengths[lengths == 0] = 1.0
     normals /= lengths[:, None]
 
+    vertex_colours = None
+    if colours is not None:
+        flat = averaged_to_flats(colours[unique[:, 0]], steps)
+        vertex_colours = np.clip(flat * 255.0, 0, 255).astype(np.uint8)
+
     return trimesh.Trimesh(
         vertices=mesh.vertices[unique[:, 0]],
         faces=inverse.reshape(-1, 3),
         vertex_normals=normals,
+        vertex_colors=vertex_colours,
         process=False,
     )
+
+
+def carry_colour_across(dense_vertices, dense_colours, new_vertices):
+    """Move colour from the dense mesh onto the decimated one, by nearest point.
+
+    Decimation drops everything but positions, so the colour is looked up again afterwards.
+    """
+    from scipy.spatial import cKDTree
+
+    _, nearest = cKDTree(dense_vertices).query(new_vertices, k=1)
+    return dense_colours[nearest]

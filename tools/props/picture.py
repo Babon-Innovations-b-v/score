@@ -15,20 +15,32 @@ from diffusers import Flux2Pipeline
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 from paths import PICTURE_MODEL, PICTURES, make_directories  # noqa: E402
 
-SHOT = ("product photograph, single object centred, seen from above the front left corner so the "
-        "top surface and two sides are all clearly visible, plain light grey seamless background, "
-        "even soft studio lighting, no cast shadows, sharp focus throughout, whole object in frame")
+# Composition only, and it says no ground four ways on purpose: anything else in the picture is
+# rebuilt as part of the prop, and a prop asked for in its setting comes back standing on a lump
+# of that setting.
+SHOT = ("clean 3D render of a single object centred on a plain light grey background, neutral "
+        "even studio lighting, no cast shadows, seen from above the front left corner so the top "
+        "surface and two sides are all clearly visible, whole object in frame, no ground, no "
+        "terrain, no scenery, no people")
 
-# Appended to every prop, because the 3D step rebuilds form and not ornament.
+# Appended by default, because the 3D step rebuilds form and not ornament. A prop whose character
+# is a different material passes its own with --form; the two below cover most of this game.
 FORM = "built from thick solid panels, rigid and hard edged, plain, no logos, no text"
+# For anything that flew here. Asking for a plain solid object returns concrete furniture; this
+# returns spaceflight hardware, and every feature named is big enough to survive the rebuild.
+SPACE = ("spacecraft hardware, white thermal panels with visible panel lines and fasteners, "
+         "thick rigid panels, heavy bolted flanges, gold foil insulation, hard edged, industrial, "
+         "no text")
+GLASS = ("thick metal ribs with flat opaque dark teal panels set between them, rigid and hard "
+         "edged, no text")
 
 
-def make(sentence, name, seed, steps):
+def make(sentence, name, seed, steps, form=FORM, shot=SHOT):
     make_directories()
     pipeline = Flux2Pipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
     pipeline.enable_model_cpu_offload()
     image = pipeline(
-        prompt=f"{sentence}, {FORM}, {SHOT}",
+        prompt=f"{sentence}, {form}, {shot}",
         num_inference_steps=steps,
         guidance_scale=4.0,
         height=1024,
@@ -46,8 +58,10 @@ def main():
     parser.add_argument("sentence", help="what the prop is, in plain words")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--steps", type=int, default=28)
+    parser.add_argument("--form", default=FORM,
+                        help="What the prop is made of, when solid panels is the wrong answer.")
     args = parser.parse_args()
-    print(make(args.sentence, args.name, args.seed, args.steps))
+    print(make(args.sentence, args.name, args.seed, args.steps, args.form))
 
 
 if __name__ == "__main__":

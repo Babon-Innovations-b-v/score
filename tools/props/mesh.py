@@ -33,7 +33,7 @@ import trimesh  # noqa: E402
 from PIL import Image  # noqa: E402
 from trimesh.exchange.gltf import export_glb  # noqa: E402
 
-from finish import take_out_ripples, with_crease_normals  # noqa: E402
+from finish import carry_colour_across, take_out_ripples, with_crease_normals  # noqa: E402
 
 BANNED = ("nvdiffrast", "diffoctreerast", "diff_gaussian_rasterization")
 MODEL = "microsoft/TRELLIS-image-large"
@@ -70,13 +70,24 @@ def decimate(vertices, faces, budget):
     return fast_simplification.simplify(vertices, faces, 1.0 - budget / len(faces))
 
 
-def build(picture, name, faces_budget, seed, steps, smooth, crease):
-    from trellis.pipelines import TrellisImageTo3DPipeline
+_PIPELINE = None
 
+
+def loaded_pipeline():
+    """The model, loaded once. A batch of props otherwise spends as long loading as generating."""
+    global _PIPELINE
+    if _PIPELINE is None:
+        from trellis.pipelines import TrellisImageTo3DPipeline
+
+        _PIPELINE = TrellisImageTo3DPipeline.from_pretrained(MODEL)
+        _PIPELINE.cuda()
+    return _PIPELINE
+
+
+def build(picture, name, faces_budget, seed, steps, smooth, crease, colour=True):
     make_directories()
     started = time.time()
-    pipeline = TrellisImageTo3DPipeline.from_pretrained(MODEL)
-    pipeline.cuda()
+    pipeline = loaded_pipeline()
     loaded = time.time()
 
     result = pipeline.run(
@@ -93,21 +104,27 @@ def build(picture, name, faces_budget, seed, steps, smooth, crease):
     vertices = raw.vertices.detach().cpu().numpy().astype(np.float32)
     faces = raw.faces.detach().cpu().numpy().astype(np.int32)
     raw_faces = len(faces)
+    # The mesh decoder hands back colour per vertex alongside the normal. This is the whole
+    # reason we can keep the generated colour without baking a texture, which is the step that
+    # would have needed the non-commercial rasteriser.
+    colours = None
+    if colour and raw.vertex_attrs is not None:
+        colours = raw.vertex_attrs[:, :3].detach().cpu().numpy().astype(np.float32)
 
     # Smooth while the mesh is still dense: the ripples are small, and there are enough
     # triangles here to lose them without dragging the shape along.
     started_finish = time.time()
-    dense = trimesh.Trimesh(vertices=vertices, faces=faces, process=True)
-    dense.merge_vertices()
+    # process=False on purpose: welding would renumber the vertices and break the colour's
+    # correspondence with them. What comes out of the decoder is already a shared-vertex mesh.
+    dense = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
     take_out_ripples(dense, smooth, crease)
+    dense_vertices = np.ascontiguousarray(dense.vertices, dtype=np.float32)
     vertices, faces = decimate(
-        np.ascontiguousarray(dense.vertices, dtype=np.float32),
-        np.ascontiguousarray(dense.faces, dtype=np.int32),
-        faces_budget,
+        dense_vertices, np.ascontiguousarray(dense.faces, dtype=np.int32), faces_budget,
     )
-    low = trimesh.Trimesh(vertices=vertices @ TO_Y_UP, faces=faces, process=True)
-    low.merge_vertices()
-    out = with_crease_normals(low, crease)
+    carried = carry_colour_across(dense_vertices, colours, vertices) if colours is not None else None
+    low = trimesh.Trimesh(vertices=vertices @ TO_Y_UP, faces=faces, process=False)
+    out = with_crease_normals(low, crease, carried)
     finish_seconds = time.time() - started_finish
 
     path = MESHES / f"{name}.glb"
@@ -128,6 +145,7 @@ def build(picture, name, faces_budget, seed, steps, smooth, crease):
         "finish_seconds": round(finish_seconds, 1),
         "smooth_passes": smooth,
         "crease_degrees": crease,
+        "colour": "flat per panel, averaged from the generated colour" if colours is not None else "none",
         # TRELLIS normalises every prop into a unit box, so this is proportion, not size.
         # The real size is written down per prop kind when the engine imports it.
         "extent_unit_box": [round(float(value), 3) for value in out.extents],
@@ -149,13 +167,15 @@ def main():
                         help="Smoothing passes over the dense mesh; 0 leaves the ripples in.")
     parser.add_argument("--crease", type=float, default=40.0,
                         help="Folds sharper than this many degrees stay sharp.")
+    parser.add_argument("--no-colour", action="store_true",
+                        help="Leave the generated colour out; the prop is painted from tokens instead.")
     args = parser.parse_args()
 
     missing = ready()
     if missing:
         raise SystemExit("the prop tool chain is not built on this box:\n  " + "\n  ".join(missing))
-    print(json.dumps(build(args.picture, args.name, args.faces, args.seed,
-                           args.steps, args.smooth, args.crease), indent=1))
+    print(json.dumps(build(args.picture, args.name, args.faces, args.seed, args.steps,
+                           args.smooth, args.crease, not args.no_colour), indent=1))
 
 
 if __name__ == "__main__":

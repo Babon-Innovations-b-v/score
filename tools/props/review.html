@@ -135,7 +135,12 @@ function setupProp(entry) {
       model.traverse(node => { if (node.isMesh) meshes.push(node); });
       meshes.forEach(node => {
         if (!node.geometry.attributes.normal) node.geometry.computeVertexNormals();
-        node.material = new THREE.MeshLambertMaterial({ color: new THREE.Color(entry.colour) });
+        // The prop carries one flat colour per panel, averaged from the generated colour.
+        // Without it, everything is painted the one token colour instead.
+        const painted = !!node.geometry.attributes.color;
+        node.material = new THREE.MeshLambertMaterial(painted
+          ? { vertexColors: true }
+          : { color: new THREE.Color(entry.colour) });
         node.add(new THREE.Mesh(
           pushedOutAlongNormals(node.geometry, INK_SHELL),
           new THREE.MeshBasicMaterial({ color: new THREE.Color(INK), side: THREE.BackSide })));
