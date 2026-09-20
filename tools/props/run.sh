@@ -4,6 +4,7 @@
 #   bash tools/props/run.sh locker "a tall narrow storage locker with a flat door"
 #   bash tools/props/run.sh locker "..." 3          # three takes to choose between
 #   bash tools/props/run.sh --page locker bench     # rebuild the page for props already made
+#   bash tools/props/run.sh --import bench --long 1.8   # bring a made mesh into the game
 #
 # The tool chain itself is built once per box: docs/bible.md, workflow/bootstrap.
 set -uo pipefail
@@ -15,6 +16,13 @@ PYTHON="${PROPS_PYTHON:-$HOME/.farm-factory-props/env/bin/python}"
 fail() { printf '\nFAILED: %s\n' "$*" >&2; exit 1; }
 
 [ -x "$PYTHON" ] || fail "no prop environment at $PYTHON; see workflow/bootstrap in docs/bible.md"
+
+if [ "${1:-}" = "--import" ]; then
+  shift
+  [ $# -ge 1 ] || fail "name the prop to import"
+  "$PYTHON" "$HERE/import_prop.py" "$@" || fail "importing the prop"
+  exit 0
+fi
 
 if [ "${1:-}" = "--page" ]; then
   shift
