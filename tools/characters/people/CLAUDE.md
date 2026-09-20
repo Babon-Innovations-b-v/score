@@ -37,7 +37,8 @@ a `paths.py` of its own that would shadow this one's.
 
 ## What the gate can run
 
-`regions_test.py` only. The gate runs the tools' checks with the system python on a box with no
-graphics card and no tool chain built, so nothing it runs may import numpy, torch or soma. That
-is why which part of the body a joint belongs to lives in its own module with no dependencies:
-it is the part of this chain that can be pinned.
+`regions_test.py` and `glb_test.py`, and nothing else. The gate runs the tools' checks with the
+system python on a box with no graphics card and no tool chain built, so nothing it runs may
+import numpy, torch or soma. That is why the two pieces worth pinning, which part of the body a
+joint belongs to and whether a written file is well formed, live in modules with no dependencies
+at all.
