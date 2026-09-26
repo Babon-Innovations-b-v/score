@@ -294,11 +294,15 @@ def stand_over_the_node(local):
     return local, float(np.linalg.norm(off))
 
 
-def prepare_clip(world, parents, least_frames):
-    """One clip ready to ship: cut to a loop, standing still, against each joint's parent."""
+def prepare_clip(world, parents, least_frames, once=False):
+    """One clip ready to ship: cut to a loop, standing still, against each joint's parent.
+
+    A clip that plays once is kept whole: cutting it to a loop would cut out the very movement
+    it was written for.
+    """
     local = np.stack([against_parent(frame, parents) for frame in world])
     before = loop_gap(local)
-    (start, end), _ = best_loop(local, least_frames)
+    (start, end), _ = ((0, len(local)), 0.0) if once else best_loop(local, least_frames)
     local = local[start:end]
     local, travelled = take_the_travel_off(local)
     local, moved_back = stand_over_the_node(local)
@@ -445,9 +449,9 @@ def build(out_path, clip_names):
               f"worst vertex loses {lost*100:.2f}% of its weight")
 
     for name in clip_names:
-        world, _ = posed_by_the_model(near, MOTIONS / f"{name}.npz")
-        local, notes = prepare_clip(world[:, kept], parents, LEAST_FRAMES)
         import clips
+        world, _ = posed_by_the_model(near, MOTIONS / f"{name}.npz")
+        local, notes = prepare_clip(world[:, kept], parents, LEAST_FRAMES, name in clips.ONCE)
         notes["seconds"] = round(
             add_clip(contents, document, clips.in_game(name), local, joint_node), 2)
         notes["frames"] = int(local.shape[0])

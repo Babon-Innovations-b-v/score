@@ -75,7 +75,15 @@ SENTENCES = {
     "dragging": ("a person walking slowly backwards, bent forward at the waist, gripping "
                  "something heavy low in front of them with both hands and pulling it along the "
                  "ground", 6.0),
+    # Played once, not looped: the rescuer taking hold of a player lying on the ground before the
+    # drag (#83). Without it the drag started from a standing pose with the body already in the
+    # hands, which read as a glitch in the playtest (2026-09-26).
+    "lifting": ("a person bending down to grab something heavy lying on the ground in front of "
+                "them with both hands, then straightening up and lifting it to waist height", 3.0),
 }
+# Clips that play once rather than round and round: the build keeps them whole instead of cutting
+# them to a loop.
+ONCE = {"lifting"}
 
 
 # The name a clip carries in the game, where it differs from the file it was generated into.

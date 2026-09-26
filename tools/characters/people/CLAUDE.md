@@ -23,8 +23,9 @@ on the box as the record of what "too wide" looked like.
 
 ## What comes out, and what deliberately does not
 
-The build takes the travel off every clip, cuts each one to a stretch that runs round, drops the
-fingers into the wrist, and writes no material of any kind. Each of those is a decision with a
+The build takes the travel off every clip and moves the body back over its node, cuts each one to
+a stretch that runs round (except the clips in `clips.ONCE`, which play once and are kept whole),
+drops the fingers into the wrist, and writes no material of any kind. Each of those is a decision with a
 reason, and each reason is in `body.py`'s own header. Undoing one is fine; undoing one without
 reading why is how the walk ends up going through a wall again.
 
