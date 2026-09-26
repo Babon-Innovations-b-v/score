@@ -6,6 +6,8 @@
 #   bash tools/props/run.sh --form machine rover "..."  # a machine, not a plain solid prop
 #   bash tools/props/run.sh --page locker bench     # rebuild the page for props already made
 #   bash tools/props/run.sh --import bench --long 1.8   # bring a made mesh into the game
+#   bash tools/props/run.sh --part picker 2         # a robot part, from its brief in part_briefs.py
+#   bash tools/props/run.sh --import-part picker --mesh part-picker-2 --turn 90   # into the game
 #
 # The tool chain itself is built once per box: docs/bible.md, workflow/bootstrap.
 set -uo pipefail
@@ -25,6 +27,13 @@ if [ "${1:-}" = "--import" ]; then
   exit 0
 fi
 
+if [ "${1:-}" = "--import-part" ]; then
+  shift
+  [ $# -ge 1 ] || fail "name the part to import"
+  "$PYTHON" "$HERE/import_part.py" "$@" || fail "importing the part"
+  exit 0
+fi
+
 if [ "${1:-}" = "--page" ]; then
   shift
   [ $# -ge 1 ] || fail "name at least one prop to put on the page"
@@ -41,6 +50,17 @@ if [ "${1:-}" = "--form" ]; then
   FORM_NAME="${1:-}"
   shift
   [ -n "$FORM_NAME" ] || fail "name a form: machine, space or glass"
+fi
+
+# A robot part is asked for by its id: the sentence and the form are its brief, the form
+# `machine` unless the brief says otherwise.
+if [ "${1:-}" = "--part" ]; then
+  PART="${2:-}"
+  [ -n "$PART" ] || fail "name the part to make"
+  SENTENCE="$(cd "$HERE" && "$PYTHON" -c "import sys; from part_briefs import BRIEFS; print(BRIEFS[sys.argv[1]]['sentence'])" "$PART")" \
+    || fail "no brief for the part $PART in part_briefs.py"
+  FORM_NAME="$(cd "$HERE" && "$PYTHON" -c "import sys; from part_briefs import BRIEFS; print(BRIEFS[sys.argv[1]].get('form', 'machine'))" "$PART")"
+  set -- "part-$PART" "$SENTENCE" "${3:-1}"
 fi
 
 NAME="${1:-}"
