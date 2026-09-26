@@ -11,7 +11,8 @@ Four things this does that are easy to leave out and expensive to leave out:
 
 **It takes the travel off.** The generated walk carries six metres of real travel inside it. Left
 in, somebody working at a bench walks through a wall in five seconds. The body walks on the spot
-and the game moves the node, which is how every engine does it.
+and the game moves the node, which is how every engine does it. The spot is the node itself: the
+body is moved back over it once the travel is off, or it is drawn wherever the cut began.
 
 **It closes the loops.** No generated clip ends where it began, so it is cut to the two frames
 that match each other best and the small remaining drift is taken out along the way.
@@ -275,6 +276,24 @@ def take_the_travel_off(local):
     return local, float(np.linalg.norm(drift))
 
 
+def stand_over_the_node(local):
+    """Put the body over its own node: the hips' average place across the clip, at the middle.
+
+    Taking the travel off leaves the body wherever it had got to when the cut began, and a clip is
+    cut from the middle of what the motion model wrote. The walk was being drawn 2.17 m in front
+    of the point the game moves and the drag 0.69 m behind it, so somebody walking a round went
+    round corners on a two-metre arm, into the walls, and jumped two metres every time they
+    stopped to work (#36, found after the 2026-09-26 playtest). Only across the floor: the height
+    is the body's own.
+    """
+    local = local.copy()
+    hips = local[:, TRAVELLING_JOINT, :3, 3]
+    off = hips.mean(axis=0)
+    off[1] = 0.0
+    local[:, TRAVELLING_JOINT, :3, 3] = hips - off
+    return local, float(np.linalg.norm(off))
+
+
 def prepare_clip(world, parents, least_frames):
     """One clip ready to ship: cut to a loop, standing still, against each joint's parent."""
     local = np.stack([against_parent(frame, parents) for frame in world])
@@ -282,7 +301,9 @@ def prepare_clip(world, parents, least_frames):
     (start, end), _ = best_loop(local, least_frames)
     local = local[start:end]
     local, travelled = take_the_travel_off(local)
+    local, moved_back = stand_over_the_node(local)
     return local, {"cutFrom": start, "cutTo": end, "travelledMetres": round(travelled, 3),
+                   "movedBackMetres": round(moved_back, 3),
                    "loopGapWhole": round(before, 4), "loopGapCut": round(loop_gap(local), 4)}
 
 
@@ -433,6 +454,7 @@ def build(out_path, clip_names):
         report["clips"][name] = notes
         print(f"{name:9s}: {notes['frames']:3d} frames of {world.shape[0]}, {notes['seconds']}s, "
               f"took off {notes['travelledMetres']} m of travel, "
+              f"moved back {notes['movedBackMetres']} m over the node, "
               f"loop gap {notes['loopGapWhole']} -> {notes['loopGapCut']}")
 
     _, near_vertices = bind_pose(near)
