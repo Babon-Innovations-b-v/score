@@ -70,11 +70,19 @@ SENTENCES = {
                  "of them", 6.0),
     "reaching": ("a person reaching up with both hands to work on something above their head",
                  6.0),
+    "lying": ("a person lying flat on their back on the ground, limp and completely still",
+              5.0),
+    "dragging": ("a person walking slowly backwards, bent forward at the waist, gripping "
+                 "something heavy low in front of them with both hands and pulling it along the "
+                 "ground", 6.0),
 }
 
 
 # The name a clip carries in the game, where it differs from the file it was generated into.
 # `suit_e` is the sixth take; the first five are kept on the box as the record of what was tried.
+# The drag holds its hands at hip height, about a metre up. A second take asking for "bent far
+# forward, both hands down near their knees" came back standing straighter with the hands higher,
+# 1.1 m, so the first stands and the second is kept on the box as `dragging_b` (#83).
 IN_GAME = {"suit_e": "suit"}
 
 
