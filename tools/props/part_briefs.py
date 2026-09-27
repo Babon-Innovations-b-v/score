@@ -1,7 +1,8 @@
 """What each robot part is asked for, and the room it fills on the robot.
 
-One entry per model the bench draws: the greenhouse frame, and every part in
-`sim/robots/robot_parts.gd`. The three controller links are one generated mast, fitted into three
+One entry per model the game draws: the greenhouse frame and every part that fits it, which the
+bench draws, and the digger frame and its own parts, which are drawn at the dig site (#62 S14).
+The three controller links are one generated mast, fitted into three
 rooms of different heights. A part is made
 alone, in the locked Moon look, then fitted into its room, so parts made on
 different days still sit on one robot the same way.
@@ -163,6 +164,45 @@ BRIEFS = {
         "sentence": ("a small rack frame of four thick upright posts joined by a solid crossbar along "
                      "their tops"),
         "room": {"low": [-0.32, 0.0, -0.24], "high": [0.32, 0.43, 0.24]},
+        "fill": "within",
+    },
+    # The digger's frame and parts, made under the outside workstream's prefix (#62 S3) and fitted
+    # here once the simulation named them. The rooms are the digger's own: a 1.2 m by 1.8 m deck
+    # 0.3 m thick at axle height, wheels 0.6 m across outboard of it, the scoop resting on the
+    # ground ahead of the deck and the bin standing on its rear half. Game figures, the owner's to
+    # retune; the takes and their checksums are on #62.
+    "digger": {
+        "mesh": "outside_digger_frame-1",
+        "turn": 0,
+        "sentence": ("a long flat rectangular robot chassis box for a digging machine, a thick solid "
+                     "deck longer than it is wide, a sensor block across its front end"),
+        "room": {"low": [-0.6, 0.3, -0.9], "high": [0.6, 0.6, 0.9]},
+        "fill": "exact",
+    },
+    "digger_wheels": {
+        "mesh": "outside_digger_wheels-1",
+        "turn": 180,
+        "sentence": ("a single loose big heavy wheel on its own with a small motor block beside its "
+                     "hub, a deep treaded tyre on a solid metal disc hub"),
+        "room": {"low": [-0.9, -0.3, -0.3], "high": [-0.62, 0.3, 0.3]},
+        "fill": "within",
+        "wheel": True,
+        "form": "space",
+    },
+    "dig_scoop": {
+        "mesh": "outside_dig_scoop-1",
+        "turn": 0,
+        "sentence": ("a digging scoop bucket with an open front lip on the end of a short straight "
+                     "arm"),
+        "room": {"low": [-0.3, -0.35, -0.8], "high": [0.3, 0.1, 0.1]},
+        "fill": "within",
+    },
+    "regolith_bin": {
+        "mesh": "outside_regolith_bin-1",
+        "turn": 0,
+        "sentence": ("an open topped hopper bin with sloping sides, wider at its top than at its "
+                     "square base"),
+        "room": {"low": [-0.45, 0.0, -0.4], "high": [0.45, 0.8, 0.4]},
         "fill": "within",
     },
 }

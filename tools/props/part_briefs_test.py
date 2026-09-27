@@ -1,11 +1,10 @@
-"""Check the robot part briefs against the parts the workshop bench draws.
+"""Check the robot part briefs against the frames and parts the game draws.
 
-The bench draws the greenhouse frame and every part that fits it: one on the frame's own mounts,
-or on a mount a part that fits it adds. A part the bench can fit and the briefs do not know is a
-part nobody can make a model for; a brief for a part the bench never draws is left over. Both are
-caught here rather than at the bench. The digger's frame and parts fit no greenhouse robot and are
-drawn outside, so they are not the bench's. Plain script, system python, no numpy, like the card
-lock's check.
+The bench draws the greenhouse frame and every part that fits it, and the dig site draws the
+digger frame and every part that fits it: one on a frame's own mounts, or on a mount a part that
+fits it adds. A part the game can draw and the briefs do not know is a part nobody can make a model
+for; a brief for a part the game never draws is left over. Both are caught here rather than in the
+game. Plain script, system python, no numpy, like the card lock's check.
 
 Run: python3 tools/props/part_briefs_test.py
 """
@@ -25,8 +24,8 @@ ENTRY = re.compile(r'^\t"([a-z0-9_]+)": \{$', re.MULTILINE)
 KIND = re.compile(r'"[a-z0-9_]+": "([a-z_]+)"')
 # The mount kind a part fits.
 MOUNT = re.compile(r'"mount": "([a-z_]+)"')
-# The frame the bench builds on.
-BENCH_FRAME = "greenhouse"
+# The frames the game draws: the one the bench builds on, and the digger at the dig site.
+DRAWN_FRAMES = ("greenhouse", "digger")
 FILLS = ("within", "exact")
 # The forms picture.py names; it needs torch to import, so they are written down here too.
 FORMS = ("machine", "space", "glass")
@@ -58,10 +57,17 @@ def added_kinds(part):
     return KIND.findall(line)
 
 
-def drawn_at_the_bench():
-    """The bench's frame and every part that fits it, the way RobotParts.fits_frame reads them."""
+def drawn_by_the_game():
+    """Every frame the game draws and every part that fits one of them."""
     frames, parts = frames_and_parts()
-    frame = frames[BENCH_FRAME]
+    drawn = set()
+    for frame_id in DRAWN_FRAMES:
+        drawn |= fitting_the_frame(frames[frame_id], parts) | {frame_id}
+    return drawn
+
+
+def fitting_the_frame(frame, parts):
+    """Every part that fits a frame, the way RobotParts.fits_frame reads them."""
     kinds = set(KIND.findall(frame[frame.index('"mounts"'):]))
     grew = True
     while grew:
@@ -70,17 +76,16 @@ def drawn_at_the_bench():
             if MOUNT.search(part).group(1) in kinds and not set(added_kinds(part)) <= kinds:
                 kinds |= set(added_kinds(part))
                 grew = True
-    fitting = {part_id for part_id, part in parts.items() if MOUNT.search(part).group(1) in kinds}
-    return fitting | {BENCH_FRAME}
+    return {part_id for part_id, part in parts.items() if MOUNT.search(part).group(1) in kinds}
 
 
 def complaints():
     found = []
-    named = drawn_at_the_bench()
+    named = drawn_by_the_game()
     for missing in sorted(named - set(BRIEFS)):
-        found.append(f"{missing}: the bench draws it and there is no brief to make its model")
+        found.append(f"{missing}: the game draws it and there is no brief to make its model")
     for extra in sorted(set(BRIEFS) - named):
-        found.append(f"{extra}: a brief for something the bench does not draw")
+        found.append(f"{extra}: a brief for something the game does not draw")
     for part, brief in BRIEFS.items():
         if not brief.get("sentence"):
             found.append(f"{part}: no sentence")
