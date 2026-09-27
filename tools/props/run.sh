@@ -10,6 +10,10 @@
 #   bash tools/props/run.sh --import-part picker --mesh part-picker-2 --turn 90   # into the game
 #   bash tools/props/run.sh --straighten locker-2 --finish 0=solar   # redo one take's parts by hand
 #
+# Every take comes as the lump and as <take>-straight. Neither is a default: never swap a -straight
+# take into the game without showing the owner both side by side first. It helped the craft and
+# made six outside props worse (the owner, 2026-09-27).
+#
 # The tool chain itself is built once per box: docs/bible.md, workflow/bootstrap.
 set -uo pipefail
 
