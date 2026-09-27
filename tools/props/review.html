@@ -104,17 +104,23 @@ function pushedOutAlongNormals(geometry, distance) {
   return shell;
 }
 
+// One WebGL renderer for the whole page. A browser keeps only about 16 WebGL contexts alive, so a
+// renderer per pane loses the first props on the page; here each pane is a plain 2D canvas and
+// the shared renderer draws into it only while it is on screen.
+const shared = new THREE.WebGLRenderer({ antialias: true });
+shared.setPixelRatio(1);
+const views = [];
+
 function setupProp(entry) {
   const holder = document.getElementById('view-' + entry.name);
   if (!holder) return;
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  holder.appendChild(renderer.domElement);
+  const canvas = document.createElement('canvas');
+  holder.appendChild(canvas);
+  const context = canvas.getContext('2d');
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(entry.background);
   const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
-
   // Flat, even light: in this look the ink line does the shaping, not the shadow.
   scene.add(new THREE.AmbientLight(0xffffff, 0.62));
   const key = new THREE.DirectionalLight(0xffffff, 0.75);
@@ -126,7 +132,9 @@ function setupProp(entry) {
 
   const pivot = new THREE.Group();
   scene.add(pivot);
-  let turn = entry.turn, tilt = 0.05, dragging = false, lastX = 0, lastY = 0, idle = true, radius = 1;
+  const view = { holder, canvas, context, scene, camera, pivot, turn: entry.turn, tilt: 0.05,
+                 dragging: false, lastX: 0, lastY: 0, idle: true, radius: 1, visible: false };
+  views.push(view);
 
   new THREE.GLTFLoader().parse(
     Uint8Array.from(atob(entry.glb), c => c.charCodeAt(0)).buffer, '', gltf => {
@@ -150,48 +158,57 @@ function setupProp(entry) {
       model.position.sub(box.getCenter(new THREE.Vector3()));
       pivot.add(model);
       // Far enough back that the prop fits however the pane is shaped, and stays framed as it turns.
-      radius = 0.5 * Math.max(size.y, Math.hypot(size.x, size.z));
-      resize();
-    });
+      view.radius = 0.5 * Math.max(size.y, Math.hypot(size.x, size.z));
+    }, () => { holder.insertAdjacentHTML('beforeend', '<p class="hint">could not load this prop</p>'); });
 
   holder.addEventListener('pointerdown', event => {
-    dragging = true; idle = false; lastX = event.clientX; lastY = event.clientY;
+    view.dragging = true; view.idle = false; view.lastX = event.clientX; view.lastY = event.clientY;
     holder.setPointerCapture(event.pointerId);
   });
   holder.addEventListener('pointermove', event => {
-    if (!dragging) return;
-    turn += (event.clientX - lastX) * 0.01;
-    tilt = Math.max(-1.1, Math.min(1.1, tilt + (event.clientY - lastY) * 0.008));
-    lastX = event.clientX; lastY = event.clientY;
+    if (!view.dragging) return;
+    view.turn += (event.clientX - view.lastX) * 0.01;
+    view.tilt = Math.max(-1.1, Math.min(1.1, view.tilt + (event.clientY - view.lastY) * 0.008));
+    view.lastX = event.clientX; view.lastY = event.clientY;
   });
   holder.addEventListener('pointerup', event => {
-    dragging = false; holder.releasePointerCapture(event.pointerId);
+    view.dragging = false; holder.releasePointerCapture(event.pointerId);
   });
+}
 
-  function resize() {
-    const width = holder.clientWidth, height = holder.clientHeight;
-    if (!width || !height) return;
-    renderer.setSize(width, height, false);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-    const vertical = THREE.MathUtils.degToRad(camera.fov) / 2;
-    const horizontal = Math.atan(Math.tan(vertical) * camera.aspect);
-    camera.position.set(0, radius * 0.22, radius / Math.sin(Math.min(vertical, horizontal)) * 1.2);
-    camera.lookAt(0, 0, 0);
+function drawView(view) {
+  const ratio = Math.min(devicePixelRatio, 2);
+  const width = Math.round(view.holder.clientWidth * ratio);
+  const height = Math.round(view.holder.clientHeight * ratio);
+  if (!width || !height) return;
+  if (view.canvas.width !== width || view.canvas.height !== height) {
+    view.canvas.width = width; view.canvas.height = height;
   }
-  addEventListener('resize', resize);
-  resize();
-
-  (function frame() {
-    requestAnimationFrame(frame);
-    if (idle) turn += 0.0035;
-    pivot.rotation.y = turn;
-    pivot.rotation.x = tilt;
-    renderer.render(scene, camera);
-  })();
+  shared.setSize(width, height, false);
+  const camera = view.camera;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  const vertical = THREE.MathUtils.degToRad(camera.fov) / 2;
+  const horizontal = Math.atan(Math.tan(vertical) * camera.aspect);
+  camera.position.set(0, view.radius * 0.22, view.radius / Math.sin(Math.min(vertical, horizontal)) * 1.2);
+  camera.lookAt(0, 0, 0);
+  if (view.idle) view.turn += 0.0035;
+  view.pivot.rotation.y = view.turn;
+  view.pivot.rotation.x = view.tilt;
+  shared.render(view.scene, camera);
+  view.context.drawImage(shared.domElement, 0, 0);
 }
 
 PROPS.forEach(setupProp);
+const watcher = new IntersectionObserver(entries => entries.forEach(item => {
+  const view = views.find(candidate => candidate.holder === item.target);
+  if (view) view.visible = item.isIntersecting;
+}), { rootMargin: '200px' });
+views.forEach(view => watcher.observe(view.holder));
+(function frame() {
+  requestAnimationFrame(frame);
+  views.forEach(view => { if (view.visible) drawView(view); });
+})();
 </script>
 </body>
 </html>
