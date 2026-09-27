@@ -32,6 +32,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import dress  # noqa: E402
 import glb  # noqa: E402
 import numpy as np  # noqa: E402
 import regions  # noqa: E402
@@ -351,6 +352,51 @@ def add_mesh(contents, document, bind_vertices, faces, weights, joint_names, sur
     return len(document["meshes"]) - 1, counts, lost
 
 
+def the_body_at(layer, carries, kept_count):
+    """The body at its bind pose: vertices in metres, triangles, and weights on the kept joints."""
+    _, vertices = bind_pose(layer)
+    faces = layer.faces.detach().numpy().astype(np.uint32)
+    weights = merge_weights(layer.public_skinning_weights().detach().numpy().astype(np.float64),
+                            carries, kept_count)
+    return vertices, faces, weights
+
+
+def add_pieces(contents, document, pieces):
+    """Put a dressed body in the file: one primitive a surface, its pieces joined into it."""
+    by_surface = {}
+    for surface, points, faces, weights in pieces:
+        if not len(faces):
+            continue
+        by_surface.setdefault(surface, []).append((points, faces, weights))
+    names = [material["name"] for material in document["materials"]]
+    primitives, counts = [], {}
+    for surface, parts in by_surface.items():
+        offsets = np.cumsum([0] + [len(points) for points, _, _ in parts[:-1]])
+        points = np.concatenate([part[0] for part in parts])
+        faces = np.concatenate([part[1] + offset for part, offset in zip(parts, offsets)])
+        weights = np.concatenate([part[2] for part in parts])
+        order, kept, _ = strongest_joints(weights, JOINTS_A_VERTEX)
+        normals = smooth_normals(points, faces)
+        counts[surface] = len(faces)
+        primitives.append({
+            "attributes": {
+                "POSITION": contents.reading(points.astype(np.float32).ravel().tolist(), "VEC3",
+                                             glb.FLOAT, glb.ARRAY_BUFFER, with_bounds=True),
+                "NORMAL": contents.reading(normals.astype(np.float32).ravel().tolist(), "VEC3",
+                                           glb.FLOAT, glb.ARRAY_BUFFER),
+                "JOINTS_0": contents.reading(order.astype(np.uint16).ravel().tolist(), "VEC4",
+                                             glb.UNSIGNED_SHORT, glb.ARRAY_BUFFER),
+                "WEIGHTS_0": contents.reading(kept.astype(np.float32).ravel().tolist(), "VEC4",
+                                              glb.FLOAT, glb.ARRAY_BUFFER),
+            },
+            "indices": contents.reading(faces.reshape(-1).astype(np.uint32).tolist(), "SCALAR",
+                                        glb.UNSIGNED_INT, glb.ELEMENT_ARRAY_BUFFER),
+            "material": names.index(surface),
+        })
+    document["meshes"].append({"primitives": primitives})
+    return len(document["meshes"]) - 1, counts
+
+
 def add_clip(contents, document, name, local, joint_node):
     """Put one clip in the file: a turn a frame for every joint, and the body's own sway."""
     frames = local.shape[0]
@@ -390,6 +436,8 @@ def build(out_path, clip_names):
     print(f"skeleton: {len(joint_names)} joints kept of {len(all_names)}")
 
     bind_world, _ = bind_pose(near)
+    eyes = {side: bind_world[all_names.index(name)][:3, 3]
+            for side, name in ((1, "LeftEye"), (-1, "RightEye"))}
     bind_world = bind_world[kept]
     inverse_bind = np.linalg.inv(bind_world)
     surface_names = regions.surfaces(joint_names)
@@ -405,6 +453,14 @@ def build(out_path, clip_names):
         # and the scene puts a shared material from game/art/materials/ over every one of them.
         "materials": [{"name": name} for name in surface_names],
     }
+    near_vertices, near_faces, near_weights = the_body_at(near, carries, len(joint_names))
+    dressable = dress.Body(near_vertices, near_faces.astype(np.int64), near_weights, joint_names,
+                           bind_world, eyes)
+    outfits = {"work": dress.work_suit(dressable), "suit": dress.space_suit(dressable)}
+    for pieces in outfits.values():
+        for surface, _, _, _ in pieces:
+            if surface not in [material["name"] for material in document["materials"]]:
+                document["materials"].append({"name": surface})
     contents = glb.Contents()
 
     # Node 0 is the whole person, turned half a circle: the body model builds people facing +z
@@ -433,7 +489,8 @@ def build(out_path, clip_names):
     })
 
     report = {"joints": len(joint_names), "surfaces": {}, "levels": {}, "clips": {}}
-    for level, layer in layers.items():
+    # The distant body stays bare, in its three colour zones: nobody reads a belt at twelve metres.
+    for level, layer in (("far", layers["far"]),):
         _, vertices = bind_pose(layer)
         faces = layer.faces.detach().numpy().astype(np.uint32)
         weights = merge_weights(layer.public_skinning_weights().detach().numpy().astype(np.float64),
@@ -447,6 +504,14 @@ def build(out_path, clip_names):
         report["surfaces"][level] = counts
         print(f"{level:5s}: {len(vertices):5d} vertices, {len(faces):5d} triangles, {counts}, "
               f"worst vertex loses {lost*100:.2f}% of its weight")
+
+    for outfit, pieces in outfits.items():
+        mesh, counts = add_pieces(contents, document, pieces)
+        document["nodes"].append({"name": outfit, "mesh": mesh, "skin": 0})
+        document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
+        report["levels"][outfit] = {"triangles": sum(counts.values())}
+        report["surfaces"][outfit] = counts
+        print(f"{outfit:5s}: {sum(counts.values()):5d} triangles over {len(counts)} surfaces")
 
     for name in clip_names:
         import clips

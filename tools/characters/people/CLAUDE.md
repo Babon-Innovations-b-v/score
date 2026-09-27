@@ -25,8 +25,10 @@ on the box as the record of what "too wide" looked like.
 
 The build takes the travel off every clip and moves the body back over its node, cuts each one to
 a stretch that runs round (except the clips in `clips.ONCE`, which play once and are kept whole),
-drops the fingers into the wrist, and writes no material of any kind. Each of those is a decision with a
-reason, and each reason is in `body.py`'s own header. Undoing one is fine; undoing one without
+drops the fingers into the wrist, dresses the body in two outfits (`dress.py`: the work suit and
+the space suit, both a placeholder for the crew's final look), and writes no material of any
+kind. Each of those is a decision with a reason, and each reason is in `body.py`'s or
+`dress.py`'s own header. Undoing one is fine; undoing one without
 reading why is how the walk ends up going through a wall again.
 
 ## Two chains, one graphics card
