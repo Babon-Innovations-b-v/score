@@ -65,6 +65,16 @@ def piece_of_each_face(mesh, hulls):
     return piece
 
 
+def seen_parts(hulls, piece):
+    """The parts at least one surface face belongs to, and each face's part renumbered to match.
+    A piece the cutter left wholly inside others owns no face: nothing can see it, and it has no
+    finish to take, so it goes."""
+    owned = np.unique(piece)
+    renumber = np.full(len(hulls), -1)
+    renumber[owned] = np.arange(len(owned))
+    return [hulls[index] for index in owned], renumber[piece]
+
+
 def finish_shares(mesh, finish, piece, count):
     """For each piece, its finishes with the share of its area each covers, most first."""
     kinds = sorted(set(finish))

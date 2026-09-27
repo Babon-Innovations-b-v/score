@@ -26,7 +26,7 @@ except ImportError:
 
 sys.path.insert(0, str(HERE))
 from denoise import denoise  # noqa: E402
-from parts import adopt, choose, join  # noqa: E402
+from parts import adopt, choose, join, seen_parts  # noqa: E402
 from straighten import named  # noqa: E402
 
 _failures = []
@@ -88,6 +88,13 @@ def ironing_flattens_a_wall_but_keeps_its_corner():
           abs(np.ptp(ironed.vertices[:, 0]) - 2) < 0.1)
 
 
+def a_part_no_face_belongs_to_goes():
+    outer, inner, other = box([0, 0, 0], [2, 2, 2]), box([0.5, 0.5, 0.5], [1, 1, 1]), box([3, 0, 0], [4, 1, 1])
+    kept, piece = seen_parts([outer, inner, other], np.array([0, 0, 2, 2]))
+    check("a part hidden inside others is dropped", len(kept) == 2)
+    check("faces point at the parts that are left", list(piece) == [0, 0, 1, 1])
+
+
 def names_follow_colour_unless_told():
     colours = np.array([[0.86, 0.64, 0.24], [0.9, 0.91, 0.9]])
     group = np.array([0, 1])
@@ -101,6 +108,7 @@ different_finishes_never_join()
 solar_needs_a_clear_majority()
 a_stray_blob_takes_its_neighbours_finish()
 ironing_flattens_a_wall_but_keeps_its_corner()
+a_part_no_face_belongs_to_goes()
 names_follow_colour_unless_told()
 
 if _failures:

@@ -38,7 +38,7 @@ from scipy.sparse.csgraph import connected_components  # noqa: E402
 
 from denoise import denoise  # noqa: E402
 from finish import take_out_ripples  # noqa: E402
-from parts import adopt, choose, cut, finish_shares, join, piece_of_each_face, thinned  # noqa: E402
+from parts import adopt, choose, cut, finish_shares, join, piece_of_each_face, seen_parts, thinned  # noqa: E402
 
 # The finishes a part can take, as the colour each is painted. The look draws them matte with ink
 # lines; the names stay in the report so a finish can be mapped to a token later.
@@ -168,9 +168,9 @@ def straighten(name, overrides, threshold, strength):
     group = colour_groups(mesh, colours)
     names = named(colours, group, overrides)
     hulls = cut(mesh, threshold)
-    ranked = finish_shares(mesh, np.array([names[index] for index in group], dtype=object),
-                           piece_of_each_face(mesh, hulls), len(hulls))
     cut_count = len(hulls)
+    hulls, piece = seen_parts(hulls, piece_of_each_face(mesh, hulls))
+    ranked = finish_shares(mesh, np.array([names[index] for index in group], dtype=object), piece, len(hulls))
     hulls, chosen = join(hulls, adopt(hulls, choose(ranked)))
     out = painted([thinned(hull) for hull in hulls], chosen)
     target = MESHES / f"{name}-straight.glb"
