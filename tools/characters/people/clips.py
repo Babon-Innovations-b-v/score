@@ -52,7 +52,7 @@ MODEL = "Kimodo-SOMA-RP-v1.1"
 # reading moves to the processor. Without this the run dies out of memory.
 ON_THE_PROCESSOR = {"TEXT_ENCODER_DEVICE": "cpu"}
 
-# What the crew do in the base, and what the prologue's crowd do on Earth. Every clip earns its
+# What the crew do in the base, and what the leader does on his podium in the prologue. Every clip earns its
 # place: this is a set, not a library.
 SENTENCES = {
     "standing": ("a person standing still and relaxed, shifting their weight slightly", 5.0),
