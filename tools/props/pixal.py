@@ -7,7 +7,8 @@ Four steps, and only the second touches the graphics card:
 1. Cut the subject out of its background (BiRefNet-lite, on the processor).
 2. Build the model with Pixal3D (image-to-3dlab's pixal3d_generate.py, --steps 12 --gss 10). This
    step alone holds the card, through card.claimed(), so runs from every session queue instead of
-   colliding, and it lets go as soon as the generator starts writing its file. Two runs on one card crash the box, which is why nothing else may call
+   colliding, and it lets go as soon as the generator starts writing its file. Two Pixal3D runs
+   may share the card (measured safe, card.py); a third, or a picture run, waits. Two runs on one card crash the box, which is why nothing else may call
    image-to-3dlab's generator or trellis-cli directly.
 3. Finish it: retopo_repaint.py thins it to --faces and bakes the base colour, detail and metal
    maps back on, in Blender on the processor.
@@ -62,7 +63,7 @@ def generate(cut, raw, seed, who):
     command = [str(LAB_PYTHON), "scripts/pixal3d_generate.py", cut, str(raw), "--seed", str(seed),
                "--steps", str(STEPS), "--gss", str(GUIDANCE)]
     with contextlib.ExitStack() as card:
-        card.enter_context(claimed(f"Pixal3D {raw.stem} for {who}"))
+        card.enter_context(claimed(f"Pixal3D {raw.stem} for {who}", shared=True))
         with subprocess.Popen(command, cwd=IMAGE_TO_3DLAB, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, text=True, bufsize=1) as run:
             for line in run.stdout:

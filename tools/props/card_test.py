@@ -41,6 +41,7 @@ def quietly(line):
 
 def test_it_claims_the_card_and_gives_it_back():
     card.CLAIM.unlink(missing_ok=True)
+    card.SECOND_CLAIM.unlink(missing_ok=True)
     with card.claimed("a run", say=quietly):
         claimed = card.CLAIM.exists() and str(os.getpid()) in card.CLAIM.read_text()
     check("claims the card, then gives it back", claimed and not card.CLAIM.exists())
@@ -107,6 +108,59 @@ def test_it_gives_the_card_back_when_the_run_throws():
     except RuntimeError:
         pass
     check("gives the card back when the run inside it throws", not card.CLAIM.exists())
+
+
+def _sleeper(seconds):
+    return subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({seconds})"])
+
+
+def test_two_pixal_runs_share_the_card():
+    holder = _sleeper(3)
+    card.SECOND_CLAIM.unlink(missing_ok=True)
+    card.CLAIM.write_text(f"{holder.pid} {card.SHARES}another model")
+    started = time.time()
+    with card.claimed("a second model", say=quietly, shared=True):
+        waited = time.time() - started
+        second = card.SECOND_CLAIM.exists() and str(os.getpid()) in card.SECOND_CLAIM.read_text()
+    holder.wait()
+    card.CLAIM.unlink(missing_ok=True)
+    check("a second model run shares the card with the first", waited < 1 and second)
+    check("the second slot is given back", not card.SECOND_CLAIM.exists())
+
+
+def test_a_run_that_shares_waits_for_one_that_must_be_alone():
+    holder = _sleeper(3)
+    card.CLAIM.write_text(f"{holder.pid} a picture")
+    started = time.time()
+    with card.claimed("a model", say=quietly, shared=True):
+        waited = time.time() - started
+    holder.wait()
+    check("a model run waits for a picture run", waited > 2.5)
+
+
+def test_a_run_that_must_be_alone_waits_for_both_models():
+    first, second = _sleeper(2), _sleeper(4)
+    card.CLAIM.write_text(f"{first.pid} {card.SHARES}a model")
+    card.SECOND_CLAIM.write_text(f"{second.pid} {card.SHARES}another model")
+    started = time.time()
+    with card.claimed("a picture", say=quietly):
+        waited = time.time() - started
+        alone = not card.SECOND_CLAIM.exists() or card._read_claim(card.SECOND_CLAIM) is None
+    first.wait()
+    second.wait()
+    check("a picture run waits until both model runs are done", waited > 3.5 and alone)
+
+
+def test_a_third_model_waits():
+    first, second = _sleeper(3), _sleeper(3)
+    card.CLAIM.write_text(f"{first.pid} {card.SHARES}a model")
+    card.SECOND_CLAIM.write_text(f"{second.pid} {card.SHARES}another model")
+    started = time.time()
+    with card.claimed("a third model", say=quietly, shared=True):
+        waited = time.time() - started
+    first.wait()
+    second.wait()
+    check("a third model run waits for a free slot", waited > 2.5)
 
 
 def main():

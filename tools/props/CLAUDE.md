@@ -8,6 +8,10 @@ that brings it into the game. The heavy runtime lives outside the repo, under `~
 - **Pixal3D runs only through `pixal.py`.** Never call image-to-3dlab's `pixal3d_generate.py` or
   `trellis-cli` directly, from any session. Two runs on one graphics card crash the box, and
   `pixal.py` is what holds the card through `card.claimed()` while its generator runs.
+- **Two Pixal3D runs may share the card; nothing else shares.** Measured 2026-09-28: two bulky
+  models 60 s apart peaked at 12.4 of 16.3 GB, both whole, the pair 30% faster than one after
+  the other. `pixal.py` claims with `shared=True`; a picture, mesh or motion run holds the card
+  alone. Never add `shared=True` to anything that was not measured beside a Pixal3D run.
 - **Hold the card only while it works.** The cut-out, the finish (Blender) and the upright and
   padding steps run on the processor, outside the claim, so the next session's generator can
   start. Anything new that runs on the card goes inside `card.claimed()`; nothing else does.
