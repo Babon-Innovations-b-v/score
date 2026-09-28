@@ -13,7 +13,7 @@ to join itself with no click in three ways, one per kind of material in it:
 - **A tone** has a whole number of cycles in the file, so its last sample runs into its first.
 - **Noise** is filtered around the buffer as a ring: the filter runs over it twice and keeps the
   second pass, so its state at the end is the state the start was filtered with.
-- **Anything with gaps** (breaths, ticks) is silent at the join, or wraps its tail to the start.
+- **Anything with gaps** (ticks, beeps) is silent at the join, or wraps its tail to the start.
 
 A loop also carries a WAV `smpl` chunk marking the whole file as the loop, which Godot's importer
 reads ("Detect From WAV"), so the engine loops it itself instead of restarting it when it ends.
@@ -121,18 +121,6 @@ def to_peak(signal, decibels):
     return scaled(signal, 10.0 ** (decibels / 20.0) / loudest)
 
 
-def breath(seconds, low, high, rise, generator):
-    """One breath: band-passed noise swelling up for `rise` of its length and easing away."""
-    length = round(seconds * RATE)
-    air = band(white_noise(length, generator), low, high)
-    peak = rise * length
-    envelope = [
-        math.sin(0.5 * math.pi * index / peak) ** 2 if index < peak
-        else math.cos(0.5 * math.pi * (index - peak) / (length - peak)) ** 2
-        for index in range(length)
-    ]
-    return shaped(air, envelope)
-
 
 # --- the sounds ------------------------------------------------------------------------------
 
@@ -152,28 +140,7 @@ def base_hum(generator):
     return to_peak(mix(shaped(hum, swell), air), -12.0), True
 
 
-def radio_click(generator, closing):
-    """Push to talk: a hard key click, then a short burst of carrier hiss (longer on release)."""
-    tail_seconds = 0.16 if closing else 0.07
-    length = round((0.03 + tail_seconds) * RATE)
-    click = shaped(band(white_noise(length, generator), 800.0, 6000.0), attack_decay(length, 0.0005, 0.004))
-    hiss = band(white_noise(length, generator), 400.0, 3200.0)
-    hiss_envelope = [
-        0.0 if index < 0.004 * RATE else 0.35 * math.exp(-(index - 0.004 * RATE) / (tail_seconds * 0.4 * RATE))
-        for index in range(length)
-    ]
-    body = mix(scaled(click, 3.0), shaped(hiss, hiss_envelope))
-    return to_peak(faded(body, 0.0005, 0.01), -8.0), False
 
-
-def radio_click_in(generator):
-    """The key-down click as the radio opens."""
-    return radio_click(generator, closing=False)
-
-
-def radio_click_out(generator):
-    """The key-up click as the radio closes, with a longer hiss tail."""
-    return radio_click(generator, closing=True)
 
 
 def radio_squelch(generator):
@@ -188,38 +155,8 @@ def radio_squelch(generator):
     return to_peak(faded(body, 0.004, 0.05), -10.0), False
 
 
-def breathing(generator, cycle, inhale, exhale, repeats, brightness):
-    """A breathing loop: inhale, pause, exhale, pause, repeated, silent at the join."""
-    out = []
-    for _ in range(repeats):
-        wobble = generator.uniform(0.94, 1.06)
-        breath_in = breath(inhale * wobble, 300.0, 1500.0 * brightness, 0.6, generator)
-        breath_out = scaled(breath(exhale * wobble, 180.0, 1000.0 * brightness, 0.3, generator), 0.8)
-        gap = (cycle - inhale * wobble - exhale * wobble) / 2.0
-        out += breath_in + silence(gap) + breath_out + silence(gap)
-    return out
 
 
-def suit_breathing(generator):
-    """Calm breathing inside the helmet, about twelve breaths a minute."""
-    loop = breathing(generator, cycle=4.8, inhale=1.7, exhale=2.2, repeats=3, brightness=1.0)
-    return to_peak(loop, -14.0), True
-
-
-def suit_breathing_exerted(generator):
-    """Harder breathing after effort, about twenty-seven a minute, brighter and fuller."""
-    loop = breathing(generator, cycle=2.2, inhale=0.8, exhale=1.0, repeats=6, brightness=1.6)
-    return to_peak(loop, -11.0), True
-
-
-def suit_fans(generator):
-    """The suit's circulation fans: a soft airy rush with a low blade hum and a faint motor whine."""
-    seconds = 6.0
-    length = round(seconds * RATE)
-    rush = band(white_noise(length, generator), 150.0, 2500.0, True)
-    blades = mix(tone(185.0, seconds, 0.06), tone(370.0, seconds, 0.02, 1.1))
-    whine = tone(1480.0, seconds, 0.008)
-    return to_peak(mix(scaled(rush, 1.0), blades, whine), -16.0), True
 
 
 def warning_tone(generator):
@@ -266,12 +203,7 @@ def oxygen_low(generator):
 
 SOUNDS = {
     "base_hum": base_hum,
-    "radio_click_in": radio_click_in,
-    "radio_click_out": radio_click_out,
     "radio_squelch": radio_squelch,
-    "suit_breathing": suit_breathing,
-    "suit_breathing_exerted": suit_breathing_exerted,
-    "suit_fans": suit_fans,
     "warning_tone": warning_tone,
     "geiger_ticks": geiger_ticks,
     "oxygen_low": oxygen_low,
