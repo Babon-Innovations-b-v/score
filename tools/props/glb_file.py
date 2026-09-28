@@ -24,6 +24,8 @@ from scipy.ndimage import binary_erosion, distance_transform_edt
 EDGE_RING = 1
 # How far from straight down the face a model settles on may point once it is stood up.
 RESTING_DEGREES = 35
+# A round body's axis is read from this many slices of it, from this share of its height up.
+TUBE_SLICES, TUBE_FROM = 6, 0.45
 
 FLOAT = 5126
 INDEX_KINDS = {5121: np.uint8, 5123: np.uint16, 5125: np.uint32}
@@ -127,19 +129,23 @@ def box_sides(points):
     return sides[np.argsort(-np.asarray(extents))]
 
 
-def upright_turn(points, long=False, feet=False):
+def upright_turn(points, long=False, feet=False, tube=False):
     """The turn that stands a model up.
 
     By default the box side pointing nearest to up becomes straight up. `long` stands it on its
     longest side instead (a tall rocket, whose splayed legs can make another side look more
     upright). `feet` then sets it down on the face it would settle on (`resting_face`), so a model
-    on legs stands on its footpads. Last, it is squared to the ground (`squared`).
+    on legs stands on its footpads. `tube` then stands a round body's own axis straight up
+    (`tube_axis`), for a rocket section, whose fins and side boxes fool the other two. Last, it is
+    squared to the ground (`squared`).
     """
     sides = box_sides(points)
     side = sides[0] if long else sides[np.argmax(np.abs(sides[:, 1]))]
     turn = rotation_between(side * np.sign(side[1]), np.array([0.0, 1.0, 0.0]))
     if feet:
         turn = rotation_between(-resting_face(points @ turn.T), np.array([0.0, 1.0, 0.0])) @ turn
+    if tube:
+        turn = rotation_between(tube_axis(points @ turn.T), np.array([0.0, 1.0, 0.0])) @ turn
     return squared(points @ turn.T) @ turn
 
 
@@ -153,6 +159,29 @@ def resting_face(points):
         return np.array([0.0, -1.0, 0.0])
     candidates = np.where(downward)[0]
     return hull.face_normals[candidates[np.argmax(hull.area_faces[candidates])]]
+
+
+def circle_centre(across):
+    """The centre of the circle that best fits points given as (x, z) pairs."""
+    matrix = np.c_[across, np.ones(len(across))]
+    first, second, _ = np.linalg.lstsq(matrix, -(across ** 2).sum(1), rcond=None)[0]
+    return np.array([-first / 2, -second / 2])
+
+
+def tube_axis(points):
+    """The direction of a round body's axis, pointing up: circles fitted to TUBE_SLICES slices of
+    its upper part, where fins and legs do not reach, and the line through their centres."""
+    height = points[:, 1]
+    low, span = height.min(), np.ptp(height)
+    centres = []
+    for index in range(TUBE_SLICES):
+        start = low + span * (TUBE_FROM + (1 - TUBE_FROM) * index / TUBE_SLICES)
+        band = points[(height >= start) & (height < start + span * (1 - TUBE_FROM) / TUBE_SLICES)]
+        centre = circle_centre(band[:, [0, 2]])
+        centres.append([centre[0], start, centre[1]])
+    centres = np.array(centres)
+    direction = np.linalg.svd(centres - centres.mean(0))[2][0]
+    return direction * np.sign(direction[1])
 
 
 def squared(points):

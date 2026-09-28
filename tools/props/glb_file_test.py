@@ -108,6 +108,23 @@ def a_long_model_faces_along_an_axis():
     return [] if extents[2] > 1.9 else [f"the long side lies {extents.round(2)} rather than along Z"]
 
 
+def a_rocket_section_stands_on_its_own_axis():
+    """A tube with fins at its foot and a box on its side, tilted: fins and box fool the other
+    ways of standing it up, the tube's axis does not."""
+    rng = np.random.default_rng(2)
+    angle = rng.random(6000) * 2 * np.pi
+    height = rng.random(6000) * 2.0
+    tube = np.c_[0.3 * np.cos(angle), height, 0.3 * np.sin(angle)]
+    fins = np.vstack([box(0.05, 0.5, 1.4, 800, seed) for seed in (3, 4)])
+    fins[800:] = fins[800:, [2, 1, 0]]
+    side_box = box(0.3, 0.4, 0.3, 600, 5) + [0.4, 1.2, 0.0]
+    points = tilted(np.vstack([tube, fins, side_box]), 12, (1.0, 0.0, 0.5))
+    turn = glb_file.upright_turn(points, long=True, tube=True)
+    axis = glb_file.tube_axis(points @ turn.T)
+    lean = np.degrees(np.arccos(min(1.0, axis[1])))
+    return [] if lean < 1.5 else [f"the section still leans {lean:.1f} degrees"]
+
+
 def the_file_keeps_its_shape_and_turns_its_normals():
     document, views = one_quad_file()
     turn = glb_file.rotation_between(np.array([0.0, 1.0, 0.0]), np.array([1.0, 0.0, 0.0]))
@@ -138,6 +155,7 @@ CHECKS = (
     a_tall_rocket_stands_on_its_long_side,
     a_model_on_legs_is_levelled_on_its_feet,
     a_long_model_faces_along_an_axis,
+    a_rocket_section_stands_on_its_own_axis,
     the_file_keeps_its_shape_and_turns_its_normals,
     padding_fills_the_black_from_the_nearest_piece,
 )

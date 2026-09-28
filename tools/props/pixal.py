@@ -1,7 +1,7 @@
 """Make a model from a picture on the locked route: the one way any session runs Pixal3D.
 
     ~/.farm-factory-props/env/bin/python tools/props/pixal.py <picture.png> <name> --who "<session>"
-        [--faces 40000] [--seed 1] [--long] [--feet] [--finish-only]
+        [--faces 40000] [--seed 1] [--long] [--feet] [--tube] [--finish-only]
 
 Four steps, and only the second touches the graphics card:
 1. Cut the subject out of its background (BiRefNet-lite, on the processor).
@@ -80,11 +80,11 @@ def finish(raw, picture, finished, faces):
              "--skip-paint", "--blender", str(BLENDER)])
 
 
-def stand_and_pad(finished, final, long, feet):
+def stand_and_pad(finished, final, long, feet, tube=False):
     """The finished model stood upright, its maps padded, written to `final`."""
     import glb_file
     document, views = glb_file.read(finished)
-    turn = glb_file.upright_turn(glb_file.positions(document, views), long=long, feet=feet)
+    turn = glb_file.upright_turn(glb_file.positions(document, views), long=long, feet=feet, tube=tube)
     glb_file.turned(document, views, turn)
     glb_file.padded(document, views)
     glb_file.write(document, views, final)
@@ -99,6 +99,7 @@ def main():
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--long", action="store_true", help="stand it on its longest side")
     parser.add_argument("--feet", action="store_true", help="level it on its lowest points")
+    parser.add_argument("--tube", action="store_true", help="stand a round body's axis straight up")
     parser.add_argument("--finish-only", action="store_true", help="reuse the raw model")
     options = parser.parse_args()
 
@@ -121,7 +122,7 @@ def main():
     finish(raw, options.picture, finished, options.faces)
     seconds["finish"] = time.time() - start
     start = time.time()
-    stand_and_pad(finished, final, options.long, options.feet)
+    stand_and_pad(finished, final, options.long, options.feet, options.tube)
     seconds["upright and pad"] = time.time() - start
     say(", ".join(f"{step} {value:.0f} s" for step, value in seconds.items()))
     print(final)
