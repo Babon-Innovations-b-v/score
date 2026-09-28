@@ -7,7 +7,7 @@ Four steps, and only the second touches the graphics card:
 1. Cut the subject out of its background (BiRefNet-lite, on the processor).
 2. Build the model with Pixal3D (image-to-3dlab's pixal3d_generate.py, --steps 12 --gss 10). This
    step alone holds the card, through card.claimed(), so runs from every session queue instead of
-   colliding. Two runs on one card crash the box, which is why nothing else may call
+   colliding, and it lets go as soon as the generator starts writing its file. Two runs on one card crash the box, which is why nothing else may call
    image-to-3dlab's generator or trellis-cli directly.
 3. Finish it: retopo_repaint.py thins it to --faces and bakes the base colour, detail and metal
    maps back on, in Blender on the processor.
@@ -18,6 +18,7 @@ padded, the one to import) under WORK/pixal/. --finish-only redoes steps 3 and 4
 model already there. Import the final file with `run.sh --import ... --keep-texture --keep-maps`.
 """
 import argparse
+import contextlib
 import subprocess
 import sys
 import time
@@ -30,6 +31,8 @@ OUT = WORK / "pixal"
 # The settings the owner locked the route on (#55): 12 steps, and structure guidance 10, which
 # keeps thin parts the default drops.
 STEPS, GUIDANCE = 12, 10
+# The generator's banner for its last stage, writing the file, which needs no card.
+WRITING = "[6/6]"
 
 
 def say(line):
@@ -52,10 +55,22 @@ def cut_out(picture):
 
 
 def generate(cut, raw, seed, who):
-    """The raw model, built while holding the graphics card."""
-    with claimed(f"Pixal3D {raw.stem} for {who}"):
-        run_lab(["scripts/pixal3d_generate.py", cut, str(raw), "--seed", str(seed),
-                 "--steps", str(STEPS), "--gss", str(GUIDANCE)])
+    """The raw model, built while holding the graphics card, which is let go the moment the
+    generator starts writing its file: that last stage, about a third of the run, works on the
+    processor with the card's memory already given back (measured 2026-09-28: 78 of 231 s at 1%
+    load, 1.8 GB held against 7.1 GB at the peak)."""
+    command = [str(LAB_PYTHON), "scripts/pixal3d_generate.py", cut, str(raw), "--seed", str(seed),
+               "--steps", str(STEPS), "--gss", str(GUIDANCE)]
+    with contextlib.ExitStack() as card:
+        card.enter_context(claimed(f"Pixal3D {raw.stem} for {who}"))
+        with subprocess.Popen(command, cwd=IMAGE_TO_3DLAB, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, text=True, bufsize=1) as run:
+            for line in run.stdout:
+                print(line, end="", file=sys.stderr, flush=True)
+                if line.lstrip().startswith(WRITING):
+                    card.close()
+        if run.returncode:
+            raise subprocess.CalledProcessError(run.returncode, command)
 
 
 def finish(raw, picture, finished, faces):
