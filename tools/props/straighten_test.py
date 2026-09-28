@@ -71,6 +71,8 @@ def a_stray_blob_takes_its_neighbours_finish():
     drum = box([0, 0, 0], [2, 2, 4])
     blob = box([2, 0.9, 1.9], [2.2, 1.1, 2.1])
     check("a small blob of solar on a gold drum turns gold", adopt([drum, blob], ["gold", "solar"]) == ["gold", "gold"])
+    check("a small blob only partly solar turns gold", adopt([drum, blob], ["gold", "solar"], [1.0, 0.5]) == ["gold", "gold"])
+    check("a small part clearly yellow stays yellow", adopt([drum, blob], ["gold", "yellow"], [1.0, 0.9]) == ["gold", "yellow"])
 
 
 def ironing_flattens_a_wall_but_keeps_its_corner():

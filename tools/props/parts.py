@@ -14,6 +14,8 @@ import trimesh
 DECISIVE = {"solar": 0.6}
 # A part this small a share of the whole, unlike everything touching it, is a stray blob.
 STRAY_SHARE = 0.02
+# A small part keeps its own finish when at least this share of it shows that finish.
+CLEARLY_ITS_OWN = 0.7
 # How much of their shared straight shell two parts must already fill to be joined into it.
 FILLED_TO_JOIN = 0.92
 
@@ -102,12 +104,16 @@ def touching(first, second, slack=0.02):
                 and np.all(second.bounds[0] - gap <= first.bounds[1]))
 
 
-def adopt(hulls, chosen):
-    """A small part unlike everything touching it takes the finish its neighbours mostly have."""
+def adopt(hulls, chosen, clear=None):
+    """A small part unlike everything touching it takes the finish its neighbours mostly have,
+    unless most of it clearly shows its own: a yellow cone on a grey box is a part, a few dark
+    faces on a gold drum are a stray. `clear` is each part's share of its own finish."""
     total = sum(max(hull.volume, 0.0) for hull in hulls)
     settled = list(chosen)
     for index, hull in enumerate(hulls):
         if hull.volume > STRAY_SHARE * total:
+            continue
+        if clear is not None and clear[index] >= CLEARLY_ITS_OWN:
             continue
         around = [chosen[other] for other, near in enumerate(hulls)
                   if other != index and touching(hull, near)]

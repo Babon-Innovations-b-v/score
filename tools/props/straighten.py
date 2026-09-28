@@ -171,7 +171,9 @@ def straighten(name, overrides, threshold, strength):
     cut_count = len(hulls)
     hulls, piece = seen_parts(hulls, piece_of_each_face(mesh, hulls))
     ranked = finish_shares(mesh, np.array([names[index] for index in group], dtype=object), piece, len(hulls))
-    hulls, chosen = join(hulls, adopt(hulls, choose(ranked)))
+    chosen = choose(ranked)
+    clear = [dict(options).get(finish, 0.0) for options, finish in zip(ranked, chosen)]
+    hulls, chosen = join(hulls, adopt(hulls, chosen, clear))
     out = painted([thinned(hull) for hull in hulls], chosen)
     target = MESHES / f"{name}-straight.glb"
     out.export(target)
