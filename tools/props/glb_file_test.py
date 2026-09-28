@@ -1,4 +1,5 @@
-"""Check standing a model upright and padding its maps, on shapes whose right answer is obvious.
+"""Check standing a model upright, padding its maps and cutting triangles out, on shapes whose
+right answer is obvious.
 
 The step needs numpy, scipy, trimesh and Pillow, which only the prop environment has. Run by the gate with
 the system python, this hands itself to the prop environment when the box has one, and says it
@@ -142,6 +143,25 @@ def the_file_keeps_its_shape_and_turns_its_normals():
     return found
 
 
+def cutting_a_triangle_keeps_the_rest_as_it_was():
+    document, views = one_quad_file()
+    glb_file.without_triangles(document, views, [False, True])
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "quad.glb"
+        glb_file.write(document, views, path)
+        document, views = glb_file.read(path)
+    corners = glb_file.accessor_array(document, views, 0)[glb_file.accessor_array(document, views, 3)]
+    uv = glb_file.accessor_array(document, views, 2)[glb_file.accessor_array(document, views, 3)]
+    found = []
+    if not np.allclose(corners, [[0, 0, 0], [1, 0, 0], [1, 0, 1]]):
+        found.append(f"the kept triangle's corners moved: {corners.tolist()}")
+    if not np.allclose(uv, [[0, 0], [0.5, 0], [0.5, 1]]):
+        found.append(f"the kept triangle's UVs changed: {uv.tolist()}")
+    if document["accessors"][0]["count"] != 3:
+        found.append(f"{document['accessors'][0]['count']} corners kept, not the triangle's own 3")
+    return found
+
+
 def padding_fills_the_black_from_the_nearest_piece():
     document, views = one_quad_file()
     glb_file.padded(document, views)
@@ -157,6 +177,7 @@ CHECKS = (
     a_long_model_faces_along_an_axis,
     a_rocket_section_stands_on_its_own_axis,
     the_file_keeps_its_shape_and_turns_its_normals,
+    cutting_a_triangle_keeps_the_rest_as_it_was,
     padding_fills_the_black_from_the_nearest_piece,
 )
 

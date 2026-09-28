@@ -1,6 +1,6 @@
-"""Edit a finished model file in place: stand it upright and pad its texture maps.
+"""Edit a finished model file in place: stand it upright, pad its texture maps, and cut triangles out.
 
-Both work on the file's own bytes rather than through a 3D package, because a round trip through
+All three work on the file's own bytes rather than through a 3D package, because a round trip through
 trimesh or Blender drops maps or smooth normals from these files. numpy, scipy, trimesh and Pillow only.
 
 A Pixal3D model comes out in the tilted camera of the picture it was built from. `upright_turn`
@@ -82,6 +82,34 @@ def put_accessor(document, views, index, values):
     views[accessor["bufferView"]] = old[:start] + blob + old[start + len(blob):]
     if "min" in accessor:
         accessor["min"], accessor["max"] = values.min(0).tolist(), values.max(0).tolist()
+
+
+def replace_accessor(document, views, index, values):
+    """Put `values` in place of an accessor's elements, however many there now are, in the buffer
+    view it has to itself; min and max follow when the accessor keeps them."""
+    accessor = document["accessors"][index]
+    view = accessor["bufferView"]
+    sharing = [number for number, other in enumerate(document["accessors"]) if other["bufferView"] == view]
+    if sharing != [index]:
+        raise ValueError("an accessor that shares its buffer view cannot change its length")
+    views[view] = np.ascontiguousarray(values).tobytes()
+    accessor["byteOffset"], accessor["count"] = 0, len(values)
+    if "min" in accessor:
+        rows = values.reshape(len(values), -1)
+        accessor["min"], accessor["max"] = rows.min(0).tolist(), rows.max(0).tolist()
+
+
+def without_triangles(document, views, dropped):
+    """Take the triangles `dropped` marks out of the first primitive, and the corners only they
+    used. Every kept corner keeps its normal and UVs and the maps are untouched: for cutting a scrap
+    the generator left beside a model, or a doorway, out of a finished file."""
+    primitive = document["meshes"][0]["primitives"][0]
+    kind = INDEX_KINDS[document["accessors"][primitive["indices"]]["componentType"]]
+    triangles = accessor_array(document, views, primitive["indices"]).reshape(-1, 3)[~np.asarray(dropped)]
+    used, renumbered = np.unique(triangles, return_inverse=True)
+    for index in set(primitive["attributes"].values()):
+        replace_accessor(document, views, index, accessor_array(document, views, index)[used])
+    replace_accessor(document, views, primitive["indices"], renumbered.reshape(-1).astype(kind))
 
 
 def positions(document, views):
