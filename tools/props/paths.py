@@ -14,6 +14,10 @@ HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-fa
 VENV_PYTHON = HOME / "env" / "bin" / "python"
 TRELLIS = HOME / "trellis"
 PICTURE_MODEL = HOME / "flux2-klein"
+# The locked route's runtime (#55): a checkout of the vendored image-to-3dlab with its own Python
+# and the Pixal3D build, and the Blender its finishing step drives. See workflow/bootstrap.
+IMAGE_TO_3DLAB = HOME / "image-to-3dlab"
+BLENDER = HOME / "blender" / "blender"
 
 # Everything the chain makes: reference pictures, meshes, reports and the review page.
 WORK = pathlib.Path(os.environ.get("PROPS_WORK", HOME / "work"))
