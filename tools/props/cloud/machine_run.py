@@ -1,15 +1,19 @@
-"""Runs on the rented machine: every job in the batch through Pixal3D, a few at once.
+"""Runs on the rented machine: takes jobs from its queue and puts them through Pixal3D.
 
-    /root/venv/bin/python machine_run.py <jobs.json> <at-once>
+    /root/venv/bin/python machine_run.py <runs-per-card>
 
-jobs.json is a list of {"name", "arguments"}: the generator's arguments from pixal.py, with the
-machine's paths. Starts are spaced a minute apart, as the two-at-once run on the owner's card was
-measured. The status file says what is done, what failed, how long each took and the card's
-highest memory use, and is rewritten after every change, so the runner at home can follow along
-and bring back what is finished. Standard library only.
+The runner at home drops a job in /root/batch/queue/ as <name>.json, a list of the generator's
+arguments with this machine's paths, and its cut-out in /root/batch/in/. Each card runs
+<runs-per-card> jobs at once, their starts spaced out; a machine with two cards runs twice as many.
+When the runner writes /root/batch/closed and the queue is empty, the machine finishes what it is
+running and stops.
+
+The status file says each job's state and seconds, and each card's highest memory use, and is
+rewritten after every change, so the runner can follow along and bring back what is finished.
+Standard library only.
 """
-import concurrent.futures
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -19,12 +23,17 @@ import time
 LAB = pathlib.Path("/root/lab")
 PYTHON = "/root/venv/bin/python"
 BATCH = pathlib.Path("/root/batch")
+QUEUE = BATCH / "queue"
+TAKEN = BATCH / "taken"
+CLOSED = BATCH / "closed"
 STATUS = BATCH / "status.json"
 LOGS = BATCH / "logs"
-SPACING_SECONDS = 60
+# A card's first runs start this far apart, so they do not all load the weights at once.
+SPACING_SECONDS = 30
+LOOK_SECONDS = 2
 
 lock = threading.Lock()
-status = {"started": time.time(), "jobs": {}, "peak_gb": 0.0, "finished": False}
+status = {"started": time.time(), "jobs": {}, "peak_gb": {}, "finished": False}
 
 
 def save():
@@ -36,25 +45,47 @@ def save():
     partial.replace(STATUS)
 
 
+def cards():
+    """How many graphics cards this machine has."""
+    listing = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, check=True)
+    return len([line for line in listing.stdout.splitlines() if line.startswith("GPU ")])
+
+
 def watch_memory():
-    """Keep the card's highest memory use in the status, sampled every second."""
-    command = ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits", "-lms", "1000"]
+    """Keep each card's highest memory use in the status, sampled every second."""
+    command = ["nvidia-smi", "--query-gpu=index,memory.used", "--format=csv,noheader,nounits",
+               "-lms", "1000"]
     with subprocess.Popen(command, stdout=subprocess.PIPE, text=True) as sampler:
         for line in sampler.stdout:
-            if line.strip().isdigit():
+            card, _, used = line.partition(",")
+            if used.strip().isdigit():
                 with lock:
-                    status["peak_gb"] = max(status["peak_gb"], int(line) / 1024)
+                    peaks = status["peak_gb"]
+                    peaks[card.strip()] = max(peaks.get(card.strip(), 0.0), int(used) / 1024)
 
 
-def run(job, delay):
-    """One job through the generator, its output in its own log."""
-    time.sleep(delay)
-    name = job["name"]
+def take():
+    """The next queued job, claimed by moving it out of the queue; None when the queue is empty.
+    rsync writes a file under a hidden name and renames it, so a half-copied job is never seen."""
+    for path in sorted(QUEUE.glob("[!.]*.json")):
+        claimed = TAKEN / path.name
+        try:
+            path.replace(claimed)
+        except FileNotFoundError:
+            continue
+        return json.loads(claimed.read_text()), claimed.stem
+    return None
+
+
+def run(arguments, name, card):
+    """One job through the generator on `card`, its output in its own log."""
     with lock:
-        status["jobs"][name] = {"state": "running", "began": time.time()}
+        status["jobs"][name] = {"state": "running", "card": card, "began": time.time()}
     save()
+    environment = {**os.environ, "CUDA_VISIBLE_DEVICES": str(card)}
     with (LOGS / f"{name}.log").open("w") as log:
-        done = subprocess.run([PYTHON, *job["arguments"]], cwd=LAB, stdout=log, stderr=subprocess.STDOUT)
+        done = subprocess.run([PYTHON, *arguments], cwd=LAB, stdout=log, stderr=subprocess.STDOUT,
+                              env=environment)
     with lock:
         entry = status["jobs"][name]
         entry["state"] = "done" if done.returncode == 0 else "failed"
@@ -62,17 +93,32 @@ def run(job, delay):
     save()
 
 
+def slot(card, delay):
+    """One of a card's places: wait `delay`, then run jobs one after another until the queue is
+    closed and empty."""
+    time.sleep(delay)
+    while True:
+        job = take()
+        if job:
+            run(job[0], job[1], card)
+        elif CLOSED.exists():
+            return
+        else:
+            time.sleep(LOOK_SECONDS)
+
+
 def main():
-    jobs = json.loads(pathlib.Path(sys.argv[1]).read_text())
-    at_once = int(sys.argv[2])
-    LOGS.mkdir(parents=True, exist_ok=True)
-    for job in jobs:
-        status["jobs"][job["name"]] = {"state": "waiting"}
+    per_card = int(sys.argv[1])
+    for folder in (QUEUE, TAKEN, LOGS):
+        folder.mkdir(parents=True, exist_ok=True)
     save()
     threading.Thread(target=watch_memory, daemon=True).start()
-    with concurrent.futures.ThreadPoolExecutor(at_once) as pool:
-        for index, job in enumerate(jobs):
-            pool.submit(run, job, SPACING_SECONDS * index if index < at_once else 0)
+    places = [threading.Thread(target=slot, args=(card, SPACING_SECONDS * place))
+              for card in range(cards()) for place in range(per_card)]
+    for place in places:
+        place.start()
+    for place in places:
+        place.join()
     with lock:
         status["finished"] = True
     save()

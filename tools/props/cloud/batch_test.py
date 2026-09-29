@@ -16,10 +16,10 @@ L4 = 0.013125
 def test_limits():
     assert ledger.refusal(90, L4, 0) is None
     assert "4 h" in ledger.refusal(241, L4, 0)
-    assert "€50" in ledger.refusal(200, 0.3, 0)
+    assert "€60" in ledger.refusal(210, 0.3, 0)
     assert "month" in ledger.refusal(60, L4, 699.5)
     assert ledger.minutes_allowed(L4, 0) == 240
-    assert round(ledger.minutes_allowed(0.3, 0)) == 167
+    assert round(ledger.minutes_allowed(0.3, 0)) == 200
     assert ledger.minutes_allowed(L4, 700) == 0
     assert ledger.cost(1.2, L4) == 2 * L4
 
@@ -47,6 +47,19 @@ def test_list():
             assert "twice" in str(refused)
         else:
             raise AssertionError("a repeated name was accepted")
+
+
+def test_fleet_size():
+    # 229 models at 3.95 card minutes each, 3 at once, in an hour: 5 min setup and a 12 min last run.
+    assert batch.cards_needed(229, 3, 60, 3.95) == 21
+    assert round(batch.expected_minutes(229, 21, 3, 3.95)) == 60
+    assert batch.cards_needed(5, 3, 60, 3.95) == 1
+    try:
+        batch.cards_needed(10, 6, 20, 3.95)
+    except SystemExit as refused:
+        assert "too short" in str(refused)
+    else:
+        raise AssertionError("a target shorter than one run was accepted")
 
 
 def test_leftovers():

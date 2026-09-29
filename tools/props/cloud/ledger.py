@@ -1,7 +1,7 @@
 """What cloud batches have cost, and whether the next one fits the owner's limits.
 
-The owner's limits (2026-09-29): a batch runs at most four hours and spends at most €50, and the
-month at most €700. Scaleway's own bill lags by hours, so the month's spend is whichever is higher,
+The owner's limits (2026-09-29): a batch runs at most four hours and spends at most €60 (raised
+from €50 for the worldfill batches), and the month at most €700. Scaleway's own bill lags by hours, so the month's spend is whichever is higher,
 its bill or this ledger's sum. A batch that would pass any limit is refused before it starts.
 """
 import datetime
@@ -12,7 +12,7 @@ from paths import HOME
 
 LEDGER = HOME / "cloud" / "ledger.jsonl"
 BATCH_HOURS = 4
-BATCH_EUROS = 50.0
+BATCH_EUROS = 60.0
 MONTH_EUROS = 700.0
 
 

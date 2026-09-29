@@ -10,11 +10,12 @@ import subprocess
 # The project the owner set aside for this game's machines; looked up by name, so no account
 # id sits in the repo.
 PROJECT_NAME = "farm-factory"
-ZONE = "pl-waw-2"
 # Ubuntu 24.04 with the NVIDIA driver and CUDA runtime, Scaleway's own GPU image.
 IMAGE = "ubuntu_noble_gpu_os_13_nvidia"
 # Every machine the runner rents carries this tag, so a sweep can find what a crashed run left.
 TAG = "farm-factory-batch"
+# The zones that rent graphics cards (2026-09-29).
+ZONES = ("pl-waw-2", "fr-par-2", "fr-par-1")
 
 
 def scw(*arguments):
@@ -33,10 +34,10 @@ def project_id():
     return found[0]["id"]
 
 
-def euros_per_minute(machine_type):
-    """What one minute of `machine_type` costs in ZONE, from Scaleway's price list."""
-    sku = f"/instance/server/{machine_type.lower().replace('-', '_')}/{ZONE}"
-    products = scw("product-catalog", "product", "list", "product-types.0=instance", f"zone={ZONE}")
+def euros_per_minute(machine_type, zone):
+    """What one minute of `machine_type` costs in `zone`, from Scaleway's price list."""
+    sku = f"/instance/server/{machine_type.lower().replace('-', '_')}/{zone}"
+    products = scw("product-catalog", "product", "list", "product-types.0=instance", f"zone={zone}")
     for product in products:
         if product["sku"] == sku:
             if product["unit_of_measure"]["unit"] != "minute":
@@ -44,15 +45,16 @@ def euros_per_minute(machine_type):
                                  "not per minute; the caps assume minutes")
             price = product["price"]["retail_price"]
             return price["units"] + price["nanos"] / 1e9
-    raise SystemExit(f"no price for {machine_type} in {ZONE}")
+    raise SystemExit(f"no price for {machine_type} in {zone}")
 
 
-def in_stock(machine_type):
-    """Whether Scaleway says `machine_type` can be rented in ZONE right now."""
-    for listed in scw("instance", "server-type", "list", f"zone={ZONE}"):
+def stock(machine_type, zone):
+    """Scaleway's word for how many `machine_type` are left in `zone`: available, scarce,
+    shortage, or None where it is not sold."""
+    for listed in scw("instance", "server-type", "list", f"zone={zone}"):
         if listed["name"] == machine_type:
-            return listed.get("availability") == "available"
-    return False
+            return listed.get("availability")
+    return None
 
 
 def month_spend(project):
@@ -73,18 +75,23 @@ def allow_key(project, name, public_key):
             f"project-id={project}")
 
 
-def create(project, machine_type, name, tags, disk_gb):
-    """Rent and start one machine; its id."""
-    server = scw("instance", "server", "create", f"project-id={project}", f"zone={ZONE}",
-                 f"type={machine_type}", f"image={IMAGE}", f"name={name}", "ip=ipv4",
-                 f"root-volume=sbs:{disk_gb}GB",
-                 *[f"tags.{index}={tag}" for index, tag in enumerate([TAG, *tags])])
-    return server["id"]
+def create(project, machine_type, zone, name, tags, disk_gb):
+    """Rent and start one machine: (its id, None), or (None, Scaleway's reason) when refused,
+    as when the zone is out of stock or the quota is used up."""
+    done = subprocess.run(
+        ["scw", "instance", "server", "create", f"project-id={project}", f"zone={zone}",
+         f"type={machine_type}", f"image={IMAGE}", f"name={name}", "ip=ipv4",
+         f"root-volume=sbs:{disk_gb}GB",
+         *[f"tags.{index}={tag}" for index, tag in enumerate([TAG, *tags])], "-o", "json"],
+        capture_output=True, text=True)
+    if done.returncode == 0:
+        return json.loads(done.stdout)["id"], None
+    return None, done.stderr.strip()[:300]
 
 
-def address(server_id):
+def address(server_id, zone):
     """The machine's public IPv4 address, or None while it has none."""
-    server = scw("instance", "server", "get", server_id, f"zone={ZONE}")
+    server = scw("instance", "server", "get", server_id, f"zone={zone}")
     for ip in server.get("public_ips") or []:
         if ip.get("family") == "inet":
             return ip["address"]
@@ -92,16 +99,19 @@ def address(server_id):
 
 
 def ours(project):
-    """Every machine in the project the runner rented: id, name and tags."""
-    servers = scw("instance", "server", "list", f"project-id={project}", f"zone={ZONE}",
-                  f"tags.0={TAG}")
-    return [(server["id"], server["name"], server.get("tags") or []) for server in servers or []
-            if TAG in (server.get("tags") or [])]
+    """Every machine in the project the runner rented, in every zone: id, zone, name and tags."""
+    found = []
+    for zone in ZONES:
+        servers = scw("instance", "server", "list", f"project-id={project}", f"zone={zone}",
+                      f"tags.0={TAG}")
+        found += [(server["id"], zone, server["name"], server.get("tags") or [])
+                  for server in servers or [] if TAG in (server.get("tags") or [])]
+    return found
 
 
-def delete(server_id):
+def delete(server_id, zone):
     """Stop and delete one machine with its disk and address; True if it was there to delete."""
-    done = subprocess.run(["scw", "instance", "server", "terminate", server_id, f"zone={ZONE}",
+    done = subprocess.run(["scw", "instance", "server", "terminate", server_id, f"zone={zone}",
                            "with-ip=true", "with-block=true"], capture_output=True, text=True)
     if done.returncode == 0:
         return True
