@@ -117,4 +117,11 @@ def delete(server_id, zone):
         return True
     if "not found" in (done.stderr + done.stdout).lower():
         return False
+    if "invalid state 'stopped'" in done.stderr:
+        # A machine the zone had no card to start stays stopped, and terminate refuses a stopped
+        # one (17 of 20 on 2026-09-29); delete takes it with its disk and address instead.
+        done = subprocess.run(["scw", "instance", "server", "delete", server_id, f"zone={zone}",
+                               "with-ip=true", "with-volumes=all"], capture_output=True, text=True)
+        if done.returncode == 0:
+            return True
     raise RuntimeError(f"deleting {server_id} failed: {done.stderr.strip()}")
