@@ -55,13 +55,19 @@ def cut_out(picture):
     return done.stdout.strip().splitlines()[-1]
 
 
+def generator_arguments(cut, raw, seed):
+    """The generator's script and arguments on the locked route, run from image-to-3dlab; the
+    cloud batch runner (cloud/batch.py) runs these same ones on a rented card."""
+    return ["scripts/pixal3d_generate.py", str(cut), str(raw), "--seed", str(seed),
+            "--steps", str(STEPS), "--gss", str(GUIDANCE)]
+
+
 def generate(cut, raw, seed, who):
     """The raw model, built while holding the graphics card, which is let go the moment the
     generator starts writing its file: that last stage, about a third of the run, works on the
     processor with the card's memory already given back (measured 2026-09-28: 78 of 231 s at 1%
     load, 1.8 GB held against 7.1 GB at the peak)."""
-    command = [str(LAB_PYTHON), "scripts/pixal3d_generate.py", cut, str(raw), "--seed", str(seed),
-               "--steps", str(STEPS), "--gss", str(GUIDANCE)]
+    command = [str(LAB_PYTHON), *generator_arguments(cut, raw, seed)]
     with contextlib.ExitStack() as card:
         card.enter_context(claimed(f"Pixal3D {raw.stem} for {who}", shared=True))
         with subprocess.Popen(command, cwd=IMAGE_TO_3DLAB, stdout=subprocess.PIPE,
@@ -90,7 +96,8 @@ def stand_and_pad(finished, final, long, feet, tube=False):
     glb_file.write(document, views, final)
 
 
-def main():
+def options_parser():
+    """This script's options, which the cloud batch runner also reads a batch list with."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("picture")
     parser.add_argument("name")
@@ -101,7 +108,11 @@ def main():
     parser.add_argument("--feet", action="store_true", help="level it on its lowest points")
     parser.add_argument("--tube", action="store_true", help="stand a round body's axis straight up")
     parser.add_argument("--finish-only", action="store_true", help="reuse the raw model")
-    options = parser.parse_args()
+    return parser
+
+
+def main():
+    options = options_parser().parse_args()
 
     OUT.mkdir(parents=True, exist_ok=True)
     raw = OUT / f"{options.name}.glb"
