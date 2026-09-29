@@ -76,9 +76,9 @@ START_CHECK_SECONDS = 5
 # answering in about 2 min).
 REFUSED_MINUTES = 3
 WATCHDOG_GRACE_MINUTES = 5
-# The processor's share: two cut-out processes, and three finishes at once (Blender, 8 cores).
+# The processor's share: two cut-out processes, and six finishes at once (Blender; 24 threads since 2026-09-29).
 CUTTERS = 2
-FINISHERS = 3
+FINISHERS = 6
 
 
 def say(line):
@@ -296,8 +296,15 @@ def send(folder, host, job):
 
 def machine_status(folder, host):
     """The machine's status file, fetched fresh."""
-    copy(folder, [f"root@{host}:/root/batch/status.json"], folder)
-    return json.loads((folder / "status.json").read_text())
+    for attempt in range(3):
+        copy(folder, [f"root@{host}:/root/batch/status.json"], folder)
+        try:
+            return json.loads((folder / "status.json").read_text())
+        except ValueError:
+            # A garbled read once cost a working card its whole batch (2026-09-29); read again.
+            if attempt == 2:
+                raise
+            time.sleep(2)
 
 
 def bring_back(folder, host, names):
