@@ -65,6 +65,8 @@ MODEL_MINUTES = 5.0
 # How often each machine is looked at, its results brought back and its queue topped up.
 POLL_SECONDS = 15
 BOOT_MINUTES = 10
+# How long after an order the runner asks the machine to start, to learn whether the zone has a card.
+START_CHECK_SECONDS = 5
 # A booted machine that still refuses the key this long never will (measured 2026-09-29: up and
 # answering in about 2 min).
 REFUSED_MINUTES = 3
@@ -220,6 +222,9 @@ def wait_for_machine(folder, server_id, zone):
     give_up = time.time() + BOOT_MINUTES * 60
     host, first_refused = None, None
     while time.time() < give_up:
+        refused = scaleway.start_if_stopped(server_id, zone)
+        if refused:
+            say(f"{folder.name} is stopped and would not start yet: {refused}")
         host = host or scaleway.address(server_id, zone)
         if host:
             answer = remote(folder, host, "true", capture_output=True, text=True)
@@ -383,6 +388,15 @@ def rent(fleet, project, offer, number):
     server_id, refused = scaleway.create(project, machine_type, zone, name, tags, DISK_GB)
     if server_id is None:
         say(f"{machine_type} in {zone} refused: {refused.splitlines()[-1] if refused else '?'}")
+        return None
+    # A zone out of cards still takes the order and leaves the machine stopped; its start then
+    # says so. Give that machine back at once, so the fleet moves on to the next zone instead of
+    # filling one empty zone with 20 machines that never run (2026-09-29).
+    time.sleep(START_CHECK_SECONDS)
+    refused = scaleway.start_if_stopped(server_id, zone)
+    if refused and "out of stock" in refused.lower():
+        scaleway.delete(server_id, zone)
+        say(f"{machine_type} in {zone} is out of stock; trying the next zone")
         return None
     folder = fleet.folder / name
     folder.mkdir(parents=True)

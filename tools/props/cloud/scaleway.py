@@ -89,6 +89,21 @@ def create(project, machine_type, zone, name, tags, disk_gb):
     return None, done.stderr.strip()[:300]
 
 
+def start_if_stopped(server_id, zone):
+    """Start the machine if it is stopped; Scaleway's reason when that is refused, else None.
+
+    An order for many machines at once leaves most of them stopped: the start that comes with
+    the order fails while a start asked for a moment later works (28 of 32 on 2026-09-29, and a
+    probe in fr-par-2 started on the first try by hand). A zone truly out of cards refuses with
+    "out of stock", and asking again later may still get one.
+    """
+    if scw("instance", "server", "get", server_id, f"zone={zone}")["state"] != "stopped":
+        return None
+    done = subprocess.run(["scw", "instance", "server", "start", server_id, f"zone={zone}"],
+                          capture_output=True, text=True)
+    return None if done.returncode == 0 else (done.stderr.strip().splitlines() or ["?"])[0]
+
+
 def address(server_id, zone):
     """The machine's public IPv4 address, or None while it has none."""
     server = scw("instance", "server", "get", server_id, f"zone={zone}")
@@ -115,7 +130,7 @@ def delete(server_id, zone):
                            "with-ip=true", "with-block=true"], capture_output=True, text=True)
     if done.returncode == 0:
         return True
-    if "not found" in (done.stderr + done.stdout).lower():
+    if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
         return False
     if "invalid state 'stopped'" in done.stderr:
         # A machine the zone had no card to start stays stopped, and terminate refuses a stopped
