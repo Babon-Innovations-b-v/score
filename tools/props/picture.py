@@ -91,12 +91,17 @@ def load():
     return pipeline
 
 
+def wording(sentence, form=FORM):
+    """Everything the picture model is told: the sentence, what it is made of, and the shot."""
+    return f"{sentence}, {FORMS.get(form, form)}, {SHOT}"
+
+
 def draw(pipeline, sentence, name, seed, steps, form=FORM, refs=()):
     """One picture from a loaded model, saved under PICTURES; the path to it."""
     references = [Image.open(ref).convert("RGB") for ref in refs]
     image = pipeline(
         image=references or None,
-        prompt=f"{sentence}, {form}, {SHOT}",
+        prompt=wording(sentence, form),
         num_inference_steps=steps,
         guidance_scale=GUIDANCE,
         height=1024,
@@ -122,8 +127,8 @@ def make_list(jobs, steps):
         for job in jobs:
             if (PICTURES / f"{job['name']}.png").exists():
                 continue
-            form = FORMS.get(job.get("form"), job.get("form") or FORM)
-            print(draw(pipeline, job["sentence"], job["name"], job.get("seed", 7), steps, form,
+            print(draw(pipeline, job["sentence"], job["name"], job.get("seed", 7), steps,
+                       job.get("form") or FORM,
                        job.get("refs", ())), flush=True)
 
 
