@@ -3,16 +3,26 @@
 The picture is the brief. The 3D step rebuilds what this picture shows and cannot invent a
 surface it hides, so the wording below is doing the real work, not the 3D model. Three things
 it insists on, each learned from a prop that came back wrong without it: solid slabs rather
-than thin frames, a view from above the corner so the top and two sides all appear, and no
-small raised detail, which comes back as soft bulges and belongs in ink lines instead.
+than thin frames, a level camera through a long lens, and no small raised detail, which comes
+back as soft bulges and belongs in ink lines instead.
+
+    picture.py <name> "<sentence>" [--seed 7] [--form-named machine] [--ref photo.jpg ...]
+    picture.py --list jobs.json
+
+Real photographs passed with --ref are handed to the picture model as references, so it draws our
+own object in their style, scale and realism; that is what made the supply rockets (#55). A list
+is a JSON array of {"name", "sentence", "seed", "form", "refs"} and loads the model once.
 """
 import argparse
+import json
+import pathlib
 import sys
 
 import torch
 from diffusers import Flux2Pipeline
+from PIL import Image
 
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from card import claimed  # noqa: E402
 from paths import PICTURE_MODEL, PICTURES, make_directories  # noqa: E402
 
@@ -23,11 +33,16 @@ from paths import PICTURE_MODEL, PICTURES, make_directories  # noqa: E402
 # stand. A machine's working end, a drill point or a picker's grab, is named last and points down,
 # so it is exactly what gets flattened into a base plate. Hence "floating in empty space" and four
 # names for the thing we do not want under it.
+#
+# The camera is level and far away through a long lens, because Pixal3D rebuilds as if it saw the
+# object from a level front camera with a 20 degree lens (image-to-3dlab). The older view from
+# above the corner tilted every model and bent tall ones; the level shot made the supply rockets
+# and the Mars camp (#55, #109, 2026-09-28/29).
 SHOT = ("clean 3D render of a single object floating in empty space, centred on a plain light grey "
-        "background, neutral even studio lighting, no cast shadows, seen from above the front left "
-        "corner so the top surface and two sides are all clearly visible, whole object in frame, "
-        "nothing underneath it, no plinth, no pedestal, no display stand, no base plate, no ground, "
-        "no terrain, no scenery, no people")
+        "background, soft even studio lighting with gentle shading, seen from straight in front at "
+        "the object's own height, level camera, long telephoto lens, three quarter turn so the "
+        "front and one side show, whole object in frame, nothing underneath it, no plinth, no "
+        "pedestal, no display stand, no base plate, no ground, no terrain, no scenery, no people")
 
 # Appended by default, because the 3D step rebuilds form and not ornament. A prop whose character
 # is a different material passes its own with --form; the two below cover most of this game.
@@ -63,37 +78,69 @@ GLASS = ("thick metal ribs with flat opaque dark teal panels set between them, r
 FORMS = {"machine": MACHINE, "space": SPACE, "glass": GLASS}
 
 
-def make(sentence, name, seed, steps, form=FORM, shot=SHOT):
-    make_directories()
-    with claimed(f"the picture for {name}"):
-        pipeline = Flux2Pipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
-        pipeline.enable_model_cpu_offload()
-        image = pipeline(
-            prompt=f"{sentence}, {form}, {shot}",
-            num_inference_steps=steps,
-            guidance_scale=4.0,
-            height=1024,
-            width=1024,
-            generator=torch.Generator("cpu").manual_seed(seed),
-        ).images[0]
+def load():
+    """The picture model, ready to draw."""
+    pipeline = Flux2Pipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
+    pipeline.enable_model_cpu_offload()
+    return pipeline
+
+
+def draw(pipeline, sentence, name, seed, steps, form=FORM, refs=()):
+    """One picture from a loaded model, saved under PICTURES; the path to it."""
+    references = [Image.open(ref).convert("RGB") for ref in refs]
+    image = pipeline(
+        image=references or None,
+        prompt=f"{sentence}, {form}, {SHOT}",
+        num_inference_steps=steps,
+        guidance_scale=4.0,
+        height=1024,
+        width=1024,
+        generator=torch.Generator("cpu").manual_seed(seed),
+    ).images[0]
     path = PICTURES / f"{name}.png"
     image.save(path)
     return path
 
 
+def make(sentence, name, seed, steps, form=FORM, refs=()):
+    make_directories()
+    with claimed(f"the picture for {name}"):
+        return draw(load(), sentence, name, seed, steps, form, refs)
+
+
+def make_list(jobs, steps):
+    """Every picture in a list with the model loaded once, skipping any already made."""
+    make_directories()
+    with claimed(f"{len(jobs)} pictures"):
+        pipeline = load()
+        for job in jobs:
+            if (PICTURES / f"{job['name']}.png").exists():
+                continue
+            form = FORMS.get(job.get("form"), job.get("form") or FORM)
+            print(draw(pipeline, job["sentence"], job["name"], job.get("seed", 7), steps, form,
+                       job.get("refs", ())), flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("name", help="what the prop is called, used for every file it produces")
-    parser.add_argument("sentence", help="what the prop is, in plain words")
+    parser.add_argument("name", nargs="?", help="what the prop is called, used for every file it produces")
+    parser.add_argument("sentence", nargs="?", help="what the prop is, in plain words")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--steps", type=int, default=28)
     parser.add_argument("--form", default=None,
                         help="What the prop is made of, in full, when none of the named ones fit.")
     parser.add_argument("--form-named", choices=tuple(FORMS),
                         help="One of the forms written down above: machine, space or glass.")
+    parser.add_argument("--ref", action="append", default=[], help="a real photograph to draw from")
+    parser.add_argument("--list", type=pathlib.Path, help="a JSON list of pictures to make")
     args = parser.parse_args()
+    if args.list:
+        make_list(json.loads(args.list.read_text()), args.steps)
+        return
+    if not (args.name and args.sentence):
+        parser.error("give a name and a sentence, or --list")
     form = args.form or (FORMS[args.form_named] if args.form_named else FORM)
-    print(make(args.sentence, args.name, args.seed, args.steps, form))
+    print(make(args.sentence, args.name, args.seed, args.steps, form, args.ref))
 
 
 if __name__ == "__main__":
