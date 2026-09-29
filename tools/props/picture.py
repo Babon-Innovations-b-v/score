@@ -19,7 +19,7 @@ import pathlib
 import sys
 
 import torch
-from diffusers import Flux2Pipeline
+from diffusers import Flux2KleinPipeline
 from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -74,13 +74,19 @@ GLASS = ("thick metal ribs with flat opaque dark teal panels set between them, r
          "edged, no text")
 
 
+# The picture model is step-distilled: its own card asks for 4 steps at guidance 1.0 through its own
+# pipeline. We ran 28 steps at 4.0 through the general one until 2026-09-29; side by side the 4-step
+# pictures were as clean or cleaner, at about 8 s a picture instead of 20 on the owner's card (#55).
+STEPS = 4
+GUIDANCE = 1.0
+
 # The forms by name, so a run can ask for one without anyone pasting the wording into a script.
 FORMS = {"machine": MACHINE, "space": SPACE, "glass": GLASS}
 
 
 def load():
     """The picture model, ready to draw."""
-    pipeline = Flux2Pipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
+    pipeline = Flux2KleinPipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
     pipeline.enable_model_cpu_offload()
     return pipeline
 
@@ -92,7 +98,7 @@ def draw(pipeline, sentence, name, seed, steps, form=FORM, refs=()):
         image=references or None,
         prompt=f"{sentence}, {form}, {SHOT}",
         num_inference_steps=steps,
-        guidance_scale=4.0,
+        guidance_scale=GUIDANCE,
         height=1024,
         width=1024,
         generator=torch.Generator("cpu").manual_seed(seed),
@@ -126,7 +132,7 @@ def main():
     parser.add_argument("name", nargs="?", help="what the prop is called, used for every file it produces")
     parser.add_argument("sentence", nargs="?", help="what the prop is, in plain words")
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--steps", type=int, default=28)
+    parser.add_argument("--steps", type=int, default=STEPS)
     parser.add_argument("--form", default=None,
                         help="What the prop is made of, in full, when none of the named ones fit.")
     parser.add_argument("--form-named", choices=tuple(FORMS),
