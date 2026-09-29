@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build the person the game draws: the body, its skeleton, and the clips that move it.
+# Build the person the game draws: the body, its skeleton, the clips that move it, and the crew's
+# two outfits, assembled, weighted and painted from the look kept in ~/.farm-factory-motion/look.
 #
 #   bash tools/crew/run.sh                     # build the body from the clips already made
 #   bash tools/crew/run.sh --clips             # generate whatever clips are missing first

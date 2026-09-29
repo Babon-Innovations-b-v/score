@@ -60,6 +60,20 @@ def the_numbers_come_back_out_as_they_went_in():
     check("the node kept its name", read["nodes"][0]["name"], "one")
 
 
+def a_picture_is_kept_byte_for_byte_and_named_as_an_image():
+    contents = glb.Contents()
+    contents.reading([0.0, 0.0, 0.0], "VEC3", glb.FLOAT)
+    encoded = b"\x89PNG not really, but five bytes past the header"
+    image = contents.picture(encoded)
+    out = pathlib.Path(tempfile.mkdtemp()) / "pictured.glb"
+    glb.write(out, dict(BARE, nodes=[{"name": "one"}]), contents)
+    read = glb.read_document(out)
+    view = read["bufferViews"][read["images"][image]["bufferView"]]
+    check("the picture's type", read["images"][image]["mimeType"], "image/png")
+    check("the picture's length", view["byteLength"], len(encoded))
+    check("the picture starts on a four-byte boundary", view["byteOffset"] % 4, 0)
+
+
 def a_run_of_numbers_that_does_not_divide_is_refused():
     try:
         glb.Contents().reading([1.0, 2.0], "VEC3", glb.FLOAT)

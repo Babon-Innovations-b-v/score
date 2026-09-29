@@ -2,10 +2,12 @@
 
     bash tools/crew/run.sh
 
-Everything this needs was installed for #36 and is clear for a game that may one day be sold: the
-body and the skeleton come from `nvidia/soma-x` (Apache 2.0, marked ready for commercial use) and
-the movement from Kimodo clips generated on this box. Both are written onto the same skeleton by
-the same vendor, so there is no retargeting step anywhere in here.
+Everything this needs was installed for #36 and #100 and is clear for a game that may one day be
+sold: the body and the skeleton come from `nvidia/soma-x` (Apache 2.0) shaped to the crew's build
+through Meta's MHR body (Apache 2.0), and the movement from Kimodo clips generated on this box.
+Both are written onto the same skeleton by the same vendor, so there is no retargeting step
+anywhere in here. The outfits are `dress.py`'s; the licences of what they are made from are in
+`tools/crew/CLAUDE.md`.
 
 Four things this does that are easy to leave out and expensive to leave out:
 
@@ -21,9 +23,9 @@ that match each other best and the small remaining drift is taken out along the 
 is ever close enough to see a knuckle, and a crowd of people each carrying fifty finger joints is
 paid for every frame. Their weight is merged into the wrist, so the hand is still a hand.
 
-**It puts no material in the file.** A material in a glTF arrives in Godot carrying its own
-colour, which this repo calls a bug: a mesh takes a shared material from `game/art/materials/`.
-The file names its surfaces and says nothing about what colour they are.
+**Only the outfits carry colour.** Each part of an outfit brings its painted picture, which the
+game draws with the crew's own light. The bare distant body names its surfaces and says nothing
+about what colour they are: the game puts a shared material from `game/art/materials/` on them.
 """
 import argparse
 import json
@@ -36,8 +38,11 @@ import dress  # noqa: E402
 import glb  # noqa: E402
 import numpy as np  # noqa: E402
 import regions  # noqa: E402
+import skin  # noqa: E402
+import texels  # noqa: E402
 import torch  # noqa: E402
-from paths import BODIES, MOTIONS  # noqa: E402
+import paths  # noqa: E402
+from paths import BODIES, IDENTITY, MOTIONS  # noqa: E402
 from scipy.spatial.transform import Rotation  # noqa: E402
 
 import soma.assets  # noqa: E402
@@ -66,11 +71,26 @@ LEAST_FRAMES = 30
 WORTH_THE_LENGTH = 1.6
 
 
-def build_layer(level):
-    """One body model with a plain, average build, ready to be asked for its rig."""
+def build_layer(level, identity=None):
+    """One body model ready to be asked for its rig: a plain, average build, or, given the path
+    of what SAM 3D Body read off a picture, that person's build (#100).
+
+    SAM 3D Body answers in Meta's MHR body, which the body model takes as one of its identities
+    and fits to its own skeleton, so every clip plays on the picture's body unchanged. Of MHR's
+    204 model numbers the last 68 are part scales and 130 to 135 the bone lengths.
+    """
+    if identity is None:
+        layer = SOMALayer(data_root=soma.assets.get_assets_dir(), device="cpu",
+                          identity_model_type="soma", lod=level, mode="dense")
+        layer.prepare_identity(torch.zeros(1, layer.identity_model.num_identity_coeffs))
+        return layer
+    read = np.load(identity)
+    numbers = torch.from_numpy(read["mhr_model_params"]).float()[None]
     layer = SOMALayer(data_root=soma.assets.get_assets_dir(), device="cpu",
-                      identity_model_type="soma", lod=level, mode="dense")
-    layer.prepare_identity(torch.zeros(1, layer.identity_model.num_identity_coeffs))
+                      identity_model_type="mhr", lod=level, mode="dense")
+    layer.prepare_identity(torch.from_numpy(read["shape_params"]).float()[None],
+                           scale_params=numbers[:, -68:],
+                           kwargs={"bone_length_flexibles": numbers[:, 130:136]})
     return layer
 
 
@@ -361,40 +381,46 @@ def the_body_at(layer, carries, kept_count):
     return vertices, faces, weights
 
 
-def add_pieces(contents, document, pieces):
-    """Put a dressed body in the file: one primitive a surface, its pieces joined into it."""
-    by_surface = {}
-    for surface, points, faces, weights in pieces:
-        if not len(faces):
-            continue
-        by_surface.setdefault(surface, []).append((points, faces, weights))
-    names = [material["name"] for material in document["materials"]]
+def add_outfit(contents, document, parts):
+    """Put an outfit in the file: one surface for each part, each with a material of its own that
+    carries the part's picture."""
     primitives, counts = [], {}
-    for surface, parts in by_surface.items():
-        offsets = np.cumsum([0] + [len(points) for points, _, _ in parts[:-1]])
-        points = np.concatenate([part[0] for part in parts])
-        faces = np.concatenate([part[1] + offset for part, offset in zip(parts, offsets)])
-        weights = np.concatenate([part[2] for part in parts])
-        order, kept, _ = strongest_joints(weights, JOINTS_A_VERTEX)
-        normals = smooth_normals(points, faces)
-        counts[surface] = len(faces)
-        primitives.append({
-            "attributes": {
-                "POSITION": contents.reading(points.astype(np.float32).ravel().tolist(), "VEC3",
-                                             glb.FLOAT, glb.ARRAY_BUFFER, with_bounds=True),
-                "NORMAL": contents.reading(normals.astype(np.float32).ravel().tolist(), "VEC3",
-                                           glb.FLOAT, glb.ARRAY_BUFFER),
-                "JOINTS_0": contents.reading(order.astype(np.uint16).ravel().tolist(), "VEC4",
-                                             glb.UNSIGNED_SHORT, glb.ARRAY_BUFFER),
-                "WEIGHTS_0": contents.reading(kept.astype(np.float32).ravel().tolist(), "VEC4",
-                                              glb.FLOAT, glb.ARRAY_BUFFER),
-            },
-            "indices": contents.reading(faces.reshape(-1).astype(np.uint32).tolist(), "SCALAR",
-                                        glb.UNSIGNED_INT, glb.ELEMENT_ARRAY_BUFFER),
-            "material": names.index(surface),
-        })
+    for part in parts:
+        primitives.append(outfit_surface(contents, document, part))
+        counts[part.surface] = len(part.faces)
     document["meshes"].append({"primitives": primitives})
     return len(document["meshes"]) - 1, counts
+
+
+def outfit_surface(contents, document, part):
+    """One part of an outfit as a surface, and its material holding its picture."""
+    order, kept, _ = strongest_joints(part.weights, JOINTS_A_VERTEX)
+    image = contents.picture(texels.png_bytes(part.picture))
+    document.setdefault("samplers", [{"magFilter": 9729, "minFilter": 9987,
+                                      "wrapS": 33071, "wrapT": 33071}])
+    document.setdefault("textures", []).append({"source": image, "sampler": 0})
+    document["materials"].append({"name": part.surface, "pbrMetallicRoughness": {
+        "baseColorTexture": {"index": len(document["textures"]) - 1},
+        "metallicFactor": 0.0, "roughnessFactor": 1.0}})
+    # The file's texture coordinates run down the picture; the part's run up it.
+    flipped = part.uv * [1.0, -1.0] + [0.0, 1.0]
+    return {
+        "attributes": {
+            "POSITION": contents.reading(part.points.astype(np.float32).ravel().tolist(),
+                                         "VEC3", glb.FLOAT, glb.ARRAY_BUFFER, with_bounds=True),
+            "NORMAL": contents.reading(part.normals.astype(np.float32).ravel().tolist(), "VEC3",
+                                       glb.FLOAT, glb.ARRAY_BUFFER),
+            "TEXCOORD_0": contents.reading(flipped.astype(np.float32).ravel().tolist(), "VEC2",
+                                           glb.FLOAT, glb.ARRAY_BUFFER),
+            "JOINTS_0": contents.reading(order.astype(np.uint16).ravel().tolist(), "VEC4",
+                                         glb.UNSIGNED_SHORT, glb.ARRAY_BUFFER),
+            "WEIGHTS_0": contents.reading(kept.astype(np.float32).ravel().tolist(), "VEC4",
+                                          glb.FLOAT, glb.ARRAY_BUFFER),
+        },
+        "indices": contents.reading(part.faces.reshape(-1).astype(np.uint32).tolist(),
+                                    "SCALAR", glb.UNSIGNED_INT, glb.ELEMENT_ARRAY_BUFFER),
+        "material": len(document["materials"]) - 1,
+    }
 
 
 def add_clip(contents, document, name, local, joint_node):
@@ -425,8 +451,9 @@ def which_way_is_forward(world):
     return "xyz"[axis], float(travelled[axis])
 
 
-def build(out_path, clip_names):
-    layers = {level: build_layer(lod) for level, lod in LEVELS.items()}
+def build(out_path, clip_names, identity):
+    """The file: the skeleton, the bare distant body, both outfits and the clips."""
+    layers = {level: build_layer(lod, identity) for level, lod in LEVELS.items()}
     near = layers["near"]
     all_names = list(near.public_joint_names)
     all_parents = near.output_joint_parent_ids.detach().numpy().astype(int)
@@ -436,8 +463,6 @@ def build(out_path, clip_names):
     print(f"skeleton: {len(joint_names)} joints kept of {len(all_names)}")
 
     bind_world, _ = bind_pose(near)
-    eyes = {side: bind_world[all_names.index(name)][:3, 3]
-            for side, name in ((1, "LeftEye"), (-1, "RightEye"))}
     bind_world = bind_world[kept]
     inverse_bind = np.linalg.inv(bind_world)
     surface_names = regions.surfaces(joint_names)
@@ -449,18 +474,13 @@ def build(out_path, clip_names):
         "asset": {"version": "2.0", "generator": "farm-factory tools/crew"},
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": [], "meshes": [], "skins": [], "animations": [],
-        # A material here carries no colour at all: it exists so that Godot names each surface,
-        # and the scene puts a shared material from game/art/materials/ over every one of them.
+        # The distant body's materials carry no colour at all: they exist so that Godot names
+        # each surface, and the scene puts a shared material from game/art/materials/ over it.
         "materials": [{"name": name} for name in surface_names],
     }
     near_vertices, near_faces, near_weights = the_body_at(near, carries, len(joint_names))
-    dressable = dress.Body(near_vertices, near_faces.astype(np.int64), near_weights, joint_names,
-                           bind_world, eyes)
-    outfits = {"work": dress.work_suit(dressable), "suit": dress.space_suit(dressable)}
-    for pieces in outfits.values():
-        for surface, _, _, _ in pieces:
-            if surface not in [material["name"] for material in document["materials"]]:
-                document["materials"].append({"name": surface})
+    outfits = dress.outfits(skin.Body(near_vertices, near_faces, near_weights, joint_names,
+                                      bind_world[:, :3, 3]))
     contents = glb.Contents()
 
     # Node 0 is the whole person, turned half a circle: the body model builds people facing +z
@@ -505,8 +525,8 @@ def build(out_path, clip_names):
         print(f"{level:5s}: {len(vertices):5d} vertices, {len(faces):5d} triangles, {counts}, "
               f"worst vertex loses {lost*100:.2f}% of its weight")
 
-    for outfit, pieces in outfits.items():
-        mesh, counts = add_pieces(contents, document, pieces)
+    for outfit, parts in outfits.items():
+        mesh, counts = add_outfit(contents, document, parts)
         document["nodes"].append({"name": outfit, "mesh": mesh, "skin": 0})
         document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
         report["levels"][outfit] = {"triangles": sum(counts.values())}
@@ -564,11 +584,18 @@ def main():
     parser.add_argument("--out", default=str(BODIES / "person_body.glb"))
     parser.add_argument("--report", help="where to write the run's numbers as JSON")
     parser.add_argument("--clips", nargs="*", help="which clips go in; the whole set by default")
+    parser.add_argument("--identity", default=str(IDENTITY),
+                        help="SAM 3D Body's answer for a picture, as .npz: the body is built to "
+                        "that person's build; the crew's own by default")
     arguments = parser.parse_args()
+    missing = paths.ready()
+    if missing:
+        raise SystemExit("missing, see workflow/bootstrap in docs/bible.md:\n  " + "\n  ".join(missing))
+    pathlib.Path(arguments.out).parent.mkdir(parents=True, exist_ok=True)
     import clips as clip_names
     wanted = arguments.clips or [name for name in clip_names.SENTENCES
                                  if (MOTIONS / f"{name}.npz").exists()]
-    report = build(arguments.out, wanted)
+    report = build(arguments.out, wanted, arguments.identity)
     if arguments.report:
         pathlib.Path(arguments.report).write_text(json.dumps(report, indent=2))
 

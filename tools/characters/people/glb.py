@@ -43,6 +43,7 @@ class Contents:
         self._blob = bytearray()
         self.views = []
         self.accessors = []
+        self.images = []
 
     def _pad(self):
         """Every slice starts on a four-byte boundary, which the format requires."""
@@ -86,6 +87,19 @@ class Contents:
         self.accessors.append(accessor)
         return len(self.accessors) - 1
 
+    def picture(self, encoded, mime_type="image/png"):
+        """Put an encoded picture in the blob, and return the index of the image that reads it.
+
+        A picture is stored as it is, bytes and all, so there is no reading to go with it: the
+        document's `images` list points straight at the slice.
+        """
+        self._pad()
+        start = len(self._blob)
+        self._blob.extend(encoded)
+        self.views.append({"buffer": 0, "byteOffset": start, "byteLength": len(encoded)})
+        self.images.append({"bufferView": len(self.views) - 1, "mimeType": mime_type})
+        return len(self.images) - 1
+
     def blob(self):
         self._pad()
         return bytes(self._blob)
@@ -123,6 +137,8 @@ def write(path, document, contents):
     document["bufferViews"] = contents.views
     document["accessors"] = contents.accessors
     document["buffers"] = [{"byteLength": len(blob)}]
+    if contents.images:
+        document["images"] = contents.images
 
     text = json.dumps(document, separators=(",", ":")).encode("utf-8")
     text += b" " * (-len(text) % 4)
