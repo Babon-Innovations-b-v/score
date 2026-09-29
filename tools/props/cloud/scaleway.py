@@ -6,6 +6,7 @@ wrong account.
 """
 import json
 import subprocess
+import time
 
 # The project the owner set aside for this game's machines; looked up by name, so no account
 # id sits in the repo.
@@ -16,6 +17,8 @@ IMAGE = "ubuntu_noble_gpu_os_13_nvidia"
 TAG = "farm-factory-batch"
 # The zones that rent graphics cards (2026-09-29).
 ZONES = ("pl-waw-2", "fr-par-2", "fr-par-1")
+# How many times, 10 s apart, a delete waits out a machine that is still shutting down.
+STOPPING_TRIES = 12
 
 
 def scw(*arguments):
@@ -163,9 +166,16 @@ def delete_disk(disk_id, zone):
 
 
 def delete(server_id, zone):
-    """Stop and delete one machine with its disk and address; True if it was there to delete."""
-    done = subprocess.run(["scw", "instance", "server", "terminate", server_id, f"zone={zone}",
-                           "with-ip=true", "with-block=true"], capture_output=True, text=True)
+    """Stop and delete one machine with its disk and address; True if it was there to delete.
+
+    A machine already shutting down refuses both; wait for it to finish, then delete what is left.
+    """
+    for _ in range(STOPPING_TRIES):
+        done = subprocess.run(["scw", "instance", "server", "terminate", server_id, f"zone={zone}",
+                               "with-ip=true", "with-block=true"], capture_output=True, text=True)
+        if "invalid state 'stopping'" not in done.stderr:
+            break
+        time.sleep(10)
     if done.returncode == 0:
         return True
     if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
