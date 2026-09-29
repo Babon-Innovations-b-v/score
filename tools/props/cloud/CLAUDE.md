@@ -14,6 +14,16 @@ Entry: `batch.py`; its docstring says how to call it.
   would pass one is refused before anything is rented; raising one is the owner's call.
 - **The machine is always deleted:** at the end, on an error or a signal, by the watchdog at the
   time limit, and by the next run's sweep. Anything new that rents goes through `rent`, which starts its watchdog.
+- **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
+  machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
+  uses a key that can only read, stop and delete farm-factory machines, addresses and disks
+  (`~/.farm-factory-props/cloud/self_delete_key.json`, never in the repo). Tested 2026-09-29 by
+  killing a runner: the machine was gone 2.5 min after its last heartbeat at a 2 min limit.
+- **Delete only what is checked as ours:** every server, address and disk is compared by its own
+  project field, never trusted from a list filter; the organisation holds another company's
+  production. Loose addresses and disks are swept only while no batch runs.
+- **Spread over zones:** a zone out of cards takes the order and leaves the machine stopped, so
+  `rent` starts it at once and gives it back on "out of stock", and the fleet moves on.
 - **Only the raw Pixal3D step runs up there;** finishing stays here with `pixal.py --finish-only`.
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
 - The generator's arguments come from `pixal.generator_arguments`, so both routes build the same.

@@ -56,6 +56,11 @@ STOCK_ORDER = {"available": 0, "scarce": 1, "shortage": 2}
 DISK_GB = 60
 CLOUD = HOME / "cloud"
 KEY = CLOUD / "ssh_key"
+# The key a machine deletes itself with: farm-factory machines, addresses and disks only, never
+# creating anything (made 2026-09-29 at the owner's word). It lives here and on the machines, never in the repo.
+SELF_DELETE_KEY = CLOUD / "self_delete_key.json"
+# A machine that has not heard from this PC for this long deletes itself.
+QUIET_MINUTES = 15
 BATCHES = WORK / "cloud"
 LAB = REPO / "vendor" / "image-to-3dlab"
 # Renting, starting and installing took 2.3 min on the first batch (2026-09-29); the margin covers a
@@ -178,14 +183,28 @@ def is_leftover(tags, now):
 
 def sweep(project):
     """Delete every machine a finished or crashed run left in the project; the count deleted."""
-    deleted = 0
+    deleted, running = 0, 0
     for server_id, zone, name, tags in scaleway.ours(project):
         if is_leftover(tags, time.time()):
             say(f"deleting {name} in {zone}, left by an earlier run")
             deleted += scaleway.delete(server_id, zone)
         else:
             say(f"{name} in {zone} belongs to a batch still running; left alone")
+            running += 1
+    if not running:
+        sweep_what_machines_left(project)
     return deleted
+
+
+def sweep_what_machines_left(project):
+    """Delete the addresses and disks a machine that deleted itself left behind. Only while no batch
+    is running, so a machine being set up never loses its own."""
+    for address_id, zone, address in scaleway.leftover_addresses(project):
+        say(f"deleting address {address} ({address_id}) in {zone}, project {project}, left by a machine")
+        scaleway.delete_address(address_id, zone)
+    for disk_id, zone, name in scaleway.leftover_disks(project):
+        say(f"deleting disk {name} ({disk_id}) in {zone}, project {project}, left by a machine")
+        scaleway.delete_disk(disk_id, zone)
 
 
 # Talking to a machine.
@@ -237,6 +256,20 @@ def wait_for_machine(folder, server_id, zone):
         time.sleep(10)
     raise TimeoutError(f"the machine did not answer within {BOOT_MINUTES} min "
                        f"({'at ' + host if host else 'it never got an address'})")
+
+
+def arm_self_delete(folder, host, deadline):
+    """Start the machine's own watcher, which deletes it if this PC goes quiet (self_delete.py)."""
+    remote(folder, host, "mkdir -p /root/batch", check=True)
+    copy(folder, [SELF_DELETE_KEY, HERE / "self_delete.py"], f"root@{host}:/root/batch/")
+    remote(folder, host, f"chmod 600 /root/batch/{SELF_DELETE_KEY.name}; cd /root/batch; setsid -f "
+           f"python3 self_delete.py {deadline:.0f} /root/batch/{SELF_DELETE_KEY.name} {QUIET_MINUTES} "
+           f"> self_delete.log 2>&1 < /dev/null", check=True)
+
+
+def heartbeat(folder, host):
+    """Tell the machine's watcher this PC is still here."""
+    remote(folder, host, "touch /root/batch/heartbeat", check=True)
 
 
 def prepare(folder, host, per_card):
@@ -431,6 +464,7 @@ def tend(fleet, machine):
     folder, sent, finished = machine["folder"], {}, set()
     try:
         host = wait_for_machine(folder, machine["id"], machine["zone"])
+        arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
         prepare(folder, host, fleet.per_card)
         machine["generating_began"] = time.time()
         say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
@@ -446,6 +480,7 @@ def tend(fleet, machine):
             if not closed and fleet.no_more_work():
                 remote(folder, host, "touch /root/batch/closed", check=True)
                 closed = True
+            heartbeat(folder, host)
             status = machine_status(folder, host)
             machine["status"] = status
             finished |= collect(fleet, folder, host, status, finished, sent)

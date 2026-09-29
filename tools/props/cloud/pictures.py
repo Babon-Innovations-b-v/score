@@ -110,11 +110,20 @@ def set_up(folder, host, share):
                      stderr=subprocess.STDOUT)
 
 
-def draw_share(machine, share):
+def keep_beating(folder, host, stop):
+    """Touch the machine's heartbeat every minute until `stop`, so its watcher knows this PC lives."""
+    while not stop.wait(60):
+        batch.heartbeat(folder, host)
+
+
+def draw_share(run, machine, share):
     """Run one machine from boot to delete: set it up, draw its share, bring the pictures back."""
     folder = machine["folder"]
+    stop = threading.Event()
     try:
         host = batch.wait_for_machine(folder, machine["id"], machine["zone"])
+        batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        threading.Thread(target=keep_beating, args=(folder, host, stop), daemon=True).start()
         set_up(folder, host, share)
         batch.say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
         with (folder / "draw.log").open("w") as log:
@@ -127,6 +136,7 @@ def draw_share(machine, share):
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the others
         batch.say(f"{folder.name} failed: {error}")
     finally:
+        stop.set()
         batch.delete_machine(machine)
 
 
@@ -170,7 +180,7 @@ def main():
     machines = []
     try:
         machines = rent_machines(run, project, found, cards)
-        threads = [threading.Thread(target=draw_share, args=(machine, jobs[index::len(machines)]))
+        threads = [threading.Thread(target=draw_share, args=(run, machine, jobs[index::len(machines)]))
                    for index, machine in enumerate(machines)]
         for thread in threads:
             thread.start()

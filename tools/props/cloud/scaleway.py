@@ -119,9 +119,47 @@ def ours(project):
     for zone in ZONES:
         servers = scw("instance", "server", "list", f"project-id={project}", f"zone={zone}",
                       f"tags.0={TAG}")
+        # Each machine's own project is checked, not only the filter: a list filter that silently
+        # does not apply returns every project's resources, and the organisation holds another
+        # company's production next to these (two of its addresses were lost that way, 2026-09-29).
         found += [(server["id"], zone, server["name"], server.get("tags") or [])
-                  for server in servers or [] if TAG in (server.get("tags") or [])]
+                  for server in servers or []
+                  if TAG in (server.get("tags") or []) and server.get("project") == project]
     return found
+
+
+def leftover_addresses(project):
+    """The project's public addresses attached to no machine, in every zone: (id, zone, address).
+
+    A machine that deleted itself (self_delete.py) leaves its address behind.
+    """
+    found = []
+    for zone in ZONES:
+        for address in scw("instance", "ip", "list", f"project-id={project}", f"zone={zone}") or []:
+            if address.get("project") == project and not address.get("server"):
+                found.append((address["id"], zone, address["address"]))
+    return found
+
+
+def leftover_disks(project):
+    """The project's block disks attached to nothing, in every zone: (id, zone, name).
+
+    A machine that deleted itself leaves its disk behind.
+    """
+    found = []
+    for zone in ZONES:
+        for disk in scw("block", "volume", "list", f"project-id={project}", f"zone={zone}") or []:
+            if disk.get("project_id") == project and not disk.get("references"):
+                found.append((disk["id"], zone, disk["name"]))
+    return found
+
+
+def delete_address(address_id, zone):
+    scw("instance", "ip", "delete", address_id, f"zone={zone}")
+
+
+def delete_disk(disk_id, zone):
+    scw("block", "volume", "delete", disk_id, f"zone={zone}")
 
 
 def delete(server_id, zone):
