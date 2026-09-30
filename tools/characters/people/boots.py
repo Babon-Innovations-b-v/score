@@ -124,7 +124,8 @@ def gather(cloth_points, limbs, boot, walls, side):
     count = 0
     for index in np.where(leg & (cloth_points[:, 1] < top + BLEND_ABOVE))[0]:
         point = cloth_points[index]
-        height = min(point[1], top - 1e-4)
+        # A hem lying on the floor can dip just below it (#112): read the wall from the floor up.
+        height = min(max(point[1], 0.0), top - 1e-4)
         # The shaft's own centre at this height is the axis, so every angle sees its wall.
         slab = np.abs(boot[:, 1] - min(height, top - 0.012)) < 0.012
         axis = np.array([boot[slab, 0].mean(), 0.0, boot[slab, 2].mean()])
@@ -135,7 +136,7 @@ def gather(cloth_points, limbs, boot, walls, side):
         column = int((np.arctan2(offset[0], offset[1]) + np.pi) / (2 * np.pi) * BINS) % BINS
         # The wall over nearby bands too (and the whole rim near the top), so the rim never
         # pokes out.
-        low_row = max(0, row - 2) if height < top - 0.02 else len(heights) - 6
+        low_row = max(0, row - 2) if height < top - 0.02 else min(row, len(heights) - 6)
         wall = table[low_row:row + 3, column].max()
         wanted = np.clip(radius, wall + OUTSIDE_WALL, wall + GATHER_SLACK)
         if abs(wanted - radius) < 1e-5:

@@ -52,8 +52,8 @@ BUCKLE_BEVEL = 0.0018
 ANGLES = 96
 # The chest pocket, on the wearer's left, and its flap, which is the flag: x span, y span, and
 # how proud of the cloth each stands.
-POCKET = ((float(fit.x(0.035, 1.28)), float(fit.x(0.145, 1.28))), (float(fit.y(1.215)), float(fit.y(1.335))), 0.003)
-FLAP = ((float(fit.x(0.031, 1.28)), float(fit.x(0.149, 1.28))), (float(fit.y(1.30)), float(fit.y(1.352))), 0.0055)
+POCKET = ((0.035 + fit.pocket_shift(), 0.145 + fit.pocket_shift()), (float(fit.y(1.215)), float(fit.y(1.335))), 0.003)
+FLAP = ((0.031 + fit.pocket_shift(), 0.149 + fit.pocket_shift()), (float(fit.y(1.30)), float(fit.y(1.352))), 0.0055)
 # How many rounds the collar's weights are averaged round the band, and the belt's.
 COLLAR_SMOOTHING = 6
 BELT_SMOOTHING = 2
@@ -254,8 +254,11 @@ def raised_patch(mesh, xs, ys, proud, bridge_rows=0):
     grid_x, grid_y = np.meshgrid(xs, ys)
     origins = np.stack([grid_x.ravel(), grid_y.ravel(), np.full(grid_x.size, 1.0)], axis=1)
     hits, normals = cast(mesh, origins, np.array([0.0, 0.0, -1.0]))
-    if np.isnan(hits).any():
-        raise SystemExit(f"{int(np.isnan(hits).any(axis=1).sum())} patch rays missed the cloth")
+    missed = np.isnan(hits).any(axis=1)
+    if missed.mean() > MOST_MISSED:
+        raise SystemExit(f"{int(missed.sum())} patch rays missed the cloth "
+                         f"(x {xs.min():.3f}..{xs.max():.3f}, y {ys.min():.3f}..{ys.max():.3f})")
+    hits, normals = filled_from_the_nearest(hits, normals, missed, origins, len(ys), len(xs))
     normals[normals[:, 2] < 0] *= -1
     rows, columns = len(ys), len(xs)
     top, top_normals = bridged(hits, normals, rows, columns, bridge_rows) if bridge_rows else (hits, normals)
@@ -264,10 +267,42 @@ def raised_patch(mesh, xs, ys, proud, bridge_rows=0):
     return points, np.array(faces), np.tile(grid_x.ravel(), 2)
 
 
+# A plate's grid may go past the cloth at a corner, where a chest falls away into a fold (#112, the
+# women's builds, eight rays in 144 on the slim one): up to this share of rays may miss, each
+# taking the nearest hit's depth and facing at its own place.
+MOST_MISSED = 0.10
+
+
+def filled_from_the_nearest(hits, normals, missed, origins, rows, columns):
+    """The grid's hits with every missed one taken from the nearest ray that hit, at its own x and
+    y: hits, normals."""
+    if not missed.any():
+        return hits, normals
+    grid = np.stack(np.meshgrid(np.arange(columns), np.arange(rows)), axis=-1).reshape(-1, 2)
+    kept = np.where(~missed)[0]
+    for index in np.where(missed)[0]:
+        nearest = kept[np.argmin(np.linalg.norm(grid[kept] - grid[index], axis=1))]
+        hits[index] = [origins[index, 0], origins[index, 1], hits[nearest, 2]]
+        normals[index] = normals[nearest]
+    return hits, normals
+
+
+def all_on_the_cloth(mesh, xs, height):
+    """Whether rays straight back at every x, at one height, all meet the cloth."""
+    origins = np.stack([xs, np.full(len(xs), height), np.ones(len(xs))], axis=1)
+    hits, _ = cast(mesh, origins, np.array([0.0, 0.0, -1.0]))
+    return not np.isnan(hits).any()
+
+
 def placket(mesh, neck_front_height):
     """The zip line, from the crotch to the collar's front."""
     xs = np.array([-PLACKET_HALF, -PLACKET_HALF / 2, 0.0, PLACKET_HALF / 2, PLACKET_HALF])
-    ys = np.arange(PLACKET_LOW, neck_front_height - 0.002, PLACKET_STEP)
+    low = PLACKET_LOW
+    # On another build the crotch sits a little differently against the joints: the zip line
+    # starts at the first height where the cloth is under all of it (#112).
+    while not all_on_the_cloth(mesh, xs, low):
+        low += PLACKET_STEP / 3
+    ys = np.arange(low, neck_front_height - 0.002, PLACKET_STEP)
     return raised_patch(mesh, xs, ys, PLACKET_PROUD, PLACKET_BRIDGE)
 
 

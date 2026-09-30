@@ -60,7 +60,7 @@ class AmericanSuit(space_suit.SpaceSuit):
         self.helmet_centre = centre
 
     def the_chest(self):
-        wide = float(fit.width_share(1.24))
+        wide = fit.hard_part_share(1.24)
         box_y = float(fit.y(1.235))
         far = self.conformed_box("chest_box", "Chest", (0.0, box_y), (0.095 * wide, 0.068), 0.045, 0.010, 1.0)
         screen = shapes.placed(shapes.rounded_box((0.052 * wide, 0.040, 0.004), 0.003, 4),
@@ -80,7 +80,7 @@ class AmericanSuit(space_suit.SpaceSuit):
         point riding the cloth under it."""
         for sign in (1.0, -1.0):
             start = np.array([sign * 0.070 * wide, box_y - 0.060, far - 0.015])
-            end_x = sign * float(fit.x(0.150, 1.02))
+            end_x = sign * fit.hard_x(0.150, 1.02)
             end_y = float(fit.y(1.02))
             path = []
             for share in np.linspace(0, 1, 14):
@@ -99,7 +99,7 @@ class AmericanSuit(space_suit.SpaceSuit):
             self.keep(f"hose_{'l' if sign > 0 else 'r'}", mesh, weights)
 
     def the_pack(self):
-        wide = float(fit.width_share(1.215))
+        wide = fit.hard_part_share(1.215)
         self.conformed_box("pack", "cloth", fit.xy(0.0, 1.20), (0.195 * wide, 0.27 * fit.leg_share()),
                            0.17, 0.022, -1.0, count=8)
 
@@ -119,7 +119,7 @@ class AmericanSuit(space_suit.SpaceSuit):
 
     def the_pockets(self):
         for name, sign, side in SIDES:
-            self.conformed_box(f"thigh_pocket_{side}", f"{name}Leg", fit.xy(sign * 0.150, 0.56),
+            self.conformed_box(f"thigh_pocket_{side}", f"{name}Leg", (fit.hard_x(sign * 0.150, 0.56), float(fit.y(0.56))),
                                (0.050, 0.060), 0.022, 0.008, 1.0, count=5)
 
     def the_arm_flag(self):

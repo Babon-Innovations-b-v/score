@@ -99,11 +99,13 @@ def build_layer(level, identity=None):
     return layer
 
 
-def bind_pose(layer):
-    """Where every joint sits before anything moves it, and the mesh hanging there, in metres."""
+def bind_pose(layer, lift=None):
+    """Where every joint sits before anything moves it, and the mesh hanging there, in metres.
+    A person's own is stood on the floor, or raised by `lift`, the near body's, so their far
+    body stands where the near one does."""
     if layer.identity_model_type == "soma" or WHO["average_body"]:
         return average_bind_pose(layer)
-    return own_bind_pose(layer)
+    return own_bind_pose(layer, lift)
 
 
 def average_bind_pose(layer):
@@ -117,7 +119,7 @@ def average_bind_pose(layer):
     return world, vertices * NATIVE_TO_METRES
 
 
-def own_bind_pose(layer):
+def own_bind_pose(layer, lift=None):
     """A picture's person at rest: their own shape and fitted skeleton, which the body model
     caches in metres (#112).
 
@@ -132,10 +134,16 @@ def own_bind_pose(layer):
     vertices = vertices[0] if vertices.ndim == 3 else vertices
     world = world.detach().numpy().astype(np.float64).copy()
     vertices = vertices.detach().numpy().astype(np.float64).copy()
-    floor = vertices[:, 1].min()
-    vertices[:, 1] -= floor
-    world[:, 1, 3] -= floor
+    lift = floor_lift(layer) if lift is None else lift
+    vertices[:, 1] += lift
+    world[:, 1, 3] += lift
     return world, vertices
+
+
+def floor_lift(layer):
+    """How far a person's own rest shape is raised to stand on the floor."""
+    vertices = layer._cached_rest_shape.detach().numpy()
+    return -float(vertices.reshape(-1, 3)[:, 1].min())
 
 
 def is_the_root(joint, parents):
@@ -575,7 +583,7 @@ def build(out_path, clip_names, identity):
     report = {"joints": len(joint_names), "surfaces": {}, "levels": {}, "clips": {}}
     # The distant body stays bare, in its three colour zones: nobody reads a belt at twelve metres.
     for level, layer in (("far", layers["far"]),):
-        _, vertices = bind_pose(layer)
+        _, vertices = bind_pose(layer, None if WHO["average_body"] else floor_lift(near))
         faces = layer.faces.detach().numpy().astype(np.uint32)
         weights = merge_weights(layer.public_skinning_weights().detach().numpy().astype(np.float64),
                                 carries, len(joint_names))

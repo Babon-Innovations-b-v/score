@@ -24,7 +24,8 @@ UNDER_THE_CROTCH = 0.10
 # The skin kept round the head: these joints, and nothing below this height (the stand collar
 # covers the neck from about 1.44 m).
 HEAD_JOINTS = ("Neck1", "Neck2", "Head", "HeadEnd")
-NECK_CUT = float(fit.y(1.42))
+TAKE_C_NECK_CUT = 1.42
+NECK_CUT = float(fit.y(TAKE_C_NECK_CUT))
 
 
 class Body:
@@ -121,8 +122,9 @@ def bare_hands(body):
     return piece_of_the_body(body, np.isin(body.weights.argmax(axis=1), hands))
 
 
-def head_and_neck(body):
-    """The body's own head and the top of its neck, cut under the collar."""
+def head_and_neck(body, cut=NECK_CUT):
+    """The body's own head and the top of its neck, cut under the collar (at this body's height,
+    or at another's: take C's, for the kit's template head)."""
     joints = [body.joint_names.index(name) for name in HEAD_JOINTS]
-    kept = np.isin(body.weights.argmax(axis=1), joints) & (body.points[:, 1] > NECK_CUT)
+    kept = np.isin(body.weights.argmax(axis=1), joints) & (body.points[:, 1] > cut)
     return piece_of_the_body(body, kept)

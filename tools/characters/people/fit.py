@@ -7,8 +7,10 @@ build keeps every one of those decisions, moved onto their own body by their own
 - a height is moved piecewise between the joints up the body (floor, ankle, knee, hip, the spine,
   the neck, the eyes, the top of the head), so the pocket stays the same share of the way from the
   belt to the collar;
-- a width on the torso is scaled by the shoulders above the chest and by the hips below the
-  hips, blended between;
+- a width on the torso is scaled by how much wider this torso is than take C's at that height,
+  measured on the body when the look carries it (`torso` in `joints.json`, the crew kit's builds,
+  which differ by girth more than by where their joints are), else by the shoulders above the
+  chest and by the hips below the hips, blended between;
 - a place on the head is moved with the eyes: its offset from the eyes' middle scaled by how far
   apart the eyes are (across and deep) and by the eyes-to-crown height (up).
 
@@ -35,16 +37,22 @@ UP_THE_BODY = ("LeftFoot", "LeftShin", "LeftLeg", "Hips", "Spine1", "Spine2", "C
                "Neck2", "Head", "LeftEye", "HeadEnd")
 
 
-def _joints():
+def _read():
     path = LOOK / "joints.json"
-    if not path.exists():
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
+def _joints(read):
+    if not read:
         return {name: np.array(place) for name, place in TAKE_C.items()}
-    read = json.loads(path.read_text())
     return {name: np.array(read[name]) for name in TAKE_C}
 
 
-THEIRS = _joints()
+READ = _read()
+THEIRS = _joints(READ)
 OURS = {name: np.array(place) for name, place in TAKE_C.items()}
+# How much wider this torso is than take C's at heights on take C's body, where measured.
+TORSO = READ.get("torso")
 
 
 def y(height):
@@ -59,11 +67,28 @@ def y(height):
 
 def width_share(height):
     """How much wider this torso is than take C's at a height on take C's body."""
+    if TORSO is not None:
+        return np.interp(np.asarray(height, float), TORSO["heights"], TORSO["ratios"])
     shoulders = THEIRS["LeftArm"][0] / OURS["LeftArm"][0]
     hips = THEIRS["LeftLeg"][0] / OURS["LeftLeg"][0]
     blend = np.clip((np.asarray(height, float) - OURS["Hips"][1])
                     / (OURS["Chest"][1] - OURS["Hips"][1]), 0.0, 1.0)
     return hips + (shoulders - hips) * blend
+
+
+# How much wider a hard part on the torso may be made than on take C: with the torso, but only
+# so far, so a broad build's chest box does not become a table (#112).
+HARD_PART_SHARE = (0.88, 1.15)
+
+
+def hard_part_share(height):
+    """How much wider a hard part (a box, a strap, a pack) is made at a height on take C."""
+    return float(np.clip(width_share(height), *HARD_PART_SHARE))
+
+
+def hard_x(across, height):
+    """A hard part's place across the torso on take C, on this body."""
+    return across * hard_part_share(height)
 
 
 def x(across, height):
@@ -73,6 +98,20 @@ def x(across, height):
 
 def xy(across, height):
     return float(x(across, height)), float(y(height))
+
+
+# How far a chest patch's middle may move with the chest, as a share of its place on take C: out
+# with a broader chest, but never so far that it reaches into the armpit (#112).
+CHEST_PATCH_SHARE = (0.9, 1.08)
+# The height on take C the chest pocket is measured at.
+POCKET_HEIGHT = 1.28
+
+
+def pocket_shift():
+    """How far across the chest pocket moves on this body. It keeps take C's size: only its
+    middle moves out with the chest (0.09 m out from the middle on take C)."""
+    share = np.clip(width_share(POCKET_HEIGHT), *CHEST_PATCH_SHARE)
+    return 0.09 * (float(share) - 1.0)
 
 
 def arm_share():

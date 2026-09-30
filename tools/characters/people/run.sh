@@ -7,7 +7,8 @@
 #   bash tools/crew/run.sh nev oona            # build only these
 #   bash tools/crew/run.sh --clips             # generate whatever clips are missing first
 #   bash tools/crew/run.sh --clips --again sitting   # make one clip again, then build everybody
-#   bash tools/crew/run.sh --install           # copy every built body into the game
+#   bash tools/crew/run.sh --install [nev ...] # copy every built body (or these) into the game
+#   bash tools/crew/run.sh --crowd             # bake the prologue's far crowd into the game
 #
 # The tool chain itself is built once per box: docs/bible.md, workflow/bootstrap.
 set -uo pipefail
@@ -38,8 +39,17 @@ install_one() {
 }
 
 if [ "${1:-}" = "--install" ]; then
-  for person in $PEOPLE; do install_one "$person"; done
+  shift
+  for person in ${*:-$PEOPLE}; do install_one "$person"; done
   printf 'Run bash tools/godot/run.sh check (it imports first) so Godot writes the pictures out.\n'
+  exit 0
+fi
+
+if [ "${1:-}" = "--crowd" ]; then
+  # The far crowd in the prologue's square (#112): one average man's far body with four clips
+  # baked into textures the crowd's shader reads (crowd_vat.py).
+  MOTION_PERSON=kit_m_avg CUDA_VISIBLE_DEVICES="" "$PYTHON" "$HERE/crowd_vat.py" \
+    "$REPO/game/people/crowd/crowd_body" standing shifting clapping cheering || fail "baking the crowd"
   exit 0
 fi
 

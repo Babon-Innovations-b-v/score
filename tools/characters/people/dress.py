@@ -134,7 +134,7 @@ def bare_parts(body):
     names = body.joint_names
     head_points, head_faces, head_weights = skin.head_and_neck(body)
     if WHO["painted_mouth"]:
-        head_points = face.lips_shut(head_points, head_faces)
+        head_points = face.lips_shut(head_points)
     eyes = np.load(EYES)
     eye_points, eye_faces = eyes["points"], eyes["faces"].astype(np.int64)
     surface = face.the_head_surface(head_points, head_faces, eye_points, eye_faces)
@@ -241,6 +241,19 @@ def american_space_suit_parts(body):
 
 
 def outfits(body):
-    """Both outfits, by the names the game knows them by: {"work": parts, "suit": parts}."""
+    """Everything this person's file holds, by the node names the game knows them by: a crew
+    member's two outfits, {"work": parts, "suit": parts}; a crew kit build's parts (`kit.py`);
+    or a prologue person's plain clothes (`prologue.py`)."""
+    if WHO["kit"] is not None:
+        import kit
+        return kit.outfits(body)
+    if WHO["prologue"] is not None:
+        import prologue
+        return prologue.outfits(body)
+    return crew_outfits(body)
+
+
+def crew_outfits(body):
+    """Both of a crew member's outfits: {"work": parts, "suit": parts}."""
     suit = american_space_suit_parts(body) if WHO["space"] == "american" else space_suit_parts(body)
     return {"work": work_suit_parts(body), "suit": suit}

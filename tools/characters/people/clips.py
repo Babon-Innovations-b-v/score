@@ -92,13 +92,28 @@ SENTENCES = {
     # hands, which read as a glitch in the playtest (2026-09-26).
     "lifting": ("a person bending down to grab something heavy lying on the ground in front of "
                 "them with both hands, then straightening up and lifting it to waist height", 3.0),
+    # The prologue (#112): the driver beside the car holding its rear door open for the player,
+    # the crowd in the square, and a technician on launch day with a clipboard. The first door
+    # sentence ("a chauffeur standing still beside a car, holding the open rear car door with the
+    # right hand at waist height ...") came back as plain standing, the hand at 0.91 m; this one
+    # holds the right hand out at 1.11 m (the others are kept on the box as door_a to door_c).
+    "door": ("a man standing beside an open car door, his right hand holding the door's top edge "
+             "out to his right at hip height with a straight arm, waiting for someone to get in",
+             6.0),
+    "clapping": ("a person standing in a crowd, clapping their hands in front of their chest",
+                 5.0),
+    "shifting": ("a person standing in a crowd, shifting their weight from one foot to the "
+                 "other and looking around", 5.0),
+    "clipboard": ("a person standing still, holding a clipboard in front of their chest with "
+                  "the left hand and writing on it with the right hand", 5.0),
     # Oona in the dust beside Bram, and against the boot rock facing his cairn (#112, #109).
     "sitting": ("a person sitting on the ground with their knees drawn up, arms resting on their "
                 "knees, completely still", 5.0),
 }
 # Clips that play once rather than round and round: the build keeps them whole instead of cutting
-# them to a loop.
-ONCE = {"lifting"}
+# them to a loop, and the game holds the last frame. The driver takes hold of the door once and
+# keeps holding it.
+ONCE = {"lifting", "door"}
 
 
 # The name a clip carries in the game, where it differs from the file it was generated into.

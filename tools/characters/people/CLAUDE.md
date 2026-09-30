@@ -1,9 +1,12 @@
 # tools/crew
 
-Builds a file for each person the game draws in a body of their own (`paths.PEOPLE`: take C,
-Nev, Oona, Bram, Sefa, #112), each `game/people/person_model/<person>/<person>.glb`. Every file
-has the same skeleton and clips; what differs is the build, the outfits and the face. It is the
-prop chain's sibling. Run it with `bash tools/crew/run.sh`; the chain itself is
+Builds a file for each person the game draws (`paths.PEOPLE`, #112), each
+`game/people/person_model/<person>/<person>.glb`: the crew with bodies of their own (take C, Nev,
+Oona, Bram, Sefa: two outfits each, `dress.py`), the crew kit's six builds (every part a seed
+mixes, `kit.py`), and the prologue's named people (the leader, the guard, the driver, the two
+technicians: plain clothes, `prologue.py` and `plain.py`). `--crowd` bakes the prologue's far
+crowd (`crowd_vat.py`). Every file has the same skeleton and clips. It is the prop chain's
+sibling. Run it with `bash tools/crew/run.sh`; the chain itself is
 installed once per box (`docs/bible.md`, `workflow/bootstrap`).
 
 ## The one rule here
@@ -48,6 +51,16 @@ from belt to collar; a new number is written as take C's and passed through `fit
 is still built on the average body he was approved on (`average_body` in his `person.json`): his
 own body is right for the clips, but redraped on it his drawn mouth doubled and his flag lost its
 star, so that waits until his face and drapes are redone.
+
+The crew kit's faces were read off one sheet of faces and are carried onto each build by the
+body's own points (`faces.py`): a face's head is stood on the build's neck, and what was made on
+take C's head (the eyes, the hairstyles, the brows' and irises' places) follows the points round
+it. Those are measured on take C in take C's own numbers (`face.TAKE_C_BROW`, `skin.TAKE_C_NECK_CUT`),
+never through `fit`. The kit's builds carry their torso's width up the body in `joints.json`,
+because slim and broad builds differ by girth more than by where their joints are; a hard part is
+widened with the torso only so far (`fit.hard_part_share`), and the chest pocket keeps its size.
+One build takes about fifty minutes on this box's processor; build one at a time, never several
+at once (two parallel runs took the machine down on 2026-09-30).
 
 Everything after the look is code here and runs every time: `work_suit.py`, `boots.py`, `face.py` and `space_suit.py` build the parts on the body,
 `skin.py` weights them, `paint.py` paints them, `blender.py` has Blender thin and unwrap them. Two

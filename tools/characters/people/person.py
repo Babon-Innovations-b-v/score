@@ -20,6 +20,10 @@ the next. A setting a file leaves out is take C's.
   take C's measure.
 - `painted_mouth`: the mouth is one painted line rather than the drawing's (a beard hides the
   drawing's; Nev's drawn one read grim).
+- `kit`: this look is a crew kit build (`kit.py`): the `faces`, `hair` styles, `schemes` and
+  `plain` outfits its file holds.
+- `prologue`, `face`, `hair_style`: this look is one of the prologue's people (`prologue.py`:
+  guard, driver, tech_man or tech_woman) on a kit build, with a kit face and hairstyle.
 """
 import json
 
@@ -30,7 +34,7 @@ TAKE_C = {"scale": 1.0, "average_body": False, "skin": (226, 172, 138), "hair": 
           "brow_lift": 0.0,
           "work": "chinese", "space": "chinese", "botanist": False, "glasses": False, "name": None,
           "beard": None, "beard_style": "full", "beard_length": 1.0, "freckles": None,
-          "painted_mouth": False}
+          "painted_mouth": False, "kit": None, "prologue": None, "face": None, "hair_style": None}
 
 
 def settings_of_this_person():

@@ -21,7 +21,14 @@ DRESSING = WORK / "dressing"
 
 # Everybody the game draws as a body of their own (#112), each a look and a built file: take C,
 # the player's first astronaut; Nev, the botanist; Oona, Bram and Sefa, the first expedition.
-PEOPLE = ("take_c", "nev", "oona", "bram", "sefa")
+CREW = ("take_c", "nev", "oona", "bram", "sefa")
+# The crew kit's builds (#112): every part a seed mixes into a generated crew member, the next
+# astronaut or a body at the square's edge, one file per build (`kit.py`).
+KIT_BUILDS = ("kit_m_slim", "kit_m_avg", "kit_m_broad", "kit_w_slim", "kit_w_avg", "kit_w_broad")
+# The prologue's people (`prologue.py`): the leader on his podium, on a build of his own, and on
+# launch day the guard, the driver and the two technicians, each on a kit build.
+PROLOGUE = ("leader", "guard", "driver", "tech_man", "tech_woman")
+PEOPLE = CREW + KIT_BUILDS + PROLOGUE
 # Who this run builds; one run builds one person, because every module reads its look on import.
 PERSON = os.environ.get("MOTION_PERSON", PEOPLE[0])
 
@@ -35,6 +42,15 @@ LOOK = pathlib.Path(os.environ.get("MOTION_LOOK", HOME / "look" / PERSON))
 IDENTITY = LOOK / "identity.npz"
 WORK_DRAPE = LOOK / "work_drape"
 SPACE_DRAPE = LOOK / "space_drape"
+# Plain clothes (the prologue's people and the crowd's edge, #112): a jacket, a knee-length coat
+# and trousers, each a GarmentCode drape on the build.
+JACKET_DRAPE = LOOK / "jacket_drape"
+COAT_DRAPE = LOOK / "coat_drape"
+TROUSERS_DRAPE = LOOK / "trousers_drape"
+# What every crew kit build shares (#112): the body SAM 3D Body read off each face's picture
+# (`face_bodies/`), each face's drawing (`faces/`) and each hairstyle, made on take C's head
+# (`hair/`).
+KIT = HOME / "look" / "kit"
 WORK_BOOT = LOOK / "work_boot.npz"
 SPACE_BOOT = LOOK / "space_boot.npz"
 HAIR = LOOK / "hair.npz"

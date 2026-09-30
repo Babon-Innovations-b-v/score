@@ -65,6 +65,8 @@ SUIT_FLAT = [("band_green", (58, 128, 64)), ("band_red", SUIT_RED), ("band_gold"
 # The hair's highlight, where the drawing's hair catches the light: one flat lighter shape where
 # the hair faces this way (up, forward and to his left), inside this much of a turn.
 HAIR_SHINE = WHO["hair_shine"]
+# The head's colours now: this person's, or a kit face's while its head is painted (#112).
+FACE_COLOURS = {"skin": SKIN, "hair": HAIR, "shine": HAIR_SHINE, "brow": BROW}
 HAIR_SHINE_TOWARD = (0.35, 0.75, 0.55)
 HAIR_SHINE_WITHIN = 0.93
 HAIR_SHINE_SMOOTHING = 40
@@ -101,10 +103,29 @@ SEAT_POCKET_Y = float(fit.y(0.955))
 SEAT_POCKET_SPAN = (float(fit.x(0.045, 0.955)), float(fit.x(0.140, 0.955)))
 SEAT_POCKET_TALL = 0.006
 SLIT = (26, 30, 42)
+# The work suit's colour schemes (#112): the cloth, its piping, the yokes and the seat pockets'
+# slits. Navy is take C's; the kit's olive and maroon were picked from its colour sheet
+# (takes/kit_colours_8.png, lit side).
+SCHEMES = {
+    "navy": {"cloth": NAVY, "piping": RED, "yoke": GREY, "slit": SLIT},
+    "olive": {"cloth": (82, 90, 56), "piping": (214, 120, 44), "yoke": GREY, "slit": (44, 48, 30)},
+    "maroon": {"cloth": (116, 44, 48), "piping": (176, 176, 172), "yoke": GREY, "slit": (60, 24, 26)},
+}
+# The scheme the work suit is painted in now; `wear` changes it.
+SCHEME = dict(SCHEMES["navy"])
+
+
+def wear(scheme):
+    """Paints the work suit from here on in one of `SCHEMES`, or a scheme of its own (a dict of
+    the same four colours)."""
+    SCHEME.clear()
+    SCHEME.update(SCHEMES[scheme] if isinstance(scheme, str) else scheme)
+    WORK_FLAT["work_collar"] = SCHEME["cloth"]
+    WORK_FLAT["work_lining"] = SCHEME["cloth"]
 # The zip line's piping: how far in from each long edge the red starts.
 PLACKET_RED = 0.006
 # The star on the pocket's flag: its middle and its outer radius, in metres on the bind pose.
-POCKET_STAR = (*fit.xy(0.058, 1.327), 0.016)
+POCKET_STAR = (0.058 + fit.pocket_shift(), float(fit.y(1.327)), 0.016)
 # The face: which drawn lines are kept (pixel boxes round the nose, and the mouth and chin), how
 # dark a pixel must be to count, the smallest speck kept, how far a texel may face away from the
 # front and how far behind the front-most surface it may sit and still take a line.
@@ -208,7 +229,7 @@ def work_cloth(part, panels, joints):
     sleeve_all = np.char.find(panel, "sleeve") >= 0
     sleeve = sleeve_all & (np.char.find(panel, "cuff") < 0)
     leg = np.char.startswith(panel, "pant")
-    colour = np.tile(np.array(NAVY, float), (len(points), 1))
+    colour = np.tile(np.array(SCHEME["cloth"], float), (len(points), 1))
     red = np.zeros(len(points), bool)
     patches = []
     front_view = np.stack([x_side, points[:, 1]], axis=1)
@@ -216,14 +237,14 @@ def work_cloth(part, panels, joints):
         distance, normal = line_side(front_view, line)
         gradient = np.stack([normal[0] * sign, np.full(len(points), normal[1]), np.zeros(len(points))], axis=1)
         across_the_line = distance / tangential(gradient, normals)
-        colour[mask & (distance > 0) & (points[:, 1] > line[1][1] - 0.03)] = GREY
+        colour[mask & (distance > 0) & (points[:, 1] > line[1][1] - 0.03)] = SCHEME["yoke"]
         red |= (mask & (np.abs(across_the_line) < PIPING / 2) & (points[:, 1] < line[0][1] + 0.02)
                 & (points[:, 1] > line[1][1] - 0.012))
     for side, sign_value in (("Left", 1.0), ("Right", -1.0)):
         mine = np.where(sleeve_all & (sign == sign_value))[0]
         along, outside = outer_line(points[mine], normals[mine], joints,
                                     (f"{side}Arm", f"{side}ForeArm", f"{side}Hand"), sign_value)
-        colour[mine[(along < SLEEVE_CAP) & sleeve[mine]]] = GREY
+        colour[mine[(along < SLEEVE_CAP) & sleeve[mine]]] = SCHEME["yoke"]
         red[mine[(np.abs(outside) < PIPING / 2) & (along >= SLEEVE_CAP - 0.004) & sleeve[mine]]] = True
         patches.append((mine, along, outside))
         mine = np.where(leg & (sign == sign_value))[0]
@@ -231,13 +252,13 @@ def work_cloth(part, panels, joints):
                                 (f"{side}Leg", f"{side}Shin", f"{side}Foot"), sign_value)
         red[mine[(np.abs(outside) < PIPING / 2) & (points[mine, 1] < WAIST_TOP - 0.01)]] = True
     # The back: a cross seam between the yokes and a centre seam up from it to the collar.
-    inside_back = back & ~(colour == GREY).all(axis=1)
+    inside_back = back & ~(colour == SCHEME["yoke"]).all(axis=1)
     upward = np.tile([0.0, 1.0, 0.0], (len(points), 1))
     red |= inside_back & (np.abs((points[:, 1] - BACK_SEAM_Y) / tangential(upward, normals)) < PIPING / 2)
     sideways = np.tile([1.0, 0.0, 0.0], (len(points), 1))
     red |= (back & (np.abs(points[:, 0] / tangential(sideways, normals)) < PIPING / 2)
             & (points[:, 1] > BACK_SEAM_Y) & (points[:, 1] < BACK_SEAM_TOP))
-    colour[red] = RED
+    colour[red] = SCHEME["piping"]
     for (mine, along, outside), side in zip(patches, ("Left", "Right")):
         if side == "Left" and WHO["botanist"]:
             botanist_band(colour, mine, along, outside)
@@ -383,7 +404,7 @@ def seat_pockets(colour, on_the_back, points, normals):
     across = np.abs((points[:, 1] - SEAT_POCKET_Y) / tangential(upward, normals))
     slit = (on_the_back & (points[:, 2] < 0) & (across < SEAT_POCKET_TALL / 2)
             & (np.abs(points[:, 0]) > SEAT_POCKET_SPAN[0]) & (np.abs(points[:, 0]) < SEAT_POCKET_SPAN[1]))
-    colour[slit] = SLIT
+    colour[slit] = SCHEME["slit"]
 
 
 def work_placket(part, across):
@@ -393,8 +414,8 @@ def work_placket(part, across):
     on, owner, shares, _, _ = texel_places(part, PLACKET_PICTURE)
     across_here = texels.at_texels(across[part["source"]], part["faces"], owner, shares)[on]
     half = np.abs(across).max()
-    colour = np.tile(np.array(NAVY, float), (on.sum(), 1))
-    colour[np.abs(across_here) > half - PLACKET_RED] = RED
+    colour = np.tile(np.array(SCHEME["cloth"], float), (on.sum(), 1))
+    colour[np.abs(across_here) > half - PLACKET_RED] = SCHEME["piping"]
     return picture_of(on, colour)
 
 
@@ -420,8 +441,8 @@ def hair(part):
     smooth = dict(part, normals=smoothed_normals(part, HAIR_SHINE_SMOOTHING))
     on, _, _, points, normals = texel_places(smooth, HAIR_PICTURE)
     toward = np.array(HAIR_SHINE_TOWARD) / np.linalg.norm(HAIR_SHINE_TOWARD)
-    colour = np.tile(np.array(HAIR, float), (len(points), 1))
-    colour[normals @ toward > HAIR_SHINE_WITHIN] = HAIR_SHINE
+    colour = np.tile(np.array(FACE_COLOURS["hair"], float), (len(points), 1))
+    colour[normals @ toward > HAIR_SHINE_WITHIN] = FACE_COLOURS["shine"]
     return picture_of(on, colour)
 
 
@@ -442,7 +463,7 @@ def work_pocket(part, flap_from):
     """The chest pocket: navy, its flap the flag, red with the yellow star at the hoist."""
     on, owner, _, points, _ = texel_places(part, POCKET_PICTURE)
     flap = (part["source"][part["faces"]] >= flap_from).all(axis=1)[owner[on]]
-    colour = np.tile(np.array(NAVY, float), (len(points), 1))
+    colour = np.tile(np.array(SCHEME["cloth"], float), (len(points), 1))
     colour[flap] = FLAG
     colour[flap & star_inside(points[:, 0], points[:, 1], *POCKET_STAR)] = STAR
     return picture_of(on, colour)
@@ -462,14 +483,14 @@ def suit_flag(part):
     return picture_of(on, colour)
 
 
-def face_lines():
+def face_lines(folder=FACE):
     """The nose and mouth lines of the drawn face, as a mask on the drawing's pixels: dark
     pixels inside the kept boxes, specks dropped."""
-    drawn = np.asarray(Image.open(FACE / "drawn.png").convert("L")).astype(float)
+    drawn = np.asarray(Image.open(folder / "drawn.png").convert("L")).astype(float)
     dark = drawn < DARK
     keep = np.zeros_like(dark)
     # A person's own drawing names its own boxes in view.json (#112); take C's are KEEP.
-    boxes = json.loads((FACE / "view.json").read_text()).get("keep", KEEP)
+    boxes = json.loads((folder / "view.json").read_text()).get("keep", KEEP)
     for left, top, right, bottom in boxes:
         keep[top:bottom, left:right] = True
     mask = dark & keep
@@ -481,7 +502,7 @@ def face_lines():
     return mask
 
 
-def skin_head(part):
+def skin_head(part, folder=FACE, shift=(0.0, 0.0, 0.0)):
     """The head's skin: flat skin, and the drawing's nose and mouth lines projected straight on
     from the front onto texels that face the front and are the front-most surface there.
 
@@ -489,29 +510,34 @@ def skin_head(part):
     on this head's own front depth view (FLUX.2 klein with a depth guide, kept in the look), so
     the lines land on the nose and lips they were drawn on."""
     on, _, _, points, normals = texel_places(part, HEAD_PICTURE)
-    view = json.loads((FACE / "view.json").read_text())
+    # A kit face (#112) was drawn with its head on take C's Head joint; `shift` is how far this
+    # build's head sits from there, taken off each texel's place before it is looked up.
+    drawn_at = points - np.asarray(shift)
+    view = json.loads((folder / "view.json").read_text())
     x_low, x_high, y_low, y_high = view["window"]
     pixels = view["size"]
-    depth = np.load(FACE / "depth.npy")
-    mask = face_lines().astype(float)
-    column = (points[:, 0] - x_low) / (x_high - x_low) * pixels - 0.5
-    row = (y_high - points[:, 1]) / (y_high - y_low) * pixels - 0.5
+    depth = np.load(folder / "depth.npy")
+    mask = face_lines(folder).astype(float)
+    column = (drawn_at[:, 0] - x_low) / (x_high - x_low) * pixels - 0.5
+    row = (y_high - drawn_at[:, 1]) / (y_high - y_low) * pixels - 0.5
     inside = (column >= 0) & (column < pixels - 1) & (row >= 0) & (row < pixels - 1)
     nearest_row = np.clip(np.round(row).astype(int), 0, pixels - 1)
     nearest_column = np.clip(np.round(column).astype(int), 0, pixels - 1)
     in_front = (inside & (normals[:, 2] > FACING)
-                & (points[:, 2] > depth[nearest_row, nearest_column] - DEPTH_SLACK))
+                & (drawn_at[:, 2] > depth[nearest_row, nearest_column] - DEPTH_SLACK))
     # How much of each texel the line covers, read smoothly, so the line's edge is soft by the
     # drawing's own antialiasing.
     cover = ndimage.map_coordinates(mask, [row, column], order=1, mode="constant")
     cover = np.where(in_front, cover, 0.0)[:, None]
-    skin = np.tile(np.array(SKIN, float), (len(points), 1))
+    skin = np.tile(np.array(FACE_COLOURS["skin"], float), (len(points), 1))
     if WHO["beard"] is not None:
         skin[beard(points)] = WHO["beard"]
     if WHO["painted_mouth"]:
         # Not only where the skin faces the front: the lips meet in a crease that faces up and
-        # down, and a line there left out read as two lines, an open grim mouth.
-        skin[mouth_line(points)] = LINE
+        # down, and a line there left out read as two lines, an open grim mouth. But only on the
+        # front-most skin: painted inside the mouth too it read as an open black mouth.
+        on_the_line = np.where(mouth_line(points))[0]
+        skin[on_the_line[front_most(points[on_the_line], part["points"])]] = LINE
     if WHO["freckles"] is not None:
         skin[freckles(points) & (normals[:, 2] > FACING)] = WHO["freckles"]
     return picture_of(on, skin * (1 - cover) + np.array(LINE, float) * cover)
@@ -546,6 +572,21 @@ def mouth_line(points):
     drop = (eye[1] - points[:, 1]) / scale[1]
     bow = BEARD_MOUTH[0] - 0.0025 * (across / BEARD_MOUTH[1]) ** 2
     return (np.abs(drop - bow) < 0.0011) & (across < BEARD_MOUTH[1] * 0.85) & (points[:, 2] > fit.THEIRS["LeftEye"][2] - 0.01)
+
+
+# How far behind the front-most skin at its place a texel may lie and still be on the lips'
+# front, and how wide round it the front is looked for (m).
+FRONT_MOST_SLACK = 0.004
+FRONT_MOST_REACH = 0.008
+
+
+def front_most(points, head_points):
+    """Which points are on the front-most skin at their place in a front view: within
+    FRONT_MOST_SLACK of the head's nearest-to-the-front point round them."""
+    tree = cKDTree(head_points[:, :2])
+    near = tree.query_ball_point(points[:, :2], FRONT_MOST_REACH)
+    front = np.array([head_points[found, 2].max() if found else -np.inf for found in near])
+    return points[:, 2] > front - FRONT_MOST_SLACK
 
 
 def beard(points):

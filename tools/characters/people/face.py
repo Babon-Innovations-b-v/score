@@ -10,23 +10,27 @@ The mouth and the nose are lines painted on the skin (`paint.py`), not parts.
 import fit
 import numpy as np
 import trimesh
+from scipy.spatial import cKDTree
 from person import WHO
 
 # The brow strip in a front view, on his left (x > 0); the right is mirrored. Along the brow:
-# x, the strip's centre height, its full height.
-BROW = np.array([[0.011, 1.6570, 0.0100],
+# x, the strip's centre height, its full height. As measured on take C, which the crew kit's
+# heads are carried from (`kit.py`).
+TAKE_C_BROW = np.array([[0.011, 1.6570, 0.0100],
                  [0.022, 1.6590, 0.0098],
                  [0.034, 1.6610, 0.0088],
                  [0.045, 1.6620, 0.0072],
                  [0.054, 1.6615, 0.0050]])
 # Moved onto this head, and each brow's height scaled by BROW_WEIGHT (the look's, 1 for take C).
-BROW = np.column_stack([fit.head_xy(BROW[:, :2]), BROW[:, 2] * fit.head_scale()[1] * WHO["brow_weight"]])
+BROW = np.column_stack([fit.head_xy(TAKE_C_BROW[:, :2]),
+                        TAKE_C_BROW[:, 2] * fit.head_scale()[1] * WHO["brow_weight"]])
 # Raised by the look's `brow_lift` (m): above a glasses rim, and higher on the women (#112).
 BROW[:, 1] += WHO["brow_lift"]
 BROW_STEPS, BROW_ACROSS = 12, 5
 BROW_PROUD = 0.0022
 BROW_RIM_SHARE = 0.45
-EYE_CENTRES = fit.head_xy(np.array([[0.031, 1.6485], [-0.031, 1.6485]]))
+TAKE_C_EYE_CENTRES = np.array([[0.031, 1.6485], [-0.031, 1.6485]])
+EYE_CENTRES = fit.head_xy(TAKE_C_EYE_CENTRES)
 IRIS_RADIUS = 0.0044
 IRIS_PROUD = 0.0006
 IRIS_RINGS, IRIS_SPOKES = 4, 16
@@ -88,11 +92,12 @@ def slab(mesh, front_view, rows, columns):
     return facing_the_front(points, faces)
 
 
-def brow_grid(side):
-    """One brow's strip as front-view points, rows across the brow, columns along it."""
-    along = np.linspace(BROW[0, 0], BROW[-1, 0], BROW_STEPS)
-    centre = np.interp(along, BROW[:, 0], BROW[:, 1])
-    height = np.interp(along, BROW[:, 0], BROW[:, 2])
+def brow_grid(side, brow=BROW):
+    """One brow's strip as front-view points, rows across the brow, columns along it: this
+    head's, or on another table's (take C's, for the kit)."""
+    along = np.linspace(brow[0, 0], brow[-1, 0], BROW_STEPS)
+    centre = np.interp(along, brow[:, 0], brow[:, 1])
+    height = np.interp(along, brow[:, 0], brow[:, 2])
     across = np.linspace(-0.5, 0.5, BROW_ACROSS)
     grid = np.array([[x_along * side, middle + tall * share] for share in across
                      for x_along, middle, tall in zip(along, centre, height)])
@@ -133,30 +138,36 @@ def joined(pieces):
     return np.vstack(points), np.vstack(faces)
 
 
-# Lips pressed shut for a painted mouth (#112): the head's points round the mouth, in take C's
-# head measures moved with the eyes (half width, drop under the eyes from and to, how far in from
-# the front of the face), are smoothed this many rounds, fading out towards the box's edge.
-LIPS = (0.030, 0.052, 0.094, 0.030)
-LIPS_ROUNDS = 8
+# Lips pressed shut for a painted mouth (#112), in take C's head measures moved with the eyes: the
+# line the lips close on (its drop under the eyes, as `paint.BEARD_MOUTH` paints it), how far above
+# and below it and how far out from the middle the lips are, how far in from the front of the face
+# a point may lie and still be on them, and how wide round a point the lips' front is looked for.
+MOUTH_DROP = 0.0725
+LIPS_REACH = 0.012
+LIPS_HALF = 0.030
+LIPS_DEPTH = 0.030
+LIPS_AROUND = 0.009
 
 
-def lips_shut(points, faces):
-    """The head's points with the crease between the lips smoothed away: a fitted head's mouth is
-    a little open, and its outline drawn round the lips read as a second, grim mouth beside the
-    painted line."""
+def lips_shut(points):
+    """The head's points with the crease between the lips filled to the lips' front: a fitted
+    head's mouth is a little open, and the crease, facing down and away from the light, drew in
+    the crew's dark shade as an open, grim mouth round the painted line. Each point near the mouth
+    comes forward to the front-most skin round it, fading out towards the mouth's corners and
+    away from its line, so the skin round the lips stays where it was."""
     eye = fit.eye(1.0)
     scale = fit.head_scale()
     across = np.abs(points[:, 0]) / scale[0]
-    drop = (eye[1] - points[:, 1]) / scale[1]
-    half, top, bottom, depth = LIPS
-    inside = (across < half) & (drop > top) & (drop < bottom) & (points[:, 2] > eye[2] - depth)
-    middle = (top + bottom) / 2
-    fade = np.clip(1.0 - np.maximum(across / half, np.abs(drop - middle) / ((bottom - top) / 2)), 0.0, 1.0)
-    weight = np.where(inside, np.clip(fade * 2.0, 0.0, 1.0), 0.0)[:, None]
-    mesh = trimesh.Trimesh(points, faces, process=False)
-    smoothed = trimesh.smoothing.filter_laplacian(mesh.copy(), lamb=0.6, iterations=LIPS_ROUNDS,
-                                                volume_constraint=False).vertices
-    return points * (1.0 - weight) + np.asarray(smoothed) * weight
+    off_the_line = np.abs((eye[1] - points[:, 1]) / scale[1] - MOUTH_DROP)
+    near = np.where((off_the_line < LIPS_REACH) & (across < LIPS_HALF)
+                    & (points[:, 2] > eye[2] - LIPS_DEPTH))[0]
+    tree = cKDTree(points[near][:, :2])
+    moved = points.copy()
+    for index, around in zip(near, tree.query_ball_point(points[near][:, :2], LIPS_AROUND)):
+        front = points[near[around], 2].max()
+        share = (1.0 - across[index] / LIPS_HALF) * (1.0 - off_the_line[index] / LIPS_REACH)
+        moved[index, 2] += (front - points[index, 2]) * np.clip(share * 2.0, 0.0, 1.0)
+    return moved
 
 
 def the_head_surface(head_points, head_faces, eye_points, eye_faces):

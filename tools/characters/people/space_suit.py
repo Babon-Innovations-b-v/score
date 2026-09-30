@@ -270,7 +270,7 @@ class SpaceSuit:
         self.rigid("visor_rim", shapes.joined([rim] + pucks), "Head")
 
     def the_chest(self):
-        wide = float(fit.width_share(1.268))
+        wide = fit.hard_part_share(1.268)
         far = self.conformed_box("chest_box", "Chest", fit.xy(0.0, 1.268), (0.125 * wide, 0.08), 0.05, 0.016, 1.0)
         flag = shapes.placed(shapes.rounded_box((0.075, 0.032, 0.005), 0.003, 4),
                              np.array([0.0, float(fit.y(1.303)), far + 0.002]), np.eye(3))
@@ -278,21 +278,21 @@ class SpaceSuit:
         knobs = [shapes.placed(shapes.rounded_box((0.014, 0.014, 0.010), 0.009, 4),
                                np.array([spot * wide, float(fit.y(1.222)), far + 0.006]), np.eye(3)) for spot in (-0.055, 0.055)]
         self.rigid("chest_knobs", shapes.joined(knobs), "Chest")
-        wide = float(fit.width_share(1.045))
+        wide = fit.hard_part_share(1.045)
         self.conformed_box("waist_box", "cloth", fit.xy(0.0, 1.045), (0.075 * wide, 0.04), 0.04, 0.012, 1.0, count=7)
         for _, sign, side in SIDES:
-            self.conformed_box(f"waist_light_{side}", "cloth", fit.xy(sign * 0.108, 1.045), (0.026, 0.03),
+            self.conformed_box(f"waist_light_{side}", "cloth", (fit.hard_x(sign * 0.108, 1.045), float(fit.y(1.045))), (0.026, 0.03),
                                0.03, 0.008, 1.0, count=5)
 
     def the_pack(self):
-        wide = float(fit.width_share(1.215))
+        wide = fit.hard_part_share(1.215)
         self.conformed_box("pack", "cloth", fit.xy(0.0, 1.215), (0.165 * wide, 0.215 * fit.leg_share()), 0.16, 0.04, -1.0, count=10)
 
     def the_straps(self):
         """Harness straps down the front beside the chest box, and a belt."""
         torso = self.limb_piece(["torso"])
         for _, sign, side in SIDES:
-            inner, outer = sorted((sign * float(fit.x(0.140, 1.3)), sign * float(fit.x(0.176, 1.3))))
+            inner, outer = sorted((sign * fit.hard_x(0.140, 1.3), sign * fit.hard_x(0.176, 1.3)))
             piece = strip(torso, [((inner, 0, 0), (1, 0, 0)), ((outer, 0, 0), (-1, 0, 0)),
                                   ((0, float(fit.y(1.07)), 0), (0, 1, 0))])
             self.keep(f"strap_{side}", *self.raised(piece, -0.001, 0.005))
