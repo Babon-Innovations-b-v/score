@@ -80,6 +80,9 @@ SENTENCES = {
     # hands, which read as a glitch in the playtest (2026-09-26).
     "lifting": ("a person bending down to grab something heavy lying on the ground in front of "
                 "them with both hands, then straightening up and lifting it to waist height", 3.0),
+    # Oona in the dust beside Bram, and against the boot rock facing his cairn (#112, #109).
+    "sitting": ("a person sitting on the ground with their knees drawn up, arms resting on their "
+                "knees, completely still", 5.0),
 }
 # Clips that play once rather than round and round: the build keeps them whole instead of cutting
 # them to a loop.

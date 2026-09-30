@@ -4,6 +4,7 @@ Every part is either cloth that follows the body under it, a hard part that ride
 on the cloth or on one joint, or a piece of the body itself. All of them end up with the body's
 own 27 joints, so every clip plays on every outfit with no conversion of any kind.
 """
+import fit
 import numpy as np
 import trimesh
 from scipy.spatial import cKDTree
@@ -23,7 +24,7 @@ UNDER_THE_CROTCH = 0.10
 # The skin kept round the head: these joints, and nothing below this height (the stand collar
 # covers the neck from about 1.44 m).
 HEAD_JOINTS = ("Neck1", "Neck2", "Head", "HeadEnd")
-NECK_CUT = 1.42
+NECK_CUT = float(fit.y(1.42))
 
 
 class Body:

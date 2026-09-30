@@ -23,11 +23,13 @@ that match each other best and the small remaining drift is taken out along the 
 is ever close enough to see a knuckle, and a crowd of people each carrying fifty finger joints is
 paid for every frame. Their weight is merged into the wrist, so the hand is still a hand.
 
-**Only the outfits carry colour.** Each part of an outfit brings its painted picture, which the
-game draws with the crew's own light. The bare distant body names its surfaces and says nothing
-about what colour they are: the game puts a shared material from `game/art/materials/` on them.
+**The outfits carry pictures, the distant body flat colours.** Each part of an outfit brings its
+painted picture, which the game draws with the crew's own light. The bare distant body names its
+three surfaces and gives each this person's flat colour (skin, suit, boots), which the game draws
+a crew member far off in (#112); every other shade puts a shared material on them.
 """
 import argparse
+import functools
 import json
 import pathlib
 import sys
@@ -37,12 +39,14 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import dress  # noqa: E402
 import glb  # noqa: E402
 import numpy as np  # noqa: E402
+import paint  # noqa: E402
 import regions  # noqa: E402
 import skin  # noqa: E402
 import texels  # noqa: E402
 import torch  # noqa: E402
 import paths  # noqa: E402
-from paths import BODIES, IDENTITY, MOTIONS  # noqa: E402
+from paths import BODIES, IDENTITY, MOTIONS, PERSON  # noqa: E402
+from person import WHO  # noqa: E402
 from scipy.spatial.transform import Rotation  # noqa: E402
 
 import soma.assets  # noqa: E402
@@ -90,12 +94,20 @@ def build_layer(level, identity=None):
                       identity_model_type="mhr", lod=level, mode="dense")
     layer.prepare_identity(torch.from_numpy(read["shape_params"]).float()[None],
                            scale_params=numbers[:, -68:],
-                           kwargs={"bone_length_flexibles": numbers[:, 130:136]})
+                           kwargs={"bone_length_flexibles": numbers[:, 130:136]},
+                           global_scale=WHO["scale"])
     return layer
 
 
 def bind_pose(layer):
     """Where every joint sits before anything moves it, and the mesh hanging there, in metres."""
+    if layer.identity_model_type == "soma" or WHO["average_body"]:
+        return average_bind_pose(layer)
+    return own_bind_pose(layer)
+
+
+def average_bind_pose(layer):
+    """The plain average body's bind pose, from the body model's template buffers."""
     world = layer.bind_pose_world[layer.public_transform_joint_indices]
     world = world.detach().numpy().astype(np.float64).copy()
     world[:, :3, 3] *= NATIVE_TO_METRES
@@ -103,6 +115,27 @@ def bind_pose(layer):
     if vertices.ndim == 3:
         vertices = vertices[0]
     return world, vertices * NATIVE_TO_METRES
+
+
+def own_bind_pose(layer):
+    """A picture's person at rest: their own shape and fitted skeleton, which the body model
+    caches in metres (#112).
+
+    The template buffers `average_bind_pose` reads are the average body whatever the identity:
+    read for a fitted person, they gave every build the same body and left the clips' skeleton
+    10 mm off the mesh on average, 59 mm at worst (take C's build report, 2026-09-29). The fitted
+    body hangs from its hips at the model's own height, its soles off the floor; mesh and joints
+    are stood down together, which changes no skinning."""
+    world = layer.public_bind_transforms_world()
+    world = world[0] if world.ndim == 4 else world
+    vertices = layer._cached_rest_shape
+    vertices = vertices[0] if vertices.ndim == 3 else vertices
+    world = world.detach().numpy().astype(np.float64).copy()
+    vertices = vertices.detach().numpy().astype(np.float64).copy()
+    floor = vertices[:, 1].min()
+    vertices[:, 1] -= floor
+    world[:, 1, 3] -= floor
+    return world, vertices
 
 
 def is_the_root(joint, parents):
@@ -234,11 +267,32 @@ def engine_skinning(bind_vertices, weights, world, inverse_bind):
     return np.einsum("vj,jva->va", weights, moved)
 
 
+@functools.cache
+def feet_lift(layer):
+    """How far this build's clips must be raised to stand on the floor where the average body
+    does (#112): the motion model writes the hips' height for the average body, so a longer leg
+    sinks into the floor and a shorter one floats. Measured on the first standing frame."""
+    if layer.identity_model_type == "soma" or WHO["average_body"]:
+        return 0.0
+    raw = np.load(MOTIONS / "standing.npz")
+    rotations = torch.from_numpy(raw["local_rot_mats"][:1].astype(np.float32))
+    travel = torch.from_numpy(raw["root_positions"][:1].astype(np.float32))
+    average = build_layer(layer.lod)
+    lowest = [float(model.pose(rotations, transl=travel, pose2rot=False).vertices[..., 1].min())
+              for model in (average, layer)]
+    lift = lowest[0] - lowest[1]
+    print(f"feet lift for this build: {lift * 1000:+.1f} mm")
+    return lift
+
+
 def posed_by_the_model(layer, path):
-    """One generated clip as the body model poses it: a joint transform a frame, plus its mesh."""
+    """One generated clip as the body model poses it: a joint transform a frame, plus its mesh,
+    stood on the floor where the average body stands."""
     raw = np.load(path)
     rotations = torch.from_numpy(raw["local_rot_mats"].astype(np.float32))
-    travel = torch.from_numpy(raw["root_positions"].astype(np.float32))
+    travel = raw["root_positions"].astype(np.float32).copy()
+    travel[:, 1] += feet_lift(layer)
+    travel = torch.from_numpy(travel)
     posed = layer.pose(rotations, transl=travel, pose2rot=False, return_transforms=True)
     return posed.transforms.detach().numpy().astype(np.float64), posed.vertices.detach().numpy()
 
@@ -451,6 +505,16 @@ def which_way_is_forward(world):
     return "xyz"[axis], float(travelled[axis])
 
 
+def far_material(region):
+    """A surface of the bare distant body: its name, and this person's colour for it as glTF
+    writes a colour, in linear light."""
+    shares = [value / 255.0 for value in paint.far_colour(region)]
+    linear = [share / 12.92 if share <= 0.04045 else ((share + 0.055) / 1.055) ** 2.4
+              for share in shares]
+    return {"name": region, "pbrMetallicRoughness": {"baseColorFactor": linear + [1.0],
+                                                     "metallicFactor": 0.0, "roughnessFactor": 1.0}}
+
+
 def build(out_path, clip_names, identity):
     """The file: the skeleton, the bare distant body, both outfits and the clips."""
     layers = {level: build_layer(lod, identity) for level, lod in LEVELS.items()}
@@ -474,9 +538,9 @@ def build(out_path, clip_names, identity):
         "asset": {"version": "2.0", "generator": "farm-factory tools/crew"},
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": [], "meshes": [], "skins": [], "animations": [],
-        # The distant body's materials carry no colour at all: they exist so that Godot names
-        # each surface, and the scene puts a shared material from game/art/materials/ over it.
-        "materials": [{"name": name} for name in surface_names],
+        # The distant body's materials name each surface for Godot and carry this person's
+        # colour for it, which the game draws a crew member far off in (#112).
+        "materials": [far_material(name) for name in surface_names],
     }
     near_vertices, near_faces, near_weights = the_body_at(near, carries, len(joint_names))
     outfits = dress.outfits(skin.Body(near_vertices, near_faces, near_weights, joint_names,
@@ -581,7 +645,7 @@ def build(out_path, clip_names, identity):
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", default=str(BODIES / "person_body.glb"))
+    parser.add_argument("--out", default=str(BODIES / f"{PERSON}.glb"))
     parser.add_argument("--report", help="where to write the run's numbers as JSON")
     parser.add_argument("--clips", nargs="*", help="which clips go in; the whole set by default")
     parser.add_argument("--identity", default=str(IDENTITY),

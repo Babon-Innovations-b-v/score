@@ -23,19 +23,25 @@ is drawn from both sides, and a navy lining is laid inside the upper body.
 texture seams; the normals are carried across the split from the whole part, or every seam shows
 as a crease in the light.
 """
+import os
+import pathlib
+
 import blender
 import face
+import fit
+from person import WHO
 import numpy as np
 import paint
 import skin
 import space_suit
+import space_suit_american
 import texels
 import trimesh
 import work_suit
 from paths import EYES, HAIR, SPACE_DRAPE, WORK_DRAPE
 
 # The lining: the upper body's inside, above this height, is drawn facing in.
-LINING_ABOVE = 1.25
+LINING_ABOVE = float(fit.y(1.25))
 
 
 class Part:
@@ -88,7 +94,28 @@ def wound_outward(points, faces):
     return faces
 
 
-def lining(cloth_points, cloth_faces, cloth_weights, panels):
+def facing_away_from_middle(points, faces):
+    """A generated moon boot's faces each turned to face out of it (#112): its triangles are not
+    wound one way even within a piece, so some of it lit dark from every side. A face faces out
+    when its normal points away from the boot's upright middle line at its own height, or, in the
+    sole, down."""
+    faces = np.asarray(faces, dtype=np.int64).copy()
+    mesh = trimesh.Trimesh(points, faces, process=False)
+    centres = mesh.triangles_center
+    middle = points.mean(axis=0)
+    out = centres - middle
+    out[:, 1] = 0.0
+    low = points[:, 1].min() + 0.15 * np.ptp(points[:, 1])
+    out[centres[:, 1] < low] += np.array([0.0, -1.0, 0.0]) * np.linalg.norm(out[centres[:, 1] < low], axis=1, keepdims=True).clip(0.02)
+    inward = (mesh.face_normals * out).sum(axis=1) < 0
+    faces[inward] = faces[inward][:, ::-1]
+    # Only the boot's outside is kept: the lining inside its shaft and loose scraps under the sole
+    # face the outside wall from a few millimetres in, and left it in its own shadow.
+    pieces = trimesh.graph.connected_components(mesh.face_adjacency, nodes=np.arange(len(faces)))
+    return faces[max(pieces, key=lambda piece: mesh.area_faces[piece].sum())]
+
+
+def lining(cloth_points, cloth_faces, cloth_weights, panels, colour):
     """The inside of the upper body, faces turned in, seen through the collar's front gap."""
     upper = (np.char.find(panels, "torso") >= 0) | (np.char.find(panels, "collar") >= 0)
     keep = upper[cloth_faces].all(axis=1) & (cloth_points[cloth_faces][:, :, 1].min(axis=1) > LINING_ABOVE)
@@ -98,7 +125,7 @@ def lining(cloth_points, cloth_faces, cloth_weights, panels):
     normals = -texels.smooth_normals(cloth_points, cloth_faces)[used]
     return Part("work_lining", cloth_points[used], index[cloth_faces[keep]][:, ::-1].copy(),
                 cloth_weights[used], np.full((len(used), 2), 0.5), normals,
-                texels.flat_picture(paint.NAVY))
+                texels.flat_picture(colour))
 
 
 def bare_parts(body):
@@ -116,29 +143,45 @@ def bare_parts(body):
               "eyes": (eye_points, eye_faces, None),
               "irises": (*face.irises(surface), None),
               "eyebrows": (*face.brows(surface), None)}
+    if WHO["glasses"]:
+        shaped["glasses"] = (*face.glasses(surface), None)
     for name, (points, faces, weights) in shaped.items():
         if weights is None:
             shaped[name] = (points, faces, skin.on_one_joint(len(points), names, "Head"))
     return shaped
 
 
+def keep_for_the_face_drawing(shaped):
+    """Writes the work suit's shapes out when DUMP_PARTS names a folder: a new person's face is
+    drawn on their head's front depth view, taken from these (#112)."""
+    if not os.environ.get("DUMP_PARTS"):
+        return
+    out = pathlib.Path(os.environ["DUMP_PARTS"])
+    out.mkdir(parents=True, exist_ok=True)
+    for name, (points, faces, _) in shaped.items():
+        np.savez(out / f"{name}.npz", points=points, faces=faces)
+
+
 def work_suit_parts(body):
     """The work suit, every part painted."""
     shaped, panels, extra = work_suit.pieces(body, WORK_DRAPE)
     shaped.update(bare_parts(body))
+    keep_for_the_face_drawing(shaped)
     parts = []
+    american = WHO["work"] == "american"
+    flats = paint.WORK_FLAT_AMERICAN if american else paint.WORK_FLAT
     for name, (points, faces, weights) in shaped.items():
-        if name in paint.WORK_FLAT:
-            parts.append(flat(name, points, faces, weights, paint.WORK_FLAT[name],
+        if name in flats:
+            parts.append(flat(name, points, faces, weights, flats[name],
                               both_sides=name == "work_collar"))
             continue
         split = split_part(name, points, faces, weights)
         if name == "work_cloth":
-            picture = paint.work_cloth(split, panels, body.joints)
+            picture = (paint.work_cloth_american if american else paint.work_cloth)(split, panels, body.joints)
         elif name == "work_placket":
-            picture = paint.work_placket(split, extra["placket_across"])
+            picture = (paint.work_placket_american if american else paint.work_placket)(split, extra["placket_across"])
         elif name == "work_pocket":
-            picture = paint.work_pocket(split, extra["flap_from"])
+            picture = (paint.work_pocket_american if american else paint.work_pocket)(split, extra["flap_from"])
         elif name == "skin_head":
             picture = paint.skin_head(split)
         elif name == "hair":
@@ -146,7 +189,7 @@ def work_suit_parts(body):
         else:
             raise ValueError(f"no painter for the work suit's {name}")
         parts.append(painted(name, split, picture))
-    parts.append(lining(*shaped["work_cloth"], panels))
+    parts.append(lining(*shaped["work_cloth"], panels, paint.LIGHT_BLUE if american else paint.NAVY))
     return parts
 
 
@@ -158,10 +201,44 @@ def space_suit_parts(body):
             split = split_part("suit_flag", points, faces, weights)
             parts.append(painted(name, split, paint.suit_flag(split)))
         else:
+            if name.startswith("boot"):
+                # The moon boot's pieces are not all wound one way; some came out dark all
+                # over, lit from any side (#112).
+                faces = facing_away_from_middle(points, faces)
             parts.append(flat(name, points, faces, weights, paint.suit_colour(name)))
+    return parts
+
+
+def american_space_suit_parts(body):
+    """The American suit (#112): flat parts, the painted flag, name tag and screen, and the
+    wearer's own head, which shows through the helmet's open front."""
+    shaped, extra = space_suit_american.pieces(body, SPACE_DRAPE)
+    parts = []
+    for name, (points, faces, weights) in shaped.items():
+        if name == "arm_flag":
+            split = split_part("suit_arm_flag", points, faces, weights)
+            parts.append(painted(name, split, paint.arm_flag(split, extra["arm_flag"])))
+        elif name == "name_tag":
+            split = split_part("suit_name_tag", points, faces, weights)
+            parts.append(painted(name, split, paint.name_tag(split)))
+        else:
+            if name.startswith("boot"):
+                faces = facing_away_from_middle(points, faces)
+            parts.append(flat(name, points, faces, weights, paint.american_colour(name),
+                              both_sides=name == "helmet"))
+    for name, (points, faces, weights) in bare_parts(body).items():
+        if name == "skin_hands":
+            continue
+        if name in paint.WORK_FLAT:
+            parts.append(flat(name, points, faces, weights, paint.WORK_FLAT[name]))
+            continue
+        split = split_part(f"suit_{name}", points, faces, weights)
+        picture = paint.skin_head(split) if name == "skin_head" else paint.hair(split)
+        parts.append(painted(name, split, picture))
     return parts
 
 
 def outfits(body):
     """Both outfits, by the names the game knows them by: {"work": parts, "suit": parts}."""
-    return {"work": work_suit_parts(body), "suit": space_suit_parts(body)}
+    suit = american_space_suit_parts(body) if WHO["space"] == "american" else space_suit_parts(body)
+    return {"work": work_suit_parts(body), "suit": suit}

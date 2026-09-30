@@ -19,11 +19,19 @@ MOTIONS = WORK / "motions"
 BODIES = WORK / "bodies"
 DRESSING = WORK / "dressing"
 
-# What the crew's look is made from, kept outside the repo because the tools that made it are
+# Everybody the game draws as a body of their own (#112), each a look and a built file: take C,
+# the player's first astronaut; Nev, the botanist; Oona, Bram and Sefa, the first expedition.
+PEOPLE = ("take_c", "nev", "oona", "bram", "sefa")
+# Who this run builds; one run builds one person, because every module reads its look on import.
+PERSON = os.environ.get("MOTION_PERSON", PEOPLE[0])
+
+# What one person's look is made from, kept outside the repo because the tools that made it are
 # (#100): the body's build as SAM 3D Body read it off the owner's drawing, the two drapes
 # GarmentCode simulated, the boots and the hair Hi3DGen made, the MakeHuman eyes seated on the
-# head, and the face drawn over the head. Nothing here is remade by a build; the build reads it.
-LOOK = pathlib.Path(os.environ.get("MOTION_LOOK", HOME / "look"))
+# head, the face drawn over the head, and, for everybody after take C, where their joints sit
+# (`joints.json`) and what sets them apart (`person.json`). Nothing here is remade by a build;
+# the build reads it.
+LOOK = pathlib.Path(os.environ.get("MOTION_LOOK", HOME / "look" / PERSON))
 IDENTITY = LOOK / "identity.npz"
 WORK_DRAPE = LOOK / "work_drape"
 SPACE_DRAPE = LOOK / "space_drape"

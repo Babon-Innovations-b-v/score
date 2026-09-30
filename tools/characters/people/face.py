@@ -7,8 +7,10 @@ running SINK into the skin so no gap shows. An iris is a disc cast onto the eye 
 eye, CC0, seated on this head and kept in the look), IRIS_PROUD off it, with the same walls.
 The mouth and the nose are lines painted on the skin (`paint.py`), not parts.
 """
+import fit
 import numpy as np
 import trimesh
+from person import WHO
 
 # The brow strip in a front view, on his left (x > 0); the right is mirrored. Along the brow:
 # x, the strip's centre height, its full height.
@@ -17,10 +19,14 @@ BROW = np.array([[0.011, 1.6570, 0.0100],
                  [0.034, 1.6610, 0.0088],
                  [0.045, 1.6620, 0.0072],
                  [0.054, 1.6615, 0.0050]])
+# Moved onto this head, and each brow's height scaled by BROW_WEIGHT (the look's, 1 for take C).
+BROW = np.column_stack([fit.head_xy(BROW[:, :2]), BROW[:, 2] * fit.head_scale()[1] * WHO["brow_weight"]])
+# Raised by the look's `brow_lift` (m): above a glasses rim, and higher on the women (#112).
+BROW[:, 1] += WHO["brow_lift"]
 BROW_STEPS, BROW_ACROSS = 12, 5
 BROW_PROUD = 0.0022
 BROW_RIM_SHARE = 0.45
-EYE_CENTRES = np.array([[0.031, 1.6485], [-0.031, 1.6485]])
+EYE_CENTRES = fit.head_xy(np.array([[0.031, 1.6485], [-0.031, 1.6485]]))
 IRIS_RADIUS = 0.0044
 IRIS_PROUD = 0.0006
 IRIS_RINGS, IRIS_SPOKES = 4, 16
@@ -140,3 +146,94 @@ def brows(surface):
 def irises(surface):
     """Both irises as one mesh: points, faces."""
     return joined([disc(surface, centre) for centre in EYE_CENTRES])
+
+
+# Thin round glasses (#112, Nev): two round rims before the eyes, a bridge arched over the nose
+# and two arms back to the ears, each a thin tube, all rigid on the head. Measured on the head:
+# the rims stand RIM_CLEAR in front of the face under them.
+RIM_RADIUS = 0.0172
+RIM_TUBE = 0.0011
+RIM_CLEAR = 0.006
+RIM_LIFT = 0.001
+ARM_TUBE = 0.0010
+TUBE_SIDES = 8
+
+
+def tube(path, radius, closed=False):
+    """A round tube along a polyline of points: points, faces."""
+    path = np.asarray(path, dtype=float)
+    count = len(path)
+    tangents = np.gradient(path, axis=0) if not closed else (np.roll(path, -1, 0) - np.roll(path, 1, 0))
+    tangents /= np.linalg.norm(tangents, axis=1, keepdims=True)
+    helper = np.array([0.0, 1.0, 0.0])
+    rings = []
+    for point, tangent in zip(path, tangents):
+        side = np.cross(tangent, helper)
+        if np.linalg.norm(side) < 1e-6:
+            side = np.cross(tangent, [1.0, 0.0, 0.0])
+        side /= np.linalg.norm(side)
+        up = np.cross(side, tangent)
+        angles = np.linspace(0, 2 * np.pi, TUBE_SIDES, endpoint=False)
+        rings.append(point + radius * (np.outer(np.cos(angles), side) + np.outer(np.sin(angles), up)))
+    points = np.vstack(rings)
+    faces = []
+    for ring in range(count if closed else count - 1):
+        following = (ring + 1) % count
+        for step in range(TUBE_SIDES):
+            here, beside = ring * TUBE_SIDES + step, ring * TUBE_SIDES + (step + 1) % TUBE_SIDES
+            ahead_beside = following * TUBE_SIDES + (step + 1) % TUBE_SIDES
+            ahead = following * TUBE_SIDES + step
+            faces += [[here, beside, ahead_beside], [here, ahead_beside, ahead]]
+    if not closed:
+        for end, flip in ((0, True), (count - 1, False)):
+            centre = len(points)
+            points = np.vstack([points, path[end]])
+            for step in range(TUBE_SIDES):
+                here, beside = end * TUBE_SIDES + step, end * TUBE_SIDES + (step + 1) % TUBE_SIDES
+                faces.append([centre, beside, here] if flip else [centre, here, beside])
+    mesh = trimesh.Trimesh(points, np.array(faces), process=False)
+    trimesh.repair.fix_normals(mesh)
+    return np.asarray(mesh.vertices), np.asarray(mesh.faces)
+
+
+def front_depth(surface, front_view):
+    hits, _ = cast_front(surface, np.asarray(front_view))
+    return hits[:, 2]
+
+
+def glasses(surface):
+    """Both rims, the bridge and the arms, as one mesh: points, faces."""
+    radius = RIM_RADIUS * fit.head_scale()[0]
+    angles = np.linspace(0, 2 * np.pi, 40, endpoint=False)
+    pieces = []
+    rim_z = []
+    for centre in EYE_CENTRES:
+        ring = np.column_stack([centre[0] + radius * np.cos(angles), centre[1] + RIM_LIFT + radius * np.sin(angles)])
+        inside = np.column_stack([centre[0] + 0.7 * radius * np.cos(angles), centre[1] + 0.7 * radius * np.sin(angles)])
+        depth = max(front_depth(surface, ring).max(), front_depth(surface, inside).max()) + RIM_CLEAR
+        rim_z.append(depth)
+        pieces.append(tube(np.column_stack([ring, np.full(len(ring), depth)]), RIM_TUBE, closed=True))
+    depth = max(rim_z)
+    left, right = EYE_CENTRES[0], EYE_CENTRES[1]
+    height = (left[1] + right[1]) / 2 + RIM_LIFT + 0.25 * radius
+    inner = left[0] - radius
+    bridge_x = np.linspace(-inner, inner, 9)
+    arch = height + 0.004 * np.cos(bridge_x / inner * np.pi / 2)
+    bridge_z = np.maximum(front_depth(surface, np.column_stack([bridge_x, arch])) + 0.004, depth - 0.004)
+    pieces.append(tube(np.column_stack([bridge_x, arch, bridge_z]), RIM_TUBE))
+    points = surface.vertices
+    band = points[np.abs(points[:, 1] - height) < 0.012]
+    ear_z = fit.THEIRS["Head"][2] - 0.012
+    for centre, side in ((left, 1.0), (right, -1.0)):
+        start = np.array([centre[0] + side * radius, centre[1] + RIM_LIFT + 0.3 * radius, rim_z[0] if side > 0 else rim_z[1]])
+        near = band[np.abs(band[:, 2] - (start[2] - 0.03)) < 0.02]
+        wide = np.abs(near[:, 0]).max() + 0.005
+        back = band[np.abs(band[:, 2] - ear_z) < 0.015]
+        wide_back = np.abs(back[:, 0]).max() + 0.004
+        path = [start,
+                [side * (wide - 0.002), start[1], start[2] - 0.012],
+                [side * wide, start[1] - 0.001, start[2] - 0.03],
+                [side * wide_back, start[1] - 0.004, ear_z + 0.01],
+                [side * (wide_back - 0.003), start[1] - 0.016, ear_z - 0.012]]
+        pieces.append(tube(np.array(path), ARM_TUBE))
+    return joined(pieces)

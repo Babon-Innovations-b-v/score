@@ -7,22 +7,27 @@ Every part carries its weights on the skeleton: cloth and anything lying on it t
 anything hard one joint's, or, for a hard part that must stay seated on moving cloth, the cloth's
 at one spot. Everything faces +z with y up, in metres.
 """
+import blender
 import drape
+import fit
 import networkx
 import numpy as np
 import shapes
 import skin
 import trimesh
 from paths import SPACE_BOOT
+from person import WHO
 from scipy.spatial import cKDTree
 
 SIDES = (("Left", 1.0, "l"), ("Right", -1.0, "r"))
 # The moon boot's shaft middle in its own units, and how it is scaled onto the leg's end.
 BOOT_SHAFT_MIDDLE = np.array([0.0, 0.0, -0.098])
-BOOT_SCALE = np.array([0.36, 0.29, 0.38])
+BOOT_SCALE = np.array([0.36, 0.29, 0.38]) * fit.leg_share()
 # A moon boot is soft: below the first height it follows the foot, above the second the shin.
 BOOT_BLEND = (0.10, 0.19)
-HELMET_RADIUS = 0.185
+# The coverall is thinned to about this many triangles when its drape comes out finer.
+CLOTH_TRIANGLES = 12500
+HELMET_RADIUS = 0.185 * float(np.clip(fit.head_scale()[1], 0.9, 1.15))
 
 
 def open_loops(points, faces):
@@ -39,6 +44,12 @@ class SpaceSuit:
 
     def __init__(self, body, folder):
         points, faces, self.limbs = drape.space_suit_cloth(folder)
+        if len(faces) > CLOTH_TRIANGLES * 1.2:
+            # A bigger body's drape comes out finer than take C's 12.5k triangles (#112):
+            # thinned to about his, each thinned point keeping the nearest full point's limb.
+            thin_points, faces = blender.thinned("space_cloth", points, faces, CLOTH_TRIANGLES, symmetric=True)
+            _, nearest = cKDTree(points).query(thin_points)
+            points, self.limbs = thin_points, self.limbs[nearest]
         self.body = body
         self.body_tree = cKDTree(body.points)
         self.cloth_weights = skin.of_a_drape(points, faces, self.limbs, body)
@@ -259,30 +270,33 @@ class SpaceSuit:
         self.rigid("visor_rim", shapes.joined([rim] + pucks), "Head")
 
     def the_chest(self):
-        far = self.conformed_box("chest_box", "Chest", (0.0, 1.268), (0.125, 0.08), 0.05, 0.016, 1.0)
+        wide = float(fit.width_share(1.268))
+        far = self.conformed_box("chest_box", "Chest", fit.xy(0.0, 1.268), (0.125 * wide, 0.08), 0.05, 0.016, 1.0)
         flag = shapes.placed(shapes.rounded_box((0.075, 0.032, 0.005), 0.003, 4),
-                             np.array([0.0, 1.303, far + 0.002]), np.eye(3))
+                             np.array([0.0, float(fit.y(1.303)), far + 0.002]), np.eye(3))
         self.rigid("flag", flag, "Chest")
         knobs = [shapes.placed(shapes.rounded_box((0.014, 0.014, 0.010), 0.009, 4),
-                               np.array([spot, 1.222, far + 0.006]), np.eye(3)) for spot in (-0.055, 0.055)]
+                               np.array([spot * wide, float(fit.y(1.222)), far + 0.006]), np.eye(3)) for spot in (-0.055, 0.055)]
         self.rigid("chest_knobs", shapes.joined(knobs), "Chest")
-        self.conformed_box("waist_box", "cloth", (0.0, 1.045), (0.075, 0.04), 0.04, 0.012, 1.0, count=7)
+        wide = float(fit.width_share(1.045))
+        self.conformed_box("waist_box", "cloth", fit.xy(0.0, 1.045), (0.075 * wide, 0.04), 0.04, 0.012, 1.0, count=7)
         for _, sign, side in SIDES:
-            self.conformed_box(f"waist_light_{side}", "cloth", (sign * 0.108, 1.045), (0.026, 0.03),
+            self.conformed_box(f"waist_light_{side}", "cloth", fit.xy(sign * 0.108, 1.045), (0.026, 0.03),
                                0.03, 0.008, 1.0, count=5)
 
     def the_pack(self):
-        self.conformed_box("pack", "cloth", (0.0, 1.215), (0.165, 0.215), 0.16, 0.04, -1.0, count=10)
+        wide = float(fit.width_share(1.215))
+        self.conformed_box("pack", "cloth", fit.xy(0.0, 1.215), (0.165 * wide, 0.215 * fit.leg_share()), 0.16, 0.04, -1.0, count=10)
 
     def the_straps(self):
         """Harness straps down the front beside the chest box, and a belt."""
         torso = self.limb_piece(["torso"])
         for _, sign, side in SIDES:
-            inner, outer = sorted((sign * 0.140, sign * 0.176))
+            inner, outer = sorted((sign * float(fit.x(0.140, 1.3)), sign * float(fit.x(0.176, 1.3))))
             piece = strip(torso, [((inner, 0, 0), (1, 0, 0)), ((outer, 0, 0), (-1, 0, 0)),
-                                  ((0, 1.07, 0), (0, 1, 0))])
+                                  ((0, float(fit.y(1.07)), 0), (0, 1, 0))])
             self.keep(f"strap_{side}", *self.raised(piece, -0.001, 0.005))
-        belt = strip(torso, [((0, 1.005, 0), (0, 1, 0)), ((0, 1.062, 0), (0, -1, 0))])
+        belt = strip(torso, [((0, float(fit.y(1.005)), 0), (0, 1, 0)), ((0, float(fit.y(1.062)), 0), (0, -1, 0))])
         self.keep("belt", *self.raised(belt, -0.001, 0.006))
 
     def the_bands(self):
@@ -295,8 +309,10 @@ class SpaceSuit:
             leg = [f"{'left' if sign > 0 else 'right'}_leg"]
             self.band(f"band_red_arm_{side}", arm, shoulder, axis, 0.50 * length, 0.58 * length)
             self.band(f"band_gold_arm_{side}", arm, shoulder, axis, 0.63 * length, 0.73 * length)
-            self.band(f"band_red_shin_{side}", leg, np.zeros(3), np.array([0.0, 1.0, 0.0]), 0.275, 0.310)
-            self.band(f"band_red_thigh_{side}", leg, np.zeros(3), np.array([0.0, 1.0, 0.0]), 0.600, 0.635)
+            self.band(f"band_red_shin_{side}", leg, np.zeros(3), np.array([0.0, 1.0, 0.0]), float(fit.y(0.275)), float(fit.y(0.310)))
+            self.band(f"band_red_thigh_{side}", leg, np.zeros(3), np.array([0.0, 1.0, 0.0]), float(fit.y(0.600)), float(fit.y(0.635)))
+            if WHO["botanist"] and sign > 0:
+                self.band(f"band_green_arm_{side}", arm, shoulder, axis, 0.30 * length, 0.40 * length)
 
     def the_pads(self):
         joints = self.body.joints

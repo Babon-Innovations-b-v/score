@@ -1,7 +1,9 @@
 # tools/crew
 
-Builds the one file every person in the game is drawn from: `game/people/person_model/person_body.glb`.
-It is the prop chain's sibling. Run it with `bash tools/crew/run.sh`; the chain itself is
+Builds a file for each person the game draws in a body of their own (`paths.PEOPLE`: take C,
+Nev, Oona, Bram, Sefa, #112), each `game/people/person_model/<person>/<person>.glb`. Every file
+has the same skeleton and clips; what differs is the build, the outfits and the face. It is the
+prop chain's sibling. Run it with `bash tools/crew/run.sh`; the chain itself is
 installed once per box (`docs/bible.md`, `workflow/bootstrap`).
 
 ## The one rule here
@@ -32,11 +34,22 @@ is fine; undoing one without reading why is how the walk ends up going through a
 
 ## The look is kept, the outfits are rebuilt
 
-The crew's look is the owner's drawing of them (#100). What offline tools made for it lives in
-`~/.farm-factory-motion/look/` and is never remade by a run: the body's build, the two drapes,
-the boots, the hair, the eyes and the drawn face (`paths.py` names each, the bible's
-`workflow/bootstrap` says how each was made). Everything after that is code here and runs every
-time: `work_suit.py`, `boots.py`, `face.py` and `space_suit.py` build the parts on the body,
+Each person's look is the owner's drawing of them (#100, #112). What offline tools made for it
+lives in `~/.farm-factory-motion/look/<person>/` and is never remade by a run: the body's build,
+the two drapes, the boots, the hair, the eyes and the drawn face, and for everybody after take C
+where their joints sit (`joints.json`) and what sets them apart (`person.json`, read by
+`person.py`: colours, which outfits, glasses, a botanist's band, a name tag, a beard) (`paths.py`
+names each, the bible's `workflow/bootstrap` says how each was made). One run builds one person,
+because every module reads the look on import; `run.sh` runs one per person.
+
+The parts were first placed on take C, and their numbers are places on his body. `fit.py` moves
+each onto another person's body by their own joints, so a pocket stays the same share of the way
+from belt to collar; a new number is written as take C's and passed through `fit`. Take C himself
+is still built on the average body he was approved on (`average_body` in his `person.json`): his
+own body is right for the clips, but redraped on it his drawn mouth doubled and his flag lost its
+star, so that waits until his face and drapes are redone.
+
+Everything after the look is code here and runs every time: `work_suit.py`, `boots.py`, `face.py` and `space_suit.py` build the parts on the body,
 `skin.py` weights them, `paint.py` paints them, `blender.py` has Blender thin and unwrap them. Two
 runs from the same look write the same file byte for byte; keep it that way (a tie between two
 labels is settled by sorting, never by a set's order). A change to a part's shape or colour is a

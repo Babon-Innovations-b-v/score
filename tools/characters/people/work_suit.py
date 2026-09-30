@@ -9,6 +9,7 @@ moves them with it. Everything faces +z with y up, in metres.
 import blender
 import boots
 import drape
+import fit
 import numpy as np
 import shapes
 import skin
@@ -28,13 +29,13 @@ COLLAR_GAP = 0.009
 NECK_CLEARANCE = 0.004
 # The collar hugs an ellipse round the neck (x and z half-axes about a centre at this x, z), a
 # little wider than the neck; its front never dips below FRONT_LOWEST.
-NECK_CENTRE = np.array([0.0, -0.019])
-NECK_ELLIPSE = (0.066, 0.071)
-FRONT_LOWEST = 1.445
+NECK_CENTRE = np.array([0.0, fit.neck_z(-0.019)])
+NECK_ELLIPSE = (0.066 * fit.head_scale()[0], 0.071 * fit.head_scale()[0])
+FRONT_LOWEST = float(fit.y(1.445))
 # Zip line: half width, how proud of the cloth, where it stops at the crotch, its step down.
 PLACKET_HALF = 0.014
 PLACKET_PROUD = 0.0025
-PLACKET_LOW = 0.86
+PLACKET_LOW = float(fit.y(0.86))
 PLACKET_STEP = 0.015
 # Over how many rows the zip line's top is smoothed across the cloth's folds: it followed every
 # fold, and its piping wobbled (the owner's notes, #100).
@@ -51,8 +52,8 @@ BUCKLE_BEVEL = 0.0018
 ANGLES = 96
 # The chest pocket, on the wearer's left, and its flap, which is the flag: x span, y span, and
 # how proud of the cloth each stands.
-POCKET = ((0.035, 0.145), (1.215, 1.335), 0.003)
-FLAP = ((0.031, 0.149), (1.30, 1.352), 0.0055)
+POCKET = ((float(fit.x(0.035, 1.28)), float(fit.x(0.145, 1.28))), (float(fit.y(1.215)), float(fit.y(1.335))), 0.003)
+FLAP = ((float(fit.x(0.031, 1.28)), float(fit.x(0.149, 1.28))), (float(fit.y(1.30)), float(fit.y(1.352))), 0.0055)
 # How many rounds the collar's weights are averaged round the band, and the belt's.
 COLLAR_SMOOTHING = 6
 BELT_SMOOTHING = 2
@@ -140,7 +141,7 @@ def tailored_neckline(mesh, body_mesh, line):
     angles, bottom, radius_bottom, _ = line
     points = np.asarray(mesh.vertices).copy()
     boundary = open_edge_points(mesh)
-    boundary = boundary[points[boundary, 1] > 1.35]
+    boundary = boundary[points[boundary, 1] > fit.y(1.35)]
     edge = points[boundary]
     edge_angle = np.arctan2(edge[:, 0] - NECK_CENTRE[0], edge[:, 2] - NECK_CENTRE[1])
     wrapped = np.concatenate([angles - 2 * np.pi, angles, angles + 2 * np.pi])
