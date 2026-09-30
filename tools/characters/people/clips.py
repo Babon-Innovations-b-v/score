@@ -13,7 +13,6 @@ fifth wider than a plain walk, and the owner called it too wide (#36, 2026-09-20
 fixed it was dropping "arms held away from the body" from the sentence.
 """
 import argparse
-import contextlib
 import pathlib
 import subprocess
 import sys
@@ -27,20 +26,33 @@ def _card_lock():
     """There is one graphics card on this box, so there is one claim on it: the prop chain's.
 
     It is loaded by its path rather than put on the import path, because that directory has a
-    `paths.py` of its own and importing it by name would shadow this chain's.
+    `paths.py` of its own and importing it by name would shadow this chain's. The other way round
+    bites too: `card.py` reads HOME from `import paths`, which here is this chain's, so it claimed
+    ~/.farm-factory-motion/card.claim, a lock nobody else reads, and a clip ran beside another
+    job's card work (2026-09-30). So the prop chain's `paths.py` stands in while `card.py` loads,
+    and the claim's path is checked.
     """
+    props = pathlib.Path(__file__).resolve().parents[1] / "props"
+    crew_paths = sys.modules.get("paths")
+    props_paths = _module_at("props_paths", props / "paths.py")
+    sys.modules["paths"] = props_paths
+    try:
+        card = _module_at("props_card", props / "card.py")
+    finally:
+        sys.modules["paths"] = crew_paths
+    if card.CLAIM != props_paths.HOME / "card.claim":
+        raise SystemExit(f"the card claim is at {card.CLAIM}, not the prop chain's; nothing may run")
+    return card.claimed
+
+
+def _module_at(name, path):
+    """A module loaded from a file under a name of its own."""
     import importlib.util
-    here = pathlib.Path(__file__).resolve().parents[1] / "props" / "card.py"
-    if not here.exists():
-        @contextlib.contextmanager
-        def nobody_else_is_here(doing, say=None):
-            yield
-        return nobody_else_is_here
-    spec = importlib.util.spec_from_file_location("props_card", here)
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
-    sys.modules["props_card"] = module
+    sys.modules[name] = module
     spec.loader.exec_module(module)
-    return module.claimed
+    return module
 
 
 claimed = _card_lock()
