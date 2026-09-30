@@ -2,7 +2,8 @@
 
     /root/venv/bin/python picture_worker.py /root/pics/jobs.json
 
-Each job is {"name", "wording", "seed", "steps", "guidance", "refs"} with its reference photos
+Each job is {"name", "wording", "seed", "steps", "guidance", "refs"}, and optionally "width" and
+"height" for a picture that is not square (a panorama), with its reference photos
 already under /root/pics/refs/; each picture is written to /root/pics/out/<name>.png, and a line
 "<name> <seconds>" is printed as it lands, so the runner can follow along.
 """
@@ -18,6 +19,8 @@ from PIL import Image
 MODEL = "/root/klein"
 OUT = pathlib.Path("/root/pics/out")
 REFS = pathlib.Path("/root/pics/refs")
+# A picture is this many pixels square unless its job asks for a width and height of its own.
+SIDE = 1024
 
 
 def main():
@@ -27,7 +30,7 @@ def main():
         start = time.time()
         references = [Image.open(REFS / ref).convert("RGB") for ref in job["refs"]]
         pipeline(image=references or None, prompt=job["wording"], num_inference_steps=job["steps"],
-                 guidance_scale=job["guidance"], height=1024, width=1024,
+                 guidance_scale=job["guidance"], height=job.get("height", SIDE), width=job.get("width", SIDE),
                  generator=torch.Generator("cpu").manual_seed(job["seed"])).images[0].save(
                      OUT / f"{job['name']}.png")
         print(job["name"], round(time.time() - start, 1), flush=True)

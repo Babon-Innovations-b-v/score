@@ -158,6 +158,7 @@ WALL_SHARE = 0.15
 # A flat model has faces within FLOOR_LEVEL of straight up over FLOOR_SHARE of its surface.
 FLOOR_LEVEL = 0.8
 FLOOR_SHARE = 0.3
+FLAT_MOST_DEGREES = 30.0
 
 
 def level_turn(normals, areas):
@@ -167,17 +168,21 @@ def level_turn(normals, areas):
     """
     walls = np.abs(normals[:, 1]) < WALL_SLOPE
     floors = normals[:, 1] > FLOOR_LEVEL
-    if areas[walls].sum() >= WALL_SHARE * areas.sum():
-        spread = (normals[walls] * areas[walls, None]).T @ normals[walls]
-        up = np.linalg.eigh(spread)[1][:, 0]
-    elif areas[floors].sum() >= FLOOR_SHARE * areas.sum():
-        # A flat thing, a pad or a plate, has almost no walls: stand its big top surface level.
+    wall_share, floor_share = areas[walls].sum() / areas.sum(), areas[floors].sum() / areas.sum()
+    most = LEVEL_MOST_DEGREES
+    if floor_share >= FLOOR_SHARE and floor_share > wall_share:
+        # A flat thing, a pad or a plate, is mostly top: stand that top level. Its top says clearly
+        # which way is up, so a bigger lean is trusted (the landing pad leant 25 degrees).
         up = (normals[floors] * areas[floors, None]).sum(axis=0)
         up /= np.linalg.norm(up)
+        most = FLAT_MOST_DEGREES
+    elif wall_share >= WALL_SHARE:
+        spread = (normals[walls] * areas[walls, None]).T @ normals[walls]
+        up = np.linalg.eigh(spread)[1][:, 0]
     else:
         return np.eye(3)
     up = up if up[1] > 0 else -up
-    if np.degrees(np.arccos(np.clip(up[1], -1.0, 1.0))) > LEVEL_MOST_DEGREES:
+    if np.degrees(np.arccos(np.clip(up[1], -1.0, 1.0))) > most:
         return np.eye(3)
     return rotation_between(up, np.array([0.0, 1.0, 0.0]))
 
