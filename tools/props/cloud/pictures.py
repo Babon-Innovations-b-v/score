@@ -55,7 +55,8 @@ def jobs_to_make(path):
                      "wording": job.get("wording")
                      or picture.wording(job["sentence"], job.get("form") or picture.FORM),
                      "seed": job.get("seed", 7), "steps": picture.STEPS, "guidance": picture.GUIDANCE,
-                     "refs": [str(ref) for ref in job.get("refs", [])]})
+                     "refs": [str(ref) for ref in job.get("refs", [])],
+                     **{side: job[side] for side in ("width", "height") if side in job}})
     return jobs
 
 
