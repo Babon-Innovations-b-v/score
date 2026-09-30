@@ -10,7 +10,8 @@ bulky models 60 s apart peaked at 12.4 of 16.3 GB, both whole, the pair 30% fast
 the other). A run that may share says so (`shared=True`); it takes the main claim when that is
 free, or the second one, SECOND_CLAIM, while the main claim's holder may share too. Every other
 run holds the card alone: it takes the main claim and then waits for the second to empty. Nothing
-else was ever measured beside a Pixal3D run, so nothing else shares.
+else was ever measured beside a Pixal3D run, so nothing else shares. Sharing is switched off for
+now (SHARING, below): every run holds the card alone until the owner says the machine is stable.
 
 The claim is a file naming the process that holds it. A process that is gone holds nothing, so a
 crash cannot leave a claim that needs a magic word to clear: the next run sees a dead process and
@@ -31,6 +32,10 @@ CLAIM = HOME / "card.claim"
 SECOND_CLAIM = HOME / "card.claim.2"
 # Written before what a run is doing when it may share the card.
 SHARES = "(shares) "
+# Off since 2026-09-30: the PC blue-screened four times (0x3B, 0x154), twice while two runs shared
+# the card, with its memory running overclocked. Until the owner says the machine is stable, a run
+# that asks to share waits for the whole card like any other. Turning this back on is his call.
+SHARING = False
 
 # How often to look again while waiting, and how long to wait before giving up. A prop takes
 # well under a minute, a batch of twenty takes twenty, so half an hour is long enough to cover
@@ -199,6 +204,7 @@ def claimed(doing, say=lambda line: print(line, file=sys.stderr, flush=True), sh
     if any(_ours(_read_claim(claim)) for claim in (CLAIM, SECOND_CLAIM)):
         yield
         return
+    shared = shared and SHARING
     doing = SHARES + doing if shared else doing
     taken = _wait_for_the_card(doing, shared, say)
     try:

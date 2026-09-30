@@ -78,12 +78,12 @@ START_CHECK_SECONDS = 5
 # answering in about 2 min).
 REFUSED_MINUTES = 3
 WATCHDOG_GRACE_MINUTES = 5
-# The processor's share: two cut-out processes, and four finishes at once (Blender), within FINISH_SLOTS.
+# The processor's share: two cut-out processes, and two finishes at once (Blender), within FINISH_SLOTS.
 CUTTERS = 2
-FINISHERS = 4
+FINISHERS = 2
 # How many finishes may run at once on this PC, across every batch: Blender at 100,000 triangles
-# takes several GB each, and twelve at once brought the PC down twice.
-FINISH_SLOTS = 4
+# takes several GB each; kept at 2 while the PC is unstable (four blue screens, 2026-09-29 and 30).
+FINISH_SLOTS = 2
 
 
 def say(line):

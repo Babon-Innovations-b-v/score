@@ -114,7 +114,7 @@ def _sleeper(seconds):
     return subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({seconds})"])
 
 
-def test_two_pixal_runs_share_the_card():
+def test_two_pixal_runs_share_the_card_only_while_sharing_is_on():
     holder = _sleeper(3)
     card.SECOND_CLAIM.unlink(missing_ok=True)
     card.CLAIM.write_text(f"{holder.pid} {card.SHARES}another model")
@@ -124,7 +124,10 @@ def test_two_pixal_runs_share_the_card():
         second = card.SECOND_CLAIM.exists() and str(os.getpid()) in card.SECOND_CLAIM.read_text()
     holder.wait()
     card.CLAIM.unlink(missing_ok=True)
-    check("a second model run shares the card with the first", waited < 1 and second)
+    if card.SHARING:
+        check("a second model run shares the card with the first", waited < 1 and second)
+    else:
+        check("with sharing off, a second model run waits for the first", waited > 2.5 and not second)
     check("the second slot is given back", not card.SECOND_CLAIM.exists())
 
 
