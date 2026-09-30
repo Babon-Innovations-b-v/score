@@ -133,6 +133,55 @@ def turned(document, views, turn):
                 done.add(index)
 
 
+def faces(document, views):
+    """Every triangle's normal and area, across all primitives: the model's surfaces."""
+    normals, areas = [], []
+    for mesh in document["meshes"]:
+        for primitive in mesh["primitives"]:
+            corners = accessor_array(document, views, primitive["attributes"]["POSITION"]).astype(np.float64)
+            triangles = corners[accessor_array(document, views, primitive["indices"]).reshape(-1, 3)]
+            crossed = np.cross(triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0])
+            length = np.linalg.norm(crossed, axis=1)
+            keep = length > 0
+            normals.append(crossed[keep] / length[keep, None])
+            areas.append(length[keep] / 2)
+    return np.vstack(normals), np.concatenate(areas)
+
+
+# A model is only levelled when its walls say clearly which way is up, and never by more than this:
+# a generated model leans a few degrees (the owner: "a bit crooked"), and a rock or a tree has no
+# walls to trust. Walls are faces within WALL_SLOPE of vertical; they must cover WALL_SHARE of the
+# surface.
+LEVEL_MOST_DEGREES = 15.0
+WALL_SLOPE = 0.35
+WALL_SHARE = 0.15
+# A flat model has faces within FLOOR_LEVEL of straight up over FLOOR_SHARE of its surface.
+FLOOR_LEVEL = 0.8
+FLOOR_SHARE = 0.3
+
+
+def level_turn(normals, areas):
+    """The small turn that stands a model's walls straight up, or no turn when it has too few walls.
+
+    Up is the direction square to all its walls: the least of the walls' area-weighted normal spread.
+    """
+    walls = np.abs(normals[:, 1]) < WALL_SLOPE
+    floors = normals[:, 1] > FLOOR_LEVEL
+    if areas[walls].sum() >= WALL_SHARE * areas.sum():
+        spread = (normals[walls] * areas[walls, None]).T @ normals[walls]
+        up = np.linalg.eigh(spread)[1][:, 0]
+    elif areas[floors].sum() >= FLOOR_SHARE * areas.sum():
+        # A flat thing, a pad or a plate, has almost no walls: stand its big top surface level.
+        up = (normals[floors] * areas[floors, None]).sum(axis=0)
+        up /= np.linalg.norm(up)
+    else:
+        return np.eye(3)
+    up = up if up[1] > 0 else -up
+    if np.degrees(np.arccos(np.clip(up[1], -1.0, 1.0))) > LEVEL_MOST_DEGREES:
+        return np.eye(3)
+    return rotation_between(up, np.array([0.0, 1.0, 0.0]))
+
+
 def rotation_between(start, end):
     """The shortest 3x3 turn taking direction `start` onto direction `end`."""
     start, end = start / np.linalg.norm(start), end / np.linalg.norm(end)

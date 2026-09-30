@@ -92,6 +92,7 @@ def stand_and_pad(finished, final, long, feet, tube=False):
     document, views = glb_file.read(finished)
     turn = glb_file.upright_turn(glb_file.positions(document, views), long=long, feet=feet, tube=tube)
     glb_file.turned(document, views, turn)
+    glb_file.turned(document, views, glb_file.level_turn(*glb_file.faces(document, views)))
     glb_file.padded(document, views)
     glb_file.write(document, views, final)
 

@@ -170,7 +170,46 @@ def padding_fills_the_black_from_the_nearest_piece():
     return [] if darkest > 150 else [f"a texel is still near black ({darkest}) after padding"]
 
 
+def box_faces(tilt_degrees):
+    """The normals and areas of a 2 x 3 x 2 box's six sides, leaning `tilt_degrees` about x."""
+    normals = np.array([[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], float)
+    areas = np.array([6.0, 6.0, 4.0, 4.0, 6.0, 6.0])
+    return tilted(normals, tilt_degrees), areas
+
+
+def a_leaning_building_is_stood_straight():
+    normals, areas = box_faces(7.0)
+    stood = normals @ glb_file.level_turn(normals, areas).T
+    worst = np.degrees(np.arccos(np.clip(np.abs(stood[:, 1]).max(), -1, 1)))
+    return [] if worst < 0.01 else [f"a side still leans {worst:.2f} degrees off vertical or level"]
+
+
+def a_round_rock_is_barely_turned():
+    normals = np.random.default_rng(1).normal(size=(4000, 3))
+    normals /= np.linalg.norm(normals, axis=1)[:, None]
+    up = glb_file.level_turn(normals, np.ones(len(normals))) @ np.array([0.0, 1.0, 0.0])
+    moved = np.degrees(np.arccos(np.clip(up[1], -1, 1)))
+    return [] if moved < 3 else [f"a round rock, which has no true up, was turned {moved:.1f} degrees"]
+
+
+def a_tilted_pad_is_laid_level():
+    normals = tilted(np.array([[0, 1, 0], [0, -1, 0], [1, 0, 0], [0, 0, 1]], float), 8.0)
+    areas = np.array([100.0, 100.0, 1.0, 1.0])
+    top = (normals @ glb_file.level_turn(normals, areas).T)[0]
+    return [] if top[1] > 0.9999 else [f"the pad's top still leans ({top.round(3)})"]
+
+
+def a_steep_lean_is_not_trusted():
+    normals, areas = box_faces(30.0)
+    turn = glb_file.level_turn(normals, areas)
+    return [] if np.allclose(turn, np.eye(3)) else ["a 30 degree lean was corrected"]
+
+
 CHECKS = (
+    a_leaning_building_is_stood_straight,
+    a_round_rock_is_barely_turned,
+    a_tilted_pad_is_laid_level,
+    a_steep_lean_is_not_trusted,
     a_tilted_crate_stands_back_up,
     a_tall_rocket_stands_on_its_long_side,
     a_model_on_legs_is_levelled_on_its_feet,
