@@ -23,6 +23,8 @@ this one is gone, and by the next run's sweep.
 import argparse
 import collections
 import concurrent.futures
+import contextlib
+import fcntl
 import json
 import math
 import os
@@ -76,9 +78,12 @@ START_CHECK_SECONDS = 5
 # answering in about 2 min).
 REFUSED_MINUTES = 3
 WATCHDOG_GRACE_MINUTES = 5
-# The processor's share: two cut-out processes, and six finishes at once (Blender; 24 threads since 2026-09-29).
+# The processor's share: two cut-out processes, and four finishes at once (Blender), within FINISH_SLOTS.
 CUTTERS = 2
-FINISHERS = 6
+FINISHERS = 4
+# How many finishes may run at once on this PC, across every batch: Blender at 100,000 triangles
+# takes several GB each, and twelve at once brought the PC down twice.
+FINISH_SLOTS = 4
 
 
 def say(line):
@@ -375,13 +380,39 @@ class Fleet:
         options = self.models[name]
         flags = [f"--faces={options.faces}", f"--seed={options.seed}"]
         flags += [f"--{flag}" for flag in ("long", "feet", "tube") if getattr(options, flag)]
-        with (self.folder / "finish.log").open("a") as log:
+        with finish_slot(), (self.folder / "finish.log").open("a") as log:
             done = subprocess.run([str(VENV_PYTHON), str(HERE.parent / "pixal.py"), options.picture,
                                    name, "--who", self.who, "--finish-only", *flags],
                                   stdout=log, stderr=subprocess.STDOUT)
         if done.returncode:
             with self.lock:
                 self.finish_failed.append(name)
+
+
+@contextlib.contextmanager
+def finish_slot():
+    """Hold one of the PC's FINISH_SLOTS for a finish, shared by every batch running on this PC.
+
+    Each batch finishes several models at once in Blender; two batches side by side ran twelve
+    finishes at 100,000 triangles and the PC went down twice (2026-09-29 and 30). The slots are
+    lock files, so the limit holds across processes and frees itself if one dies.
+    """
+    CLOUD.mkdir(parents=True, exist_ok=True)
+    while True:
+        for number in range(FINISH_SLOTS):
+            handle = (CLOUD / f"finish-slot-{number}.lock").open("w")
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                handle.close()
+                continue
+            try:
+                yield
+            finally:
+                fcntl.flock(handle, fcntl.LOCK_UN)
+                handle.close()
+            return
+        time.sleep(5)
 
 
 def cut(fleet, models):
