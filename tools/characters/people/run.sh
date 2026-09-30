@@ -24,12 +24,15 @@ fail() { printf '\nFAILED: %s\n' "$*" >&2; exit 1; }
 PEOPLE="$(cd "$HERE" && "$PYTHON" -c 'import paths; print(*paths.PEOPLE)')" || fail "reading who to build"
 
 # One person's built body into the game. Godot writes a body's pictures out beside it on import
-# and keeps them across a re-import, so the old ones go first or the new body wears them.
+# and keeps them across a re-import, so the old ones go first or the new body wears them; and it
+# skips importing a file it has imported before unchanged, so its record of the import goes too,
+# or the pictures just cleared are never written again.
 install_one() {
   local person="$1" built="$WORK/bodies/$1.glb" into="$MODELS/$1"
   [ -f "$built" ] || fail "nothing built yet for $person at $built"
   mkdir -p "$into"
   rm -f "$into/${person}"_*.png "$into/${person}"_*.png.import
+  rm -f "$REPO/.godot/imported/${person}.glb-"* "$REPO/.godot/imported/${person}_"*.png-*
   cp "$built" "$into/$person.glb" || fail "copying $person into the game"
   printf 'installed %s\n' "$into/$person.glb"
 }

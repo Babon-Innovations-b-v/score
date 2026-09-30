@@ -509,7 +509,9 @@ def skin_head(part):
     if WHO["beard"] is not None:
         skin[beard(points)] = WHO["beard"]
     if WHO["painted_mouth"]:
-        skin[mouth_line(points) & (normals[:, 2] > FACING)] = LINE
+        # Not only where the skin faces the front: the lips meet in a crease that faces up and
+        # down, and a line there left out read as two lines, an open grim mouth.
+        skin[mouth_line(points)] = LINE
     if WHO["freckles"] is not None:
         skin[freckles(points) & (normals[:, 2] > FACING)] = WHO["freckles"]
     return picture_of(on, skin * (1 - cover) + np.array(LINE, float) * cover)

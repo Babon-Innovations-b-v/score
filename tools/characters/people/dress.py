@@ -133,6 +133,8 @@ def bare_parts(body):
     the look, and the brows and irises laid on them. {name: (points, faces, weights)}."""
     names = body.joint_names
     head_points, head_faces, head_weights = skin.head_and_neck(body)
+    if WHO["painted_mouth"]:
+        head_points = face.lips_shut(head_points, head_faces)
     eyes = np.load(EYES)
     eye_points, eye_faces = eyes["points"], eyes["faces"].astype(np.int64)
     surface = face.the_head_surface(head_points, head_faces, eye_points, eye_faces)

@@ -133,6 +133,32 @@ def joined(pieces):
     return np.vstack(points), np.vstack(faces)
 
 
+# Lips pressed shut for a painted mouth (#112): the head's points round the mouth, in take C's
+# head measures moved with the eyes (half width, drop under the eyes from and to, how far in from
+# the front of the face), are smoothed this many rounds, fading out towards the box's edge.
+LIPS = (0.030, 0.052, 0.094, 0.030)
+LIPS_ROUNDS = 8
+
+
+def lips_shut(points, faces):
+    """The head's points with the crease between the lips smoothed away: a fitted head's mouth is
+    a little open, and its outline drawn round the lips read as a second, grim mouth beside the
+    painted line."""
+    eye = fit.eye(1.0)
+    scale = fit.head_scale()
+    across = np.abs(points[:, 0]) / scale[0]
+    drop = (eye[1] - points[:, 1]) / scale[1]
+    half, top, bottom, depth = LIPS
+    inside = (across < half) & (drop > top) & (drop < bottom) & (points[:, 2] > eye[2] - depth)
+    middle = (top + bottom) / 2
+    fade = np.clip(1.0 - np.maximum(across / half, np.abs(drop - middle) / ((bottom - top) / 2)), 0.0, 1.0)
+    weight = np.where(inside, np.clip(fade * 2.0, 0.0, 1.0), 0.0)[:, None]
+    mesh = trimesh.Trimesh(points, faces, process=False)
+    smoothed = trimesh.smoothing.filter_laplacian(mesh.copy(), lamb=0.6, iterations=LIPS_ROUNDS,
+                                                volume_constraint=False).vertices
+    return points * (1.0 - weight) + np.asarray(smoothed) * weight
+
+
 def the_head_surface(head_points, head_faces, eye_points, eye_faces):
     return trimesh.Trimesh(np.vstack([head_points, eye_points]),
                            np.vstack([head_faces, eye_faces + len(head_points)]), process=False)
