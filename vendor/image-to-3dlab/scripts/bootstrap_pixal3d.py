@@ -13,7 +13,9 @@ machine:
   `--prebuilt` picks it even when a compiler is present. With neither, it says which
   driver to install and stops.
 
-The **weights** are the single-view Q8_0 set plus the BiRefNet matting model, 8.4 GB.
+The **weights** are the single-view Q8_0 set plus the BiRefNet matting model, 8.4 GB, and
+BiRefNet-lite (224 MB), the background remover Pixal3D's cut-out uses. Without lite the
+cut-out falls back to u2net, which ate a white robot's upper arms on a fresh install.
 
 `AGENTS.md`: a download path must name the backend, name the route, state the size, and
 require an affirmative answer. This prints all of that and stops, unless `--yes` is given
@@ -43,7 +45,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from image_to_3dlab import host
+from image_to_3dlab import host, matte
 
 VENDOR = REPO / "vendor" / "pixal3d-cpp"
 BUILD = VENDOR / "build"
@@ -151,6 +153,8 @@ def announcement(build: bool = True, weights: bool = True,
     if weights:
         lines.append(f"  weights: {WEIGHTS_GB:.1f} GB -> vendor/pixal3d-cpp/models/pixal3d-sv/")
         lines.append(f"             {WEIGHTS_REPO}, plus BiRefNet matting ({MATTE_REPO})")
+        lines.append(f"  and:     BiRefNet-lite background remover, "
+                     f"{matte.LITE_BYTES / 1e6:.0f} MB -> {matte.model_file(matte.LITE_MODEL)}")
     lines += ["", "  licence: " + LICENCE, ""]
     return "\n".join(lines)
 
@@ -333,6 +337,49 @@ def install_weights(models: Path = MODELS) -> None:
     hf_hub_download(MATTE_REPO, "q8/birefnet.gguf", local_dir=models)
     flatten_matte(models)
     print(f"  weights in {models}")
+    install_background_remover()
+
+
+def install_background_remover(target: Path | None = None, download=None) -> None:
+    """BiRefNet-lite, unless it is already there. Same file bootstrap_matte.py installs."""
+    target = target or matte.model_file(matte.LITE_MODEL)
+    if target.is_file():
+        return
+    if download is None:
+        from bootstrap_matte import download
+    print(f"\nFetching BiRefNet-lite ({matte.LITE_BYTES / 1e6:.0f} MB)...", flush=True)
+    download(target)
+    print(f"  background remover in {target}")
+
+
+def rebuild_existing(runner=subprocess.run) -> Path:
+    """Patch and recompile an existing source build in place.
+
+    Not build_from_source: that re-checks for the Metal compiler, which a fresh Terminal
+    usually cannot see (xcode-select points at the Command Line Tools), and refused on the
+    maintainer's own Mac. The patches touch C++ only, so an incremental `cmake --build` of
+    the already-configured tree is all a rebuild needs.
+    """
+    apply_steps_patch(runner)
+    runner(build_command(host.build_jobs()), check=True)
+    if not build_present():
+        raise SystemExit("The rebuild finished without trellis-cli.")
+    return cli_path()
+
+
+def build_decision(present: bool, rebuild: bool, kind: str) -> str:
+    """What to do about trellis-cli: "install", "keep", "rebuild" or "cannot-rebuild".
+
+    An existing build is normally left alone. `--rebuild` recompiles a source build so it
+    picks up this repo's patches (the 8-step default needs scripts/patch_pixal3d_steps.py
+    compiled in); only the changed files rebuild, so it takes minutes and fetches no
+    models. A prebuilt download has no source to patch, so it says so instead.
+    """
+    if not present:
+        return "install"
+    if not rebuild:
+        return "keep"
+    return "cannot-rebuild" if kind == "prebuilt" else "rebuild"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -344,6 +391,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="Install trellis-cli and stop, leaving the weights.")
     parser.add_argument("--weights-only", action="store_true",
                         help="Fetch the weights only, assuming trellis-cli is present.")
+    parser.add_argument("--rebuild", action="store_true",
+                        help="Recompile an existing source build so it picks up this "
+                             "repo's patches (e.g. the 8-step default). No downloads.")
     parser.add_argument("--prebuilt", action="store_true",
                         help="Use upstream's prebuilt CUDA build even when nvcc could "
                              "compile a faster one. For timing the two.")
@@ -370,8 +420,16 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     if build:
-        if build_present():
-            print(f"\ntrellis-cli is already installed at {cli_path()}, leaving it alone.")
+        decision = build_decision(build_present(), args.rebuild, kind)
+        if decision == "keep":
+            print(f"\ntrellis-cli is already installed at {cli_path()}, leaving it alone "
+                  "(--rebuild recompiles it with this repo's patches).")
+        elif decision == "cannot-rebuild":
+            print("\nThis machine uses the prebuilt trellis-cli download, which cannot be "
+                  "patched or rebuilt; it keeps its stock settings (12 steps).")
+        elif decision == "rebuild":
+            print(f"\nRebuilding trellis-cli at {cli_path()} with this repo's patches.")
+            rebuild_existing()
         else:
             install_build(key, kind)
     if weights:

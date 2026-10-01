@@ -10,13 +10,17 @@ Four steps, and only the second touches the graphics card:
    colliding, and it lets go as soon as the generator starts writing its file. Two Pixal3D runs
    may share the card (measured safe, card.py); a third, or a picture run, waits. Two runs on one card crash the box, which is why nothing else may call
    image-to-3dlab's generator or trellis-cli directly.
-3. Finish it: retopo_repaint.py thins it to --faces and bakes the base colour, detail and metal
-   maps back on, in Blender on the processor.
+3. Finish it cleanly (clean_finish.py): loose specks dropped, thinned to --faces by the lab's
+   voxel remesh and collapse, unwrapped again by xatlas, base colour and metal baked with hard
+   edges and no detail normal map, then Pixel Match puts the picture's own pixels back on every
+   surface it sees, using the camera folder the generator keeps beside the raw model
+   (<name>.svviews; rebuilt from the picture when a raw model came without one). On the processor.
 4. Stand it upright and pad its maps (glb_file.py), on the processor.
 
 Writes <name>.glb (the raw model), <name>-<faces>.glb (finished) and <name>-final.glb (upright and
-padded, the one to import) under WORK/pixal/. --finish-only redoes steps 3 and 4 from the raw
-model already there. Import the final file with `run.sh --import ... --keep-texture --keep-maps`.
+padded, the one to import) under WORK/pixal/, with each finishing step's file and log in
+<name>-<faces>/. --finish-only redoes steps 3 and 4 from the raw model already there, which is how
+a model already in the game is re-finished. Import the final file with `run.sh --import ... --keep-texture --keep-maps`.
 """
 import argparse
 import contextlib
@@ -25,7 +29,7 @@ import sys
 import time
 
 from card import claimed
-from paths import BLENDER, IMAGE_TO_3DLAB, WORK
+from paths import IMAGE_TO_3DLAB, WORK
 
 LAB_PYTHON = IMAGE_TO_3DLAB / ".venv" / "bin" / "python"
 OUT = WORK / "pixal"
@@ -38,11 +42,6 @@ WRITING = "[6/6]"
 
 def say(line):
     print(f"[pixal] {line}", file=sys.stderr, flush=True)
-
-
-def run_lab(arguments):
-    """Run a script from image-to-3dlab with its own Python, failing loudly."""
-    subprocess.run([str(LAB_PYTHON), *arguments], cwd=IMAGE_TO_3DLAB, check=True)
 
 
 def cut_out(picture):
@@ -80,10 +79,20 @@ def generate(cut, raw, seed, who):
             raise subprocess.CalledProcessError(run.returncode, command)
 
 
+def camera_folder(raw, picture):
+    """The camera folder Pixal3D staged beside the raw model, or one rebuilt from the picture's
+    cut-out when the raw model came without it (a cloud batch brings back the model alone)."""
+    import clean_finish
+    kept = raw.with_suffix(".svviews")
+    if (kept / "transforms.json").exists():
+        return kept
+    return clean_finish.staged_views(cut_out(picture), raw.with_name(f"{raw.stem}-rebuilt.svviews"))
+
+
 def finish(raw, picture, finished, faces):
-    """The raw model thinned to `faces` with its maps baked back on."""
-    run_lab(["scripts/retopo_repaint.py", str(raw), str(picture), str(finished), "--faces", str(faces),
-             "--skip-paint", "--blender", str(BLENDER)])
+    """The raw model thinned to `faces` and painted cleanly (clean_finish.py)."""
+    import clean_finish
+    clean_finish.finish(raw, picture, finished, faces, camera_folder(raw, picture))
 
 
 def stand_and_pad(finished, final, long, feet, tube=False):

@@ -1,4 +1,4 @@
-# Install or update image-to-3dlab on Windows with an NVIDIA GPU. UNTESTED: if you run it,
+# Install or update image-to-3dlab on Windows with an NVIDIA GPU. LIMITED TESTING: if you run it,
 # please tell us how it went in GitHub Discussions.
 #
 #   irm https://raw.githubusercontent.com/Bingeljell/image-to-3dlab/main/install.ps1 | iex
@@ -94,7 +94,18 @@ if ($HasGpu) {
 }
 & uv pip install --quiet --python $Py -r (Join-Path $Dir "requirements.txt")
 
-# 5. Done
+# 5. Blender: Finish needs it, and it is the user's to install. Same finder Finish uses.
+if (Test-Path $Py) {
+    Push-Location $Dir
+    & $Py -c "import sys; from image_to_3dlab.blender import find_blender; sys.exit(0 if find_blender() else 1)" 2>$null
+    $HasBlender = ($LASTEXITCODE -eq 0)
+    Pop-Location
+    if (-not $HasBlender) {
+        Say "Blender was not found. Finish (the low-poly clean-up) needs Blender 4.2 or newer: https://www.blender.org/download/"
+    }
+}
+
+# 6. Done
 Say "Done. Start the lab with:"
 Write-Host ""
 Write-Host "    cd `"$Dir`"; .venv\Scripts\python.exe viewer\serve.py"
