@@ -151,6 +151,15 @@ BRIEFS = {
         "room": {"low": [-0.1, -0.075, -0.15], "high": [0.1, 0.075, 0.15]},
         "fill": "within",
     },
+    # The field eye (#119) sits on the row guide's mount and draws the row guide's take until a
+    # model of its own is made and picked.
+    "field_eye": {
+        "mesh": "part-row_guide-2",
+        "turn": 180,
+        "sentence": "a small camera pod with one large round lens on its front, joined to a short square bracket",
+        "room": {"low": [-0.1, -0.075, -0.15], "high": [0.1, 0.075, 0.15]},
+        "fill": "within",
+    },
     "crop_basket": {
         "mesh": "part-crop_basket-1",
         "turn": 0,
