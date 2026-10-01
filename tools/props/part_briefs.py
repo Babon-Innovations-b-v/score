@@ -82,6 +82,14 @@ BRIEFS = {
         "room": {"low": [-0.36, -0.11, -0.225], "high": [0.36, 0.11, 0.225]},
         "fill": "within",
     },
+    "battery_2": {
+        "mesh": "part-battery_pack-1",
+        "turn": 90,
+        "sentence": ("a heavy rectangular battery pack, a sealed box with two thick power terminals "
+                     "and a carry handle joined to its top"),
+        "room": {"low": [-0.36, -0.11, -0.225], "high": [0.36, 0.11, 0.225]},
+        "fill": "within",
+    },
     "link_basic": {
         "mesh": "part-link_basic-2",
         "turn": 0,
