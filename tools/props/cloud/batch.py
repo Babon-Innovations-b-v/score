@@ -119,8 +119,9 @@ def taken(models):
 
 
 def card_minutes_per_model():
-    """A card's minutes per model in the last measured batch, or the first guess."""
-    for entry in reversed(ledger.entries()):
+    """A card's minutes per model in the last batch started that measured one, or the first guess.
+    By start, not by line: a batch stopped part way is written when it stops, after later ones."""
+    for entry in sorted(ledger.entries(), key=lambda entry: entry.get("started", ""), reverse=True):
         if entry.get("models_done"):
             return entry.get("card_minutes", entry.get("generate_minutes")) / entry["models_done"]
     return MODEL_MINUTES

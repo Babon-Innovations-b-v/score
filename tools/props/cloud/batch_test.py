@@ -62,6 +62,17 @@ def test_fleet_size():
         raise AssertionError("a target shorter than one run was accepted")
 
 
+def test_model_minutes_come_from_the_batch_started_last():
+    # A batch stopped part way is written after a later one; its slow rate must not set the estimate.
+    entries = [{"started": "2026-09-30T17:56:47Z", "models_done": 5, "card_minutes": 25},
+               {"started": "2026-09-30T17:35:47Z", "models_done": 3, "card_minutes": 380}]
+    kept, ledger.entries = ledger.entries, lambda: entries
+    try:
+        assert batch.card_minutes_per_model() == 5
+    finally:
+        ledger.entries = kept
+
+
 def test_leftovers():
     here = socket.gethostname()
     later = 2e9
