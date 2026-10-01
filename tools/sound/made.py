@@ -18,8 +18,9 @@ to join itself with no click in three ways, one per kind of material in it:
 A loop also carries a WAV `smpl` chunk marking the whole file as the loop, which Godot's importer
 reads ("Detect From WAV"), so the engine loops it itself instead of restarting it when it ends.
 
-Quiet by default: each sound is written to a peak level below the warning's, and the warning tone
-is the only one written near full scale. The catalogue sets the final level on top of that.
+Quiet by default: each sound is written to a peak level well under full scale, the warning tone
+too, since a pure tone sounds far louder than a recording at the same peak. The catalogue sets the
+final level on top of that.
 """
 import argparse
 import math
@@ -160,7 +161,9 @@ def radio_squelch(generator):
 
 
 def warning_tone(generator):
-    """The warning: two soft bell tones stepping down a fourth. The loudest sound, never shrill."""
+    """The warning: two soft bell tones stepping down a fourth. Never shrill, and written well under
+    full scale: at -1 dB a near-pure bell stood about 20 dB over everything else in the base and
+    hurt the ears in the first playthrough (2026-10-01). The catalogue still sets it loudest."""
     del generator  # nothing random in it
     length = round(1.6 * RATE)
 
@@ -171,7 +174,7 @@ def warning_tone(generator):
     out = [0.0] * length
     placed(out, note(587.33), 0)
     placed(out, note(440.0), round(0.45 * RATE))
-    return to_peak(faded(out, 0.001, 0.1), -1.0), False
+    return to_peak(faded(out, 0.001, 0.1), -16.0), False
 
 
 def geiger_ticks(generator):
