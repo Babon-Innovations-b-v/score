@@ -161,9 +161,11 @@ def radio_squelch(generator):
 
 
 def warning_tone(generator):
-    """The warning: two soft bell tones stepping down a fourth. Never shrill, and written well under
+    """The warning: two soft bell tones stepping down a fourth. Never shrill, and written far under
     full scale: at -1 dB a near-pure bell stood about 20 dB over everything else in the base and
-    hurt the ears in the first playthrough (2026-10-01). The catalogue still sets it loudest."""
+    hurt the ears in the first playthrough (2026-10-01), and at -16 dB it was still far too loud.
+    At -27 dB it sits a few dB over the suit's breathing: clearly heard, never a shock. The
+    catalogue still gives it the loudest level."""
     del generator  # nothing random in it
     length = round(1.6 * RATE)
 
@@ -174,7 +176,7 @@ def warning_tone(generator):
     out = [0.0] * length
     placed(out, note(587.33), 0)
     placed(out, note(440.0), round(0.45 * RATE))
-    return to_peak(faded(out, 0.001, 0.1), -16.0), False
+    return to_peak(faded(out, 0.001, 0.1), -27.0), False
 
 
 def geiger_ticks(generator):
@@ -195,13 +197,20 @@ def geiger_ticks(generator):
 
 
 def oxygen_low(generator):
-    """Low oxygen: two short soft beeps, then quiet, so it can be played again and again."""
+    """Low oxygen: two soft low beeps, then quiet, so it can be played again and again.
+
+    A plain sine that swells in and out, with no overtone and no hard edge. The first take was a
+    bright 880 Hz beep with a sharp start, written at -5 dB, and in the first playthrough
+    (2026-10-01) it was harsh and the loudest thing in the game. This one sits under the warning.
+    """
     del generator  # nothing random in it
-    beep = faded(mix(tone(880.0, 0.13), tone(1760.0, 0.13, 0.1)), 0.008, 0.02)
-    out = silence(1.0)
+    length = round(0.22 * RATE)
+    swell = [math.sin(math.pi * index / length) ** 2 for index in range(length)]
+    beep = shaped(tone(523.25, 0.22), swell)
+    out = silence(1.2)
     placed(out, beep, 0)
-    placed(out, beep, round(0.2 * RATE))
-    return to_peak(out, -5.0), False
+    placed(out, beep, round(0.32 * RATE))
+    return to_peak(out, -30.0), False
 
 
 SOUNDS = {
