@@ -20,6 +20,9 @@ views out of a spot's painted (or depth) panorama for `cutout.py --picture` and 
 `marble.py --ledger` adds every paid call to a ledger file. The workflow these tools
 serve: skill `make-scene`, bible "How a scene is designed".
 
+- `depth_pano.tscn --pano-ship` takes the ship's rooms instead (`ShipCabin.ROOMS`, #70), with the
+  rest of the game put away so its windows look out on nothing; `--pano-colour` takes the same six
+  ways in the game's look, to lay beside each plan from the plan's own camera.
 - Everything a run makes goes under `WORK/scene/<room>/` (`~/.farm-factory-props/work/scene/`);
   target pictures, masks, worlds and layouts never go in the repo.
 - Every step that uses the card does so inside `card.claimed()`; Pixal3D only through `pixal.py`.
