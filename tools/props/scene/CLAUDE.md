@@ -11,8 +11,10 @@ brings back its room as a second measure of the same masks (`boxes.py --depth de
 Round two goes the other way, from our rooms to Marble: `depth_pano.tscn` renders a 360° depth
 cube at eye height in the real starter base (with `levels.gd`'s blocks for floors that are not
 flat), `pano.py` folds it into the depth panorama Marble paints (`marble.py paint`, then
-`generate --pano`), and `align.py` lays each world back on its spot on the seat. Indoors only:
-outside, even marble-1.1-plus turned the base into houses and broke the scale (2026-10-02).
+`generate --pano`), and `align.py` lays each world back on its spot on the seat. One world per
+room and per tube junction indoors; outside, one viewpoint and one world as the plan, never
+walked: even marble-1.1-plus turned the base into houses (2026-10-02). The workflow these tools
+serve: skill `make-scene`, bible "How a scene is designed".
 
 - Everything a run makes goes under `WORK/scene/<room>/` (`~/.farm-factory-props/work/scene/`);
   target pictures, masks, worlds and layouts never go in the repo.
