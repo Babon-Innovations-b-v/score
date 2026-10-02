@@ -1,0 +1,47 @@
+# Build artefacts
+build/
+*.o
+*.d
+
+# AmMatrix pre-built test binaries
+src/AmMatrix/OpenCL/matmul
+src/AmMatrix/TestCPUOptimizedInstructionSet/TestCPUOptimizedInstructionSet
+src/AmMatrix/TestCPUOptimizedInstructionSet/TestCPUOptimizedInstructionSetD
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+
+# Fetched deps (cloned by tools/setup_gmr.sh, like GMR/)
+src/SharedMemoryVideoBuffers/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+
+# Temp / scratch
+error.txt
+*.valgrind.suppress
+screen*.jpg
+
+# Test data (large media)
+scripts/*.avi
+scripts/*.mp4
+
+# Generated output
+joints.csv
+*.csv
+
+# ONNX Runtime download cache (fetched by CMake at configure time)
+build/onnxruntime_dl/
+
+# Model files — distributed separately via HuggingFace
+onnx/
+SAM3DBody-cpp-onnx-models.zip
