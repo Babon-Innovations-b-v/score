@@ -22,8 +22,10 @@ import picture  # noqa: E402
 from card import claimed  # noqa: E402
 from paths import WORK  # noqa: E402
 
-# Wide, but near the picture model's one megapixel; both sides a multiple of 16.
-WIDTH, HEIGHT = 1344, 768
+# Wide and large, both sides a multiple of 16. At 1344 x 768 most objects were cut out too small
+# to build from (cutsize.py); 2048 x 1152 still draws one sensible room, in 22 s and 8.4 GB on
+# the card (2026-10-02, the bible's "How a scene is designed").
+WIDTH, HEIGHT = 2048, 1152
 # The camera the scene is later rebuilt from: level, at a standing player's eyes, a normal lens.
 # A long lens, as the prop pictures use, would show one wall; a wide one bends the walls and
 # MoGe then reads bent furniture. People are the sentence's to ask for or refuse: a crew member
