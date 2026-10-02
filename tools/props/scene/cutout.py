@@ -1,8 +1,10 @@
 """Cut every named object out of a room's target picture with SAM 3, one mask per thing found.
 
-    ~/.farm-factory-props/env/bin/python tools/props/scene/cutout.py <room> bench desk@0.4 ...
+    ~/.farm-factory-props/env/bin/python tools/props/scene/cutout.py <room> bench desk@0.4 ... \
+        [--picture <view.png> --out <folder>]
 
-Reads WORK/scene/<room>/<room>-target.png (the picked take). For each name SAM 3 finds every
+Reads WORK/scene/<room>/<room>-target.png (the picked take), or --picture, a view cut from a plan
+world's panorama (planview.py), writing under --out instead of the room's folder. For each name SAM 3 finds every
 instance it is sure of; each lands as <name>-<n>.mask.png (the mask, full size) and <name>-<n>.png
 (the object cut out of the picture on transparency, cropped round it) under objects/, and all of
 them in objects.json with their name, score, pixel box and its size (cutsize.py; a box under
@@ -142,9 +144,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("room")
     parser.add_argument("names", nargs="+")
+    parser.add_argument("--picture", type=pathlib.Path, help="a plan view to cut from instead of the target")
+    parser.add_argument("--out", type=pathlib.Path, help="where a --picture's cut-outs land")
     options = parser.parse_args()
-    out = folder(options.room)
-    image = Image.open(out / f"{options.room}-target.png").convert("RGB")
+    if bool(options.picture) != bool(options.out):
+        parser.error("--picture and --out go together")
+    out = options.out or folder(options.room)
+    out.mkdir(parents=True, exist_ok=True)
+    image = Image.open(options.picture or out / f"{options.room}-target.png").convert("RGB")
     masks_by_name = segment(image, options.names)
     save_surfaces(out, image, masks_by_name)
     for item in save_objects(out, image, masks_by_name):

@@ -9,11 +9,15 @@ camera in the game's look (`stage.tscn`). `marble.py` sends a target to World La
 brings back its room as a second measure of the same masks (`boxes.py --depth depth-marble.npz`).
 
 Round two goes the other way, from our rooms to Marble: `depth_pano.tscn` renders a 360° depth
-cube at eye height in the real starter base (with `levels.gd`'s blocks for floors that are not
-flat), `pano.py` folds it into the depth panorama Marble paints (`marble.py paint`, then
+cube at eye height in the real starter base, on the kit's own stepped floors (`--pano-kit` takes
+each kind's room in the kit yard, `--pano-scene` a scene of its own such as the ready room),
+`pano.py` folds it into the depth panorama Marble paints (`marble.py paint`, then
 `generate --pano`), and `align.py` lays each world back on its spot on the seat. One world per
 room and per tube junction indoors; outside, one viewpoint and one world as the plan, never
-walked: even marble-1.1-plus turned the base into houses (2026-10-02). The workflow these tools
+walked: even marble-1.1-plus turned the base into houses (2026-10-02). `planview.py` cuts level
+views out of a spot's painted (or depth) panorama for `cutout.py --picture` and `redraw.py
+--picture`, and `room_shots.tscn` draws the game from those same cameras to lay beside them;
+`marble.py --ledger` adds every paid call to a ledger file. The workflow these tools
 serve: skill `make-scene`, bible "How a scene is designed".
 
 - Everything a run makes goes under `WORK/scene/<room>/` (`~/.farm-factory-props/work/scene/`);
@@ -33,6 +37,6 @@ serve: skill `make-scene`, bible "How a scene is designed".
   `redraw/report.json` lists every object with its cut-out size and the way it took.
 - `layout_test.py` is the gate's check of the placing rules, plain python; `cutsize_test.py` of
   the cut-out limit; `pano_test.py` checks
-  the folding and the placing of worlds (hands itself to the prop environment for numpy).
+  the folding and the placing of worlds, `planview_test.py` the plan views' cameras (hands itself to the prop environment for numpy).
 - The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
   window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.

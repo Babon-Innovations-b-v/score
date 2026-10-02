@@ -57,19 +57,28 @@ def transforms(depth_folder, pairs):
     return found
 
 
-def plan(base_points, world_points, spot, path):
-    """The base's plan with one world laid over it, seen from above, near the floor and below head."""
+# A room's own plan (<spot>-room.glb) is drawn this far round its eye, in metres.
+ROOM_REACH_M = 9.0
+
+
+def plan(base_points, world_points, spot, path, floor_m=0.0, around=None):
+    """The base's plan with one world laid over it, seen from above, near the floor and below head;
+    `around` (across, along) draws only ROOM_REACH_M round that spot, for a room's own plan."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    band = lambda points: points[(points[:, 1] > 0.2) & (points[:, 1] < 2.2)]  # noqa: E731
+    band = lambda points: points[(points[:, 1] > floor_m + 0.2) & (points[:, 1] < floor_m + 2.2)]  # noqa: E731
     base, world = band(base_points), band(world_points)
     figure, axes = plt.subplots(figsize=(10, 6), facecolor="#111")
     axes.set_facecolor("#111")
     axes.scatter(base[:, 0], base[:, 2], s=0.05, c="#888", label="our base")
     axes.scatter(world[:, 0], world[:, 2], s=0.05, c="#ff7a3d", alpha=0.5, label=f"Marble world from {spot}")
-    axes.set_xlim(-30, 22)
-    axes.set_ylim(16, -14)
+    if around is None:
+        axes.set_xlim(-30, 22)
+        axes.set_ylim(16, -14)
+    else:
+        axes.set_xlim(around[0] - ROOM_REACH_M, around[0] + ROOM_REACH_M)
+        axes.set_ylim(around[1] + ROOM_REACH_M, around[1] - ROOM_REACH_M)
     axes.set_aspect("equal")
     axes.tick_params(colors="#aaa")
     axes.legend(loc="lower left", markerscale=40, facecolor="#222", labelcolor="#ddd")
@@ -77,6 +86,15 @@ def plan(base_points, world_points, spot, path):
     figure.tight_layout()
     figure.savefig(path, dpi=80, facecolor="#111")
     plt.close(figure)
+
+
+def room_points(path):
+    """Points spread over a room's own file, leaving out anything bigger than the room's plan
+    (a sky dome, the ground out to the horizon), which would take every point."""
+    import trimesh
+    parts = [mesh for mesh in trimesh.load(path, force="scene").dump()
+             if max(mesh.extents) < 4 * ROOM_REACH_M]
+    return np.asarray(trimesh.util.concatenate(parts).sample(400000))
 
 
 def main():
@@ -90,13 +108,18 @@ def main():
     pairs = dict(pair.split("=", 1) for pair in options.pairs)
     found = transforms(options.depth_folder, pairs)
     options.out.write_text(json.dumps(found, indent=1))
-    if options.base:
+    if options.plans:
         import trimesh
-        base = np.asarray(trimesh.load(options.base, force="mesh").sample(400000))
+        whole = np.asarray(trimesh.load(options.base, force="mesh").sample(400000)) if options.base else None
         for spot, item in found.items():
+            # A spot taken in a frame of its own (a kit module, the ready room) has its own room file.
+            own = options.depth_folder / f"{spot}-room.glb"
+            base = whole if whole is not None and not own.exists() else room_points(own)
             collider = trimesh.load(folder(item["scene"]) / "marble" / "collider.glb", force="mesh")
             world = placed(np.asarray(collider.sample(200000)), np.array(item["basis"]).T, np.array(item["origin"]))
-            plan(base, world, spot, options.plans / f"plan-{spot}.png")
+            floor_m = item["origin"][1] - item["eye_m"]
+            around = (item["origin"][0], item["origin"][2]) if own.exists() else None
+            plan(base, world, spot, options.plans / f"plan-{spot}.png", floor_m, around)
     for spot, item in found.items():
         print(spot, item["scene"], "scale", item["scale"])
 

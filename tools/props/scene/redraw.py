@@ -1,19 +1,24 @@
 """Redraw objects cut out of a room's target picture as whole, clean object pictures for Pixal3D.
 
-    ~/.farm-factory-props/env/bin/python tools/props/scene/redraw.py <room> bench-1:bench cabinet-5:desk ...
+    ~/.farm-factory-props/env/bin/python tools/props/scene/redraw.py <room> bench-1:bench cabinet-5:desk ... \
+        [--picture <view.png> --out <folder>] [--seeds 7,8] [--side 1536]
 
 Each pair names a cut-out (cutout.py's key) and the model it becomes, with an optional third part
 describing it for a close-up ("desk_lamp-1:desk_lamp:a globe lamp on a jointed arm"). Only a
 cut-out whose box is at least cutsize.MIN_CUT_SIDE pixels on its short side is redrawn; a smaller
 one is drawn afresh as a close-up when the target was drawn here, and left off otherwise
-(cutsize.py). A cut-out is part of an
-object: cut off by the picture's edge, hidden behind its neighbours, lit by the room. The picture
-model (FLUX.2 klein 4B) gets the cut-out on grey as its first reference and the whole target as
-its second, and draws the object whole, alone, on the prop chain's plain grey, seen from the same
-side as in the room, so the model Pixal3D builds faces the way the object faced (layout.py turns it
-by that). Writes redraw/<model>.png and redraw/<model>-cut.png (the reference it was given), and
-redraw/report.json: every object with its cut-out's size and the way it took, and the build list
-for pixal.py. Holds the card.
+(cutsize.py). A key of "none" names an
+object the plan does not show at all, drawn as a close-up in the plan's look. A cut-out is part
+of an object: cut off by the picture's edge, hidden behind its neighbours, lit by the room. The
+picture model (FLUX.2 klein 4B) gets the cut-out on grey as its first reference and the whole
+target as its second, and draws the object whole, alone, on the prop chain's plain grey, square to
+its front (the bible's rule: a model is turned by the wall it stands at, never by the plan's
+camera). --picture names a view cut from a plan world (planview.py) in place of the target, whose
+cut-outs cutout.py wrote under --out; such a plan's look can be drawn in again, so its small
+objects get close-ups. Writes redraw/<model>.png (redraw/<model>-s<seed>.png for each of several
+--seeds) and redraw/<model>-cut.png (the reference it was given), and redraw/report.json: every
+object with its cut-out's size and the way it took, and the build list for pixal.py. Holds the
+card.
 """
 import argparse
 import json
@@ -29,13 +34,18 @@ from card import claimed  # noqa: E402
 from cutsize import ROUTES, route, size_of  # noqa: E402
 from target import folder  # noqa: E402
 
+# The reference square a cut-out is set on, and the side the object's picture is drawn at (round
+# three draws 1536; --side changes it).
 SIDE = 1024
+DRAW_SIDE = 1536
 GREY = (200, 200, 200)
-# What the object is to be drawn as. It keeps the angle the room showed it from, which the prop
-# chain's own shot (picture.SHOT) does not: that one turns every object three quarters.
+# What the object is to be drawn as: square to its own front, whatever angle the room showed it
+# from, since turning models by the plan's camera put round one's 25 to 96 degrees off (bible,
+# "How a scene is designed").
 WORDING = ("the {name} from the first image, redrawn as one complete whole object standing alone, "
-           "every part of it that was cut off or hidden drawn in, seen from the same side and the "
-           "same angle as in the first image, matching the materials and colours of the room in "
+           "every part of it that was cut off or hidden drawn in, seen straight on from its front, "
+           "square to its front face, level camera at its own height, matching the materials and "
+           "colours of the object in the first image and of the room in "
            "the second image, clean 3D render floating in empty space, centred on a plain light "
            "grey background, soft even studio lighting, whole object in frame, nothing underneath "
            "it, no floor, no wall behind it, no other objects, no people, no text")
@@ -60,15 +70,15 @@ def on_grey(cut):
     return square
 
 
-def draw(pipeline, references, prompt, seed):
-    """One clean object picture from a loaded picture model."""
+def draw(pipeline, references, prompt, seed, side):
+    """One clean object picture `side` pixels square from a loaded picture model."""
     return pipeline(
         image=references,
         prompt=prompt,
         num_inference_steps=picture.STEPS,
         guidance_scale=picture.GUIDANCE,
-        height=SIDE,
-        width=SIDE,
+        height=side,
+        width=side,
         generator=torch.Generator("cpu").manual_seed(seed),
     ).images[0]
 
@@ -78,10 +88,15 @@ def drawn_here(out, room):
     return any(out.glob(f"{room}-target-*.png"))
 
 
-def planned(out, room, pairs):
+# The key of an object the plan does not show: it has no box, so it can only be drawn as a close-up.
+NOT_IN_PLAN = "none"
+
+
+def planned(out, pairs, can_close_up):
     """Each asked-for object with its cut-out's size and its route, in the order asked."""
-    boxes = {item["key"]: item["box"] for item in json.loads((out / "objects.json").read_text())}
-    can_close_up = drawn_here(out, room)
+    listed = out / "objects.json"
+    boxes = {item["key"]: item["box"] for item in json.loads(listed.read_text())} if listed.exists() else {}
+    boxes[NOT_IN_PLAN] = [0, 0, 0, 0]
     rows = []
     for pair in pairs:
         key, _, rest = pair.partition(":")
@@ -92,16 +107,15 @@ def planned(out, room, pairs):
     return rows
 
 
-def draw_row(pipeline, out, room_picture, row, seed):
-    """One object's picture, drawn by its route and saved under redraw/; its path."""
-    path = out / "redraw" / f"{row['model']}.png"
+def draw_row(pipeline, out, room_picture, row, seed, path, side):
+    """One object's picture, drawn by its route and saved at `path`; its path."""
     if row["route"] == "redraw":
         reference = on_grey(Image.open(out / "objects" / f"{row['key']}.png"))
         reference.save(out / "redraw" / f"{row['model']}-cut.png")
-        drawn = draw(pipeline, [reference, room_picture], WORDING.format(name=row["name"]), seed)
+        drawn = draw(pipeline, [reference, room_picture], WORDING.format(name=row["name"]), seed, side)
     else:
         prompt = CLOSE_UP.format(name=row["name"], description=row["description"])
-        drawn = draw(pipeline, [room_picture], prompt, seed)
+        drawn = draw(pipeline, [room_picture], prompt, seed, side)
     drawn.save(path)
     return path
 
@@ -119,20 +133,29 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("room")
     parser.add_argument("pairs", nargs="+", help="cut-out key:model name[:description]")
-    parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--seeds", default="7", help="one seed, or several to choose between: 7,8")
+    parser.add_argument("--side", type=int, default=DRAW_SIDE, help="the picture's side in pixels")
+    parser.add_argument("--picture", type=pathlib.Path, help="a plan view in place of the target")
+    parser.add_argument("--out", type=pathlib.Path, help="where cutout.py put that view's cut-outs")
     options = parser.parse_args()
-    out = folder(options.room)
-    (out / "redraw").mkdir(exist_ok=True)
-    rows = planned(out, options.room, options.pairs)
+    if bool(options.picture) != bool(options.out):
+        parser.error("--picture and --out go together")
+    out = options.out or folder(options.room)
+    (out / "redraw").mkdir(parents=True, exist_ok=True)
+    rows = planned(out, options.pairs, bool(options.picture) or drawn_here(out, options.room))
     report(out, rows)
     to_draw = [row for row in rows if row["route"] != "dropped"]
     if not to_draw:
         return
-    room_picture = Image.open(out / f"{options.room}-target.png").convert("RGB")
+    room_picture = Image.open(options.picture or out / f"{options.room}-target.png").convert("RGB")
+    seeds = [int(seed) for seed in options.seeds.split(",")]
     with claimed(f"redrawing {len(to_draw)} objects of {options.room}"):
         pipeline = picture.load()
         for row in to_draw:
-            print(draw_row(pipeline, out, room_picture, row, options.seed), flush=True)
+            for seed in seeds:
+                suffix = f"-s{seed}" if len(seeds) > 1 else ""
+                path = out / "redraw" / f"{row['model']}{suffix}.png"
+                print(draw_row(pipeline, out, room_picture, row, seed, path, options.side), flush=True)
 
 
 if __name__ == "__main__":

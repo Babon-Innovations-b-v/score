@@ -74,13 +74,13 @@ def encoded(pano, z_max):
     return Image.fromarray(np.round(picture * 255).astype(np.uint8), "L")
 
 
-def fold_spot(folder, spot, facts):
+def fold_spot(folder, spot, facts, z_max_least=0.0):
     """One spot's panorama, saved as .npy and as Marble's PNG; its z_max."""
     faces = {way: decoded(folder / f"{spot}-{way}.png", facts["near_m"], facts["far_m"]) for way in facts["ways"]}
     pano = folded(faces, facts["ways"], facts["face_px"] * WIDE_FACES)
     np.save(folder / f"{spot}-depth.npy", pano)
     finite = pano[np.isfinite(pano)]
-    z_max = float(np.ceil(finite.max())) if finite.size else facts["far_m"]
+    z_max = max(float(np.ceil(finite.max())) if finite.size else facts["far_m"], z_max_least)
     encoded(pano, z_max).save(folder / f"{spot}-depth.png")
     return z_max
 
@@ -89,11 +89,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("folder", type=pathlib.Path)
     parser.add_argument("spots", nargs="*")
+    # A small closed room scaled to its own far wall comes out near black, which the painting reads as
+    # open sky (the planter room at 6 m, 2026-10-02); its scale is stretched to at least this far.
+    parser.add_argument("--z-max-least", type=float, default=0.0)
     options = parser.parse_args()
     facts = json.loads((options.folder / "spots.json").read_text())
     scales = {}
     for spot in options.spots or facts["spots"]:
-        scales[spot] = {"z_min": Z_MIN_M, "z_max": fold_spot(options.folder, spot, facts)}
+        scales[spot] = {"z_min": Z_MIN_M, "z_max": fold_spot(options.folder, spot, facts, options.z_max_least)}
         print(spot, scales[spot], flush=True)
     known = options.folder / "scales.json"
     kept = json.loads(known.read_text()) if known.exists() else {}

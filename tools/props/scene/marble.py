@@ -102,12 +102,28 @@ def finished(operation_id):
     raise SystemExit(f"marble: {operation_id} still not done after {GIVE_UP_SECONDS} s")
 
 
+def target_picture(room):
+    """The room's target picture; a room may be a nested folder (round3/lab), named by its last part."""
+    return folder(room) / f"{pathlib.Path(room).name}-target.png"
+
+
+def keep_in_ledger(ledger, room, step, operation, **facts):
+    """Adds one paid call (a painting or a world) to the ledger file, with what it cost."""
+    if ledger is None:
+        return
+    kept = json.loads(ledger.read_text()) if ledger.exists() else {"calls": []}
+    cost = operation.get("cost") or {}
+    kept["calls"].append({"room": room, "step": step, "credits": cost.get("total_credits"),
+                          "when": time.strftime("%Y-%m-%d %H:%M:%S"), **facts})
+    ledger.write_text(json.dumps(kept, indent=1))
+
+
 def inline_png(path):
     """A PNG file as the API's inline picture."""
     return {"source": "data_base64", "extension": "png", "data_base64": base64.b64encode(path.read_bytes()).decode()}
 
 
-def paint(room, out, depth_png, z_max, text, seed):
+def paint(room, out, depth_png, z_max, text, seed, ledger=None):
     """Paint a depth panorama (pano.py) into a colour one (pano:depth_to_rgb), saved as the room's
     target picture, so `generate --pano` builds the world from it; what it cost is kept."""
     started = call("POST", "/pano:depth_to_rgb", {
@@ -120,14 +136,18 @@ def paint(room, out, depth_png, z_max, text, seed):
     # (2026-10-02, 80 credits a painting).
     answer = operation["response"]
     url = answer.get("pano_url") or answer["assets"]["imagery"]["pano_url"]
-    download(url, folder(room) / f"{room}-target.png")
-    print(f"painted, cost {operation.get('cost')}")
+    download(url, target_picture(room))
+    # Every take is kept beside the target, which the next painting overwrites.
+    take = out / f"painting-{len(list(out.glob('painting-*.png'))) + 1}-seed{seed}.png"
+    take.write_bytes(target_picture(room).read_bytes())
+    keep_in_ledger(ledger, room, "paint", operation, seed=seed, picture=str(take), text=text)
+    print(f"painted {take}, cost {operation.get('cost')}")
 
 
-def generate(room, out, model, text, pano=False, seed=None):
+def generate(room, out, model, text, pano=False, seed=None, ledger=None):
     """Generate the world from the room's target picture, with words of guidance when given;
     the world as the API returns it. A panorama (`pano`) is taken as one, with its words as given."""
-    prompt = {"type": "image", "is_pano": pano, "image_prompt": inline_png(folder(room) / f"{room}-target.png")}
+    prompt = {"type": "image", "is_pano": pano, "image_prompt": inline_png(target_picture(room))}
     if text:
         prompt["text_prompt"] = text
     if pano:
@@ -139,6 +159,8 @@ def generate(room, out, model, text, pano=False, seed=None):
     operation = finished(started["operation_id"])
     world = operation["response"]
     (out / "world.json").write_text(json.dumps({"world": world, "cost": operation.get("cost")}, indent=1))
+    keep_in_ledger(ledger, room, "world", operation, seed=seed, model=model, world_id=world.get("world_id"),
+                   url=world.get("world_marble_url"), text=text)
     return world
 
 
@@ -227,15 +249,17 @@ def main():
     parser.add_argument("--seed", type=int)
     parser.add_argument("--depth-png", type=pathlib.Path, help="paint: pano.py's depth panorama")
     parser.add_argument("--z-max", type=float, help="paint: the depth panorama's far end (pano.py's scales.json)")
+    parser.add_argument("--ledger", type=pathlib.Path, help="a JSON file every paid call is added to, with its credits")
     options = parser.parse_args()
     out = folder(options.room) / "marble"
     out.mkdir(exist_ok=True)
     if options.step in ("depth", "splats", "paint"):
         {"depth": lambda: depth(options.room, out), "splats": lambda: splats(out),
-         "paint": lambda: paint(options.room, out, options.depth_png, options.z_max, options.text, options.seed)}[options.step]()
+         "paint": lambda: paint(options.room, out, options.depth_png, options.z_max, options.text, options.seed,
+                                options.ledger)}[options.step]()
         return
     if options.step == "generate":
-        world = generate(options.room, out, options.model, options.text, options.pano, options.seed)
+        world = generate(options.room, out, options.model, options.text, options.pano, options.seed, options.ledger)
         print(world.get("world_id"), world.get("world_marble_url"))
     fetch(out)
 
