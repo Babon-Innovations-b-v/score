@@ -5,7 +5,8 @@
 Reads WORK/scene/<room>/<room>-target.png (the picked take). For each name SAM 3 finds every
 instance it is sure of; each lands as <name>-<n>.mask.png (the mask, full size) and <name>-<n>.png
 (the object cut out of the picture on transparency, cropped round it) under objects/, and all of
-them in objects.json with their name, score and pixel box. The same pixels found under two names
+them in objects.json with their name, score, pixel box and its size (cutsize.py; a box under
+cutsize.MIN_CUT_SIDE on its short side is never redrawn from its cut-out). The same pixels found under two names
 (a "cabinet" that is also a "desk") are kept once, under the surer name. A name may carry its own
 sureness after an @, for a word SAM 3 is less sure of (measured on the habitat: "bench" scores
 0.43 where "mattress" scores 0.95, and "bed" finds nothing). The floor, the walls and the ceiling
@@ -26,6 +27,7 @@ import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from card import claimed  # noqa: E402
+from cutsize import size_of  # noqa: E402
 from target import folder  # noqa: E402
 
 WEIGHTS = os.environ.get("SAM3_WEIGHTS", "facebook/sam3")
@@ -131,7 +133,7 @@ def save_objects(out, image, masks_by_name):
         Image.fromarray(instance["mask"].astype(np.uint8) * 255).save(objects / f"{key}.mask.png")
         cut(image, instance["mask"]).save(objects / f"{key}.png")
         listed.append({"key": key, "name": instance["name"], "score": round(instance["score"], 3),
-                       "box": pixel_box(instance["mask"])})
+                       "box": pixel_box(instance["mask"]), **size_of(pixel_box(instance["mask"]))})
     (out / "objects.json").write_text(json.dumps(listed, indent=1))
     return listed
 
@@ -146,7 +148,7 @@ def main():
     masks_by_name = segment(image, options.names)
     save_surfaces(out, image, masks_by_name)
     for item in save_objects(out, image, masks_by_name):
-        print(item["key"], item["score"], item["box"])
+        print(item["key"], item["score"], item["box"], "short side", item["short_side"])
 
 
 if __name__ == "__main__":

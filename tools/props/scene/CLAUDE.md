@@ -25,7 +25,12 @@ outside, even marble-1.1-plus turned the base into houses and broke the scale (2
   are a layout reference only: shipped models stay our own.
 - The stage is not the game's habitat scene, which the module kit owns; its shell is a stand-in
   built from the measured section.
-- `layout_test.py` is the gate's check of the placing rules, plain python; `pano_test.py` checks
+- A cut-out under `cutsize.MIN_CUT_SIDE` source pixels on its box's short side never feeds the
+  redraw (the owner, 2026-10-02: "the low-res ones look shit"). `redraw.py` draws such an object
+  afresh as a close-up when the target was drawn here, else leaves it off the build list;
+  `redraw/report.json` lists every object with its cut-out size and the way it took.
+- `layout_test.py` is the gate's check of the placing rules, plain python; `cutsize_test.py` of
+  the cut-out limit; `pano_test.py` checks
   the folding and the placing of worlds (hands itself to the prop environment for numpy).
 - The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
   window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.
