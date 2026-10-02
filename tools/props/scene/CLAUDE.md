@@ -16,7 +16,8 @@ each kind's room in the kit yard, `--pano-scene` a scene of its own such as the 
 room and per tube junction indoors; outside, one viewpoint and one world as the plan, never
 walked: even marble-1.1-plus turned the base into houses (2026-10-02). `planview.py` cuts level
 views out of a spot's painted (or depth) panorama for `cutout.py --picture` and `redraw.py
---picture`, and `room_shots.tscn` draws the game from those same cameras to lay beside them;
+--picture`, and `room_shots.tscn` draws the game from those same cameras to lay beside them (a room only
+placed with the building tool, the lab or the planter room, stood whole by `--shots-placed`);
 `marble.py --ledger` adds every paid call to a ledger file. The workflow these tools
 serve: skill `make-scene`, bible "How a scene is designed".
 
