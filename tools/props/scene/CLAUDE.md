@@ -8,6 +8,12 @@ sides (`models.py`), place them by rules (`layout.py`) and draw the result from 
 camera in the game's look (`stage.tscn`). `marble.py` sends a target to World Labs Marble and
 brings back its room as a second measure of the same masks (`boxes.py --depth depth-marble.npz`).
 
+Round two goes the other way, from our rooms to Marble: `depth_pano.tscn` renders a 360° depth
+cube at eye height in the real starter base (with `levels.gd`'s blocks for floors that are not
+flat), `pano.py` folds it into the depth panorama Marble paints (`marble.py paint`, then
+`generate --pano`), and `align.py` lays each world back on its spot on the seat. Indoors only:
+outside, even marble-1.1-plus turned the base into houses and broke the scale (2026-10-02).
+
 - Everything a run makes goes under `WORK/scene/<room>/` (`~/.farm-factory-props/work/scene/`);
   target pictures, masks, worlds and layouts never go in the repo.
 - Every step that uses the card does so inside `card.claimed()`; Pixal3D only through `pixal.py`.
@@ -19,4 +25,7 @@ brings back its room as a second measure of the same masks (`boxes.py --depth de
   are a layout reference only: shipped models stay our own.
 - The stage is not the game's habitat scene, which the module kit owns; its shell is a stand-in
   built from the measured section.
-- `layout_test.py` is the gate's check of the placing rules, plain python.
+- `layout_test.py` is the gate's check of the placing rules, plain python; `pano_test.py` checks
+  the folding and the placing of worlds (hands itself to the prop environment for numpy).
+- The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
+  window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.
