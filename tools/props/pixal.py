@@ -9,7 +9,8 @@ Four steps, and only the second touches the graphics card:
    step alone holds the card, through card.claimed(), so runs from every session queue instead of
    colliding, and it lets go as soon as the generator starts writing its file. Two Pixal3D runs
    may share the card (measured safe, card.py); a third, or a picture run, waits. Two runs on one card crash the box, which is why nothing else may call
-   image-to-3dlab's generator or trellis-cli directly.
+   image-to-3dlab's generator or trellis-cli (Pixal3D's own binary, named for the TRELLIS.2 code
+   pixal3d.cpp is built on) directly.
 3. Finish it cleanly (clean_finish.py): loose specks dropped, thinned to --faces by the lab's
    voxel remesh and collapse, unwrapped again by xatlas, base colour and metal baked with hard
    edges and no detail normal map, then Pixel Match puts the picture's own pixels back on every

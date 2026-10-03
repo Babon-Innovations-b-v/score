@@ -29,7 +29,8 @@ serve: skill `make-scene`, bible "How a scene is designed".
 - Every step that uses the card does so inside `card.claimed()`; Pixal3D only through `pixal.py`.
 - SAM 3's weights are gated on Hugging Face; `SAM3_WEIGHTS` names a copy when the account has no
   access. MoGe-2 and its helper library are copies outside the repo put on the path, never
-  installed into the prop environment, whose own `utils3d` is TRELLIS's.
+  installed into the prop environment, whose own older `utils3d` is left from the retired TRELLIS
+  mesher.
 - Marble's API key is read at run time from `~/.config/worldlabs/api_key`, never written anywhere.
   A world costs about 1,580 credits; its high-quality mesh export another 3,500. Marble worlds
   are a layout reference only: shipped models stay our own.

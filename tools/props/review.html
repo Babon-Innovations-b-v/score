@@ -60,7 +60,7 @@ footer { color: var(--ink-muted); font-size: 13px; border-top: 1px solid var(--l
 <body>
 <div class="wrap">
   <h1>%%TITLE%%</h1>
-  <p class="lede">Each prop sits beside the picture it was built from, drawn in ink and flat colour.
+  <p class="lede">Each prop sits beside the picture it was built from, drawn in ink over its own texture.
   Compare the two: what the picture shows clearly is what came through. Drag any prop to turn it.</p>
 
   %%PROPS%%
@@ -143,12 +143,13 @@ function setupProp(entry) {
       model.traverse(node => { if (node.isMesh) meshes.push(node); });
       meshes.forEach(node => {
         if (!node.geometry.attributes.normal) node.geometry.computeVertexNormals();
-        // The prop carries one flat colour per panel, averaged from the generated colour.
-        // Without it, everything is painted the one token colour instead.
+        // A finished model carries the picture's own pixels as its base-colour texture; one
+        // with flat colour per vertex keeps that; anything else is painted the one token colour.
+        const texture = node.material && node.material.map;
         const painted = !!node.geometry.attributes.color;
-        node.material = new THREE.MeshLambertMaterial(painted
-          ? { vertexColors: true }
-          : { color: new THREE.Color(entry.colour) });
+        node.material = new THREE.MeshLambertMaterial(texture
+          ? { map: texture }
+          : painted ? { vertexColors: true } : { color: new THREE.Color(entry.colour) });
         node.add(new THREE.Mesh(
           pushedOutAlongNormals(node.geometry, INK_SHELL),
           new THREE.MeshBasicMaterial({ color: new THREE.Color(INK), side: THREE.BackSide })));

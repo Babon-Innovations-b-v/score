@@ -2,7 +2,8 @@
 
 Seeing the two together is how the limits become obvious: what the picture showed clearly is what
 came through, and what it hid or flattened is what went wrong. It is also how a prop gets chosen,
-so several takes of the same prop can sit on one page and be compared.
+so several takes of the same prop can sit on one page and be compared. A prop is shown as
+pixal.py left it (WORK/pixal/<name>-final.glb) beside its picture (PICTURES/<name>.png).
 """
 import argparse
 import base64
@@ -11,7 +12,8 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from paths import MESHES, PAGES, make_directories  # noqa: E402
+from paths import PAGES, PICTURES, make_directories  # noqa: E402
+from pixal import OUT  # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 # The hull colour from the design system: props are recoloured per kind on import anyway.
@@ -23,16 +25,23 @@ def fact(key, value):
     return f'<div class="fact"><div class="k">{key}</div><div class="v">{value}</div></div>'
 
 
-def block(report, name):
-    picture = pathlib.Path(report["picture"])
-    facts = "".join([
-        fact("triangles", f"{report['faces_final']:,}"),
-        fact("from", f"{report['faces_raw']:,}"),
-        fact("file", f"{report['size_kb']:.0f} KB"),
-        fact("peak VRAM", f"{report['peak_vram_gb']:.1f} GB"),
-        fact("generate", f"{report['generate_seconds']:.0f} s"),
-    ])
-    encoded = base64.b64encode(picture.read_bytes()).decode()
+def model_of(name):
+    """The finished model pixal.py made under this name, refused when there is none."""
+    path = OUT / f"{name}-final.glb"
+    if not path.exists():
+        raise SystemExit(f"no model made yet for {name}: {path} is missing")
+    return path
+
+
+def triangles_in(path):
+    """How many triangles the model holds, all its meshes together."""
+    import trimesh
+    return len(trimesh.load(path, force="mesh").faces)
+
+
+def block(name, triangles, size_kb):
+    facts = fact("triangles", f"{triangles:,}") + fact("file", f"{size_kb:.0f} KB")
+    encoded = base64.b64encode((PICTURES / f"{name}.png").read_bytes()).decode()
     return f"""
   <div class="prop">
     <h2>{name.replace('-', ' ')}</h2>
@@ -48,23 +57,20 @@ def block(report, name):
 
 def build(names, title, colour, out_name):
     make_directories()
-    blocks, data = [], []
+    blocks, data, total = [], [], 0
     for name in names:
-        report_path = MESHES / f"{name}-report.json"
-        if not report_path.exists():
-            raise SystemExit(f"no mesh made yet for {name}: {report_path} is missing")
-        report = json.loads(report_path.read_text())
-        blocks.append(block(report, name))
+        model = model_of(name)
+        triangles = triangles_in(model)
+        total += triangles
+        blocks.append(block(name, triangles, model.stat().st_size / 1024))
         data.append({
             "name": name,
-            "glb": base64.b64encode((MESHES / f"{name}.glb").read_bytes()).decode(),
+            "glb": base64.b64encode(model.read_bytes()).decode(),
             "colour": colour,
             "background": BACKGROUND,
             "turn": 0.35,
         })
 
-    total = sum(json.loads((MESHES / f"{name}-report.json").read_text())["faces_final"]
-                for name in names)
     page = (HERE / "review.html").read_text()
     for key, value in {
         "TITLE": title,
@@ -72,7 +78,7 @@ def build(names, title, colour, out_name):
         "DATA": json.dumps(data),
         "FOOTER": (f"Farm Factory, Looks workstream. {len(names)} "
                    f"prop{'s' if len(names) != 1 else ''}, {total:,} triangles in total. "
-                   "Generated from sentences; nothing modelled by hand."),
+                   "Pictures by FLUX.2 klein 4B, models by Pixal3D; nothing modelled by hand."),
     }.items():
         page = page.replace(f"%%{key}%%", value)
     if "%%" in page:

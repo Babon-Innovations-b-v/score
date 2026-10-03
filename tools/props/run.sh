@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
-# Make a prop from a sentence, and build the page that shows it beside its picture.
+# Make a prop from a sentence on the locked route, and build the page that shows it beside its picture.
 #
 #   bash tools/props/run.sh locker "a tall narrow storage locker with a flat door"
 #   bash tools/props/run.sh locker "..." 3          # three takes to choose between
 #   bash tools/props/run.sh --form machine rover "..."  # a machine, not a plain solid prop
 #   bash tools/props/run.sh --page locker bench     # rebuild the page for props already made
-#   bash tools/props/run.sh --import bench --long 1.8   # bring a made mesh into the game
+#   bash tools/props/run.sh --import bench --long 1.8 --budget furniture --keep-texture --keep-maps
 #   bash tools/props/run.sh --part picker 2         # a robot part, from its brief in part_briefs.py
-#   bash tools/props/run.sh --import-part picker --mesh part-picker-2 --turn 90   # into the game
-#   bash tools/props/run.sh --straighten locker-2 --finish 0=solar   # redo one take's parts by hand
 #
-# Every take comes as the lump and as <take>-straight. Neither is a default: never swap a -straight
-# take into the game without showing the owner both side by side first. It helped the craft and
-# made six outside props worse (the owner, 2026-09-27).
+# Each take is a picture (picture.py) and a model built from it by Pixal3D with the clean finish
+# (pixal.py, which holds the graphics card while it works). Robot parts in the game are built in
+# code (tools/kit); a generated part is only for laying beside its kit part.
 #
 # The tool chain itself is built once per box: docs/bible.md, workflow/bootstrap.
 set -uo pipefail
@@ -29,22 +27,6 @@ if [ "${1:-}" = "--import" ]; then
   shift
   [ $# -ge 1 ] || fail "name the prop to import"
   "$PYTHON" "$HERE/import_prop.py" "$@" || fail "importing the prop"
-  exit 0
-fi
-
-if [ "${1:-}" = "--import-part" ]; then
-  shift
-  [ $# -ge 1 ] || fail "name the part to import"
-  "$PYTHON" "$HERE/import_part.py" "$@" || fail "importing the part"
-  exit 0
-fi
-
-# Every take is straightened as it is made; this redoes one, usually to name a colour group's
-# finish by hand when the nearest-colour guess got it wrong.
-if [ "${1:-}" = "--straighten" ]; then
-  shift
-  [ $# -ge 1 ] || fail "name the take to straighten"
-  "$PYTHON" "$HERE/straighten.py" "$@" || fail "straightening $1"
   exit 0
 fi
 
@@ -92,14 +74,10 @@ for take in $(seq 1 "$TAKES"); do
   else
     "$PYTHON" "$HERE/picture.py" "$label" "$SENTENCE" --seed "$take" || fail "making the picture for $label"
   fi
-  printf '\n== %s: the mesh\n' "$label"
-  "$PYTHON" "$HERE/mesh.py" "$label" \
-    "${PROPS_WORK:-$HOME/.farm-factory-props/work}/pictures/$label.png" || fail "making the mesh for $label"
-  # The mesh comes out one lump with blotchy colour; cut it into parts, straighten each and give
-  # each one finish. The lump stays beside it on the page, so the two can be compared.
-  printf '\n== %s: the parts, straightened\n' "$label"
-  "$PYTHON" "$HERE/straighten.py" "$label" || fail "straightening $label"
-  made+=("$label" "$label-straight")
+  printf '\n== %s: the model\n' "$label"
+  "$PYTHON" "$HERE/pixal.py" "${PROPS_WORK:-$HOME/.farm-factory-props/work}/pictures/$label.png" "$label" \
+    --who "run.sh $NAME" || fail "making the model for $label"
+  made+=("$label")
 done
 
 printf '\n== the page\n'
