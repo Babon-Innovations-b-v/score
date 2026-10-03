@@ -3,7 +3,8 @@
     /root/venv/bin/python machine_run.py <runs-per-card>
 
 The runner at home drops a job in /root/batch/queue/ as <name>.json, a list of the generator's
-arguments with this machine's paths, and its cut-out in /root/batch/in/. Each card runs
+arguments with this machine's paths, and its picture in /root/batch/in/ (the generator cuts it out
+here). Each card runs
 <runs-per-card> jobs at once, their starts spaced out; a machine with two cards runs twice as many.
 When the runner writes /root/batch/closed and the queue is empty, the machine finishes what it is
 running and stops.

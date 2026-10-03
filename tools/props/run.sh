@@ -8,9 +8,11 @@
 #   bash tools/props/run.sh --import bench --long 1.8 --budget furniture --keep-texture --keep-maps
 #   bash tools/props/run.sh --part picker 2         # a robot part, from its brief in part_briefs.py
 #
-# Each take is a picture (picture.py) and a model built from it by Pixal3D with the clean finish
-# (pixal.py, which holds the graphics card while it works). Robot parts in the game are built in
-# code (tools/kit); a generated part is only for laying beside its kit part.
+# No model runs on this PC (owner, 2026-10-03; local_models.py): every take's picture is drawn on
+# a rented card (cloud/pictures.py), then all the takes go up as one batch (cloud/batch.py), which
+# cuts them out and builds them there and finishes them here. For more than a few props, write the
+# lists yourself and run those two once for the lot. Robot parts in the game are built in code
+# (tools/kit); a generated part is only for laying beside its kit part.
 #
 # The tool chain itself is built once per box: docs/bible.md, workflow/bootstrap.
 set -uo pipefail
@@ -64,21 +66,33 @@ SENTENCE="${2:-}"
 TAKES="${3:-1}"
 [ -n "$NAME" ] && [ -n "$SENTENCE" ] || fail "usage: run.sh <name> \"<sentence>\" [takes]"
 
+WORK="${PROPS_WORK:-$HOME/.farm-factory-props/work}"
+LISTS="$WORK/cloud/lists"
+mkdir -p "$LISTS"
+JOBS="$LISTS/$NAME-pictures.json"
+MODELS="$LISTS/$NAME-models.txt"
 made=()
 for take in $(seq 1 "$TAKES"); do
-  if [ "$TAKES" -eq 1 ]; then label="$NAME"; else label="$NAME-$take"; fi
-  printf '\n== %s: the picture\n' "$label"
-  if [ -n "$FORM_NAME" ]; then
-    "$PYTHON" "$HERE/picture.py" "$label" "$SENTENCE" --seed "$take" --form-named "$FORM_NAME" \
-      || fail "making the picture for $label"
-  else
-    "$PYTHON" "$HERE/picture.py" "$label" "$SENTENCE" --seed "$take" || fail "making the picture for $label"
-  fi
-  printf '\n== %s: the model\n' "$label"
-  "$PYTHON" "$HERE/pixal.py" "${PROPS_WORK:-$HOME/.farm-factory-props/work}/pictures/$label.png" "$label" \
-    --who "run.sh $NAME" || fail "making the model for $label"
-  made+=("$label")
+  if [ "$TAKES" -eq 1 ]; then made+=("$NAME"); else made+=("$NAME-$take"); fi
 done
+# The lists the two cloud runners read: one picture and one model a take, seeded by the take.
+"$PYTHON" -c '
+import json, sys
+jobs_path, models_path, pictures, sentence, form, *labels = sys.argv[1:]
+jobs = [dict({"name": label, "sentence": sentence, "seed": take}, **({"form": form} if form else {}))
+        for take, label in enumerate(labels, 1)]
+open(jobs_path, "w").write(json.dumps(jobs))
+open(models_path, "w").write("".join(f"{label} {pictures}/{label}.png\n" for label in labels))
+' "$JOBS" "$MODELS" "$WORK/pictures" "$SENTENCE" "$FORM_NAME" "${made[@]}" || fail "writing the lists"
+
+missing=0
+for label in "${made[@]}"; do [ -f "$WORK/pictures/$label.png" ] || missing=1; done
+if [ "$missing" -eq 1 ]; then
+  printf '\n== the pictures, on a rented card\n'
+  "$PYTHON" "$HERE/cloud/pictures.py" "$JOBS" --cards 1 || fail "making the pictures"
+fi
+printf '\n== the models, as one cloud batch\n'
+"$PYTHON" "$HERE/cloud/batch.py" "$MODELS" --who "run.sh $NAME" || fail "making the models"
 
 printf '\n== the page\n'
 "$PYTHON" "$HERE/review.py" "${made[@]}" --out "$NAME" || fail "building the page"

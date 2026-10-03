@@ -17,8 +17,9 @@ camera). --picture names a view cut from a plan world (planview.py) in place of 
 cut-outs cutout.py wrote under --out; such a plan's look can be drawn in again, so its small
 objects get close-ups. Writes redraw/<model>.png (redraw/<model>-s<seed>.png for each of several
 --seeds) and redraw/<model>-cut.png (the reference it was given), and redraw/report.json: every
-object with its cut-out's size and the way it took, and the build list for pixal.py. Holds the
-card.
+object with its cut-out's size and the way it took, and the build list for the cloud batch. Holds
+the card. Runs on a rented card through cloud/scene.py (a plan's "objects"); on this PC it is
+refused.
 """
 import argparse
 import json

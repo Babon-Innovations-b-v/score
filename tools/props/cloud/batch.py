@@ -8,12 +8,15 @@ The list has one model a line, `<name> <picture> [pixal.py options]`, e.g.
 `crate ~/pics/crate.png --faces 12000 --feet`; `#` starts a comment. The pictures must be ones the
 owner approved.
 
-Only the raw Pixal3D step runs in the cloud (#55). The pictures are cut out here, the cut-outs go up
-as they are ready, and as many cards are rented as it takes to finish in about --minutes, across the
+The cut-out and the raw Pixal3D step run in the cloud (#55): no model runs on this PC (owner,
+2026-10-03; local_models.py). The pictures go up as they are, each machine cuts its own out with
+the same BiRefNet-lite as the lab, and as many cards are rented as it takes to finish in about --minutes, across the
 zones and machine types that have stock, cheapest per card first. Each machine takes new work only
 when it has room, so a slow or late machine never holds up the rest, and one that fails hands its
-unfinished jobs back. Every model comes back into WORK/pixal/ as if made here and is finished here
-with `pixal.py --finish-only` while the machines are still working.
+unfinished jobs back. Every model comes back into WORK/pixal/ as if made here, with the camera
+folder its finish paints from (<name>.svviews), and is finished here with `pixal.py --finish-only`
+(Blender and the processor, no model) while the machines are still working. This is the way to make
+every model, one or a hundred.
 
 Before anything is rented, the prices are read from Scaleway and printed, and a batch that would
 pass four hours, €60, or the month's €700 is refused (ledger.py). Every machine is deleted whatever
@@ -30,6 +33,7 @@ import math
 import os
 import pathlib
 import shlex
+import shutil
 import signal
 import socket
 import subprocess
@@ -43,7 +47,7 @@ sys.path.insert(0, str(HERE.parent))
 import ledger  # noqa: E402
 import pixal  # noqa: E402
 import scaleway  # noqa: E402
-from paths import HOME, IMAGE_TO_3DLAB, REPO, VENV_PYTHON, WORK  # noqa: E402
+from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 
 # How many cards each machine type has. Only L4 cards are measured so far; the rest are named so
 # a measuring run can ask for them with --types.
@@ -78,8 +82,7 @@ START_CHECK_SECONDS = 5
 # answering in about 2 min).
 REFUSED_MINUTES = 3
 WATCHDOG_GRACE_MINUTES = 5
-# The processor's share: two cut-out processes, and two finishes at once (Blender), within FINISH_SLOTS.
-CUTTERS = 2
+# The processor's share: two finishes at once (Blender), within FINISH_SLOTS.
 FINISHERS = 2
 # How many finishes may run at once on this PC, across every batch: Blender at 100,000 triangles
 # takes several GB each; kept at 2 while the PC is unstable (four blue screens, 2026-09-29 and 30).
@@ -292,11 +295,11 @@ def prepare(folder, host, per_card):
 
 
 def send(folder, host, job):
-    """One job onto the machine's queue: its cut-out first, then the job that points at it."""
+    """One job onto the machine's queue: its picture first, then the job that points at it."""
     name = job["name"]
     (folder / "queue").mkdir(exist_ok=True)
     (folder / "queue" / f"{name}.json").write_text(json.dumps(job["arguments"]))
-    copy(folder, [job["cut"]], f"root@{host}:/root/batch/in/{name}.png")
+    copy(folder, [job["picture"]], f"root@{host}:/root/batch/in/{name}.png")
     copy(folder, [folder / "queue" / f"{name}.json"], f"root@{host}:/root/batch/queue/")
 
 
@@ -314,10 +317,13 @@ def machine_status(folder, host):
 
 
 def bring_back(folder, host, names):
-    """Copy the named finished models and every log into the machine's folder."""
+    """Copy the named finished models, their camera folders and every log into the machine's folder.
+    The camera folder is what the finish here paints from; without it the finish would have to cut
+    the picture out again, which is a model, and no model runs on this PC."""
     listing = folder / "wanted.txt"
-    listing.write_text("".join(f"{name}.glb\n{name}.json\n" for name in names))
-    copy(folder, [f"root@{host}:/root/batch/out/"], folder / "out", f"--files-from={listing}")
+    listing.write_text("".join(f"{name}.glb\n{name}.json\n{name}.svviews\n" for name in names))
+    copy(folder, [f"root@{host}:/root/batch/out/"], folder / "out", "-r", "--ignore-missing-args",
+         f"--files-from={listing}")
     copy(folder, [f"root@{host}:/root/batch/logs"], folder)
 
 
@@ -335,7 +341,7 @@ class Fleet:
         self.finish = finish
         self.lock = threading.Lock()
         self.ready = collections.deque()
-        self.cutting = True
+        self.queueing = True
         self.stop = threading.Event()
         self.machines = []
         self.done, self.failed, self.finish_failed = [], [], []
@@ -343,13 +349,13 @@ class Fleet:
         self.finishers = concurrent.futures.ThreadPoolExecutor(FINISHERS)
 
     def next_job(self):
-        """A job whose cut-out is ready, or None."""
+        """A job ready to send, or None."""
         with self.lock:
             return self.ready.popleft() if self.ready else None
 
     def no_more_work(self):
         with self.lock:
-            return not self.cutting and not self.ready
+            return not self.queueing and not self.ready
 
     def give_back(self, jobs):
         """Jobs a machine took but never finished, for the others."""
@@ -370,6 +376,8 @@ class Fleet:
         """A raw model is here: move it where pixal.py looks, and finish it while others work."""
         pixal.OUT.mkdir(parents=True, exist_ok=True)
         for made in (machine_folder / "out").glob(f"{name}.*"):
+            if made.is_dir():
+                shutil.rmtree(pixal.OUT / made.name, ignore_errors=True)
             made.replace(pixal.OUT / made.name)
         with self.lock:
             self.done.append(name)
@@ -416,39 +424,17 @@ def finish_slot():
         time.sleep(5)
 
 
-def cut(fleet, models):
-    """Cut every picture out here, handing each to the machines as soon as it is ready."""
-    (fleet.folder / "in").mkdir(parents=True, exist_ok=True)
-    by_cut = {str(fleet.folder / "in" / f"{options.name}.png"): options for options in models}
-    processes = []
-    for share in (models[index::CUTTERS] for index in range(CUTTERS)):
-        arguments = [value for options in share
-                     for value in (options.picture, str(fleet.folder / "in" / f"{options.name}.png"))]
-        if arguments:
-            processes.append(subprocess.Popen(
-                [str(pixal.LAB_PYTHON), str(HERE / "cut_outs.py"), *arguments], cwd=IMAGE_TO_3DLAB,
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True))
-    readers = [threading.Thread(target=hand_over, args=(fleet, process, by_cut)) for process in processes]
-    for reader in readers:
-        reader.start()
-    for reader in readers:
-        reader.join()
-    with fleet.lock:
-        fleet.cutting = False
-    say(f"{sum(1 for path in by_cut if pathlib.Path(path).exists())} of {len(models)} pictures cut out")
-
-
-def hand_over(fleet, process, by_cut):
-    """Make each cut-out a job for the machines the moment its cutting process reports it."""
-    for line in process.stdout:
-        options = by_cut[line.strip()]
-        job = {"name": options.name, "cut": line.strip(),
+def queue(fleet, models):
+    """Make every picture a job for the machines; each machine cuts its pictures out itself."""
+    for options in models:
+        job = {"name": options.name, "picture": options.picture,
                "arguments": pixal.generator_arguments(f"/root/batch/in/{options.name}.png",
                                                       f"/root/batch/out/{options.name}.glb",
                                                       options.seed)}
         with fleet.lock:
             fleet.ready.append(job)
-    process.wait()
+    with fleet.lock:
+        fleet.queueing = False
 
 
 def rent(fleet, project, offer, number):
@@ -643,7 +629,7 @@ def plan(models, options, project):
 
 
 def run(models, options, project, found, cards, allowed_minutes):
-    """Cut, rent, generate, bring back and finish; every machine deleted at the end."""
+    """Rent, cut out and generate, bring back and finish; every machine deleted at the end."""
     started = time.time()
     folder = BATCHES / time.strftime(f"batch-%Y%m%d-%H%M%S-{os.getpid()}")
     folder.mkdir(parents=True)
@@ -651,7 +637,7 @@ def run(models, options, project, found, cards, allowed_minutes):
                   not options.no_finish)
     say(f"every machine deleted by {time.strftime('%H:%M', time.localtime(fleet.deadline))} at the latest")
     try:
-        threading.Thread(target=cut, args=(fleet, models), daemon=True).start()
+        queue(fleet, models)
         rented = rent_fleet(fleet, project, found, cards)
         say(f"{sum(machine['cards'] for machine in rented)} of {cards} cards rented")
         while any(not machine["deleted"] for machine in rented):

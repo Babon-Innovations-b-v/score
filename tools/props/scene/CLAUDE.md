@@ -3,7 +3,7 @@
 A room composed from a target picture, an experiment (2026-10-02, #121's interiors): draw the
 room (`target.py`), cut each object out by name with SAM 3 (`cutout.py`), measure the picture in
 metres with MoGe-2 (`depth.py`) and the room and its objects' boxes (`boxes.py`), redraw each
-cut-out whole (`redraw.py`), build each through `../pixal.py`, read the models' sizes and seen
+cut-out whole (`redraw.py`), build each through the cloud batch (`../cloud/batch.py`), read the models' sizes and seen
 sides (`models.py`), place them by rules (`layout.py`) and draw the result from the target's own
 camera in the game's look (`stage.tscn`). `marble.py` sends a target to World Labs Marble and
 brings back its room as a second measure of the same masks (`boxes.py --depth depth-marble.npz`).
@@ -26,6 +26,13 @@ serve: skill `make-scene`, bible "How a scene is designed".
   ways in the game's look, to lay beside each plan from the plan's own camera.
 - Everything a run makes goes under `WORK/scene/<room>/` (`~/.farm-factory-props/work/scene/`);
   target pictures, masks, worlds and layouts never go in the repo.
+- **No model runs on this PC** (owner, 2026-10-03: "My GPU is only for game tests; do all model
+  stuff in batches in the cloud"). `target.py`, `cutout.py`, `depth.py` and `redraw.py` refuse
+  here (`../local_models.py`) and run on one rented card through `../cloud/scene.py <plan.json>`,
+  which brings the room's folder back and sends the kept objects to `../cloud/batch.py` as one
+  batch. `boxes.py`, `layout.py`, `models.py`, `planview.py`, `pano.py`, `align.py`, `marble.py`
+  and the Godot shots stay here: no model in them. `FARM_LOCAL_MODELS=1` is an emergency switch
+  for the owner to throw, never a session.
 - Every step that uses the card does so inside `card.claimed()`; Pixal3D only through `pixal.py`.
 - SAM 3's weights are gated on Hugging Face; `SAM3_WEIGHTS` names a copy when the account has no
   access. MoGe-2 and its helper library are copies outside the repo put on the path, never

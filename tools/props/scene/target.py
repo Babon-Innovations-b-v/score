@@ -8,6 +8,7 @@ The picture model is the prop chain's own (FLUX.2 klein 4B, picture.py), told to
 instead of an object on grey. Writes <scene>-target-<take>.png under WORK/scene/<scene>/. The
 first `--refs-on` takes are drawn with the owner's reference photographs handed in, the rest from
 the words alone, so a page can show what the references change. Holds the card while it draws.
+Runs on a rented card through cloud/scene.py (a plan's "target"); on this PC it is refused.
 """
 import argparse
 import json

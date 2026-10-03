@@ -3,6 +3,10 @@
     ~/.farm-factory-props/env/bin/python tools/props/pixal.py <picture.png> <name> --who "<session>"
         [--faces 40000] [--seed 1] [--long] [--feet] [--tube] [--finish-only]
 
+On this PC only --finish-only runs: steps 1 and 2 load models, and no model runs here (owner,
+2026-10-03; local_models.py refuses them and names the cloud batch, cloud/batch.py, which runs both
+on a rented card and brings the raw model back with its camera folder).
+
 Four steps, and only the second touches the graphics card:
 1. Cut the subject out of its background (BiRefNet-lite, on the processor).
 2. Build the model with Pixal3D (image-to-3dlab's pixal3d_generate.py, --steps 12 --gss 10). This
@@ -15,7 +19,8 @@ Four steps, and only the second touches the graphics card:
    voxel remesh and collapse, unwrapped again by xatlas, base colour and metal baked with hard
    edges and no detail normal map, then Pixel Match puts the picture's own pixels back on every
    surface it sees, using the camera folder the generator keeps beside the raw model
-   (<name>.svviews; rebuilt from the picture when a raw model came without one). On the processor.
+   (<name>.svviews; rebuilding it from the picture needs the cut-out, so it is refused here like
+   step 1). On the processor.
 4. Stand it upright and pad its maps (glb_file.py), on the processor.
 
 Writes <name>.glb (the raw model), <name>-<faces>.glb (finished) and <name>-final.glb (upright and
@@ -25,12 +30,17 @@ a model already in the game is re-finished. Import the final file with `run.sh -
 """
 import argparse
 import contextlib
+import pathlib
 import subprocess
 import sys
 import time
 
 from card import claimed
+from local_models import refuse_here
 from paths import IMAGE_TO_3DLAB, WORK
+
+# Where every Pixal3D step runs instead of this PC (local_models.py).
+CLOUD = 'tools/props/cloud/batch.py <list.txt> --who "<session>" (one line a model: name picture options)'
 
 LAB_PYTHON = IMAGE_TO_3DLAB / ".venv" / "bin" / "python"
 OUT = WORK / "pixal"
@@ -46,7 +56,13 @@ def say(line):
 
 
 def cut_out(picture):
-    """The picture cut out of its background, written beside it; the path to the cut-out."""
+    """The picture cut out of its background, written beside it; the path to the cut-out.
+    BiRefNet is a model, so a new cut-out is refused on this PC (local_models.py); one already
+    made beside the picture (the lab's <stem>__matted.png) is used as it is."""
+    made = pathlib.Path(picture).with_name(f"{pathlib.Path(picture).stem}__matted.png")
+    if made.is_file():
+        return str(made)
+    refuse_here("the cut-out (BiRefNet)", CLOUD)
     code = ("import sys, pathlib; sys.path.insert(0, 'scripts'); "
             "from pixal3d_generate import matte; "
             f"print(matte(pathlib.Path({str(picture)!r}))[0])")
@@ -67,6 +83,7 @@ def generate(cut, raw, seed, who):
     generator starts writing its file: that last stage, about a third of the run, works on the
     processor with the card's memory already given back (measured 2026-09-28: 78 of 231 s at 1%
     load, 1.8 GB held against 7.1 GB at the peak)."""
+    refuse_here("Pixal3D", CLOUD)
     command = [str(LAB_PYTHON), *generator_arguments(cut, raw, seed)]
     with contextlib.ExitStack() as card:
         card.enter_context(claimed(f"Pixal3D {raw.stem} for {who}", shared=True))

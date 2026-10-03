@@ -5,6 +5,17 @@ that brings it into the game. The heavy runtime lives outside the repo, under `~
 (`paths.py` says where). Skill: `make-prop`. Bible: `workflow/bootstrap` (the runtime) and
 `build/release` (the asset gate a prop must pass).
 
+- **No model runs on this PC.** The owner, 2026-10-03: "My GPU is only for game tests; do all
+  model stuff in batches in the cloud." The same day WSL died twice of running out of memory,
+  six model processes of 6 to 7 GB loaded at once by three sessions. Every step that loads a
+  model (the picture, the cut-out, Pixal3D, SAM 3, MoGe-2, the redraw) calls
+  `local_models.refuse_here()` first and is refused here with the cloud command that does it:
+  `cloud/pictures.py` for pictures, `cloud/batch.py` for models (one or a hundred), and
+  `cloud/scene.py` for a scene's steps. What stays here has no model in it: the finish
+  (`pixal.py --finish-only`, Blender and the processor), the import, the review page, snapshots
+  and the Godot shots. Anything new that loads a model calls `refuse_here()` before it loads.
+  `FARM_LOCAL_MODELS=1` (set by the cloud runners on their machines) is an emergency switch on
+  this PC for the owner to throw, never a session.
 - **Pixal3D runs only through `pixal.py`.** Never call image-to-3dlab's `pixal3d_generate.py` or
   `trellis-cli` directly, from any session. `trellis-cli` is Pixal3D's own binary, named so because
   pixal3d.cpp is built on TRELLIS.2 code; the old TRELLIS mesher is gone from this chain (2026-10-03). Two runs on one graphics card crash the box, and
@@ -13,8 +24,8 @@ that brings it into the game. The heavy runtime lives outside the repo, under `~
   (2026-09-28), but the PC blue-screened four times on 2026-09-29 and 30, twice while two runs
   shared, with its memory overclocked; `card.SHARING` is off until the owner says the machine is
   stable, and `shared=True` then waits like any claim. Never add `shared=True` to anything that
-  was not measured beside a Pixal3D run. Bulk work goes to the cloud (`cloud/`); no heavy local
-  work runs unattended overnight until then.
+  was not measured beside a Pixal3D run. These card rules now matter on the rented machines and
+  for an emergency run here.
 - **Hold the card only while it works.** The cut-out, the finish (Blender) and the upright and
   padding steps run on the processor, outside the claim, so the next session's generator can
   start. Anything new that runs on the card goes inside `card.claimed()`; nothing else does.

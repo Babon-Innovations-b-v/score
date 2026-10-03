@@ -24,6 +24,7 @@ from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from card import claimed  # noqa: E402
+from local_models import refuse_here  # noqa: E402
 from paths import PICTURE_MODEL, PICTURES, make_directories  # noqa: E402
 
 # Composition only, and it refuses the ground many ways on purpose. Anything else in the picture is
@@ -85,7 +86,10 @@ FORMS = {"machine": MACHINE, "space": SPACE, "glass": GLASS}
 
 
 def load():
-    """The picture model, ready to draw."""
+    """The picture model, ready to draw; refused on this PC (local_models.py)."""
+    refuse_here("the picture model (FLUX.2 klein)",
+                "tools/props/cloud/pictures.py <jobs.json> for prop pictures, "
+                "tools/props/cloud/scene.py <plan.json> for a scene's targets and redraws")
     pipeline = Flux2KleinPipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
     pipeline.enable_model_cpu_offload()
     return pipeline

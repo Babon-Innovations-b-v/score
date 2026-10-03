@@ -11,7 +11,8 @@ MoGe-2 is Microsoft's (MIT, code and weights). Its code and its helper library u
 at the commit MoGe pins) are copies outside the repo, put on the path here rather than installed,
 because the prop environment's own older utils3d belongs to TRELLIS: ~/.farm-factory-props/moge
 and ~/.farm-factory-props/utils3d-moge (MOGE_SOURCE and UTILS3D_SOURCE). Its weights come from
-Hugging Face. Holds the card.
+Hugging Face. Holds the card. Runs on a rented card through cloud/scene.py (a plan's "depth"); on
+this PC it is refused.
 """
 import argparse
 import os
@@ -24,6 +25,7 @@ import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from card import claimed  # noqa: E402
+from local_models import refuse_here  # noqa: E402
 from paths import HOME  # noqa: E402
 from target import folder  # noqa: E402
 
@@ -34,6 +36,7 @@ WEIGHTS = "Ruicheng/moge-2-vitl-normal"
 
 def measured(image):
     """MoGe-2's points, trusted pixels and lens for one picture, on the card."""
+    refuse_here("MoGe-2", "tools/props/cloud/scene.py <plan.json> with \"depth\": true in the plan")
     sys.path[:0] = [str(SOURCE), str(HELPERS)]
     from moge.model.v2 import MoGeModel
     pixels = torch.tensor(np.asarray(image) / 255.0, dtype=torch.float32).permute(2, 0, 1)

@@ -16,6 +16,7 @@ are asked for too, for the room's own shape (boxes.py), and are not cut out.
 
 SAM 3 is Meta's (SAM License, commercial use allowed). Its weights on Hugging Face are gated;
 SAM3_WEIGHTS names a copy of them when the gated repo is not open to this account. Holds the card.
+Runs on a rented card through cloud/scene.py (a plan's "names"); on this PC it is refused.
 """
 import argparse
 import json
@@ -29,6 +30,7 @@ import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from card import claimed  # noqa: E402
+from local_models import refuse_here  # noqa: E402
 from cutsize import size_of  # noqa: E402
 from target import folder  # noqa: E402
 
@@ -97,6 +99,7 @@ def cut(image, mask):
 
 def segment(image, asked):
     """Every instance of every name and every room surface, found by SAM 3 on the card."""
+    refuse_here("SAM 3", "tools/props/cloud/scene.py <plan.json> with \"names\" in the plan")
     wanted = dict(name_and_sureness(name) for name in asked)
     wanted.update({surface: sureness for surface, (_, sureness) in SURFACES.items()})
     words = {surface: word for surface, (word, _) in SURFACES.items()}

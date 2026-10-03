@@ -4,7 +4,10 @@ The cloud batch runner: a whole batch of approved pictures through Pixal3D on a 
 graphics card, the raw models brought back and finished here, the machine deleted after (#55).
 Entry: `batch.py`; its docstring says how to call it.
 
-- **Only for big batches.** A handful of models runs on the owner's card with `pixal.py`.
+- **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
+  2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
+  a scene's steps (target, SAM 3 cut-outs, MoGe-2 depth, redraws) on one card, then its objects
+  through `batch.py` as one batch. Their machines run the same scripts with `FARM_LOCAL_MODELS=1`.
 - **Three runs a card.** Measured on an L4: six at once is barely faster and ran out of memory.
 - **Name the project and zone on every `scw` call** (`scaleway.py` does). The CLI's default profile
   is another company's project; never change it, and never rent from it.
@@ -24,6 +27,7 @@ Entry: `batch.py`; its docstring says how to call it.
   production. Loose addresses and disks are swept only while no batch runs.
 - **Spread over zones:** a zone out of cards takes the order and leaves the machine stopped, so
   `rent` starts it at once and gives it back on "out of stock", and the fleet moves on.
-- **Only the raw Pixal3D step runs up there;** finishing stays here with `pixal.py --finish-only`.
+- **The cut-out and the raw Pixal3D step run up there;** the raw model comes back with its camera
+  folder (`<name>.svviews`), and finishing stays here with `pixal.py --finish-only` (no model).
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
 - The generator's arguments come from `pixal.generator_arguments`, so both routes build the same.
