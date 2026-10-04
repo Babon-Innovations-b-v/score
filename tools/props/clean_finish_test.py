@@ -73,6 +73,36 @@ def test_a_picture_over_1024_is_cropped_as_pixal3d_cpp_sees_it():
         assert image.size[0] < 1024 and abs(image.size[0] - 440) <= 2, image.size
 
 
+def test_the_unlit_copy_is_cropped_where_the_camera_folder_was_cut_and_keeps_its_matte():
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        noise = np.random.default_rng(3).integers(0, 255, (300, 300, 3), dtype=np.uint8)
+        Image.fromarray(noise).save(folder / "picture.png")
+        cut = np.dstack([noise, np.zeros((300, 300), dtype=np.uint8)])
+        cut[40:201, 90:171, 3] = 255
+        Image.fromarray(cut).save(folder / "cut.png")
+        views = clean_finish.staged_views(folder / "cut.png", folder / "run.svviews")
+        unlit = 255 - noise                                  # a stand-in paint copy, aligned
+        Image.fromarray(unlit).save(folder / "unlit.png")
+        painted = clean_finish.unlit_views(views, folder / "picture.png", folder / "unlit.png",
+                                           folder / "run-unlit.svviews")
+        staged = np.asarray(Image.open(views / "input.png"))
+        image = np.asarray(Image.open(painted / "input.png"))
+        assert clean_finish.staged_offset(noise, staged) == (42, 32)   # crop_box of the cut
+        solid = staged[..., 3] == 255
+        assert (image[..., 3] == staged[..., 3]).all()
+        assert (image[solid][:, :3] == 255 - staged[solid][:, :3]).all()
+        assert (painted / "transforms.json").read_text() == (views / "transforms.json").read_text()
+
+
+def test_a_square_crop_past_the_edge_is_black_there():
+    image = np.full((10, 10, 3), 7, dtype=np.uint8)
+    crop = clean_finish.square_crop(image, -2, 5, 6)
+    assert crop.shape == (6, 6, 3)
+    assert crop[:, :2].max() == 0 and crop[5:, :].max() == 0
+    assert crop[:5, 2:].min() == 7
+
+
 def test_welding_merges_corners_split_at_a_seam():
     points = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
     faces = np.array([[0, 1, 2], [3, 4, 5]])

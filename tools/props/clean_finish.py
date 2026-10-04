@@ -93,6 +93,50 @@ def staged_views(cut_out, folder):
     return folder
 
 
+def staged_offset(picture, staged):
+    """(left, top) of the square a camera folder's picture was cropped from in `picture`: where its
+    solid pixels match the picture's best. Both are RGB(A) arrays at the picture's own scale."""
+    rows, columns = np.nonzero(staged[..., 3] == 255)
+    pick = np.linspace(0, len(rows) - 1, min(len(rows), 600)).astype(int)
+    rows, columns = rows[pick], columns[pick]
+    wanted = staged[rows, columns, :3].astype(np.int32)
+    height, width = picture.shape[:2]
+    lefts = np.arange(-columns.min(), width - columns.max())
+    best = (None, -1, -1)
+    for top in range(-rows.min(), height - rows.max()):
+        found = picture[(rows + top)[None, :], columns[None, :] + lefts[:, None], :3].astype(np.int32)
+        misses = np.abs(found - wanted[None]).sum(axis=(1, 2))
+        if best[0] is None or misses.min() < best[0]:
+            best = (misses.min(), int(lefts[misses.argmin()]), top)
+    return best[1], best[2]
+
+
+def square_crop(image, left, top, side):
+    """The `side` square of `image` at (left, top), black where it reaches past the image's edge,
+    as staged_views pastes a matte into its square."""
+    canvas = np.zeros((side, side, image.shape[2]), dtype=image.dtype)
+    rows = slice(max(0, top), min(image.shape[0], top + side))
+    columns = slice(max(0, left), min(image.shape[1], left + side))
+    piece = image[rows, columns]
+    canvas[max(0, -top):max(0, -top) + piece.shape[0], max(0, -left):max(0, -left) + piece.shape[1]] = piece
+    return canvas
+
+
+def unlit_views(views, picture, unlit, folder):
+    """A copy of the camera folder `views` that paints from `unlit`, an unlit paint copy of
+    `picture` aligned with it pixel for pixel (cloud/delight.py): the same crop, the same matte,
+    the paint without the picture's light. Pixel Match then copies paint, not lighting."""
+    staged = np.asarray(Image.open(pathlib.Path(views) / "input.png").convert("RGBA"))
+    whole = np.asarray(Image.open(picture).convert("RGB"))
+    paint = np.asarray(Image.open(unlit).convert("RGB").resize(whole.shape[1::-1], Image.LANCZOS))
+    canvas = square_crop(paint, *staged_offset(whole, staged), staged.shape[0])
+    folder = pathlib.Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(np.dstack([canvas, staged[..., 3]])).save(folder / "input.png")
+    (folder / "transforms.json").write_text((pathlib.Path(views) / "transforms.json").read_text())
+    return folder
+
+
 def welded(points, faces):
     """The corners merged where they sit at one place, and the faces renumbered onto them."""
     size = np.ptp(points, axis=0).max()

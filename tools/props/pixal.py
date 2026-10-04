@@ -1,7 +1,7 @@
 """Make a model from a picture on the locked route: the one way any session runs Pixal3D.
 
     ~/.farm-factory-props/env/bin/python tools/props/pixal.py <picture.png> <name> --who "<session>"
-        [--faces 40000] [--seed 1] [--long] [--feet] [--tube] [--finish-only]
+        [--faces 40000] [--seed 1] [--long] [--feet] [--tube] [--finish-only] [--paint-from <unlit.png>]
 
 On this PC only --finish-only runs: steps 1 and 2 load models, and no model runs here (owner,
 2026-10-03; local_models.py refuses them and names the cloud batch, cloud/batch.py, which runs both
@@ -107,10 +107,14 @@ def camera_folder(raw, picture):
     return clean_finish.staged_views(cut_out(picture), raw.with_name(f"{raw.stem}-rebuilt.svviews"))
 
 
-def finish(raw, picture, finished, faces):
-    """The raw model thinned to `faces` and painted cleanly (clean_finish.py)."""
+def finish(raw, picture, finished, faces, paint_from=None):
+    """The raw model thinned to `faces` and painted cleanly (clean_finish.py); with `paint_from`,
+    an unlit paint copy of the picture (cloud/delight.py), Pixel Match paints from that instead."""
     import clean_finish
-    clean_finish.finish(raw, picture, finished, faces, camera_folder(raw, picture))
+    views = camera_folder(raw, picture)
+    if paint_from:
+        views = clean_finish.unlit_views(views, picture, paint_from, raw.with_name(f"{raw.stem}-unlit.svviews"))
+    clean_finish.finish(raw, picture, finished, faces, views)
 
 
 def stand_and_pad(finished, final, long, feet, tube=False):
@@ -136,6 +140,8 @@ def options_parser():
     parser.add_argument("--feet", action="store_true", help="level it on its lowest points")
     parser.add_argument("--tube", action="store_true", help="stand a round body's axis straight up")
     parser.add_argument("--finish-only", action="store_true", help="reuse the raw model")
+    parser.add_argument("--paint-from", help="an unlit paint copy of the picture (cloud/delight.py) "
+                        "for Pixel Match to paint from, so the picture's light stays off the model")
     return parser
 
 
@@ -158,7 +164,7 @@ def main():
     elif not raw.exists():
         sys.exit(f"--finish-only needs the raw model at {raw}")
     start = time.time()
-    finish(raw, options.picture, finished, options.faces)
+    finish(raw, options.picture, finished, options.faces, options.paint_from)
     seconds["finish"] = time.time() - start
     start = time.time()
     stand_and_pad(finished, final, options.long, options.feet, options.tube)
