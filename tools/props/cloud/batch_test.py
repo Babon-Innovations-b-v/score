@@ -1,4 +1,5 @@
-"""Checks for the cloud batch runner's limits, list and sweep, without renting anything."""
+"""Checks for the cloud batch runner's limits, list, inventory refusal and sweep, without renting anything."""
+import json
 import os
 import pathlib
 import socket
@@ -71,6 +72,44 @@ def test_model_minutes_come_from_the_batch_started_last():
         assert batch.card_minutes_per_model() == 5
     finally:
         ledger.entries = kept
+
+
+def test_a_batch_builds_only_an_approved_inventorys_rows():
+    with tempfile.TemporaryDirectory() as folder:
+        picture = pathlib.Path(folder) / "locker.png"
+        picture.write_bytes(b"")
+        listing = pathlib.Path(folder) / "list.txt"
+        listing.write_text(f"habitat-locker {picture}\nlocker-b {picture}\nr2 {picture}\n")
+        models = batch.read_list(listing)
+        path = pathlib.Path(folder) / "habitat.json"
+        rows = [{"id": "r1", "view": "v1", "box": [0, 0, 9, 9], "name": "locker", "kind": "generate",
+                 "anchor": "wall", "size": [0.6, 0.5, 1.9], "count": 1, "thing": "prop:locker"},
+                {"id": "r2", "view": "v1", "box": [0, 0, 9, 9], "name": "desk", "kind": "mechanic",
+                 "anchor": "floor", "size": [1.6, 0.8, 0.75], "count": 1, "thing": "node:Workstation",
+                 "prop": "desk"},
+                {"id": "r3", "view": "v1", "box": [0, 0, 9, 9], "name": "sign", "kind": "code",
+                 "anchor": "wall", "size": [1.3, 0.03, 0.24], "count": 1, "thing": "gear:sign"}]
+        inventory = {"scene": "habitat", "place": "habitat", "plan": {"views": [{"id": "v1"}]},
+                     "approved": "", "migrated": "",
+                     "room": {"shell": "", "light": "place", "backdrop": "", "wall_fill": []}, "rows": rows}
+        for wanted, change in (("no inventory", None), ("not approved", {}), (None, {"approved": "2026-10-05"}),
+                               ("no place", {"approved": "2026-10-05", "place": "garage"})):
+            if change is not None:
+                path.write_text(json.dumps(dict(inventory, **change)))
+            try:
+                batch.from_the_inventory(models, path)
+            except SystemExit as refused:
+                assert wanted and wanted in str(refused), refused
+            else:
+                assert wanted is None, f"accepted without {wanted}"
+        path.write_text(json.dumps(dict(inventory, approved="2026-10-05")))
+        listing.write_text(f"sign {picture}\n")
+        try:
+            batch.from_the_inventory(batch.read_list(listing), path)
+        except SystemExit as refused:
+            assert "on no row" in str(refused)
+        else:
+            raise AssertionError("a code row's fitting was sent to be generated")
 
 
 def test_leftovers():

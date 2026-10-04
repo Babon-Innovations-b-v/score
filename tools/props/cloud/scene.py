@@ -9,15 +9,22 @@ there, the same scripts with the same arguments, on a copy of the room's folder.
 what to run, in this order:
 
     {"room": "lab",
-     "target":  {"sentence": "...", "shot": "inside", "refs": ["~/ref.png"], "takes": 4, "refs_on": 2},
+     "inventory": "data/inventory/lab.json",
+     "target":  {"shot": "inside", "refs": ["~/ref.png"], "takes": 4, "refs_on": 2},
      "view":    {"picture": "<plan view .png>", "out": "<folder inside the room's folder>"},
      "names":   ["bench", "desk@0.4"],
      "depth":   true,
-     "objects": ["bench-1:bench", "none:desk_lamp:a globe lamp on a jointed arm"],
+     "objects": ["bench-1:bench", "desk-2:desk"],
      "seeds": "7", "side": 1536,
      "build":   {"prefix": "lab-", "faces": 40000, "options": {"bench": "--feet"}}}
 
-Every key but "room" is optional. "target" draws takes for the owner to pick from, so it runs alone:
+Nothing runs without the scene's inventory approved by the owner (page A, the scene workflow of
+2026-10-04, #121; inventory.py) and its place's style text (place.json, place.py): the target and
+every redraw are worded from the place, never from words in the plan, so a target carries no
+sentence of its own, and an object with no cut-out ("none:...") is refused, since every object is
+a row boxed on the plan.
+
+Every key but "room" and "inventory" is optional. "target" draws takes for the owner to pick from, so it runs alone:
 the pick (<room>-target.png) comes before the rest. "view" is a plan view (planview.py) used in
 place of the target by "names" and "objects". "build" sends every object redraw.py kept to the
 cloud batch runner (batch.py) as one batch once the pictures are back, so a whole room's objects go
@@ -36,9 +43,12 @@ import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parent / "scene"))
 
 import batch  # noqa: E402
+import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
+import place  # noqa: E402
 import scaleway  # noqa: E402
 from local_models import ALLOW  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
@@ -87,6 +97,18 @@ def check(plan):
         raise SystemExit("build needs a single seed; several seeds are for choosing first")
     if "build" in plan and "objects" not in plan:
         raise SystemExit("build needs objects to redraw")
+    if "sentence" in plan.get("target", {}):
+        raise SystemExit("a target's words come from its place's style text (place.json), not from the plan")
+    if any(item.startswith("none:") for item in plan.get("objects", [])):
+        raise SystemExit("an object with no cut-out is refused: no box, no row (inventory.py)")
+    place.style_text(place_of(plan))
+
+
+def place_of(plan):
+    """The place of the scene the plan builds, from its approved inventory; refused without one."""
+    if "inventory" not in plan:
+        raise SystemExit("the plan names its scene's approved inventory: \"inventory\": \"data/inventory/<scene>.json\"")
+    return inventories.approved_inventory(REPO / plan["inventory"])["place"]
 
 
 def uploads(plan):
@@ -126,7 +148,7 @@ def steps(plan):
         found.append(("depth", ["tools/props/scene/depth.py", room]))
     if plan.get("objects"):
         found.append(("redraw", ["tools/props/scene/redraw.py", room, *plan["objects"],
-                                 "--seeds", str(plan.get("seeds", "7")),
+                                 "--place", place_of(plan), "--seeds", str(plan.get("seeds", "7")),
                                  "--side", str(plan.get("side", 1536)), *view_arguments(plan, placed)]))
     return found
 
@@ -135,7 +157,7 @@ def target_jobs(plan):
     """target.py's --list for the plan's target, its references at their places on the machine."""
     target = plan["target"]
     placed = dict(uploads(plan))
-    return [{"scene": plan["room"], "sentence": target["sentence"], "shot": target.get("shot", "inside"),
+    return [{"scene": plan["room"], "sentence": place.style_text(place_of(plan)), "shot": target.get("shot", "inside"),
              "refs": [str(placed[pathlib.Path(ref).expanduser()]) for ref in target.get("refs", [])]}]
 
 
@@ -260,7 +282,8 @@ def build(plan, who, folder):
     listing = folder / "build.txt"
     listing.write_text("\n".join(lines) + "\n")
     batch.say(f"{len(lines)} objects to the batch runner: {listing}")
-    subprocess.run([str(VENV_PYTHON), str(HERE / "batch.py"), str(listing), "--who", who], check=True)
+    subprocess.run([str(VENV_PYTHON), str(HERE / "batch.py"), str(listing), "--who", who,
+                    "--inventory", str(REPO / plan["inventory"])], check=True)
 
 
 def main():

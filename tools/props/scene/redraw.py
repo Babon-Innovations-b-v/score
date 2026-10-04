@@ -1,14 +1,15 @@
 """Redraw objects cut out of a room's target picture as whole, clean object pictures for Pixal3D.
 
     ~/.farm-factory-props/env/bin/python tools/props/scene/redraw.py <room> bench-1:bench cabinet-5:desk ... \
-        [--picture <view.png> --out <folder>] [--seeds 7,8] [--side 1536]
+        --place <place> [--picture <view.png> --out <folder>] [--seeds 7,8] [--side 1536]
 
 Each pair names a cut-out (cutout.py's key) and the model it becomes, with an optional third part
 describing it for a close-up ("desk_lamp-1:desk_lamp:a globe lamp on a jointed arm"). Only a
 cut-out whose box is at least cutsize.MIN_CUT_SIDE pixels on its short side is redrawn; a smaller
 one is drawn afresh as a close-up when the target was drawn here, and left off otherwise
-(cutsize.py). A key of "none" names an
-object the plan does not show at all, drawn as a close-up in the plan's look. A cut-out is part
+(cutsize.py). A key of "none" names an object with no cut-out, drawn as a close-up in the plan's
+look; cloud/scene.py refuses it, since a scene's every object is a row boxed on its plan
+(inventory.py). A cut-out is part
 of an object: cut off by the picture's edge, hidden behind its neighbours, lit by the room. The
 picture model (FLUX.2 klein 4B) gets the cut-out on grey as its first reference and the whole
 target as its second, and draws the object whole, alone, on the prop chain's plain grey, square to
@@ -19,7 +20,8 @@ objects get close-ups. Writes redraw/<model>.png (redraw/<model>-s<seed>.png for
 --seeds) and redraw/<model>-cut.png (the reference it was given), and redraw/report.json: every
 object with its cut-out's size and the way it took, and the build list for the cloud batch. Holds
 the card. Runs on a rented card through cloud/scene.py (a plan's "objects"); on this PC it is
-refused.
+refused. Every picture is worded with its place's style text from data/definitions/place.json
+(--place, place.py), never with words a session wrote.
 """
 import argparse
 import json
@@ -31,6 +33,7 @@ import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
 import picture  # noqa: E402
+import place  # noqa: E402
 from card import claimed  # noqa: E402
 from cutsize import ROUTES, route, size_of  # noqa: E402
 from target import folder  # noqa: E402
@@ -108,14 +111,20 @@ def planned(out, pairs, can_close_up):
     return rows
 
 
-def draw_row(pipeline, out, room_picture, row, seed, path, side):
-    """One object's picture, drawn by its route and saved at `path`; its path."""
+def in_the_place(prompt, style):
+    """A picture's words with its place's style text after them."""
+    return f"{prompt}, in the look of this place: {style}"
+
+
+def draw_row(pipeline, out, room_picture, row, seed, path, side, style):
+    """One object's picture, drawn by its route in its place's look and saved at `path`; its path."""
     if row["route"] == "redraw":
         reference = on_grey(Image.open(out / "objects" / f"{row['key']}.png"))
         reference.save(out / "redraw" / f"{row['model']}-cut.png")
-        drawn = draw(pipeline, [reference, room_picture], WORDING.format(name=row["name"]), seed, side)
+        prompt = in_the_place(WORDING.format(name=row["name"]), style)
+        drawn = draw(pipeline, [reference, room_picture], prompt, seed, side)
     else:
-        prompt = CLOSE_UP.format(name=row["name"], description=row["description"])
+        prompt = in_the_place(CLOSE_UP.format(name=row["name"], description=row["description"]), style)
         drawn = draw(pipeline, [room_picture], prompt, seed, side)
     drawn.save(path)
     return path
@@ -138,9 +147,11 @@ def main():
     parser.add_argument("--side", type=int, default=DRAW_SIDE, help="the picture's side in pixels")
     parser.add_argument("--picture", type=pathlib.Path, help="a plan view in place of the target")
     parser.add_argument("--out", type=pathlib.Path, help="where cutout.py put that view's cut-outs")
+    parser.add_argument("--place", required=True, help="the place whose style text words every picture")
     options = parser.parse_args()
     if bool(options.picture) != bool(options.out):
         parser.error("--picture and --out go together")
+    style = place.style_text(options.place)
     out = options.out or folder(options.room)
     (out / "redraw").mkdir(parents=True, exist_ok=True)
     rows = planned(out, options.pairs, bool(options.picture) or drawn_here(out, options.room))
@@ -156,7 +167,7 @@ def main():
             for seed in seeds:
                 suffix = f"-s{seed}" if len(seeds) > 1 else ""
                 path = out / "redraw" / f"{row['model']}{suffix}.png"
-                print(draw_row(pipeline, out, room_picture, row, seed, path, options.side), flush=True)
+                print(draw_row(pipeline, out, room_picture, row, seed, path, options.side, style), flush=True)
 
 
 if __name__ == "__main__":

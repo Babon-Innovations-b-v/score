@@ -21,6 +21,15 @@ placed with the building tool, the lab or the planter room, stood whole by `--sh
 `marble.py --ledger` adds every paid call to a ledger file. The workflow these tools
 serve: skill `make-scene`, bible "How a scene is designed".
 
+- **The scene workflow of 2026-10-04 (#121): look pick, then pages A, B and C.** `place.py`
+  reads a place's style text from `data/definitions/place.json`, and every painting
+  (`marble.py --place`), redraw (`redraw.py --place`) and cloud run is worded from it alone; only
+  a look-pick take is worded by hand (`marble.py --look --text`). `inventory.py` is the shape of
+  a scene inventory and the shell hash; `placed.py` reads what every layer places in a scene
+  today (layout, the room's scene, main.tscn's game nodes, the machines, the kit's wall fill, the
+  opening's constants); `match.py` holds migrated scenes to their inventory and prints the rest
+  as a to-do list (`python3 tools/props/scene/match.py`). `cloud/scene.py` and `cloud/batch.py`
+  refuse to run without an approved inventory and its place's style text.
 - `depth_pano.tscn --pano-ship` takes the ship's rooms instead (`ShipCabin.ROOMS`, #70), with the
   rest of the game put away so its windows look out on nothing; `--pano-colour` takes the same six
   ways in the game's look, to lay beside each plan from the plan's own camera.
@@ -47,6 +56,8 @@ serve: skill `make-scene`, bible "How a scene is designed".
   redraw (the owner, 2026-10-02: "the low-res ones look shit"). `redraw.py` draws such an object
   afresh as a close-up when the target was drawn here, else leaves it off the build list;
   `redraw/report.json` lists every object with its cut-out size and the way it took.
+- `inventory_test.py` checks the inventory's shape, the refusals and the place file;
+  `match_test.py` runs the match over the real tree on every change to game/, sim/ or data/.
 - `layout_test.py` is the gate's check of the placing rules, plain python; `cutsize_test.py` of
   the cut-out limit; `pano_test.py` checks
   the folding and the placing of worlds, `planview_test.py` the plan views' cameras (hands itself to the prop environment for numpy).

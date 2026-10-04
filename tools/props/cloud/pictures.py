@@ -2,7 +2,8 @@
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/pictures.py <jobs.json> [--cards 5] [--dry-run]
 
-The list is picture.py's own (--list): a JSON array of {"name", "sentence", "seed", "form", "refs"}.
+The list is picture.py's own (--list): a JSON array of {"name", "sentence", "seed", "form", "refs"},
+and "place" to word a scene's object in its place's style text (place.json).
 Every job is worded here by picture.wording, at picture.py's steps and guidance, so a picture made
 up there is the one the owner's card would make. The list is split evenly over --cards machines; each
 installs the picture model from Hugging Face, holds it on its card whole (no offloading) and draws
@@ -21,10 +22,12 @@ import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parent / "scene"))
 
 import batch  # noqa: E402
 import ledger  # noqa: E402
 import picture  # noqa: E402
+import place  # noqa: E402
 import scaleway  # noqa: E402
 from paths import PICTURES  # noqa: E402
 
@@ -50,10 +53,13 @@ def jobs_to_make(path):
         if (PICTURES / f"{job['name']}.png").exists():
             continue
         # A job may carry its whole wording, for a picture that is not an object on its own (a
-        # flat facade to tile); otherwise it is worded as picture.py words an object.
+        # flat facade to tile); otherwise it is worded as picture.py words an object. A job naming
+        # its place (place.json) is worded in that place's style text as well.
+        wording = job.get("wording") or picture.wording(job["sentence"], job.get("form") or picture.FORM)
+        if job.get("place"):
+            wording = f"{wording}, in the look of this place: {place.style_text(job['place'])}"
         jobs.append({"name": job["name"],
-                     "wording": job.get("wording")
-                     or picture.wording(job["sentence"], job.get("form") or picture.FORM),
+                     "wording": wording,
                      "seed": job.get("seed", 7), "steps": picture.STEPS, "guidance": picture.GUIDANCE,
                      "refs": [str(ref) for ref in job.get("refs", [])],
                      **{side: job[side] for side in ("width", "height") if side in job}})

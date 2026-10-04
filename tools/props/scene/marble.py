@@ -1,13 +1,17 @@
 """Send a room's target picture to World Labs Marble and bring back its world as a layout reference.
 
     ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> generate \
-        [--model marble-1.1-plus] [--text "<words to guide it>"]
+        [--model marble-1.1-plus] --place <place>
     ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> fetch
     ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> depth
     ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> paint \
-        --depth-png <spot>-depth.png --z-max 26 --text "<the look>" --seed 7
-    ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> generate --pano --seed 7 --text "<the look>"
+        --depth-png <spot>-depth.png --z-max 26 --place <place> --seed 7
+    ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> generate --pano --seed 7 --place <place>
     ~/.farm-factory-props/env/bin/python tools/props/scene/marble.py <room> splats
+
+The words of a painting or a world are the place's style text from data/definitions/place.json
+(--place). The one exception is the owner's look pick, the first review of a place, which comes
+before its style text exists: `--look --text "<one look>"` paints a take for that page.
 
 `paint` turns a depth panorama of one of our own rooms (depth_pano.tscn, pano.py) into a colour
 panorama with pano:depth_to_rgb and makes it the room's target; `generate --pano` then builds the
@@ -38,6 +42,7 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import place  # noqa: E402
 from target import folder  # noqa: E402
 
 API = "https://api.worldlabs.ai/marble/v1"
@@ -239,6 +244,18 @@ def depth(room, out):
     print(f"depth-marble.npz: {valid.mean():.0%} of {size[0]}x{size[1]} pixels see the collider")
 
 
+def words_for(options):
+    """The words a painting or a world is made with: the place's style text, or a look take's own
+    words while the owner picks the look; refused otherwise, so no room is worded from a session's
+    head."""
+    if options.place and not options.text:
+        return place.style_text(options.place)
+    if options.look and options.text and not options.place:
+        return options.text
+    raise SystemExit("paint and generate take --place <place> (its style text in place.json), or "
+                     "--look --text \"...\" for a take on the owner's look pick, never both")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("room")
@@ -250,7 +267,12 @@ def main():
     parser.add_argument("--depth-png", type=pathlib.Path, help="paint: pano.py's depth panorama")
     parser.add_argument("--z-max", type=float, help="paint: the depth panorama's far end (pano.py's scales.json)")
     parser.add_argument("--ledger", type=pathlib.Path, help="a JSON file every paid call is added to, with its credits")
+    parser.add_argument("--place", help="paint and generate in this place's style text (place.json)")
+    parser.add_argument("--look", action="store_true",
+                        help="a take for the owner's look pick, worded with --text before the place has a style")
     options = parser.parse_args()
+    if options.step in ("paint", "generate"):
+        options.text = words_for(options)
     out = folder(options.room) / "marble"
     out.mkdir(exist_ok=True)
     if options.step in ("depth", "splats", "paint"):

@@ -1,12 +1,16 @@
 """Make a whole batch of models on rented Scaleway graphics cards, then delete the machines.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/batch.py <list.txt> --who "<session>"
+        --inventory data/inventory/<scene>.json
         [--minutes 60] [--per-card N] [--max-cards 20] [--types L4-1-24G,L4-2-24G]
         [--no-finish] [--dry-run]
 
 The list has one model a line, `<name> <picture> [pixal.py options]`, e.g.
 `crate ~/pics/crate.png --faces 12000 --feet`; `#` starts a comment. The pictures must be ones the
-owner approved.
+owner approved. A batch builds one scene's rows (the scene workflow of 2026-10-04, #121): it is
+refused without the scene's inventory approved by the owner (inventory.py) and its place's style
+text (place.json), and every model's name is one of its `generate` or `mechanic` rows, by the row's
+id or its prop kind, alone or after a prefix (`habitat-locker`) or before a take (`locker-b`).
 
 The cut-out and the raw Pixal3D step run in the cloud (#55): no model runs on this PC (owner,
 2026-10-03; local_models.py). The pictures go up as they are, each machine cuts its own out with
@@ -43,9 +47,12 @@ import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parent / "scene"))
 
+import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
 import pixal  # noqa: E402
+import place  # noqa: E402
 import scaleway  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 
@@ -114,6 +121,33 @@ def read_list(path):
     if len(set(names)) != len(names):
         raise SystemExit(f"{path}: a name appears twice")
     return models
+
+
+def from_the_inventory(models, path):
+    """The approved inventory a batch builds from; refused without one, without its place's style
+    text, or with a model on none of its rows."""
+    approved = inventories.approved_inventory(path)
+    place.style_text(approved["place"])
+    kinds = row_kinds(approved)
+    strays = [options.name for options in models if not on_a_row(options.name, kinds)]
+    if strays:
+        raise SystemExit(f"on no row of {path}: {', '.join(strays)}; a batch builds only the scene's rows")
+    return approved
+
+
+def row_kinds(inventory):
+    """The names a model may be built under: every generated or mechanic row's id and prop kind."""
+    kinds = set()
+    for row in inventory["rows"]:
+        if row["kind"] in ("generate", "mechanic"):
+            kinds.add(row["id"])
+            kinds.add(row.get("prop") or row["thing"].split(":", 1)[1])
+    return kinds
+
+
+def on_a_row(name, kinds):
+    """Whether a model's name is a row's, alone, after a prefix or before a take's mark."""
+    return any(name == kind or name.endswith(f"-{kind}") or name.startswith(f"{kind}-") for kind in kinds)
 
 
 def taken(models):
@@ -661,6 +695,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("list")
     parser.add_argument("--who", required=True, help="the session asking")
+    parser.add_argument("--inventory", required=True, type=pathlib.Path,
+                        help="the scene's approved inventory, data/inventory/<scene>.json")
     parser.add_argument("--minutes", type=float, default=TARGET_MINUTES, help="aim to finish in this long")
     parser.add_argument("--per-card", type=int, default=PER_CARD)
     parser.add_argument("--max-cards", type=int, default=MAX_CARDS)
@@ -673,6 +709,7 @@ def main():
         raise SystemExit(f"unknown machine types: {', '.join(sorted(unknown))}")
 
     models = read_list(options.list)
+    from_the_inventory(models, options.inventory)
     if taken(models):
         raise SystemExit(f"raw models already here, pick new names: {', '.join(taken(models))}")
     project = scaleway.project_id()
