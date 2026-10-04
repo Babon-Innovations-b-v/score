@@ -213,12 +213,54 @@ def oxygen_low(generator):
     return to_peak(out, -30.0), False
 
 
+def rocket_hull_roar(generator):
+    """The launch heard from inside the capsule, through the hull and the seat: a deep rumble under
+    a rough roar with crackle in it, all muffled by the hull, building from ignition through the
+    three seconds the engines come up to the climb at full burn. Laid under the launch recording,
+    which is a smooth sub-bass swell with nothing of a rocket's roar in it (the owner's playtest,
+    2026-10-04: "horrible, not like a rocket"). Seven seconds, as long as the launch runs before
+    the crash cuts it."""
+    seconds = 7.0
+    length = round(seconds * RATE)
+    rumble = lowpass(lowpass(lowpass(white_noise(length, generator), 70.0), 70.0), 70.0)
+    roar = band(white_noise(length, generator), 110.0, 650.0)
+    crackle = [generator.uniform(-1.0, 1.0) if generator.random() < 0.003 else 0.0 for _ in range(length)]
+    crackle = band(crackle, 180.0, 1400.0)
+    flutter = lowpass(lowpass(white_noise(length, generator), 5.0), 5.0)
+    loudest_flutter = max(abs(sample) for sample in flutter) or 1.0
+    flutter = [0.75 + 0.25 * sample / loudest_flutter for sample in flutter]
+    body = mix(scaled(rumble, 9.0), scaled(shaped(roar, flutter), 2.5), scaled(crackle, 12.0))
+    hull = lowpass(lowpass(body, 1100.0), 1100.0)
+    loudest = max(abs(sample) for sample in hull) or 1.0
+    saturated = [math.tanh(2.5 * sample / loudest) for sample in hull]
+    return to_peak(faded(shaped(saturated, launch_build(length)), 0.05, 0.3), -6.0), False
+
+
+def launch_build(length):
+    """How loud the burn is through the launch: a quick swell at ignition, the engines coming up
+    over three seconds, then the climb at full burn, eased so nothing steps."""
+    out = []
+    for index in range(length):
+        time = index / RATE
+        ignition = min(time / 0.4, 1.0) * 0.3
+        rising = 0.3 + 0.4 * smooth(min(max((time - 0.4) / 2.6, 0.0), 1.0))
+        climbing = 0.3 * smooth(min(max((time - 3.0) / 0.8, 0.0), 1.0))
+        out.append(ignition if time < 0.4 else rising + climbing)
+    return out
+
+
+def smooth(share):
+    """A share from 0 to 1 eased at both ends."""
+    return share * share * (3.0 - 2.0 * share)
+
+
 SOUNDS = {
     "base_hum": base_hum,
     "radio_squelch": radio_squelch,
     "warning_tone": warning_tone,
     "geiger_ticks": geiger_ticks,
     "oxygen_low": oxygen_low,
+    "rocket_hull_roar": rocket_hull_roar,
 }
 
 
