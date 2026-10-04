@@ -47,7 +47,8 @@ serve: skill `make-scene`, bible "How a scene is designed".
   access. MoGe-2 and its helper library are copies outside the repo put on the path, never
   installed into the prop environment, whose own older `utils3d` is left from the retired TRELLIS
   mesher.
-- Marble's API key is read at run time from `~/.config/worldlabs/api_key`, never written anywhere.
+- Marble's API key is read at run time from the Scaleway secret `worldlabs-api-key` (project
+  farm-factory, `scaleway.secret()`), never printed or written anywhere.
   A world costs about 1,580 credits; its high-quality mesh export another 3,500. Marble worlds
   are a layout reference only: shipped models stay our own.
 - The stage is not the game's habitat scene, which the module kit owns; its shell is a stand-in

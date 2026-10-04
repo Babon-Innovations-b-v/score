@@ -4,6 +4,7 @@ Every call names the project and the zone itself. The CLI's default profile poin
 project, and it is never changed from here, so leaving either out would rent a machine on the
 wrong account.
 """
+import base64
 import json
 import subprocess
 import time
@@ -35,6 +36,14 @@ def project_id():
     if len(found) != 1:
         raise SystemExit(f"expected one Scaleway project named {PROJECT_NAME}, found {len(found)}")
     return found[0]["id"]
+
+
+def secret(name):
+    """The latest value of the farm-factory project's secret `name` in Secret Manager; it is
+    handed back, never printed or written."""
+    version = scw("secret", "version", "access-by-path", f"secret-name={name}",
+                  f"project-id={project_id()}", "revision=latest")
+    return base64.b64decode(version["data"]).decode().strip()
 
 
 def euros_per_minute(machine_type, zone):

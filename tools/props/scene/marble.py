@@ -29,12 +29,12 @@ same masks on Marble's room instead of MoGe-2's.
 
 The world is a reference for where things stand and how big the room is, never a model to ship:
 the shipped models stay our own Pixal3D ones. The API key is read at run time from
-~/.config/worldlabs/api_key (WORLDLABS_KEY_FILE) and never written anywhere.
+the farm-factory project's Scaleway secret worldlabs-api-key and never printed or written anywhere.
 """
 import argparse
 import base64
+import functools
 import json
-import os
 import pathlib
 import sys
 import time
@@ -43,10 +43,12 @@ import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import place  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "cloud"))
+import scaleway  # noqa: E402
 from target import folder  # noqa: E402
 
 API = "https://api.worldlabs.ai/marble/v1"
-KEY_FILE = pathlib.Path(os.environ.get("WORLDLABS_KEY_FILE", pathlib.Path.home() / ".config/worldlabs/api_key"))
+KEY_SECRET = "worldlabs-api-key"
 MODEL = "marble-1.1"
 # marble-1.1-plus sizes the world to what the picture shows, for a whole base rather than a room:
 # 1,500 to 3,000 credits for the world.
@@ -66,6 +68,12 @@ DEPTH_Z_MIN_M = 0.1
 DEPTH_SHRINK = 2
 
 
+@functools.cache
+def key():
+    """The World API key, fetched from Secret Manager once per run."""
+    return scaleway.secret(KEY_SECRET)
+
+
 def call(method, path, body=None):
     """One call to the World API, answered as JSON. Told to slow down (429: four worlds at once
     was the most it took on 2026-10-02), it waits and asks again."""
@@ -73,7 +81,7 @@ def call(method, path, body=None):
         request = urllib.request.Request(
             f"{API}{path}", method=method,
             data=json.dumps(body).encode() if body is not None else None,
-            headers={"WLT-Api-Key": KEY_FILE.read_text().strip(), "Content-Type": "application/json"})
+            headers={"WLT-Api-Key": key(), "Content-Type": "application/json"})
         try:
             with urllib.request.urlopen(request, timeout=120) as answer:
                 return json.loads(answer.read())
