@@ -1,0 +1,667 @@
+from typing import Literal
+
+import bpy
+import numpy as np
+import pytest
+
+import procfunc as pf
+from procfunc.codegen import codegen
+from procfunc.transpiler import bpy_to_computegraph as b2c
+from procfunc.util.manifest import import_item_iterative
+
+_PRIMITIVE_FUNCS = pf.util.manifest.filter_manifest(
+    pf.ops.OPS_MANIFEST,
+    filter={"category": "primitive"},
+    exclude={"name": ["LATER", "DECLINE"]},
+    require_nonempty=["name"],
+    min_entries=10,
+)
+
+
+def devmat(r: float) -> pf.Material:
+    surface = pf.nodes.shader.principled_bsdf(base_color=(r, 1, 1, 1))
+    return pf.Material(surface=surface)
+
+
+@pytest.mark.parametrize(
+    "func_name",
+    list(_PRIMITIVE_FUNCS["name"].values),
+)
+def test_primitives(func_name: str):
+    func = import_item_iterative(func_name.replace("pf.", "procfunc."))
+    obj = func()
+
+    assert obj is not None
+
+    if "mesh" in func_name:
+        assert obj.item().type == "MESH"
+        assert len(obj.item().data.vertices) > 0
+    elif "curve" in func_name:
+        assert obj.item().type == "CURVE"
+    elif "lamp" in func_name:
+        assert obj.item().type == "LIGHT"
+    else:
+        raise ValueError(f"Unknown primitive type: {func_name}")
+
+
+_MODIFIER_FUNCS = pf.util.manifest.filter_manifest(
+    pf.ops.OPS_MANIFEST,
+    filter={"category": "modifier"},
+    exclude={"name": ["LATER", "DECLINE"]},
+    require_nonempty=["name"],
+    min_entries=15,
+)
+
+
+@pytest.mark.parametrize(
+    "func_name,arguments",
+    list(_MODIFIER_FUNCS[["name", "arguments"]].itertuples(index=False)),
+    ids=_MODIFIER_FUNCS["name"].values,
+)
+def test_ops_modifier(func_name: str, arguments: str):
+    arguments_list = arguments.split("-") if isinstance(arguments, str) else []
+    assert "|" not in arguments
+
+    func = import_item_iterative(func_name.replace("pf.", "procfunc."))
+
+    inputs = {}
+    inputs["mutates_obj"] = pf.ops.primitives.mesh_cube()
+
+    if "target" in arguments:
+        inputs["target"] = pf.ops.primitives.mesh_icosphere()
+        target_before = inputs["target"].clone()
+    if "object_offset" in arguments:
+        inputs["object_offset"] = pf.ops.primitives.empty()
+
+    obj = func(**inputs)
+
+    assert obj is not None
+    assert obj.item().type == "MESH"
+    assert len(obj.item().modifiers) == 0  # Should be applied and removed
+
+    if "target" in arguments_list:
+        assert _mesh_equal(target_before, inputs["target"])
+
+
+def test_modifier_bevel_percentage_width() -> None:
+    obj = pf.ops.primitives.mesh_cube(size=2.0)
+
+    pf.ops.modifier.bevel_pct(
+        obj,
+        width_pct=10.0,
+        segments=1,
+    )
+
+    coordinates = np.abs(pf.ops.attr.vertex_positions(obj))
+    assert len(coordinates) == 24
+    np.testing.assert_allclose(np.unique(coordinates), [0.8, 1.0])
+
+
+def test_percentage_bevel_reverse_transpiles_to_percentage_binding() -> None:
+    obj = bpy.data.objects.new("percentage_bevel", bpy.data.meshes.new("source"))
+    bpy.context.scene.collection.objects.link(obj)
+    modifier = obj.modifiers.new("bevel", "BEVEL")
+    modifier.offset_type = "PERCENT"
+    modifier.width_pct = 37.0
+
+    graph = b2c.parse_object(obj, b2c.ParseMemo())
+    source = codegen.to_python(graph, toplevel_as_maincall=False)
+
+    assert "pf.ops.modifier.bevel_pct(" in source
+    assert "width_pct=37.0" in source
+
+
+def test_modifier_array_object_offset() -> None:
+    obj = pf.ops.primitives.mesh_from_numpy(
+        vertices=np.array([[1.0, 0.0, 0.0]]),
+    )
+    offset = pf.ops.primitives.empty()
+    pf.ops.object.set_transform(offset, scale=(0.5, 0.5, 0.5))
+
+    pf.ops.modifier.array_object_offset(obj, offset, count=3)
+
+    coordinates = pf.ops.attr.vertex_positions(obj)
+    np.testing.assert_allclose(coordinates[:, 0], [1.0, 0.5, 0.25])
+    np.testing.assert_allclose(coordinates[:, 1:], 0.0)
+
+
+def test_modifier_array_constant_offset() -> None:
+    obj = pf.ops.primitives.mesh_from_numpy(
+        vertices=np.array([[0.0, 0.0, 0.0]]),
+    )
+
+    pf.ops.modifier.array(
+        obj,
+        count=3,
+        constant_offset_displace=(0.0, 0.0, 2.0),
+    )
+
+    coordinates = pf.ops.attr.vertex_positions(obj)
+    np.testing.assert_allclose(coordinates[:, :2], 0.0)
+    np.testing.assert_allclose(coordinates[:, 2], [0.0, 2.0, 4.0])
+
+
+def test_modifier_array_relative_offset() -> None:
+    obj = pf.ops.primitives.mesh_from_numpy(
+        vertices=np.array([[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
+        edges=np.array([[0, 1]]),
+    )
+
+    pf.ops.modifier.array_relative_offset(
+        obj,
+        count=2,
+        relative_offset_displace=(1.0, 0.0, 0.0),
+    )
+
+    coordinates = pf.ops.attr.vertex_positions(obj)
+    np.testing.assert_allclose(coordinates[:, 0], [0.0, 2.0, 2.0, 4.0])
+    np.testing.assert_allclose(coordinates[:, 1:], 0.0)
+
+
+def _split_modifier_ops() -> pf.MeshObject:
+    obj = pf.ops.primitives.mesh_cube()
+    offset = pf.ops.primitives.empty()
+    pf.ops.modifier.bevel_pct(obj, width_pct=10.0)
+    pf.ops.modifier.array(obj, constant_offset_displace=(2.0, 0.0, 0.0))
+    pf.ops.modifier.array_relative_offset(obj)
+    pf.ops.modifier.array_object_offset(obj, offset)
+    return obj
+
+
+def test_split_modifier_ops_codegen() -> None:
+    graph = pf.trace(_split_modifier_ops)
+    source = codegen.to_python(graph, toplevel_as_maincall=False)
+
+    expected_calls = (
+        "pf.ops.modifier.bevel_pct(",
+        "pf.ops.modifier.array(",
+        "pf.ops.modifier.array_relative_offset(",
+        "pf.ops.modifier.array_object_offset(",
+    )
+    for call in expected_calls:
+        assert call in source
+
+
+def test_modifier_shrinkwrap_project_negative() -> None:
+    obj = pf.ops.primitives.mesh_from_numpy(
+        vertices=np.array([[0.0, 0.0, 1.0], [2.0, 0.0, 1.0]]),
+    )
+    target = pf.ops.primitives.mesh_plane(size=2.0)
+
+    pf.ops.modifier.shrinkwrap(
+        obj,
+        target,
+        wrap_method="PROJECT",
+        use_negative_direction=True,
+    )
+
+    coordinates = pf.ops.attr.vertex_positions(obj)
+    np.testing.assert_allclose(coordinates, 0.0)
+
+
+def test_mesh_fill_grid_infers_span() -> None:
+    obj = pf.ops.primitives.mesh_circle(vertices=512)
+
+    pf.ops.mesh.fill_grid(obj)
+
+    assert len(obj.item().data.vertices) == 16641
+    assert len(obj.item().data.polygons) == 16384
+
+
+_MESH_FUNCS_MASKARGS = pf.util.manifest.filter_manifest(
+    pf.ops.OPS_MANIFEST,
+    filter={"category": "mesh"},
+    exclude={
+        "name": ["LATER", "DECLINE"],
+        "is_unittest_specialcase": True,
+    },
+    require_nonempty=["name", "arguments"],
+    min_entries=2,
+)
+
+# split parameterized mask types into multiple parameterized tests
+_MESH_FUNCS_MASKARGS = _MESH_FUNCS_MASKARGS.explode("arguments")
+_MESH_FUNCS_MASKARGS["arguments"] = _MESH_FUNCS_MASKARGS["arguments"].fillna(value="")
+
+
+def _mesh_equal(obj1: pf.MeshObject, obj2: pf.MeshObject) -> bool:
+    d1 = obj1.item().data
+    d2 = obj2.item().data
+
+    if len(d1.vertices) != len(d2.vertices):
+        return False
+    if len(d1.edges) != len(d2.edges):
+        return False
+    if len(d1.polygons) != len(d2.polygons):
+        return False
+
+    if not np.allclose(
+        pf.ops.attr.vertex_positions(obj1, global_coords=True),
+        pf.ops.attr.vertex_positions(obj2, global_coords=True),
+    ):
+        return False
+
+    if not np.equal(
+        pf.ops.attr.edge_indices(obj1),
+        pf.ops.attr.edge_indices(obj2),
+    ).all():
+        return False
+
+    for i in range(len(obj1.item().data.polygons)):
+        if len(obj1.item().data.polygons[i].vertices) != len(
+            obj2.item().data.polygons[i].vertices
+        ):
+            return False
+
+        for j in range(len(obj1.item().data.polygons[i].vertices)):
+            if (
+                obj1.item().data.polygons[i].vertices[j]
+                != obj2.item().data.polygons[i].vertices[j]
+            ):
+                return False
+
+    if not np.allclose(
+        pf.ops.attr.polygon_normals(obj1),
+        pf.ops.attr.polygon_normals(obj2),
+    ):
+        return False
+
+    return True
+
+
+@pytest.mark.parametrize(
+    "func_name,arguments",
+    list(_MESH_FUNCS_MASKARGS[["name", "arguments"]].itertuples(index=False)),
+)
+def test_ops_mesh(func_name: str, arguments: list[str]):
+    func = import_item_iterative(func_name.replace("pf.", "procfunc."))
+
+    base_obj = pf.ops.primitives.mesh_cube()
+    mask_lens = {
+        "vertex_mask": len(base_obj.item().data.vertices),
+        "edge_mask": len(base_obj.item().data.edges),
+        "face_mask": len(base_obj.item().data.polygons),
+    }
+
+    if not arguments or arguments == "none":
+        mask_kwargs = {}
+    else:
+        mask_len = mask_lens[arguments]
+        mask = np.arange(mask_len) > mask_len // 2
+        mask_kwargs = {arguments: mask}
+
+    mut = base_obj.clone()
+
+    n_obj_before = len(bpy.data.objects)
+    n_baseverts_before = len(base_obj.item().data.vertices)
+    func(mutates_obj=mut, **mask_kwargs)
+
+    n_baseverts_after = len(base_obj.item().data.vertices)
+    assert n_baseverts_after == n_baseverts_before, (
+        f"{func_name} incorrectly modified base_obj not mut_obj ?? {n_baseverts_before=} {n_baseverts_after=}"
+    )
+    assert n_obj_before == len(bpy.data.objects), (
+        f"{func_name} incorrectly changed number of objects in bpy.data.objects ?? {n_obj_before=} {len(bpy.data.objects)=}"
+    )
+
+    assert not _mesh_equal(base_obj, mut), (
+        f"{func_name} failed with {arguments}, {mut.item().name} remained unchanged from {base_obj.item().name}"
+    )
+
+
+def test_ops_mesh_separate_mask():
+    obj = pf.ops.primitives.mesh_cube()
+
+    nface = len(obj.item().data.polygons)
+    face_mask = np.arange(nface) < nface // 3
+    assert face_mask.sum() == nface // 3
+
+    splitobj = pf.ops.mesh.separate_mask(mutates_obj=obj, face_mask=face_mask)
+
+    assert splitobj.item() is not obj.item()
+    assert len(splitobj.item().data.polygons) == nface // 3
+    assert len(obj.item().data.polygons) == nface - nface // 3
+
+
+_OBJECT_FUNCS = pf.util.manifest.filter_manifest(
+    pf.ops.OPS_MANIFEST,
+    filter={"category": "object"},
+    exclude={
+        "name": ["LATER", "DECLINE"],
+        "is_unittest_specialcase": True,
+    },
+    require_nonempty=["name"],
+    min_entries=1,
+)
+
+
+@pytest.mark.parametrize(
+    "func_name,arguments",
+    list(_OBJECT_FUNCS[["name", "arguments"]].itertuples(index=False)),
+    ids=_OBJECT_FUNCS["name"].values,
+)
+def test_ops_object(func_name: str, arguments: list[str]):
+    func = import_item_iterative(func_name.replace("pf.", "procfunc."))
+
+    arguments_dict = {}
+    for arg in arguments:
+        match arg:
+            case "mesh":
+                arguments_dict["mesh"] = pf.ops.primitives.mesh_cube()
+            case "curve":
+                arguments_dict["curve"] = pf.ops.primitives.curve_circle()
+            case "object" | "mutates_obj":
+                arguments_dict[arg] = pf.ops.primitives.mesh_cube()
+            case "objects":
+                arguments_dict["cube1"] = pf.ops.primitives.mesh_cube()
+                arguments_dict["cube2"] = pf.ops.primitives.mesh_cube()
+            case "material":
+                arguments_dict[arg] = devmat(1.0)
+            case _:
+                raise ValueError(f"Unknown argument: {arg}")
+
+    func(**arguments_dict)
+
+
+def test_mesh_to_curve():
+    line = pf.ops.primitives.mesh_line(points=[(0, 0, 0), (1, 1, 1)])
+    curve = pf.ops.object.mesh_to_curve(line)
+    assert curve.item().type == "CURVE"
+    assert len(curve.item().data.splines[0].points) == 2
+
+
+def test_curve_to_mesh():
+    curve = pf.ops.primitives.curve_circle()
+    mesh = pf.ops.object.curve_to_mesh(curve)
+    assert mesh.item().type == "MESH"
+    # TODO
+
+
+def test_objects_joined():
+    cube1 = pf.ops.primitives.mesh_cube()
+    cube2 = pf.ops.primitives.mesh_cube()
+    joined = pf.ops.object.joined(cube1=cube1, cube2=cube2)
+    assert joined.item().type == "MESH"
+    assert len(joined.item().data.polygons) == 12
+
+    assert len(cube1.item().data.polygons) == 6
+    assert len(cube2.item().data.polygons) == 6
+
+
+@pytest.mark.skip(reason="invalidate not currently implemented")
+def test_objects_join():
+    cube1 = pf.ops.primitives.mesh_cube()
+    cube2 = pf.ops.primitives.mesh_cube()
+    pf.ops.object.join(mutates_obj_1=cube1, mutates_obj_2=cube2)
+
+    assert len(cube1.item().data.polygons) == 12
+
+    with pytest.raises(ValueError):
+        cube2.item()
+
+
+_CURVE_FUNCS = pf.util.manifest.filter_manifest(
+    pf.ops.OPS_MANIFEST,
+    filter={"category": "curve"},
+    exclude={"name": ["LATER", "DECLINE"]},
+    require_nonempty=["name"],
+    min_entries=1,
+)
+
+
+@pytest.mark.parametrize(
+    "func_name",
+    list(_CURVE_FUNCS["name"].values),
+)
+def test_ops_curve(func_name: str):
+    _func = import_item_iterative(func_name.replace("pf.", "procfunc."))  # noqa: F841
+    pass
+
+
+CUBE_COUNTS = {
+    "POINT": 8,
+    "EDGE": 12,
+    "FACE": 6,
+    "CORNER": 24,
+}
+ATTR_TYPES = ["FLOAT", "INT", "BOOLEAN", "FLOAT2", "INT32_2D", "FLOAT_VECTOR"]
+
+
+def _deterministic_attribute_data(attr_type: str, count: int) -> np.ndarray:
+    if attr_type == "FLOAT":
+        return np.linspace(-1.0, 1.0, count, dtype=np.float32)
+    if attr_type == "INT":
+        return np.arange(count, dtype=np.int32) * 3 - 7
+    if attr_type == "BOOLEAN":
+        return np.arange(count) % 2 == 0
+    if attr_type == "FLOAT2":
+        return np.arange(count * 2, dtype=np.float32).reshape(count, 2) / 10
+    if attr_type == "INT32_2D":
+        return np.arange(count * 2, dtype=np.int32).reshape(count, 2) - 5
+    if attr_type == "FLOAT_VECTOR":
+        return np.linspace(-1.0, 1.0, count * 3).reshape(count, 3)
+    raise ValueError(f"Unknown attribute type: {attr_type}")
+
+
+@pytest.mark.parametrize("attr_type", ATTR_TYPES)
+@pytest.mark.parametrize("domain", CUBE_COUNTS)
+def test_attribute_roundtrip(
+    attr_type: str,
+    domain: Literal["POINT", "EDGE", "FACE", "CORNER"],
+):
+    obj = pf.ops.primitives.mesh_cube()
+    data = _deterministic_attribute_data(attr_type, CUBE_COUNTS[domain])
+    name = f"test_{attr_type.lower()}_{domain.lower()}"
+    pf.ops.attr.write_attribute(data=data, obj=obj, key=name, domain=domain)
+    result = pf.ops.attr.read_attribute(obj, name)
+
+    np.testing.assert_array_almost_equal(data, result)
+
+
+def test_get_attribute_present():
+    obj = pf.ops.primitives.mesh_cube()
+    data = np.arange(CUBE_COUNTS["POINT"], dtype=np.float32)
+    pf.ops.attr.write_attribute(data=data, obj=obj, key="present", domain="POINT")
+
+    result = pf.ops.attr.get_attribute(obj, "present", "POINT")
+
+    np.testing.assert_array_equal(result, data)
+
+
+def test_get_attribute_missing():
+    obj = pf.ops.primitives.mesh_cube()
+
+    result = pf.ops.attr.get_attribute(obj, "nonexistent", "POINT")
+
+    assert result is None
+
+
+def test_write_int32_roundtrip_exact():
+    obj = pf.ops.primitives.mesh_cube()
+    data = np.array([-3, 0, 1, 7, 100, -42, 5, 9], dtype=np.int32)
+    pf.ops.attr.write_attribute(data=data, obj=obj, key="int32_exact", domain="POINT")
+    result = pf.ops.attr.read_attribute(obj, "int32_exact")
+    assert result.dtype == data.dtype
+    np.testing.assert_array_equal(result, data)
+
+
+def test_write_int64_rejected_with_cast_guidance():
+    obj = pf.ops.primitives.mesh_cube()
+    data = np.arange(8, dtype=np.int64)
+    with pytest.raises(ValueError) as excinfo:
+        pf.ops.attr.write_attribute(data=data, obj=obj, key="int64_bad", domain="POINT")
+    msg = str(excinfo.value)
+    assert "int64" in msg
+    assert "astype" in msg
+
+
+def test_write_corner_scalar_broadcast():
+    obj = pf.ops.primitives.mesh_cube()
+    n_corners = len(obj.item().data.loops)
+    pf.ops.attr.write_attribute(data=2.5, obj=obj, key="corner_scalar", domain="CORNER")
+    result = pf.ops.attr.read_attribute(obj, "corner_scalar")
+    assert result.shape == (n_corners,)
+    np.testing.assert_array_almost_equal(result, np.full(n_corners, 2.5))
+
+
+def test_add_material_basic():
+    cube = pf.ops.primitives.mesh_cube()
+    mat = devmat(1.0)
+    pf.ops.object.set_material(cube, surface=mat.surface)
+    assert len(cube.item().material_slots) == 1
+
+
+def test_add_material_not_garbage_collected():
+    namestr = "test"
+
+    def inner():
+        cube = pf.ops.primitives.mesh_cube()
+        mat = devmat(1.0)
+        pf.ops.object.set_material(cube, surface=mat.surface)
+        cube.item().material_slots[0].material.name = namestr
+        return cube
+
+    cube = inner()
+    assert isinstance(cube, pf.Asset)
+    assert namestr in list(bpy.data.materials.keys())
+    assert cube.item().material_slots[0].material.name == namestr
+
+
+def test_bbox_after_set_transform():
+    # bbox_min_max must account for object-level transform set via set_transform
+    obj = pf.ops.primitives.mesh_cube()
+    pf.ops.object.set_transform(obj, location=pf.Vector((5, 0, 0)))
+    assert obj.item().location == pf.Vector((5, 0, 0))
+    bmin, bmax = pf.ops.attr.bbox_min_max(obj)
+    assert bmin[0] == 4, f"Expected 4 (cube at x=5, half-size=1), got {bmin[0]}"
+
+
+def test_transform():
+    obj = pf.ops.primitives.mesh_cube()
+    pf.ops.mesh.transform(obj, location=pf.Vector((2, 0, 0)))
+    assert obj.item().location == pf.Vector((0, 0, 0))
+    bmin, bmax = pf.ops.attr.bbox_min_max(obj)
+    assert bmin[0] == 1
+
+    # TODO: test should fail for symmetry / wrong direction
+    obj = pf.ops.primitives.mesh_cube()
+    pf.ops.mesh.transform(obj, rotation_euler=np.deg2rad((45, 0, 0)))
+    assert obj.item().rotation_euler == pf.Euler((0, 0, 0))
+    bmin, bmax = pf.ops.attr.bbox_min_max(obj)
+    assert np.isclose(bmin[2], -1.4142135623730951)
+
+    obj = pf.ops.primitives.mesh_cube()
+    pf.ops.mesh.transform(obj, scale=pf.Vector((2, 2, 2)))
+    assert obj.item().scale == pf.Vector((1, 1, 1))
+    bmin, bmax = pf.ops.attr.bbox_min_max(obj)
+    assert (bmin == pf.Vector((-2, -2, -2))).all()
+    assert (bmax == pf.Vector((2, 2, 2))).all()
+
+
+def test_boolean_collection_target():
+    obj = pf.ops.primitives.mesh_cube()
+    cutter = pf.ops.primitives.mesh_cube()
+    pf.ops.mesh.transform(cutter, location=pf.Vector((1, 1, 1)))
+    collection = pf.types.Collection([cutter], name="cutters")
+
+    before = len(obj.item().data.polygons)
+    pf.ops.modifier.boolean_difference(obj, collection, fast=False)
+    assert len(obj.item().data.polygons) != before
+
+
+def test_empty_primitive():
+    obj = pf.ops.primitives.empty()
+    assert isinstance(obj, pf.types.EmptyObject)
+    assert obj.item().type == "EMPTY"
+
+
+def test_transform_multi_axis_rotation():
+    """rotation_euler must apply as Euler angles, not as an exponential-map
+    rotation vector (single-axis rotations cannot tell the two apart)."""
+    angles = (0.1, 0.2, 0.3)
+    obj = pf.ops.primitives.mesh_cube()
+    before = pf.ops.attr.vertex_positions(obj)
+    pf.ops.mesh.transform(obj, rotation_euler=angles)
+    after = pf.ops.attr.vertex_positions(obj)
+    expected = before @ np.array(pf.Euler(angles).to_matrix()).T
+    assert np.allclose(after, expected, atol=1e-5)
+
+
+def test_separate_loose():
+    obj = pf.ops.primitives.mesh_cube()
+    obj2 = pf.ops.primitives.mesh_cube()
+    pf.ops.mesh.transform(obj, location=pf.Vector((2, 0, 0)))
+    pf.ops.object.join(obj, obj2)
+    assert len(obj.item().data.polygons) == 12
+
+    objs = pf.ops.mesh.separate_loose(obj)
+    assert len(objs) == 2
+    assert len(objs[0].item().data.polygons) == 6
+    assert len(objs[1].item().data.polygons) == 6
+
+
+def test_return_mask():
+    # inset
+    obj = pf.ops.primitives.mesh_cube()
+    input_mask = np.arange(len(obj.item().data.polygons)) <= 1
+    out_mask = pf.ops.mesh.inset(obj, input_mask)
+    assert len(out_mask) == len(obj.item().data.polygons)
+    assert out_mask.sum() == 2
+
+    # inset individual
+    obj = pf.ops.primitives.mesh_cube()
+    out_mask = pf.ops.mesh.inset_individual(obj, input_mask)
+    assert len(out_mask) == len(obj.item().data.polygons)
+    assert out_mask.sum() == 2
+
+    # region_to_loop
+    obj = pf.ops.primitives.mesh_cube()
+    input_mask = np.arange(len(obj.item().data.polygons)) == 0
+    out_mask = pf.ops.mesh.region_to_loop(obj, input_mask)
+    assert len(out_mask) == len(obj.item().data.edges)
+    assert out_mask.sum() == 4
+
+
+def test_uv_project_creates_named_layer():
+    """Test that UV projection creates a UV layer with the specified name."""
+    obj = pf.ops.primitives.mesh_cylinder()
+    mesh = obj.item().data
+
+    if "UVMap" in mesh.uv_layers:
+        mesh.uv_layers.remove(mesh.uv_layers["UVMap"])
+
+    pf.ops.uv.cylinder_project(obj, uv_name="TestUV")
+
+    assert "TestUV" in mesh.uv_layers
+    assert mesh.uv_layers.active.name == "TestUV"
+
+
+def test_render_returns_ndarray():
+    bpy.ops.wm.read_homefile(use_empty=True)
+    pf.ops.primitives.mesh.mesh_plane(size=2.0)
+    cam = pf.ops.primitives.camera.perspective_camera()
+    cam_obj = cam.item()
+    cam_obj.location = (0.0, 0.0, 3.0)
+    bpy.context.scene.camera = cam_obj
+
+    arr = pf.ops.file.render(path=None, device="CPU", samples=1, resolution=32)
+
+    assert isinstance(arr, np.ndarray), f"Expected ndarray, got {type(arr)}"
+    assert arr.dtype == np.uint8, f"Expected uint8, got {arr.dtype}"
+    assert arr.shape == (32, 32, 3), f"Unexpected shape {arr.shape}"
+
+
+def test_render_writes_file(tmp_path):
+    bpy.ops.wm.read_homefile(use_empty=True)
+    pf.ops.primitives.mesh.mesh_plane(size=2.0)
+    cam = pf.ops.primitives.camera.perspective_camera()
+    cam_obj = cam.item()
+    cam_obj.location = (0.0, 0.0, 3.0)
+    bpy.context.scene.camera = cam_obj
+
+    out = tmp_path / "out.png"
+    result = pf.ops.file.render(out, device="CPU", samples=1, resolution=32)
+
+    assert result == out
+    assert out.exists()
+    assert out.stat().st_size > 0
