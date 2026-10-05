@@ -17,7 +17,7 @@
 			"No shared kit of parts: a prop belongs to one place; two places share a model only when the owner picks that on page B."
 		],
 		"theme": {
-			"status": "theme picked, hub mix pending",
+			"status": "theme picked; hub mix picked: even (style locked 2026-10-05)",
 			"picked": "2026-10-05, the owner on the hub style page: a combo between lived-in industrial and dense high-tech cockpit",
 			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between.",
 			"mix": "Each module picks its own mix within the theme, from more industrial to more cockpit; the mix is written on the module's own place entry. Medical and hygiene modules (medbay, washrooms) lean clean institutional: smooth pale flush panels, closed cabinets, calm screens, even light, nothing loose.",
@@ -56,6 +56,12 @@
 			"pictures": {
 				"references": "WORK/references/hub-directions/ (industrial-*, cockpit-*, hc17, hc32; sources.tsv there)",
 				"paintings": "the hub style page, rows 'Theme mix' (https://claude.ai/artifact/RSmbF64TefQpszh2s1PEwB)"
+			},
+			"hub_mix": {
+				"mix": "even",
+				"picked": "2026-10-05, the owner: 'Even', also because it is filled a bit more nicely",
+				"text": "An even mix: worn, patched walls with pipes, valves and tool boards, while every work place (the console, the status wall, the lab bench, the comms desk, the racks) is dense with screens, readouts, switches and neat cable runs; work lamps plus screen glow.",
+				"paintings": "the hub style page, row 'Theme mix: even' (https://claude.ai/artifact/RSmbF64TefQpszh2s1PEwB)"
 			}
 		}
 	},
