@@ -15,7 +15,49 @@
 			"If it is not boxed on this scene's kept plan, it is not in the room.",
 			"A model is scaled uniformly to its row's size and nothing else; a wrong one is retaken from a better picture.",
 			"No shared kit of parts: a prop belongs to one place; two places share a model only when the owner picks that on page B."
-		]
+		],
+		"theme": {
+			"status": "theme picked, hub mix pending",
+			"picked": "2026-10-05, the owner on the hub style page: a combo between lived-in industrial and dense high-tech cockpit",
+			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between.",
+			"mix": "Each module picks its own mix within the theme, from more industrial to more cockpit; the mix is written on the module's own place entry. Medical and hygiene modules (medbay, washrooms) lean clean institutional: smooth pale flush panels, closed cabinets, calm screens, even light, nothing loose.",
+			"do": [
+				"pipes, valves, tool boards and patched panels on the structure",
+				"screens, readouts and cable runs where people work",
+				"work lamps and screen glow, with shadow between",
+				"the hazard-striped border on the airlock hatch only"
+			],
+			"dont": [
+				"one colour washing over the whole room",
+				"screens on every surface with no structure showing",
+				"loose clutter that blocks a walkway or a standing spot",
+				"hazard stripes on tube hatches, stairs, rails or floors",
+				"warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+			],
+			"palette": {
+				"tokens": [
+					"steel",
+					"roof-steel",
+					"deck",
+					"hull-trim",
+					"rubber",
+					"cabin-panel",
+					"screen-teal",
+					"screen-amber",
+					"lamp",
+					"room-fill"
+				],
+				"accents": [
+					"hazard",
+					"alarm"
+				],
+				"accents_are": "the airlock's hazard border and small red valve wheels and status lights"
+			},
+			"pictures": {
+				"references": "WORK/references/hub-directions/ (industrial-*, cockpit-*, hc17, hc32; sources.tsv there)",
+				"paintings": "the hub style page, rows 'Theme mix' (https://claude.ai/artifact/RSmbF64TefQpszh2s1PEwB)"
+			}
+		}
 	},
 	"habitat": {
 		"name": "the habitat",
