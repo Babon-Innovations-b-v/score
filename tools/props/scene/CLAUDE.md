@@ -18,7 +18,12 @@ walked: even marble-1.1-plus turned the base into houses (2026-10-02). `planview
 views out of a spot's painted (or depth) panorama for `cutout.py --picture` and `redraw.py
 --picture`, and `room_shots.tscn` draws the game from those same cameras to lay beside them (a room only
 placed with the building tool, the lab or the planter room, stood whole by `--shots-placed`);
-`marble.py --ledger` adds every paid call to a ledger file. The workflow these tools
+`marble.py --ledger` adds every paid call to a ledger file. `closeups.py` plans close-ups of every
+inventory item out of a world's own 3D (its splats and collider, free from `marble.py`): a front, two
+three-quarter and an above camera per item from its 3D position and size, checked against the
+collider, each carrying the item's and its neighbours' prompt points; `closeups_gpu.py` renders them
+from the splats and cuts each item out, resolved against its neighbours, on a card through
+`../cloud/closeups_cloud.py` (the object maker's input, page A's close-ups). The workflow these tools
 serve: skill `make-scene`, bible "How a scene is designed".
 
 - **The scene workflow of 2026-10-04 (#121): look pick, then pages A, B and C.** `place.py`
@@ -39,7 +44,8 @@ serve: skill `make-scene`, bible "How a scene is designed".
   stuff in batches in the cloud"). `target.py`, `cutout.py`, `depth.py` and `redraw.py` refuse
   here (`../local_models.py`) and run on one rented card through `../cloud/scene.py <plan.json>`,
   which brings the room's folder back and sends the kept objects to `../cloud/batch.py` as one
-  batch. `boxes.py`, `layout.py`, `models.py`, `planview.py`, `pano.py`, `align.py`, `marble.py`
+  batch. `closeups_gpu.py` refuses here too and runs through `../cloud/closeups_cloud.py`.
+  `boxes.py`, `layout.py`, `models.py`, `planview.py`, `pano.py`, `align.py`, `marble.py`, `closeups.py`
   and the Godot shots stay here: no model in them. `FARM_LOCAL_MODELS=1` is an emergency switch
   for the owner to throw, never a session.
 - Every step that uses the card does so inside `card.claimed()`; Pixal3D only through `pixal.py`.
