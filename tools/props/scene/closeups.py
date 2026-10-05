@@ -15,8 +15,8 @@ frame with it, a three-quarter view from each side and one from slightly above. 
 collider: a wall between the item and the camera pulls the camera in to stand clear of it, the lens widened to keep
 the item whole, a camera blocked low (by a rail) is raised to
 see over it, and one with still no room to stand, or outside the room, is dropped. Each camera also carries the
-points to prompt the segmenter with, projected from 3D: the item's own (its front face) and every other item's in
-view, so the item's mask is resolved against its neighbours', the highest score winning each pixel, as in page A's
+points, the box and the words to prompt the segmenter with, projected from 3D: the item's own (its front face and
+its 3D box's outline in the picture) and every other item's in view, so the item's mask is resolved against its neighbours', the highest score winning each pixel, as in page A's
 partition.
 
 Writes <out>/cameras.json. Rendering the splats and segmenting run on a rented card (closeups_gpu.py through
@@ -183,6 +183,29 @@ def camera_or_raised(item, triangles, down, shot):
     return camera
 
 
+def box_corners(item, down):
+    """The eight corners of the item's box in the world, from its centre, size and facing."""
+    centre = np.asarray(item["centre"], dtype=np.float64)
+    facing = unit(item["facing"])
+    up = -unit(down)
+    side = unit(np.cross(up, facing))
+    wide, deep, tall = item["size"]
+    return [centre + side * wide / 2 * a + up * tall / 2 * b + facing * deep / 2 * c
+            for a in (-1, 1) for b in (-1, 1) for c in (-1, 1)]
+
+
+def pixel_box(corners, view, intrinsics, size):
+    """The picture box round an item's projected corners, clipped to the picture; None when it is behind the camera."""
+    pixels, depth = project(corners, view, intrinsics)
+    if (depth <= 0.05).any():
+        return None
+    low = np.clip(pixels.min(axis=0), 0, size - 1)
+    high = np.clip(pixels.max(axis=0), 0, size - 1)
+    if (high - low).min() < 2:
+        return None
+    return [round(float(value), 1) for value in (*low, *high)]
+
+
 def prompts_seen(points, view, intrinsics, size):
     """Each item's prompt points that fall in the picture in front of the camera, as pixels with their depth."""
     found = {}
@@ -208,9 +231,17 @@ def plan(triangles, items, down):
             intrinsics = lens(camera["fov"], camera["size"])
             prompts = prompts_seen(points, view, intrinsics, camera["size"])
             if item["id"] in prompts:
+                boxes = {other["id"]: pixel_box(box_corners(other, down), view, intrinsics, camera["size"])
+                         for other in items if other["id"] in prompts}
                 planned.append({**camera, "item": item["id"], "view": view.tolist(), "intrinsics": intrinsics.tolist(),
-                                "prompts": prompts})
+                                "prompts": prompts, "boxes": {key: value for key, value in boxes.items() if value},
+                                "labels": {other["id"]: label_of(other) for other in items if other["id"] in prompts}})
     return planned
+
+
+def label_of(item):
+    """The few words the text-prompted segmenter is asked for: the item's name (else its id) up to its first colon or comma."""
+    return item.get("label") or item.get("name", item["id"]).split(":")[0].split(",")[0].strip()
 
 
 def world_triangles(world):

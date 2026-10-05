@@ -130,6 +130,17 @@ def test_the_planner_lists_the_items_each_camera_sees():
     assert "rack" in front["prompts"] and "locker" in front["prompts"] and "far" not in front["prompts"]
 
 
+def test_each_item_seen_carries_its_projected_box_and_its_words():
+    room = box_room()
+    items = [wall_item(name="equipment rack, 0.6 m"), wall_item(id="locker", name="tall locker", centre=[0.9, 0.55, 3.7])]
+    front = next(camera for camera in closeups.plan(room, items, DOWN) if camera["item"] == "rack" and camera["shot"] == "front")
+    left, top, right, bottom = front["boxes"]["rack"]
+    size = front["size"]
+    assert left < size / 2 < right and top < size / 2 < bottom
+    assert abs((bottom - top) / size - closeups.FILL) < 0.05
+    assert front["labels"] == {"rack": "equipment rack", "locker": "tall locker"}
+
+
 def test_the_highest_score_wins_each_pixel_and_no_pixel_has_two_owners():
     first = np.zeros((4, 4), bool)
     first[:, :3] = True
