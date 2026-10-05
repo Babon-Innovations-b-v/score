@@ -170,6 +170,15 @@ def padding_fills_the_black_from_the_nearest_piece():
     return [] if darkest > 150 else [f"a texel is still near black ({darkest}) after padding"]
 
 
+def shrinking_halves_the_maps_that_are_not_the_base_colour():
+    document, views = one_quad_file(size=32)
+    document["materials"] = [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}]
+    document["textures"] = [{"source": 0}]
+    glb_file.shrunk(document, views, 8)
+    size = Image.open(io.BytesIO(views[document["images"][0]["bufferView"]])).size
+    return [] if size == (8, 8) else [f"the base colour is {size}, not 8 x 8"]
+
+
 def box_faces(tilt_degrees):
     """The normals and areas of a 2 x 3 x 2 box's six sides, leaning `tilt_degrees` about x."""
     normals = np.array([[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], float)
@@ -218,6 +227,7 @@ CHECKS = (
     the_file_keeps_its_shape_and_turns_its_normals,
     cutting_a_triangle_keeps_the_rest_as_it_was,
     padding_fills_the_black_from_the_nearest_piece,
+    shrinking_halves_the_maps_that_are_not_the_base_colour,
 )
 
 

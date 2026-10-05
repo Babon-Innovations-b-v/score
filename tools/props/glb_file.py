@@ -1,4 +1,4 @@
-"""Edit a finished model file in place: stand it upright, pad its texture maps, and cut triangles out.
+"""Edit a finished model file in place: stand it upright, pad its texture maps, shrink them, and cut triangles out.
 
 All three work on the file's own bytes rather than through a 3D package, because a round trip through
 trimesh or Blender drops maps or smooth normals from these files. numpy, scipy, trimesh and Pillow only.
@@ -301,6 +301,24 @@ def nearest_inside(inside):
     kept = kept if kept.any() else inside
     _, (rows, columns) = distance_transform_edt(~kept, return_indices=True)
     return rows, columns
+
+
+def shrunk(document, views, side):
+    """Every map at most `side` texels a side (the base colour) or half that (the others: metal and roughness), as a
+    JPEG (no map here has an alpha). A room of hundreds of pieces cannot carry 2K maps on each (the hub kit,
+    2026-10-06)."""
+    base = {material.get("pbrMetallicRoughness", {}).get("baseColorTexture", {}).get("index")
+            for material in document.get("materials", [])}
+    base_images = {document["textures"][index]["source"] for index in base if index is not None}
+    for number, image in enumerate(document.get("images", [])):
+        wanted = side if number in base_images else max(side // 2, 64)
+        picture = Image.open(io.BytesIO(views[image["bufferView"]])).convert("RGB")
+        if max(picture.size) > wanted:
+            picture = picture.resize((wanted, wanted), Image.LANCZOS)
+        buffer = io.BytesIO()
+        picture.save(buffer, "JPEG", quality=88)
+        views[image["bufferView"]] = buffer.getvalue()
+        image["mimeType"] = "image/jpeg"
 
 
 def padded(document, views):
