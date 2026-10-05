@@ -14,6 +14,11 @@ import time
 PROJECT_NAME = "farm-factory"
 # Ubuntu 24.04 with the NVIDIA driver and CUDA runtime, Scaleway's own GPU image.
 IMAGE = "ubuntu_noble_gpu_os_13_nvidia"
+# Plain Ubuntu 24.04, for the processor-only machines (POP2) Infinigen runs on.
+CPU_IMAGE = "ubuntu_noble"
+# Minutes in each unit Scaleway's price list prices a machine by: the cards by the minute, the
+# processor machines (POP2) by the hour (2026-10-05).
+PER_UNIT_MINUTES = {"minute": 1, "hour": 60}
 # Every machine the runner rents carries this tag, so a sweep can find what a crashed run left.
 TAG = "farm-factory-batch"
 # The zones that rent graphics cards (2026-09-29).
@@ -52,11 +57,11 @@ def euros_per_minute(machine_type, zone):
     products = scw("product-catalog", "product", "list", "product-types.0=instance", f"zone={zone}")
     for product in products:
         if product["sku"] == sku:
-            if product["unit_of_measure"]["unit"] != "minute":
-                raise SystemExit(f"{sku} is priced per {product['unit_of_measure']['unit']}, "
-                                 "not per minute; the caps assume minutes")
+            unit = product["unit_of_measure"]["unit"]
+            if unit not in PER_UNIT_MINUTES:
+                raise SystemExit(f"{sku} is priced per {unit}; the caps know minutes and hours")
             price = product["price"]["retail_price"]
-            return price["units"] + price["nanos"] / 1e9
+            return (price["units"] + price["nanos"] / 1e9) / PER_UNIT_MINUTES[unit]
     raise SystemExit(f"no price for {machine_type} in {zone}")
 
 
@@ -87,12 +92,12 @@ def allow_key(project, name, public_key):
             f"project-id={project}")
 
 
-def create(project, machine_type, zone, name, tags, disk_gb):
+def create(project, machine_type, zone, name, tags, disk_gb, image=IMAGE):
     """Rent and start one machine: (its id, None), or (None, Scaleway's reason) when refused,
     as when the zone is out of stock or the quota is used up."""
     done = subprocess.run(
         ["scw", "instance", "server", "create", f"project-id={project}", f"zone={zone}",
-         f"type={machine_type}", f"image={IMAGE}", f"name={name}", "ip=ipv4",
+         f"type={machine_type}", f"image={image}", f"name={name}", "ip=ipv4",
          f"root-volume=sbs:{disk_gb}GB",
          *[f"tags.{index}={tag}" for index, tag in enumerate([TAG, *tags])], "-o", "json"],
         capture_output=True, text=True)

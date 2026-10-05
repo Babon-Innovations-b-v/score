@@ -35,3 +35,6 @@ Entry: `batch.py`; its docstring says how to call it.
   folder (`<name>.svviews`), and finishing stays here with `pixal.py --finish-only` (no model).
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
 - The generator's arguments come from `pixal.generator_arguments`, so both routes build the same.
+- **Infinigen runs on a processor machine** (`infinigen.py`, `infinigen_setup.sh`; a POP2 type, plain Ubuntu,
+  priced by the hour): no card, the jobs from `../infinigen/steer.py` side by side, through the same `rent`.
+  `--hold` keeps the machine for ssh work until the run folder holds `release`.

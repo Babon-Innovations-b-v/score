@@ -477,7 +477,9 @@ def rent(fleet, project, offer, number):
     name = f"{fleet.folder.name}-{number}"
     tags = [f"pid={os.getpid()}", f"host={socket.gethostname()}",
             f"deadline={fleet.deadline + WATCHDOG_GRACE_MINUTES * 60:.0f}"]
-    server_id, refused = scaleway.create(project, machine_type, zone, name, tags, DISK_GB)
+    # A type with no card (a POP2 processor machine, for Infinigen) boots plain Ubuntu.
+    image = scaleway.IMAGE if machine_type in CARDS else scaleway.CPU_IMAGE
+    server_id, refused = scaleway.create(project, machine_type, zone, name, tags, DISK_GB, image)
     if server_id is None:
         say(f"{machine_type} in {zone} refused: {refused.splitlines()[-1] if refused else '?'}")
         return None
@@ -492,7 +494,7 @@ def rent(fleet, project, offer, number):
         return None
     folder = fleet.folder / name
     folder.mkdir(parents=True)
-    machine = {"id": server_id, "zone": zone, "type": machine_type, "cards": CARDS[machine_type],
+    machine = {"id": server_id, "zone": zone, "type": machine_type, "cards": CARDS.get(machine_type, 0),
                "price": price, "created": time.time(), "folder": folder, "deleted": None,
                "generating_began": None, "status": {}}
     machine["watchdog"] = start_watchdog(server_id, zone,
