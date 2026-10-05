@@ -334,5 +334,111 @@
 				}
 			]
 		}
+	},
+	"hub": {
+		"name": "the hub",
+		"scenes": [
+			"hub"
+		],
+		"style": {
+			"version": 1,
+			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. An even mix: worn, patched walls with pipes, valves and tool boards, while every work place (the console, the status wall, the lab bench, the comms desk, the racks) is dense with screens, readouts, switches and neat cable runs; work lamps plus screen glow.",
+			"from": "the base's theme and the hub's mix (shared.theme, picked 2026-10-05)",
+			"picked": "2026-10-05, the owner: 'Even', also because it is filled a bit more nicely"
+		},
+		"plan": {
+			"world": "c10caa6d-8632-455d-bf6a-b96ef0ef968f",
+			"seed": 21,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"steel",
+				"roof-steel",
+				"deck",
+				"hull-trim",
+				"rubber",
+				"cabin-panel",
+				"screen-teal",
+				"screen-amber",
+				"lamp",
+				"room-fill"
+			],
+			"accents": [
+				"hazard",
+				"alarm"
+			],
+			"accents_are": "the airlock's hazard border and small red valve wheels and status lights"
+		},
+		"materials": {
+			"bolted_steel_panel": {
+				"token": "steel",
+				"roughness": "satin",
+				"dust": 0.2
+			},
+			"deck_plate": {
+				"token": "deck",
+				"roughness": "matte",
+				"dust": 0.3
+			},
+			"pipe": {
+				"token": "roof-steel",
+				"roughness": "satin",
+				"dust": 0.1
+			},
+			"rubber": {
+				"token": "rubber",
+				"roughness": "matte",
+				"dust": 0.0
+			},
+			"screen_glass": {
+				"token": "screen-teal",
+				"roughness": "gloss",
+				"dust": 0.0
+			},
+			"hazard_border": {
+				"token": "hazard",
+				"roughness": "matte",
+				"dust": 0.2
+			}
+		},
+		"light": {
+			"recorded": "2026-10-05: not yet in the game; the plan's light is work lamps and screen glow",
+			"read_by": "nothing yet: the hub's scene is not built"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		}
 	}
 }

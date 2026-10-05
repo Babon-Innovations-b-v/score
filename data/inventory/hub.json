@@ -1,0 +1,1824 @@
+{
+	"scene": "hub",
+	"place": "hub",
+	"plan": {
+		"world": "c10caa6d-8632-455d-bf6a-b96ef0ef968f",
+		"seed": 21,
+		"views": [
+			{
+				"id": "v1",
+				"picture": "WORK/scene/hub/views/M3-north.png"
+			},
+			{
+				"id": "v2",
+				"picture": "WORK/scene/hub/views/M3-northeast.png"
+			},
+			{
+				"id": "v3",
+				"picture": "WORK/scene/hub/views/M3-east.png"
+			},
+			{
+				"id": "v4",
+				"picture": "WORK/scene/hub/views/M3-south.png"
+			},
+			{
+				"id": "v5",
+				"picture": "WORK/scene/hub/views/M3-west.png"
+			},
+			{
+				"id": "v6",
+				"picture": "WORK/scene/hub/views/M3-northwest.png"
+			}
+		]
+	},
+	"approved": "2026-10-05, the owner's rule: after the concept and style picks everything runs on its own, rows kept by score (keep >= 0.8); plan: c10caa6d-8632-455d-bf6a-b96ef0ef968f",
+	"migrated": "",
+	"room": {
+		"shell": "eebe0499bd976062",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": [],
+		"layout": {
+			"frame": "metres from the room's centre; x east, z south, y up from the ring floor; facing is the bearing the front looks toward",
+			"facets": 12,
+			"apothem": 4.5,
+			"wall": 3.1,
+			"pit_radius": 2.33,
+			"pit_floor": -0.9,
+			"rail_radius": 2.45,
+			"stair_bearing": 0,
+			"stair_width": 1.2,
+			"tube_doors": [
+				0,
+				90,
+				180,
+				270
+			],
+			"airlock": 330,
+			"levels": {
+				"ring": 0.0,
+				"pit": -0.9
+			}
+		}
+	},
+	"rows": [
+		{
+			"id": "console",
+			"view": "v4",
+			"box": [
+				960,
+				539,
+				1280,
+				859
+			],
+			"name": "operations console: desk with five screens and two keyboards",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.6,
+				0.6,
+				1.2
+			],
+			"count": 1,
+			"thing": "node:Workstation",
+			"keep": "game object (Workstation), kept whatever its score",
+			"parent": "",
+			"made": "built in code",
+			"why_code": "2026-10-05: made as a model twice, still more than 20% off its size (proportions.py); simple boxy things are built in code (the owner's standing rule)",
+			"at": [
+				{
+					"x": -0.606,
+					"y": -0.9,
+					"z": 1.517,
+					"facing": 21.8,
+					"level": "pit",
+					"fit": "chord of the pit on M3's bearing"
+				}
+			]
+		},
+		{
+			"id": "labbench",
+			"view": "v3",
+			"box": [
+				880,
+				352,
+				1200,
+				672
+			],
+			"name": "lab bench with a glovebox and a microscope on it",
+			"kind": "mechanic",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.7,
+				1.5
+			],
+			"count": 1,
+			"thing": "node:LabDesk",
+			"keep": "game object (LabDesk), kept whatever its score",
+			"parent": "",
+			"prop": "hub_labbench",
+			"at": [
+				{
+					"x": 3.529,
+					"y": 0.0,
+					"z": 2.028,
+					"facing": 300,
+					"level": "ring",
+					"facet": 120,
+					"across": -0.008,
+					"fit": "painted"
+				}
+			]
+		},
+		{
+			"id": "chair",
+			"view": "v4",
+			"box": [
+				832,
+				699,
+				1152,
+				900
+			],
+			"name": "operations chair",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.6,
+				0.6,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:hub_chair",
+			"keep": "best close-up 0.888 >= 0.8",
+			"parent": "",
+			"at": [
+				{
+					"x": -0.291,
+					"y": -0.9,
+					"z": 0.728,
+					"facing": 201.8,
+					"level": "pit",
+					"fit": "before the console, facing it"
+				}
+			]
+		},
+		{
+			"id": "talllocker",
+			"view": "v4",
+			"box": [
+				96,
+				219,
+				416,
+				539
+			],
+			"name": "tall double locker",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.55,
+				2.0
+			],
+			"count": 1,
+			"thing": "code:hub_furniture",
+			"keep": "best close-up 0.906 >= 0.8",
+			"parent": "",
+			"made": "built in code",
+			"why_code": "2026-10-05: made as a model twice, still more than 20% off its size (proportions.py); simple boxy things are built in code (the owner's standing rule)",
+			"at": [
+				{
+					"x": 2.325,
+					"y": 0.0,
+					"z": 3.42,
+					"facing": 330,
+					"level": "ring",
+					"facet": 150,
+					"across": -0.303,
+					"fit": "painted"
+				}
+			]
+		},
+		{
+			"id": "rack",
+			"view": "v5",
+			"box": [
+				48,
+				219,
+				368,
+				539
+			],
+			"name": "single steel locker (the plan painted lockers where the list said equipment racks)",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.6,
+				0.6,
+				1.9
+			],
+			"count": 2,
+			"thing": "code:hub_furniture",
+			"keep": "best close-up 0.959 >= 0.8",
+			"parent": "",
+			"made": "built in code",
+			"why_code": "2026-10-05: made as a model twice, still more than 20% off its size (proportions.py); simple boxy things are built in code (the owner's standing rule)",
+			"at": [
+				{
+					"x": -3.166,
+					"y": 0.0,
+					"z": 2.677,
+					"facing": 60,
+					"level": "ring",
+					"facet": 240,
+					"across": -0.735,
+					"fit": "painted"
+				},
+				{
+					"x": -3.516,
+					"y": 0.0,
+					"z": 2.07,
+					"facing": 60,
+					"level": "ring",
+					"facet": 240,
+					"across": -0.035,
+					"fit": "painted"
+				}
+			]
+		},
+		{
+			"id": "comms",
+			"view": "v5",
+			"box": [
+				1120,
+				331,
+				1440,
+				651
+			],
+			"name": "comms desk with two radios, a headset on a hook and a desk lamp",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.5,
+				0.7,
+				1.2
+			],
+			"count": 1,
+			"thing": "prop:hub_comms",
+			"keep": "required spec function (comms), kept whatever its score (0.732)",
+			"parent": "",
+			"at": [
+				{
+					"x": -3.506,
+					"y": 0.0,
+					"z": -2.107,
+					"facing": 120,
+					"level": "ring",
+					"facet": 300,
+					"across": 0.072,
+					"fit": "painted"
+				}
+			]
+		},
+		{
+			"id": "toolboard",
+			"view": "v1",
+			"box": [
+				1016,
+				232,
+				1336,
+				552
+			],
+			"name": "tool board with its hand tools",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.08,
+				0.8
+			],
+			"count": 1,
+			"thing": "prop:hub_toolboard",
+			"keep": "best close-up 0.972 >= 0.8",
+			"parent": "",
+			"at": [
+				{
+					"x": 2.371,
+					"y": 1.183,
+					"z": -3.665,
+					"facing": 210,
+					"level": "ring",
+					"facet": 30,
+					"across": 0.22,
+					"fit": "painted"
+				}
+			]
+		},
+		{
+			"id": "wall_lower_plain",
+			"view": "v4",
+			"box": [
+				355,
+				399,
+				584,
+				628
+			],
+			"name": "a worn bolted steel wall panel, lower half of a wall, plain with a kick plate",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.06,
+				1.1
+			],
+			"count": 8,
+			"thing": "prop:hub_wall_lower_plain",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_lower_vent",
+			"view": "v2",
+			"box": [
+				793,
+				399,
+				1013,
+				619
+			],
+			"name": "a worn bolted steel lower wall panel with a louvred air vent grille",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.06,
+				1.1
+			],
+			"count": 4,
+			"thing": "prop:hub_wall_lower_vent",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_lower_patched",
+			"view": "v4",
+			"box": [
+				1015,
+				399,
+				1244,
+				628
+			],
+			"name": "a lower wall panel patched with a riveted plate over old damage",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.06,
+				1.1
+			],
+			"count": 2,
+			"thing": "prop:hub_wall_lower_patched",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_upper_plain",
+			"view": "v4",
+			"box": [
+				355,
+				104,
+				584,
+				332
+			],
+			"name": "a worn bolted steel upper wall panel with seams and rivets",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.06,
+				2.0
+			],
+			"count": 4,
+			"thing": "prop:hub_wall_upper_plain",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_upper_pipes",
+			"view": "v4",
+			"box": [
+				1282,
+				46,
+				1549,
+				313
+			],
+			"name": "an upper wall panel with three pipes running across it on brackets",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.12,
+				2.0
+			],
+			"count": 4,
+			"thing": "prop:hub_wall_upper_pipes",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_upper_cables",
+			"view": "v1",
+			"box": [
+				1015,
+				104,
+				1244,
+				332
+			],
+			"name": "an upper wall panel with bundled cables in clips running across it",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.1,
+				2.0
+			],
+			"count": 4,
+			"thing": "prop:hub_wall_upper_cables",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_upper_screen_recess",
+			"view": "v3",
+			"box": [
+				1282,
+				90,
+				1549,
+				357
+			],
+			"name": "an upper wall panel with a recessed bay holding a small readout screen",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.08,
+				2.0
+			],
+			"count": 2,
+			"thing": "prop:hub_wall_upper_screen_recess",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_upper_patched",
+			"view": "v5",
+			"box": [
+				355,
+				104,
+				584,
+				332
+			],
+			"name": "an upper wall panel with a mismatched replacement plate bolted over it",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.06,
+				2.0
+			],
+			"count": 2,
+			"thing": "prop:hub_wall_upper_patched",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_corner_post",
+			"view": "v2",
+			"box": [
+				690,
+				230,
+				910,
+				450
+			],
+			"name": "a square steel corner post with bolts, where two wall panels meet",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.14,
+				0.14,
+				3.1
+			],
+			"count": 10,
+			"thing": "prop:hub_wall_corner_post",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_cornice",
+			"view": "v4",
+			"box": [
+				214,
+				0,
+				461,
+				138
+			],
+			"name": "a steel cornice band with a cable channel along the top of a wall",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				2.4115427318801044,
+				0.16,
+				0.18
+			],
+			"count": 12,
+			"thing": "prop:hub_wall_cornice",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_skirting",
+			"view": "v4",
+			"box": [
+				214,
+				496,
+				461,
+				742
+			],
+			"name": "a scuffed steel skirting band with a drain slot along the foot of a wall",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				2.4115427318801044,
+				0.06,
+				0.12
+			],
+			"count": 12,
+			"thing": "prop:hub_wall_skirting",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "hatch_wall_surround",
+			"view": "v1",
+			"box": [
+				690,
+				230,
+				910,
+				450
+			],
+			"name": "a wall panel around a door opening, heavier plating with bolted edges",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4115427318801044,
+				0.08,
+				3.1
+			],
+			"count": 5,
+			"thing": "code:hub_hatch_wall_surround",
+			"group": "kit: wall",
+			"made": "kit piece"
+		},
+		{
+			"id": "roof_face_panel",
+			"view": "v4",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a triangular ceiling panel of the pyramid roof, ribbed steel plate",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.4115427318801044,
+				0.05,
+				4.7
+			],
+			"count": 12,
+			"thing": "code:hub_roof_face_panel",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "lattice_hip_rib",
+			"view": "v4",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a steel I-beam rib running from a roof corner up to the top",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				0.12,
+				0.12,
+				4.9
+			],
+			"count": 12,
+			"thing": "prop:hub_lattice_hip_rib",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "lattice_ring_rib",
+			"view": "v4",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a short straight steel ring beam of the roof lattice",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				2.4115427318801044,
+				0.1,
+				0.1
+			],
+			"count": 36,
+			"thing": "prop:hub_lattice_ring_rib",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "lattice_diamond_strut",
+			"view": "v4",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a diagonal steel strut of the roof's diamond lattice",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				0.08,
+				0.08,
+				1.6
+			],
+			"count": 48,
+			"thing": "prop:hub_lattice_diamond_strut",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "lattice_node_plate",
+			"view": "v4",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a bolted gusset plate where roof lattice beams meet",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				0.3,
+				0.05,
+				0.3
+			],
+			"count": 36,
+			"thing": "prop:hub_lattice_node_plate",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "roof_apex_hub",
+			"view": "v4",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "the round steel hub at the top of the roof where every rib meets",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				0.6,
+				0.6,
+				0.3
+			],
+			"count": 1,
+			"thing": "prop:hub_roof_apex_hub",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "ceiling_cable_tray",
+			"view": "v3",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a perforated cable tray hung from the roof with cables in it",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				2.0,
+				0.3,
+				0.1
+			],
+			"count": 6,
+			"thing": "prop:hub_ceiling_cable_tray",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "ceiling_duct",
+			"view": "v5",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a rectangular air duct with flanged joints hung under the roof",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				2.0,
+				0.35,
+				0.3
+			],
+			"count": 3,
+			"thing": "prop:hub_ceiling_duct",
+			"group": "kit: ceiling",
+			"made": "kit piece"
+		},
+		{
+			"id": "roof_light_fixture",
+			"view": "v2",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a caged industrial ceiling flood lamp fixture hung from the lattice",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.4,
+				0.35
+			],
+			"count": 4,
+			"thing": "prop:hub_roof_light_fixture",
+			"group": "kit: light",
+			"made": "kit piece"
+		},
+		{
+			"id": "ring_floor_plate",
+			"view": "v4",
+			"box": [
+				175,
+				527,
+				501,
+				853
+			],
+			"name": "a trapezoid steel deck plate of the floor around the pit, diamond tread, worn",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.4115427318801044,
+				0.04,
+				2.0
+			],
+			"count": 12,
+			"thing": "prop:hub_ring_floor_plate",
+			"group": "kit: floor",
+			"made": "kit piece"
+		},
+		{
+			"id": "floor_grating",
+			"view": "v3",
+			"box": [
+				1117,
+				561,
+				1406,
+				849
+			],
+			"name": "a square steel floor grating with a drain underneath",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.05,
+				1.0
+			],
+			"count": 10,
+			"thing": "prop:hub_floor_grating",
+			"group": "kit: floor",
+			"made": "kit piece"
+		},
+		{
+			"id": "floor_access_hatch",
+			"view": "v2",
+			"box": [
+				903,
+				583,
+				1124,
+				804
+			],
+			"name": "a bolted square access cover plate set in the deck with a lift ring",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.8,
+				0.04,
+				0.8
+			],
+			"count": 4,
+			"thing": "prop:hub_floor_access_hatch",
+			"group": "kit: floor",
+			"made": "kit piece"
+		},
+		{
+			"id": "floor_cable_cover",
+			"view": "v4",
+			"box": [
+				915,
+				533,
+				1267,
+				885
+			],
+			"name": "a ribbed rubber cable cover ramp across the deck",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.05,
+				0.3
+			],
+			"count": 4,
+			"thing": "prop:hub_floor_cable_cover",
+			"group": "kit: floor",
+			"made": "kit piece"
+		},
+		{
+			"id": "tread_mat",
+			"view": "v1",
+			"box": [
+				676,
+				508,
+				923,
+				754
+			],
+			"name": "a tread-plate mat in front of a hatch, worn in the middle",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.02,
+				0.9
+			],
+			"count": 4,
+			"thing": "prop:hub_tread_mat",
+			"group": "kit: floor",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 0.0,
+					"z": -3.9,
+					"facing": 180,
+					"level": "ring",
+					"facet": 0,
+					"across": 0.0
+				},
+				{
+					"x": 3.9,
+					"y": 0.0,
+					"z": -0.0,
+					"facing": 270,
+					"level": "ring",
+					"facet": 90,
+					"across": 0.0
+				},
+				{
+					"x": 0.0,
+					"y": 0.0,
+					"z": 3.9,
+					"facing": 0,
+					"level": "ring",
+					"facet": 180,
+					"across": 0.0
+				},
+				{
+					"x": -3.9,
+					"y": 0.0,
+					"z": 0.0,
+					"facing": 90,
+					"level": "ring",
+					"facet": 270,
+					"across": 0.0
+				}
+			]
+		},
+		{
+			"id": "pit_lip_segment",
+			"view": "v3",
+			"box": [
+				732,
+				549,
+				1150,
+				900
+			],
+			"name": "a steel nosing strip with a hazard-free amber edge light along the pit's edge",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.5,
+				0.12,
+				0.06
+			],
+			"count": 8,
+			"thing": "prop:hub_pit_lip_segment",
+			"group": "kit: floor",
+			"made": "kit piece"
+		},
+		{
+			"id": "pit_wall_panel",
+			"view": "v3",
+			"box": [
+				300,
+				740,
+				1300,
+				900
+			],
+			"name": "a curved steel panel of the sunken pit's wall, bolted, with a seam",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.5,
+				0.08,
+				0.9
+			],
+			"count": 10,
+			"thing": "prop:hub_pit_wall_panel",
+			"group": "kit: pit",
+			"made": "kit piece"
+		},
+		{
+			"id": "pit_floor_plate",
+			"view": "v3",
+			"box": [
+				300,
+				740,
+				1300,
+				900
+			],
+			"name": "a square steel floor plate of the sunken pit, worn tread",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.04,
+				1.0
+			],
+			"count": 29,
+			"thing": "prop:hub_pit_floor_plate",
+			"group": "kit: pit",
+			"made": "kit piece"
+		},
+		{
+			"id": "pit_junction_box",
+			"view": "v2",
+			"box": [
+				300,
+				740,
+				1300,
+				900
+			],
+			"name": "a steel junction box with a hinged lid on the pit's wall",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.3,
+				0.1,
+				0.36
+			],
+			"count": 3,
+			"thing": "prop:hub_pit_junction_box",
+			"group": "kit: pit",
+			"made": "kit piece"
+		},
+		{
+			"id": "machine_bay_plate",
+			"view": "v3",
+			"box": [
+				300,
+				740,
+				1300,
+				900
+			],
+			"name": "a heavy floor plate with tie-down points marking a machine bay",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.05,
+				2.0
+			],
+			"count": 2,
+			"thing": "prop:hub_machine_bay_plate",
+			"group": "kit: pit",
+			"made": "kit piece"
+		},
+		{
+			"id": "rail_section",
+			"view": "v3",
+			"box": [
+				1073,
+				406,
+				1450,
+				783
+			],
+			"name": "a curved tubular steel safety rail section with a top and mid rail",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.65,
+				0.05,
+				1.0
+			],
+			"count": 20,
+			"thing": "prop:hub_rail_section",
+			"group": "kit: rail",
+			"made": "kit piece"
+		},
+		{
+			"id": "rail_post",
+			"view": "v4",
+			"box": [
+				0,
+				385,
+				242,
+				870
+			],
+			"name": "a steel rail post with a bolted foot plate",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.08,
+				0.08,
+				1.05
+			],
+			"count": 21,
+			"thing": "prop:hub_rail_post",
+			"group": "kit: rail",
+			"made": "kit piece"
+		},
+		{
+			"id": "rail_end_post",
+			"view": "v1",
+			"box": [
+				828,
+				394,
+				1200,
+				765
+			],
+			"name": "a heavier steel rail end post beside a stair opening",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.1,
+				0.1,
+				1.1
+			],
+			"count": 2,
+			"thing": "prop:hub_rail_end_post",
+			"group": "kit: rail",
+			"made": "kit piece"
+		},
+		{
+			"id": "hatch_frame",
+			"view": "v1",
+			"box": [
+				690,
+				239,
+				910,
+				459
+			],
+			"name": "the heavy steel frame round a round-cornered pressure hatch opening, bolted, cut top corners",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.3,
+				2.9
+			],
+			"count": 6,
+			"thing": "code:hub_hatch_frame",
+			"group": "kit: door",
+			"made": "kit piece",
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			]
+		},
+		{
+			"id": "hatch_leaf",
+			"view": "v1",
+			"box": [
+				690,
+				264,
+				910,
+				484
+			],
+			"name": "a thick steel pressure hatch door leaf with rounded corners and a round window",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.12,
+				2.6
+			],
+			"count": 2,
+			"thing": "prop:hub_hatch_leaf",
+			"group": "kit: door",
+			"made": "kit piece",
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			]
+		},
+		{
+			"id": "hatch_wheel",
+			"view": "v1",
+			"box": [
+				690,
+				291,
+				910,
+				511
+			],
+			"name": "a steel locking hand wheel with four spokes on a hub, for a pressure hatch",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.08,
+				0.5
+			],
+			"count": 2,
+			"thing": "prop:hub_hatch_wheel",
+			"group": "kit: door",
+			"made": "kit piece",
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			]
+		},
+		{
+			"id": "hatch_hinge",
+			"view": "v1",
+			"box": [
+				508,
+				155,
+				728,
+				375
+			],
+			"name": "a heavy steel door hinge knuckle with a pin",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.4
+			],
+			"count": 8,
+			"thing": "prop:hub_hatch_hinge",
+			"group": "kit: door",
+			"made": "kit piece",
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			]
+		},
+		{
+			"id": "hatch_window",
+			"view": "v1",
+			"box": [
+				690,
+				163,
+				910,
+				383
+			],
+			"name": "a small round thick glass porthole window with a bolted ring, set in a door",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.06,
+				0.4
+			],
+			"count": 2,
+			"thing": "prop:hub_hatch_window",
+			"group": "kit: door",
+			"made": "kit piece",
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			]
+		},
+		{
+			"id": "door_strip_lamp",
+			"view": "v6",
+			"box": [
+				1122,
+				170,
+				1296,
+				212
+			],
+			"name": "a strip lamp in a steel housing with a frosted lens, over a door",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				0.08
+			],
+			"count": 5,
+			"thing": "prop:hub_door_strip_lamp",
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 2.98,
+					"z": -4.44,
+					"facing": 180,
+					"level": "ring",
+					"facet": 0,
+					"across": 0.0
+				},
+				{
+					"x": 4.44,
+					"y": 2.98,
+					"z": -0.0,
+					"facing": 270,
+					"level": "ring",
+					"facet": 90,
+					"across": 0.0
+				},
+				{
+					"x": 0.0,
+					"y": 2.98,
+					"z": 4.44,
+					"facing": 0,
+					"level": "ring",
+					"facet": 180,
+					"across": 0.0
+				},
+				{
+					"x": -4.44,
+					"y": 2.98,
+					"z": 0.0,
+					"facing": 90,
+					"level": "ring",
+					"facet": 270,
+					"across": 0.0
+				},
+				{
+					"x": -2.22,
+					"y": 2.98,
+					"z": -3.845,
+					"facing": 150,
+					"level": "ring",
+					"facet": 330,
+					"across": 0.0
+				}
+			]
+		},
+		{
+			"id": "door_control_box",
+			"view": "v1",
+			"box": [
+				973,
+				233,
+				1193,
+				453
+			],
+			"name": "a steel door control box with a keypad, a status light and a label",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.26,
+				0.12,
+				0.36
+			],
+			"count": 5,
+			"thing": "prop:hub_door_control_box",
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 1.51,
+					"y": 1.45,
+					"z": -4.255,
+					"facing": 210,
+					"level": "ring",
+					"facet": 30,
+					"across": -0.82
+				},
+				{
+					"x": 4.255,
+					"y": 1.45,
+					"z": -1.51,
+					"facing": 240,
+					"level": "ring",
+					"facet": 60,
+					"across": 0.82
+				},
+				{
+					"x": 1.51,
+					"y": 1.45,
+					"z": 4.255,
+					"facing": 330,
+					"level": "ring",
+					"facet": 150,
+					"across": 0.82
+				},
+				{
+					"x": -4.255,
+					"y": 1.45,
+					"z": 1.51,
+					"facing": 60,
+					"level": "ring",
+					"facet": 240,
+					"across": 0.82
+				},
+				{
+					"x": -3.435,
+					"y": 1.45,
+					"z": -2.93,
+					"facing": 120,
+					"level": "ring",
+					"facet": 300,
+					"across": 0.82
+				}
+			]
+		},
+		{
+			"id": "grab_bar",
+			"view": "v2",
+			"box": [
+				376,
+				269,
+				596,
+				489
+			],
+			"name": "a U-shaped steel grab bar on two wall brackets",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.14,
+				0.12,
+				0.7
+			],
+			"count": 4,
+			"thing": "prop:hub_grab_bar",
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 1.787,
+					"y": 1.25,
+					"z": -4.095,
+					"facing": 210,
+					"level": "ring",
+					"facet": 30,
+					"across": -0.5
+				},
+				{
+					"x": 4.095,
+					"y": 1.25,
+					"z": -1.787,
+					"facing": 240,
+					"level": "ring",
+					"facet": 60,
+					"across": 0.5
+				},
+				{
+					"x": 1.787,
+					"y": 1.25,
+					"z": 4.095,
+					"facing": 330,
+					"level": "ring",
+					"facet": 150,
+					"across": 0.5
+				},
+				{
+					"x": -4.095,
+					"y": 1.25,
+					"z": 1.787,
+					"facing": 60,
+					"level": "ring",
+					"facet": 240,
+					"across": 0.5
+				}
+			]
+		},
+		{
+			"id": "porthole_panel",
+			"view": "v6",
+			"box": [
+				300,
+				0,
+				1300,
+				160
+			],
+			"name": "a square steel wall panel with a round bolted porthole window in its middle, Earth seen far away through the thick glass",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				1.2
+			],
+			"count": 1,
+			"thing": "code:hub_porthole_panel",
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -3.828,
+					"y": 2.35,
+					"z": -2.22,
+					"facing": 120,
+					"level": "ring",
+					"facet": 300,
+					"across": 0.009,
+					"fit": "painted"
+				}
+			]
+		},
+		{
+			"id": "pipe_straight",
+			"view": "v6",
+			"box": [
+				362,
+				385,
+				406,
+				598
+			],
+			"name": "a straight steel pipe section with flanges at both ends",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.1,
+				0.1
+			],
+			"count": 54,
+			"thing": "prop:hub_pipe_straight",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "pipe_elbow",
+			"view": "v6",
+			"box": [
+				739,
+				103,
+				795,
+				160
+			],
+			"name": "a ninety degree steel pipe elbow with flanges",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.1,
+				0.3
+			],
+			"count": 4,
+			"thing": "prop:hub_pipe_elbow",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "pipe_valve",
+			"view": "v6",
+			"box": [
+				808,
+				330,
+				830,
+				363
+			],
+			"name": "an inline pipe valve with a red hand wheel",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.2,
+				0.3
+			],
+			"count": 3,
+			"thing": "prop:hub_pipe_valve",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "pipe_bracket",
+			"view": "v5",
+			"box": [
+				1462,
+				115,
+				1512,
+				142
+			],
+			"name": "a steel wall bracket clamping a pipe",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.1
+			],
+			"count": 10,
+			"thing": "prop:hub_pipe_bracket",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "cable_bundle",
+			"view": "v5",
+			"box": [
+				19,
+				144,
+				77,
+				306
+			],
+			"name": "a bundle of black and grey cables held by clips, a straight run",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.08,
+				0.12
+			],
+			"count": 12,
+			"thing": "prop:hub_cable_bundle",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "cable_drop",
+			"view": "v5",
+			"box": [
+				19,
+				144,
+				77,
+				306
+			],
+			"name": "a vertical run of cables dropping from the ceiling into a wall box",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.15,
+				0.08,
+				1.2
+			],
+			"count": 4,
+			"thing": "prop:hub_cable_drop",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "conduit_box",
+			"view": "v1",
+			"box": [
+				992,
+				391,
+				1037,
+				440
+			],
+			"name": "a small steel conduit junction box with cable glands",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.1,
+				0.2
+			],
+			"count": 7,
+			"thing": "prop:hub_conduit_box",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "wall_cage_lamp",
+			"view": "v1",
+			"box": [
+				16,
+				285,
+				56,
+				329
+			],
+			"name": "a small caged bulkhead lamp on a wall",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.18,
+				0.12,
+				0.25
+			],
+			"count": 5,
+			"thing": "prop:hub_wall_cage_lamp",
+			"group": "kit: light",
+			"made": "kit piece"
+		},
+		{
+			"id": "status_display",
+			"view": "v2",
+			"box": [
+				513,
+				92,
+				734,
+				312
+			],
+			"name": "one single large wall display screen in a heavy steel frame, glowing readouts, the whole screen in view",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.1,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:hub_status_display",
+			"group": "kit: screen",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 2.4,
+					"y": 2.23,
+					"z": -3.765,
+					"facing": 210,
+					"level": "ring",
+					"facet": 30,
+					"across": 0.196,
+					"fit": "lifted above what is under it"
+				}
+			]
+		},
+		{
+			"id": "wall_screen_cluster",
+			"view": "v3",
+			"box": [
+				1012,
+				138,
+				1243,
+				370
+			],
+			"name": "a cluster of four small wall screens and readouts in one steel bracket",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				0.6
+			],
+			"count": 1,
+			"thing": "prop:hub_wall_screen_cluster",
+			"group": "kit: screen",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 4.152,
+					"y": 1.9,
+					"z": 1.709,
+					"facing": 300,
+					"level": "ring",
+					"facet": 120,
+					"across": -0.596,
+					"fit": "lifted above what is under it"
+				}
+			]
+		},
+		{
+			"id": "small_readout",
+			"view": "v6",
+			"box": [
+				378,
+				276,
+				435,
+				328
+			],
+			"name": "a small square wall readout screen with buttons beside it",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.06,
+				0.25
+			],
+			"count": 3,
+			"thing": "prop:hub_small_readout",
+			"group": "kit: screen",
+			"made": "kit piece"
+		},
+		{
+			"id": "intercom_panel",
+			"view": "v1",
+			"box": [
+				995,
+				451,
+				1043,
+				504
+			],
+			"name": "a wall intercom panel with a speaker grille and a call button",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.25,
+				0.06,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:hub_intercom_panel",
+			"group": "kit: screen",
+			"made": "kit piece"
+		},
+		{
+			"id": "notice_board",
+			"view": "v5",
+			"box": [
+				1144,
+				237,
+				1421,
+				337
+			],
+			"name": "a flat cork notice board in a steel frame with pinned papers",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.8,
+				0.05,
+				0.6
+			],
+			"count": 1,
+			"thing": "prop:hub_notice_board",
+			"group": "kit: sign",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 3.865,
+					"y": 1.109,
+					"z": -2.255,
+					"facing": 240,
+					"level": "ring",
+					"facet": 60,
+					"across": -0.02,
+					"fit": "painted"
+				}
+			]
+		},
+		{
+			"id": "waste_bin",
+			"view": "v5",
+			"box": [
+				1267,
+				554,
+				1325,
+				622
+			],
+			"name": "a small steel waste bin with a pedal lid",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.3,
+				0.45
+			],
+			"count": 1,
+			"thing": "prop:hub_waste_bin",
+			"group": "kit: dressing",
+			"made": "kit piece"
+		}
+	]
+}
