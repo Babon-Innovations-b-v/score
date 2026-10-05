@@ -54,10 +54,13 @@ COMMENT = re.compile(r"^\s*(#|;)")
 MODULE_SHELL_FILES = (
     "game/base/module_shell/module_shell.gd", "game/base/module_shell/shell_steps.gd",
     "game/base/module_shell/shell_lining.gd", "sim/base/stepped_floor.gd",
+    "game/base/module_shell/shell_pit.gd", "game/base/module_shell/shell_facets.gd",
 )
 EARTH_SITE = "game/prologue/earth_site/earth_site.gd"
 SHELLS = {
     "habitat": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/habitat/habitat.tscn"},
+    # The hub is the habitat's id drawn as the C12 room (2026-10-05): its scene is the same room file.
+    "hub": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/habitat/habitat.tscn"},
     "workshop": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/workshop/workshop.tscn"},
     "greenhouse": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/greenhouse/greenhouse.tscn"},
     "airlock": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/airlock/airlock.tscn"},
