@@ -16,10 +16,13 @@ command.
 - **Drawing is on the processor.** System Mesa's llvmpipe on the Xvfb screen and Cycles on the CPU.
   The graphics card is for game tests only. (Blender's own `blender-softwaregl` Mesa crashes in LLVM
   on this processor; do not switch to it.)
-- **One Blender at a time on the machine**: the launch holds `flock` on
-  `/tmp/farm-factory-blender.lock` for Blender's whole life. It starts only with 10 GB free (8 GB
-  kept spare, `FARM_MIN_FREE_GB`), a watchdog ends it after 3 hours, and `stop` ends only the
-  session `start` recorded. Stop it when you are done: `python3 tools/blender/session.py stop`.
+- **One heavy local job at a time on the machine**: the launch holds `flock` on the test gate's
+  lock `/tmp/farm-factory-gate.lock` (`tools/test/lock/`) for Blender's whole life, so a Blender, a
+  gate and a game shot never overlap (WSL ran out of memory twice on 2026-10-05 with them side by
+  side); it waits 30 minutes for it (`--wait`). A gate waits for a started Blender, so stop it
+  before running the gate. It starts only with 18 GB free (16 GB kept spare, as the gate keeps,
+  `FARM_MIN_FREE_GB`), a watchdog ends it after 3 hours, and `stop` ends only the session `start`
+  recorded. Stop it when you are done: `python3 tools/blender/session.py stop`.
 - **How an agent drives it.** `session.py start`, then either the `blender` MCP server in
   `.mcp.json` (the add-on's own tools, `get_scene_info` and `execute_blender_code` among them) or
   `session.py run <file.py>` to run a file inside the same Blender. Both reach the add-on on

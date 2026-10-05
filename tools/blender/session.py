@@ -15,9 +15,12 @@ found connected to WSLg's screen anyway is stopped at once. A job that needs no 
 `-b` Blender never runs, so `start` gives it the Xvfb screen. The add-on listens on
 127.0.0.1:PORT; the `blender` MCP server in .mcp.json and `run` here both talk to it.
 
-One Blender at a time on the machine: the launch holds `flock` on LOCK for Blender's whole life,
-so it is let go however Blender ends. Blender starts only with MIN_FREE_GB of memory free, and a
-watchdog stops it after MAX_HOURS. `stop` stops only the Blender this file started, by the process
+One heavy local job at a time on the machine: the launch holds `flock` on LOCK, the test gate's
+machine-wide lock (tools/test/lock/), for Blender's whole life, so a Blender, a test gate and a
+game shot never run at once (WSL ran out of memory twice on 2026-10-05 with them side by side),
+and it is let go however Blender ends. Stop a started Blender before running the gate: the gate
+waits for it. Blender starts only with MIN_FREE_GB of memory free, and a watchdog stops it after
+MAX_HOURS. `stop` stops only the Blender this file started, by the process
 group it recorded.
 """
 import argparse
@@ -40,11 +43,15 @@ VERSIONS = ("5.0.1", "5.2.2")
 DEFAULT_VERSION = "5.0.1"
 # Not the add-on's 9876, which a Blender on the Windows side may hold through WSL's localhost.
 PORT = int(os.environ.get("FARM_BLENDER_PORT", "9877"))
-LOCK = pathlib.Path(os.environ.get("FARM_BLENDER_LOCK", "/tmp/farm-factory-blender.lock"))
+# The test gate's lock, the one every heavy local job takes; GATE_LOCK moves it, as in lock.sh.
+LOCK = pathlib.Path(os.environ.get("GATE_LOCK", "/tmp/farm-factory-gate.lock"))
+# Written into LOCK once it is held, the line a waiting gate prints, as lock.sh's take_gate_lock does.
+HOLDER_LINE = 'printf "%s in %s (tools/blender)\\n" "$$" "' + str(HERE.parents[1]) + '" >"$0"; exec "$@"'
 STATE = pathlib.Path(os.environ.get("FARM_BLENDER_STATE", "/tmp/farm-factory-blender.json"))
 LOG = pathlib.Path(os.environ.get("FARM_BLENDER_LOG", "/tmp/farm-factory-blender.log"))
-# 8 GB kept spare for the rest of the machine, plus what one software-drawn Blender takes.
-MIN_FREE_GB = float(os.environ.get("FARM_MIN_FREE_GB", "10"))
+# 16 GB kept spare for the rest of the machine, as the test gate keeps, plus what one
+# software-drawn Blender takes.
+MIN_FREE_GB = float(os.environ.get("FARM_MIN_FREE_GB", "18"))
 MAX_HOURS = float(os.environ.get("FARM_BLENDER_MAX_HOURS", "3"))
 FIRST_PRIVATE_DISPLAY = 99
 START_SECONDS = 90
@@ -73,7 +80,7 @@ def refuse_low_memory(available_gb, floor_gb=MIN_FREE_GB):
     if available_gb < floor_gb:
         raise SystemExit(
             f"only {available_gb:.1f} GB free, Blender needs {floor_gb:.0f} GB free to start "
-            "(8 GB kept spare); wait for another run to finish, or set FARM_MIN_FREE_GB")
+            "(16 GB kept spare); wait for another run to finish, or set FARM_MIN_FREE_GB")
 
 
 def refuse_owner_screen(number):
@@ -113,9 +120,9 @@ def launch_environment(base, version):
 
 
 def launch_command(blender, display, blender_arguments, wait_seconds=0, lock=LOCK, max_hours=MAX_HOURS):
-    """Blender on a private Xvfb display (launch.sh), under the lock and the watchdog."""
+    """Blender on a private Xvfb display (launch.sh), under the gate lock and the watchdog."""
     return [
-        "flock", "-w", str(wait_seconds), str(lock),
+        "flock", "-w", str(wait_seconds), str(lock), "sh", "-c", HOLDER_LINE, str(lock),
         "timeout", "--kill-after=30", f"{int(max_hours * 3600)}",
         "bash", str(HERE / "launch.sh"), str(refuse_owner_screen(display)),
         str(blender), *blender_arguments,
@@ -246,7 +253,7 @@ def start(version, who, wait_seconds):
         if process.poll() is not None:
             STATE.unlink(missing_ok=True)
             raise SystemExit(f"Blender ended at start (exit {process.returncode}; "
-                             f"exit 1 with no log means another holds {LOCK}); see {LOG}")
+                             f"exit 1 with no log means a gate, a shot or another Blender holds {LOCK}); see {LOG}")
         refuse_window_on_owner_screen(process.pid)
         if port_open() and send({"type": "ping"}).get("status") == "success":
             print(f"Blender {version} ready on 127.0.0.1:{PORT} (session {process.pid})")
@@ -305,7 +312,8 @@ def parse(argv):
     for name in ("start", "batch"):
         action = actions.add_parser(name)
         action.add_argument("--version", default=DEFAULT_VERSION, choices=VERSIONS)
-        action.add_argument("--wait", type=int, default=600, help="seconds to wait for the lock")
+        action.add_argument("--wait", type=int, default=1800,
+                            help="seconds to wait for the gate lock, which a whole gate holds")
     actions.choices["start"].add_argument("--who", default=os.environ.get("USER", "someone"))
     actions.choices["batch"].add_argument("script", type=pathlib.Path)
     actions.choices["batch"].add_argument("script_arguments", nargs="*")

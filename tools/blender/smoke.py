@@ -1,6 +1,6 @@
 """The Blender route end to end: start Blender, build a cube scene through the MCP add-on, write
 LEGO-Anything's three artifacts, check them, stop Blender (#128). Not in the gate: it starts a
-Blender, which takes the Blender lock and about a minute.
+Blender, which takes the machine's gate lock and about a minute.
 
     python3 tools/blender/smoke.py [--version 5.0.1|5.2.2] [--out <folder>]
 
