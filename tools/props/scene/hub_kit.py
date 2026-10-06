@@ -261,20 +261,35 @@ def bar(kind, start, end, kinds, layer=ROOF_LAYER):
     return piece(kind, start, frame_facing(front, along), (wide, length, deep), layer)
 
 
+def on_roof(kind, bearing, share, size):
+    """A piece lying flush on a roof face's underside, its length along the face's foot, its foot (y 0) on the roof
+    and its height hanging down into the room, `share` of the way up the slope from the eave. The owner saw trays laid
+    radially at the corners, their length sticking out across the lattice (2026-10-06); flush on one face, a piece
+    cannot."""
+    normal, along = bearing_vectors(bearing)
+    foot = normal * APOTHEM * (1 - share) + np.array([0.0, WALL_HIGH + RISE * share, 0.0])
+    up_slope = np.array([0.0, RISE, 0.0]) - normal * APOTHEM
+    up_slope /= np.linalg.norm(up_slope)
+    into_room = np.cross(up_slope, along)
+    if into_room[1] > 0:
+        into_room = -into_room
+    z = np.cross(along, into_room)
+    return piece(kind, foot, (along, into_room, z), size, ROOF_LAYER)
+
+
+# The roof faces trays and ducts lie on, and how far up the slope: low enough that their length fits the face.
+TRAY_FACES = (0, 60, 120, 180, 240, 300)
+DUCT_FACES = (30, 150, 270)
+ROOF_GEAR_SHARE = 0.1
+
+
 def ceiling_gear(kinds):
-    """Cable trays, ducts and the roof's flood lamps hung under the lattice's lowest ring."""
+    """Cable trays and ducts flush on roof faces, and the roof's flood lamps hung under the lattice's lowest ring."""
     found = []
-    high = WALL_HIGH - 0.05
-    for index, bearing in enumerate((15, 75, 135, 195, 255, 315)):
-        normal, along = bearing_vectors(bearing)
-        tray = size_of(kinds, "ceiling_cable_tray")
-        found.append(piece("ceiling_cable_tray", normal * 3.6 + np.array([0.0, high - tray[1], 0.0]),
-                           frame_facing((0, -1, 0), along), (tray[0], tray[1], tray[2]), ROOF_LAYER))
-    for bearing in (45, 165, 285):
-        normal, along = bearing_vectors(bearing)
-        duct = size_of(kinds, "ceiling_duct")
-        found.append(piece("ceiling_duct", normal * 3.1 + np.array([0.0, high + 0.25, 0.0]),
-                           frame_facing((0, -1, 0), along), duct, ROOF_LAYER))
+    for bearing in TRAY_FACES:
+        found.append(on_roof("ceiling_cable_tray", bearing, ROOF_GEAR_SHARE, size_of(kinds, "ceiling_cable_tray")))
+    for bearing in DUCT_FACES:
+        found.append(on_roof("ceiling_duct", bearing, ROOF_GEAR_SHARE, size_of(kinds, "ceiling_duct")))
     for bearing in (45, 135, 225, 315):
         normal, along = bearing_vectors(bearing)
         lamp = size_of(kinds, "roof_light_fixture")
