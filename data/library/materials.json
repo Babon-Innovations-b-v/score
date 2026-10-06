@@ -750,46 +750,46 @@
 	"pictures": {
 		"screen_status": {
 			"style": "status",
-			"title": "生命保障",
+			"title": "LIFE SUPPORT",
 			"rows": [
 				[
-					"舱压",
+					"CABIN",
 					"101.3 kPa"
 				],
 				[
-					"氧气",
+					"OXYGEN",
 					"21.0 %"
 				],
 				[
-					"温度",
+					"TEMP",
 					"21.5 °C"
 				],
 				[
-					"电源",
-					"正常"
+					"POWER",
+					"NOMINAL"
 				]
 			],
 			"ink": "screen-teal"
 		},
 		"screen_readout": {
 			"style": "readout",
-			"title": "门禁",
-			"value": "已锁定",
+			"title": "HATCH",
+			"value": "LOCKED",
 			"ink": "screen-amber"
 		},
 		"label_access": {
 			"style": "label",
-			"text": "门禁控制箱",
+			"text": "ACCESS CONTROL",
 			"ink": "ink-line"
 		},
 		"label_west_hatch": {
 			"style": "label",
-			"text": "西侧舱门",
+			"text": "WEST HATCH",
 			"ink": "ink-line"
 		},
 		"label_porthole": {
 			"style": "label",
-			"text": "观察窗",
+			"text": "VIEWPORT",
 			"ink": "ink-line"
 		},
 		"keypad_print": {
@@ -803,17 +803,17 @@
 		},
 		"label_east_hatch": {
 			"style": "label",
-			"text": "东侧舱门",
+			"text": "EAST HATCH",
 			"ink": "ink-line"
 		},
 		"label_north_hatch": {
 			"style": "label",
-			"text": "北侧舱门",
+			"text": "NORTH HATCH",
 			"ink": "ink-line"
 		},
 		"label_south_hatch": {
 			"style": "label",
-			"text": "南侧舱门",
+			"text": "SOUTH HATCH",
 			"ink": "ink-line"
 		},
 		"notice_sheets": {
@@ -821,28 +821,51 @@
 			"ink": "ink-line",
 			"sheets": [
 				[
-					"安全须知",
+					"SAFETY",
 					6
 				],
 				[
-					"值班表",
+					"DUTY ROSTER",
 					7
 				],
 				[
-					"舱压检查",
+					"PRESSURE LOG",
 					5
 				]
 			]
 		},
 		"intercom_print": {
 			"style": "label",
-			"text": "通话",
+			"text": "INTERCOM",
 			"ink": "ink-line"
 		},
 		"label_airlock": {
 			"style": "label",
-			"text": "气闸舱",
+			"text": "AIRLOCK",
 			"ink": "ink-line"
+		},
+		"console_systems": {
+			"style": "status",
+			"title": "BASE SYSTEMS",
+			"rows": [
+				[
+					"POWER",
+					"4.2 kW"
+				],
+				[
+					"WATER",
+					"312 L"
+				],
+				[
+					"AIR",
+					"NOMINAL"
+				],
+				[
+					"ROBOTS",
+					"1 ACTIVE"
+				]
+			],
+			"ink": "screen-teal"
 		}
 	}
 }

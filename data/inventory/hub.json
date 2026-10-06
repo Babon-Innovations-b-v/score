@@ -58,8 +58,7 @@
 				"pit": -0.9
 			},
 			"stair_bearings": [
-				0,
-				180
+				0
 			]
 		}
 	},
@@ -85,19 +84,20 @@
 			"thing": "node:Workstation",
 			"keep": "game object (Workstation), kept whatever its score",
 			"parent": "",
-			"made": "built in code",
-			"why_code": "2026-10-05: made as a model twice, still more than 20% off its size (proportions.py); simple boxy things are built in code (the owner's standing rule)",
+			"made": "made by the route",
+			"why_code": "2026-10-06, after the owner's in-game test: the old console (boxes with pictures, quad screens) was still in the hub; remade by the route like every visible thing in the room",
 			"at": [
 				{
-					"x": 1.98,
-					"y": 0.0,
-					"z": -1.98,
-					"facing": 45,
-					"level": "ring",
-					"fit": "at the pit's edge on the north-east, looking out over the ring (2026-10-06: the pit's second stair, south, took its old place; both machine bays kept)"
+					"x": -0.606,
+					"y": -0.9,
+					"z": 1.517,
+					"facing": 21.8,
+					"level": "pit",
+					"fit": "chord of the pit on M3's bearing"
 				}
 			],
-			"sound": "console_hum"
+			"sound": "console_hum",
+			"prop": "hub_console"
 		},
 		{
 			"id": "labbench",
@@ -133,7 +133,9 @@
 					"fit": "painted"
 				}
 			],
-			"sound": "glovebox_hum"
+			"sound": "glovebox_hum",
+			"made": "made by the route",
+			"why_code": "2026-10-06, after the owner's in-game test: the old labbench (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
 		},
 		{
 			"id": "chair",
@@ -158,14 +160,16 @@
 			"parent": "",
 			"at": [
 				{
-					"x": 2.44,
-					"y": 0.05,
-					"z": -2.44,
-					"facing": 225,
-					"level": "ring",
-					"fit": "before the console, facing it; on the floor grating there"
+					"x": -0.291,
+					"y": -0.9,
+					"z": 0.728,
+					"facing": 201.8,
+					"level": "pit",
+					"fit": "before the console, facing it"
 				}
-			]
+			],
+			"made": "made by the route",
+			"why_code": "2026-10-06, after the owner's in-game test: the old chair (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
 		},
 		{
 			"id": "talllocker",
@@ -185,11 +189,11 @@
 				2.0
 			],
 			"count": 1,
-			"thing": "code:hub_furniture",
+			"thing": "prop:hub_talllocker",
 			"keep": "best close-up 0.906 >= 0.8",
 			"parent": "",
-			"made": "built in code",
-			"why_code": "2026-10-05: made as a model twice, still more than 20% off its size (proportions.py); simple boxy things are built in code (the owner's standing rule)",
+			"made": "made by the route",
+			"why_code": "2026-10-06, after the owner's in-game test: the old locker (boxes with pictures) was still in the hub; remade by the route like every visible thing in the room",
 			"at": [
 				{
 					"x": 2.325,
@@ -221,11 +225,11 @@
 				1.9
 			],
 			"count": 2,
-			"thing": "code:hub_furniture",
+			"thing": "prop:hub_rack",
 			"keep": "best close-up 0.959 >= 0.8",
 			"parent": "",
-			"made": "built in code",
-			"why_code": "2026-10-05: made as a model twice, still more than 20% off its size (proportions.py); simple boxy things are built in code (the owner's standing rule)",
+			"made": "made by the route",
+			"why_code": "2026-10-06, after the owner's in-game test: the old locker (boxes with pictures) was still in the hub; remade by the route like every visible thing in the room",
 			"at": [
 				{
 					"x": -3.166,
@@ -281,7 +285,9 @@
 					"across": 0.072,
 					"fit": "painted"
 				}
-			]
+			],
+			"made": "made by the route",
+			"why_code": "2026-10-06, after the owner's in-game test: the old comms (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
 		},
 		{
 			"id": "toolboard",
@@ -315,7 +321,9 @@
 					"across": 0.22,
 					"fit": "painted"
 				}
-			]
+			],
+			"made": "made by the route",
+			"why_code": "2026-10-06, after the owner's in-game test: the old toolboard (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
 		},
 		{
 			"id": "wall_lower_plain",
@@ -821,7 +829,7 @@
 				0.05,
 				1.0
 			],
-			"count": 14,
+			"count": 6,
 			"thing": "prop:hub_floor_grating",
 			"group": "kit: floor",
 			"made": "kit piece"
@@ -843,30 +851,8 @@
 				0.04,
 				0.8
 			],
-			"count": 4,
+			"count": 2,
 			"thing": "prop:hub_floor_access_hatch",
-			"group": "kit: floor",
-			"made": "kit piece"
-		},
-		{
-			"id": "floor_cable_cover",
-			"view": "v4",
-			"box": [
-				915,
-				533,
-				1267,
-				885
-			],
-			"name": "a ribbed rubber cable cover ramp across the deck",
-			"kind": "generate",
-			"anchor": "floor",
-			"size": [
-				1.2,
-				0.05,
-				0.3
-			],
-			"count": 4,
-			"thing": "prop:hub_floor_cable_cover",
 			"group": "kit: floor",
 			"made": "kit piece"
 		},
@@ -931,28 +917,6 @@
 			]
 		},
 		{
-			"id": "pit_lip_segment",
-			"view": "v3",
-			"box": [
-				732,
-				549,
-				1150,
-				900
-			],
-			"name": "a steel nosing strip with a hazard-free amber edge light along the pit's edge",
-			"kind": "generate",
-			"anchor": "floor",
-			"size": [
-				1.5,
-				0.12,
-				0.06
-			],
-			"count": 6,
-			"thing": "prop:hub_pit_lip_segment",
-			"group": "kit: floor",
-			"made": "kit piece"
-		},
-		{
 			"id": "pit_wall_panel",
 			"view": "v3",
 			"box": [
@@ -991,7 +955,7 @@
 				0.04,
 				1.0
 			],
-			"count": 33,
+			"count": 29,
 			"thing": "prop:hub_pit_floor_plate",
 			"group": "kit: pit",
 			"made": "kit piece"
@@ -1013,7 +977,7 @@
 				0.03,
 				0.9
 			],
-			"count": 4,
+			"count": 2,
 			"thing": "prop:hub_stair_stringer",
 			"group": "kit: pit",
 			"made": "kit piece"
@@ -1458,7 +1422,7 @@
 				0.1,
 				0.1
 			],
-			"count": 40,
+			"count": 52,
 			"thing": "prop:hub_pipe_straight",
 			"group": "kit: pipe",
 			"made": "kit piece"

@@ -9,21 +9,21 @@
 			"gaps": 0.0
 		},
 		"ring floor": {
-			"samples": 17359,
-			"coverage": 0.9879,
-			"overlap": 0.0328,
-			"gaps": 0.0121
+			"samples": 17885,
+			"coverage": 0.9875,
+			"overlap": 0.0323,
+			"gaps": 0.0125
 		},
 		"pit wall": {
-			"samples": 4356,
-			"coverage": 0.9844,
-			"overlap": 0.0546,
-			"gaps": 0.0156
+			"samples": 4806,
+			"coverage": 0.9823,
+			"overlap": 0.0545,
+			"gaps": 0.0177
 		},
 		"pit floor": {
 			"samples": 6528,
 			"coverage": 1.0,
-			"overlap": 0.0388,
+			"overlap": 0.0317,
 			"gaps": 0.0
 		},
 		"roof": {
@@ -33,9 +33,9 @@
 			"gaps": 0.0
 		},
 		"all": {
-			"coverage": 0.9963,
-			"overlap": 0.0158,
-			"gaps": 0.0037
+			"coverage": 0.9959,
+			"overlap": 0.0154,
+			"gaps": 0.0041
 		}
 	},
 	"counts": {
@@ -62,17 +62,15 @@
 		"hub_ceiling_duct": 3,
 		"hub_roof_light_fixture": 4,
 		"hub_ring_floor_plate": 12,
-		"hub_floor_grating": 14,
-		"hub_floor_access_hatch": 4,
-		"hub_floor_cable_cover": 4,
+		"hub_floor_grating": 6,
+		"hub_floor_access_hatch": 2,
 		"hub_tread_mat": 4,
-		"hub_pit_lip_segment": 6,
 		"hub_pit_wall_panel": 10,
-		"hub_pipe_straight": 40,
+		"hub_pipe_straight": 52,
 		"hub_pit_junction_box": 3,
-		"hub_pit_floor_plate": 33,
+		"hub_pit_floor_plate": 29,
 		"hub_machine_bay_plate": 2,
-		"hub_stair_stringer": 4,
+		"hub_stair_stringer": 2,
 		"hub_hatch_frame": 6,
 		"hub_hatch_leaf": 2,
 		"hub_hatch_wheel": 2,
@@ -173,13 +171,7 @@
 		"hub_floor_access_hatch": {
 			"group": "floors"
 		},
-		"hub_floor_cable_cover": {
-			"group": "floors"
-		},
 		"hub_tread_mat": {
-			"group": "floors"
-		},
-		"hub_pit_lip_segment": {
 			"group": "floors"
 		},
 		"hub_pit_wall_panel": {
@@ -378,19 +370,22 @@
 		"ring_floor_plate_1": {
 			"glows": false
 		},
+		"ring_floor_plate_2": {
+			"glows": false
+		},
+		"ring_floor_plate_3": {
+			"glows": false
+		},
+		"ring_floor_plate_4": {
+			"glows": false
+		},
 		"floor_grating_1": {
 			"glows": false
 		},
 		"floor_access_hatch_1": {
 			"glows": false
 		},
-		"floor_cable_cover_1": {
-			"glows": false
-		},
 		"tread_mat_1": {
-			"glows": false
-		},
-		"pit_lip_segment_1": {
 			"glows": false
 		},
 		"pit_wall_panel_1": {
@@ -499,6 +494,98 @@
 		},
 		"waste_bin_1": {
 			"glows": false
+		},
+		"console_1": {
+			"glows": false,
+			"prop": "hub_console",
+			"size": [
+				2.6,
+				1.2,
+				0.6
+			]
+		},
+		"console_1_glow": {
+			"glows": true,
+			"part_of": "console_1"
+		},
+		"labbench_1": {
+			"glows": false,
+			"prop": "hub_labbench",
+			"size": [
+				2.0,
+				1.5,
+				0.7
+			]
+		},
+		"chair_1": {
+			"glows": false,
+			"prop": "hub_chair",
+			"size": [
+				0.6,
+				0.9,
+				0.6
+			]
+		},
+		"talllocker_1": {
+			"glows": false,
+			"prop": "hub_talllocker",
+			"size": [
+				1.2,
+				2.0,
+				0.55
+			]
+		},
+		"rack_1": {
+			"glows": false,
+			"prop": "hub_rack",
+			"size": [
+				0.6,
+				1.9,
+				0.6
+			]
+		},
+		"comms_1": {
+			"glows": false,
+			"prop": "hub_comms",
+			"size": [
+				1.5,
+				1.2,
+				0.7
+			]
+		},
+		"comms_1_glow": {
+			"glows": true,
+			"part_of": "comms_1"
+		},
+		"toolboard_1": {
+			"glows": false,
+			"prop": "hub_toolboard",
+			"size": [
+				1.2,
+				0.8,
+				0.08
+			]
+		},
+		"console_screen_1": {
+			"glows": true,
+			"picture": null,
+			"live": true,
+			"size": [
+				0.44,
+				0.26,
+				0.004
+			],
+			"shows": {
+				"left": "screen_status",
+				"right": "console_systems"
+			}
+		},
+		"status_lamp_1": {
+			"glows": true,
+			"lamp": {
+				"name": "status_lamp_1",
+				"radius": 0.03
+			}
 		}
 	},
 	"pieces": [
@@ -530,6 +617,14 @@
 				0.08
 			],
 			"layer": 1,
+			"openings": [
+				[
+					-0.604,
+					2.936,
+					0.604,
+					3.024
+				]
+			],
 			"model": "hatch_wall_surround_1"
 		},
 		{
@@ -800,6 +895,14 @@
 				0.08
 			],
 			"layer": 1,
+			"openings": [
+				[
+					-0.604,
+					2.936,
+					0.604,
+					3.024
+				]
+			],
 			"model": "hatch_wall_surround_2"
 		},
 		{
@@ -1132,6 +1235,14 @@
 				0.08
 			],
 			"layer": 1,
+			"openings": [
+				[
+					-0.604,
+					2.936,
+					0.604,
+					3.024
+				]
+			],
 			"model": "hatch_wall_surround_3"
 		},
 		{
@@ -1402,6 +1513,14 @@
 				0.08
 			],
 			"layer": 1,
+			"openings": [
+				[
+					-0.604,
+					2.936,
+					0.604,
+					3.024
+				]
+			],
 			"model": "hatch_wall_surround_4"
 		},
 		{
@@ -1642,6 +1761,14 @@
 				0.08
 			],
 			"layer": 1,
+			"openings": [
+				[
+					-0.604,
+					2.936,
+					0.604,
+					3.024
+				]
+			],
 			"model": "hatch_wall_surround_5"
 		},
 		{
@@ -7295,6 +7422,14 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
+			"openings": [
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
 			"model": "ring_floor_plate_1"
 		},
 		{
@@ -7326,7 +7461,15 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"openings": [
+				[
+					-0.304,
+					0.346,
+					0.304,
+					0.954
+				]
+			],
+			"model": "ring_floor_plate_2"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7357,7 +7500,15 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"openings": [
+				[
+					-0.304,
+					1.246,
+					0.304,
+					1.854
+				]
+			],
+			"model": "ring_floor_plate_3"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7388,6 +7539,14 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
+			"openings": [
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
 			"model": "ring_floor_plate_1"
 		},
 		{
@@ -7419,7 +7578,7 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"model": "ring_floor_plate_4"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7450,7 +7609,7 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"model": "ring_floor_plate_4"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7481,6 +7640,14 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
+			"openings": [
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
 			"model": "ring_floor_plate_1"
 		},
 		{
@@ -7512,7 +7679,15 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"openings": [
+				[
+					-0.304,
+					0.346,
+					0.304,
+					0.954
+				]
+			],
+			"model": "ring_floor_plate_2"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7543,7 +7718,15 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"openings": [
+				[
+					-0.304,
+					1.246,
+					0.304,
+					1.854
+				]
+			],
+			"model": "ring_floor_plate_3"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7574,6 +7757,14 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
+			"openings": [
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
 			"model": "ring_floor_plate_1"
 		},
 		{
@@ -7605,7 +7796,7 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"model": "ring_floor_plate_4"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7636,24 +7827,24 @@
 			],
 			"layer": 1,
 			"taper": 0.5311,
-			"model": "ring_floor_plate_1"
+			"model": "ring_floor_plate_4"
 		},
 		{
 			"kind": "hub_floor_grating",
 			"at": [
-				2.0506,
-				0.028,
-				-2.0506
+				2.295,
+				-0.006,
+				-1.325
 			],
 			"x": [
-				-0.70711,
+				-0.5,
 				0.0,
-				-0.70711
+				-0.86603
 			],
 			"y": [
-				0.70711,
+				0.86603,
 				0.0,
-				-0.70711
+				-0.5
 			],
 			"z": [
 				-0.0,
@@ -7661,29 +7852,30 @@
 				-0.0
 			],
 			"size": [
-				1.0,
-				1.0,
+				0.6,
+				0.6,
 				0.05
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_grating",
 			"at": [
-				2.8012,
-				0.028,
-				0.7506
+				-2.295,
+				-0.006,
+				1.325
 			],
 			"x": [
-				0.25882,
-				0.0,
-				-0.96593
+				0.5,
+				-0.0,
+				0.86603
 			],
 			"y": [
-				0.96593,
+				-0.86603,
 				0.0,
-				0.25882
+				0.5
 			],
 			"z": [
 				-0.0,
@@ -7691,149 +7883,30 @@
 				-0.0
 			],
 			"size": [
-				1.0,
-				1.0,
+				0.6,
+				0.6,
 				0.05
 			],
 			"layer": 1,
-			"model": "floor_grating_1"
-		},
-		{
-			"kind": "hub_floor_grating",
-			"at": [
-				0.7506,
-				0.028,
-				2.8012
-			],
-			"x": [
-				0.96593,
-				0.0,
-				-0.25882
-			],
-			"y": [
-				0.25882,
-				0.0,
-				0.96593
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.0,
-				1.0,
-				0.05
-			],
-			"layer": 1,
-			"model": "floor_grating_1"
-		},
-		{
-			"kind": "hub_floor_grating",
-			"at": [
-				-2.0506,
-				0.028,
-				2.0506
-			],
-			"x": [
-				0.70711,
-				-0.0,
-				0.70711
-			],
-			"y": [
-				-0.70711,
-				0.0,
-				0.70711
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.0,
-				1.0,
-				0.05
-			],
-			"layer": 1,
-			"model": "floor_grating_1"
-		},
-		{
-			"kind": "hub_floor_grating",
-			"at": [
-				-2.8012,
-				0.028,
-				-0.7506
-			],
-			"x": [
-				-0.25882,
-				0.0,
-				0.96593
-			],
-			"y": [
-				-0.96593,
-				0.0,
-				-0.25882
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.0,
-				1.0,
-				0.05
-			],
-			"layer": 1,
-			"model": "floor_grating_1"
-		},
-		{
-			"kind": "hub_floor_grating",
-			"at": [
-				-0.7506,
-				0.028,
-				-2.8012
-			],
-			"x": [
-				-0.96593,
-				0.0,
-				0.25882
-			],
-			"y": [
-				-0.25882,
-				0.0,
-				-0.96593
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.0,
-				1.0,
-				0.05
-			],
-			"layer": 1,
+			"set_in": true,
 			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_access_hatch",
 			"at": [
-				3.3807,
-				0.024,
-				-0.9059
+				1.775,
+				-0.0,
+				-3.0744
 			],
 			"x": [
-				-0.25882,
+				-0.86603,
 				0.0,
-				-0.96593
+				-0.5
 			],
 			"y": [
-				0.96593,
+				0.5,
 				0.0,
-				-0.25882
+				-0.86603
 			],
 			"z": [
 				-0.0,
@@ -7841,29 +7914,30 @@
 				-0.0
 			],
 			"size": [
-				0.8,
-				0.8,
+				0.6,
+				0.6,
 				0.042
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "floor_access_hatch_1"
 		},
 		{
 			"kind": "hub_floor_access_hatch",
 			"at": [
-				2.4749,
-				0.024,
-				2.4749
+				-1.775,
+				-0.0,
+				3.0744
 			],
 			"x": [
-				0.70711,
-				0.0,
-				-0.70711
+				0.86603,
+				-0.0,
+				0.5
 			],
 			"y": [
-				0.70711,
+				-0.5,
 				0.0,
-				0.70711
+				0.86603
 			],
 			"z": [
 				-0.0,
@@ -7871,198 +7945,19 @@
 				-0.0
 			],
 			"size": [
-				0.8,
-				0.8,
+				0.6,
+				0.6,
 				0.042
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "floor_access_hatch_1"
-		},
-		{
-			"kind": "hub_floor_access_hatch",
-			"at": [
-				-0.9059,
-				0.024,
-				3.3807
-			],
-			"x": [
-				0.96593,
-				-0.0,
-				0.25882
-			],
-			"y": [
-				-0.25882,
-				0.0,
-				0.96593
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				0.8,
-				0.8,
-				0.042
-			],
-			"layer": 1,
-			"model": "floor_access_hatch_1"
-		},
-		{
-			"kind": "hub_floor_access_hatch",
-			"at": [
-				-3.3807,
-				0.024,
-				0.9059
-			],
-			"x": [
-				0.25882,
-				-0.0,
-				0.96593
-			],
-			"y": [
-				-0.96593,
-				0.0,
-				0.25882
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				0.8,
-				0.8,
-				0.042
-			],
-			"layer": 1,
-			"model": "floor_access_hatch_1"
-		},
-		{
-			"kind": "hub_floor_cable_cover",
-			"at": [
-				1.7677,
-				0.033,
-				2.1066
-			],
-			"x": [
-				0.76604,
-				0.0,
-				-0.64279
-			],
-			"y": [
-				0.64279,
-				0.0,
-				0.76604
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.2,
-				0.3,
-				0.054
-			],
-			"layer": 1,
-			"model": "floor_cable_cover_1"
-		},
-		{
-			"kind": "hub_floor_cable_cover",
-			"at": [
-				-0.9406,
-				0.033,
-				2.5842
-			],
-			"x": [
-				0.93969,
-				-0.0,
-				0.34202
-			],
-			"y": [
-				-0.34202,
-				0.0,
-				0.93969
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.2,
-				0.3,
-				0.054
-			],
-			"layer": 1,
-			"model": "floor_cable_cover_1"
-		},
-		{
-			"kind": "hub_floor_cable_cover",
-			"at": [
-				-2.7082,
-				0.033,
-				0.4775
-			],
-			"x": [
-				0.17365,
-				-0.0,
-				0.98481
-			],
-			"y": [
-				-0.98481,
-				0.0,
-				0.17365
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.2,
-				0.3,
-				0.054
-			],
-			"layer": 1,
-			"model": "floor_cable_cover_1"
-		},
-		{
-			"kind": "hub_floor_cable_cover",
-			"at": [
-				-1.7677,
-				0.033,
-				-2.1066
-			],
-			"x": [
-				-0.76604,
-				0.0,
-				0.64279
-			],
-			"y": [
-				-0.64279,
-				0.0,
-				-0.76604
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.2,
-				0.3,
-				0.054
-			],
-			"layer": 1,
-			"model": "floor_cable_cover_1"
 		},
 		{
 			"kind": "hub_tread_mat",
 			"at": [
 				0.0,
-				0.016,
+				0.009,
 				-3.45
 			],
 			"x": [
@@ -8086,13 +7981,14 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "tread_mat_1"
 		},
 		{
 			"kind": "hub_tread_mat",
 			"at": [
 				3.45,
-				0.016,
+				0.009,
 				0.0
 			],
 			"x": [
@@ -8116,13 +8012,14 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "tread_mat_1"
 		},
 		{
 			"kind": "hub_tread_mat",
 			"at": [
 				0.0,
-				0.016,
+				0.009,
 				3.45
 			],
 			"x": [
@@ -8146,13 +8043,14 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "tread_mat_1"
 		},
 		{
 			"kind": "hub_tread_mat",
 			"at": [
 				-3.45,
-				0.016,
+				0.009,
 				0.0
 			],
 			"x": [
@@ -8176,187 +8074,8 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "tread_mat_1"
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				1.885,
-				0.06,
-				-1.3695
-			],
-			"x": [
-				-0.58779,
-				0.0,
-				-0.80902
-			],
-			"y": [
-				0.80902,
-				0.0,
-				-0.58779
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1,
-			"model": "pit_lip_segment_1"
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				2.33,
-				0.06,
-				0.0
-			],
-			"x": [
-				-0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1,
-			"model": "pit_lip_segment_1"
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				1.885,
-				0.06,
-				1.3695
-			],
-			"x": [
-				0.58779,
-				0.0,
-				-0.80902
-			],
-			"y": [
-				0.80902,
-				0.0,
-				0.58779
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1,
-			"model": "pit_lip_segment_1"
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				-1.885,
-				0.06,
-				1.3695
-			],
-			"x": [
-				0.58779,
-				-0.0,
-				0.80902
-			],
-			"y": [
-				-0.80902,
-				0.0,
-				0.58779
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1,
-			"model": "pit_lip_segment_1"
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				-2.33,
-				0.06,
-				0.0
-			],
-			"x": [
-				0.0,
-				-0.0,
-				1.0
-			],
-			"y": [
-				-1.0,
-				0.0,
-				0.0
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1,
-			"model": "pit_lip_segment_1"
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				-1.885,
-				0.06,
-				-1.3695
-			],
-			"x": [
-				-0.58779,
-				0.0,
-				0.80902
-			],
-			"y": [
-				-0.80902,
-				0.0,
-				-0.58779
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1,
-			"model": "pit_lip_segment_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -9049,6 +8768,186 @@
 			"model": "pit_wall_panel_1"
 		},
 		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.048,
+				-0.35,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				0.48989
+			],
+			"y": [
+				0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.6611,
+				-0.35,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				0.30902
+			],
+			"y": [
+				0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.2484,
+				-0.35,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				0.11609
+			],
+			"y": [
+				0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.048,
+				-0.55,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				0.48989
+			],
+			"y": [
+				0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.6611,
+				-0.55,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				0.30902
+			],
+			"y": [
+				0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.2484,
+				-0.55,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				0.11609
+			],
+			"y": [
+				0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
 			"kind": "hub_pit_wall_panel",
 			"at": [
 				-0.7076,
@@ -9077,6 +8976,186 @@
 			],
 			"layer": 1,
 			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.2484,
+				-0.35,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				-0.11609
+			],
+			"y": [
+				-0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.6611,
+				-0.35,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				-0.30902
+			],
+			"y": [
+				-0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.048,
+				-0.35,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				-0.48989
+			],
+			"y": [
+				-0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.2484,
+				-0.55,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				-0.11609
+			],
+			"y": [
+				-0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.6611,
+				-0.55,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				-0.30902
+			],
+			"y": [
+				-0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.048,
+				-0.55,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				-0.48989
+			],
+			"y": [
+				-0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -10821,308 +10900,6 @@
 			"model": "stair_stringer_1"
 		},
 		{
-			"kind": "hub_floor_grating",
-			"at": [
-				0.0,
-				-0.205,
-				2.1025
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.14,
-				0.2275,
-				0.05
-			],
-			"layer": 1,
-			"model": "floor_grating_2"
-		},
-		{
-			"kind": "hub_pit_floor_plate",
-			"at": [
-				0.0,
-				-0.36,
-				2.1205
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"size": [
-				1.14,
-				0.18,
-				0.044
-			],
-			"layer": 1,
-			"model": "pit_floor_plate_2"
-		},
-		{
-			"kind": "hub_floor_grating",
-			"at": [
-				0.0,
-				-0.385,
-				1.875
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.14,
-				0.2275,
-				0.05
-			],
-			"layer": 1,
-			"model": "floor_grating_2"
-		},
-		{
-			"kind": "hub_pit_floor_plate",
-			"at": [
-				0.0,
-				-0.54,
-				1.893
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"size": [
-				1.14,
-				0.18,
-				0.044
-			],
-			"layer": 1,
-			"model": "pit_floor_plate_2"
-		},
-		{
-			"kind": "hub_floor_grating",
-			"at": [
-				0.0,
-				-0.565,
-				1.6475
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.14,
-				0.2275,
-				0.05
-			],
-			"layer": 1,
-			"model": "floor_grating_2"
-		},
-		{
-			"kind": "hub_pit_floor_plate",
-			"at": [
-				0.0,
-				-0.72,
-				1.6655
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"size": [
-				1.14,
-				0.18,
-				0.044
-			],
-			"layer": 1,
-			"model": "pit_floor_plate_2"
-		},
-		{
-			"kind": "hub_floor_grating",
-			"at": [
-				0.0,
-				-0.745,
-				1.42
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.14,
-				0.2275,
-				0.05
-			],
-			"layer": 1,
-			"model": "floor_grating_2"
-		},
-		{
-			"kind": "hub_pit_floor_plate",
-			"at": [
-				0.0,
-				-0.9,
-				1.438
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"size": [
-				1.14,
-				0.18,
-				0.044
-			],
-			"layer": 1,
-			"model": "pit_floor_plate_2"
-		},
-		{
-			"kind": "hub_stair_stringer",
-			"at": [
-				0.5815,
-				-0.9,
-				1.875
-			],
-			"x": [
-				-0.0,
-				-0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"size": [
-				0.91,
-				0.72,
-				0.037
-			],
-			"layer": 1,
-			"treads": 4,
-			"model": "stair_stringer_1"
-		},
-		{
-			"kind": "hub_stair_stringer",
-			"at": [
-				-0.5885,
-				-0.9,
-				1.875
-			],
-			"x": [
-				-0.0,
-				-0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"size": [
-				0.91,
-				0.72,
-				0.037
-			],
-			"layer": 1,
-			"treads": 4,
-			"model": "stair_stringer_1"
-		},
-		{
 			"kind": "hub_hatch_frame",
 			"at": [
 				0.0,
@@ -11145,8 +10922,8 @@
 				-1.0
 			],
 			"size": [
-				2.4002,
-				2.6929,
+				2.4,
+				2.693,
 				0.3
 			],
 			"layer": 1,
@@ -11325,8 +11102,8 @@
 				-0.0
 			],
 			"size": [
-				2.4002,
-				2.6929,
+				2.4,
+				2.693,
 				0.3
 			],
 			"layer": 1,
@@ -11355,8 +11132,8 @@
 				-0.0
 			],
 			"size": [
-				2.4002,
-				2.6929,
+				2.4,
+				2.693,
 				0.3
 			],
 			"layer": 1,
@@ -11445,8 +11222,8 @@
 				1.0
 			],
 			"size": [
-				2.4002,
-				2.6929,
+				2.4,
+				2.693,
 				0.3
 			],
 			"layer": 1,
@@ -11625,8 +11402,8 @@
 				0.0
 			],
 			"size": [
-				2.4002,
-				2.6929,
+				2.4,
+				2.693,
 				0.3
 			],
 			"layer": 1,
@@ -11655,8 +11432,8 @@
 				0.0
 			],
 			"size": [
-				2.4002,
-				2.6929,
+				2.4,
+				2.693,
 				0.3
 			],
 			"layer": 1,
@@ -11727,7 +11504,7 @@
 			"at": [
 				0.0,
 				2.94,
-				-4.38
+				-4.481
 			],
 			"x": [
 				-1.0,
@@ -11750,6 +11527,7 @@
 				0.08
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1"
 		},
 		{
@@ -11757,7 +11535,7 @@
 			"at": [
 				0.0,
 				2.955,
-				-4.33
+				-4.431
 			],
 			"x": [
 				-1.0,
@@ -11780,13 +11558,14 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1_glow",
 			"part": "glow"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				4.38,
+				4.481,
 				2.94,
 				0.0
 			],
@@ -11811,12 +11590,13 @@
 				0.08
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				4.33,
+				4.431,
 				2.955,
 				0.0
 			],
@@ -11841,6 +11621,7 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1_glow",
 			"part": "glow"
 		},
@@ -11849,7 +11630,7 @@
 			"at": [
 				0.0,
 				2.94,
-				4.38
+				4.481
 			],
 			"x": [
 				1.0,
@@ -11872,6 +11653,7 @@
 				0.08
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1"
 		},
 		{
@@ -11879,7 +11661,7 @@
 			"at": [
 				0.0,
 				2.955,
-				4.33
+				4.431
 			],
 			"x": [
 				1.0,
@@ -11902,13 +11684,14 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1_glow",
 			"part": "glow"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				-4.38,
+				-4.481,
 				2.94,
 				0.0
 			],
@@ -11933,12 +11716,13 @@
 				0.08
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				-4.33,
+				-4.431,
 				2.955,
 				0.0
 			],
@@ -11963,15 +11747,16 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1_glow",
 			"part": "glow"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				-2.19,
+				-2.2405,
 				2.94,
-				-3.7932
+				-3.8807
 			],
 			"x": [
 				-0.86603,
@@ -11994,14 +11779,15 @@
 				0.08
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				-2.165,
+				-2.2155,
 				2.955,
-				-3.7499
+				-3.8374
 			],
 			"x": [
 				-0.86603,
@@ -12024,6 +11810,7 @@
 				0.02
 			],
 			"layer": 1,
+			"set_in": true,
 			"model": "door_strip_lamp_1_glow",
 			"part": "glow"
 		},

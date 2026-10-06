@@ -40,7 +40,6 @@
 	"kit": {
 		"hub_floor_grating": "steel_grating",
 		"hub_tread_mat": "rubber",
-		"hub_floor_cable_cover": "rubber",
 		"hub_ceiling_cable_tray": "steel_grating",
 		"hub_hatch_window": "glass",
 		"hub_porthole_panel": "glass",
