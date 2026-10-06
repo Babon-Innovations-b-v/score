@@ -52,19 +52,18 @@ def offers(machine_type):
     return sorted(found, key=lambda offer: (offer[1], offer[0]))
 
 
-def estimate(jobs, hold):
-    """Minutes the run is expected to take: the setup, then the longest job (they run side by side)."""
-    longest = max((json.loads((job / "spec.json").read_text()).get("minutes", JOB_MINUTES) for job in jobs),
-                  default=0)
-    return SETUP_MINUTES + longest + (60 if hold else 0)
+def estimate(jobs, hold, at_once):
+    """Minutes the run is expected to take: the setup, then the jobs `at_once` side by side."""
+    minutes = [json.loads((job / "spec.json").read_text()).get("minutes", JOB_MINUTES) for job in jobs]
+    return SETUP_MINUTES + max(max(minutes, default=0), sum(minutes) / at_once) + (60 if hold else 0)
 
 
-def price(jobs, machine_type, project, hold):
+def price(jobs, machine_type, project, hold, at_once):
     """Print the estimate and refuse what passes the owner's limits; the offers and the allowed minutes."""
     found = offers(machine_type)
     if not found:
         raise SystemExit(f"no {machine_type} is in stock in {', '.join(scaleway.ZONES)}")
-    minutes = estimate(jobs, hold)
+    minutes = estimate(jobs, hold, at_once)
     dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
     batch.say(f"{len(jobs)} Infinigen jobs on one {machine_type}: about {minutes:.0f} min, "
@@ -93,38 +92,49 @@ def job_line(name):
     return f"setsid -f bash -c {json.dumps(run)} < /dev/null > /dev/null 2>&1"
 
 
-def start_jobs(folder, host, jobs):
-    for job in jobs:
-        batch.copy(folder, [job / "spec.json", *sorted(job.glob("*.npy")), *sorted(job.glob("*.npz"))],
-                   f"root@{host}:{REMOTE}/jobs/{job.name}/")
-        batch.remote(folder, host, job_line(job.name), check=True)
-        batch.say(f"started {job.name}")
+def start_job(folder, host, job):
+    batch.copy(folder, [job / "spec.json", *sorted(job.glob("*.npy")), *sorted(job.glob("*.npz"))],
+               f"root@{host}:{REMOTE}/jobs/{job.name}/")
+    batch.remote(folder, host, job_line(job.name), check=True)
+    batch.say(f"started {job.name}")
 
 
-def bring_back(folder, host, job):
-    batch.copy(folder, [f"root@{host}:{REMOTE}/jobs/{job.name}/out/", ], f"{job / 'out'}/")
-    batch.copy(folder, [f"root@{host}:{REMOTE}/jobs/{job.name}/run.log"], f"{job}/")
+def bring_back(folder, host, job, tries=3):
+    """Copy a job's out folder and log back, trying again on a busy machine's refused ssh."""
+    for attempt in range(tries):
+        try:
+            batch.copy(folder, [f"root@{host}:{REMOTE}/jobs/{job.name}/out/", ], f"{job / 'out'}/")
+            batch.copy(folder, [f"root@{host}:{REMOTE}/jobs/{job.name}/run.log"], f"{job}/")
+            return
+        except subprocess.CalledProcessError:
+            if attempt == tries - 1:
+                raise
+            time.sleep(POLL_SECONDS)
 
 
 def exit_code(folder, host, job):
     """The job's exit code, or None while it runs."""
     answer = batch.remote(folder, host, f"cat {REMOTE}/jobs/{job.name}/exit 2>/dev/null", capture_output=True,
                           text=True)
-    return int(answer.stdout) if answer.stdout.strip() else None
+    return int(answer.stdout) if answer.stdout.strip().lstrip("-").isdigit() else None
 
 
-def wait_for_jobs(run, folder, host, jobs):
-    """Bring each job back as it ends; their exit codes by name."""
-    ended = {}
-    while len(ended) < len(jobs) and time.time() < run.deadline:
-        for job in jobs:
-            if job.name in ended:
-                continue
+def run_jobs(run, folder, host, jobs, at_once):
+    """Run the jobs, at most `at_once` side by side, bringing each back as it ends; their exit codes by name.
+    Ten jobs at once on 16 processors (a load of 78) starved the machine's ssh, 2026-10-06."""
+    ended, waiting, running = {}, list(jobs), []
+    while (waiting or running) and time.time() < run.deadline:
+        while waiting and len(running) < at_once:
+            job = waiting.pop(0)
+            start_job(folder, host, job)
+            running.append(job)
+        for job in list(running):
             code = exit_code(folder, host, job)
             if code is not None:
                 (job / "out").mkdir(exist_ok=True)
                 bring_back(folder, host, job)
                 ended[job.name] = code
+                running.remove(job)
                 batch.say(f"{job.name} ended with {code} after {(time.time() - run.started) / 60:.0f} min")
         time.sleep(POLL_SECONDS)
     return ended
@@ -137,7 +147,7 @@ def hold(run, host):
         time.sleep(POLL_SECONDS)
 
 
-def work_on(run, machine, jobs, holding):
+def work_on(run, machine, jobs, holding, at_once):
     """One machine from boot to delete; the jobs' exit codes."""
     folder = machine["folder"]
     stop = threading.Event()
@@ -155,8 +165,7 @@ def work_on(run, machine, jobs, holding):
             hold(run, host)
             return {}
         batch.say(f"set up after {(time.time() - machine['created']) / 60:.1f} min")
-        start_jobs(folder, host, jobs)
-        ended = wait_for_jobs(run, folder, host, jobs)
+        ended = run_jobs(run, folder, host, jobs, at_once)
         if holding:
             hold(run, host)
         return ended
@@ -184,6 +193,7 @@ def main():
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--type", default=MACHINE, help="the Scaleway processor machine")
     parser.add_argument("--hold", action="store_true", help="keep the machine for ssh work until `release`")
+    parser.add_argument("--at-once", type=int, default=4, help="jobs side by side (default 4)")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     options = parser.parse_args()
     jobs = [job.resolve() for job in options.jobs]
@@ -192,7 +202,7 @@ def main():
             raise SystemExit(f"{job} holds no spec.json")
     project = scaleway.project_id()
     batch.sweep(project)
-    found, allowed_minutes = price(jobs, options.type, project, options.hold)
+    found, allowed_minutes = price(jobs, options.type, project, options.hold, options.at_once)
     if options.dry_run:
         return
     scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
@@ -209,7 +219,7 @@ def main():
                 break
         if machine is None:
             raise SystemExit(f"no {options.type} could be rented")
-        ended = work_on(run, machine, jobs, options.hold)
+        ended = work_on(run, machine, jobs, options.hold, options.at_once)
     finally:
         if machine:
             batch.delete_machine(machine)

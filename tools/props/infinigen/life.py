@@ -54,7 +54,8 @@ def kelp(ground, zone):
 
 def rubble(ground, zone):
     """Moon rubble: Infinigen's pebble rocks, kept small (3 to 25 cm) and thinner on the ground than its pebbles,
-    since the plan's boulders are placed one by one."""
+    since the plan's boulders are placed one by one. Even over the patch: Infinigen's taper_density thins a scatter
+    with distance from the scene's camera, which left the far side of the crater bare (2026-10-06)."""
     from infinigen.assets.objects.rocks.blender_rock import BlenderRockFactory
     from infinigen.core.placement.factory import make_asset_collection
     from infinigen.core.placement.instance_scatter import scatter_instances
@@ -62,8 +63,8 @@ def rubble(ground, zone):
     from infinigen.core.util.random import weighted_sample
     rocks = make_asset_collection(BlenderRockFactory(np.random.randint(1e5), detail=3), name="rubble", n=5)
     weighted_sample(material_assignments.rock)().apply(list(rocks.objects))
-    return scatter_instances(base_obj=ground, collection=rocks, vol_density=0.03, ground_offset=0.02,
-                             scale=0.12, scale_rand=0.8, scale_rand_axi=0.5, selection=zone, taper_density=True)
+    return scatter_instances(base_obj=ground, collection=rocks, vol_density=0.01, ground_offset=0.02,
+                             scale=0.12, scale_rand=0.8, scale_rand_axi=0.5, selection=zone, taper_density=False)
 
 
 def factory_for(kind, seed):
@@ -155,6 +156,7 @@ def variants(kind, seed, count=VARIANTS):
     made = []
     for index in range(count):
         spawned = factory.spawn_asset(index)
+        factory.finalize_assets(spawned)
         obj = realized(spawned, f"{kind}-{index}")
         centred_on_base(obj)
         made.append(obj)

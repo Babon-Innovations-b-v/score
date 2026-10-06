@@ -45,12 +45,12 @@ class Steps:
         print(f"[patch] {name}: {self.seconds[name]} s", flush=True)
 
 
-def start_infinigen(kind, seed):
-    """Infinigen's gin configuration for the kind's scene type, its Blender settings, and the seed."""
+def start_infinigen(scene_type, seed):
+    """Infinigen's gin configuration for a scene type, its Blender settings, and the seed."""
     from infinigen.core import init
     from infinigen.core.util.math import FixedSeed  # noqa: F401 - imported so a broken install fails here
     init.apply_gin_configs(config_folders="infinigen_examples/configs_nature",
-                           configs=["base_nature.gin", SCENE_TYPE[kind]], skip_unknown=True)
+                           configs=["base_nature.gin", scene_type], skip_unknown=True)
     init.configure_blender()
     for obj in list(bpy.data.objects):
         bpy.data.objects.remove(obj, do_unlink=True)
@@ -143,6 +143,18 @@ def render(folder, samples=SAMPLES):
     bpy.ops.render.render(write_still=True)
 
 
+def walk_around(spec, side):
+    """Pictures from the spec's other cameras (view-<name>.png): round the patch, from the rim, from above."""
+    for name, shot in spec.get("views", {}).items():
+        cam = camera(dict(spec, camera=shot), side)
+        if shot.get("ortho_m"):
+            cam.data.type = "ORTHO"
+            cam.data.ortho_scale = shot["ortho_m"]
+        bpy.context.scene.camera = cam
+        bpy.context.scene.render.filepath = str(spec["_out"] / f"view-{name}.png")
+        bpy.ops.render.render(write_still=True)
+
+
 def water_planes(spec, zones, side):
     """The plan's pools as flat water at their own levels, each over its zone's box; their records for Godot."""
     if "water" not in (zones.files if zones is not None else []) or "water_level" not in spec:
@@ -178,7 +190,7 @@ def patch(spec, folder, steps):
     zones = np.load(spec["_folder"] / spec["zones"]) if "zones" in spec else None
     cam = camera(spec, side)
     if spec["kind"] == "moon":
-        high, _ = ground.crater_ground(spec, heights)
+        high, _ = ground.crater_ground(spec)
         high.data.materials.append(ground.regolith())
     else:
         high = ground.heightfield(heights, side, RENDER_CELL_M[spec["kind"]])
@@ -207,6 +219,7 @@ def patch(spec, folder, steps):
     water = water_planes(spec, zones, side)
     light(spec, cam)
     render(folder)
+    walk_around(spec, side)
     steps("render")
     ground_entry = game_export.ground_model(high, side, spec["game"]["ground_cell_m"],
                                             spec["game"]["ground_texture_px"], folder,
@@ -215,10 +228,14 @@ def patch(spec, folder, steps):
     models, placements = game_export.scattered(scatters, spec["game"], folder)
     more, more_placements = game_export.placed(spots, spec["game"], folder)
     steps("export models")
-    shot = dict(spec["camera"], x=spec["camera"]["x"] - side / 2, y=spec["camera"]["y"] - side / 2,
-                look_x=spec["camera"]["look_x"] - side / 2, look_y=spec["camera"]["look_y"] - side / 2)
+    def centred(view):
+        return dict(view, x=view["x"] - side / 2, y=view["y"] - side / 2, look_x=view["look_x"] - side / 2,
+                    look_y=view["look_y"] - side / 2)
+
+    shot = centred(spec["camera"])
+    views = {name: centred(view) for name, view in spec.get("views", {}).items()}
     return game_export.write(folder, spec, ground_entry, models + more, {**placements, **more_placements},
-                             {"water": water, "camera": shot, "look": spec["look"],
+                             {"water": water, "camera": shot, "views": views, "look": spec["look"],
                               "water_depth_m": spec.get("water_depth_m")})
 
 
@@ -258,10 +275,17 @@ def main():
     folder.mkdir(parents=True, exist_ok=True)
     spec = json.loads(spec_path.read_text())
     spec["_folder"] = spec_path.parent
+    spec["_out"] = folder
     steps = Steps(folder)
-    start_infinigen(spec["kind"], spec["seed"])
+    start_infinigen(spec.get("scene_type") or SCENE_TYPE[spec["kind"]], spec["seed"])
     steps("start")
-    made = fish(spec, folder, steps) if spec["kind"] == "fish" else patch(spec, folder, steps)
+    if spec["kind"] == "asset":
+        import asset
+        made = asset.asset(spec, folder, steps)
+    elif spec["kind"] == "fish":
+        made = fish(spec, folder, steps)
+    else:
+        made = patch(spec, folder, steps)
     bpy.ops.wm.save_as_mainfile(filepath=str(spec_path.parent / "scene.blend"))
     steps("saved")
     print(json.dumps({key: value for key, value in made.items() if key not in ("models",)}, default=str)[:2000])

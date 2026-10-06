@@ -246,15 +246,94 @@ def realized_source(name):
     return life.realized(copy, f"{name}-full")
 
 
-def model(source_full, kind, number, budget, size, folder):
-    """One game model from a full mesh: thinned to `budget`, baked from the full mesh, written as a glb."""
-    name = f"{kind}-{number}"
-    low = thinned(source_full, budget, name)
-    reach = max(source_full.dimensions) * 0.05 + 0.005
-    bake_onto(low, source_full, size, folder, reach)
+def baked_in_place(full, name, size, folder):
+    """A copy of `full` at full detail, its procedural materials baked into one atlas of colour, roughness and
+    normal maps by Infinigen's own exporter (tools/export.py: unwrap, bake each pass, swap in the images)."""
+    from infinigen.tools import export
+    obj = full.copy()
+    obj.data = full.data.copy()
+    obj.name = name
+    bpy.context.scene.collection.objects.link(obj)
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = 4
+    others = [item for item in scene.objects if item is not obj and not item.hide_render]
+    for item in others:
+        item.hide_render = True
+    obj.hide_viewport = obj.hide_render = False
+    try:
+        select_only(obj)
+        export.bake_object(obj, folder, size, False, export_name=name)
+    finally:
+        for item in others:
+            item.hide_render = False
+    return obj
+
+
+def near_version(full, name, near_triangles, size, folder):
+    """The game's close-up version of a full Infinigen mesh: the full mesh with Infinigen's own bake of its
+    materials (colour, roughness, normal, from the full mesh), and only when it is over `near_triangles`,
+    collapsed to that budget afterwards, keeping its UVs so the full mesh's maps stay on it. Godot makes the
+    distance levels itself and they all wear the same maps. Never a 1% cut: the owner turned those down
+    (2026-10-06). (A selected-to-active bake onto a separately unwrapped copy came back empty on the fern's
+    1.5 M-triangle fronds, so the bake is always on the full mesh.)"""
+    try:
+        low = baked_in_place(full, name, size, folder)
+    except RuntimeError as error:
+        # Seen once (Moon rubble, 2026-10-06: "No valid selected objects"): bake onto a copy instead.
+        print(f"[export] {name}: Infinigen's bake failed ({error}); baking onto a copy", flush=True)
+        low = thinned(full, near_triangles, name)
+        bake_onto(low, full, size, folder, reach=max(full.dimensions) * 0.02 + 0.002)
+        return low
+    one_material(low)
+    collapse(low, near_triangles)
+    return low
+
+
+def one_material(obj):
+    """After Infinigen's bake every slot wears the same baked atlas, but the slots stay: the shrub kept 285, one
+    draw call each in the game (2026-10-06). Keep the first slot and put every face on it."""
+    if len(obj.material_slots) < 2:
+        return
+    obj.data.polygons.foreach_set("material_index", [0] * len(obj.data.polygons))
+    while len(obj.data.materials) > 1:
+        obj.data.materials.pop(index=len(obj.data.materials) - 1)
+
+
+def game_model(full, name, near_triangles, size, folder):
+    """near_version written as <name>.glb; the object."""
+    low = near_version(full, name, near_triangles, size, folder)
     export_glb(low, folder / f"{name}.glb")
+    return low
+
+
+def lod_chain(near, name, folder, shares=(0.25, 0.06), smallest=20000):
+    """Lighter levels of a close-up model for distance, <name>-lod1.glb and -lod2.glb: the same mesh collapsed to
+    `shares` of its triangles, keeping its UVs, so they wear the full mesh's baked maps (normals included).
+    Godot's own LOD generation made no levels for the coral and boulder (their bake's UV seams block its
+    simplifier, 2026-10-06), so the levels are made here. None for a model under `smallest` triangles."""
+    levels = []
+    count = triangles(near)
+    if count < smallest:
+        return levels
+    for level, share in enumerate(shares, 1):
+        lighter = near.copy()
+        lighter.data = near.data.copy()
+        lighter.name = f"{name}-lod{level}"
+        bpy.context.scene.collection.objects.link(lighter)
+        collapse(lighter, int(count * share))
+        export_glb(lighter, folder / f"{lighter.name}.glb")
+        levels.append({"file": f"{lighter.name}.glb", "triangles": triangles(lighter)})
+    return levels
+
+
+def model(source_full, kind, number, near_triangles, size, folder):
+    """One game model from a full mesh (game_model), written as <kind>-<number>.glb."""
+    name = f"{kind}-{number}"
+    low = game_model(source_full, name, near_triangles, size, folder)
     return {"file": f"{name}.glb", "kind": kind, "triangles": triangles(low), "texture_px": size,
-            "full_triangles": triangles(source_full)}
+            "full_triangles": triangles(source_full), "lods": lod_chain(low, name, folder)}
 
 
 def scattered(scatter_objs, game, folder):
@@ -264,9 +343,13 @@ def scattered(scatter_objs, game, folder):
     for scatter_obj in scatter_objs.values():
         scatter_obj.hide_viewport = True  # so realizing each source walks only what it draws (life.realized)
     for kind, scatter_obj in scatter_objs.items():
-        budget = game["triangles"].get(kind, 1500)
+        budget = game["near_triangles"].get(kind, 300000)
         for number, (name, matrices) in enumerate(sorted(every[scatter_obj.name].items())):
             full = realized_source(name)
+            if not full.data.polygons:
+                print(f"[export] {kind} source {name} realized empty; left out", flush=True)
+                bpy.data.objects.remove(full, do_unlink=True)
+                continue
             made = model(full, kind, number, budget, game["asset_texture_px"], folder)
             limit = game.get("max_copies", {}).get(kind, MAX_COPIES * len(every[scatter_obj.name]))
             step = max(1, math.ceil(len(matrices) * len(every[scatter_obj.name]) / limit))
@@ -284,7 +367,7 @@ def placed(objects, game, folder):
         by_mesh.setdefault(obj.data.name, []).append(obj)
     for number, (mesh_name, users) in enumerate(sorted(by_mesh.items())):
         kind = users[0].name.split("-spot-")[0]
-        budget = game["triangles"].get(kind.split("-")[-1], game["triangles"]["plant"])
+        budget = game["near_triangles"].get(kind.split("-")[-1], game["near_triangles"]["plant"])
         full = bpy.data.objects.new(f"{mesh_name}-full", bpy.data.meshes[mesh_name])
         bpy.context.scene.collection.objects.link(full)
         made = model(full, kind, number, budget, game["asset_texture_px"], folder)
@@ -300,15 +383,17 @@ def write(folder, spec, ground_entry, models, placements, extra):
     full = ground_entry["full_triangles"] + sum(item["full_triangles"] * item["copies_full"] for item in models)
     stats = {"kind": spec["kind"], "side_m": spec.get("side_m"), "ground": ground_entry, "models": models,
              "game_triangles_all_copies": drawn, "full_triangles_all_copies": full, **extra}
+    lods = {item["file"]: [level["file"] for level in item.get("lods", [])] for item in models}
     (folder / "placements.json").write_text(json.dumps({"ground": ground_entry["file"], "models": placements,
-                                                        **{key: extra[key] for key in ("water", "camera", "look")
+                                                        "lods": lods,
+                                                        **{key: extra[key] for key in ("water", "camera", "views", "look")
                                                            if key in extra}}))
     (folder / "stats.json").write_text(json.dumps(stats, indent=1))
     return stats
 
 
 def fish_model(armature, meshes, game, folder):
-    """The fish for the game: its body thinned (armature kept, weights carried), baked, with its swim."""
+    """The fish for the game: its body at close-up detail (armature kept, weights carried), baked, with its swim."""
     import life
     for mesh in meshes:
         for modifier in mesh.modifiers:
@@ -322,9 +407,8 @@ def fish_model(armature, meshes, game, folder):
         data.transform(mesh.matrix_world)
         rest.append(data)
     full = life.join_meshes(rest, "fish-full")
-    low = thinned(full, game["triangles"]["fish"], "fish")
+    low = near_version(full, "fish", game["near_triangles"]["fish"], game["asset_texture_px"], folder)
     _carry_weights(low, meshes)
-    bake_onto(low, full, game["asset_texture_px"], folder, reach=max(full.dimensions) * 0.05)
     low.parent = armature
     low.matrix_parent_inverse = armature.matrix_world.inverted()
     skin = low.modifiers.new("skin", "ARMATURE")

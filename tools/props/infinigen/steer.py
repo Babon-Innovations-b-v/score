@@ -19,11 +19,18 @@ import pathlib
 
 import numpy as np
 
-# The game's budgets for one 50 x 50 m patch, the owner's asset rules carried over: a structure-sized ground
-# (20,000 triangles at a 0.5 m cell), each scattered kind small enough to draw thousands of.
-GAME = {"ground_cell_m": 0.5, "ground_texture_px": 2048, "asset_texture_px": 512,
-        "triangles": {"grass": 120, "moss": 60, "kelp": 1500, "coral": 3000, "shrub": 6000, "rock": 1500,
-                      "boulder": 3000, "rubble": 40, "fish": 4000, "plant": 4000}}
+# The game's close-up budgets, triangles a model keeps where the player stands next to it; above that a model is
+# collapsed to the budget with the full mesh's normals baked on, and Godot makes the distance levels itself (mesh
+# LOD) with picture cards past the visibility range. No 1% cuts: the owner turned them down (2026-10-06, "you
+# can't just gut triangles like that"). Rubble is the exception: 3 to 25 cm pebbles that Infinigen makes at
+# 45,000 to 74,000 triangles each.
+GAME = {"ground_cell_m": 0.25, "ground_texture_px": 4096, "asset_texture_px": 2048,
+        "near_triangles": {"grass": 20000, "moss": 2000, "kelp": 400000, "coral": 400000, "shrub": 1500000,
+                           "tree": 2000000, "fern": 1500000, "rock": 300000, "boulder": 300000, "rubble": 1000,
+                           "urchin": 200000, "fish": 400000, "plant": 1500000,
+                           # A tree's parts, kept as instances: a twig with its leaves is 23,000 triangles at full
+                           # detail and a tree carries 4,700; a fruit is 165,000 triangles for 10 cm.
+                           "twig": 6000, "fruit": 3000}}
 EYE_M = 1.7
 GRID = 256
 
@@ -109,13 +116,27 @@ def moon(plan, x0, y0, side, seed):
               "tall_m": rock["tall_m"], "turn_deg": (index * 137.5) % 360}
              for index, rock in enumerate(numbers["rocks"])
              if x0 <= rock["x"] < x0 + side and y0 <= rock["y"] < y0 + side]
+    middle = (crater["x"] - x0, crater["y"] - y0)
+    rim = crater["diameter"] / 2 + 1.5
+
+    def rim_view(bearing_deg):
+        """Eye height on the rim at a compass bearing from the middle, looking across the bowl."""
+        bearing = math.radians(bearing_deg)
+        at = (middle[0] + rim * math.sin(bearing), middle[1] + rim * math.cos(bearing))
+        across = (middle[0] - rim * math.sin(bearing), middle[1] - rim * math.cos(bearing))
+        return look_camera(side, truth, across, at=at)
+
+    views = {f"rim-{name}": rim_view(bearing) for name, bearing in (("north", 0), ("south", 180), ("west", 270))}
+    views["floor"] = look_camera(side, truth, (middle[0], middle[1] + rim), at=middle)
+    views["above"] = {"x": side / 2, "y": side / 2, "z": 400.0, "look_x": side / 2, "look_y": side / 2 + 1e-3,
+                      "look_z": 0.0, "lens_mm": 50, "ortho_m": side}
     spec = {"kind": "moon", "seed": seed, "side_m": side, "origin_in_plan": [x0, y0],
             "plane": {"base_m": rise * (x0 + y0), "rise_east": rise, "rise_north": rise},
             "craters": craters, "spots": rocks,
-            "look": {"sky": "black", "sun_elevation_deg": 25, "sun_azimuth_deg": 250},
+            # The main view stands on the east rim looking west across the bowl, the sun low behind it.
+            "look": {"sky": "black", "sun_elevation_deg": 25, "sun_azimuth_deg": 70},
             "scatter": {"rubble": "everywhere"},
-            "camera": look_camera(side, truth, (side * 0.62, side * 0.52), at=(side * 0.04, side * 0.46)),
-            "minutes": 75}
+            "camera": rim_view(90), "views": views, "minutes": 90}
     return spec, truth, {}
 
 
@@ -149,6 +170,14 @@ def fish(seed):
     return spec, None, {}
 
 
+def asset(name, factory, kind_of, seed, scene_type, pixal_input, instanced=False):
+    """One Infinigen asset (asset.py): made, pictured, baked at close-up detail, with cards for far away."""
+    spec = {"kind": "asset", "name": name, "factory": factory, "kind_of": kind_of, "seed": seed,
+            "scene_type": scene_type, "pixal_input": pixal_input, "instanced": instanced,
+            "look": {"sky": "studio", "sun_elevation_deg": 45, "sun_azimuth_deg": 210}, "minutes": 20}
+    return spec, None, {}
+
+
 def write(folder, spec, heights, zones):
     """The job folder: spec.json, and the arrays it names."""
     folder.mkdir(parents=True, exist_ok=True)
@@ -167,11 +196,17 @@ def write(folder, spec, heights, zones):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("kind", choices=("meadow", "moon", "underwater", "fish"))
+    parser.add_argument("kind", choices=("meadow", "moon", "underwater", "fish", "asset"))
     parser.add_argument("folder", type=pathlib.Path)
     parser.add_argument("--plan", type=pathlib.Path, help="the place plan's folder (meadow, moon)")
     parser.add_argument("--window", type=float, nargs=3, metavar=("X0", "Y0", "SIDE"), default=(0, 0, 50))
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--factory", help="asset: Infinigen's factory, dotted, or 'fish'")
+    parser.add_argument("--name", help="asset: its name")
+    parser.add_argument("--kind-of", help="asset: the game kind, which names its close-up budget")
+    parser.add_argument("--scene-type", default="forest", help="asset: the Infinigen scene type whose configs load")
+    parser.add_argument("--pixal-input", action="store_true", help="asset: also a plain picture for Pixal3D")
+    parser.add_argument("--instanced", action="store_true", help="asset: keep its instanced parts as instances (trees)")
     options = parser.parse_args()
     x0, y0, side = options.window
     if options.kind == "meadow":
@@ -180,6 +215,9 @@ def main():
         made = moon(options.plan, x0, y0, side, options.seed)
     elif options.kind == "underwater":
         made = underwater(side, options.seed)
+    elif options.kind == "asset":
+        made = asset(options.name, options.factory, options.kind_of, options.seed, options.scene_type,
+                     options.pixal_input, options.instanced)
     else:
         made = fish(options.seed)
     spec = write(options.folder, *made)

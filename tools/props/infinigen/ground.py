@@ -50,8 +50,7 @@ def grid_object(name, side, cell, height_of):
     uv.data.foreach_set("uv", corners.ravel())
     mesh.update(calc_edges=True)
     mesh.validate()
-    for polygon in mesh.polygons:
-        polygon.use_smooth = True
+    mesh.polygons.foreach_set("use_smooth", np.ones(len(mesh.polygons), dtype=bool))
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
     return obj
@@ -111,19 +110,21 @@ class CraterGround:
         self.inner.cleanup()
 
 
-def crater_ground(spec, truth, voxel=0.12):
-    """The Moon patch's ground: the crater element meshed by Infinigen's UniformMesher over the patch."""
-    from infinigen.terrain.mesher.uniform_mesher import UniformMesher
+def crater_ground(spec, cell=0.1):
+    """The Moon patch's ground: the crater element sampled on an even grid of `cell` metres over the whole patch.
+
+    The element is a height field (Infinigen's Ground with is_3d off, plus the plan's craters and slope), so its
+    signed distance at z = 0 is minus the ground's height there. An even grid can be walked from any side; the
+    first try meshed it with Infinigen's UniformMesher, which left patches of coarse facets (2026-10-06 renders)."""
+    from infinigen.terrain.utils.kernelizer_util import Vars
     side = spec["side_m"]
-    low, high = float(truth.min()) - 4, float(truth.max()) + 4
-    divisions = int(side / (voxel * 3))
-    mesher = UniformMesher((-side / 2, side / 2, -side / 2, side / 2, low, high), subdivisions=(divisions, -1, -1),
-                           upscale=3)
     element = CraterGround(spec)
-    mesh = mesher([element])
-    obj = mesh.export_blender("ground")
-    obj.data.polygons.foreach_set("use_smooth", np.ones(len(obj.data.polygons), dtype=bool))
-    return obj, element
+
+    def height_of(x, y):
+        points = np.stack([np.asarray(x) - side / 2, np.asarray(y) - side / 2, np.zeros(len(x))], axis=1)
+        return -element(points.astype(np.float32), sdf_only=True)[Vars.SDF]
+
+    return grid_object("ground", side, cell, height_of), element
 
 
 def principled(name, colour, roughness):

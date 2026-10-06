@@ -120,7 +120,12 @@ def set_up(folder, host, share):
 def keep_beating(folder, host, stop):
     """Touch the machine's heartbeat every minute until `stop`, so its watcher knows this PC lives."""
     while not stop.wait(60):
-        batch.heartbeat(folder, host)
+        # A busy machine can refuse one ssh (connection timed out under a load of 78 on 16 cores, 2026-10-06);
+        # a beat that fails must not end the beating, or the machine deletes itself 15 min later with its work.
+        try:
+            batch.heartbeat(folder, host)
+        except subprocess.CalledProcessError as error:
+            batch.say(f"{folder.name}: a heartbeat failed ({error.returncode}); trying again in a minute")
 
 
 def draw_share(run, machine, share):
