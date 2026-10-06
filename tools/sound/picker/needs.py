@@ -43,12 +43,18 @@ def layer_names(surfaces=SURFACES, inventories=INVENTORIES):
 
 
 def written_files(catalogue=CATALOGUE):
-    """The file each sound written in the catalogue's script plays, by name (the first take of several)."""
+    """Every file each sound written in the catalogue's script plays, by name (all the takes of several)."""
     text = pathlib.Path(catalogue).read_text()
     found = {}
-    for name, folder, relative in re.findall(r'"(\w+)": \{\s*FILE: \[?\s*(RECORDINGS|MADE) \+ "([^"]+)"', text):
-        found[name] = [FOLDERS[folder] + relative]
+    for name, body in re.findall(r'^\t"(\w+)": \{(.*?)\n?\t?\},?$', text, re.M | re.S):
+        files = re.findall(r'(RECORDINGS|MADE) \+ "([^"]+)"', body.split(BUS_FIELD)[0])
+        if files:
+            found[name] = [FOLDERS[folder] + relative for folder, relative in files]
     return found
+
+
+## Where an entry's file list ends in the catalogue's script: only FILE names files.
+BUS_FIELD = "BUS:"
 
 
 def current_files(name, sounds=None, catalogue=CATALOGUE):
@@ -71,7 +77,7 @@ def needs_for(page, sounds_path=SOUNDS):
         found.append({"name": name, "category": brief["category"], "where": brief["where"],
                       "search": brief.get("search", []), "loop": bool(brief.get("loop")),
                       "level": brief.get("level"), "seconds": float(brief.get("seconds", 8)),
-                      "now": before.get(name, [])})
+                      "before": brief.get("before", name), "now": before.get(brief.get("before", name), [])})
     return found
 
 

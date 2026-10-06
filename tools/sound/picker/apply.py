@@ -39,7 +39,8 @@ def picks_from(raw):
 def chosen_with_swaps(record, swaps):
     """Every need's take to put in: the owner's swap where there is one, else the one chosen for it."""
     picks = {need["name"]: need["chosen"] for need in record["needs"] if need.get("chosen")}
-    known = {need["name"]: {take["key"] for take in need["takes"]} for need in record["needs"]}
+    known = {need["name"]: {take["key"] for take in need["takes"]} | {f"game:{need['name']}"}
+             for need in record["needs"]}
     picks.update({name: key for name, key in swaps.items() if key in known.get(name, set())})
     return picks
 
@@ -85,8 +86,9 @@ def credit(take, res_path):
     return {"file": res_path, "source": source, "author": take["author"], "licence": take["licence"]}
 
 
-def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICENCES, repo=REPO):
-    """Puts every pick on a page into the game; gives back the names changed."""
+def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICENCES, repo=REPO, swapped=()):
+    """Puts every pick on a page into the game, and notes on each entry which take it is and who chose it (the
+    owner for the names in `swapped`, else the scoring); gives back the names changed."""
     record = json.loads((page_folder / "candidates.json").read_text())
     document = json.loads(sounds_path.read_text())
     sounds = document["sounds"]
@@ -96,13 +98,19 @@ def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICE
     for need in record["needs"]:
         key = picks.get(need["name"])
         take = next((candidate for candidate in need["takes"] if candidate["key"] == key), None)
+        if take is None and key == f"game:{need['name']}":
+            take = {"key": key, "source": "game"}
         if take is None:
             continue
         entry = sounds.setdefault(need["name"], {})
+        already = entry.get("pick", {}).get("chosen", {}).get("take") == key and in_place(entry, repo)
+        entry.setdefault("pick", {})["chosen"] = {"take": key, "by": "owner" if need["name"] in swapped else "scoring"}
         if take["source"] == "game":
-            entry.pop("file", None)
-            entry.pop("volume_db", None)
+            remove_generated(need, listed, repo)
+            back_to_the_recording(entry, need)
             changed.append(need["name"])
+            continue
+        if already:
             continue
         level = played_level(need["name"], sounds, manifest, entry.get("pick", {}), need["category"])
         placed = place_files(page_folder, need, take, listed, repo)
@@ -115,9 +123,30 @@ def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICE
     return changed
 
 
-def place_files(page_folder, need, take, listed, repo):
-    """Copies a take's files into the game and puts each on the licence list, in place of the need's files there
-    before (a walk of eight steps replaced by one of six leaves no seventh)."""
+def back_to_the_recording(entry, need):
+    """A sound back on the recording it had before: its own in the catalogue's script (the data's file and level
+    come off), or, for a sound the layers added, the recording its brief names as its `before` (that sound's files
+    and level)."""
+    before = need.get("before", need["name"])
+    if before == need["name"]:
+        entry.pop("file", None)
+        entry.pop("volume_db", None)
+        return
+    files = need.get("before_files") or needs.written_files().get(before, [])
+    entry["file"] = files if len(files) > 1 else files[0]
+    entry["volume_db"] = written_volume(before)
+
+
+def in_place(entry, repo):
+    """Whether every file an entry names is on disk: a take already put in is left as it is (an Ogg file comes out
+    with new bytes each time it is written, so writing it again would only churn the repository)."""
+    named = entry.get("file") or []
+    files = [named] if isinstance(named, str) else named
+    return bool(files) and all((repo / path.removeprefix("res://")).exists() for path in files)
+
+
+def remove_generated(need, listed, repo):
+    """Takes a need's generated files out of the game and off the licence list."""
     folder = generated_folder(repo, need)
     olds = [path for path in folder.glob(f"{need['name']}*") if path.suffix in (".ogg", ".wav")
             and (path.stem == need["name"] or path.stem.removeprefix(need["name"] + "_").isdigit())]
@@ -126,6 +155,12 @@ def place_files(page_folder, need, take, listed, repo):
         listed[:] = [listing for listing in listed if listing["file"] != res_path]
         old.unlink()
         pathlib.Path(str(old) + ".import").unlink(missing_ok=True)
+
+
+def place_files(page_folder, need, take, listed, repo):
+    """Copies a take's files into the game and puts each on the licence list, in place of the need's files there
+    before (a walk of eight steps replaced by one of six leaves no seventh)."""
+    remove_generated(need, listed, repo)
     placed = []
     for page_file, res_path in game_files_for(need, take):
         target = repo / res_path.removeprefix("res://")

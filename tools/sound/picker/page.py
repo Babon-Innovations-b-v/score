@@ -95,7 +95,7 @@ def page_need(need, kept):
     ordered = sorted(kept, key=lambda take: -take["score"])
     return {"name": need["name"], "title": need["name"].replace("_", " ").capitalize(), "category": need["category"],
             "label": LABELS[need["category"]], "where": need["where"], "takes": ordered,
-            "chosen": choose.best(ordered)}
+            "chosen": choose.best(ordered), "before": need["before"], "before_files": need["now"]}
 
 
 def write(folder, title, intro, needs):

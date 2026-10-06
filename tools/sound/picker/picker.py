@@ -84,7 +84,7 @@ def put_in(folder, swaps_path=None):
     """Every chosen take into the game, the owner's swaps over them; then every sound measured again."""
     swaps = applying.picks_from(json.loads(pathlib.Path(swaps_path).read_text())) if swaps_path else {}
     picks = applying.chosen_with_swaps(json.loads((folder / "candidates.json").read_text()), swaps)
-    changed = applying.apply(folder, picks)
+    changed = applying.apply(folder, picks, swapped=set(swaps))
     print(f"put into the game: {len(changed)} sounds")
     print(f"wrote {applying.loudness.write_manifest()}")
 

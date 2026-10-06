@@ -151,7 +151,7 @@ def check_moss_takes_come_with_their_prompt_seed_and_score(folder):
 def check_the_catalogue_script_is_read_for_what_plays_now():
     written = needs.written_files()
     assert written["habitat"] == ["res://game/sound/recordings/places/habitat.ogg"], written.get("habitat")
-    assert written["footsteps_metal"][0].endswith("footsteps_metal_1.ogg")
+    assert len(written["footsteps_metal"]) == 8 and written["footsteps_metal"][0].endswith("footsteps_metal_1.ogg")
 
 
 def check_picks_read_from_the_store_or_a_map():
@@ -196,8 +196,28 @@ def check_a_swap_back_to_the_recording_before_takes_the_data_off(folder):
     sounds_path, licences_path = folder / "sounds_game.json", folder / "licences_game.json"
     sounds_path.write_text(json.dumps({"sounds": {"habitat": {"file": "res://x.ogg", "volume_db": -9.0, "pick": {}}}}))
     licences_path.write_text("[]")
-    assert applying.apply(page_folder, {"habitat": "game:habitat"}, sounds_path, licences_path, folder) == ["habitat"]
-    assert json.loads(sounds_path.read_text())["sounds"]["habitat"] == {"pick": {}}
+    assert applying.apply(page_folder, {"habitat": "game:habitat"}, sounds_path, licences_path, folder,
+                          swapped={"habitat"}) == ["habitat"]
+    assert json.loads(sounds_path.read_text())["sounds"]["habitat"] == {
+        "pick": {"chosen": {"take": "game:habitat", "by": "owner"}}}
+
+
+def check_a_layer_sound_swapped_back_plays_the_recording_its_brief_names(folder):
+    page_folder = folder / "page_steps"
+    page_folder.mkdir()
+    before = needs.written_files()["footsteps_metal"]
+    record = {"needs": [{"name": "footstep_steel_plate", "category": "steps", "before": "footsteps_metal",
+                         "before_files": before, "chosen": "moss:a", "takes": [{"key": "moss:a", "source": "moss"}]}]}
+    (page_folder / "candidates.json").write_text(json.dumps(record))
+    picks = applying.chosen_with_swaps(record, {"footstep_steel_plate": "game:footstep_steel_plate"})
+    assert picks == {"footstep_steel_plate": "game:footstep_steel_plate"}, picks
+    sounds_path, licences_path = folder / "sounds_steps.json", folder / "licences_steps.json"
+    sounds_path.write_text(json.dumps({"sounds": {"footstep_steel_plate": {"file": "res://x.ogg", "volume_db": -30.0}}}))
+    licences_path.write_text("[]")
+    applying.apply(page_folder, picks, sounds_path, licences_path, folder, swapped={"footstep_steel_plate"})
+    entry = json.loads(sounds_path.read_text())["sounds"]["footstep_steel_plate"]
+    assert entry["file"] == before and entry["volume_db"] == applying.written_volume("footsteps_metal"), entry
+    assert entry["pick"]["chosen"]["by"] == "owner"
 
 
 def check_a_page_slug_is_a_plain_folder_name():
@@ -226,6 +246,7 @@ def main():
         check_a_levelled_loop_file_still_joins_itself(folder)
         check_a_pick_goes_into_the_game_with_its_credit_and_level(folder)
         check_a_swap_back_to_the_recording_before_takes_the_data_off(folder)
+        check_a_layer_sound_swapped_back_plays_the_recording_its_brief_names(folder)
         check_moss_takes_come_with_their_prompt_seed_and_score(folder)
     print("picker: all checks passed")
 
