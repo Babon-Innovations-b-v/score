@@ -578,7 +578,7 @@
 				3.1
 			],
 			"count": 5,
-			"thing": "code:hub_hatch_wall_surround",
+			"thing": "prop:hub_hatch_wall_surround",
 			"group": "kit: wall",
 			"made": "kit piece"
 		},
@@ -600,7 +600,7 @@
 				4.7
 			],
 			"count": 12,
-			"thing": "code:hub_roof_face_panel",
+			"thing": "prop:hub_roof_face_panel",
 			"group": "kit: ceiling",
 			"made": "kit piece"
 		},
@@ -1081,7 +1081,7 @@
 				2.9
 			],
 			"count": 6,
-			"thing": "code:hub_hatch_frame",
+			"thing": "prop:hub_hatch_frame",
 			"group": "kit: door",
 			"made": "kit piece",
 			"parts": [
@@ -1425,7 +1425,7 @@
 				1.2
 			],
 			"count": 1,
-			"thing": "code:hub_porthole_panel",
+			"thing": "prop:hub_porthole_panel",
 			"group": "kit: wall",
 			"made": "kit piece",
 			"at": [
