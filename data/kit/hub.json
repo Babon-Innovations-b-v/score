@@ -49,9 +49,9 @@
 		"hub_wall_upper_pipes": 4,
 		"hub_porthole_panel": 1,
 		"hub_wall_upper_plain": 4,
-		"hub_wall_skirting": 12,
 		"hub_wall_cornice": 12,
 		"hub_wall_corner_post": 10,
+		"hub_wall_skirting": 7,
 		"hub_roof_face_panel": 12,
 		"hub_lattice_ring_rib": 36,
 		"hub_lattice_hip_rib": 12,
@@ -189,7 +189,7 @@
 			"group": "floors"
 		},
 		"hub_stair_stringer": {
-			"group": "hangs"
+			"group": "floors"
 		},
 		"hub_pit_junction_box": {
 			"group": "hangs"
@@ -333,13 +333,13 @@
 		"hatch_wall_surround_5": {
 			"glows": false
 		},
-		"wall_skirting_1": {
-			"glows": false
-		},
 		"wall_cornice_1": {
 			"glows": false
 		},
 		"wall_corner_post_1": {
+			"glows": false
+		},
+		"wall_skirting_1": {
 			"glows": false
 		},
 		"roof_face_panel_1": {
@@ -1645,36 +1645,6 @@
 			"model": "hatch_wall_surround_5"
 		},
 		{
-			"kind": "hub_wall_skirting",
-			"at": [
-				0.0,
-				0.0,
-				-4.47
-			],
-			"x": [
-				-1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"size": [
-				2.4115,
-				0.12,
-				0.06
-			],
-			"layer": 1,
-			"model": "wall_skirting_1"
-		},
-		{
 			"kind": "hub_wall_cornice",
 			"at": [
 				0.0,
@@ -1913,36 +1883,6 @@
 			],
 			"layer": 1,
 			"model": "wall_corner_post_1"
-		},
-		{
-			"kind": "hub_wall_skirting",
-			"at": [
-				4.47,
-				0.0,
-				0.0
-			],
-			"x": [
-				-0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"size": [
-				2.4115,
-				0.12,
-				0.06
-			],
-			"layer": 1,
-			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2185,36 +2125,6 @@
 			"model": "wall_corner_post_1"
 		},
 		{
-			"kind": "hub_wall_skirting",
-			"at": [
-				0.0,
-				0.0,
-				4.47
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"size": [
-				2.4115,
-				0.12,
-				0.06
-			],
-			"layer": 1,
-			"model": "wall_skirting_1"
-		},
-		{
 			"kind": "hub_wall_cornice",
 			"at": [
 				0.0,
@@ -2455,36 +2365,6 @@
 			"model": "wall_corner_post_1"
 		},
 		{
-			"kind": "hub_wall_skirting",
-			"at": [
-				-4.47,
-				0.0,
-				0.0
-			],
-			"x": [
-				0.0,
-				-0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				0.0,
-				0.0
-			],
-			"size": [
-				2.4115,
-				0.12,
-				0.06
-			],
-			"layer": 1,
-			"model": "wall_skirting_1"
-		},
-		{
 			"kind": "hub_wall_cornice",
 			"at": [
 				-4.42,
@@ -2603,36 +2483,6 @@
 			],
 			"layer": 1,
 			"model": "wall_cornice_1"
-		},
-		{
-			"kind": "hub_wall_skirting",
-			"at": [
-				-2.235,
-				0.0,
-				-3.8711
-			],
-			"x": [
-				-0.86603,
-				0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"size": [
-				2.4115,
-				0.12,
-				0.06
-			],
-			"layer": 1,
-			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -13297,9 +13147,9 @@
 		{
 			"kind": "hub_pipe_valve",
 			"at": [
-				-2.3229,
+				-1.8033,
 				1.1957,
-				3.4278
+				3.7278
 			],
 			"x": [
 				0.86603,

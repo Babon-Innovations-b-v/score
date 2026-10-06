@@ -159,11 +159,11 @@
 			"at": [
 				{
 					"x": 2.44,
-					"y": 0.0,
+					"y": 0.05,
 					"z": -2.44,
 					"facing": 225,
 					"level": "ring",
-					"fit": "before the console, facing it"
+					"fit": "before the console, facing it; on the floor grating there"
 				}
 			]
 		},
@@ -555,7 +555,7 @@
 				0.06,
 				0.12
 			],
-			"count": 12,
+			"count": 7,
 			"thing": "prop:hub_wall_skirting",
 			"group": "kit: wall",
 			"made": "kit piece"
