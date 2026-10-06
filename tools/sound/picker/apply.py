@@ -1,9 +1,10 @@
-"""The owner's picks into the game: for each need picked on a page, its take's files into game/sound/recordings/,
-its credit on the licence list, its entry in data/sound/sounds.json (the file, and a level that plays it as loud
-as the brief says, or as loud as the take it replaces played), and every sound file measured again for the
-loudness manifest the game's test holds. A pick of the take in the game now changes nothing.
+"""Each sound's take into the game: the chosen one (choose.py), or the owner's swap where the page's store holds one.
+Its files go into game/sound/generated/ (the recordings before stay where they are, so a swap back is possible), its
+credit onto the licence list (a generated take's prompt, seed and model; a recording's source and author), and its
+entry into data/sound/sounds.json: the file, and a level that plays it as loud as the brief says, or as loud as the
+take it replaces played. A swap back to the recording before takes the data's file and level off again.
 
-The picks are the page's store, read back as JSON: {need: {"take": key, ...}} or the store's list of documents.
+The swaps are the page's store, read back as JSON: {need: {"take": key, ...}} or the store's list of documents.
 """
 import json
 import pathlib
@@ -17,25 +18,43 @@ import loudness  # noqa: E402
 import needs  # noqa: E402
 
 REPO = needs.REPO
-## Where a picked take goes, by its category.
+## Where a chosen take goes, under game/sound/generated/, by its category.
 FOLDERS = {"steps": "footsteps", "shot": "doors", "loop": "machines", "room": "places"}
 ## The level a take is played at in the game when the brief names none and it replaces nothing, in LUFS.
 LEVELS = {"steps": -55.0, "shot": -43.0, "loop": -52.0, "room": -47.0}
 
 
-def picks_from(raw):
-    """The picks as {need: take key}, from the store's documents or a plain map."""
+def documents(raw):
+    """The store's documents as {need: body}, from its list or a plain map."""
     if isinstance(raw, list):
-        raw = {document.get("id") or document.get("doc_id"): document.get("data", document) for document in raw}
-    return {name: body["take"] for name, body in raw.items() if body and body.get("take")}
+        return {document.get("id") or document.get("doc_id"): document.get("data", document) for document in raw}
+    return raw
+
+
+def picks_from(raw):
+    """The swaps as {need: take key}."""
+    return {name: body["take"] for name, body in documents(raw).items() if body and body.get("take")}
+
+
+def chosen_with_swaps(record, swaps):
+    """Every need's take to put in: the owner's swap where there is one, else the one chosen for it."""
+    picks = {need["name"]: need["chosen"] for need in record["needs"] if need.get("chosen")}
+    known = {need["name"]: {take["key"] for take in need["takes"]} for need in record["needs"]}
+    picks.update({name: key for name, key in swaps.items() if key in known.get(name, set())})
+    return picks
+
+
+def generated_folder(repo, need):
+    """The folder a need's generated files go in."""
+    return repo / "game" / "sound" / "generated" / FOLDERS[need["category"]]
 
 
 def game_files_for(need, take):
     """Where a take's files go in the game, as (page file, res:// path) pairs: several steps, or one file."""
-    folder = FOLDERS[need["category"]]
+    folder = f"res://game/sound/generated/{FOLDERS[need['category']]}"
     if len(take["files"]) == 1:
-        return [(take["files"][0], f"res://game/sound/recordings/{folder}/{need['name']}.ogg")]
-    return [(page_file, f"res://game/sound/recordings/{folder}/{need['name']}_{index + 1}.ogg")
+        return [(take["files"][0], f"{folder}/{need['name']}{pathlib.Path(take['files'][0]).suffix}")]
+    return [(page_file, f"{folder}/{need['name']}_{index + 1}{pathlib.Path(page_file).suffix}")
             for index, page_file in enumerate(take["files"])]
 
 
@@ -59,8 +78,11 @@ def written_volume(name):
 
 
 def credit(take, res_path):
-    """A take's line on the licence list."""
-    return {"file": res_path, "source": take["page"], "author": take["author"], "licence": take["licence"]}
+    """A take's line on the licence list: a generated take's model, prompt and seed; a recording's source."""
+    source = take["page"]
+    if take.get("prompt"):
+        source = f"{take['page']}; prompt: {take['prompt']}; seed {take['seed']}"
+    return {"file": res_path, "source": source, "author": take["author"], "licence": take["licence"]}
 
 
 def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICENCES, repo=REPO):
@@ -74,9 +96,14 @@ def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICE
     for need in record["needs"]:
         key = picks.get(need["name"])
         take = next((candidate for candidate in need["takes"] if candidate["key"] == key), None)
-        if take is None or take["source"] == "game":
+        if take is None:
             continue
         entry = sounds.setdefault(need["name"], {})
+        if take["source"] == "game":
+            entry.pop("file", None)
+            entry.pop("volume_db", None)
+            changed.append(need["name"])
+            continue
         level = played_level(need["name"], sounds, manifest, entry.get("pick", {}), need["category"])
         placed = place_files(page_folder, need, take, listed, repo)
         loudest = max(take["measures"][page_file]["lufs"] for page_file in take["files"])
@@ -89,7 +116,16 @@ def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICE
 
 
 def place_files(page_folder, need, take, listed, repo):
-    """Copies a take's files into the game and puts each on the licence list in place of what was there."""
+    """Copies a take's files into the game and puts each on the licence list, in place of the need's files there
+    before (a walk of eight steps replaced by one of six leaves no seventh)."""
+    folder = generated_folder(repo, need)
+    olds = [path for path in folder.glob(f"{need['name']}*") if path.suffix in (".ogg", ".wav")
+            and (path.stem == need["name"] or path.stem.removeprefix(need["name"] + "_").isdigit())]
+    for old in olds:
+        res_path = "res://" + old.relative_to(repo).as_posix()
+        listed[:] = [listing for listing in listed if listing["file"] != res_path]
+        old.unlink()
+        pathlib.Path(str(old) + ".import").unlink(missing_ok=True)
     placed = []
     for page_file, res_path in game_files_for(need, take):
         target = repo / res_path.removeprefix("res://")

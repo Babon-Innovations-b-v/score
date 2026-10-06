@@ -46,6 +46,9 @@ TARGETS = {
     "loop": -24.0,   # a hum, a buzz, a whir: a thing that goes on
     "shot": -20.0,   # a step, an impact, a hatch: short, over quickly
 }
+## How a file is written, by its ending: Ogg Vorbis for a one-shot, plain 16-bit PCM for a loop the game plays
+## (Vorbis smears a file's first and last milliseconds, which clicks at a loop's join), FLAC for a loop's preview.
+CODECS = {".ogg": ["-c:a", "libvorbis", "-q:a", "6"], ".wav": ["-c:a", "pcm_s16le"], ".flac": ["-c:a", "flac"]}
 ## Under this many seconds a take is measured repeated to it.
 SHORT_SECONDS = 3.0
 SILENT_LUFS = -70.0
@@ -106,8 +109,9 @@ def is_kept(measured, target):
 
 def normalise(source, out, target, fade_ms=8):
     """Bring a take to `target` LUFS under the true-peak ceiling, with a short fade in and out so it never
-    starts or stops with a click, and write it as Ogg Vorbis at `out`. Gives back its measure afterwards,
-    or None when it could not be brought in safely (the file is then removed)."""
+    starts or stops with a click (none for a loop, `fade_ms` 0: a fade would dip at its join every time round), and
+    write it at `out` in the format its ending names (CODECS). The limiter's delay is taken back out, so a loop's join stays where it was.
+    Gives back its measure afterwards, or None when it could not be brought in safely (the file is then removed)."""
     before = measure(source)
     if before["lufs"] <= SILENT_LUFS:
         return None
@@ -115,10 +119,11 @@ def normalise(source, out, target, fade_ms=8):
     length = seconds_of(source)
     fade = fade_ms / 1000.0
     chain = (f"volume={gain:.2f}dB,aresample=192000,alimiter=limit={10 ** (LIMITER_DBFS / 20):.4f}:level=false"
-             f":attack=1:release=50,aresample=48000,afade=t=in:d={fade},afade=t=out:st={max(length - fade, 0):.3f}"
-             f":d={fade}")
+             f":attack=1:release=50:latency=1,aresample=48000")
+    if fade_ms > 0:
+        chain += f",afade=t=in:d={fade},afade=t=out:st={max(length - fade, 0):.3f}:d={fade}"
     subprocess.run([ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", "-i", str(source), "-af", chain,
-                    "-c:a", "libvorbis", "-q:a", "6", str(out)], check=True)
+                    *CODECS[pathlib.Path(out).suffix.lower()], str(out)], check=True)
     after = measure(out)
     if not is_kept(after, target):
         pathlib.Path(out).unlink()

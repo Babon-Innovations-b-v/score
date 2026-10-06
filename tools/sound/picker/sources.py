@@ -1,16 +1,18 @@
 """Where the picker finds candidate takes for a needed sound: a source answers a need with candidates.
 
 Every source has the same shape (`search(need, count)` gives back `Candidate`s, `similar(candidate, count)` gives
-back more like one), so a new one slots in beside these and the owner picks from it the same way: a CC0 library
-now, a generated-sound source (a commercial-OK model, a paid API) later. A source only finds; fetching, trimming
-and the loudness rule are the same for every candidate (takes.py).
+back more like one), so a new one slots in beside these and the takes are chosen from it the same way. A source
+only finds; fetching, trimming and the loudness rule are the same for every candidate (takes.py).
 
+- **MOSS** (the default, the owner's call 2026-10-06): the takes MOSS-SoundEffect v2.0 made on a rented card for
+  each sound's prompts (`tools/props/cloud/moss_sound.py`), each with its prompt, seed and CLAP score.
 - **Freesound**, CC0 only. With an API key (Scaleway secret `freesound-api-key`, project farm-factory; apply for
   one at https://freesound.org/apiv2/apply) it asks the API with `license:"Creative Commons 0"`; without one it
   reads the site's own search page with the same filter. Either way each candidate's licence is read again off
   its own page before it is kept, and its high-quality preview is what is fetched.
 - **Kenney**, whose packs are CC0 throughout: the files of a few sound packs, matched to the need by name.
-- **In the game now**: the take the game plays today, so the owner can keep it.
+  Freesound and Kenney are optional now (`--sources`), off the default route.
+- **The take before**: the recording the catalogue's script names, so the owner can swap back to it.
 """
 import dataclasses
 import hashlib
@@ -46,6 +48,9 @@ class Candidate:
     audio: str
     seconds: float = 0.0
     note: str = ""
+    prompt: str = ""
+    seed: int = 0
+    clap: float | None = None
 
     def to_json(self):
         return dataclasses.asdict(self)
@@ -202,8 +207,42 @@ class Kenney:
         return {str(path.relative_to(folder)): path for path in folder.rglob("*.ogg")}
 
 
+class Moss:
+    """The takes MOSS-SoundEffect v2.0 made for a page's sounds, from the cloud run's folder."""
+    name = "moss"
+    FOLDER = CACHE / "moss"
+    LICENCE = "made for this game with MOSS-SoundEffect v2.0 (Apache-2.0)"
+
+    def __init__(self, page):
+        folder = self.FOLDER / page
+        self.folder = folder
+        self.made = json.loads((folder / "manifest.json").read_text()) if (folder / "manifest.json").exists() else []
+        scores = folder / "scores.json"
+        self.scores = json.loads(scores.read_text()) if scores.exists() else {}
+
+    def search(self, need, count):
+        found = []
+        prompts = []
+        for take in self.made:
+            if take["sound"] != need["name"]:
+                continue
+            if take["prompt"] not in prompts:
+                prompts.append(take["prompt"])
+            number = prompts.index(take["prompt"]) + 1
+            found.append(Candidate("moss", f"moss:{pathlib.Path(take['file']).stem}",
+                                   f"Generated, prompt {number}, seed {take['seed']}",
+                                   f"Farm Factory, generated with {take['model']} ({take['weights']})",
+                                   self.LICENCE, take["model_page"], (self.folder / take["file"]).as_uri(),
+                                   float(take["seconds"]), prompt=take["prompt"], seed=int(take["seed"]),
+                                   clap=self.scores.get(take["file"])))
+        return found[:count]
+
+    def similar(self, candidate, count):
+        return []
+
+
 class InTheGame:
-    """The take the game plays today for a sound already picked, so keeping it is one of the choices."""
+    """The recording the catalogue's script names for a sound, so swapping back to it is one of the choices."""
     name = "game"
 
     def __init__(self, licences, current_files):
@@ -215,9 +254,9 @@ class InTheGame:
         for res_path in self.current_files(need["name"])[:1]:
             listed = self.licences.get(res_path, {})
             local = REPO / res_path.removeprefix("res://")
-            found.append(Candidate("game", f"game:{need['name']}", f"in the game now ({local.name})",
+            found.append(Candidate("game", f"game:{need['name']}", f"The recording before ({local.name})",
                                    listed.get("author", "?"), listed.get("licence", "?"), listed.get("source", ""),
-                                   local.as_uri(), note="the take the game plays today"))
+                                   local.as_uri(), note="the CC0 recording the game played before"))
         return found
 
     def similar(self, candidate, count):

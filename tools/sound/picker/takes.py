@@ -13,6 +13,7 @@ Plain python and ffmpeg: samples go through ffmpeg as 16-bit PCM at 48 kHz.
 import array
 import math
 import pathlib
+import struct
 import subprocess
 import sys
 
@@ -35,10 +36,14 @@ STEP_LONGEST_SECONDS = 0.6
 ## A loop keeps this much of its middle, in seconds, and crossfades this much of its end into its start.
 LOOP_SECONDS = 16.0
 LOOP_JOIN_SECONDS = 1.5
+## What a loop leaves off each end before it is joined, in seconds: a generated take swells in and dies away there.
+LOOP_EDGE_SECONDS = 1.0
 ## The longest a one-shot is kept, in seconds.
 SHOT_SECONDS = 8.0
 ## The longest stretch of a fetched file that is read, in seconds.
 READ_SECONDS = 120
+## How much of a loop's other end its page preview carries on each side, in seconds.
+LOOP_PREVIEW_PAD_SECONDS = 0.1
 ## The waveform's number of bars.
 PEAKS = 160
 ## The loudness target each category of need is brought to (the loudness module's).
@@ -133,7 +138,8 @@ def looped(samples, channels):
     """A stretch of a take's steady middle with its end crossfaded into its start: played over and over, it joins
     with no click and no jump. A take shorter than two joins is kept as it is."""
     frames = len(samples) // channels
-    keep = min(frames, int(LOOP_SECONDS * RATE))
+    edge = min(int(LOOP_EDGE_SECONDS * RATE), frames // 10)
+    keep = min(frames - 2 * edge, int(LOOP_SECONDS * RATE))
     join = int(LOOP_JOIN_SECONDS * RATE)
     if keep < 2 * join:
         return samples
@@ -161,9 +167,10 @@ def peaks_of(samples, channels, bars=PEAKS):
     return [round(value / top, 3) for value in found[:bars]]
 
 
-def prepare(source, folder, category):
+def prepare(source, folder, category, seconds=SHOT_SECONDS):
     """The safe takes of one fetched candidate in `folder`: a dict with the files the page plays ("preview"), the
-    files the game would get ("takes"), their measures and the waveform; None when nothing safe came of it."""
+    files the game would get ("takes"), their measures and the waveform; None when nothing safe came of it. A
+    one-shot is kept up to `seconds` (what its brief asked for), and never past SHOT_SECONDS unless asked."""
     folder.mkdir(parents=True, exist_ok=True)
     channels = 2 if category == "room" else 1
     samples = trimmed(decode(source, channels), channels)
@@ -171,20 +178,61 @@ def prepare(source, folder, category):
         return None
     if category == "steps":
         return _prepare_steps(steps_in(samples), folder)
-    shaped = looped(samples, channels) if category in ("loop", "room") else samples[:int(SHOT_SECONDS * RATE) * channels]
+    shaped = looped(samples, channels) if category in ("loop", "room") else samples[:int(max(seconds, 1.0) * RATE) * channels]
     return _prepare_whole(shaped, channels, folder, category)
 
 
 def _prepare_whole(samples, channels, folder, category):
-    """One take, kept whole, under the loudness rule."""
+    """One take, kept whole, under the loudness rule. A loop is kept as a WAV that tells Godot it loops (Vorbis would
+    click at its join) with a FLAC of it for the page; a one-shot as Ogg Vorbis."""
     raw = write_wav(samples, folder / "raw.wav", channels)
-    measure = loudness.normalise(raw, folder / "take.ogg", loudness.TARGETS[TARGET[category]],
-                                 fade_ms=40 if category in ("loop", "room") else 8)
+    loops = category in ("loop", "room")
+    name = "take.wav" if loops else "take.ogg"
+    measure = loudness.normalise(raw, folder / name, loudness.TARGETS[TARGET[category]], fade_ms=0 if loops else 8)
     raw.unlink()
     if measure is None:
         return None
-    return {"preview": "take.ogg", "takes": ["take.ogg"], "measures": {"take.ogg": measure},
+    made = {"preview": name, "takes": [name], "measures": {name: measure},
             "peaks": peaks_of(samples, channels), "seconds": round(len(samples) / channels / RATE, 2)}
+    if loops:
+        mark_as_loop(folder / name, channels)
+        made["preview"] = loop_preview(folder / name, folder / "preview.ogg", channels)
+        made["measures"]["preview.ogg"] = loudness.measure(folder / "preview.ogg")
+        made["loop_pad"] = LOOP_PREVIEW_PAD_SECONDS
+    return made
+
+
+def loop_preview(take, out, channels):
+    """A loop's preview for the page as Ogg Vorbis (the page cannot serve WAV this size or FLAC at all): the loop with
+    a little of its end before it and a little of its start after it, so the smear Vorbis leaves at a file's edges
+    falls outside the stretch the page loops (from LOOP_PREVIEW_PAD_SECONDS to that much before the end). The name
+    of the file written."""
+    samples = decode(take, channels)
+    pad = int(LOOP_PREVIEW_PAD_SECONDS * RATE) * channels
+    padded = samples[-pad:] + samples + samples[:pad]
+    raw = write_wav(padded, out.with_suffix(".raw.wav"), channels)
+    subprocess.run([loudness.ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", "-i", str(raw),
+                    *loudness.CODECS[".ogg"], str(out)], check=True)
+    raw.unlink()
+    return out.name
+
+
+def mark_as_loop(path, channels):
+    """Rewrites a 16-bit WAV with a `smpl` chunk marking the whole file as one forward loop, which Godot's importer
+    reads ("Detect From WAV"), so the engine loops it itself with no gap. The end is written one past the last
+    frame: Godot reads it as the frame it jumps back from (tools/sound/made.py does the same)."""
+    samples = decode(path, channels)
+    frames = len(samples) // channels
+    fmt = _chunk(b"fmt ", struct.pack("<HHIIHH", 1, channels, RATE, RATE * 2 * channels, 2 * channels, 16))
+    data = _chunk(b"data", samples.tobytes())
+    header = struct.pack("<9I", 0, 0, round(1e9 / RATE), 60, 0, 0, 0, 1, 0)
+    loop = _chunk(b"smpl", header + struct.pack("<6I", 0, 0, 0, frames, 0, 0))
+    path.write_bytes(_chunk(b"RIFF", b"WAVE" + fmt + data + loop))
+
+
+def _chunk(name, body):
+    """One RIFF chunk: its name, its size and its body, padded to an even length."""
+    return name + struct.pack("<I", len(body)) + body + (b"\0" if len(body) % 2 else b"")
 
 
 def _prepare_steps(steps, folder):

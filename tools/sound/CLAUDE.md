@@ -2,7 +2,8 @@
 
 The game's sound tools (#35). `made.py`: the sounds the game makes itself (base hum, radio static, the warning
 tone, the geiger ticks, the low oxygen beep); `bash tools/sound/run.sh` writes them to `game/sound/made/`.
-`picker/`: the owner's picking pages (`run.sh pick <page>`, `run.sh apply <dir> <picks.json>`). `loudness/`: the
+`picker/`: every sound the game needs, made by MOSS on a rented card (`tools/props/cloud/moss_sound.py game`),
+then scored, levelled and put in (`run.sh auto game`); the page to listen and swap is optional. `loudness/`: the
 loudness rule every take and every game file is held to (`run.sh loudness` measures them all again).
 
 - **Plain Python, nothing installed**, like `tools/kit`: runs on a bare box's python3.
@@ -20,10 +21,16 @@ The picker and the loudness rule:
 - **Nothing loud reaches the owner or the game.** Every take goes through `loudness.normalise` (its category's
   LUFS target, true peak under -3 dBTP, short fades) or is dropped; the page is not written if any file it plays
   measures over the limits. Never hand the owner a raw fetched file.
-- **CC0 only**, read off each take's own page, and credited on the licence list when it goes in. Previews are
-  Freesound's high-quality ones; the API key, when made, is the Scaleway secret `freesound-api-key`, never a file.
+- **Every sound the game names has a brief** in `data/sound/sounds.json` with its prompts (`run.sh needs` lists any
+  without; the picker's check fails on one). Write a prompt from the thing's description, size, material and place,
+  in the base's theme, and say what is not in it ("no other sounds", "no clicks") for a loop.
+- **Chosen without the owner** (`picker/choose.py`): its CLAP match to its prompt less its faults. A take with no
+  prompt score (a recording) ranks under any generated one.
+- **Every credit names where it came from**: a generated take's model, prompt and seed; a recording's page, author
+  and CC0, read off its own page. The Freesound API key, when made, is the Scaleway secret `freesound-api-key`.
 - **A source is one class** (`picker/sources.py`: `name`, `search(need, count)`, `similar(candidate, count)`); a new
-  one is added there and to the list in `picker.py`, and the owner picks from it like the rest.
+  one is added there and to `finders_for` in `picker.py`. MOSS and the recording before are the default.
 - Pages build outside the repo (`~/.cache/farm-factory/sound-picker/pages/` by default) and are published as an
-  Artifact with their `takes/` and the `db` capability; the picks are read back with ArtifactData and applied.
+  Artifact with their `takes/` and the `db` capability; the owner's swaps are read back with ArtifactData and
+  applied with `run.sh apply DIR swaps.json`.
 - After `made.py` or any file change under `game/sound/`, run `bash tools/sound/run.sh loudness`.

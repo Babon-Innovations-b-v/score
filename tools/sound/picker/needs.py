@@ -5,9 +5,11 @@ already plays:
 2. **Rooms**: a room's tone (its place's ambience); its echo is worked out, not picked (game/sound/echo/).
 3. **Things** (data/inventory/<room>.json): every row's `sound`, the hum, buzz or whir its things make.
 
-A sound's brief for the page is its `pick` in data/sound/sounds.json: the page it is on, its category (which sets
-the loudness its takes are brought to), where it plays in the game, and the searches the sources are asked. A
-sound the layers name with no brief yet is listed by `--all`, so nothing the world names is forgotten.
+A sound's brief is its `pick` in data/sound/sounds.json: the page it is on (`game`: every sound the game needs), its
+category (which sets the loudness its takes are brought to), where it plays, the prompts MOSS is given with their
+seeds and length, and the searches the optional CC0 sources are asked. Every sound the layers and the catalogue name
+has a brief, but the warning tone and the low-oxygen beep, which the game makes itself to an exact shape
+(tools/sound/made.py); `needs` lists any that has none.
 """
 import json
 import pathlib
@@ -60,22 +62,35 @@ def current_files(name, sounds=None, catalogue=CATALOGUE):
 def needs_for(page, sounds_path=SOUNDS):
     """The needs on one picking page, in the data's order: each sound's name and its brief."""
     sounds = read_json(sounds_path)["sounds"]
+    before = written_files()
     found = []
     for name, entry in sounds.items():
         brief = entry.get("pick", {})
         if brief.get("page") != page:
             continue
         found.append({"name": name, "category": brief["category"], "where": brief["where"],
-                      "search": brief["search"], "loop": bool(brief.get("loop")), "level": brief.get("level"),
-                      "now": current_files(name, sounds)})
+                      "search": brief.get("search", []), "loop": bool(brief.get("loop")),
+                      "level": brief.get("level"), "seconds": float(brief.get("seconds", 8)),
+                      "now": before.get(name, [])})
     return found
 
 
+## The sounds the game makes itself to an exact shape, and never generates.
+MADE_ONLY = ("warning_tone", "oxygen_low")
+
+
 def unbriefed(sounds_path=SOUNDS):
-    """The sounds the layers name that no page asks for yet."""
+    """The sounds the layers and the catalogue name that have no prompts yet, by where they are named."""
     sounds = read_json(sounds_path)["sounds"]
-    return {layer: [name for name in names if "pick" not in sounds.get(name, {})]
-            for layer, names in layer_names().items()}
+    named = dict(layer_names())
+    named["catalogue"] = [name for name in catalogue_names() if name not in MADE_ONLY]
+    return {where: [name for name in names if "prompts" not in sounds.get(name, {}).get("pick", {})]
+            for where, names in named.items()}
+
+
+def catalogue_names(catalogue=CATALOGUE):
+    """Every sound the catalogue's script names."""
+    return re.findall(r'^\t"(\w+)": ', pathlib.Path(catalogue).read_text(), re.M)
 
 
 def licences_by_file(path=LICENCES):

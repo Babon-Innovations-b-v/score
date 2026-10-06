@@ -56,6 +56,15 @@ h2 { font-size: 26px; line-height: 1.1; }
 button:focus-visible, input:focus-visible, canvas:focus-visible, a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 .empty { color: var(--ink-muted); font-style: italic; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.filters button { font: 600 13px var(--ui); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 2px; padding: 6px 10px; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.badge { font: 600 11px var(--ui); letter-spacing: 0.06em; text-transform: uppercase; border-radius: 2px; padding: 2px 6px; background: var(--raised); border: 1px solid var(--line); color: var(--ink-muted); }
+.badge.generated { border-color: var(--machine-ink); color: var(--machine-ink); }
+.prompt { color: var(--ink-muted); font-size: 13px; font-style: italic; overflow-wrap: anywhere; }
+.chosen-label { font: 600 12px var(--ui); color: var(--ok); }
+.others-toggle { justify-self: start; font: 600 14px var(--ui); border-radius: 4px; padding: 8px 12px; cursor: pointer; border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.need-body { display: grid; gap: 12px; }
 @media (max-width: 480px) { h1 { font-size: 32px; } .volume input { width: 130px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -74,6 +83,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 </div>
 <main>
   <p class="intro" id="intro"></p>
+  <div class="filters" id="filters" role="group" aria-label="Show"></div>
   <div class="notice" id="notice" hidden></div>
   <div id="needs"></div>
 </main>
@@ -88,6 +98,8 @@ let db = null, canWrite = true;
 let audio = null, master = null;
 const buffers = new Map();
 let playing = null;        // {key, source, gain, started, seconds, loop, button, canvas}
+const open = new Set();    // needs whose other takes are shown
+let shown = 'all';         // the category the list is filtered to
 
 function store(key, value) { try { localStorage.setItem(key, value); } catch (_) {} }
 function stored(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
@@ -148,12 +160,14 @@ async function play(take, button, canvas) {
   const source = ctx.createBufferSource();
   source.buffer = buffer;
   source.loop = take.loop;
+  const pad = take.loop && take.loop_pad ? take.loop_pad : 0;   // a loop's preview carries its other ends outside the loop
+  if (pad) { source.loopStart = pad; source.loopEnd = buffer.duration - pad; }
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, ctx.currentTime);
   gain.gain.linearRampToValueAtTime(1, ctx.currentTime + FADE_IN);   // no click, no blast at the start
   source.connect(gain).connect(master);
-  source.start();
-  playing = { key: take.key, source, gain, started: ctx.currentTime, seconds: buffer.duration, loop: take.loop, button, canvas, peaks: take.peaks, title: take.title };
+  source.start(0, pad);
+  playing = { key: take.key, source, gain, started: ctx.currentTime, seconds: buffer.duration - 2 * pad, loop: take.loop, button, canvas, peaks: take.peaks, title: take.title };
   source.onended = () => {
     if (!playing || playing.source !== source) return;
     const was = playing; playing = null;
@@ -193,41 +207,84 @@ function showNotice(text) { const box = document.getElementById('notice'); box.t
 
 function seconds(value) { return value < 10 ? value.toFixed(1) + ' s' : Math.round(value) + ' s'; }
 
+function inGame(need) {
+  const pick = picks[need.name];
+  const swapped = pick && pick.take && need.takes.some(take => take.key === pick.take);
+  return { key: swapped ? pick.take : need.chosen, swapped: Boolean(swapped) };
+}
+
+function renderFilters() {
+  const box = document.getElementById('filters');
+  box.replaceChildren();
+  const kinds = [['all', 'Everything']].concat([...new Set(DATA.needs.map(need => need.label))].map(label => [label, label]));
+  for (const [value, text] of kinds) {
+    const count = value === 'all' ? DATA.needs.length : DATA.needs.filter(need => need.label === value).length;
+    const control = document.createElement('button');
+    control.type = 'button'; control.textContent = text + ' (' + count + ')';
+    control.setAttribute('aria-pressed', String(shown === value));
+    control.addEventListener('click', () => { shown = value; store('shown', value); renderFilters(); render(); });
+    box.append(control);
+  }
+}
+
 function render() {
   const holder = document.getElementById('needs');
   holder.replaceChildren();
-  let pickedCount = 0;
+  let swappedCount = 0;
   for (const need of DATA.needs) {
-    const pick = picks[need.name];
-    if (pick && pick.take) pickedCount += 1;
+    const now = inGame(need);
+    if (now.swapped) swappedCount += 1;
+    if (shown !== 'all' && need.label !== shown) continue;
     const section = document.createElement('section');
     section.className = 'need';
     section.id = need.name;
     const head = document.createElement('header');
     const title = document.createElement('h2'); title.textContent = need.title;
     const kind = document.createElement('span'); kind.className = 'chip'; kind.textContent = need.label;
-    const state = document.createElement('span'); state.className = 'chip' + (pick && pick.take ? ' picked' : '');
-    state.textContent = pick && pick.take ? 'picked' : 'not picked';
+    const state = document.createElement('span'); state.className = 'chip picked';
+    state.textContent = now.swapped ? 'your pick' : 'chosen';
     const where = document.createElement('p'); where.className = 'where'; where.textContent = 'In the game: ' + need.where;
     head.append(title, kind, state, where);
-    const grid = document.createElement('div'); grid.className = 'takes';
-    if (!need.takes.length) { const none = document.createElement('p'); none.className = 'empty'; none.textContent = 'No take came through the loudness check this time. Ask for more like this on a later run.'; grid.append(none); }
-    for (const take of need.takes) grid.append(card(need, take, pick));
-    section.append(head, grid);
+    const body = document.createElement('div'); body.className = 'need-body';
+    const current = need.takes.find(take => take.key === now.key);
+    if (current) body.append(card(need, current, now));
+    else { const none = document.createElement('p'); none.className = 'empty'; none.textContent = 'No take came through the checks for this sound.'; body.append(none); }
+    const others = need.takes.filter(take => take.key !== now.key);
+    if (others.length) {
+      const toggle = document.createElement('button');
+      toggle.type = 'button'; toggle.className = 'others-toggle';
+      const isOpen = open.has(need.name);
+      toggle.textContent = (isOpen ? 'Hide' : 'Other takes') + ' (' + others.length + ')';
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      toggle.addEventListener('click', () => { if (open.has(need.name)) open.delete(need.name); else open.add(need.name); render(); });
+      body.append(toggle);
+      if (isOpen) {
+        const grid = document.createElement('div'); grid.className = 'takes';
+        for (const take of others) grid.append(card(need, take, now));
+        body.append(grid);
+      }
+    }
+    section.append(head, body);
     holder.append(section);
   }
-  document.getElementById('count').textContent = pickedCount + ' of ' + DATA.needs.length + ' sounds picked';
+  document.getElementById('count').textContent = DATA.needs.length + ' sounds · ' + swappedCount + ' swapped by you';
   requestAnimationFrame(() => document.querySelectorAll('canvas.wave').forEach(canvas => drawWave(canvas, JSON.parse(canvas.dataset.peaks), 0)));
 }
 
-function card(need, take, pick) {
+function sourceLabel(take) {
+  if (take.source === 'moss') return ['Generated', 'generated'];
+  if (take.source === 'game') return ['Recording before', ''];
+  return ['CC0 recording', ''];
+}
+
+function card(need, take, now) {
   const box = document.createElement('article');
-  const chosen = pick && pick.take === take.key;
-  box.className = 'take' + (chosen ? ' chosen' : '');
+  const current = take.key === now.key;
+  box.className = 'take' + (current ? ' chosen' : '');
   const top = document.createElement('div'); top.className = 'top';
   const button = document.createElement('button');
   button.type = 'button'; button.className = 'play'; button.innerHTML = ICON_PLAY;
-  button.setAttribute('aria-pressed', 'false'); button.setAttribute('aria-label', 'Play ' + take.title);
+  button.setAttribute('aria-pressed', 'false'); button.setAttribute('aria-label', 'Play ' + need.title + ', ' + take.title);
   const canvas = document.createElement('canvas');
   canvas.className = 'wave'; canvas.dataset.peaks = JSON.stringify(take.peaks); canvas.tabIndex = -1;
   canvas.setAttribute('aria-hidden', 'true');
@@ -238,22 +295,38 @@ function card(need, take, pick) {
   button.addEventListener('click', () => play(take, button, canvas));
   canvas.addEventListener('click', () => play(take, button, canvas));
   top.append(button, canvas);
-  const name = document.createElement('div'); name.className = 'title'; name.textContent = take.title;
+  const nameRow = document.createElement('div'); nameRow.className = 'meta';
+  const [labelText, labelClass] = sourceLabel(take);
+  const badge = document.createElement('span'); badge.className = 'badge ' + labelClass; badge.textContent = labelText;
+  const name = document.createElement('span'); name.className = 'title'; name.textContent = take.title;
+  nameRow.append(badge, name);
+  if (current) { const mark = document.createElement('span'); mark.className = 'chosen-label'; mark.textContent = now.swapped ? 'Your pick' : 'Chosen'; nameRow.append(mark); }
+  const parts = [top, nameRow];
+  if (take.prompt) { const prompt = document.createElement('div'); prompt.className = 'prompt'; prompt.textContent = '"' + take.prompt + '"'; parts.push(prompt); }
   const meta = document.createElement('div'); meta.className = 'meta';
-  const by = document.createElement('span'); by.textContent = take.author + ' · ' + take.licence;
+  const fit = document.createElement('span');
+  const faults = Object.keys(take.faults || {});
+  fit.textContent = (take.clap === null || take.clap === undefined ? 'no prompt score' : 'matches its prompt ' + take.clap.toFixed(2)) + ' · ' + (faults.length ? faults.join(', ') : 'no faults found');
   const length = document.createElement('span'); length.textContent = seconds(take.seconds) + (take.steps ? ' · ' + take.steps + ' steps' : '') + (take.loop ? ' · loops' : '');
   const loud = document.createElement('span'); loud.textContent = take.lufs.toFixed(1) + ' LUFS · peak ' + take.peak.toFixed(1) + ' dBTP';
-  meta.append(by, length, loud);
-  if (take.page) { const link = document.createElement('a'); link.href = take.page; link.target = '_blank'; link.rel = 'noopener'; link.textContent = take.source; meta.append(link); }
-  else { const from = document.createElement('span'); from.textContent = take.source; meta.append(from); }
-  const actions = document.createElement('div'); actions.className = 'actions';
-  const pickButton = button_('Pick', 'pick', chosen, () => choose(need, take.key));
-  const all = button_('Pick for all ' + need.label.toLowerCase(), 'all', false, () => chooseForAll(need, take.key));
-  const more = button_('More like this', 'more', Boolean(pick && pick.more === take.key), () => askForMore(need, take.key));
-  const writable = db && canWrite;
-  for (const control of [pickButton, all, more]) control.disabled = !writable;
-  actions.append(pickButton, all, more);
-  box.append(top, name, meta, actions);
+  const by = document.createElement('span'); by.textContent = take.licence;
+  meta.append(fit, length, loud, by);
+  if (take.page && take.source !== 'moss') { const link = document.createElement('a'); link.href = take.page; link.target = '_blank'; link.rel = 'noopener'; link.textContent = 'source'; meta.append(link); }
+  parts.push(meta);
+  if (!current) {
+    const actions = document.createElement('div'); actions.className = 'actions';
+    const use = button_('Use this one', 'pick', false, () => choose(need, take.key));
+    use.disabled = !(db && canWrite);
+    actions.append(use);
+    parts.push(actions);
+  } else if (now.swapped) {
+    const actions = document.createElement('div'); actions.className = 'actions';
+    const back = button_('Go back to the chosen take', 'pick', false, () => choose(need, ''));
+    back.disabled = !(db && canWrite);
+    actions.append(back);
+    parts.push(actions);
+  }
+  box.append(...parts);
   return box;
 }
 
@@ -268,28 +341,13 @@ function button_(text, kind, pressed, act) {
 async function save(name, body) {
   try { await db.collection('picks').doc(name).set(body); }
   catch (error) {
-    if (error && error.code === 'invalid_argument') { canWrite = false; render(); showNotice('This view can listen but not pick: your picks would not be saved.'); }
-    else showNotice('That pick was not saved (' + (error && error.code || 'error') + '). Try again in a moment.');
+    if (error && error.code === 'invalid_argument') { canWrite = false; render(); showNotice('This view can listen but not swap: your swaps would not be saved.'); }
+    else showNotice('That swap was not saved (' + (error && error.code || 'error') + '). Try again in a moment.');
   }
 }
 
 function choose(need, key) {
-  const was = picks[need.name] || {};
-  save(need.name, { take: key, more: was.more || '', at: new Date().toISOString() });
-}
-
-function chooseForAll(need, key) {
-  for (const other of DATA.needs) {
-    if (other.category !== need.category) continue;
-    if (other.name !== need.name && picks[other.name] && picks[other.name].take) continue;
-    const was = picks[other.name] || {};
-    save(other.name, { take: key, more: was.more || '', at: new Date().toISOString() });
-  }
-}
-
-function askForMore(need, key) {
-  const was = picks[need.name] || {};
-  save(need.name, { take: was.take || '', more: was.more === key ? '' : key, at: new Date().toISOString() });
+  save(need.name, { take: key, more: '', at: new Date().toISOString() });
 }
 
 document.getElementById('stop-all').addEventListener('click', stop);
@@ -299,19 +357,22 @@ window.addEventListener('resize', () => document.querySelectorAll('canvas.wave')
 document.getElementById('page-title').textContent = DATA.title;
 document.title = DATA.title;
 document.getElementById('intro').textContent = DATA.intro;
+const savedShown = stored('shown');
+if (savedShown && (savedShown === 'all' || DATA.needs.some(need => need.label === savedShown))) shown = savedShown;
+renderFilters();
 render();
 
 (async () => {
-  if (!window.claude || !window.claude.use) { showNotice('Picks are saved only when this page is opened on claude.ai. You can still listen to every take.'); return; }
+  if (!window.claude || !window.claude.use) { showNotice('Swaps are saved only when this page is opened on claude.ai. You can still listen to every take.'); return; }
   db = await window.claude.use('db');
-  if (!db) { showNotice('Picks cannot be saved in this view. You can still listen to every take.'); render(); return; }
+  if (!db) { showNotice('Swaps cannot be saved in this view. You can still listen to every take.'); render(); return; }
   const user = await window.claude.use('user');
   if (user && user.can) { const may = await user.can('data.write'); if (may === false) canWrite = false; }
   db.collection('picks').onSnapshot(snap => {
     for (const key of Object.keys(picks)) delete picks[key];
     for (const doc of snap.docs) picks[doc.id] = doc.data();
     render();
-  }, error => showNotice('Picks could not be read (' + error.code + '). Reload the page to try again.'));
+  }, error => showNotice('Swaps could not be read (' + error.code + '). Reload the page to try again.'));
   render();
 })();
 </script>

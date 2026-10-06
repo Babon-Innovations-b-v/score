@@ -44,6 +44,10 @@ Entry: `batch.py`; its docstring says how to call it.
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its
   non-commercial background remover patched out and never fetched; the parts only say where a model's part
   boundaries are (`../library/labels.py --parts`).
+- **The game's sound is generated on a card** (`moss_sound.py`, `moss_setup.sh`, `moss_generate.py`; job soundtool,
+  2026-10-06): every sound briefed in `data/sound/sounds.json` through MOSS-SoundEffect v2.0 (Apache-2.0, code and
+  weights pinned), each take scored against its prompt with CLAP up there, the takes back to the picker's cache.
+  Its own budget is €8 a run on top of the owner's limits.
 - **Infinigen runs on a processor machine** (`infinigen.py`, `infinigen_setup.sh`; a POP2 type, plain Ubuntu,
   priced by the hour): no card, the jobs from `../infinigen/steer.py` side by side, through the same `rent`.
   `--hold` keeps the machine for ssh work until the run folder holds `release`.
