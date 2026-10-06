@@ -62,6 +62,223 @@
 				"picked": "2026-10-05, the owner: 'Even', also because it is filled a bit more nicely",
 				"text": "An even mix: worn, patched walls with pipes, valves and tool boards, while every work place (the console, the status wall, the lab bench, the comms desk, the racks) is dense with screens, readouts, switches and neat cable runs; work lamps plus screen glow.",
 				"paintings": "the hub style page, row 'Theme mix: even' (https://claude.ai/artifact/RSmbF64TefQpszh2s1PEwB)"
+			},
+			"library": {
+				"is": "the base theme's material library (job robust-exp, 2026-10-06): rule-based materials every place of the theme takes by name in its own materials, with its own token and wear level; shape comes from the models and code, material only from here",
+				"recipes": "tools/props/library/recipes.py, in ProcFunc, the relief from vendor/infinigen2 (BSD-3)",
+				"wear_levels": {
+					"new": 0.0,
+					"worked": 0.4,
+					"worn": 0.8
+				},
+				"dirt": "frass",
+				"materials": {
+					"painted_panel": {
+						"recipe": "painted_metal",
+						"bare": "hull",
+						"metal": 0.0,
+						"bump": 0.0006,
+						"bump_size": 0.01,
+						"edge_width": 0.006,
+						"breakup_scale": 8.0,
+						"dirt_reach": 0.08,
+						"bare_roughness": 0.35,
+						"token": "hull-trim",
+						"roughness": 0.43,
+						"reference": {
+							"picture": "WORK/references/hub-directions/industrial-2.jpg",
+							"box": [
+								400,
+								790,
+								470,
+								860
+							],
+							"said": "the submarine control room's painted wall"
+						}
+					},
+					"dark_panel": {
+						"recipe": "painted_metal",
+						"bare": "steel",
+						"metal": 0.0,
+						"bump": 0.0006,
+						"bump_size": 0.01,
+						"edge_width": 0.006,
+						"breakup_scale": 8.0,
+						"dirt_reach": 0.08,
+						"bare_roughness": 0.35,
+						"token": "cabin-panel",
+						"roughness": 0.36,
+						"reference": {
+							"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+							"box": [
+								10,
+								15,
+								280,
+								85
+							],
+							"said": "the cockpit's dark panel between screens"
+						}
+					},
+					"deck": {
+						"recipe": "painted_metal",
+						"bare": "steel",
+						"metal": 0.0,
+						"bump": 0.0006,
+						"bump_size": 0.01,
+						"edge_width": 0.008,
+						"breakup_scale": 8.0,
+						"dirt_reach": 0.08,
+						"bare_roughness": 0.35,
+						"token": "deck",
+						"roughness": 0.58,
+						"reference": {
+							"picture": "WORK/references/hub-directions/industrial-2.jpg",
+							"box": [
+								930,
+								960,
+								1070,
+								1040
+							],
+							"said": "the control room's deck"
+						}
+					},
+					"warning_paint": {
+						"recipe": "painted_metal",
+						"bare": "steel",
+						"metal": 0.0,
+						"bump": 0.0006,
+						"bump_size": 0.01,
+						"edge_width": 0.006,
+						"breakup_scale": 8.0,
+						"dirt_reach": 0.08,
+						"bare_roughness": 0.35,
+						"token": "alarm",
+						"roughness": 0.5,
+						"reference": {
+							"picture": "WORK/references/hub-directions/industrial-2.jpg",
+							"box": [
+								243,
+								440,
+								263,
+								700
+							],
+							"said": "the red valve manifold's pipe"
+						}
+					},
+					"hazard_paint": {
+						"recipe": "painted_metal",
+						"bare": "steel",
+						"metal": 0.0,
+						"bump": 0.0003,
+						"bump_size": 0.02,
+						"edge_width": 0.006,
+						"breakup_scale": 8.0,
+						"dirt_reach": 0.08,
+						"bare_roughness": 0.35,
+						"token": "hazard",
+						"roughness": 0.5
+					},
+					"bare_steel": {
+						"recipe": "bare_metal",
+						"token": "steel",
+						"roughness": 0.38,
+						"metal": 0.5,
+						"bump": 0.0002,
+						"bump_size": 0.05,
+						"edge_width": 0.0,
+						"breakup_scale": 4.0,
+						"dirt_reach": 0.08,
+						"bare_roughness": 0.38,
+						"wears": false,
+						"reference": {
+							"picture": "WORK/references/hub-directions/industrial-2.jpg",
+							"box": [
+								845,
+								620,
+								905,
+								690
+							],
+							"said": "a grey steel box beside the valves"
+						}
+					},
+					"pipe_steel": {
+						"recipe": "bare_metal",
+						"token": "roof-steel",
+						"roughness": 0.45,
+						"metal": 0.5,
+						"bump": 0.0002,
+						"bump_size": 0.05,
+						"edge_width": 0.0,
+						"breakup_scale": 4.0,
+						"dirt_reach": 0.06,
+						"bare_roughness": 0.45,
+						"wears": false
+					},
+					"rubber": {
+						"recipe": "rubber",
+						"token": "rubber",
+						"roughness": 0.83,
+						"metal": 0.0,
+						"bump": 0.0002,
+						"bump_size": 0.002,
+						"edge_width": 0.0,
+						"breakup_scale": 4.0,
+						"dirt_reach": 0.05,
+						"bare_roughness": 0.85,
+						"wears": false,
+						"dirt_share": 0.5,
+						"reference": {
+							"picture": "WORK/references/hub-directions/industrial-2.jpg",
+							"box": [
+								420,
+								572,
+								480,
+								600
+							],
+							"said": "the bench's dark cushion"
+						}
+					},
+					"glass": {
+						"recipe": "glass",
+						"token": "glass",
+						"roughness": 0.05,
+						"metal": 0.0,
+						"bump": 0.0,
+						"bump_size": 0.01,
+						"edge_width": 0.0,
+						"breakup_scale": 4.0,
+						"dirt_reach": 0.05,
+						"bare_roughness": 0.05,
+						"wears": false
+					},
+					"screen": {
+						"recipe": "glowing",
+						"token": "screen-teal",
+						"roughness": 0.2,
+						"metal": 0.0,
+						"bump": 0.0,
+						"bump_size": 0.01,
+						"edge_width": 0.0,
+						"breakup_scale": 4.0,
+						"dirt_reach": 0.05,
+						"bare_roughness": 0.2,
+						"wears": false
+					},
+					"lamp_lens": {
+						"recipe": "glowing",
+						"token": "lamp",
+						"roughness": 0.3,
+						"metal": 0.0,
+						"bump": 0.0,
+						"bump_size": 0.01,
+						"edge_width": 0.0,
+						"breakup_scale": 4.0,
+						"dirt_reach": 0.05,
+						"bare_roughness": 0.3,
+						"wears": false
+					}
+				},
+				"metal_note": "bare and pipe steel are half metal: fully metal steel draws near black under the ink look's indoor light, with no sky to reflect (B's first in-game shots, 2026-10-06)"
 			}
 		}
 	},
@@ -112,32 +329,38 @@
 			"painted_hull_panel": {
 				"token": "hull",
 				"roughness": "matte",
-				"dust": 0.0
+				"dust": 0.0,
+				"library": "painted_panel"
 			},
 			"dark_panel": {
 				"token": "cabin-panel",
 				"roughness": "matte",
-				"dust": 0.0
+				"dust": 0.0,
+				"library": "dark_panel"
 			},
 			"orange_rib": {
 				"token": "machine",
 				"roughness": "matte",
-				"dust": 0.0
+				"dust": 0.0,
+				"library": "painted_panel"
 			},
 			"brushed_steel": {
 				"token": "steel",
 				"roughness": "satin",
-				"dust": 0.0
+				"dust": 0.0,
+				"library": "bare_steel"
 			},
 			"rubber": {
 				"token": "rubber",
 				"roughness": "matte",
-				"dust": 0.0
+				"dust": 0.0,
+				"library": "rubber"
 			},
 			"screen_glass": {
 				"token": "screen-teal",
 				"roughness": "gloss",
-				"dust": 0.0
+				"dust": 0.0,
+				"library": "screen"
 			},
 			"banner_cloth": {
 				"token": "alarm",
@@ -218,6 +441,11 @@
 					"said": "white-box machines: every machine the same white box with a teal screen and gold foil (#55)"
 				}
 			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.4,
+			"picked": "not yet: the hub's level, to show the library holds across rooms"
 		}
 	},
 	"prologue_flat": {
@@ -362,7 +590,8 @@
 				"screen-teal",
 				"screen-amber",
 				"lamp",
-				"room-fill"
+				"room-fill",
+				"glass"
 			],
 			"accents": [
 				"hazard",
@@ -371,35 +600,49 @@
 			"accents_are": "the airlock's hazard border and small red valve wheels and status lights"
 		},
 		"materials": {
-			"bolted_steel_panel": {
-				"token": "steel",
-				"roughness": "satin",
-				"dust": 0.2
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
 			},
-			"deck_plate": {
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
 				"token": "deck",
-				"roughness": "matte",
-				"dust": 0.3
+				"library": "deck"
 			},
-			"pipe": {
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
 				"token": "roof-steel",
-				"roughness": "satin",
-				"dust": 0.1
+				"library": "pipe_steel"
 			},
 			"rubber": {
 				"token": "rubber",
-				"roughness": "matte",
-				"dust": 0.0
+				"library": "rubber"
 			},
-			"screen_glass": {
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
 				"token": "screen-teal",
-				"roughness": "gloss",
-				"dust": 0.0
+				"library": "screen"
 			},
-			"hazard_border": {
-				"token": "hazard",
-				"roughness": "matte",
-				"dust": 0.2
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
 			}
 		},
 		"light": {
@@ -439,6 +682,11 @@
 					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
 				}
 			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.4,
+			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
 		}
 	}
 }
