@@ -180,6 +180,7 @@ def screen_model(name, picture, folder, size):
     """A generated piece's screen as a model of its own, written here rather than baked: a thin plate in the kit's
     frame at its laid `size` whose front (-z) shows the printed picture whole, its edges and back the picture's corner."""
     import trimesh
+    import trimesh.exchange.gltf
     from PIL import Image
     wide, tall, deep = size
     box = trimesh.creation.box(extents=(wide, tall, deep))
@@ -193,7 +194,22 @@ def screen_model(name, picture, folder, size):
     uv[front, 1] = plate.vertices[front, 1] / tall
     shown = Image.open(library.PICTURES / f"{picture}.png").convert("RGB")
     plate.visual = trimesh.visual.TextureVisuals(uv=uv, image=shown)
-    plate.export(folder / f"{name}.gltf", embed_buffers=True, include_normals=True)  # one file: trimesh names loose buffers alike
+    written = trimesh.exchange.gltf.export_gltf(plate, include_normals=True)
+    found = json.loads(written["model.gltf"])
+    # One .bin and one .png named for the model (trimesh names its buffers alike in every file, and an image
+    # inside the glTF is pulled out by Godot into a loose file the next install would not bring back).
+    joined, starts = b"", []
+    for buffer in found["buffers"]:
+        starts.append(len(joined))
+        joined += written[buffer["uri"]] + b"\0" * (-len(written[buffer["uri"]]) % 4)
+    for view in found["bufferViews"]:
+        view["byteOffset"] = view.get("byteOffset", 0) + starts[view["buffer"]]
+        view["buffer"] = 0
+    found["buffers"] = [{"uri": f"{name}.bin", "byteLength": len(joined)}]
+    found["images"] = [{"uri": f"{name}.png"} for _ in found["images"]]
+    (folder / f"{name}.bin").write_bytes(joined)
+    shown.save(folder / f"{name}.png")
+    (folder / f"{name}.gltf").write_text(json.dumps(found))
 
 
 def game_layout(layout, planned, reports, checks):
