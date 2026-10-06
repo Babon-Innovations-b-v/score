@@ -5,10 +5,10 @@ every laid piece's own model placed as the game places it (HubKit), never its bo
     skin = room.outer_skin()                                     # the hub shell's outer solid (convex)
     placed = room.placed(layout, room.game_models)               # [(index, kind, mesh in the room's frame)]
 
-The placing is HubKit's (game/base/hub_kit/hub_kit.gd), in numpy: a kind's model turned by its `base`, fitted per
-axis to the size its piece is laid at, standing on its foot's middle, then put at the piece's origin and axes. A kind
-drawn from its picture (HubKit.pictured_mesh, pictured_triangle) is the same unit box, less its hole, or the triangle
-slab. Models load without their pictures (`skip_materials`), so a room of them stays small in memory.
+The placing is HubKit's (game/base/hub_kit/hub_kit.gd), in numpy: a piece's model (its own made model, `model`, or
+its kind's) turned by its `base` if it has one, fitted per axis to the size the piece is laid at, standing on its
+foot's middle, then put at the piece's origin and axes. Models load without their pictures (`skip_materials`), so a
+room of them stays small in memory.
 """
 import math
 import pathlib
@@ -23,6 +23,7 @@ sys.path.insert(0, str(REPO / "tools/props/scene"))
 import hub_kit  # noqa: E402
 
 GAME_MODELS = REPO / "game/base/models"
+KIT_MODELS = GAME_MODELS / "hub_kit"  # HubKit.MODELS: the made models the pieces name
 SHELL_WALL = 0.3  # ModuleShell.WALL
 ROOF_THICK = 0.25  # ModuleShell.ROOF_THICK
 FLOOR_UNDER = -1.2  # below the pit's floor
@@ -64,35 +65,10 @@ def unit_fit(mesh, turn):
     return moved
 
 
-def pictured_box(hole):
-    """HubKit.pictured_mesh: the unit box (x -0.5..0.5, y 0..1, z -0.5..0.5) less its hole, seen from in front."""
-    bars = [(0.0, 0.0, 1.0, 1.0)]
-    if len(hole) == 4:
-        left, bottom, right, top = (float(value) for value in hole)
-        bars = [(0.0, 0.0, left, 1.0), (right, 0.0, 1.0, 1.0), (left, top, right, 1.0)]
-        if bottom > 0:
-            bars.append((left, 0.0, right, bottom))
-    boxes = []
-    for left, bottom, right, top in bars:
-        low = np.array([0.5 - right, bottom, -0.5])
-        high = np.array([0.5 - left, top, 0.5])
-        boxes.append(trimesh.creation.box(bounds=[low, high]))
-    return trimesh.util.concatenate(boxes)
-
-
-def pictured_triangle():
-    """HubKit.pictured_triangle: a triangular slab, foot along y 0, tip at the top middle."""
-    corners = [(-0.5, 0.0), (0.5, 0.0), (0.0, 1.0)]
-    points = np.array([(x, y, z) for z in (-0.5, 0.5) for x, y in corners])
-    return trimesh.convex.convex_hull(points)
-
-
-def game_models(kind, about):
-    """A kind's unit model as the game draws it from data/kit layouts; None when it has none."""
-    if "picture" in about:
-        return pictured_triangle() if about.get("shape") == "triangle" else pictured_box(about.get("hole", []))
-    path = GAME_MODELS / kind / f"{kind}.glb"
-    if not path.exists():
+def game_models(name, about):
+    """A made model (or a kind's own model) as the game draws it from data/kit layouts; None when it has none."""
+    path = model_file(KIT_MODELS, name) or model_file(GAME_MODELS / name, name)
+    if path is None:
         return None
     mesh = trimesh.load(path, force="mesh", skip_materials=True)
     return unit_fit(mesh, basis(about["base"]) if "base" in about else np.eye(3))
@@ -108,12 +84,12 @@ def model_file(folder, kind):
 
 
 def models_in(*folders):
-    """A resolver for kinds whose models are files in the folders (a route's new pieces), turned by their `base` if
-    they have one; the game's own model otherwise."""
-    def resolve(kind, about):
-        path = next((found for found in (model_file(folder, kind) for folder in folders) if found), None)
+    """A resolver for models that are files in the folders (a route's new pieces), turned by their `base` if they
+    have one; the game's own model otherwise."""
+    def resolve(name, about):
+        path = next((found for found in (model_file(folder, name) for folder in folders) if found), None)
         if path is None:
-            return game_models(kind, about)
+            return game_models(name, about)
         return unit_fit(trimesh.load(path, force="mesh", skip_materials=True),
                         basis(about["base"]) if "base" in about else np.eye(3))
     return resolve
@@ -136,11 +112,13 @@ def placed(layout, resolve, chosen=None):
         if chosen is not None and index not in chosen:
             continue
         kind = laid["kind"]
-        if kind not in units:
-            units[kind] = resolve(kind, layout["kinds"].get(kind, {}))
-        if units[kind] is None:
+        name = laid.get("model", kind)
+        if name not in units:
+            about = layout.get("models", {}).get(name, {}) if "model" in laid else layout["kinds"].get(kind, {})
+            units[name] = resolve(name, about)
+        if units[name] is None:
             continue
-        mesh = units[kind].copy()
+        mesh = units[name].copy()
         mesh.apply_transform(piece_matrix(laid))
         found.append((index, kind, mesh))
     return found

@@ -75,8 +75,14 @@ def shrink_hidden(item):
 
 
 def visible_area(items):
-    return sum(face.area for item in items for face in item.data.polygons
-               if face.index not in hidden_faces(item))
+    return sum(visible_area_of(item) for item in items)
+
+
+def visible_area_of(item):
+    """The area of the faces the room sees (the hidden set found once: per face it made a 40k-face generated piece
+    take 12 minutes, 2026-10-06)."""
+    hidden = hidden_faces(item)
+    return sum(face.area for face in item.data.polygons if face.index not in hidden)
 
 
 def packed_together(items, side):

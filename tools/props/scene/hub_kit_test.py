@@ -54,10 +54,15 @@ def test_the_layout_lays_out_what_the_inventory_lists():
                             if laid.get(kind) != listed.get(kind)}
 
 
-def test_the_written_layout_is_the_one_laid_out_now():
-    written = json.loads(hub_kit.OUT.read_text())
-    assert len(written["pieces"]) == len(PIECES)
-    assert written["counts"] == {kind: sum(1 for found in PIECES if found["kind"] == kind) for kind in written["counts"]}
+def test_the_game_layout_stands_every_piece_laid_out_now_each_on_its_made_model():
+    written = json.loads(hub_kit.GAME_LAYOUT.read_text())
+    whole = [found for found in written["pieces"] if "part" not in found]
+    laid = {}
+    for found in PIECES:
+        laid[found["kind"]] = laid.get(found["kind"], 0) + 1
+    assert written["counts"] == laid
+    assert len(whole) == len(PIECES)
+    assert all(found["model"] in written["models"] for found in written["pieces"])
 
 
 def test_a_doors_parts_go_with_its_leaf_when_it_stands_open():

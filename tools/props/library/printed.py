@@ -20,7 +20,7 @@ import library  # noqa: E402
 
 FONT = library.REPO / "game/ui/fonts/noto_sans_sc/NotoSansSC-Bold.ttf"
 SIZES = {"status": (1024, 640), "readout": (1024, 512), "label": (1024, 256), "keypad": (512, 640),
-         "stencil": (512, 256)}
+         "stencil": (512, 256), "notice": (1024, 768)}
 
 
 def srgb(token):
@@ -108,7 +108,31 @@ def stencil(spec, size):
     return picture
 
 
-STYLES = {"status": status, "readout": readout, "label": label, "keypad": keypad, "stencil": stencil}
+def notice(spec, size):
+    """A notice board's sheets: white sheets side by side, each a title and lines of small print in ink, on the
+    board's own colour (the plate's)."""
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    ink = srgb(spec["ink"])
+    faint = ink[:3] + (150,)
+    width, height = size
+    sheets = spec["sheets"]
+    sheet_w = (width - 40 * (len(sheets) + 1)) / len(sheets)
+    for at, (title, lines) in enumerate(sheets):
+        left = 40 + at * (sheet_w + 40)
+        top = 60 + (at % 2) * 40
+        box = (left, top, left + sheet_w, height - 60 - ((at + 1) % 2) * 40)
+        draw.rectangle(box, fill=(246, 244, 236, 255))
+        centred(draw, (box[0], box[1] + 20, box[2], box[1] + 110), title, 56, ink)
+        for line in range(lines):
+            y = box[1] + 150 + line * 70
+            end = box[2] - 30 - (line * 37 % 90)
+            draw.rectangle((box[0] + 30, y, end, y + 14), fill=faint)
+        draw.ellipse(((box[0] + box[2]) / 2 - 12, box[1] - 4, (box[0] + box[2]) / 2 + 12, box[1] + 20), fill=ink)
+    return picture
+
+
+STYLES = {"status": status, "notice": notice, "readout": readout, "label": label, "keypad": keypad, "stencil": stencil}
 
 
 def main():

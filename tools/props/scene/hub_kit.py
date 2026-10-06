@@ -1,11 +1,14 @@
 """The hub's kit layout: where every made piece of the C12 room stands (job hubkit, the owner 2026-10-05: code only lays
 out, every visible surface is a made piece placed like a kit).
 
-    python3 tools/props/scene/hub_kit.py            # writes data/kit/hub.json and prints the partition score
+    python3 tools/props/scene/hub_kit.py <out.json>   # writes the laid-out room and prints the partition score
+
+The laid-out room is the robust route's input (tools/props/library/route.py), which makes a model for every piece and
+writes the game's layout, data/kit/hub.json, from it.
 
 The room's numbers are the shell's (ModuleShell.KIT for the hub, ModuleFloors: twelve walls whose inside faces stand
-APOTHEM from the middle, WALL_HIGH tall under a pyramid roof rising RISE, a pit PIT_R round and PIT_DEEP deep behind a
-rail, the doors on their walls). Frame: the Habitat node's own, x east, z south, y up from the ring floor; a wall's
+APOTHEM from the middle, WALL_HIGH tall under a pyramid roof rising RISE, a pit PIT_R round and PIT_DEEP deep with a
+stair down into it from the north and from the south and no rail round it, the doors on their walls). Frame: the Habitat node's own, x east, z south, y up from the ring floor; a wall's
 bearing is clockwise from north (-z).
 
 Every piece is laid out in its kind's own frame: as wide as x, as tall as y, as deep as z, standing on its origin at the
@@ -21,11 +24,12 @@ owned by a piece (coverage), the share owned by more than one (overlap) and the 
 import json
 import math
 import pathlib
+import sys
 
 import numpy as np
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-OUT = REPO / "data/kit/hub.json"
+GAME_LAYOUT = REPO / "data/kit/hub.json"
 INVENTORY = REPO / "data/inventory/hub.json"
 
 APOTHEM = 4.5
@@ -35,8 +39,13 @@ WALL_HIGH = 3.1
 RISE = 1.7
 PIT_R = 2.33
 PIT_DEEP = 0.9
-RAIL_R = 2.45
 STAIR_HALF = 0.6
+# The pit's stairs, by bearing, and no rail round its edge (the owner, 2026-10-06, after playing the kit hub: "remove the
+# railings, would look a lot cleaner and more open, and add another stairs into the drop down plateau"); the sim's pit
+# (SteppedFloor) has the same two.
+STAIRS = (0, 180)
+STAIR_CLEAR = 20  # degrees either side of a stair's bearing where the pit's edge and wall leave its way open
+STRINGER = 0.03
 LATTICE_UNDER = 0.14
 # The roof's panels reach this far past the wall's top down their slope (widening on as their faces do), and are this
 # much wider again, so no look up between the wall and the roof, or between two roof faces, finds a seam.
@@ -44,7 +53,7 @@ EAVE = 0.15
 # The cable runs' foot: above the tallest wall gear (the status display's top, 2.73 m) and under the cornice.
 CABLE_HIGH = 2.76
 EAVE_WIDER = 1.01
-JUNCTION_BOXES = (30, 200, 260)
+JUNCTION_BOXES = (30, 220, 260)
 STAIR_TREADS = 4
 STAIR_RISE = 0.18
 STAIR_FOOT = 1.42  # how far from the middle the stair reaches the pit's floor
@@ -122,6 +131,15 @@ def lapped(found, own):
     own share (`own`: wide, tall), the lap being its edge tucked behind the next panel."""
     found["scored"] = [round(float(own[0]), 4), round(float(own[1]), 4), found["size"][2]]
     return found
+
+
+def off_bearing(first, second):
+    """How far apart two bearings are, in degrees (0 to 180)."""
+    return abs(((first - second + 180) % 360) - 180)
+
+
+def near_a_stair(bearing, within):
+    return any(off_bearing(bearing, stair) < within for stair in STAIRS)
 
 
 def in_a_joint(bearing, across):
@@ -317,7 +335,7 @@ def floor(kinds, inventory):
     for bearing in (75, 135, 195, 255):
         normal, along = bearing_vectors(bearing)
         found.append(flat("floor_access_hatch", normal * 3.9, along, size_of(kinds, "floor_access_hatch"), 0.003))
-    for bearing in (20, 140, 200, 320):
+    for bearing in (140, 200, 260, 320):  # not 20: the operations console stands at the pit's edge there
         normal, along = bearing_vectors(bearing)
         found.append(flat("floor_cable_cover", normal * 2.9, along, size_of(kinds, "floor_cable_cover"), 0.006))
     for spot in spots(inventory, "tread_mat"):
@@ -326,8 +344,8 @@ def floor(kinds, inventory):
     lip = size_of(kinds, "pit_lip_segment")
     for index in range(10):
         bearing = index * 36 + 18
-        if abs(((bearing + 180) % 360) - 180) < 20:
-            continue  # the stair's opening
+        if near_a_stair(bearing, STAIR_CLEAR):
+            continue  # a stair's opening
         normal, along = bearing_vectors(bearing)
         found.append(flat("pit_lip_segment", normal * (PIT_R + lip[1] / 2), along, (2 * math.pi * PIT_R / 10, lip[1], lip[2]), 0.0))
     return found
@@ -354,7 +372,7 @@ def pit(kinds):
         wide = 2 * math.pi * PIT_R / panels
         found.append(piece("pit_wall_panel", normal * (PIT_R - panel[2] / 2) + np.array([0.0, -PIT_DEEP, 0.0]),
                            frame_facing(-normal, (0, 1, 0)), (wide, PIT_DEEP, panel[2])))
-        if abs(((bearing + 180) % 360) - 180) > 25:
+        if not near_a_stair(bearing, STAIR_CLEAR + 5):
             # The conduit runs along the pit's wall: two pipe lengths per panel, at the two heights the plan shows.
             for high in (-0.35, -0.55):
                 for start in (bearing - 17, bearing - 17 + 34 / 3, bearing - 17 + 68 / 3):
@@ -380,60 +398,34 @@ def pit(kinds):
     return found
 
 
-def rail(kinds):
-    """The rail round the pit: a post every 15 degrees, a section between each two, open at the stair (north) with
-    heavier end posts either side; the stair and its two handrails."""
+def stairs(kinds):
+    """The stairs down into the pit, built of the kit's own pieces (the stair and handrail models came out as blobs
+    twice), at the sim's tread heights (SteppedFloor's pit): a floor grating for each tread, a pit floor plate standing
+    as each riser, and a stepped side plate either side, so the stair reads as one solid flight; no handrails."""
     found = []
-    opening = math.degrees(math.asin((STAIR_HALF + 0.05) / RAIL_R))
-    bearings = [bearing for bearing in range(0, 360, 15) if abs(((bearing + 180) % 360) - 180) > opening + 1]
-    post = size_of(kinds, "rail_post")
-    for bearing in bearings:
-        normal, _ = bearing_vectors(bearing)
-        found.append(piece("rail_post", normal * RAIL_R, frame_facing(-normal, (0, 1, 0)), post))
-    for start, end in zip(bearings, bearings[1:]):
-        if end - start != 15:
-            continue
-        middle = (start + end) / 2
-        normal, along = bearing_vectors(middle)
-        chord = 2 * RAIL_R * math.sin(math.radians(7.5)) - post[0]
-        section = size_of(kinds, "rail_section")
-        found.append(piece("rail_section", normal * RAIL_R * math.cos(math.radians(7.5)), frame_facing(-normal, (0, 1, 0)),
-                           (chord, section[1], section[2])))
-    end_post = size_of(kinds, "rail_end_post")
-    for side in (-1, 1):
-        bearing = side * opening
-        normal, _ = bearing_vectors(bearing)
-        found.append(piece("rail_end_post", normal * RAIL_R, frame_facing(-normal, (0, 1, 0)), end_post))
-    found += stair(kinds)
-    return found
-
-
-def stair(kinds):
-    """The stair down into the pit at the north, built of the kit's own pieces (the stair and handrail models came out
-    as blobs twice): a floor grating for each of its four treads at the sim's tread heights (StepFloor's pit), a pit
-    floor plate standing as each riser, a pipe for each stringer under the treads' ends and for each handrail from
-    the rail's top down to the pit floor's."""
-    found = []
-    normal, along = bearing_vectors(0)
     grating = size_of(kinds, "floor_grating")
-    pipe = size_of(kinds, "pipe_straight")
-    depth_each = (PIT_R - STAIR_FOOT) / STAIR_TREADS
-    for step in range(STAIR_TREADS):
-        middle = normal * (PIT_R - depth_each * (step + 0.5))
-        top = -STAIR_RISE * (step + 1)
-        found.append(flat("floor_grating", middle + np.array([0.0, top - grating[2], 0.0]), along,
-                          (2 * STAIR_HALF, depth_each, grating[2]), 0.0))
-        riser = size_of(kinds, "pit_floor_plate")
-        near = normal * (PIT_R - depth_each * (step + 1) + riser[2] / 2)
-        found.append(piece("pit_floor_plate", near + np.array([0.0, top - STAIR_RISE, 0.0]), frame_facing(-normal, (0, 1, 0)),
-                           (2 * STAIR_HALF, STAIR_RISE, riser[2])))
-    for side in (-1, 1):
-        edge = along * side * (STAIR_HALF - pipe[1] / 2)
-        found.append(bar("pipe_straight", normal * PIT_R + edge + np.array([0.0, -STAIR_RISE / 2, 0.0]),
-                         normal * STAIR_FOOT + edge + np.array([0.0, -PIT_DEEP + 0.02, 0.0]), kinds, layer=1))
-        rail_side = along * side * (STAIR_HALF + 0.03)
-        found.append(bar("pipe_straight", normal * PIT_R + rail_side + np.array([0.0, 1.0, 0.0]),
-                         normal * STAIR_FOOT + rail_side + np.array([0.0, -PIT_DEEP + 1.0, 0.0]), kinds, layer=1))
+    riser = size_of(kinds, "pit_floor_plate")
+    run = PIT_R - STAIR_FOOT
+    depth_each = run / STAIR_TREADS
+    inner = 2 * (STAIR_HALF - STRINGER)
+    for bearing in STAIRS:
+        normal, along = bearing_vectors(bearing)
+        for step in range(STAIR_TREADS):
+            middle = normal * (PIT_R - depth_each * (step + 0.5))
+            top = -STAIR_RISE * (step + 1)
+            found.append(flat("floor_grating", middle + np.array([0.0, top - grating[2], 0.0]), along,
+                              (inner, depth_each, grating[2]), 0.0))
+            near = normal * (PIT_R - depth_each * (step + 1) + riser[2] / 2)
+            found.append(piece("pit_floor_plate", near + np.array([0.0, top - STAIR_RISE, 0.0]),
+                               frame_facing(-normal, (0, 1, 0)), (inner, STAIR_RISE, riser[2])))
+        inward = -normal
+        up = np.array([0.0, 1.0, 0.0])
+        for side in (-1, 1):
+            middle = normal * (PIT_R - run / 2) + along * side * (STAIR_HALF - STRINGER / 2)
+            laid = piece("stair_stringer", middle + np.array([0.0, -PIT_DEEP, 0.0]), (inward, up, np.cross(inward, up)),
+                         (run, PIT_DEEP, STRINGER))
+            laid["treads"] = STAIR_TREADS
+            found.append(laid)
     return found
 
 
@@ -446,11 +438,14 @@ JOINED_MODULE = (330,)
 JOINT_CLEAR = 0.3
 
 
+# How much wider and taller than the doorway a door's frame is: its two posts and its header.
+FRAME_POSTS = 0.2
+FRAME_HEADER = 0.093
+
+
 def framed(kinds, kind):
-    """A door's frame laid so its opening (PICTURED's hole) is exactly the shell's doorway, as wide as it was made."""
-    hole = PICTURED[f"{kind}_frame"]
-    wide, tall, deep = size_of(kinds, f"{kind}_frame")
-    return (DOORWAY[0] / (hole[2] - hole[0]), DOORWAY[1] / hole[3], deep)
+    """A door's frame laid so its opening is exactly the shell's doorway."""
+    return (DOORWAY[0] + FRAME_POSTS, DOORWAY[1] + FRAME_HEADER, depth(kinds, f"{kind}_frame"))
 
 
 def doors(kinds, inventory):
@@ -512,16 +507,16 @@ def wall_gear(kinds, inventory):
             bottom = max(spot["y"] - size[1] / 2, LOWER + 0.03)  # on the upper panels, clear of the lower band's top
             found.append(on_lining(kinds, kind, spot["facet"], spot["across"], bottom, size))
     straight, elbow, valve, bracket = (size_of(kinds, name) for name in ("pipe_straight", "pipe_elbow", "pipe_valve", "pipe_bracket"))
-    for bearing, highs in ((210, (0.75, 1.35, 1.95)), (330, (2.6,)), (300, (0.55,)), (240, (2.6,))):
+    for bearing, highs in ((210, (0.75, 1.35, 1.95)), (330, (2.74,)), (300, (0.55,)), (240, (2.6,))):
         for high in highs:
             for across in (-0.6, 0.6):
                 found.append(on_lining(kinds, "pipe_straight", bearing, across, high - straight[1] / 2,
                                      (FACET_WIDE / 2 - 0.02, straight[1], straight[2]), out=bracket[2]))
             found.append(on_lining(kinds, "pipe_bracket", bearing, -0.6, high - bracket[1] / 2, bracket))
             found.append(on_lining(kinds, "pipe_bracket", bearing, 0.6, high - bracket[1] / 2, bracket))
-    for bearing, across, high in ((210, 0.3, 1.35), (210, -0.3, 0.75), (330, 0.8, 2.6), (300, -0.5, 0.55)):
+    for bearing, across, high in ((210, 0.3, 1.35), (210, -0.3, 0.75), (300, -0.5, 0.55)):
         found.append(on_lining(kinds, "pipe_valve", bearing, across, high - valve[1] / 2, valve, out=bracket[2]))
-    for bearing in (210, 240, 300, 330):
+    for bearing in (210, 240, 300):  # not the airlock's wall: its doorway reaches the corners
         for side in (-1, 1):
             found.append(on_lining(kinds, "pipe_elbow", bearing, side * (FACET_WIDE / 2 - elbow[0] / 2), 0.4, elbow, out=bracket[2]))
     cable = size_of(kinds, "cable_bundle")
@@ -532,13 +527,13 @@ def wall_gear(kinds, inventory):
     for bearing, across in ((30, 1.0), (60, -1.0), (120, 1.0), (150, -1.0), (240, 1.0), (300, -1.0)):
         found.append(on_lining(kinds, "cable_drop", bearing, across, CABLE_HIGH - drop[1], drop))
     box = size_of(kinds, "conduit_box")
-    for bearing, across in ((30, 0.0), (60, 0.0), (120, 0.0), (150, 0.0), (240, -0.3), (300, 0.0), (210, 1.0), (330, -1.0)):
+    for bearing, across in ((30, 0.0), (60, 0.0), (120, 0.0), (150, 0.0), (240, -0.3), (300, 0.9), (210, 1.0)):
         found.append(on_lining(kinds, "conduit_box", bearing, across, WALL_HIGH - 0.75, box, out=0.0))
     lamp = size_of(kinds, "wall_cage_lamp")
     for bearing in (30, 120, 150, 210, 240, 300):
         found.append(on_lining(kinds, "wall_cage_lamp", bearing, 0.0 if bearing != 300 else 0.9, 2.45, lamp))
     readout = size_of(kinds, "small_readout")
-    for bearing, across in ((150, -0.7), (240, 0.8), (60, 0.8), (210, -0.9)):
+    for bearing, across in ((210, 0.9), (300, -0.6)):  # the spots clear of pipes, door fittings and furniture
         found.append(on_lining(kinds, "small_readout", bearing, across, 1.35, readout))
     intercom = size_of(kinds, "intercom_panel")
     for bearing, across in ((60, -0.9),):  # one: every other free wall at hand height has furniture or door fittings
@@ -616,7 +611,7 @@ def kit_kinds(inventory):
 
 def laid_out(inventory):
     kinds = kit_kinds(inventory)
-    return (walls(kinds) + roof(kinds) + ceiling_gear(kinds) + floor(kinds, inventory) + pit(kinds) + rail(kinds)
+    return (walls(kinds) + roof(kinds) + ceiling_gear(kinds) + floor(kinds, inventory) + pit(kinds) + stairs(kinds)
             + doors(kinds, inventory) + clear_of_furniture(wall_gear(kinds, inventory), inventory))
 
 
@@ -653,8 +648,8 @@ def surface_samples():
             normal, _ = bearing_vectors(facet)
             if point @ normal > APOTHEM - SAMPLE_M / 2:
                 continue
-            if radius < PIT_R + 0.9 and abs(((bearing + 180) % 360) - 180) < 15:
-                continue  # the stair's head
+            if radius < PIT_R + 0.9 and near_a_stair(bearing, 15):
+                continue  # a stair's head
             points.append(point)
             normals.append(np.array([0.0, 1.0, 0.0]))
     samples["ring floor"] = (np.array(points), np.array(normals))
@@ -662,8 +657,8 @@ def surface_samples():
     steps = int(2 * math.pi * PIT_R / SAMPLE_M)
     for step in range(steps):
         angle = 2 * math.pi * step / steps
-        if abs(((math.degrees(angle) + 180) % 360) - 180) < 15:
-            continue  # behind the stair
+        if near_a_stair(math.degrees(angle), 15):
+            continue  # behind a stair
         outward = np.array([math.sin(angle), 0.0, -math.cos(angle)])
         for high in np.arange(-PIT_DEEP + SAMPLE_M / 2, 0.0, SAMPLE_M):
             points.append(outward * PIT_R + np.array([0.0, high, 0.0]))
@@ -730,153 +725,31 @@ LAYERED = {f"hub_{kind}" for kind in (
     "door_strip_lamp", "door_control_box", "grab_bar", "floor_grating", "floor_access_hatch", "floor_cable_cover",
     "tread_mat", "pit_conduit", "pit_junction_box", "machine_bay_plate", "lattice_ring_rib", "lattice_hip_rib",
     "lattice_diamond_strut", "lattice_node_plate", "roof_apex_hub", "ceiling_cable_tray", "ceiling_duct",
-    "roof_light_fixture", "rail_post", "rail_section", "rail_end_post", "stair_flight", "stair_handrail",
+    "roof_light_fixture", "stair_stringer",
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_hinge", "hatch_window", "airlock_frame", "airlock_leaf",
     "airlock_wheel", "airlock_hinge", "wall_skirting", "wall_cornice", "wall_corner_post", "waste_bin", "pit_lip_segment")}
 
 
-# The lamps the kit carries (a real light each, tuned in the engine under the game's lighting setup) and the screens
-# that glow: kind -> its light's strength (Lamp's share of LAMP_ENERGY), reach in metres and how high up the piece it
-# sits as a share of its height.
+# The lamps the kit carries (a real light each, tuned in the engine under the game's lighting setup): kind -> its
+# light's strength (Lamp's share of LAMP_ENERGY), reach in metres and how high up the piece it sits as a share of its
+# height. What glows is the made model's (tools/props/library/route.py: a screen's content, a lamp's lens).
 LIGHTS = {"roof_light_fixture": {"strength": 0.16, "reach": 6.0, "high": 0.1},
           "door_strip_lamp": {"strength": 0.05, "reach": 3.0, "high": 0.5},
           "wall_cage_lamp": {"strength": 0.05, "reach": 3.5, "high": 0.5}}
-GLOWS = {"status_display", "wall_screen_cluster", "small_readout"}
 # What each piece is to the scene check (resting.gd): the room's floors other things rest on, and what hangs from the
 # wall, the roof or a door it touches rather than standing.
 FLOORS = {"ring_floor_plate", "floor_grating", "floor_access_hatch", "floor_cable_cover", "tread_mat", "pit_floor_plate",
           "machine_bay_plate", "pit_lip_segment", "roof_face_panel"}  # the roof's faces are its surface, as a floor is
 HANGING_GROUPS = {"wall", "ceiling", "door", "pipe", "sign", "screen", "light", "vent", "pit"}
-# Pieces Pixal3D cannot make, drawn as their clean front picture on a box less the doorway (HubKit.pictured_mesh): a
-# frame round a doorway came out with its hole filled, the porthole's panel as a blob. Kind -> the hole in shares of
-# its face seen from in front, [left, bottom, right, top]; none for the porthole.
-PICTURED = {"hatch_frame": [0.0417, 0.0, 0.9583, 0.9655],
-            "hatch_wall_surround": [0.0436, 0.0, 0.9564, 0.869], "porthole_panel": []}
-# The roof's faces, drawn as their clean picture on a triangle (HubKit.pictured_triangle): the made model came out a
-# right triangle, half a face, and left the roof open between its faces (seen from the room, 2026-10-06).
-TRIANGLES = {"roof_face_panel"}
-MODELS = REPO / "game/base/models"
-
-
-# Kinds whose front the flat-back test reads the wrong way round (checked by eye on the kit's front sheet).
-FLIPPED = {"door_control_box"}
-
-
-def base_for(kind, size, mesh):
-    """The turn that stands a made model in its kind's frame (wide x, tall y, deep z, front toward -z). Rows of a 3x3.
-    A flat piece (a panel, a plate, a board, a frame, a door) was made from a picture of its face, stood up: its
-    height is the model's up (y) and its width the longer of its ground sides; the other ground side is the depth
-    Pixal3D guessed, however thick it came out. A model lying flat (its up the thinnest by far) has its face on the
-    ground instead. Any other piece has its sides matched to the kind's by length. Then the flat back goes away from
-    the room (or the kind is FLIPPED), and a flat piece turned in its own face is squared to its frame."""
-    extents = mesh.extents
-    turn = np.zeros((3, 3))
-    flat = size[2] < 0.25 * min(size[0], size[1])
-    if flat and extents[1] > 0.25 * max(extents[0], extents[2]):
-        wide_axis, deep_axis = (0, 2) if facing_axis(mesh) == 2 else (2, 0)
-        turn[0, wide_axis] = turn[1, 1] = turn[2, deep_axis] = 1.0
-        if size[1] > size[0]:  # a kind taller than wide: its face's longer side is its height
-            if extents[1] < max(extents[0], extents[2]):
-                turn = np.zeros((3, 3))
-                turn[1, wide_axis] = turn[0, 1] = turn[2, deep_axis] = 1.0
-    elif flat:
-        wide_axis, tall_axis = (0, 2) if extents[0] >= extents[2] else (2, 0)
-        if (size[0] >= size[1]) != (extents[wide_axis] >= extents[tall_axis]):
-            wide_axis, tall_axis = tall_axis, wide_axis
-        turn[0, wide_axis] = turn[1, tall_axis] = turn[2, 1] = 1.0
-    else:
-        for model_axis, kind_axis in zip(np.argsort(extents), np.argsort(np.asarray(size))):
-            turn[kind_axis, model_axis] = 1.0
-    if np.linalg.det(turn) < 0:
-        turn[0] *= -1
-    if flat:
-        turn = squared_in_its_face(mesh, turn, size) @ turn
-    if flat_side_ahead(mesh, turn) != (kind in FLIPPED):
-        turn = np.diag([-1.0, 1.0, -1.0]) @ turn
-    return [round(float(value), 6) for value in turn.ravel()]
-
-
-def facing_axis(mesh):
-    """Which ground axis (0 x or 2 z) a stood-up flat model faces along: the one its surface looks along most (its
-    face and back), by area. Its extents cannot tell when Pixal3D made it nearly as deep as it is wide."""
-    looks = np.abs(mesh.face_normals) * mesh.area_faces[:, None]
-    return 0 if looks[:, 0].sum() >= looks[:, 2].sum() else 2
-
-
-# A flat piece's outline fills at least this share of the smallest rectangle round it when it is a rectangle at all.
-SQUARE_FILL = 0.8
-
-
-def squared_in_its_face(mesh, turn, size):
-    """The turn about the depth axis that squares a flat piece's outline to its frame: the model came out turned in
-    its own face (a plate on its corner), so its box is filled least; the smallest rectangle round its outline in the
-    face gives the angle, its longer side laid along the kind's longer face side."""
-    points = (mesh.vertices @ turn.T)[:, :2]
-    hull = points[_hull(points)]
-    area = 0.5 * abs(np.dot(hull[:, 0], np.roll(hull[:, 1], 1)) - np.dot(hull[:, 1], np.roll(hull[:, 0], 1)))
-    best = (math.inf, 0.0)
-    for index in range(len(hull)):
-        edge = hull[(index + 1) % len(hull)] - hull[index]
-        angle = math.atan2(edge[1], edge[0])
-        turned = hull @ np.array([[math.cos(-angle), -math.sin(-angle)], [math.sin(-angle), math.cos(-angle)]]).T
-        extent = turned.max(axis=0) - turned.min(axis=0)
-        if extent[0] * extent[1] < best[0]:
-            best = (extent[0] * extent[1], angle if (extent[0] >= extent[1]) == (size[0] >= size[1]) else angle + math.pi / 2)
-    if area < SQUARE_FILL * best[0]:
-        return np.eye(3)  # not a rectangle (a roof face's triangle): its box already holds it as made
-    angle = -best[1]
-    return np.array([[math.cos(angle), -math.sin(angle), 0.0], [math.sin(angle), math.cos(angle), 0.0], [0.0, 0.0, 1.0]])
-
-
-def _hull(points):
-    """The convex hull's corners of 2D points, in order (monotone chain)."""
-    order = np.lexsort((points[:, 1], points[:, 0]))
-    def cross(origin, first, second):
-        return (first[0] - origin[0]) * (second[1] - origin[1]) - (first[1] - origin[1]) * (second[0] - origin[0])
-    lower, upper = [], []
-    for index in order:
-        while len(lower) >= 2 and cross(points[lower[-2]], points[lower[-1]], points[index]) <= 0:
-            lower.pop()
-        lower.append(index)
-    for index in order[::-1]:
-        while len(upper) >= 2 and cross(points[upper[-2]], points[upper[-1]], points[index]) <= 0:
-            upper.pop()
-        upper.append(index)
-    return lower[:-1] + upper[:-1]
-
-
-def flat_side_ahead(mesh, turn):
-    """Whether the model, turned, has its flat back toward -z: the side with more surface lying flat at its far end."""
-    vertices = mesh.vertices @ turn.T
-    normals = mesh.face_normals @ turn.T
-    centres = mesh.triangles_center @ turn.T
-    low, high = vertices[:, 2].min(), vertices[:, 2].max()
-    band = (high - low) * 0.03 + 1e-4
-    ahead = mesh.area_faces[(normals[:, 2] < -0.9) & (centres[:, 2] < low + band)].sum()
-    behind = mesh.area_faces[(normals[:, 2] > 0.9) & (centres[:, 2] > high - band)].sum()
-    return ahead > behind * 1.3
 
 
 def kinds_table(inventory):
-    """Every kit kind's model turn, light and glow, for HubKit."""
-    import trimesh
+    """Every kit kind's light and group, for HubKit and the scene check."""
     table = {}
     for ident, row in kit_kinds(inventory).items():
         about = {}
-        glb = MODELS / f"hub_{ident}" / f"hub_{ident}.glb"
-        if ident in PICTURED:
-            about["picture"] = f"res://game/base/hub_kit/pictures/hub_{ident}.png"
-            about["hole"] = PICTURED[ident]
-        elif ident in TRIANGLES:
-            about["picture"] = f"res://game/base/hub_kit/pictures/hub_{ident}.png"
-            about["shape"] = "triangle"
-        elif glb.exists():
-            wide, deep, tall = row["size"]
-            about["base"] = base_for(ident, (wide, tall, deep), trimesh.load(glb, force="mesh"))
         if ident in LIGHTS:
             about["light"] = LIGHTS[ident]
-        if ident in GLOWS:
-            about["glows"] = True
         if ident in FLOORS:
             about["group"] = "floors"
         elif row["group"].removeprefix("kit: ") in HANGING_GROUPS:
@@ -886,13 +759,15 @@ def kinds_table(inventory):
 
 
 def main():
+    if len(sys.argv) != 2:
+        raise SystemExit(__doc__)
     inventory = json.loads(INVENTORY.read_text())
     pieces = laid_out(inventory)
     counts = {}
     for found in pieces:
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     score = partition_score(pieces)
-    OUT.write_text(json.dumps({"room": "hub", "frame": "the Habitat node's own: x east, z south, y up from the ring floor",
+    pathlib.Path(sys.argv[1]).write_text(json.dumps({"room": "hub", "frame": "the Habitat node's own: x east, z south, y up from the ring floor",
                                "counts": counts, "partition": score, "kinds": kinds_table(inventory), "pieces": pieces},
                               indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")

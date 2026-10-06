@@ -1,6 +1,7 @@
 {
-	"is": "the small detail a generated piece gets back as clean code-built parts (round two, 2026-10-06; the owner: A's detail with B's cleanliness): labels, screws and keypads seated on the model's front, and screens laid as glowing pieces of their own. Positions in metres on the piece's front, from the middle of its foot, at its laid size",
+	"is": "what a generated piece is made with besides its labelled parts (round two and three, 2026-10-06): its `turn` from its Pixal3D model's frame into the kit's (nine numbers, row by row), and the small detail it gets back as clean code-built parts (the owner: A's detail with B's cleanliness): labels, screws and keypads seated on the model's front, and screens laid as glowing pieces of their own. Positions in metres on the piece's front, from the middle of its foot, at its laid size",
 	"hub_door_control_box": {
+		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
 		"details": [
 			{"part": "label", "at": [0.0, 0.315], "size": [0.18, 0.04], "variant": "label_access"},
 			{"part": "keypad", "at": [0.0, 0.13], "size": [0.1, 0.12]},
@@ -14,6 +15,7 @@
 		]
 	},
 	"hub_conduit_box": {
+		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
 		"details": [
 			{"part": "label", "at": [0.0, 0.1], "size": [0.09, 0.045], "variant": "stencil_number"},
 			{"part": "screw", "at": [-0.08, 0.02]},
@@ -24,10 +26,64 @@
 		"screens": []
 	},
 	"hub_wall_cage_lamp": {
+		"turn": [0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
 		"details": [
 			{"part": "screw", "at": [-0.07, 0.02]},
 			{"part": "screw", "at": [0.07, 0.02]}
 		],
+		"screens": []
+	},
+	"hub_small_readout": {
+		"turn": [0.999997, -0.002584, 0.0, -0.002584, -0.999997, 0.0, 0.0, 0.0, -1.0],
+		"details": [
+			{"part": "screw", "at": [-0.13, 0.02]},
+			{"part": "screw", "at": [0.13, 0.02]},
+			{"part": "screw", "at": [-0.13, 0.23]},
+			{"part": "screw", "at": [0.13, 0.23]}
+		],
+		"screens": [
+			{"at": [0.0, 0.13], "size": [0.2, 0.12], "variant": "screen_amber"}
+		]
+	},
+	"hub_pit_junction_box": {
+		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"details": [
+			{"part": "label", "at": [0.0, 0.29], "size": [0.12, 0.06], "variant": "stencil_number"},
+			{"part": "screw", "at": [-0.12, 0.03]},
+			{"part": "screw", "at": [0.12, 0.03]},
+			{"part": "screw", "at": [-0.12, 0.33]},
+			{"part": "screw", "at": [0.12, 0.33]}
+		],
+		"screens": []
+	},
+	"hub_pipe_bracket": {
+		"turn": [-0.0, -1.0, -0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+		"details": [],
+		"screens": []
+	},
+	"hub_pipe_elbow": {
+		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"details": [],
+		"screens": []
+	},
+	"hub_pipe_valve": {
+		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
+		"details": [],
+		"screens": []
+	},
+	"hub_roof_apex_hub": {
+		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"details": [],
+		"screens": []
+	},
+	"hub_roof_light_fixture": {
+		"turn": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+		"details": [],
+		"screens": []
+	},
+	"hub_waste_bin": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"details": [],
 		"screens": []
 	}
 }

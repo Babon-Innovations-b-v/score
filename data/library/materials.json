@@ -712,6 +712,37 @@
 					"recipe": "printed",
 					"token": "hull-trim",
 					"picture": "stencil_number"
+				},
+				"label_east_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_east_hatch"
+				},
+				"label_north_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_north_hatch"
+				},
+				"label_south_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_south_hatch"
+				},
+				"intercom_print": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "intercom_print"
+				},
+				"notice_sheets": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "notice_sheets",
+					"roughness": 0.8
+				},
+				"label_airlock": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_airlock"
 				}
 			}
 		}
@@ -768,6 +799,49 @@
 		"stencil_number": {
 			"style": "stencil",
 			"text": "07",
+			"ink": "ink-line"
+		},
+		"label_east_hatch": {
+			"style": "label",
+			"text": "东侧舱门",
+			"ink": "ink-line"
+		},
+		"label_north_hatch": {
+			"style": "label",
+			"text": "北侧舱门",
+			"ink": "ink-line"
+		},
+		"label_south_hatch": {
+			"style": "label",
+			"text": "南侧舱门",
+			"ink": "ink-line"
+		},
+		"notice_sheets": {
+			"style": "notice",
+			"ink": "ink-line",
+			"sheets": [
+				[
+					"安全须知",
+					6
+				],
+				[
+					"值班表",
+					7
+				],
+				[
+					"舱压检查",
+					5
+				]
+			]
+		},
+		"intercom_print": {
+			"style": "label",
+			"text": "通话",
+			"ink": "ink-line"
+		},
+		"label_airlock": {
+			"style": "label",
+			"text": "气闸舱",
 			"ink": "ink-line"
 		}
 	}

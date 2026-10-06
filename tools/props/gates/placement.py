@@ -47,7 +47,9 @@ def clashes(layout):
             continue
         if abs(laid["z"][1]) > 0.7:
             continue  # a floor or roof piece faces up or down, never into a doorway
-        own_bearing = float(np.degrees(np.arctan2(laid["at"][0], -laid["at"][2])) % 360)
+        # Its wall is the one its back looks toward, not the one nearest its middle: a piece at a wall's end lies
+        # nearly half a facet off the wall's middle (an elbow beside the airlock's doorway slipped the check that way).
+        own_bearing = float(np.degrees(np.arctan2(laid["z"][0], -laid["z"][2])) % 360)
         for bearing, kind, numbers in greybox.openings():
             if abs((own_bearing - bearing + 180) % 360 - 180) > 12:
                 continue  # judged only against its own wall's openings

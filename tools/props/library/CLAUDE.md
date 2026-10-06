@@ -19,8 +19,14 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   `data/library/pictures`; `inside/pieces.py` `label`, `screen_part`, `keypad`), never baked into a surface's own
   material. A screen is dark glass with its content lit; laid as its own piece, its kind glows.
 - **Generated pieces get their detail back in code** (`data/library/details.json`): `inside/make_chunky.py` turns a
-  labelled Pixal3D model into the kit frame at its laid size, bakes the library from the full model onto a 20k
-  copy (its shape relief kept in the normal map), and seats labels, screws and keypads on its front by ray.
+  labelled Pixal3D model into the kit frame at its laid size, closes a copy into a solid (thickened 5 mm inward,
+  rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which the model check fails), cuts it to
+  20k triangles, bakes the library from the full model onto it (its shape relief kept in the normal map), and seats
+  labels, screws and keypads on its front by ray.
+- **`route.py` runs the route for a whole room** (round three, 2026-10-06): `plan` (one model per kind and size, the
+  cloud jobs), `layout` (the game's layout over the made models, a failing generated model left out), `install`
+  (models, BC7 picture imports, kinds' scenes, data/kit). A piece's glowing parts (screen content, lamp lenses) are
+  split into a `part` piece of their own, so only they glow.
 - **Texture memory:** a job's pieces share one picture set (`inside/bake.py` `Atlas`), every face at one texel
   density except those the room never sees (backs against a wall or roof, a twentieth), colour and metal-roughness
   at half the normal map's side. Pieces export as .gltf beside the shared pictures.

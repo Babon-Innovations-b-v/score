@@ -34,11 +34,10 @@ THINNEST_LIMIT = 0.003
 SAMPLES = 300
 
 
-def raw_model(kind, about, folder):
-    """The kind's mesh as made, turned by its `base` but not fitted, or None."""
-    if "picture" in about:
-        return None
-    path = (room.model_file(folder, kind) if folder else None) or room.model_file(room.GAME_MODELS / kind, kind)
+def raw_model(name, about, folder):
+    """A made model's (or a kind's own) mesh as made, turned by its `base` but not fitted, or None."""
+    path = ((room.model_file(folder, name) if folder else None) or room.model_file(room.KIT_MODELS, name)
+            or room.model_file(room.GAME_MODELS / name, name))
     if path is None:
         return None
     mesh = trimesh.load(path, force="mesh", skip_materials=True)
@@ -99,14 +98,16 @@ def main():
     wanted = set(arguments.kinds.split(",")) if arguments.kinds else None
     sizes = {}
     for laid in layout["pieces"]:
-        sizes.setdefault(laid["kind"], laid["size"])
+        name = laid.get("model", laid["kind"])
+        about = layout.get("models", {}).get(name, {}) if "model" in laid else layout["kinds"].get(laid["kind"], {})
+        sizes.setdefault(name, (laid["kind"], laid["size"], about))
     report = {}
-    for kind, laid in sorted(sizes.items()):
-        if (wanted and kind not in wanted) or (arguments.prefix and not kind.startswith(arguments.prefix)):
+    for name, (kind, laid, about) in sorted(sizes.items()):
+        if (wanted and name not in wanted) or (arguments.prefix and not name.startswith(arguments.prefix)):
             continue
-        mesh = raw_model(kind, layout["kinds"].get(kind, {}), arguments.models)
-        report[kind] = check(kind, mesh, laid) if mesh is not None else {"pictured": True, "pass": None}
-        print(kind, report[kind], flush=True)
+        mesh = raw_model(name, about, arguments.models)
+        report[name] = check(kind, mesh, laid) if mesh is not None else {"missing": True, "pass": None}
+        print(name, report[name], flush=True)
     if arguments.report:
         arguments.report.write_text(json.dumps(report, indent=1))
 
