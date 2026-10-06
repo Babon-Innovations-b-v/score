@@ -258,6 +258,10 @@ def baked_in_place(full, name, size, folder):
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
     scene.cycles.samples = 4
+    # The ground's bake (bake_onto) leaves selected-to-active on, and Infinigen's exporter never sets it, so
+    # with only this object selected every patch model's bake failed ("No valid selected objects") and fell
+    # back to a copy that came back black (the reef's and the Moon's models, 2026-10-06).
+    scene.render.bake.use_selected_to_active = False
     others = [item for item in scene.objects if item is not obj and not item.hide_render]
     for item in others:
         item.hide_render = True

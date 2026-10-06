@@ -14,6 +14,9 @@ it built. Bible: `workflow/bootstrap` (the vendored copy, its licences, the runn
 - **`vendor/infinigen` stays as released.** New behaviour (the crater element, the game export) lives
   here and calls into it; the GPL part (`infinigen_gpl`) is fetched on the machine, never committed.
 - **The game gets models, not Infinigen's scene**: a grid ground with the full ground baked onto it, one
-  thinned and baked model a distinct mesh, and every copy's transform for a MultiMesh (`placements.json`).
+  close-up model a distinct mesh, and every copy's transform for a MultiMesh (`placements.json`).
   `view.tscn` draws that folder in the game's look through `run.sh shots` and writes the card's time.
+- **Never cut a model to a sliver.** Bake on the full mesh first (Infinigen's `bake_object`), then collapse
+  only to the close-up budget in the spec, keeping UVs; distance is lighter levels (`lod_chain`) and picture
+  cards, never a 1% model up close (the owner turned those down, 2026-10-06).
 - `crater_test.py` is the plain-python check (numpy, the prop environment).
