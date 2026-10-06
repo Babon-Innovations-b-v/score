@@ -1,0 +1,760 @@
+{
+	"is": "the base theme's material library (robust route, 2026-10-06): families of rule-based materials every room takes by name; shape comes from models and code, material only from here. Each variant is a ProcFunc recipe (tools/props/library/recipes.py) with its settings; add variants, never edit one a room already uses",
+	"wear_levels": {
+		"new": 0.0,
+		"worked": 0.4,
+		"worn": 0.8
+	},
+	"dirt": "frass",
+	"recipes": {
+		"painted_metal": {
+			"bare": "steel",
+			"roughness": 0.5,
+			"bare_roughness": 0.35,
+			"metal": 0.0,
+			"bump": 0.0004,
+			"bump_size": 0.012,
+			"edge_width": 0.006,
+			"breakup_scale": 8.0,
+			"dirt_reach": 0.08
+		},
+		"bare_metal": {
+			"roughness": 0.38,
+			"metal": 0.5,
+			"bump": 0.0002,
+			"bump_size": 0.05,
+			"dirt_reach": 0.08
+		},
+		"cast_metal": {
+			"roughness": 0.6,
+			"metal": 0.4,
+			"bump": 0.0008,
+			"bump_size": 0.004,
+			"dirt_reach": 0.06
+		},
+		"perforated_metal": {
+			"second": "ink-line",
+			"roughness": 0.5,
+			"metal": 0.0,
+			"pitch": 0.025,
+			"hole_share": 0.45,
+			"dirt_reach": 0.06
+		},
+		"chequer_plate": {
+			"roughness": 0.45,
+			"metal": 0.5,
+			"pitch": 0.035,
+			"bump": 0.0025,
+			"dirt_reach": 0.05
+		},
+		"galvanized": {
+			"second": "hull",
+			"roughness": 0.45,
+			"metal": 0.5,
+			"cell_size": 0.02,
+			"contrast": 0.25,
+			"dirt_reach": 0.06
+		},
+		"anodized": {
+			"roughness": 0.35,
+			"metal": 0.6,
+			"bump": 0.0001,
+			"bump_size": 0.02
+		},
+		"rubber": {
+			"roughness": 0.85,
+			"bump": 0.0002,
+			"bump_size": 0.002,
+			"dirt_reach": 0.05,
+			"dirt_share": 0.5
+		},
+		"quilted": {
+			"second": "cabin-seam",
+			"roughness": 0.9,
+			"quilt_size": 0.12,
+			"puff": 0.004,
+			"seam_width": 0.06,
+			"dirt_reach": 0.05
+		},
+		"composite": {
+			"second": "ink-line",
+			"roughness": 0.35,
+			"weave": 0.006,
+			"bump": 0.0002
+		},
+		"glass": {
+			"roughness": 0.05
+		},
+		"glowing": {
+			"roughness": 0.3
+		},
+		"screen": {
+			"roughness": 0.1
+		},
+		"printed": {
+			"roughness": 0.6
+		}
+	},
+	"families": {
+		"painted": {
+			"is": "Painted steel panels and parts: paint over steel, worn through on the edges by the place's wear, dirty in the cavities; colours, ages and finishes",
+			"variants": {
+				"painted_panel": {
+					"recipe": "painted_metal",
+					"token": "hull-trim",
+					"bare": "hull",
+					"roughness": 0.31,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							400,
+							790,
+							470,
+							860
+						],
+						"said": "the submarine control room's painted wall"
+					}
+				},
+				"dark_panel": {
+					"recipe": "painted_metal",
+					"token": "cabin-panel",
+					"roughness": 0.36,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+						"box": [
+							10,
+							15,
+							280,
+							85
+						],
+						"said": "the cockpit's dark panel between screens"
+					}
+				},
+				"deck": {
+					"recipe": "painted_metal",
+					"token": "deck",
+					"edge_width": 0.008,
+					"roughness": 0.34,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							930,
+							960,
+							1070,
+							1040
+						],
+						"said": "the control room's deck"
+					}
+				},
+				"warning_paint": {
+					"recipe": "painted_metal",
+					"token": "alarm",
+					"roughness": 0.38,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							243,
+							440,
+							263,
+							700
+						],
+						"said": "the red valve manifold's pipe"
+					}
+				},
+				"hazard_paint": {
+					"recipe": "painted_metal",
+					"token": "hazard",
+					"roughness": 0.5
+				},
+				"hull_white_gloss": {
+					"recipe": "painted_metal",
+					"token": "hull",
+					"roughness": 0.3,
+					"wear_scale": 0.6,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							925,
+							420,
+							990,
+							500
+						],
+						"said": "Kibo's white rack front"
+					},
+					"bump": 0.0006,
+					"bump_size": 0.012
+				},
+				"hull_white_old": {
+					"recipe": "painted_metal",
+					"token": "hull",
+					"roughness": 0.55,
+					"wear_scale": 1.8,
+					"bump": 0.0006
+				},
+				"machine_orange": {
+					"recipe": "painted_metal",
+					"token": "machine",
+					"roughness": 0.45
+				},
+				"olive_panel": {
+					"recipe": "painted_metal",
+					"token": "flat-dado",
+					"roughness": 0.31,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc32-iss-zvezda.jpg",
+						"box": [
+							600,
+							120,
+							780,
+							250
+						],
+						"said": "Zvezda's olive wall panels"
+					},
+					"bump": 0.0006,
+					"bump_size": 0.01
+				},
+				"grey_green_panel": {
+					"recipe": "painted_metal",
+					"token": "tarp",
+					"roughness": 0.55
+				},
+				"overall_blue_panel": {
+					"recipe": "painted_metal",
+					"token": "overall",
+					"roughness": 0.45
+				},
+				"enamel_white": {
+					"recipe": "painted_metal",
+					"token": "sign-white",
+					"roughness": 0.25,
+					"wear_scale": 0.5,
+					"bump": 0.0001
+				},
+				"enamel_blue": {
+					"recipe": "painted_metal",
+					"token": "sign-blue",
+					"roughness": 0.25,
+					"wear_scale": 0.5,
+					"bump": 0.0001
+				},
+				"roof_steel_paint": {
+					"recipe": "painted_metal",
+					"token": "roof-steel",
+					"roughness": 0.5
+				},
+				"padding_grey_paint": {
+					"recipe": "painted_metal",
+					"token": "cabin-padding",
+					"roughness": 0.6
+				},
+				"oxide_primer": {
+					"recipe": "painted_metal",
+					"token": "mars-dark",
+					"roughness": 0.75,
+					"wear_scale": 1.5
+				},
+				"hammertone_grey": {
+					"recipe": "painted_metal",
+					"token": "cabin-seam",
+					"roughness": 0.45,
+					"bump": 0.0006,
+					"bump_size": 0.01
+				}
+			}
+		},
+		"steel": {
+			"is": "Unpainted steel: brushed, cast, perforated, tread plate and galvanized",
+			"variants": {
+				"bare_steel": {
+					"recipe": "bare_metal",
+					"token": "steel",
+					"roughness": 0.5,
+					"bump": 0.0002,
+					"bump_size": 0.05,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							845,
+							620,
+							905,
+							690
+						],
+						"said": "a grey steel box beside the valves"
+					}
+				},
+				"pipe_steel": {
+					"recipe": "bare_metal",
+					"token": "roof-steel",
+					"roughness": 0.45,
+					"dirt_reach": 0.06
+				},
+				"brushed_steel_fine": {
+					"recipe": "bare_metal",
+					"token": "steel",
+					"roughness": 0.3,
+					"bump_size": 0.02
+				},
+				"cast_steel": {
+					"recipe": "cast_metal",
+					"token": "roof-steel"
+				},
+				"cast_iron_dark": {
+					"recipe": "cast_metal",
+					"token": "line",
+					"roughness": 0.7,
+					"metal": 0.3
+				},
+				"perforated_steel": {
+					"recipe": "perforated_metal",
+					"token": "steel",
+					"metal": 0.5,
+					"roughness": 0.4
+				},
+				"perforated_blue_board": {
+					"recipe": "perforated_metal",
+					"token": "overall",
+					"pitch": 0.025,
+					"hole_share": 0.3,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-1.jpg",
+						"box": [
+							610,
+							330,
+							700,
+							450
+						],
+						"said": "the workshop's blue pegboard"
+					},
+					"roughness": 0.5
+				},
+				"chequer_plate_steel": {
+					"recipe": "chequer_plate",
+					"token": "steel",
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-1.jpg",
+						"box": [
+							500,
+							880,
+							700,
+							1000
+						],
+						"said": "the workshop's tread-plate floor"
+					},
+					"roughness": 0.57,
+					"bump": 0.0025
+				},
+				"chequer_plate_deck": {
+					"recipe": "chequer_plate",
+					"token": "deck",
+					"metal": 0.2,
+					"roughness": 0.55
+				},
+				"galvanized_steel": {
+					"recipe": "galvanized",
+					"token": "steel"
+				},
+				"galvanized_dull": {
+					"recipe": "galvanized",
+					"token": "roof-steel",
+					"second": "steel",
+					"contrast": 0.15,
+					"roughness": 0.55
+				}
+			}
+		},
+		"aluminium": {
+			"is": "Anodized aluminium: rails, handles, fittings",
+			"variants": {
+				"anodized_natural": {
+					"recipe": "anodized",
+					"token": "idle"
+				},
+				"anodized_blue": {
+					"recipe": "anodized",
+					"token": "info",
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							862,
+							150,
+							884,
+							370
+						],
+						"said": "Kibo's blue handrail"
+					},
+					"roughness": 0.35,
+					"bump": 0.0001,
+					"bump_size": 0.02
+				},
+				"anodized_black": {
+					"recipe": "anodized",
+					"token": "ink-line",
+					"roughness": 0.45
+				},
+				"anodized_red": {
+					"recipe": "anodized",
+					"token": "alarm"
+				},
+				"anodized_gold": {
+					"recipe": "anodized",
+					"token": "sign-gold"
+				}
+			}
+		},
+		"rubber": {
+			"is": "Rubber: mats, gaskets, seals, feet",
+			"variants": {
+				"rubber": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.83,
+					"bump": 0.0002,
+					"bump_size": 0.002,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							420,
+							572,
+							480,
+							600
+						],
+						"said": "the bench's dark cushion"
+					}
+				},
+				"gasket_black": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.5
+				},
+				"rubber_floor_bumpy": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.8,
+					"bump": 0.0006,
+					"bump_size": 0.004
+				},
+				"rubber_grey": {
+					"recipe": "rubber",
+					"token": "idle",
+					"roughness": 0.85
+				}
+			}
+		},
+		"plastic": {
+			"is": "Plastic and vinyl: soft-touch covers, seats, housings",
+			"variants": {
+				"vinyl_cabin": {
+					"recipe": "rubber",
+					"token": "cabin-padding",
+					"roughness": 0.65
+				},
+				"vinyl_seat": {
+					"recipe": "rubber",
+					"token": "cabin-seat",
+					"roughness": 0.6
+				},
+				"vinyl_orange": {
+					"recipe": "rubber",
+					"token": "ship-padding",
+					"roughness": 0.6
+				},
+				"plastic_grey": {
+					"recipe": "rubber",
+					"token": "idle",
+					"roughness": 0.5,
+					"bump": 0.0001
+				},
+				"plastic_white": {
+					"recipe": "rubber",
+					"token": "hull",
+					"roughness": 0.45,
+					"bump": 0.0001
+				}
+			}
+		},
+		"cable": {
+			"is": "Cable sheathing in the colours cables are coded in",
+			"variants": {
+				"cable_black": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.23,
+					"dirt_share": 0.3,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-1.jpg",
+						"box": [
+							450,
+							780,
+							600,
+							830
+						],
+						"said": "a coil of black cable"
+					},
+					"bump": 0.00036,
+					"bump_size": 0.01
+				},
+				"cable_grey": {
+					"recipe": "rubber",
+					"token": "cabin-seam",
+					"roughness": 0.4,
+					"dirt_share": 0.3
+				},
+				"cable_orange": {
+					"recipe": "rubber",
+					"token": "machine",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				},
+				"cable_red": {
+					"recipe": "rubber",
+					"token": "alarm",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				},
+				"cable_blue": {
+					"recipe": "rubber",
+					"token": "sign-blue",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				},
+				"cable_yellow": {
+					"recipe": "rubber",
+					"token": "hazard",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				}
+			}
+		},
+		"fabric": {
+			"is": "Fabric and quilted insulation: blankets, padding, soft bags",
+			"variants": {
+				"quilted_white": {
+					"recipe": "quilted",
+					"token": "hull",
+					"second": "cabin-seam",
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							250,
+							520,
+							450,
+							590
+						],
+						"said": "Kibo's soft white floor panels"
+					},
+					"roughness": 0.95,
+					"puff": 0.004
+				},
+				"quilted_beige": {
+					"recipe": "quilted",
+					"token": "flat-wall",
+					"second": "line"
+				},
+				"quilted_grey": {
+					"recipe": "quilted",
+					"token": "cabin-padding",
+					"second": "cabin-seam",
+					"quilt_size": 0.08
+				},
+				"canvas_beige": {
+					"recipe": "rubber",
+					"token": "flat-wall",
+					"roughness": 0.68,
+					"bump": 0.00054,
+					"bump_size": 0.001,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							440,
+							100,
+							500,
+							160
+						],
+						"said": "a beige stowage bag"
+					}
+				}
+			}
+		},
+		"composite": {
+			"is": "Woven composite panels",
+			"variants": {
+				"composite_grey": {
+					"recipe": "composite",
+					"token": "cabin-seam",
+					"second": "ink-line"
+				},
+				"carbon_fibre": {
+					"recipe": "composite",
+					"token": "line",
+					"second": "ink-line",
+					"roughness": 0.25
+				},
+				"glass_fibre_panel": {
+					"recipe": "composite",
+					"token": "flat-wall",
+					"second": "cabin-seam",
+					"weave": 0.01
+				}
+			}
+		},
+		"glass": {
+			"is": "Glass that is drawn, not seen through: dark, frosted, tinted",
+			"variants": {
+				"glass": {
+					"recipe": "glass",
+					"token": "glass",
+					"roughness": 0.05
+				},
+				"glass_frosted": {
+					"recipe": "glass",
+					"token": "cabin-light",
+					"roughness": 0.6
+				},
+				"glass_tinted": {
+					"recipe": "glass",
+					"token": "night-horizon",
+					"roughness": 0.08
+				}
+			}
+		},
+		"screen": {
+			"is": "Screens: dark glass, the content lit from behind; and a screen switched off",
+			"variants": {
+				"screen": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "screen_status"
+				},
+				"screen_amber": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "screen_readout"
+				},
+				"screen_off": {
+					"recipe": "glass",
+					"token": "ink-line",
+					"roughness": 0.1
+				}
+			}
+		},
+		"light": {
+			"is": "Things that give light: lamp lenses and LEDs",
+			"variants": {
+				"lamp_lens": {
+					"recipe": "glowing",
+					"token": "lamp"
+				},
+				"led_green": {
+					"recipe": "glowing",
+					"token": "beacon-ok"
+				},
+				"led_red": {
+					"recipe": "glowing",
+					"token": "beacon-stuck"
+				},
+				"led_amber": {
+					"recipe": "glowing",
+					"token": "screen-amber"
+				},
+				"led_white": {
+					"recipe": "glowing",
+					"token": "cabin-light"
+				}
+			}
+		},
+		"print": {
+			"is": "Labels, plates and stencils: a picture printed on a colour",
+			"variants": {
+				"label_access": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_access"
+				},
+				"label_west_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_west_hatch"
+				},
+				"label_porthole": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_porthole"
+				},
+				"keypad_print": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "keypad_print",
+					"roughness": 0.4
+				},
+				"stencil_number": {
+					"recipe": "printed",
+					"token": "hull-trim",
+					"picture": "stencil_number"
+				}
+			}
+		}
+	},
+	"pictures": {
+		"screen_status": {
+			"style": "status",
+			"title": "生命保障",
+			"rows": [
+				[
+					"舱压",
+					"101.3 kPa"
+				],
+				[
+					"氧气",
+					"21.0 %"
+				],
+				[
+					"温度",
+					"21.5 °C"
+				],
+				[
+					"电源",
+					"正常"
+				]
+			],
+			"ink": "screen-teal"
+		},
+		"screen_readout": {
+			"style": "readout",
+			"title": "门禁",
+			"value": "已锁定",
+			"ink": "screen-amber"
+		},
+		"label_access": {
+			"style": "label",
+			"text": "门禁控制箱",
+			"ink": "ink-line"
+		},
+		"label_west_hatch": {
+			"style": "label",
+			"text": "西侧舱门",
+			"ink": "ink-line"
+		},
+		"label_porthole": {
+			"style": "label",
+			"text": "观察窗",
+			"ink": "ink-line"
+		},
+		"keypad_print": {
+			"style": "keypad",
+			"ink": "sign-white"
+		},
+		"stencil_number": {
+			"style": "stencil",
+			"text": "07",
+			"ink": "ink-line"
+		}
+	}
+}

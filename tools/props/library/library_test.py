@@ -1,4 +1,4 @@
-"""Check the material library's data (library.py) and the sorter (sorter.py): plain python, no Blender.
+"""Check the material library's data (library.py, data/library/) and the sorter (sorter.py): plain python, no Blender.
 Run: python3 tools/props/library/library_test.py
 """
 import json
@@ -10,14 +10,29 @@ sys.path.insert(0, str(HERE))
 import library  # noqa: E402
 import sorter  # noqa: E402
 
-RECIPES = ("painted_metal", "bare_metal", "rubber", "glass", "glowing")
+DETAIL_PARTS = ("label", "screw", "screen", "keypad")
 
 
-def test_every_library_material_names_a_recipe_a_token_and_every_setting():
-    for name, spec in library.library_specs().items():
-        assert spec["recipe"] in RECIPES, name
+def test_every_variant_resolves_to_a_known_recipe_in_token_colours():
+    found = library.library_specs()
+    recipes = library.theme_library()["recipes"]
+    assert len(found) >= 60
+    for name, spec in found.items():
+        assert spec["recipe"] in recipes, name
         assert len(spec["colour"]) == 3 and all(0.0 <= value <= 1.0 for value in spec["colour"]), name
-        assert all(setting in spec for setting in library.SETTINGS), name
+        assert all(setting in spec for setting in recipes[spec["recipe"]]), name
+
+
+def test_every_picture_variant_has_its_picture_drawn():
+    for name, spec in library.library_specs().items():
+        if spec["recipe"] in ("screen", "printed"):
+            assert pathlib.Path(spec["image"]).exists(), name
+
+
+def test_a_variant_is_named_once_across_the_families():
+    library_data = library.theme_library()
+    names = [name for family in library_data["families"].values() for name in family["variants"]]
+    assert len(names) == len(set(names)) == len(library.variants(library_data))
 
 
 def test_the_hub_and_the_habitat_take_the_same_library_in_their_own_tokens():
@@ -31,7 +46,7 @@ def test_the_hub_and_the_habitat_take_the_same_library_in_their_own_tokens():
 def test_a_code_piece_slot_finds_its_place_colour_by_library_name():
     assert library.by_library("habitat")["painted_panel"]["token"] == "hull"
     assert library.by_library("hub")["painted_panel"]["token"] == "hull-trim"
-    assert library.by_library("hub")["glass"]["token"] == "glass"
+    assert library.by_library("hub")["quilted_white"]["token"] == "hull"
 
 
 def test_the_wear_levels_rise_and_the_hub_is_worked():
@@ -41,9 +56,20 @@ def test_the_wear_levels_rise_and_the_hub_is_worked():
 
 
 def test_a_token_colour_is_linear():
-    white, black = library.linear("#ffffff"), library.linear("#000000")
-    assert white == [1.0, 1.0, 1.0] and black == [0.0, 0.0, 0.0]
+    assert library.linear("#ffffff") == [1.0, 1.0, 1.0] and library.linear("#000000") == [0.0, 0.0, 0.0]
     assert abs(library.linear("#808080")[0] - 0.2159) < 1e-3
+
+
+def test_every_detail_names_a_known_part_and_a_library_variant():
+    details = json.loads((library.REPO / "data/library/details.json").read_text())
+    names = library.variants(library.theme_library())
+    for kind, entry in details.items():
+        if kind == "is":
+            continue
+        for detail in entry["details"]:
+            assert detail["part"] in DETAIL_PARTS, kind
+            assert detail.get("variant", "label_access") in names, kind
+        assert all(screen["variant"] in names for screen in entry["screens"]), kind
 
 
 def test_flat_slender_and_open_shapes_go_to_code_and_solids_to_the_model():

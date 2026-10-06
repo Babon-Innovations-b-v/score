@@ -64,221 +64,8 @@
 				"paintings": "the hub style page, row 'Theme mix: even' (https://claude.ai/artifact/RSmbF64TefQpszh2s1PEwB)"
 			},
 			"library": {
-				"is": "the base theme's material library (job robust-exp, 2026-10-06): rule-based materials every place of the theme takes by name in its own materials, with its own token and wear level; shape comes from the models and code, material only from here",
-				"recipes": "tools/props/library/recipes.py, in ProcFunc, the relief from vendor/infinigen2 (BSD-3)",
-				"wear_levels": {
-					"new": 0.0,
-					"worked": 0.4,
-					"worn": 0.8
-				},
-				"dirt": "frass",
-				"materials": {
-					"painted_panel": {
-						"recipe": "painted_metal",
-						"bare": "hull",
-						"metal": 0.0,
-						"bump": 0.0006,
-						"bump_size": 0.01,
-						"edge_width": 0.006,
-						"breakup_scale": 8.0,
-						"dirt_reach": 0.08,
-						"bare_roughness": 0.35,
-						"token": "hull-trim",
-						"roughness": 0.43,
-						"reference": {
-							"picture": "WORK/references/hub-directions/industrial-2.jpg",
-							"box": [
-								400,
-								790,
-								470,
-								860
-							],
-							"said": "the submarine control room's painted wall"
-						}
-					},
-					"dark_panel": {
-						"recipe": "painted_metal",
-						"bare": "steel",
-						"metal": 0.0,
-						"bump": 0.0006,
-						"bump_size": 0.01,
-						"edge_width": 0.006,
-						"breakup_scale": 8.0,
-						"dirt_reach": 0.08,
-						"bare_roughness": 0.35,
-						"token": "cabin-panel",
-						"roughness": 0.36,
-						"reference": {
-							"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
-							"box": [
-								10,
-								15,
-								280,
-								85
-							],
-							"said": "the cockpit's dark panel between screens"
-						}
-					},
-					"deck": {
-						"recipe": "painted_metal",
-						"bare": "steel",
-						"metal": 0.0,
-						"bump": 0.0006,
-						"bump_size": 0.01,
-						"edge_width": 0.008,
-						"breakup_scale": 8.0,
-						"dirt_reach": 0.08,
-						"bare_roughness": 0.35,
-						"token": "deck",
-						"roughness": 0.58,
-						"reference": {
-							"picture": "WORK/references/hub-directions/industrial-2.jpg",
-							"box": [
-								930,
-								960,
-								1070,
-								1040
-							],
-							"said": "the control room's deck"
-						}
-					},
-					"warning_paint": {
-						"recipe": "painted_metal",
-						"bare": "steel",
-						"metal": 0.0,
-						"bump": 0.0006,
-						"bump_size": 0.01,
-						"edge_width": 0.006,
-						"breakup_scale": 8.0,
-						"dirt_reach": 0.08,
-						"bare_roughness": 0.35,
-						"token": "alarm",
-						"roughness": 0.5,
-						"reference": {
-							"picture": "WORK/references/hub-directions/industrial-2.jpg",
-							"box": [
-								243,
-								440,
-								263,
-								700
-							],
-							"said": "the red valve manifold's pipe"
-						}
-					},
-					"hazard_paint": {
-						"recipe": "painted_metal",
-						"bare": "steel",
-						"metal": 0.0,
-						"bump": 0.0003,
-						"bump_size": 0.02,
-						"edge_width": 0.006,
-						"breakup_scale": 8.0,
-						"dirt_reach": 0.08,
-						"bare_roughness": 0.35,
-						"token": "hazard",
-						"roughness": 0.5
-					},
-					"bare_steel": {
-						"recipe": "bare_metal",
-						"token": "steel",
-						"roughness": 0.38,
-						"metal": 0.5,
-						"bump": 0.0002,
-						"bump_size": 0.05,
-						"edge_width": 0.0,
-						"breakup_scale": 4.0,
-						"dirt_reach": 0.08,
-						"bare_roughness": 0.38,
-						"wears": false,
-						"reference": {
-							"picture": "WORK/references/hub-directions/industrial-2.jpg",
-							"box": [
-								845,
-								620,
-								905,
-								690
-							],
-							"said": "a grey steel box beside the valves"
-						}
-					},
-					"pipe_steel": {
-						"recipe": "bare_metal",
-						"token": "roof-steel",
-						"roughness": 0.45,
-						"metal": 0.5,
-						"bump": 0.0002,
-						"bump_size": 0.05,
-						"edge_width": 0.0,
-						"breakup_scale": 4.0,
-						"dirt_reach": 0.06,
-						"bare_roughness": 0.45,
-						"wears": false
-					},
-					"rubber": {
-						"recipe": "rubber",
-						"token": "rubber",
-						"roughness": 0.83,
-						"metal": 0.0,
-						"bump": 0.0002,
-						"bump_size": 0.002,
-						"edge_width": 0.0,
-						"breakup_scale": 4.0,
-						"dirt_reach": 0.05,
-						"bare_roughness": 0.85,
-						"wears": false,
-						"dirt_share": 0.5,
-						"reference": {
-							"picture": "WORK/references/hub-directions/industrial-2.jpg",
-							"box": [
-								420,
-								572,
-								480,
-								600
-							],
-							"said": "the bench's dark cushion"
-						}
-					},
-					"glass": {
-						"recipe": "glass",
-						"token": "glass",
-						"roughness": 0.05,
-						"metal": 0.0,
-						"bump": 0.0,
-						"bump_size": 0.01,
-						"edge_width": 0.0,
-						"breakup_scale": 4.0,
-						"dirt_reach": 0.05,
-						"bare_roughness": 0.05,
-						"wears": false
-					},
-					"screen": {
-						"recipe": "glowing",
-						"token": "screen-teal",
-						"roughness": 0.2,
-						"metal": 0.0,
-						"bump": 0.0,
-						"bump_size": 0.01,
-						"edge_width": 0.0,
-						"breakup_scale": 4.0,
-						"dirt_reach": 0.05,
-						"bare_roughness": 0.2,
-						"wears": false
-					},
-					"lamp_lens": {
-						"recipe": "glowing",
-						"token": "lamp",
-						"roughness": 0.3,
-						"metal": 0.0,
-						"bump": 0.0,
-						"bump_size": 0.01,
-						"edge_width": 0.0,
-						"breakup_scale": 4.0,
-						"dirt_reach": 0.05,
-						"bare_roughness": 0.3,
-						"wears": false
-					}
-				},
-				"metal_note": "bare and pipe steel are half metal: fully metal steel draws near black under the ink look's indoor light, with no sky to reflect (B's first in-game shots, 2026-10-06)"
+				"file": "data/library/materials.json",
+				"is": "the base theme's material library: families of rule-based materials every place of the theme takes by name in its own materials, with its own token and wear level (robust route, 2026-10-06)"
 			}
 		}
 	},
@@ -357,7 +144,7 @@
 				"library": "rubber"
 			},
 			"screen_glass": {
-				"token": "screen-teal",
+				"token": "glass",
 				"roughness": "gloss",
 				"dust": 0.0,
 				"library": "screen"
@@ -637,7 +424,7 @@
 				"library": "glass"
 			},
 			"screen": {
-				"token": "screen-teal",
+				"token": "glass",
 				"library": "screen"
 			},
 			"lamp_lens": {

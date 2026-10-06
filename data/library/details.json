@@ -1,0 +1,33 @@
+{
+	"is": "the small detail a generated piece gets back as clean code-built parts (round two, 2026-10-06; the owner: A's detail with B's cleanliness): labels, screws and keypads seated on the model's front, and screens laid as glowing pieces of their own. Positions in metres on the piece's front, from the middle of its foot, at its laid size",
+	"hub_door_control_box": {
+		"details": [
+			{"part": "label", "at": [0.0, 0.315], "size": [0.18, 0.04], "variant": "label_access"},
+			{"part": "keypad", "at": [0.0, 0.13], "size": [0.1, 0.12]},
+			{"part": "screw", "at": [-0.11, 0.025]},
+			{"part": "screw", "at": [0.11, 0.025]},
+			{"part": "screw", "at": [-0.11, 0.335]},
+			{"part": "screw", "at": [0.11, 0.335]}
+		],
+		"screens": [
+			{"at": [0.0, 0.235], "size": [0.14, 0.07], "variant": "screen_amber"}
+		]
+	},
+	"hub_conduit_box": {
+		"details": [
+			{"part": "label", "at": [0.0, 0.1], "size": [0.09, 0.045], "variant": "stencil_number"},
+			{"part": "screw", "at": [-0.08, 0.02]},
+			{"part": "screw", "at": [0.08, 0.02]},
+			{"part": "screw", "at": [-0.08, 0.18]},
+			{"part": "screw", "at": [0.08, 0.18]}
+		],
+		"screens": []
+	},
+	"hub_wall_cage_lamp": {
+		"details": [
+			{"part": "screw", "at": [-0.07, 0.02]},
+			{"part": "screw", "at": [0.07, 0.02]}
+		],
+		"screens": []
+	}
+}

@@ -135,31 +135,179 @@ def glowing(colour, roughness):
     return Channels(colour, roughness, 0.0, colour, None)
 
 
-RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "rubber": rubber, "glass": glass,
-           "glowing": glowing}
+def face_plane(vector):
+    """Two coordinates across the surface, from the object's axes it lies most across: a floor reads x and y, a
+    wall facing front x and z, a side y and z (the first swatches striped every floor with a wall's grid)."""
+    point = pf.nodes.math.separate_xyz(vector)
+    facing = pf.nodes.math.separate_xyz(pf.nodes.shader.geometry().normal)
+    side, front, up = (pf.nodes.math.absolute(facing.x), pf.nodes.math.absolute(facing.y),
+                       pf.nodes.math.absolute(facing.z))
+    is_up = pf.nodes.math.greater_than(up, side) * pf.nodes.math.greater_than(up, front)
+    is_side = pf.nodes.math.greater_than(side, front) * (1.0 - is_up)
+    across = pf.nodes.math.mix(a=point.x, b=point.y, factor=is_side)
+    upward = pf.nodes.math.mix(a=point.z, b=point.y, factor=is_up)
+    return across, upward
+
+
+def face_grid(vector, pitch):
+    """A square grid on the surface's own plane (face_plane), each point's offset from its cell's middle in cells,
+    from -0.5 to 0.5 on each axis."""
+    across, upward = face_plane(vector)
+    return pf.nodes.math.fraction(across / pitch) - 0.5, pf.nodes.math.fraction(upward / pitch) - 0.5
+
+
+def dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed):
+    """A surface's colour and roughness with dirt gathered in its cavities."""
+    dirty = dirt_mask(vector, dirt, dirt_reach, seed)
+    return (pf.nodes.color.mix_rgb(factor=dirty, a=colour, b=dirt_colour),
+            pf.nodes.math.mix(a=roughness, b=0.9, factor=dirty))
+
+
+def cast_metal(colour, dirt_colour, roughness, metal, bump, bump_size, dirt_reach, dirt, seed):
+    """Sand-cast steel or iron: a soft pitted relief, flat colour, dirt in the cavities."""
+    vector = coordinates()
+    pits = pf.nodes.texture.noise(vector=vector, scale=1.0 / bump_size, detail=3.0, noise_dimensions="4D", w=seed)
+    relief = pf.nodes.shader.displacement(height=(pits.fac - 0.5) * bump, midlevel=0.0)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    return Channels(base, rough, metal, BLACK, relief)
+
+
+def perforated_metal(colour, second, dirt_colour, roughness, metal, pitch, hole_share, dirt_reach, dirt, seed):
+    """Perforated sheet: a square grid of round holes (dark, sunk) through painted or bare sheet."""
+    vector = coordinates()
+    across, up = face_grid(vector, pitch)
+    hole = pf.nodes.math.less_than(pf.nodes.math.sqrt(across * across + up * up), hole_share * 0.5)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=hole, a=base, b=second)
+    return Channels(base, rough, metal, BLACK, pf.nodes.shader.displacement(height=hole * -0.002, midlevel=0.0))
+
+
+def chequer_plate(colour, dirt_colour, roughness, metal, pitch, bump, dirt_reach, dirt, seed):
+    """Tread plate: raised lugs on a grid, each lug long and thin on a diagonal, turned against its neighbours."""
+    vector = coordinates()
+    across, up = face_grid(vector, pitch)
+    turned = pf.nodes.texture.checker(vector=vector, scale=1.0 / pitch).fac
+    along = pf.nodes.math.mix(a=across + up, b=across - up, factor=turned)
+    side = pf.nodes.math.mix(a=across - up, b=across + up, factor=turned)
+    lug = pf.nodes.math.less_than(pf.nodes.math.absolute(along), 0.4) * pf.nodes.math.less_than(
+        pf.nodes.math.absolute(side), 0.1)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    return Channels(base, rough, metal, BLACK, pf.nodes.shader.displacement(height=lug * bump, midlevel=0.0))
+
+
+def galvanized(colour, second, dirt_colour, roughness, metal, cell_size, contrast, dirt_reach, dirt, seed):
+    """Hot-dip galvanized steel: zinc spangle, crystal cells a little lighter or darker than their neighbours."""
+    vector = coordinates()
+    cells = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / cell_size, voronoi_dimensions="4D", w=seed)
+    shade = pf.nodes.color.rgb_to_bw(cells.color)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=shade * contrast, a=base, b=second)
+    return Channels(base, pf.nodes.math.mix(a=rough, b=rough * 0.7, factor=shade), metal, BLACK, None)
+
+
+def anodized(colour, roughness, metal, bump, bump_size):
+    """Anodized aluminium: a coloured metal with a fine brushed grain, clean."""
+    return Channels(colour, roughness, metal, BLACK, brushed_relief(coordinates(), bump, bump_size))
+
+
+def quilted(colour, second, dirt_colour, roughness, quilt_size, puff, seam_width, dirt_reach, dirt, seed):
+    """Quilted insulation or padding: square pillows stitched along darker seams."""
+    vector = coordinates()
+    across, up = face_grid(vector, quilt_size)
+    edge = pf.nodes.math.maximum(pf.nodes.math.absolute(across), pf.nodes.math.absolute(up)) * 2.0
+    pillow = 1.0 - pf.nodes.math.power(pf.nodes.math.clamp(edge), 4.0)
+    seam = pf.nodes.math.greater_than(edge, 1.0 - seam_width)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=seam, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=pillow * puff, midlevel=0.0))
+
+
+def composite(colour, second, roughness, weave, bump):
+    """A woven composite panel (glass or carbon fibre): bands one way and the other, a little lighter and darker,
+    under a clear coat."""
+    vector = coordinates()
+    warp = pf.nodes.texture.wave(vector=vector, scale=1.0 / weave, bands_direction="X", wave_profile="TRI", detail=0.0)
+    weft = pf.nodes.texture.wave(vector=vector, scale=1.0 / weave, bands_direction="Z", wave_profile="TRI", detail=0.0)
+    over = pf.nodes.texture.checker(vector=vector, scale=0.5 / weave).fac
+    woven = pf.nodes.math.mix(a=warp.fac, b=weft.fac, factor=over)
+    base = pf.nodes.color.mix_rgb(factor=woven * 0.35, a=colour, b=second)
+    return Channels(base, roughness, 0.0, BLACK, pf.nodes.shader.displacement(height=woven * bump, midlevel=0.0))
+
+
+def picture_on(colour, image):
+    """A picture printed over a colour through its own transparency, read on the part's `content` UV map: the
+    colour and the picture node."""
+    picture = pf.nodes.texture.image(vector=pf.nodes.shader.uv_map(uv_map="content"), image=image, extension="CLIP")
+    return pf.nodes.color.mix_rgb(factor=picture.fac, a=colour, b=picture.color), picture
+
+
+def screen(colour, roughness, image):
+    """A screen: dark glass with a slight shine, its content a picture lit from behind, so only the content
+    glows (in the game, a screen's kind glows in its own colour, and the glass's own colour is near black)."""
+    base, picture = picture_on(colour, image)
+    lit = pf.nodes.color.mix_rgb(factor=picture.fac, a=pf.Color(BLACK), b=picture.color)
+    return Channels(base, roughness, 0.0, lit, None)
+
+
+def printed(colour, roughness, image):
+    """A label, plate or stencil: its picture printed on a colour."""
+    base, _ = picture_on(colour, image)
+    return Channels(base, roughness, 0.0, BLACK, None)
+
+
+RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
+           "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
+           "anodized": anodized, "rubber": rubber, "quilted": quilted, "composite": composite, "glass": glass,
+           "glowing": glowing, "screen": screen, "printed": printed}
 # Where each recipe starts from, for the page and the paper (the coordinator, 2026-10-06).
 SOURCES = {
     "painted_metal": "infinigen2 paint.py (relief, BSD-3) + edgewear.py's bevel test (ported, new threshold band)"
                      " + new dirt and layering",
     "bare_metal": "infinigen2 metal_brushed.py (relief, BSD-3) + new dirt",
+    "cast_metal": "written new (noise relief) + the library's dirt",
+    "perforated_metal": "written new (hole grid) + the library's dirt",
+    "chequer_plate": "written new (diagonal lug grid) + the library's dirt",
+    "galvanized": "written new (voronoi spangle) + the library's dirt",
+    "anodized": "infinigen2 metal_brushed.py (relief, BSD-3), clean",
     "rubber": "infinigen2 plastic.py plastic_black_rubberized (relief, BSD-3) + new dirt",
+    "quilted": "written new (stitched pillow grid) + the library's dirt",
+    "composite": "written new (twill from two wave textures)",
     "glass": "written new (infinigen2 glass_colored needs transmission, which the ink look cannot draw)",
     "glowing": "written new",
+    "screen": "written new: dark glass, its content a picture lit from behind",
+    "printed": "written new: a picture printed on a colour",
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
     "painted_metal": (painted_metal, coordinates, edge_wear_mask, dirt_mask, paint_relief, layered),
     "bare_metal": (bare_metal, coordinates, dirt_mask, brushed_relief),
+    "cast_metal": (cast_metal, coordinates, dirty_flat, dirt_mask),
+    "perforated_metal": (perforated_metal, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
+    "chequer_plate": (chequer_plate, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
+    "galvanized": (galvanized, coordinates, dirty_flat, dirt_mask),
+    "anodized": (anodized, coordinates, brushed_relief),
     "rubber": (rubber, coordinates, dirt_mask, rubber_relief),
+    "quilted": (quilted, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
+    "composite": (composite, coordinates),
     "glass": (glass,),
     "glowing": (glowing,),
+    "screen": (screen, picture_on),
+    "printed": (printed, picture_on),
 }
+COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 
 
 def arguments(spec, wear, dirt, seed):
-    """The recipe's keyword arguments from a resolved library entry (library.py) and the place's wear and dirt."""
-    given = dict(spec, wear=wear, dirt=dirt, seed=float(seed), colour=pf.Color(tuple(spec["colour"])),
-                 bare=pf.Color(tuple(spec["bare"])), dirt_colour=pf.Color(tuple(spec["dirt_colour"])))
+    """The recipe's keyword arguments from a resolved library entry (library.py) and the place's wear and dirt: its
+    colours as ProcFunc colours, its picture (if it has one) loaded into Blender, the wear scaled by its age."""
+    given = dict(spec, wear=min(1.0, wear * spec.get("wear_scale", 1.0)), dirt=dirt, seed=float(seed))
+    for name in COLOUR_ARGUMENTS:
+        if name in spec:
+            given[name] = pf.Color(tuple(spec[name]))
+    if spec.get("image"):
+        import bpy
+
+        given["image"] = pf.Image(bpy.data.images.load(spec["image"], check_existing=True))
     wanted = inspect.signature(RECIPES[spec["recipe"]]).parameters
     return {name: given[name] for name in wanted}
 

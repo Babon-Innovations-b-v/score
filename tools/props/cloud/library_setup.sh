@@ -4,7 +4,8 @@
 # ProcFunc in a folder of its own beside Blender (tools/props/library/inside/runtime.py reads it from PROPS_HOME).
 set -euo pipefail
 
-nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+# A processor machine (--processor) has no card; Cycles then bakes on its processor.
+nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader || nproc
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libsm6 libxkbcommon0 libx11-6 libegl1 \

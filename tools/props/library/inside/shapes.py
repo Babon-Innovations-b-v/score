@@ -50,6 +50,20 @@ def box(low, high, material_name, name="box"):
     return mesh_object(name, data, material_name)
 
 
+def content_plate(low, high, material_name, name="plate"):
+    """A box between two kit-frame corners whose faces carry a `content` UV map spanning its front: a picture on the
+    material (a label, a screen's content) reads across the front, upright and unmirrored seen from in front (where
+    the kit's +x is the viewer's left)."""
+    plate = box(low, high, material_name, name)
+    layer = plate.data.uv_layers.new(name="content")
+    (left, bottom, _), (right, top, _) = low, high
+    for polygon in plate.data.polygons:
+        for loop in polygon.loop_indices:
+            point = plate.data.vertices[plate.data.loops[loop].vertex_index].co
+            layer.data[loop].uv = ((right - point.x) / (right - left), (point.z - bottom) / (top - bottom))
+    return plate
+
+
 def prism(outline, depth_from, depth_to, material_name, name="prism"):
     """A flat shape: a polygon in the kit frame's x-y plane, solid between two depths along z."""
     built = bmesh.new()
@@ -125,7 +139,11 @@ def bevelled(item, width):
 
 
 def joined(parts, name):
-    """One object of all the parts, their material slots kept, shaded smooth only across gentle angles."""
+    """One object of all the parts, their material slots kept, shaded smooth only across gentle angles. Every part
+    gets the `content` UV map first (unused ones at zero), so the join keeps a label's or a screen's own."""
+    for part in parts:
+        if part.data.uv_layers.get("content") is None:
+            part.data.uv_layers.new(name="content")
     bpy.ops.object.select_all(action="DESELECT")
     for part in parts:
         part.select_set(True)

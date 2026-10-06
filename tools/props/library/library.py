@@ -1,13 +1,15 @@
-"""The theme's material library, read from data/definitions/place.json (job robust-exp, 2026-10-06): one set of
-rule-based materials for the base theme (`shared.theme.library`), which every place of the theme takes by name in its
-own `materials`, with its own palette token where it differs and its own wear level.
+"""The base theme's material library, read from data/library/materials.json (job robust-exp, 2026-10-06): families
+of variants, each a ProcFunc recipe (recipes.py) with its settings, which every place of the theme takes by name in
+its own `materials` (data/definitions/place.json), with its own palette token where it differs and its own wear level.
 
     python3 tools/props/library/library.py <place>            # print the place's resolved materials as JSON
+    python3 tools/props/library/library.py --list             # every family and variant
 
 Shape and material are kept apart (the robust route): a model or a code-built piece only names, per part, which
-library material it is; the material itself is a ProcFunc recipe (recipes.py) with its settings here, coloured only
-from palette tokens (design/tokens/tokens.json), so two rooms of the theme cannot drift apart and no picture's photo
-texture reaches the game. Standard library only: the Blender side (inside/) and the tools both read this.
+library variant it is; colours come only from palette tokens (design/tokens/tokens.json), so two rooms of the theme
+cannot drift apart and no picture's photo texture reaches the game. The library only grows: a room adds variants,
+and never edits one another room already uses. Standard library only: the Blender side (inside/) and the tools both
+read this.
 """
 import json
 import pathlib
@@ -15,9 +17,11 @@ import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACES = REPO / "data/definitions/place.json"
+LIBRARY = REPO / "data/library/materials.json"
+PICTURES = REPO / "data/library/pictures"
 TOKENS = REPO / "design/tokens/tokens.json"
-# Settings every library material has, so a recipe never reads a missing one.
-SETTINGS = ("roughness", "metal", "bump", "bump_size", "edge_width", "breakup_scale", "dirt_reach", "bare_roughness")
+# Settings that name a palette token rather than hold a number.
+COLOUR_SETTINGS = ("bare", "second")
 
 
 def token_colours(path=TOKENS):
@@ -35,64 +39,78 @@ def linear(hex_colour):
     return [value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4 for value in channels]
 
 
-def theme_library(path=PLACES):
-    """The base theme's library block: its wear levels, dirt token and materials."""
-    return json.loads(pathlib.Path(path).read_text())["shared"]["theme"]["library"]
+def theme_library(path=LIBRARY):
+    """The base theme's library: its wear levels, dirt token, recipes' defaults, families and pictures."""
+    return json.loads(pathlib.Path(path).read_text())
 
 
-def wear_of(place_id, path=PLACES):
-    """A place's wear and dirt as numbers: (wear, dirt), from its named wear level."""
-    places = json.loads(pathlib.Path(path).read_text())
-    chosen = places[place_id]["wear"]
-    return float(theme_library(path)["wear_levels"][chosen["level"]]), float(chosen["dirt"])
-
-
-def resolved(place_id, path=PLACES, tokens_path=TOKENS):
-    """A place's materials that take a library material, each as the recipe's full spec: the library entry's
-    settings, the place's token (or the library's) as a linear colour, its bare metal and dirt colours."""
-    places = json.loads(pathlib.Path(path).read_text())
-    library = theme_library(path)
-    colours = token_colours(tokens_path)
+def variants(library):
+    """Every variant by name, its family named in it."""
     found = {}
-    for name, entry in places[place_id]["materials"].items():
-        if "library" not in entry:
-            continue
-        found[name] = spec(library, entry["library"], entry["token"], colours)
+    for family, entry in library["families"].items():
+        for name, variant in entry["variants"].items():
+            if name in found:
+                raise SystemExit(f"the library names '{name}' twice (in {found[name]['family']} and {family})")
+            found[name] = dict(variant, family=family)
     return found
 
 
-def by_library(place_id, path=PLACES, tokens_path=TOKENS):
-    """A place's materials keyed by the library material they take, in the place's own token (the first of the
-    place's materials naming it): what a code-built piece's slots, which name library materials, are painted with
-    in that place. A library material the place does not name keeps the library's own token."""
-    found = library_specs(path, tokens_path)
-    for entry in reversed(list(resolved(place_id, path, tokens_path).values())):
+def wear_of(place_id, path=PLACES, library_path=LIBRARY):
+    """A place's wear and dirt as numbers: (wear, dirt), from its named wear level."""
+    chosen = json.loads(pathlib.Path(path).read_text())[place_id]["wear"]
+    return float(theme_library(library_path)["wear_levels"][chosen["level"]]), float(chosen["dirt"])
+
+
+def spec(library, name, token, colours):
+    """One library variant in a given token colour, as its recipe wants it: the recipe's defaults under the
+    variant's own settings, every token setting as a linear colour, its picture as a file."""
+    variant = variants(library)[name]
+    found = dict(library["recipes"][variant["recipe"]])
+    found.update(variant)
+    found.update(library=name, token=token, colour=colours[token], dirt_colour=colours[library["dirt"]])
+    for setting in COLOUR_SETTINGS:
+        if setting in found:
+            found[setting] = colours[found[setting]]
+    if "picture" in found:
+        found["image"] = str(PICTURES / f"{found['picture']}.png")
+    return found
+
+
+def library_specs(library_path=LIBRARY, tokens_path=TOKENS):
+    """Every variant in its own default token: the swatch sheet's rows."""
+    library = theme_library(library_path)
+    colours = token_colours(tokens_path)
+    return {name: spec(library, name, variant["token"], colours) for name, variant in variants(library).items()}
+
+
+def resolved(place_id, path=PLACES, library_path=LIBRARY, tokens_path=TOKENS):
+    """A place's materials that take a library variant, each as its full spec in the place's token."""
+    library = theme_library(library_path)
+    colours = token_colours(tokens_path)
+    found = {}
+    for name, entry in json.loads(pathlib.Path(path).read_text())[place_id]["materials"].items():
+        if "library" in entry:
+            found[name] = spec(library, entry["library"], entry["token"], colours)
+    return found
+
+
+def by_library(place_id, path=PLACES, library_path=LIBRARY, tokens_path=TOKENS):
+    """Every library variant keyed by its own name, in the place's token where the place names it (the first of the
+    place's materials taking it) and in the library's own otherwise: what a code-built piece's slots, which name
+    library variants, are painted with in that place."""
+    found = library_specs(library_path, tokens_path)
+    for entry in reversed(list(resolved(place_id, path, library_path, tokens_path).values())):
         found[entry["library"]] = entry
     return found
 
 
-def spec(library, material, token, colours):
-    """One library material in a given token colour, every setting filled in."""
-    entry = library["materials"][material]
-    missing = [name for name in SETTINGS if name not in entry]
-    if missing:
-        raise SystemExit(f"library material '{material}' has no {', '.join(missing)} in place.json")
-    found = {name: entry[name] for name in SETTINGS}
-    found.update(recipe=entry["recipe"], library=material, token=token, colour=colours[token],
-                 bare=colours[entry.get("bare", "steel")], dirt_colour=colours[library["dirt"]],
-                 wears=entry.get("wears", True), dirt_share=entry.get("dirt_share", 1.0),
-                 reference=entry.get("reference"))
-    return found
-
-
-def library_specs(path=PLACES, tokens_path=TOKENS):
-    """Every library material in its own default token: the swatch sheet's rows."""
-    library = theme_library(path)
-    colours = token_colours(tokens_path)
-    return {name: spec(library, name, entry["token"], colours) for name, entry in library["materials"].items()}
-
-
 def main():
+    if sys.argv[1:] == ["--list"]:
+        library = theme_library()
+        for family, entry in library["families"].items():
+            print(f"{family}: {', '.join(entry['variants'])}")
+        print(len(variants(library)), "variants")
+        return
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
     print(json.dumps({"wear": wear_of(sys.argv[1]), "materials": resolved(sys.argv[1])}, indent=1))

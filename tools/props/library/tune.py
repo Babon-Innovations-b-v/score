@@ -15,6 +15,7 @@ import argparse
 import json
 import pathlib
 import subprocess
+import time
 import sys
 
 import numpy as np
@@ -33,11 +34,14 @@ CLOUD = HERE.parent / "cloud" / "library_bake.py"
 # photo grain by turning every paint into crinkled hammer-tone, which reads as mess under the ink pass. Relief finer
 # than 1 cm cannot be baked cleanly at 1024 px/m either.
 STEPS = {"roughness": ("add", 0.12, 0.05, 0.95), "bump": ("times", 1.8, 0.00002, 0.0006),
-         "bump_size": ("times", 1.8, 0.01, 0.2)}
+         "bump_size": ("times", 1.8, 0.01, 0.2), "contrast": ("add", 0.1, 0.0, 0.6),
+         "puff": ("times", 1.8, 0.0005, 0.01)}
 # The flat part of the swatch's close view (shares of the picture: left, top, right, bottom), compared with the patch.
 FLAT = (0.45, 0.15, 0.95, 0.85)
 SIDE = 96
 WEAR = 0.4
+RENT_TRIES = 10
+RENT_WAIT_SECONDS = 60
 
 
 def lightness(picture):
@@ -82,20 +86,27 @@ def turned(spec, setting, direction):
     return dict(spec, **{setting: min(high, max(low, value))})
 
 
-def render(folder, candidates):
-    """Every candidate spec close up at the working wear, in one cloud run."""
+def render(folder, candidates, processor):
+    """Every candidate spec close up at the working wear, in one cloud run (on a processor machine if asked)."""
     job = {"script": "swatch.py", "out": str(folder), "materials": candidates, "wears": [WEAR], "dirt": 0.4,
            "seed": 3, "size": 256, "samples": 24, "views": ["-close"], "settings": False}
     path = folder / "job.json"
     folder.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(job))
-    subprocess.run([sys.executable, str(CLOUD), str(path), "--who", "tune.py"], check=True,
-                   stdout=subprocess.DEVNULL)
+    for attempt in range(RENT_TRIES):
+        done = subprocess.run([sys.executable, str(CLOUD), str(path), "--who", "tune.py"]
+                              + (["--processor"] if processor else []), stdout=subprocess.DEVNULL)
+        if done.returncode == 0:
+            return
+        time.sleep(RENT_WAIT_SECONDS)  # stock moves by the minute (2026-10-06: no card, then no processor machine)
+    raise SystemExit(f"no machine could be rented for {folder} after {RENT_TRIES} tries")
 
 
-def tune(work, rounds):
-    """Round by round, each material's best settings and score; the report."""
-    specs = {name: spec for name, spec in library.library_specs().items() if spec.get("reference")}
+def tune(work, rounds, only=None, processor=False):
+    """Round by round, each material's best settings and score; the report. A material is turned only on the
+    settings its recipe has."""
+    specs = {name: spec for name, spec in library.library_specs().items()
+             if spec.get("reference") and (not only or name in only)}
     targets = {name: reference_features(spec["reference"]) for name, spec in specs.items()}
     order = list(STEPS)
     report = {name: [] for name in specs}
@@ -104,11 +115,11 @@ def tune(work, rounds):
         candidates = {}
         for name, spec in specs.items():
             candidates[f"{name}@0"] = spec
-            if setting:
+            if setting in spec:
                 candidates[f"{name}@up"] = turned(spec, setting, 1)
                 candidates[f"{name}@down"] = turned(spec, setting, -1)
         folder = work / f"round{number}"
-        render(folder, candidates)
+        render(folder, candidates, processor)
         for name in specs:
             scored = {tag: match(swatch_features(folder / f"{name}@{tag}-w{WEAR}-close.png"), targets[name])
                       for tag in ("0", "up", "down") if f"{name}@{tag}" in candidates}
@@ -117,20 +128,21 @@ def tune(work, rounds):
             report[name].append({"round": number, "turned": setting, "scores": {tag: round(score, 4) for tag, score
                                                                                   in scored.items()},
                                  "kept": best, "score": round(scored[best], 4),
-                                 "settings": {key: specs[name][key] for key in STEPS}})
+                                 "settings": {key: specs[name][key] for key in STEPS if key in specs[name]}})
             print(f"round {number} {name}: {setting or 'start'} -> {best} {scored[best]:.3f}", flush=True)
     (work / "tune.json").write_text(json.dumps(report, indent=1))
     return specs
 
 
 def write_back(specs):
-    """Put the tuned settings into the theme's library in place.json."""
-    places = json.loads(library.PLACES.read_text())
-    materials = places["shared"]["theme"]["library"]["materials"]
+    """Put the tuned settings into their variants in the library file."""
+    found = json.loads(library.LIBRARY.read_text())
     for name, spec in specs.items():
+        variant = next(entry["variants"][name] for entry in found["families"].values() if name in entry["variants"])
         for key in STEPS:
-            materials[name][key] = round(float(spec[key]), 5)
-    library.PLACES.write_text(json.dumps(places, indent="\t", ensure_ascii=False) + "\n")
+            if key in spec:
+                variant[key] = round(float(spec[key]), 5)
+    library.LIBRARY.write_text(json.dumps(found, indent="\t", ensure_ascii=False) + "\n")
 
 
 def main():
@@ -138,8 +150,11 @@ def main():
     parser.add_argument("work", type=pathlib.Path)
     parser.add_argument("--rounds", type=int, default=4)
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--processor", action="store_true", help="render on a processor machine (no card in stock)")
+    parser.add_argument("--only", help="the variants to tune, comma separated (default: every one with a reference)")
     arguments = parser.parse_args()
-    specs = tune(arguments.work, arguments.rounds)
+    specs = tune(arguments.work, arguments.rounds, set(arguments.only.split(",")) if arguments.only else None,
+                 arguments.processor)
     if arguments.write:
         write_back(specs)
 

@@ -30,21 +30,38 @@ from paths import REPO  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/lib")
 SETUP_MINUTES = 10
-MINUTES_A_PIECE = 1.0
+# Processor machines tried in turn when no card is in stock (their stock moves by the minute, 2026-10-06).
+PROCESSORS = ("POP2-32C-128G", "POP2-HC-32C-64G", "POP2-HM-32C-256G", "POP2-16C-64G")
+# Card minutes each thing a job holds takes, measured on an L4 (2026-10-06): a swatch variant at three wears and two
+# views, a code-built piece, a generated piece cut down and detailed, a row of pictured pieces. A processor machine
+# took about three times as long.
+MINUTES_EACH = {"materials": 0.1, "pieces": 0.3, "chunky": 1.5, "rows": 0.2}
+PROCESSOR_SLOWER = 3
 # What of the repo the Blender side reads.
-SHIPPED = ("tools/props/library", "vendor/procfunc/src", "vendor/infinigen2")
+SHIPPED = ("tools/props/library", "data/library", "vendor/procfunc/src", "vendor/infinigen2")
 
 
-def piece_count(job):
-    return sum(len(job.get(key, ())) for key in ("pieces", "chunky", "materials", "rows"))
+def card_minutes(job):
+    """A job's expected minutes on a card, from what it holds."""
+    return sum(len(job.get(key, ())) * minutes for key, minutes in MINUTES_EACH.items())
 
 
-def price(jobs, project):
+def machine_offers(processor):
+    """Where the job can run: an L4 card, or (with --processor, when no card is in stock) a 32-core processor
+    machine, where Cycles bakes on the processor at about a third of a card's speed."""
+    if processor:
+        import infinigen
+
+        return [offer for machine in PROCESSORS for offer in infinigen.offers(machine)]
+    return batch.offers(list(batch.TYPES[:1]))
+
+
+def price(jobs, project, processor):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = batch.offers(list(batch.TYPES[:1]))
+    found = machine_offers(processor)
     if not found:
-        raise SystemExit("no L4 card is sold in the zones used")
-    minutes = SETUP_MINUTES + sum(piece_count(job) for job in jobs) * MINUTES_A_PIECE
+        raise SystemExit(f"no {'processor machine' if processor else 'L4 card'} is sold in the zones used")
+    minutes = SETUP_MINUTES + sum(card_minutes(job) for job in jobs) * (PROCESSOR_SLOWER if processor else 1)
     dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
     batch.say(f"{len(jobs)} library jobs on one card: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
@@ -69,18 +86,24 @@ def remote_job(job, number):
         moved["rows"] = []
         for row_number, row in enumerate(job["rows"]):
             place = REMOTE / "in" / str(number) / f"row{row_number}"
-            sends.append(([pathlib.Path(path) for path in row["models"]], place))
+            files = []
+            for path in map(pathlib.Path, row["models"]):
+                files.append(path)
+                if path.suffix == ".gltf":  # its .bin and its shared pictures go with it
+                    files += [path.with_suffix(".bin"), path.parent / "textures"]
+            sends.append((sorted(set(files)), place))
             moved["rows"].append(dict(row, models=[str(place / pathlib.Path(path).name) for path in row["models"]]))
     return moved, sends
 
 
-def run_line(script, job_path):
+def run_line(script, job_path, processor):
     blender = ["/root/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
                str(REMOTE / "repo/tools/props/library/inside" / script), "--", str(job_path)]
-    return f"cd /root && env FARM_CYCLES_GPU=1 PROPS_HOME=/root/props {shlex.join(blender)}"
+    card = "" if processor else "FARM_CYCLES_GPU=1 "
+    return f"cd /root && env {card}PROPS_HOME=/root/props {shlex.join(blender)}"
 
 
-def work_on(run, machine, jobs):
+def work_on(run, machine, jobs, processor):
     """One machine from boot to delete: Blender and the library up, every job run, every out folder back."""
     import pictures
     log_folder = machine["folder"]
@@ -105,12 +128,13 @@ def work_on(run, machine, jobs):
                 files = local if isinstance(local, list) else sorted(local.glob("*.ply"))
                 batch.copy(log_folder, files, f"root@{host}:{place}/")
             job_path = REMOTE / f"job{number}.json"
-            (log_folder / f"job{number}.json").write_text(json.dumps(moved))
+            # Paths into this checkout (a variant's picture) point into the machine's copy of it.
+            (log_folder / f"job{number}.json").write_text(json.dumps(moved).replace(str(REPO), str(REMOTE / "repo")))
             batch.copy(log_folder, [log_folder / f"job{number}.json"], f"root@{host}:{job_path}")
             began = time.time()
             try:
                 with (log_folder / f"job{number}.log").open("w") as log:
-                    batch.remote(log_folder, host, run_line(job["script"], job_path), check=True, stdout=log,
+                    batch.remote(log_folder, host, run_line(job["script"], job_path, processor), check=True, stdout=log,
                                  stderr=subprocess.STDOUT)
             finally:
                 pathlib.Path(job["out"]).mkdir(parents=True, exist_ok=True)
@@ -140,11 +164,12 @@ def main():
     parser.add_argument("jobs", nargs="+", type=pathlib.Path)
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
+    parser.add_argument("--processor", action="store_true", help="a processor machine, when no card is in stock")
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs]
     project = scaleway.project_id()
     batch.sweep(project)
-    found, allowed_minutes = price(jobs, project)
+    found, allowed_minutes = price(jobs, project, options.processor)
     if options.dry_run:
         return
     scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
@@ -159,7 +184,7 @@ def main():
         machines = pictures.rent_machines(run, project, found, 1)
         if not machines:
             raise SystemExit("no card could be rented")
-        work_on(run, machines[0], jobs)
+        work_on(run, machines[0], jobs, options.processor)
     finally:
         for machine in machines:
             batch.delete_machine(machine)

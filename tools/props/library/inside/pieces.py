@@ -72,13 +72,49 @@ def wall_upper_plain(size, laid):
     return wall_panel(size, laid, "painted_panel")
 
 
+def label(x, y, wide, tall, surface, variant):
+    """A printed label plate 4 mm thick (the model check's thinnest wall is 3 mm) on a surface at depth `surface`,
+    its middle at (x, y): a picture variant of the library's print family, never baked into the surface's own
+    material."""
+    return shapes.bevelled(shapes.content_plate((x - wide / 2, y - tall / 2, surface - 0.004),
+                                                (x + wide / 2, y + tall / 2, surface), variant, "label"), 0.001)
+
+
+def screw(x, y, surface):
+    """A small screw head on a surface."""
+    return shapes.cylinder((x, y, surface), (x, y, surface - 0.004), 0.006, "bare_steel", 10, "screw")
+
+
+def screen_part(x, y, wide, tall, surface, variant="screen"):
+    """A screen set in a surface: a black anodized bezel 1.5 cm wide and the glass inside it, its content a
+    picture variant of the library's screen family."""
+    rim = 0.015
+    bezel = shapes.box((x - wide / 2, y - tall / 2, surface - 0.012), (x + wide / 2, y + tall / 2, surface),
+                       "anodized_black", "bezel")
+    shapes.cut(bezel, shapes.box((x - wide / 2 + rim, y - tall / 2 + rim, surface - 0.02),
+                                 (x + wide / 2 - rim, y + tall / 2 - rim, surface + 0.01), "anodized_black"))
+    glass = shapes.content_plate((x - wide / 2 + rim, y - tall / 2 + rim, surface - 0.006),
+                                 (x + wide / 2 - rim, y + tall / 2 - rim, surface), variant, "glass")
+    return [shapes.bevelled(bezel, 0.002), glass]
+
+
+def keypad(x, y, wide, tall, surface):
+    """A keypad: a black bezel round a printed key face, the keys' outlines and figures in its print."""
+    return screen_part(x, y, wide, tall, surface, "keypad_print")
+
+
+DETAIL_PARTS = {"label": label, "screw": screw, "screen": screen_part, "keypad": keypad}
+
+
 def hatch_wall_surround(size, laid):
-    """A door's wall: plates round the doorway (two jambs and a header), the doorway itself left open."""
+    """A door's wall: plates round the doorway (two jambs and a header), the doorway itself left open; the hatch's
+    name on a label plate over it."""
     wide, tall, deep = size
     half = DOORWAY[0] / 2
     parts = bolted_plate((-wide / 2, 0.0), (-half, tall), deep, "painted_panel")
     parts += bolted_plate((half, 0.0), (wide / 2, tall), deep, "painted_panel")
     parts += bolted_plate((-half, DOORWAY[1]), (half, tall), deep, "painted_panel")
+    parts.append(label(0.0, (DOORWAY[1] + tall) / 2, 0.72, 0.18, -deep / 2 + 0.007, "label_west_hatch"))
     return parts
 
 
@@ -97,6 +133,7 @@ def porthole_panel(size, laid):
     for at in range(12):
         angle = 2 * math.pi * at / 12
         parts.append(bolt(0.37 * math.cos(angle), middle[1] + 0.37 * math.sin(angle), -deep / 2 + 0.008))
+    parts.append(label(0.0, 0.09, 0.39, 0.13, -deep / 2 + 0.03, "label_porthole"))
     return parts
 
 
@@ -335,7 +372,25 @@ def backer(size, laid):
     return [sheet]
 
 
+def inset_screen(size, laid):
+    """A screen alone, to be laid on another piece's face: bezel and glass filling its laid size; its content is
+    the `screen` named in `laid` (a variant of the screen family), and its kind glows."""
+    wide, tall, deep = size
+    return screen_part(0.0, tall / 2, wide, tall, deep / 2, laid.get("screen", "screen"))
+
+
+def wall_screen(size, laid):
+    """A screen hung on a wall: a dark housing with a screen in its front."""
+    wide, tall, deep = size
+    housing = shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2 + 0.012), (wide / 2, tall, deep / 2),
+                                         "dark_panel", "housing"), 0.006)
+    return [housing] + screen_part(0.0, tall / 2, wide - 0.04, tall - 0.04, -deep / 2 + 0.012,
+                                   laid.get("screen", "screen")) + [
+        screw(side * (wide / 2 - 0.012), y, -deep / 2 + 0.012) for side in (-1, 1) for y in (0.012, tall - 0.012)]
+
+
 BUILDERS = {name: value for name, value in globals().items() if callable(value) and name in (
+    "inset_screen", "wall_screen",
     "wall_lower_plain", "wall_upper_plain", "hatch_wall_surround", "porthole_panel", "wall_skirting", "wall_cornice",
     "wall_corner_post", "roof_face_panel", "lattice_ring_rib", "lattice_hip_rib", "lattice_diamond_strut",
     "lattice_node_plate", "ceiling_cable_tray", "ceiling_duct", "ring_floor_plate", "floor_grating", "tread_mat",

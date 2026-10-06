@@ -22,6 +22,7 @@ import runtime  # noqa: E402
 runtime.ready()
 import recipes  # noqa: E402
 import scene_setup  # noqa: E402
+import shapes  # noqa: E402
 
 
 def test_piece():
@@ -60,6 +61,25 @@ def test_piece():
     return plate
 
 
+PICTURE_RECIPES = ("screen", "printed")
+
+
+def picture_piece():
+    """The swatch for a picture variant (a screen, a label): an upright plate whose front carries the picture, turned
+    to face the camera."""
+    plate = shapes.content_plate((-0.2, 0.0, -0.01), (0.2, 0.28, 0.01), "swatch", "picture")
+    plate.rotation_euler = (0.0, 0.0, math.pi)
+    plate.location = (0.0, 0.05, 0.0)
+    return plate
+
+
+def shown(pieces_by_kind, kind):
+    """Only one swatch piece draws at a time."""
+    for name, item in pieces_by_kind.items():
+        item.hide_render = name != kind
+    return pieces_by_kind[kind]
+
+
 def render_material(piece, material, path):
     piece.data.materials.clear()
     piece.data.materials.append(material)
@@ -86,14 +106,15 @@ def main():
     out = pathlib.Path(job["out"])
     out.mkdir(parents=True, exist_ok=True)
     scene_setup.empty_scene(job["size"], job["samples"])
-    piece = test_piece()
-    cameras = {"": scene_setup.camera_on(piece, (0.55, -0.75, 0.62), 2.6),
+    swatch_pieces = {"test": test_piece(), "picture": picture_piece()}
+    cameras = {"": scene_setup.camera_on(swatch_pieces["test"], (0.55, -0.75, 0.62), 2.6),
                "-close": scene_setup.camera_aimed((0.12, -0.12, 0.33), (0.12, 0.08, 0.03), 50)}
     scene_setup.studio_light()
     if job.get("settings"):
         recipe_settings(out)
     timings = {}
     for name, spec in job["materials"].items():
+        piece = shown(swatch_pieces, "picture" if spec["recipe"] in PICTURE_RECIPES else "test")
         for wear in job["wears"]:
             found = recipes.channels(spec, wear, job["dirt"] if wear > 0 else 0.0, job["seed"])
             lit = recipes.shaded(found).item()

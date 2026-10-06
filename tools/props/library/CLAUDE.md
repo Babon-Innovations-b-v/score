@@ -1,29 +1,38 @@
 # tools/props/library/
 
 The theme's material library and the robust route's piece making (job robust-exp, 2026-10-06). Shape and material
-are kept apart: models and code give shape only; every part names a library material, a ProcFunc recipe coloured
-from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstrap` (the runtime) and the robust
-route in `architecture/components`.
+are kept apart: models and code give shape only; every part names a library variant, a ProcFunc recipe coloured
+from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstrap` item 11.
 
-- **The library is data.** `data/definitions/place.json` `shared.theme.library` holds every material (recipe,
-  token, settings, the reference patch it is tuned to) and the wear levels; a place takes them by name in its own
-  `materials`, with its own token, and its own `wear`. `library.py` resolves them; nothing else holds a colour.
+- **The library is data and only grows.** `data/library/materials.json` holds families of variants (each a recipe
+  name, a token, its settings over the recipe's defaults, and the reference patch it was tuned to), the wear
+  levels and the printed pictures; a place takes variants by name in its own `materials` in `place.json`, with its
+  own token and wear. `library.py` resolves them (`--list` prints the families); nothing else holds a colour. Add a
+  variant for a new surface; never change one a room already uses. `browser.py` writes the browser page from a
+  swatch run.
 - **Recipes are ProcFunc** (`recipes.py`, the owner, 2026-10-06): composable functions (relief, edge wear, dirt,
-  layering), every setting an argument, the seed explicit, no Python branch on a setting, so ProcFunc's tracer
-  lists them (`settings_of`). Relief comes from `vendor/infinigen2`'s base materials (BSD-3); colour noise from
-  them is left out on purpose: the ink look draws flat colour by region. Wear reads the true geometry (the bevel
-  test) and the noise only scales it, so a flat face never wears.
+  layering, grids on the surface's own plane, printed pictures), every setting an argument, the seed explicit, no
+  Python branch on a setting, so ProcFunc's tracer lists them (`settings_of`). Relief from `vendor/infinigen2`'s
+  base materials (BSD-3); their colour noise is left out on purpose: the ink look draws flat colour by region. Wear
+  reads the true geometry (the bevel test) and the noise only scales it, so a flat face never wears.
+- **Labels, keypads and screens are printed pictures on code-built parts** (`printed.py` draws them into
+  `data/library/pictures`; `inside/pieces.py` `label`, `screen_part`, `keypad`), never baked into a surface's own
+  material. A screen is dark glass with its content lit; laid as its own piece, its kind glows.
+- **Generated pieces get their detail back in code** (`data/library/details.json`): `inside/make_chunky.py` turns a
+  labelled Pixal3D model into the kit frame at its laid size, bakes the library from the full model onto a 20k
+  copy (its shape relief kept in the normal map), and seats labels, screws and keypads on its front by ray.
+- **Texture memory:** a job's pieces share one picture set (`inside/bake.py` `Atlas`), every face at one texel
+  density except those the room never sees (backs against a wall or roof, a twentieth), colour and metal-roughness
+  at half the normal map's side. Pieces export as .gltf beside the shared pictures.
 - **No bake or render on this PC.** A local bake took every core and WSL crashed (2026-10-06). Everything under
-  `inside/` runs in Blender on a rented card through `../cloud/library_bake.py` (swatches, code pieces, chunky
-  pieces). `inside/runtime.py` puts ProcFunc on Blender 5's path and maps the sockets Blender 5 renamed; the
-  vendored copies stay as released.
+  `inside/` runs through `../cloud/library_bake.py` (a card, or `--processor` when no card is in stock). `tune.py`
+  renders there too, a machine a round. `inside/runtime.py` maps the sockets Blender 5 renamed for ProcFunc.
 - **Never split a raw Pixal3D model into per-piece objects.** trimesh's `split` on a 950k-face raw model took
   43.5 GB and took WSL down (2026-10-06). Sample points (`register.py`). Every local Python step runs under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
 - `sorter.py` routes every kit kind before a picture is drawn: flat, slender, opening and repeat to code
-  (`inside/pieces.py`), solid ones to Pixal3D, labels and signs to decals. `labels.py` gives a generated model's
-  faces library materials from its clean picture, or per part from a splitter's parts (`../cloud/parts.py`).
-- `tune.py` turns a material's settings to match its reference patch (render, compare, adjust); it renders in
-  Blender, so it too goes to the cloud. Relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high):
-  matched freely, it crinkles every paint into photo grain.
+  (`inside/pieces.py`), solid ones to Pixal3D, labels and signs to printed parts. `labels.py` gives a generated
+  model's faces library variants from its clean picture, or per part from a splitter's parts (`../cloud/parts.py`).
+- `tune.py`: relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high); matched freely, it crinkles every
+  paint into photo grain.
 - Checks: `library_test.py` (system python).

@@ -1,44 +1,101 @@
-"""Runs inside Blender: bake one piece's library materials into the maps the game draws (base colour, roughness and
-metal, normal) at the texel density its place asks, and write it as a .glb.
+"""Runs inside Blender: bake pieces' library materials into the maps the game draws (base colour, roughness and
+metal, normal), several pieces into one shared set of pictures, and write each piece as a .gltf beside them.
 
-    import bake; report = bake.baked(piece, specs, wear, dirt, seed, density, "out.glb")
+    import bake
+    atlas = bake.Atlas("hub_slice", [piece, ...], density=512)        # every piece's UVs packed into one square
+    atlas.bake_self(piece, specs, wear, dirt, seed)                    # a code-built piece's own surfaces
+    atlas.bake_from(high, low, specs, wear, dirt, seed, reach)         # a generated piece, from its full model
+    atlas.finish(); atlas.export(piece, folder)
 
-Each material slot of the piece is named for a library material; `specs` maps that name to its resolved entry
-(library.py). The recipe (recipes.py) is built per slot and each channel given off as light is baked, so what the
-game gets is the recipe's exact colour, roughness and metal, not a lit picture. The normal map is baked from the
-shaded recipe, its relief and chipped edges included. Roughness and metal are packed as glTF wants them (green and
-blue of one picture), which HubKit hands to the look's shader (Textured) with the base colour and the normal map.
+Texture memory (the owner, round two: share textures between pieces, size them per piece): the pieces of one job
+share one picture set instead of one set each, and each face gets the texels its place needs: a face the room never
+sees (a back against the wall, the top of a roof panel) is packed at a twentieth of the density. Base colour and
+metal-roughness are baked at half the normal map's side, since the ink look draws flat colour by region and the
+detail lives in the normal map.
+
+Each material slot is named for a library variant; `specs` maps that name to its resolved entry (library.py). The
+recipe (recipes.py) is built per slot and each channel given off as light is baked, so the game gets the recipe's
+exact colour, roughness and metal, not a lit picture; the normal map is baked from the shaded recipe.
 """
 import math
-import time
+import pathlib
 
+import bmesh
 import bpy
 import numpy as np
+from mathutils import Vector
 
 import recipes
 
-SMALLEST = 128
-LARGEST = 2048
-# How much of the square a packed UV layout fills, on average, to size the picture for a texel density.
-UV_FILL = 0.55
+LARGEST = 4096
+SMALLEST = 256
+# How much of the square a packed UV layout fills, to size the pictures for a texel density.
+UV_FILL = 0.6
+HIDDEN_SHARE = 0.05
+MARGIN_PIXELS = 3
 
 
-def picture_side(item, density):
-    """The square picture side (a power of two) that gives `density` pixels a metre over the piece's surface."""
-    area = sum(face.area for face in item.data.polygons)
-    wanted = math.sqrt(area / UV_FILL) * density
-    return int(min(LARGEST, max(SMALLEST, 2 ** round(math.log2(max(wanted, 1.0))))))
+def hidden_faces(item):
+    """Faces the room never sees: those facing the kit frame's back (+z, Blender -y), against a wall or a roof."""
+    return {face.index for face in item.data.polygons if face.normal.dot(Vector((0.0, -1.0, 0.0))) > 0.9}
 
 
-def unwrapped(item, side):
-    """The piece's faces laid out flat in one UV square, islands a few pixels apart."""
+def unwrap(item):
+    """The piece's faces laid flat on its own `bake` UV map (made the one the game reads), leaving any `content` map
+    (a label's or a screen's picture) as it is."""
+    layers = item.data.uv_layers
+    layer = layers.get("bake") or layers.new(name="bake")
+    layers.active = layer
+    layer.active_render = True
     bpy.ops.object.select_all(action="DESELECT")
     item.select_set(True)
     bpy.context.view_layer.objects.active = item
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=4.0 / side, area_weight=1.0,
+    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.002, area_weight=1.0,
                              scale_to_bounds=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def shrink_hidden(item):
+    """Hidden faces' UV islands scaled down about their own middle."""
+    hidden = hidden_faces(item)
+    if not hidden:
+        return
+    mesh = bmesh.new()
+    mesh.from_mesh(item.data)
+    layer = mesh.loops.layers.uv["bake"]
+    for face in mesh.faces:
+        if face.index in hidden:
+            middle = sum((loop[layer].uv for loop in face.loops), Vector((0.0, 0.0))) / len(face.loops)
+            for loop in face.loops:
+                loop[layer].uv = middle + (loop[layer].uv - middle) * HIDDEN_SHARE
+    mesh.to_mesh(item.data)
+    mesh.free()
+
+
+def visible_area(items):
+    return sum(face.area for item in items for face in item.data.polygons
+               if face.index not in hidden_faces(item))
+
+
+def packed_together(items, side):
+    """Every piece's islands at one texel density, packed into the one square."""
+    bpy.ops.object.select_all(action="DESELECT")
+    for item in items:
+        item.select_set(True)
+    bpy.context.view_layer.objects.active = items[0]
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.average_islands_scale()
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for item in items:
+        shrink_hidden(item)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.pack_islands(rotate=True, margin=2 * MARGIN_PIXELS / side)
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
@@ -56,13 +113,6 @@ def with_target(material, picture):
     return material
 
 
-def bake_channel(item, slot_materials, picture, kind):
-    """Put each slot's material for this channel on the piece and bake `kind` (EMIT or NORMAL) into `picture`."""
-    for index, material in enumerate(slot_materials):
-        item.data.materials[index] = with_target(material, picture)
-    bpy.ops.object.bake(type=kind, margin=8, use_clear=True, normal_space="TANGENT")
-
-
 def channel_materials(found_by_slot, channel):
     """Per slot, its recipe's channel given off as light."""
     return [recipes.emitted(getattr(found, channel)).item() for found in found_by_slot]
@@ -77,106 +127,123 @@ def shaded_materials(found_by_slot):
     return found
 
 
-def packed(roughness, metal, side, name):
-    """glTF's metal-roughness picture: roughness in green, metal in blue, red left white."""
-    rough = np.array(roughness.pixels[:], dtype=np.float32).reshape(side, side, 4)
-    shine = np.array(metal.pixels[:], dtype=np.float32).reshape(side, side, 4)
-    both = np.ones((side, side, 4), dtype=np.float32)
-    both[..., 1] = rough[..., 0]
-    both[..., 2] = shine[..., 0]
-    picture = new_picture(name, side, False)
-    picture.pixels.foreach_set(both.ravel())
-    return picture
+def slot_names(item):
+    return [material.name.split(".")[0] for material in item.data.materials]
 
 
-def game_material(name, base, metal_roughness, normal):
-    """The material the .glb carries: base colour, metal-roughness and normal pictures on one principled surface,
-    wired the way the glTF exporter reads them."""
-    material = bpy.data.materials.new(name)
-    material.use_nodes = True
-    nodes, links = material.node_tree.nodes, material.node_tree.links
-    surface = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
-    colour = nodes.new("ShaderNodeTexImage")
-    colour.image = base
-    links.new(colour.outputs["Color"], surface.inputs["Base Color"])
-    packed_node = nodes.new("ShaderNodeTexImage")
-    packed_node.image = metal_roughness
-    split = nodes.new("ShaderNodeSeparateColor")
-    links.new(packed_node.outputs["Color"], split.inputs["Color"])
-    links.new(split.outputs["Green"], surface.inputs["Roughness"])
-    links.new(split.outputs["Blue"], surface.inputs["Metallic"])
-    bumps = nodes.new("ShaderNodeTexImage")
-    bumps.image = normal
-    mapped = nodes.new("ShaderNodeNormalMap")
-    links.new(bumps.outputs["Color"], mapped.inputs["Color"])
-    links.new(mapped.outputs["Normal"], surface.inputs["Normal"])
-    return material
-
-
-def bake_across(high, low, slot_materials, picture, kind, reach):
-    """Bake `kind` from the full-detail model `high` (its slots given these materials) onto `low`'s UV picture."""
-    for index, material in enumerate(slot_materials):
-        high.data.materials[index] = material
-    target = bpy.data.materials.get("bake_target") or bpy.data.materials.new("bake_target")
-    target.use_nodes = True
-    with_target(target, picture)
-    low.data.materials.clear()
-    low.data.materials.append(target)
+def select_for_bake(selected, active):
     bpy.ops.object.select_all(action="DESELECT")
-    high.select_set(True)
-    low.select_set(True)
-    bpy.context.view_layer.objects.active = low
-    bpy.ops.object.bake(type=kind, margin=8, use_clear=True, normal_space="TANGENT", use_selected_to_active=True,
-                        cage_extrusion=reach, max_ray_distance=reach * 2)
+    for item in selected:
+        item.select_set(True)
+    bpy.context.view_layer.objects.active = active
 
 
-def baked_from(high, low, specs, wear, dirt, seed, density, reach, path):
-    """A generated piece: its library materials worked out on the full-detail model `high` (so wear follows its
-    real edges, not the facets of a cut-down copy) and baked onto `low`, which is exported. The report as `baked`."""
-    began = time.time()
-    side = picture_side(low, density)
-    unwrapped(low, side)
-    names = [material.name.split(".")[0] for material in high.data.materials]
-    found_by_slot = [recipes.channels(specs[name], wear, dirt, seed) for name in names]
-    pictures = {}
-    for channel, colour_data in (("base_color", True), ("roughness", False), ("metallic", False)):
-        pictures[channel] = new_picture(f"{low.name}_{channel}", side, colour_data)
-        bake_across(high, low, channel_materials(found_by_slot, channel), pictures[channel], "EMIT", reach)
-    pictures["normal"] = new_picture(f"{low.name}_normal", side, False)
-    bake_across(high, low, shaded_materials(found_by_slot), pictures["normal"], "NORMAL", reach)
-    metal_roughness = packed(pictures["roughness"], pictures["metallic"], side, f"{low.name}_metal_roughness")
-    low.data.materials.clear()
-    low.data.materials.append(game_material(low.name, pictures["base_color"], metal_roughness, pictures["normal"]))
-    exported(low, path)
-    return {"side": side, "slots": names, "triangles": sum(len(face.vertices) - 2 for face in low.data.polygons),
-            "high_triangles": sum(len(face.vertices) - 2 for face in high.data.polygons),
-            "seconds": round(time.time() - began, 1)}
+CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 
 
-def exported(item, path):
-    bpy.ops.object.select_all(action="DESELECT")
-    item.select_set(True)
-    bpy.context.view_layer.objects.active = item
-    bpy.ops.export_scene.gltf(filepath=str(path), export_format="GLB", use_selection=True, export_apply=True,
-                              export_yup=True, export_image_format="AUTO", export_materials="EXPORT")
+class Atlas:
+    """One shared picture set for a list of pieces: their UVs packed together at one texel density."""
 
+    def __init__(self, name, items, density):
+        self.name = name
+        for item in items:
+            unwrap(item)
+        area = visible_area(items)
+        self.side = int(min(LARGEST, max(SMALLEST, 2 ** math.ceil(math.log2(math.sqrt(area / UV_FILL) * density)))))
+        packed_together(items, self.side)
+        half = max(SMALLEST // 2, self.side // 2)
+        self.pictures = {channel: new_picture(f"{name}_{channel}", half, colour) for channel, colour in CHANNELS}
+        self.pictures["normal"] = new_picture(f"{name}_normal", self.side, False)
+        self.first = {channel: True for channel in self.pictures}
+        self.metal_roughness = None
 
-def baked(item, specs, wear, dirt, seed, density, path):
-    """Bake a piece's library materials and export it; a report of its size, picture side, slots and seconds."""
-    began = time.time()
-    side = picture_side(item, density)
-    unwrapped(item, side)
-    names = [material.name.split(".")[0] for material in item.data.materials]
-    found_by_slot = [recipes.channels(specs[name], wear, dirt, seed) for name in names]
-    pictures = {}
-    for channel, colour_data in (("base_color", True), ("roughness", False), ("metallic", False)):
-        pictures[channel] = new_picture(f"{item.name}_{channel}", side, colour_data)
-        bake_channel(item, channel_materials(found_by_slot, channel), pictures[channel], "EMIT")
-    pictures["normal"] = new_picture(f"{item.name}_normal", side, False)
-    bake_channel(item, shaded_materials(found_by_slot), pictures["normal"], "NORMAL")
-    metal_roughness = packed(pictures["roughness"], pictures["metallic"], side, f"{item.name}_metal_roughness")
-    item.data.materials.clear()
-    item.data.materials.append(game_material(item.name, pictures["base_color"], metal_roughness, pictures["normal"]))
-    exported(item, path)
-    return {"side": side, "slots": names, "triangles": sum(len(face.vertices) - 2 for face in item.data.polygons),
-            "seconds": round(time.time() - began, 1)}
+    def _bake(self, channel, kind, **across):
+        bpy.ops.object.bake(type=kind, margin=MARGIN_PIXELS, use_clear=self.first[channel], normal_space="TANGENT",
+                            **across)
+        self.first[channel] = False
+
+    def bake_self(self, item, specs, wear, dirt, seed):
+        """A piece's own surfaces, each slot's recipe, into the shared pictures."""
+        found_by_slot = [recipes.channels(specs[name], wear, dirt, seed) for name in slot_names(item)]
+        select_for_bake([item], item)
+        for channel, _ in CHANNELS:
+            for index, material in enumerate(channel_materials(found_by_slot, channel)):
+                item.data.materials[index] = with_target(material, self.pictures[channel])
+            self._bake(channel, "EMIT")
+        for index, material in enumerate(shaded_materials(found_by_slot)):
+            item.data.materials[index] = with_target(material, self.pictures["normal"])
+        self._bake("normal", "NORMAL")
+
+    def bake_from(self, high, low, specs, wear, dirt, seed, reach):
+        """A generated piece: its library materials worked out on the full-detail model `high` (so wear follows its
+        real edges) and baked onto `low`'s place in the shared pictures."""
+        found_by_slot = [recipes.channels(specs[name], wear, dirt, seed) for name in slot_names(high)]
+        target = bpy.data.materials.get("bake_target") or bpy.data.materials.new("bake_target")
+        target.use_nodes = True
+        low.data.materials.clear()
+        low.data.materials.append(target)
+        select_for_bake([high, low], low)
+        across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
+        for channel, _ in CHANNELS:
+            for index, material in enumerate(channel_materials(found_by_slot, channel)):
+                high.data.materials[index] = material
+            with_target(target, self.pictures[channel])
+            self._bake(channel, "EMIT", **across)
+        for index, material in enumerate(shaded_materials(found_by_slot)):
+            high.data.materials[index] = material
+        with_target(target, self.pictures["normal"])
+        self._bake("normal", "NORMAL", **across)
+
+    def finish(self):
+        """glTF's metal-roughness picture from the baked roughness and metal: roughness in green, metal in blue."""
+        side = self.pictures["roughness"].size[0]
+        rough = np.array(self.pictures["roughness"].pixels[:], dtype=np.float32).reshape(side, side, 4)
+        shine = np.array(self.pictures["metallic"].pixels[:], dtype=np.float32).reshape(side, side, 4)
+        both = np.ones((side, side, 4), dtype=np.float32)
+        both[..., 1] = rough[..., 0]
+        both[..., 2] = shine[..., 0]
+        self.metal_roughness = new_picture(f"{self.name}_metal_roughness", side, False)
+        self.metal_roughness.pixels.foreach_set(both.ravel())
+
+    def game_material(self):
+        """The material the pieces carry: the shared pictures on one principled surface, wired the way the glTF
+        exporter reads them."""
+        material = bpy.data.materials.get(f"{self.name}_game")
+        if material is not None:
+            return material
+        material = bpy.data.materials.new(f"{self.name}_game")
+        material.use_nodes = True
+        nodes, links = material.node_tree.nodes, material.node_tree.links
+        surface = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
+        colour = nodes.new("ShaderNodeTexImage")
+        colour.image = self.pictures["base_color"]
+        links.new(colour.outputs["Color"], surface.inputs["Base Color"])
+        packed_node = nodes.new("ShaderNodeTexImage")
+        packed_node.image = self.metal_roughness
+        split = nodes.new("ShaderNodeSeparateColor")
+        links.new(packed_node.outputs["Color"], split.inputs["Color"])
+        links.new(split.outputs["Green"], surface.inputs["Roughness"])
+        links.new(split.outputs["Blue"], surface.inputs["Metallic"])
+        bumps = nodes.new("ShaderNodeTexImage")
+        bumps.image = self.pictures["normal"]
+        mapped = nodes.new("ShaderNodeNormalMap")
+        mapped.uv_map = "bake"
+        links.new(bumps.outputs["Color"], mapped.inputs["Color"])
+        links.new(mapped.outputs["Normal"], surface.inputs["Normal"])
+        return material
+
+    def export(self, item, folder):
+        """The piece as `<folder>/<name>.gltf` with its .bin, the shared pictures written once beside them in
+        `textures/`; only its `bake` UV map goes with it."""
+        item.data.materials.clear()
+        item.data.materials.append(self.game_material())
+        for name in [layer.name for layer in item.data.uv_layers if layer.name != "bake"]:
+            layer = item.data.uv_layers.get(name)
+            if layer is not None and not name.startswith("."):
+                item.data.uv_layers.remove(layer)
+        select_for_bake([item], item)
+        folder = pathlib.Path(folder)
+        bpy.ops.export_scene.gltf(filepath=str(folder / f"{item.name}.gltf"), export_format="GLTF_SEPARATE",
+                                  export_texture_dir="textures", use_selection=True, export_apply=True,
+                                  export_yup=True, export_image_format="AUTO", export_materials="EXPORT")
+        return {"triangles": sum(len(face.vertices) - 2 for face in item.data.polygons)}

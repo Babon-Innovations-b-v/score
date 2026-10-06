@@ -39,7 +39,8 @@ Entry: `batch.py`; its docstring says how to call it.
   Blender 5.0.1 from blender.org, Cycles on OptiX, ProcFunc and infinigen2 from the repo's vendored copies; jobs are
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core
   and WSL crashed the same day: no bake runs on the PC. A whole hub slice (28 pieces), the swatch sheet and three
-  habitat pieces took 7 minutes, €0.09.
+  habitat pieces took 7 minutes, €0.09. When no card is in stock, `--processor` takes a POP2 machine (Cycles on its
+  cores, about three times slower; the types are tried in turn as their stock moves).
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its
   non-commercial background remover patched out and never fetched; the parts only say where a model's part
   boundaries are (`../library/labels.py --parts`).
