@@ -65,6 +65,11 @@ def test_the_game_layout_stands_every_piece_laid_out_now_each_on_its_made_model(
     assert all(found["model"] in written["models"] for found in written["pieces"])
 
 
+def test_every_set_in_fitting_lies_flush_in_an_opening_cut_in_its_host():
+    assert hub_kit.standing_proud(PIECES) == []
+    assert any(found.get("set_in") for found in PIECES)
+
+
 def test_a_doors_parts_go_with_its_leaf_when_it_stands_open():
     kinds = hub_kit.kit_kinds(INVENTORY)
     found = hub_kit.doors(kinds, INVENTORY)

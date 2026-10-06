@@ -32,6 +32,11 @@ SMALLEST = 256
 # How much of the square a packed UV layout fills, to size the pictures for a texel density.
 UV_FILL = 0.6
 HIDDEN_SHARE = 0.05
+# How many times the texel density a printed or screen part's faces get (labels, keypads, notices, screen content):
+# read up close, they came out soft at the room's density (the owner, 2026-10-06).
+SHARP_SCALE = 3.0
+# The library families whose parts are drawn sharp.
+SHARP_FAMILIES = ("print", "screen")
 MARGIN_PIXELS = 3
 
 
@@ -74,18 +79,42 @@ def shrink_hidden(item):
     mesh.free()
 
 
-def visible_area(items):
-    return sum(visible_area_of(item) for item in items)
+def visible_area(items, sharp=()):
+    return sum(visible_area_of(item, sharp) for item in items)
 
 
-def visible_area_of(item):
-    """The area of the faces the room sees (the hidden set found once: per face it made a 40k-face generated piece
-    take 12 minutes, 2026-10-06)."""
+def visible_area_of(item, sharp=()):
+    """The area of the faces the room sees, a sharp part's at its larger share (the hidden set found once: per face it
+    made a 40k-face generated piece take 12 minutes, 2026-10-06)."""
     hidden = hidden_faces(item)
-    return sum(face.area for face in item.data.polygons if face.index not in hidden)
+    sharp_slots = sharp_slots_of(item, sharp)
+    return sum(face.area * (SHARP_SCALE ** 2 if face.material_index in sharp_slots else 1.0)
+               for face in item.data.polygons if face.index not in hidden)
 
 
-def packed_together(items, side):
+def sharp_slots_of(item, sharp):
+    """The material slots of `item` that are drawn sharp (their library names in `sharp`)."""
+    return {index for index, name in enumerate(slot_names(item)) if name in sharp}
+
+
+def sharpen(item, sharp):
+    """A sharp part's faces' UV islands scaled up SHARP_SCALE about their own middle, after the islands were evened."""
+    slots = sharp_slots_of(item, sharp)
+    if not slots:
+        return
+    mesh = bmesh.new()
+    mesh.from_mesh(item.data)
+    layer = mesh.loops.layers.uv["bake"]
+    for face in mesh.faces:
+        if face.material_index in slots:
+            middle = sum((loop[layer].uv for loop in face.loops), Vector((0.0, 0.0))) / len(face.loops)
+            for loop in face.loops:
+                loop[layer].uv = middle + (loop[layer].uv - middle) * SHARP_SCALE
+    mesh.to_mesh(item.data)
+    mesh.free()
+
+
+def packed_together(items, side, sharp=()):
     """Every piece's islands at one texel density, packed into the one square."""
     bpy.ops.object.select_all(action="DESELECT")
     for item in items:
@@ -98,6 +127,7 @@ def packed_together(items, side):
     bpy.ops.object.mode_set(mode="OBJECT")
     for item in items:
         shrink_hidden(item)
+        sharpen(item, sharp)
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.select_all(action="SELECT")
@@ -150,13 +180,14 @@ CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 class Atlas:
     """One shared picture set for a list of pieces: their UVs packed together at one texel density."""
 
-    def __init__(self, name, items, density):
+    def __init__(self, name, items, density, specs=None):
         self.name = name
+        sharp = {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES}
         for item in items:
             unwrap(item)
-        area = visible_area(items)
+        area = visible_area(items, sharp)
         self.side = int(min(LARGEST, max(SMALLEST, 2 ** math.ceil(math.log2(math.sqrt(area / UV_FILL) * density)))))
-        packed_together(items, self.side)
+        packed_together(items, self.side, sharp)
         half = max(SMALLEST // 2, self.side // 2)
         self.pictures = {channel: new_picture(f"{name}_{channel}", half, colour) for channel, colour in CHANNELS}
         self.pictures["normal"] = new_picture(f"{name}_normal", self.side, False)

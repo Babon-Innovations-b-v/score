@@ -166,7 +166,7 @@ def make_piece(entry, job, out):
     screens = [screen for screen in screens if screen["surface"] is not None]
     items = [low] + ([detail] if detail else [])
     detail_slots = bake.slot_names(detail) if detail else []
-    atlas = bake.Atlas(entry["name"], items, job["density"])
+    atlas = bake.Atlas(entry["name"], items, job["density"], job["specs"])
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
                     max(entry["size"]) * REACH_SHARE)
     if detail:

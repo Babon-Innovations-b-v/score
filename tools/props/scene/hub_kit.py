@@ -28,6 +28,9 @@ import sys
 
 import numpy as np
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "library"))
+import sorter  # noqa: E402
+
 REPO = pathlib.Path(__file__).resolve().parents[3]
 GAME_LAYOUT = REPO / "data/kit/hub.json"
 INVENTORY = REPO / "data/inventory/hub.json"
@@ -41,9 +44,16 @@ PIT_R = 2.33
 PIT_DEEP = 0.9
 STAIR_HALF = 0.6
 # The pit's stairs, by bearing, and no rail round its edge (the owner, 2026-10-06, after playing the kit hub: "remove the
-# railings, would look a lot cleaner and more open, and add another stairs into the drop down plateau"); the sim's pit
-# (SteppedFloor) has the same two.
-STAIRS = (0, 180)
+# railings, would look a lot cleaner and more open"); one stair: a second, opposite, pushed the console out of the pit,
+# and the owner chose one stair after the in-game test. The sim's pit (SteppedFloor) has the same one.
+STAIRS = (0,)
+# The facets the ring floor's fittings are set into, clear of the doors, the airlock and the stair (one fitting to a
+# plate, so each lies inside one plate's opening); any that would lie under furniture is left out.
+GRATING_FACETS = (60, 150, 240, 300)
+HATCH_FACETS = (30, 120, 210, 300)
+# How far a set-in fitting's cut reaches past its edges, and how far below its host's face its own face lies.
+SET_IN_GAP = 0.004
+SET_IN_DOWN = 0.001
 STAIR_CLEAR = 20  # degrees either side of a stair's bearing where the pit's edge and wall leave its way open
 STRINGER = 0.03
 LATTICE_UNDER = 0.14
@@ -318,8 +328,8 @@ def ceiling_gear(kinds):
 
 
 def floor(kinds, inventory):
-    """The ring floor's plates, a sector of each wall's width between the pit's lip and the wall; gratings and access
-    hatches set in some, cable covers across the walkway, a tread mat before every hatch and the lip round the pit."""
+    """The ring floor's plates, a sector of each wall's width between the pit's lip and the wall; vent gratings and
+    access hatches set into some (flush, in openings cut_openings cuts), and a tread mat set in before every hatch."""
     found = []
     ring = (PIT_R + 0.06, APOTHEM)
     for index in range(FACETS):
@@ -330,26 +340,22 @@ def floor(kinds, inventory):
         laid = piece("ring_floor_plate", normal * APOTHEM, frame_facing((0, 1, 0), -normal), plate)
         laid["taper"] = round(ring[0] / APOTHEM, 4)  # a trapezoid: as wide as its wall at its foot, narrowing to the lip
         found.append(laid)
-    for bearing in (45, 105, 165, 225, 285, 345):
-        normal, along = bearing_vectors(bearing)
-        found.append(flat("floor_grating", normal * 3.4, along, size_of(kinds, "floor_grating"), 0.003))
-    for bearing in (75, 135, 195, 255):
-        normal, along = bearing_vectors(bearing)
-        found.append(flat("floor_access_hatch", normal * 3.9, along, size_of(kinds, "floor_access_hatch"), 0.003))
-    for bearing in (140, 200, 260, 320):  # not 20: the operations console stands at the pit's edge there
-        normal, along = bearing_vectors(bearing)
-        found.append(flat("floor_cable_cover", normal * 2.9, along, size_of(kinds, "floor_cable_cover"), 0.006))
+    fittings = []
+    for kind, bearings, radius in (("floor_grating", GRATING_FACETS, 2.95), ("floor_access_hatch", HATCH_FACETS, 3.85)):
+        size = sorter.set_in_size(kind, size_of(kinds, kind))
+        for bearing in bearings:
+            normal, along = bearing_vectors(bearing)
+            fittings.append(set_in(flat(kind, normal * radius, along, size, 0.0)))
     for spot in spots(inventory, "tread_mat"):
         normal, along = bearing_vectors(spot["facet"])
-        found.append(flat("tread_mat", np.array([spot["x"], 0.0, spot["z"]]), along, size_of(kinds, "tread_mat"), 0.006))
-    lip = size_of(kinds, "pit_lip_segment")
-    for index in range(10):
-        bearing = index * 36 + 18
-        if near_a_stair(bearing, STAIR_CLEAR):
-            continue  # a stair's opening
-        normal, along = bearing_vectors(bearing)
-        found.append(flat("pit_lip_segment", normal * (PIT_R + lip[1] / 2), along, (2 * math.pi * PIT_R / 10, lip[1], lip[2]), 0.0))
-    return found
+        fittings.append(set_in(flat("tread_mat", np.array([spot["x"], 0.0, spot["z"]]), along, size_of(kinds, "tread_mat"), 0.0)))
+    return found + clear_of_furniture(fittings, inventory)
+
+
+def set_in(laid):
+    """Marks a fitting as set into its host (sorter.SET_IN): cut_openings cuts its opening and sets it flush."""
+    laid["set_in"] = True
+    return laid
 
 
 def flat(kind, middle, along, size, lift):
@@ -494,7 +500,8 @@ def doors(kinds, inventory):
         size = size_of(kinds, kind)
         for spot in spots(inventory, kind):
             middle_high = spot["y"]
-            found.append(on_lining(kinds, kind, spot["facet"], spot["across"], middle_high - size[1] / 2, size))
+            laid = on_lining(kinds, kind, spot["facet"], spot["across"], middle_high - size[1] / 2, size)
+            found.append(set_in(laid) if kind in sorter.SET_IN else laid)
     return found
 
 
@@ -612,8 +619,70 @@ def kit_kinds(inventory):
 
 def laid_out(inventory):
     kinds = kit_kinds(inventory)
-    return (walls(kinds) + roof(kinds) + ceiling_gear(kinds) + floor(kinds, inventory) + pit(kinds) + stairs(kinds)
-            + doors(kinds, inventory) + clear_of_furniture(wall_gear(kinds, inventory), inventory))
+    found = (walls(kinds) + roof(kinds) + ceiling_gear(kinds) + floor(kinds, inventory) + pit(kinds) + stairs(kinds)
+             + doors(kinds, inventory) + clear_of_furniture(wall_gear(kinds, inventory), inventory))
+    return cut_openings(found)
+
+
+def cut_openings(found):
+    """Every set-in fitting's opening cut in its host piece (the host's `openings`: rectangles in its own frame, x and
+    y, low then high), and the fitting moved along its host's front so its face lies SET_IN_DOWN below the host's."""
+    for fitting in (laid for laid in found if laid.get("set_in")):
+        host = host_of(fitting, found)
+        corners = box_corners(fitting)
+        origin, axes = np.asarray(host["at"]), [np.asarray(host[axis]) for axis in ("x", "y", "z")]
+        local = (corners - origin) @ np.array(axes[:2]).T
+        low, high = local.min(axis=0) - SET_IN_GAP, local.max(axis=0) + SET_IN_GAP
+        host.setdefault("openings", []).append([round(float(value), 4) for value in (*low, *high)])
+        sink = front_offset(fitting, host) + SET_IN_DOWN
+        fitting["at"] = [round(float(value), 4) for value in np.asarray(fitting["at"]) + axes[2] * sink]
+    return found
+
+
+def host_of(fitting, found):
+    """The piece a set-in fitting is set into: of its host kind, the one whose face its middle lies over."""
+    kind = "hub_" + sorter.SET_IN[fitting["kind"].removeprefix("hub_")]
+    middle = box_corners(fitting).mean(axis=0)
+    hosts = [laid for laid in found if laid["kind"] == kind and over_face(middle, laid)]
+    if len(hosts) != 1:
+        raise SystemExit(f"{fitting['kind']} at {fitting['at']} lies over {len(hosts)} {kind} pieces; it must lie in one")
+    return hosts[0]
+
+
+def over_face(point, laid):
+    """Whether a point lies over a piece's front face: inside its x and y, and within a hand's breadth of its face."""
+    local = (point - np.asarray(laid["at"])) @ np.array([laid["x"], laid["y"], laid["z"]]).T
+    wide, tall, deep = laid["size"]
+    return abs(local[0]) <= wide / 2 and 0.0 <= local[1] <= tall and abs(local[2]) <= deep / 2 + 0.2
+
+
+def front_offset(fitting, host):
+    """How far a fitting's face stands out of its host's face, along the host's front (positive: proud)."""
+    front = -np.asarray(host["z"])
+    face_of = lambda laid: np.asarray(laid["at"]) - np.asarray(laid["z"]) * laid["size"][2] / 2
+    return float((face_of(fitting) - face_of(host)) @ front)
+
+
+def box_corners(laid):
+    origin = np.asarray(laid["at"])
+    x, y, z = (np.asarray(laid[axis]) for axis in ("x", "y", "z"))
+    wide, tall, deep = laid["size"]
+    return np.array([origin + x * a * wide / 2 + y * b * tall + z * c * deep / 2
+                     for a in (-1, 1) for b in (0, 1) for c in (-1, 1)])
+
+
+def standing_proud(found):
+    """Every set-in fitting that stands out of its host's face or has no opening cut round it, as a line each."""
+    problems = []
+    for fitting in (laid for laid in found if laid.get("set_in")):
+        host = host_of(fitting, found)
+        if front_offset(fitting, host) > 1e-4:
+            problems.append(f"{fitting['kind']} at {fitting['at']} stands {front_offset(fitting, host):.4f} m proud")
+        local = (box_corners(fitting) - np.asarray(host["at"])) @ np.array([host["x"], host["y"]]).T
+        if not any(cut[0] <= local[:, 0].min() and cut[1] <= local[:, 1].min() and local[:, 0].max() <= cut[2]
+                   and local[:, 1].max() <= cut[3] for cut in host.get("openings", [])):
+            problems.append(f"{fitting['kind']} at {fitting['at']} has no opening cut round it in its {host['kind']}")
+    return problems
 
 
 # --- the partition score -----------------------------------------------------------------------------------------
@@ -723,12 +792,12 @@ def partition_score(pieces):
 LAYERED = {f"hub_{kind}" for kind in (
     "pipe_straight", "pipe_elbow", "pipe_valve", "pipe_bracket", "cable_bundle", "cable_drop", "conduit_box",
     "wall_cage_lamp", "small_readout", "intercom_panel", "status_display", "wall_screen_cluster", "notice_board",
-    "door_strip_lamp", "door_control_box", "grab_bar", "floor_grating", "floor_access_hatch", "floor_cable_cover",
+    "door_strip_lamp", "door_control_box", "grab_bar", "floor_grating", "floor_access_hatch",
     "tread_mat", "pit_conduit", "pit_junction_box", "machine_bay_plate", "lattice_ring_rib", "lattice_hip_rib",
     "lattice_diamond_strut", "lattice_node_plate", "roof_apex_hub", "ceiling_cable_tray", "ceiling_duct",
     "roof_light_fixture", "stair_stringer",
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_hinge", "hatch_window", "airlock_frame", "airlock_leaf",
-    "airlock_wheel", "airlock_hinge", "wall_skirting", "wall_cornice", "wall_corner_post", "waste_bin", "pit_lip_segment")}
+    "airlock_wheel", "airlock_hinge", "wall_skirting", "wall_cornice", "wall_corner_post", "waste_bin")}
 
 
 # The lamps the kit carries (a real light each, tuned in the engine under the game's lighting setup): kind -> its
@@ -739,8 +808,8 @@ LIGHTS = {"roof_light_fixture": {"strength": 0.16, "reach": 6.0, "high": 0.1},
           "wall_cage_lamp": {"strength": 0.05, "reach": 3.5, "high": 0.5}}
 # What each piece is to the scene check (resting.gd): the room's floors other things rest on, and what hangs from the
 # wall, the roof or a door it touches rather than standing.
-FLOORS = {"ring_floor_plate", "floor_grating", "floor_access_hatch", "floor_cable_cover", "tread_mat", "pit_floor_plate",
-          "machine_bay_plate", "pit_lip_segment", "roof_face_panel",  # the roof's faces are its surface, as a floor is
+FLOORS = {"ring_floor_plate", "floor_grating", "floor_access_hatch", "tread_mat", "pit_floor_plate",
+          "machine_bay_plate", "roof_face_panel",  # the roof's faces are its surface, as a floor is
           "stair_stringer"}  # a stair's sides carry its treads: part of the steps, as ShellSteps are
 HANGING_GROUPS = {"wall", "ceiling", "door", "pipe", "sign", "screen", "light", "vent", "pit"}
 

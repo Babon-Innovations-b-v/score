@@ -1,12 +1,12 @@
 """Draw the library's printed pictures: screen content, labels, keypad prints and stencils (data/library/pictures),
-from the `pictures` of data/library/materials.json. Simplified Chinese in Noto Sans SC Bold (game/ui/fonts, SIL OFL),
-colours from palette tokens only.
+from the `pictures` of data/library/materials.json. English in Barlow Condensed Bold (game/ui/fonts, SIL OFL), the
+game's own display face: every label and screen on the base reads in English (the owner, 2026-10-06, after the hub's
+in-game test). Colours from palette tokens only.
 
     ~/.farm-factory-props/env/bin/python tools/props/library/printed.py
 
 A screen's picture is its content on a clear ground, so the glass shows between and only the content glows; a label
-is a whole plate. Every string is checked against the typeface's GB2312 cut by the sign test's rule (signs, #121):
-use words from the signs already approved (舱 for modules, 门禁 for access control).
+is a whole plate. A line is set as big as its box allows and shrunk until it fits across it.
 """
 import json
 import pathlib
@@ -18,7 +18,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import library  # noqa: E402
 
-FONT = library.REPO / "game/ui/fonts/noto_sans_sc/NotoSansSC-Bold.ttf"
+FONT = library.REPO / "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf"
+# The margin a line keeps from its box's sides, in pixels.
+MARGIN = 36
 SIZES = {"status": (1024, 640), "readout": (1024, 512), "label": (1024, 256), "keypad": (512, 640),
          "stencil": (512, 256), "notice": (1024, 768)}
 
@@ -38,6 +40,10 @@ def font(size):
 def centred(draw, box, text, size, fill):
     face = font(size)
     left, top, right, bottom = draw.textbbox((0, 0), text, font=face)
+    while right - left > box[2] - box[0] - 2 * MARGIN and size > 8:
+        size -= 2
+        face = font(size)
+        left, top, right, bottom = draw.textbbox((0, 0), text, font=face)
     draw.text(((box[0] + box[2] - (right - left)) / 2 - left, (box[1] + box[3] - (bottom - top)) / 2 - top), text,
               font=face, fill=fill)
 

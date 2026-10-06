@@ -67,7 +67,7 @@ def main():
         glow = glow_split(item, job["specs"])
         items += [item] + ([glow] if glow else [])
     slots = {item.name: bake.slot_names(item) for item in items}
-    atlas = bake.Atlas(job["atlas"], items, job["density"])
+    atlas = bake.Atlas(job["atlas"], items, job["density"], job["specs"])
     for item in items:
         atlas.bake_self(item, job["specs"], job["wear"], job["dirt"], job["seed"])
         print("BAKED", item.name, flush=True)

@@ -56,6 +56,32 @@ def route(kind, size):
     return "code"
 
 
+# Fittings that belong in a floor or a wall (vents, grates, drains, hatches, mats, light strips) are set into their host
+# piece, flush, in an opening the layout cuts (the owner, 2026-10-06: the hub's floor grates and strips sat on the floor
+# "like stickers"): kind -> the host kind it is set into. Their size is what their function needs, not what makes them
+# stand out; one with nothing to do where it would lie is dropped, with the reason.
+SET_IN = {"floor_grating": "ring_floor_plate", "floor_access_hatch": "ring_floor_plate", "tread_mat": "ring_floor_plate",
+          "door_strip_lamp": "hatch_wall_surround"}
+SET_IN_SIZES = {"floor_grating": (0.6, 0.6), "floor_access_hatch": (0.6, 0.6)}
+DROPPED = {
+    "floor_cable_cover": "a cable cover lies over a cable crossing the floor; the hub's cables run in the roof's trays",
+    "pit_lip_segment": "the strips stood where the pit's rail was footed; the rail is gone (the owner, 2026-10-06)",
+}
+
+
+def set_in_size(kind, size):
+    """A set-in fitting's size (wide, long, thick): its function's, as wide and long as SET_IN_SIZES says."""
+    if kind in SET_IN_SIZES:
+        wide, long = SET_IN_SIZES[kind]
+        return (wide, long, size[2])
+    return tuple(size)
+
+
+def dropped(kind):
+    """Why a kind is left out of a room, or None when it stays."""
+    return DROPPED.get(kind)
+
+
 def sorted_kinds(layout):
     """Every kind in a kit layout with its first laid size, class and route."""
     found = {}

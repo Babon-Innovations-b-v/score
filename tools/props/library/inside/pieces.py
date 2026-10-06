@@ -12,6 +12,8 @@ import math
 
 import numpy as np
 
+import bpy
+from mathutils import Matrix
 import shapes
 
 DOORWAY = (2.2, 2.6)  # ModuleDoors.WIDE, ModuleShell.DOOR_HEIGHT
@@ -109,6 +111,30 @@ def keypad(x, y, wide, tall, surface):
 DETAIL_PARTS = {"label": label, "screw": screw, "screen": screen_part, "keypad": keypad}
 
 
+def with_openings(parts, laid, deep):
+    """The parts with the openings the layout cut for its set-in fittings (laid["openings"]: [x0, y0, x1, y1] in the
+    piece's frame) taken out of them: a part reaching into an opening is cut through, a part wholly inside one (a bolt
+    head) is left out. A fitting then sits in its opening flush with the face round it (the owner, 2026-10-06)."""
+    kept = []
+    for part in parts:
+        corners = [(vertex.co.x, vertex.co.z) for vertex in part.data.vertices]  # the kit frame's x and y
+        low = (min(corner[0] for corner in corners), min(corner[1] for corner in corners))
+        high = (max(corner[0] for corner in corners), max(corner[1] for corner in corners))
+        inside = False
+        for x0, y0, x1, y1 in laid.get("openings", []):
+            if high[0] <= x0 or x1 <= low[0] or high[1] <= y0 or y1 <= low[1]:
+                continue
+            if x0 <= low[0] and high[0] <= x1 and y0 <= low[1] and high[1] <= y1:
+                inside = True
+                break
+            shapes.cut(part, shapes.box((x0, y0, -deep - 0.05), (x1, y1, deep + 0.05), "bare_steel", "cutter"))
+        if inside:
+            bpy.data.objects.remove(part, do_unlink=True)
+        else:
+            kept.append(part)
+    return kept
+
+
 def hatch_wall_surround(size, laid):
     """A door's wall: plates round the doorway (two jambs and a header), the doorway itself left open; the hatch's
     name on a label plate over it."""
@@ -117,6 +143,7 @@ def hatch_wall_surround(size, laid):
     parts = bolted_plate((-wide / 2, 0.0), (-half, tall), deep, "painted_panel")
     parts += bolted_plate((half, 0.0), (wide / 2, tall), deep, "painted_panel")
     parts += bolted_plate((-half, DOORWAY[1]), (half, tall), deep, "painted_panel")
+    parts = with_openings(parts, laid, deep)
     parts.append(label(0.0, (DOORWAY[1] + tall) / 2, 0.72, 0.18, -deep / 2 + 0.007,
                        laid.get("label", "label_west_hatch")))
     return parts
@@ -262,7 +289,7 @@ def ring_floor_plate(size, laid):
         half = wide / 2 * (1 - (1 - taper) * share) - 0.06
         for x in (-half, half):
             parts.append(bolt(x, y, -deep / 2 + 0.007))
-    return parts
+    return with_openings(parts, laid, deep)
 
 
 def floor_grating(size, laid):
@@ -565,15 +592,6 @@ def floor_access_hatch(size, laid):
     return parts
 
 
-def floor_cable_cover(size, laid):
-    """A rubber cable cover across the walkway, its front up, its edges rounded down to the deck."""
-    wide, tall, deep = size
-    return [shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), "rubber_floor_bumpy",
-                                       "cover"), min(deep * 0.45, 0.02)),
-            shapes.box((-wide / 2 + 0.02, tall * 0.42, -deep / 2 - 0.004), (wide / 2 - 0.02, tall * 0.58, -deep / 2),
-                       "rubber_grey", "strip")]
-
-
 def pit_wall_panel(size, laid):
     """A panel of the pit's wall: a bolted plate with a seam down its middle."""
     wide, tall, deep = size
@@ -593,13 +611,6 @@ def pit_floor_plate(size, laid):
         for y in (inset, tall - inset):
             parts.append(screw(x, y, -deep / 2))
     return parts
-
-
-def pit_lip_segment(size, laid):
-    """The steel nosing along the pit's edge, its front up."""
-    wide, tall, deep = size
-    return [shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), "galvanized_steel",
-                                       "nosing"), 0.006)]
 
 
 def machine_bay_plate(size, laid):
@@ -727,6 +738,289 @@ def stair_stringer(size, laid):
     return parts
 
 
+
+# --- the hub's furniture (2026-10-06, after the owner's in-game test: the console, lockers, lab bench, comms desk,
+# toolboard and chair were still old assets; every visible thing in the room is now made by the route) -------------
+DESK_HIGH = 0.78
+DESK_THICK = 0.04
+# The console's screens: as Workstation and its scene place them (five along its back, the outer ones turned in, the
+# middle three the Workstation's own live glass, which the route writes as screen plates; tools/props/library/route.py).
+SCREENS = 5
+LIVE_SCREENS = (1, 2, 3)
+SCREEN_FRAME = (0.48, 0.3)
+SCREEN_BORDER = 0.02
+SCREEN_MIDDLE = 1.03
+SCREEN_BACK = 0.16
+SCREEN_TURN = 12.0
+FRAME_DEPTH = 0.04
+
+
+def moved(parts, offset):
+    """The parts moved by a kit-frame offset."""
+    shift = Matrix.Translation(shapes.to_blender(offset))
+    for part in parts:
+        part.data.transform(shift)
+    return parts
+
+
+def turned(parts, degrees):
+    """The parts turned about the kit frame's up through the origin (right-handed, as Godot's Basis(UP, angle))."""
+    spin = Matrix.Rotation(math.radians(degrees), 4, "Z")
+    for part in parts:
+        part.data.transform(spin)
+    return parts
+
+
+def keyboard(x, y, z):
+    """A keyboard on a desk top at height y, its middle at (x, z): a black housing and rows of grey keys."""
+    wide, deep = 0.45, 0.15
+    parts = [shapes.bevelled(shapes.box((x - wide / 2, y, z - deep / 2), (x + wide / 2, y + 0.018, z + deep / 2),
+                                        "anodized_black", "housing"), 0.004)]
+    columns, rows = 14, 5
+    key = (wide - 0.03) / columns
+    for row in range(rows):
+        for column in range(columns):
+            left = x - wide / 2 + 0.015 + column * key
+            near = z - deep / 2 + 0.015 + row * (deep - 0.03) / rows
+            parts.append(shapes.box((left + 0.002, y + 0.018, near + 0.002),
+                                    (left + key - 0.002, y + 0.026, near + (deep - 0.03) / rows - 0.002),
+                                    "plastic_grey", "key"))
+    return parts
+
+
+def screen_mount(variant=None):
+    """A screen at the origin, its glass facing -z: a black frame, its stand down to the desk and a foot, and (a
+    screen of the console's own) its bezel and lit content (screen_part); a live screen's glass is the Workstation's."""
+    wide, tall = SCREEN_FRAME
+    parts = [shapes.bevelled(shapes.box((-wide / 2, -tall / 2, -FRAME_DEPTH / 2), (wide / 2, tall / 2, FRAME_DEPTH / 2),
+                                        "anodized_black", "frame"), 0.004)]
+    stand = SCREEN_MIDDLE - tall / 2 - DESK_HIGH
+    parts.append(shapes.box((-0.025, -tall / 2 - stand, FRAME_DEPTH / 2), (0.025, -tall / 2, FRAME_DEPTH / 2 + 0.03),
+                            "bare_steel", "stand"))
+    parts.append(shapes.bevelled(shapes.box((-0.09, -tall / 2 - stand, -0.03), (0.09, -tall / 2 - stand + 0.012, 0.09),
+                                            "bare_steel", "foot"), 0.003))
+    if variant is not None:
+        parts += screen_part(0.0, 0.0, wide - 2 * SCREEN_BORDER, tall - 2 * SCREEN_BORDER, -FRAME_DEPTH / 2, variant)
+    return parts
+
+
+def console(size, laid):
+    """The operations console: a dark steel top on four legs with round feet, a louvred panel set back under it, two
+    keyboards, and five screens on stands along its back, the outer ones turned in; the outer two show their own
+    content, the middle three are frames for the Workstation's live glass."""
+    wide, tall, deep = size
+    parts = [shapes.bevelled(shapes.box((-wide / 2, DESK_HIGH - DESK_THICK, -deep / 2), (wide / 2, DESK_HIGH, deep / 2),
+                                        "dark_panel", "top"), EDGE)]
+    back = -deep / 2 + 0.15
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.05, 0.08, back), (wide / 2 - 0.05, DESK_HIGH - DESK_THICK,
+                                                                               back + 0.02), "painted_panel", "panel"), EDGE))
+    for x in (-wide / 3, 0.0, wide / 3):
+        parts += louvred_vent(x, 0.42, 0.42, 0.24, back)
+    for x in (-wide / 2 + 0.12, -wide / 6, wide / 6, wide / 2 - 0.12):
+        parts.append(shapes.box((x - 0.025, 0.02, -deep / 2 + 0.075), (x + 0.025, DESK_HIGH - DESK_THICK, -deep / 2 + 0.125),
+                                "bare_steel", "leg"))
+        parts.append(shapes.cylinder((x, 0.0, -deep / 2 + 0.1), (x, 0.02, -deep / 2 + 0.1), 0.1, "bare_steel", 20, "foot"))
+    for x in (-0.25, 0.55):
+        parts += keyboard(x, DESK_HIGH, -deep / 2 + 0.15)
+    for index in range(SCREENS):
+        out = index - (SCREENS - 1) / 2
+        screen = screen_mount(None if index in LIVE_SCREENS else "screen")
+        parts += moved(turned(screen, out * SCREEN_TURN), (out * wide / SCREENS * 0.98, SCREEN_MIDDLE, deep / 2 - SCREEN_BACK))
+    return parts
+
+
+def locker(size, doors):
+    """A steel locker of `doors` doors: its carcass on a dark plinth, door plates standing proud with louvred vents top
+    and bottom and a handle each."""
+    wide, tall, deep = size
+    parts = [shapes.box((-wide / 2 + 0.02, 0.0, -deep / 2 + 0.03), (wide / 2 - 0.02, 0.08, deep / 2), "dark_panel", "plinth"),
+             shapes.bevelled(shapes.box((-wide / 2, 0.08, -deep / 2 + 0.012), (wide / 2, tall, deep / 2), "painted_panel",
+                                        "carcass"), EDGE)]
+    door_wide = (wide - 0.04 - 0.01 * (doors - 1)) / doors
+    for door in range(doors):
+        left = -wide / 2 + 0.02 + door * (door_wide + 0.01)
+        middle = left + door_wide / 2
+        parts.append(shapes.bevelled(shapes.box((left, 0.1, -deep / 2), (left + door_wide, tall - 0.02, -deep / 2 + 0.012),
+                                                "painted_panel", "door"), 0.003))
+        for high in (tall - 0.22, 0.32):
+            parts += louvred_vent(middle, high, door_wide * 0.55, 0.12, -deep / 2)
+        handle_x = left + door_wide - 0.06 if door % 2 == 0 else left + 0.06
+        parts.append(shapes.bevelled(shapes.box((handle_x - 0.012, tall * 0.48, -deep / 2 - 0.025),
+                                                (handle_x + 0.012, tall * 0.56, -deep / 2), "bare_steel", "handle"), 0.004))
+    return parts
+
+
+def talllocker(size, laid):
+    """The tall double locker."""
+    return locker(size, 2)
+
+
+def rack(size, laid):
+    """A single steel locker."""
+    return locker(size, 1)
+
+
+def drawer_unit(left, right, top, front, back):
+    """A painted drawer unit from the floor to `top`, three drawers with a pull each."""
+    parts = [shapes.bevelled(shapes.box((left, 0.04, front + 0.012), (right, top, back), "painted_panel", "unit"), EDGE)]
+    step = (top - 0.06) / 3
+    for drawer in range(3):
+        low = 0.06 + drawer * step
+        parts.append(shapes.bevelled(shapes.box((left + 0.015, low + 0.008, front), (right - 0.015, low + step - 0.008,
+                                                                                     front + 0.012), "painted_panel",
+                                                "drawer"), 0.003))
+        middle = low + step / 2
+        parts.append(shapes.box(((left + right) / 2 - 0.06, middle - 0.01, front - 0.02), ((left + right) / 2 + 0.06,
+                                                                                          middle + 0.01, front),
+                                "bare_steel", "pull"))
+    return parts
+
+
+def labbench(size, laid):
+    """The lab bench: a steel top on legs over a drawer unit, a glovebox (a painted box with a tinted glass front and
+    two glove ports) and a microscope."""
+    wide, tall, deep = size
+    top = 0.9
+    parts = [shapes.bevelled(shapes.box((-wide / 2, top - 0.04, -deep / 2), (wide / 2, top, deep / 2), "brushed_steel_fine",
+                                        "top"), EDGE)]
+    for x in (-wide / 2 + 0.05, wide / 2 - 0.05):
+        for z in (-deep / 2 + 0.05, deep / 2 - 0.05):
+            parts.append(shapes.box((x - 0.025, 0.0, z - 0.025), (x + 0.025, top - 0.04, z + 0.025), "bare_steel", "leg"))
+    parts += drawer_unit(wide / 2 - 0.55, wide / 2 - 0.08, top - 0.05, -deep / 2 + 0.03, deep / 2 - 0.03)
+    box_left, box_right, box_top = -wide / 2 + 0.1, 0.15, tall - 0.02
+    box_front, box_back = -deep / 2 + 0.08, deep / 2 - 0.04
+    parts.append(shapes.bevelled(shapes.box((box_left, top, box_front + 0.01), (box_right, box_top, box_back),
+                                            "hull_white_gloss", "glovebox"), EDGE))
+    parts.append(shapes.box((box_left + 0.04, top + 0.06, box_front), (box_right - 0.04, box_top - 0.06, box_front + 0.01),
+                            "glass_tinted", "window"))
+    port_high = top + (box_top - top) * 0.42
+    for x in (box_left + (box_right - box_left) * 0.3, box_left + (box_right - box_left) * 0.7):
+        parts.append(shapes.ring((x, port_high, box_front - 0.025), (x, port_high, box_front + 0.005), 0.085, 0.065,
+                                 "gasket_black", 32, "port"))
+    scope_x, scope_z = wide / 2 - 0.35, 0.0
+    parts.append(shapes.bevelled(shapes.box((scope_x - 0.1, top, scope_z - 0.12), (scope_x + 0.1, top + 0.035, scope_z + 0.12),
+                                            "dark_panel", "scope_base"), 0.004))
+    parts.append(shapes.bevelled(shapes.box((scope_x - 0.035, top + 0.035, scope_z + 0.05), (scope_x + 0.035, top + 0.34,
+                                                                                         scope_z + 0.11), "hull_white_gloss",
+                                            "scope_arm"), 0.006))
+    parts.append(shapes.box((scope_x - 0.07, top + 0.12, scope_z - 0.07), (scope_x + 0.07, top + 0.135, scope_z + 0.05),
+                            "anodized_black", "stage"))
+    parts.append(shapes.bevelled(shapes.box((scope_x - 0.05, top + 0.28, scope_z - 0.06), (scope_x + 0.05, top + 0.36,
+                                                                                       scope_z + 0.08), "hull_white_gloss",
+                                            "scope_head"), 0.008))
+    parts.append(shapes.cylinder((scope_x, top + 0.28, scope_z - 0.02), (scope_x, top + 0.17, scope_z - 0.02), 0.018,
+                                 "anodized_black", 20, "objective"))
+    for x in (scope_x - 0.025, scope_x + 0.025):
+        parts.append(shapes.cylinder((x, top + 0.34, scope_z - 0.04), (x, top + 0.42, scope_z - 0.1), 0.014,
+                                     "anodized_black", 16, "eyepiece"))
+    return parts
+
+
+def chair(size, laid):
+    """The operations chair: five legs on casters round a gas column, a padded seat and back, two armrests."""
+    wide, tall, deep = size
+    parts = [shapes.cylinder((0.0, 0.07, 0.0), (0.0, 0.42, 0.0), 0.028, "bare_steel", 20, "column")]
+    for leg in range(5):
+        spoke = [shapes.bevelled(shapes.box((-0.02, 0.05, -0.27), (0.02, 0.085, -0.02), "anodized_black", "leg"), 0.006),
+                 shapes.cylinder((-0.022, 0.025, -0.255), (0.022, 0.025, -0.255), 0.025, "rubber", 16, "caster")]
+        parts += turned(spoke, leg * 72.0)
+    seat = 0.45
+    parts.append(shapes.bevelled(shapes.box((-wide * 0.4, seat, -deep * 0.38), (wide * 0.4, seat + 0.08, deep * 0.36),
+                                            "vinyl_seat", "seat"), 0.025))
+    parts.append(shapes.box((-0.03, seat + 0.02, deep * 0.3), (0.03, seat + 0.2, deep * 0.36), "anodized_black", "spine"))
+    parts.append(shapes.bevelled(shapes.box((-wide * 0.37, seat + 0.14, deep * 0.32), (wide * 0.37, tall, deep * 0.4),
+                                            "vinyl_seat", "back"), 0.025))
+    for side in (-1, 1):
+        x = side * wide * 0.42
+        parts.append(shapes.box((x - 0.015, seat + 0.04, -0.03), (x + 0.015, seat + 0.22, 0.01), "anodized_black", "arm_post"))
+        parts.append(shapes.bevelled(shapes.box((x - 0.035, seat + 0.22, -deep * 0.3), (x + 0.035, seat + 0.25, deep * 0.15),
+                                                "rubber", "armrest"), 0.01))
+    return parts
+
+
+def radio(x, y, z, wide, tall, deep):
+    """A radio set on a surface at height y, its middle at (x, z), its face to -z: a grey case, a dark face with a
+    frequency window, dials and a lit lamp."""
+    front = z - deep / 2
+    parts = [shapes.bevelled(shapes.box((x - wide / 2, y, front), (x + wide / 2, y + tall, z + deep / 2), "hammertone_grey",
+                                        "case"), 0.006),
+             shapes.box((x - wide / 2 + 0.015, y + 0.015, front - 0.004), (x + wide / 2 - 0.015, y + tall - 0.015, front),
+                        "dark_panel", "face"),
+             shapes.box((x - wide * 0.35, y + tall * 0.58, front - 0.006), (x + wide * 0.1, y + tall * 0.82, front - 0.004),
+                        "glass_tinted", "window")]
+    for at in (0.2, 0.45, 0.7):
+        dial_x = x - wide / 2 + wide * at
+        parts.append(shapes.cylinder((dial_x, y + tall * 0.3, front - 0.004), (dial_x, y + tall * 0.3, front - 0.024),
+                                     0.016, "anodized_black", 20, "dial"))
+    parts.append(shapes.cylinder((x + wide * 0.32, y + tall * 0.7, front - 0.004), (x + wide * 0.32, y + tall * 0.7,
+                                                                                    front - 0.012), 0.008, "led_green",
+                                 12, "lamp"))
+    return parts
+
+
+def comms(size, laid):
+    """The comms desk: a steel desk with a modesty panel, two radio sets, a headset on a hook at its side and a desk
+    lamp."""
+    wide, tall, deep = size
+    top = 0.75
+    parts = [shapes.bevelled(shapes.box((-wide / 2, top - 0.035, -deep / 2), (wide / 2, top, deep / 2), "dark_panel", "top"), EDGE),
+             shapes.box((-wide / 2 + 0.05, 0.12, deep / 2 - 0.05), (wide / 2 - 0.05, top - 0.035, deep / 2 - 0.03),
+                        "painted_panel", "modesty")]
+    for x in (-wide / 2 + 0.04, wide / 2 - 0.04):
+        parts.append(shapes.box((x - 0.02, 0.0, -deep / 2 + 0.03), (x + 0.02, top - 0.035, deep / 2 - 0.03), "bare_steel", "side"))
+    parts += radio(-0.38, top, 0.12, 0.42, 0.18, 0.3)
+    parts += radio(0.12, top, 0.14, 0.36, 0.15, 0.28)
+    parts += radio(-0.38, top + 0.18, 0.14, 0.38, 0.13, 0.26)
+    hook_x = wide / 2 - 0.1  # the headset hangs inside the desk's width
+    parts.append(shapes.cylinder((hook_x, top - 0.1, 0.0), (hook_x + 0.06, top - 0.1, 0.0), 0.008, "bare_steel", 12, "hook"))
+    parts.append(shapes.box((hook_x + 0.045, top - 0.1, -0.012), (hook_x + 0.06, top + 0.06, 0.012), "anodized_black", "band"))
+    for z in (-0.08, 0.08):
+        parts.append(shapes.cylinder((hook_x + 0.05, top - 0.04, z), (hook_x + 0.05, top - 0.04, z * 0.6), 0.04,
+                                     "gasket_black", 20, "ear"))
+    lamp_x, lamp_z = wide / 2 - 0.2, 0.15
+    parts.append(shapes.cylinder((lamp_x, top, lamp_z), (lamp_x, top + 0.02, lamp_z), 0.07, "anodized_black", 24, "lamp_base"))
+    parts.append(shapes.cylinder((lamp_x, top + 0.02, lamp_z), (lamp_x - 0.02, top + 0.3, lamp_z + 0.02), 0.009,
+                                 "bare_steel", 12, "lamp_arm"))
+    parts.append(shapes.cylinder((lamp_x - 0.02, top + 0.3, lamp_z + 0.02), (lamp_x - 0.2, top + 0.38, lamp_z - 0.05),
+                                 0.009, "bare_steel", 12, "lamp_arm"))
+    parts.append(shapes.cylinder((lamp_x - 0.2, top + 0.38, lamp_z - 0.05), (lamp_x - 0.24, top + 0.3, lamp_z - 0.07),
+                                 0.055, "machine_orange", 24, "shade"))
+    return parts
+
+
+def wrench(x, y, long, front):
+    """A flat open-end wrench hanging upright on a board at depth `front`."""
+    width = long * 0.12
+    outline = [(x - width / 2, y), (x + width / 2, y), (x + width / 2, y + long * 0.82), (x + width, y + long * 0.86),
+               (x + width * 0.6, y + long), (x + width * 0.15, y + long * 0.92), (x - width * 0.15, y + long * 0.92),
+               (x - width * 0.6, y + long), (x - width, y + long * 0.86), (x - width / 2, y + long * 0.82)]
+    return [shapes.prism(outline, front - 0.006, front, "brushed_steel_fine", "wrench")]
+
+
+def toolboard(size, laid):
+    """A pegboard of hand tools: a perforated board in a steel frame, wrenches, hammers and screwdrivers on hooks."""
+    wide, tall, deep = size
+    back = deep / 2
+    face = back - 0.02
+    parts = [shapes.box((-wide / 2 + 0.02, 0.02, face), (wide / 2 - 0.02, tall - 0.02, back), "perforated_blue_board", "board")]
+    for low, high in (((-wide / 2, 0.0), (wide / 2, 0.025)), ((-wide / 2, tall - 0.025), (wide / 2, tall)),
+                      ((-wide / 2, 0.0), (-wide / 2 + 0.025, tall)), ((wide / 2 - 0.025, 0.0), (wide / 2, tall))):
+        parts.append(shapes.bevelled(shapes.box((*low, face - 0.01), (*high, back), "bare_steel", "frame"), 0.003))
+    for at, long in enumerate((0.22, 0.26, 0.3, 0.34)):
+        parts += wrench(-wide / 2 + 0.12 + at * 0.08, tall * 0.42, long, face)
+    for at in range(2):
+        x = 0.05 + at * 0.16
+        parts.append(shapes.cylinder((x, tall * 0.2, face - 0.02), (x, tall * 0.62, face - 0.02), 0.014, "vinyl_orange", 16, "handle"))
+        parts.append(shapes.bevelled(shapes.box((x - 0.06, tall * 0.62, face - 0.04), (x + 0.06, tall * 0.68, face),
+                                                "cast_iron_dark", "head"), 0.006))
+    for at in range(3):
+        x = wide / 2 - 0.3 + at * 0.09
+        parts.append(shapes.cylinder((x, tall * 0.62, face - 0.02), (x, tall * 0.78, face - 0.02), 0.016, "anodized_red", 16, "grip"))
+        parts.append(shapes.cylinder((x, tall * 0.3, face - 0.02), (x, tall * 0.62, face - 0.02), 0.004, "bare_steel", 8, "shaft"))
+    for x in (-wide / 2 + 0.15, -wide / 2 + 0.31, 0.05, 0.21, wide / 2 - 0.3, wide / 2 - 0.12):
+        parts.append(shapes.cylinder((x, tall * 0.8, face), (x, tall * 0.8, face - 0.04), 0.004, "bare_steel", 8, "hook"))
+    return parts
+
 BUILDERS = {name: value for name, value in globals().items() if callable(value) and name in (
     "inset_screen", "wall_screen",
     "wall_lower_plain", "wall_upper_plain", "hatch_wall_surround", "porthole_panel", "wall_skirting", "wall_cornice",
@@ -734,9 +1028,10 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "lattice_node_plate", "ceiling_cable_tray", "ceiling_duct", "ring_floor_plate", "floor_grating", "tread_mat",
     "hatch_frame", "hatch_hinge", "door_strip_lamp", "cable_bundle", "cable_drop", "backer",
     "wall_lower_vent", "wall_lower_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess",
-    "wall_upper_patched", "hatch_leaf", "hatch_wheel", "hatch_window", "floor_access_hatch", "floor_cable_cover",
-    "pit_wall_panel", "pit_floor_plate", "pit_lip_segment", "machine_bay_plate", "status_display",
-    "wall_screen_cluster", "intercom_panel", "grab_bar", "pipe_straight", "notice_board", "stair_stringer")}
+    "wall_upper_patched", "hatch_leaf", "hatch_wheel", "hatch_window", "floor_access_hatch",
+    "pit_wall_panel", "pit_floor_plate", "machine_bay_plate", "status_display",
+    "wall_screen_cluster", "intercom_panel", "grab_bar", "pipe_straight", "notice_board", "stair_stringer",
+    "console", "talllocker", "rack", "labbench", "chair", "comms", "toolboard")}
 
 
 def build(kind, size, laid, name):

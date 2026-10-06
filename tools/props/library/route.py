@@ -49,6 +49,21 @@ ATLASES = (("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_")),
            ("walls", ("wall_lower", "wall_upper", "wall_skirting", "wall_cornice", "wall_corner", "hatch_wall",
                       "porthole")))
+# The room's furniture, made by the route as its kit is (the owner, 2026-10-06: the hub still loaded an old console,
+# lockers, a lab bench, a comms desk, a toolboard and a chair): inventory row -> the prop kind whose scene install
+# writes. Each is one code-built model in the room's furniture picture set, at its row's size.
+FURNITURE = {"console": "hub_console", "labbench": "hub_labbench", "chair": "hub_chair", "talllocker": "hub_talllocker",
+             "rack": "hub_rack", "comms": "hub_comms", "toolboard": "hub_toolboard"}
+# The console's live screens (the Workstation's feed and side screens) are glass plates written at install, dark until
+# the Workstation paints its content on them: centred and facing +z, as the quads they replace were.
+LIVE_SCREEN = {"name": "console_screen_1", "size": [0.44, 0.26, 0.004]}
+# What the console's two side screens show from habitat level 2: printed pictures, written beside the live screen on
+# its dark glass as <name>_<side>.png for the Workstation to paint on.
+LIVE_SCREEN_SHOWS = {"left": "screen_status", "right": "console_systems"}
+# A desk's status lamp (StatusLamp): a lens the route writes, which the game lights red or green.
+STATUS_LAMP = {"name": "status_lamp_1", "radius": 0.03}
+# The colour of a screen switched off, where no picture is given (8-bit sRGB).
+DARK_GLASS = (14, 16, 19)
 # A door's label by the way it leads on the base: the hub stands turned half round on its seat, so its own north
 # (bearing 0) is the base's south.
 DOOR_LABELS = {0: "label_south_hatch", 90: "label_west_hatch", 180: "label_north_hatch", 270: "label_east_hatch",
@@ -68,7 +83,7 @@ def bearing_of(laid):
 
 def shows(kind, laid):
     """What a piece shows that its model is made with, beyond its size."""
-    found = {key: laid[key] for key in ("taper", "treads") if key in laid}
+    found = {key: laid[key] for key in ("taper", "treads", "openings") if key in laid}
     if own_name(kind) == "hatch_wall_surround":
         found["label"] = DOOR_LABELS[bearing_of(laid) % 360]
     return found
@@ -85,8 +100,21 @@ def made_size(size):
     return tuple(round(round(value / SIZE_STEP) * SIZE_STEP, 4) for value in size)
 
 
-def plan(layout, takes):
-    """Every piece's made model: {"models": {name: {kind, route, size, laid, atlas}}, "pieces": [name per piece]}."""
+def furniture(inventory):
+    """The room's furniture models: {name: {kind, route, size, laid, atlas, prop}}, one per FURNITURE row, its size
+    (wide, tall, deep) from the row's (wide, deep, tall)."""
+    found = {}
+    for row in inventory["rows"]:
+        if row["id"] in FURNITURE:
+            wide, deep, tall = row["size"]
+            found[f"{row['id']}_1"] = {"kind": f"hub_{row['id']}", "route": "code", "size": [wide, tall, deep],
+                                       "laid": {}, "atlas": "furniture", "prop": FURNITURE[row["id"]]}
+    return found
+
+
+def plan(layout, takes, inventory=None):
+    """Every piece's made model: {"models": {name: {kind, route, size, laid, atlas}}, "pieces": [name per piece]}, and
+    the room's furniture (FURNITURE) as models placed by the game rather than the kit."""
     models, by_key, pieces = {}, {}, []
     # A kind takes one route, its largest piece's: a lattice ring's short top beams are still beams.
     largest = {}
@@ -109,6 +137,7 @@ def plan(layout, takes):
             models[name] = {"kind": kind, "route": route, "size": [float(value) for value in laid["size"]],
                             "laid": extra, "atlas": atlas_of(own_name(kind)) if route == "code" else name}
         pieces.append(by_key[key])
+    models.update(furniture(inventory) if inventory is not None else {})
     return {"models": models, "pieces": pieces}
 
 
@@ -176,28 +205,56 @@ def screen_picture(variant):
     return library.variants(library.theme_library())[variant]["picture"]
 
 
-def screen_model(name, picture, folder, size):
-    """A generated piece's screen as a model of its own, written here rather than baked: a thin plate in the kit's
-    frame at its laid `size` whose front (-z) shows the printed picture whole, its edges and back the picture's corner."""
+def screen_model(name, picture, folder, size, live=False):
+    """A screen as a model of its own, written here rather than baked: a thin plate at `size` showing the printed
+    `picture` whole on its front, its edges and back the picture's corner (no picture: dark glass). A generated
+    piece's screen stands in the kit's frame, its front -z; a live screen (`live`) is centred, its front +z, as the
+    quad it replaces was, for the game to paint its content on."""
     import trimesh
-    import trimesh.exchange.gltf
     from PIL import Image
     wide, tall, deep = size
     box = trimesh.creation.box(extents=(wide, tall, deep))
-    box.apply_translation((0.0, tall / 2, 0.0))
+    if not live:
+        box.apply_translation((0.0, tall / 2, 0.0))
     # Every face its own corners, so the front's picture does not run onto the edges.
     plate = trimesh.Trimesh(vertices=box.vertices[box.faces].reshape(-1, 3),
                             faces=np.arange(3 * len(box.faces)).reshape(-1, 3), process=False)
-    front = np.repeat(box.face_normals[:, 2] < -0.5, 3)
+    front = np.repeat(box.face_normals[:, 2] > 0.5 if live else box.face_normals[:, 2] < -0.5, 3)
     uv = np.zeros((len(plate.vertices), 2))
-    uv[front, 0] = 0.5 - plate.vertices[front, 0] / wide  # seen from in front, the kit's +x is the viewer's left
-    uv[front, 1] = plate.vertices[front, 1] / tall
-    shown = Image.open(library.PICTURES / f"{picture}.png").convert("RGB")
+    # Seen from in front, the kit's +x is the viewer's left; a live screen is seen from +z, its +x on the right.
+    uv[front, 0] = 0.5 + plate.vertices[front, 0] / wide if live else 0.5 - plate.vertices[front, 0] / wide
+    uv[front, 1] = plate.vertices[front, 1] / tall + (0.5 if live else 0.0)
+    shown = Image.new("RGB", (64, 64), DARK_GLASS) if picture is None else \
+        Image.open(library.PICTURES / f"{picture}.png").convert("RGB")
     plate.visual = trimesh.visual.TextureVisuals(uv=uv, image=shown)
-    written = trimesh.exchange.gltf.export_gltf(plate, include_normals=True)
+    write_gltf(name, plate, folder, shown)
+
+
+def on_dark_glass(picture):
+    """A printed picture (content on a clear ground) laid over a screen's dark glass, as one opaque picture."""
+    from PIL import Image
+    shown = Image.open(library.PICTURES / f"{picture}.png").convert("RGBA")
+    glass = Image.new("RGBA", shown.size, DARK_GLASS + (255,))
+    return Image.alpha_composite(glass, shown).convert("RGB")
+
+
+def lamp_model(name, lamp, folder):
+    """A status lamp's lens: a bead, round from every side, in a pale picture the game lights red or green."""
+    import trimesh
+    from PIL import Image
+    lens = trimesh.creation.uv_sphere(radius=lamp["radius"], count=[12, 12])
+    pale = Image.new("RGB", (8, 8), (235, 235, 230))
+    lens.visual = trimesh.visual.TextureVisuals(uv=np.full((len(lens.vertices), 2), 0.5), image=pale)
+    write_gltf(name, lens, folder, pale)
+
+
+def write_gltf(name, mesh, folder, picture):
+    """A trimesh mesh as <name>.gltf with one <name>.bin and its picture as <name>.png beside it (trimesh names its
+    buffers alike in every file, and an image inside the glTF is pulled out by Godot into a loose file the next install
+    would not bring back)."""
+    import trimesh.exchange.gltf
+    written = trimesh.exchange.gltf.export_gltf(mesh, include_normals=True)
     found = json.loads(written["model.gltf"])
-    # One .bin and one .png named for the model (trimesh names its buffers alike in every file, and an image
-    # inside the glTF is pulled out by Godot into a loose file the next install would not bring back).
     joined, starts = b"", []
     for buffer in found["buffers"]:
         starts.append(len(joined))
@@ -208,7 +265,9 @@ def screen_model(name, picture, folder, size):
     found["buffers"] = [{"uri": f"{name}.bin", "byteLength": len(joined)}]
     found["images"] = [{"uri": f"{name}.png"} for _ in found["images"]]
     (folder / f"{name}.bin").write_bytes(joined)
-    shown.save(folder / f"{name}.png")
+    picture.save(folder / f"{name}.png")
+    import hashlib
+    found.setdefault("asset", {}).setdefault("extras", {})["bin_md5"] = hashlib.md5(joined).hexdigest()
     (folder / f"{name}.gltf").write_text(json.dumps(found))
 
 
@@ -241,6 +300,15 @@ def game_layout(layout, planned, reports, checks):
             screen_name = f"{name}_screen_{index + 1}"
             pieces.append(screen_piece(laid, screen, screen_name))
             models[screen_name] = {"glows": True, "picture": screen_picture(screen["variant"])}
+    for name, entry in planned["models"].items():
+        if "prop" not in entry:
+            continue
+        models[name] = {"glows": False, "prop": entry["prop"], "size": entry["size"]}
+        if f"{name}_glow" in made:
+            models[f"{name}_glow"] = {"glows": True, "part_of": name}
+    models[LIVE_SCREEN["name"]] = {"glows": True, "picture": None, "live": True, "size": LIVE_SCREEN["size"],
+                                   "shows": LIVE_SCREEN_SHOWS}
+    models[STATUS_LAMP["name"]] = {"glows": True, "lamp": STATUS_LAMP}
     counts = {}
     for found in pieces:
         if "part" not in found:
@@ -270,11 +338,16 @@ def install(work, room):
         shutil.copy(picture, folder / "textures" / picture.name)
     for name, about in layout["models"].items():
         if "picture" in about:
-            laid = next(found for found in layout["pieces"] if found["model"] == name)
-            screen_model(name, about["picture"], folder, laid["size"])
+            size = about.get("size") or next(found for found in layout["pieces"] if found["model"] == name)["size"]
+            screen_model(name, about["picture"], folder, size, about.get("live", False))
+            for side, picture in about.get("shows", {}).items():
+                on_dark_glass(picture).save(folder / f"{name}_{side}.png")
             continue
-        for suffix in (".gltf", ".bin"):
-            shutil.copy(made / f"{name}{suffix}", folder / f"{name}{suffix}")
+        if "lamp" in about:
+            lamp_model(name, about["lamp"], folder)
+            continue
+        shutil.copy(made / f"{name}.bin", folder / f"{name}.bin")
+        stamped(made / f"{name}.gltf", folder / f"{name}.gltf")
     first, sizes = {}, {}
     for laid in layout["pieces"]:
         if "part" not in laid:
@@ -289,6 +362,9 @@ def install(work, room):
         wide, tall, deep = sizes[model]
         (scene / f"{kind}.tscn").write_text(KIND_SCENE.format(room=room, model=model, node=node_name(kind),
                                                               size=f"{wide:g}, {tall:g}, {deep:g}", middle=f"{tall / 2:g}"))
+    for name, about in layout["models"].items():
+        if "prop" in about:
+            prop_scene(room, name, about, layout["models"])
     for path, text in imports.items():
         if (folder / path.with_suffix("")).exists():
             (folder / path).write_text(text)
@@ -313,6 +389,36 @@ size = Vector3({size})
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, {middle}, 0)
 shape = SubResource("prop_shape")
 """
+
+
+def stamped(source, target):
+    """A model's .gltf copied with its .bin's hash written into it (asset.extras.bin_md5): Godot re-imports a glTF only
+    when its own text changes, so a model whose new .bin came with the same .gltf kept its old mesh in the game, its old
+    UVs over the new pictures (2026-10-06: a hatch leaf showed a status screen's content)."""
+    import hashlib
+    found = json.loads(source.read_text())
+    binary = source.with_suffix(".bin")
+    found.setdefault("asset", {}).setdefault("extras", {})["bin_md5"] = hashlib.md5(binary.read_bytes()).hexdigest()
+    target.write_text(json.dumps(found, indent=1))
+
+
+def prop_scene(room, name, about, models):
+    """A furniture model's prop scene (game/base/models/<prop>/<prop>.tscn): the model, its glowing part if it has one,
+    and a box round it that collides."""
+    prop = about["prop"]
+    scene = REPO / f"game/base/models/{prop}"
+    if scene.exists():
+        for old in scene.iterdir():
+            old.unlink()
+    scene.mkdir(exist_ok=True)
+    wide, tall, deep = about["size"]
+    text = KIND_SCENE.format(room=room, model=name, node=node_name(prop), size=f"{wide:g}, {tall:g}, {deep:g}",
+                             middle=f"{tall / 2:g}")
+    if f"{name}_glow" in models:
+        text = text.replace('id="1_mesh"]\n', f'id="1_mesh"]\n[ext_resource type="PackedScene" path="res://game/base/models/'
+                            f'{room}_kit/{name}_glow.gltf" id="2_glow"]\n', 1)
+        text += '\n[node name="Glow" parent="." instance=ExtResource("2_glow")]\n'
+    (scene / f"{prop}.tscn").write_text(text)
 
 
 def node_name(kind):
@@ -343,7 +449,8 @@ def main():
         work = pathlib.Path(sys.argv[3])
         work.mkdir(parents=True, exist_ok=True)
         takes = labelled_takes(sys.argv[4:])
-        planned = plan(layout, takes)
+        inventory = json.loads((REPO / f"data/inventory/{layout.get('room', 'hub')}.json").read_text())
+        planned = plan(layout, takes, inventory)
         (work / "plan.json").write_text(json.dumps(planned, indent=1))
         for name, job in jobs(planned, takes, work, layout.get("room", "hub")).items():
             (work / f"job-{name}.json").write_text(json.dumps(job, indent=1))
