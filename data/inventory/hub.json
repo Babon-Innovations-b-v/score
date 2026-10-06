@@ -45,8 +45,6 @@
 			"wall": 3.1,
 			"pit_radius": 2.33,
 			"pit_floor": -0.9,
-			"rail_radius": 2.45,
-			"stair_bearing": 0,
 			"stair_width": 1.2,
 			"tube_doors": [
 				0,
@@ -58,7 +56,11 @@
 			"levels": {
 				"ring": 0.0,
 				"pit": -0.9
-			}
+			},
+			"stair_bearings": [
+				0,
+				180
+			]
 		}
 	},
 	"rows": [
@@ -87,12 +89,12 @@
 			"why_code": "2026-10-05: made as a model twice, still more than 20% off its size (proportions.py); simple boxy things are built in code (the owner's standing rule)",
 			"at": [
 				{
-					"x": -0.606,
-					"y": -0.9,
-					"z": 1.517,
-					"facing": 21.8,
-					"level": "pit",
-					"fit": "chord of the pit on M3's bearing"
+					"x": 1.98,
+					"y": 0.0,
+					"z": -1.98,
+					"facing": 45,
+					"level": "ring",
+					"fit": "at the pit's edge on the north-east, looking out over the ring (2026-10-06: the pit's second stair, south, took its old place; both machine bays kept)"
 				}
 			],
 			"sound": "console_hum"
@@ -156,11 +158,11 @@
 			"parent": "",
 			"at": [
 				{
-					"x": -0.291,
-					"y": -0.9,
-					"z": 0.728,
-					"facing": 201.8,
-					"level": "pit",
+					"x": 2.44,
+					"y": 0.0,
+					"z": -2.44,
+					"facing": 225,
+					"level": "ring",
 					"fit": "before the console, facing it"
 				}
 			]
@@ -819,7 +821,7 @@
 				0.05,
 				1.0
 			],
-			"count": 10,
+			"count": 14,
 			"thing": "prop:hub_floor_grating",
 			"group": "kit: floor",
 			"made": "kit piece"
@@ -945,7 +947,7 @@
 				0.12,
 				0.06
 			],
-			"count": 8,
+			"count": 6,
 			"thing": "prop:hub_pit_lip_segment",
 			"group": "kit: floor",
 			"made": "kit piece"
@@ -989,8 +991,30 @@
 				0.04,
 				1.0
 			],
-			"count": 29,
+			"count": 33,
 			"thing": "prop:hub_pit_floor_plate",
+			"group": "kit: pit",
+			"made": "kit piece"
+		},
+		{
+			"id": "stair_stringer",
+			"view": "v3",
+			"box": [
+				300,
+				740,
+				1300,
+				900
+			],
+			"name": "a stepped steel side plate of a stair down into the pit",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.91,
+				0.03,
+				0.9
+			],
+			"count": 4,
+			"thing": "prop:hub_stair_stringer",
 			"group": "kit: pit",
 			"made": "kit piece"
 		},
@@ -1037,72 +1061,6 @@
 			"count": 2,
 			"thing": "prop:hub_machine_bay_plate",
 			"group": "kit: pit",
-			"made": "kit piece"
-		},
-		{
-			"id": "rail_section",
-			"view": "v3",
-			"box": [
-				1073,
-				406,
-				1450,
-				783
-			],
-			"name": "a curved tubular steel safety rail section with a top and mid rail",
-			"kind": "generate",
-			"anchor": "floor",
-			"size": [
-				0.65,
-				0.05,
-				1.0
-			],
-			"count": 20,
-			"thing": "prop:hub_rail_section",
-			"group": "kit: rail",
-			"made": "kit piece"
-		},
-		{
-			"id": "rail_post",
-			"view": "v4",
-			"box": [
-				0,
-				385,
-				242,
-				870
-			],
-			"name": "a steel rail post with a bolted foot plate",
-			"kind": "generate",
-			"anchor": "floor",
-			"size": [
-				0.08,
-				0.08,
-				1.05
-			],
-			"count": 21,
-			"thing": "prop:hub_rail_post",
-			"group": "kit: rail",
-			"made": "kit piece"
-		},
-		{
-			"id": "rail_end_post",
-			"view": "v1",
-			"box": [
-				828,
-				394,
-				1200,
-				765
-			],
-			"name": "a heavier steel rail end post beside a stair opening",
-			"kind": "generate",
-			"anchor": "floor",
-			"size": [
-				0.1,
-				0.1,
-				1.1
-			],
-			"count": 2,
-			"thing": "prop:hub_rail_end_post",
-			"group": "kit: rail",
 			"made": "kit piece"
 		},
 		{
@@ -1500,7 +1458,7 @@
 				0.1,
 				0.1
 			],
-			"count": 54,
+			"count": 40,
 			"thing": "prop:hub_pipe_straight",
 			"group": "kit: pipe",
 			"made": "kit piece"
@@ -1522,7 +1480,7 @@
 				0.1,
 				0.3
 			],
-			"count": 4,
+			"count": 2,
 			"thing": "prop:hub_pipe_elbow",
 			"group": "kit: pipe",
 			"made": "kit piece"
@@ -1544,7 +1502,7 @@
 				0.2,
 				0.3
 			],
-			"count": 3,
+			"count": 2,
 			"thing": "prop:hub_pipe_valve",
 			"group": "kit: pipe",
 			"made": "kit piece"
@@ -1632,7 +1590,7 @@
 				0.1,
 				0.2
 			],
-			"count": 7,
+			"count": 6,
 			"thing": "prop:hub_conduit_box",
 			"group": "kit: pipe",
 			"made": "kit piece"
@@ -1745,7 +1703,7 @@
 				0.06,
 				0.25
 			],
-			"count": 3,
+			"count": 2,
 			"thing": "prop:hub_small_readout",
 			"group": "kit: screen",
 			"made": "kit piece"

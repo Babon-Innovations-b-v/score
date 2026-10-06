@@ -1,6 +1,43 @@
 {
 	"room": "hub",
 	"frame": "the Habitat node's own: x east, z south, y up from the ring floor",
+	"partition": {
+		"walls": {
+			"samples": 23736,
+			"coverage": 1.0,
+			"overlap": 0.0006,
+			"gaps": 0.0
+		},
+		"ring floor": {
+			"samples": 17359,
+			"coverage": 0.9879,
+			"overlap": 0.0328,
+			"gaps": 0.0121
+		},
+		"pit wall": {
+			"samples": 4356,
+			"coverage": 0.9844,
+			"overlap": 0.0546,
+			"gaps": 0.0156
+		},
+		"pit floor": {
+			"samples": 6528,
+			"coverage": 1.0,
+			"overlap": 0.0388,
+			"gaps": 0.0
+		},
+		"roof": {
+			"samples": 22284,
+			"coverage": 1.0,
+			"overlap": 0.0043,
+			"gaps": 0.0
+		},
+		"all": {
+			"coverage": 0.9963,
+			"overlap": 0.0158,
+			"gaps": 0.0037
+		}
+	},
 	"counts": {
 		"hub_hatch_wall_surround": 5,
 		"hub_wall_lower_plain": 8,
@@ -25,19 +62,17 @@
 		"hub_ceiling_duct": 3,
 		"hub_roof_light_fixture": 4,
 		"hub_ring_floor_plate": 12,
-		"hub_floor_grating": 10,
+		"hub_floor_grating": 14,
 		"hub_floor_access_hatch": 4,
 		"hub_floor_cable_cover": 4,
 		"hub_tread_mat": 4,
-		"hub_pit_lip_segment": 8,
+		"hub_pit_lip_segment": 6,
 		"hub_pit_wall_panel": 10,
-		"hub_pipe_straight": 54,
+		"hub_pipe_straight": 40,
 		"hub_pit_junction_box": 3,
-		"hub_pit_floor_plate": 29,
+		"hub_pit_floor_plate": 33,
 		"hub_machine_bay_plate": 2,
-		"hub_rail_post": 21,
-		"hub_rail_section": 20,
-		"hub_rail_end_post": 2,
+		"hub_stair_stringer": 4,
 		"hub_hatch_frame": 6,
 		"hub_hatch_leaf": 2,
 		"hub_hatch_wheel": 2,
@@ -50,333 +85,78 @@
 		"hub_wall_screen_cluster": 1,
 		"hub_notice_board": 1,
 		"hub_pipe_bracket": 10,
-		"hub_pipe_valve": 3,
-		"hub_pipe_elbow": 4,
+		"hub_pipe_valve": 2,
+		"hub_pipe_elbow": 2,
 		"hub_cable_bundle": 12,
 		"hub_cable_drop": 4,
-		"hub_conduit_box": 7,
+		"hub_conduit_box": 6,
 		"hub_wall_cage_lamp": 5,
-		"hub_small_readout": 3,
+		"hub_small_readout": 2,
 		"hub_intercom_panel": 1,
 		"hub_waste_bin": 1
 	},
-	"partition": {
-		"walls": {
-			"samples": 23736,
-			"coverage": 1.0,
-			"overlap": 0.0006,
-			"gaps": 0.0
-		},
-		"ring floor": {
-			"samples": 17885,
-			"coverage": 0.9875,
-			"overlap": 0.0323,
-			"gaps": 0.0125
-		},
-		"pit wall": {
-			"samples": 4806,
-			"coverage": 0.9823,
-			"overlap": 0.0545,
-			"gaps": 0.0177
-		},
-		"pit floor": {
-			"samples": 6528,
-			"coverage": 1.0,
-			"overlap": 0.032,
-			"gaps": 0.0
-		},
-		"roof": {
-			"samples": 22284,
-			"coverage": 1.0,
-			"overlap": 0.0043,
-			"gaps": 0.0
-		},
-		"all": {
-			"coverage": 0.9959,
-			"overlap": 0.0154,
-			"gaps": 0.0041
-		}
-	},
 	"kinds": {
 		"hub_wall_lower_plain": {
-			"base": [
-				0.0,
-				0.00088,
-				-1.0,
-				0.0,
-				1.0,
-				0.00088,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_lower_vent": {
-			"base": [
-				0.0,
-				-0.000137,
-				1.0,
-				0.0,
-				-1.0,
-				-0.000137,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_lower_patched": {
-			"base": [
-				0.0,
-				0.005721,
-				-0.999984,
-				0.0,
-				0.999984,
-				0.005721,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_upper_plain": {
-			"base": [
-				0.0,
-				0.999999,
-				0.001303,
-				0.0,
-				-0.001303,
-				0.999999,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_upper_pipes": {
-			"base": [
-				0.0,
-				0.999998,
-				0.002107,
-				0.0,
-				-0.002107,
-				0.999998,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_upper_cables": {
-			"base": [
-				0.0,
-				0.000852,
-				-1.0,
-				0.0,
-				1.0,
-				0.000852,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_upper_screen_recess": {
-			"base": [
-				0.0,
-				-0.999999,
-				-0.001394,
-				0.0,
-				0.001394,
-				-0.999999,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_upper_patched": {
-			"base": [
-				0.0,
-				-0.999996,
-				0.00266,
-				0.0,
-				-0.00266,
-				-0.999996,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_corner_post": {
-			"base": [
-				-1.0,
-				-0.0,
-				-0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_cornice": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_skirting": {
-			"base": [
-				-1.0,
-				-0.0,
-				-0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_hatch_wall_surround": {
-			"picture": "res://game/base/hub_kit/pictures/hub_hatch_wall_surround.png",
-			"hole": [
-				0.0436,
-				0.0,
-				0.9564,
-				0.869
-			],
 			"group": "hangs"
 		},
 		"hub_roof_face_panel": {
-			"picture": "res://game/base/hub_kit/pictures/hub_roof_face_panel.png",
-			"shape": "triangle",
 			"group": "floors"
 		},
 		"hub_lattice_hip_rib": {
-			"base": [
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0
-			],
 			"group": "hangs"
 		},
 		"hub_lattice_ring_rib": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_lattice_diamond_strut": {
-			"base": [
-				-1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				-1.0
-			],
 			"group": "hangs"
 		},
 		"hub_lattice_node_plate": {
-			"base": [
-				0.0,
-				0.999351,
-				-0.036034,
-				0.0,
-				0.036034,
-				0.999351,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_roof_apex_hub": {
-			"base": [
-				-0.0,
-				-0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_ceiling_cable_tray": {
-			"base": [
-				-0.0,
-				-0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_ceiling_duct": {
-			"base": [
-				-0.0,
-				-0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_roof_light_fixture": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"light": {
 				"strength": 0.16,
 				"reach": 6.0,
@@ -385,262 +165,54 @@
 			"group": "hangs"
 		},
 		"hub_ring_floor_plate": {
-			"base": [
-				0.999989,
-				-0.004761,
-				0.0,
-				0.004761,
-				0.999989,
-				0.0,
-				0.0,
-				0.0,
-				1.0
-			],
 			"group": "floors"
 		},
 		"hub_floor_grating": {
-			"base": [
-				-0.409449,
-				0.0,
-				0.912333,
-				0.912333,
-				0.0,
-				0.409449,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "floors"
 		},
 		"hub_floor_access_hatch": {
-			"base": [
-				-0.583838,
-				0.0,
-				-0.81187,
-				0.81187,
-				0.0,
-				-0.583838,
-				0.0,
-				-1.0,
-				0.0
-			],
 			"group": "floors"
 		},
 		"hub_floor_cable_cover": {
-			"base": [
-				0.06921,
-				0.0,
-				0.997602,
-				-0.997602,
-				0.0,
-				0.06921,
-				0.0,
-				-1.0,
-				0.0
-			],
 			"group": "floors"
 		},
 		"hub_tread_mat": {
-			"base": [
-				-0.148339,
-				0.0,
-				0.988937,
-				0.988937,
-				0.0,
-				0.148339,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "floors"
 		},
 		"hub_pit_lip_segment": {
-			"base": [
-				-0.0,
-				-0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "floors"
 		},
 		"hub_pit_wall_panel": {
-			"base": [
-				0.0,
-				-0.001851,
-				-0.999998,
-				0.0,
-				-0.999998,
-				0.001851,
-				-1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_pit_floor_plate": {
-			"base": [
-				0.511429,
-				0.0,
-				0.859326,
-				0.859326,
-				0.0,
-				-0.511429,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "floors"
 		},
+		"hub_stair_stringer": {
+			"group": "hangs"
+		},
 		"hub_pit_junction_box": {
-			"base": [
-				-0.0,
-				-0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_machine_bay_plate": {
-			"base": [
-				0.337737,
-				0.0,
-				-0.941241,
-				0.941241,
-				0.0,
-				0.337737,
-				0.0,
-				-1.0,
-				0.0
-			],
 			"group": "floors"
 		},
-		"hub_rail_section": {
-			"base": [
-				0.992126,
-				0.0,
-				-0.125242,
-				-0.125242,
-				0.0,
-				-0.992126,
-				0.0,
-				1.0,
-				0.0
-			]
-		},
-		"hub_rail_post": {
-			"base": [
-				-1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				-1.0
-			]
-		},
-		"hub_rail_end_post": {
-			"base": [
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0
-			]
-		},
 		"hub_hatch_frame": {
-			"picture": "res://game/base/hub_kit/pictures/hub_hatch_frame.png",
-			"hole": [
-				0.0417,
-				0.0,
-				0.9583,
-				0.9655
-			],
 			"group": "hangs"
 		},
 		"hub_hatch_leaf": {
-			"base": [
-				0.0,
-				0.99999,
-				-0.004576,
-				0.0,
-				0.004576,
-				0.99999,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_hatch_wheel": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				-1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_hatch_hinge": {
-			"base": [
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0
-			],
 			"group": "hangs"
 		},
 		"hub_hatch_window": {
-			"base": [
-				0.0,
-				0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_door_strip_lamp": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"light": {
 				"strength": 0.05,
 				"reach": 3.0,
@@ -649,148 +221,36 @@
 			"group": "hangs"
 		},
 		"hub_door_control_box": {
-			"base": [
-				-0.0,
-				-0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_grab_bar": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				-1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_porthole_panel": {
-			"picture": "res://game/base/hub_kit/pictures/hub_porthole_panel.png",
-			"hole": [],
 			"group": "hangs"
 		},
 		"hub_pipe_straight": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_pipe_elbow": {
-			"base": [
-				-0.0,
-				-0.0,
-				-1.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_pipe_valve": {
-			"base": [
-				0.0,
-				-1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				-1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_pipe_bracket": {
-			"base": [
-				-0.0,
-				-1.0,
-				-0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0
-			],
 			"group": "hangs"
 		},
 		"hub_cable_bundle": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_cable_drop": {
-			"base": [
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				1.0,
-				0.0,
-				-1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_conduit_box": {
-			"base": [
-				0.0,
-				-1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				-1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_wall_cage_lamp": {
-			"base": [
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				1.0,
-				0.0,
-				0.0
-			],
 			"light": {
 				"strength": 0.05,
 				"reach": 3.5,
@@ -799,90 +259,246 @@
 			"group": "hangs"
 		},
 		"hub_status_display": {
-			"base": [
-				0.0,
-				0.004067,
-				0.999992,
-				0.0,
-				-0.999992,
-				0.004067,
-				1.0,
-				0.0,
-				0.0
-			],
-			"glows": true,
 			"group": "hangs"
 		},
 		"hub_wall_screen_cluster": {
-			"base": [
-				0.0,
-				-0.015189,
-				0.999885,
-				0.0,
-				-0.999885,
-				-0.015189,
-				1.0,
-				0.0,
-				0.0
-			],
-			"glows": true,
 			"group": "hangs"
 		},
 		"hub_small_readout": {
-			"base": [
-				0.999997,
-				-0.002584,
-				0.0,
-				-0.002584,
-				-0.999997,
-				0.0,
-				0.0,
-				0.0,
-				-1.0
-			],
-			"glows": true,
 			"group": "hangs"
 		},
 		"hub_intercom_panel": {
-			"base": [
-				0.0,
-				0.999999,
-				-0.001295,
-				0.0,
-				0.001295,
-				0.999999,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
 		"hub_notice_board": {
-			"base": [
-				0.0,
-				0.00226,
-				-0.999997,
-				0.0,
-				0.999997,
-				0.00226,
-				1.0,
-				0.0,
-				0.0
-			],
 			"group": "hangs"
 		},
-		"hub_waste_bin": {
-			"base": [
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0
-			]
+		"hub_waste_bin": {}
+	},
+	"models": {
+		"hatch_wall_surround_1": {
+			"glows": false
+		},
+		"wall_lower_plain_1": {
+			"glows": false
+		},
+		"wall_upper_cables_1": {
+			"glows": false
+		},
+		"wall_lower_vent_1": {
+			"glows": false
+		},
+		"wall_upper_patched_1": {
+			"glows": false
+		},
+		"hatch_wall_surround_2": {
+			"glows": false
+		},
+		"wall_lower_patched_1": {
+			"glows": false
+		},
+		"wall_upper_screen_recess_1": {
+			"glows": false
+		},
+		"wall_upper_screen_recess_1_glow": {
+			"glows": true
+		},
+		"hatch_wall_surround_3": {
+			"glows": false
+		},
+		"wall_upper_pipes_1": {
+			"glows": false
+		},
+		"hatch_wall_surround_4": {
+			"glows": false
+		},
+		"wall_lower_plain_2": {
+			"glows": false
+		},
+		"porthole_panel_1": {
+			"glows": false
+		},
+		"wall_upper_plain_1": {
+			"glows": false
+		},
+		"wall_upper_plain_2": {
+			"glows": false
+		},
+		"wall_upper_plain_3": {
+			"glows": false
+		},
+		"wall_upper_plain_4": {
+			"glows": false
+		},
+		"hatch_wall_surround_5": {
+			"glows": false
+		},
+		"wall_skirting_1": {
+			"glows": false
+		},
+		"wall_cornice_1": {
+			"glows": false
+		},
+		"wall_corner_post_1": {
+			"glows": false
+		},
+		"roof_face_panel_1": {
+			"glows": false
+		},
+		"lattice_ring_rib_1": {
+			"glows": false
+		},
+		"lattice_ring_rib_2": {
+			"glows": false
+		},
+		"lattice_ring_rib_3": {
+			"glows": false
+		},
+		"lattice_hip_rib_1": {
+			"glows": false
+		},
+		"lattice_diamond_strut_1": {
+			"glows": false
+		},
+		"lattice_node_plate_1": {
+			"glows": false
+		},
+		"roof_apex_hub_1": {
+			"glows": false
+		},
+		"ceiling_cable_tray_1": {
+			"glows": false
+		},
+		"ceiling_duct_1": {
+			"glows": false
+		},
+		"roof_light_fixture_1": {
+			"glows": false
+		},
+		"ring_floor_plate_1": {
+			"glows": false
+		},
+		"floor_grating_1": {
+			"glows": false
+		},
+		"floor_access_hatch_1": {
+			"glows": false
+		},
+		"floor_cable_cover_1": {
+			"glows": false
+		},
+		"tread_mat_1": {
+			"glows": false
+		},
+		"pit_lip_segment_1": {
+			"glows": false
+		},
+		"pit_wall_panel_1": {
+			"glows": false
+		},
+		"pipe_straight_1": {
+			"glows": false
+		},
+		"pit_junction_box_1": {
+			"glows": false
+		},
+		"pit_floor_plate_1": {
+			"glows": false
+		},
+		"machine_bay_plate_1": {
+			"glows": false
+		},
+		"floor_grating_2": {
+			"glows": false
+		},
+		"pit_floor_plate_2": {
+			"glows": false
+		},
+		"stair_stringer_1": {
+			"glows": false
+		},
+		"hatch_frame_1": {
+			"glows": false
+		},
+		"hatch_leaf_1": {
+			"glows": false
+		},
+		"hatch_wheel_1": {
+			"glows": false
+		},
+		"hatch_window_1": {
+			"glows": false
+		},
+		"hatch_hinge_1": {
+			"glows": false
+		},
+		"door_strip_lamp_1": {
+			"glows": false
+		},
+		"door_strip_lamp_1_glow": {
+			"glows": true
+		},
+		"door_control_box_1": {
+			"glows": false
+		},
+		"door_control_box_1_screen_1": {
+			"glows": true,
+			"picture": "screen_readout"
+		},
+		"grab_bar_1": {
+			"glows": false
+		},
+		"status_display_1": {
+			"glows": false
+		},
+		"status_display_1_glow": {
+			"glows": true
+		},
+		"wall_screen_cluster_1": {
+			"glows": false
+		},
+		"wall_screen_cluster_1_glow": {
+			"glows": true
+		},
+		"notice_board_1": {
+			"glows": false
+		},
+		"pipe_straight_2": {
+			"glows": false
+		},
+		"pipe_bracket_1": {
+			"glows": false
+		},
+		"pipe_valve_1": {
+			"glows": false
+		},
+		"pipe_elbow_1": {
+			"glows": false
+		},
+		"cable_bundle_1": {
+			"glows": false
+		},
+		"cable_drop_1": {
+			"glows": false
+		},
+		"conduit_box_1": {
+			"glows": false
+		},
+		"wall_cage_lamp_1": {
+			"glows": false
+		},
+		"small_readout_1": {
+			"glows": false
+		},
+		"small_readout_1_screen_1": {
+			"glows": true,
+			"picture": "screen_readout"
+		},
+		"intercom_panel_1": {
+			"glows": false
+		},
+		"waste_bin_1": {
+			"glows": false
 		}
 	},
 	"pieces": [
@@ -913,7 +529,8 @@
 				3.1,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_wall_surround_1"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -943,11 +560,7 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_1"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -977,11 +590,7 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_1"
 		},
 		{
 			"kind": "hub_wall_upper_cables",
@@ -1011,11 +620,7 @@
 				0.1
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.1
-			]
+			"model": "wall_upper_cables_1"
 		},
 		{
 			"kind": "hub_wall_upper_cables",
@@ -1045,18 +650,14 @@
 				0.1
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.1
-			]
+			"model": "wall_upper_cables_1"
 		},
 		{
 			"kind": "hub_wall_lower_vent",
 			"at": [
-				3.5697,
+				3.5684,
 				0.0,
-				-2.7571
+				-2.7563
 			],
 			"x": [
 				-0.5,
@@ -1076,21 +677,17 @@
 			"size": [
 				1.2458,
 				1.16,
-				0.06
+				0.063
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_vent_1"
 		},
 		{
 			"kind": "hub_wall_lower_vent",
 			"at": [
-				4.1726,
+				4.1713,
 				0.0,
-				-1.7129
+				-1.7122
 			],
 			"x": [
 				-0.5,
@@ -1110,21 +707,17 @@
 			"size": [
 				1.2458,
 				1.16,
-				0.06
+				0.063
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_vent_1"
 		},
 		{
 			"kind": "hub_wall_upper_patched",
 			"at": [
-				3.5697,
+				3.5671,
 				1.1,
-				-2.7571
+				-2.7556
 			],
 			"x": [
 				-0.5,
@@ -1144,21 +737,17 @@
 			"size": [
 				1.2458,
 				2.0,
-				0.06
+				0.066
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.06
-			]
+			"model": "wall_upper_patched_1"
 		},
 		{
 			"kind": "hub_wall_upper_patched",
 			"at": [
-				4.1726,
+				4.17,
 				1.1,
-				-1.7129
+				-1.7114
 			],
 			"x": [
 				-0.5,
@@ -1178,21 +767,17 @@
 			"size": [
 				1.2458,
 				2.0,
-				0.06
+				0.066
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.06
-			]
+			"model": "wall_upper_patched_1"
 		},
 		{
 			"kind": "hub_hatch_wall_surround",
 			"at": [
 				4.46,
 				0.0,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -1214,14 +799,15 @@
 				3.1,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_wall_surround_2"
 		},
 		{
 			"kind": "hub_wall_lower_patched",
 			"at": [
-				4.1726,
+				4.17,
 				0.0,
-				1.7129
+				1.7114
 			],
 			"x": [
 				0.5,
@@ -1241,21 +827,17 @@
 			"size": [
 				1.2458,
 				1.16,
-				0.06
+				0.066
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_patched_1"
 		},
 		{
 			"kind": "hub_wall_lower_patched",
 			"at": [
-				3.5697,
+				3.5671,
 				0.0,
-				2.7571
+				2.7556
 			],
 			"x": [
 				0.5,
@@ -1275,14 +857,10 @@
 			"size": [
 				1.2458,
 				1.16,
-				0.06
+				0.066
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_patched_1"
 		},
 		{
 			"kind": "hub_wall_upper_screen_recess",
@@ -1312,11 +890,38 @@
 				0.08
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.08
-			]
+			"model": "wall_upper_screen_recess_1"
+		},
+		{
+			"kind": "hub_wall_upper_screen_recess",
+			"at": [
+				4.1786,
+				1.715,
+				1.7164
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.77,
+				0.45,
+				0.006
+			],
+			"layer": 1,
+			"model": "wall_upper_screen_recess_1_glow",
+			"part": "glow"
 		},
 		{
 			"kind": "hub_wall_upper_screen_recess",
@@ -1346,11 +951,38 @@
 				0.08
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.08
-			]
+			"model": "wall_upper_screen_recess_1"
+		},
+		{
+			"kind": "hub_wall_upper_screen_recess",
+			"at": [
+				3.5757,
+				1.715,
+				2.7606
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.77,
+				0.45,
+				0.006
+			],
+			"layer": 1,
+			"model": "wall_upper_screen_recess_1_glow",
+			"part": "glow"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -1380,11 +1012,7 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_1"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -1414,11 +1042,7 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_1"
 		},
 		{
 			"kind": "hub_wall_upper_cables",
@@ -1448,11 +1072,7 @@
 				0.1
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.1
-			]
+			"model": "wall_upper_cables_1"
 		},
 		{
 			"kind": "hub_wall_upper_cables",
@@ -1482,11 +1102,7 @@
 				0.1
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.1
-			]
+			"model": "wall_upper_cables_1"
 		},
 		{
 			"kind": "hub_hatch_wall_surround",
@@ -1515,7 +1131,8 @@
 				3.1,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_wall_surround_3"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -1545,11 +1162,7 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_1"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -1579,11 +1192,7 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_1"
 		},
 		{
 			"kind": "hub_wall_upper_pipes",
@@ -1613,11 +1222,7 @@
 				0.12
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.12
-			]
+			"model": "wall_upper_pipes_1"
 		},
 		{
 			"kind": "hub_wall_upper_pipes",
@@ -1647,18 +1252,14 @@
 				0.12
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.12
-			]
+			"model": "wall_upper_pipes_1"
 		},
 		{
 			"kind": "hub_wall_lower_vent",
 			"at": [
-				-3.5697,
+				-3.5684,
 				0.0,
-				2.7571
+				2.7563
 			],
 			"x": [
 				0.5,
@@ -1678,21 +1279,17 @@
 			"size": [
 				1.2458,
 				1.16,
-				0.06
+				0.063
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_vent_1"
 		},
 		{
 			"kind": "hub_wall_lower_vent",
 			"at": [
-				-4.1726,
+				-4.1713,
 				0.0,
-				1.7129
+				1.7122
 			],
 			"x": [
 				0.5,
@@ -1712,14 +1309,10 @@
 			"size": [
 				1.2458,
 				1.16,
-				0.06
+				0.063
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_vent_1"
 		},
 		{
 			"kind": "hub_wall_upper_pipes",
@@ -1749,11 +1342,7 @@
 				0.12
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.12
-			]
+			"model": "wall_upper_pipes_1"
 		},
 		{
 			"kind": "hub_wall_upper_pipes",
@@ -1783,11 +1372,7 @@
 				0.12
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				2.0,
-				0.12
-			]
+			"model": "wall_upper_pipes_1"
 		},
 		{
 			"kind": "hub_hatch_wall_surround",
@@ -1816,7 +1401,8 @@
 				3.1,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_wall_surround_4"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -1846,11 +1432,7 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				1.2058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_1"
 		},
 		{
 			"kind": "hub_wall_lower_plain",
@@ -1880,18 +1462,14 @@
 				0.06
 			],
 			"layer": 1,
-			"scored": [
-				0.9058,
-				1.1,
-				0.06
-			]
+			"model": "wall_lower_plain_2"
 		},
 		{
 			"kind": "hub_porthole_panel",
 			"at": [
-				-3.8538,
+				-3.8542,
 				1.75,
-				-2.225
+				-2.2252
 			],
 			"x": [
 				-0.5,
@@ -1911,9 +1489,10 @@
 			"size": [
 				1.2,
 				1.2,
-				0.1
+				0.099
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "porthole_panel_1"
 		},
 		{
 			"kind": "hub_wall_upper_plain",
@@ -1942,7 +1521,8 @@
 				2.0,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_upper_plain_1"
 		},
 		{
 			"kind": "hub_wall_upper_plain",
@@ -1971,7 +1551,8 @@
 				2.0,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_upper_plain_2"
 		},
 		{
 			"kind": "hub_wall_upper_plain",
@@ -2000,7 +1581,8 @@
 				0.65,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_upper_plain_3"
 		},
 		{
 			"kind": "hub_wall_upper_plain",
@@ -2029,7 +1611,8 @@
 				0.15,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_upper_plain_4"
 		},
 		{
 			"kind": "hub_hatch_wall_surround",
@@ -2058,7 +1641,8 @@
 				3.1,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_wall_surround_5"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2087,7 +1671,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2116,14 +1701,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				1.1877,
+				1.1868,
 				0.0,
-				-4.4324
+				-4.429
 			],
 			"x": [
 				-0.96593,
@@ -2143,9 +1729,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2174,7 +1761,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2203,14 +1791,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				3.2447,
+				3.2422,
 				0.0,
-				-3.2447
+				-3.2422
 			],
 			"x": [
 				-0.70711,
@@ -2230,9 +1819,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2261,7 +1851,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2290,14 +1881,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				4.4324,
+				4.429,
 				0.0,
-				-1.1877
+				-1.1868
 			],
 			"x": [
 				-0.25882,
@@ -2317,16 +1909,17 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
 			"at": [
 				4.47,
 				0.0,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -2348,14 +1941,15 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
 			"at": [
 				4.42,
 				2.92,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -2377,14 +1971,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				4.4324,
+				4.429,
 				0.0,
-				1.1877
+				1.1868
 			],
 			"x": [
 				0.25882,
@@ -2404,9 +1999,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2435,7 +2031,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2464,14 +2061,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				3.2447,
+				3.2422,
 				0.0,
-				3.2447
+				3.2422
 			],
 			"x": [
 				0.70711,
@@ -2491,9 +2089,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2522,7 +2121,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2551,14 +2151,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				1.1877,
+				1.1868,
 				0.0,
-				4.4324
+				4.429
 			],
 			"x": [
 				0.96593,
@@ -2578,9 +2179,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2609,7 +2211,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2638,14 +2241,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				-1.1877,
+				-1.1868,
 				0.0,
-				4.4324
+				4.429
 			],
 			"x": [
 				0.96593,
@@ -2665,9 +2269,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2696,7 +2301,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2725,14 +2331,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				-3.2447,
+				-3.2422,
 				0.0,
-				3.2447
+				3.2422
 			],
 			"x": [
 				0.70711,
@@ -2752,9 +2359,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2783,7 +2391,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2812,14 +2421,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				-4.4324,
+				-4.429,
 				0.0,
-				1.1877
+				1.1868
 			],
 			"x": [
 				0.25882,
@@ -2839,9 +2449,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2870,7 +2481,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2899,14 +2511,15 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_corner_post",
 			"at": [
-				-4.4324,
+				-4.429,
 				0.0,
-				-1.1877
+				-1.1868
 			],
 			"x": [
 				-0.25882,
@@ -2926,9 +2539,10 @@
 			"size": [
 				0.14,
 				3.1,
-				0.14
+				0.147
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_corner_post_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -2957,7 +2571,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -2986,7 +2601,8 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_wall_skirting",
@@ -3015,7 +2631,8 @@
 				0.12,
 				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_skirting_1"
 		},
 		{
 			"kind": "hub_wall_cornice",
@@ -3044,7 +2661,8 @@
 				0.18,
 				0.16
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cornice_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3069,12 +2687,13 @@
 				-0.3534
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3099,12 +2718,13 @@
 				-0.30605
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3129,19 +2749,20 @@
 				-0.1767
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
 			"at": [
 				4.6492,
 				3.0704,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -3159,12 +2780,13 @@
 				-0.0
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3189,12 +2811,13 @@
 				0.1767
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3219,12 +2842,13 @@
 				0.30605
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3249,12 +2873,13 @@
 				0.3534
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3279,12 +2904,13 @@
 				0.30605
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3309,12 +2935,13 @@
 				0.1767
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3339,12 +2966,13 @@
 				0.0
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3369,12 +2997,13 @@
 				-0.1767
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_roof_face_panel",
@@ -3399,12 +3028,13 @@
 				-0.30605
 			],
 			"size": [
-				2.5116,
-				4.9604,
+				2.5096,
+				4.9581,
 				0.05
 			],
 			"layer": 2,
-			"taper": 0.0
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3433,7 +3063,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3462,7 +3093,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3491,7 +3123,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3520,7 +3153,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3549,7 +3183,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3578,7 +3213,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3607,7 +3243,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3636,7 +3273,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3665,7 +3303,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3694,7 +3333,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3723,7 +3363,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3752,7 +3393,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3781,7 +3423,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3810,7 +3453,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3839,7 +3483,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3868,7 +3513,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3897,7 +3543,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3926,7 +3573,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3955,7 +3603,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -3984,7 +3633,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4013,7 +3663,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4042,7 +3693,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4071,7 +3723,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4100,7 +3753,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4129,7 +3783,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4158,7 +3813,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4187,7 +3843,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4216,7 +3873,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4245,7 +3903,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4274,7 +3933,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4303,7 +3963,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4332,7 +3993,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4361,7 +4023,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4390,7 +4053,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4419,7 +4083,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_ring_rib",
@@ -4448,7 +4113,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -4477,7 +4143,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4506,7 +4173,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4535,7 +4203,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4564,7 +4233,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4593,7 +4263,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -4622,7 +4293,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4651,7 +4323,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4680,7 +4353,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4709,7 +4383,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4738,7 +4413,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -4767,7 +4443,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4796,7 +4473,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4825,7 +4503,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4854,7 +4533,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4883,7 +4563,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -4912,7 +4593,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4941,7 +4623,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4970,7 +4653,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -4999,7 +4683,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5028,7 +4713,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -5057,7 +4743,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5086,7 +4773,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5115,7 +4803,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5144,7 +4833,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5173,7 +4863,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -5202,7 +4893,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5231,7 +4923,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5260,7 +4953,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5289,7 +4983,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5318,7 +5013,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -5347,7 +5043,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5376,7 +5073,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5405,7 +5103,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5434,7 +5133,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5463,7 +5163,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -5492,7 +5193,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5521,7 +5223,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5550,7 +5253,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5579,7 +5283,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5608,7 +5313,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -5637,7 +5343,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5666,7 +5373,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5695,7 +5403,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5724,7 +5433,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5753,7 +5463,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -5782,7 +5493,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5811,7 +5523,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5840,7 +5553,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5869,7 +5583,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5898,7 +5613,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -5927,7 +5643,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5956,7 +5673,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -5985,7 +5703,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -6014,7 +5733,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -6043,7 +5763,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_hip_rib",
@@ -6072,7 +5793,8 @@
 				4.6304,
 				0.12
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -6101,7 +5823,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -6130,7 +5853,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -6159,7 +5883,8 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_diamond_strut",
@@ -6188,13 +5913,14 @@
 				2.1605,
 				0.08
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				1.2071,
-				2.96,
+				2.9605,
 				-4.5049
 			],
 			"x": [
@@ -6215,15 +5941,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				3.2978,
-				2.96,
+				2.9605,
 				-3.2978
 			],
 			"x": [
@@ -6244,15 +5971,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				4.5049,
-				2.96,
+				2.9605,
 				-1.2071
 			],
 			"x": [
@@ -6273,15 +6001,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				4.5049,
-				2.96,
+				2.9605,
 				1.2071
 			],
 			"x": [
@@ -6302,15 +6031,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				3.2978,
-				2.96,
+				2.9605,
 				3.2978
 			],
 			"x": [
@@ -6331,15 +6061,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				1.2071,
-				2.96,
+				2.9605,
 				4.5049
 			],
 			"x": [
@@ -6360,15 +6091,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-1.2071,
-				2.96,
+				2.9605,
 				4.5049
 			],
 			"x": [
@@ -6389,15 +6121,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-3.2978,
-				2.96,
+				2.9605,
 				3.2978
 			],
 			"x": [
@@ -6418,15 +6151,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-4.5049,
-				2.96,
+				2.9605,
 				1.2071
 			],
 			"x": [
@@ -6447,15 +6181,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-4.5049,
-				2.96,
+				2.9605,
 				-1.2071
 			],
 			"x": [
@@ -6476,15 +6211,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-3.2978,
-				2.96,
+				2.9605,
 				-3.2978
 			],
 			"x": [
@@ -6505,15 +6241,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-1.2071,
-				2.96,
+				2.9605,
 				-4.5049
 			],
 			"x": [
@@ -6534,15 +6271,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.693,
-				3.708,
+				3.7085,
 				-2.5865
 			],
 			"x": [
@@ -6563,15 +6301,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				1.8934,
-				3.708,
+				3.7085,
 				-1.8934
 			],
 			"x": [
@@ -6592,15 +6331,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				2.5865,
-				3.708,
+				3.7085,
 				-0.693
 			],
 			"x": [
@@ -6621,15 +6361,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				2.5865,
-				3.708,
+				3.7085,
 				0.693
 			],
 			"x": [
@@ -6650,15 +6391,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				1.8934,
-				3.708,
+				3.7085,
 				1.8934
 			],
 			"x": [
@@ -6679,15 +6421,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.693,
-				3.708,
+				3.7085,
 				2.5865
 			],
 			"x": [
@@ -6708,15 +6451,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.693,
-				3.708,
+				3.7085,
 				2.5865
 			],
 			"x": [
@@ -6737,15 +6481,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-1.8934,
-				3.708,
+				3.7085,
 				1.8934
 			],
 			"x": [
@@ -6766,15 +6511,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-2.5865,
-				3.708,
+				3.7085,
 				0.693
 			],
 			"x": [
@@ -6795,15 +6541,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-2.5865,
-				3.708,
+				3.7085,
 				-0.693
 			],
 			"x": [
@@ -6824,15 +6571,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-1.8934,
-				3.708,
+				3.7085,
 				-1.8934
 			],
 			"x": [
@@ -6853,15 +6601,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.693,
-				3.708,
+				3.7085,
 				-2.5865
 			],
 			"x": [
@@ -6882,15 +6631,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.179,
-				4.456,
+				4.4565,
 				-0.6681
 			],
 			"x": [
@@ -6911,15 +6661,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.4891,
-				4.456,
+				4.4565,
 				-0.4891
 			],
 			"x": [
@@ -6940,15 +6691,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.6681,
-				4.456,
+				4.4565,
 				-0.179
 			],
 			"x": [
@@ -6969,15 +6721,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.6681,
-				4.456,
+				4.4565,
 				0.179
 			],
 			"x": [
@@ -6998,15 +6751,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.4891,
-				4.456,
+				4.4565,
 				0.4891
 			],
 			"x": [
@@ -7027,15 +6781,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				0.179,
-				4.456,
+				4.4565,
 				0.6681
 			],
 			"x": [
@@ -7056,15 +6811,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.179,
-				4.456,
+				4.4565,
 				0.6681
 			],
 			"x": [
@@ -7085,15 +6841,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.4891,
-				4.456,
+				4.4565,
 				0.4891
 			],
 			"x": [
@@ -7114,15 +6871,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.6681,
-				4.456,
+				4.4565,
 				0.179
 			],
 			"x": [
@@ -7143,15 +6901,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.6681,
-				4.456,
+				4.4565,
 				-0.179
 			],
 			"x": [
@@ -7172,15 +6931,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.4891,
-				4.456,
+				4.4565,
 				-0.4891
 			],
 			"x": [
@@ -7201,15 +6961,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_lattice_node_plate",
 			"at": [
 				-0.179,
-				4.456,
+				4.4565,
 				-0.6681
 			],
 			"x": [
@@ -7230,15 +6991,16 @@
 			"size": [
 				0.3,
 				0.3,
-				0.05
+				0.049
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "lattice_node_plate_1"
 		},
 		{
 			"kind": "hub_roof_apex_hub",
 			"at": [
-				0.0,
-				4.36,
+				-0.0004,
+				4.3569,
 				0.0
 			],
 			"x": [
@@ -7257,11 +7019,12 @@
 				1.0
 			],
 			"size": [
-				0.6,
-				0.3,
-				0.6
+				0.6053,
+				0.3069,
+				0.607
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "roof_apex_hub_1"
 		},
 		{
 			"kind": "hub_ceiling_cable_tray",
@@ -7290,7 +7053,8 @@
 				0.1,
 				0.3
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
 		},
 		{
 			"kind": "hub_ceiling_cable_tray",
@@ -7319,7 +7083,8 @@
 				0.1,
 				0.3
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
 		},
 		{
 			"kind": "hub_ceiling_cable_tray",
@@ -7348,7 +7113,8 @@
 				0.1,
 				0.3
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
 		},
 		{
 			"kind": "hub_ceiling_cable_tray",
@@ -7377,7 +7143,8 @@
 				0.1,
 				0.3
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
 		},
 		{
 			"kind": "hub_ceiling_cable_tray",
@@ -7406,7 +7173,8 @@
 				0.1,
 				0.3
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
 		},
 		{
 			"kind": "hub_ceiling_cable_tray",
@@ -7435,7 +7203,8 @@
 				0.1,
 				0.3
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
 		},
 		{
 			"kind": "hub_ceiling_duct",
@@ -7464,7 +7233,8 @@
 				0.3,
 				0.35
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_duct_1"
 		},
 		{
 			"kind": "hub_ceiling_duct",
@@ -7493,7 +7263,8 @@
 				0.3,
 				0.35
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_duct_1"
 		},
 		{
 			"kind": "hub_ceiling_duct",
@@ -7522,14 +7293,15 @@
 				0.3,
 				0.35
 			],
-			"layer": 2
+			"layer": 2,
+			"model": "ceiling_duct_1"
 		},
 		{
 			"kind": "hub_roof_light_fixture",
 			"at": [
 				1.8385,
-				3.2,
-				-1.8385
+				3.1982,
+				-1.8405
 			],
 			"x": [
 				1.0,
@@ -7548,17 +7320,18 @@
 			],
 			"size": [
 				0.4,
-				0.35,
-				0.4
+				0.3558,
+				0.4035
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "roof_light_fixture_1"
 		},
 		{
 			"kind": "hub_roof_light_fixture",
 			"at": [
 				1.8385,
-				3.2,
-				1.8385
+				3.1982,
+				1.8365
 			],
 			"x": [
 				1.0,
@@ -7577,17 +7350,18 @@
 			],
 			"size": [
 				0.4,
-				0.35,
-				0.4
+				0.3558,
+				0.4035
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "roof_light_fixture_1"
 		},
 		{
 			"kind": "hub_roof_light_fixture",
 			"at": [
 				-1.8385,
-				3.2,
-				1.8385
+				3.1982,
+				1.8365
 			],
 			"x": [
 				1.0,
@@ -7606,17 +7380,18 @@
 			],
 			"size": [
 				0.4,
-				0.35,
-				0.4
+				0.3558,
+				0.4035
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "roof_light_fixture_1"
 		},
 		{
 			"kind": "hub_roof_light_fixture",
 			"at": [
 				-1.8385,
-				3.2,
-				-1.8385
+				3.1982,
+				-1.8405
 			],
 			"x": [
 				1.0,
@@ -7635,10 +7410,11 @@
 			],
 			"size": [
 				0.4,
-				0.35,
-				0.4
+				0.3558,
+				0.4035
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "roof_light_fixture_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7663,12 +7439,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7693,12 +7470,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7723,19 +7501,20 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
 			"at": [
 				4.5,
 				0.0,
-				-0.0
+				0.0
 			],
 			"x": [
 				0.0,
@@ -7753,12 +7532,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7783,12 +7563,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7813,12 +7594,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7843,12 +7625,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7873,12 +7656,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7903,12 +7687,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7933,12 +7718,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7963,12 +7749,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_ring_floor_plate",
@@ -7993,12 +7780,13 @@
 				-0.0
 			],
 			"size": [
-				2.4115,
+				2.4094,
 				2.11,
 				0.04
 			],
 			"layer": 1,
-			"taper": 0.5311
+			"taper": 0.5311,
+			"model": "ring_floor_plate_1"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -8027,7 +7815,8 @@
 				1.0,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -8056,7 +7845,8 @@
 				1.0,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -8085,7 +7875,8 @@
 				1.0,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -8114,7 +7905,8 @@
 				1.0,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -8143,7 +7935,8 @@
 				1.0,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -8172,13 +7965,14 @@
 				1.0,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_1"
 		},
 		{
 			"kind": "hub_floor_access_hatch",
 			"at": [
 				3.3807,
-				0.023,
+				0.024,
 				-0.9059
 			],
 			"x": [
@@ -8199,15 +7993,16 @@
 			"size": [
 				0.8,
 				0.8,
-				0.04
+				0.042
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_access_hatch_1"
 		},
 		{
 			"kind": "hub_floor_access_hatch",
 			"at": [
 				2.4749,
-				0.023,
+				0.024,
 				2.4749
 			],
 			"x": [
@@ -8228,15 +8023,16 @@
 			"size": [
 				0.8,
 				0.8,
-				0.04
+				0.042
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_access_hatch_1"
 		},
 		{
 			"kind": "hub_floor_access_hatch",
 			"at": [
 				-0.9059,
-				0.023,
+				0.024,
 				3.3807
 			],
 			"x": [
@@ -8257,15 +8053,16 @@
 			"size": [
 				0.8,
 				0.8,
-				0.04
+				0.042
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_access_hatch_1"
 		},
 		{
 			"kind": "hub_floor_access_hatch",
 			"at": [
 				-3.3807,
-				0.023,
+				0.024,
 				0.9059
 			],
 			"x": [
@@ -8286,44 +8083,16 @@
 			"size": [
 				0.8,
 				0.8,
-				0.04
+				0.042
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_floor_cable_cover",
-			"at": [
-				0.9406,
-				0.031,
-				-2.5842
-			],
-			"x": [
-				-0.93969,
-				0.0,
-				-0.34202
-			],
-			"y": [
-				0.34202,
-				0.0,
-				-0.93969
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.2,
-				0.3,
-				0.05
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_access_hatch_1"
 		},
 		{
 			"kind": "hub_floor_cable_cover",
 			"at": [
 				1.7677,
-				0.031,
+				0.033,
 				2.1066
 			],
 			"x": [
@@ -8344,15 +8113,16 @@
 			"size": [
 				1.2,
 				0.3,
-				0.05
+				0.054
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_cable_cover_1"
 		},
 		{
 			"kind": "hub_floor_cable_cover",
 			"at": [
 				-0.9406,
-				0.031,
+				0.033,
 				2.5842
 			],
 			"x": [
@@ -8373,15 +8143,46 @@
 			"size": [
 				1.2,
 				0.3,
-				0.05
+				0.054
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_cable_cover_1"
+		},
+		{
+			"kind": "hub_floor_cable_cover",
+			"at": [
+				-2.7082,
+				0.033,
+				0.4775
+			],
+			"x": [
+				0.17365,
+				-0.0,
+				0.98481
+			],
+			"y": [
+				-0.98481,
+				0.0,
+				0.17365
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				0.3,
+				0.054
+			],
+			"layer": 1,
+			"model": "floor_cable_cover_1"
 		},
 		{
 			"kind": "hub_floor_cable_cover",
 			"at": [
 				-1.7677,
-				0.031,
+				0.033,
 				-2.1066
 			],
 			"x": [
@@ -8402,9 +8203,10 @@
 			"size": [
 				1.2,
 				0.3,
-				0.05
+				0.054
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_cable_cover_1"
 		},
 		{
 			"kind": "hub_tread_mat",
@@ -8433,7 +8235,8 @@
 				0.9,
 				0.02
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "tread_mat_1"
 		},
 		{
 			"kind": "hub_tread_mat",
@@ -8462,12 +8265,13 @@
 				0.9,
 				0.02
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "tread_mat_1"
 		},
 		{
 			"kind": "hub_tread_mat",
 			"at": [
-				-0.0,
+				0.0,
 				0.016,
 				3.45
 			],
@@ -8491,14 +8295,15 @@
 				0.9,
 				0.02
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "tread_mat_1"
 		},
 		{
 			"kind": "hub_tread_mat",
 			"at": [
 				-3.45,
 				0.016,
-				-0.0
+				0.0
 			],
 			"x": [
 				0.0,
@@ -8520,7 +8325,8 @@
 				0.9,
 				0.02
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "tread_mat_1"
 		},
 		{
 			"kind": "hub_pit_lip_segment",
@@ -8549,14 +8355,15 @@
 				0.06,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_lip_segment_1"
 		},
 		{
 			"kind": "hub_pit_lip_segment",
 			"at": [
 				2.33,
 				0.06,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -8578,7 +8385,8 @@
 				0.06,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_lip_segment_1"
 		},
 		{
 			"kind": "hub_pit_lip_segment",
@@ -8607,65 +8415,8 @@
 				0.06,
 				0.12
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				0.72,
-				0.06,
-				2.216
-			],
-			"x": [
-				0.95106,
-				0.0,
-				-0.30902
-			],
-			"y": [
-				0.30902,
-				0.0,
-				0.95106
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pit_lip_segment",
-			"at": [
-				-0.72,
-				0.06,
-				2.216
-			],
-			"x": [
-				0.95106,
-				-0.0,
-				0.30902
-			],
-			"y": [
-				-0.30902,
-				0.0,
-				0.95106
-			],
-			"z": [
-				-0.0,
-				-1.0,
-				-0.0
-			],
-			"size": [
-				1.464,
-				0.06,
-				0.12
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_lip_segment_1"
 		},
 		{
 			"kind": "hub_pit_lip_segment",
@@ -8694,7 +8445,8 @@
 				0.06,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_lip_segment_1"
 		},
 		{
 			"kind": "hub_pit_lip_segment",
@@ -8723,7 +8475,8 @@
 				0.06,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_lip_segment_1"
 		},
 		{
 			"kind": "hub_pit_lip_segment",
@@ -8752,7 +8505,8 @@
 				0.06,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_lip_segment_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -8781,7 +8535,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -8810,7 +8565,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -8839,7 +8595,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -8868,7 +8625,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -8897,7 +8655,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -8926,7 +8685,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -8955,7 +8715,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -8984,14 +8745,15 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
 			"at": [
 				2.29,
 				-0.9,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -9013,7 +8775,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9042,14 +8805,15 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
 			"at": [
 				2.1392,
 				-0.35,
-				-0.0
+				0.0
 			],
 			"x": [
 				0.0,
@@ -9071,7 +8835,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9100,7 +8865,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9129,14 +8895,15 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
 			"at": [
 				2.1392,
 				-0.55,
-				-0.0
+				0.0
 			],
 			"x": [
 				0.0,
@@ -9158,7 +8925,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9187,7 +8955,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -9216,7 +8985,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9245,7 +9015,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9274,7 +9045,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9303,7 +9075,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9332,7 +9105,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9361,7 +9135,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9390,7 +9165,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -9419,181 +9195,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				1.048,
-				-0.35,
-				1.865
-			],
-			"x": [
-				-0.87178,
-				0.0,
-				0.48989
-			],
-			"y": [
-				0.48989,
-				0.0,
-				0.87178
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				0.6611,
-				-0.35,
-				2.0345
-			],
-			"x": [
-				-0.95106,
-				0.0,
-				0.30902
-			],
-			"y": [
-				0.30902,
-				0.0,
-				0.95106
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				0.2484,
-				-0.35,
-				2.1248
-			],
-			"x": [
-				-0.99324,
-				0.0,
-				0.11609
-			],
-			"y": [
-				0.11609,
-				0.0,
-				0.99324
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				1.048,
-				-0.55,
-				1.865
-			],
-			"x": [
-				-0.87178,
-				0.0,
-				0.48989
-			],
-			"y": [
-				0.48989,
-				0.0,
-				0.87178
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				0.6611,
-				-0.55,
-				2.0345
-			],
-			"x": [
-				-0.95106,
-				0.0,
-				0.30902
-			],
-			"y": [
-				0.30902,
-				0.0,
-				0.95106
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				0.2484,
-				-0.55,
-				2.1248
-			],
-			"x": [
-				-0.99324,
-				0.0,
-				0.11609
-			],
-			"y": [
-				0.11609,
-				0.0,
-				0.99324
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -9622,65 +9225,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				-0.2484,
-				-0.35,
-				2.1248
-			],
-			"x": [
-				-0.99324,
-				0.0,
-				-0.11609
-			],
-			"y": [
-				-0.11609,
-				0.0,
-				0.99324
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				-0.2484,
-				-0.55,
-				2.1248
-			],
-			"x": [
-				-0.99324,
-				0.0,
-				-0.11609
-			],
-			"y": [
-				-0.11609,
-				0.0,
-				0.99324
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -9709,36 +9255,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				-1.4498,
-				-0.35,
-				1.573
-			],
-			"x": [
-				-0.73531,
-				0.0,
-				-0.67773
-			],
-			"y": [
-				-0.67773,
-				0.0,
-				0.73531
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9767,7 +9285,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9796,36 +9315,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_straight",
-			"at": [
-				-1.4498,
-				-0.55,
-				1.573
-			],
-			"x": [
-				-0.73531,
-				0.0,
-				-0.67773
-			],
-			"y": [
-				-0.67773,
-				0.0,
-				0.73531
-			],
-			"z": [
-				-0.0,
-				1.0,
-				-0.0
-			],
-			"size": [
-				0.4345,
-				0.1,
-				0.1
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9854,7 +9345,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9883,7 +9375,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -9912,7 +9405,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9941,7 +9435,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9970,7 +9465,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -9999,7 +9495,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -10028,7 +9525,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -10057,7 +9555,8 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -10086,7 +9585,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -10115,7 +9615,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -10144,7 +9645,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -10173,7 +9675,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -10202,7 +9705,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -10231,7 +9735,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_1"
 		},
 		{
 			"kind": "hub_pit_wall_panel",
@@ -10260,13 +9765,14 @@
 				0.9,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "hub_pit_junction_box",
 			"at": [
 				1.1,
-				-0.63,
+				-0.6294,
 				-1.9053
 			],
 			"x": [
@@ -10285,23 +9791,24 @@
 				-0.86603
 			],
 			"size": [
-				0.3,
-				0.36,
-				0.1
+				0.3072,
+				0.3632,
+				0.108
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_junction_box_1"
 		},
 		{
 			"kind": "hub_pit_junction_box",
 			"at": [
-				-0.7524,
-				-0.63,
-				2.0673
+				-1.4141,
+				-0.6294,
+				1.6853
 			],
 			"x": [
-				0.93969,
+				0.76604,
 				-0.0,
-				0.34202
+				0.64279
 			],
 			"y": [
 				0.0,
@@ -10309,23 +9816,24 @@
 				0.0
 			],
 			"z": [
-				-0.34202,
+				-0.64279,
 				0.0,
-				0.93969
+				0.76604
 			],
 			"size": [
-				0.3,
-				0.36,
-				0.1
+				0.3072,
+				0.3632,
+				0.108
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_junction_box_1"
 		},
 		{
 			"kind": "hub_pit_junction_box",
 			"at": [
 				-2.1666,
-				-0.63,
-				0.382
+				-0.6294,
+				0.3821
 			],
 			"x": [
 				0.17365,
@@ -10343,17 +9851,18 @@
 				0.17365
 			],
 			"size": [
-				0.3,
-				0.36,
-				0.1
+				0.3072,
+				0.3632,
+				0.108
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_junction_box_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-2.0,
-				-0.88,
+				-0.878,
 				-1.5
 			],
 			"x": [
@@ -10374,15 +9883,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-2.0,
-				-0.88,
+				-0.878,
 				-0.5
 			],
 			"x": [
@@ -10403,15 +9913,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-2.0,
-				-0.88,
+				-0.878,
 				0.5
 			],
 			"x": [
@@ -10432,15 +9943,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-2.0,
-				-0.88,
+				-0.878,
 				1.5
 			],
 			"x": [
@@ -10461,15 +9973,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-2.0,
-				-0.88,
+				-0.878,
 				2.5
 			],
 			"x": [
@@ -10490,15 +10003,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-1.0,
-				-0.88,
+				-0.878,
 				-1.5
 			],
 			"x": [
@@ -10519,15 +10033,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-1.0,
-				-0.88,
+				-0.878,
 				-0.5
 			],
 			"x": [
@@ -10548,15 +10063,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-1.0,
-				-0.88,
+				-0.878,
 				0.5
 			],
 			"x": [
@@ -10577,15 +10093,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-1.0,
-				-0.88,
+				-0.878,
 				1.5
 			],
 			"x": [
@@ -10606,15 +10123,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				-1.0,
-				-0.88,
+				-0.878,
 				2.5
 			],
 			"x": [
@@ -10635,15 +10153,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
-				-0.88,
+				-0.878,
 				-1.5
 			],
 			"x": [
@@ -10664,15 +10183,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
-				-0.88,
+				-0.878,
 				-0.5
 			],
 			"x": [
@@ -10693,15 +10213,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
-				-0.88,
+				-0.878,
 				0.5
 			],
 			"x": [
@@ -10722,15 +10243,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
-				-0.88,
+				-0.878,
 				1.5
 			],
 			"x": [
@@ -10751,15 +10273,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
-				-0.88,
+				-0.878,
 				2.5
 			],
 			"x": [
@@ -10780,15 +10303,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				1.0,
-				-0.88,
+				-0.878,
 				-1.5
 			],
 			"x": [
@@ -10809,15 +10333,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				1.0,
-				-0.88,
+				-0.878,
 				-0.5
 			],
 			"x": [
@@ -10838,15 +10363,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				1.0,
-				-0.88,
+				-0.878,
 				0.5
 			],
 			"x": [
@@ -10867,15 +10393,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				1.0,
-				-0.88,
+				-0.878,
 				1.5
 			],
 			"x": [
@@ -10896,15 +10423,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				1.0,
-				-0.88,
+				-0.878,
 				2.5
 			],
 			"x": [
@@ -10925,15 +10453,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				2.0,
-				-0.88,
+				-0.878,
 				-1.5
 			],
 			"x": [
@@ -10954,15 +10483,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				2.0,
-				-0.88,
+				-0.878,
 				-0.5
 			],
 			"x": [
@@ -10983,15 +10513,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				2.0,
-				-0.88,
+				-0.878,
 				0.5
 			],
 			"x": [
@@ -11012,15 +10543,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				2.0,
-				-0.88,
+				-0.878,
 				1.5
 			],
 			"x": [
@@ -11041,15 +10573,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				2.0,
-				-0.88,
+				-0.878,
 				2.5
 			],
 			"x": [
@@ -11070,15 +10603,16 @@
 			"size": [
 				1.0,
 				1.0,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_1"
 		},
 		{
 			"kind": "hub_machine_bay_plate",
 			"at": [
 				1.0,
-				-0.871,
+				-0.866,
 				1.0
 			],
 			"x": [
@@ -11099,15 +10633,16 @@
 			"size": [
 				2.0,
 				2.0,
-				0.05
+				0.06
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "machine_bay_plate_1"
 		},
 		{
 			"kind": "hub_machine_bay_plate",
 			"at": [
 				-1.0,
-				-0.871,
+				-0.866,
 				1.0
 			],
 			"x": [
@@ -11128,1256 +10663,10 @@
 			"size": [
 				2.0,
 				2.0,
-				0.05
+				0.06
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				1.225,
-				0.0,
-				-2.1218
-			],
-			"x": [
-				-0.86603,
-				0.0,
-				-0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.5,
-				0.0,
-				-0.86603
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				1.7324,
-				0.0,
-				-1.7324
-			],
-			"x": [
-				-0.70711,
-				0.0,
-				-0.70711
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.70711,
-				0.0,
-				-0.70711
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				2.1218,
-				0.0,
-				-1.225
-			],
-			"x": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.86603,
-				0.0,
-				-0.5
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				2.3665,
-				0.0,
-				-0.6341
-			],
-			"x": [
-				-0.25882,
-				0.0,
-				-0.96593
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.96593,
-				0.0,
-				-0.25882
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				2.45,
-				0.0,
-				-0.0
-			],
-			"x": [
-				-0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				2.3665,
-				0.0,
-				0.6341
-			],
-			"x": [
-				0.25882,
-				0.0,
-				-0.96593
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.96593,
-				0.0,
-				0.25882
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				2.1218,
-				0.0,
-				1.225
-			],
-			"x": [
-				0.5,
-				0.0,
-				-0.86603
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.86603,
-				0.0,
-				0.5
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				1.7324,
-				0.0,
-				1.7324
-			],
-			"x": [
-				0.70711,
-				0.0,
-				-0.70711
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.70711,
-				0.0,
-				0.70711
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				1.225,
-				0.0,
-				2.1218
-			],
-			"x": [
-				0.86603,
-				0.0,
-				-0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.5,
-				0.0,
-				0.86603
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				0.6341,
-				0.0,
-				2.3665
-			],
-			"x": [
-				0.96593,
-				0.0,
-				-0.25882
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.25882,
-				0.0,
-				0.96593
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				0.0,
-				0.0,
-				2.45
-			],
-			"x": [
-				1.0,
-				0.0,
-				-0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-0.6341,
-				0.0,
-				2.3665
-			],
-			"x": [
-				0.96593,
-				-0.0,
-				0.25882
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.25882,
-				0.0,
-				0.96593
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-1.225,
-				0.0,
-				2.1218
-			],
-			"x": [
-				0.86603,
-				-0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.5,
-				0.0,
-				0.86603
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-1.7324,
-				0.0,
-				1.7324
-			],
-			"x": [
-				0.70711,
-				-0.0,
-				0.70711
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.70711,
-				0.0,
-				0.70711
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-2.1218,
-				0.0,
-				1.225
-			],
-			"x": [
-				0.5,
-				-0.0,
-				0.86603
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.86603,
-				0.0,
-				0.5
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-2.3665,
-				0.0,
-				0.6341
-			],
-			"x": [
-				0.25882,
-				-0.0,
-				0.96593
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.96593,
-				0.0,
-				0.25882
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-2.45,
-				0.0,
-				0.0
-			],
-			"x": [
-				0.0,
-				-0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				0.0,
-				0.0
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-2.3665,
-				0.0,
-				-0.6341
-			],
-			"x": [
-				-0.25882,
-				0.0,
-				0.96593
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.96593,
-				0.0,
-				-0.25882
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-2.1218,
-				0.0,
-				-1.225
-			],
-			"x": [
-				-0.5,
-				0.0,
-				0.86603
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.86603,
-				0.0,
-				-0.5
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-1.7324,
-				0.0,
-				-1.7324
-			],
-			"x": [
-				-0.70711,
-				0.0,
-				0.70711
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.70711,
-				0.0,
-				-0.70711
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_post",
-			"at": [
-				-1.225,
-				0.0,
-				-2.1218
-			],
-			"x": [
-				-0.86603,
-				0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"size": [
-				0.08,
-				1.05,
-				0.08
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				1.4787,
-				0.0,
-				-1.9271
-			],
-			"x": [
-				-0.79335,
-				0.0,
-				-0.60876
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.60876,
-				0.0,
-				-0.79335
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				1.9271,
-				0.0,
-				-1.4787
-			],
-			"x": [
-				-0.60876,
-				0.0,
-				-0.79335
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.79335,
-				0.0,
-				-0.60876
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				2.2441,
-				0.0,
-				-0.9296
-			],
-			"x": [
-				-0.38268,
-				0.0,
-				-0.92388
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.92388,
-				0.0,
-				-0.38268
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				2.4083,
-				0.0,
-				-0.3171
-			],
-			"x": [
-				-0.13053,
-				0.0,
-				-0.99144
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.99144,
-				0.0,
-				-0.13053
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				2.4083,
-				0.0,
-				0.3171
-			],
-			"x": [
-				0.13053,
-				0.0,
-				-0.99144
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.99144,
-				0.0,
-				0.13053
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				2.2441,
-				0.0,
-				0.9296
-			],
-			"x": [
-				0.38268,
-				0.0,
-				-0.92388
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.92388,
-				0.0,
-				0.38268
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				1.9271,
-				0.0,
-				1.4787
-			],
-			"x": [
-				0.60876,
-				0.0,
-				-0.79335
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.79335,
-				0.0,
-				0.60876
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				1.4787,
-				0.0,
-				1.9271
-			],
-			"x": [
-				0.79335,
-				0.0,
-				-0.60876
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.60876,
-				0.0,
-				0.79335
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				0.9296,
-				0.0,
-				2.2441
-			],
-			"x": [
-				0.92388,
-				0.0,
-				-0.38268
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.38268,
-				0.0,
-				0.92388
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				0.3171,
-				0.0,
-				2.4083
-			],
-			"x": [
-				0.99144,
-				0.0,
-				-0.13053
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.13053,
-				0.0,
-				0.99144
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-0.3171,
-				0.0,
-				2.4083
-			],
-			"x": [
-				0.99144,
-				-0.0,
-				0.13053
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.13053,
-				0.0,
-				0.99144
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-0.9296,
-				0.0,
-				2.2441
-			],
-			"x": [
-				0.92388,
-				-0.0,
-				0.38268
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.38268,
-				0.0,
-				0.92388
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-1.4787,
-				0.0,
-				1.9271
-			],
-			"x": [
-				0.79335,
-				-0.0,
-				0.60876
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.60876,
-				0.0,
-				0.79335
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-1.9271,
-				0.0,
-				1.4787
-			],
-			"x": [
-				0.60876,
-				-0.0,
-				0.79335
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.79335,
-				0.0,
-				0.60876
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-2.2441,
-				0.0,
-				0.9296
-			],
-			"x": [
-				0.38268,
-				-0.0,
-				0.92388
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.92388,
-				0.0,
-				0.38268
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-2.4083,
-				0.0,
-				0.3171
-			],
-			"x": [
-				0.13053,
-				-0.0,
-				0.99144
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.99144,
-				0.0,
-				0.13053
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-2.4083,
-				0.0,
-				-0.3171
-			],
-			"x": [
-				-0.13053,
-				0.0,
-				0.99144
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.99144,
-				0.0,
-				-0.13053
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-2.2441,
-				0.0,
-				-0.9296
-			],
-			"x": [
-				-0.38268,
-				0.0,
-				0.92388
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.92388,
-				0.0,
-				-0.38268
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-1.9271,
-				0.0,
-				-1.4787
-			],
-			"x": [
-				-0.60876,
-				0.0,
-				0.79335
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.79335,
-				0.0,
-				-0.60876
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_section",
-			"at": [
-				-1.4787,
-				0.0,
-				-1.9271
-			],
-			"x": [
-				-0.79335,
-				0.0,
-				0.60876
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.60876,
-				0.0,
-				-0.79335
-			],
-			"size": [
-				0.5596,
-				1.0,
-				0.05
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_end_post",
-			"at": [
-				-0.65,
-				0.0,
-				-2.3622
-			],
-			"x": [
-				-0.96416,
-				0.0,
-				0.26531
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.26531,
-				0.0,
-				-0.96416
-			],
-			"size": [
-				0.1,
-				1.1,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_rail_end_post",
-			"at": [
-				0.65,
-				0.0,
-				-2.3622
-			],
-			"x": [
-				-0.96416,
-				0.0,
-				-0.26531
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.26531,
-				0.0,
-				-0.96416
-			],
-			"size": [
-				0.1,
-				1.1,
-				0.1
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "machine_bay_plate_1"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -12402,18 +10691,19 @@
 				-0.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.2275,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_2"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
 				-0.36,
-				-2.1225
+				-2.1205
 			],
 			"x": [
 				-1.0,
@@ -12431,11 +10721,12 @@
 				-1.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.18,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_2"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -12460,18 +10751,19 @@
 				-0.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.2275,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_2"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
 				-0.54,
-				-1.895
+				-1.893
 			],
 			"x": [
 				-1.0,
@@ -12489,11 +10781,12 @@
 				-1.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.18,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_2"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -12518,18 +10811,19 @@
 				-0.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.2275,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_2"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
 				-0.72,
-				-1.6675
+				-1.6655
 			],
 			"x": [
 				-1.0,
@@ -12547,11 +10841,12 @@
 				-1.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.18,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_2"
 		},
 		{
 			"kind": "hub_floor_grating",
@@ -12576,18 +10871,19 @@
 				-0.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.2275,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_2"
 		},
 		{
 			"kind": "hub_pit_floor_plate",
 			"at": [
 				0.0,
 				-0.9,
-				-1.44
+				-1.438
 			],
 			"x": [
 				-1.0,
@@ -12605,127 +10901,376 @@
 				-1.0
 			],
 			"size": [
-				1.2,
+				1.14,
 				0.18,
-				0.04
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_2"
 		},
 		{
-			"kind": "hub_pipe_straight",
+			"kind": "hub_stair_stringer",
 			"at": [
-				-0.6,
-				-0.485,
+				-0.5815,
+				-0.9,
 				-1.875
 			],
 			"x": [
-				0.0,
-				-0.65556,
-				0.75514
+				-0.0,
+				-0.0,
+				1.0
 			],
 			"y": [
-				1.0,
 				0.0,
+				1.0,
 				0.0
 			],
 			"z": [
-				-0.0,
-				0.75514,
-				0.65556
+				-1.0,
+				0.0,
+				0.0
 			],
 			"size": [
-				1.2051,
-				0.1,
-				0.1
+				0.91,
+				0.72,
+				0.037
 			],
-			"layer": 1
+			"layer": 1,
+			"treads": 4,
+			"model": "stair_stringer_1"
 		},
 		{
-			"kind": "hub_pipe_straight",
+			"kind": "hub_stair_stringer",
 			"at": [
-				-0.68,
-				0.55,
+				0.5885,
+				-0.9,
 				-1.875
 			],
 			"x": [
-				0.0,
-				-0.70319,
-				0.711
+				-0.0,
+				-0.0,
+				1.0
 			],
 			"y": [
-				1.0,
 				0.0,
+				1.0,
 				0.0
 			],
 			"z": [
-				-0.0,
-				0.711,
-				0.70319
+				-1.0,
+				0.0,
+				0.0
 			],
 			"size": [
-				1.2799,
-				0.1,
-				0.1
+				0.91,
+				0.72,
+				0.037
 			],
-			"layer": 1
+			"layer": 1,
+			"treads": 4,
+			"model": "stair_stringer_1"
 		},
 		{
-			"kind": "hub_pipe_straight",
+			"kind": "hub_floor_grating",
 			"at": [
-				0.5,
-				-0.485,
-				-1.875
+				0.0,
+				-0.205,
+				2.1025
 			],
 			"x": [
-				0.0,
-				-0.65556,
-				0.75514
-			],
-			"y": [
 				1.0,
 				0.0,
-				0.0
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
 			],
 			"z": [
 				-0.0,
-				0.75514,
-				0.65556
+				-1.0,
+				-0.0
 			],
 			"size": [
-				1.2051,
-				0.1,
-				0.1
+				1.14,
+				0.2275,
+				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "floor_grating_2"
 		},
 		{
-			"kind": "hub_pipe_straight",
+			"kind": "hub_pit_floor_plate",
 			"at": [
-				0.58,
-				0.55,
-				-1.875
+				0.0,
+				-0.36,
+				2.1205
 			],
 			"x": [
-				0.0,
-				-0.70319,
-				0.711
-			],
-			"y": [
 				1.0,
 				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
 				0.0
 			],
 			"z": [
-				-0.0,
-				0.711,
-				0.70319
+				0.0,
+				0.0,
+				1.0
 			],
 			"size": [
-				1.2799,
-				0.1,
-				0.1
+				1.14,
+				0.18,
+				0.044
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				0.0,
+				-0.385,
+				1.875
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.2275,
+				0.05
+			],
+			"layer": 1,
+			"model": "floor_grating_2"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.54,
+				1.893
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.14,
+				0.18,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				0.0,
+				-0.565,
+				1.6475
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.2275,
+				0.05
+			],
+			"layer": 1,
+			"model": "floor_grating_2"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.72,
+				1.6655
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.14,
+				0.18,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				0.0,
+				-0.745,
+				1.42
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.2275,
+				0.05
+			],
+			"layer": 1,
+			"model": "floor_grating_2"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.9,
+				1.438
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.14,
+				0.18,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_stair_stringer",
+			"at": [
+				0.5815,
+				-0.9,
+				1.875
+			],
+			"x": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				0.91,
+				0.72,
+				0.037
+			],
+			"layer": 1,
+			"treads": 4,
+			"model": "stair_stringer_1"
+		},
+		{
+			"kind": "hub_stair_stringer",
+			"at": [
+				-0.5885,
+				-0.9,
+				1.875
+			],
+			"x": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				0.91,
+				0.72,
+				0.037
+			],
+			"layer": 1,
+			"treads": 4,
+			"model": "stair_stringer_1"
 		},
 		{
 			"kind": "hub_hatch_frame",
@@ -12754,14 +11299,15 @@
 				2.6929,
 				0.3
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_frame_1"
 		},
 		{
 			"kind": "hub_hatch_leaf",
 			"at": [
 				0.0,
 				0.0,
-				-4.14
+				-4.1365
 			],
 			"x": [
 				-1.0,
@@ -12781,9 +11327,10 @@
 			"size": [
 				2.26,
 				2.66,
-				0.12
+				0.127
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_leaf_1"
 		},
 		{
 			"kind": "hub_hatch_wheel",
@@ -12812,14 +11359,15 @@
 				0.5,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_wheel_1"
 		},
 		{
 			"kind": "hub_hatch_window",
 			"at": [
 				0.0,
 				1.65,
-				-4.08
+				-4.0765
 			],
 			"x": [
 				-1.0,
@@ -12839,9 +11387,10 @@
 			"size": [
 				0.4,
 				0.4,
-				0.06
+				0.067
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_window_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -12870,7 +11419,8 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -12899,14 +11449,15 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_hatch_frame",
 			"at": [
 				4.35,
 				0.0,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -12928,14 +11479,15 @@
 				2.6929,
 				0.3
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_frame_1"
 		},
 		{
 			"kind": "hub_hatch_frame",
 			"at": [
 				4.65,
 				0.0,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -12957,7 +11509,8 @@
 				2.6929,
 				0.3
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_frame_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -12986,7 +11539,8 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -13015,7 +11569,8 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_hatch_frame",
@@ -13044,14 +11599,15 @@
 				2.6929,
 				0.3
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_frame_1"
 		},
 		{
 			"kind": "hub_hatch_leaf",
 			"at": [
 				0.0,
 				0.0,
-				4.14
+				4.1365
 			],
 			"x": [
 				1.0,
@@ -13071,9 +11627,10 @@
 			"size": [
 				2.26,
 				2.66,
-				0.12
+				0.127
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_leaf_1"
 		},
 		{
 			"kind": "hub_hatch_wheel",
@@ -13102,14 +11659,15 @@
 				0.5,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_wheel_1"
 		},
 		{
 			"kind": "hub_hatch_window",
 			"at": [
 				0.0,
 				1.65,
-				4.08
+				4.0765
 			],
 			"x": [
 				1.0,
@@ -13129,9 +11687,10 @@
 			"size": [
 				0.4,
 				0.4,
-				0.06
+				0.067
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_window_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -13160,7 +11719,8 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -13189,7 +11749,8 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_hatch_frame",
@@ -13218,7 +11779,8 @@
 				2.6929,
 				0.3
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_frame_1"
 		},
 		{
 			"kind": "hub_hatch_frame",
@@ -13247,7 +11809,8 @@
 				2.6929,
 				0.3
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_frame_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -13276,7 +11839,8 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_hatch_hinge",
@@ -13305,14 +11869,15 @@
 				0.4,
 				0.15
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "hatch_hinge_1"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
 				0.0,
 				2.94,
-				-4.37
+				-4.38
 			],
 			"x": [
 				-1.0,
@@ -13332,16 +11897,48 @@
 			"size": [
 				1.2,
 				0.08,
-				0.1
+				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_strip_lamp_1"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				4.37,
+				0.0,
+				2.955,
+				-4.33
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.14,
+				0.05,
+				0.02
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				4.38,
 				2.94,
-				-0.0
+				0.0
 			],
 			"x": [
 				-0.0,
@@ -13361,16 +11958,48 @@
 			"size": [
 				1.2,
 				0.08,
-				0.1
+				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				4.33,
+				2.955,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.05,
+				0.02
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
 				0.0,
 				2.94,
-				4.37
+				4.38
 			],
 			"x": [
 				1.0,
@@ -13390,14 +12019,46 @@
 			"size": [
 				1.2,
 				0.08,
-				0.1
+				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_strip_lamp_1"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				-4.37,
+				0.0,
+				2.955,
+				4.33
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.14,
+				0.05,
+				0.02
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				-4.38,
 				2.94,
 				0.0
 			],
@@ -13419,16 +12080,48 @@
 			"size": [
 				1.2,
 				0.08,
-				0.1
+				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_strip_lamp_1"
 		},
 		{
 			"kind": "hub_door_strip_lamp",
 			"at": [
-				-2.185,
+				-4.33,
+				2.955,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.14,
+				0.05,
+				0.02
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				-2.19,
 				2.94,
-				-3.7845
+				-3.7932
 			],
 			"x": [
 				-0.86603,
@@ -13448,16 +12141,48 @@
 			"size": [
 				1.2,
 				0.08,
-				0.1
+				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				-2.165,
+				2.955,
+				-3.7499
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.14,
+				0.05,
+				0.02
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
 		},
 		{
 			"kind": "hub_door_control_box",
 			"at": [
-				1.4599,
+				1.4589,
 				1.27,
-				-4.1686
+				-4.1671
 			],
 			"x": [
 				-0.86603,
@@ -13475,18 +12200,50 @@
 				-0.86603
 			],
 			"size": [
-				0.26,
-				0.36,
-				0.12
+				0.2597,
+				0.3599,
+				0.1278
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_control_box_1"
 		},
 		{
 			"kind": "hub_door_control_box",
 			"at": [
-				4.2032,
+				1.4297,
+				1.47,
+				-4.1163
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				0.14,
+				0.07,
+				0.012
+			],
+			"layer": 1,
+			"model": "door_control_box_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				4.2016,
 				1.27,
-				-1.4799
+				-1.4791
 			],
 			"x": [
 				-0.5,
@@ -13504,18 +12261,50 @@
 				-0.5
 			],
 			"size": [
-				0.26,
-				0.36,
-				0.12
+				0.2597,
+				0.3599,
+				0.1278
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_control_box_1"
 		},
 		{
 			"kind": "hub_door_control_box",
 			"at": [
-				1.4599,
+				4.1509,
+				1.47,
+				-1.4497
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.14,
+				0.07,
+				0.012
+			],
+			"layer": 1,
+			"model": "door_control_box_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				1.4591,
 				1.27,
-				4.1686
+				4.167
 			],
 			"x": [
 				0.86603,
@@ -13533,18 +12322,50 @@
 				0.86603
 			],
 			"size": [
-				0.26,
-				0.36,
-				0.12
+				0.2597,
+				0.3599,
+				0.1278
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_control_box_1"
 		},
 		{
 			"kind": "hub_door_control_box",
 			"at": [
-				-4.1512,
+				1.4297,
+				1.47,
+				4.1163
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.14,
+				0.07,
+				0.012
+			],
+			"layer": 1,
+			"model": "door_control_box_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				-4.1496,
 				1.27,
-				1.4499
+				1.4491
 			],
 			"x": [
 				0.5,
@@ -13562,18 +12383,50 @@
 				0.5
 			],
 			"size": [
-				0.26,
-				0.36,
-				0.12
+				0.2597,
+				0.3599,
+				0.1278
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_control_box_1"
 		},
 		{
 			"kind": "hub_door_control_box",
 			"at": [
-				-3.3832,
+				-4.0989,
+				1.47,
+				1.4197
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.14,
+				0.07,
+				0.012
+			],
+			"layer": 1,
+			"model": "door_control_box_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				-3.3817,
 				1.27,
-				-2.9001
+				-2.8991
 			],
 			"x": [
 				-0.5,
@@ -13591,17 +12444,49 @@
 				-0.5
 			],
 			"size": [
-				0.26,
-				0.36,
-				0.12
+				0.2597,
+				0.3599,
+				0.1278
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				-3.3309,
+				1.47,
+				-2.8699
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.14,
+				0.07,
+				0.012
+			],
+			"layer": 1,
+			"model": "door_control_box_1_screen_1",
+			"part": "screen"
 		},
 		{
 			"kind": "hub_grab_bar",
 			"at": [
 				1.737,
-				0.9,
+				0.895,
 				-4.0086
 			],
 			"x": [
@@ -13620,17 +12505,18 @@
 				-0.86603
 			],
 			"size": [
-				0.14,
-				0.7,
+				0.13,
+				0.71,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "grab_bar_1"
 		},
 		{
 			"kind": "hub_grab_bar",
 			"at": [
 				4.0432,
-				0.9,
+				0.895,
 				-1.757
 			],
 			"x": [
@@ -13649,17 +12535,18 @@
 				-0.5
 			],
 			"size": [
-				0.14,
-				0.7,
+				0.13,
+				0.71,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "grab_bar_1"
 		},
 		{
 			"kind": "hub_grab_bar",
 			"at": [
 				1.737,
-				0.9,
+				0.895,
 				4.0086
 			],
 			"x": [
@@ -13678,17 +12565,18 @@
 				0.86603
 			],
 			"size": [
-				0.14,
-				0.7,
+				0.13,
+				0.71,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "grab_bar_1"
 		},
 		{
 			"kind": "hub_grab_bar",
 			"at": [
 				-3.9912,
-				0.9,
+				0.895,
 				1.727
 			],
 			"x": [
@@ -13707,11 +12595,12 @@
 				0.5
 			],
 			"size": [
-				0.14,
-				0.7,
+				0.13,
+				0.71,
 				0.12
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "grab_bar_1"
 		},
 		{
 			"kind": "hub_status_display",
@@ -13740,7 +12629,39 @@
 				1.0,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "status_display_1"
+		},
+		{
+			"kind": "hub_status_display",
+			"at": [
+				2.3242,
+				1.775,
+				-3.6337
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.91,
+				0.91,
+				0.006
+			],
+			"layer": 1,
+			"model": "status_display_1_glow",
+			"part": "glow"
 		},
 		{
 			"kind": "hub_wall_screen_cluster",
@@ -13769,7 +12690,39 @@
 				0.6,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_screen_cluster_1"
+		},
+		{
+			"kind": "hub_wall_screen_cluster",
+			"at": [
+				4.0495,
+				1.645,
+				1.644
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.1,
+				0.51,
+				0.006
+			],
+			"layer": 1,
+			"model": "wall_screen_cluster_1_glow",
+			"part": "glow"
 		},
 		{
 			"kind": "hub_notice_board",
@@ -13798,7 +12751,8 @@
 				0.6,
 				0.05
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "notice_board_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -13827,13 +12781,14 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-1.6629,
-				0.7,
+				0.6958,
 				4.0802
 			],
 			"x": [
@@ -13852,17 +12807,18 @@
 				0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-2.7021,
-				0.7,
+				0.6958,
 				3.4802
 			],
 			"x": [
@@ -13881,11 +12837,12 @@
 				0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -13914,13 +12871,14 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-1.6329,
-				1.3,
+				1.2958,
 				4.0282
 			],
 			"x": [
@@ -13939,17 +12897,18 @@
 				0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-2.6721,
-				1.3,
+				1.2958,
 				3.4282
 			],
 			"x": [
@@ -13968,11 +12927,12 @@
 				0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -14001,7 +12961,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -14030,13 +12991,14 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-1.6329,
-				1.9,
+				1.8958,
 				4.0282
 			],
 			"x": [
@@ -14055,17 +13017,18 @@
 				0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-2.6721,
-				1.9,
+				1.8958,
 				3.4282
 			],
 			"x": [
@@ -14084,17 +13047,18 @@
 				0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
 			"at": [
 				-2.6296,
-				2.55,
+				2.69,
 				-3.3546
 			],
 			"x": [
@@ -14117,13 +13081,14 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_straight",
 			"at": [
 				-1.5904,
-				2.55,
+				2.69,
 				-3.9546
 			],
 			"x": [
@@ -14146,13 +13111,14 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-2.6921,
-				2.55,
+				2.6858,
 				-3.4629
 			],
 			"x": [
@@ -14171,17 +13137,18 @@
 				-0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-1.6529,
-				2.55,
+				2.6858,
 				-4.0629
 			],
 			"x": [
@@ -14200,11 +13167,12 @@
 				-0.86603
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -14233,7 +13201,8 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_straight",
@@ -14262,13 +13231,14 @@
 				0.1,
 				0.1
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_straight_2"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-3.4282,
-				2.55,
+				2.5458,
 				2.6721
 			],
 			"x": [
@@ -14287,17 +13257,18 @@
 				0.5
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_bracket",
 			"at": [
 				-4.0282,
-				2.55,
+				2.5458,
 				1.6329
 			],
 			"x": [
@@ -14316,18 +13287,19 @@
 				0.5
 			],
 			"size": [
-				0.12,
-				0.1,
-				0.15
+				0.1292,
+				0.1076,
+				0.1588
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_bracket_1"
 		},
 		{
 			"kind": "hub_pipe_valve",
 			"at": [
-				-2.3248,
-				1.2,
-				3.4267
+				-2.3229,
+				1.1957,
+				3.4278
 			],
 			"x": [
 				0.86603,
@@ -14345,18 +13317,19 @@
 				0.86603
 			],
 			"size": [
-				0.3,
-				0.3,
-				0.2
+				0.3043,
+				0.3086,
+				0.1998
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_valve_1"
 		},
 		{
 			"kind": "hub_pipe_valve",
 			"at": [
-				-1.8352,
-				0.6,
-				3.7786
+				-1.8333,
+				0.5957,
+				3.7797
 			],
 			"x": [
 				0.86603,
@@ -14374,46 +13347,18 @@
 				0.86603
 			],
 			"size": [
-				0.3,
-				0.3,
-				0.2
+				0.3043,
+				0.3086,
+				0.1998
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_valve",
-			"at": [
-				-1.3922,
-				2.45,
-				-4.0113
-			],
-			"x": [
-				-0.86603,
-				0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"size": [
-				0.3,
-				0.3,
-				0.2
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_valve_1"
 		},
 		{
 			"kind": "hub_pipe_elbow",
 			"at": [
 				-1.2057,
-				0.4,
+				0.3957,
 				4.1998
 			],
 			"x": [
@@ -14432,17 +13377,18 @@
 				0.86603
 			],
 			"size": [
-				0.3,
-				0.3,
-				0.1
+				0.3084,
+				0.3085,
+				0.1092
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_elbow_1"
 		},
 		{
 			"kind": "hub_pipe_elbow",
 			"at": [
 				-4.1998,
-				0.4,
+				0.3957,
 				1.2057
 			],
 			"x": [
@@ -14461,69 +13407,12 @@
 				0.5
 			],
 			"size": [
-				0.3,
-				0.3,
-				0.1
+				0.3084,
+				0.3085,
+				0.1092
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_elbow",
-			"at": [
-				-3.0243,
-				0.4,
-				-3.1267
-			],
-			"x": [
-				-0.86603,
-				0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"size": [
-				0.3,
-				0.3,
-				0.1
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_pipe_elbow",
-			"at": [
-				-1.1957,
-				0.4,
-				-4.1825
-			],
-			"x": [
-				-0.86603,
-				0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"size": [
-				0.3,
-				0.3,
-				0.1
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "pipe_elbow_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14552,7 +13441,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14581,7 +13471,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14610,7 +13501,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14639,7 +13531,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14668,7 +13561,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14697,7 +13591,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14726,7 +13621,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14755,7 +13651,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14784,7 +13681,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14813,7 +13711,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14842,7 +13741,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_bundle",
@@ -14871,7 +13771,8 @@
 				0.12,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_bundle_1"
 		},
 		{
 			"kind": "hub_cable_drop",
@@ -14900,7 +13801,8 @@
 				1.2,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_drop_1"
 		},
 		{
 			"kind": "hub_cable_drop",
@@ -14929,7 +13831,8 @@
 				1.2,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_drop_1"
 		},
 		{
 			"kind": "hub_cable_drop",
@@ -14958,7 +13861,8 @@
 				1.2,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_drop_1"
 		},
 		{
 			"kind": "hub_cable_drop",
@@ -14987,13 +13891,14 @@
 				1.2,
 				0.08
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "cable_drop_1"
 		},
 		{
 			"kind": "hub_conduit_box",
 			"at": [
-				3.8019,
-				2.35,
+				3.8022,
+				2.3456,
 				-2.195
 			],
 			"x": [
@@ -15012,18 +13917,19 @@
 				-0.5
 			],
 			"size": [
-				0.2,
-				0.2,
-				0.1
+				0.2086,
+				0.2061,
+				0.1081
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "conduit_box_1"
 		},
 		{
 			"kind": "hub_conduit_box",
 			"at": [
-				3.7845,
-				2.35,
-				2.185
+				3.7847,
+				2.3456,
+				2.1853
 			],
 			"x": [
 				0.5,
@@ -15041,18 +13947,19 @@
 				0.5
 			],
 			"size": [
-				0.2,
-				0.2,
-				0.1
+				0.2086,
+				0.2061,
+				0.1081
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "conduit_box_1"
 		},
 		{
 			"kind": "hub_conduit_box",
 			"at": [
 				2.175,
-				2.35,
-				3.7672
+				2.3456,
+				3.7675
 			],
 			"x": [
 				0.86603,
@@ -15070,17 +13977,18 @@
 				0.86603
 			],
 			"size": [
-				0.2,
-				0.2,
-				0.1
+				0.2086,
+				0.2061,
+				0.1081
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "conduit_box_1"
 		},
 		{
 			"kind": "hub_conduit_box",
 			"at": [
-				-3.5999,
-				2.35,
+				-3.6002,
+				2.3456,
 				2.4248
 			],
 			"x": [
@@ -15099,18 +14007,19 @@
 				0.5
 			],
 			"size": [
-				0.2,
-				0.2,
-				0.1
+				0.2086,
+				0.2061,
+				0.1081
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "conduit_box_1"
 		},
 		{
 			"kind": "hub_conduit_box",
 			"at": [
-				-3.8019,
-				2.35,
-				-2.195
+				-3.3521,
+				2.3456,
+				-2.9747
 			],
 			"x": [
 				-0.5,
@@ -15128,18 +14037,19 @@
 				-0.5
 			],
 			"size": [
-				0.2,
-				0.2,
-				0.1
+				0.2086,
+				0.2061,
+				0.1081
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "conduit_box_1"
 		},
 		{
 			"kind": "hub_conduit_box",
 			"at": [
-				-3.031,
-				2.35,
-				3.2499
+				-3.0313,
+				2.3456,
+				3.2501
 			],
 			"x": [
 				0.86603,
@@ -15157,47 +14067,19 @@
 				0.86603
 			],
 			"size": [
-				0.2,
-				0.2,
-				0.1
+				0.2086,
+				0.2061,
+				0.1081
 			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_conduit_box",
-			"at": [
-				-3.051,
-				2.35,
-				-3.2845
-			],
-			"x": [
-				-0.86603,
-				0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"size": [
-				0.2,
-				0.2,
-				0.1
-			],
-			"layer": 1
+			"layer": 1,
+			"model": "conduit_box_1"
 		},
 		{
 			"kind": "hub_wall_cage_lamp",
 			"at": [
 				3.7759,
-				2.45,
-				2.18
+				2.4457,
+				2.1799
 			],
 			"x": [
 				0.5,
@@ -15215,18 +14097,19 @@
 				0.5
 			],
 			"size": [
-				0.18,
-				0.25,
-				0.12
+				0.189,
+				0.2588,
+				0.129
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
 		},
 		{
 			"kind": "hub_wall_cage_lamp",
 			"at": [
-				2.17,
-				2.45,
-				3.7586
+				2.1701,
+				2.4457,
+				3.7585
 			],
 			"x": [
 				0.86603,
@@ -15244,17 +14127,18 @@
 				0.86603
 			],
 			"size": [
-				0.18,
-				0.25,
-				0.12
+				0.189,
+				0.2588,
+				0.129
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
 		},
 		{
 			"kind": "hub_wall_cage_lamp",
 			"at": [
-				-2.16,
-				2.45,
+				-2.1599,
+				2.4457,
 				3.7412
 			],
 			"x": [
@@ -15273,18 +14157,19 @@
 				0.86603
 			],
 			"size": [
-				0.18,
-				0.25,
-				0.12
+				0.189,
+				0.2588,
+				0.129
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
 		},
 		{
 			"kind": "hub_wall_cage_lamp",
 			"at": [
-				-3.7412,
-				2.45,
-				2.16
+				-3.7411,
+				2.4457,
+				2.1601
 			],
 			"x": [
 				0.5,
@@ -15302,18 +14187,19 @@
 				0.5
 			],
 			"size": [
-				0.18,
-				0.25,
-				0.12
+				0.189,
+				0.2588,
+				0.129
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
 		},
 		{
 			"kind": "hub_wall_cage_lamp",
 			"at": [
 				-3.3432,
-				2.45,
-				-2.9694
+				2.4457,
+				-2.9693
 			],
 			"x": [
 				-0.5,
@@ -15331,22 +14217,84 @@
 				-0.5
 			],
 			"size": [
-				0.18,
-				0.25,
-				0.12
+				0.189,
+				0.2588,
+				0.129
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
 		},
 		{
 			"kind": "hub_small_readout",
 			"at": [
-				-4.1672,
-				1.35,
-				1.4822
+				-2.9544,
+				1.3474,
+				3.3172
 			],
 			"x": [
-				0.5,
+				0.86603,
 				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.3083,
+				0.2568,
+				0.0698
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "hub_small_readout",
+			"at": [
+				-2.9364,
+				1.42,
+				3.286
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.2,
+				0.12,
+				0.012
+			],
+			"layer": 1,
+			"model": "small_readout_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "hub_small_readout",
+			"at": [
+				-4.1192,
+				1.3474,
+				-1.6854
+			],
+			"x": [
+				-0.5,
+				0.0,
 				0.86603
 			],
 			"y": [
@@ -15357,79 +14305,53 @@
 			"z": [
 				-0.86603,
 				0.0,
-				0.5
-			],
-			"size": [
-				0.3,
-				0.25,
-				0.06
-			],
-			"layer": 1
-		},
-		{
-			"kind": "hub_small_readout",
-			"at": [
-				4.2192,
-				1.35,
-				-1.5122
-			],
-			"x": [
-				-0.5,
-				0.0,
-				-0.86603
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				0.86603,
-				0.0,
 				-0.5
 			],
 			"size": [
-				0.3,
-				0.25,
-				0.06
+				0.3083,
+				0.2568,
+				0.0698
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "small_readout_1"
 		},
 		{
 			"kind": "hub_small_readout",
 			"at": [
-				-1.3956,
-				1.35,
-				4.2172
+				-4.088,
+				1.42,
+				-1.6674
 			],
 			"x": [
-				0.86603,
-				-0.0,
-				0.5
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
 				-0.5,
 				0.0,
 				0.86603
 			],
-			"size": [
-				0.3,
-				0.25,
-				0.06
+			"y": [
+				0.0,
+				1.0,
+				0.0
 			],
-			"layer": 1
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.2,
+				0.12,
+				0.012
+			],
+			"layer": 1,
+			"model": "small_readout_1_screen_1",
+			"part": "screen"
 		},
 		{
 			"kind": "hub_intercom_panel",
 			"at": [
-				3.3692,
+				3.3683,
 				1.2,
-				-2.9844
+				-2.9839
 			],
 			"x": [
 				-0.5,
@@ -15449,16 +14371,17 @@
 			"size": [
 				0.25,
 				0.4,
-				0.06
+				0.062
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "intercom_panel_1"
 		},
 		{
 			"kind": "hub_waste_bin",
 			"at": [
-				-4.1729,
-				0.0,
-				1.3123
+				-4.1728,
+				-0.0019,
+				1.3119
 			],
 			"x": [
 				0.5,
@@ -15476,11 +14399,12 @@
 				0.5
 			],
 			"size": [
-				0.3,
-				0.45,
-				0.3
+				0.3059,
+				0.4557,
+				0.3062
 			],
-			"layer": 1
+			"layer": 1,
+			"model": "waste_bin_1"
 		}
 	]
 }
