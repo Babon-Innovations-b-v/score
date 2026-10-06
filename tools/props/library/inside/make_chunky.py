@@ -107,7 +107,8 @@ def solid_copy(whole, faces, name, size):
     shapes.apply_modifiers(copy)
     held_to_box(copy, whole, size)
     change = copy.modifiers.new("cut", "DECIMATE")
-    change.ratio = min(1.0, faces / max(1, len(copy.data.polygons)))
+    triangles = sum(len(face.vertices) - 2 for face in copy.data.polygons)  # the remesh gives quads: count triangles
+    change.ratio = min(1.0, faces / max(1, triangles))
     shapes.apply_modifiers(copy)
     return copy
 

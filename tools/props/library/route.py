@@ -42,7 +42,7 @@ DETAILS = REPO / "data/library/details.json"
 # Texels a metre for code-built pieces (a shared picture set is capped at 4096 a side) and for generated pieces.
 DENSITY = 1024
 CHUNKY_DENSITY = 768
-CHUNKY_FACES = 20000
+CHUNKY_FACES = 19000  # triangles: a prop's furniture budget is 20,000 (asset_check), its detail parts take the rest
 SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share a model
 # Code-built kinds by the picture set they share, by the start of their name; the rest are wall gear and doors.
 ATLASES = (("roof", ("roof_", "lattice_", "ceiling_")),
@@ -259,17 +259,20 @@ def install(work, room):
             continue
         for suffix in (".gltf", ".bin"):
             shutil.copy(made / f"{name}{suffix}", folder / f"{name}{suffix}")
-    first = {}
+    first, sizes = {}, {}
     for laid in layout["pieces"]:
         if "part" not in laid:
             first.setdefault(laid["kind"], laid["model"])
+            sizes.setdefault(laid["model"], laid["size"])
     for kind, model in first.items():
         scene = REPO / f"game/base/models/{kind}"
         if scene.exists():
             for old in scene.iterdir():
                 old.unlink()
         scene.mkdir(exist_ok=True)
-        (scene / f"{kind}.tscn").write_text(KIND_SCENE.format(room=room, model=model, node=node_name(kind)))
+        wide, tall, deep = sizes[model]
+        (scene / f"{kind}.tscn").write_text(KIND_SCENE.format(room=room, model=model, node=node_name(kind),
+                                                              size=f"{wide:g}, {tall:g}, {deep:g}", middle=f"{tall / 2:g}"))
     for path, text in imports.items():
         if (folder / path.with_suffix("")).exists():
             (folder / path).write_text(text)
@@ -277,13 +280,22 @@ def install(work, room):
     return len(layout["models"]), len(first)
 
 
+# A kind's own scene (the prop catalogue's, the asset gate's): its first model, and a box round it that collides, as
+# every prop's scene has (HubKit draws the room from the models alone; the shell keeps the room's collision).
 KIND_SCENE = """[gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://game/base/models/{room}_kit/{model}.gltf" id="1_mesh"]
 
-[node name="{node}" type="Node3D"]
+[sub_resource type="BoxShape3D" id="prop_shape"]
+size = Vector3({size})
+
+[node name="{node}" type="StaticBody3D"]
 
 [node name="Mesh" parent="." instance=ExtResource("1_mesh")]
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, {middle}, 0)
+shape = SubResource("prop_shape")
 """
 
 
