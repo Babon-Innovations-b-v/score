@@ -194,7 +194,8 @@ def walls(kinds):
                                     (wide - LAP, WALL_HIGH - LOWER)))
     for index in range(FACETS):
         bearing = index * 30
-        found.append(on_wall("wall_skirting", bearing, 0.0, 0.0, (FACET_WIDE, size_of(kinds, "wall_skirting")[1], depth(kinds, "wall_skirting")), out=-0.0))
+        if bearing not in DOORS:  # a doorway reaches the floor: a skirting across it is a sill in the way
+            found.append(on_wall("wall_skirting", bearing, 0.0, 0.0, (FACET_WIDE, size_of(kinds, "wall_skirting")[1], depth(kinds, "wall_skirting")), out=-0.0))
         cornice = size_of(kinds, "wall_cornice")
         found.append(on_wall("wall_cornice", bearing, 0.0, WALL_HIGH - cornice[1], (FACET_WIDE, cornice[1], cornice[2])))
         if bearing in JOINED_MODULE or (bearing + 30) % 360 in JOINED_MODULE:
@@ -514,7 +515,7 @@ def wall_gear(kinds, inventory):
                                      (FACET_WIDE / 2 - 0.02, straight[1], straight[2]), out=bracket[2]))
             found.append(on_lining(kinds, "pipe_bracket", bearing, -0.6, high - bracket[1] / 2, bracket))
             found.append(on_lining(kinds, "pipe_bracket", bearing, 0.6, high - bracket[1] / 2, bracket))
-    for bearing, across, high in ((210, 0.3, 1.35), (210, -0.3, 0.75), (300, -0.5, 0.55)):
+    for bearing, across, high in ((210, -0.3, 1.35), (210, -0.3, 0.75), (300, -0.5, 0.55)):  # each on a pipe laid
         found.append(on_lining(kinds, "pipe_valve", bearing, across, high - valve[1] / 2, valve, out=bracket[2]))
     for bearing in (210, 240, 300):  # not the airlock's wall: its doorway reaches the corners
         for side in (-1, 1):
@@ -739,7 +740,8 @@ LIGHTS = {"roof_light_fixture": {"strength": 0.16, "reach": 6.0, "high": 0.1},
 # What each piece is to the scene check (resting.gd): the room's floors other things rest on, and what hangs from the
 # wall, the roof or a door it touches rather than standing.
 FLOORS = {"ring_floor_plate", "floor_grating", "floor_access_hatch", "floor_cable_cover", "tread_mat", "pit_floor_plate",
-          "machine_bay_plate", "pit_lip_segment", "roof_face_panel"}  # the roof's faces are its surface, as a floor is
+          "machine_bay_plate", "pit_lip_segment", "roof_face_panel",  # the roof's faces are its surface, as a floor is
+          "stair_stringer"}  # a stair's sides carry its treads: part of the steps, as ShellSteps are
 HANGING_GROUPS = {"wall", "ceiling", "door", "pipe", "sign", "screen", "light", "vent", "pit"}
 
 

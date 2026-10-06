@@ -243,6 +243,9 @@ def install(work, room):
     into data/kit/<room>.json."""
     layout = json.loads((work / "layout.json").read_text())
     folder = REPO / f"game/base/models/{room}_kit"
+    # Godot's import files are kept, so a model installed again keeps its id and its import settings.
+    imports = {found.relative_to(folder): found.read_text() for found in folder.rglob("*.import")} \
+        if folder.exists() else {}
     if folder.exists():
         shutil.rmtree(folder)
     (folder / "textures").mkdir(parents=True)
@@ -267,6 +270,9 @@ def install(work, room):
                 old.unlink()
         scene.mkdir(exist_ok=True)
         (scene / f"{kind}.tscn").write_text(KIND_SCENE.format(room=room, model=model, node=node_name(kind)))
+    for path, text in imports.items():
+        if (folder / path.with_suffix("")).exists():
+            (folder / path).write_text(text)
     (REPO / f"data/kit/{room}.json").write_text(json.dumps(layout, indent="\t") + "\n")
     return len(layout["models"]), len(first)
 
