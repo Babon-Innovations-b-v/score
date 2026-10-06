@@ -94,7 +94,8 @@
 					"level": "pit",
 					"fit": "chord of the pit on M3's bearing"
 				}
-			]
+			],
+			"sound": "console_hum"
 		},
 		{
 			"id": "labbench",
@@ -129,7 +130,8 @@
 					"across": -0.008,
 					"fit": "painted"
 				}
-			]
+			],
+			"sound": "glovebox_hum"
 		},
 		{
 			"id": "chair",
@@ -355,7 +357,8 @@
 			"count": 4,
 			"thing": "prop:hub_wall_lower_vent",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"sound": "vent_air"
 		},
 		{
 			"id": "wall_lower_patched",
@@ -751,7 +754,8 @@
 			"count": 3,
 			"thing": "prop:hub_ceiling_duct",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"sound": "vent_air"
 		},
 		{
 			"id": "roof_light_fixture",
@@ -773,7 +777,8 @@
 			"count": 4,
 			"thing": "prop:hub_roof_light_fixture",
 			"group": "kit: light",
-			"made": "kit piece"
+			"made": "kit piece",
+			"sound": "lamp_buzz"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -1009,7 +1014,8 @@
 			"count": 3,
 			"thing": "prop:hub_pit_junction_box",
 			"group": "kit: pit",
-			"made": "kit piece"
+			"made": "kit piece",
+			"sound": "junction_hum"
 		},
 		{
 			"id": "machine_bay_plate",
@@ -1311,7 +1317,8 @@
 					"facet": 330,
 					"across": 0.0
 				}
-			]
+			],
+			"sound": "lamp_buzz"
 		},
 		{
 			"id": "door_control_box",
@@ -1650,7 +1657,8 @@
 			"count": 5,
 			"thing": "prop:hub_wall_cage_lamp",
 			"group": "kit: light",
-			"made": "kit piece"
+			"made": "kit piece",
+			"sound": "lamp_buzz"
 		},
 		{
 			"id": "status_display",

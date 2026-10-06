@@ -1,0 +1,73 @@
+{
+	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (game/sound/catalogue/) merges each entry over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in the game in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. A name with no file plays nothing until the owner picks one (tools/sound/picker/)",
+	"sounds": {
+		"habitat": {
+			"pick": {"page": "hub", "category": "room", "where": "the hub's room tone: air handling, a far fan, the base breathing", "search": ["room tone air conditioning hum", "spaceship interior ambience", "server room ambience"], "loop": true}
+		},
+		"footstep_steel_plate": {
+			"file": [],
+			"volume_db": -22.0,
+			"pick": {"page": "hub", "category": "steps", "level": -55.0, "where": "boots on the hub's deck plates, the pit's floor and the access hatches", "search": ["footsteps metal floor", "footsteps steel plate boots", "footsteps ship deck"]}
+		},
+		"footstep_grating": {
+			"file": [],
+			"volume_db": -22.0,
+			"pick": {"page": "hub", "category": "steps", "level": -55.0, "where": "boots on the floor gratings round the hub's ring", "search": ["footsteps metal grate", "footsteps grating catwalk", "footsteps metal mesh"]}
+		},
+		"footstep_rubber": {
+			"file": [],
+			"volume_db": -22.0,
+			"pick": {"page": "hub", "category": "steps", "level": -55.0, "where": "boots on the rubber mats before the hatches and the cable covers", "search": ["footsteps rubber mat", "footsteps rubber floor", "footsteps gym floor"]}
+		},
+		"impact_steel_plate": {"file": [], "volume_db": -20.0},
+		"impact_grating": {"file": [], "volume_db": -20.0},
+		"impact_rubber": {"file": [], "volume_db": -20.0},
+		"scrape_steel_plate": {"file": [], "volume_db": -20.0},
+		"scrape_grating": {"file": [], "volume_db": -20.0},
+		"scrape_rubber": {"file": [], "volume_db": -20.0},
+		"door_slide_open": {
+			"pick": {"page": "hub", "category": "shot", "where": "a hub door opening, the airlock's doors too", "search": ["sci-fi door open", "pneumatic door open", "hydraulic hatch open"]}
+		},
+		"door_slide_close": {
+			"pick": {"page": "hub", "category": "shot", "where": "a hub door shutting, the airlock's doors too", "search": ["sci-fi door close", "pneumatic door close", "heavy metal door close"]}
+		},
+		"airlock_hatch_seal_clunk": {
+			"pick": {"page": "hub", "category": "shot", "where": "the airlock's hatch sealing shut after it slides", "search": ["heavy hatch lock clunk", "metal door latch heavy", "vault door close"]}
+		},
+		"console_hum": {
+			"file": [],
+			"loops": true,
+			"volume_db": -28.0,
+			"reach": 6.0,
+			"pick": {"page": "hub", "category": "loop", "level": -52.0, "where": "the operations console in the pit: its screens and fans", "search": ["computer hum fan", "electronics hum loop", "server fan hum"], "loop": true}
+		},
+		"glovebox_hum": {
+			"file": [],
+			"loops": true,
+			"volume_db": -28.0,
+			"reach": 5.0,
+			"pick": {"page": "hub", "category": "loop", "level": -54.0, "where": "the lab bench's glovebox: its pump and filter running", "search": ["lab equipment hum", "air purifier hum", "aquarium air pump", "small fan hum loop", "fume hood fan"], "loop": true}
+		},
+		"lamp_buzz": {
+			"file": [],
+			"loops": true,
+			"volume_db": -34.0,
+			"reach": 3.0,
+			"pick": {"page": "hub", "category": "loop", "level": -60.0, "where": "the lamps: over each door, on the walls and the floods in the roof", "search": ["fluorescent light buzz", "lamp hum buzz", "electrical buzz light"], "loop": true}
+		},
+		"junction_hum": {
+			"file": [],
+			"loops": true,
+			"volume_db": -30.0,
+			"reach": 3.0,
+			"pick": {"page": "hub", "category": "loop", "level": -58.0, "where": "the junction boxes on the pit's wall, the machines' power", "search": ["transformer hum", "electrical hum 50hz", "power box hum"], "loop": true}
+		},
+		"vent_air": {
+			"file": [],
+			"loops": true,
+			"volume_db": -30.0,
+			"reach": 4.0,
+			"pick": {"page": "hub", "category": "loop", "level": -56.0, "where": "air moving through the vents and the ducts under the roof", "search": ["air vent loop", "ventilation duct air", "air conditioning vent"], "loop": true}
+		}
+	}
+}

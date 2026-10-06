@@ -1,0 +1,317 @@
+<title>Sound Picks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of needed sounds, each a row of take cards that wrap; a sticky bar holds the volume. Colours and type are the game's own design tokens (design/tokens/tokens.json): ledger in light, ops in dark. */
+:root {
+  --ground: #e3e7e2; --surface: #f3f5f1; --raised: #ffffff; --line: #a9b3aa; --line-strong: #6f7a71;
+  --ink: #1c221e; --ink-muted: #525d55; --machine: #e2571e; --on-machine: #1b1712; --machine-ink: #b33c0b;
+  --ok: #2c6a22; --warn: #7a5a00; --focus: #1c639b; --wave: #6f7a71; --wave-played: #b33c0b;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif; --ui: Barlow, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #1b1712; --surface: #29221b; --raised: #382f26; --line: #5a4e40; --line-strong: #8a7a66;
+  --ink: #f3ebda; --ink-muted: #b8aa92; --machine-ink: #f0763f; --ok: #86c766; --warn: #f0c23b; --focus: #ffd76a;
+  --wave: #8a7a66; --wave-played: #f0763f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --ground: #1b1712; --surface: #29221b; --raised: #382f26; --line: #5a4e40; --line-strong: #8a7a66;
+  --ink: #f3ebda; --ink-muted: #b8aa92; --machine-ink: #f0763f; --ok: #86c766; --warn: #f0c23b; --focus: #ffd76a;
+  --wave: #8a7a66; --wave-played: #f0763f; color-scheme: dark }
+body { background: var(--ground); color: var(--ink); font: 15px/1.45 var(--ui); padding-inline: 16px; padding-block: 0 48px; }
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2 { font-family: var(--display); font-weight: 700; letter-spacing: 0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: 40px; line-height: 1; text-transform: uppercase; }
+h2 { font-size: 26px; line-height: 1.1; }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--surface); border-bottom: 2px solid var(--line-strong);
+  margin-inline: -16px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+.bar .left { display: grid; gap: 2px; min-width: 0; }
+.bar .count { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.volume { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.volume input { width: 180px; accent-color: var(--machine); }
+.volume output { width: 3.5em; font-variant-numeric: tabular-nums; color: var(--ink-muted); }
+.stop-all { font: 600 14px var(--ui); background: var(--raised); color: var(--ink); border: 2px solid var(--line-strong); border-radius: 4px; padding: 8px 14px; cursor: pointer; }
+.intro { color: var(--ink-muted); max-width: 70ch; margin: 0; }
+.notice { border: 2px solid var(--warn); color: var(--ink); background: var(--surface); padding: 10px 14px; border-radius: 4px; max-width: 70ch; }
+.need { display: grid; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+.need header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.need .where { color: var(--ink-muted); max-width: 70ch; margin: 0; flex-basis: 100%; }
+.chip { font: 600 12px var(--ui); letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid var(--line-strong); border-radius: 2px; padding: 2px 6px; color: var(--ink-muted); }
+.chip.picked { border-color: var(--ok); color: var(--ok); }
+.chip.picked::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+.takes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.take { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+.take.chosen { border: 2px solid var(--machine); padding: 11px; }
+.take .top { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.play { flex: none; width: 64px; height: 64px; border-radius: 4px; border: 2px solid var(--line-strong); background: var(--raised); color: var(--ink); cursor: pointer; display: grid; place-items: center; box-shadow: 0 2px 0 #00000059; }
+.play svg { width: 26px; height: 26px; fill: currentColor; }
+.play[aria-pressed="true"] { background: var(--machine); border-color: var(--machine); color: var(--on-machine); }
+.wave { flex: 1; min-width: 0; height: 64px; display: block; cursor: pointer; }
+.title { font-weight: 600; overflow-wrap: anywhere; }
+.meta { color: var(--ink-muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 2px 12px; font-variant-numeric: tabular-nums; }
+.meta a { color: var(--machine-ink); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions button { font: 600 14px var(--ui); border-radius: 4px; padding: 8px 12px; cursor: pointer; border: 2px solid var(--line-strong); background: var(--raised); color: var(--ink); }
+.actions .pick[aria-pressed="true"] { background: var(--machine); border-color: var(--machine); color: var(--on-machine); }
+.actions .more[aria-pressed="true"] { border-color: var(--machine-ink); color: var(--machine-ink); }
+button:focus-visible, input:focus-visible, canvas:focus-visible, a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.empty { color: var(--ink-muted); font-style: italic; }
+@media (max-width: 480px) { h1 { font-size: 32px; } .volume input { width: 130px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="bar" role="region" aria-label="Listening">
+  <div class="left">
+    <h1 id="page-title">Sound Picks</h1>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="volume">
+    <label for="volume">Volume</label>
+    <input id="volume" type="range" min="0" max="100" step="1" value="20">
+    <output id="volume-out" for="volume">20%</output>
+    <button class="stop-all" id="stop-all" type="button">Stop</button>
+  </div>
+</div>
+<main>
+  <p class="intro" id="intro"></p>
+  <div class="notice" id="notice" hidden></div>
+  <div id="needs"></div>
+</main>
+
+<script>
+const DATA = /*DATA*/null;
+const ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
+const ICON_STOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12"/></svg>';
+const FADE_IN = 0.015, FADE_OUT = 0.04;
+const picks = {};          // need name -> {take, more, at}
+let db = null, canWrite = true;
+let audio = null, master = null;
+const buffers = new Map();
+let playing = null;        // {key, source, gain, started, seconds, loop, button, canvas}
+
+function store(key, value) { try { localStorage.setItem(key, value); } catch (_) {} }
+function stored(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
+
+// --- volume: low to start, the slider is the only way up; never above what the takes were brought to.
+const volume = document.getElementById('volume');
+const volumeOut = document.getElementById('volume-out');
+const savedVolume = Number(stored('volume'));
+if (stored('volume') !== null && savedVolume >= 0 && savedVolume <= 100) volume.value = String(savedVolume);
+function level() { const share = Number(volume.value) / 100; return share * share; }
+function showVolume() { volumeOut.textContent = volume.value + '%'; if (master) master.gain.setTargetAtTime(level(), audio.currentTime, 0.02); }
+volume.addEventListener('input', () => { showVolume(); store('volume', volume.value); });
+showVolume();
+
+function context() {
+  if (!audio) {
+    audio = new AudioContext();
+    master = audio.createGain();
+    master.gain.value = level();
+    const limiter = audio.createDynamicsCompressor();   // a last guard: the takes already peak under -3 dBTP
+    limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.1;
+    master.connect(limiter).connect(audio.destination);
+  }
+  return audio;
+}
+
+async function bufferFor(path) {
+  if (!buffers.has(path)) {
+    buffers.set(path, fetch(path).then(answer => { if (!answer.ok) throw new Error(path + ': ' + answer.status); return answer.arrayBuffer(); })
+      .then(bytes => context().decodeAudioData(bytes)));
+  }
+  return buffers.get(path);
+}
+
+function stop() {
+  if (!playing) return;
+  const was = playing; playing = null;
+  const now = audio.currentTime;
+  was.gain.gain.cancelScheduledValues(now);
+  was.gain.gain.setValueAtTime(was.gain.gain.value, now);
+  was.gain.gain.linearRampToValueAtTime(0, now + FADE_OUT);
+  was.source.stop(now + FADE_OUT + 0.01);
+  was.button.setAttribute('aria-pressed', 'false');
+  was.button.innerHTML = ICON_PLAY;
+  was.button.setAttribute('aria-label', 'Play ' + was.title);
+  drawWave(was.canvas, was.peaks, 0);
+}
+
+async function play(take, button, canvas) {
+  const same = playing && playing.key === take.key;
+  stop();
+  if (same) return;
+  const ctx = context();
+  if (ctx.state === 'suspended') await ctx.resume();
+  let buffer;
+  try { buffer = await bufferFor(take.preview); }
+  catch (error) { showNotice('This take would not load (' + error.message + '). Try another, or reload the page.'); return; }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = take.loop;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(1, ctx.currentTime + FADE_IN);   // no click, no blast at the start
+  source.connect(gain).connect(master);
+  source.start();
+  playing = { key: take.key, source, gain, started: ctx.currentTime, seconds: buffer.duration, loop: take.loop, button, canvas, peaks: take.peaks, title: take.title };
+  source.onended = () => {
+    if (!playing || playing.source !== source) return;
+    const was = playing; playing = null;
+    was.button.setAttribute('aria-pressed', 'false'); was.button.innerHTML = ICON_PLAY; drawWave(was.canvas, take.peaks, 0);
+  };
+  button.setAttribute('aria-pressed', 'true');
+  button.innerHTML = ICON_STOP;
+  button.setAttribute('aria-label', 'Stop ' + take.title);
+  requestAnimationFrame(tick);
+}
+
+function tick() {
+  if (!playing) return;
+  const elapsed = audio.currentTime - playing.started;
+  const share = playing.loop ? (elapsed % playing.seconds) / playing.seconds : Math.min(1, elapsed / playing.seconds);
+  drawWave(playing.canvas, playing.peaks, share);
+  requestAnimationFrame(tick);
+}
+
+function drawWave(canvas, peaks, share) {
+  const ratio = window.devicePixelRatio || 1;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  if (!width) return;
+  canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+  const pen = canvas.getContext('2d');
+  pen.scale(ratio, ratio);
+  const styles = getComputedStyle(document.documentElement);
+  const bar = width / peaks.length;
+  peaks.forEach((peak, index) => {
+    const tall = Math.max(1.5, peak * (height - 4));
+    pen.fillStyle = (index + 0.5) / peaks.length <= share ? styles.getPropertyValue('--wave-played') : styles.getPropertyValue('--wave');
+    pen.fillRect(index * bar + bar * 0.15, (height - tall) / 2, Math.max(1, bar * 0.7), tall);
+  });
+}
+
+function showNotice(text) { const box = document.getElementById('notice'); box.textContent = text; box.hidden = false; }
+
+function seconds(value) { return value < 10 ? value.toFixed(1) + ' s' : Math.round(value) + ' s'; }
+
+function render() {
+  const holder = document.getElementById('needs');
+  holder.replaceChildren();
+  let pickedCount = 0;
+  for (const need of DATA.needs) {
+    const pick = picks[need.name];
+    if (pick && pick.take) pickedCount += 1;
+    const section = document.createElement('section');
+    section.className = 'need';
+    section.id = need.name;
+    const head = document.createElement('header');
+    const title = document.createElement('h2'); title.textContent = need.title;
+    const kind = document.createElement('span'); kind.className = 'chip'; kind.textContent = need.label;
+    const state = document.createElement('span'); state.className = 'chip' + (pick && pick.take ? ' picked' : '');
+    state.textContent = pick && pick.take ? 'picked' : 'not picked';
+    const where = document.createElement('p'); where.className = 'where'; where.textContent = 'In the game: ' + need.where;
+    head.append(title, kind, state, where);
+    const grid = document.createElement('div'); grid.className = 'takes';
+    if (!need.takes.length) { const none = document.createElement('p'); none.className = 'empty'; none.textContent = 'No take came through the loudness check this time. Ask for more like this on a later run.'; grid.append(none); }
+    for (const take of need.takes) grid.append(card(need, take, pick));
+    section.append(head, grid);
+    holder.append(section);
+  }
+  document.getElementById('count').textContent = pickedCount + ' of ' + DATA.needs.length + ' sounds picked';
+  requestAnimationFrame(() => document.querySelectorAll('canvas.wave').forEach(canvas => drawWave(canvas, JSON.parse(canvas.dataset.peaks), 0)));
+}
+
+function card(need, take, pick) {
+  const box = document.createElement('article');
+  const chosen = pick && pick.take === take.key;
+  box.className = 'take' + (chosen ? ' chosen' : '');
+  const top = document.createElement('div'); top.className = 'top';
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = 'play'; button.innerHTML = ICON_PLAY;
+  button.setAttribute('aria-pressed', 'false'); button.setAttribute('aria-label', 'Play ' + take.title);
+  const canvas = document.createElement('canvas');
+  canvas.className = 'wave'; canvas.dataset.peaks = JSON.stringify(take.peaks); canvas.tabIndex = -1;
+  canvas.setAttribute('aria-hidden', 'true');
+  if (playing && playing.key === take.key) {   // a re-render keeps the take that is playing shown as playing
+    playing.button = button; playing.canvas = canvas;
+    button.setAttribute('aria-pressed', 'true'); button.innerHTML = ICON_STOP; button.setAttribute('aria-label', 'Stop ' + take.title);
+  }
+  button.addEventListener('click', () => play(take, button, canvas));
+  canvas.addEventListener('click', () => play(take, button, canvas));
+  top.append(button, canvas);
+  const name = document.createElement('div'); name.className = 'title'; name.textContent = take.title;
+  const meta = document.createElement('div'); meta.className = 'meta';
+  const by = document.createElement('span'); by.textContent = take.author + ' · ' + take.licence;
+  const length = document.createElement('span'); length.textContent = seconds(take.seconds) + (take.steps ? ' · ' + take.steps + ' steps' : '') + (take.loop ? ' · loops' : '');
+  const loud = document.createElement('span'); loud.textContent = take.lufs.toFixed(1) + ' LUFS · peak ' + take.peak.toFixed(1) + ' dBTP';
+  meta.append(by, length, loud);
+  if (take.page) { const link = document.createElement('a'); link.href = take.page; link.target = '_blank'; link.rel = 'noopener'; link.textContent = take.source; meta.append(link); }
+  else { const from = document.createElement('span'); from.textContent = take.source; meta.append(from); }
+  const actions = document.createElement('div'); actions.className = 'actions';
+  const pickButton = button_('Pick', 'pick', chosen, () => choose(need, take.key));
+  const all = button_('Pick for all ' + need.label.toLowerCase(), 'all', false, () => chooseForAll(need, take.key));
+  const more = button_('More like this', 'more', Boolean(pick && pick.more === take.key), () => askForMore(need, take.key));
+  const writable = db && canWrite;
+  for (const control of [pickButton, all, more]) control.disabled = !writable;
+  actions.append(pickButton, all, more);
+  box.append(top, name, meta, actions);
+  return box;
+}
+
+function button_(text, kind, pressed, act) {
+  const control = document.createElement('button');
+  control.type = 'button'; control.className = kind; control.textContent = text;
+  control.setAttribute('aria-pressed', String(pressed));
+  control.addEventListener('click', act);
+  return control;
+}
+
+async function save(name, body) {
+  try { await db.collection('picks').doc(name).set(body); }
+  catch (error) {
+    if (error && error.code === 'invalid_argument') { canWrite = false; render(); showNotice('This view can listen but not pick: your picks would not be saved.'); }
+    else showNotice('That pick was not saved (' + (error && error.code || 'error') + '). Try again in a moment.');
+  }
+}
+
+function choose(need, key) {
+  const was = picks[need.name] || {};
+  save(need.name, { take: key, more: was.more || '', at: new Date().toISOString() });
+}
+
+function chooseForAll(need, key) {
+  for (const other of DATA.needs) {
+    if (other.category !== need.category) continue;
+    if (other.name !== need.name && picks[other.name] && picks[other.name].take) continue;
+    const was = picks[other.name] || {};
+    save(other.name, { take: key, more: was.more || '', at: new Date().toISOString() });
+  }
+}
+
+function askForMore(need, key) {
+  const was = picks[need.name] || {};
+  save(need.name, { take: was.take || '', more: was.more === key ? '' : key, at: new Date().toISOString() });
+}
+
+document.getElementById('stop-all').addEventListener('click', stop);
+document.addEventListener('keydown', event => { if (event.key === 'Escape') stop(); });
+window.addEventListener('resize', () => document.querySelectorAll('canvas.wave').forEach(canvas => drawWave(canvas, JSON.parse(canvas.dataset.peaks), 0)));
+
+document.getElementById('page-title').textContent = DATA.title;
+document.title = DATA.title;
+document.getElementById('intro').textContent = DATA.intro;
+render();
+
+(async () => {
+  if (!window.claude || !window.claude.use) { showNotice('Picks are saved only when this page is opened on claude.ai. You can still listen to every take.'); return; }
+  db = await window.claude.use('db');
+  if (!db) { showNotice('Picks cannot be saved in this view. You can still listen to every take.'); render(); return; }
+  const user = await window.claude.use('user');
+  if (user && user.can) { const may = await user.can('data.write'); if (may === false) canWrite = false; }
+  db.collection('picks').onSnapshot(snap => {
+    for (const key of Object.keys(picks)) delete picks[key];
+    for (const doc of snap.docs) picks[doc.id] = doc.data();
+    render();
+  }, error => showNotice('Picks could not be read (' + error.code + '). Reload the page to try again.'));
+  render();
+})();
+</script>
