@@ -98,11 +98,21 @@ def game_models(kind, about):
     return unit_fit(mesh, basis(about["base"]) if "base" in about else np.eye(3))
 
 
-def models_in(folder):
-    """A resolver for kinds whose models are .glb files in `folder`, in the kit frame already (code-built)."""
+def model_file(folder, kind):
+    """A kind's model in a folder, as .glb or .gltf; None when it has neither."""
+    for suffix in (".glb", ".gltf"):
+        path = pathlib.Path(folder) / f"{kind}{suffix}"
+        if path.exists():
+            return path
+    return None
+
+
+def models_in(*folders):
+    """A resolver for kinds whose models are files in the folders (a route's new pieces), turned by their `base` if
+    they have one; the game's own model otherwise."""
     def resolve(kind, about):
-        path = pathlib.Path(folder) / f"{kind}.glb"
-        if not path.exists():
+        path = next((found for found in (model_file(folder, kind) for folder in folders) if found), None)
+        if path is None:
             return game_models(kind, about)
         return unit_fit(trimesh.load(path, force="mesh", skip_materials=True),
                         basis(about["base"]) if "base" in about else np.eye(3))

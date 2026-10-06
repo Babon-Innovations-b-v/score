@@ -38,10 +38,8 @@ def raw_model(kind, about, folder):
     """The kind's mesh as made, turned by its `base` but not fitted, or None."""
     if "picture" in about:
         return None
-    path = pathlib.Path(folder) / f"{kind}.glb" if folder else None
-    if path is None or not path.exists():
-        path = room.GAME_MODELS / kind / f"{kind}.glb"
-    if not path.exists():
+    path = (room.model_file(folder, kind) if folder else None) or room.model_file(room.GAME_MODELS / kind, kind)
+    if path is None:
         return None
     mesh = trimesh.load(path, force="mesh", skip_materials=True)
     mesh.merge_vertices(merge_tex=True, merge_norm=True)  # a .glb splits its vertices at every UV seam
