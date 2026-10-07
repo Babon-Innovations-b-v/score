@@ -1,9 +1,9 @@
 """Part labels for a generated (chunky) piece: which library material each face of the model is (job robust-exp,
 2026-10-06; the robust route: the model gives shape only, the picture only votes which library material a part is,
-and its colours are never baked in).
+and its colours never replace the library's: since round four they come back only as a detail layer over it).
 
     ~/.farm-factory-props/env/bin/python tools/props/library/labels.py <take> <out folder> --place hub \
-        [--parts <folder of part_XX.glb>]
+        [--parts <folder of part_XX.glb>] [--without lamp_lens,screen]
 
 Pixal3D's raw model is pixel-aligned with the picture it was made from (WORK/pixal/<take>.svviews: the cut-out
 picture and its camera), so each face seen from that camera takes the picture's colour where it lands (a depth test
@@ -19,6 +19,8 @@ Two ways to turn those votes into parts:
 
 The model is then moved onto its finished model (register.py, raw to upright), cut to the finished model's box (the
 raw model's floaters go) and written as one .ply per material, with labels.json (shares, seen share, groups, parts).
+Beside them the finished model itself is written as picture.obj with its texture: the picture's own pixels, which the
+bake lays over the library surfaces as their detail (labels, notes, rust, the tools' own colours).
 No model runs here: numpy and the picture.
 """
 import argparse
@@ -37,6 +39,7 @@ from sklearn.cluster import KMeans
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
+import glb_file  # noqa: E402
 import library  # noqa: E402
 import register  # noqa: E402
 from paths import WORK  # noqa: E402
@@ -149,18 +152,34 @@ def splitter_parts(folder, mesh):
     return owner[nearest], len(parts), gap
 
 
-def by_part(mesh, votes, part_of):
-    """The splitter way: every face of a part takes the area-weighted majority of the part's seen votes."""
-    labels = np.zeros(len(mesh.faces), dtype=int)
-    areas = mesh.area_faces
+def face_colours(mesh, take):
+    """Each seen face's colour in the picture, in Lab (NaN where the camera does not see it)."""
+    views = PIXAL / f"{take}.svviews"
+    rgba = np.asarray(Image.open(views / "input.png").convert("RGBA"), dtype=np.float64) / 255
+    colours = lab(median_filter(rgba[..., :3], size=(5, 5, 1)))
+    seen, row, column = seen_faces(mesh, json.loads((views / "transforms.json").read_text()), rgba.shape[:2])
+    seen &= rgba[row, column, 3] > 0.5
+    found = np.full((len(mesh.faces), 3), np.nan)
+    found[seen] = colours[row[seen], column[seen]]
+    return found
+
+
+def by_part(mesh, colours, part_of, materials):
+    """The splitter way: every face of a part takes the library material nearest the part's median picture colour
+    (hue and chroma weighed over lightness, as group_materials). A majority of per-face votes let a part's shaded
+    faces outvote its lit ones: the comms desk came out 98% dark pipe steel (2026-10-07). A part the camera does not
+    see takes the whole model's median. The labels and the material names in index order."""
+    names = list(materials)
+    anchors = lab(np.array([srgb(np.array(materials[name]["colour"])) for name in names]))
+    seen_anywhere = ~np.isnan(colours[:, 0])
+    whole = np.median(colours[seen_anywhere], axis=0)
+    chosen = {}
     for part in np.unique(part_of):
-        members = part_of == part
-        seen = members & (votes >= 0)
-        if seen.any():
-            labels[members] = np.bincount(votes[seen], weights=areas[seen]).argmax()
-        else:
-            labels[members] = np.bincount(votes[votes >= 0], weights=areas[votes >= 0]).argmax()
-    return labels
+        seen = (part_of == part) & seen_anywhere
+        middle = np.median(colours[seen], axis=0) if seen.sum() >= 20 else whole
+        chosen[part] = names[int(np.argmin((((anchors - middle) ** 2) * WEIGHTS).sum(-1)))]
+    order = sorted(set(chosen.values()))
+    return np.array([order.index(chosen[part]) for part in part_of]), order
 
 
 def write_parts(mesh, labels, order, matrix, final_bounds, out):
@@ -178,29 +197,65 @@ def write_parts(mesh, labels, order, matrix, final_bounds, out):
     return shares, int(inside.sum())
 
 
+def onto_finished(points, target):
+    """The raw model's points laid onto its finished model: the finish's own upright turn (glb_file.upright_turn, under
+    each of its options) as the start, then register.aligned; the start whose fit leaves the least median gap from the
+    finished model's points. register.aligned alone starts from quarter turns, and the finish squares a model to an
+    arbitrary angle about up: the comms desk's parts came out turned, 6 cm off their finished model (2026-10-07).
+    The 4 x 4 matrix and the gap in metres."""
+    best = None
+    for long, feet in ((False, False), (True, False), (False, True), (True, True)):
+        start = np.eye(4)
+        start[:3, :3] = glb_file.upright_turn(points, long=long, feet=feet)
+        refined, _ = register.aligned(points @ start[:3, :3].T, target)
+        matrix = refined @ start
+        moved = points @ matrix[:3, :3].T + matrix[:3, 3]
+        gap = float(np.median(cKDTree(moved).query(target)[0]))
+        if best is None or gap < best[1]:
+            best = (matrix, gap)
+    return best
+
+
+def write_picture(final, out):
+    """The finished model with the picture's own pixels on it (Pixal3D's Pixel Match), in the parts' frame, as
+    picture.obj with its texture beside it: the bake lays its labels, notes, rust and colours over the library
+    surfaces (round four, 2026-10-07: dropping the picture took the room's detail with it). Its texture's size."""
+    image = getattr(final.visual, "material", None)
+    image = getattr(image, "baseColorTexture", None) or getattr(image, "image", None)
+    if image is None:
+        raise SystemExit("the finished model carries no picture to lay over the library (a Pixal3D take before "
+                         "Pixel Match?)")
+    final.export(out / "picture.obj")
+    return list(image.size)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("take")
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("--place", default="hub")
     parser.add_argument("--parts", type=pathlib.Path)
+    parser.add_argument("--without", default="", help="library materials this piece has none of, by comma (a "
+                        "locker's paper notes read as a lamp lens, 2026-10-07)")
     arguments = parser.parse_args()
     arguments.out.mkdir(parents=True, exist_ok=True)
-    materials = {name: spec for name, spec in library.resolved(arguments.place).items() if name not in NOT_ON_OBJECTS}
+    left_out = NOT_ON_OBJECTS + tuple(name for name in arguments.without.split(",") if name)
+    materials = {name: spec for name, spec in library.resolved(arguments.place).items() if name not in left_out}
     mesh = trimesh.load(PIXAL / f"{arguments.take}.glb", force="mesh", process=False)
     votes, order, names = picture_votes(mesh, arguments.take, materials)
     report = {"take": arguments.take, "seen_share": round(float((votes >= 0).mean()), 3), "groups": names}
     if arguments.parts:
         part_of, count, gap = splitter_parts(arguments.parts, mesh)
-        labels = by_part(mesh, votes, part_of)
+        labels, order = by_part(mesh, face_colours(mesh, arguments.take), part_of, materials)
         report.update(way="parts", parts=count, parts_gap=round(gap, 4))
     else:
         labels = by_face(mesh, votes)
         report.update(way="picture")
     final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
-    matrix, gap = register.aligned(mesh.sample(SAMPLED), final.sample(SAMPLED))
+    matrix, gap = onto_finished(mesh.sample(SAMPLED), final.sample(SAMPLED))
     report["upright_gap"] = round(gap, 4)
     report["shares"], report["faces_kept"] = write_parts(mesh, labels, order, matrix, final.bounds, arguments.out)
+    report["picture"] = write_picture(final, arguments.out)
     (arguments.out / "labels.json").write_text(json.dumps(report, indent=1))
     print(json.dumps(report))
 

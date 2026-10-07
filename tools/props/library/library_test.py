@@ -3,6 +3,7 @@ Run: python3 tools/props/library/library_test.py
 """
 import json
 import pathlib
+import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -72,14 +73,34 @@ def test_every_detail_names_a_known_part_and_a_library_variant():
         assert all(screen["variant"] in names for screen in entry["screens"]), kind
 
 
-def test_flat_slender_and_open_shapes_go_to_code_and_solids_to_the_model():
-    assert sorter.route("hub_wall_upper_plain", (1.2, 2.0, 0.06)) == "code"
+def test_only_plain_plates_pipes_and_trims_go_to_code():
+    assert sorter.route("hub_wall_upper_plain") == sorter.route("hub_pipe_straight") == "code"
+    assert sorter.route("hub_wall_skirting") == sorter.route("hub_lattice_hip_rib") == "code"
+    # Thin, open or small is no reason for code (the owner, 2026-10-07): a toolboard's box is flat, a hinge small.
+    for kind in ("hub_toolboard", "hub_talllocker", "hub_hatch_hinge", "hub_hatch_wheel", "hub_notice_board",
+                 "hub_floor_grating", "hub_wall_lower_vent", "hub_pipe_valve"):
+        assert sorter.route(kind) == "model", kind
     assert sorter.shape_class("hub_lattice_hip_rib", (0.12, 4.6, 0.12)) == "slender"
     assert sorter.shape_class("hub_porthole_panel", (1.2, 1.2, 0.1)) == "opening"
-    assert sorter.shape_class("hub_floor_grating", (1.0, 1.0, 0.05)) == "repeat"
-    assert sorter.route("hub_pipe_valve", (0.3, 0.3, 0.2)) == "model"
-    assert sorter.route("hub_hatch_hinge", (0.12, 0.4, 0.15)) == "code"
-    assert sorter.route("hub_notice_board", (0.8, 0.6, 0.05)) == "decal"
+
+
+def test_every_code_builder_is_on_the_allow_list():
+    """pieces.py builds only plain kinds: a builder for anything else is a piece made by hand from a sentence."""
+    text = (HERE / "inside/pieces.py").read_text()
+    names = re.findall(r'"(\w+)"', text[text.index("BUILDERS = "):text.index("def build(")])
+    off = sorted(name for name in names if name not in sorter.PLAIN)
+    assert not off, f"code builders for kinds that are not plain plates, pipes or trims: {', '.join(off)}"
+
+
+def test_every_model_the_hub_lays_was_made_on_its_kind_s_route():
+    """Every model the hub lays (kit and furniture) says the route it was made on, and that is its kind's route: code
+    only for a plain kind, the prop pipeline for every other."""
+    layout = json.loads((library.REPO / "data/kit/hub.json").read_text())
+    kinds = {found["model"]: found["kind"] for found in layout["pieces"] if "part" not in found}
+    kinds.update({name: f"hub_{name.rsplit('_', 1)[0]}" for name, about in layout["models"].items() if "prop" in about})
+    off = sorted({f"{kind} ({layout['models'][name].get('route', 'no route recorded')})" for name, kind in kinds.items()
+                  if layout["models"][name].get("route") != sorter.route(kind)})
+    assert not off, f"models not made on their kind's route: {', '.join(off)}"
 
 
 def test_every_kind_of_the_hub_kit_gets_a_route():

@@ -93,6 +93,12 @@
 		},
 		"printed": {
 			"roughness": 0.6
+		},
+		"wood": {
+			"roughness": 0.7,
+			"bump": 0.0005,
+			"bump_size": 0.01,
+			"dirt_reach": 0.05
 		}
 	},
 	"families": {
@@ -743,6 +749,16 @@
 					"recipe": "printed",
 					"token": "sign-white",
 					"picture": "label_airlock"
+				}
+			}
+		},
+		"wood": {
+			"is": "Plain timber boards: a flat colour and a soft relief; a piece's grain and wear come from its own picture layer",
+			"surface": "steel_plate",
+			"variants": {
+				"wood_board": {
+					"recipe": "wood",
+					"token": "board-wood"
 				}
 			}
 		}

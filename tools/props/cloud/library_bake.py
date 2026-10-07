@@ -81,7 +81,9 @@ def remote_job(job, number):
         for entry in job["chunky"]:
             place = REMOTE / "in" / str(number) / entry["name"]
             sends.append((pathlib.Path(entry["parts"]), place))
-            moved["chunky"].append(dict(entry, parts=str(place)))
+            # Its picture model (labels.py's picture.obj, with its .mtl and texture) goes with the parts.
+            picture = str(place / pathlib.Path(entry["picture"]).name) if entry.get("picture") else None
+            moved["chunky"].append(dict(entry, parts=str(place), picture=picture))
     if "rows" in job:
         moved["rows"] = []
         for row_number, row in enumerate(job["rows"]):
@@ -125,7 +127,8 @@ def work_on(run, machine, jobs, processor):
             moved, sends = remote_job(job, number)
             for local, place in sends:
                 batch.remote(log_folder, host, f"mkdir -p {place}", check=True)
-                files = local if isinstance(local, list) else sorted(local.glob("*.ply"))
+                files = local if isinstance(local, list) else sorted(
+                    found for found in local.iterdir() if found.is_file() and found.name != "labels.json")
                 batch.copy(log_folder, files, f"root@{host}:{place}/")
             job_path = REMOTE / f"job{number}.json"
             # Paths into this checkout (a variant's picture) point into the machine's copy of it.

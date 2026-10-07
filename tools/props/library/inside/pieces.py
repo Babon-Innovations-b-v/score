@@ -424,23 +424,32 @@ def wall_screen(size, laid):
 PLATE_DEEP = 0.06
 
 
-def louvred_vent(x, y, wide, tall, front):
-    """A louvred vent set in a face at depth `front`: a dark box behind, slats stepping back down its height and a
-    bolted frame round it."""
-    parts = [shapes.box((x - wide / 2, y - tall / 2, front + 0.01), (x + wide / 2, y + tall / 2, front + 0.03),
-                        "anodized_black", "vent_back")]
-    slats = max(3, round(tall / 0.045))
+VENT_RIM = 0.025
+VENT_POCKET = 0.024
+
+
+def louvred_vent(x, y, wide, tall, front, hosts):
+    """A louvred vent set in a face at depth `front`: its opening cut through `hosts` (the parts the face belongs to)
+    as a pocket VENT_POCKET deep, a dark plate at the pocket's bottom, slats across the opening with dark gaps between,
+    and a bolted frame round it on the face. Round three laid the slats and the dark plate inside the host's solid with
+    no hole cut, so only an empty frame showed (every locker and wall vent, the detail-loss diagnosis, 2026-10-07)."""
+    rim = VENT_RIM
+    left, right, bottom, top = x - wide / 2 + rim, x + wide / 2 - rim, y - tall / 2 + rim, y + tall / 2 - rim
+    for host in hosts:
+        shapes.cut(host, shapes.box((left, bottom, front - 0.02), (right, top, front + VENT_POCKET), "bare_steel",
+                                    "cutter"))
+    parts = [shapes.box((left - 0.004, bottom - 0.004, front + VENT_POCKET - 0.004),
+                        (right + 0.004, top + 0.004, front + VENT_POCKET), "anodized_black", "vent_back")]
+    slats = max(3, round((top - bottom) / 0.03))
+    pitch = (top - bottom) / slats
     for at in range(slats):
-        low = y - tall / 2 + 0.02 + (tall - 0.04) * at / slats
-        parts.append(shapes.bevelled(shapes.box((x - wide / 2 + 0.02, low, front + 0.004),
-                                                (x + wide / 2 - 0.02, low + 0.012, front + 0.02), "bare_steel",
-                                                "slat"), 0.002))
-    rim = 0.025
-    for low, high in (((x - wide / 2, y - tall / 2), (x - wide / 2 + rim, y + tall / 2)),
-                      ((x + wide / 2 - rim, y - tall / 2), (x + wide / 2, y + tall / 2)),
-                      ((x - wide / 2, y - tall / 2), (x + wide / 2, y - tall / 2 + rim)),
-                      ((x - wide / 2, y + tall / 2 - rim), (x + wide / 2, y + tall / 2))):
-        parts.append(shapes.bevelled(shapes.box((*low, front - 0.006), (*high, front + 0.01), "bare_steel",
+        low = bottom + pitch * at + pitch * 0.3
+        parts.append(shapes.bevelled(shapes.box((left, low, front + 0.003), (right, low + pitch * 0.45, front + 0.012),
+                                                "bare_steel", "slat"), 0.0015))
+    for low, high in (((x - wide / 2, y - tall / 2), (left, y + tall / 2)),
+                      ((right, y - tall / 2), (x + wide / 2, y + tall / 2)),
+                      ((left, y - tall / 2), (right, bottom)), ((left, top), (right, y + tall / 2))):
+        parts.append(shapes.bevelled(shapes.box((*low, front - 0.006), (*high, front + 0.002), "bare_steel",
                                                 "vent_frame"), 0.002))
     for corner_x in (x - wide / 2 + rim / 2, x + wide / 2 - rim / 2):
         for corner_y in (y - tall / 2 + rim / 2, y + tall / 2 - rim / 2):
@@ -452,7 +461,8 @@ def wall_lower_vent(size, laid):
     """A lower wall plate with a louvred vent in its middle."""
     wide, tall, deep = size
     parts = bolted_plate((-wide / 2, 0.0), (wide / 2, tall), deep, "dark_panel")
-    return parts + louvred_vent(0.0, tall * 0.45, min(0.6, wide - 0.3), 0.32, -deep / 2 + 0.007)
+    hosts = [part for part in parts if not part.name.startswith("bolt")]
+    return parts + louvred_vent(0.0, tall * 0.45, min(0.6, wide - 0.3), 0.32, -deep / 2 + 0.007, hosts)
 
 
 def patch(x, y, wide, tall, front, material="hammertone_grey"):
@@ -812,10 +822,11 @@ def console(size, laid):
     parts = [shapes.bevelled(shapes.box((-wide / 2, DESK_HIGH - DESK_THICK, -deep / 2), (wide / 2, DESK_HIGH, deep / 2),
                                         "dark_panel", "top"), EDGE)]
     back = -deep / 2 + 0.15
-    parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.05, 0.08, back), (wide / 2 - 0.05, DESK_HIGH - DESK_THICK,
-                                                                               back + 0.02), "painted_panel", "panel"), EDGE))
+    panel = shapes.bevelled(shapes.box((-wide / 2 + 0.05, 0.08, back), (wide / 2 - 0.05, DESK_HIGH - DESK_THICK,
+                                                                       back + 0.03), "painted_panel", "panel"), EDGE)
+    parts.append(panel)
     for x in (-wide / 3, 0.0, wide / 3):
-        parts += louvred_vent(x, 0.42, 0.42, 0.24, back)
+        parts += louvred_vent(x, 0.42, 0.42, 0.24, back, [panel])
     for x in (-wide / 2 + 0.12, -wide / 6, wide / 6, wide / 2 - 0.12):
         parts.append(shapes.box((x - 0.025, 0.02, -deep / 2 + 0.075), (x + 0.025, DESK_HIGH - DESK_THICK, -deep / 2 + 0.125),
                                 "bare_steel", "leg"))
@@ -833,17 +844,19 @@ def locker(size, doors):
     """A steel locker of `doors` doors: its carcass on a dark plinth, door plates standing proud with louvred vents top
     and bottom and a handle each."""
     wide, tall, deep = size
+    carcass = shapes.bevelled(shapes.box((-wide / 2, 0.08, -deep / 2 + 0.012), (wide / 2, tall, deep / 2), "painted_panel",
+                                         "carcass"), EDGE)
     parts = [shapes.box((-wide / 2 + 0.02, 0.0, -deep / 2 + 0.03), (wide / 2 - 0.02, 0.08, deep / 2), "dark_panel", "plinth"),
-             shapes.bevelled(shapes.box((-wide / 2, 0.08, -deep / 2 + 0.012), (wide / 2, tall, deep / 2), "painted_panel",
-                                        "carcass"), EDGE)]
+             carcass]
     door_wide = (wide - 0.04 - 0.01 * (doors - 1)) / doors
     for door in range(doors):
         left = -wide / 2 + 0.02 + door * (door_wide + 0.01)
         middle = left + door_wide / 2
-        parts.append(shapes.bevelled(shapes.box((left, 0.1, -deep / 2), (left + door_wide, tall - 0.02, -deep / 2 + 0.012),
-                                                "painted_panel", "door"), 0.003))
+        door_plate = shapes.bevelled(shapes.box((left, 0.1, -deep / 2), (left + door_wide, tall - 0.02, -deep / 2 + 0.012),
+                                                "painted_panel", "door"), 0.003)
+        parts.append(door_plate)
         for high in (tall - 0.22, 0.32):
-            parts += louvred_vent(middle, high, door_wide * 0.55, 0.12, -deep / 2)
+            parts += louvred_vent(middle, high, door_wide * 0.55, 0.12, -deep / 2, [door_plate, carcass])
         handle_x = left + door_wide - 0.06 if door % 2 == 0 else left + 0.06
         parts.append(shapes.bevelled(shapes.box((handle_x - 0.012, tall * 0.48, -deep / 2 - 0.025),
                                                 (handle_x + 0.012, tall * 0.56, -deep / 2), "bare_steel", "handle"), 0.004))
@@ -971,11 +984,19 @@ def comms(size, laid):
     parts += radio(-0.38, top, 0.12, 0.42, 0.18, 0.3)
     parts += radio(0.12, top, 0.14, 0.36, 0.15, 0.28)
     parts += radio(-0.38, top + 0.18, 0.14, 0.38, 0.13, 0.26)
-    hook_x = wide / 2 - 0.1  # the headset hangs inside the desk's width
-    parts.append(shapes.cylinder((hook_x, top - 0.1, 0.0), (hook_x + 0.06, top - 0.1, 0.0), 0.008, "bare_steel", 12, "hook"))
-    parts.append(shapes.box((hook_x + 0.045, top - 0.1, -0.012), (hook_x + 0.06, top + 0.06, 0.012), "anodized_black", "band"))
-    for z in (-0.08, 0.08):
-        parts.append(shapes.cylinder((hook_x + 0.05, top - 0.04, z), (hook_x + 0.05, top - 0.04, z * 0.6), 0.04,
+    # The headset hangs on a hook on the outside of the right side panel, as the reference has it (round three hung it
+    # under the desk top between the side panels, where no view saw it: the detail-loss diagnosis, 2026-10-07).
+    side_face = wide / 2 - 0.02
+    band_top = top - 0.06
+    cups = band_top - 0.135
+    parts.append(shapes.cylinder((side_face, band_top + 0.008, 0.0), (side_face + 0.03, band_top + 0.008, 0.0), 0.006,
+                                 "bare_steel", 12, "hook"))
+    parts.append(shapes.box((side_face + 0.002, band_top - 0.015, -0.075), (side_face + 0.014, band_top, 0.075),
+                            "anodized_black", "band"))
+    for z in (-0.075, 0.06):
+        parts.append(shapes.box((side_face + 0.002, cups + 0.02, z), (side_face + 0.014, band_top, z + 0.015),
+                                "anodized_black", "band"))
+        parts.append(shapes.cylinder((side_face + 0.002, cups, z + 0.0075), (side_face + 0.03, cups, z + 0.0075), 0.04,
                                      "gasket_black", 20, "ear"))
     lamp_x, lamp_z = wide / 2 - 0.2, 0.15
     parts.append(shapes.cylinder((lamp_x, top, lamp_z), (lamp_x, top + 0.02, lamp_z), 0.07, "anodized_black", 24, "lamp_base"))

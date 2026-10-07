@@ -3,12 +3,15 @@ give them back their small detail as clean parts.
 
 The job: {"out", "density", "wear", "dirt", "seed", "faces": the cut-down copy's triangles, "specs",
 "chunky": [{"name", "parts": folder of <library variant>.ply (labels.py), "base": the kind's turn (nine numbers),
-"size": its laid size, "details": [{"part", "at", "size", "variant"}], "screens": [{"at", "size", "variant"}]}]}.
+"size": its laid size, "details": [{"part", "at", "size", "variant"}], "screens": [{"at", "size", "variant"}],
+"picture": its picture model (labels.py's picture.obj) or null}]}.
 
 Per piece: its labelled parts are joined into the full-detail model, turned into the kit's frame and fitted to its
 laid size (so the game stretches nothing); a copy is closed into a solid (`solid_copy`: a Pixal3D model is a
 paper-thin shell, under 1 mm, which the model check fails) and cut down to `faces` triangles, and the library is baked
-from the full model onto it, which keeps the full model's shape relief in the normal map without its photo colour. Then its
+from the full model onto it, which keeps the full model's shape relief in the normal map without its photo colour; then
+the picture's own detail (labels, notes, rust, the tools' colours) is laid over the library from the picture model
+(bake.Atlas.lay_picture, round four). Then its
 detail goes on as code-built parts read off the model's own front (a ray finds the surface under each): labels,
 screws, keypads (pieces.DETAIL_PARTS), baked from their own library variants into the same pictures. A screen is
 laid as a glowing piece of its own, so the report gives the depth of the front where each stands. Writes
@@ -85,6 +88,21 @@ def into_kit_frame(whole, base, size):
     middle = Vector(((low.x + high.x) / 2, (low.y + high.y) / 2, low.z))
     whole.data.transform(Matrix.Diagonal(scale.to_4d()) @ Matrix.Translation(-middle))
     whole.data.update()
+
+
+def picture_model(path, base, size, name):
+    """The piece's picture model (labels.py's picture.obj: the finished model, in glTF numbers) turned and fitted to
+    the laid size by its own box, as the full model is. The full model reaches the finished model's frame by a
+    registration that is a few centimetres loose (2026-10-07: the comms desk's parts were 25% shorter than its
+    finished model), so the picture follows the box both share, not that registration."""
+    before = set(bpy.context.scene.objects)
+    bpy.ops.wm.obj_import(filepath=str(path), forward_axis="Y", up_axis="Z")  # the numbers as they are
+    found = [item for item in bpy.context.scene.objects if item not in before and item.type == "MESH"]
+    shown = shapes.joined(found, f"{name}_picture") if len(found) > 1 else found[0]
+    shown.data.transform(shown.matrix_world)
+    shown.matrix_world = Matrix.Identity(4)
+    into_kit_frame(shown, base, size)
+    return shown
 
 
 def solid_copy(whole, faces, name, size):
@@ -169,6 +187,10 @@ def make_piece(entry, job, out):
     atlas = bake.Atlas(entry["name"], items, job["density"], job["specs"])
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
                     max(entry["size"]) * REACH_SHARE)
+    detail_share = None
+    if entry.get("picture"):
+        shown = picture_model(entry["picture"], entry["base"], entry["size"], entry["name"])
+        detail_share = round(atlas.lay_picture(shown, whole, low, max(entry["size"]) * REACH_SHARE), 4)
     if detail:
         atlas.bake_self(detail, job["specs"], job["wear"], job["dirt"], job["seed"])
         bpy.ops.object.select_all(action="DESELECT")
@@ -179,7 +201,8 @@ def make_piece(entry, job, out):
     atlas.finish()
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), details=len(entry.get("details", [])),
-                  detail_slots=detail_slots, screens=screens, seconds=round(time.time() - began, 1))
+                  detail_slots=detail_slots, screens=screens, picture_detail=detail_share,
+                  seconds=round(time.time() - began, 1))
     return report
 
 

@@ -36,9 +36,20 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
 - **Never split a raw Pixal3D model into per-piece objects.** trimesh's `split` on a 950k-face raw model took
   43.5 GB and took WSL down (2026-10-06). Sample points (`register.py`). Every local Python step runs under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
-- `sorter.py` routes every kit kind before a picture is drawn: flat, slender, opening and repeat to code
-  (`inside/pieces.py`), solid ones to Pixal3D, labels and signs to printed parts. `labels.py` gives a generated
-  model's faces library variants from its clean picture, or per part from a splitter's parts (`../cloud/parts.py`).
+- **Code builds only plain plates, pipes and trims** (the owner, 2026-10-07). `sorter.py` is an allow-list
+  (`PLAIN`): a kind on it goes to `inside/pieces.py`, every other kind (furniture included) to the prop pipeline. A
+  box's proportions never decide it, and no table may send a kind to code past the sorter. A kind joins `PLAIN`
+  only by the owner's word. `library_test.py` fails on a builder off the list and on any model the hub lays that was
+  not made on its kind's route. `labels.py` gives a generated model's faces library variants from its clean
+  picture, or per part from a splitter's parts (`../cloud/parts.py`), and writes the finished model as
+  `picture.obj` beside them.
+- **The picture's own detail is laid over the library** (round four): `bake.Atlas.lay_picture` bakes the picture
+  model onto the piece, and `inside/detail_layer.py` blends it in. Where the picture differs from its region's usual
+  colour (labels, notes, rust, the tools' own colours), the picture shows. Elsewhere the library colour stays, with
+  the picture's lightness for wear and grain. This is a masked blend, not decals: no cut-out or placing step, and it
+  works on curved parts.
+- **A shared picture set never silently loses density**: `bake.Atlas` stops past the 4096 side, and `route.py`
+  splits a set by its boxes' seen area before the bake.
 - `tune.py`: relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high); matched freely, it crinkles every
   paint into photo grain.
-- Checks: `library_test.py` (system python).
+- Checks: `library_test.py` (system python), `detail_layer_test.py` (hands itself to the prop environment).

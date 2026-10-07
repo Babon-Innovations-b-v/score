@@ -42,6 +42,11 @@ DETAILS = REPO / "data/library/details.json"
 # Texels a metre for code-built pieces (a shared picture set is capped at 4096 a side) and for generated pieces.
 DENSITY = 1024
 CHUNKY_DENSITY = 768
+# The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
+# shared set is planned to fill, leaving room for packing and for print drawn sharp.
+LARGEST = 4096
+UV_FILL = 0.6
+SET_SLACK = 0.7
 CHUNKY_FACES = 19000  # triangles: a prop's furniture budget is 20,000 (asset_check), its detail parts take the rest
 SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share a model
 # Code-built kinds by the picture set they share, by the start of their name; the rest are wall gear and doors.
@@ -49,11 +54,11 @@ ATLASES = (("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_")),
            ("walls", ("wall_lower", "wall_upper", "wall_skirting", "wall_cornice", "wall_corner", "hatch_wall",
                       "porthole")))
-# The room's furniture, made by the route as its kit is (the owner, 2026-10-06: the hub still loaded an old console,
-# lockers, a lab bench, a comms desk, a toolboard and a chair): inventory row -> the prop kind whose scene install
-# writes. Each is one code-built model in the room's furniture picture set, at its row's size.
-FURNITURE = {"console": "hub_console", "labbench": "hub_labbench", "chair": "hub_chair", "talllocker": "hub_talllocker",
-             "rack": "hub_rack", "comms": "hub_comms", "toolboard": "hub_toolboard"}
+# The room's furniture: the inventory's rows the route makes that are not kit pieces (the console, the lab bench, the
+# chair, the lockers, the comms desk, the toolboard), each placed by the game as its prop. They go through the sorter
+# like every kit kind (round four, 2026-10-07: round three sent them to code by a fixed table, with no check, and the
+# room lost their detail).
+FURNITURE_MADE = "made by the route"
 # The console's live screens (the Workstation's feed and side screens) are glass plates written at install, dark until
 # the Workstation paints its content on them: centred and facing +z, as the quads they replace were.
 LIVE_SCREEN = {"name": "console_screen_1", "size": [0.44, 0.26, 0.004]}
@@ -101,33 +106,29 @@ def made_size(size):
 
 
 def furniture(inventory):
-    """The room's furniture models: {name: {kind, route, size, laid, atlas, prop}}, one per FURNITURE row, its size
-    (wide, tall, deep) from the row's (wide, deep, tall)."""
+    """The room's furniture models: {name: {kind, route, size, laid, atlas, prop}}, one per furniture row
+    (FURNITURE_MADE), routed by the sorter, its size (wide, tall, deep) from the row's (wide, deep, tall)."""
     found = {}
     for row in inventory["rows"]:
-        if row["id"] in FURNITURE:
-            wide, deep, tall = row["size"]
-            found[f"{row['id']}_1"] = {"kind": f"hub_{row['id']}", "route": "code", "size": [wide, tall, deep],
-                                       "laid": {}, "atlas": "furniture", "prop": FURNITURE[row["id"]]}
+        if row.get("made") != FURNITURE_MADE:
+            continue
+        wide, deep, tall = row["size"]
+        kind = f"hub_{row['id']}"
+        route = sorter.route(kind)
+        found[f"{row['id']}_1"] = {"kind": kind, "route": route, "size": [wide, tall, deep], "laid": {},
+                                   "atlas": "furniture" if route == "code" else f"{row['id']}_1",
+                                   "prop": row.get("prop") or row["thing"].split(":", 1)[1]}
     return found
 
 
 def plan(layout, takes, inventory=None):
     """Every piece's made model: {"models": {name: {kind, route, size, laid, atlas}}, "pieces": [name per piece]}, and
-    the room's furniture (FURNITURE) as models placed by the game rather than the kit."""
+    the room's furniture as models placed by the game rather than the kit; stops on a generated kind with no labelled
+    parts."""
     models, by_key, pieces = {}, {}, []
-    # A kind takes one route, its largest piece's: a lattice ring's short top beams are still beams.
-    largest = {}
-    for laid in layout["pieces"]:
-        if max(laid["size"]) > max(largest.get(laid["kind"], [0.0])):
-            largest[laid["kind"]] = laid["size"]
-    routes = {kind: sorter.route(kind, size) for kind, size in largest.items()}
     for laid in layout["pieces"]:
         kind = laid["kind"]
-        route = routes[kind]
-        route = "code" if route == "decal" else route  # labels and notices are printed parts on code-built plates
-        if route == "model" and own_name(kind) not in takes:
-            raise SystemExit(f"{kind} is a generated kind with no labelled parts (labels.py)")
+        route = sorter.route(kind)
         extra = shows(kind, laid) if route == "code" else {}
         key = (kind, made_size(laid["size"]), json.dumps(extra, sort_keys=True))
         if key not in by_key:
@@ -138,6 +139,10 @@ def plan(layout, takes, inventory=None):
                             "laid": extra, "atlas": atlas_of(own_name(kind)) if route == "code" else name}
         pieces.append(by_key[key])
     models.update(furniture(inventory) if inventory is not None else {})
+    missing = sorted({entry["kind"] for entry in models.values()
+                      if entry["route"] == "model" and own_name(entry["kind"]) not in takes})
+    if missing:
+        raise SystemExit(f"generated kinds with no labelled parts (labels.py): {', '.join(missing)}")
     return {"models": models, "pieces": pieces}
 
 
@@ -147,14 +152,14 @@ def jobs(planned, takes, work, place):
     specs = library.by_library(place)
     details = json.loads(DETAILS.read_text())
     found = {}
-    for atlas in sorted({entry["atlas"] for entry in planned["models"].values() if entry["route"] == "code"}):
+    for atlas, names in shared_sets(planned).items():
         found[f"kit-{atlas}"] = {
             "script": "make_kit.py", "out": str(work / "made"), "report": f"report-{atlas}.json",
             "atlas": f"{place}_{atlas}", "density": DENSITY,
             "wear": wear, "dirt": dirt, "seed": 3, "specs": specs,
-            "pieces": [{"name": name, "kind": own_name(entry["kind"]), "size": entry["size"], "laid": entry["laid"]}
-                       for name, entry in planned["models"].items()
-                       if entry["route"] == "code" and entry["atlas"] == atlas]}
+            "pieces": [{"name": name, "kind": own_name(planned["models"][name]["kind"]),
+                        "size": planned["models"][name]["size"], "laid": planned["models"][name]["laid"]}
+                       for name in names]}
     chunky = []
     for name, entry in planned["models"].items():
         if entry["route"] != "model":
@@ -162,7 +167,8 @@ def jobs(planned, takes, work, place):
         own = details.get(entry["kind"], {})
         chunky.append({"name": name, "parts": str(takes[own_name(entry["kind"])]),
                        "base": own["turn"], "size": entry["size"],
-                       "details": own.get("details", []), "screens": own.get("screens", [])})
+                       "details": own.get("details", []), "screens": own.get("screens", []),
+                       "picture": picture_of(takes[own_name(entry["kind"])])})
     if chunky:
         found["chunky"] = {"script": "make_chunky.py", "out": str(work / "made"), "report": "report-chunky.json",
                            "density": CHUNKY_DENSITY,
@@ -171,10 +177,47 @@ def jobs(planned, takes, work, place):
     return found
 
 
+def seen_area(size):
+    """A code-built piece's area the room sees, from its box (wide, tall, deep): all but its back."""
+    wide, tall, deep = size
+    return wide * tall + 2 * deep * (wide + tall)
+
+
+def shared_sets(planned):
+    """The code-built models by the picture set they share: each named set (ATLASES) split into as few sets as keep
+    their boxes' seen area within one LARGEST-sided picture at DENSITY (with SET_SLACK spare for packing and sharp
+    print), named `<set>` or `<set>_<n>`. The bake stops a set that still does not fit (bake.Atlas)."""
+    room = SET_SLACK * UV_FILL * (LARGEST / DENSITY) ** 2
+    found = {}
+    for atlas in sorted({entry["atlas"] for entry in planned["models"].values() if entry["route"] == "code"}):
+        chunks, area = [[]], 0.0
+        for name, entry in planned["models"].items():
+            if entry["route"] != "code" or entry["atlas"] != atlas:
+                continue
+            if chunks[-1] and area + seen_area(entry["size"]) > room:
+                chunks.append([])
+                area = 0.0
+            chunks[-1].append(name)
+            area += seen_area(entry["size"])
+        for index, names in enumerate(chunks):
+            found[atlas if len(chunks) == 1 else f"{atlas}_{index + 1}"] = names
+    return found
+
+
+def picture_of(parts):
+    """A generated kind's picture model (labels.py writes it beside the parts: its finished Pixal3D model with the
+    picture's own pixels on it), whose detail is laid over the library surfaces; None for a take labelled before
+    round four."""
+    found = pathlib.Path(parts) / "picture.obj"
+    return str(found) if found.exists() else None
+
+
 def labelled_takes(folders):
     """Generated kinds -> their folder of labelled parts (a .ply per material, labels.py), each folder named for its
-    Pixal3D take (`wall_cage_lamp-b`) or the take and a way (`conduit_box-4`)."""
-    return {re.sub(r"(-b)?(-\d+)?$", "", pathlib.Path(folder).name): pathlib.Path(folder) for folder in folders}
+    Pixal3D take (`wall_cage_lamp-b`, a round's `comms-r4` or `talllocker-r4f`) or the take and a way
+    (`conduit_box-4`)."""
+    return {re.sub(r"(-r\d+[a-z]?)?(-b)?(-\d+)?$", "", pathlib.Path(folder).name): pathlib.Path(folder)
+            for folder in folders}
 
 
 def placed_at(laid, low, high):
@@ -288,7 +331,7 @@ def game_layout(layout, planned, reports, checks):
         own["model"] = name
         own.pop("scored", None)
         pieces.append(own)
-        models.setdefault(name, {"glows": False})
+        models.setdefault(name, {"glows": False, "route": planned["models"][name]["route"]})
         glow = f"{name}_glow"
         if glow in made:
             part = placed_at(laid, *(np.asarray(corner) * stretch for corner in made[glow]["bounds"]))
@@ -303,7 +346,7 @@ def game_layout(layout, planned, reports, checks):
     for name, entry in planned["models"].items():
         if "prop" not in entry:
             continue
-        models[name] = {"glows": False, "prop": entry["prop"], "size": entry["size"]}
+        models[name] = {"glows": False, "route": entry["route"], "prop": entry["prop"], "size": entry["size"]}
         if f"{name}_glow" in made:
             models[f"{name}_glow"] = {"glows": True, "part_of": name}
     models[LIVE_SCREEN["name"]] = {"glows": True, "picture": None, "live": True, "size": LIVE_SCREEN["size"],

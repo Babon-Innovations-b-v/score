@@ -181,7 +181,7 @@
 				539
 			],
 			"name": "tall double locker",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "floor",
 			"size": [
 				1.2,

@@ -430,6 +430,10 @@
 			"lamp_lens": {
 				"token": "lamp",
 				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
 			}
 		},
 		"light": {

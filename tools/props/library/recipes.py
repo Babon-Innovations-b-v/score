@@ -172,6 +172,18 @@ def cast_metal(colour, dirt_colour, roughness, metal, bump, bump_size, dirt_reac
     return Channels(base, rough, metal, BLACK, relief)
 
 
+def wood(colour, dirt_colour, roughness, bump, bump_size, dirt_reach, dirt, seed):
+    """Plain timber: a flat colour with a soft relief stretched along the board, dirt in the cavities; its grain and
+    wear come from the piece's own picture (bake.Atlas.lay_picture), not from noise."""
+    vector = coordinates()
+    point = pf.nodes.math.separate_xyz(vector)
+    stretched = pf.nodes.math.combine_xyz(x=point.x, y=point.y * 0.08, z=point.z)
+    fibres = pf.nodes.texture.noise(vector=stretched, scale=1.0 / bump_size, detail=2.0, noise_dimensions="4D", w=seed)
+    relief = pf.nodes.shader.displacement(height=(fibres.fac - 0.5) * bump, midlevel=0.0)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    return Channels(base, rough, 0.0, BLACK, relief)
+
+
 def perforated_metal(colour, second, dirt_colour, roughness, metal, pitch, hole_share, dirt_reach, dirt, seed):
     """Perforated sheet: a square grid of round holes (dark, sunk) through painted or bare sheet."""
     vector = coordinates()
@@ -258,7 +270,7 @@ def printed(colour, roughness, image):
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
            "anodized": anodized, "rubber": rubber, "quilted": quilted, "composite": composite, "glass": glass,
-           "glowing": glowing, "screen": screen, "printed": printed}
+           "glowing": glowing, "screen": screen, "printed": printed, "wood": wood}
 # Where each recipe starts from, for the page and the paper (the coordinator, 2026-10-06).
 SOURCES = {
     "painted_metal": "infinigen2 paint.py (relief, BSD-3) + edgewear.py's bevel test (ported, new threshold band)"
@@ -276,6 +288,8 @@ SOURCES = {
     "glowing": "written new",
     "screen": "written new: dark glass, its content a picture lit from behind",
     "printed": "written new: a picture printed on a colour",
+    "wood": "written new (soft stretched-noise relief, flat colour) + the library's dirt; its grain comes from the "
+            "piece's picture layer",
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
@@ -293,6 +307,7 @@ PARTS = {
     "glowing": (glowing,),
     "screen": (screen, picture_on),
     "printed": (printed, picture_on),
+    "wood": (wood, coordinates, dirty_flat, dirt_mask),
 }
 COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 
