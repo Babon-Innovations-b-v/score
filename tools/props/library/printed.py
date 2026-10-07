@@ -22,7 +22,8 @@ FONT = library.REPO / "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf"
 # The margin a line keeps from its box's sides, in pixels.
 MARGIN = 36
 SIZES = {"status": (1024, 640), "readout": (1024, 512), "label": (1024, 256), "keypad": (512, 640),
-         "stencil": (512, 256), "notice": (1024, 768), "lens": (256, 32)}
+         "stencil": (512, 256), "notice": (1024, 768), "lens": (256, 32), "sheet": (768, 1024),
+         "plan": (1024, 704), "note": (512, 512)}
 
 
 def srgb(token):
@@ -151,15 +152,71 @@ def lens(spec, size):
     return picture
 
 
+def sheet(spec, size):
+    """One pinned sheet: a title and lines of small print (a table's rules when `table`) in ink on clear ground,
+    the paper the plate's own colour."""
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    ink = srgb(spec["ink"])
+    faint = ink[:3] + (150,)
+    width, height = size
+    centred(draw, (0, 40, width, 170), spec["title"], 96, ink)
+    draw.line((60, 190, width - 60, 190), fill=ink, width=6)
+    rows = spec["lines"]
+    step = (height - 260) / rows
+    for line in range(rows):
+        y = 240 + line * step
+        if spec.get("table"):
+            draw.line((60, y + step - 10, width - 60, y + step - 10), fill=faint, width=3)
+            draw.rectangle((80, y + 10, 80 + (width - 160) * (0.25 + (line * 13 % 20) / 100), y + 28), fill=faint)
+            draw.rectangle((width / 2 + 20, y + 10, width / 2 + 20 + (width / 2 - 100) * (0.4 + (line * 7 % 30) / 100),
+                            y + 28), fill=faint)
+        else:
+            draw.rectangle((80, y + 10, width - 80 - (line * 37 % 140), y + 28), fill=faint)
+    return picture
+
+
+def plan(spec, size):
+    """A plan sheet: a title and a simple floor plan (a ring of rooms round a hub) in ink lines."""
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    ink = srgb(spec["ink"])
+    width, height = size
+    centred(draw, (0, 20, width, 120), spec["title"], 72, ink)
+    middle = (width / 2, height / 2 + 50)
+    radius = min(width, height) * 0.28
+    draw.ellipse((middle[0] - radius, middle[1] - radius, middle[0] + radius, middle[1] + radius), outline=ink,
+                 width=6)
+    draw.ellipse((middle[0] - radius / 2, middle[1] - radius / 2, middle[0] + radius / 2, middle[1] + radius / 2),
+                 outline=ink, width=4)
+    for left, top, right, bottom in ((40, middle[1] - 50, middle[0] - radius, middle[1] + 50),
+                                     (middle[0] + radius, middle[1] - 50, width - 40, middle[1] + 50),
+                                     (middle[0] - 50, 130, middle[0] + 50, middle[1] - radius)):
+        draw.rectangle((left, top, right, bottom), outline=ink, width=5)
+    return picture
+
+
+def note(spec, size):
+    """A sticky note: a few short words in ink, on the plate's own colour."""
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    width, height = size
+    rows = spec["lines"]
+    for at, text in enumerate(rows):
+        top = 40 + at * (height - 80) / len(rows)
+        centred(draw, (0, top, width, top + (height - 80) / len(rows)), text, 110, srgb(spec["ink"]))
+    return picture
+
+
 STYLES = {"status": status, "notice": notice, "readout": readout, "label": label, "keypad": keypad, "stencil": stencil,
-          "lens": lens}
+          "lens": lens, "sheet": sheet, "plan": plan, "note": note}
 
 
 def main():
     library.PICTURES.mkdir(parents=True, exist_ok=True)
     wanted = sys.argv[1:]
     for name, spec in library.theme_library()["pictures"].items():
-        if wanted and name not in wanted:
+        if (wanted and name not in wanted) or spec["style"] not in STYLES:  # a "drawn" picture has a tool of its own
             continue
         STYLES[spec["style"]](spec, SIZES[spec["style"]]).save(library.PICTURES / f"{name}.png")
         print(name)

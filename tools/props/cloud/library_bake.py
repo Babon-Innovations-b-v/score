@@ -81,9 +81,7 @@ def remote_job(job, number):
         for entry in job["chunky"]:
             place = REMOTE / "in" / str(number) / entry["name"]
             sends.append((pathlib.Path(entry["parts"]), place))
-            # Its picture model (labels.py's picture.obj, with its .mtl and texture) goes with the parts.
-            picture = str(place / pathlib.Path(entry["picture"]).name) if entry.get("picture") else None
-            moved["chunky"].append(dict(entry, parts=str(place), picture=picture))
+            moved["chunky"].append(dict(entry, parts=str(place)))
     if "rows" in job:
         moved["rows"] = []
         for row_number, row in enumerate(job["rows"]):

@@ -10,8 +10,19 @@ guess from a piece's proportions: round three's proportion routing sent a tool b
 to code because their boxes were thin, and a hard-coded furniture table sent seven pieces of furniture to code with
 no check at all, and the room lost most of its detail (the detail-loss diagnosis, 2026-10-07).
 
-    code     a kind named in PLAIN (plates, pipes, trims)
+    code     a kind named in PLAIN (plates, pipes, trims), or a room fitting whose code build shows every part its
+             close-up has (method B, below)
     model    everything else
+
+Method B (hub round five, 2026-10-07, a test for the owner's pick: "we need a more robust method of deciding what to
+make in code and what via the prop pipeline"): a kind is routed by the job it does in the room. The room's shell and
+the fittings that repeat or join it (wall plates, the porthole's frame, door leaves and frames, vent covers,
+gratings, hatches, ducts, lamp housings, trims) are built in code with library surfaces, so every copy matches the
+room exactly; the objects that stand in the room (furniture, equipment, tools, machines) go through the pipeline. A
+fitting may go to code only if its code build shows every part its close-up has: data/library/fittings.json lists,
+per fitting, the parts its clean close-up shows and, from the last build (pieces.parts_seen, written back by
+`route.py fittings`), how much of each part the room can see. A part missing or under SEEN_AT LEAST fails the
+fitting, and a failing fitting goes to the pipeline.
 
 The shape class (flat, slender, opening, repeat, chunky) stays as a fact about a kind's box: it says how a model is
 made and judged (gates/model.py), never whether it is made.
@@ -42,6 +53,25 @@ PLAIN = frozenset((
 ))
 
 
+FITTINGS = pathlib.Path(__file__).resolve().parents[3] / "data/library/fittings.json"
+# The share of a part's front the room must see for the part to count as shown (a slat buried in its plate reads 0).
+SEEN_AT_LEAST = 0.1
+
+
+def fittings(path=FITTINGS):
+    """The room fittings method B may build in code: {name: {"closeup", "parts", "built"}}."""
+    return json.loads(pathlib.Path(path).read_text())["fittings"]
+
+
+def missing_parts(entry):
+    """The parts a fitting's close-up shows that its last code build does not (missing, or seen under
+    SEEN_AT_LEAST), and its prints that do not lie on a clear flat area (round six: never over a vent, a handle or
+    a tool; pieces.prints_off); every part when it was never built."""
+    built = entry.get("built") or {}
+    return ([part for part in entry["parts"] if built.get(part, 0.0) < SEEN_AT_LEAST]
+            + [f"print off a clear area: {off}" for off in entry.get("prints_off", [])])
+
+
 def own_name(kind):
     """A kind's name without its room's prefix (`hub_wall_lower_plain` -> `wall_lower_plain`); a bare name as it is."""
     return kind if kind in PLAIN else kind.split("_", 1)[-1]
@@ -66,9 +96,21 @@ def shape_class(kind, size):
     return "chunky"
 
 
-def route(kind):
-    """Where a kind is made: `code` for a plain kind on the allow-list, `model` (the prop pipeline) for every other."""
-    return "code" if own_name(kind) in PLAIN else "model"
+def planned_route(kind):
+    """Where a kind is planned to be made: `code` for a plain kind and for every listed fitting (its code build is
+    what its check reads; a fitting that then fails is held back by route.py's layout and goes to the pipeline),
+    `model` for every other."""
+    return "code" if own_name(kind) in PLAIN or kind.split("_", 1)[-1] in fittings() else "model"
+
+
+def route(kind, found=None):
+    """Where a kind is made: `code` for a plain kind on the allow-list or a room fitting whose code build shows every
+    part its close-up has (method B), `model` (the prop pipeline) for every other."""
+    name = own_name(kind)
+    if name in PLAIN:
+        return "code"
+    entry = (fittings() if found is None else found).get(kind.split("_", 1)[-1])
+    return "code" if entry is not None and not missing_parts(entry) else "model"
 
 
 # Fittings that belong in a floor or a wall (vents, grates, drains, hatches, mats, light strips) are set into their host

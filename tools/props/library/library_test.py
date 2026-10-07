@@ -74,23 +74,63 @@ def test_every_generated_kind_has_a_turn_and_its_screens_and_cuts_are_sound():
         assert all(len(cut.get("box", cut.get("circle", []))) in (3, 4) for cut in entry["cuts"]), kind
 
 
-def test_only_plain_plates_pipes_and_trims_go_to_code():
+def test_plain_pieces_go_to_code_and_objects_in_the_room_to_the_pipeline():
     assert sorter.route("hub_wall_upper_plain") == sorter.route("hub_pipe_straight") == "code"
     assert sorter.route("hub_wall_skirting") == sorter.route("hub_lattice_hip_rib") == "code"
-    # Thin, open or small is no reason for code (the owner, 2026-10-07): a toolboard's box is flat, a hinge small.
-    for kind in ("hub_toolboard", "hub_talllocker", "hub_hatch_hinge", "hub_hatch_wheel", "hub_notice_board",
-                 "hub_floor_grating", "hub_wall_lower_vent", "hub_pipe_valve"):
+    # A box's shape is no reason for code (the owner, 2026-10-07). Objects with no code build that shows their parts
+    # (round six: a chair, a desk lamp, the hand tools) go through the pipeline; holders and plain manufactured
+    # objects whose build shows every close-up part (a tool board, the lockers) are code.
+    for kind in ("hub_chair", "hub_desklamp", "hub_telephone", "hub_microscope", "hub_wrench", "hub_pliers"):
         assert sorter.route(kind) == "model", kind
+    for kind in ("hub_toolboard", "hub_talllocker", "hub_comms", "hub_console"):
+        assert sorter.route(kind) == "code", kind
     assert sorter.shape_class("hub_lattice_hip_rib", (0.12, 4.6, 0.12)) == "slender"
     assert sorter.shape_class("hub_porthole_panel", (1.2, 1.2, 0.1)) == "opening"
 
 
+def test_a_fitting_goes_to_code_only_when_its_build_shows_every_close_up_part():
+    """Method B's rule (hub round five): a room fitting is built in code only when its last code build shows every
+    part its close-up has, each seen at least SEEN_AT_LEAST from in front; a part buried in its plate (round three's
+    vent slats, seen 0.0) or missing sends the fitting to the pipeline, and so does a fitting never built."""
+    parts = ["slab", "slat", "vent_back"]
+    shown = {"wall_lower_vent": {"parts": parts, "built": {"slab": 0.86, "slat": 1.0, "vent_back": 0.85}}}
+    buried = {"wall_lower_vent": {"parts": parts, "built": {"slab": 0.33, "slat": 0.0, "vent_back": 0.0}}}
+    missing = {"wall_lower_vent": {"parts": parts, "built": {"slab": 0.9, "slat": 1.0}}}
+    unbuilt = {"wall_lower_vent": {"parts": parts}}
+    assert sorter.route("hub_wall_lower_vent", shown) == "code"
+    for found in (buried, missing, unbuilt):
+        assert sorter.route("hub_wall_lower_vent", found) == "model"
+    assert sorter.missing_parts(buried["wall_lower_vent"]) == ["slat", "vent_back"]
+    # A print over a part (round six: a locker's label over its vent) fails the fitting too.
+    over = {"wall_lower_vent": dict(shown["wall_lower_vent"], prints_off=["wall_lower_vent_1: label#52"])}
+    assert sorter.route("hub_wall_lower_vent", over) == "model"
+    # Only a fitting may pass: furniture listed by mistake still has no close-up parts to pass on.
+    assert sorter.route("hub_toolboard", {}) == "model"
+
+
+def test_no_generated_piece_keeps_its_picture_s_colours():
+    """Method B: the pipeline gives shape only; a generated piece's job never carries its picture model, so no piece
+    brings its own rust, stains or streaks (round four's picture layer). Read from route.py's text: this check runs
+    with the system python, which has no numpy to import the route with."""
+    text = (HERE / "route.py").read_text()
+    jobs = text[text.index("def jobs("):text.index("def middle_high(")]
+    assert '"picture"' not in jobs and "picture.obj" not in jobs
+
+
+def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
+    text = (HERE / "inside/pieces.py").read_text()
+    for name, entry in sorter.fittings().items():
+        assert entry["closeup"] and entry["parts"], name
+        assert f"def {name}(size, laid):" in text, name
+
+
 def test_every_code_builder_is_on_the_allow_list():
-    """pieces.py builds only plain kinds: a builder for anything else is a piece made by hand from a sentence."""
+    """pieces.py builds only plain kinds and method B's room fittings: a builder for anything else is a piece made
+    by hand from a sentence."""
     text = (HERE / "inside/pieces.py").read_text()
     names = re.findall(r'"(\w+)"', text[text.index("BUILDERS = "):text.index("def build(")])
-    off = sorted(name for name in names if name not in sorter.PLAIN)
-    assert not off, f"code builders for kinds that are not plain plates, pipes or trims: {', '.join(off)}"
+    off = sorted(name for name in names if name not in sorter.PLAIN and name not in sorter.fittings())
+    assert not off, f"code builders for kinds that are not plain plates, pipes, trims or fittings: {', '.join(off)}"
 
 
 def test_every_model_the_hub_lays_was_made_on_its_kind_s_route():

@@ -16,14 +16,23 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   base materials (BSD-3); their colour noise is left out on purpose: the ink look draws flat colour by region. Wear
   reads the true geometry (the bevel test) and the noise only scales it, so a flat face never wears.
 - **Screens and lamp lenses glow as plates of their own** (`data/library/details.json` `screens`, pictures drawn by
-  `printed.py` into `data/library/pictures`), laid by `route.py` on a generated piece's front. Labels, keypads and
-  screws come with the piece's picture (round four); nothing is printed on a code-built part any more.
-- **Generated pieces** (`data/library/details.json`: each kind's `turn`, `screens` and `cuts`): `inside/make_chunky.py`
-  turns a labelled Pixal3D model into the kit frame at its laid size, closes a copy into a solid (thickened 5 mm
-  inward, rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which the model check fails), cuts
-  it to 20k triangles, cuts its openings (a doorway, a porthole: a single picture's model fills them in), bakes the
-  library from the full model onto it (its shape relief kept in the normal map) and lays the picture's detail over
-  it. `picture_check.py` predicts that colour before any bake and fails shade come through.
+  `printed.py` into `data/library/pictures`), laid by `route.py` on a generated piece's front, or a code-built
+  piece's own glass (make_kit splits glowing slots off).
+- **Generated pieces** (`data/library/details.json`: each kind's `turn`, `screens`, `cuts`, `decals` and whether it is
+  `square`): `inside/make_chunky.py` turns a labelled Pixal3D model into the kit frame at its laid size, closes a copy
+  into a solid (thickened 5 mm inward, rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which
+  the model check fails), cuts it to 20k triangles, cuts its openings, lays its decals on clear flat spots
+  (`clear_spot`) and bakes the library from the full model onto it (its shape relief kept in the normal map). The
+  picture's colours never reach it (method B; round four's picture layer gave every piece its own rust and stains,
+  "inconsistent with the rest of the room", and is gone). `straight.py` fails a `square` kind that comes out tilted or
+  warped (round four's locker leant 13 degrees).
+- **Print is decals placed by rule** (round six): labels, sheets, notes and stickers are printed plates (print
+  family) placed on purpose, a few a piece, never over a vent, a handle or a tool: `pieces.prints_off` probes the
+  face under every print on a code-built piece, `make_chunky.clear_spot` finds a clear flat spot on a generated one.
+- **Composites are split, one model per real-world object** (round six): `data/library/composites.json` lists a
+  parent kind's children (each its own kind: a tool, a radio, a monitor) and where each stands on the parent; the
+  inventory has a row per child (`anchor: on:<parent>`). `route.py` plans each child like any kind and writes it
+  into the parent's prop scene, their glowing parts under one `Glow` node.
 - **`route.py` runs the route for a whole room** (round three, 2026-10-06): `plan` (one model per kind and size, the
   cloud jobs), `layout` (the game's layout over the made models, a failing generated model left out), `install`
   (models, BC7 picture imports, kinds' scenes, data/kit). A piece's glowing parts (screen content, lamp lenses) are
@@ -37,20 +46,22 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
 - **Never split a raw Pixal3D model into per-piece objects.** trimesh's `split` on a 950k-face raw model took
   43.5 GB and took WSL down (2026-10-06). Sample points (`register.py`). Every local Python step runs under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
-- **Code builds only plain plates, pipes and trims** (the owner, 2026-10-07). `sorter.py` is an allow-list
-  (`PLAIN`): a kind on it goes to `inside/pieces.py`, every other kind (furniture included) to the prop pipeline. A
-  box's proportions never decide it, and no table may send a kind to code past the sorter. A kind joins `PLAIN`
-  only by the owner's word. `library_test.py` fails on a builder off the list and on any model the hub lays that was
-  not made on its kind's route. `labels.py` gives a generated model's faces library variants from its clean
-  picture, or per part from a splitter's parts (`../cloud/parts.py`), and writes the finished model as
-  `picture.obj` beside them.
-- **The picture's own detail is laid over the library** (round four): `bake.Atlas.lay_picture` bakes the picture
-  model onto the piece, and `inside/detail_layer.py` blends it in. Where the picture differs from its region's usual
-  colour (labels, notes, rust, the tools' own colours), the picture shows. Elsewhere the library colour stays, with
-  the picture's lightness for wear and grain. This is a masked blend, not decals: no cut-out or placing step, and it
-  works on curved parts.
+- **Code or pipeline, by the parts check (method B, the owner's pick 2026-10-07).** `sorter.py`: plain plates,
+  pipes and trims (`PLAIN`) go to `inside/pieces.py`; so does every kind listed in `data/library/fittings.json` (the
+  room's shell and fittings, furniture holders, plain manufactured objects) whose last code build shows every part
+  its clean close-up shows (`pieces.parts_seen`, each part seen at least 10% from in front) with no print over a part;
+  every other kind goes to the prop pipeline. A box's proportions never decide it. `route.py fittings <work>` writes a
+  build's result back; `route.py layout` stops on a code build that failed. `library_test.py` fails on a builder
+  that is neither plain nor a listed fitting, and on any model the hub lays that was not made on its kind's route.
+  `labels.py` gives a generated model's faces library variants from its clean picture, or per part from a
+  splitter's parts (`../cloud/parts.py`).
+- **One wear for the room, from a cause:** a place's wear level (`place.json`), the bevel test on edges, and kick
+  wear (`recipes.kick_mask`) within 32 cm over the floor a piece stands on (`foot`, route.py). `sweep.py` checks a
+  room's made models against its own library palette.
+- **Storage:** `stored.py` keeps a room's pictures as WebP and stops an install past the room budget (modules batch
+  one).
 - **A shared picture set never silently loses density**: `bake.Atlas` stops past the 4096 side, and `route.py`
   splits a set by its boxes' seen area before the bake.
 - `tune.py`: relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high); matched freely, it crinkles every
   paint into photo grain.
-- Checks: `library_test.py` (system python), `detail_layer_test.py` (hands itself to the prop environment).
+- Checks: `library_test.py` (system python), `straight_test.py` (hands itself to the prop environment).

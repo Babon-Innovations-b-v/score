@@ -754,6 +754,208 @@
 					"recipe": "printed",
 					"token": "sign-white",
 					"picture": "label_airlock"
+				},
+				"label_pressure_door": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pressure_door"
+				},
+				"label_check_seal": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "label_check_seal"
+				},
+				"label_air_return": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_air_return"
+				},
+				"label_locker_a": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_locker_a"
+				},
+				"label_locker_b": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_locker_b"
+				},
+				"label_comms": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_comms"
+				},
+				"label_radio": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_radio"
+				},
+				"label_operations": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_operations"
+				},
+				"label_main_bus": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "label_main_bus"
+				},
+				"label_sign_out": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sign_out"
+				},
+				"sheet_eva": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_eva",
+					"roughness": 0.85
+				},
+				"sheet_roster": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_roster",
+					"roughness": 0.85
+				},
+				"sheet_log": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_log",
+					"roughness": 0.85
+				},
+				"sheet_plan": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_plan",
+					"roughness": 0.85
+				},
+				"sheet_spares": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_spares",
+					"roughness": 0.85
+				},
+				"note_filter": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_filter",
+					"roughness": 0.9
+				},
+				"note_link": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_link",
+					"roughness": 0.9
+				},
+				"note_channel": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_channel",
+					"roughness": 0.9
+				},
+				"stencil_keep_clear": {
+					"recipe": "printed",
+					"token": "cabin-panel",
+					"picture": "stencil_keep_clear",
+					"roughness": 0.6
+				},
+				"stencil_service_panel": {
+					"recipe": "printed",
+					"token": "cabin-panel",
+					"picture": "stencil_service_panel",
+					"roughness": 0.6
+				},
+				"label_cable_run": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_cable_run"
+				},
+				"label_caution_hot": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "label_caution_hot"
+				},
+				"label_storage_a": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_storage_a"
+				},
+				"label_life_support": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_life_support"
+				},
+				"label_air": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_air"
+				},
+				"label_power": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_power"
+				},
+				"label_water": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_water"
+				},
+				"label_handset": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_handset"
+				},
+				"label_temp": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_temp"
+				},
+				"label_control_box": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_control_box"
+				},
+				"label_circuit": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_circuit"
+				},
+				"sheet_main_box": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_main_box",
+					"roughness": 0.85
+				},
+				"label_junction": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_junction"
+				},
+				"label_samples": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_samples"
+				},
+				"label_tools": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_tools"
+				},
+				"label_glovebox": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_glovebox"
+				},
+				"label_waste": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_waste"
+				},
+				"toolboard_outlines": {
+					"recipe": "printed",
+					"token": "board-wood",
+					"picture": "toolboard_outlines",
+					"roughness": 0.8
 				}
 			}
 		},
@@ -891,6 +1093,211 @@
 		"lamp_strip": {
 			"style": "lens",
 			"ink": "lamp"
+		},
+		"label_pressure_door": {
+			"style": "label",
+			"text": "PRESSURE DOOR",
+			"ink": "ink-line"
+		},
+		"label_check_seal": {
+			"style": "label",
+			"text": "CHECK SEAL",
+			"ink": "ink-line"
+		},
+		"label_air_return": {
+			"style": "label",
+			"text": "AIR RETURN",
+			"ink": "ink-line"
+		},
+		"label_locker_a": {
+			"style": "label",
+			"text": "LOCKER A",
+			"ink": "ink-line"
+		},
+		"label_locker_b": {
+			"style": "label",
+			"text": "LOCKER B",
+			"ink": "ink-line"
+		},
+		"label_comms": {
+			"style": "label",
+			"text": "COMMS",
+			"ink": "ink-line"
+		},
+		"label_radio": {
+			"style": "label",
+			"text": "RADIO 1",
+			"ink": "ink-line"
+		},
+		"label_operations": {
+			"style": "label",
+			"text": "OPERATIONS",
+			"ink": "ink-line"
+		},
+		"label_main_bus": {
+			"style": "label",
+			"text": "MAIN BUS 2",
+			"ink": "ink-line"
+		},
+		"label_sign_out": {
+			"style": "label",
+			"text": "SIGN TOOLS OUT",
+			"ink": "ink-line"
+		},
+		"sheet_eva": {
+			"style": "sheet",
+			"title": "BEFORE EVA",
+			"lines": 7,
+			"ink": "ink-line"
+		},
+		"sheet_roster": {
+			"style": "sheet",
+			"title": "DUTY ROSTER",
+			"lines": 8,
+			"ink": "ink-line",
+			"table": true
+		},
+		"sheet_log": {
+			"style": "sheet",
+			"title": "PRESSURE LOG",
+			"lines": 8,
+			"ink": "ink-line",
+			"table": true
+		},
+		"sheet_plan": {
+			"style": "plan",
+			"title": "HUB LEVEL 1",
+			"ink": "ink-line"
+		},
+		"sheet_spares": {
+			"style": "sheet",
+			"title": "SUIT SPARES",
+			"lines": 5,
+			"ink": "ink-line"
+		},
+		"note_filter": {
+			"style": "note",
+			"lines": [
+				"CO2 FILTER",
+				"DUE SOL 14"
+			],
+			"ink": "ink-line"
+		},
+		"note_link": {
+			"style": "note",
+			"lines": [
+				"EARTH LINK",
+				"06:00"
+			],
+			"ink": "ink-line"
+		},
+		"note_channel": {
+			"style": "note",
+			"lines": [
+				"MISSION",
+				"CH 2"
+			],
+			"ink": "ink-line"
+		},
+		"stencil_keep_clear": {
+			"style": "stencil",
+			"text": "KEEP CLEAR",
+			"ink": "hull-trim"
+		},
+		"stencil_service_panel": {
+			"style": "stencil",
+			"text": "SERVICE PANEL",
+			"ink": "hull-trim"
+		},
+		"label_cable_run": {
+			"style": "label",
+			"text": "CABLE RUN B",
+			"ink": "ink-line"
+		},
+		"label_caution_hot": {
+			"style": "label",
+			"text": "CAUTION HOT PIPE",
+			"ink": "ink-line"
+		},
+		"label_storage_a": {
+			"style": "label",
+			"text": "STORAGE A",
+			"ink": "ink-line"
+		},
+		"label_life_support": {
+			"style": "label",
+			"text": "LIFE SUPPORT",
+			"ink": "ink-line"
+		},
+		"label_air": {
+			"style": "label",
+			"text": "AIR",
+			"ink": "ink-line"
+		},
+		"label_power": {
+			"style": "label",
+			"text": "POWER",
+			"ink": "ink-line"
+		},
+		"label_water": {
+			"style": "label",
+			"text": "WATER",
+			"ink": "ink-line"
+		},
+		"label_handset": {
+			"style": "label",
+			"text": "HANDSET PORT",
+			"ink": "ink-line"
+		},
+		"label_temp": {
+			"style": "label",
+			"text": "TEMP",
+			"ink": "ink-line"
+		},
+		"label_control_box": {
+			"style": "label",
+			"text": "CONTROL BOX",
+			"ink": "ink-line"
+		},
+		"label_circuit": {
+			"style": "label",
+			"text": "CIRCUIT 4",
+			"ink": "ink-line"
+		},
+		"sheet_main_box": {
+			"style": "sheet",
+			"title": "MAIN BOX",
+			"lines": 4,
+			"ink": "ink-line"
+		},
+		"label_junction": {
+			"style": "label",
+			"text": "JUNCTION BOX J2",
+			"ink": "ink-line"
+		},
+		"label_samples": {
+			"style": "label",
+			"text": "SAMPLES",
+			"ink": "ink-line"
+		},
+		"label_tools": {
+			"style": "label",
+			"text": "TOOLS",
+			"ink": "ink-line"
+		},
+		"label_glovebox": {
+			"style": "label",
+			"text": "GLOVEBOX",
+			"ink": "ink-line"
+		},
+		"label_waste": {
+			"style": "label",
+			"text": "WASTE",
+			"ink": "ink-line"
+		},
+		"toolboard_outlines": {
+			"style": "drawn",
+			"from": "the toolboard's own tools (round six)"
 		}
 	}
 }

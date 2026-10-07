@@ -1,6 +1,7 @@
 """Runs inside Blender (on a rented machine, cloud/library_bake.py): pictures of made pieces side by side, for a page.
 
-The job: {"out", "size", "samples", "rows": [{"name", "models": [.glb paths]}]}. Each row's models stand side by
+The job: {"out", "size", "samples", "rows": [{"name", "models": [.glb paths]}], optional "frame_depth", "distance" and "gap"
+(the framed depth and how far the camera stands, as camera_on takes it: small pieces up close)}. Each row's models stand side by
 side in one frame, lit as the swatches are, seen three-quarter from the front; writes <out>/<name>.png. Used to lay
 one piece made for two places (the same library, each place's own tokens) or two routes' pieces next to each other.
 """
@@ -48,14 +49,14 @@ def main():
         # Seen from in front (Blender +y), the first model stands on the right: they are laid right to left.
         for path in reversed(row["models"]):
             wide, tall = stood(path, offset)
-            offset += wide + GAP
+            offset += wide + job.get("gap", GAP)
             tallest = max(tallest, tall)
         bpy.ops.mesh.primitive_cube_add(size=1.0)
         frame = bpy.context.object
-        frame.dimensions = (offset, 0.3, tallest)
+        frame.dimensions = (offset, job.get("frame_depth", 0.3), tallest)
         frame.location = (offset / 2, 0.0, tallest / 2)
         bpy.context.view_layer.update()
-        scene_setup.camera_on(frame, (0.3, 1.0, 0.3), 3.2, lens=50)
+        scene_setup.camera_on(frame, (0.3, 1.0, 0.3), job.get("distance", 3.2), lens=50)
         bpy.data.objects.remove(frame, do_unlink=True)
         scene_setup.studio_light()
         bpy.context.scene.render.filepath = str(out / f"{row['name']}.png")

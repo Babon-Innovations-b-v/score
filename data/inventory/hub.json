@@ -1771,6 +1771,305 @@
 			"thing": "prop:hub_waste_bin",
 			"group": "kit: dressing",
 			"made": "kit piece"
+		},
+		{
+			"id": "radio",
+			"view": "v5",
+			"box": [
+				1120,
+				331,
+				1440,
+				651
+			],
+			"name": "field radio set with its handset on the side",
+			"kind": "code",
+			"anchor": "on:comms",
+			"size": [
+				0.46,
+				0.26,
+				0.3
+			],
+			"count": 2,
+			"thing": "prop:hub_radio",
+			"parent": "comms",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "telephone",
+			"view": "v5",
+			"box": [
+				1120,
+				331,
+				1440,
+				651
+			],
+			"name": "black rotary desk telephone",
+			"kind": "generate",
+			"anchor": "on:comms",
+			"size": [
+				0.22,
+				0.24,
+				0.13
+			],
+			"count": 1,
+			"thing": "prop:hub_telephone",
+			"parent": "comms",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "desklamp",
+			"view": "v5",
+			"box": [
+				1120,
+				331,
+				1440,
+				651
+			],
+			"name": "angled desk lamp",
+			"kind": "generate",
+			"anchor": "on:comms",
+			"size": [
+				0.32,
+				0.22,
+				0.52
+			],
+			"count": 1,
+			"thing": "prop:hub_desklamp",
+			"parent": "comms",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "headset",
+			"view": "v5",
+			"box": [
+				1120,
+				331,
+				1440,
+				651
+			],
+			"name": "headset on its wall hook",
+			"kind": "generate",
+			"anchor": "on:comms",
+			"size": [
+				0.2,
+				0.1,
+				0.27
+			],
+			"count": 1,
+			"thing": "prop:hub_headset",
+			"parent": "comms",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "monitor",
+			"view": "v4",
+			"box": [
+				960,
+				539,
+				1280,
+				859
+			],
+			"name": "console monitor on its stand",
+			"kind": "code",
+			"anchor": "on:console",
+			"size": [
+				0.5,
+				0.2,
+				0.46
+			],
+			"count": 5,
+			"thing": "prop:hub_monitor",
+			"parent": "console",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "keyboard",
+			"view": "v4",
+			"box": [
+				960,
+				539,
+				1280,
+				859
+			],
+			"name": "console keyboard",
+			"kind": "code",
+			"anchor": "on:console",
+			"size": [
+				0.46,
+				0.17,
+				0.035
+			],
+			"count": 2,
+			"thing": "prop:hub_keyboard",
+			"parent": "console",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "glovebox",
+			"view": "v3",
+			"box": [
+				880,
+				352,
+				1200,
+				672
+			],
+			"name": "glovebox with a sloped window and two glove ports",
+			"kind": "code",
+			"anchor": "on:labbench",
+			"size": [
+				0.9,
+				0.62,
+				0.72
+			],
+			"count": 1,
+			"thing": "prop:hub_glovebox",
+			"parent": "labbench",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "microscope",
+			"view": "v3",
+			"box": [
+				880,
+				352,
+				1200,
+				672
+			],
+			"name": "lab microscope with its side screen",
+			"kind": "generate",
+			"anchor": "on:labbench",
+			"size": [
+				0.3,
+				0.26,
+				0.42
+			],
+			"count": 1,
+			"thing": "prop:hub_microscope",
+			"parent": "labbench",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "wrench",
+			"view": "v1",
+			"box": [
+				1016,
+				232,
+				1336,
+				552
+			],
+			"name": "open-end wrench",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.06,
+				0.012,
+				0.22
+			],
+			"count": 10,
+			"thing": "prop:hub_wrench",
+			"parent": "toolboard",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "hammer",
+			"view": "v1",
+			"box": [
+				1016,
+				232,
+				1336,
+				552
+			],
+			"name": "claw hammer",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.12,
+				0.03,
+				0.32
+			],
+			"count": 3,
+			"thing": "prop:hub_hammer",
+			"parent": "toolboard",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "pump_pliers",
+			"view": "v1",
+			"box": [
+				1016,
+				232,
+				1336,
+				552
+			],
+			"name": "water pump pliers",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.07,
+				0.02,
+				0.25
+			],
+			"count": 1,
+			"thing": "prop:hub_pump_pliers",
+			"parent": "toolboard",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "pliers",
+			"view": "v1",
+			"box": [
+				1016,
+				232,
+				1336,
+				552
+			],
+			"name": "combination pliers",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.07,
+				0.02,
+				0.2
+			],
+			"count": 6,
+			"thing": "prop:hub_pliers",
+			"parent": "toolboard",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "screwdriver",
+			"view": "v1",
+			"box": [
+				1016,
+				232,
+				1336,
+				552
+			],
+			"name": "flat screwdriver",
+			"kind": "code",
+			"anchor": "on:toolboard",
+			"size": [
+				0.03,
+				0.03,
+				0.22
+			],
+			"count": 5,
+			"thing": "prop:hub_screwdriver",
+			"parent": "toolboard",
+			"made": "made by the route",
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
 		}
 	]
 }

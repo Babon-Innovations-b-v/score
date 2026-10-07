@@ -5,7 +5,6 @@ metal, normal), several pieces into one shared set of pictures, and write each p
     atlas = bake.Atlas("hub_slice", [piece, ...], density=512)        # every piece's UVs packed into one square
     atlas.bake_self(piece, specs, wear, dirt, seed)                    # a code-built piece's own surfaces
     atlas.bake_from(high, low, specs, wear, dirt, seed, reach)         # a generated piece, from its full model
-    atlas.lay_picture(picture, high, low, reach)                       # its picture's own detail over that
     atlas.finish(); atlas.export(piece, folder)
 
 Texture memory (the owner, round two: share textures between pieces, size them per piece): the pieces of one job
@@ -26,10 +25,12 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
-import detail_layer
 import recipes
 
 LARGEST = 4096
+# A shared set a little past the cap (round six: a set planned by its boxes held 9.8 m2, 1% over) takes the density
+# that fits and reports it, as a single piece does; further past, it stops.
+CAP_SLACK = 1.15
 SMALLEST = 256
 # How much of the square a packed UV layout fills, to size the pictures for a texel density.
 UV_FILL = 0.6
@@ -37,11 +38,12 @@ HIDDEN_SHARE = 0.05
 # How many times the texel density a printed or screen part's faces get (labels, keypads, notices, screen content):
 # read up close, they came out soft at the room's density (the owner, 2026-10-06).
 SHARP_SCALE = 3.0
+# Only a set drawn near the player gets its print sharp (round six: the high status display's screen alone, at three
+# times a far set's density, needed a 4096 picture set and put the hub past its room budget).
+SHARP_FROM = 1024
 # The library families whose parts are drawn sharp.
 SHARP_FAMILIES = ("print", "screen")
 MARGIN_PIXELS = 3
-# A material slot's mark in the slot bake (lay_picture): slot n gives off (n + 1) times this in red, nothing is 0.
-SLOT_STEP = 1 / 64
 
 
 def hidden_faces(item):
@@ -178,38 +180,6 @@ def select_for_bake(selected, active):
     bpy.context.view_layer.objects.active = active
 
 
-def shown_material(item):
-    """A material that gives off the picture `item` carries (its first image texture), for baking it as it is."""
-    image = next(node.image for material in item.data.materials if material and material.use_nodes
-                 for node in material.node_tree.nodes if node.type == "TEX_IMAGE" and node.image)
-    material = bpy.data.materials.new(f"{item.name}_shown")
-    material.use_nodes = True
-    nodes, links = material.node_tree.nodes, material.node_tree.links
-    nodes.clear()
-    texture = nodes.new("ShaderNodeTexImage")
-    texture.image = image
-    glow = nodes.new("ShaderNodeEmission")
-    out = nodes.new("ShaderNodeOutputMaterial")
-    links.new(texture.outputs["Color"], glow.inputs["Color"])
-    links.new(glow.outputs["Emission"], out.inputs["Surface"])
-    return material
-
-
-def pixels_of(image):
-    """An image's pixels as an (h, w, 4) array, as stored (a byte sRGB image's values stay sRGB-encoded)."""
-    found = np.empty(len(image.pixels), dtype=np.float32)
-    image.pixels.foreach_get(found)
-    return found.reshape(image.size[1], image.size[0], 4).astype(np.float64)
-
-
-def set_pixels(image, rgb):
-    """An image's colour set from an (h, w, 3) array, alpha 1."""
-    found = np.ones((image.size[1], image.size[0], 4), dtype=np.float32)
-    found[..., :3] = rgb
-    image.pixels.foreach_set(found.ravel())
-    image.update()
-
-
 CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 
 
@@ -218,15 +188,17 @@ class Atlas:
 
     def __init__(self, name, items, density, specs=None, one_piece=False):
         """`one_piece`: the set is a single generated piece, which cannot be split: past the cap it takes the density
-        that fits and says so (`self.capped`, which make_chunky reports); a shared set past the cap stops."""
+        that fits and says so (`self.capped`, which make_chunky reports); a shared set too, up to CAP_SLACK past the cap;
+        further past, it stops."""
         self.name = name
-        sharp = {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES}
+        sharp = {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES} \
+            if density >= SHARP_FROM else set()
         for item in items:
             unwrap(item)
         area = visible_area(items, sharp)
         wanted = math.sqrt(area / UV_FILL) * density
         self.capped = None
-        if wanted > LARGEST and one_piece:
+        if wanted > LARGEST and (one_piece or wanted <= LARGEST * CAP_SLACK):
             self.capped = round(density * LARGEST / wanted)
             print(f"CAPPED {name}: {area:.1f} m2 holds {self.capped} texels a metre of the {density} asked", flush=True)
             wanted = LARGEST
@@ -249,9 +221,10 @@ class Atlas:
                             **across)
         self.first[channel] = False
 
-    def bake_self(self, item, specs, wear, dirt, seed):
-        """A piece's own surfaces, each slot's recipe, into the shared pictures."""
-        found_by_slot = [recipes.channels(specs[name], wear, dirt, seed) for name in slot_names(item)]
+    def bake_self(self, item, specs, wear, dirt, seed, foot=None):
+        """A piece's own surfaces, each slot's recipe, into the shared pictures; `foot`: how high its foot stands
+        over its floor (the kick wear's)."""
+        found_by_slot = [recipes.channels(specs[name], wear, dirt, seed, foot) for name in slot_names(item)]
         select_for_bake([item], item)
         for channel, _ in CHANNELS:
             for index, material in enumerate(channel_materials(found_by_slot, channel)):
@@ -261,10 +234,10 @@ class Atlas:
             item.data.materials[index] = with_target(material, self.pictures["normal"])
         self._bake("normal", "NORMAL")
 
-    def bake_from(self, high, low, specs, wear, dirt, seed, reach):
+    def bake_from(self, high, low, specs, wear, dirt, seed, reach, foot=None):
         """A generated piece: its library materials worked out on the full-detail model `high` (so wear follows its
         real edges) and baked onto `low`'s place in the shared pictures."""
-        found_by_slot = [recipes.channels(specs[name], wear, dirt, seed) for name in slot_names(high)]
+        found_by_slot = [recipes.channels(specs[name], wear, dirt, seed, foot) for name in slot_names(high)]
         target = bpy.data.materials.get("bake_target") or bpy.data.materials.new("bake_target")
         target.use_nodes = True
         low.data.materials.clear()
@@ -280,61 +253,6 @@ class Atlas:
             high.data.materials[index] = material
         with_target(target, self.pictures["normal"])
         self._bake("normal", "NORMAL", **across)
-
-    def lay_picture(self, picture, high, low, reach):
-        """A generated piece's picture detail (detail_layer.py) over what bake_from baked onto `low`: the picture
-        model's own colour and where its camera looked (its `seen` material, labels.py), the full model's material
-        slots and `low`'s facing, each baked onto `low`'s place in the pictures, then blended into the base colour,
-        roughness and metal. The share the detail took over."""
-        side = self.pictures["base_color"].size[0]
-        slots = len(high.data.materials)
-        target = bpy.data.materials.get("bake_target")
-        across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
-        baked = {}
-        marks = [recipes.emitted((0.0 if material.name.startswith("unseen") else 1.0, 0.0, 0.0)).item()
-                 for material in picture.data.materials]
-        shown = shown_material(picture)
-        for name, source, materials, extra in (
-                ("seen", picture, marks, across),
-                ("picture", picture, [shown] * len(marks), across),
-                ("slot", high, [recipes.emitted(((index + 1) * SLOT_STEP, 0.0, 0.0)).item() for index in range(slots)],
-                 across)):
-            image = bpy.data.images.new(f"{self.name}_{name}", side, side, alpha=False, float_buffer=True)
-            image.colorspace_settings.name = "Non-Color"
-            for index, material in enumerate(materials):
-                source.data.materials[index] = material
-            with_target(target, image)
-            select_for_bake([source, low], low)
-            bpy.ops.object.bake(type="EMIT", margin=MARGIN_PIXELS, use_clear=True, **extra)
-            baked[name] = pixels_of(image)
-        facing = bpy.data.images.new(f"{self.name}_facing", side, side, alpha=False, float_buffer=True)
-        facing.colorspace_settings.name = "Non-Color"
-        with_target(target, facing)
-        select_for_bake([low], low)
-        bpy.ops.object.bake(type="NORMAL", margin=MARGIN_PIXELS, use_clear=True, normal_space="OBJECT")
-        slot_index = np.rint(baked["slot"][..., 0] / SLOT_STEP).astype(int) - 1
-        covered = slot_index >= 0
-        normals = pixels_of(facing)[..., :3] * 2.0 - 1.0
-        colour, rough, metal, share = detail_layer.laid(
-            pixels_of(self.pictures["base_color"])[..., :3], pixels_of(self.pictures["roughness"])[..., 0],
-            pixels_of(self.pictures["metallic"])[..., 0], detail_layer.encoded(baked["picture"][..., :3]),
-            np.maximum(slot_index, 0), normals, covered, baked["seen"][..., 0] > 0.5)
-        set_pixels(self.pictures["base_color"], colour)
-        set_pixels(self.pictures["roughness"], np.repeat(rough[..., None], 3, -1))
-        set_pixels(self.pictures["metallic"], np.repeat(metal[..., None], 3, -1))
-        self.calm_unseen(baked["seen"][..., 0] > 0.5, covered)
-        return share
-
-    def calm_unseen(self, seen, covered):
-        """The normal map's relief where the picture's camera never looked, cut to detail_layer.UNSEEN_RELIEF: Pixal3D
-        guessed the shape there, and its guesses baked as a comb of dark notches down the locker's side
-        (2026-10-07)."""
-        normal = pixels_of(self.pictures["normal"])[..., :3]
-        scale = normal.shape[0] // seen.shape[0]
-        calm = np.repeat(np.repeat(covered & ~seen, scale, 0), scale, 1)
-        flat = np.array([0.5, 0.5, 1.0])
-        normal[calm] = flat + (normal[calm] - flat) * detail_layer.UNSEEN_RELIEF
-        set_pixels(self.pictures["normal"], normal)
 
     def finish(self):
         """glTF's metal-roughness picture from the baked roughness and metal: roughness in green, metal in blue."""

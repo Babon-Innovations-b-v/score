@@ -5,6 +5,7 @@ way end to end, as the route would run for a new room).
     $python tools/props/library/route.py plan <kit layout> <work>       # models to make, and the cloud jobs
     $python tools/props/library/route.py layout <kit layout> <work>     # the game's layout over the made models
     $python tools/props/library/route.py install <work> <room>          # the made models into the game
+    $python tools/props/library/route.py fittings <work>                # method B's check: the fittings' parts seen
 
 `plan` sorts every kind of the room's kit layout (tools/props/scene/hub_kit.py writes it: where every piece stands,
 as its kind) by sorter.py and makes one model per kind and size (and per what a piece of it shows: a door's label,
@@ -19,7 +20,8 @@ split into (make_kit.py: a screen's content, a lamp's lens) and a generated piec
 own, and the room's lamps and floors as before. A generated model that fails the model check (gates/model.py) is
 not placed: its pieces are left out and listed.
 
-`install` copies the made models and their shared pictures into game/base/models/<room>_kit/ with the pictures'
+`install` copies the made models and their shared pictures into game/base/models/<room>_kit/, stores the pictures
+compressed and stops a room past its budget (stored.py), with the pictures'
 import settings (BC7, high quality: an import left lossless took 3.7 GB of video memory in round two), points each
 kind's own scene at its first model, and puts the layout in place (data/kit/<room>.json).
 """
@@ -36,9 +38,13 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "gates"))
 import library  # noqa: E402
 import sorter  # noqa: E402
+import stored  # noqa: E402
 
 REPO = library.REPO
 DETAILS = REPO / "data/library/details.json"
+# Composites split into one model per real-world object (round six): a parent kind's children, each its own kind
+# standing where the parent leaves room for it, in the parent's kit frame.
+COMPOSITES = REPO / "data/library/composites.json"
 # Texels a metre (the normal map's; colour gets half), by how near the player's hands a piece comes (the coordinator,
 # hub round four): NEAR within arm's reach of the walkway or the pit floor, FAR for the roof and the high walls. A
 # shared picture set takes its set's (SET_DENSITY); a generated piece is near when its middle stands under REACH_HIGH
@@ -46,20 +52,28 @@ DETAILS = REPO / "data/library/details.json"
 NEAR = 1024
 FAR = 512
 REACH_HIGH = 1.8
-SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR}
+PIT_DEEP = 0.9  # hub_kit.PIT_DEEP: the pit's floor under the walkway
+SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR,
+               "fittings": NEAR}
 # The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
 # shared set is planned to fill, leaving room for packing, print drawn sharp and the faces a box's estimate misses (both
 # sides of an open box's thin walls: planned at 0.7, a floor set came out 1% past the cap, 2026-10-07).
 LARGEST = 4096
 UV_FILL = 0.6
 SET_SLACK = 0.5
+MEASURED_SLACK = 0.85
 CHUNKY_FACES = 19000  # triangles: a prop's furniture budget is 20,000 (asset_check), its detail parts take the rest
+# A smaller object gets fewer (round six: 26 tools of 19,000 each put half a million triangles on one tool board): the
+# budget by the square of its largest side against a metre, never under SMALLEST_FACES (the owner's check on the tools
+# up close: at 800 to 1,700 the pliers' outline went angular; at 5,000 they match the 19,000 model, baked alike).
+SMALLEST_FACES = 5000
 SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share a model
 # Code-built kinds by the picture set they share, by the start of their name; the rest are wall gear and doors.
-ATLASES = (("roof", ("roof_", "lattice_", "ceiling_")),
+ATLASES = (("fittings", ("hatch_", "porthole_panel", "wall_lower_vent", "notice_board")),  # method B's room fittings
+           ("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
            ("walls_low", ("wall_lower", "wall_skirting", "wall_corner")),
-           ("walls_high", ("wall_upper", "wall_cornice", "backer")))
+           ("walls_high", ("wall_upper", "wall_cornice", "backer", "status_display")))  # the display hangs high
 # The room's furniture: the inventory's rows the route makes that are not kit pieces (the console, the lab bench, the
 # chair, the lockers, the comms desk, the toolboard), each placed by the game as its prop. They go through the sorter
 # like every kit kind (round four, 2026-10-07: round three sent them to code by a fixed table, with no check, and the
@@ -115,15 +129,40 @@ def furniture(inventory):
     """The room's furniture models: {name: {kind, route, size, laid, atlas, prop}}, one per furniture row
     (FURNITURE_MADE), routed by the sorter, its size (wide, tall, deep) from the row's (wide, deep, tall)."""
     found = {}
+    composites = json.loads(COMPOSITES.read_text()) if COMPOSITES.exists() else {}
     for row in inventory["rows"]:
-        if row.get("made") != FURNITURE_MADE:
+        if row.get("made") != FURNITURE_MADE or row.get("parent"):
             continue
         wide, deep, tall = row["size"]
         kind = f"hub_{row['id']}"
-        route = sorter.route(kind)
-        found[f"{row['id']}_1"] = {"kind": kind, "route": route, "size": [wide, tall, deep], "laid": {},
+        route = sorter.planned_route(kind)
+        laid = composites.get(kind, {}).get("laid", {})  # what a parent's own build shows (a toolboard's tool layout)
+        found[f"{row['id']}_1"] = {"kind": kind, "route": route, "size": [wide, tall, deep], "laid": laid,
                                    "atlas": "furniture" if route == "code" else f"{row['id']}_1",
-                                   "prop": row.get("prop") or row["thing"].split(":", 1)[1], "near": True}
+                                   "prop": row.get("prop") or row["thing"].split(":", 1)[1], "near": True,
+                                   "foot": min((foot_of(spot["y"]) for spot in row.get("at", [])), default=0.0)}
+    found.update(children(found, composites))
+    return found
+
+
+def children(parents, composites):
+    """The parents' children (data/library/composites.json): one model per child kind, size and what it shows, routed
+    by the sorter like any kind; each parent lists where its children stand (`children`: model, at, turn), which its
+    prop scene places them by."""
+    found, by_key = {}, {}
+    for parent_name, parent in parents.items():
+        for child in composites.get(parent["kind"], {}).get("children", []):
+            kind, laid = child["kind"], child.get("laid", {})
+            key = (kind, made_size(child["size"]), json.dumps(laid, sort_keys=True))
+            if key not in by_key:
+                name = f"{own_name(kind)}_{sum(1 for other in by_key if other[0] == kind) + 1}"
+                by_key[key] = name
+                route = sorter.planned_route(kind)
+                found[name] = {"kind": kind, "route": route, "size": list(child["size"]), "laid": laid,
+                               "atlas": "furniture" if route == "code" else name, "near": True,
+                               "foot": round(parent["foot"] + child["at"][1], 3), "child_of": parent_name}
+            parent.setdefault("children", []).append({"model": by_key[key], "at": child["at"],
+                                                      "turn": child.get("turn", 0.0)})
     return found
 
 
@@ -134,7 +173,7 @@ def plan(layout, takes, inventory=None):
     models, by_key, pieces = {}, {}, []
     for laid in layout["pieces"]:
         kind = laid["kind"]
-        route = sorter.route(kind)
+        route = sorter.planned_route(kind)
         extra = shows(kind, laid) if route == "code" else {}
         key = (kind, made_size(laid["size"]), json.dumps(extra, sort_keys=True))
         if key not in by_key:
@@ -145,6 +184,7 @@ def plan(layout, takes, inventory=None):
                             "laid": extra, "atlas": atlas_of(own_name(kind)) if route == "code" else name,
                             "near": False}
         models[by_key[key]]["near"] |= middle_high(laid) < REACH_HIGH
+        models[by_key[key]]["foot"] = min(models[by_key[key]].get("foot", 99.0), foot_of(laid["at"][1]))
         pieces.append(by_key[key])
     models.update(furniture(inventory) if inventory is not None else {})
     missing = sorted({entry["kind"] for entry in models.values()
@@ -160,29 +200,45 @@ def jobs(planned, takes, work, place):
     specs = library.by_library(place)
     details = json.loads(DETAILS.read_text())
     found = {}
-    for atlas, names in shared_sets(planned).items():
+    for atlas, names in shared_sets(planned, measured_areas(work)).items():
         found[f"kit-{atlas}"] = {
             "script": "make_kit.py", "out": str(work / "made"), "report": f"report-{atlas}.json",
             "atlas": f"{place}_{atlas}", "density": SET_DENSITY[set_of(atlas)],
             "wear": wear, "dirt": dirt, "seed": 3, "specs": specs,
             "pieces": [{"name": name, "kind": own_name(planned["models"][name]["kind"]),
-                        "size": planned["models"][name]["size"], "laid": planned["models"][name]["laid"]}
+                        "size": planned["models"][name]["size"], "laid": planned["models"][name]["laid"],
+                        "foot": planned["models"][name].get("foot")}
                        for name in names]}
     chunky = []
     for name, entry in planned["models"].items():
         if entry["route"] != "model":
             continue
         own = details.get(entry["kind"], {})
+        # Method B (hub round five): the pipeline gives shape only; surfaces are the library's alone, never the
+        # picture's colours (round four's picture layer brought each piece its own rust and stains), and print comes
+        # as the kind's few decals, placed on purpose (details.json `decals`).
         chunky.append({"name": name, "parts": str(takes[own_name(entry["kind"])]),
                        "base": own["turn"], "size": entry["size"], "screens": own.get("screens", []),
                        "cuts": own.get("cuts", []), "density": NEAR if entry.get("near", True) else FAR,
-                       "picture": picture_of(takes[own_name(entry["kind"])])})
+                       "decals": own.get("decals", []), "foot": entry.get("foot"), "faces": faces_for(entry["size"])})
     if chunky:
         found["chunky"] = {"script": "make_chunky.py", "out": str(work / "made"), "report": "report-chunky.json",
                            "density": NEAR,
                            "wear": wear, "dirt": dirt, "seed": 3, "faces": CHUNKY_FACES, "specs": specs,
                            "chunky": chunky}
     return found
+
+
+def foot_of(high):
+    """How high a foot at `high` (over the walkway) stands over the floor it stands on: the walkway's, or the pit's
+    PIT_DEEP below it (the kick wear, method B)."""
+    return round(max(0.0, high + PIT_DEEP if high < -0.05 else high), 3)
+
+
+def faces_for(size):
+    """A generated piece's triangle budget by its size: CHUNKY_FACES for a metre or more, by the square of its largest
+    side below that, never under SMALLEST_FACES."""
+    return int(max(SMALLEST_FACES, min(CHUNKY_FACES, CHUNKY_FACES * max(size) ** 2)))
 
 
 def middle_high(laid):
@@ -201,34 +257,45 @@ def seen_area(size):
     return wide * tall + 2 * deep * (wide + tall)
 
 
-def shared_sets(planned):
+def shared_sets(planned, measured=None):
     """The code-built models by the picture set they share: each named set (ATLASES) split into as few sets as keep
-    their boxes' seen area within one LARGEST-sided picture at the set's density (SET_DENSITY, with SET_SLACK spare
-    for packing and sharp print), named `<set>` or `<set>_<n>`. The bake stops a set that still does not fit
-    (bake.Atlas)."""
+    their seen area within one LARGEST-sided picture at the set's density, named `<set>` or `<set>_<n>`: largest
+    first, each into the first set it still fits (round six: in layout order a wall vent took a 4096 set of its own
+    between two door walls). A model's area is its measured one when the work folder has it (`measured`, from its
+    own build: measure_areas), with MEASURED_SLACK spare for packing; else its box's estimate with SET_SLACK spare (the
+    estimate missed bolts, cables and louvres by up to four and a half times, round six). The bake stops a set that
+    still does not fit (bake.Atlas)."""
+    measured = measured or {}
     found = {}
     for atlas in sorted({entry["atlas"] for entry in planned["models"].values() if entry["route"] == "code"}):
-        room = SET_SLACK * UV_FILL * (LARGEST / SET_DENSITY[atlas]) ** 2
-        chunks, area = [[]], 0.0
-        for name, entry in planned["models"].items():
-            if entry["route"] != "code" or entry["atlas"] != atlas:
-                continue
-            if chunks[-1] and area + seen_area(entry["size"]) > room:
+        members = [name for name, entry in planned["models"].items()
+                   if entry["route"] == "code" and entry["atlas"] == atlas]
+
+        def area_of(name):
+            if name not in measured:
+                return seen_area(planned["models"][name]["size"])
+            return measured[name]["near" if SET_DENSITY[atlas] >= NEAR else "far"]  # bake.SHARP_FROM
+
+        slack = MEASURED_SLACK if all(name in measured for name in members) else SET_SLACK
+        room = slack * UV_FILL * (LARGEST / SET_DENSITY[atlas]) ** 2
+        chunks, areas = [], []
+        for name in sorted(members, key=lambda name: -area_of(name)):
+            place = next((index for index, used in enumerate(areas) if used + area_of(name) <= room), None)
+            if place is None:
                 chunks.append([])
-                area = 0.0
-            chunks[-1].append(name)
-            area += seen_area(entry["size"])
+                areas.append(0.0)
+                place = len(chunks) - 1
+            chunks[place].append(name)
+            areas[place] += area_of(name)
         for index, names in enumerate(chunks):
             found[atlas if len(chunks) == 1 else f"{atlas}_{index + 1}"] = names
     return found
 
 
-def picture_of(parts):
-    """A generated kind's picture model (labels.py writes it beside the parts: its finished Pixal3D model with the
-    picture's own pixels on it), whose detail is laid over the library surfaces; None for a take labelled before
-    round four."""
-    found = pathlib.Path(parts) / "picture.obj"
-    return str(found) if found.exists() else None
+def measured_areas(work):
+    """The code-built models' measured seen areas (<work>/areas.json, measure_areas), or none."""
+    path = pathlib.Path(work) / "areas.json"
+    return json.loads(path.read_text()) if path.exists() else {}
 
 
 def labelled_takes(folders):
@@ -338,6 +405,11 @@ def game_layout(layout, planned, reports, checks):
     made = {}
     for report in reports:
         made.update(report.get("pieces", report))
+    failed = sorted({entry["kind"] for entry in planned["models"].values()
+                     if entry["route"] == "code" and sorter.route(entry["kind"]) != "code"})
+    if failed:
+        raise SystemExit(f"code builds that do not show every part their close-up has, or lay a print over a part "
+                         f"(`route.py fittings` records them; send them to the pipeline): {', '.join(failed)}")
     pieces, held_back, models = [], {}, {}
     for laid, name in zip(layout["pieces"], planned["pieces"]):
         if checks.get(name, {}).get("pass") is False:
@@ -363,9 +435,14 @@ def game_layout(layout, planned, reports, checks):
             pieces.append(screen_piece(laid, screen, screen_name))
             models[screen_name] = {"glows": True, "picture": screen_picture(screen["variant"])}
     for name, entry in planned["models"].items():
-        if "prop" not in entry:
+        if "prop" not in entry and "child_of" not in entry:
             continue
-        models[name] = {"glows": False, "route": entry["route"], "prop": entry["prop"], "size": entry["size"]}
+        if "prop" in entry:
+            models[name] = {"glows": False, "route": entry["route"], "prop": entry["prop"], "size": entry["size"],
+                            "children": entry.get("children", [])}
+        else:
+            models[name] = {"glows": False, "route": entry["route"], "child_of": entry["child_of"],
+                            "size": entry["size"]}
         if f"{name}_glow" in made:
             models[f"{name}_glow"] = {"glows": True, "part_of": name}
     models[LIVE_SCREEN["name"]] = {"glows": True, "picture": None, "live": True, "size": LIVE_SCREEN["size"],
@@ -430,6 +507,13 @@ def install(work, room):
     for path, text in imports.items():
         if (folder / path.with_suffix("")).exists():
             (folder / path).write_text(text)
+    stored.store(folder)
+    for path, text in imports.items():
+        if path.name.endswith(".webp.import") and (folder / path.with_suffix("")).exists():
+            (folder / path).write_text(text)
+    past = stored.over_budget(stored.cost(folder))
+    if past:
+        raise SystemExit(f"{room}'s models are over the room budget (stored.BUDGET): {'; '.join(past)}")
     (REPO / f"data/kit/{room}.json").write_text(json.dumps(layout, indent="\t") + "\n")
     return len(layout["models"]), len(first)
 
@@ -465,8 +549,9 @@ def stamped(source, target):
 
 
 def prop_scene(room, name, about, models):
-    """A furniture model's prop scene (game/base/models/<prop>/<prop>.tscn): the model, its glowing part if it has one,
-    and a box round it that collides."""
+    """A furniture model's prop scene (game/base/models/<prop>/<prop>.tscn): the model, its children standing where
+    the composite places them (each its own model, round six), the glowing parts of both under `Glow`, and a box round
+    it that collides."""
     prop = about["prop"]
     scene = REPO / f"game/base/models/{prop}"
     if scene.exists():
@@ -476,11 +561,39 @@ def prop_scene(room, name, about, models):
     wide, tall, deep = about["size"]
     text = KIND_SCENE.format(room=room, model=name, node=node_name(prop), size=f"{wide:g}, {tall:g}, {deep:g}",
                              middle=f"{tall / 2:g}")
+    resources, nodes, glows = [], [], []
     if f"{name}_glow" in models:
-        text = text.replace('id="1_mesh"]\n', f'id="1_mesh"]\n[ext_resource type="PackedScene" path="res://game/base/models/'
-                            f'{room}_kit/{name}_glow.gltf" id="2_glow"]\n', 1)
-        text += '\n[node name="Glow" parent="." instance=ExtResource("2_glow")]\n'
+        glows.append((f"{name}_glow", IDENTITY))
+    for index, child in enumerate(about.get("children", [])):
+        placed = child_transform(child)
+        resources.append((child["model"], f"c{index}"))
+        nodes.append(f'\n[node name="{node_name(child["model"])}_{index}" parent="." '
+                     f'instance=ExtResource("c{index}")]\ntransform = {placed}\n')
+        if f"{child['model']}_glow" in models:
+            glows.append((f"{child['model']}_glow", placed))
+    if glows:
+        nodes.append('\n[node name="Glow" type="Node3D" parent="."]\n')
+        for index, (glow, placed) in enumerate(glows):
+            resources.append((glow, f"g{index}"))
+            nodes.append(f'\n[node name="{node_name(glow)}_{index}" parent="Glow" instance=ExtResource("g{index}")]\n'
+                         f'transform = {placed}\n')
+    lines = "".join(f'[ext_resource type="PackedScene" path="res://game/base/models/{room}_kit/{model}.gltf" '
+                    f'id="{ident}"]\n' for model, ident in resources)
+    text = text.replace('id="1_mesh"]\n', 'id="1_mesh"]\n' + lines, 1) + "".join(nodes)
     (scene / f"{prop}.tscn").write_text(text)
+
+
+IDENTITY = "Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)"
+
+
+def child_transform(child):
+    """A child's place on its parent as a scene's Transform3D: turned `turn` degrees about up, its foot at `at` (the
+    parent's kit frame). Godot writes a basis row by row."""
+    angle = np.radians(child.get("turn", 0.0))
+    cos, sin = np.cos(angle), np.sin(angle)
+    x, y, z = child["at"]
+    numbers = (cos, 0.0, sin, 0.0, 1.0, 0.0, -sin, 0.0, cos, x, y, z)
+    return "Transform3D(" + ", ".join(f"{value:.6g}" for value in numbers) + ")"
 
 
 def node_name(kind):
@@ -491,7 +604,8 @@ def picture_imports(folder):
     """After Godot first imports the shared pictures: their .import files set to BC7, high quality (normal maps
     keep their normal-map setting)."""
     changed = 0
-    for found in pathlib.Path(folder).glob("textures/*.png.import"):
+    for found in sorted(pathlib.Path(folder).glob("textures/*.png.import")) + \
+            sorted(pathlib.Path(folder).glob("textures/*.webp.import")):
         text = found.read_text()
         for key, value in IMPORT_SETTINGS.items():
             text = re.sub(rf"^{re.escape(key)}=.*$", f"{key}={value}", text, flags=re.MULTILINE)
@@ -500,6 +614,27 @@ def picture_imports(folder):
         found.write_text(text)
         changed += 1
     return changed
+
+
+def record_fittings(reports, path=sorter.FITTINGS):
+    """Method B's check, written back: for every room fitting a code build made, how much of each named part the room
+    can see (make_kit's parts_seen; the least over the kind's models), into data/library/fittings.json's `built`."""
+    data = json.loads(pathlib.Path(path).read_text())
+    built = {}
+    for report in reports:
+        for name, piece in report.get("pieces", {}).items():
+            kind = name.rsplit("_", 1)[0]
+            if kind not in data["fittings"] or not piece.get("parts_seen"):
+                continue
+            found = built.setdefault(kind, {"seen": dict(piece["parts_seen"]), "prints_off": []})
+            for part, share in piece["parts_seen"].items():
+                found["seen"][part] = min(found["seen"].get(part, share), share)
+            found["prints_off"] += [f"{name}: {off}" for off in piece.get("prints_off", [])]
+    for kind, seen in built.items():
+        data["fittings"][kind]["built"] = seen["seen"]
+        data["fittings"][kind]["prints_off"] = seen["prints_off"]
+    pathlib.Path(path).write_text(json.dumps(data, indent="\t") + "\n")
+    return {kind: sorter.missing_parts(data["fittings"][kind]) for kind in built}
 
 
 def main():
@@ -533,6 +668,10 @@ def main():
         work = pathlib.Path(sys.argv[2])
         models, kinds = install(work, sys.argv[3])
         print(models, "models installed;", kinds, "kinds' scenes pointed at them")
+    elif step == "fittings":
+        reports = [json.loads(path.read_text()) for path in sorted((pathlib.Path(sys.argv[2]) / "made").glob("report*.json"))]
+        for kind, missing in sorted(record_fittings(reports).items()):
+            print(kind, "code" if not missing else f"pipeline: missing {', '.join(missing)}")
     elif step == "imports":
         print(picture_imports(sys.argv[2]), "picture imports set to BC7")
     else:

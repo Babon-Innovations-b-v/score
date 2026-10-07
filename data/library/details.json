@@ -18,7 +18,11 @@
 	"hub_comms": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
 		"screens": [],
-		"cuts": []
+		"cuts": [],
+		"decals": [
+			{"at": [0.5, 0.62], "size": [0.22, 0.06], "variant": "label_comms"},
+			{"at": [-0.5, 0.45], "size": [0.08, 0.08], "variant": "note_channel", "turn": -4.0}
+		]
 	},
 	"hub_conduit_box": {
 		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
@@ -28,16 +32,24 @@
 	"hub_console": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
 		"screens": [],
-		"cuts": []
+		"cuts": [],
+		"decals": [
+			{"at": [0.6, 0.55], "size": [0.3, 0.07], "variant": "label_operations"},
+			{"at": [-0.7, 0.35], "size": [0.18, 0.05], "variant": "label_main_bus"}
+		]
 	},
 	"hub_door_control_box": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"screens": [{"at": [0.0, 0.235], "size": [0.14, 0.07], "variant": "screen_amber"}],
+		"screens": [
+			{"at": [0.0, 0.235], "size": [0.14, 0.07], "variant": "screen_amber"}
+		],
 		"cuts": []
 	},
 	"hub_door_strip_lamp": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"screens": [{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}],
+		"screens": [
+			{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}
+		],
 		"cuts": []
 	},
 	"hub_floor_access_hatch": {
@@ -58,7 +70,9 @@
 	"hub_hatch_frame": {
 		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
 		"screens": [],
-		"cuts": [{"box": [-1.12, -0.1, 1.12, 2.62]}]
+		"cuts": [
+			{"box": [-1.12, -0.1, 1.12, 2.62]}
+		]
 	},
 	"hub_hatch_hinge": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
@@ -73,7 +87,9 @@
 	"hub_hatch_wall_surround": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
 		"screens": [],
-		"cuts": [{"box": [-1.1, -0.1, 1.1, 2.6]}]
+		"cuts": [
+			{"box": [-1.1, -0.1, 1.1, 2.6]}
+		]
 	},
 	"hub_hatch_wheel": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
@@ -123,7 +139,9 @@
 	"hub_porthole_panel": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
 		"screens": [],
-		"cuts": [{"circle": [0.0, 0.6, 0.3]}]
+		"cuts": [
+			{"circle": [0.0, 0.6, 0.3]}
+		]
 	},
 	"hub_rack": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
@@ -142,23 +160,35 @@
 	},
 	"hub_small_readout": {
 		"turn": [1.0, -0.0026, 0.0, -0.0026, -1.0, 0.0, 0.0, 0.0, -1.0],
-		"screens": [{"at": [0.0, 0.13], "size": [0.2, 0.12], "variant": "screen_amber"}],
+		"screens": [
+			{"at": [0.0, 0.13], "size": [0.2, 0.12], "variant": "screen_amber"}
+		],
 		"cuts": []
 	},
 	"hub_status_display": {
 		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
-		"screens": [{"at": [-0.01, 0.516], "size": [1.659, 0.747], "variant": "screen"}],
+		"screens": [
+			{"at": [-0.01, 0.516], "size": [1.659, 0.747], "variant": "screen"}
+		],
 		"cuts": []
 	},
 	"hub_talllocker": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0],
 		"screens": [],
-		"cuts": []
+		"cuts": [],
+		"decals": [
+			{"at": [0.3, 1.62], "size": [0.2, 0.06], "variant": "label_locker_a"},
+			{"at": [-0.3, 1.62], "size": [0.2, 0.06], "variant": "label_locker_b"},
+			{"at": [-0.3, 1.33], "size": [0.15, 0.2], "variant": "sheet_spares", "turn": 3.0}
+		]
 	},
 	"hub_toolboard": {
 		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
 		"screens": [],
-		"cuts": []
+		"cuts": [],
+		"decals": [
+			{"at": [0.0, 0.1], "size": [0.3, 0.06], "variant": "label_sign_out"}
+		]
 	},
 	"hub_tread_mat": {
 		"turn": [0.1483, 0.0, -0.9889, 0.9889, 0.0, 0.1483, 0.0, -1.0, 0.0],
@@ -182,7 +212,11 @@
 	},
 	"hub_wall_screen_cluster": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"screens": [{"at": [-0.37, 0.346], "size": [0.264, 0.203], "variant": "screen_amber"}, {"at": [0.005, 0.348], "size": [0.266, 0.203], "variant": "screen_amber"}, {"at": [0.38, 0.348], "size": [0.268, 0.2], "variant": "screen_amber"}],
+		"screens": [
+			{"at": [-0.37, 0.346], "size": [0.264, 0.203], "variant": "screen_amber"},
+			{"at": [0.005, 0.348], "size": [0.266, 0.203], "variant": "screen_amber"},
+			{"at": [0.38, 0.348], "size": [0.268, 0.2], "variant": "screen_amber"}
+		],
 		"cuts": []
 	},
 	"hub_wall_upper_cables": {
@@ -202,10 +236,63 @@
 	},
 	"hub_wall_upper_screen_recess": {
 		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
-		"screens": [{"at": [0.076, 1.482], "size": [0.135, 0.058], "variant": "screen_amber"}],
+		"screens": [
+			{"at": [0.076, 1.482], "size": [0.135, 0.058], "variant": "screen_amber"}
+		],
 		"cuts": []
 	},
 	"hub_waste_bin": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_radio": {
+		"turn": [-0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.0],
+		"screens": [],
+		"cuts": [],
+		"square": true
+	},
+	"hub_telephone": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_desklamp": {
+		"turn": [-0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_headset": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_microscope": {
+		"turn": [-1.0, 0.0, -0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wrench": {
+		"turn": [0.0, 0.0, 1.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hammer": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pump_pliers": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, -0.0, -0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pliers": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, -0.0, -0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_screwdriver": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
 		"screens": [],
 		"cuts": []

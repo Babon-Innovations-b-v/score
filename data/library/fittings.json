@@ -1,0 +1,967 @@
+{
+	"is": "method B's room fittings (hub round five, 2026-10-07): the parts each fitting's clean close-up shows, and how much of each the room can see in its last code build (pieces.parts_seen, written back by route.py fittings). sorter.route builds a fitting in code only when every part is there; otherwise the prop pipeline makes it.",
+	"fittings": {
+		"hatch_frame": {
+			"closeup": "hubkit/clean/hatch_frame-front.png",
+			"parts": [
+				"frame",
+				"lip",
+				"seal",
+				"bolt"
+			],
+			"built": {
+				"bolt": 1.0,
+				"frame": 0.764,
+				"lip": 1.0,
+				"seal": 0.574
+			},
+			"prints_off": []
+		},
+		"hatch_leaf": {
+			"closeup": "hubkit/clean/hatch_leaf-front.png",
+			"parts": [
+				"slab",
+				"rim",
+				"lip",
+				"plate_frame",
+				"label",
+				"sticker"
+			],
+			"built": {
+				"label": 1.0,
+				"lip": 1.0,
+				"plate_frame": 1.0,
+				"rim": 1.0,
+				"slab": 0.907,
+				"sticker": 1.0
+			},
+			"prints_off": []
+		},
+		"hatch_wheel": {
+			"closeup": "hubkit/clean/hatch_wheel-front.png",
+			"parts": [
+				"rim",
+				"spoke",
+				"boss"
+			],
+			"built": {
+				"boss": 0.827,
+				"rim": 1.0,
+				"spoke": 0.689,
+				"stem": 0.091
+			},
+			"prints_off": []
+		},
+		"hatch_window": {
+			"closeup": "hubkit/clean/hatch_window-front.png",
+			"parts": [
+				"flange",
+				"inner_ring",
+				"bolt",
+				"glass"
+			],
+			"built": {
+				"bolt": 1.0,
+				"flange": 0.707,
+				"glass": 0.81,
+				"inner_ring": 1.0
+			},
+			"prints_off": []
+		},
+		"hatch_hinge": {
+			"closeup": "hubkit/clean/hatch_hinge-three-quarter.png",
+			"parts": [
+				"leaf",
+				"knuckle",
+				"pin",
+				"screw"
+			],
+			"built": {
+				"knuckle": 0.873,
+				"leaf": 0.902,
+				"pin": 0.671,
+				"screw": 0.814,
+				"web": 0.373
+			},
+			"prints_off": []
+		},
+		"hatch_wall_surround": {
+			"closeup": "hubkit/clean/hatch_wall_surround-front.png",
+			"parts": [
+				"slab",
+				"face",
+				"bolt",
+				"seam",
+				"label"
+			],
+			"built": {
+				"bolt": 1.0,
+				"face": 0.881,
+				"label": 1.0,
+				"seam": 0.934,
+				"slab": 0.6
+			},
+			"prints_off": []
+		},
+		"porthole_panel": {
+			"closeup": "robust-exp/r4/pics2/porthole_panel.png",
+			"parts": [
+				"plate",
+				"bolt",
+				"flange",
+				"inner_ring",
+				"name_plate",
+				"label"
+			],
+			"built": {
+				"bolt": 1.0,
+				"flange": 0.591,
+				"inner_ring": 1.0,
+				"label": 1.0,
+				"name_plate": 0.651,
+				"plate": 0.771,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"wall_lower_vent": {
+			"closeup": "hubkit/clean/wall_lower_vent-front.png",
+			"parts": [
+				"slab",
+				"face",
+				"bolt",
+				"vent_flange",
+				"vent_frame",
+				"slat",
+				"vent_back",
+				"label"
+			],
+			"built": {
+				"bolt": 1.0,
+				"face": 0.857,
+				"label": 1.0,
+				"slab": 0.293,
+				"slat": 1.0,
+				"vent_back": 0.854,
+				"vent_flange": 0.822,
+				"vent_frame": 1.0
+			},
+			"prints_off": []
+		},
+		"notice_board": {
+			"closeup": "hubkit/clean/notice_board-front.png",
+			"parts": [
+				"frame",
+				"board",
+				"sheet",
+				"note",
+				"pin"
+			],
+			"built": {
+				"back": 0.051,
+				"board": 0.409,
+				"frame": 0.714,
+				"note": 1.0,
+				"pin": 0.95,
+				"sheet": 1.0
+			},
+			"prints_off": []
+		},
+		"wall_lower_patched": {
+			"closeup": "robust-exp/r4/pics2/wall_lower_patched.png",
+			"parts": [
+				"slab",
+				"face",
+				"bolt",
+				"patch",
+				"rivet",
+				"stencil"
+			],
+			"built": {
+				"bolt": 1.0,
+				"face": 0.7,
+				"patch": 1.0,
+				"rivet": 1.0,
+				"slab": 0.326,
+				"stencil": 1.0
+			},
+			"prints_off": []
+		},
+		"wall_upper_patched": {
+			"closeup": "hubkit/clean/wall_upper_patched-front.png",
+			"parts": [
+				"slab",
+				"face",
+				"bolt",
+				"patch"
+			],
+			"built": {
+				"bolt": 0.966,
+				"face": 0.816,
+				"patch": 0.975,
+				"rib": 1.0,
+				"slab": 0.262
+			},
+			"prints_off": []
+		},
+		"wall_upper_cables": {
+			"closeup": "robust-exp/r4/pics2/wall_upper_cables.png",
+			"parts": [
+				"slab",
+				"face",
+				"cable",
+				"clamp",
+				"junction_box",
+				"label",
+				"note"
+			],
+			"built": {
+				"bolt": 0.947,
+				"cable": 0.669,
+				"clamp": 0.753,
+				"face": 0.816,
+				"junction_box": 0.95,
+				"label": 1.0,
+				"note": 0.826,
+				"rib": 0.95,
+				"screw": 1.0,
+				"slab": 0.262
+			},
+			"prints_off": []
+		},
+		"wall_upper_pipes": {
+			"closeup": "robust-exp/r4/pics2/wall_upper_pipes.png",
+			"parts": [
+				"slab",
+				"face",
+				"pipe",
+				"bracket",
+				"strap",
+				"label"
+			],
+			"built": {
+				"bolt": 0.861,
+				"bracket": 0.452,
+				"face": 0.816,
+				"label": 1.0,
+				"pipe": 0.944,
+				"rib": 1.0,
+				"screw": 1.0,
+				"slab": 0.262,
+				"strap": 1.0
+			},
+			"prints_off": []
+		},
+		"wall_upper_screen_recess": {
+			"closeup": "robust-exp/r4/pics2/wall_upper_screen_recess.png",
+			"parts": [
+				"plate",
+				"rim",
+				"recess",
+				"unit",
+				"bezel",
+				"screen",
+				"button",
+				"label"
+			],
+			"built": {
+				"bezel": 0.897,
+				"button": 1.0,
+				"label": 1.0,
+				"plate": 0.667,
+				"recess": 0.846,
+				"rim": 1.0,
+				"screen": 0.884,
+				"unit": 0.745
+			},
+			"prints_off": []
+		},
+		"status_display": {
+			"closeup": "robust-exp/r4/pics2/status_display.png",
+			"parts": [
+				"housing",
+				"bezel",
+				"screen",
+				"corner",
+				"screw",
+				"label"
+			],
+			"built": {
+				"bezel": 0.959,
+				"corner": 1.0,
+				"housing": 0.244,
+				"label": 1.0,
+				"screen": 0.947,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"wall_screen_cluster": {
+			"closeup": "robust-exp/r4/pics2/wall_screen_cluster.png",
+			"parts": [
+				"housing",
+				"monitor",
+				"screen",
+				"button",
+				"label",
+				"status_screen",
+				"handle"
+			],
+			"built": {
+				"bezel": 0.873,
+				"button": 1.0,
+				"handle": 0.565,
+				"housing": 0.644,
+				"label": 1.0,
+				"monitor": 1.0,
+				"screen": 0.907,
+				"status_screen": 0.884
+			},
+			"prints_off": []
+		},
+		"intercom_panel": {
+			"closeup": "robust-exp/r4/pics2/intercom_panel.png",
+			"parts": [
+				"housing",
+				"rim",
+				"grille",
+				"slat",
+				"screw",
+				"label",
+				"button"
+			],
+			"built": {
+				"button": 1.0,
+				"grille": 0.476,
+				"housing": 0.647,
+				"label": 1.0,
+				"rim": 1.0,
+				"screw": 0.924,
+				"slat": 0.935
+			},
+			"prints_off": []
+		},
+		"small_readout": {
+			"closeup": "robust-exp/r4/pics2/small_readout.png",
+			"parts": [
+				"housing",
+				"bezel",
+				"screen",
+				"button",
+				"knob",
+				"screw",
+				"label"
+			],
+			"built": {
+				"bezel": 0.855,
+				"button": 1.0,
+				"housing": 0.865,
+				"knob": 1.0,
+				"label": 1.0,
+				"screen": 0.86,
+				"screw": 0.987
+			},
+			"prints_off": []
+		},
+		"door_control_box": {
+			"closeup": "robust-exp/r4/pics2/door_control_box.png",
+			"parts": [
+				"housing",
+				"door",
+				"hinge",
+				"keypad",
+				"keys",
+				"screen",
+				"led",
+				"label",
+				"sticker",
+				"sheet"
+			],
+			"built": {
+				"bezel": 0.881,
+				"door": 0.634,
+				"hinge": 1.0,
+				"housing": 0.661,
+				"keypad": 0.551,
+				"keys": 1.0,
+				"label": 1.0,
+				"led": 1.0,
+				"screen": 0.804,
+				"sheet": 1.0,
+				"sticker": 1.0
+			},
+			"prints_off": []
+		},
+		"conduit_box": {
+			"closeup": "hubkit/clean/conduit_box-three-quarter.png",
+			"parts": [
+				"body",
+				"lid",
+				"lip",
+				"screw",
+				"gland"
+			],
+			"built": {
+				"body": 0.557,
+				"gland": 0.534,
+				"lid": 0.894,
+				"lip": 0.444,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"wall_cage_lamp": {
+			"closeup": "robust-exp/r4/pics2/wall_cage_lamp.png",
+			"parts": [
+				"back_plate",
+				"collar",
+				"glass",
+				"bar",
+				"hoop",
+				"screw"
+			],
+			"built": {
+				"back_plate": 0.795,
+				"bar": 0.858,
+				"collar": 0.721,
+				"glass": 0.604,
+				"hoop": 0.453,
+				"screw": 0.919
+			},
+			"prints_off": []
+		},
+		"door_strip_lamp": {
+			"closeup": "robust-exp/r4/pics2/door_strip_lamp.png",
+			"parts": [
+				"housing",
+				"lens",
+				"tab",
+				"screw",
+				"label"
+			],
+			"built": {
+				"housing": 0.867,
+				"label": 1.0,
+				"lens": 0.818,
+				"screw": 0.949,
+				"tab": 0.913
+			},
+			"prints_off": []
+		},
+		"grab_bar": {
+			"closeup": "hubkit/clean/grab_bar-three-quarter.png",
+			"parts": [
+				"bar",
+				"bend",
+				"stand_off",
+				"foot",
+				"screw"
+			],
+			"built": {
+				"bar": 0.948,
+				"bend": 0.413,
+				"foot": 0.894,
+				"screw": 0.949,
+				"stand_off": 0.791
+			},
+			"prints_off": []
+		},
+		"floor_grating": {
+			"closeup": "hubkit/clean/floor_grating-three-quarter.png",
+			"parts": [
+				"bearing_bar",
+				"cross_bar",
+				"frame",
+				"screw"
+			],
+			"built": {
+				"bearing_bar": 0.959,
+				"cross_bar": 0.889,
+				"frame": 0.907,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"floor_access_hatch": {
+			"closeup": "hubkit/clean/floor_access_hatch-three-quarter.png",
+			"parts": [
+				"border",
+				"frame",
+				"lid",
+				"pin",
+				"recess",
+				"ring_pull",
+				"screw"
+			],
+			"built": {
+				"border": 1.0,
+				"frame": 0.766,
+				"lid": 0.725,
+				"pin": 0.926,
+				"recess": 0.833,
+				"ring_pull": 0.957,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"tread_mat": {
+			"closeup": "hubkit/clean/tread_mat-three-quarter.png",
+			"parts": [
+				"plate"
+			],
+			"built": {
+				"plate": 1.0
+			},
+			"prints_off": []
+		},
+		"ceiling_cable_tray": {
+			"closeup": "hubkit/clean/ceiling_cable_tray-three-quarter.png",
+			"parts": [
+				"cable",
+				"hanger",
+				"lip",
+				"pan",
+				"side"
+			],
+			"built": {
+				"cable": 0.413,
+				"hanger": 0.14,
+				"lip": 0.457,
+				"pan": 1.0,
+				"side": 0.59
+			},
+			"prints_off": []
+		},
+		"ceiling_duct": {
+			"closeup": "robust-exp/r4/pics2/ceiling_duct.png",
+			"parts": [
+				"bolt",
+				"flange",
+				"label",
+				"strap",
+				"wall"
+			],
+			"built": {
+				"bolt": 1.0,
+				"flange": 0.726,
+				"label": 1.0,
+				"strap": 0.647,
+				"wall": 0.529
+			},
+			"prints_off": []
+		},
+		"roof_apex_hub": {
+			"closeup": "robust-exp/r4/pics2/roof_apex_hub.png",
+			"parts": [
+				"boss",
+				"dome",
+				"flange",
+				"rib",
+				"rim"
+			],
+			"built": {
+				"boss": 0.918,
+				"dome": 0.745,
+				"flange": 0.179,
+				"rib": 0.814,
+				"rim": 0.603
+			},
+			"prints_off": []
+		},
+		"roof_light_fixture": {
+			"closeup": "hubkit/clean/roof_light_fixture-three-quarter.png",
+			"parts": [
+				"bezel",
+				"cage",
+				"housing",
+				"lens",
+				"mount",
+				"pivot",
+				"yoke"
+			],
+			"built": {
+				"bezel": 0.82,
+				"cage": 0.84,
+				"housing": 0.269,
+				"lens": 0.925,
+				"mount": 0.674,
+				"pivot": 0.621,
+				"yoke": 0.591
+			},
+			"prints_off": []
+		},
+		"pipe_bracket": {
+			"closeup": "robust-exp/r4/pics2/pipe_bracket.png",
+			"parts": [
+				"arm",
+				"base",
+				"bolt",
+				"clamp",
+				"ear"
+			],
+			"built": {
+				"arm": 0.877,
+				"base": 0.739,
+				"bolt": 0.789,
+				"clamp": 0.776,
+				"ear": 0.763
+			},
+			"prints_off": []
+		},
+		"pipe_elbow": {
+			"closeup": "hubkit/clean/pipe_elbow-three-quarter.png",
+			"parts": [
+				"bend",
+				"bolt",
+				"flange"
+			],
+			"built": {
+				"bend": 0.956,
+				"bolt": 0.54,
+				"flange": 0.607
+			},
+			"prints_off": []
+		},
+		"pipe_valve": {
+			"closeup": "hubkit/clean/pipe_valve-three-quarter.png",
+			"parts": [
+				"body",
+				"bolt",
+				"bonnet",
+				"flange",
+				"handwheel",
+				"stem",
+				"stub",
+				"yoke"
+			],
+			"built": {
+				"body": 0.508,
+				"bolt": 0.443,
+				"bonnet": 0.496,
+				"flange": 0.257,
+				"foot": 0.791,
+				"handwheel": 0.675,
+				"stem": 0.221,
+				"stub": 0.683,
+				"yoke": 0.485
+			},
+			"prints_off": []
+		},
+		"pit_junction_box": {
+			"closeup": "robust-exp/r4/pics2/pit_junction_box.png",
+			"parts": [
+				"body",
+				"cable",
+				"gland",
+				"hinge",
+				"hood",
+				"label",
+				"latch",
+				"lid"
+			],
+			"built": {
+				"body": 0.446,
+				"cable": 0.484,
+				"gland": 0.529,
+				"hinge": 0.754,
+				"hood": 0.63,
+				"label": 1.0,
+				"latch": 1.0,
+				"lid": 0.857
+			},
+			"prints_off": []
+		},
+		"talllocker": {
+			"closeup": "hubrefs/c12/clean/talllocker-front.png",
+			"parts": [
+				"plinth",
+				"carcass",
+				"door",
+				"louvre",
+				"louvre_back",
+				"handle",
+				"standoff",
+				"hinge",
+				"label",
+				"sheet"
+			],
+			"built": {
+				"carcass": 0.526,
+				"door": 0.947,
+				"handle": 1.0,
+				"hinge": 0.736,
+				"label": 1.0,
+				"louvre": 1.0,
+				"louvre_back": 0.884,
+				"plinth": 0.6,
+				"sheet": 1.0,
+				"standoff": 0.676
+			},
+			"prints_off": []
+		},
+		"rack": {
+			"closeup": "hubrefs/c12/clean/rack-front.png",
+			"parts": [
+				"plinth",
+				"carcass",
+				"door",
+				"louvre",
+				"louvre_back",
+				"handle",
+				"standoff",
+				"hinge",
+				"label"
+			],
+			"built": {
+				"carcass": 0.644,
+				"door": 0.949,
+				"handle": 1.0,
+				"hinge": 0.782,
+				"label": 1.0,
+				"louvre": 1.0,
+				"louvre_back": 0.884,
+				"plinth": 0.605,
+				"standoff": 0.676
+			},
+			"prints_off": []
+		},
+		"comms": {
+			"closeup": "hubrefs/c12/clean/comms-front.png",
+			"parts": [
+				"top",
+				"lip",
+				"pedestal",
+				"door",
+				"drawer",
+				"handle",
+				"pull",
+				"leg",
+				"modesty",
+				"hook",
+				"label"
+			],
+			"built": {
+				"door": 0.941,
+				"drawer": 0.967,
+				"drawer_box": 0.467,
+				"handle": 1.0,
+				"hook": 0.781,
+				"hook_plate": 0.368,
+				"label": 1.0,
+				"leg": 0.81,
+				"lip": 0.726,
+				"modesty": 0.884,
+				"pedestal": 0.723,
+				"pull": 1.0,
+				"standoff": 0.605,
+				"top": 0.577
+			},
+			"prints_off": []
+		},
+		"console": {
+			"closeup": "hubrefs/c12/clean/console-three-quarter.png",
+			"parts": [
+				"top",
+				"edge_trim",
+				"skirt",
+				"vent",
+				"vent_back",
+				"pillar",
+				"foot",
+				"cable"
+			],
+			"built": {
+				"cable": 0.477,
+				"cable_tray": 0.0,
+				"edge_trim": 0.704,
+				"foot": 0.779,
+				"pillar": 0.303,
+				"skirt": 0.898,
+				"top": 0.553,
+				"vent": 0.977,
+				"vent_back": 0.795
+			},
+			"prints_off": []
+		},
+		"labbench": {
+			"closeup": "hubrefs/c12/clean/labbench-three-quarter.png",
+			"parts": [
+				"top",
+				"leg",
+				"rail",
+				"foot_rail",
+				"pedestal",
+				"drawer",
+				"door",
+				"pull",
+				"handle",
+				"label"
+			],
+			"built": {
+				"door": 1.0,
+				"drawer": 0.945,
+				"drawer_box": 0.347,
+				"foot_rail": 0.713,
+				"handle": 1.0,
+				"label": 1.0,
+				"leg": 0.783,
+				"pedestal": 0.667,
+				"pull": 1.0,
+				"rail": 0.5,
+				"standoff": 0.581,
+				"top": 0.564
+			},
+			"prints_off": []
+		},
+		"toolboard": {
+			"closeup": "hubrefs/c12/clean/toolboard-front.png",
+			"parts": [
+				"outlines",
+				"edge",
+				"peg",
+				"rack",
+				"rack_bracket"
+			],
+			"built": {
+				"board": 0.0,
+				"edge": 0.652,
+				"outlines": 1.0,
+				"peg": 1.0,
+				"rack": 0.939,
+				"rack_bracket": 0.781
+			},
+			"prints_off": []
+		},
+		"waste_bin": {
+			"closeup": "hubkit/clean/waste_bin-three-quarter.png",
+			"parts": [
+				"body",
+				"base_tray",
+				"rim",
+				"lid",
+				"hinge",
+				"pedal",
+				"pedal_rib",
+				"label"
+			],
+			"built": {
+				"base_tray": 0.603,
+				"body": 0.681,
+				"hinge": 0.107,
+				"label": 1.0,
+				"lid": 0.59,
+				"pedal": 0.768,
+				"pedal_arm": 0.378,
+				"pedal_rib": 0.651,
+				"rim": 0.154
+			},
+			"prints_off": []
+		},
+		"monitor": {
+			"closeup": "hubrefs/c12/clean/consolescreen-front.png",
+			"parts": [
+				"bezel",
+				"case",
+				"neck",
+				"foot"
+			],
+			"built": {
+				"bezel": 0.831,
+				"case": 0.128,
+				"foot": 0.872,
+				"glass": 0.927,
+				"neck": 0.475,
+				"panel": 0.0
+			},
+			"prints_off": []
+		},
+		"keyboard": {
+			"closeup": "hubrefs/c12/clean/keyboard-three-quarter.png",
+			"parts": [
+				"housing",
+				"key",
+				"pad",
+				"cable"
+			],
+			"built": {
+				"cable": 0.582,
+				"housing": 0.744,
+				"key": 0.41,
+				"pad": 0.5
+			},
+			"prints_off": []
+		},
+		"glovebox": {
+			"closeup": "hubrefs/c12/clean/glovebox-three-quarter.png",
+			"parts": [
+				"body",
+				"window_frame",
+				"glass",
+				"port",
+				"glove",
+				"latch",
+				"service_box",
+				"label"
+			],
+			"built": {
+				"body": 0.814,
+				"conduit": 0.889,
+				"glass": 0.727,
+				"glove": 0.894,
+				"label": 1.0,
+				"latch": 1.0,
+				"port": 0.773,
+				"service_box": 0.676,
+				"window_frame": 0.792
+			},
+			"prints_off": []
+		},
+		"screwdriver": {
+			"closeup": "robust-exp/r6/pics/screwdriver.png",
+			"parts": [
+				"handle",
+				"ferrule",
+				"shaft",
+				"tip"
+			],
+			"built": {
+				"ferrule": 0.712,
+				"handle": 0.917,
+				"shaft": 0.958,
+				"tip": 0.909
+			},
+			"prints_off": []
+		},
+		"radio": {
+			"closeup": "robust-exp/r6/pics/radio.png",
+			"parts": [
+				"case",
+				"panel",
+				"meter",
+				"display",
+				"dial",
+				"knob",
+				"switch",
+				"grille",
+				"handle",
+				"handset"
+			],
+			"built": {
+				"case": 0.734,
+				"cradle": 0.522,
+				"dial": 0.983,
+				"display": 1.0,
+				"grille": 0.937,
+				"grille_frame": 0.902,
+				"handle": 0.962,
+				"handle_post": 0.875,
+				"handset": 0.793,
+				"knob": 1.0,
+				"meter": 0.956,
+				"panel": 0.67,
+				"switch": 1.0
+			},
+			"prints_off": []
+		}
+	}
+}

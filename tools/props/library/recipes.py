@@ -61,6 +61,25 @@ def edge_wear_mask(vector, wear, edge_width, breakup_scale, seed):
     return band * pf.nodes.math.greater_than(wear, 0.001)
 
 
+# Wear from a cause (hub round five, method B): boots and carts scuff paint off a piece's foot up to KICK_HIGH metres
+# over the floor it stands on, in patches, as hard as the room's one wear setting; dirt gathers there too. A piece
+# tells how high its foot stands (`foot`): a porthole's or a tool board's is far above any kick.
+KICK_HIGH = 0.32
+KICK_SOFT = 0.08
+
+
+def kick_mask(vector, foot, wear, breakup_scale, seed):
+    """Where kicks have worn paint: within KICK_HIGH of the floor (the object's own up plus its foot's height), in
+    patches from a breakup noise, scaled by the room's wear; nothing on a piece whose foot stands high."""
+    point = pf.nodes.math.separate_xyz(vector)
+    band = pf.nodes.math.map_range(value=point.z + foot, from_min=KICK_HIGH, from_max=KICK_SOFT,
+                                   interpolation_type="SMOOTHSTEP")
+    scuffs = pf.nodes.texture.noise(vector=vector, scale=breakup_scale * 1.5, detail=4.0, noise_dimensions="4D",
+                                    w=seed + 31.0)
+    patchy = pf.nodes.math.map_range(value=scuffs.fac, from_min=0.46, from_max=0.6)
+    return pf.nodes.math.clamp(band * patchy * wear * 1.6)
+
+
 def dirt_mask(vector, dirt, reach, seed):
     """Where dirt gathers: cavities and inside corners within `reach` metres, broken up at a large scale."""
     occlusion = pf.nodes.shader.ambient_occlusion(distance=reach, only_local=True, samples=16)
@@ -98,11 +117,12 @@ def layered(top, under, wear_mask, dirt_colour, dirt_amount):
 
 
 def painted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bump, bump_size, edge_width,
-                  breakup_scale, dirt_reach, wear, dirt, seed):
-    """Paint on steel: worn through to bare steel on the edges, dirty in the cavities."""
+                  breakup_scale, dirt_reach, wear, dirt, seed, foot):
+    """Paint on steel: worn through to bare steel on the edges and where feet kick it, dirty in the cavities."""
     vector = coordinates()
-    wear_mask = edge_wear_mask(vector, wear, edge_width, breakup_scale, seed)
-    dirty = dirt_mask(vector, dirt, dirt_reach, seed)
+    kicked = kick_mask(vector, foot, wear, breakup_scale, seed)
+    wear_mask = pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked)
+    dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5)
     base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 1.0), wear_mask, dirt_colour, dirty)
     chipped = pf.nodes.shader.displacement(height=wear_mask * -0.0004, midlevel=0.0)
     return Channels(base, rough, shine, BLACK, paint_relief(vector, bump, bump_size) + chipped)
@@ -293,7 +313,7 @@ SOURCES = {
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
-    "painted_metal": (painted_metal, coordinates, edge_wear_mask, dirt_mask, paint_relief, layered),
+    "painted_metal": (painted_metal, coordinates, edge_wear_mask, kick_mask, dirt_mask, paint_relief, layered),
     "bare_metal": (bare_metal, coordinates, dirt_mask, brushed_relief),
     "cast_metal": (cast_metal, coordinates, dirty_flat, dirt_mask),
     "perforated_metal": (perforated_metal, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
@@ -312,10 +332,16 @@ PARTS = {
 COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 
 
-def arguments(spec, wear, dirt, seed):
-    """The recipe's keyword arguments from a resolved library entry (library.py) and the place's wear and dirt: its
-    colours as ProcFunc colours, its picture (if it has one) loaded into Blender, the wear scaled by its age."""
-    given = dict(spec, wear=min(1.0, wear * spec.get("wear_scale", 1.0)), dirt=dirt, seed=float(seed))
+# A piece that does not say where its foot stands is taken to stand clear of any kick.
+NO_FOOT = 100.0
+
+
+def arguments(spec, wear, dirt, seed, foot=None):
+    """The recipe's keyword arguments from a resolved library entry (library.py), the place's wear and dirt and how
+    high the piece's foot stands over its floor: its colours as ProcFunc colours, its picture (if it has one) loaded
+    into Blender, the wear scaled by its age."""
+    given = dict(spec, wear=min(1.0, wear * spec.get("wear_scale", 1.0)), dirt=dirt, seed=float(seed),
+                 foot=NO_FOOT if foot is None else float(foot))
     for name in COLOUR_ARGUMENTS:
         if name in spec:
             given[name] = pf.Color(tuple(spec[name]))
@@ -327,9 +353,10 @@ def arguments(spec, wear, dirt, seed):
     return {name: given[name] for name in wanted}
 
 
-def channels(spec, wear, dirt, seed):
-    """One library material at one wear and dirt setting, as Channels."""
-    return RECIPES[spec["recipe"]](**arguments(spec, wear, dirt, seed))
+def channels(spec, wear, dirt, seed, foot=None):
+    """One library material at one wear and dirt setting, on a piece whose foot stands `foot` over its floor, as
+    Channels."""
+    return RECIPES[spec["recipe"]](**arguments(spec, wear, dirt, seed, foot))
 
 
 def settings_of(recipe):

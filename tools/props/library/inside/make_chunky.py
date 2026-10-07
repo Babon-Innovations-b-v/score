@@ -1,22 +1,23 @@
-"""Runs inside Blender (on a rented machine, cloud/library_bake.py): re-material generated pieces from the library and
-lay their picture's own detail over it.
+"""Runs inside Blender (on a rented machine, cloud/library_bake.py): re-material generated pieces from the library
+(method B, hub rounds five and six: the pipeline gives shape only, the surfaces are the library's alone).
 
 The job: {"out", "density", "wear", "dirt", "seed", "faces": the cut-down copy's triangles, "specs",
 "chunky": [{"name", "parts": folder of <library variant>.ply (labels.py), "base": the kind's turn (nine numbers),
 "size": its laid size, "screens": [{"at", "size", "variant"}], "cuts": [{"box": [x0, y0, x1, y1]} or
-{"circle": [x, y, radius]}], "picture": its picture model (labels.py's picture.obj) or null, "density": optional}]}.
+{"circle": [x, y, radius]}], "density": optional,
+"foot": how high its foot stands over its floor (the kick wear), "decals": [{"at", "size", "variant", "turn"}]}]}.
 
 Per piece: its labelled parts are joined into the full-detail model, turned into the kit's frame and fitted to its
 laid size (so the game stretches nothing); a copy is closed into a solid (`solid_copy`: a Pixal3D model is a
 paper-thin shell, under 1 mm, which the model check fails), cut down to `faces` triangles and given its openings
 (`cuts`: a doorway, a porthole, a window, which a single picture's model fills in), and the library is baked from the
-full model onto it, which keeps the full model's shape relief in the normal map without its photo colour; then the
-picture's own detail (labels, notes, rust, the tools' colours) is laid over the library from the picture model
-(bake.Atlas.lay_picture, round four; the code-built labels, screws and keypads of round three are gone: the picture
-carries them). A screen is laid as a glowing piece of its own, so the report gives the depth of the front where each
+full model onto it, which keeps the full model's shape relief in the normal map without its photo colour, never the
+picture's (round four's picture layer brought each piece its own rust and stains). Its print comes as decals, each
+placed by rule on a clear flat area (clear_spot) and joined into the full model before the bake. A screen is laid as a glowing piece of its own, so the report gives the depth of the front where each
 stands. Writes <out>/<name>.gltf with its own pictures in textures/, and report.json.
 """
 import json
+import math
 import pathlib
 import sys
 import time
@@ -37,6 +38,8 @@ import shapes  # noqa: E402
 BAKE_SAMPLES = 16
 # How far the bake looks from the cut-down copy for the full model's surface, as a share of the piece's size.
 REACH_SHARE = 0.03
+# How far a decal plate stands in front of the solid copy's face: the bake's rays meet it before the face.
+DECAL_PROUD = 0.002
 # The solid copy: every surface thickened inward by WALL, then the whole rebuilt as one closed surface on a voxel grid
 # of VOXEL_SHARE of the piece's largest side (no finer than VOXEL_FINEST), so no wall is thinner than the model check's
 # 3 mm and no hole is left open.
@@ -86,21 +89,6 @@ def into_kit_frame(whole, base, size):
     middle = Vector(((low.x + high.x) / 2, (low.y + high.y) / 2, low.z))
     whole.data.transform(Matrix.Diagonal(scale.to_4d()) @ Matrix.Translation(-middle))
     whole.data.update()
-
-
-def picture_model(path, base, size, name):
-    """The piece's picture model (labels.py's picture.obj: the finished model, in glTF numbers) turned and fitted to
-    the laid size by its own box, as the full model is. The full model reaches the finished model's frame by a
-    registration that is a few centimetres loose (2026-10-07: the comms desk's parts were 25% shorter than its
-    finished model), so the picture follows the box both share, not that registration."""
-    before = set(bpy.context.scene.objects)
-    bpy.ops.wm.obj_import(filepath=str(path), forward_axis="Y", up_axis="Z")  # the numbers as they are
-    found = [item for item in bpy.context.scene.objects if item not in before and item.type == "MESH"]
-    shown = shapes.joined(found, f"{name}_picture") if len(found) > 1 else found[0]
-    shown.data.transform(shown.matrix_world)
-    shown.matrix_world = Matrix.Identity(4)
-    into_kit_frame(shown, base, size)
-    return shown
 
 
 def solid_copy(whole, faces, name, size):
@@ -165,7 +153,7 @@ def make_piece(entry, job, out):
     began = time.time()
     whole = full_model(entry["parts"], entry["name"])
     into_kit_frame(whole, entry["base"], entry["size"])
-    low = solid_copy(whole, job["faces"], entry["name"], entry["size"])
+    low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"])
     opened(low, entry.get("cuts", []), entry["size"])
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
@@ -173,19 +161,70 @@ def make_piece(entry, job, out):
     screens = [dict(screen, surface=surface_at(tree, *screen["at"], entry["size"], screen["size"]))
                for screen in entry.get("screens", [])]
     screens = [screen for screen in screens if screen["surface"] is not None]
+    decals = [clear_spot(tree, decal, entry["size"]) for decal in entry.get("decals", [])]
+    decals_off = [decal["variant"] for decal in decals if decal["surface"] is None]
+    decals = [decal for decal in decals if decal["surface"] is not None]
+    with_decals(whole, decals)
     atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True)
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
-                    max(entry["size"]) * REACH_SHARE)
-    detail_share = None
-    if entry.get("picture"):
-        shown = picture_model(entry["picture"], entry["base"], entry["size"], entry["name"])
-        detail_share = round(atlas.lay_picture(shown, whole, low, max(entry["size"]) * REACH_SHARE), 4)
+                    max(entry["size"]) * REACH_SHARE, entry.get("foot"))
     atlas.finish()
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,
-                  cuts=len(entry.get("cuts", [])), picture_detail=detail_share, capped_density=atlas.capped,
+                  decals=[decal["variant"] for decal in decals], decals_off=decals_off,
+                  cuts=len(entry.get("cuts", [])), capped_density=atlas.capped,
                   seconds=round(time.time() - began, 1))
     return report
+
+
+# A decal is placed by rule (round six): on a clear flat area of the piece's front, never over a vent, a handle or a
+# tool. Its footprint is probed on a 4 x 4 grid; the face under it may step in or out at most FLAT_UNDER (a generated
+# surface's own noise), and when it does not, the nearest clear spot within SHIFTS of where it was asked is taken.
+FLAT_UNDER = 0.003
+SHIFTS = [(0.0, 0.0)] + [(across * step, up * step) for step in (0.02, 0.04, 0.07, 0.1)
+                         for across, up in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1))]
+
+
+def clear_spot(tree, decal, size):
+    """The decal at the nearest clear flat spot (its `at` and `surface`), or with `surface` None when there is none."""
+    (x, y), (wide, tall) = decal["at"], decal["size"]
+    for shift_x, shift_y in SHIFTS:
+        depths = []
+        for across in (-0.4, -0.13, 0.13, 0.4):
+            for up in (-0.4, -0.13, 0.13, 0.4):
+                start = shapes.to_blender((x + shift_x + across * wide, y + shift_y + up * tall, -size[2]))
+                hit = tree.ray_cast(start, shapes.to_blender((0.0, 0.0, 1.0)), size[2] * 2)[0]
+                depths.append(None if hit is None else -hit.y)
+        if None not in depths and max(depths) - min(depths) <= FLAT_UNDER:
+            return dict(decal, at=[x + shift_x, y + shift_y], surface=min(depths))
+    return dict(decal, surface=None)
+
+
+def with_decals(whole, decals):
+    """The piece's print (method B, hub round five: labels, notes, number plates placed on purpose, a few a piece)
+    as thin printed plates joined into the full model just in front of the solid copy's face, so the bake from the
+    full model carries them onto the piece in their own library colours; the picture's own colours never do."""
+    plates = []
+    for decal in decals:
+        (x, y), (wide, tall) = decal["at"], decal["size"]
+        plate = shapes.content_plate((x - wide / 2, y - tall / 2, decal["surface"] - DECAL_PROUD),
+                                     (x + wide / 2, y + tall / 2, decal["surface"] + DECAL_PROUD / 2),
+                                     decal["variant"], "decal")
+        if decal.get("turn"):
+            centre = shapes.to_blender((x, y, 0.0))
+            plate.data.transform(Matrix.Translation(centre) @ Matrix.Rotation(math.radians(decal["turn"]), 4, "Y")
+                                 @ Matrix.Translation(-centre))
+        plates.append(plate)
+    if not plates:
+        return
+    if whole.data.uv_layers.get("content") is None:
+        whole.data.uv_layers.new(name="content")
+    bpy.ops.object.select_all(action="DESELECT")
+    for plate in plates:
+        plate.select_set(True)
+    whole.select_set(True)
+    bpy.context.view_layer.objects.active = whole
+    bpy.ops.object.join()
 
 
 def held_to_box(copy, whole, size):
