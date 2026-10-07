@@ -1096,7 +1096,7 @@ def grab_bar(size, laid):
 
 # Degrees about the kit's x axis that bring the side the room sees round to the kit front (-z), by kind: a tray or
 # duct is seen on its +y side, the apex hub and a flood lamp from below (their -y side).
-FLOOR_SEEN_TURN = {"ceiling_cable_tray": -90.0, "ceiling_duct": -90.0, "roof_apex_hub": 90.0,
+FLOOR_SEEN_TURN = {"floor_socket": -90.0, "bay_mark": -90.0, "ceiling_cable_tray": -90.0, "ceiling_duct": -90.0, "roof_apex_hub": 90.0,
                    "roof_light_fixture": 90.0, "light_ring": 90.0}
 FLOOR_PIPE_RADIUS = 0.038  # pipe_straight's: min(tall, deep) * 0.38 at 0.1
 # How far a wall pipe run's axis stands off the wall (hub_kit.PIPE_AXIS): a bracket's base plate and a valve's foot plate
@@ -1825,8 +1825,11 @@ def toolboard(size, laid):
     face = back - 0.022
     rim = 0.015
     tools = laid.get("tools", FURN_TOOLS)
+    # The outlines' plate: 1.5 mm, or as deep as a room that model-checks its board asks (the workshop's, 4 mm: the
+    # check fails a wall under 3 mm).
+    print_deep = laid.get("print_deep", 0.0015)
     parts = [shapes.box((-wide / 2 + rim, rim, face), (wide / 2 - rim, tall - rim, back), "wood_board", "board"),
-             shapes.content_plate((-wide / 2 + rim, rim, face - 0.0015), (wide / 2 - rim, tall - rim, face),
+             shapes.content_plate((-wide / 2 + rim, rim, face - print_deep), (wide / 2 - rim, tall - rim, face),
                                   laid.get("outlines", "label_sign_out"), "outlines")]
     for low, high in (((-wide / 2, 0.0), (wide / 2, rim)), ((-wide / 2, tall - rim), (wide / 2, tall)),
                       ((-wide / 2, rim), (-wide / 2 + rim, tall - rim)), ((wide / 2 - rim, rim), (wide / 2, tall - rim))):
@@ -1975,8 +1978,14 @@ def screwdriver(size, laid):
                              12, "ferrule"),
              shapes.cylinder((0.0, 0.012, 0.0), (0.0, tall - handle - 0.012, 0.0), radius * 0.2, "bare_steel", 10,
                              "shaft")]
-    parts.append(shapes.box((-radius * 0.35, 0.0, -radius * 0.08), (radius * 0.35, 0.014, radius * 0.08), "bare_steel",
-                            "tip"))
+    tip_half = radius * 0.08
+    if laid.get("solid_tip"):
+        # A room that model-checks its tools (the workshop's): the tip 4 mm thick and the shaft standing on it rather
+        # than through it, so no wall reads under the check's 3 mm.
+        tip_half = 0.002
+        parts[-1] = shapes.cylinder((0.0, 0.014, 0.0), (0.0, tall - handle - 0.012, 0.0), radius * 0.2, "bare_steel",
+                                    10, "shaft")
+    parts.append(shapes.box((-radius * 0.35, 0.0, -tip_half), (radius * 0.35, 0.014, tip_half), "bare_steel", "tip"))
     return parts
 
 
@@ -3463,6 +3472,1232 @@ def ground_cable(size, laid):
     return [shapes.cylinder(start, end, radius, "cable_black", 12, "cable") for start, end in zip(points, points[1:])]
 
 
+# ---- Workshop round (2026-10-07), block ws_bench: the workshop's robot bench, its arm monitors, the equipment bench,
+# the low cabinet run, the floor service socket and the machine bay's corner mark, built in code with library surfaces
+# as method B's parts check allows, each as its clean close-up shows it. A holder never carries the loose objects on
+# it: the arm monitors and the keyboard on the robot bench are children of their own (composites), and the bench's
+# middle and its left end stay clear and flat for the game's turning table and parts tray. Helpers are prefixed
+# `ws_bench_`.
+
+WS_BENCH_ROBOT_TOP = 0.95  # the robot bench's working height (a standing bench)
+WS_BENCH_CLAMP_X = 0.8  # the screen arms' clamp blocks, either side of the middle
+WS_BENCH_CLAMP_RISE = 0.035  # how far a clamp block stands over the top (the arm's foot sits on it)
+WS_BENCH_EQUIPMENT_TOP = 0.9
+WS_BENCH_STRIP = 0.08  # a bay mark's strip width
+
+
+def ws_bench_bar(start, end, thick, x_from, x_to, material, name):
+    """A straight flat bar in the kit's side plane between two (z, y) points, `thick` across its length and running
+    across x from `x_from` to `x_to`: an arm link of an articulated stand."""
+    run = (end[0] - start[0], end[1] - start[1])
+    length = math.hypot(*run)
+    side = (-run[1] / length * thick / 2, run[0] / length * thick / 2)
+    outline = [(start[0] + side[0], start[1] + side[1]), (end[0] + side[0], end[1] + side[1]),
+               (end[0] - side[0], end[1] - side[1]), (start[0] - side[0], start[1] - side[1])]
+    return furn_prism(outline, "x", x_from, x_to, material, name)
+
+
+def ws_bench_hinge(across, high, front, name="hinge"):
+    """A small butt hinge on a door's edge at depth `front`: a leaf on the face and its knuckle."""
+    return [shapes.box((across - 0.012, high - 0.03, front - 0.004), (across + 0.012, high + 0.03, front),
+                       "bare_steel", name),
+            shapes.cylinder((across, high - 0.032, front - 0.006), (across, high + 0.032, front - 0.006), 0.0055,
+                            "bare_steel", 10, name)]
+
+
+def ws_bench_drawers(right, left, spans, face, front):
+    """A stack of drawer fronts between x `right` and `left`, one per (low, high) span, each with a bar pull across
+    it; their backs on the carcass face at depth `face`, their fronts at `front`."""
+    parts = []
+    for low, high in spans:
+        parts.append(shapes.bevelled(shapes.box((right + 0.012, low, front), (left - 0.012, high, face),
+                                                "painted_panel", "drawer"), 0.002))
+        pull_y = high - min(0.06, (high - low) / 2)
+        parts += furn_pull((right + left) / 2, pull_y, 0.12, front, upright=False)
+    return parts
+
+
+def ws_bench_pedestal(right, left, top, front, back):
+    """One drawer bank of the robot bench between x `right` and `left`: a dark plinth, the carcass, a shallow pencil
+    drawer under the top and four drawers, the lowest one deep."""
+    face = front + 0.02
+    parts = [shapes.box((right + 0.03, 0.0, face + 0.02), (left - 0.03, 0.08, back - 0.02), "dark_panel", "plinth"),
+             shapes.bevelled(shapes.box((right, 0.08, face), (left, top, back), "painted_panel", "pedestal"), EDGE)]
+    spans = ((0.1, 0.4), (0.405, 0.555), (0.56, 0.71), (0.715, 0.865))
+    parts += ws_bench_drawers(right, left, spans, face, front)
+    parts.append(shapes.bevelled(shapes.box((right + 0.012, 0.87, front), (left - 0.012, top - 0.008, face),
+                                            "painted_panel", "pencil_drawer"), 0.002))
+    return parts
+
+
+def ws_bench_gooseneck(base_x, base_z, top):
+    """The robot bench's ring lamp: a round foot plate on the cable tray at the back edge's middle, a gooseneck
+    rising and bending forward over the top's middle, and a ring head there with its glowing lens under it."""
+    bend_y, bend = top + 0.2, 0.18
+    centre_z = base_z - bend
+    parts = [shapes.bevelled(shapes.cylinder((base_x, top + 0.006, base_z), (base_x, top + 0.06, base_z), 0.032,
+                                             "dark_panel", 24, "lamp_base"), 0.002),
+             shapes.cylinder((base_x, top + 0.06, base_z), (base_x, bend_y, base_z), 0.012, "pipe_steel", 12,
+                             "gooseneck"),
+             floor_bent_tube((base_x, bend_y, centre_z), (0, 0, 1), (0, 1, 0), bend, 0.012, 0.0, 160.0, "pipe_steel",
+                             "gooseneck", steps=16, sides=12)]
+    end_z = centre_z + bend * math.cos(math.radians(160.0))
+    end_y = bend_y + bend * math.sin(math.radians(160.0))
+    head_y, head_z = end_y - 0.05, end_z - 0.1
+    parts.append(shapes.cylinder((base_x, end_y, end_z), (base_x, head_y + 0.03, head_z + 0.105), 0.012, "pipe_steel",
+                                 12, "gooseneck"))
+    parts.append(shapes.bevelled(shapes.ring((base_x, head_y, head_z), (base_x, head_y + 0.035, head_z), 0.11, 0.07,
+                                             "painted_panel", 32, "lamp_head"), 0.003))
+    parts.append(shapes.cylinder((base_x, head_y + 0.006, head_z), (base_x, head_y + 0.026, head_z), 0.072,
+                                 "lamp_lens", 32, "lens"))
+    return parts
+
+
+def ws_bench_clamp(across, top, back):
+    """A screen arm's clamp block on the robot bench's back edge: a block on the top, its jaw down the top's back edge
+    and two bolt heads on it (the arm's own clamp foot sits on it)."""
+    rise = WS_BENCH_CLAMP_RISE
+    parts = [shapes.bevelled(shapes.box((across - 0.05, top, back - 0.1), (across + 0.05, top + rise, back),
+                                        "painted_panel", "clamp_block"), 0.003),
+             shapes.bevelled(shapes.box((across - 0.05, top - 0.08, back), (across + 0.05, top + rise, back + 0.01),
+                                        "painted_panel", "clamp_block"), 0.002)]
+    for side in (-1, 1):
+        parts.append(shapes.cylinder((across + side * 0.032, top + rise, back - 0.05),
+                                     (across + side * 0.032, top + rise + 0.006, back - 0.05), 0.009, "bare_steel", 12,
+                                     "bolt"))
+    return parts
+
+
+def ws_bench_cable_tray(span, top, back):
+    """The cable tray along the robot bench's back edge: a pan on the top, a lip at its front and a slotted back wall
+    standing up from it."""
+    near = back - 0.08
+    wall = shapes.box((-span, top, back - 0.006), (span, top + 0.07, back), "galvanized_steel", "cable_tray")
+    count = 14
+    for at in range(count):
+        slot_x = -span + 0.06 + (2 * span - 0.12) * at / (count - 1)
+        furn_cut_box(wall, (slot_x - 0.02, top + 0.03, back - 0.02), (slot_x + 0.02, top + 0.042, back + 0.01))
+    return [shapes.box((-span, top, near), (span, top + 0.006, back), "galvanized_steel", "cable_tray"),
+            shapes.box((-span, top, near), (span, top + 0.035, near + 0.006), "galvanized_steel", "cable_tray"),
+            wall]
+
+
+def robot_bench(size, laid):
+    """The robot assembly bench, as its close-up shows it: a standing steel bench, its brushed top on a drawer bank
+    at each end (a pencil drawer over four drawers with bar pulls), an open middle bay with a back panel and an apron
+    under the top's front, a cable tray along the back edge, the gooseneck ring lamp rising from the back edge's middle
+    over the top's middle, and two clamp blocks on the back edge for the screen arms. The top's middle (1.0 x 0.6 m)
+    and its left end (+x, 0.6 m wide, from the front to 0.35 m behind the middle) stay clear and flat for the game's
+    turning table and parts tray; the screen arms and the keyboard are children of their own. The lamp stands over the
+    laid height: the bench is 0.95 m to its top, the lamp's bend about 1.34 m."""
+    wide, tall, deep = size
+    top = WS_BENCH_ROBOT_TOP
+    front, back = -deep / 2, deep / 2 - 0.01
+    body = front + 0.03  # the drawer fronts' face (they stand 2 cm proud of the pedestals)
+    parts = [shapes.bevelled(shapes.box((-wide / 2, top - 0.04, front), (wide / 2, top, back), "brushed_steel_fine",
+                                        "top"), EDGE)]
+    pedestal = 0.56
+    for right, left in ((wide / 2 - 0.02 - pedestal, wide / 2 - 0.02), (-wide / 2 + 0.02, -wide / 2 + 0.02 + pedestal)):
+        parts += ws_bench_pedestal(right, left, top - 0.04, body, back - 0.01)
+    inner = wide / 2 - 0.02 - pedestal
+    parts.append(shapes.bevelled(shapes.box((-inner, 0.08, back - 0.04), (inner, top - 0.04, back - 0.015),
+                                            "painted_panel", "back_panel"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((-inner, top - 0.1, body), (inner, top - 0.04, body + 0.03),
+                                            "painted_panel", "apron"), 0.002))
+    parts.append(label(0.0, top - 0.07, 0.24, 0.04, body, "label_robot_bay"))
+    parts.append(label(-wide / 2 + 0.02 + pedestal / 2, 0.886, 0.14, 0.024, body, "label_tools"))
+    parts.append(label(wide / 2 - 0.02 - pedestal / 2, 0.886, 0.14, 0.024, body, "label_storage_a"))
+    parts += ws_bench_cable_tray(WS_BENCH_CLAMP_X - 0.08, top, back)
+    parts += ws_bench_gooseneck(0.0, back - 0.04, top)
+    for side in (-1, 1):
+        parts += ws_bench_clamp(side * WS_BENCH_CLAMP_X, top, back)
+    parts += ws_bench_table_and_tray(top)
+    return parts
+
+
+# Where the game's robot bench (game/base/bench/bench.tscn, on the room's middle, its front to the south) turns its
+# robot and lays its parts, in the made bench's frame (its x is the room's -x, its z the room's -z): the turning table
+# round the top's middle, 0.3 m to the viewer's right, and the parts tray on the left end.
+WS_BENCH_TABLE = (-0.3, 0.0, 0.35, 0.04)  # x, z, radius, height over the top
+WS_BENCH_TRAY = (0.68, -0.06, 0.76, 1.02, 0.03)  # x, z, wide, deep, height over the top
+
+
+def ws_bench_table_and_tray(top):
+    """The bench's turning table, a plain steel disc the game's robot stands on (the game turns the robot, the disc
+    reads the same however it turns), and the parts tray's rubber mat with a raised lip, the game's parts lying on it."""
+    table_x, table_z, radius, high = WS_BENCH_TABLE
+    parts = [shapes.bevelled(shapes.cylinder((table_x, top, table_z), (table_x, top + high, table_z), radius,
+                                             "bare_steel", 64, "turntable"), 0.004)]
+    tray_x, tray_z, wide, deep, tall = WS_BENCH_TRAY
+    low, high_corner = (tray_x - wide / 2, top, tray_z - deep / 2), (tray_x + wide / 2, top + tall, tray_z + deep / 2)
+    parts.append(shapes.bevelled(shapes.box(low, high_corner, "rubber", "tray_mat"), 0.004))
+    return parts
+
+
+def arm_monitor(size, laid):
+    """A screen on an articulated arm, as its close-up shows it: a clamp foot block with its label, a swivel collar,
+    a lower link of twin flat bars with a gas spring under them, an elbow joint, an upper link to a tilt joint, a mount
+    plate on the screen's back, and the screen (a steel case, its bezel and glowing glass facing -z, DATA MONITOR and a
+    row of buttons on the case under it); its foot's middle at the origin."""
+    wide, tall, deep = size
+    front = -deep / 2
+    base, elbow, head = (0.0, 0.13), (deep / 2 - 0.045, 0.42), (front + 0.085, tall - 0.19)  # (z, y)
+    parts = [shapes.bevelled(shapes.box((-0.05, 0.0, -0.05), (0.05, 0.07, 0.05), "painted_panel", "clamp_foot"),
+                             0.004),
+             label(0.0, 0.035, 0.085, 0.034, -0.05, "label_clamp_foot"),
+             shapes.bevelled(shapes.cylinder((0.0, 0.07, 0.0), (0.0, 0.1, 0.0), 0.03, "bare_steel", 24, "swivel"),
+                             0.002),
+             shapes.box((-0.03, 0.1, -0.025), (0.03, base[1], 0.025), "painted_panel", "swivel")]
+    for x_from, x_to in ((-0.03, -0.012), (0.012, 0.03)):
+        parts.append(ws_bench_bar(base, elbow, 0.035, x_from, x_to, "painted_panel", "lower_arm"))
+    run = (elbow[0] - base[0], elbow[1] - base[1])
+    length = math.hypot(*run)
+    under = (run[1] / length * 0.03, -run[0] / length * 0.03)
+    spring_from = (base[0] + run[0] * 0.15 + under[0], base[1] + run[1] * 0.15 + under[1])
+    spring_to = (base[0] + run[0] * 0.85 + under[0], base[1] + run[1] * 0.85 + under[1])
+    parts.append(shapes.cylinder((0.0, spring_from[1], spring_from[0]), (0.0, spring_to[1], spring_to[0]), 0.008,
+                                 "bare_steel", 12, "spring"))
+    parts.append(ws_bench_bar(elbow, head, 0.04, -0.022, 0.022, "painted_panel", "upper_arm"))
+    for (joint_z, joint_y), radius, half in ((base, 0.032, 0.036), (elbow, 0.04, 0.04), (head, 0.03, 0.03)):
+        parts.append(shapes.bevelled(shapes.cylinder((-half, joint_y, joint_z), (half, joint_y, joint_z), radius,
+                                                     "bare_steel", 24, "joint"), 0.002))
+        for side in (-1, 1):
+            parts.append(shapes.cylinder((side * half, joint_y, joint_z), (side * (half + 0.005), joint_y, joint_z),
+                                         radius * 0.4, "bare_steel", 12, "bolt"))
+    case_front, case_back = front + 0.008, front + 0.05
+    parts.append(shapes.box((-0.05, head[1] - 0.05, case_back), (0.05, head[1] + 0.05, head[0] - 0.02), "dark_panel",
+                            "mount"))
+    low = tall - 0.34
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, low, case_front), (wide / 2, tall, case_back), "bare_steel",
+                                            "case"), 0.004))
+    parts += wall_screen_part(0.0, low + 0.04 + 0.145, wide - 0.02, 0.29, case_front, "screen", rim=0.016)
+    parts.append(label(0.12, low + 0.02, 0.15, 0.024, case_front, "label_data_monitor"))
+    parts += [wall_button(-0.09 - 0.022 * at, low + 0.02, 0.012, 0.008, case_front) for at in range(5)]
+    return parts
+
+
+def ws_bench_socket(across, high, front, squared):
+    """One switched power outlet on a face at depth `front`: a white plate with its round recess and two pin holes
+    (or a squared outlet's slots), a rocker switch beside it and a POWER label over it."""
+    plate = shapes.box((across - 0.045, high - 0.045, front - 0.012), (across + 0.045, high + 0.045, front),
+                       "plastic_white", "socket")
+    if squared:
+        for side in (-1, 1):
+            pin_x = across + side * 0.015
+            furn_cut_box(plate, (pin_x - 0.004, high - 0.012, front - 0.02), (pin_x + 0.004, high + 0.012,
+                                                                              front - 0.006))
+    else:
+        shapes.cut(plate, shapes.cylinder((across, high, front - 0.02), (across, high, front - 0.006), 0.03, "rubber",
+                                          32, "cutter"))
+        for side in (-1, 1):
+            pin_x = across + side * 0.01
+            shapes.cut(plate, shapes.cylinder((pin_x, high, front - 0.01), (pin_x, high, front - 0.002), 0.0045,
+                                              "rubber", 12, "cutter"))
+    switch_x = across - 0.07
+    return [shapes.bevelled(plate, 0.002),
+            shapes.bevelled(shapes.box((switch_x - 0.015, high - 0.025, front - 0.008), (switch_x + 0.015, high + 0.025,
+                                                                                       front), "dark_panel", "switch"),
+                            0.0015),
+            shapes.bevelled(shapes.box((switch_x - 0.009, high - 0.016, front - 0.016), (switch_x + 0.009, high + 0.016,
+                                                                                       front - 0.008), "plastic_grey",
+                                       "switch"), 0.001),
+            label(across, high + 0.066, 0.075, 0.022, front, "label_power")]
+
+
+def equipment_bench(size, laid):
+    """The equipment bench, as its close-up shows it: a thick worn steel top on a closed steel cabinet (four drawers
+    at the viewer's left, a wide drawer over a pair of doors in the middle, a drawer over a door at the viewer's
+    right, bar pulls and hinges, a dark plinth), and a back panel rising to 1.4 m between sloped cheeks with a copper
+    bus bar bolted along it, a stepped band of six switched power outlets each under a POWER label, and a small
+    readout screen at the band's right end."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    top = WS_BENCH_EQUIPMENT_TOP
+    face = front + 0.04  # the carcass face; the fronts stand 2 cm proud of it
+    fronts = face - 0.02
+    parts = [shapes.bevelled(shapes.box((-wide / 2, top - 0.05, front), (wide / 2, top, back - 0.11), "bare_steel",
+                                        "top"), 0.006),
+             shapes.box((-wide / 2 + 0.03, 0.0, face + 0.03), (wide / 2 - 0.03, 0.07, back - 0.03), "dark_panel",
+                        "plinth"),
+             shapes.bevelled(shapes.box((-wide / 2 + 0.02, 0.07, face), (wide / 2 - 0.02, top - 0.05, back - 0.02),
+                                        "painted_panel", "carcass"), EDGE)]
+    bank = (wide / 2 - 0.54, wide / 2 - 0.04)
+    parts += ws_bench_drawers(bank[0], bank[1], ((0.09, 0.4), (0.405, 0.56), (0.565, 0.7), (0.705, 0.83)), face,
+                              fronts)
+    for right, left, doors in ((-0.34, bank[0] - 0.02, 2), (-wide / 2 + 0.04, -0.36, 1)):
+        parts += ws_bench_drawers(right, left, ((0.705, 0.83),), face, fronts)
+        door_wide = (left - right - 0.024 - 0.006 * (doors - 1)) / doors
+        for door in range(doors):
+            door_right = right + 0.012 + door * (door_wide + 0.006)
+            door_left = door_right + door_wide
+            parts.append(shapes.bevelled(shapes.box((door_right, 0.09, fronts), (door_left, 0.69, face),
+                                                    "painted_panel", "door"), 0.002))
+            hinge_left = doors == 1 or door == 1  # the hinge on the door's outer edge, the pull by the other
+            hinge_x = door_left - 0.012 if hinge_left else door_right + 0.012
+            pull_x = door_right + 0.05 if hinge_left else door_left - 0.05
+            parts += furn_pull(pull_x, 0.42, 0.12, fronts)
+            for high in (0.17, 0.6):
+                parts += ws_bench_hinge(hinge_x, high, fronts)
+    # The back panel between its sloped cheeks, the stepped outlet band along its foot.
+    panel_front = back - 0.08
+    band_front = panel_front - 0.03
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.04, top, panel_front), (wide / 2 - 0.04, tall - 0.02,
+                                                                                    back - 0.04), "painted_panel",
+                                            "back_panel"), 0.003))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.04, top, band_front), (wide / 2 - 0.04, top + 0.22,
+                                                                                   panel_front), "painted_panel",
+                                            "socket_band"), 0.003))
+    cheek = [(back - 0.14, top), (back, top), (back, tall), (back - 0.06, tall), (back - 0.14, top + 0.1)]
+    for x_from, x_to in ((-wide / 2, -wide / 2 + 0.04), (wide / 2 - 0.04, wide / 2)):
+        parts.append(shapes.bevelled(furn_prism(cheek, "x", x_from, x_to, "painted_panel", "cheek"), 0.003))
+    bar_y = top + 0.36
+    parts.append(shapes.bevelled(shapes.box((-0.72, bar_y - 0.025, panel_front - 0.012), (0.72, bar_y + 0.025,
+                                                                                           panel_front),
+                                            "anodized_gold", "bus_bar"), 0.002))
+    parts += [shapes.cylinder((x, bar_y, panel_front - 0.012), (x, bar_y, panel_front - 0.02), 0.014, "bare_steel", 6,
+                              "bolt") for x in (-0.66, 0.0, 0.66)]
+    for at in range(6):
+        parts += ws_bench_socket(wide / 2 - 0.16 - 0.215 * at, top + 0.09, band_front, at == 0)
+    parts += wall_screen_part(-wide / 2 + 0.2, top + 0.115, 0.24, 0.1, band_front, "screen", rim=0.012)
+    return parts
+
+
+def low_cabinet(size, laid):
+    """The low steel cabinet run, as its close-up shows it: a carcass with a flat top on a recessed kick plate, four
+    hinged doors in two pairs, each door a frame round a raised field, a recessed oval handle by the pair's meeting
+    edge, hinges at each pair's outer edges, and a label on two doors."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    face = front + 0.02
+    parts = [shapes.box((-wide / 2 + 0.03, 0.0, face + 0.03), (wide / 2 - 0.03, 0.08, back - 0.03), "dark_panel",
+                        "kick_plate"),
+             shapes.bevelled(shapes.box((-wide / 2, 0.08, face), (wide / 2, tall, back), "painted_panel", "carcass"),
+                             EDGE)]
+    margin, gap = 0.02, 0.008
+    door_wide = (wide - 2 * margin - 3 * gap) / 4
+    door_low, door_high = 0.1, tall - 0.025
+    field = front - 0.006
+    for door in range(4):
+        right = -wide / 2 + margin + door * (door_wide + gap)  # the door's -x edge (the viewer's right)
+        left = right + door_wide
+        plate = shapes.bevelled(shapes.box((right, door_low, front), (left, door_high, face), "painted_panel", "door"),
+                                0.002)
+        panel = shapes.bevelled(shapes.box((right + 0.045, door_low + 0.045, field), (left - 0.045, door_high - 0.045,
+                                                                                      front), "painted_panel",
+                                           "door_panel"), 0.002)
+        meets_left = door % 2 == 0  # each pair meets in its own middle: the first door's meeting edge is its +x one
+        handle_x = left - 0.085 if meets_left else right + 0.085
+        handle_y = (door_low + door_high) / 2
+        hole = rounded_outline((handle_x - 0.028, handle_y - 0.055), (handle_x + 0.028, handle_y + 0.055), 0.024)
+        for piece in (plate, panel):
+            shapes.cut(piece, shapes.prism(hole, field - 0.02, face - 0.006, "rubber", "cutter"))
+        parts += [plate, panel]
+        parts.append(shapes.bevelled(rounded_ring((handle_x - 0.034, handle_y - 0.061),
+                                                  (handle_x + 0.034, handle_y + 0.061), 0.03, 0.006, field - 0.004,
+                                                  field, "bare_steel", "handle"), 0.001))
+        hinge_x = right - 0.002 if meets_left else left + 0.002
+        for high in (door_low + 0.12, door_high - 0.12):
+            parts += ws_bench_hinge(hinge_x, high, front)
+    for door, variant in ((0, "label_tools"), (3, "label_storage_a")):
+        middle = -wide / 2 + margin + door * (door_wide + gap) + door_wide / 2
+        parts.append(label(middle, door_high - 0.11, 0.16, 0.04, field, variant))
+    return parts
+
+
+def ws_bench_floor_socket_lying(size, laid):
+    """A floor service socket lying on the deck like a tread mat, its front (-z) its top, its whole depth standing
+    proud of the deck, as its close-up shows it shut: a bolted rim frame, the checker-plate lid flush in it with a
+    finger slot by its near edge (y = 0) and its hinge knuckles along the far edge, and a POWER / COOLANT label on
+    the rim's near side."""
+    wide, long, deep = size
+    top, bottom = -deep / 2, deep / 2
+    rim = 0.035
+    parts = floor_frame((-wide / 2, 0.0), (wide / 2, long), top, bottom, rim, "painted_panel", "rim")
+    lid = shapes.bevelled(shapes.box((-wide / 2 + rim + 0.003, rim + 0.003, top),
+                                     (wide / 2 - rim - 0.003, long - rim - 0.003, bottom), "chequer_plate_steel",
+                                     "lid"), 0.002)
+    slot_y = rim + 0.03
+    furn_cut_box(lid, (-0.045, slot_y - 0.009, top - 0.01), (0.045, slot_y + 0.009, top + 0.012))
+    parts += [lid,
+              shapes.box((-0.045, slot_y - 0.009, top + 0.008), (0.045, slot_y + 0.009, top + 0.012), "dark_panel",
+                         "finger_slot")]
+    hinge_y = long - rim - 0.003
+    for knuckle_x in (-0.08, 0.08):
+        parts.append(shapes.cylinder((knuckle_x - 0.035, hinge_y, top + 0.001),
+                                     (knuckle_x + 0.035, hinge_y, top + 0.001), 0.005, "bare_steel", 12, "hinge"))
+    parts += [screw(x, y, top) for x in (-wide / 2 + rim / 2, wide / 2 - rim / 2) for y in (rim / 2, long - rim / 2)]
+    parts.append(label(0.0, rim / 2, 0.16, 0.022, top, "label_power_coolant"))
+    return parts
+
+
+def ws_bench_bay_mark_lying(size, laid):
+    """A machine bay's corner mark painted on the deck, lying like a tread mat (front -z up): an L of two strips
+    WS_BENCH_STRIP wide running the piece's full width and length; the L's knee is the corner at +x, y = 0 (the
+    viewer's left near corner), its arms running toward -x and toward +y. The layout lays four of it turned about up
+    so the knees sit at the bay's corners."""
+    wide, long, deep = size
+    strip = WS_BENCH_STRIP
+    outline = [(wide / 2, 0.0), (wide / 2, long), (wide / 2 - strip, long), (wide / 2 - strip, strip),
+               (-wide / 2, strip), (-wide / 2, 0.0)]
+    return [shapes.bevelled(furn_prism(outline, "z", -deep / 2, deep / 2, "enamel_white", "paint"), 0.001)]
+
+
+def ws_bench_upright(parts, long, deep):
+    """Parts built lying like a tread mat (their front -z up, their length along +y from 0, `deep` thick) stood up as
+    a floor piece: foot on the floor at y = 0, top at `deep`, the lying near edge (y = 0) at the front (-z)."""
+    stand = Matrix.Translation((0.0, long / 2, deep / 2)) @ Matrix.Rotation(math.radians(90.0), 4, "X")
+    for part in parts:
+        part.data.transform(stand)
+    return parts
+
+
+def floor_socket(size, laid):
+    """The floor socket standing on the deck (size wide, tall, deep: its top `tall` over the floor), built lying."""
+    wide, tall, deep = size
+    return ws_bench_upright(ws_bench_floor_socket_lying((wide, deep, tall), laid), deep, tall)
+
+
+def bay_mark(size, laid):
+    """The bay's corner mark standing on the deck (its paint `tall` thick), built lying: its knee at the +x front
+    corner, its arms toward -x and toward the back (+z)."""
+    wide, tall, deep = size
+    return ws_bench_upright(ws_bench_bay_mark_lying((wide, deep, tall), laid), deep, tall)
+
+
+# ---- Workshop round (2026-10-07), block ws_tools: the workshop's hand-tool bench, bench vise, shop stool, spares
+# shelving and the crates and boxes on it, built in code with library surfaces as method B's parts check allows, each
+# as its clean close-up shows it. A holder never carries the loose objects on it: the vise and the desk lamp on the
+# tool bench, the crates and boxes on the shelves are children of their own, placed on purpose (composites). Helpers
+# are prefixed `ws_tools_`.
+
+WS_TOOLS_BENCH_TOP = 0.06  # the tool bench's timber top: thick, worn boards
+WS_TOOLS_LEG = 0.05  # the bench frame's square tube
+WS_TOOLS_DRAWER_UNIT = 0.48  # how wide the bench's drawer unit is, under the viewer's right end
+# The shelving unit's shelf tops, foot up; the last is the unit's top.
+WS_TOOLS_SHELVES = (0.12, 0.565, 1.01, 1.455, 1.9)
+WS_TOOLS_ANGLE = 0.04  # a shelving post's angle flange, across
+WS_TOOLS_SHEET = 0.005  # the shelving's sheet and angle thickness
+WS_TOOLS_SHELF_LIP = 0.035  # how far a shelf's edges turn down
+WS_TOOLS_CRATE_RIM = 0.235  # the crate's rim, where its lid sits
+
+
+def ws_tools_cut_all(part, cutters):
+    """A part with every one of `cutters` taken out of it in one cut (a post's row of slots, a crate's hand holes)."""
+    shapes.cut(part, shapes.joined(cutters, "cutter"))
+    return part
+
+
+def ws_tools_bench_frame(wide, deep, top):
+    """The tool bench's welded frame: four square-tube legs on foot plates, a rail under the top all round and a
+    stretcher round the foot."""
+    under = top - WS_TOOLS_BENCH_TOP
+    leg_x = wide / 2 - 0.05
+    leg_z = deep / 2 - 0.05
+    parts = []
+    for x in (-leg_x, leg_x - WS_TOOLS_LEG):
+        for z in (-leg_z, leg_z - WS_TOOLS_LEG):
+            parts.append(shapes.bevelled(shapes.box((x, 0.006, z), (x + WS_TOOLS_LEG, under, z + WS_TOOLS_LEG),
+                                                    "painted_panel", "leg"), 0.003))
+            parts.append(shapes.bevelled(shapes.box((x - 0.01, 0.0, z - 0.01), (x + WS_TOOLS_LEG + 0.01, 0.006,
+                                                                               z + WS_TOOLS_LEG + 0.01),
+                                                    "dark_panel", "foot"), 0.0015))
+    for low_y, high_y, name in ((under - 0.06, under, "rail"), (0.12, 0.16, "stretcher")):
+        for z in (-leg_z, leg_z - 0.03):
+            parts.append(shapes.bevelled(shapes.box((-leg_x + WS_TOOLS_LEG, low_y, z),
+                                                    (leg_x - WS_TOOLS_LEG, high_y, z + 0.03), "painted_panel", name),
+                                         0.002))
+        for x in (-leg_x, leg_x - WS_TOOLS_LEG):
+            parts.append(shapes.bevelled(shapes.box((x + 0.01, low_y, -leg_z + WS_TOOLS_LEG),
+                                                    (x + WS_TOOLS_LEG - 0.01, high_y, leg_z - WS_TOOLS_LEG),
+                                                    "painted_panel", name), 0.002))
+    return parts
+
+
+def ws_tools_drawer_unit(right, left, low, high, front, back, labels):
+    """The bench's steel drawer unit between x `right` and `left`, hung under the top: its carcass and as many drawers
+    as `labels`, top down, each with a bar pull and its label."""
+    face = front + 0.015
+    parts = [shapes.bevelled(shapes.box((right, low, face), (left, high, back), "painted_panel", "drawer_unit"), EDGE)]
+    gap = 0.008
+    drawer_tall = (high - low - 0.02 - gap * (len(labels) - 1)) / len(labels)
+    middle = (right + left) / 2
+    for at, variant in enumerate(labels):
+        drawer_top = high - 0.01 - at * (drawer_tall + gap)
+        drawer_low = drawer_top - drawer_tall
+        parts.append(shapes.bevelled(shapes.box((right + 0.01, drawer_low, front), (left - 0.01, drawer_top, face),
+                                                "painted_panel", "drawer"), 0.002))
+        parts += furn_pull(middle, drawer_low + 0.045, 0.16, front, upright=False, name="pull")
+        parts.append(label(middle, drawer_top - 0.032, 0.13, 0.036, front, variant))
+    return parts
+
+
+def tool_bench(size, laid):
+    """The heavy hand-tool bench, as its close-up shows it: a thick worn timber top on a welded square-tube frame (legs
+    on foot plates, a rail under the top all round, a stretcher round the foot), a three-drawer steel unit hung under
+    the viewer's right end with bar pulls and labels, and a low sheet shelf over the stretchers under the other end.
+    Its top is left clear for the vise and the desk lamp (children of their own)."""
+    wide, tall, deep = size
+    under = tall - WS_TOOLS_BENCH_TOP
+    parts = [shapes.bevelled(shapes.box((-wide / 2, under, -deep / 2), (wide / 2, tall, deep / 2), "wood_board",
+                                        "top"), 0.006)]
+    parts += ws_tools_bench_frame(wide, deep, tall)
+    leg_x = wide / 2 - 0.05
+    leg_z = deep / 2 - 0.05
+    right = -leg_x + WS_TOOLS_LEG
+    parts += ws_tools_drawer_unit(right, right + WS_TOOLS_DRAWER_UNIT, 0.3, under - 0.06, -leg_z,
+                                  leg_z - 0.03, ("label_tools", "label_wrenches", "label_sockets"))
+    shelf_from = -0.02
+    shelf_to = leg_x - WS_TOOLS_LEG
+    parts += [shapes.bevelled(shapes.box((shelf_from, 0.16, -leg_z), (shelf_to, 0.166, leg_z), "painted_panel",
+                                         "shelf"), 0.0015),
+              shapes.bevelled(shapes.box((shelf_from - 0.006, 0.13, -leg_z + 0.03), (shelf_from, 0.166, leg_z - 0.03),
+                                         "painted_panel", "shelf"), 0.0015)]
+    return parts
+
+
+def ws_tools_vise_base(half, middle_z):
+    """The vise's swivel base: a round cast foot with a bolt lug each side (a real hole through each), the turntable
+    on it and the swivel lock's boss and pin on the viewer's left."""
+    parts = [shapes.bevelled(shapes.cylinder((0.0, 0.0, middle_z), (0.0, 0.03, middle_z), 0.085, "cast_iron_dark", 40,
+                                             "base"), 0.003)]
+    for side in (-1, 1):
+        lug = shapes.bevelled(shapes.box((min(side * 0.05, side * half), 0.0, middle_z - 0.035),
+                                         (max(side * 0.05, side * half), 0.016, middle_z + 0.035), "cast_iron_dark",
+                                         "lug"), 0.003)
+        hole_x = side * (half - 0.022)
+        shapes.cut(lug, shapes.cylinder((hole_x, -0.01, middle_z), (hole_x, 0.03, middle_z), 0.009, "rubber", 20,
+                                        "cutter"))
+        parts.append(lug)
+    parts += [shapes.bevelled(shapes.cylinder((0.0, 0.03, middle_z), (0.0, 0.045, middle_z), 0.07, "cast_steel", 40,
+                                              "swivel"), 0.002),
+              shapes.bevelled(shapes.box((0.062, 0.026, middle_z - 0.012), (0.094, 0.05, middle_z + 0.012),
+                                         "cast_steel", "swivel_lock"), 0.002),
+              shapes.cylinder((0.087, 0.038, middle_z - 0.045), (0.087, 0.038, middle_z + 0.045), 0.0045, "bare_steel",
+                              12, "lock_pin")]
+    parts += [wall_sphere((0.087, 0.038, middle_z + side * 0.045), 0.007, "bare_steel", "lock_pin", 12)
+              for side in (-1, 1)]
+    return parts
+
+
+def ws_tools_vise_screw(half, front, axis_y):
+    """The vise's lead screw out of the sliding jaw's boss, the handle's hub on its end and the T-bar through the hub
+    with a ball at each end."""
+    bar_z = front + 0.013
+    parts = [shapes.cylinder((0.0, axis_y, front + 0.025), (0.0, axis_y, front + 0.06), 0.009, "bare_steel", 16,
+                             "lead_screw"),
+             shapes.bevelled(shapes.cylinder((0.0, axis_y, front), (0.0, axis_y, front + 0.028), 0.016, "cast_steel",
+                                             20, "handle_hub"), 0.002),
+             shapes.cylinder((-half + 0.0105, axis_y, bar_z), (half - 0.0105, axis_y, bar_z), 0.0055, "bare_steel",
+                             12, "handle")]
+    parts += [wall_sphere((side * (half - 0.0105), axis_y, bar_z), 0.0105, "bare_steel", "handle_knob", 16)
+              for side in (-1, 1)]
+    return parts
+
+
+def vise(size, laid):
+    """A cast bench vise, its jaws opening toward the front, as its close-up shows it: a swivel base with two bolt
+    lugs and a swivel lock, the fixed jaw's casting with an anvil behind, the sliding jaw on its slide, a steel jaw
+    plate on each jaw with its screws, and the lead screw with a T-bar handle out the front."""
+    wide, tall, deep = size
+    half, front, back = wide / 2, -deep / 2, deep / 2
+    axis_y = 0.095  # the lead screw's height
+    parts = ws_tools_vise_base(half, 0.04)
+    body = furn_prism([(0.02, 0.045), (0.125, 0.045), (0.135, 0.06), (0.135, 0.15), (0.02, 0.15)], "x", -0.055, 0.055,
+                      "cast_steel", "body")
+    parts += [shapes.bevelled(body, 0.004),
+              shapes.bevelled(shapes.box((-0.085, 0.15, 0.02), (0.085, tall - 0.005, 0.07), "cast_steel",
+                                         "fixed_jaw"), 0.003),
+              shapes.bevelled(shapes.box((-0.045, 0.15, 0.07), (0.045, 0.175, back), "cast_steel", "anvil"), 0.003),
+              shapes.bevelled(shapes.box((-0.035, 0.07, -0.085), (0.035, 0.12, back - 0.005), "cast_steel", "slide"),
+                              0.002),
+              shapes.bevelled(furn_prism([(-0.1, 0.07), (-0.026, 0.07), (-0.026, 0.15), (-0.075, 0.15), (-0.1, 0.125)],
+                                         "x", -0.05, 0.05, "cast_steel", "sliding_jaw"), 0.004),
+              shapes.bevelled(shapes.box((-0.085, 0.15, -0.08), (0.085, tall - 0.005, -0.026), "cast_steel",
+                                         "sliding_jaw"), 0.003),
+              shapes.bevelled(shapes.cylinder((0.0, axis_y, -0.112), (0.0, axis_y, -0.098), 0.022, "cast_steel", 24,
+                                              "screw_boss"), 0.002)]
+    for near, far in ((0.012, 0.02), (-0.026, -0.018)):
+        parts.append(shapes.bevelled(shapes.box((-0.08, 0.15, near), (0.08, tall, far), "bare_steel", "jaw_plate"),
+                                     0.001))
+    for x in (-0.05, 0.05):
+        parts.append(shapes.cylinder((x, 0.178, -0.08), (x, 0.178, -0.084), 0.005, "bare_steel", 10, "plate_screw"))
+    parts += ws_tools_vise_screw(half, front, axis_y)
+    return parts
+
+
+def ws_tools_stool_thread(bottom, top, core):
+    """The stool's height adjuster: a screw column `core` thick with a thread ridge every 12 mm up it."""
+    parts = [shapes.cylinder((0.0, bottom, 0.0), (0.0, top, 0.0), core, "bare_steel", 20, "screw")]
+    ridges = int((top - bottom - 0.01) / 0.012)
+    for at in range(ridges):
+        high = bottom + 0.008 + at * 0.012
+        parts.append(shapes.cylinder((0.0, high, 0.0), (0.0, high + 0.004, 0.0), core + 0.0035, "bare_steel", 20,
+                                     "thread"))
+    return parts
+
+
+def work_stool(size, laid):
+    """A steel shop stool, as its close-up shows it: a round padded seat on a steel pan, the screw height adjuster
+    under it, a hub the four splayed tube legs are welded to, a foot ring round the legs and a rubber foot on each."""
+    wide, tall, deep = size
+    seat = min(wide, deep) / 2 - 0.03
+    foot_out = min(wide, deep) / 2 - 0.022
+    hub_low, hub_high = 0.36, 0.44
+    parts = [shapes.bevelled(shapes.cylinder((0.0, tall - 0.05, 0.0), (0.0, tall, 0.0), seat, "vinyl_seat", 48,
+                                             "cushion"), 0.012),
+             shapes.bevelled(shapes.cylinder((0.0, tall - 0.072, 0.0), (0.0, tall - 0.05, 0.0), seat + 0.004,
+                                             "dark_panel", 48, "seat_pan"), 0.003),
+             shapes.bevelled(shapes.cylinder((0.0, tall - 0.1, 0.0), (0.0, tall - 0.072, 0.0), 0.045, "dark_panel", 24,
+                                             "seat_boss"), 0.003),
+             shapes.bevelled(shapes.cylinder((0.0, hub_low, 0.0), (0.0, hub_high, 0.0), 0.04, "painted_panel", 24,
+                                             "hub"), 0.004)]
+    parts += ws_tools_stool_thread(hub_high, tall - 0.1, 0.015)
+    ring_y = 0.22
+    share = (hub_low + 0.02 - ring_y) / (hub_low + 0.02 - 0.03)
+    ring_out = (0.03 + (foot_out - 0.03) * share) * math.sqrt(2.0)
+    parts.append(floor_bent_tube((0.0, ring_y, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), ring_out, 0.009, 0.0, 360.0,
+                                 "bare_steel", "foot_ring", steps=40, sides=12))
+    for side_x in (-1, 1):
+        for side_z in (-1, 1):
+            parts.append(shapes.cylinder((side_x * 0.03, hub_low + 0.02, side_z * 0.03),
+                                         (side_x * foot_out, 0.03, side_z * foot_out), 0.0125, "painted_panel", 16,
+                                         "leg"))
+            parts.append(shapes.bevelled(shapes.cylinder((side_x * foot_out, 0.0, side_z * foot_out),
+                                                         (side_x * foot_out, 0.032, side_z * foot_out), 0.022,
+                                                         "rubber", 20, "rubber_foot"), 0.003))
+    return parts
+
+
+def ws_tools_post(corner_x, corner_z, tall):
+    """One shelving post at a corner: a slotted steel angle, one flange across the front or back and one along the
+    side, both outside the shelves, a row of real slots up each."""
+    side_x = 1 if corner_x > 0 else -1
+    side_z = 1 if corner_z > 0 else -1
+    inner_x = corner_x - side_x * WS_TOOLS_ANGLE
+    inner_z = corner_z - side_z * WS_TOOLS_ANGLE
+    skin_x = corner_x - side_x * WS_TOOLS_SHEET
+    skin_z = corner_z - side_z * WS_TOOLS_SHEET
+    across = shapes.box((min(corner_x, inner_x), 0.0, min(corner_z, skin_z)),
+                        (max(corner_x, inner_x), tall, max(corner_z, skin_z)), "dark_panel", "post")
+    along = shapes.box((min(corner_x, skin_x), 0.0, min(skin_z, inner_z)),
+                       (max(corner_x, skin_x), tall, max(skin_z, inner_z)), "dark_panel", "post")
+    slot_x = corner_x - side_x * WS_TOOLS_ANGLE * 0.55
+    slot_z = corner_z - side_z * WS_TOOLS_ANGLE * 0.55
+    rows = np.arange(0.06, tall - 0.04, 0.05)
+    ws_tools_cut_all(across, [shapes.box((slot_x - 0.004, high - 0.008, corner_z - 0.02),
+                                         (slot_x + 0.004, high + 0.008, corner_z + 0.02), "rubber", "cutter")
+                              for high in rows])
+    ws_tools_cut_all(along, [shapes.box((corner_x - 0.02, high - 0.008, slot_z - 0.004),
+                                        (corner_x + 0.02, high + 0.008, slot_z + 0.004), "rubber", "cutter")
+                             for high in rows])
+    return [across, along]
+
+
+def ws_tools_shelf(half_x, half_z, top):
+    """One sheet steel shelf between the posts, its top at `top`, its edges turned down all round."""
+    under = top - WS_TOOLS_SHEET
+    lip = top - WS_TOOLS_SHELF_LIP
+    edge = 0.004
+    return [shapes.bevelled(shapes.box((-half_x, under, -half_z), (half_x, top, half_z), "painted_panel", "shelf"),
+                            0.0015),
+            shapes.box((-half_x, lip, -half_z), (half_x, under, -half_z + edge), "painted_panel", "shelf"),
+            shapes.box((-half_x, lip, half_z - edge), (half_x, under, half_z), "painted_panel", "shelf"),
+            shapes.box((-half_x, lip, -half_z + edge), (-half_x + edge, under, half_z - edge), "painted_panel",
+                       "shelf"),
+            shapes.box((half_x - edge, lip, -half_z + edge), (half_x, under, half_z - edge), "painted_panel",
+                       "shelf")]
+
+
+def ws_tools_brace(left_x, right_x, low, high, back):
+    """A flat steel bar crossing the back of one bay, from its lower `left_x` corner to its upper `right_x`."""
+    long = math.hypot(right_x - left_x, high - low)
+    bar = shapes.box((-long / 2, -0.012, back - 0.004), (long / 2, 0.012, back), "bare_steel", "brace")
+    turn = math.degrees(math.atan2(high - low, right_x - left_x))
+    turned(bar, (0.0, 0.0), -turn)
+    return floor_moved(bar, ((left_x + right_x) / 2, (low + high) / 2, 0.0))
+
+
+def spares_shelves(size, laid):
+    """A steel shelving unit, as its close-up shows it: four slotted angle posts, five sheet shelves with turned-down
+    edges bolted inside them, flat bars crossed at the back of two bays, a label on the middle shelf's edge. Its
+    shelves are left clear for the crates and boxes (children of their own)."""
+    wide, tall, deep = size
+    half_x, half_z = wide / 2, deep / 2 - 0.0055  # the bolt heads in front and the braces behind keep in the depth
+    parts = []
+    for corner_x in (-half_x, half_x):
+        for corner_z in (-half_z, half_z):
+            parts += ws_tools_post(corner_x, corner_z, tall)
+    inner_x = half_x - WS_TOOLS_SHEET
+    inner_z = half_z - WS_TOOLS_SHEET
+    for top in WS_TOOLS_SHELVES:
+        parts += ws_tools_shelf(inner_x, inner_z, top)
+        for x in (-half_x + WS_TOOLS_ANGLE * 0.5, half_x - WS_TOOLS_ANGLE * 0.5):
+            parts.append(bolt(x, top - WS_TOOLS_SHELF_LIP / 2, -half_z))
+    back = half_z + 0.004
+    for bay in (1, 3):
+        low = WS_TOOLS_SHELVES[bay] + 0.01
+        high = WS_TOOLS_SHELVES[bay + 1] - WS_TOOLS_SHELF_LIP - 0.01
+        parts.append(ws_tools_brace(-inner_x + 0.03, inner_x - 0.03, low, high, back))
+        parts.append(ws_tools_brace(inner_x - 0.03, -inner_x + 0.03, low, high, back))
+    middle = WS_TOOLS_SHELVES[2]
+    parts.append(label(0.0, middle - WS_TOOLS_SHELF_LIP / 2, 0.14, 0.026, -inner_z, "label_spares"))
+    return parts
+
+
+def ws_tools_crate_ribs(wall_x, wall_z, low, high):
+    """The crate's moulded ribs: upright ribs down its long sides and its ends, and a post at each corner."""
+    out = 0.006
+    parts = []
+    for x in (-0.21, -0.075, 0.075, 0.21):
+        for face in (-wall_z, wall_z):
+            parts.append(shapes.box((x - 0.006, low, min(face, face + math.copysign(out, face))),
+                                    (x + 0.006, high, max(face, face + math.copysign(out, face))), "plastic_grey",
+                                    "rib"))
+    for z in (-0.13, 0.13):
+        for face in (-wall_x, wall_x):
+            parts.append(shapes.box((min(face, face + math.copysign(out, face)), low, z - 0.006),
+                                    (max(face, face + math.copysign(out, face)), high, z + 0.006), "plastic_grey",
+                                    "rib"))
+    for side_x in (-1, 1):
+        for side_z in (-1, 1):
+            corner = (side_x * (wall_x + out), side_z * (wall_z + out))
+            inner = (side_x * (wall_x - 0.012), side_z * (wall_z - 0.012))
+            parts.append(shapes.bevelled(shapes.box((min(corner[0], inner[0]), low, min(corner[1], inner[1])),
+                                                    (max(corner[0], inner[0]), high, max(corner[1], inner[1])),
+                                                    "plastic_grey", "rib"), 0.002))
+    return parts
+
+
+def ws_tools_crate_lid(half_x, half_z, rim):
+    """The crate's split lid: two hinged flaps meeting along the middle with a tab of one in a notch of the other, a
+    raised lip round each flap's outer edges and the hinge knuckles along both long sides."""
+    gap = 0.003
+    top = rim + 0.012
+    near = shapes.box((-half_x + 0.01, rim, -half_z + 0.008), (half_x - 0.01, top, -gap), "plastic_grey", "lid")
+    far = shapes.box((-half_x + 0.01, rim, gap), (half_x - 0.01, top, half_z - 0.008), "plastic_grey", "lid")
+    shapes.cut(far, shapes.box((-0.036, rim - 0.01, 0.0), (0.036, top + 0.01, 0.026), "rubber", "cutter"))
+    parts = [shapes.bevelled(near, 0.002), shapes.bevelled(far, 0.002),
+             shapes.bevelled(shapes.box((-0.03, rim, -gap), (0.03, top, 0.02), "plastic_grey", "lid"), 0.0015)]
+    lip_top = top + 0.013
+    for side in (-1, 1):
+        outer = side * (half_z - 0.008)
+        inner = side * (half_z - 0.016)
+        parts.append(shapes.bevelled(shapes.box((-half_x + 0.01, top, min(outer, inner)),
+                                                (half_x - 0.01, lip_top, max(outer, inner)), "plastic_grey",
+                                                "lid_rim"), 0.002))
+        for end in (-1, 1):
+            outer_x = end * (half_x - 0.01)
+            inner_x = end * (half_x - 0.018)
+            parts.append(shapes.bevelled(shapes.box((min(outer_x, inner_x), top, min(side * gap, inner)),
+                                                    (max(outer_x, inner_x), lip_top, max(side * gap, inner)),
+                                                    "plastic_grey", "lid_rim"), 0.002))
+        for x in (-0.17, 0.17):
+            parts.append(shapes.cylinder((x - 0.03, rim + 0.006, side * (half_z - 0.004)),
+                                         (x + 0.03, rim + 0.006, side * (half_z - 0.004)), 0.006, "plastic_grey", 12,
+                                         "hinge"))
+    return parts
+
+
+def spares_crate(size, laid):
+    """A grey stacking crate, as its close-up shows it: a moulded body with a rim, ribs and a foot band, a hand hole
+    through each end, a label holder with its PARTS label on the front, and a split hinged lid with a raised lip."""
+    wide, tall, deep = size
+    half_x, half_z = wide / 2, deep / 2
+    wall_x, wall_z = half_x - 0.01, half_z - 0.01
+    rim = WS_TOOLS_CRATE_RIM
+    body = shapes.bevelled(shapes.box((-wall_x, 0.0, -wall_z), (wall_x, rim, wall_z), "plastic_grey", "body"), 0.004)
+    shapes.cut(body, shapes.box((-wall_x + 0.006, 0.006, -wall_z + 0.006), (wall_x - 0.006, rim + 0.05,
+                                                                            wall_z - 0.006), "rubber", "cutter"))
+    ws_tools_cut_all(body, [furn_prism(rounded_outline((-0.055, 0.15), (0.055, 0.19), 0.018), "x",
+                                       side * (wall_x - 0.03), side * (wall_x + 0.03), "rubber", "cutter")
+                            for side in (-1, 1)])
+    rim_part = shapes.box((-half_x, rim - 0.022, -half_z), (half_x, rim, half_z), "plastic_grey", "rim")
+    shapes.cut(rim_part, shapes.box((-wall_x + 0.006, rim - 0.05, -wall_z + 0.006),
+                                    (wall_x - 0.006, rim + 0.05, wall_z - 0.006), "rubber", "cutter"))
+    parts = [body, shapes.bevelled(rim_part, 0.003),
+             shapes.bevelled(shapes.box((-wall_x - 0.004, 0.0, -wall_z - 0.004), (wall_x + 0.004, 0.014,
+                                                                                 wall_z + 0.004), "plastic_grey",
+                                        "foot"), 0.002)]
+    parts += ws_tools_crate_ribs(wall_x, wall_z, 0.014, rim - 0.022)
+    parts += [shapes.bevelled(rounded_ring((-0.058, 0.112), (0.058, 0.178), 0.006, 0.008, -wall_z - 0.006, -wall_z,
+                                           "plastic_grey", "label_holder"), 0.001),
+              label(0.0, 0.145, 0.096, 0.046, -wall_z, "label_parts")]
+    parts += ws_tools_crate_lid(half_x, half_z, rim)
+    return parts
+
+
+def spares_box(size, laid):
+    """A taped cardboard parts box, as its close-up shows it: the box, its two top flaps meeting along the middle,
+    packing tape along the seam and down both ends and over a front corner, a shipping label and a part number."""
+    wide, tall, deep = size
+    half_x, half_z = wide / 2, deep / 2
+    flaps = tall - 0.01
+    parts = [shapes.bevelled(shapes.box((-half_x, 0.0, -half_z), (half_x, flaps, half_z), "canvas_beige", "body"),
+                             0.003),
+             shapes.bevelled(shapes.box((-half_x, flaps, -half_z), (half_x, flaps + 0.006, -0.0015), "canvas_beige",
+                                        "flap"), 0.0015),
+             shapes.bevelled(shapes.box((-half_x, flaps, 0.0015), (half_x, flaps + 0.006, half_z), "canvas_beige",
+                                        "flap"), 0.0015),
+             shapes.box((-half_x, flaps + 0.006, -0.03), (half_x, tall, 0.03), "rubber_grey", "tape")]
+    for side in (-1, 1):
+        parts.append(shapes.box((min(side * half_x, side * (half_x + 0.004)), flaps - 0.09, -0.03),
+                                (max(side * half_x, side * (half_x + 0.004)), tall, 0.03), "rubber_grey", "tape"))
+    parts += [shapes.box((half_x - 0.05, 0.0, -half_z - 0.004), (half_x, 0.07, -half_z), "rubber_grey", "tape"),
+              shapes.box((half_x, 0.0, -half_z - 0.004), (half_x + 0.004, 0.07, -half_z + 0.05), "rubber_grey",
+                         "tape"),
+              label(-0.04, 0.083, 0.13, 0.13, -half_z, "note_ship_to"),
+              label(-0.04, 0.176, 0.1, 0.05, -half_z, "stencil_part_number", name="decal")]
+    return parts
+
+
+# ---- Workshop round (2026-10-07), block ws_elec: the workshop's electronics bench and what stands on it (a bench
+# scope, a bench multimeter, a soldering station), the parts cabinet and the pendant work lamp, built in code with
+# library surfaces as method B's parts check allows, each as its clean close-up shows it. The bench never carries the
+# loose instruments: they, the monitor, the keyboard and the desk lamp are children of their own, placed on purpose
+# (composites) on the riser shelf and the top's back, the top's front left clear to work. Helpers are prefixed
+# `ws_elec_`.
+
+WS_ELEC_TOP = 0.71  # the electronics bench's top (a seated bench: the riser shelf over it keeps the whole 0.9 tall)
+WS_ELEC_MAT = 0.004  # the anti-static mat lying on it; the instruments on the top stand on the mat
+WS_ELEC_SHELF = 0.875  # the riser shelf's face, where the scope, the meter, the monitor and the lamp stand
+WS_ELEC_SHELF_FRONT = 0.03  # the riser's front edge (z): under it the top is clear 0.15 m high for the keyboard
+# The parts cabinet's bin drawers: eight across, five high, over a two-door cupboard this tall.
+WS_ELEC_BINS = (8, 5)
+WS_ELEC_CUPBOARD = 0.8
+# The bins with a printed card (row from the bottom, column from the viewer's right), the rest carry blank cards.
+WS_ELEC_BIN_LABELS = ((4, 1, "label_bolts"), (4, 6, "label_washers"), (3, 3, "label_nuts"), (2, 5, "label_screws"),
+                      (1, 0, "label_fuses"), (0, 4, "label_resistors"))
+
+
+def ws_elec_tube(points, thick, material, name, sides=8):
+    """A round tube `thick` in radius swept along a path of kit-frame points (a coiled wire, a cable), capped at both
+    ends; its cross-section carried along the path so it does not twist."""
+    path = [Vector(point) for point in points]
+    built = bmesh.new()
+    rings = []
+    normal = None
+    for index, middle in enumerate(path):
+        ahead = (path[min(index + 1, len(path) - 1)] - path[max(index - 1, 0)]).normalized()
+        normal = ahead.orthogonal() if normal is None else normal - ahead * normal.dot(ahead)
+        normal.normalize()
+        side = ahead.cross(normal)
+        rings.append([built.verts.new(shapes.to_blender(middle + (normal * math.cos(turn) + side * math.sin(turn))
+                                                        * thick))
+                      for turn in (2 * math.pi * at / sides for at in range(sides))])
+    for first, second in zip(rings, rings[1:]):
+        for at in range(sides):
+            built.faces.new([first[at], first[(at + 1) % sides], second[(at + 1) % sides], second[at]])
+    built.faces.new(rings[0])
+    built.faces.new(list(reversed(rings[-1])))
+    bmesh.ops.recalc_face_normals(built, faces=built.faces)
+    data = bpy.data.meshes.new(name)
+    built.to_mesh(data)
+    built.free()
+    return shapes.mesh_object(name, data, material)
+
+
+def ws_elec_lathe(profile, middle, material, name, sides=32):
+    """A solid turned round the kit's up axis through `middle` (x, z): `profile` is a closed outline of (radius, y)
+    points, a point on the axis (radius 0) turning to a single pole (a lamp's shade, a cup's bowl)."""
+    built = bmesh.new()
+    rows = []
+    for radius, high in profile:
+        if radius < 1e-6:
+            rows.append([built.verts.new(shapes.to_blender((middle[0], high, middle[1])))])
+            continue
+        rows.append([built.verts.new(shapes.to_blender((middle[0] + radius * math.cos(2 * math.pi * at / sides), high,
+                                                        middle[1] + radius * math.sin(2 * math.pi * at / sides))))
+                     for at in range(sides)])
+    for index, first in enumerate(rows):
+        second = rows[(index + 1) % len(rows)]
+        if len(first) == 1 and len(second) == 1:
+            continue
+        for at in range(sides):
+            if len(first) == 1:
+                built.faces.new([first[0], second[at], second[(at + 1) % sides]])
+            elif len(second) == 1:
+                built.faces.new([first[at], first[(at + 1) % sides], second[0]])
+            else:
+                built.faces.new([first[at], first[(at + 1) % sides], second[(at + 1) % sides], second[at]])
+    bmesh.ops.recalc_face_normals(built, faces=built.faces)
+    data = bpy.data.meshes.new(name)
+    built.to_mesh(data)
+    built.free()
+    return shapes.mesh_object(name, data, material)
+
+
+def ws_elec_lying(parts, x, high, z):
+    """Parts built upright facing the front (their back at depth 0, their middle at x 0, y 0) laid face up on a top
+    at height `high`, their middle at (x, z), reading upright to someone in front of it."""
+    for part in parts:
+        floor_moved(tilted(part, (0.0, 0.0), 90.0), (x, high, z))
+    return parts
+
+
+def ws_elec_knob(x, y, face, radius, name="knob", material="anodized_black", reach=0.016):
+    """A round control knob standing out of a face at depth `face`."""
+    return shapes.bevelled(shapes.cylinder((x, y, face), (x, y, face - reach), radius, material, 14, name), 0.002)
+
+
+def ws_elec_drawer(right, left, low, high, front, face):
+    """One pedestal drawer of the electronics bench between x `right` and `left`: its front with a recessed finger
+    pocket near its top and the pull's lip over the pocket."""
+    drawer = shapes.box((right, low, front), (left, high, face), "painted_panel", "drawer")
+    middle = (right + left) / 2
+    furn_cut_box(drawer, (middle - 0.06, high - 0.055, front - 0.01), (middle + 0.06, high - 0.03, front + 0.007))
+    return [shapes.bevelled(drawer, 0.002),
+            shapes.bevelled(shapes.box((middle - 0.066, high - 0.036, front - 0.006), (middle + 0.066, high - 0.028,
+                                                                                       front + 0.007),
+                                       "bare_steel", "pull"), 0.0015)]
+
+
+def ws_elec_power_strip(top, panel):
+    """The power strip under the riser shelf on its back panel (front face at depth `panel`): its housing, three
+    rocker switches (one red) at the viewer's left and seven sockets with their pin slots."""
+    face = panel - 0.025
+    parts = [shapes.bevelled(shapes.box((-0.62, top + 0.04, face), (0.62, top + 0.1, panel), "dark_panel",
+                                        "power_strip"), 0.003)]
+    for at, x in enumerate((0.56, 0.5, 0.44)):
+        parts.append(wall_button(x, top + 0.07, 0.026, 0.034, face, "anodized_red" if at == 0 else "anodized_black",
+                                 "switch"))
+    for at in range(7):
+        x = 0.33 - 0.14 * at
+        plate = shapes.box((x - 0.026, top + 0.045, face - 0.008), (x + 0.026, top + 0.095, face), "plastic_white",
+                           "socket")
+        for side in (-1, 1):
+            furn_cut_box(plate, (x + side * 0.009 - 0.0025, top + 0.066, face - 0.02),
+                         (x + side * 0.009 + 0.0025, top + 0.082, face - 0.004))
+        furn_cut_box(plate, (x - 0.004, top + 0.052, face - 0.02), (x + 0.004, top + 0.06, face - 0.004))
+        parts.append(shapes.bevelled(plate, 0.0015))
+    return parts
+
+
+def elec_bench(size, laid):
+    """The electronics bench, as its close-up shows it: a steel top on four square legs with rails under it, a back
+    stretcher and a side stretcher, a pale grey anti-static mat with rounded corners on the top, a two-drawer
+    pedestal with finger-pocket pulls under the viewer's left end, and a shelf riser across the back (end posts, a
+    shelf with a lip at its back and ends, a back panel) with the power strip under it (switches, sockets) and its
+    labels. The scope, the meter, the soldering station, the monitor, the keyboard and the desk lamp are children of
+    their own; the top's front 0.3 m stays clear to work."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    top = WS_ELEC_TOP
+    under = top - 0.03
+    tube = 0.04
+    parts = [shapes.bevelled(shapes.box((-wide / 2, under, front), (wide / 2, top, back), "painted_panel", "top"), EDGE)]
+    leg_right, leg_left = -wide / 2 + 0.02, wide / 2 - 0.02 - tube  # the legs' -x faces
+    leg_front, leg_back = front + 0.02, back - 0.02 - tube
+    for x in (leg_right, leg_left):
+        for z in (leg_front, leg_back):
+            parts.append(shapes.bevelled(shapes.box((x, 0.0, z), (x + tube, under, z + tube), "painted_panel", "leg"),
+                                         0.002))
+    inner_right, inner_left = leg_right + tube, leg_left
+    for z in (leg_front, leg_back + tube - 0.02):
+        parts.append(shapes.bevelled(shapes.box((inner_right, under - 0.06, z), (inner_left, under, z + 0.02),
+                                                "painted_panel", "rail"), 0.002))
+    for x in (leg_right, leg_left + tube - 0.02):
+        parts.append(shapes.bevelled(shapes.box((x, under - 0.06, leg_front + tube), (x + 0.02, under, leg_back),
+                                                "painted_panel", "rail"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((inner_right, 0.3, leg_back + 0.005), (inner_left, 0.33, leg_back + tube - 0.005),
+                                            "painted_panel", "stretcher"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((leg_right + 0.005, 0.12, leg_front + tube), (leg_right + tube - 0.005, 0.15,
+                                                                                          leg_back),
+                                            "painted_panel", "stretcher"), 0.002))
+    # The pedestal under the viewer's left end (+x), hung under the rails, its two drawers' fronts proud of it.
+    right, left = 0.32, inner_left - 0.005
+    body = front + 0.045
+    parts.append(shapes.bevelled(shapes.box((right, 0.06, body), (left, under - 0.06, back - 0.06), "painted_panel",
+                                            "pedestal"), EDGE))
+    parts += ws_elec_drawer(right + 0.012, left - 0.012, 0.44, under - 0.072, front + 0.033, body)
+    parts += ws_elec_drawer(right + 0.012, left - 0.012, 0.072, 0.428, front + 0.033, body)
+    # The anti-static mat on the top.
+    parts.append(shapes.bevelled(furn_prism(rounded_outline((-0.72, front + 0.03), (0.72, 0.31), 0.03), "y", top,
+                                            top + WS_ELEC_MAT, "rubber_grey", "mat"), 0.0015))
+    # The riser across the back: end posts, the shelf with its lip, the back panel and the power strip under it.
+    shelf_under = WS_ELEC_SHELF - 0.015
+    post = 0.035
+    for side in (-1, 1):
+        outer = side * (wide / 2 - 0.02)
+        parts.append(shapes.bevelled(shapes.box((min(outer, outer - side * post), top, WS_ELEC_SHELF_FRONT),
+                                                (max(outer, outer - side * post), shelf_under, back - 0.005),
+                                                "painted_panel", "riser_post"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.02, shelf_under, WS_ELEC_SHELF_FRONT),
+                                            (wide / 2 - 0.02, WS_ELEC_SHELF, back - 0.005), "painted_panel", "shelf"),
+                                 0.002))
+    lip = 0.015
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.02, WS_ELEC_SHELF, back - 0.005 - lip),
+                                            (wide / 2 - 0.02, tall, back - 0.005), "painted_panel", "shelf_lip"), 0.002))
+    for side in (-1, 1):
+        outer = side * (wide / 2 - 0.02)
+        parts.append(shapes.bevelled(shapes.box((min(outer, outer - side * lip), WS_ELEC_SHELF, WS_ELEC_SHELF_FRONT),
+                                                (max(outer, outer - side * lip), tall, back - 0.005 - lip),
+                                                "painted_panel", "shelf_lip"), 0.002))
+    panel = back - 0.02
+    post_inner = wide / 2 - 0.02 - post
+    parts.append(shapes.box((-post_inner, top, panel), (post_inner, shelf_under, back - 0.005), "painted_panel",
+                            "riser_panel"))
+    parts += ws_elec_power_strip(top, panel)
+    parts.append(label(0.5, top + 0.125, 0.12, 0.026, panel, "label_power"))
+    parts.append(label(-0.3, top + 0.125, 0.22, 0.026, panel, "label_esd_safe"))
+    return parts
+
+
+def oscilloscope(size, laid):
+    """A bench oscilloscope, as its close-up shows it: a steel case with a raised rim round a recessed front panel,
+    the screen at the viewer's left in a bezel screwed at its corners (its traces a screen variant), three rows of
+    knobs and a big time-base knob, a column of buttons, two knobs and two toggles under the screen, four probe
+    sockets, a carry handle on two mounts across the top, rubber feet and its label."""
+    wide, tall, deep = size
+    front, back = -deep / 2 + 0.012, deep / 2  # the knobs reach the laid box's front
+    foot = 0.012
+    case_top = tall - 0.02
+    rim = 0.012
+    case = shapes.box((-wide / 2, foot, front), (wide / 2, case_top, back), "painted_panel", "case")
+    furn_cut_box(case, (-wide / 2 + rim, foot + rim, front - 0.01), (wide / 2 - rim, case_top - rim, front + 0.012))
+    face = front + 0.008
+    parts = [shapes.bevelled(case, 0.005),
+             shapes.box((-wide / 2 + rim, foot + rim, face), (wide / 2 - rim, case_top - rim, front + 0.012),
+                        "painted_panel", "front_panel")]
+    screen_x, screen_y, screen_wide, screen_tall = 0.086, 0.11, 0.14, 0.1
+    parts += wall_screen_part(screen_x, screen_y, screen_wide, screen_tall, face, "screen", rim=0.014)
+    parts += [screw(screen_x + side_x * (screen_wide / 2 - 0.007), screen_y + side_y * (screen_tall / 2 - 0.007),
+                    face - 0.008) for side_x in (-1, 1) for side_y in (-1, 1)]
+    # Under the screen: two knobs and two toggles.
+    for x in (0.145, 0.11):
+        parts.append(ws_elec_knob(x, 0.04, face, 0.01))
+    for x in (0.075, 0.05):
+        parts.append(shapes.bevelled(shapes.box((x - 0.005, 0.034, face - 0.012), (x + 0.005, 0.048, face),
+                                                "bare_steel", "switch"), 0.001))
+    # The controls at the viewer's right: three rows of knobs (the big time-base knob at the bottom right).
+    for row, y in enumerate((0.127, 0.097, 0.067)):
+        for x in (-0.025, -0.065, -0.105):
+            big = row == 2 and x < -0.1
+            parts.append(ws_elec_knob(x, y, face, 0.015 if big else 0.01, reach=0.02 if big else 0.016))
+    parts += [wall_button(-0.148, y, 0.018, 0.012, face) for y in (0.135, 0.115, 0.095, 0.075)]
+    for x in (-0.02, -0.06, -0.1, -0.14):
+        parts.append(shapes.bevelled(shapes.ring((x, 0.036, face), (x, 0.036, face - 0.012), 0.009, 0.005,
+                                                 "bare_steel", 14, "socket"), 0.001))
+        parts.append(shapes.cylinder((x, 0.036, face), (x, 0.036, face - 0.006), 0.005, "anodized_black", 10, "socket"))
+    parts.append(label(-0.07, 0.155, 0.12, 0.016, face, "label_oscilloscope"))
+    # The carry handle across the top, front to back, on two mounts.
+    for z in (-0.07, 0.07):
+        parts.append(shapes.bevelled(shapes.box((-0.022, case_top, z - 0.016), (0.022, case_top + 0.012, z + 0.016),
+                                                "bare_steel", "handle_mount"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((-0.016, case_top + 0.012, -0.088), (0.016, tall, 0.088), "anodized_black",
+                                            "handle"), 0.003))
+    for x in (-wide / 2 + 0.03, wide / 2 - 0.03):
+        for z in (front + 0.03, back - 0.03):
+            parts.append(shapes.box((x - 0.016, 0.0, z - 0.016), (x + 0.016, foot, z + 0.016), "rubber", "foot"))
+    return parts
+
+
+def bench_meter(size, laid):
+    """A bench multimeter, as its close-up shows it: a case in two halves with a seam between them, a face plate on
+    its top with the readout in a bezel at its back, a rotary dial with its bar knob in the middle and four test
+    sockets (two red, one black, one red) along its front, and its label on the front."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    plate_top = tall - 0.016  # the face plate's top: the dial's knob stands over it
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front), (wide / 2, 0.044, back), "painted_panel",
+                                        "lower_case"), 0.005),
+             shapes.bevelled(shapes.box((-wide / 2, 0.054, front), (wide / 2, plate_top - 0.004, back), "painted_panel",
+                                        "upper_case"), 0.005),
+             shapes.bevelled(shapes.box((-wide / 2 + 0.012, plate_top - 0.004, front + 0.012),
+                                        (wide / 2 - 0.012, plate_top, back - 0.012), "plastic_grey", "face_plate"),
+                             0.0015)]
+    # The seam between the halves: a dark band set 2 mm back round the case.
+    inset, band = 0.002, 0.008
+    for low, high in (((-wide / 2 + inset, front + inset), (wide / 2 - inset, front + inset + band)),
+                      ((-wide / 2 + inset, back - inset - band), (wide / 2 - inset, back - inset)),
+                      ((-wide / 2 + inset, front + inset + band), (-wide / 2 + inset + band, back - inset - band)),
+                      ((wide / 2 - inset - band, front + inset + band), (wide / 2 - inset, back - inset - band))):
+        # Overlapping each half by 4 mm, so no face meets another closer than the model check's 3 mm wall.
+        parts.append(shapes.box((low[0], 0.040, low[1]), (high[0], 0.058, high[1]), "dark_panel", "seam"))
+    parts += ws_elec_lying(wall_screen_part(0.0, 0.0, 0.15, 0.06, 0.0, "screen", rim=0.01, name="readout"), 0.0,
+                           plate_top, back - 0.055)
+    dial_z = -0.005
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, plate_top, dial_z), (0.0, plate_top + 0.006, dial_z), 0.045,
+                                                 "dark_panel", 32, "dial"), 0.0015))
+    knob = shapes.bevelled(shapes.box((-0.012, plate_top + 0.006, dial_z - 0.036), (0.012, tall, dial_z + 0.036),
+                                      "plastic_grey", "dial_knob"), 0.003)
+    parts += furn_spun([knob], (0.0, dial_z), 35.0)
+    for x, material in ((0.075, "anodized_red"), (0.025, "anodized_red"), (-0.025, "rubber"), (-0.075, "anodized_red")):
+        parts.append(shapes.bevelled(shapes.ring((x, plate_top, front + 0.04), (x, plate_top + 0.007, front + 0.04),
+                                                 0.012, 0.0055, material, 20, "socket"), 0.001))
+        parts.append(shapes.cylinder((x, plate_top, front + 0.04), (x, plate_top + 0.002, front + 0.04), 0.0056,
+                                     "anodized_black", 12, "socket"))
+    parts.append(label(0.0, 0.071, 0.11, 0.02, front, "label_multimeter"))
+    return parts
+
+
+def soldering_station(size, laid):
+    """A soldering station, as its close-up shows it: a control box at the viewer's left on rubber feet with its red
+    temperature readout in a bezel, a knob, a power lamp and its label; beside it a base plate carrying the iron's
+    coiled wire holder on a wire frame, the iron lying in the coil with its handle out over the box, its cable back
+    into the box's back, and a brass cup of brass wool at the base's front."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    box_front, box_back, box_top = -0.075, back - 0.01, 0.09
+    parts = [shapes.bevelled(shapes.box((0.005, 0.008, box_front), (wide / 2, box_top, box_back), "painted_panel",
+                                        "box"), 0.004)]
+    for x in (0.02, wide / 2 - 0.015):
+        for z in (box_front + 0.015, box_back - 0.015):
+            parts.append(shapes.box((x - 0.008, 0.0, z - 0.008), (x + 0.008, 0.008, z + 0.008), "rubber", "foot"))
+    parts += wall_screen_part(0.085, 0.048, 0.075, 0.032, box_front, "screen_amber", rim=0.006, name="readout")
+    parts.append(ws_elec_knob(0.025, 0.048, box_front, 0.012))
+    parts.append(shapes.cylinder((0.128, 0.07, box_front), (0.128, 0.07, box_front - 0.004), 0.003, "led_red", 10,
+                                 "led"))
+    parts.append(label(0.085, 0.077, 0.06, 0.014, box_front, "label_temp"))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, 0.0, front), (0.0, 0.012, back - 0.005), "painted_panel",
+                                            "base"), 0.003))
+    # The coiled holder: its axis rising toward the box, its mouth at the box end.
+    coil_z, coil_radius = 0.03, 0.028
+    start, end = Vector((-0.13, 0.062, coil_z)), Vector((-0.04, 0.097, coil_z))
+    along = (end - start).normalized()
+    across = Vector((0.0, 0.0, 1.0))
+    up = across.cross(along).normalized()
+    turns, steps = 7, 112
+    parts.append(ws_elec_tube([start + (end - start) * (at / steps)
+                               + (up * math.cos(2 * math.pi * turns * at / steps)
+                                  + across * math.sin(2 * math.pi * turns * at / steps)) * coil_radius
+                               for at in range(steps + 1)], 0.0025, "bare_steel", "coil", 6))
+    for share in (0.15, 0.85):
+        middle = start + (end - start) * share
+        lift = middle.y - math.sqrt(coil_radius ** 2 - 0.02 ** 2)
+        for side in (-1, 1):
+            parts.append(shapes.cylinder((middle.x, 0.012, coil_z + side * 0.02), (middle.x, lift, coil_z + side * 0.02),
+                                         0.0025, "bare_steel", 8, "frame"))
+    for side in (-1, 1):
+        parts.append(shapes.cylinder((start.x + (end.x - start.x) * 0.15 - 0.003, 0.0145, coil_z + side * 0.02),
+                                     (start.x + (end.x - start.x) * 0.85 + 0.003, 0.0145, coil_z + side * 0.02), 0.0025,
+                                     "bare_steel", 8, "frame"))
+    # The iron: its tip down the coil, its barrel at the mouth, the grip out over the box.
+    parts.append(shapes.cylinder(tuple(start + along * 0.015), tuple(end), 0.003, "bare_steel", 10, "iron_tip"))
+    parts.append(shapes.cylinder(tuple(end - along * 0.005), tuple(end + along * 0.03), 0.006, "bare_steel", 12,
+                                 "iron"))
+    grip_end = end + along * 0.09
+    parts.append(shapes.bevelled(shapes.cylinder(tuple(end + along * 0.03), tuple(grip_end), 0.011, "rubber", 16,
+                                                 "iron"), 0.002))
+    parts.append(ws_elec_tube([grip_end, grip_end + along * 0.012, Vector((0.07, 0.122, 0.05)),
+                               Vector((0.095, 0.108, 0.075)), Vector((0.11, 0.098, 0.095)),
+                               Vector((0.115, 0.085, box_back + 0.004)), Vector((0.115, 0.05, box_back + 0.004))],
+                              0.003, "cable_black", "cable", 8))
+    # The brass cup and its wool at the base's front.
+    cup = (-0.075, -0.06)
+    outer, inner, middle_y = 0.042, 0.037, 0.055
+    bowl = [(outer * math.cos(math.radians(-90 * at / 8)), middle_y + outer * math.sin(math.radians(-90 * at / 8)))
+            for at in range(9)]
+    hollow = [(inner * math.cos(math.radians(-90 * at / 8)), middle_y + inner * math.sin(math.radians(-90 * at / 8)))
+              for at in range(8, -1, -1)]
+    parts.append(ws_elec_lathe(bowl + hollow, cup, "anodized_gold", "cup", 32))
+    parts.append(shapes.cylinder((cup[0], 0.012, cup[1]), (cup[0], 0.016, cup[1]), 0.02, "anodized_gold", 24, "cup"))
+    parts.append(ws_elec_lathe([(0.0, 0.02), (0.025, 0.028), (0.034, 0.04), (0.035, 0.05), (0.0, 0.052)], cup,
+                               "anodized_gold", "wool", 24))
+    return parts
+
+
+def parts_drawers(size, laid):
+    """The parts cabinet, as its close-up shows it: a blue cabinet of forty small bin drawers (eight across, five
+    high) in a frame of bars, each drawer with a steel label slot holding a card (a few printed BOLTS, NUTS, WASHERS,
+    SCREWS, FUSES, RESISTORS) and a pull under it, standing on a steel two-door cupboard with a plinth, bar handles and
+    hinges."""
+    wide, tall, deep = size
+    front, back = -deep / 2 + 0.036, deep / 2  # the door handles reach the laid box's front
+    cupboard = WS_ELEC_CUPBOARD
+    parts = [shapes.box((-wide / 2 + 0.02, 0.0, front + 0.03), (wide / 2 - 0.02, 0.06, back - 0.02), "dark_panel",
+                        "plinth"),
+             shapes.bevelled(shapes.box((-wide / 2, 0.06, front + 0.016), (wide / 2, cupboard, back), "painted_panel",
+                                        "carcass"), EDGE)]
+    margin, gap = 0.015, 0.008
+    door_wide = (wide - 2 * margin - gap) / 2
+    for door in range(2):
+        right = -wide / 2 + margin + door * (door_wide + gap)
+        left = right + door_wide
+        parts.append(shapes.bevelled(shapes.box((right, 0.075, front), (left, cupboard - 0.015, front + 0.016),
+                                                "painted_panel", "door"), 0.002))
+        inner_left = door == 0  # the viewer's right door pulls by its left edge, the meeting edge
+        parts += furn_pull(left - 0.06 if inner_left else right + 0.06, 0.45, 0.16, front)
+        hinge_x = right - 0.004 if inner_left else left + 0.004
+        for high in (0.2, cupboard - 0.14):
+            parts.append(shapes.cylinder((hinge_x, high - 0.04, front + 0.004), (hinge_x, high + 0.04, front + 0.004),
+                                         0.007, "bare_steel", 12, "hinge"))
+    # The bin cabinet on the cupboard: its body, a frame of bars across its front, and the drawers set back in it.
+    frame_front = front + 0.02
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, cupboard, frame_front), (wide / 2, tall, back),
+                                            "overall_blue_panel", "cabinet"), EDGE))
+    across, high = WS_ELEC_BINS
+    bar = 0.016
+    cell_wide = (wide - (across + 1) * bar) / across
+    cell_tall = (tall - cupboard - (high + 1) * bar) / high
+    for row in range(high + 1):
+        low = cupboard + row * (cell_tall + bar)
+        parts.append(shapes.box((-wide / 2, low, front), (wide / 2, low + bar, frame_front), "overall_blue_panel",
+                                "frame"))
+    printed = {(row, column): variant for row, column, variant in WS_ELEC_BIN_LABELS}
+    for row in range(high):
+        low = cupboard + bar + row * (cell_tall + bar)
+        for column in range(across + 1):
+            right = -wide / 2 + column * (cell_wide + bar)
+            parts.append(shapes.box((right, low, front), (right + bar, low + cell_tall, frame_front),
+                                    "overall_blue_panel", "frame"))
+        for column in range(across):
+            right = -wide / 2 + bar + column * (cell_wide + bar)
+            middle_x, middle_y = right + cell_wide / 2, low + cell_tall / 2
+            drawer_face = front + 0.008
+            parts.append(shapes.bevelled(shapes.box((right + 0.004, low + 0.004, drawer_face),
+                                                    (right + cell_wide - 0.004, low + cell_tall - 0.004, frame_front),
+                                                    "overall_blue_panel", "drawer"), 0.0015))
+            slot_face = drawer_face - 0.004
+            parts.append(shapes.box((middle_x - 0.05, middle_y + 0.004, slot_face),
+                                    (middle_x + 0.05, middle_y + 0.056, drawer_face), "bare_steel", "label_slot"))
+            variant = printed.get((row, column))
+            if variant:
+                parts.append(label(middle_x, middle_y + 0.03, 0.088, 0.04, slot_face, variant))
+            else:
+                parts.append(shapes.box((middle_x - 0.044, middle_y + 0.01, slot_face - 0.004),
+                                        (middle_x + 0.044, middle_y + 0.05, slot_face), "plastic_white", "card"))
+            parts.append(shapes.bevelled(shapes.box((middle_x - 0.025, middle_y - 0.046, drawer_face - 0.012),
+                                                    (middle_x + 0.025, middle_y - 0.034, drawer_face), "bare_steel",
+                                                    "pull"), 0.0015))
+    return parts
+
+
+def pendant_lamp(size, laid):
+    """An industrial pendant work lamp hung from the dome, as its close-up shows it: a round canopy plate under the
+    roof (the laid box's top) with its cord grip, a steel rod down with its cable clipped along it, a collar and a
+    neck over a round steel shade, a rolled rim round the shade's mouth and the frosted lens across it, glowing."""
+    wide, tall, deep = size
+    mouth = min(wide, deep) / 2 - 0.005
+    shade_top = 0.234
+    wall = 0.005
+    steps = 12
+    outside = [(0.065 + (mouth - 0.065) * math.cos(math.radians(90 * at / steps)),
+                0.004 + (shade_top - 0.004) * math.sin(math.radians(90 * at / steps))) for at in range(steps + 1)]
+    inside = [(0.065 - wall + (mouth - 0.065) * math.cos(math.radians(90 * at / steps)),
+               0.004 + (shade_top - 0.004 - wall) * math.sin(math.radians(90 * at / steps)))
+              for at in range(steps, -1, -1)]
+    parts = [ws_elec_lathe(outside + inside, (0.0, 0.0), "dark_panel", "shade", 48),
+             shapes.bevelled(shapes.ring((0.0, 0.0, 0.0), (0.0, 0.014, 0.0), mouth + 0.005, mouth - 0.008, "bare_steel",
+                                         48, "rim"), 0.002),
+             shapes.cylinder((0.0, 0.012, 0.0), (0.0, 0.018, 0.0), mouth - 0.007, "lamp_lens", 48, "lens"),
+             shapes.bevelled(shapes.cylinder((0.0, shade_top - 0.008, 0.0), (0.0, 0.3, 0.0), 0.07, "dark_panel", 32,
+                                             "neck"), 0.004),
+             shapes.bevelled(shapes.cylinder((0.0, 0.3, 0.0), (0.0, 0.345, 0.0), 0.026, "dark_panel", 20, "collar"),
+                             0.003)]
+    canopy_low = tall - 0.025
+    parts.append(shapes.cylinder((0.0, 0.345, 0.0), (0.0, canopy_low - 0.03, 0.0), 0.011, "pipe_steel", 16, "rod"))
+    parts.append(shapes.cylinder((0.022, 0.32, 0.0), (0.022, canopy_low - 0.03, 0.0), 0.004, "cable_black", 10,
+                                 "cable"))
+    for high in (0.5, 0.75, 0.95):
+        parts.append(shapes.bevelled(shapes.box((-0.016, high - 0.007, -0.015), (0.03, high + 0.007, 0.015),
+                                                "bare_steel", "clip"), 0.002))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, canopy_low - 0.03, 0.0), (0.0, canopy_low, 0.0), 0.035,
+                                                 "dark_panel", 24, "canopy"), 0.003))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, canopy_low, 0.0), (0.0, tall, 0.0), 0.085, "dark_panel", 40,
+                                                 "canopy"), 0.004))
+    return parts
+
+
 BUILDERS = {name: value for name, value in globals().items() if callable(value) and name in (
     "backer", "cable_bundle", "cable_drop", "lattice_diamond_strut", "lattice_hip_rib", "lattice_node_plate",
     "lattice_ring_rib", "machine_bay_plate", "pipe_straight", "pit_floor_plate", "pit_wall_panel",
@@ -3470,7 +4705,7 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "wall_lower_plain", "wall_skirting", "wall_upper_plain", "hull_plate", "hoop",
     # method B's fittings (hub round five)
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_window", "hatch_hinge", "hatch_wall_surround", "porthole_panel",
-    "wall_lower_vent", "notice_board", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
+    "wall_lower_vent", "notice_board", "robot_bench", "arm_monitor", "equipment_bench", "low_cabinet", "floor_socket", "bay_mark", "tool_bench", "vise", "work_stool", "spares_shelves", "spares_crate", "spares_box", "elec_bench", "oscilloscope", "bench_meter", "soldering_station", "parts_drawers", "pendant_lamp", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
     # the expedition camp's grounds (mars-build)
     "mast", "ground_cable")}
 

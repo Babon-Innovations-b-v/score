@@ -1570,5 +1570,207 @@
 			"dirt": 0.4,
 			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
 		}
+	},
+	"workshop": {
+		"name": "the workshop",
+		"scenes": [
+			"workshop"
+		],
+		"style": {
+			"version": 1,
+			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. The workshop's mix leans industrial with a cockpit at its middle: a big squat room of worn grey bolted panels under a low dome, four open machine bays marked only by painted corner marks and a floor socket each, the aisles between them clear door to door, the robot bench where they cross with screens on arms and a lamp over its turning table, and the benches along the walls: hand tools and a vise, electronics with a scope and meters, parts drawers and spares shelves. No hazard stripes anywhere in this room.",
+			"from": "the base theme (shared.theme) and the picked concept (concepts-world1/workshop, round two: K10)",
+			"picked": "2026-10-07, the coordinator's pick for the owner (building every place of world 1 without stopping)"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"cabin-panel",
+				"deck",
+				"glass",
+				"hull",
+				"hull-trim",
+				"lamp",
+				"roof-steel",
+				"room-fill",
+				"rubber",
+				"screen-amber",
+				"screen-teal",
+				"steel"
+			],
+			"accents": [
+				"alarm",
+				"board-wood",
+				"cabin-seat",
+				"overall",
+				"sign-gold"
+			],
+			"accents_are": "the red valve wheels and status lights, the bench timber and the spares' cardboard, the stool seats, the parts drawers' blue and the equipment bench's bus bar"
+		},
+		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			},
+			"brushed_steel_fine": {
+				"token": "steel",
+				"library": "brushed_steel_fine"
+			},
+			"galvanized_steel": {
+				"token": "steel",
+				"library": "galvanized_steel"
+			},
+			"chequer_plate_steel": {
+				"token": "steel",
+				"library": "chequer_plate_steel"
+			},
+			"cast_steel": {
+				"token": "roof-steel",
+				"library": "cast_steel"
+			},
+			"cast_iron_dark": {
+				"token": "cabin-panel",
+				"library": "cast_iron_dark"
+			},
+			"plastic_grey": {
+				"token": "hull-trim",
+				"library": "plastic_grey"
+			},
+			"plastic_white": {
+				"token": "hull",
+				"library": "plastic_white"
+			},
+			"enamel_white": {
+				"token": "hull",
+				"library": "enamel_white"
+			},
+			"rubber_grey": {
+				"token": "rubber",
+				"library": "rubber_grey"
+			},
+			"anodized_black": {
+				"token": "rubber",
+				"library": "anodized_black"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"anodized_red": {
+				"token": "alarm",
+				"library": "anodized_red"
+			},
+			"led_red": {
+				"token": "alarm",
+				"library": "led_red"
+			},
+			"overall_blue_panel": {
+				"token": "overall",
+				"library": "overall_blue_panel"
+			},
+			"anodized_gold": {
+				"token": "sign-gold",
+				"library": "anodized_gold"
+			},
+			"canvas_beige": {
+				"token": "board-wood",
+				"library": "canvas_beige"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: engine lamps at the made fittings (pendants over the bays, caged lamps over the wall benches, strip lamps over the hatches)",
+			"read_by": "the room's kit (HubKit lamps)"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.4,
+			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
+		}
 	}
 }

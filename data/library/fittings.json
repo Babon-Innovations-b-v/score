@@ -216,16 +216,16 @@
 				"note"
 			],
 			"built": {
-				"bolt": 0.947,
-				"cable": 0.669,
+				"bolt": 1.0,
+				"cable": 0.638,
 				"clamp": 0.753,
-				"face": 0.816,
+				"face": 0.872,
 				"junction_box": 0.95,
 				"label": 1.0,
-				"note": 0.826,
-				"rib": 0.95,
+				"note": 0.696,
+				"rib": 0.902,
 				"screw": 1.0,
-				"slab": 0.262
+				"slab": 0.268
 			},
 			"prints_off": []
 		},
@@ -240,14 +240,14 @@
 				"label"
 			],
 			"built": {
-				"bolt": 0.861,
+				"bolt": 0.903,
 				"bracket": 0.452,
-				"face": 0.816,
+				"face": 0.974,
 				"label": 1.0,
-				"pipe": 0.944,
+				"pipe": 0.972,
 				"rib": 1.0,
 				"screw": 1.0,
-				"slab": 0.262,
+				"slab": 0.268,
 				"strap": 1.0
 			},
 			"prints_off": []
@@ -424,7 +424,7 @@
 				"back_plate": 0.795,
 				"bar": 0.858,
 				"collar": 0.721,
-				"glass": 0.667,
+				"glass": 0.636,
 				"hoop": 0.453,
 				"screw": 0.919
 			},
@@ -824,11 +824,11 @@
 			],
 			"built": {
 				"board": 0.0,
-				"edge": 0.652,
-				"outlines": 1.0,
-				"peg": 1.0,
-				"rack": 0.939,
-				"rack_bracket": 0.781
+				"edge": 0.629,
+				"outlines": 0.947,
+				"peg": 0.987,
+				"rack": 0.879,
+				"rack_bracket": 0.767
 			},
 			"prints_off": []
 		},
@@ -885,8 +885,8 @@
 			],
 			"built": {
 				"cable": 0.582,
-				"housing": 0.744,
-				"key": 0.41,
+				"housing": 0.779,
+				"key": 0.382,
 				"pad": 0.5
 			},
 			"prints_off": []
@@ -928,7 +928,7 @@
 				"ferrule": 0.712,
 				"handle": 0.917,
 				"shaft": 0.958,
-				"tip": 0.909
+				"tip": 0.949
 			},
 			"prints_off": []
 		},
@@ -1434,6 +1434,541 @@
 			],
 			"built": {
 				"cable": 0.907
+			},
+			"prints_off": []
+		},
+		"robot_bench": {
+			"closeup": "place-workshop/pics/robot_bench.png",
+			"parts": [
+				"top",
+				"plinth",
+				"pedestal",
+				"drawer",
+				"pencil_drawer",
+				"handle",
+				"standoff",
+				"back_panel",
+				"apron",
+				"label",
+				"cable_tray",
+				"lamp_base",
+				"gooseneck",
+				"lamp_head",
+				"lens",
+				"clamp_block",
+				"bolt",
+				"turntable",
+				"tray_mat"
+			],
+			"built": {
+				"apron": 0.741,
+				"back_panel": 0.902,
+				"bolt": 0.691,
+				"cable_tray": 0.497,
+				"clamp_block": 0.306,
+				"drawer": 0.924,
+				"gooseneck": 0.75,
+				"handle": 1.0,
+				"label": 0.918,
+				"lamp_base": 0.306,
+				"lamp_head": 0.554,
+				"lens": 0.329,
+				"pedestal": 0.627,
+				"pencil_drawer": 0.625,
+				"plinth": 0.597,
+				"standoff": 0.534,
+				"top": 0.493,
+				"tray_mat": 0.545,
+				"turntable": 0.553
+			},
+			"prints_off": []
+		},
+		"arm_monitor": {
+			"closeup": "place-workshop/pics/arm_monitor.png",
+			"parts": [
+				"clamp_foot",
+				"label",
+				"swivel",
+				"lower_arm",
+				"spring",
+				"upper_arm",
+				"joint",
+				"bolt",
+				"case",
+				"bezel",
+				"screen",
+				"button"
+			],
+			"built": {
+				"bezel": 0.906,
+				"bolt": 0.408,
+				"button": 1.0,
+				"case": 0.417,
+				"clamp_foot": 0.738,
+				"joint": 0.452,
+				"label": 1.0,
+				"lower_arm": 0.662,
+				"mount": 0.0,
+				"screen": 0.927,
+				"spring": 0.74,
+				"swivel": 0.215,
+				"upper_arm": 0.195
+			},
+			"prints_off": []
+		},
+		"equipment_bench": {
+			"closeup": "place-workshop/pics/equipment_bench.png",
+			"parts": [
+				"top",
+				"plinth",
+				"carcass",
+				"drawer",
+				"door",
+				"handle",
+				"standoff",
+				"hinge",
+				"back_panel",
+				"socket_band",
+				"cheek",
+				"bus_bar",
+				"bolt",
+				"socket",
+				"switch",
+				"label",
+				"bezel",
+				"screen"
+			],
+			"built": {
+				"back_panel": 0.4,
+				"bezel": 0.839,
+				"bolt": 1.0,
+				"bus_bar": 0.83,
+				"carcass": 0.328,
+				"cheek": 0.654,
+				"door": 0.953,
+				"drawer": 0.953,
+				"handle": 1.0,
+				"hinge": 0.867,
+				"label": 0.958,
+				"plinth": 0.579,
+				"screen": 0.86,
+				"socket": 0.943,
+				"socket_band": 0.644,
+				"standoff": 0.581,
+				"switch": 0.868,
+				"top": 0.544
+			},
+			"prints_off": []
+		},
+		"low_cabinet": {
+			"closeup": "place-workshop/pics/low_cabinet.png",
+			"parts": [
+				"kick_plate",
+				"carcass",
+				"door",
+				"door_panel",
+				"handle",
+				"hinge",
+				"label"
+			],
+			"built": {
+				"carcass": 0.446,
+				"door": 0.5,
+				"door_panel": 0.988,
+				"handle": 1.0,
+				"hinge": 0.719,
+				"kick_plate": 0.6,
+				"label": 1.0
+			},
+			"prints_off": []
+		},
+		"floor_socket": {
+			"closeup": "place-workshop/pics/floor_socket.png",
+			"parts": [
+				"rim",
+				"lid",
+				"finger_slot",
+				"hinge",
+				"screw",
+				"label"
+			],
+			"built": {
+				"finger_slot": 0.673,
+				"hinge": 0.648,
+				"label": 1.0,
+				"lid": 0.854,
+				"rim": 0.785,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"bay_mark": {
+			"closeup": "place-workshop/pics/floor_socket-crop.jpg",
+			"parts": [
+				"paint"
+			],
+			"built": {
+				"paint": 1.0
+			},
+			"prints_off": []
+		},
+		"tool_bench": {
+			"closeup": "place-workshop/pics/tool_bench.png",
+			"parts": [
+				"top",
+				"leg",
+				"foot",
+				"rail",
+				"stretcher",
+				"drawer_unit",
+				"drawer",
+				"pull",
+				"standoff",
+				"shelf",
+				"label"
+			],
+			"built": {
+				"drawer": 0.978,
+				"drawer_unit": 0.591,
+				"foot": 0.677,
+				"label": 1.0,
+				"leg": 0.841,
+				"pull": 1.0,
+				"rail": 0.451,
+				"shelf": 0.544,
+				"standoff": 0.534,
+				"stretcher": 0.568,
+				"top": 0.718
+			},
+			"prints_off": []
+		},
+		"vise": {
+			"closeup": "place-workshop/pics/vise.png",
+			"parts": [
+				"base",
+				"lug",
+				"swivel",
+				"swivel_lock",
+				"lock_pin",
+				"body",
+				"fixed_jaw",
+				"anvil",
+				"slide",
+				"sliding_jaw",
+				"screw_boss",
+				"jaw_plate",
+				"plate_screw",
+				"lead_screw",
+				"handle_hub",
+				"handle",
+				"handle_knob"
+			],
+			"built": {
+				"anvil": 0.265,
+				"base": 0.569,
+				"body": 0.594,
+				"fixed_jaw": 0.431,
+				"handle": 0.736,
+				"handle_hub": 0.925,
+				"handle_knob": 0.935,
+				"jaw_plate": 0.511,
+				"lead_screw": 0.145,
+				"lock_pin": 0.745,
+				"lug": 0.596,
+				"plate_screw": 1.0,
+				"screw_boss": 0.849,
+				"slide": 0.169,
+				"sliding_jaw": 0.817,
+				"swivel": 0.12,
+				"swivel_lock": 0.547
+			},
+			"prints_off": []
+		},
+		"work_stool": {
+			"closeup": "place-workshop/pics/work_stool.png",
+			"parts": [
+				"cushion",
+				"seat_pan",
+				"seat_boss",
+				"hub",
+				"screw",
+				"thread",
+				"leg",
+				"foot_ring",
+				"rubber_foot"
+			],
+			"built": {
+				"cushion": 0.563,
+				"foot_ring": 0.73,
+				"hub": 0.855,
+				"leg": 0.936,
+				"rubber_foot": 0.893,
+				"screw": 0.532,
+				"seat_boss": 0.562,
+				"seat_pan": 0.455,
+				"thread": 0.26
+			},
+			"prints_off": []
+		},
+		"spares_shelves": {
+			"closeup": "place-workshop/pics/spares_shelves.png",
+			"parts": [
+				"post",
+				"shelf",
+				"bolt",
+				"brace",
+				"label"
+			],
+			"built": {
+				"bolt": 1.0,
+				"brace": 0.989,
+				"label": 1.0,
+				"post": 0.766,
+				"shelf": 0.636
+			},
+			"prints_off": []
+		},
+		"spares_crate": {
+			"closeup": "place-workshop/pics/spares_crate.png",
+			"parts": [
+				"body",
+				"rim",
+				"foot",
+				"rib",
+				"label_holder",
+				"label",
+				"lid",
+				"lid_rim",
+				"hinge"
+			],
+			"built": {
+				"body": 0.429,
+				"foot": 0.526,
+				"hinge": 0.409,
+				"label": 0.783,
+				"label_holder": 1.0,
+				"lid": 0.414,
+				"lid_rim": 0.568,
+				"rib": 0.543,
+				"rim": 0.348
+			},
+			"prints_off": []
+		},
+		"spares_box": {
+			"closeup": "place-workshop/pics/spares_box.png",
+			"parts": [
+				"body",
+				"flap",
+				"tape",
+				"label",
+				"decal"
+			],
+			"built": {
+				"body": 0.682,
+				"decal": 1.0,
+				"flap": 0.392,
+				"label": 1.0,
+				"tape": 0.582
+			},
+			"prints_off": []
+		},
+		"elec_bench": {
+			"closeup": "place-workshop/pics/elec_bench.png",
+			"parts": [
+				"top",
+				"rail",
+				"leg",
+				"stretcher",
+				"mat",
+				"pedestal",
+				"drawer",
+				"pull",
+				"riser_post",
+				"shelf",
+				"shelf_lip",
+				"riser_panel",
+				"power_strip",
+				"switch",
+				"socket",
+				"label"
+			],
+			"built": {
+				"drawer": 0.975,
+				"label": 0.763,
+				"leg": 0.871,
+				"mat": 0.532,
+				"pedestal": 0.692,
+				"power_strip": 0.449,
+				"pull": 0.815,
+				"rail": 0.458,
+				"riser_panel": 0.523,
+				"riser_post": 0.743,
+				"shelf": 0.5,
+				"shelf_lip": 0.791,
+				"socket": 0.923,
+				"stretcher": 0.531,
+				"switch": 0.872,
+				"top": 0.333
+			},
+			"prints_off": []
+		},
+		"oscilloscope": {
+			"closeup": "place-workshop/pics/oscilloscope.png",
+			"parts": [
+				"case",
+				"front_panel",
+				"bezel",
+				"screen",
+				"screw",
+				"knob",
+				"switch",
+				"button",
+				"socket",
+				"handle",
+				"handle_mount",
+				"foot",
+				"label"
+			],
+			"built": {
+				"bezel": 0.857,
+				"button": 1.0,
+				"case": 0.779,
+				"foot": 0.667,
+				"front_panel": 0.419,
+				"handle": 0.625,
+				"handle_mount": 0.368,
+				"knob": 1.0,
+				"label": 1.0,
+				"screen": 0.864,
+				"screw": 1.0,
+				"socket": 0.616,
+				"switch": 1.0
+			},
+			"prints_off": []
+		},
+		"bench_meter": {
+			"closeup": "place-workshop/pics/bench_meter.png",
+			"parts": [
+				"lower_case",
+				"seam",
+				"upper_case",
+				"face_plate",
+				"bezel",
+				"readout",
+				"dial",
+				"dial_knob",
+				"socket",
+				"label"
+			],
+			"built": {
+				"bezel": 0.6,
+				"dial": 0.403,
+				"dial_knob": 0.574,
+				"face_plate": 0.354,
+				"label": 1.0,
+				"lower_case": 0.587,
+				"readout": 0.436,
+				"seam": 0.229,
+				"socket": 0.322,
+				"upper_case": 0.197
+			},
+			"prints_off": []
+		},
+		"soldering_station": {
+			"closeup": "place-workshop/pics/soldering_station.png",
+			"parts": [
+				"box",
+				"foot",
+				"bezel",
+				"readout",
+				"knob",
+				"led",
+				"label",
+				"base",
+				"coil",
+				"frame",
+				"iron_tip",
+				"iron",
+				"cable",
+				"cup",
+				"wool"
+			],
+			"built": {
+				"base": 0.831,
+				"bezel": 0.838,
+				"box": 0.881,
+				"cable": 0.627,
+				"coil": 0.803,
+				"cup": 0.318,
+				"foot": 0.577,
+				"frame": 0.57,
+				"iron": 0.918,
+				"iron_tip": 0.709,
+				"knob": 1.0,
+				"label": 1.0,
+				"led": 1.0,
+				"readout": 0.667,
+				"wool": 0.328
+			},
+			"prints_off": []
+		},
+		"parts_drawers": {
+			"closeup": "place-workshop/pics/parts_drawers.png",
+			"parts": [
+				"plinth",
+				"carcass",
+				"door",
+				"handle",
+				"standoff",
+				"hinge",
+				"cabinet",
+				"frame",
+				"drawer",
+				"label_slot",
+				"card",
+				"pull",
+				"label"
+			],
+			"built": {
+				"cabinet": 0.483,
+				"carcass": 0.233,
+				"card": 1.0,
+				"door": 0.964,
+				"drawer": 0.652,
+				"frame": 0.781,
+				"handle": 1.0,
+				"hinge": 0.736,
+				"label": 1.0,
+				"label_slot": 0.455,
+				"plinth": 0.6,
+				"pull": 1.0,
+				"standoff": 0.676
+			},
+			"prints_off": []
+		},
+		"pendant_lamp": {
+			"closeup": "place-workshop/pics/pendant_lamp.png",
+			"parts": [
+				"canopy",
+				"rod",
+				"cable",
+				"clip",
+				"collar",
+				"neck",
+				"shade",
+				"rim",
+				"lens"
+			],
+			"built": {
+				"cable": 0.812,
+				"canopy": 0.738,
+				"clip": 0.734,
+				"collar": 0.667,
+				"lens": 0.456,
+				"neck": 0.507,
+				"rim": 0.712,
+				"rod": 0.92,
+				"shade": 0.414
 			},
 			"prints_off": []
 		}

@@ -1450,6 +1450,101 @@
 					"recipe": "printed",
 					"token": "sign-white",
 					"picture": "label_camp_radio"
+				},
+				"label_robot_bay": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_robot_bay"
+				},
+				"label_clamp_foot": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_clamp_foot"
+				},
+				"label_data_monitor": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_data_monitor"
+				},
+				"label_power_coolant": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_power_coolant"
+				},
+				"label_wrenches": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_wrenches"
+				},
+				"label_sockets": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sockets"
+				},
+				"label_spares": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_spares"
+				},
+				"label_parts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_parts"
+				},
+				"note_ship_to": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_ship_to"
+				},
+				"stencil_part_number": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "stencil_part_number"
+				},
+				"label_esd_safe": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_esd_safe"
+				},
+				"label_oscilloscope": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_oscilloscope"
+				},
+				"label_multimeter": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_multimeter"
+				},
+				"label_bolts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_bolts"
+				},
+				"label_nuts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_nuts"
+				},
+				"label_washers": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_washers"
+				},
+				"label_screws": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_screws"
+				},
+				"label_fuses": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_fuses"
+				},
+				"label_resistors": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_resistors"
 				}
 			}
 		},
@@ -2438,6 +2533,105 @@
 		"label_camp_radio": {
 			"style": "label",
 			"text": "CAMP RADIO",
+			"ink": "ink-line"
+		},
+		"label_robot_bay": {
+			"style": "label",
+			"text": "ROBOT BAY",
+			"ink": "ink-line"
+		},
+		"label_clamp_foot": {
+			"style": "label",
+			"text": "CLAMP FOOT",
+			"ink": "ink-line"
+		},
+		"label_data_monitor": {
+			"style": "label",
+			"text": "DATA MONITOR",
+			"ink": "ink-line"
+		},
+		"label_power_coolant": {
+			"style": "label",
+			"text": "POWER / COOLANT",
+			"ink": "ink-line"
+		},
+		"label_wrenches": {
+			"style": "label",
+			"text": "WRENCHES",
+			"ink": "ink-line"
+		},
+		"label_sockets": {
+			"style": "label",
+			"text": "SOCKETS",
+			"ink": "ink-line"
+		},
+		"label_spares": {
+			"style": "label",
+			"text": "SPARES",
+			"ink": "ink-line"
+		},
+		"label_parts": {
+			"style": "label",
+			"text": "PARTS",
+			"ink": "ink-line"
+		},
+		"note_ship_to": {
+			"style": "note",
+			"lines": [
+				"SHIP TO",
+				"MOON BASE",
+				"12 KG"
+			],
+			"ink": "ink-line"
+		},
+		"stencil_part_number": {
+			"style": "stencil",
+			"text": "P/N 4B-789",
+			"ink": "ink-line"
+		},
+		"label_esd_safe": {
+			"style": "label",
+			"text": "ESD SAFE AREA",
+			"ink": "ink-line"
+		},
+		"label_oscilloscope": {
+			"style": "label",
+			"text": "OSCILLOSCOPE",
+			"ink": "ink-line"
+		},
+		"label_multimeter": {
+			"style": "label",
+			"text": "MULTIMETER",
+			"ink": "ink-line"
+		},
+		"label_bolts": {
+			"style": "label",
+			"text": "BOLTS",
+			"ink": "ink-line"
+		},
+		"label_nuts": {
+			"style": "label",
+			"text": "NUTS",
+			"ink": "ink-line"
+		},
+		"label_washers": {
+			"style": "label",
+			"text": "WASHERS",
+			"ink": "ink-line"
+		},
+		"label_screws": {
+			"style": "label",
+			"text": "SCREWS",
+			"ink": "ink-line"
+		},
+		"label_fuses": {
+			"style": "label",
+			"text": "FUSES",
+			"ink": "ink-line"
+		},
+		"label_resistors": {
+			"style": "label",
+			"text": "RESISTORS",
 			"ink": "ink-line"
 		}
 	}
