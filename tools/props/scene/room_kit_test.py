@@ -27,7 +27,7 @@ sys.path.insert(0, str(HERE))
 import room_kit  # noqa: E402
 import tube_kit  # noqa: E402
 
-ROOMS = ("habitat", "airlock")
+ROOMS = ("habitat", "airlock", "lab")
 INVENTORIES = {room: json.loads((room_kit.REPO / f"data/inventory/{room}.json").read_text()) for room in ROOMS}
 LAID = {room: room_kit.laid_out(room, inventory) for room, inventory in INVENTORIES.items()}
 
@@ -53,7 +53,7 @@ def test_the_floor_is_covered_once():
     """The deck plates' areas (trapezoids by their taper) add up to the floor inside the outline."""
     for room, pieces in LAID.items():
         layout = INVENTORIES[room]["room"]["layout"]
-        plates = [laid for laid in pieces if laid["kind"] == f"{room}_ring_floor_plate"]
+        plates = [laid for laid in pieces if laid["kind"] == f"{room}_ring_floor_plate" and laid["at"][1] < 0.0]
         area = sum(laid["size"][0] * laid["size"][1] * (1 + laid.get("taper", 1.0)) / 2 for laid in plates)
         points = np.array(room_kit.outline(layout["inside"], layout["corner"]))
         shoelace = 0.5 * abs(np.dot(points[:, 0], np.roll(points[:, 1], 1)) - np.dot(points[:, 1], np.roll(points[:, 0], 1)))
@@ -98,6 +98,33 @@ def test_a_set_in_mat_has_its_opening_cut_in_the_plates_under_it():
     plates = [laid for laid in LAID["habitat"] if laid.get("openings")]
     mats = [laid for laid in LAID["habitat"] if laid["kind"] == "habitat_tread_mat"]
     assert mats and plates and all(laid.get("set_in") for laid in mats)
+
+
+def test_a_ledge_is_topped_to_the_curved_wall_and_faced_along_its_edge():
+    """The lab's side ledges (SteppedFloor: LEDGE_DEEP deep, its top the room's): deck plates at the ledge's top cover
+    the ledge's ground plan inside the outline, and riser plates stand along its whole room edge."""
+    layout = INVENTORIES["lab"]["room"]["layout"]
+    half = np.asarray(layout["inside"]) / 2
+    for name, top in layout["ledges"].items():
+        sign = 1.0 if name == "east" else -1.0
+        tops = [laid for laid in LAID["lab"] if laid["kind"] == "lab_ring_floor_plate" and laid["at"][1] > 0.0
+                and np.sign(laid["at"][0]) == sign]
+        assert tops and all(abs(laid["at"][1] + laid["size"][2] / 2 - top) < 1e-3 for laid in tops), name
+        covered = sum(laid["size"][0] * laid["size"][1] for laid in tops)
+        reach, straight = layout["corner"], half[1] - layout["corner"]
+        # The ledge's plan: its straight run and, at each end, the corner's arc beyond the ledge's inner line.
+        offsets = np.linspace(0.0, reach, 2001)
+        wide = np.clip(half[0] - reach + np.sqrt(reach ** 2 - offsets ** 2) - (half[0] - room_kit.LEDGE_DEEP), 0.0, None)
+        plan = room_kit.LEDGE_DEEP * 2 * straight + 2 * np.trapezoid(wide, offsets)
+        assert plan <= covered <= plan * 1.15, (name, covered, plan)
+        risers = [laid for laid in LAID["lab"] if laid["kind"] == "lab_pit_wall_panel" and np.sign(laid["at"][0]) == sign]
+        assert abs(sum(laid["size"][0] for laid in risers) - 2 * (straight + np.sqrt(reach ** 2 - (reach - room_kit.LEDGE_DEEP) ** 2))) < 1e-3
+
+
+def test_a_shut_hatch_names_its_door_so_the_game_can_open_it():
+    for room in ("habitat", "lab"):
+        shut = [laid for laid in LAID[room] if room_kit.own(laid) in ("hatch_leaf", "hatch_wheel", "hatch_window")]
+        assert shut and all(laid.get("door") in INVENTORIES[room]["room"]["layout"]["doors"] for laid in shut), room
 
 
 def test_the_tube_bay_spans_one_hoop_spacing_and_stands_on_its_deck():

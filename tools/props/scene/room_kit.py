@@ -24,8 +24,11 @@ What is laid, and from what:
   main wall's run in plates about PANEL long, a corner step's as its trapezoid, the flat top in a grid;
 - the floor: the cross of the room in a grid of deck plates, each rounded corner a fan of triangles to its middle;
   the mats before the doors set into it (their openings cut through every plate they lie over);
+- the side ledges a room's layout names (`ledges`: the lab's, SteppedFloor's 0.42 m rises along its east and west
+  walls): their tops in deck plates out to the curved wall, their room edges in riser plates;
 - the doors: each door spot's frame, and a tube hatch's leaf, hinges, wheel and window (an airlock door's moving leaf
-  is the game's own node, InnerDoor or OuterDoor, which draws its made model);
+  is the game's own node, InnerDoor or OuterDoor, which draws its made model); a shut hatch's leaf, wheel and window
+  name their door (`door`), so the game hides them when a tube is joined there (HubKit.open_doors);
 - the rows the inventory places: furniture on the floor, gear on the walls and the roof, each by its spot.
 """
 import json
@@ -64,6 +67,8 @@ FRAME_HEADER = 0.093
 LEAF_OVER = 0.06
 SET_IN_GAP = 0.004
 WALLS = ("east", "north", "west", "south")
+# How deep a side ledge is (SteppedFloor.LEDGE_DEEP); its height is the room's (`layout.ledges`).
+LEDGE_DEEP = 1.0
 
 
 def piece(room, kind, origin, axes, size, layer=1):
@@ -326,9 +331,67 @@ def doors(room, layout, kinds):
             found.append(on_side(room, "hatch_wheel", side, 0.0, 1.15 - wheel[1] / 2, wheel, out=out))
             window = size_of(kinds, "hatch_window")
             found.append(on_side(room, "hatch_window", side, 0.0, 1.85 - window[1] / 2, window, out=out - window[2] / 2))
+            # The shut leaf's pieces name their door, so the game hides them once a tube is joined there and the
+            # shell opens that doorway (HubKit.open_doors; a module placed with the building tool, the lab).
+            for shut in found[-3:]:
+                shut["door"] = name
         hinge = size_of(kinds, "hatch_hinge")
         for high in (0.5, 2.0):
             found.append(on_side(room, "hatch_hinge", side, -leaf[0] / 2 - hinge[0] / 2, high, hinge, out=frame[2]))
+    return found
+
+
+LEDGE_STRIPS = 8  # strips a ledge's top is laid in where it runs into a rounded corner
+
+
+def ledges(room, layout, kinds):
+    """The side ledges (SteppedFloor: LEDGE_DEEP deep along a wall, `layout.ledges` names each wall and its top): the
+    top in deck plates, where the wall runs straight one plate a PANEL or so, and into each rounded corner strips
+    reaching the curved wall (their outer ends go behind the wall's panels, as the shell clips its ledge), and the
+    riser along the ledge's room edge in riser plates (`pit_wall_panel`), each facing into the room."""
+    found = []
+    if not layout.get("ledges"):
+        return found
+    half = np.asarray(layout["inside"], dtype=np.float64) / 2
+    reach = layout["corner"]
+    plate = size_of(kinds, "ring_floor_plate")[2]
+    riser = size_of(kinds, "pit_wall_panel")[2]
+    for name, top in layout.get("ledges", {}).items():
+        sign = 1.0 if name == "east" else -1.0  # a ledge runs along an east or a west wall
+        inner = sign * (half[0] - LEDGE_DEEP)
+        straight = half[1] - reach
+        middle = sign * (half[0] - LEDGE_DEEP / 2)
+        tops = [(middle, -straight + straight * 2 * (index + 0.5) / max(1, round(2 * straight / PANEL)),
+                 LEDGE_DEEP, 2 * straight / max(1, round(2 * straight / PANEL)))
+                for index in range(max(1, round(2 * straight / PANEL)))]
+        ends = []
+        for end in (-1.0, 1.0):
+            for strip in range(LEDGE_STRIPS):
+                near = straight + (reach * strip / LEDGE_STRIPS)
+                far = straight + (reach * (strip + 1) / LEDGE_STRIPS)
+                # The corner's arc: centre (half - reach) on both axes; its x at the strip's nearer z, where it is widest.
+                across = half[0] - reach + math.sqrt(max(reach ** 2 - (near - straight) ** 2, 0.0))
+                wide = across - (half[0] - LEDGE_DEEP)
+                if wide <= 0.02:
+                    continue
+                tops.append((sign * (half[0] - LEDGE_DEEP + wide / 2), end * (near + far) / 2, wide, far - near))
+                ends.append(end * far)
+        for across, along, wide, long in tops:
+            origin = np.array([across, top - plate / 2, along - long / 2])
+            laid = piece(room, "ring_floor_plate", origin,
+                         (np.array([1.0, 0.0, 0.0]), np.array([0.0, 0.0, 1.0]), np.array([0.0, -1.0, 0.0])),
+                         (wide, long, plate))
+            laid["taper"] = 1.0
+            found.append(laid)
+        # The riser along the room edge, from corner arc to corner arc (where the arc meets the ledge's inner line).
+        span = straight + math.sqrt(max(reach ** 2 - (reach - LEDGE_DEEP) ** 2, 0.0))
+        count = max(1, round(2 * span / PANEL))
+        inward = np.array([-sign, 0.0, 0.0])
+        for index in range(count):
+            along = -span + 2 * span * (index + 0.5) / count
+            origin = np.array([inner - sign * riser / 2, 0.0, along])
+            found.append(piece(room, "pit_wall_panel", origin, frame_facing(inward, (0, 1, 0)),
+                               (2 * span / count, top, riser)))
     return found
 
 
@@ -492,7 +555,7 @@ def children(room, found):
 def laid_out(room, inventory):
     layout = inventory["room"]["layout"]
     kinds = {row["id"]: row for row in inventory["rows"] if row.get("made") == "kit piece"}
-    found = walls(room, layout, kinds) + floor(room, layout, kinds) + doors(room, layout, kinds)
+    found = walls(room, layout, kinds) + floor(room, layout, kinds) + ledges(room, layout, kinds) + doors(room, layout, kinds)
     if layout.get("rise"):
         found += roof(room, layout, kinds)
     found += placed_rows(room, layout, kinds, inventory) + flat_rows(room, inventory, kinds)
