@@ -3413,6 +3413,674 @@ def hoop(size, laid):
             shapes.bevelled(shapes.prism(standing(flange, outline), -long / 2, long / 2,
                                          laid.get("material", "dark_panel"), "flange"), 0.003)]
 
+# --- the expedition camp habitat (mars-build, 2026-10-07): the domes' lining and shell, their fittings and the
+# furniture holders method B builds; an American company's inflatable domes (quilted fabric between anodised ribs,
+# a soft-goods shell banded by straps over a padded foot ring, rigid frames). Curved pieces carry their numbers in
+# laid["arc"] (tools/props/scene/camp_kit.py writes them from the game's camp_habitat.gd and camp_lining.gd).
+
+CAMP_QUILT = "quilted_white"
+CAMP_PAD = "quilted_grey"
+CAMP_RIB = "anodized_natural"
+CAMP_BAND = "carbon_fibre"
+CAMP_SKIRT = "rubber"
+CAMP_DARK_GLASS = "glass_tinted"
+CAMP_SHELL = "beta_cloth"
+CAMP_DECK = "deck"
+CAMP_LENS = "lamp_lens"
+CAMP_HOUSING = "plastic_white"
+CAMP_PANEL = "composite_grey"
+CAMP_EDGE = 0.004
+# CampLining's numbers (game/world/mars/expedition_camp/camp_lining/camp_lining.gd).
+CAMP_SKIN = 0.08
+CAMP_SKIRTING_TALL = 0.22
+CAMP_SKIRTING_IN = 0.05
+CAMP_BAND_TALL = 0.3
+CAMP_BAND_IN = 0.06
+CAMP_WINDOW_LOW = 1.7
+CAMP_WINDOW_HIGH = 3.0
+CAMP_WINDOW_INSET = 0.35
+CAMP_FRAME = 0.1
+CAMP_FRAME_IN = 0.06
+CAMP_TINT_BEHIND = 0.05
+CAMP_RIB_WIDE = 0.14
+CAMP_RIB_IN = 0.06
+CAMP_STRAP_WIDE = 0.08
+CAMP_STRAP_PROUD = 0.012
+CAMP_SHELL_THICK = 0.04
+
+
+def camp_solid_from(points, faces, material, name):
+    """A closed mesh from kit-frame points and faces (each a list of point indices), its normals made consistent."""
+    built = bmesh.new()
+    verts = [built.verts.new(shapes.to_blender(point)) for point in points]
+    for face in faces:
+        try:
+            built.faces.new([verts[index] for index in face])
+        except ValueError:  # a face named twice (a degenerate strip) is left out
+            pass
+    bmesh.ops.remove_doubles(built, verts=built.verts, dist=1e-5)
+    bmesh.ops.recalc_face_normals(built, faces=built.faces)
+    data = bpy.data.meshes.new(name)
+    built.to_mesh(data)
+    built.free()
+    return shapes.mesh_object(name, data, material)
+
+
+def camp_sheet(grid, normals, thick, material, name):
+    """A curved plate: a grid of kit-frame points (rows x columns) as its front, thickened `thick` along each point's
+    normal, closed round its four edges."""
+    grid = np.asarray(grid, dtype=np.float64)
+    normals = np.asarray(normals, dtype=np.float64)
+    rows, columns = grid.shape[:2]
+    back = grid + normals * thick
+    points = [tuple(point) for point in grid.reshape(-1, 3)] + [tuple(point) for point in back.reshape(-1, 3)]
+    count = rows * columns
+
+    def front(row, column):
+        return row * columns + column
+
+    faces = []
+    for row in range(rows - 1):
+        for column in range(columns - 1):
+            quad = [front(row, column), front(row, column + 1), front(row + 1, column + 1), front(row + 1, column)]
+            faces.append(quad)
+            faces.append([index + count for index in reversed(quad)])
+    edge = ([front(0, column) for column in range(columns)] + [front(row, columns - 1) for row in range(1, rows)]
+            + [front(rows - 1, column) for column in range(columns - 2, -1, -1)]
+            + [front(row, 0) for row in range(rows - 2, 0, -1)])
+    for at in range(len(edge)):
+        one, two = edge[at], edge[(at + 1) % len(edge)]
+        faces.append([one, two, two + count, one + count])
+    return camp_solid_from(points, faces, material, name)
+
+
+def camp_arc_of(laid):
+    return laid.get("arc", {})
+
+
+# --- the lining inside ---------------------------------------------------------------------------------------------
+
+def camp_lining_layers(wide, parts, with_skirting=True, top=3.4):
+    """The skirting along the deck and the dark band along the wall's top, standing into the room."""
+    if with_skirting:
+        parts.append(shapes.bevelled(shapes.box((-wide / 2, 0.0, -CAMP_SKIRTING_IN), (wide / 2, CAMP_SKIRTING_TALL, 0.0), CAMP_SKIRT,
+                                                "skirting"), 0.006))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, top - CAMP_BAND_TALL, -CAMP_BAND_IN), (wide / 2, top, 0.0), CAMP_BAND, "band"),
+                                 CAMP_EDGE))
+    return parts
+
+
+def camp_quilt_box(low, high, name="quilt"):
+    return shapes.bevelled(shapes.box(low, high, CAMP_QUILT, name), 0.01)
+
+
+def dome_wall_panel(size, laid):
+    """A plain lining panel: quilted fabric over the deck to the wall's top, skirting and top band."""
+    wide, tall, deep = size
+    return camp_lining_layers(wide, [camp_quilt_box((-wide / 2, -0.05, 0.0), (wide / 2, tall, CAMP_SKIN))], top=tall)
+
+
+def dome_window_panel(size, laid):
+    """A lining panel round its window: quilted fabric round the hole, a rigid frame standing into the room, the glass
+    in it, dark glass close behind, skirting and top band."""
+    wide, tall, deep = size
+    inner = wide - CAMP_WINDOW_INSET * 2.0
+    quilt = shapes.box((-wide / 2, -0.05, 0.0), (wide / 2, tall, CAMP_SKIN), CAMP_QUILT, "quilt")
+    shapes.cut(quilt, shapes.box((-inner / 2, CAMP_WINDOW_LOW, -0.2), (inner / 2, CAMP_WINDOW_HIGH, 0.3), CAMP_QUILT, "cutter"))
+    parts = [shapes.bevelled(quilt, 0.01)]
+    outline = camp_window_outline(-inner / 2 - CAMP_FRAME, CAMP_WINDOW_LOW - CAMP_FRAME, inner / 2 + CAMP_FRAME, CAMP_WINDOW_HIGH + CAMP_FRAME, 0.12)
+    hole = camp_window_outline(-inner / 2, CAMP_WINDOW_LOW, inner / 2, CAMP_WINDOW_HIGH, 0.08)
+    frame = shapes.prism(outline, -CAMP_FRAME_IN, CAMP_SKIN, CAMP_RIB, "frame")
+    shapes.cut(frame, shapes.prism(hole, -CAMP_FRAME_IN - 0.1, CAMP_SKIN + 0.1, CAMP_RIB, "cutter"))
+    parts.append(shapes.bevelled(frame, 0.006))
+    parts.append(shapes.prism(hole, CAMP_SKIN * 0.5 - 0.01, CAMP_SKIN * 0.5 + 0.01, CAMP_DARK_GLASS, "glass"))
+    parts.append(shapes.prism(outline, CAMP_SKIN + CAMP_TINT_BEHIND, CAMP_SKIN + CAMP_TINT_BEHIND + 0.03, CAMP_DARK_GLASS, "glass"))
+    return camp_lining_layers(wide, parts, top=tall)
+
+
+def camp_window_outline(left, bottom, right, top, radius, steps=5):
+    """A rectangle with rounded corners in the x-y plane, as a polygon."""
+    found = []
+    for (x, y), start in (((right - radius, top - radius), 0.0), ((left + radius, top - radius), 90.0),
+                          ((left + radius, bottom + radius), 180.0), ((right - radius, bottom + radius), 270.0)):
+        for step in range(steps + 1):
+            angle = math.radians(start + 90.0 * step / steps)
+            found.append((x + radius * math.cos(angle), y + radius * math.sin(angle)))
+    return found
+
+
+def dome_rib(size, laid):
+    """An anodised rib over a panel join, from the deck to the wall's top, rivets up it."""
+    wide, tall, deep = size
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), CAMP_RIB, "rib"), 0.008)]
+    for y in np.linspace(0.4, tall - 0.4, 6):
+        parts.append(shapes.cylinder((0.0, y, -deep / 2), (0.0, y, -deep / 2 - 0.006), 0.012, CAMP_RIB, 12, "rivet"))
+    return parts
+
+
+def camp_ring_points(arc, radius, height, degrees):
+    """A point on a dome's ring in a piece's frame: the piece's origin at the middle of its panel's chord at the
+    origin ring (arc `origin_radius`, `origin_height`), x along the chord, z out of the dome."""
+    angle = math.radians(degrees)
+    chord = arc["origin_radius"]
+    return (radius * math.sin(angle), height - arc["origin_height"], radius * math.cos(angle) - chord)
+
+
+def dome_ceiling_gore(size, laid):
+    """A quilted ceiling gore from the wall's top up its rings to the flat top, its rib along its first edge."""
+    arc = camp_arc_of(laid)
+    half = arc["half"]
+    rings = arc["rings"]
+    columns = 9
+    grid, normals = [], []
+    for radius, height in rings:
+        row, row_normals = [], []
+        for column in range(columns):
+            degrees = -half + 2 * half * column / (columns - 1)
+            row.append(camp_ring_points(arc, radius, height, degrees))
+            row_normals.append(camp_gore_normal(rings, radius, height, degrees))
+        grid.append(row)
+        normals.append(row_normals)
+    parts = [camp_sheet(grid, normals, 0.04, CAMP_QUILT, "quilt")]
+    rib_grid, rib_normals = [], []
+    for radius, height in rings:
+        row, row_normals = [], []
+        for degrees in (-half - math.degrees(CAMP_RIB_WIDE / 2 / radius), -half + math.degrees(CAMP_RIB_WIDE / 2 / radius)):
+            point = np.asarray(camp_ring_points(arc, radius, height, degrees))
+            normal = np.asarray(camp_gore_normal(rings, radius, height, degrees))
+            row.append(tuple(point - normal * CAMP_RIB_IN))
+            row_normals.append(tuple(normal))
+        rib_grid.append(row)
+        rib_normals.append(row_normals)
+    parts.append(camp_sheet(rib_grid, rib_normals, CAMP_RIB_IN, CAMP_RIB, "rib"))
+    return parts
+
+
+def camp_gore_normal(rings, radius, height, degrees):
+    """The way out of the ceiling (away from the room) at a point on it: up and out from the dome's middle."""
+    angle = math.radians(degrees)
+    outward = np.array([math.sin(angle), 0.0, math.cos(angle)])
+    found = outward * 0.35 + np.array([0.0, 1.0, 0.0])
+    return tuple(found / np.linalg.norm(found))
+
+
+def dome_roof_cap(size, laid):
+    """The flat top over a dome: a quilted disc, an aluminium ring, the vent fan's grille and blades in the middle and
+    a ring of lamp lens round them. Laid facing down: its front (-z) looks into the room."""
+    wide = size[0]
+    radius = wide / 2
+    parts = [shapes.bevelled(shapes.ring((0.0, 0.0, 0.0), (0.0, 0.0, 0.05), radius, 0.82, CAMP_QUILT, 72, "quilt"), 0.01)]
+    parts.append(shapes.bevelled(shapes.ring((0.0, 0.0, -0.05), (0.0, 0.0, 0.05), 0.82, 0.62, CAMP_RIB, 64, "ring"), 0.006))
+    parts.append(shapes.ring((0.0, 0.0, -0.035), (0.0, 0.0, 0.0), 0.6, 0.42, CAMP_LENS, 64, "lens"))
+    parts.append(shapes.bevelled(shapes.ring((0.0, 0.0, -0.06), (0.0, 0.0, 0.05), 0.42, 0.36, CAMP_RIB, 48, "grille"),
+                                 0.004))
+    for at in range(-3, 4):
+        x = at * 0.1
+        half = math.sqrt(max(0.36 ** 2 - x ** 2, 0.0)) - 0.01
+        parts.append(shapes.box((x - 0.012, -half, -0.055), (x + 0.012, half, -0.045), CAMP_RIB, "grille"))
+    parts.append(shapes.cylinder((0.0, 0.0, -0.02), (0.0, 0.0, 0.04), 0.07, CAMP_BAND, 24, "fan"))
+    for at in range(5):
+        angle = 2 * math.pi * at / 5
+        tip = (0.3 * math.cos(angle), 0.3 * math.sin(angle))
+        side = (0.07 * math.cos(angle + 0.5), 0.07 * math.sin(angle + 0.5))
+        parts.append(shapes.prism([(0.0, 0.0), side, tip], 0.0, 0.006, CAMP_BAND, "fan"))
+    return parts
+
+
+def dome_deck_wedge(size, laid):
+    """A deck plate from the dome's middle out under the wall, as a wedge, a trim strip along its outer edge. Laid
+    flat with its front up; its top at the deck."""
+    arc = camp_arc_of(laid)
+    half = math.radians(arc["half"])
+    reach = arc["reach"]
+    left, right = (-reach * math.sin(half), reach * math.cos(half)), (reach * math.sin(half), reach * math.cos(half))
+    parts = [shapes.bevelled(shapes.prism([(0.0, 0.0), right, left], 0.0, 0.04, CAMP_DECK, "plate"), CAMP_EDGE)]
+    inner = 1.0 - 0.6 / reach
+    parts.append(shapes.prism([right, left, (left[0] * inner, left[1] * inner), (right[0] * inner, right[1] * inner)],
+                              -0.004, 0.0, CAMP_SKIRT, "tread"))
+    for share in (0.35, 0.65):
+        parts.append(shapes.cylinder((left[0] * share, left[1] * share, 0.0), (left[0] * share, left[1] * share, -0.004),
+                                     0.011, CAMP_RIB, 12, "bolt"))
+    return parts
+
+
+def dome_opening_frame(size, laid):
+    """An opening in the lining: the quilted lintel over it to the wall's top, the rigid frame round it standing into
+    the room and out, a seal along its inside, the top band."""
+    wide, tall, deep = size
+    arc = camp_arc_of(laid)
+    opening, high = arc.get("opening", (2.4, 2.6))
+    parts = [camp_quilt_box((-wide / 2, high, 0.0), (wide / 2, tall, CAMP_SKIN), "quilt")]
+    # Both outlines run on down under the deck, so their rounded lower corners never leave a sliver at its foot.
+    outline = camp_window_outline(-opening / 2 - CAMP_FRAME, -0.3, opening / 2 + CAMP_FRAME, high + CAMP_FRAME, 0.05)
+    hole = camp_window_outline(-opening / 2, -0.6, opening / 2, high, 0.03)
+    frame = shapes.prism(outline, -CAMP_FRAME_IN, CAMP_SKIN + CAMP_FRAME_IN, CAMP_RIB, "frame")
+    shapes.cut(frame, shapes.prism(hole, -1.0, 1.0, CAMP_RIB, "cutter"))
+    parts.append(shapes.bevelled(frame, 0.006))
+    for x in (-opening / 2 + 0.014, opening / 2 - 0.014):
+        parts.append(shapes.box((x - 0.012, 0.0, 0.0), (x + 0.012, high - 0.04, CAMP_SKIN), CAMP_SKIRT, "seal"))
+    parts.append(shapes.box((-opening / 2 + 0.04, high - 0.028, 0.0), (opening / 2 - 0.04, high - 0.004, CAMP_SKIN), CAMP_SKIRT, "seal"))
+    return camp_lining_layers(wide, parts, with_skirting=False, top=tall)
+
+
+def passage_lining(size, laid):
+    """The way through between the domes: quilted sides and ceiling, skirting, and its deck; open at both ends. Its
+    origin at the middle of its door dome end on the deck, z along it (x across)."""
+    arc = camp_arc_of(laid)
+    length, wide, tall = arc["length"], arc["wide"], arc["tall"]
+    parts = []
+    for side in (-1.0, 1.0):
+        inner = side * wide / 2
+        parts.append(camp_quilt_box((min(inner, inner + side * CAMP_SKIN), -0.05, 0.0), (max(inner, inner + side * CAMP_SKIN), tall,
+                                                                               length), "quilt"))
+        parts.append(shapes.box((min(inner, inner - side * CAMP_SKIRTING_IN), 0.0, 0.0),
+                                (max(inner, inner - side * CAMP_SKIRTING_IN), CAMP_SKIRTING_TALL, length), CAMP_SKIRT, "skirting"))
+    parts.append(camp_quilt_box((-wide / 2 - CAMP_SKIN, tall, 0.0), (wide / 2 + CAMP_SKIN, tall + CAMP_SKIN, length), "quilt"))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, -0.04, 0.0), (wide / 2, 0.0, length), CAMP_DECK, "deck"), CAMP_EDGE))
+    return parts
+
+
+def partition(size, laid):
+    """The far dome's partition: composite panels either side of its doorway and over it, a rigid frame round the
+    doorway, a cap along its top and skirting along both feet. Its origin at its first end on the deck, x along it."""
+    arc = camp_arc_of(laid)
+    length, tall, thick = arc["length"], arc["tall"], arc["thick"]
+    door_at, (door_wide, door_tall) = arc["door_at"], arc["door"]
+    door_from, door_to = door_at - door_wide / 2, door_at + door_wide / 2
+    parts = []
+    for start, end in ((0.0, door_from), (door_to, length)):
+        seams = max(1, round((end - start) / 1.2))
+        for index in range(seams):
+            left = start + (end - start) * index / seams
+            right = start + (end - start) * (index + 1) / seams
+            parts.append(shapes.bevelled(shapes.box((left + 0.004, 0.0, -thick / 2), (right - 0.004, tall, thick / 2),
+                                                    CAMP_PANEL, "panel"), 0.006))
+    parts.append(shapes.bevelled(shapes.box((door_from, door_tall, -thick / 2), (door_to, tall, thick / 2), CAMP_PANEL,
+                                            "panel"), 0.006))
+    outline = camp_window_outline(door_from - 0.08, -0.01, door_to + 0.08, door_tall + 0.08, 0.04)
+    hole = camp_window_outline(door_from, -0.2, door_to, door_tall, 0.02)
+    frame = shapes.prism(outline, -thick / 2 - 0.04, thick / 2 + 0.04, CAMP_RIB, "frame")
+    shapes.cut(frame, shapes.prism(hole, -1.0, 1.0, CAMP_RIB, "cutter"))
+    parts.append(shapes.bevelled(frame, 0.005))
+    parts.append(shapes.bevelled(shapes.box((0.0, tall, -thick / 2 - 0.02), (length, tall + 0.06, thick / 2 + 0.02),
+                                            CAMP_RIB, "cap"), 0.005))
+    for start, end in ((0.0, door_from - 0.08), (door_to + 0.08, length)):
+        for side in (-1.0, 1.0):
+            low, high = sorted((side * thick / 2, side * (thick / 2 + 0.03)))
+            parts.append(shapes.box((start, 0.0, low), (end, 0.16, high), CAMP_SKIRT, "skirting"))
+    return parts
+
+
+def rod_lamp(size, laid):
+    """A lamp on a rod from the ceiling: the rod, a round housing and its lens underneath. Its origin under the lens."""
+    wide, tall, deep = size
+    housing = 0.12
+    parts = [shapes.cylinder((0.0, housing, 0.0), (0.0, tall, 0.0), 0.015, CAMP_RIB, 12, "rod")]
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, 0.02, 0.0), (0.0, housing, 0.0), wide / 2, CAMP_HOUSING, 32, "housing"),
+                                 0.01))
+    parts.append(shapes.cylinder((0.0, 0.0, 0.0), (0.0, 0.02, 0.0), wide / 2 - 0.03, CAMP_LENS, 32, "lens"))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, tall - 0.02, 0.0), (0.0, tall, 0.0), 0.05, CAMP_RIB, 16, "rose"), 0.004))
+    return parts
+
+
+# --- the shell outside ---------------------------------------------------------------------------------------------
+
+def camp_shell_profile(arc):
+    """The shell's profile from its foot up the wall and over the roof to its top, as (out, up) over the deck."""
+    out, foot, shoulder, rise = arc["out"], arc["foot"], arc["shoulder"], arc["rise"]
+    found = [(out, arc.get("from", foot)), (out, (arc.get("from", foot) + shoulder) / 2), (out, shoulder)]
+    for step in range(1, 9):
+        angle = math.pi / 2 * step / 8
+        found.append((max(out * math.cos(angle), 0.02), shoulder + rise * math.sin(angle)))
+    return found
+
+
+def camp_shell_point(arc, out, up, degrees):
+    """A point on the shell in a gore's frame: origin at the middle of its foot chord, x along, z into the dome."""
+    angle = math.radians(degrees)
+    return (out * math.sin(angle), up - arc["origin_height"], -(out * math.cos(angle) - arc["origin_radius"]))
+
+
+def camp_shell_normal(degrees, rising):
+    angle = math.radians(degrees)
+    outward = np.array([math.sin(angle), 0.0, -math.cos(angle)])
+    found = outward * (1.0 - rising) + np.array([0.0, rising, 0.0])
+    return found / np.linalg.norm(found)
+
+
+def camp_shell_sheet(arc, profile, low_degrees, high_degrees, thick, material, name, proud=0.0, columns=7):
+    grid, normals = [], []
+    top = arc["shoulder"]
+    for out, up in profile:
+        rising = 0.0 if up <= top + 1e-6 else min(1.0, (up - top) / max(arc["rise"], 0.1))
+        row, row_normals = [], []
+        for column in range(columns):
+            degrees = low_degrees + (high_degrees - low_degrees) * column / (columns - 1)
+            normal = camp_shell_normal(degrees, rising)
+            row.append(tuple(np.asarray(camp_shell_point(arc, out, up, degrees)) + normal * proud))
+            row_normals.append(tuple(-normal))
+        grid.append(row)
+        normals.append(row_normals)
+    return camp_sheet(grid, normals, thick, material, name)
+
+
+def shell_gore(size, laid):
+    """A gore of the soft-goods shell from its foot (or over an opening, from `from`) over the roof to its top: woven
+    fabric, a strap down its first edge and strap bands round it, and where the lining has a window, a rigid frame and
+    dark glass in the window band."""
+    arc = camp_arc_of(laid)
+    half = arc["half"]
+    profile = camp_shell_profile(arc)
+    parts = []
+    window = arc.get("window", False)
+    if window:
+        below = [point for point in profile if point[1] <= CAMP_WINDOW_LOW] + [(arc["out"], CAMP_WINDOW_LOW)]
+        above = [(arc["out"], CAMP_WINDOW_HIGH)] + [point for point in profile if point[1] > CAMP_WINDOW_HIGH]
+        parts.append(camp_shell_sheet(arc, below, -half, half, CAMP_SHELL_THICK, CAMP_SHELL, "fabric"))
+        parts.append(camp_shell_sheet(arc, above, -half, half, CAMP_SHELL_THICK, CAMP_SHELL, "fabric"))
+        inset = math.degrees(CAMP_WINDOW_INSET / arc["out"])
+        band = [(arc["out"], CAMP_WINDOW_LOW), (arc["out"], CAMP_WINDOW_HIGH)]
+        for low, high in ((-half, -half + inset), (half - inset, half)):
+            parts.append(camp_shell_sheet(arc, band, low, high, CAMP_SHELL_THICK, CAMP_SHELL, "fabric", columns=3))
+        parts.append(camp_shell_sheet(arc, band, -half + inset, half - inset, 0.02, CAMP_DARK_GLASS, "glass", proud=-0.02))
+        rim = math.degrees(CAMP_FRAME / arc["out"])
+        for low, high in ((-half + inset - rim, -half + inset), (half - inset, half - inset + rim)):
+            parts.append(camp_shell_sheet(arc, [(arc["out"], CAMP_WINDOW_LOW - CAMP_FRAME), (arc["out"], CAMP_WINDOW_HIGH + CAMP_FRAME)], low, high,
+                                     0.05, CAMP_RIB, "frame", proud=0.03, columns=2))
+        for low, high in ((CAMP_WINDOW_LOW - CAMP_FRAME, CAMP_WINDOW_LOW), (CAMP_WINDOW_HIGH, CAMP_WINDOW_HIGH + CAMP_FRAME)):
+            parts.append(camp_shell_sheet(arc, [(arc["out"], low), (arc["out"], high)], -half + inset - rim,
+                                     half - inset + rim, 0.05, CAMP_RIB, "frame", proud=0.03, columns=5))
+    else:
+        parts.append(camp_shell_sheet(arc, profile, -half, half, CAMP_SHELL_THICK, CAMP_SHELL, "fabric"))
+    strap = math.degrees(CAMP_STRAP_WIDE / 2 / arc["out"])
+    parts.append(camp_shell_sheet(arc, profile[:-1], -half, -half + 2 * strap, 0.01, CAMP_PAD, "strap", proud=CAMP_STRAP_PROUD,
+                             columns=2))
+    for height in arc.get("bands", (0.9, 3.3)):
+        if height < profile[0][1] or (window and CAMP_WINDOW_LOW - CAMP_FRAME < height < CAMP_WINDOW_HIGH + CAMP_FRAME):
+            continue
+        parts.append(camp_shell_sheet(arc, [(arc["out"], height - CAMP_STRAP_WIDE / 2), (arc["out"], height + CAMP_STRAP_WIDE / 2)],
+                                 -half, half, 0.01, CAMP_PAD, "strap", proud=CAMP_STRAP_PROUD))
+    return parts
+
+
+def shell_gore_window(size, laid):
+    laid = dict(laid, arc=dict(camp_arc_of(laid), window=True))
+    return shell_gore(size, laid)
+
+
+def shell_gore_open(size, laid):
+    return shell_gore(size, laid)
+
+
+def foot_ring(size, laid):
+    """A stretch of the padded tube round a dome's foot, strap bands round it every metre."""
+    arc = camp_arc_of(laid)
+    half, middle, high, thick = arc["half"], arc["middle"], arc["high"], arc["thick"]
+    around = 12
+    columns = max(3, int(2 * half / 4) + 2)
+    points, faces = [], []
+    for column in range(columns):
+        degrees = -half + 2 * half * column / (columns - 1)
+        for step in range(around):
+            turn = 2 * math.pi * step / around
+            out = middle + thick * math.cos(turn)
+            points.append(camp_shell_point(dict(arc, origin_height=arc["origin_height"]), out, high + thick * math.sin(turn),
+                                      degrees))
+    for column in range(columns - 1):
+        for step in range(around):
+            one = column * around + step
+            two = column * around + (step + 1) % around
+            faces.append([one, two, two + around, one + around])
+    faces.append(list(range(around)))
+    faces.append([(columns - 1) * around + step for step in reversed(range(around))])
+    parts = [shapes.bevelled(camp_solid_from(points, faces, CAMP_PAD, "pad"), 0.0)]
+    length = math.radians(2 * half) * middle
+    bands = max(1, round(length / 1.0))
+    for band in range(bands):
+        degrees = -half + 2 * half * (band + 0.5) / bands
+        points, faces = [], []
+        for side, width in enumerate((-CAMP_STRAP_WIDE / 2, CAMP_STRAP_WIDE / 2)):
+            shift = math.degrees(width / middle)
+            for step in range(around):
+                turn = 2 * math.pi * step / around
+                out = middle + (thick + CAMP_STRAP_PROUD) * math.cos(turn)
+                points.append(camp_shell_point(arc, out, high + (thick + CAMP_STRAP_PROUD) * math.sin(turn), degrees + shift))
+        for step in range(around):
+            following = (step + 1) % around
+            faces.append([step, following, following + around, step + around])
+        inner = [(middle + (thick - 0.03) * math.cos(2 * math.pi * step / around),
+                  high + (thick - 0.03) * math.sin(2 * math.pi * step / around)) for step in range(around)]
+        start = len(points)
+        for side, width in enumerate((-CAMP_STRAP_WIDE / 2, CAMP_STRAP_WIDE / 2)):
+            shift = math.degrees(width / middle)
+            for out, up in inner:
+                points.append(camp_shell_point(arc, out, up, degrees + shift))
+        for step in range(around):
+            following = (step + 1) % around
+            faces.append([start + following, start + step, start + step + around, start + following + around])
+            faces.append([step, start + step, start + following, following])
+            faces.append([step + around, following + around, start + following + around, start + step + around])
+        parts.append(camp_solid_from(points, faces, CAMP_PAD, "strap"))
+    return parts
+
+
+def passage_hull(size, laid):
+    """The soft-goods hull over the way through: its two sides and roof, strap bands round it. Its origin at the
+    middle of its door dome end on the deck, z along it."""
+    arc = camp_arc_of(laid)
+    length, half, top, foot = arc["length"], arc["half_wide"], arc["top"], arc["foot"]
+    parts = []
+    for side in (-1.0, 1.0):
+        low, high = sorted((side * half, side * (half + CAMP_SHELL_THICK)))
+        parts.append(shapes.box((low, foot, 0.0), (high, top, length), CAMP_SHELL, "fabric"))
+    parts.append(shapes.box((-half - CAMP_SHELL_THICK, top, 0.0), (half + CAMP_SHELL_THICK, top + CAMP_SHELL_THICK, length), CAMP_SHELL,
+                            "fabric"))
+    for along in np.linspace(0.25, length - 0.25, max(2, round(length / 0.8))):
+        for side in (-1.0, 1.0):
+            low, high = sorted((side * (half + CAMP_SHELL_THICK), side * (half + CAMP_SHELL_THICK + CAMP_STRAP_PROUD)))
+            parts.append(shapes.box((low, foot, along - CAMP_STRAP_WIDE / 2), (high, top + CAMP_SHELL_THICK, along + CAMP_STRAP_WIDE / 2),
+                                    CAMP_PAD, "strap"))
+        parts.append(shapes.box((-half - CAMP_SHELL_THICK - CAMP_STRAP_PROUD, top + CAMP_SHELL_THICK, along - CAMP_STRAP_WIDE / 2),
+                                (half + CAMP_SHELL_THICK + CAMP_STRAP_PROUD, top + CAMP_SHELL_THICK + CAMP_STRAP_PROUD, along + CAMP_STRAP_WIDE / 2),
+                                CAMP_PAD, "strap"))
+    return parts
+
+
+# --- the furniture code builds (method B: holders with every part their close-up shows) ----------------------------
+
+def pedestal_table(size, laid):
+    """The mess table: a stainless top with rounded edges on one round pedestal, a collar under the top and a round
+    foot plate."""
+    wide, tall, deep = size
+    top = 0.04
+    parts = [shapes.bevelled(shapes.box((-wide / 2, tall - top, -deep / 2), (wide / 2, tall, deep / 2),
+                                        "brushed_steel_fine", "top"), 0.012)]
+    parts.append(shapes.cylinder((0.0, 0.02, 0.0), (0.0, tall - top, 0.0), 0.06, "brushed_steel_fine", 32, "pedestal"))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, 0.0, 0.0), (0.0, 0.025, 0.0), 0.3, CAMP_BAND, 48, "foot"), 0.006))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, tall - top - 0.03, 0.0), (0.0, tall - top, 0.0), 0.12,
+                                                 "brushed_steel_fine", 32, "collar"), 0.004))
+    return parts
+
+
+def camp_shelving(size, boards, material="anodized_natural"):
+    """An open shelf: four uprights, flat boards at the given tops, a label strip on each board's front edge."""
+    wide, tall, deep = size
+    post = 0.035
+    board = 0.025
+    parts = []
+    for x in (-wide / 2 + post / 2, wide / 2 - post / 2):
+        for z in (-deep / 2 + post / 2, deep / 2 - post / 2):
+            parts.append(shapes.bevelled(shapes.box((x - post / 2, 0.0, z - post / 2), (x + post / 2, tall, z + post / 2),
+                                                    material, "upright"), 0.004))
+    for top in boards:
+        parts.append(shapes.bevelled(shapes.box((-wide / 2 + post, top - board, -deep / 2 + 0.005),
+                                                (wide / 2 - post, top, deep / 2 - 0.005), material, "board"), 0.003))
+        parts.append(shapes.box((-wide / 2 + post + 0.05, top - board + 0.004, -deep / 2 - 0.004),
+                                (wide / 2 - post - 0.05, top - 0.004, -deep / 2 + 0.006), CAMP_BAND, "strip"))
+    return parts
+
+
+def sample_shelf(size, laid):
+    return camp_shelving(size, (0.15, 0.63, 1.11, 1.59))
+
+
+def stores_rack(size, laid):
+    return camp_shelving(size, (0.12, 0.6, 1.08, 1.56))
+
+
+def hygiene(size, laid):
+    """The hygiene cubicle: composite walls with rounded upright corners, a two-leaf folding door in its front with a
+    slim handle, a round vent fan on its roof and a sign plate on the door."""
+    wide, tall, deep = size
+    corner = 0.08
+    parts = []
+    for x in (-wide / 2 + corner, wide / 2 - corner):
+        for z in (-deep / 2 + corner, deep / 2 - corner):
+            parts.append(shapes.cylinder((x, 0.0, z), (x, tall, z), corner, CAMP_PANEL, 24, "corner"))
+    parts.append(shapes.box((-wide / 2 + corner, 0.0, -deep / 2 + 0.02), (wide / 2 - corner, tall, deep / 2), CAMP_PANEL,
+                            "wall"))
+    parts.append(shapes.box((-wide / 2, 0.0, -deep / 2 + corner), (wide / 2, tall, deep / 2 - corner), CAMP_PANEL, "wall"))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + corner, tall - 0.04, -deep / 2 + corner),
+                                            (wide / 2 - corner, tall, deep / 2 - corner), CAMP_PANEL, "roof"), 0.01))
+    door = wide - 2 * corner - 0.08
+    for side in (-1.0, 1.0):
+        left, right = sorted((0.0, side * door / 2))
+        parts.append(shapes.bevelled(shapes.box((left + 0.006, 0.06, -deep / 2 - 0.004), (right - 0.006, tall - 0.12,
+                                                                                         -deep / 2 + 0.02),
+                                                CAMP_HOUSING, "door"), 0.004))
+    parts.append(shapes.bevelled(shapes.box((-door / 2 + 0.06, 0.9, -deep / 2 - 0.03), (-door / 2 + 0.085, 1.25,
+                                                                                       -deep / 2 - 0.004),
+                                            CAMP_RIB, "handle"), 0.003))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, tall, 0.0), (0.0, tall + 0.08, 0.0), 0.16, CAMP_HOUSING, 32,
+                                                 "vent"), 0.006))
+    parts.append(shapes.ring((0.0, tall + 0.08, 0.0), (0.0, tall + 0.09, 0.0), 0.14, 0.05, CAMP_RIB, 32, "grille"))
+    parts.append(label(door / 4, 1.62, 0.26, 0.07, -deep / 2 - 0.004, "label_hygiene"))
+    return parts
+
+
+def floor_cable(size, laid):
+    """Power cables run loose over the deck, two side by side wandering a little, a plug block at one end. Laid on
+    the deck, its length along x, the cables lying on it."""
+    wide, tall, deep = size
+    radius = 0.011
+    parts = []
+    for lane, phase in ((-0.025, 0.0), (0.025, 1.7)):
+        steps = 14
+        points = [(-wide / 2 + wide * step / steps, radius,
+                   lane + 0.06 * math.sin(phase + 5.0 * step / steps) * (1.0 if step not in (0, steps) else 0.3))
+                  for step in range(steps + 1)]
+        parts += [shapes.cylinder(start, end, radius, "cable_black", 10, "cable") for start, end in zip(points, points[1:])]
+    parts.append(shapes.bevelled(shapes.box((wide / 2 - 0.05, 0.0, -0.05), (wide / 2 + 0.05, 0.05, 0.05), CAMP_PANEL,
+                                            "plug"), 0.006))
+    return parts
+
+
+def crate(size, laid):
+    """A cargo crate: the case's build at a crate's size (body, lid, seam band, latches, handle, stencil)."""
+    return case(size, laid)
+
+
+def ring_lamp(size, laid):
+    """A ring lamp on the ceiling, as the concept picks show them: a housing ring and a glowing lens ring under it, held
+    by three short struts. Laid facing down (its front, -z, into the room)."""
+    wide = size[0]
+    outer, inner = wide / 2, wide / 2 - 0.07
+    parts = [shapes.bevelled(shapes.ring((0.0, 0.0, -0.02), (0.0, 0.0, 0.04), outer, inner, CAMP_RIB, 48, "housing"), 0.006),
+             shapes.ring((0.0, 0.0, -0.045), (0.0, 0.0, -0.02), outer - 0.015, inner + 0.015, CAMP_LENS, 48, "lens")]
+    for at in range(3):
+        angle = 2 * math.pi * at / 3
+        x, y = (outer - 0.035) * math.cos(angle), (outer - 0.035) * math.sin(angle)
+        parts.append(shapes.cylinder((x, y, 0.04), (x, y, 0.12), 0.008, CAMP_RIB, 8, "strut"))
+    return parts
+
+
+def wall_net(size, laid):
+    """A soft storage net on the lining: a webbing frame with two rows of three fabric pockets, a few of them full.
+    Its back on the wall (+z), front into the room."""
+    wide, tall, deep = size
+    strap = 0.035
+    parts = []
+    for y in (0.0, tall - strap):
+        parts.append(shapes.box((-wide / 2, y, deep / 2 - 0.012), (wide / 2, y + strap, deep / 2), CAMP_PAD, "frame"))
+    for x in (-wide / 2, wide / 2 - strap):
+        parts.append(shapes.box((x, 0.0, deep / 2 - 0.012), (x + strap, tall, deep / 2), CAMP_PAD, "frame"))
+    rows, columns = 2, 3
+    for row in range(rows):
+        for column in range(columns):
+            left = -wide / 2 + strap + (wide - 2 * strap) * column / columns + 0.015
+            right = -wide / 2 + strap + (wide - 2 * strap) * (column + 1) / columns - 0.015
+            bottom = strap + (tall - 2 * strap) * row / rows + 0.02
+            top = strap + (tall - 2 * strap) * (row + 1) / rows - 0.02
+            full = (row + column) % 2 == 0
+            front = -deep / 2 if full else -deep / 2 + deep * 0.45
+            parts.append(shapes.bevelled(shapes.box((left, bottom, front), (right, top - (tall * 0.08 if full else 0.0),
+                                                                            deep / 2 - 0.012), "canvas_beige" if full
+                                                    else CAMP_PAD, "pocket"), 0.012))
+            parts.append(shapes.box((left, top - 0.03, front - 0.006), (right, top - 0.012, front + 0.004), CAMP_PAD,
+                                    "strap"))
+    return parts
+
+
+def crate_small(size, laid):
+    """A small crate, as a bedside table or a footstool: the case's build at its size."""
+    return case(size, laid)
+
+
+def case(size, laid):
+    """A hard cargo case: a body with rounded edges, its lid's seam band, two latches and a carry handle on the front,
+    and a stencilled number on the lid's front."""
+    wide, tall, deep = size
+    lid = tall * 0.72
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, lid - 0.005, deep / 2), CAMP_PANEL,
+                                        "body"), 0.02),
+             shapes.bevelled(shapes.box((-wide / 2, lid + 0.005, -deep / 2), (wide / 2, tall, deep / 2), CAMP_PANEL,
+                                        "lid"), 0.02),
+             shapes.box((-wide / 2 + 0.01, lid - 0.018, -deep / 2 - 0.014), (wide / 2 - 0.01, lid + 0.018,
+                                                                             -deep / 2 + 0.01), CAMP_SKIRT, "seam"),
+             shapes.box((-wide / 2 + 0.01, lid - 0.018, deep / 2 - 0.01), (wide / 2 - 0.01, lid + 0.018,
+                                                                           deep / 2 + 0.014), CAMP_SKIRT, "seam")]
+    for side in (-1.0, 1.0):
+        low, high = sorted((side * (wide / 2 - 0.01), side * (wide / 2 + 0.014)))
+        parts.append(shapes.box((low, lid - 0.018, -deep / 2 + 0.01), (high, lid + 0.018, deep / 2 - 0.01), CAMP_SKIRT,
+                                "seam"))
+    for x in (-wide / 2 + 0.08, wide / 2 - 0.08):
+        parts.append(shapes.bevelled(shapes.box((x - 0.025, lid - 0.05, -deep / 2 - 0.02), (x + 0.025, lid + 0.03,
+                                                                                            -deep / 2 - 0.004),
+                                                CAMP_RIB, "latch"), 0.003))
+    parts.append(shapes.bevelled(shapes.box((-0.08, lid - 0.13, -deep / 2 - 0.035), (0.08, lid - 0.11, -deep / 2 - 0.004),
+                                            CAMP_RIB, "handle"), 0.004))
+    parts.append(label(0.0, lid + (tall - lid) / 2, 0.16, 0.06, -deep / 2 - 0.0, "stencil_case"))
+    return parts
+
+
+def comms_desk(size, laid):
+    """The comms desk: a composite top, a cabinet of three drawers with pulls under its left end (the kit's +x, the
+    viewer's left), a side panel at its right end, a modesty panel at the back and a cable grommet in the top."""
+    wide, tall, deep = size
+    top_thick = 0.04
+    under = tall - top_thick
+    cabinet = 0.45
+    parts = [shapes.bevelled(shapes.box((-wide / 2, under, -deep / 2), (wide / 2, tall, deep / 2), CAMP_PANEL, "top"), 0.01)]
+    left = wide / 2 - cabinet
+    parts.append(shapes.bevelled(shapes.box((left, 0.0, -deep / 2 + 0.02), (left + cabinet, under, deep / 2), CAMP_PANEL,
+                                            "cabinet"), 0.008))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2 + 0.02), (-wide / 2 + 0.04, under, deep / 2), CAMP_PANEL,
+                                            "side"), 0.006))
+    parts.append(shapes.box((-wide / 2 + 0.04, 0.25, deep / 2 - 0.03), (left, under, deep / 2 - 0.01), CAMP_PANEL,
+                            "back"))
+    drawer = (under - 0.06) / 3
+    for index in range(3):
+        bottom = 0.04 + drawer * index
+        parts.append(shapes.bevelled(shapes.box((left + 0.02, bottom + 0.006, -deep / 2),
+                                                (left + cabinet - 0.02, bottom + drawer - 0.006, -deep / 2 + 0.02),
+                                                "brushed_steel_fine", "drawer"), 0.004))
+        parts.append(shapes.bevelled(shapes.box((left + cabinet / 2 - 0.08, bottom + drawer - 0.06, -deep / 2 - 0.02),
+                                                (left + cabinet / 2 + 0.08, bottom + drawer - 0.04, -deep / 2),
+                                                CAMP_RIB, "pull"), 0.003))
+    parts.append(shapes.ring((-0.3, tall - 0.0005, deep / 2 - 0.12), (-0.3, tall + 0.004, deep / 2 - 0.12), 0.035, 0.022,
+                             CAMP_BAND, 24, "grommet"))
+    return parts
+
 
 # --- the expedition camp's grounds (mars-build, 2026-10-07) -----------------------------------------------------------
 
@@ -4707,7 +5375,9 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_window", "hatch_hinge", "hatch_wall_surround", "porthole_panel",
     "wall_lower_vent", "notice_board", "robot_bench", "arm_monitor", "equipment_bench", "low_cabinet", "floor_socket", "bay_mark", "tool_bench", "vise", "work_stool", "spares_shelves", "spares_crate", "spares_box", "elec_bench", "oscilloscope", "bench_meter", "soldering_station", "parts_drawers", "pendant_lamp", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
     # the expedition camp's grounds (mars-build)
-    "mast", "ground_cable")}
+    "mast", "ground_cable",
+    # the expedition camp habitat's
+    "dome_wall_panel", "dome_window_panel", "dome_rib", "dome_ceiling_gore", "dome_roof_cap", "dome_deck_wedge", "dome_opening_frame", "passage_lining", "partition", "rod_lamp", "shell_gore", "shell_gore_window", "shell_gore_open", "foot_ring", "passage_hull", "pedestal_table", "sample_shelf", "stores_rack", "comms_desk", "hygiene", "case", "floor_cable", "crate", "crate_small", "ring_lamp", "wall_net")}
 
 
 def build(kind, size, laid, name):

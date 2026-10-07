@@ -75,3 +75,4 @@ serve: skill `make-scene`, bible "How a scene is designed".
   cross and corner fans, door spots, the rows' spots; the habitat and the airlock, modules batch one), and
   `tube_kit.py` for one bay and one end of a walkway tube, which the game lays along any tube (`TubeKit`).
   `room_kit_test.py` checks them.
+- `camp_kit.py` lays the expedition camp habitat's kit on Mars (data/kit/camp.json via route.py) from the camp scripts' own numbers; `camp_kit_test.py` reads them back. `camp_shots.tscn` draws the habitat from cameras in its own frame (run with `--mars`, so the game's own check stays on Mars while it shoots).

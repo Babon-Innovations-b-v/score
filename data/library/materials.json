@@ -1545,6 +1545,48 @@
 					"recipe": "printed",
 					"token": "sign-white",
 					"picture": "label_resistors"
+				},
+				"label_spacexcitement": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_spacexcitement"
+				},
+				"label_galley": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_galley"
+				},
+				"label_cold_store": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_cold_store"
+				},
+				"label_chamber": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_chamber"
+				},
+				"label_crew_lockers": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lockers"
+				},
+				"stencil_case": {
+					"recipe": "printed",
+					"token": "hull-trim",
+					"picture": "stencil_case"
+				},
+				"note_crew": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_crew",
+					"roughness": 0.9
+				},
+				"sheet_rations": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_rations",
+					"roughness": 0.85
 				}
 			}
 		},
@@ -1802,7 +1844,7 @@
 				],
 				[
 					"TEMP",
-					"21.5 °C"
+					"21.5 \u00b0C"
 				],
 				[
 					"POWER",
@@ -2120,14 +2162,14 @@
 			"style": "hanzi",
 			"shape": "banner",
 			"lines": [
-				"为祖国争光"
+				"\u4e3a\u7956\u56fd\u4e89\u5149"
 			],
 			"ink": "sign-gold",
 			"font": "black"
 		},
 		"flat_calendar": {
 			"style": "calendar",
-			"month": "十月",
+			"month": "\u5341\u6708",
 			"ink": "ink-line",
 			"accent": "sign-red",
 			"panel": "foliage",
@@ -2140,14 +2182,14 @@
 		"couplet_left": {
 			"style": "hanzi",
 			"shape": "couplet",
-			"column": "春回大地千山秀",
+			"column": "\u6625\u56de\u5927\u5730\u5343\u5c71\u79c0",
 			"ink": "sign-gold",
 			"font": "serif"
 		},
 		"couplet_right": {
 			"style": "hanzi",
 			"shape": "couplet",
-			"column": "日照神州百业兴",
+			"column": "\u65e5\u7167\u795e\u5dde\u767e\u4e1a\u5174",
 			"ink": "sign-gold",
 			"font": "serif"
 		},
@@ -2155,7 +2197,7 @@
 			"style": "hanzi",
 			"shape": "plate",
 			"lines": [
-				"国泰民安"
+				"\u56fd\u6cf0\u6c11\u5b89"
 			],
 			"ink": "sign-gold",
 			"font": "serif"
@@ -2164,7 +2206,7 @@
 			"style": "hanzi",
 			"shape": "square",
 			"lines": [
-				"福"
+				"\u798f"
 			],
 			"ink": "sign-gold",
 			"font": "serif"
@@ -2173,9 +2215,9 @@
 			"style": "hanzi",
 			"shape": "poster",
 			"lines": [
-				"飞向月球",
-				"建设人民的",
-				"月球基地"
+				"\u98de\u5411\u6708\u7403",
+				"\u5efa\u8bbe\u4eba\u6c11\u7684",
+				"\u6708\u7403\u57fa\u5730"
 			],
 			"ink": "sign-red",
 			"font": "black",
@@ -2185,10 +2227,10 @@
 			"style": "hanzi",
 			"shape": "poster",
 			"lines": [
-				"居民公约",
-				"爱护公物",
-				"保持清洁",
-				"邻里互助"
+				"\u5c45\u6c11\u516c\u7ea6",
+				"\u7231\u62a4\u516c\u7269",
+				"\u4fdd\u6301\u6e05\u6d01",
+				"\u90bb\u91cc\u4e92\u52a9"
 			],
 			"ink": "ink-line",
 			"font": "serif",
@@ -2198,7 +2240,7 @@
 			"style": "hanzi",
 			"shape": "plate",
 			"lines": [
-				"三楼"
+				"\u4e09\u697c"
 			],
 			"ink": "sign-red",
 			"font": "black"
@@ -2207,7 +2249,7 @@
 			"style": "hanzi",
 			"shape": "plate",
 			"lines": [
-				"二楼"
+				"\u4e8c\u697c"
 			],
 			"ink": "sign-red",
 			"font": "black"
@@ -2216,7 +2258,7 @@
 			"style": "hanzi",
 			"shape": "plate",
 			"lines": [
-				"一楼"
+				"\u4e00\u697c"
 			],
 			"ink": "sign-red",
 			"font": "black"
@@ -2225,7 +2267,7 @@
 			"style": "hanzi",
 			"shape": "plate",
 			"lines": [
-				"地下"
+				"\u5730\u4e0b"
 			],
 			"ink": "sign-red",
 			"font": "black"
@@ -2234,15 +2276,15 @@
 			"style": "hanzi_sheets",
 			"sheets": [
 				[
-					"通知",
+					"\u901a\u77e5",
 					6
 				],
 				[
-					"发射当晚",
+					"\u53d1\u5c04\u5f53\u665a",
 					5
 				],
 				[
-					"停水通知",
+					"\u505c\u6c34\u901a\u77e5",
 					6
 				]
 			],
@@ -2253,7 +2295,7 @@
 			"style": "hanzi",
 			"shape": "plate",
 			"lines": [
-				"安全出口"
+				"\u5b89\u5168\u51fa\u53e3"
 			],
 			"ink": "beacon-ok",
 			"font": "black"
@@ -2632,6 +2674,50 @@
 		"label_resistors": {
 			"style": "label",
 			"text": "RESISTORS",
+			"ink": "ink-line"
+		},
+		"label_spacexcitement": {
+			"style": "label",
+			"text": "SPACEXCITEMENT",
+			"ink": "ink-line"
+		},
+		"label_galley": {
+			"style": "label",
+			"text": "GALLEY  WATER 2.1 L",
+			"ink": "ink-line"
+		},
+		"label_cold_store": {
+			"style": "label",
+			"text": "COLD STORE  -18 C",
+			"ink": "ink-line"
+		},
+		"label_chamber": {
+			"style": "label",
+			"text": "GROWTH CHAMBER  SEFA",
+			"ink": "ink-line"
+		},
+		"label_crew_lockers": {
+			"style": "label",
+			"text": "OONA   BRAM   SEFA",
+			"ink": "ink-line"
+		},
+		"stencil_case": {
+			"style": "stencil",
+			"text": "SX-04",
+			"ink": "ink-line"
+		},
+		"note_crew": {
+			"style": "note",
+			"lines": [
+				"CALL MOON",
+				"SOL 2 / 14:00"
+			],
+			"ink": "ink-line"
+		},
+		"sheet_rations": {
+			"style": "sheet",
+			"title": "RATIONS",
+			"lines": 6,
 			"ink": "ink-line"
 		}
 	}

@@ -1960,15 +1960,409 @@
 				"lens"
 			],
 			"built": {
-				"cable": 0.812,
-				"canopy": 0.738,
-				"clip": 0.734,
-				"collar": 0.667,
-				"lens": 0.456,
-				"neck": 0.507,
-				"rim": 0.712,
-				"rod": 0.92,
-				"shade": 0.414
+				"housing": 0.644,
+				"lens": 0.526,
+				"rod": 1.0,
+				"rose": 0.924
+			},
+			"prints_off": []
+		},
+		"dome_wall_panel": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"quilt",
+				"skirting",
+				"band"
+			],
+			"built": {
+				"band": 1.0,
+				"quilt": 0.881,
+				"skirting": 1.0
+			},
+			"prints_off": []
+		},
+		"dome_window_panel": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"quilt",
+				"frame",
+				"glass",
+				"skirting",
+				"band"
+			],
+			"built": {
+				"band": 0.894,
+				"frame": 0.708,
+				"glass": 0.457,
+				"quilt": 0.659,
+				"skirting": 1.0
+			},
+			"prints_off": []
+		},
+		"dome_rib": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"rib",
+				"rivet"
+			],
+			"built": {
+				"rib": 1.0,
+				"rivet": 1.0
+			},
+			"prints_off": []
+		},
+		"dome_ceiling_gore": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"quilt",
+				"rib"
+			],
+			"built": {
+				"quilt": 0.912,
+				"rib": 0.924
+			},
+			"prints_off": []
+		},
+		"dome_roof_cap": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"quilt",
+				"ring",
+				"lens",
+				"grille",
+				"fan"
+			],
+			"built": {
+				"fan": 0.697,
+				"grille": 0.931,
+				"lens": 0.891,
+				"quilt": 0.977,
+				"ring": 0.827
+			},
+			"prints_off": []
+		},
+		"dome_deck_wedge": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"plate",
+				"tread",
+				"bolt"
+			],
+			"built": {
+				"bolt": 1.0,
+				"plate": 0.791,
+				"tread": 1.0
+			},
+			"prints_off": []
+		},
+		"dome_opening_frame": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"quilt",
+				"frame",
+				"seal",
+				"band"
+			],
+			"built": {
+				"band": 1.0,
+				"frame": 0.738,
+				"quilt": 0.478,
+				"seal": 0.574
+			},
+			"prints_off": []
+		},
+		"passage_lining": {
+			"closeup": "mars-build/far_dome/concepts/K08.png",
+			"parts": [
+				"quilt",
+				"skirting",
+				"deck"
+			],
+			"built": {
+				"deck": 0.96,
+				"quilt": 0.957,
+				"skirting": 0.513
+			},
+			"prints_off": []
+		},
+		"partition": {
+			"closeup": "mars-build/far_dome/concepts/K08.png",
+			"parts": [
+				"panel",
+				"frame",
+				"cap",
+				"skirting"
+			],
+			"built": {
+				"cap": 0.612,
+				"frame": 0.652,
+				"panel": 0.802,
+				"skirting": 0.592
+			},
+			"prints_off": []
+		},
+		"shell_gore": {
+			"closeup": "mars-build/outside/concepts/K05.png",
+			"parts": [
+				"fabric",
+				"strap"
+			],
+			"built": {
+				"fabric": 0.78,
+				"strap": 0.897
+			},
+			"prints_off": []
+		},
+		"shell_gore_window": {
+			"closeup": "mars-build/outside/concepts/K05.png",
+			"parts": [
+				"fabric",
+				"strap",
+				"frame",
+				"glass"
+			],
+			"built": {
+				"fabric": 0.691,
+				"frame": 0.846,
+				"glass": 0.927,
+				"strap": 0.897
+			},
+			"prints_off": []
+		},
+		"shell_gore_open": {
+			"closeup": "mars-build/outside/concepts/K05.png",
+			"parts": [
+				"fabric",
+				"strap"
+			],
+			"built": {
+				"fabric": 0.712,
+				"strap": 0.823
+			},
+			"prints_off": []
+		},
+		"foot_ring": {
+			"closeup": "mars-build/outside/concepts/K05.png",
+			"parts": [
+				"pad",
+				"strap"
+			],
+			"built": {
+				"pad": 0.939,
+				"strap": 0.403
+			},
+			"prints_off": []
+		},
+		"passage_hull": {
+			"closeup": "mars-build/outside/concepts/K05.png",
+			"parts": [
+				"fabric",
+				"strap"
+			],
+			"built": {
+				"fabric": 0.897,
+				"strap": 0.542
+			},
+			"prints_off": []
+		},
+		"pedestal_table": {
+			"closeup": "mars-build/habitat/pics/mess_table.png",
+			"parts": [
+				"top",
+				"pedestal",
+				"foot",
+				"collar"
+			],
+			"built": {
+				"collar": 0.38,
+				"foot": 0.857,
+				"pedestal": 0.817,
+				"top": 0.949
+			},
+			"prints_off": []
+		},
+		"sample_shelf": {
+			"closeup": "mars-build/habitat/pics/sample_shelf.png",
+			"parts": [
+				"upright",
+				"board",
+				"strip"
+			],
+			"built": {
+				"board": 0.987,
+				"strip": 0.948,
+				"upright": 0.992
+			},
+			"prints_off": []
+		},
+		"stores_rack": {
+			"closeup": "mars-build/habitat/pics/sample_shelf.png",
+			"parts": [
+				"upright",
+				"board",
+				"strip"
+			],
+			"built": {
+				"board": 0.987,
+				"strip": 0.948,
+				"upright": 0.97
+			},
+			"prints_off": []
+		},
+		"comms_desk": {
+			"closeup": "mars-build/habitat/pics/comms_desk.png",
+			"parts": [
+				"top",
+				"cabinet",
+				"drawer",
+				"pull",
+				"side",
+				"grommet"
+			],
+			"built": {
+				"back": 0.907,
+				"cabinet": 0.794,
+				"drawer": 1.0,
+				"grommet": 0.547,
+				"pull": 1.0,
+				"side": 0.962,
+				"top": 0.835
+			},
+			"prints_off": []
+		},
+		"hygiene": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"corner",
+				"wall",
+				"roof",
+				"door",
+				"handle",
+				"vent",
+				"grille"
+			],
+			"built": {
+				"corner": 0.37,
+				"door": 0.967,
+				"grille": 0.558,
+				"handle": 1.0,
+				"label": 1.0,
+				"roof": 0.412,
+				"vent": 0.306,
+				"wall": 0.488
+			},
+			"prints_off": []
+		},
+		"case": {
+			"closeup": "mars-build/door_dome/concepts/K05.png",
+			"parts": [
+				"body",
+				"lid",
+				"seam",
+				"latch",
+				"handle"
+			],
+			"built": {
+				"body": 0.726,
+				"handle": 1.0,
+				"label": 1.0,
+				"latch": 0.94,
+				"lid": 0.522,
+				"seam": 0.431
+			},
+			"prints_off": []
+		},
+		"floor_cable": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"cable",
+				"plug"
+			],
+			"built": {
+				"cable": 0.851,
+				"plug": 0.864
+			},
+			"prints_off": []
+		},
+		"crate": {
+			"closeup": "mars-build/far_dome/concepts/K08.png",
+			"parts": [
+				"body",
+				"lid",
+				"seam",
+				"latch",
+				"handle"
+			],
+			"built": {
+				"body": 0.73,
+				"handle": 1.0,
+				"label": 1.0,
+				"latch": 0.94,
+				"lid": 0.611,
+				"seam": 0.438
+			},
+			"prints_off": []
+		},
+		"crate_small": {
+			"closeup": "mars-build/far_dome/concepts/K08.png",
+			"parts": [
+				"body",
+				"lid",
+				"seam",
+				"latch",
+				"handle"
+			],
+			"built": {
+				"body": 0.75,
+				"handle": 1.0,
+				"label": 1.0,
+				"latch": 0.94,
+				"lid": 0.588,
+				"seam": 0.442
+			},
+			"prints_off": []
+		},
+		"ring_lamp": {
+			"closeup": "mars-build/far_dome/concepts/K08.png",
+			"parts": [
+				"housing",
+				"lens",
+				"strut"
+			],
+			"built": {
+				"housing": 0.786,
+				"lens": 1.0,
+				"strut": 0.376
+			},
+			"prints_off": []
+		},
+		"wall_net": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"frame",
+				"pocket",
+				"strap"
+			],
+			"built": {
+				"frame": 0.844,
+				"pocket": 0.885,
+				"strap": 0.836
+			},
+			"prints_off": []
+		},
+		"rod_lamp": {
+			"closeup": "mars-build/door_dome/concepts/K01.png",
+			"parts": [
+				"rod",
+				"housing",
+				"lens",
+				"rose"
+			],
+			"built": {
+				"housing": 0.644,
+				"lens": 0.526,
+				"rod": 1.0,
+				"rose": 0.924
 			},
 			"prints_off": []
 		}

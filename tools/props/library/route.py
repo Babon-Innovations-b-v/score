@@ -55,10 +55,15 @@ FAR = 512
 # 10 to 300 m from the balcony): a kind whose own name starts with DISTANT_PREFIX takes DISTANT texels a metre.
 DISTANT = 128
 DISTANT_PREFIX = "far_"
+# The expedition camp's soft goods (mars-build, 2026-10-07): the domes' fabric shell seen from outside and their
+# ceiling over 3.4 m are large curved pieces whose quilting reads at 256 texels a metre; their lining walls and deck
+# take FAR. At NEAR one wall panel alone overflowed a 4096 set.
+CAMP_SOFT = 256
 REACH_HIGH = 1.8
 PIT_DEEP = 0.9  # hub_kit.PIT_DEEP: the pit's floor under the walkway
 SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR,
-               "fittings": NEAR, "distant": DISTANT}
+               "fittings": NEAR, "distant": DISTANT, "camp_shell": CAMP_SOFT, "camp_high": CAMP_SOFT, "camp_floor": FAR,
+               "camp_walls": FAR}
 # The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
 # shared set is planned to fill, leaving room for packing, print drawn sharp and the faces a box's estimate misses (both
 # sides of an open box's thin walls: planned at 0.7, a floor set came out 1% past the cap, 2026-10-07).
@@ -80,7 +85,13 @@ ATLASES = (("distant", (DISTANT_PREFIX,)),
            ("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
            ("walls_low", ("wall_lower", "wall_skirting", "wall_corner")),
-           ("walls_high", ("wall_upper", "wall_cornice", "backer", "status_display")))  # the display hangs high
+           ("walls_high", ("wall_upper", "wall_cornice", "backer", "status_display")),  # the display hangs high
+           # the expedition camp's domes (mars-build, 2026-10-07): their shell and ceiling at CAMP_SOFT, the lining's
+           # walls and deck at FAR
+           ("camp_shell", ("shell_gore", "foot_ring", "passage_hull")),
+           ("camp_high", ("dome_ceiling_gore", "dome_roof_cap", "rod_lamp")),
+           ("camp_floor", ("dome_deck_wedge", "passage_lining")),
+           ("camp_walls", ("dome_wall_panel", "dome_window_panel", "dome_rib", "dome_opening_frame", "partition")))
 # The room's furniture: the inventory's rows the route makes that are not kit pieces (the console, the lab bench, the
 # chair, the lockers, the comms desk, the toolboard), each placed by the game as its prop. They go through the sorter
 # like every kit kind (round four, 2026-10-07: round three sent them to code by a fixed table, with no check, and the
