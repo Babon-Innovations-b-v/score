@@ -15,14 +15,15 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   Python branch on a setting, so ProcFunc's tracer lists them (`settings_of`). Relief from `vendor/infinigen2`'s
   base materials (BSD-3); their colour noise is left out on purpose: the ink look draws flat colour by region. Wear
   reads the true geometry (the bevel test) and the noise only scales it, so a flat face never wears.
-- **Labels, keypads and screens are printed pictures on code-built parts** (`printed.py` draws them into
-  `data/library/pictures`; `inside/pieces.py` `label`, `screen_part`, `keypad`), never baked into a surface's own
-  material. A screen is dark glass with its content lit; laid as its own piece, its kind glows.
-- **Generated pieces get their detail back in code** (`data/library/details.json`): `inside/make_chunky.py` turns a
-  labelled Pixal3D model into the kit frame at its laid size, closes a copy into a solid (thickened 5 mm inward,
-  rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which the model check fails), cuts it to
-  20k triangles, bakes the library from the full model onto it (its shape relief kept in the normal map), and seats
-  labels, screws and keypads on its front by ray.
+- **Screens and lamp lenses glow as plates of their own** (`data/library/details.json` `screens`, pictures drawn by
+  `printed.py` into `data/library/pictures`), laid by `route.py` on a generated piece's front. Labels, keypads and
+  screws come with the piece's picture (round four); nothing is printed on a code-built part any more.
+- **Generated pieces** (`data/library/details.json`: each kind's `turn`, `screens` and `cuts`): `inside/make_chunky.py`
+  turns a labelled Pixal3D model into the kit frame at its laid size, closes a copy into a solid (thickened 5 mm
+  inward, rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which the model check fails), cuts
+  it to 20k triangles, cuts its openings (a doorway, a porthole: a single picture's model fills them in), bakes the
+  library from the full model onto it (its shape relief kept in the normal map) and lays the picture's detail over
+  it. `picture_check.py` predicts that colour before any bake and fails shade come through.
 - **`route.py` runs the route for a whole room** (round three, 2026-10-06): `plan` (one model per kind and size, the
   cloud jobs), `layout` (the game's layout over the made models, a failing generated model left out), `install`
   (models, BC7 picture imports, kinds' scenes, data/kit). A piece's glowing parts (screen content, lamp lenses) are
