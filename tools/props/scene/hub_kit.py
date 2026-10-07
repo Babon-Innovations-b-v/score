@@ -47,13 +47,24 @@ STAIR_HALF = 0.6
 # railings, would look a lot cleaner and more open"); one stair: a second, opposite, pushed the console out of the pit,
 # and the owner chose one stair after the in-game test. The sim's pit (SteppedFloor) has the same one.
 STAIRS = (0,)
-# The facets the ring floor's fittings are set into, clear of the doors, the airlock and the stair (one fitting to a
-# plate, so each lies inside one plate's opening); any that would lie under furniture is left out.
-GRATING_FACETS = (60, 150, 240, 300)
-HATCH_FACETS = (30, 120, 210, 300)
-# How far a set-in fitting's cut reaches past its edges, and how far below its host's face its own face lies.
+# The fittings stand where the room's systems run (hub round four, 2026-10-07: placed at fixed bearings that served
+# nothing, the owner found them random). The air system: a supply duct on the roof face over each of AIR_WALLS, a
+# louvred vent low on that wall, and a return grating in the ring floor before it, AIR_GRATE_RADIUS out, with a duct
+# box under it. The two walls are the only lower walls with no door and no furniture before them. The service runs:
+# an access hatch in the ring floor at the facets of the pit wall's junction boxes (JUNCTION_BOXES, each in the facet
+# it lies nearest), HATCH_RADIUS out by the pit's lip, a cable trough under it.
+AIR_WALLS = (60, 210)
+AIR_GRATE_RADIUS = 3.85
+SERVICE_FACETS = (30, 210, 270)
+HATCH_RADIUS = 2.95
+# What lies under a set-in floor fitting's opening, how deep: a duct box under a grating, a trough under a hatch. Code
+# builds them: plain plates (under_floor_box).
+UNDER_FLOOR = {"floor_grating": 0.18, "floor_access_hatch": 0.18}  # deeper, they ran into the deck's structure (scene check)
+# How far an under-floor box reaches past its opening each way, so its walls hang under the plate's rim.
+UNDER_LIP = 0.03
+# How far a set-in fitting's cut reaches past its edges, and how far below its host's face its own face lies: flush.
 SET_IN_GAP = 0.004
-SET_IN_DOWN = 0.001
+SET_IN_DOWN = 0.0
 STAIR_CLEAR = 20  # degrees either side of a stair's bearing where the pit's edge and wall leave its way open
 STRINGER = 0.03
 LATTICE_UNDER = 0.14
@@ -82,7 +93,7 @@ PORTHOLE = (300, 2.35)
 ROOF_LAYER = 2
 # The wall panel kinds, lower and upper band, by wall: varied as the plan shows them (pipes and cables up high, vents and
 # patched plates low, the screen recess on the lab bench's wall); a wall not named takes the plain ones.
-LOWER_PANELS = {60: "wall_lower_vent", 120: "wall_lower_patched", 240: "wall_lower_vent"}
+LOWER_PANELS = {60: "wall_lower_vent", 120: "wall_lower_patched", 210: "wall_lower_vent"}
 UPPER_PANELS = {30: "wall_upper_cables", 150: "wall_upper_cables", 210: "wall_upper_pipes", 240: "wall_upper_pipes",
                 120: "wall_upper_screen_recess", 60: "wall_upper_patched"}
 
@@ -307,8 +318,8 @@ def on_roof(kind, bearing, share, size):
 
 
 # The roof faces trays and ducts lie on, and how far up the slope: low enough that their length fits the face.
-TRAY_FACES = (0, 60, 120, 180, 240, 300)
-DUCT_FACES = (30, 150, 270)
+TRAY_FACES = (0, 120, 180, 240, 300)
+DUCT_FACES = AIR_WALLS
 ROOF_GEAR_SHARE = 0.1
 
 
@@ -328,8 +339,10 @@ def ceiling_gear(kinds):
 
 
 def floor(kinds, inventory):
-    """The ring floor's plates, a sector of each wall's width between the pit's lip and the wall; vent gratings and
-    access hatches set into some (flush, in openings cut_openings cuts), and a tread mat set in before every hatch."""
+    """The ring floor's plates, a sector of each wall's width between the pit's lip and the wall; the air system's
+    return gratings and the service runs' access hatches set into some (flush, in openings cut_openings cuts, with
+    what lies under each: under_floor), and a tread mat set in before every hatch. A fitting under furniture stops the
+    layout: where to move it is the owner's call (the layout rule)."""
     found = []
     ring = (PIT_R + 0.06, APOTHEM)
     for index in range(FACETS):
@@ -341,15 +354,35 @@ def floor(kinds, inventory):
         laid["taper"] = round(ring[0] / APOTHEM, 4)  # a trapezoid: as wide as its wall at its foot, narrowing to the lip
         found.append(laid)
     fittings = []
-    for kind, bearings, radius in (("floor_grating", GRATING_FACETS, 2.95), ("floor_access_hatch", HATCH_FACETS, 3.85)):
-        size = sorter.set_in_size(kind, size_of(kinds, kind))
+    for kind, bearings, radius in (("floor_grating", AIR_WALLS, AIR_GRATE_RADIUS),
+                                   ("floor_access_hatch", SERVICE_FACETS, HATCH_RADIUS)):
         for bearing in bearings:
             normal, along = bearing_vectors(bearing)
-            fittings.append(set_in(flat(kind, normal * radius, along, size, 0.0)))
+            fittings.append(set_in(flat(kind, normal * radius, along, size_of(kinds, kind), 0.0)))
     for spot in spots(inventory, "tread_mat"):
         normal, along = bearing_vectors(spot["facet"])
         fittings.append(set_in(flat("tread_mat", np.array([spot["x"], 0.0, spot["z"]]), along, size_of(kinds, "tread_mat"), 0.0)))
-    return found + clear_of_furniture(fittings, inventory)
+    blocked = [laid for laid in fittings if laid not in clear_of_furniture(fittings, inventory)]
+    if blocked:
+        raise SystemExit("floor fittings under furniture, for the owner to place: "
+                         + ", ".join(f"{laid['kind']} at {laid['at']}" for laid in blocked))
+    return found + fittings + under_floor(fittings, depth(kinds, "ring_floor_plate"))
+
+
+def under_floor(fittings, plate):
+    """What lies under each set-in floor fitting's opening (UNDER_FLOOR): an open box of plates as wide and long as the
+    opening, from the floor plate's underside down, so a look through a grating meets a duct, not the void."""
+    found = []
+    for fitting in fittings:
+        kind = fitting["kind"].removeprefix("hub_")
+        if kind not in UNDER_FLOOR:
+            continue
+        wide, long, _ = fitting["size"]
+        middle = box_corners(fitting).mean(axis=0)
+        along = np.asarray(fitting["x"])
+        size = (wide + 2 * UNDER_LIP, long + 2 * UNDER_LIP, UNDER_FLOOR[kind])
+        found.append(flat("under_floor_box", (middle[0], 0.0, middle[2]), along, size, -plate - UNDER_FLOOR[kind]))
+    return found
 
 
 def set_in(laid):
@@ -811,7 +844,8 @@ LIGHTS = {"roof_light_fixture": {"strength": 0.16, "reach": 6.0, "high": 0.1},
 FLOORS = {"ring_floor_plate", "floor_grating", "floor_access_hatch", "tread_mat", "pit_floor_plate",
           "machine_bay_plate", "roof_face_panel",  # the roof's faces are its surface, as a floor is
           "stair_stringer"}  # a stair's sides carry its treads: part of the steps, as ShellSteps are
-HANGING_GROUPS = {"wall", "ceiling", "door", "pipe", "sign", "screen", "light", "vent", "pit"}
+HANGING_GROUPS = {"wall", "ceiling", "door", "pipe", "sign", "screen", "light", "vent", "pit",
+                  "under floor"}  # a duct or trough hung under a floor plate's opening
 
 
 def kinds_table(inventory):

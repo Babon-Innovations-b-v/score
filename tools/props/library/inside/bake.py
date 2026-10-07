@@ -216,14 +216,21 @@ CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 class Atlas:
     """One shared picture set for a list of pieces: their UVs packed together at one texel density."""
 
-    def __init__(self, name, items, density, specs=None):
+    def __init__(self, name, items, density, specs=None, one_piece=False):
+        """`one_piece`: the set is a single generated piece, which cannot be split: past the cap it takes the density
+        that fits and says so (`self.capped`, which make_chunky reports); a shared set past the cap stops."""
         self.name = name
         sharp = {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES}
         for item in items:
             unwrap(item)
         area = visible_area(items, sharp)
         wanted = math.sqrt(area / UV_FILL) * density
-        if wanted > LARGEST:
+        self.capped = None
+        if wanted > LARGEST and one_piece:
+            self.capped = round(density * LARGEST / wanted)
+            print(f"CAPPED {name}: {area:.1f} m2 holds {self.capped} texels a metre of the {density} asked", flush=True)
+            wanted = LARGEST
+        elif wanted > LARGEST:
             # Capped silently, round three's furniture got about 200 texels a metre for the 512 its colour asked
             # (the detail-loss diagnosis, 2026-10-07): a job that cannot hold its density stops and says so.
             raise SystemExit(f"{name}: {area:.1f} m2 at {density} texels a metre needs a {wanted:.0f} px side, past "
@@ -276,15 +283,20 @@ class Atlas:
 
     def lay_picture(self, picture, high, low, reach):
         """A generated piece's picture detail (detail_layer.py) over what bake_from baked onto `low`: the picture
-        model's own colour, the full model's material slots and `low`'s facing, each baked onto `low`'s place in the
-        pictures, then blended into the base colour, roughness and metal. The share the detail took over."""
+        model's own colour and where its camera looked (its `seen` material, labels.py), the full model's material
+        slots and `low`'s facing, each baked onto `low`'s place in the pictures, then blended into the base colour,
+        roughness and metal. The share the detail took over."""
         side = self.pictures["base_color"].size[0]
         slots = len(high.data.materials)
         target = bpy.data.materials.get("bake_target")
         across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
         baked = {}
+        marks = [recipes.emitted((0.0 if material.name.startswith("unseen") else 1.0, 0.0, 0.0)).item()
+                 for material in picture.data.materials]
+        shown = shown_material(picture)
         for name, source, materials, extra in (
-                ("picture", picture, [shown_material(picture)], across),
+                ("seen", picture, marks, across),
+                ("picture", picture, [shown] * len(marks), across),
                 ("slot", high, [recipes.emitted(((index + 1) * SLOT_STEP, 0.0, 0.0)).item() for index in range(slots)],
                  across)):
             image = bpy.data.images.new(f"{self.name}_{name}", side, side, alpha=False, float_buffer=True)
@@ -306,11 +318,23 @@ class Atlas:
         colour, rough, metal, share = detail_layer.laid(
             pixels_of(self.pictures["base_color"])[..., :3], pixels_of(self.pictures["roughness"])[..., 0],
             pixels_of(self.pictures["metallic"])[..., 0], detail_layer.encoded(baked["picture"][..., :3]),
-            np.maximum(slot_index, 0), normals, covered)
+            np.maximum(slot_index, 0), normals, covered, baked["seen"][..., 0] > 0.5)
         set_pixels(self.pictures["base_color"], colour)
         set_pixels(self.pictures["roughness"], np.repeat(rough[..., None], 3, -1))
         set_pixels(self.pictures["metallic"], np.repeat(metal[..., None], 3, -1))
+        self.calm_unseen(baked["seen"][..., 0] > 0.5, covered)
         return share
+
+    def calm_unseen(self, seen, covered):
+        """The normal map's relief where the picture's camera never looked, cut to detail_layer.UNSEEN_RELIEF: Pixal3D
+        guessed the shape there, and its guesses baked as a comb of dark notches down the locker's side
+        (2026-10-07)."""
+        normal = pixels_of(self.pictures["normal"])[..., :3]
+        scale = normal.shape[0] // seen.shape[0]
+        calm = np.repeat(np.repeat(covered & ~seen, scale, 0), scale, 1)
+        flat = np.array([0.5, 0.5, 1.0])
+        normal[calm] = flat + (normal[calm] - flat) * detail_layer.UNSEEN_RELIEF
+        set_pixels(self.pictures["normal"], normal)
 
     def finish(self):
         """glTF's metal-roughness picture from the baked roughness and metal: roughness in green, metal in blue."""

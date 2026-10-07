@@ -45,7 +45,7 @@ def test_labels_and_rust_take_the_picture_and_plain_steel_keeps_the_library():
     picture, normals, library_colour = locker()
     covered = np.ones((SIDE, SIDE), dtype=bool)
     colour, rough, metal, share = detail_layer.laid(library_colour, np.full((SIDE, SIDE), 0.4), np.ones((SIDE, SIDE)),
-                                                   picture, np.zeros((SIDE, SIDE), dtype=int), normals, covered)
+                                                   picture, np.zeros((SIDE, SIDE), dtype=int), normals, covered, covered)
     assert np.allclose(colour[12, 15], 0.95, atol=0.02) and np.allclose(colour[15, 15], 0.05, atol=0.05)
     assert np.allclose(colour[42, 15], (0.45, 0.25, 0.15), atol=0.02)
     assert rough[42, 15] >= detail_layer.DETAIL_ROUGHNESS and metal[42, 15] < 0.01
@@ -59,8 +59,29 @@ def test_texels_off_the_piece_are_left_as_they_are():
     picture, normals, library_colour = locker()
     covered = np.zeros((SIDE, SIDE), dtype=bool)
     colour, _, _, share = detail_layer.laid(library_colour, np.zeros((SIDE, SIDE)), np.zeros((SIDE, SIDE)), picture,
-                                            np.zeros((SIDE, SIDE), dtype=int), normals, covered)
+                                            np.zeros((SIDE, SIDE), dtype=int), normals, covered, covered)
     assert np.array_equal(colour, library_colour) and share == 0.0
+
+
+def test_shade_never_comes_through_but_thin_dark_print_does():
+    """A wide grey shadow on the front darkens the library a little at most; a thin dark line is laid as detail."""
+    picture, normals, library_colour = locker()
+    picture[30:50, 2:30] = 0.25  # shade: wide and grey
+    picture[52:54, 5:25] = 0.08  # print: two texels thin
+    covered = np.ones((SIDE, SIDE), dtype=bool)
+    colour, _, _, _ = detail_layer.laid(library_colour, np.zeros((SIDE, SIDE)), np.zeros((SIDE, SIDE)), picture,
+                                        np.zeros((SIDE, SIDE), dtype=int), normals, covered, covered)
+    assert colour[40, 15].mean() >= library_colour[40, 15].mean() * 0.85
+    assert colour[52, 15].mean() < 0.15
+
+
+def test_nothing_is_laid_where_the_camera_never_looked():
+    picture, normals, library_colour = locker()
+    covered = np.ones((SIDE, SIDE), dtype=bool)
+    seen = np.zeros((SIDE, SIDE), dtype=bool)
+    colour, _, _, share = detail_layer.laid(library_colour, np.zeros((SIDE, SIDE)), np.zeros((SIDE, SIDE)), picture,
+                                            np.zeros((SIDE, SIDE), dtype=int), normals, covered, seen)
+    assert share == 0.0 and np.abs(colour - library_colour).max() < 0.06
 
 
 def main():

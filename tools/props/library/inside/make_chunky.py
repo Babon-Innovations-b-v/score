@@ -1,21 +1,20 @@
 """Runs inside Blender (on a rented machine, cloud/library_bake.py): re-material generated pieces from the library and
-give them back their small detail as clean parts.
+lay their picture's own detail over it.
 
 The job: {"out", "density", "wear", "dirt", "seed", "faces": the cut-down copy's triangles, "specs",
 "chunky": [{"name", "parts": folder of <library variant>.ply (labels.py), "base": the kind's turn (nine numbers),
-"size": its laid size, "details": [{"part", "at", "size", "variant"}], "screens": [{"at", "size", "variant"}],
-"picture": its picture model (labels.py's picture.obj) or null}]}.
+"size": its laid size, "screens": [{"at", "size", "variant"}], "cuts": [{"box": [x0, y0, x1, y1]} or
+{"circle": [x, y, radius]}], "picture": its picture model (labels.py's picture.obj) or null, "density": optional}]}.
 
 Per piece: its labelled parts are joined into the full-detail model, turned into the kit's frame and fitted to its
 laid size (so the game stretches nothing); a copy is closed into a solid (`solid_copy`: a Pixal3D model is a
-paper-thin shell, under 1 mm, which the model check fails) and cut down to `faces` triangles, and the library is baked
-from the full model onto it, which keeps the full model's shape relief in the normal map without its photo colour; then
-the picture's own detail (labels, notes, rust, the tools' colours) is laid over the library from the picture model
-(bake.Atlas.lay_picture, round four). Then its
-detail goes on as code-built parts read off the model's own front (a ray finds the surface under each): labels,
-screws, keypads (pieces.DETAIL_PARTS), baked from their own library variants into the same pictures. A screen is
-laid as a glowing piece of its own, so the report gives the depth of the front where each stands. Writes
-<out>/<name>.gltf with its own pictures in textures/, and report.json.
+paper-thin shell, under 1 mm, which the model check fails), cut down to `faces` triangles and given its openings
+(`cuts`: a doorway, a porthole, a window, which a single picture's model fills in), and the library is baked from the
+full model onto it, which keeps the full model's shape relief in the normal map without its photo colour; then the
+picture's own detail (labels, notes, rust, the tools' colours) is laid over the library from the picture model
+(bake.Atlas.lay_picture, round four; the code-built labels, screws and keypads of round three are gone: the picture
+carries them). A screen is laid as a glowing piece of its own, so the report gives the depth of the front where each
+stands. Writes <out>/<name>.gltf with its own pictures in textures/, and report.json.
 """
 import json
 import pathlib
@@ -32,7 +31,6 @@ import runtime  # noqa: E402
 
 runtime.ready()
 import bake  # noqa: E402
-import pieces  # noqa: E402
 import scene_setup  # noqa: E402
 import shapes  # noqa: E402
 
@@ -149,59 +147,43 @@ def surface_at(tree, x, y, size, footprint=(0.0, 0.0)):
     return min(found)
 
 
-def detail_parts(item, details, size, name):
-    """The piece's detail as one object of code-built parts, each seated on the piece's front where it stands."""
-    tree = BVHTree.FromObject(item, bpy.context.evaluated_depsgraph_get())
-    found = []
-    for detail in details:
-        x, y = detail["at"]
-        surface = surface_at(tree, x, y, size, detail.get("size", (0.0, 0.0)))
-        if surface is None:
-            continue
-        builder = pieces.DETAIL_PARTS[detail["part"]]
-        if detail["part"] == "screw":
-            made = builder(x, y, surface)
-        elif detail["part"] == "keypad":
-            made = builder(x, y, *detail["size"], surface)
+def opened(item, cuts, size):
+    """The piece's openings cut through it: boxes and circles in the kit frame (x across, y up), through its depth."""
+    deep = max(size) * 2
+    for cut in cuts:
+        if "box" in cut:
+            x0, y0, x1, y1 = cut["box"]
+            cutter = shapes.box((x0, y0, -deep), (x1, y1, deep), "rubber", "cutter")
         else:
-            made = builder(x, y, *detail["size"], surface, detail["variant"])
-        found += made if isinstance(made, list) else [made]
-    return shapes.joined(found, f"{name}_detail") if found else None
+            x, y, radius = cut["circle"]
+            cutter = shapes.cylinder((x, y, -deep), (x, y, deep), radius, "rubber", 64, "cutter")
+        shapes.cut(item, cutter)
 
 
 def make_piece(entry, job, out):
-    """One generated piece: full model in the kit frame, cut-down copy, details, one atlas of its own."""
+    """One generated piece: full model in the kit frame, cut-down copy with its openings, one atlas of its own."""
     began = time.time()
     whole = full_model(entry["parts"], entry["name"])
     into_kit_frame(whole, entry["base"], entry["size"])
     low = solid_copy(whole, job["faces"], entry["name"], entry["size"])
-    # Details and screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated
-    # on the model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
-    detail = detail_parts(low, entry.get("details", []), entry["size"], entry["name"])
+    opened(low, entry.get("cuts", []), entry["size"])
+    # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
+    # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
     tree = BVHTree.FromObject(low, bpy.context.evaluated_depsgraph_get())
     screens = [dict(screen, surface=surface_at(tree, *screen["at"], entry["size"], screen["size"]))
                for screen in entry.get("screens", [])]
     screens = [screen for screen in screens if screen["surface"] is not None]
-    items = [low] + ([detail] if detail else [])
-    detail_slots = bake.slot_names(detail) if detail else []
-    atlas = bake.Atlas(entry["name"], items, job["density"], job["specs"])
+    atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True)
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
                     max(entry["size"]) * REACH_SHARE)
     detail_share = None
     if entry.get("picture"):
         shown = picture_model(entry["picture"], entry["base"], entry["size"], entry["name"])
         detail_share = round(atlas.lay_picture(shown, whole, low, max(entry["size"]) * REACH_SHARE), 4)
-    if detail:
-        atlas.bake_self(detail, job["specs"], job["wear"], job["dirt"], job["seed"])
-        bpy.ops.object.select_all(action="DESELECT")
-        low.select_set(True)
-        detail.select_set(True)
-        bpy.context.view_layer.objects.active = low
-        bpy.ops.object.join()
     atlas.finish()
     report = atlas.export(low, out)
-    report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), details=len(entry.get("details", [])),
-                  detail_slots=detail_slots, screens=screens, picture_detail=detail_share,
+    report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,
+                  cuts=len(entry.get("cuts", [])), picture_detail=detail_share, capped_density=atlas.capped,
                   seconds=round(time.time() - began, 1))
     return report
 

@@ -11,9 +11,6 @@ sys.path.insert(0, str(HERE))
 import library  # noqa: E402
 import sorter  # noqa: E402
 
-DETAIL_PARTS = ("label", "screw", "screen", "keypad")
-
-
 def test_every_variant_resolves_to_a_known_recipe_in_token_colours():
     found = library.library_specs()
     recipes = library.theme_library()["recipes"]
@@ -61,16 +58,20 @@ def test_a_token_colour_is_linear():
     assert abs(library.linear("#808080")[0] - 0.2159) < 1e-3
 
 
-def test_every_detail_names_a_known_part_and_a_library_variant():
+def test_every_generated_kind_has_a_turn_and_its_screens_and_cuts_are_sound():
+    """details.json: a proper turn (a rotation), screens naming a library variant, cuts as boxes or circles."""
     details = json.loads((library.REPO / "data/library/details.json").read_text())
     names = library.variants(library.theme_library())
     for kind, entry in details.items():
         if kind == "is":
             continue
-        for detail in entry["details"]:
-            assert detail["part"] in DETAIL_PARTS, kind
-            assert detail.get("variant", "label_access") in names, kind
+        turn = [entry["turn"][row * 3:row * 3 + 3] for row in range(3)]
+        determinant = (turn[0][0] * (turn[1][1] * turn[2][2] - turn[1][2] * turn[2][1])
+                       - turn[0][1] * (turn[1][0] * turn[2][2] - turn[1][2] * turn[2][0])
+                       + turn[0][2] * (turn[1][0] * turn[2][1] - turn[1][1] * turn[2][0]))
+        assert abs(determinant - 1.0) < 1e-3, kind
         assert all(screen["variant"] in names for screen in entry["screens"]), kind
+        assert all(len(cut.get("box", cut.get("circle", []))) in (3, 4) for cut in entry["cuts"]), kind
 
 
 def test_only_plain_plates_pipes_and_trims_go_to_code():

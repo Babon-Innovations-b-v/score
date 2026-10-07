@@ -7,20 +7,17 @@ and its colours never replace the library's: since round four they come back onl
 
 Pixal3D's raw model is pixel-aligned with the picture it was made from (WORK/pixal/<take>.svviews: the cut-out
 picture and its camera), so each face seen from that camera takes the picture's colour where it lands (a depth test
-keeps hidden faces out). The picture's colours are grouped (k-means in Lab) and each group goes to the nearest of the
-place's library materials by its token colour, hue and chroma weighed over lightness, as the three-piece test did.
-
-Two ways to turn those votes into parts:
-    picture (default)  each face keeps its own vote; unseen faces take their nearest seen face's; a few rounds of
-                       majority vote over neighbouring faces remove speckle
-    --parts            a part splitter's parts (PartCrafter, cloud/parts.py) are laid onto the model (register.py) and
-                       each face joins its nearest part; a whole part takes the area-weighted majority of its seen
-                       faces' votes, so grime across a body cannot split it
+keeps hidden faces out). The model is taken as parts: a part splitter's (`--parts`, PartCrafter via cloud/parts.py,
+laid onto the model by register.py) or, without one, the whole model as one part. A part takes the place's library
+material nearest its median seen colour, hue and chroma weighed over lightness; a seen face whose colour is plainly
+another material's (a steel tool on a wooden board) takes that one (by_part). Per-face votes are gone: they split one
+painted desk into four materials by light and shade, which baked as dark blotches (2026-10-07).
 
 The model is then moved onto its finished model (register.py, raw to upright), cut to the finished model's box (the
 raw model's floaters go) and written as one .ply per material, with labels.json (shares, seen share, groups, parts).
 Beside them the finished model itself is written as picture.obj with its texture: the picture's own pixels, which the
-bake lays over the library surfaces as their detail (labels, notes, rust, the tools' own colours).
+bake lays over the library surfaces as their detail (labels, notes, rust, the tools' own colours), its faces split
+into those the picture's camera saw and those it did not.
 No model runs here: numpy and the picture.
 """
 import argparse
@@ -34,7 +31,6 @@ from PIL import Image
 from scipy import sparse
 from scipy.ndimage import median_filter
 from scipy.spatial import cKDTree
-from sklearn.cluster import KMeans
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -45,7 +41,6 @@ import register  # noqa: E402
 from paths import WORK  # noqa: E402
 
 PIXAL = WORK / "pixal"
-GROUPS = 6
 DEPTH_SLACK = 0.01
 VOTES = 3
 SAMPLED = 20000
@@ -53,6 +48,21 @@ SAMPLED = 20000
 NOT_ON_OBJECTS = ("deck",)
 # Lightness, then the two colour axes: hue and chroma count more than lightness (the three-piece test).
 WEIGHTS = np.array([0.5, 1.5, 1.5])
+# A seen face leaves its part's material for another when the other is nearer than SPLIT_MARGIN of the part's own and
+# the face differs from the part's median in chromaticity (a* and b* over L*) by SPLIT_CHROMATICITY (a steel tool on a
+# wooden board), or is lighter by SPLIT_LIGHTER (a pale desk top inside a dark part). Shade only darkens and scales a*
+# and b* down with L*, so it splits neither way: split by lightness or plain chroma, the desk's shaded knee-hole and
+# the tools' shadows on the board came out as dark material, baked as black patches (2026-10-07).
+SPLIT_CHROMATICITY = 0.2
+SPLIT_LIGHTER = 30.0
+# Chromaticity is read only on faces at least this light: in deep shade a* and b* are noise over a small L*.
+SPLIT_LIT = 30.0
+SPLIT_MARGIN = 0.7
+UNSEEN_NEIGHBOURS = 50
+# A finished model's face counts as seen by the picture's camera when a seen raw face lies within this.
+SEEN_REACH = 0.01
+# How far a turned finished model's box may miss its final model's and still be the finish's turn (metres).
+FINISH_MISS = 0.01
 
 
 def lab(rgb):
@@ -67,23 +77,6 @@ def lab(rgb):
 
 def srgb(linear):
     return np.where(linear <= 0.0031308, linear * 12.92, 1.055 * np.power(linear, 1 / 2.4) - 0.055)
-
-
-def picture_groups(rgba):
-    """Per pixel of the picture's object: its colour group (-1 off the object), and each group's middle in Lab."""
-    alpha = rgba[..., 3] > 0.5
-    colours = lab(median_filter(rgba[..., :3], size=(5, 5, 1)))
-    fitted = KMeans(n_clusters=GROUPS, n_init=4, random_state=0).fit(colours[alpha])
-    groups = -np.ones(alpha.shape, dtype=int)
-    groups[alpha] = fitted.labels_
-    return groups, fitted.cluster_centers_
-
-
-def group_materials(centres, materials):
-    """Each colour group's library material: the nearest token colour, hue and chroma weighed over lightness."""
-    names = list(materials)
-    anchors = lab(np.array([srgb(np.array(materials[name]["colour"])) for name in names]))
-    return [names[int(np.argmin((((anchors - centre) ** 2) * WEIGHTS).sum(-1)))] for centre in centres]
 
 
 def seen_faces(mesh, camera, shape):
@@ -102,21 +95,6 @@ def seen_faces(mesh, camera, shape):
     return (depth <= nearest[pixel] + DEPTH_SLACK) & facing, row, column
 
 
-def picture_votes(mesh, take, materials):
-    """Each seen face's material index (-1 unseen), the material names in index order and the colour groups' names."""
-    views = PIXAL / f"{take}.svviews"
-    rgba = np.asarray(Image.open(views / "input.png").convert("RGBA"), dtype=np.float64) / 255
-    groups, centres = picture_groups(rgba)
-    names = group_materials(centres, materials)
-    seen, row, column = seen_faces(mesh, json.loads((views / "transforms.json").read_text()), groups.shape)
-    seen &= groups[row, column] >= 0
-    order = sorted(set(names))
-    by_group = np.array([order.index(name) for name in names])
-    votes = -np.ones(len(mesh.faces), dtype=int)
-    votes[seen] = by_group[groups[row[seen], column[seen]]]
-    return votes, order, names
-
-
 def smoothed(labels, mesh):
     """A few rounds of majority vote over each face's neighbours, so lone faces take their surroundings' material."""
     pairs = mesh.face_adjacency
@@ -129,16 +107,6 @@ def smoothed(labels, mesh):
         votes = neighbours @ np.eye(kinds)[labels] + np.eye(kinds)[labels]
         labels = votes.argmax(1)
     return labels
-
-
-def by_face(mesh, votes):
-    """The picture way: seen faces keep their vote, unseen ones take the nearest seen face's, then smoothing."""
-    seen = votes >= 0
-    middles = mesh.triangles_center
-    labels = votes.copy()
-    _, nearest = cKDTree(middles[seen]).query(middles[~seen])
-    labels[~seen] = votes[seen][nearest]
-    return smoothed(labels, mesh)
 
 
 def splitter_parts(folder, mesh):
@@ -164,22 +132,65 @@ def face_colours(mesh, take):
     return found
 
 
+def weighted(colours, anchor):
+    """Distance in Lab with hue and chroma weighed over lightness (WEIGHTS)."""
+    return np.sqrt((((colours - anchor) ** 2) * WEIGHTS).sum(-1))
+
+
+def chromaticity(colours):
+    """Lab colours' a* and b* over L*: what shade leaves alone."""
+    return colours[..., 1:] / np.maximum(colours[..., :1], 1.0)
+
+
+def never_darker(chosen, colours, seen, anchors):
+    """No seen face keeps a material darker than itself by more than SPLIT_LIGHTER: studio light does not make dark
+    paint read pale, so such a face took its material from a part it does not belong to (a PartCrafter part reaching
+    over the comms desk's top, 2026-10-07). It takes the nearest material no darker than that."""
+    faces = np.nonzero(seen)[0]
+    lightness = colours[faces, 0]
+    wrong = lightness - anchors[chosen[faces], 0] > SPLIT_LIGHTER
+    for face, colour in zip(faces[wrong], colours[faces[wrong]]):
+        allowed = anchors[:, 0] >= colour[0] - SPLIT_LIGHTER
+        distances = np.where(allowed, weighted(colour, anchors), np.inf)
+        if np.isfinite(distances).any():
+            chosen[face] = int(np.argmin(distances))
+    return chosen
+
+
 def by_part(mesh, colours, part_of, materials):
-    """The splitter way: every face of a part takes the library material nearest the part's median picture colour
-    (hue and chroma weighed over lightness, as group_materials). A majority of per-face votes let a part's shaded
-    faces outvote its lit ones: the comms desk came out 98% dark pipe steel (2026-10-07). A part the camera does not
-    see takes the whole model's median. The labels and the material names in index order."""
+    """Every face of a part takes the library material nearest the part's median picture colour (a majority of
+    per-face votes let shaded faces outvote lit ones: the comms desk came out 98% dark pipe steel, 2026-10-07), except
+    a seen face whose colour is plainly another material's (SPLIT_CHROMATICITY, SPLIT_LIGHTER, SPLIT_MARGIN): the steel tools on a wooden
+    board. A face the camera does not see takes the most common material of its UNSEEN_NEIGHBOURS nearest seen faces:
+    a part splitter's parts only roughly fit the model (a tool's part reached round the toolboard's back), and a single
+    nearest face carried a shaded edge's dark over a wall panel's whole unseen body (2026-10-07). A few rounds of neighbour majority
+    then clear speckle. The labels and the material names in index order."""
     names = list(materials)
     anchors = lab(np.array([srgb(np.array(materials[name]["colour"])) for name in names]))
     seen_anywhere = ~np.isnan(colours[:, 0])
     whole = np.median(colours[seen_anywhere], axis=0)
-    chosen = {}
+    chosen = np.zeros(len(part_of), dtype=int)
     for part in np.unique(part_of):
-        seen = (part_of == part) & seen_anywhere
+        members = part_of == part
+        seen = members & seen_anywhere
         middle = np.median(colours[seen], axis=0) if seen.sum() >= 20 else whole
-        chosen[part] = names[int(np.argmin((((anchors - middle) ** 2) * WEIGHTS).sum(-1)))]
-    order = sorted(set(chosen.values()))
-    return np.array([order.index(chosen[part]) for part in part_of]), order
+        own = int(np.argmin([weighted(middle, anchor) for anchor in anchors]))
+        chosen[members] = own
+        distances = np.stack([weighted(colours[seen], anchor) for anchor in anchors], -1)
+        nearest = distances.argmin(-1)
+        coloured = (np.linalg.norm(chromaticity(colours[seen]) - chromaticity(middle), axis=-1) > SPLIT_CHROMATICITY) & \
+            (colours[seen][:, 0] > SPLIT_LIT)
+        apart = coloured | (colours[seen][:, 0] - middle[0] > SPLIT_LIGHTER)
+        other = apart & (distances[np.arange(len(nearest)), nearest] < SPLIT_MARGIN * distances[:, own])
+        chosen[np.nonzero(seen)[0][other]] = nearest[other]
+    chosen = never_darker(chosen, colours, seen_anywhere, anchors)
+    middles = mesh.triangles_center
+    _, closest = cKDTree(middles[seen_anywhere]).query(middles[~seen_anywhere], k=UNSEEN_NEIGHBOURS)
+    neighbours = chosen[seen_anywhere][closest]
+    chosen[~seen_anywhere] = np.array([np.bincount(row).argmax() for row in neighbours])
+    chosen = smoothed(chosen, mesh)
+    order = sorted({names[index] for index in np.unique(chosen)})
+    return np.array([order.index(names[index]) for index in chosen]), order
 
 
 def write_parts(mesh, labels, order, matrix, final_bounds, out):
@@ -197,36 +208,61 @@ def write_parts(mesh, labels, order, matrix, final_bounds, out):
     return shares, int(inside.sum())
 
 
-def onto_finished(points, target):
-    """The raw model's points laid onto its finished model: the finish's own upright turn (glb_file.upright_turn, under
-    each of its options) as the start, then register.aligned; the start whose fit leaves the least median gap from the
-    finished model's points. register.aligned alone starts from quarter turns, and the finish squares a model to an
-    arbitrary angle about up: the comms desk's parts came out turned, 6 cm off their finished model (2026-10-07).
-    The 4 x 4 matrix and the gap in metres."""
+def finish_turn(take):
+    """The turn pixal.py's finish gave the take (stand_and_pad: glb_file.upright_turn, then glb_file.level_turn, on the
+    finished model's own positions, in the raw model's frame), replayed exactly: of the take's finished files and the
+    finish's options, the one whose turned box matches the final model's. A fit by registration instead turned the comms
+    desk's parts 6 cm off and, on a near-symmetric piece, landed end for end at random (2026-10-07)."""
+    final = trimesh.load(PIXAL / f"{take}-final.glb", force="mesh")
     best = None
-    for long, feet in ((False, False), (True, False), (False, True), (True, True)):
-        start = np.eye(4)
-        start[:3, :3] = glb_file.upright_turn(points, long=long, feet=feet)
-        refined, _ = register.aligned(points @ start[:3, :3].T, target)
-        matrix = refined @ start
-        moved = points @ matrix[:3, :3].T + matrix[:3, 3]
-        gap = float(np.median(cKDTree(moved).query(target)[0]))
-        if best is None or gap < best[1]:
-            best = (matrix, gap)
-    return best
+    for path in sorted(PIXAL.glob(f"{take}-[0-9]*.glb")):
+        for long, feet in ((False, False), (True, False), (False, True), (True, True)):
+            document, views = glb_file.read(path)
+            points = glb_file.positions(document, views)
+            turn = glb_file.upright_turn(points, long=long, feet=feet)
+            glb_file.turned(document, views, turn)
+            whole = glb_file.level_turn(*glb_file.faces(document, views)) @ turn
+            moved = points @ whole.T
+            miss = float(np.abs(np.array([moved.min(0), moved.max(0)]) - final.bounds).max())
+            if best is None or miss < best[1]:
+                best = (whole, miss)
+    if best is None or best[1] > FINISH_MISS:
+        raise SystemExit(f"{take}: no finish turn matches its final model "
+                         f"({'no finished file' if best is None else f'missed by {best[1]:.4f} m'})")
+    return best[0]
 
 
-def write_picture(final, out):
+def onto_finished(points, target, turn):
+    """The raw model's points laid onto its finished model: the finish's own turn (finish_turn), refined by
+    register.aligned without quarter turns. The 4 x 4 matrix and the median gap in metres."""
+    start = np.eye(4)
+    start[:3, :3] = turn
+    refined, gap = register.aligned(points @ turn.T, target, turns=False)
+    return refined @ start, gap
+
+
+def write_picture(final, out, seen_points):
     """The finished model with the picture's own pixels on it (Pixal3D's Pixel Match), in the parts' frame, as
     picture.obj with its texture beside it: the bake lays its labels, notes, rust and colours over the library
-    surfaces (round four, 2026-10-07: dropping the picture took the room's detail with it). Its texture's size."""
-    image = getattr(final.visual, "material", None)
-    image = getattr(image, "baseColorTexture", None) or getattr(image, "image", None)
+    surfaces (round four, 2026-10-07: dropping the picture took the room's detail with it). Its faces come in two
+    materials, `seen` and `unseen` by the picture's camera (`seen_points`, the seen raw faces' middles on the finished
+    model): where the camera never looked, Pixal3D guessed, and its guesses drew comb-like streaks down the locker's
+    side, so the bake lays no detail there. The texture's size and the seen share."""
+    material = getattr(final.visual, "material", None)
+    image = getattr(material, "baseColorTexture", None) or getattr(material, "image", None)
     if image is None:
         raise SystemExit("the finished model carries no picture to lay over the library (a Pixal3D take before "
                          "Pixel Match?)")
-    final.export(out / "picture.obj")
-    return list(image.size)
+    reach, _ = cKDTree(seen_points).query(final.triangles_center)
+    seen = reach < SEEN_REACH
+    halves = []
+    for name, faces in (("seen", seen), ("unseen", ~seen)):
+        if faces.any():
+            half = final.submesh([np.nonzero(faces)[0]], append=True)
+            half.visual.material = trimesh.visual.material.SimpleMaterial(name=name, image=image)
+            halves.append(half)
+    trimesh.Scene(halves).export(out / "picture.obj")
+    return list(image.size), round(float(final.area_faces[seen].sum() / final.area), 3)
 
 
 def main():
@@ -241,21 +277,24 @@ def main():
     arguments.out.mkdir(parents=True, exist_ok=True)
     left_out = NOT_ON_OBJECTS + tuple(name for name in arguments.without.split(",") if name)
     materials = {name: spec for name, spec in library.resolved(arguments.place).items() if name not in left_out}
+    np.random.seed(0)  # the samples registration reads: the same take labels the same way every run
     mesh = trimesh.load(PIXAL / f"{arguments.take}.glb", force="mesh", process=False)
-    votes, order, names = picture_votes(mesh, arguments.take, materials)
-    report = {"take": arguments.take, "seen_share": round(float((votes >= 0).mean()), 3), "groups": names}
+    colours = face_colours(mesh, arguments.take)
+    report = {"take": arguments.take, "seen_share": round(float((~np.isnan(colours[:, 0])).mean()), 3)}
     if arguments.parts:
         part_of, count, gap = splitter_parts(arguments.parts, mesh)
-        labels, order = by_part(mesh, face_colours(mesh, arguments.take), part_of, materials)
         report.update(way="parts", parts=count, parts_gap=round(gap, 4))
     else:
-        labels = by_face(mesh, votes)
-        report.update(way="picture")
+        part_of = np.zeros(len(mesh.faces), dtype=int)
+        report.update(way="whole")
+    labels, order = by_part(mesh, colours, part_of, materials)
     final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
-    matrix, gap = onto_finished(mesh.sample(SAMPLED), final.sample(SAMPLED))
+    matrix, gap = onto_finished(mesh.sample(SAMPLED), final.sample(SAMPLED), finish_turn(arguments.take))
     report["upright_gap"] = round(gap, 4)
+    middles = mesh.triangles_center @ matrix[:3, :3].T + matrix[:3, 3]
+    seen_points = middles[~np.isnan(colours[:, 0])]
     report["shares"], report["faces_kept"] = write_parts(mesh, labels, order, matrix, final.bounds, arguments.out)
-    report["picture"] = write_picture(final, arguments.out)
+    report["picture"], report["picture_seen_share"] = write_picture(final, arguments.out, seen_points)
     (arguments.out / "labels.json").write_text(json.dumps(report, indent=1))
     print(json.dumps(report))
 

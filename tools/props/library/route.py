@@ -39,21 +39,27 @@ import sorter  # noqa: E402
 
 REPO = library.REPO
 DETAILS = REPO / "data/library/details.json"
-# Texels a metre for code-built pieces (a shared picture set is capped at 4096 a side) and for generated pieces.
-DENSITY = 1024
-CHUNKY_DENSITY = 768
+# Texels a metre (the normal map's; colour gets half), by how near the player's hands a piece comes (the coordinator,
+# hub round four): NEAR within arm's reach of the walkway or the pit floor, FAR for the roof and the high walls. A
+# shared picture set takes its set's (SET_DENSITY); a generated piece is near when its middle stands under REACH_HIGH
+# above the walkway.
+NEAR = 1024
+FAR = 512
+REACH_HIGH = 1.8
+SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR}
 # The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
-# shared set is planned to fill, leaving room for packing and for print drawn sharp.
+# shared set is planned to fill, leaving room for packing, print drawn sharp and the faces a box's estimate misses (both
+# sides of an open box's thin walls: planned at 0.7, a floor set came out 1% past the cap, 2026-10-07).
 LARGEST = 4096
 UV_FILL = 0.6
-SET_SLACK = 0.7
+SET_SLACK = 0.5
 CHUNKY_FACES = 19000  # triangles: a prop's furniture budget is 20,000 (asset_check), its detail parts take the rest
 SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share a model
 # Code-built kinds by the picture set they share, by the start of their name; the rest are wall gear and doors.
 ATLASES = (("roof", ("roof_", "lattice_", "ceiling_")),
-           ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_")),
-           ("walls", ("wall_lower", "wall_upper", "wall_skirting", "wall_cornice", "wall_corner", "hatch_wall",
-                      "porthole")))
+           ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
+           ("walls_low", ("wall_lower", "wall_skirting", "wall_corner")),
+           ("walls_high", ("wall_upper", "wall_cornice", "backer")))
 # The room's furniture: the inventory's rows the route makes that are not kit pieces (the console, the lab bench, the
 # chair, the lockers, the comms desk, the toolboard), each placed by the game as its prop. They go through the sorter
 # like every kit kind (round four, 2026-10-07: round three sent them to code by a fixed table, with no check, and the
@@ -117,7 +123,7 @@ def furniture(inventory):
         route = sorter.route(kind)
         found[f"{row['id']}_1"] = {"kind": kind, "route": route, "size": [wide, tall, deep], "laid": {},
                                    "atlas": "furniture" if route == "code" else f"{row['id']}_1",
-                                   "prop": row.get("prop") or row["thing"].split(":", 1)[1]}
+                                   "prop": row.get("prop") or row["thing"].split(":", 1)[1], "near": True}
     return found
 
 
@@ -136,7 +142,9 @@ def plan(layout, takes, inventory=None):
             name = f"{own_name(kind)}_{count}"
             by_key[key] = name
             models[name] = {"kind": kind, "route": route, "size": [float(value) for value in laid["size"]],
-                            "laid": extra, "atlas": atlas_of(own_name(kind)) if route == "code" else name}
+                            "laid": extra, "atlas": atlas_of(own_name(kind)) if route == "code" else name,
+                            "near": False}
+        models[by_key[key]]["near"] |= middle_high(laid) < REACH_HIGH
         pieces.append(by_key[key])
     models.update(furniture(inventory) if inventory is not None else {})
     missing = sorted({entry["kind"] for entry in models.values()
@@ -155,7 +163,7 @@ def jobs(planned, takes, work, place):
     for atlas, names in shared_sets(planned).items():
         found[f"kit-{atlas}"] = {
             "script": "make_kit.py", "out": str(work / "made"), "report": f"report-{atlas}.json",
-            "atlas": f"{place}_{atlas}", "density": DENSITY,
+            "atlas": f"{place}_{atlas}", "density": SET_DENSITY[set_of(atlas)],
             "wear": wear, "dirt": dirt, "seed": 3, "specs": specs,
             "pieces": [{"name": name, "kind": own_name(planned["models"][name]["kind"]),
                         "size": planned["models"][name]["size"], "laid": planned["models"][name]["laid"]}
@@ -166,15 +174,25 @@ def jobs(planned, takes, work, place):
             continue
         own = details.get(entry["kind"], {})
         chunky.append({"name": name, "parts": str(takes[own_name(entry["kind"])]),
-                       "base": own["turn"], "size": entry["size"],
-                       "details": own.get("details", []), "screens": own.get("screens", []),
+                       "base": own["turn"], "size": entry["size"], "screens": own.get("screens", []),
+                       "cuts": own.get("cuts", []), "density": NEAR if entry.get("near", True) else FAR,
                        "picture": picture_of(takes[own_name(entry["kind"])])})
     if chunky:
         found["chunky"] = {"script": "make_chunky.py", "out": str(work / "made"), "report": "report-chunky.json",
-                           "density": CHUNKY_DENSITY,
+                           "density": NEAR,
                            "wear": wear, "dirt": dirt, "seed": 3, "faces": CHUNKY_FACES, "specs": specs,
                            "chunky": chunky}
     return found
+
+
+def middle_high(laid):
+    """How high a laid piece's middle stands above the walkway."""
+    return float(laid["at"][1] + laid["y"][1] * laid["size"][1] / 2)
+
+
+def set_of(chunk):
+    """The named picture set (ATLASES) a set of shared_sets belongs to: `walls_low_2` -> `walls_low`."""
+    return chunk if chunk in SET_DENSITY else chunk.rsplit("_", 1)[0]
 
 
 def seen_area(size):
@@ -185,11 +203,12 @@ def seen_area(size):
 
 def shared_sets(planned):
     """The code-built models by the picture set they share: each named set (ATLASES) split into as few sets as keep
-    their boxes' seen area within one LARGEST-sided picture at DENSITY (with SET_SLACK spare for packing and sharp
-    print), named `<set>` or `<set>_<n>`. The bake stops a set that still does not fit (bake.Atlas)."""
-    room = SET_SLACK * UV_FILL * (LARGEST / DENSITY) ** 2
+    their boxes' seen area within one LARGEST-sided picture at the set's density (SET_DENSITY, with SET_SLACK spare
+    for packing and sharp print), named `<set>` or `<set>_<n>`. The bake stops a set that still does not fit
+    (bake.Atlas)."""
     found = {}
     for atlas in sorted({entry["atlas"] for entry in planned["models"].values() if entry["route"] == "code"}):
+        room = SET_SLACK * UV_FILL * (LARGEST / SET_DENSITY[atlas]) ** 2
         chunks, area = [[]], 0.0
         for name, entry in planned["models"].items():
             if entry["route"] != "code" or entry["atlas"] != atlas:

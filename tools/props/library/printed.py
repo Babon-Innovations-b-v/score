@@ -3,7 +3,7 @@ from the `pictures` of data/library/materials.json. English in Barlow Condensed 
 game's own display face: every label and screen on the base reads in English (the owner, 2026-10-06, after the hub's
 in-game test). Colours from palette tokens only.
 
-    ~/.farm-factory-props/env/bin/python tools/props/library/printed.py
+    ~/.farm-factory-props/env/bin/python tools/props/library/printed.py [name ...]     # all, or only these
 
 A screen's picture is its content on a clear ground, so the glass shows between and only the content glows; a label
 is a whole plate. A line is set as big as its box allows and shrunk until it fits across it.
@@ -22,7 +22,7 @@ FONT = library.REPO / "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf"
 # The margin a line keeps from its box's sides, in pixels.
 MARGIN = 36
 SIZES = {"status": (1024, 640), "readout": (1024, 512), "label": (1024, 256), "keypad": (512, 640),
-         "stencil": (512, 256), "notice": (1024, 768)}
+         "stencil": (512, 256), "notice": (1024, 768), "lens": (256, 32)}
 
 
 def srgb(token):
@@ -138,12 +138,29 @@ def notice(spec, size):
     return picture
 
 
-STYLES = {"status": status, "notice": notice, "readout": readout, "label": label, "keypad": keypad, "stencil": stencil}
+def lens(spec, size):
+    """A lamp's lens, lit: the token's colour across it, fading a little toward its ends (a strip lamp's tube)."""
+    picture = Image.new("RGBA", size, srgb(spec["ink"]))
+    draw = ImageDraw.Draw(picture)
+    width, height = size
+    for column in range(width // 8):
+        fade = 1.0 - 0.35 * (1.0 - column / (width // 8))
+        shade = tuple(int(value * fade) for value in srgb(spec["ink"])[:3]) + (255,)
+        draw.line((column, 0, column, height), fill=shade)
+        draw.line((width - 1 - column, 0, width - 1 - column, height), fill=shade)
+    return picture
+
+
+STYLES = {"status": status, "notice": notice, "readout": readout, "label": label, "keypad": keypad, "stencil": stencil,
+          "lens": lens}
 
 
 def main():
     library.PICTURES.mkdir(parents=True, exist_ok=True)
+    wanted = sys.argv[1:]
     for name, spec in library.theme_library()["pictures"].items():
+        if wanted and name not in wanted:
+            continue
         STYLES[spec["style"]](spec, SIZES[spec["style"]]).save(library.PICTURES / f"{name}.png")
         print(name)
 

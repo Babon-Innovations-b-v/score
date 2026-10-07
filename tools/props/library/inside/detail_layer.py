@@ -18,12 +18,26 @@ every texel of the same material slot and the same facing, so the studio light's
 picture differs from its body by more than DETAIL_LOW (CIE76 in Lab) it takes over, fully past DETAIL_HIGH: that is a
 label, a note, rust, a tool. Everywhere else the library colour stays, its lightness moved by the picture's own
 lightness against the body (within WEAR_RANGE): scratches, grime and wood grain in the library's hue.
+
+Two things in the picture are never detail (the coordinator, after stage one's renders): shade, a wide grey patch
+darker than its body, which left dark blotches on the comms desk; and anything where the picture's camera never looked,
+where Pixal3D guessed and drew streaks down the locker's side. Thin dark lines (print, gaps, scratches) stay.
 """
 import numpy as np
 
 DETAIL_LOW = 12.0
 DETAIL_HIGH = 24.0
 WEAR_RANGE = (0.7, 1.25)
+# Shade (shade_blobs): darker than its body by DARK_STEP (L*), greyer than NEUTRAL_CHROMA, wider than 2 x BLOB_RADIUS
+# texels; it darkens the library by no more than SHADE_WEAR.
+DARK_STEP = 6.0
+NEUTRAL_CHROMA = 12.0
+BLOB_RADIUS = 4
+SHADE_WEAR = 0.9
+# Where the picture's camera never looked: lightness within this, no detail.
+UNSEEN_WEAR = (0.92, 1.08)
+# ... and the normal map's relief there is cut to this share (bake.Atlas.calm_unseen).
+UNSEEN_RELIEF = 0.3
 # Laid detail is paper, paint, rust or plastic: no metal, at least this rough.
 DETAIL_ROUGHNESS = 0.75
 # A group (slot and facing) with fewer covered texels than this takes its slot's body instead.
@@ -80,19 +94,56 @@ def softened(field):
                for down in (-1, 0, 1) for across in (-1, 0, 1)) / 9.0
 
 
-def laid(library_colour, roughness, metal, picture, slots, normals, covered):
+def windowed(mask, radius, combine):
+    """A mask combined over a square window of `radius` texels each way (np.logical_and: shrunk, np.logical_or:
+    grown), the outside counting as empty."""
+    found = mask.copy()
+    for axis in (0, 1):
+        padded = np.pad(found, [(radius, radius) if index == axis else (0, 0) for index in (0, 1)],
+                        constant_values=False)
+        size = found.shape[axis]
+        found = combine.reduce([np.take(padded, range(shift, shift + size), axis=axis)
+                                for shift in range(2 * radius + 1)])
+    return found
+
+
+def eroded(mask, radius):
+    return windowed(mask, radius, np.logical_and)
+
+
+def dilated(mask, radius):
+    return windowed(mask, radius, np.logical_or)
+
+
+def shade_blobs(picture, body):
+    """Where the picture is darker than its body and grey (no colour of its own), in patches wider than 2 x
+    BLOB_RADIUS: the studio light's shade and Pixal3D's dark guesses, never a thing on the piece. Thin dark lines
+    (print, stencils, scratches, panel gaps) are narrower and are kept as detail."""
+    picture_lab, body_lab = lab(picture), lab(body)
+    grey = np.linalg.norm(picture_lab[..., 1:], axis=-1) < NEUTRAL_CHROMA
+    dark = (picture_lab[..., 0] < body_lab[..., 0] - DARK_STEP) & grey
+    return dilated(eroded(dark, BLOB_RADIUS), BLOB_RADIUS)
+
+
+def laid(library_colour, roughness, metal, picture, slots, normals, covered, seen):
     """The library surface with the picture's detail over it, where `covered` (the piece's own texels).
 
     library_colour, picture: (h, w, 3) sRGB 0..1; roughness, metal: (h, w); slots: (h, w) material slot index;
-    normals: (h, w, 3) object-space normals; covered: (h, w) bool. Returns colour, roughness, metal and the share
-    of covered texels the picture's detail took over."""
+    normals: (h, w, 3) object-space normals; covered, seen: (h, w) bool, `seen` where the picture's camera looked.
+    Shade (shade_blobs) is never detail and darkens the library by SHADE_WEAR at most; where the camera never looked
+    there is no detail at all and the lightness moves within UNSEEN_WEAR only (Pixal3D's guesses there drew comb-like
+    streaks down the locker's side, 2026-10-07). Returns colour, roughness, metal and the share of covered texels the
+    picture's detail took over."""
     groups = slots * FACINGS + facing_of(normals)
     body = bodies(picture, groups, covered)
     difference = softened(np.linalg.norm(lab(picture) - lab(body), axis=-1))
-    detail = smoothstep(DETAIL_LOW, DETAIL_HIGH, difference) * covered
+    shade = shade_blobs(picture, body)
+    detail = smoothstep(DETAIL_LOW, DETAIL_HIGH, difference) * covered * seen * ~shade
     weights = np.array([0.2126, 0.7152, 0.0722])
     lightness = (linear(picture) @ weights) / np.maximum(linear(body) @ weights, 1e-4)
-    worn = encoded(linear(library_colour) * np.clip(lightness, *WEAR_RANGE)[..., None])
+    lower = np.where(seen, np.where(shade, SHADE_WEAR, WEAR_RANGE[0]), UNSEEN_WEAR[0])
+    upper = np.where(seen, WEAR_RANGE[1], UNSEEN_WEAR[1])
+    worn = encoded(linear(library_colour) * np.clip(lightness, lower, upper)[..., None])
     worn = np.where(covered[..., None], worn, library_colour)
     colour = worn + (picture - worn) * detail[..., None]
     rough = roughness + (np.maximum(roughness, DETAIL_ROUGHNESS) - roughness) * detail
