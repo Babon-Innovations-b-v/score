@@ -73,7 +73,7 @@
 				859
 			],
 			"name": "operations console: desk with five screens and two keyboards",
-			"kind": "code",
+			"kind": "mechanic",
 			"anchor": "floor",
 			"size": [
 				2.6,
@@ -217,7 +217,7 @@
 				539
 			],
 			"name": "single steel locker (the plan painted lockers where the list said equipment racks)",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "floor",
 			"size": [
 				0.6,
@@ -578,7 +578,7 @@
 				450
 			],
 			"name": "a wall panel around a door opening, heavier plating with bolted edges",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "wall",
 			"size": [
 				2.4115427318801044,
@@ -739,7 +739,7 @@
 				0.3,
 				0.1
 			],
-			"count": 6,
+			"count": 5,
 			"thing": "prop:hub_ceiling_cable_tray",
 			"group": "kit: ceiling",
 			"made": "kit piece"
@@ -761,7 +761,7 @@
 				0.35,
 				0.3
 			],
-			"count": 3,
+			"count": 2,
 			"thing": "prop:hub_ceiling_duct",
 			"group": "kit: ceiling",
 			"made": "kit piece",
@@ -851,7 +851,7 @@
 				0.04,
 				0.8
 			],
-			"count": 2,
+			"count": 3,
 			"thing": "prop:hub_floor_access_hatch",
 			"group": "kit: floor",
 			"made": "kit piece"
@@ -983,6 +983,28 @@
 			"made": "kit piece"
 		},
 		{
+			"id": "under_floor_box",
+			"view": "v3",
+			"box": [
+				300,
+				740,
+				1300,
+				900
+			],
+			"name": "an open box of dark steel plates under a floor grating or access hatch: the duct or cable trough below it",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.01,
+				0.3,
+				1.01
+			],
+			"count": 5,
+			"thing": "prop:hub_under_floor_box",
+			"group": "kit: under floor",
+			"made": "kit piece"
+		},
+		{
 			"id": "pit_junction_box",
 			"view": "v2",
 			"box": [
@@ -1037,7 +1059,7 @@
 				459
 			],
 			"name": "the heavy steel frame round a round-cornered pressure hatch opening, bolted, cut top corners",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "wall",
 			"size": [
 				2.4,
@@ -1381,7 +1403,7 @@
 				160
 			],
 			"name": "a square steel wall panel with a round bolted porthole window in its middle, Earth seen far away through the thick glass",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "wall",
 			"size": [
 				1.2,

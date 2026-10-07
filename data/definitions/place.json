@@ -382,9 +382,11 @@
 			],
 			"accents": [
 				"hazard",
-				"alarm"
+				"alarm",
+				"board-wood",
+				"cabin-seat"
 			],
-			"accents_are": "the airlock's hazard border and small red valve wheels and status lights"
+			"accents_are": "the airlock's hazard border, small red valve wheels and status lights, the tool board's timber and the chairs' seat covers"
 		},
 		"materials": {
 			"painted_panel": {
@@ -434,6 +436,10 @@
 			"wood_board": {
 				"token": "board-wood",
 				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
 			}
 		},
 		"light": {

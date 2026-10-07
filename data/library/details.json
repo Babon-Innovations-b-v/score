@@ -1,104 +1,213 @@
 {
-	"is": "what a generated piece is made with besides its labelled parts (round two and three, 2026-10-06): its `turn` from its Pixal3D model's frame into the kit's (nine numbers, row by row), and the small detail it gets back as clean code-built parts (the owner: A's detail with B's cleanliness): labels, screws and keypads seated on the model's front, and screens laid as glowing pieces of their own. Positions in metres on the piece's front, from the middle of its foot, at its laid size",
-	"hub_door_control_box": {
-		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"details": [
-			{"part": "label", "at": [0.0, 0.315], "size": [0.18, 0.04], "variant": "label_access"},
-			{"part": "keypad", "at": [0.0, 0.13], "size": [0.1, 0.12]},
-			{"part": "screw", "at": [-0.11, 0.025]},
-			{"part": "screw", "at": [0.11, 0.025]},
-			{"part": "screw", "at": [-0.11, 0.335]},
-			{"part": "screw", "at": [0.11, 0.335]}
-		],
-		"screens": [
-			{"at": [0.0, 0.235], "size": [0.14, 0.07], "variant": "screen_amber"}
-		]
-	},
-	"hub_conduit_box": {
-		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
-		"details": [
-			{"part": "label", "at": [0.0, 0.1], "size": [0.09, 0.045], "variant": "stencil_number"},
-			{"part": "screw", "at": [-0.08, 0.02]},
-			{"part": "screw", "at": [0.08, 0.02]},
-			{"part": "screw", "at": [-0.08, 0.18]},
-			{"part": "screw", "at": [0.08, 0.18]}
-		],
-		"screens": []
-	},
-	"hub_wall_cage_lamp": {
-		"turn": [0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
-		"details": [
-			{"part": "screw", "at": [-0.07, 0.02]},
-			{"part": "screw", "at": [0.07, 0.02]}
-		],
-		"screens": []
-	},
-	"hub_small_readout": {
-		"turn": [0.999997, -0.002584, 0.0, -0.002584, -0.999997, 0.0, 0.0, 0.0, -1.0],
-		"details": [
-			{"part": "screw", "at": [-0.13, 0.02]},
-			{"part": "screw", "at": [0.13, 0.02]},
-			{"part": "screw", "at": [-0.13, 0.23]},
-			{"part": "screw", "at": [0.13, 0.23]}
-		],
-		"screens": [
-			{"at": [0.0, 0.13], "size": [0.2, 0.12], "variant": "screen_amber"}
-		]
-	},
-	"hub_pit_junction_box": {
-		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"details": [
-			{"part": "label", "at": [0.0, 0.29], "size": [0.12, 0.06], "variant": "stencil_number"},
-			{"part": "screw", "at": [-0.12, 0.03]},
-			{"part": "screw", "at": [0.12, 0.03]},
-			{"part": "screw", "at": [-0.12, 0.33]},
-			{"part": "screw", "at": [0.12, 0.33]}
-		],
-		"screens": []
-	},
-	"hub_pipe_bracket": {
-		"turn": [-0.0, -1.0, -0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
-		"details": [],
-		"screens": []
-	},
-	"hub_pipe_elbow": {
-		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"details": [],
-		"screens": []
-	},
-	"hub_pipe_valve": {
-		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
-		"details": [],
-		"screens": []
-	},
-	"hub_roof_apex_hub": {
-		"turn": [-0.0, -0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"details": [],
-		"screens": []
-	},
-	"hub_roof_light_fixture": {
-		"turn": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-		"details": [],
-		"screens": []
-	},
-	"hub_waste_bin": {
+	"is": "what a generated piece is made with besides its labelled parts (rounds two to four): its `turn` from its finished Pixal3D model's frame into the kit's (nine numbers, row by row), its `screens` laid as glowing pieces of their own, and its `cuts`, the openings a single picture's model fills in. Positions in metres on the piece's front, from the middle of its foot, at its laid size. Labels, screws and keypads come with the picture now (round four).",
+	"hub_ceiling_cable_tray": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-		"details": [],
-		"screens": []
+		"screens": [],
+		"cuts": []
+	},
+	"hub_ceiling_duct": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_chair": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
 	},
 	"hub_comms": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"details": [],
-		"screens": []
+		"screens": [],
+		"cuts": []
+	},
+	"hub_conduit_box": {
+		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_console": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_door_control_box": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [{"at": [0.0, 0.235], "size": [0.14, 0.07], "variant": "screen_amber"}],
+		"cuts": []
+	},
+	"hub_door_strip_lamp": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}],
+		"cuts": []
+	},
+	"hub_floor_access_hatch": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_floor_grating": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_grab_bar": {
+		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_frame": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": [{"box": [-1.12, -0.1, 1.12, 2.62]}]
+	},
+	"hub_hatch_hinge": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_leaf": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_wall_surround": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [{"box": [-1.1, -0.1, 1.1, 2.6]}]
+	},
+	"hub_hatch_wheel": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_window": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_intercom_panel": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_labbench": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_notice_board": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pipe_bracket": {
+		"turn": [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pipe_elbow": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pipe_valve": {
+		"turn": [0.0, -1.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pit_junction_box": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_porthole_panel": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [{"circle": [0.0, 0.6, 0.3]}]
+	},
+	"hub_rack": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_roof_apex_hub": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_roof_light_fixture": {
+		"turn": [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_small_readout": {
+		"turn": [1.0, -0.0026, 0.0, -0.0026, -1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [{"at": [0.0, 0.13], "size": [0.2, 0.12], "variant": "screen_amber"}],
+		"cuts": []
+	},
+	"hub_status_display": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [{"at": [-0.01, 0.516], "size": [1.659, 0.747], "variant": "screen"}],
+		"cuts": []
 	},
 	"hub_talllocker": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0],
-		"details": [],
-		"screens": []
+		"screens": [],
+		"cuts": []
 	},
 	"hub_toolboard": {
 		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
-		"details": [],
-		"screens": []
+		"screens": [],
+		"cuts": []
+	},
+	"hub_tread_mat": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_cage_lamp": {
+		"turn": [0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_lower_patched": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_lower_vent": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_screen_cluster": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [{"at": [-0.37, 0.346], "size": [0.264, 0.203], "variant": "screen_amber"}, {"at": [0.005, 0.348], "size": [0.266, 0.203], "variant": "screen_amber"}, {"at": [0.38, 0.348], "size": [0.268, 0.2], "variant": "screen_amber"}],
+		"cuts": []
+	},
+	"hub_wall_upper_cables": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_upper_patched": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_upper_pipes": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_upper_screen_recess": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [{"at": [0.076, 1.482], "size": [0.135, 0.058], "variant": "screen_amber"}],
+		"cuts": []
+	},
+	"hub_waste_bin": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
 	}
 }

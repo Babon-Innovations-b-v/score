@@ -660,6 +660,11 @@
 					"recipe": "glass",
 					"token": "ink-line",
 					"roughness": 0.1
+				},
+				"lamp_strip": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "lamp_strip"
 				}
 			}
 		},
@@ -882,6 +887,10 @@
 				]
 			],
 			"ink": "screen-teal"
+		},
+		"lamp_strip": {
+			"style": "lens",
+			"ink": "lamp"
 		}
 	}
 }
