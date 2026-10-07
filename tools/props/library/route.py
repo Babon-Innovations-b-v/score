@@ -116,6 +116,7 @@ def bearing_of(laid):
 def shows(kind, laid):
     """What a piece shows that its model is made with, beyond its size."""
     found = {key: laid[key] for key in ("taper", "treads", "openings", "arc", "material") if key in laid}
+    found.update(laid.get("shows", {}))  # a kit room's composite parent or child: what its build shows (room_kit.py)
     if kind == "hub_hatch_wall_surround":
         found["label"] = DOOR_LABELS[bearing_of(laid) % 360]
     return found

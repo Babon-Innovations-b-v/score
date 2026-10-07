@@ -69,16 +69,29 @@ def doorway_rays(layout, shut_by_game, origins, directions, travel):
 
 
 def standing_points(layout, solids):
-    """Eye-height points on a grid over the floor, clear of the walls and of every solid piece."""
+    """Eye-height points on a grid over the floor, clear of the walls (inside the rounded corners too: a corner
+    rounded wider than the clearance left a point behind its panels, the workshop's, 2026-10-07) and of every solid
+    piece."""
     half = np.asarray(layout["inside"]) / 2 - 0.6
     found = []
     for x in np.arange(-half[0], half[0] + 1e-6, GRID):
         for z in np.arange(-half[1], half[1] + 1e-6, GRID):
             point = np.array([x, EYE, z])
+            if not in_rounded(layout, x, z, 0.6):
+                continue
             if not any(mesh.bounds[0][0] - 0.2 < x < mesh.bounds[1][0] + 0.2
                        and mesh.bounds[0][2] - 0.2 < z < mesh.bounds[1][2] + 0.2 for mesh in solids):
                 found.append(point)
     return np.array(found)
+
+
+def in_rounded(layout, x, z, inset):
+    """Whether a place on the floor stands inside the room's rounded outline pushed in by `inset`."""
+    half = np.asarray(layout["inside"]) / 2 - inset
+    reach = max(layout["corner"] - inset, 0.0)
+    corner = half - reach
+    out = np.maximum(np.abs([x, z]) - corner, 0.0)
+    return bool(np.all(np.abs([x, z]) <= half + 1e-9) and np.linalg.norm(out) <= reach + 1e-9)
 
 
 def directions():
@@ -177,7 +190,9 @@ def main():
     solid_kinds = {kind for kind, about in kit["kinds"].items() if about.get("solid")}
     solids = [(index, kind, mesh) for index, kind, mesh in pieces if kind in solid_kinds]
     outer = skin(layout)
-    shut_by_game = [name for name, kind in layout["doors"].items() if kind != "hatch"]
+    # A doorway the game shuts with a node of its own, or an open one a tube joins (the workshop's west, to the
+    # corridor): a ray through it leaves into the next room, not out through a gap.
+    shut_by_game = [name for name, kind in layout["doors"].items() if kind != "hatch" or name in layout.get("open", [])]
     report = {"room": options.room, "pieces": len(pieces), "of": len(kit["pieces"]),
               "leaks": leaks(layout, pieces, outer, shut_by_game, [mesh for _, _, mesh in solids]),
               "envelope": envelope(pieces, outer), "doorways": in_doorways(layout, pieces, layout["doors"]),

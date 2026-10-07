@@ -431,6 +431,10 @@ def placed_rows(room, layout, kinds, inventory):
                              spot_size, spot.get("layer", 1))
             if spot.get("set_in"):
                 laid["set_in"] = True
+            # What a composite parent's own build shows (a tool board's tools and their outlines), made with it.
+            parent_shows = composites().get(f"{room}_{row['id']}", {}).get("laid")
+            if parent_shows:
+                laid["shows"] = parent_shows
             found.append(laid)
     return found
 
@@ -532,14 +536,18 @@ def under_floor(room, kinds, found):
     return boxes
 
 
+def composites():
+    """data/library/composites.json: every composite's children and what its own build shows."""
+    return json.loads(COMPOSITES.read_text()) if COMPOSITES.exists() else {}
+
+
 def children(room, found):
     """Every composite's children (data/library/composites.json), one model per real-world object, laid as kit pieces
     of their own kinds on their parent: a child's `at` is its foot's middle in the parent's frame, `turn` its turn
     about the parent's up (as route.child_transform places a furniture prop's children)."""
-    composites = json.loads(COMPOSITES.read_text()) if COMPOSITES.exists() else {}
     placed = []
     for parent in found:
-        for child in composites.get(parent["kind"], {}).get("children", []):
+        for child in composites().get(parent["kind"], {}).get("children", []):
             axes = [np.asarray(parent[axis]) for axis in ("x", "y", "z")]
             angle = math.radians(child.get("turn", 0.0))
             x = axes[0] * math.cos(angle) - axes[2] * math.sin(angle)
@@ -548,6 +556,8 @@ def children(room, found):
             laid = piece(room, child["kind"].split("_", 1)[1], origin, (x, axes[1], z), child["size"],
                          parent.get("layer", 1))
             laid["child_of"] = parent["kind"]
+            if child.get("laid"):  # what this child shows (a monitor's screen, a tool's solid tip)
+                laid["shows"] = child["laid"]
             placed.append(laid)
     return placed
 
