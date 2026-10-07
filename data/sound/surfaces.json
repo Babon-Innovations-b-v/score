@@ -35,6 +35,27 @@
 			"impact": "impact_steel_plate",
 			"scrape": "scrape_steel_plate",
 			"absorbs": 0.03
+		},
+		"plaster": {
+			"footstep": "footstep_steel_plate",
+			"impact": "impact_rubber",
+			"scrape": "scrape_rubber",
+			"absorbs": 0.02,
+			"note": "Earth (the prologue build, 2026-10-07): the base's rubber and plate sounds stand in until Earth's own are made"
+		},
+		"stone": {
+			"footstep": "footstep_rubber",
+			"impact": "impact_steel_plate",
+			"scrape": "scrape_steel_plate",
+			"absorbs": 0.02,
+			"note": "Earth (the prologue build, 2026-10-07): the base's rubber and plate sounds stand in until Earth's own are made"
+		},
+		"asphalt": {
+			"footstep": "footstep_rubber",
+			"impact": "impact_rubber",
+			"scrape": "scrape_rubber",
+			"absorbs": 0.03,
+			"note": "Earth (the prologue build, 2026-10-07): the base's rubber and plate sounds stand in until Earth's own are made"
 		}
 	},
 	"kit": {

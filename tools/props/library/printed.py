@@ -208,8 +208,102 @@ def note(spec, size):
     return picture
 
 
+# Earth's print (the prologue build, 2026-10-07): every word on Earth is Mandarin (the bible's sign system), set in the
+# game's own Chinese faces, cut to GB2312 (game/ui/fonts, SIL OFL).
+HANZI_FONTS = {"sans": "noto_sans_sc/NotoSansSC-Bold.ttf", "black": "noto_sans_sc/NotoSansSC-Black.ttf",
+               "serif": "noto_serif_sc/NotoSerifSC-Bold.ttf", "qingke": "zcool_qingke_huangyou/ZCOOLQingKeHuangYou-Regular.ttf"}
+HANZI_SIZES = {"banner": (2048, 512), "couplet": (256, 1536), "poster": (768, 1024), "square": (512, 512),
+               "plate": (1024, 384), "sheets": (1024, 768), "calendar": (768, 1024)}
+
+
+def hanzi_font(spec, size):
+    return ImageFont.truetype(str(library.REPO / "game/ui/fonts" / HANZI_FONTS[spec.get("font", "sans")]), size)
+
+
+def hanzi_line(draw, box, text, spec, fill, size):
+    """One line of Chinese as big as its box allows, centred in it."""
+    face = hanzi_font(spec, size)
+    left, top, right, bottom = draw.textbbox((0, 0), text, font=face)
+    while (right - left > box[2] - box[0] - 2 * MARGIN or bottom - top > box[3] - box[1] - MARGIN) and size > 8:
+        size -= 4
+        face = hanzi_font(spec, size)
+        left, top, right, bottom = draw.textbbox((0, 0), text, font=face)
+    draw.text(((box[0] + box[2] - (right - left)) / 2 - left, (box[1] + box[3] - (bottom - top)) / 2 - top), text,
+              font=face, fill=fill)
+
+
+def hanzi(spec, size):
+    """Chinese words in ink on clear ground: lines across (`lines`), or one column read downward (`column`, a couplet
+    or a banner down a pole); a `rule` draws a border inside the edge, as a plaque's or a poster's."""
+    size = HANZI_SIZES[spec.get("shape", "plate")]
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    ink = srgb(spec["ink"])
+    width, height = size
+    if spec.get("rule"):
+        draw.rectangle((20, 20, width - 20, height - 20), outline=ink, width=10)
+    if "column" in spec:
+        step = (height - 2 * MARGIN) / len(spec["column"])
+        for at, character in enumerate(spec["column"]):
+            top = MARGIN + at * step
+            hanzi_line(draw, (0, top, width, top + step), character, spec, ink, int(min(width, step) * 0.8))
+        return picture
+    lines = spec["lines"]
+    step = (height - 2 * MARGIN) / len(lines)
+    for at, text in enumerate(lines):
+        top = MARGIN + at * step
+        hanzi_line(draw, (0, top, width, top + step), text, spec, ink, int(step * 0.8))
+    return picture
+
+
+def hanzi_sheets(spec, size):
+    """A notice board's sheets in Chinese: sheets side by side, a title and lines of small print each, on clear
+    ground between them (the board's colour)."""
+    size = HANZI_SIZES["sheets"]
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    ink = srgb(spec["ink"])
+    faint = ink[:3] + (150,)
+    width, height = size
+    sheets = spec["sheets"]
+    sheet_w = (width - 40 * (len(sheets) + 1)) / len(sheets)
+    for at, (title, lines) in enumerate(sheets):
+        left = 40 + at * (sheet_w + 40)
+        top = 60 + (at % 2) * 40
+        box = (left, top, left + sheet_w, height - 60 - ((at + 1) % 2) * 40)
+        draw.rectangle(box, fill=(240, 236, 222, 255))
+        hanzi_line(draw, (box[0], box[1] + 20, box[2], box[1] + 120), title, spec, ink, 64)
+        for line in range(lines):
+            y = box[1] + 160 + line * 60
+            draw.rectangle((box[0] + 30, y, box[2] - 30 - (line * 37 % 90), y + 14), fill=faint)
+    return picture
+
+
+def calendar(spec, size):
+    """A wall calendar's page: a picture panel over a grid of day numbers, the month in Chinese, and no year (the game
+    shows the year once, on its first screen)."""
+    size = HANZI_SIZES["calendar"]
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    ink = srgb(spec["ink"])
+    accent = srgb(spec["accent"])
+    width, height = size
+    draw.rectangle((40, 40, width - 40, height * 0.45), fill=srgb(spec["panel"]))
+    hanzi_line(draw, (40, height * 0.46, width - 40, height * 0.58), spec["month"], spec, accent, 90)
+    for day in range(31):
+        column, row = (day + 3) % 7, (day + 3) // 7
+        box = (60 + column * (width - 120) / 7, height * 0.6 + row * 70, 60 + (column + 1) * (width - 120) / 7,
+               height * 0.6 + row * 70 + 64)
+        face = font(48)
+        left, top, right, bottom = draw.textbbox((0, 0), str(day + 1), font=face)
+        draw.text(((box[0] + box[2] - (right - left)) / 2 - left, (box[1] + box[3] - (bottom - top)) / 2 - top),
+                  str(day + 1), font=face, fill=accent if column in (0, 6) else ink)
+    return picture
+
+
 STYLES = {"status": status, "notice": notice, "readout": readout, "label": label, "keypad": keypad, "stencil": stencil,
-          "lens": lens, "sheet": sheet, "plan": plan, "note": note}
+          "lens": lens, "sheet": sheet, "plan": plan, "note": note, "hanzi": hanzi, "hanzi_sheets": hanzi_sheets,
+          "calendar": calendar}
 
 
 def main():
@@ -218,7 +312,7 @@ def main():
     for name, spec in library.theme_library()["pictures"].items():
         if (wanted and name not in wanted) or spec["style"] not in STYLES:  # a "drawn" picture has a tool of its own
             continue
-        STYLES[spec["style"]](spec, SIZES[spec["style"]]).save(library.PICTURES / f"{name}.png")
+        STYLES[spec["style"]](spec, SIZES.get(spec["style"])).save(library.PICTURES / f"{name}.png")
         print(name)
 
 

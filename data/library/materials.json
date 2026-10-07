@@ -766,6 +766,11 @@
 					"recipe": "screen",
 					"token": "ink-line",
 					"picture": "lamp_strip"
+				},
+				"exit_sign": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "exit_sign"
 				}
 			}
 		},
@@ -1073,6 +1078,90 @@
 					"token": "board-wood",
 					"picture": "toolboard_outlines",
 					"roughness": 0.8
+				},
+				"flat_poster_red": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "flat_poster_red",
+					"roughness": 0.8
+				},
+				"flat_calendar": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "flat_calendar",
+					"roughness": 0.85
+				},
+				"flat_family_photo": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "flat_family_photo",
+					"roughness": 0.3
+				},
+				"couplet_left": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "couplet_left",
+					"roughness": 0.85
+				},
+				"couplet_right": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "couplet_right",
+					"roughness": 0.85
+				},
+				"couplet_top": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "couplet_top",
+					"roughness": 0.85
+				},
+				"fu_luck": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "fu_luck",
+					"roughness": 0.85
+				},
+				"poster_moon_flight": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "poster_moon_flight",
+					"roughness": 0.85
+				},
+				"notice_residents": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "notice_residents",
+					"roughness": 0.85
+				},
+				"floor_3": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_3",
+					"roughness": 0.8
+				},
+				"floor_2": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_2",
+					"roughness": 0.8
+				},
+				"floor_1": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_1",
+					"roughness": 0.8
+				},
+				"floor_g": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_g",
+					"roughness": 0.8
+				},
+				"lobby_sheets": {
+					"recipe": "printed",
+					"token": "board-wood",
+					"picture": "lobby_sheets",
+					"roughness": 0.85
 				}
 			}
 		},
@@ -1097,7 +1186,7 @@
 		},
 		"plaster": {
 			"is": "Paint on rendered plaster and concrete, Earth (prologue build, 2026-10-07): whitewash and gloss paint chipped to the bare render on edges and scuffed at the foot of a wall by feet; bare render and concrete",
-			"surface": "plaster_wall",
+			"surface": "plaster",
 			"variants": {
 				"whitewash": {
 					"recipe": "painted_plaster",
@@ -1142,7 +1231,7 @@
 		},
 		"tile": {
 			"is": "Ceramic, stone and terrazzo floors and walls, Earth: glazed tiles in grout, paving, terrazzo",
-			"surface": "tiled_floor",
+			"surface": "stone",
 			"variants": {
 				"wall_tile_white": {
 					"recipe": "tiles",
@@ -1179,7 +1268,7 @@
 		},
 		"ground": {
 			"is": "Roads and outdoor ground, Earth: asphalt after rain",
-			"surface": "road",
+			"surface": "asphalt",
 			"variants": {
 				"wet_asphalt": {
 					"recipe": "wet_asphalt",
@@ -1550,6 +1639,148 @@
 		"toolboard_outlines": {
 			"style": "drawn",
 			"from": "the toolboard's own tools (round six)"
+		},
+		"flat_poster_red": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"为祖国争光"
+			],
+			"ink": "sign-gold",
+			"font": "black"
+		},
+		"flat_calendar": {
+			"style": "calendar",
+			"month": "十月",
+			"ink": "ink-line",
+			"accent": "sign-red",
+			"panel": "foliage",
+			"font": "sans"
+		},
+		"flat_family_photo": {
+			"style": "drawn",
+			"by": "game/prologue/earth_site/flat_pictures/portrait.png, copied"
+		},
+		"couplet_left": {
+			"style": "hanzi",
+			"shape": "couplet",
+			"column": "春回大地千山秀",
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"couplet_right": {
+			"style": "hanzi",
+			"shape": "couplet",
+			"column": "日照神州百业兴",
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"couplet_top": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"国泰民安"
+			],
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"fu_luck": {
+			"style": "hanzi",
+			"shape": "square",
+			"lines": [
+				"福"
+			],
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"poster_moon_flight": {
+			"style": "hanzi",
+			"shape": "poster",
+			"lines": [
+				"飞向月球",
+				"建设人民的",
+				"月球基地"
+			],
+			"ink": "sign-red",
+			"font": "black",
+			"rule": true
+		},
+		"notice_residents": {
+			"style": "hanzi",
+			"shape": "poster",
+			"lines": [
+				"居民公约",
+				"爱护公物",
+				"保持清洁",
+				"邻里互助"
+			],
+			"ink": "ink-line",
+			"font": "serif",
+			"rule": true
+		},
+		"floor_3": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"三楼"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"floor_2": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"二楼"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"floor_1": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"一楼"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"floor_g": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"地下"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"lobby_sheets": {
+			"style": "hanzi_sheets",
+			"sheets": [
+				[
+					"通知",
+					6
+				],
+				[
+					"发射当晚",
+					5
+				],
+				[
+					"停水通知",
+					6
+				]
+			],
+			"ink": "ink-line",
+			"font": "sans"
+		},
+		"exit_sign": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"安全出口"
+			],
+			"ink": "beacon-ok",
+			"font": "black"
 		}
 	}
 }
