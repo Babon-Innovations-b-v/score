@@ -1,0 +1,102 @@
+{
+	"room": "campgrounds",
+	"place": "expedition_camp",
+	"frame": "the expedition camp's seat: x across, z along, y up from the ground; props only, no kit pieces",
+	"counts": {},
+	"kinds": {},
+	"models": {
+		"lander_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "campgrounds_lander",
+			"size": [
+				8.591,
+				19.0,
+				10.555
+			],
+			"children": []
+		},
+		"crane_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "campgrounds_crane",
+			"size": [
+				1.684,
+				3.2,
+				0.882
+			],
+			"children": []
+		},
+		"cargo_pallet_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "campgrounds_cargo_pallet",
+			"size": [
+				1.2,
+				0.155,
+				0.87
+			],
+			"children": []
+		},
+		"cargo_case_open_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "campgrounds_cargo_case_open",
+			"size": [
+				1.1,
+				0.914,
+				0.674
+			],
+			"children": []
+		},
+		"cargo_case_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "campgrounds_cargo_case",
+			"size": [
+				1.1,
+				0.676,
+				0.817
+			],
+			"children": []
+		},
+		"reactor_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "campgrounds_reactor",
+			"size": [
+				2.6,
+				2.509,
+				2.154
+			],
+			"children": []
+		},
+		"mast_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "campgrounds_mast",
+			"size": [
+				5.823,
+				12.0,
+				5.08
+			],
+			"children": []
+		},
+		"mast_1_glow": {
+			"glows": true,
+			"part_of": "mast_1"
+		},
+		"ground_cable_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "campgrounds_ground_cable",
+			"size": [
+				2.0,
+				0.05,
+				0.05
+			],
+			"children": []
+		}
+	},
+	"pieces": []
+}
