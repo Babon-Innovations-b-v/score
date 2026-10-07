@@ -1420,5 +1420,155 @@
 			"dirt_token": "regolith",
 			"picked": "coordinator: decades outside in lunar dust (job place, 2026-10-07)"
 		}
+	},
+	"lab": {
+		"name": "the lab",
+		"scenes": [
+			"lab"
+		],
+		"style": {
+			"version": 1,
+			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. The lab's mix leans dense cockpit at its two desks: each a working geology desk with a big white microscope, a small green-screened monitor and a beige analyser, while the walls stay worn industrial: bolted grey panels, gas lines with red hand wheels, a gauge panel and junction boxes; a glovebox cabinet and a drawer cabinet of samples stand on the side ledges; work lamps over the desks.",
+			"from": "the base theme (shared.theme) and the lab's picked concept K06 (concepts-world1/lab)",
+			"picked": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up): the picked concept's mix within the base theme"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"steel",
+				"roof-steel",
+				"deck",
+				"hull-trim",
+				"rubber",
+				"cabin-panel",
+				"screen-teal",
+				"screen-amber",
+				"lamp",
+				"room-fill",
+				"glass"
+			],
+			"accents": [
+				"hazard",
+				"alarm",
+				"board-wood",
+				"cabin-seat",
+				"sign-white",
+				"idle"
+			],
+			"accents_are": "the airlock's hazard border, small red valve wheels and status lights, the tool board's timber and the chairs' seat covers; the microscopes' white enamel and the keys' and casings' grey plastic"
+		},
+		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			},
+			"enamel_white": {
+				"token": "sign-white",
+				"library": "enamel_white"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"cast_steel": {
+				"token": "roof-steel",
+				"library": "cast_steel"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: two ceiling floods, a task lamp over each desk, strip lamps over the hatches",
+			"read_by": "the lab's kit layout (data/kit/lab.json)"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.4,
+			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
+		}
 	}
 }

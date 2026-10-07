@@ -674,5 +674,85 @@
 			{"at": [0.0, 1.05], "size": [0.5, 0.12], "variant": "label_keep_out"}
 		],
 		"wall": 0.012
+	},
+	"lab_desk": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+	},
+	"lab_desk_chair": {
+		"screens": [],
+		"cuts": [],
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+	},
+	"lab_sample_store": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"decals": [
+			{"at": [-0.18, 0.55], "size": [0.24, 0.06], "variant": "label_samples"}
+		]
+	},
+	"lab_microscope": {
+		"screens": [],
+		"cuts": [],
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0]
+	},
+	"lab_instrument_unit": {
+		"screens": [],
+		"cuts": [],
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0]
+	},
+	"lab_desk_keyboard": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0]
+	},
+	"lab_sample_tray": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+	},
+	"lab_gauge_panel": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"decals": []
+	},
+	"lab_junction_box": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"decals": []
+	},
+	"lab_fire_extinguisher": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0]
+	},
+	"lab_task_lamp": {
+		"screens": [],
+		"cuts": [],
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+	},
+	"lab_ceiling_lamp": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+	},
+	"lab_glovebox_cabinet": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"decals": [
+			{"at": [0.04, 0.35], "size": [0.22, 0.06], "variant": "label_glovebox"}
+		]
+	},
+	"lab_desk_monitor": {
+		"screens": [
+			{"at": [0.0, 0.215], "size": [0.25, 0.18], "variant": "screen"}
+		],
+		"cuts": [],
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
 	}
 }

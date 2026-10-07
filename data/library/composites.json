@@ -1479,5 +1479,97 @@
 				"turn": 0.0
 			}
 		]
+	},
+	"lab_desk": {
+		"children": [
+			{
+				"kind": "lab_microscope",
+				"at": [
+					0.48,
+					0.76,
+					0.08
+				],
+				"size": [
+					0.34,
+					0.62,
+					0.39
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "lab_desk_monitor",
+				"at": [
+					0.0,
+					0.76,
+					0.17
+				],
+				"size": [
+					0.36,
+					0.36,
+					0.33
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "lab_instrument_unit",
+				"at": [
+					-0.44,
+					0.76,
+					0.08
+				],
+				"size": [
+					0.5,
+					0.42,
+					0.48
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "lab_desk_keyboard",
+				"at": [
+					0.0,
+					0.76,
+					-0.21
+				],
+				"size": [
+					0.44,
+					0.05,
+					0.2
+				],
+				"turn": 0.0
+			}
+		]
+	},
+	"lab_sample_store": {
+		"children": [
+			{
+				"kind": "lab_sample_tray",
+				"at": [
+					0.29,
+					1.0,
+					0.0
+				],
+				"size": [
+					0.45,
+					0.07,
+					0.32
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "lab_sample_tray",
+				"at": [
+					-0.29,
+					1.0,
+					0.02
+				],
+				"size": [
+					0.45,
+					0.07,
+					0.32
+				],
+				"turn": 4.0
+			}
+		]
 	}
 }
