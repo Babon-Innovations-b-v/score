@@ -1200,5 +1200,225 @@
 			"dirt": 0.4,
 			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
 		}
+	},
+	"old_station": {
+		"name": "the old station",
+		"scenes": [
+			"old_station"
+		],
+		"style": {
+			"version": 1,
+			"text": "The first south-pole station on the Moon, built in the 2030s from real engineering of that decade and kept going 65 years later by one old caretaker: landed cylindrical modules on their own legs joined by walkway tubes, gold and silver thermal blankets faded, torn and patched, plain white painted hulls, regolith sandbags on roofs and under tubes, tall vertical solar masts, a dish on a mast, a docked six-wheeled rover. Everything matte and covered in fine grey dust, one window lit warm, low raking sun and black sky.",
+			"from": "the concept step's pick (job place, 2026-10-07)",
+			"picked": "coordinator's pick, owner may change (2026-10-07)"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"hull",
+				"steel",
+				"regolith",
+				"solar-panel",
+				"rubber",
+				"cabin-panel",
+				"glass",
+				"deck",
+				"roof-steel"
+			],
+			"accents": [
+				"crop-stubble",
+				"window-lit"
+			],
+			"accents_are": "lit window and lamp, gold foil"
+		},
+		"materials": {
+			"hull_white_old": {
+				"token": "hull",
+				"library": "hull_white_old"
+			},
+			"mli_gold": {
+				"token": "crop-stubble",
+				"library": "mli_gold"
+			},
+			"mli_silver": {
+				"token": "steel",
+				"library": "mli_silver"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "hull",
+				"library": "pipe_steel"
+			},
+			"regolith_bag": {
+				"token": "regolith",
+				"library": "regolith_bag"
+			},
+			"solar_cell": {
+				"token": "solar-panel",
+				"library": "solar_cell"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"chequer_plate_deck": {
+				"token": "deck",
+				"library": "chequer_plate_deck"
+			},
+			"galvanized_dull": {
+				"token": "roof-steel",
+				"library": "galvanized_dull"
+			},
+			"lamp_lens": {
+				"token": "window-lit",
+				"library": "lamp_lens"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: the Moon's sun and sky (game/world/sky); one warm lamp of the place's own",
+			"read_by": "game/world/old_station"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "TMP/playtest3/moonground2/station/C4.png",
+					"said": "C4, lander-derived (coordinator's pick)"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "clean new hardware with no dust"
+				},
+				{
+					"picture": "",
+					"said": "labels or agency logos"
+				}
+			]
+		},
+		"wear": {
+			"level": "worn",
+			"dirt": 0.6,
+			"dirt_token": "regolith",
+			"picked": "coordinator: decades outside in lunar dust (job place, 2026-10-07)"
+		}
+	},
+	"wreck": {
+		"name": "the wreck",
+		"scenes": [
+			"wreck"
+		],
+		"style": {
+			"version": 1,
+			"text": "The rocket the player rode from Earth in 2099, crashed on its side on the Moon and broken in two: white and grey painted aluminium skin, steel engine bell and landing legs, torn edges, ring frames and cables at the break, scorched paint, gold foil torn loose, wreckage thrown round it into its own burn in the grey regolith; a work lamp still burning in the break. Low raking sun, black sky.",
+			"from": "the concept step's pick (job place, 2026-10-07)",
+			"picked": "coordinator's pick, owner may change (2026-10-07)"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"hull",
+				"steel",
+				"line",
+				"rubber",
+				"glass",
+				"cabin-panel",
+				"roof-steel"
+			],
+			"accents": [
+				"sign-gold",
+				"lamp"
+			],
+			"accents_are": "lit window and lamp, gold foil"
+		},
+		"materials": {
+			"hull_white_scorched": {
+				"token": "hull",
+				"library": "hull_white_scorched"
+			},
+			"hull_white_old": {
+				"token": "hull",
+				"library": "hull_white_old"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"cast_iron_dark": {
+				"token": "line",
+				"library": "cast_iron_dark"
+			},
+			"mli_gold": {
+				"token": "sign-gold",
+				"library": "mli_gold"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"roof_steel_paint": {
+				"token": "roof-steel",
+				"library": "roof_steel_paint"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: the Moon's sun and sky (game/world/sky); one warm lamp of the place's own",
+			"read_by": "game/world/wreck"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "TMP/playtest3/moonground2/wreck/C2.png",
+					"said": "C2, broken in two (coordinator's pick)"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "clean new hardware with no dust"
+				},
+				{
+					"picture": "",
+					"said": "labels or agency logos"
+				}
+			]
+		},
+		"wear": {
+			"level": "worn",
+			"dirt": 0.6,
+			"dirt_token": "regolith",
+			"picked": "coordinator: decades outside in lunar dust (job place, 2026-10-07)"
+		}
 	}
 }

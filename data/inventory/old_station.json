@@ -1,0 +1,617 @@
+{
+ "scene": "old_station",
+ "place": "old_station",
+ "plan": {
+  "world": "",
+  "seed": 0,
+  "views": [
+   {
+    "id": "v1",
+    "picture": "WORK/scene/old_station/views/C4.png"
+   }
+  ]
+ },
+ "approved": "2026-10-07, the owner's rule for world 1 (WORLD 1 SCALE-UP): build every place without stopping for review between places, the owner reviews everything at the end; concept C4 is the coordinator's pick, owner may change",
+ "migrated": "",
+ "room": {
+  "shell": "",
+  "light": "place",
+  "backdrop": "",
+  "wall_fill": [],
+  "layout": {
+   "frame": "x east, z south, y up, from the yard's middle",
+   "on_seat": [
+    -65.0,
+    -2.0
+   ]
+  }
+ },
+ "rows": [
+  {
+   "id": "hab_lander",
+   "view": "v1",
+   "box": [
+    1280,
+    385,
+    2009,
+    1121
+   ],
+   "name": "lived-in lander module: a vertical cylinder 4.5 m across on four legs, gold and silver foil, bags on its roof, a ladder up to its hatch, two portholes, one lit",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    7.0,
+    7.0,
+    7.2
+   ],
+   "count": 1,
+   "thing": "prop:old_station_hab_lander",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 0.0,
+     "z": 0.0,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "The caretaker's home: the one module still heated and lit. C4's middle module."
+  },
+  {
+   "id": "first_module",
+   "view": "v1",
+   "box": [
+    83,
+    647,
+    688,
+    1053
+   ],
+   "name": "the station's first module: a horizontal cylinder 4.2 m across and 6.5 m long on cradles, its foil torn and its hull holed, abandoned",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    6.5,
+    4.2,
+    4.5
+   ],
+   "count": 1,
+   "thing": "prop:old_station_first_module",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 0.0,
+     "z": 8.5,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "The 2030s first module, holed and stripped for spares: C4's torn module."
+  },
+  {
+   "id": "lab_module",
+   "view": "v1",
+   "box": [
+    2133,
+    592,
+    2621,
+    949
+   ],
+   "name": "shut lab module: a white horizontal cylinder 4.2 m across and 6.5 m long on cradles, dusty, its hatch closed",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    6.5,
+    4.2,
+    4.5
+   ],
+   "count": 1,
+   "thing": "prop:old_station_lab_module",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 0.0,
+     "z": -8.5,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "Closed to save power over the long emergency: C4's white module."
+  },
+  {
+   "id": "rover",
+   "view": "v1",
+   "box": [
+    681,
+    530,
+    998,
+    736
+   ],
+   "name": "six-wheeled pressurised rover 6 m long, docked tail-first to the walkway tube",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    3.4,
+    6.0,
+    3.4
+   ],
+   "count": 1,
+   "thing": "prop:old_station_rover",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": -7.7,
+     "z": 0.0,
+     "y": 0.0,
+     "facing": 270
+    }
+   ],
+   "why": "His way to the ice, the reactor and the other base; his lifeboat."
+  },
+  {
+   "id": "solar_mast",
+   "view": "v1",
+   "box": [
+    1149,
+    131,
+    1328,
+    695
+   ],
+   "name": "vertical solar array mast 14 m tall: a lattice mast on a tripod foot with a 2 m by 10 m solar blanket hung from 8 m up",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    3.0,
+    3.0,
+    14.0
+   ],
+   "count": 1,
+   "thing": "prop:old_station_solar_mast",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": -8.0,
+     "z": 7.5,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "The sun skims the horizon at the pole, so the array stands tall and turns."
+  },
+  {
+   "id": "solar_mast_dead",
+   "view": "v1",
+   "box": [
+    1149,
+    131,
+    1328,
+    695
+   ],
+   "name": "dead vertical solar mast 12 m tall: the same mast with its blanket stuck half folded and hanging slack",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    3.0,
+    3.0,
+    12.0
+   ],
+   "count": 1,
+   "thing": "prop:old_station_solar_mast_dead",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": -9.0,
+     "z": -8.0,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "The second array, its drive failed, left standing."
+  },
+  {
+   "id": "comms_mast",
+   "view": "v1",
+   "box": [
+    1947,
+    151,
+    2098,
+    722
+   ],
+   "name": "comms mast 8 m tall on a braced foot with a 2 m dish antenna and a whip antenna",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    2.2,
+    2.2,
+    8.0
+   ],
+   "count": 1,
+   "thing": "prop:old_station_comms_mast",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": -4.5,
+     "z": -9.5,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "The caretaker's one voice: a dish on Earth, a whip for surface radio."
+  },
+  {
+   "id": "radiator",
+   "view": "v1",
+   "box": [
+    1823,
+    585,
+    1975,
+    764
+   ],
+   "name": "flat heat radiator: a 6 m by 2.4 m panel of fins facing the sky on short legs",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    6.0,
+    2.4,
+    1.4
+   ],
+   "count": 1,
+   "thing": "prop:old_station_radiator",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 6.2,
+     "z": -8.0,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "Dumps the lived-in module's heat; flat to the sky, never sees the sun."
+  },
+  {
+   "id": "power_unit",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "battery and power switching cabinet with vents and a door",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    2.4,
+    1.4,
+    1.6
+   ],
+   "count": 1,
+   "thing": "prop:old_station_power_unit",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": -4.2,
+     "z": 5.2,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "Takes the solar mast and the reactor line, feeds the module through the night."
+  },
+  {
+   "id": "parts_rack",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "open steel shelf rack 3 m long",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    3.0,
+    1.0,
+    1.8
+   ],
+   "count": 1,
+   "thing": "prop:old_station_parts_rack",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 7.5,
+     "z": 5.0,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "His repair stock, by the way in."
+  },
+  {
+   "id": "bag_pile",
+   "view": "v1",
+   "box": [
+    1362,
+    1025,
+    1658,
+    1149
+   ],
+   "name": "low pile of regolith sandbags",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    1.8,
+    1.4,
+    1.0
+   ],
+   "count": 5,
+   "thing": "prop:old_station_bag_pile",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 0.0,
+     "z": 3.8,
+     "y": 0.0,
+     "facing": 90
+    },
+    {
+     "x": 0.0,
+     "z": -3.8,
+     "y": 0.0,
+     "facing": 90
+    },
+    {
+     "x": -3.35,
+     "z": 0.0,
+     "y": 0.0,
+     "facing": 0
+    },
+    {
+     "x": 3.0,
+     "z": 6.0,
+     "y": 0.0,
+     "facing": 30
+    },
+    {
+     "x": -3.2,
+     "z": -2.6,
+     "y": 0.0,
+     "facing": 70
+    }
+   ],
+   "why": "Bags under each walkway tube, holding it, and spare piles."
+  },
+  {
+   "id": "bag_stack",
+   "view": "v1",
+   "box": [
+    1362,
+    1025,
+    1658,
+    1149
+   ],
+   "name": "neat stack of filled regolith sandbags",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    2.0,
+    1.2,
+    1.2
+   ],
+   "count": 1,
+   "thing": "prop:old_station_bag_stack",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 8.0,
+     "z": 2.2,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "Filled bags ready to patch the cover."
+  },
+  {
+   "id": "spare_wheel",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "spare rover wheel with a wire-mesh tyre, leaning on the rack",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    0.9,
+    0.35,
+    0.9
+   ],
+   "count": 1,
+   "thing": "prop:old_station_spare_wheel",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 8.3,
+     "z": 7.0,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "A wheel taken off for spares, by the rack."
+  },
+  {
+   "id": "walkway_tube",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "walkway tube between modules",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    3.6,
+    1.8,
+    1.8
+   ],
+   "count": 3,
+   "thing": "prop:old_station_walkway_tube",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 0.0,
+     "z": 3.8,
+     "y": 1.1,
+     "length": 3.6,
+     "facing": 90.0
+    },
+    {
+     "x": 0.0,
+     "z": -3.8,
+     "y": 1.1,
+     "length": 3.6,
+     "facing": -90.0
+    },
+    {
+     "x": -3.35,
+     "z": 0.0,
+     "y": 1.1,
+     "length": 2.7,
+     "facing": 180.0
+    }
+   ],
+   "why": "Joins the modules (pipe_straight)."
+  },
+  {
+   "id": "apron",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "dust apron of chequer plates in front of the ladder",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    2.6,
+    4.0,
+    0.04
+   ],
+   "count": 1,
+   "thing": "prop:old_station_apron",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": 4.9,
+     "z": 0.0,
+     "y": 0.0,
+     "facing": 90
+    }
+   ],
+   "why": "Where suits are brushed before the hatch; the path arrives here (pit_floor_plate laid flat)."
+  },
+  {
+   "id": "cable_run",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "power and signal cables lying on the ground",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    1.0,
+    0.12,
+    0.06
+   ],
+   "count": 7,
+   "thing": "prop:old_station_cable_run",
+   "made": "made by the route",
+   "at": [
+    {
+     "x": -6.1,
+     "z": 6.2,
+     "y": 0.0,
+     "length": 3.847,
+     "facing": -9.0
+    },
+    {
+     "x": -9.5,
+     "z": 3.5,
+     "y": 0.0,
+     "length": 7.0,
+     "facing": 0.0
+    },
+    {
+     "x": -5.6,
+     "z": 4.0,
+     "y": 0.0,
+     "length": 1.281,
+     "facing": 51.30000000000001
+    },
+    {
+     "x": -2.1,
+     "z": 3.8,
+     "y": 0.0,
+     "length": 3.0,
+     "facing": -53.1
+    },
+    {
+     "x": -3.55,
+     "z": -6.4,
+     "y": 0.0,
+     "length": 4.793,
+     "facing": 66.6
+    },
+    {
+     "x": -2.0,
+     "z": -3.2,
+     "y": 0.0,
+     "length": 2.332,
+     "facing": 59.0
+    },
+    {
+     "x": 3.55,
+     "z": -4.3,
+     "y": 0.0,
+     "length": 5.547,
+     "facing": 124.0
+    }
+   ],
+   "why": "Between the masts, the power unit and the modules (cable_bundle laid on its back)."
+  },
+  {
+   "id": "gas_bottle",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "pressure bottle with a valve, lying",
+   "kind": "generate",
+   "anchor": "on:parts_rack",
+   "size": [
+    1.1,
+    0.35,
+    0.35
+   ],
+   "count": 1,
+   "thing": "prop:old_station_gas_bottle",
+   "made": "made by the route",
+   "at": [],
+   "why": "on the parts rack",
+   "parent": "parts_rack"
+  }
+ ]
+}

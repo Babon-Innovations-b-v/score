@@ -465,5 +465,167 @@
 		"screens": [],
 		"cuts": [],
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+	},
+	"old_station_hab_lander": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_first_module": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_lab_module": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_rover": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_solar_mast": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_solar_mast_dead": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_comms_mast": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_radiator": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_power_unit": {
+		"turn": [0.065403, 0.0, -0.997859, 0.0, 1.0, 0.0, 0.997859, 0.0, 0.065403],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_parts_rack": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_bag_pile": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_bag_stack": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_spare_wheel": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_gas_bottle": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_aft_section": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_forward_section": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_work_lamp": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_hull_panel": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_small_panel": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_pressure_sphere": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_foil_blanket": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_access_cover": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_leg_strut": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_leg_foot": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_ring_frame": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_tank_dome": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_fragment": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"square": false
 	}
 }

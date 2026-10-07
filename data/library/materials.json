@@ -332,6 +332,13 @@
 					"roughness": 0.45,
 					"bump": 0.0006,
 					"bump_size": 0.01
+				},
+				"hull_white_scorched": {
+					"recipe": "painted_metal",
+					"token": "hull",
+					"roughness": 0.6,
+					"wear_scale": 2.2,
+					"bump": 0.0006
 				}
 			}
 		},
@@ -696,6 +703,13 @@
 					"roughness": 0.7,
 					"bump": 0.0002,
 					"bump_size": 0.01
+				},
+				"regolith_bag": {
+					"recipe": "rubber",
+					"token": "regolith",
+					"roughness": 0.92,
+					"bump": 0.0006,
+					"bump_size": 0.004
 				}
 			}
 		},
@@ -719,6 +733,11 @@
 					"token": "flat-wall",
 					"second": "cabin-seam",
 					"weave": 0.01
+				},
+				"solar_cell": {
+					"recipe": "glass",
+					"token": "solar-panel",
+					"roughness": 0.18
 				}
 			}
 		},
@@ -1612,6 +1631,28 @@
 					"bump": 0.0001,
 					"bump_size": 0.03,
 					"said": "the lander's brushed stainless skin (private-company ship ref)"
+				}
+			}
+		},
+		"foil": {
+			"is": "Thermal blankets outside on the Moon: multi-layer insulation foil, crinkled (job place, 2026-10-07: the old station and the wreck)",
+			"surface": "steel_plate",
+			"variants": {
+				"mli_gold": {
+					"recipe": "anodized",
+					"token": "sign-gold",
+					"roughness": 0.42,
+					"metal": 0.55,
+					"bump": 0.0006,
+					"bump_size": 0.03
+				},
+				"mli_silver": {
+					"recipe": "anodized",
+					"token": "steel",
+					"roughness": 0.36,
+					"metal": 0.6,
+					"bump": 0.0006,
+					"bump_size": 0.03
 				}
 			}
 		}
