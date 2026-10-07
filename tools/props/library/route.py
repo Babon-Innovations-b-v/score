@@ -51,10 +51,14 @@ COMPOSITES = REPO / "data/library/composites.json"
 # above the walkway.
 NEAR = 1024
 FAR = 512
+# Scenery seen only from afar (the prologue build, 2026-10-07: the square, the launch pad and the city round them are
+# 10 to 300 m from the balcony): a kind whose own name starts with DISTANT_PREFIX takes DISTANT texels a metre.
+DISTANT = 128
+DISTANT_PREFIX = "far_"
 REACH_HIGH = 1.8
 PIT_DEEP = 0.9  # hub_kit.PIT_DEEP: the pit's floor under the walkway
 SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR,
-               "fittings": NEAR}
+               "fittings": NEAR, "distant": DISTANT}
 # The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
 # shared set is planned to fill, leaving room for packing, print drawn sharp and the faces a box's estimate misses (both
 # sides of an open box's thin walls: planned at 0.7, a floor set came out 1% past the cap, 2026-10-07).
@@ -69,7 +73,8 @@ CHUNKY_FACES = 19000  # triangles: a prop's furniture budget is 20,000 (asset_ch
 SMALLEST_FACES = 5000
 SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share a model
 # Code-built kinds by the picture set they share, by the start of their name; the rest are wall gear and doors.
-ATLASES = (("fittings", ("hatch_", "porthole_panel", "wall_lower_vent", "notice_board")),  # method B's room fittings
+ATLASES = (("distant", (DISTANT_PREFIX,)),
+           ("fittings", ("hatch_", "porthole_panel", "wall_lower_vent", "notice_board")),  # method B's room fittings
            ("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
            ("walls_low", ("wall_lower", "wall_skirting", "wall_corner")),
@@ -183,8 +188,11 @@ def plan(layout, takes, inventory=None):
             models[name] = {"kind": kind, "route": route, "size": [float(value) for value in laid["size"]],
                             "laid": extra, "atlas": atlas_of(own_name(kind)) if route == "code" else name,
                             "near": False}
-        models[by_key[key]]["near"] |= middle_high(laid) < REACH_HIGH
-        models[by_key[key]]["foot"] = min(models[by_key[key]].get("foot", 99.0), foot_of(laid["at"][1]))
+        # A layout may say a piece is near or not and where its foot stands, where its height over the room's one
+        # walkway cannot (the prologue build: a stairwell's landings, a street's facades).
+        models[by_key[key]]["near"] |= laid.get("near", middle_high(laid) < REACH_HIGH)
+        models[by_key[key]]["foot"] = min(models[by_key[key]].get("foot", 99.0),
+                                          laid.get("foot", foot_of(laid["at"][1])))
         pieces.append(by_key[key])
     models.update(furniture(inventory) if inventory is not None else {})
     missing = sorted({entry["kind"] for entry in models.values()
@@ -219,7 +227,7 @@ def jobs(planned, takes, work, place):
         # as the kind's few decals, placed on purpose (details.json `decals`).
         chunky.append({"name": name, "parts": str(takes[own_name(entry["kind"])]),
                        "base": own["turn"], "size": entry["size"], "screens": own.get("screens", []),
-                       "cuts": own.get("cuts", []), "density": NEAR if entry.get("near", True) else FAR,
+                       "cuts": own.get("cuts", []), "density": density_of(entry),
                        "decals": own.get("decals", []), "foot": entry.get("foot"), "faces": faces_for(entry["size"])})
     if chunky:
         found["chunky"] = {"script": "make_chunky.py", "out": str(work / "made"), "report": "report-chunky.json",
@@ -227,6 +235,13 @@ def jobs(planned, takes, work, place):
                            "wear": wear, "dirt": dirt, "seed": 3, "faces": CHUNKY_FACES, "specs": specs,
                            "chunky": chunky}
     return found
+
+
+def density_of(entry):
+    """A generated piece's texels a metre: DISTANT for scenery seen only from afar, else NEAR or FAR by its reach."""
+    if own_name(entry["kind"]).startswith(DISTANT_PREFIX):
+        return DISTANT
+    return NEAR if entry.get("near", True) else FAR
 
 
 def foot_of(high):
@@ -649,7 +664,9 @@ def main():
         inventory = json.loads((REPO / f"data/inventory/{layout.get('room', 'hub')}.json").read_text())
         planned = plan(layout, takes, inventory)
         (work / "plan.json").write_text(json.dumps(planned, indent=1))
-        for name, job in jobs(planned, takes, work, layout.get("room", "hub")).items():
+        # A room's place (its wear and library surfaces, data/definitions/place.json) is its own name unless the layout
+        # names another (the prologue's rooms: `flat` in the place `prologue_flat`).
+        for name, job in jobs(planned, takes, work, layout.get("place", layout.get("room", "hub"))).items():
             (work / f"job-{name}.json").write_text(json.dumps(job, indent=1))
             print(name, len(job.get("pieces", job.get("chunky", []))))
         routes = [entry["route"] for entry in planned["models"].values()]

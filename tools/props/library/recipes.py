@@ -287,10 +287,121 @@ def printed(colour, roughness, image):
     return Channels(base, roughness, 0.0, BLACK, None)
 
 
+# Earth's surfaces (the prologue build, 2026-10-07: Hong Kong 2099 public housing at night): paint on plaster, tiles,
+# terrazzo, painted floorboards, paint over rust and wet asphalt. Each wears from a cause, as the base's do: edges and
+# corners chip, feet scuff the foot of a wall or a piece (kick_mask), feet wear a floor's paint, rain rusts steel.
+
+
+def lumpy_relief(vector, bump, bump_size, seed):
+    """Rendered plaster's soft lumps and trowel marks: a low noise, no grain."""
+    lumps = pf.nodes.texture.noise(vector=vector, scale=1.0 / bump_size, detail=3.0, noise_dimensions="4D", w=seed)
+    return pf.nodes.shader.displacement(height=(lumps.fac - 0.5) * bump, midlevel=0.0)
+
+
+def painted_plaster(colour, bare, dirt_colour, roughness, bare_roughness, bump, bump_size, edge_width, breakup_scale,
+                    dirt_reach, wear, dirt, seed, foot):
+    """Whitewash or gloss paint on rendered plaster: chipped to the bare render on edges and corners and scuffed where
+    feet kick the foot of the wall, dirty in the cavities."""
+    vector = coordinates()
+    kicked = kick_mask(vector, foot, wear, breakup_scale, seed)
+    wear_mask = pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked)
+    dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5)
+    base, rough, shine = layered((colour, roughness, 0.0), (bare, bare_roughness, 0.0), wear_mask, dirt_colour, dirty)
+    chipped = pf.nodes.shader.displacement(height=wear_mask * -0.0008, midlevel=0.0)
+    return Channels(base, rough, shine, BLACK, lumpy_relief(vector, bump, bump_size, seed) + chipped)
+
+
+def face_joints(vector, across_pitch, up_pitch, joint):
+    """Where a grid of `across_pitch` by `up_pitch` cells on the surface's own plane has its joints, `joint` metres
+    wide: 1 in a joint, 0 on a cell."""
+    across, upward = face_plane(vector)
+    side = pf.nodes.math.fraction(across / across_pitch)
+    rise = pf.nodes.math.fraction(upward / up_pitch)
+    near_side = pf.nodes.math.minimum(side, 1.0 - side) * across_pitch
+    near_rise = pf.nodes.math.minimum(rise, 1.0 - rise) * up_pitch
+    return pf.nodes.math.less_than(pf.nodes.math.minimum(near_side, near_rise), joint * 0.5)
+
+
+def tiles(colour, second, dirt_colour, roughness, pitch, grout, bump, dirt_reach, dirt, seed):
+    """Glazed square tiles in grout: the tiles glossy, the grout matt, sunk and dirtier."""
+    vector = coordinates()
+    joint = face_joints(vector, pitch, pitch, grout)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=joint, a=base, b=second)
+    rough = pf.nodes.math.mix(a=rough, b=0.85, factor=joint)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=joint * -bump, midlevel=0.0))
+
+
+def terrazzo(colour, second, dirt_colour, roughness, chip_size, chip_share, contrast, dirt_reach, dirt, seed):
+    """Terrazzo: stone chips set in a ground and polished flat, each chip a little lighter or darker."""
+    vector = coordinates()
+    cells = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / chip_size, voronoi_dimensions="4D", w=seed)
+    chip = pf.nodes.math.less_than(cells.distance, chip_share)
+    shade = pf.nodes.color.rgb_to_bw(cells.color)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=chip * (0.4 + shade * contrast), a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, None)
+
+
+def boards(colour, bare, second, dirt_colour, roughness, bare_roughness, board_width, gap, bump, wear,
+           breakup_scale, dirt_reach, dirt, seed):
+    """Painted floorboards: boards `board_width` across with dark gaps, the paint worn through to the timber in long
+    patches along the boards where feet go, as far as the place's wear, dirt in the gaps."""
+    vector = coordinates()
+    across, upward = face_plane(vector)
+    side = pf.nodes.math.fraction(across / board_width)
+    in_gap = pf.nodes.math.less_than(pf.nodes.math.minimum(side, 1.0 - side) * board_width, gap * 0.5)
+    stretched = pf.nodes.math.combine_xyz(x=across * 3.0, y=upward * 0.4, z=0.0)
+    patches = pf.nodes.texture.noise(vector=stretched, scale=breakup_scale, detail=3.0, noise_dimensions="4D", w=seed)
+    worn = pf.nodes.math.map_range(value=patches.fac, from_min=0.76 - 0.22 * wear, from_max=0.8 - 0.22 * wear,
+                                   interpolation_type="SMOOTHSTEP") * pf.nodes.math.greater_than(wear, 0.001)
+    dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), in_gap * dirt)
+    base, rough, _ = layered((colour, roughness, 0.0), (bare, bare_roughness, 0.0), worn, dirt_colour, dirty)
+    base = pf.nodes.color.mix_rgb(factor=in_gap, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=in_gap * -bump, midlevel=0.0))
+
+
+def rusted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bump, bump_size, edge_width,
+                 breakup_scale, dirt_reach, wear, dirt, seed, foot):
+    """Paint on mild steel outdoors: rust on the edges, in blooms where the paint let the rain in and where feet kick
+    it, as far as the place's wear; rust is matt and dark, pitted, never shiny."""
+    vector = coordinates()
+    blooms = pf.nodes.texture.noise(vector=vector, scale=breakup_scale * 2.0, detail=4.0, noise_dimensions="4D",
+                                    w=seed + 7.0)
+    bloomed = pf.nodes.math.map_range(value=blooms.fac, from_min=0.72 - 0.3 * wear, from_max=0.78 - 0.3 * wear,
+                                      interpolation_type="SMOOTHSTEP") * pf.nodes.math.greater_than(wear, 0.001)
+    rusted = pf.nodes.math.maximum(pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed),
+                                                         bloomed), kick_mask(vector, foot, wear, breakup_scale, seed))
+    dirty = dirt_mask(vector, dirt, dirt_reach, seed)
+    base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 0.0), rusted, dirt_colour, dirty)
+    pits = pf.nodes.texture.noise(vector=vector, scale=1.0 / bump_size, detail=3.0, noise_dimensions="4D", w=seed)
+    relief = pf.nodes.shader.displacement(height=(pits.fac - 0.5) * bump * rusted - rusted * 0.0003, midlevel=0.0)
+    return Channels(base, rough, shine, BLACK, relief)
+
+
+def wet_asphalt(colour, second, dirt_colour, roughness, wet_roughness, chip_size, contrast, wet_share, bump,
+                dirt_reach, dirt, seed):
+    """Asphalt after rain: dark aggregate in a darker binder, puddles lying flat and glossy in the low places."""
+    vector = coordinates()
+    cells = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / chip_size, voronoi_dimensions="4D", w=seed)
+    shade = pf.nodes.color.rgb_to_bw(cells.color)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=shade * contrast, a=base, b=second)
+    pools = pf.nodes.texture.noise(vector=vector, scale=0.35, detail=2.0, noise_dimensions="4D", w=seed + 5.0)
+    wet = pf.nodes.math.map_range(value=pools.fac, from_min=1.0 - wet_share - 0.03, from_max=1.0 - wet_share + 0.03,
+                                  interpolation_type="SMOOTHSTEP")
+    rough = pf.nodes.math.mix(a=rough, b=wet_roughness, factor=wet)
+    base = pf.nodes.color.mix_rgb(factor=wet * 0.35, a=base, b=pf.Color(BLACK))
+    relief = pf.nodes.shader.displacement(height=(1.0 - cells.distance) * bump * (1.0 - wet), midlevel=0.0)
+    return Channels(base, rough, 0.0, BLACK, relief)
+
+
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
            "anodized": anodized, "rubber": rubber, "quilted": quilted, "composite": composite, "glass": glass,
-           "glowing": glowing, "screen": screen, "printed": printed, "wood": wood}
+           "glowing": glowing, "screen": screen, "printed": printed, "wood": wood,
+           "painted_plaster": painted_plaster, "tiles": tiles, "terrazzo": terrazzo, "boards": boards,
+           "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt}
 # Where each recipe starts from, for the page and the paper (the coordinator, 2026-10-06).
 SOURCES = {
     "painted_metal": "infinigen2 paint.py (relief, BSD-3) + edgewear.py's bevel test (ported, new threshold band)"
@@ -310,6 +421,12 @@ SOURCES = {
     "printed": "written new: a picture printed on a colour",
     "wood": "written new (soft stretched-noise relief, flat colour) + the library's dirt; its grain comes from the "
             "piece's picture layer",
+    "painted_plaster": "painted_metal's edge wear, kick wear and layering over a bare render + new lumpy relief",
+    "tiles": "written new (joint grid on the surface's plane) + the library's dirt",
+    "terrazzo": "written new (voronoi chips) + the library's dirt",
+    "boards": "written new (board gaps, foot-worn patches stretched along the boards) + the library's layering",
+    "rusted_metal": "painted_metal's edge and kick wear + new rust blooms and pits",
+    "wet_asphalt": "written new (voronoi aggregate, puddle noise) + the library's dirt",
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
@@ -328,6 +445,12 @@ PARTS = {
     "screen": (screen, picture_on),
     "printed": (printed, picture_on),
     "wood": (wood, coordinates, dirty_flat, dirt_mask),
+    "painted_plaster": (painted_plaster, coordinates, edge_wear_mask, kick_mask, dirt_mask, lumpy_relief, layered),
+    "tiles": (tiles, coordinates, face_plane, face_joints, dirty_flat, dirt_mask),
+    "terrazzo": (terrazzo, coordinates, dirty_flat, dirt_mask),
+    "boards": (boards, coordinates, face_plane, dirt_mask, layered),
+    "rusted_metal": (rusted_metal, coordinates, edge_wear_mask, kick_mask, dirt_mask, layered),
+    "wet_asphalt": (wet_asphalt, coordinates, dirty_flat, dirt_mask),
 }
 COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 

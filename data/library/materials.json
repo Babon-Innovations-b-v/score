@@ -99,6 +99,64 @@
 			"bump": 0.0005,
 			"bump_size": 0.01,
 			"dirt_reach": 0.05
+		},
+		"painted_plaster": {
+			"bare": "concrete",
+			"roughness": 0.8,
+			"bare_roughness": 0.9,
+			"bump": 0.0005,
+			"bump_size": 0.03,
+			"edge_width": 0.008,
+			"breakup_scale": 6.0,
+			"dirt_reach": 0.1
+		},
+		"tiles": {
+			"second": "concrete",
+			"roughness": 0.25,
+			"pitch": 0.15,
+			"grout": 0.004,
+			"bump": 0.0006,
+			"dirt_reach": 0.05
+		},
+		"terrazzo": {
+			"second": "flat-wall",
+			"roughness": 0.35,
+			"chip_size": 0.008,
+			"chip_share": 0.4,
+			"contrast": 0.5,
+			"dirt_reach": 0.06
+		},
+		"boards": {
+			"bare": "board-wood",
+			"second": "ink-line",
+			"roughness": 0.6,
+			"bare_roughness": 0.75,
+			"board_width": 0.12,
+			"gap": 0.004,
+			"bump": 0.0006,
+			"breakup_scale": 1.2,
+			"dirt_reach": 0.05
+		},
+		"rusted_metal": {
+			"bare": "rust",
+			"roughness": 0.5,
+			"bare_roughness": 0.9,
+			"metal": 0.2,
+			"bump": 0.0005,
+			"bump_size": 0.012,
+			"edge_width": 0.006,
+			"breakup_scale": 5.0,
+			"dirt_reach": 0.06
+		},
+		"wet_asphalt": {
+			"second": "concrete",
+			"roughness": 0.8,
+			"wet_roughness": 0.08,
+			"chip_size": 0.012,
+			"contrast": 0.25,
+			"wet_share": 0.3,
+			"bump": 0.0004,
+			"dirt_reach": 0.05
 		}
 	},
 	"families": {
@@ -490,6 +548,20 @@
 					"token": "hull",
 					"roughness": 0.45,
 					"bump": 0.0001
+				},
+				"barrier_red": {
+					"recipe": "rubber",
+					"token": "sign-red",
+					"roughness": 0.55,
+					"bump": 0.0002,
+					"bump_size": 0.02
+				},
+				"barrier_white": {
+					"recipe": "rubber",
+					"token": "sign-white",
+					"roughness": 0.55,
+					"bump": 0.0002,
+					"bump_size": 0.02
 				}
 			}
 		},
@@ -595,6 +667,35 @@
 						],
 						"said": "a beige stowage bag"
 					}
+				},
+				"quilt_cotton": {
+					"recipe": "quilted",
+					"token": "quilt",
+					"second": "ink-line",
+					"quilt_size": 0.15,
+					"seam_width": 0.04,
+					"puff": 0.003
+				},
+				"cotton_white": {
+					"recipe": "rubber",
+					"token": "sign-white",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.01
+				},
+				"flag_red": {
+					"recipe": "rubber",
+					"token": "sign-red",
+					"roughness": 0.85,
+					"bump": 0.0002,
+					"bump_size": 0.01
+				},
+				"foliage_leaf": {
+					"recipe": "rubber",
+					"token": "foliage",
+					"roughness": 0.7,
+					"bump": 0.0002,
+					"bump_size": 0.01
 				}
 			}
 		},
@@ -691,6 +792,22 @@
 				"led_white": {
 					"recipe": "glowing",
 					"token": "cabin-light"
+				},
+				"window_lit": {
+					"recipe": "glowing",
+					"token": "window-lit"
+				},
+				"lantern_glow": {
+					"recipe": "glowing",
+					"token": "lantern"
+				},
+				"floodlight_lens": {
+					"recipe": "glowing",
+					"token": "floodlight"
+				},
+				"sign_lit": {
+					"recipe": "glowing",
+					"token": "sign-lit"
 				}
 			}
 		},
@@ -966,6 +1083,141 @@
 				"wood_board": {
 					"recipe": "wood",
 					"token": "board-wood"
+				},
+				"varnished_wood": {
+					"recipe": "wood",
+					"token": "varnish",
+					"roughness": 0.35
+				},
+				"painted_floorboards": {
+					"recipe": "boards",
+					"token": "floorboard"
+				}
+			}
+		},
+		"plaster": {
+			"is": "Paint on rendered plaster and concrete, Earth (prologue build, 2026-10-07): whitewash and gloss paint chipped to the bare render on edges and scuffed at the foot of a wall by feet; bare render and concrete",
+			"surface": "plaster_wall",
+			"variants": {
+				"whitewash": {
+					"recipe": "painted_plaster",
+					"token": "flat-wall"
+				},
+				"gloss_dado": {
+					"recipe": "painted_plaster",
+					"token": "flat-dado",
+					"roughness": 0.3
+				},
+				"ceiling_whitewash": {
+					"recipe": "painted_plaster",
+					"token": "flat-wall",
+					"roughness": 0.85,
+					"wear_scale": 0.3
+				},
+				"facade_paint": {
+					"recipe": "painted_plaster",
+					"token": "flat-wall",
+					"bare": "concrete",
+					"roughness": 0.85,
+					"wear_scale": 1.4,
+					"breakup_scale": 3.0
+				},
+				"concrete": {
+					"recipe": "cast_metal",
+					"token": "concrete",
+					"metal": 0.0,
+					"roughness": 0.88,
+					"bump": 0.0006,
+					"bump_size": 0.02
+				},
+				"concrete_dark": {
+					"recipe": "cast_metal",
+					"token": "rock",
+					"metal": 0.0,
+					"roughness": 0.9,
+					"bump": 0.0006,
+					"bump_size": 0.02
+				}
+			}
+		},
+		"tile": {
+			"is": "Ceramic, stone and terrazzo floors and walls, Earth: glazed tiles in grout, paving, terrazzo",
+			"surface": "tiled_floor",
+			"variants": {
+				"wall_tile_white": {
+					"recipe": "tiles",
+					"token": "tile"
+				},
+				"paving_stone": {
+					"recipe": "tiles",
+					"token": "concrete",
+					"second": "rock",
+					"roughness": 0.85,
+					"pitch": 0.6,
+					"grout": 0.008
+				},
+				"square_paving": {
+					"recipe": "tiles",
+					"token": "flat-wall",
+					"second": "concrete",
+					"roughness": 0.8,
+					"pitch": 1.0,
+					"grout": 0.01
+				},
+				"terrazzo_floor": {
+					"recipe": "terrazzo",
+					"token": "flat-floor"
+				},
+				"stair_terrazzo": {
+					"recipe": "terrazzo",
+					"token": "flat-floor",
+					"second": "concrete",
+					"contrast": 0.3,
+					"roughness": 0.45
+				}
+			}
+		},
+		"ground": {
+			"is": "Roads and outdoor ground, Earth: asphalt after rain",
+			"surface": "road",
+			"variants": {
+				"wet_asphalt": {
+					"recipe": "wet_asphalt",
+					"token": "asphalt"
+				},
+				"road_line_paint": {
+					"recipe": "painted_plaster",
+					"token": "sign-white",
+					"bare": "asphalt",
+					"roughness": 0.6,
+					"wear_scale": 1.6
+				}
+			}
+		},
+		"rusted": {
+			"is": "Painted mild steel outdoors, Earth: grilles, gates, rails, lamp posts, rusting where the paint lets the rain in",
+			"surface": "steel_plate",
+			"variants": {
+				"grille_paint": {
+					"recipe": "rusted_metal",
+					"token": "roof-steel",
+					"wear_scale": 0.8
+				},
+				"rail_green": {
+					"recipe": "rusted_metal",
+					"token": "flat-dado",
+					"roughness": 0.4,
+					"wear_scale": 0.6
+				},
+				"gate_grey": {
+					"recipe": "rusted_metal",
+					"token": "hull-trim",
+					"wear_scale": 1.0
+				},
+				"post_dark": {
+					"recipe": "rusted_metal",
+					"token": "line",
+					"wear_scale": 0.7
 				}
 			}
 		}

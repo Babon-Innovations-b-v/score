@@ -265,7 +265,16 @@
 				"steel",
 				"rubber",
 				"glass",
-				"ink-line"
+				"ink-line",
+				"floorboard",
+				"varnish",
+				"tile",
+				"concrete",
+				"sign-white",
+				"quilt",
+				"roof-steel",
+				"lamp",
+				"cabin-seam"
 			],
 			"accents": [
 				"alarm",
@@ -286,9 +295,8 @@
 				"dust": 0.0
 			},
 			"painted_floorboards": {
-				"token": "flat-floor",
-				"roughness": "matte",
-				"dust": 0.0
+				"token": "floorboard",
+				"library": "painted_floorboards"
 			},
 			"red_paper": {
 				"token": "alarm",
@@ -309,6 +317,94 @@
 				"token": "steel",
 				"roughness": "satin",
 				"dust": 0.0
+			},
+			"whitewash": {
+				"token": "flat-wall",
+				"library": "whitewash"
+			},
+			"gloss_dado": {
+				"token": "flat-dado",
+				"library": "gloss_dado"
+			},
+			"ceiling_whitewash": {
+				"token": "flat-wall",
+				"library": "ceiling_whitewash"
+			},
+			"varnished_wood": {
+				"token": "varnish",
+				"library": "varnished_wood"
+			},
+			"wall_tile_white": {
+				"token": "tile",
+				"library": "wall_tile_white"
+			},
+			"terrazzo_floor": {
+				"token": "flat-floor",
+				"library": "terrazzo_floor"
+			},
+			"concrete": {
+				"token": "concrete",
+				"library": "concrete"
+			},
+			"enamel_white": {
+				"token": "sign-white",
+				"library": "enamel_white"
+			},
+			"quilt_cotton": {
+				"token": "quilt",
+				"library": "quilt_cotton"
+			},
+			"cotton_white": {
+				"token": "sign-white",
+				"library": "cotton_white"
+			},
+			"grille_paint": {
+				"token": "roof-steel",
+				"library": "grille_paint"
+			},
+			"rail_green": {
+				"token": "flat-dado",
+				"library": "rail_green"
+			},
+			"plastic_white": {
+				"token": "hull",
+				"library": "plastic_white"
+			},
+			"hull_white_old": {
+				"token": "hull",
+				"library": "hull_white_old"
+			},
+			"window_lit": {
+				"token": "window-lit",
+				"library": "window_lit"
+			},
+			"screen_off": {
+				"token": "ink-line",
+				"library": "screen_off"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"cable_grey": {
+				"token": "cabin-seam",
+				"library": "cable_grey"
 			}
 		},
 		"light": {
@@ -348,6 +444,11 @@
 					"said": "the toy city: spaced-out models on flat ground; the far city is a panorama ring and water"
 				}
 			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.3,
+			"picked": "from causes (prologue build): a worker's flat lived in for years and kept tidy; feet wear the floorboards' paint and scuff the foot of the walls, hands the edges"
 		}
 	},
 	"hub": {
@@ -484,6 +585,148 @@
 			"level": "worked",
 			"dirt": 0.4,
 			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
+		}
+	},
+	"prologue_stairwell": {
+		"name": "the stairwell down from the flat",
+		"scenes": [],
+		"style": {
+			"version": 1,
+			"text": "Night inside the enclosed concrete stair core of an old Hong Kong public housing block in 2099: switchback flights of terrazzo steps with painted steel rails, landings with flat doors behind steel security gates and red couplets, caged bulkhead lamps, meter boxes, conduit and cable bundles up the walls, whitewashed walls gone grey with a dark green gloss lower band peeling in places, a fire extinguisher, letterboxes and a notice board in the ground lobby, a steel gate to the street. Worn, damp and lived in, lit a pool at a time by the caged lamps.",
+			"from": "the picked concept (concepts-world1, 2026-10-07)",
+			"picked": "2026-10-07, the coordinator's concept pick; the owner reviews the built world at the end"
+		},
+		"plan": {
+			"world": "",
+			"seed": 7,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"flat-wall",
+				"flat-dado",
+				"flat-floor",
+				"concrete",
+				"rust",
+				"roof-steel",
+				"lamp",
+				"ink-line",
+				"hull-trim",
+				"line",
+				"varnish",
+				"sign-white",
+				"idle",
+				"sign-lit",
+				"glass",
+				"rubber",
+				"steel",
+				"cabin-seam"
+			],
+			"accents": [
+				"sign-red",
+				"sign-gold",
+				"alarm"
+			],
+			"accents_are": "the couplets, the exit sign and the extinguisher"
+		},
+		"materials": {
+			"whitewash": {
+				"token": "flat-wall",
+				"library": "whitewash"
+			},
+			"gloss_dado": {
+				"token": "flat-dado",
+				"library": "gloss_dado"
+			},
+			"concrete": {
+				"token": "concrete",
+				"library": "concrete"
+			},
+			"stair_terrazzo": {
+				"token": "flat-floor",
+				"library": "stair_terrazzo"
+			},
+			"grille_paint": {
+				"token": "roof-steel",
+				"library": "grille_paint"
+			},
+			"rail_green": {
+				"token": "flat-dado",
+				"library": "rail_green"
+			},
+			"gate_grey": {
+				"token": "hull-trim",
+				"library": "gate_grey"
+			},
+			"post_dark": {
+				"token": "line",
+				"library": "post_dark"
+			},
+			"varnished_wood": {
+				"token": "varnish",
+				"library": "varnished_wood"
+			},
+			"enamel_white": {
+				"token": "sign-white",
+				"library": "enamel_white"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"galvanized_dull": {
+				"token": "roof-steel",
+				"library": "galvanized_dull"
+			},
+			"sign_lit": {
+				"token": "sign-lit",
+				"library": "sign_lit"
+			},
+			"flag_red": {
+				"token": "sign-red",
+				"library": "flag_red"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"cable_grey": {
+				"token": "cabin-seam",
+				"library": "cable_grey"
+			}
+		},
+		"wear": {
+			"level": "worn",
+			"dirt": 0.6,
+			"picked": "from causes (prologue build): a public stair climbed by every family in the block for decades, damp, never repainted; feet wear the treads and the foot of the walls, hands the rails"
+		},
+		"pictures": {
+			"do": [],
+			"dont": []
+		},
+		"light": {
+			"recorded": "2026-10-07, as the game has it (street_fittings.gd LAMP_*): a caged lamp on every landing",
+			"read_by": "game/prologue/street_fittings/street_fittings.gd"
 		}
 	}
 }

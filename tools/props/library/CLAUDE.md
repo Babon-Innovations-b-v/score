@@ -15,6 +15,11 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   Python branch on a setting, so ProcFunc's tracer lists them (`settings_of`). Relief from `vendor/infinigen2`'s
   base materials (BSD-3); their colour noise is left out on purpose: the ink look draws flat colour by region. Wear
   reads the true geometry (the bevel test) and the noise only scales it, so a flat face never wears.
+- **Earth's surfaces** (the prologue build, 2026-10-07): `painted_plaster`, `tiles`, `terrazzo`, `boards`,
+  `rusted_metal` and `wet_asphalt`, in the families `plaster`, `tile`, `ground` and `rusted` (plus wood, fabric,
+  plastic and light variants), each wearing from a cause: chips on edges, scuffs where feet kick, worn floor paint
+  where feet go, rust where rain gets in. Scenery seen only from afar takes a `far_` own name and `route.DISTANT`
+  texels a metre.
 - **Screens and lamp lenses glow as plates of their own** (`data/library/details.json` `screens`, pictures drawn by
   `printed.py` into `data/library/pictures`), laid by `route.py` on a generated piece's front, or a code-built
   piece's own glass (make_kit splits glowing slots off).
