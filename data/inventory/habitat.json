@@ -1,0 +1,1133 @@
+{
+	"scene": "habitat",
+	"place": "habitat",
+	"plan": {
+		"world": "",
+		"seed": 0,
+		"concept": "concepts-world1/habitat/concepts/K03.png",
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/habitat/concepts/K03.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the coordinator's pick for the owner (asleep; the owner's rule: after the concept and style picks everything runs on its own); plan: the concept K03",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": [],
+		"layout": {
+			"inside": [
+				12.0,
+				10.0
+			],
+			"corner": 2.0,
+			"wall": 2.8,
+			"rise": 1.8,
+			"run": 2.0,
+			"doors": {
+				"north": "hatch",
+				"south": "hatch",
+				"east": "hatch",
+				"west": "hatch"
+			},
+			"open": [],
+			"features": {
+				"east": {
+					"lower": "wall_lower_patched"
+				},
+				"south": {
+					"lower": "wall_lower_patched"
+				}
+			}
+		}
+	},
+	"rows": [
+		{
+			"id": "wall_lower_plain",
+			"view": "v1",
+			"box": [
+				1789,
+				83,
+				2532,
+				358
+			],
+			"name": "plain lower wall panel, bolted, dark",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 24,
+			"thing": "prop:habitat_wall_lower_plain",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_upper_plain",
+			"view": "v1",
+			"box": [
+				1789,
+				83,
+				2532,
+				358
+			],
+			"name": "plain upper wall panel, bolted",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.7
+			],
+			"count": 32,
+			"thing": "prop:habitat_wall_upper_plain",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_skirting",
+			"view": "v1",
+			"box": [
+				1789,
+				83,
+				2532,
+				358
+			],
+			"name": "rubber skirting at the wall's foot",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				0.12
+			],
+			"count": 24,
+			"thing": "prop:habitat_wall_skirting",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_cornice",
+			"view": "v1",
+			"box": [
+				1789,
+				83,
+				2532,
+				358
+			],
+			"name": "cornice along the wall's top",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.16,
+				0.18
+			],
+			"count": 20,
+			"thing": "prop:habitat_wall_cornice",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "ring_floor_plate",
+			"view": "v1",
+			"box": [
+				963,
+				881,
+				1789,
+				1376
+			],
+			"name": "deck plate, bolted",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.04,
+				1.2
+			],
+			"count": 94,
+			"thing": "prop:habitat_ring_floor_plate",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "roof_face_panel",
+			"view": "v1",
+			"box": [
+				413,
+				0,
+				2339,
+				193
+			],
+			"name": "dome plate, ribbed",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				1.2,
+				0.05,
+				1.0
+			],
+			"count": 249,
+			"thing": "prop:habitat_roof_face_panel",
+			"made": "kit piece",
+			"group": "kit: ceiling",
+			"at": []
+		},
+		{
+			"id": "hatch_frame",
+			"view": "v1",
+			"box": [
+				722,
+				344,
+				949,
+				688
+			],
+			"name": "tube hatch frame round the doorway",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.3,
+				2.693
+			],
+			"count": 4,
+			"thing": "prop:habitat_hatch_frame",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_leaf",
+			"view": "v1",
+			"box": [
+				722,
+				344,
+				949,
+				688
+			],
+			"name": "tube hatch door leaf",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				2.26,
+				0.12,
+				2.66
+			],
+			"count": 4,
+			"thing": "prop:habitat_hatch_leaf",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_wheel",
+			"view": "v1",
+			"box": [
+				722,
+				344,
+				949,
+				688
+			],
+			"name": "tube hatch locking hand wheel",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.08,
+				0.5
+			],
+			"count": 4,
+			"thing": "prop:habitat_hatch_wheel",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_hinge",
+			"view": "v1",
+			"box": [
+				722,
+				344,
+				949,
+				688
+			],
+			"name": "tube hatch hinge",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.4
+			],
+			"count": 8,
+			"thing": "prop:habitat_hatch_hinge",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_window",
+			"view": "v1",
+			"box": [
+				722,
+				344,
+				949,
+				688
+			],
+			"name": "tube hatch round window",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.06,
+				0.4
+			],
+			"count": 4,
+			"thing": "prop:habitat_hatch_window",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "wall_lower_patched",
+			"view": "v1",
+			"box": [
+				1830,
+				619,
+				2009,
+				826
+			],
+			"name": "lower wall panel with a welded patch, scuffs and taped repairs",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 8,
+			"thing": "prop:habitat_wall_lower_patched",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "sleep_pod",
+			"view": "v1",
+			"box": [
+				984,
+				227,
+				1775,
+				709
+			],
+			"name": "sleep pod stacked two high: two berths, each with a mattress, reading lamp, small screen and curtain rail, a control panel down the middle",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.1,
+				1.0,
+				1.75
+			],
+			"count": 2,
+			"thing": "prop:habitat_sleep_pod",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -2.55,
+					"y": 0.0,
+					"z": -4.42,
+					"facing": 180
+				},
+				{
+					"x": 2.55,
+					"y": 0.0,
+					"z": -4.42,
+					"facing": 180
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "locker_bank",
+			"view": "v1",
+			"box": [
+				241,
+				509,
+				461,
+				929
+			],
+			"name": "personal locker bank, four tall steel lockers with vents, name plates and handles",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.7,
+				0.6,
+				2.0
+			],
+			"count": 1,
+			"thing": "prop:habitat_locker_bank",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -5.62,
+					"y": 0.0,
+					"z": -2.05,
+					"facing": 90
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "food_shelf",
+			"view": "v1",
+			"box": [
+				440,
+				468,
+				805,
+				846
+			],
+			"name": "food store shelf unit, open steel shelves of labelled food packs, jars and bottles",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.7,
+				0.6,
+				2.0
+			],
+			"count": 1,
+			"thing": "prop:habitat_food_shelf",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -5.62,
+					"y": 0.0,
+					"z": 2.05,
+					"facing": 90
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "galley_counter",
+			"view": "v1",
+			"box": [
+				1493,
+				1073,
+				1913,
+				1376
+			],
+			"name": "galley counter: steel cabinet with a two-ring hob, a sink with a tap and a kettle",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.6,
+				0.65,
+				0.95
+			],
+			"count": 1,
+			"thing": "prop:habitat_galley_counter",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -2.5,
+					"y": 0.0,
+					"z": 4.6,
+					"facing": 0
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "mess_table",
+			"view": "v1",
+			"box": [
+				1183,
+				839,
+				1472,
+				1087
+			],
+			"name": "mess table, steel top on four legs",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.9,
+				0.76
+			],
+			"count": 1,
+			"thing": "prop:habitat_mess_table",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -2.4,
+					"y": 0.0,
+					"z": 2.05,
+					"facing": 0
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "stool",
+			"view": "v1",
+			"box": [
+				1493,
+				963,
+				1582,
+				1087
+			],
+			"name": "round steel stool with a padded seat",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.42,
+				0.42,
+				0.47
+			],
+			"count": 4,
+			"thing": "prop:habitat_stool",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -3.0,
+					"y": 0.0,
+					"z": 1.2,
+					"facing": 180
+				},
+				{
+					"x": -1.8,
+					"y": 0.0,
+					"z": 1.2,
+					"facing": 180
+				},
+				{
+					"x": -3.0,
+					"y": 0.0,
+					"z": 2.9,
+					"facing": 0
+				},
+				{
+					"x": -1.8,
+					"y": 0.0,
+					"z": 2.9,
+					"facing": 0
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "hygiene_cubicle",
+			"view": "v1",
+			"box": [
+				1954,
+				392,
+				2360,
+				881
+			],
+			"name": "hygiene cubicle: pale panelled booth with a sliding door, a small sink and a mirror inside, a blue stripe",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				1.8,
+				2.3
+			],
+			"count": 1,
+			"thing": "prop:habitat_hygiene_cubicle",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 5.08,
+					"y": 0.0,
+					"z": -2.1,
+					"facing": 270
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "exam_couch",
+			"view": "v1",
+			"box": [
+				2215,
+				757,
+				2518,
+				991
+			],
+			"name": "medical exam couch with a thin mattress and a folded blanket",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.9,
+				0.75,
+				0.7
+			],
+			"count": 1,
+			"thing": "prop:habitat_exam_couch",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 5.6,
+					"y": 0.0,
+					"z": 2.1,
+					"facing": 270
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "med_cabinet",
+			"view": "v1",
+			"box": [
+				2346,
+				516,
+				2539,
+				633
+			],
+			"name": "medical cabinet: steel base cupboard with glass-fronted shelves above, a red cross label",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.5,
+				1.8
+			],
+			"count": 1,
+			"thing": "prop:habitat_med_cabinet",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 3.6,
+					"y": 0.0,
+					"z": 4.72,
+					"facing": 0
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "wall_screen_cluster",
+			"view": "v1",
+			"box": [
+				736,
+				179,
+				991,
+				344
+			],
+			"name": "cluster of six small screens on a bracket with readouts and graphs",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.1,
+				0.55
+			],
+			"count": 1,
+			"thing": "prop:habitat_wall_screen_cluster",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "corner12",
+					"across": 0.0,
+					"bottom": 1.6
+				}
+			]
+		},
+		{
+			"id": "pipe_straight",
+			"view": "v1",
+			"box": [
+				248,
+				206,
+				716,
+				454
+			],
+			"name": "pipe run with flanges",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.1,
+				0.1
+			],
+			"count": 5,
+			"thing": "prop:habitat_pipe_straight",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 2.1,
+					"size": [
+						5.8,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 2.26,
+					"size": [
+						5.8,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 2.42,
+					"size": [
+						5.8,
+						0.1,
+						0.1
+					]
+				}
+			]
+		},
+		{
+			"id": "pipe_valve",
+			"view": "v1",
+			"box": [
+				255,
+				261,
+				454,
+				454
+			],
+			"name": "valve on a pipe with a red hand wheel",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.2,
+				0.3
+			],
+			"count": 2,
+			"thing": "prop:habitat_pipe_valve",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "west",
+					"across": -1.6,
+					"bottom": 2.0
+				},
+				{
+					"wall": "west",
+					"across": 1.1,
+					"bottom": 2.16
+				}
+			]
+		},
+		{
+			"id": "light_ring",
+			"view": "v1",
+			"box": [
+				1087,
+				28,
+				1665,
+				261
+			],
+			"name": "round ceiling light ring: a steel ring with twelve round lamps, hung on rods from the dome",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				2.5,
+				2.5,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:habitat_light_ring",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 3.5,
+					"z": 0.0,
+					"facing": 0,
+					"layer": 1
+				}
+			],
+			"light": {
+				"strength": 1.0,
+				"reach": 11.0,
+				"high": 0.08
+			}
+		},
+		{
+			"id": "door_strip_lamp",
+			"view": "v1",
+			"box": [
+				757,
+				337,
+				901,
+				392
+			],
+			"name": "strip light over a door",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				0.08
+			],
+			"count": 4,
+			"thing": "prop:habitat_door_strip_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [
+				{
+					"wall": "north",
+					"across": 0.0,
+					"bottom": 2.7,
+					"out": 0.1
+				},
+				{
+					"wall": "south",
+					"across": 0.0,
+					"bottom": 2.7,
+					"out": 0.1
+				},
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 2.7,
+					"out": 0.1
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 2.7,
+					"out": 0.1
+				}
+			],
+			"light": {
+				"strength": 0.2,
+				"reach": 5.0,
+				"high": 0.5
+			}
+		},
+		{
+			"id": "tread_mat",
+			"view": "v1",
+			"box": [
+				805,
+				688,
+				1046,
+				812
+			],
+			"name": "grated dust mat before a hatch",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.02,
+				0.9
+			],
+			"count": 2,
+			"thing": "prop:habitat_tread_mat",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": [
+				{
+					"x": 0.0,
+					"z": -4.5,
+					"facing": 180
+				},
+				{
+					"x": 0.0,
+					"z": 4.5,
+					"facing": 0
+				}
+			],
+			"lies": "floor"
+		},
+		{
+			"id": "pipe_bracket",
+			"name": "a steel wall bracket clamping a pipe",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.1
+			],
+			"thing": "prop:habitat_pipe_bracket",
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"why": "laid by room_kit.py from the room's pipe runs and set-in floor fittings (modules round, step 1)",
+			"view": "v1",
+			"box": [
+				248,
+				206,
+				716,
+				454
+			],
+			"count": 15
+		},
+		{
+			"id": "pillow",
+			"name": "pillow",
+			"kind": "code",
+			"anchor": "on:sleep_pod",
+			"size": [
+				0.5,
+				0.32,
+				0.1
+			],
+			"count": 4,
+			"thing": "prop:habitat_pillow",
+			"parent": "sleep_pod",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				984,
+				227,
+				1775,
+				709
+			]
+		},
+		{
+			"id": "food_jug",
+			"name": "food jug",
+			"kind": "code",
+			"anchor": "on:food_shelf",
+			"size": [
+				0.18,
+				0.14,
+				0.26
+			],
+			"count": 13,
+			"thing": "prop:habitat_food_jug",
+			"parent": "food_shelf",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				440,
+				468,
+				805,
+				846
+			]
+		},
+		{
+			"id": "food_tin",
+			"name": "food tin",
+			"kind": "code",
+			"anchor": "on:food_shelf",
+			"size": [
+				0.13,
+				0.13,
+				0.17
+			],
+			"count": 12,
+			"thing": "prop:habitat_food_tin",
+			"parent": "food_shelf",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				440,
+				468,
+				805,
+				846
+			]
+		},
+		{
+			"id": "ration_box",
+			"name": "ration box",
+			"kind": "code",
+			"anchor": "on:food_shelf",
+			"size": [
+				0.22,
+				0.15,
+				0.1
+			],
+			"count": 3,
+			"thing": "prop:habitat_ration_box",
+			"parent": "food_shelf",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				440,
+				468,
+				805,
+				846
+			]
+		},
+		{
+			"id": "pot",
+			"name": "pot",
+			"kind": "code",
+			"anchor": "on:galley_counter",
+			"size": [
+				0.3,
+				0.22,
+				0.14
+			],
+			"count": 1,
+			"thing": "prop:habitat_pot",
+			"parent": "galley_counter",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1493,
+				1073,
+				1913,
+				1376
+			]
+		},
+		{
+			"id": "kettle",
+			"name": "kettle",
+			"kind": "generate",
+			"anchor": "on:galley_counter",
+			"size": [
+				0.22,
+				0.17,
+				0.24
+			],
+			"count": 1,
+			"thing": "prop:habitat_kettle",
+			"parent": "galley_counter",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1493,
+				1073,
+				1913,
+				1376
+			]
+		},
+		{
+			"id": "couch_pillow",
+			"name": "couch pillow",
+			"kind": "code",
+			"anchor": "on:exam_couch",
+			"size": [
+				0.4,
+				0.42,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:habitat_couch_pillow",
+			"parent": "exam_couch",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				2215,
+				757,
+				2518,
+				991
+			]
+		},
+		{
+			"id": "blanket",
+			"name": "blanket",
+			"kind": "generate",
+			"anchor": "on:exam_couch",
+			"size": [
+				0.5,
+				0.4,
+				0.06
+			],
+			"count": 1,
+			"thing": "prop:habitat_blanket",
+			"parent": "exam_couch",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				2215,
+				757,
+				2518,
+				991
+			]
+		},
+		{
+			"id": "med_box",
+			"name": "med box",
+			"kind": "code",
+			"anchor": "on:med_cabinet",
+			"size": [
+				0.1,
+				0.08,
+				0.16
+			],
+			"count": 7,
+			"thing": "prop:habitat_med_box",
+			"parent": "med_cabinet",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				2346,
+				516,
+				2539,
+				633
+			]
+		},
+		{
+			"id": "med_bottle",
+			"name": "med bottle",
+			"kind": "code",
+			"anchor": "on:med_cabinet",
+			"size": [
+				0.06,
+				0.06,
+				0.14
+			],
+			"count": 7,
+			"thing": "prop:habitat_med_bottle",
+			"parent": "med_cabinet",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				2346,
+				516,
+				2539,
+				633
+			]
+		}
+	]
+}

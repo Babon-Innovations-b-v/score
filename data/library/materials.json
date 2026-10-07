@@ -1162,6 +1162,240 @@
 					"token": "board-wood",
 					"picture": "lobby_sheets",
 					"roughness": 0.85
+				},
+				"label_sleep_pod": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sleep_pod"
+				},
+				"label_berth_1": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_berth_1"
+				},
+				"label_berth_2": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_berth_2"
+				},
+				"label_control": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_control"
+				},
+				"label_crew_lkr_1": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_1"
+				},
+				"label_crew_lkr_2": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_2"
+				},
+				"label_crew_lkr_3": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_3"
+				},
+				"label_crew_lkr_4": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_4"
+				},
+				"note_crew_keep_shut": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_crew_keep_shut",
+					"roughness": 0.9
+				},
+				"label_food_pack": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_food_pack"
+				},
+				"label_food_storage": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_food_storage"
+				},
+				"label_rations": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_rations"
+				},
+				"label_medical_supplies": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_medical_supplies"
+				},
+				"label_first_aid": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_first_aid"
+				},
+				"note_stock_check": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_stock_check",
+					"roughness": 0.9
+				},
+				"stencil_med_store": {
+					"recipe": "printed",
+					"token": "hull-trim",
+					"picture": "stencil_med_store"
+				},
+				"label_hygiene": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_hygiene"
+				},
+				"note_clean_daily": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_clean_daily",
+					"roughness": 0.9
+				},
+				"note_use_sparingly": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_use_sparingly",
+					"roughness": 0.9
+				},
+				"label_storage": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_storage"
+				},
+				"label_sink": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sink"
+				},
+				"label_electric_hob": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_electric_hob"
+				},
+				"label_mess_table": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_mess_table"
+				},
+				"label_clean_after_use": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_clean_after_use"
+				},
+				"label_base_property": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_base_property"
+				},
+				"label_exam_couch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_exam_couch"
+				},
+				"label_airlock_leaf": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_airlock_leaf"
+				},
+				"stencil_suit_up_bench": {
+					"recipe": "printed",
+					"token": "steel",
+					"picture": "stencil_suit_up_bench",
+					"roughness": 0.6
+				},
+				"label_suit_up": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_suit_up"
+				},
+				"note_bench": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_bench",
+					"roughness": 0.9
+				},
+				"label_cycle": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_cycle"
+				},
+				"note_cycle": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_cycle",
+					"roughness": 0.9
+				},
+				"label_meter": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_meter"
+				},
+				"label_fan_unit": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "label_fan_unit"
+				},
+				"label_high_voltage": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "label_high_voltage"
+				},
+				"sheet_maintenance": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_maintenance",
+					"roughness": 0.85
+				},
+				"stencil_do_not_cover": {
+					"recipe": "printed",
+					"token": "steel",
+					"picture": "stencil_do_not_cover",
+					"roughness": 0.6
+				},
+				"sign_pressure_hatch": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_pressure_hatch"
+				},
+				"sign_hub": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_hub"
+				},
+				"sign_greenhouse": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_greenhouse"
+				},
+				"sign_workshop": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_workshop"
+				},
+				"sign_airlock": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_airlock"
+				},
+				"sign_habitat": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_habitat"
+				},
+				"sign_lab": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_lab"
+				},
+				"sign_garage": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_garage"
 				}
 			}
 		},
@@ -1852,6 +2086,248 @@
 			],
 			"ink": "beacon-ok",
 			"font": "black"
+		},
+		"label_sleep_pod": {
+			"style": "label",
+			"text": "SLEEP POD",
+			"ink": "ink-line"
+		},
+		"label_berth_1": {
+			"style": "label",
+			"text": "BERTH 1",
+			"ink": "ink-line"
+		},
+		"label_berth_2": {
+			"style": "label",
+			"text": "BERTH 2",
+			"ink": "ink-line"
+		},
+		"label_control": {
+			"style": "label",
+			"text": "CONTROL",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_1": {
+			"style": "label",
+			"text": "CREW LKR 1",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_2": {
+			"style": "label",
+			"text": "CREW LKR 2",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_3": {
+			"style": "label",
+			"text": "CREW LKR 3",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_4": {
+			"style": "label",
+			"text": "CREW LKR 4",
+			"ink": "ink-line"
+		},
+		"note_crew_keep_shut": {
+			"style": "note",
+			"lines": [
+				"KEEP SHUT"
+			],
+			"ink": "ink-line"
+		},
+		"label_food_pack": {
+			"style": "label",
+			"text": "FOOD PACK",
+			"ink": "ink-line"
+		},
+		"label_food_storage": {
+			"style": "label",
+			"text": "FOOD 1KG",
+			"ink": "ink-line"
+		},
+		"label_rations": {
+			"style": "label",
+			"text": "RATIONS",
+			"ink": "ink-line"
+		},
+		"label_medical_supplies": {
+			"style": "label",
+			"text": "MEDICAL",
+			"ink": "ink-line"
+		},
+		"label_first_aid": {
+			"style": "label",
+			"text": "FIRST AID",
+			"ink": "ink-line"
+		},
+		"note_stock_check": {
+			"style": "note",
+			"lines": [
+				"STOCK CHECK",
+				"SOL 30"
+			],
+			"ink": "ink-line"
+		},
+		"stencil_med_store": {
+			"style": "stencil",
+			"text": "MED 2",
+			"ink": "ink-line"
+		},
+		"label_hygiene": {
+			"style": "label",
+			"text": "HYGIENE",
+			"ink": "ink-line"
+		},
+		"note_clean_daily": {
+			"style": "note",
+			"lines": [
+				"CLEAN DAILY"
+			],
+			"ink": "ink-line"
+		},
+		"note_use_sparingly": {
+			"style": "note",
+			"lines": [
+				"USE",
+				"SPARINGLY"
+			],
+			"ink": "ink-line"
+		},
+		"label_storage": {
+			"style": "label",
+			"text": "STORAGE",
+			"ink": "ink-line"
+		},
+		"label_sink": {
+			"style": "label",
+			"text": "SINK",
+			"ink": "ink-line"
+		},
+		"label_electric_hob": {
+			"style": "label",
+			"text": "ELECTRIC HOB",
+			"ink": "ink-line"
+		},
+		"label_mess_table": {
+			"style": "label",
+			"text": "MESS TABLE",
+			"ink": "ink-line"
+		},
+		"label_clean_after_use": {
+			"style": "label",
+			"text": "CLEAN AFTER USE",
+			"ink": "ink-line"
+		},
+		"label_base_property": {
+			"style": "label",
+			"text": "BASE PROPERTY",
+			"ink": "ink-line"
+		},
+		"label_exam_couch": {
+			"style": "label",
+			"text": "MEDICAL EXAM COUCH",
+			"ink": "ink-line"
+		},
+		"label_airlock_leaf": {
+			"style": "label",
+			"text": "AIRLOCK",
+			"ink": "ink-line"
+		},
+		"stencil_suit_up_bench": {
+			"style": "stencil",
+			"text": "SUIT-UP BENCH",
+			"ink": "ink-line"
+		},
+		"label_suit_up": {
+			"style": "label",
+			"text": "SUIT-UP BENCH",
+			"ink": "ink-line"
+		},
+		"note_bench": {
+			"style": "note",
+			"lines": [
+				"BOOTS",
+				"LAST"
+			],
+			"ink": "ink-line"
+		},
+		"label_cycle": {
+			"style": "label",
+			"text": "CYCLE",
+			"ink": "ink-line"
+		},
+		"note_cycle": {
+			"style": "note",
+			"lines": [
+				"SEAL",
+				"CHECK"
+			],
+			"ink": "ink-line"
+		},
+		"label_meter": {
+			"style": "label",
+			"text": "kPa",
+			"ink": "ink-line"
+		},
+		"label_fan_unit": {
+			"style": "label",
+			"text": "FAN UNIT",
+			"ink": "sign-white"
+		},
+		"label_high_voltage": {
+			"style": "label",
+			"text": "HIGH VOLTAGE",
+			"ink": "ink-line"
+		},
+		"sheet_maintenance": {
+			"style": "sheet",
+			"title": "MAINTENANCE",
+			"lines": 6,
+			"ink": "ink-line"
+		},
+		"stencil_do_not_cover": {
+			"style": "stencil",
+			"text": "DO NOT COVER",
+			"ink": "hazard"
+		},
+		"sign_pressure_hatch": {
+			"style": "label",
+			"text": "PRESSURE HATCH",
+			"ink": "ink-line"
+		},
+		"sign_hub": {
+			"style": "label",
+			"text": "HUB",
+			"ink": "ink-line"
+		},
+		"sign_greenhouse": {
+			"style": "label",
+			"text": "GREENHOUSE",
+			"ink": "ink-line"
+		},
+		"sign_workshop": {
+			"style": "label",
+			"text": "WORKSHOP",
+			"ink": "ink-line"
+		},
+		"sign_airlock": {
+			"style": "label",
+			"text": "AIRLOCK",
+			"ink": "ink-line"
+		},
+		"sign_habitat": {
+			"style": "label",
+			"text": "HABITAT",
+			"ink": "ink-line"
+		},
+		"sign_lab": {
+			"style": "label",
+			"text": "LAB",
+			"ink": "ink-line"
+		},
+		"sign_garage": {
+			"style": "label",
+			"text": "GARAGE",
+			"ink": "ink-line"
 		}
 	}
 }

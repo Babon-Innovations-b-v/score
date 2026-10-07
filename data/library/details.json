@@ -40,16 +40,12 @@
 	},
 	"hub_door_control_box": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"screens": [
-			{"at": [0.0, 0.235], "size": [0.14, 0.07], "variant": "screen_amber"}
-		],
+		"screens": [{"at": [0.0, 0.235], "size": [0.14, 0.07], "variant": "screen_amber"}],
 		"cuts": []
 	},
 	"hub_door_strip_lamp": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-		"screens": [
-			{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}
-		],
+		"screens": [{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}],
 		"cuts": []
 	},
 	"hub_floor_access_hatch": {
@@ -70,9 +66,7 @@
 	"hub_hatch_frame": {
 		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
 		"screens": [],
-		"cuts": [
-			{"box": [-1.12, -0.1, 1.12, 2.62]}
-		]
+		"cuts": [{"box": [-1.12, -0.1, 1.12, 2.62]}]
 	},
 	"hub_hatch_hinge": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
@@ -87,9 +81,7 @@
 	"hub_hatch_wall_surround": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
 		"screens": [],
-		"cuts": [
-			{"box": [-1.1, -0.1, 1.1, 2.6]}
-		]
+		"cuts": [{"box": [-1.1, -0.1, 1.1, 2.6]}]
 	},
 	"hub_hatch_wheel": {
 		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
@@ -139,9 +131,7 @@
 	"hub_porthole_panel": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
 		"screens": [],
-		"cuts": [
-			{"circle": [0.0, 0.6, 0.3]}
-		]
+		"cuts": [{"circle": [0.0, 0.6, 0.3]}]
 	},
 	"hub_rack": {
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
@@ -160,16 +150,12 @@
 	},
 	"hub_small_readout": {
 		"turn": [1.0, -0.0026, 0.0, -0.0026, -1.0, 0.0, 0.0, 0.0, -1.0],
-		"screens": [
-			{"at": [0.0, 0.13], "size": [0.2, 0.12], "variant": "screen_amber"}
-		],
+		"screens": [{"at": [0.0, 0.13], "size": [0.2, 0.12], "variant": "screen_amber"}],
 		"cuts": []
 	},
 	"hub_status_display": {
 		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
-		"screens": [
-			{"at": [-0.01, 0.516], "size": [1.659, 0.747], "variant": "screen"}
-		],
+		"screens": [{"at": [-0.01, 0.516], "size": [1.659, 0.747], "variant": "screen"}],
 		"cuts": []
 	},
 	"hub_talllocker": {
@@ -186,9 +172,7 @@
 		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
 		"screens": [],
 		"cuts": [],
-		"decals": [
-			{"at": [0.0, 0.1], "size": [0.3, 0.06], "variant": "label_sign_out"}
-		]
+		"decals": [{"at": [0.0, 0.1], "size": [0.3, 0.06], "variant": "label_sign_out"}]
 	},
 	"hub_tread_mat": {
 		"turn": [0.1483, 0.0, -0.9889, 0.9889, 0.0, 0.1483, 0.0, -1.0, 0.0],
@@ -236,9 +220,7 @@
 	},
 	"hub_wall_upper_screen_recess": {
 		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
-		"screens": [
-			{"at": [0.076, 1.482], "size": [0.135, 0.058], "variant": "screen_amber"}
-		],
+		"screens": [{"at": [0.076, 1.482], "size": [0.135, 0.058], "variant": "screen_amber"}],
 		"cuts": []
 	},
 	"hub_waste_bin": {
@@ -296,5 +278,192 @@
 		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
 		"screens": [],
 		"cuts": []
+	},
+	"airlock_door_frame": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [{"box": [-1.16, -0.1, 1.16, 2.66]}],
+		"wall": 0.008
+	},
+	"airlock_door_leaf": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_door_strip_lamp": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}],
+		"cuts": []
+	},
+	"airlock_dust_vacuum": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_fan_unit": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_floor_grating": {
+		"turn": [-0.0838, 0.0, 0.9965, -0.9965, 0.0, -0.0838, 0.0, -1.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_pipe_valve": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_status_panel": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_suit_alcove": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"airlock_suit_bench": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_door_strip_lamp": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}],
+		"cuts": []
+	},
+	"habitat_exam_couch": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_food_shelf": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_galley_counter": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_hygiene_cubicle": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_light_ring": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_locker_bank": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_med_cabinet": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_mess_table": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_pipe_valve": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_sleep_pod": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_stool": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_tread_mat": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_wall_lower_patched": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_wall_screen_cluster": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"tube_crown_strip_lamp": {
+		"turn": [-0.018, 0.0, 0.9998, -0.9998, 0.0, -0.018, 0.0, -1.0, 0.0],
+		"screens": [{"at": [0.0, 0.03], "size": [1.08, 0.035], "variant": "lamp_strip"}],
+		"cuts": []
+	},
+	"tube_end_mat": {
+		"turn": [0.0283, 0.0, -0.9996, 0.9996, 0.0, 0.0283, 0.0, -1.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"tube_hull_patch": {
+		"turn": [0.216, 0.0, -0.9764, 0.9764, 0.0, 0.216, 0.0, -1.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"tube_sign_plate": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_frame": {
+		"turn": [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+		"screens": [],
+		"cuts": [{"box": [-1.12, -0.1, 1.12, 2.62]}]
+	},
+	"habitat_hatch_leaf": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_wheel": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_hinge": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_window": {
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_kettle": {
+		"screens": [],
+		"cuts": [],
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+	},
+	"habitat_blanket": {
+		"screens": [],
+		"cuts": [],
+		"turn": [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
 	}
 }

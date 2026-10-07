@@ -12,6 +12,15 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   host plane, turned to it and inside its face (the hub's trays lay radially across the lattice, which the
   envelope test cannot see). `model.py` (G5): watertight, pieces, proportion spread on the sides the shape class
   can be judged on, thinnest wall.
+- `round_room.py` (modules batch one, 2026-10-07): the same leak, envelope and doorway checks for a rounded room
+  (the habitat, the airlock) from its inventory's numbers, and solid furniture crowding; `--boxes` runs it on the
+  laid boxes before any model is made. `tube.py`: a walkway tube's bay, leaks round its section outside the glass
+  bands and pieces out of the hull.
+- `doors.py` (the owner, 2026-10-07, on the Mars concepts: a partition with a door and an open gap beside it): every
+  door a kit layout lays must stand in a wall or partition that fully parts its two sides. Read as a walk on a 5 cm
+  grid at walking height over the wall-like pieces, every door and every listed doorway (`doorways`) shut: no path
+  from one side of a door to the other. A screen without a door is not judged. Run on the kit layout before any
+  spend; a door with a way round fails the place.
 - trimesh with embree (`embreex`, `rtree` in the prop environment); a whole room takes about 2 s. Every run goes
   under `systemd-run --user --scope -q -p MemoryMax=16G`.
 - Checks: `gates_test.py` (hands itself to the prop environment).

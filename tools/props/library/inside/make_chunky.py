@@ -91,7 +91,7 @@ def into_kit_frame(whole, base, size):
     whole.data.update()
 
 
-def solid_copy(whole, faces, name, size):
+def solid_copy(whole, faces, name, size, wall=WALL):
     """A closed, solid copy of the full model with about `faces` triangles: thickened, rebuilt on a voxel grid,
     cut down."""
     copy = whole.copy()
@@ -99,7 +99,7 @@ def solid_copy(whole, faces, name, size):
     copy.name = name
     bpy.context.scene.collection.objects.link(copy)
     thick = copy.modifiers.new("thick", "SOLIDIFY")
-    thick.thickness = WALL
+    thick.thickness = wall
     thick.offset = -1.0
     thick.use_even_offset = False
     shapes.apply_modifiers(copy)
@@ -153,7 +153,7 @@ def make_piece(entry, job, out):
     began = time.time()
     whole = full_model(entry["parts"], entry["name"])
     into_kit_frame(whole, entry["base"], entry["size"])
-    low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"])
+    low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"], entry.get("wall", WALL))
     opened(low, entry.get("cuts", []), entry["size"])
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).

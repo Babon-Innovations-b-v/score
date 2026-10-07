@@ -10,6 +10,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import library  # noqa: E402
 import sorter  # noqa: E402
+import stored  # noqa: E402
 
 def test_every_variant_resolves_to_a_known_recipe_in_token_colours():
     found = library.library_specs()
@@ -42,7 +43,7 @@ def test_the_hub_and_the_habitat_take_the_same_library_in_their_own_tokens():
 
 
 def test_a_code_piece_slot_finds_its_place_colour_by_library_name():
-    assert library.by_library("habitat")["painted_panel"]["token"] == "hull"
+    assert library.by_library("habitat")["painted_panel"]["token"] == "hull-trim"  # its worn grey walls (style v2)
     assert library.by_library("hub")["painted_panel"]["token"] == "hull-trim"
     assert library.by_library("hub")["quilted_white"]["token"] == "hull"
 
@@ -133,21 +134,57 @@ def test_every_code_builder_is_on_the_allow_list():
     assert not off, f"code builders for kinds that are not plain plates, pipes, trims or fittings: {', '.join(off)}"
 
 
-def test_every_model_the_hub_lays_was_made_on_its_kind_s_route():
-    """Every model the hub lays (kit and furniture) says the route it was made on, and that is its kind's route: code
-    only for a plain kind, the prop pipeline for every other."""
-    layout = json.loads((library.REPO / "data/kit/hub.json").read_text())
-    kinds = {found["model"]: found["kind"] for found in layout["pieces"] if "part" not in found}
-    kinds.update({name: f"hub_{name.rsplit('_', 1)[0]}" for name, about in layout["models"].items() if "prop" in about})
-    off = sorted({f"{kind} ({layout['models'][name].get('route', 'no route recorded')})" for name, kind in kinds.items()
-                  if layout["models"][name].get("route") != sorter.route(kind)})
-    assert not off, f"models not made on their kind's route: {', '.join(off)}"
+def test_every_model_a_kit_room_lays_was_made_on_its_kind_s_route():
+    """Every model a kit room lays (data/kit/<room>.json: kit and furniture) says the route it was made on, and that is
+    its kind's route: code only for a plain kind, the prop pipeline for every other."""
+    for path in sorted((library.REPO / "data/kit").glob("*.json")):
+        layout = json.loads(path.read_text())
+        kinds = {found["model"]: found["kind"] for found in layout["pieces"] if "part" not in found}
+        kinds.update({name: f"{path.stem}_{name.rsplit('_', 1)[0]}" for name, about in layout["models"].items()
+                      if "prop" in about})
+        off = sorted({f"{kind} ({layout['models'][name].get('route', 'no route recorded')})"
+                      for name, kind in kinds.items() if layout["models"][name].get("route") != sorter.route(kind)})
+        assert not off, f"{path.stem}: models not made on their kind's route: {', '.join(off)}"
 
 
-def test_every_kind_of_the_hub_kit_gets_a_route():
-    layout = json.loads((library.REPO / "data/kit/hub.json").read_text())
-    found = sorter.sorted_kinds(layout)
-    assert found and all(entry["route"] in ("code", "model", "decal") for entry in found.values())
+def test_every_kind_of_every_kit_room_gets_a_route():
+    for path in sorted((library.REPO / "data/kit").glob("*.json")):
+        found = sorter.sorted_kinds(json.loads(path.read_text()))
+        assert found and all(entry["route"] in ("code", "model", "decal") for entry in found.values()), path.stem
+
+
+def test_a_room_s_baked_pictures_are_stored_as_webp_and_its_models_point_at_them():
+    """stored.py: no baked PNG left in a kit room's models folder, every glTF picture a WebP through
+    EXT_texture_webp (stored as PNG the hub's alone were 414 MB)."""
+    for folder in sorted((library.REPO / "game/base/models").glob("*_kit")):
+        assert not [path for path in (folder / "textures").glob("*.png") if stored.kind_of(path.name)], folder.name
+        for gltf in folder.glob("*.gltf"):
+            found = json.loads(gltf.read_text())
+            for image in found.get("images", []):
+                if stored.kind_of(image.get("uri", "")):
+                    assert image["uri"].endswith(".webp") and image["mimeType"] == "image/webp", gltf.name
+            assert all("source" not in texture for texture in found.get("textures", [])
+                       if "EXT_texture_webp" in texture.get("extensions", {})), gltf.name
+
+
+def test_a_gltf_is_pointed_at_its_webp_pictures():
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        gltf = pathlib.Path(folder) / "piece_1.gltf"
+        gltf.write_text(json.dumps({"images": [{"uri": "textures/piece_1_normal.png", "mimeType": "image/png"},
+                                               {"uri": "piece_1_screen.png"}],
+                                    "textures": [{"sampler": 0, "source": 0}, {"sampler": 0, "source": 1}]}))
+        assert stored.pointed_at_webp(gltf) == 1
+        found = json.loads(gltf.read_text())
+        assert found["images"][0] == {"uri": "textures/piece_1_normal.webp", "mimeType": "image/webp"}
+        assert found["textures"][0] == {"sampler": 0, "extensions": {"EXT_texture_webp": {"source": 0}}}
+        assert found["textures"][1] == {"sampler": 0, "source": 1}  # a screen's picture is not a baked map
+        assert "EXT_texture_webp" in found["extensionsUsed"] and "EXT_texture_webp" in found["extensionsRequired"]
+
+
+def test_a_room_past_its_budget_is_named():
+    assert stored.over_budget({"disk_mb": 10.0, "card_mb": 10.0}) == []
+    assert stored.over_budget({"disk_mb": stored.BUDGET["disk_mb"] + 1, "card_mb": 1.0})
 
 
 def main():

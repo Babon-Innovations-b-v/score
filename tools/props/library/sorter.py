@@ -50,6 +50,9 @@ PLAIN = frozenset((
     "lattice_node_plate", "stair_stringer",
     # under the floor: an open box of plates under a set-in fitting's opening (hub round four)
     "under_floor_box",
+    # a walkway tube's curved hull plates (and the plain rails along its glass band) and its hoops, plain bands of its
+    # section (modules batch one, 2026-10-07: for the owner's nod, as under_floor_box was)
+    "hull_plate", "hoop",
 ))
 
 

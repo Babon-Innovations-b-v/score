@@ -70,3 +70,8 @@ serve: skill `make-scene`, bible "How a scene is designed".
   the folding and the placing of worlds, `planview_test.py` the plan views' cameras (hands itself to the prop environment for numpy).
 - The Godot tools run on the card through `bash tools/godot/run.sh shots <scene> -- ...`, one game
   window at a time. Marble's API takes four worlds at once; `call()` waits out a 429.
+- **Kit layouts for the route** (`route.py`'s input): `hub_kit.py` for the hub's twelve walls, `room_kit.py <room>` for
+  a rounded module room from its inventory's `room.layout` (the shell's own outline, its dome's rings, the floor's
+  cross and corner fans, door spots, the rows' spots; the habitat and the airlock, modules batch one), and
+  `tube_kit.py` for one bay and one end of a walkway tube, which the game lays along any tube (`TubeKit`).
+  `room_kit_test.py` checks them.

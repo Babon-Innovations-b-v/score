@@ -22,6 +22,7 @@ except ImportError:
     sys.exit(0)
 
 sys.path.insert(0, str(HERE))
+import doors  # noqa: E402
 import greybox  # noqa: E402
 import model  # noqa: E402
 import placement  # noqa: E402
@@ -68,6 +69,28 @@ def test_a_model_in_its_laid_proportions_passes_and_a_cube_laid_as_a_panel_fails
     cube = model.check("hub_wall_upper_plain", trimesh.creation.box(extents=(1.0, 1.0, 1.0)), (1.2, 2.0, 0.06))
     assert panel["pass"] and panel["watertight"] and abs(panel["thinnest"] - 0.06) < 0.005
     assert cube["spread"] > 0.2 and not cube["pass"]
+
+
+def partition(across, wide, kind="mars_partition"):
+    """A panel 2.6 m tall standing across the floor along x at z = 0, its middle at `across`."""
+    return {"kind": kind, "at": [across, 0.0, 0.0], "x": [1.0, 0.0, 0.0], "y": [0.0, 1.0, 0.0], "z": [0.0, 0.0, 1.0],
+            "size": [wide, 2.6, 0.08]}
+
+
+def test_a_door_in_a_partition_that_stops_short_has_a_way_round_and_one_wall_to_wall_has_none():
+    """A room 6 m wide (walls at x = +-3, closed at z = +-3) parted at z = 0 by a door and partition panels."""
+    walls = [{"kind": "mars_wall_lower_plain", "at": at, "x": x, "y": [0.0, 1.0, 0.0], "z": z, "size": [6.0, 2.6, 0.08]}
+             for at, x, z in (([3.0, 0.0, 0.0], [0.0, 0.0, 1.0], [-1.0, 0.0, 0.0]),
+                              ([-3.0, 0.0, 0.0], [0.0, 0.0, -1.0], [1.0, 0.0, 0.0]),
+                              ([0.0, 0.0, 3.0], [-1.0, 0.0, 0.0], [0.0, 0.0, -1.0]),
+                              ([0.0, 0.0, -3.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]))]
+    door = partition(0.0, 1.2, "mars_hatch_frame")
+    whole = walls + [door, partition(-1.8, 2.4), partition(1.8, 2.4)]
+    short = walls + [door, partition(-1.8, 2.4), partition(1.5, 1.2)]  # a 0.9 m gap at its right end
+    assert doors.check({"pieces": whole}) == []
+    assert len(doors.check({"pieces": short})) == 1
+    screen = walls + [partition(-1.8, 2.4)]  # a screen with no door is not judged
+    assert doors.check({"pieces": screen}) == []
 
 
 def main():

@@ -138,14 +138,17 @@ def wall_corner_post(size, laid):
 
 
 def roof_face_panel(size, laid):
-    """A roof face: a triangular slab from its foot to the apex, stiffeners across it on the room's side every half
-    metre up the slope, as a ribbed roof panel."""
+    """A roof face: a slab from its foot up the slope, a triangle to the apex (the hub's pyramid, `taper` 0) or a
+    trapezoid whose head is `taper` of its foot (a dome's ring, modules batch one), stiffeners across it on the room's
+    side every half metre up the slope, as a ribbed roof panel."""
     wide, tall, deep = size
-    outline = [(-wide / 2, 0.0), (wide / 2, 0.0), (0.0, tall)]
+    taper = float(laid.get("taper", 0.0))
+    outline = [(-wide / 2, 0.0), (wide / 2, 0.0), (0.0, tall)] if taper <= 0.0 else \
+        [(-wide / 2, 0.0), (wide / 2, 0.0), (taper * wide / 2, tall), (-taper * wide / 2, tall)]
     parts = [shapes.bevelled(shapes.prism(outline, -deep / 2 + 0.015, deep / 2, "painted_panel", "face"), EDGE)]
     for share in [step / tall for step in np.arange(0.4, tall * 0.85, 0.5)]:
         y = tall * share
-        half = wide / 2 * (1 - share) - 0.08
+        half = wide / 2 * (1 - (1 - taper) * share) - 0.08
         parts.append(shapes.bevelled(shapes.box((-half, y - 0.03, -deep / 2), (half, y + 0.03, -deep / 2 + 0.015),
                                                 "painted_panel", "stiffener"), 0.003))
     return parts
@@ -1094,7 +1097,7 @@ def grab_bar(size, laid):
 # Degrees about the kit's x axis that bring the side the room sees round to the kit front (-z), by kind: a tray or
 # duct is seen on its +y side, the apex hub and a flood lamp from below (their -y side).
 FLOOR_SEEN_TURN = {"ceiling_cable_tray": -90.0, "ceiling_duct": -90.0, "roof_apex_hub": 90.0,
-                   "roof_light_fixture": 90.0}
+                   "roof_light_fixture": 90.0, "light_ring": 90.0}
 FLOOR_PIPE_RADIUS = 0.038  # pipe_straight's: min(tall, deep) * 0.38 at 0.1
 # How far a wall pipe run's axis stands off the wall (hub_kit.PIPE_AXIS): a bracket's base plate and a valve's foot plate
 # are on the wall, their clamp and body on the run (step 0 of the modules round, 2026-10-07: at 20 cm the clamp's arm
@@ -1564,11 +1567,11 @@ def furn_cut_box(part, low, high):
     return part
 
 
-def furn_louvres(plate, x, y, wide, tall, front, back, slats, material, name="louvre"):
+def furn_louvres(plate, x, y, wide, tall, front, back, slats, material, name="louvre", back_thick=0.003):
     """Pressed louvres set into `plate` (front face at depth `front`, its back at `back`): a real hole through it, a
     dark back plate behind the hole and slanted hoods across it, standing a little proud of the face."""
     furn_cut_box(plate, (x - wide / 2, y - tall / 2, front - 0.05), (x + wide / 2, y + tall / 2, back))
-    parts = [shapes.box((x - wide / 2, y - tall / 2, back - 0.003), (x + wide / 2, y + tall / 2, back),
+    parts = [shapes.box((x - wide / 2, y - tall / 2, back - back_thick), (x + wide / 2, y + tall / 2, back),
                         "anodized_black", f"{name}_back")]
     pitch = tall / slats
     for at in range(slats):
@@ -2047,14 +2050,1369 @@ def glovebox(size, laid):
     return parts
 
 
+# ---- Modules round (2026-10-07): the habitat's sleep pods, locker bank, food store shelf, medical cabinet and hygiene
+# cubicle, built in code with library surfaces as method B's parts check allows, and the plain objects on them (food
+# jugs, tubs and ration boxes, medical boxes and bottles, the berths' pillows) as children of their own. A holder leaves
+# clear flat spots for its children and never carries them. Helpers are prefixed `hab_a_`. Seen from in front, the
+# kit's +x is the viewer's left.
+
+# The sleep pod's two berth cavities (bottom, top over the pod's foot) and the stripe band between them.
+HAB_A_BERTHS = ((0.12, 0.76), (0.94, 1.58))
+HAB_A_POD_STRIPE = (0.795, 0.905)
+# The berths' opening across the pod (x, low then high): the control column takes the viewer's right.
+HAB_A_POD_OPENING = (-0.62, 0.96)
+HAB_A_POD_COLUMN = (-1.01, -0.70)
+HAB_A_MATTRESS = 0.11
+# The food shelf's shelf tops over its foot (the base and four shelves), its bays across it (x, low then high) and the
+# divider between them.
+HAB_A_SHELF_TOPS = tuple(round(0.10 + 0.366 * level, 3) for level in range(5))
+HAB_A_WIDE_BAY = (-0.265, 0.83)
+HAB_A_NARROW_BAY = (-0.83, -0.305)
+# The medical cabinet's lower cupboard top and its upper glass case's inside floor and shelf.
+HAB_A_MED_SPLIT = 0.8
+HAB_A_MED_FLOOR = 0.845
+HAB_A_MED_SHELF = 1.30
+
+
+def hab_a_moved(parts, offset):
+    """Parts moved by a kit-frame offset."""
+    for part in parts:
+        floor_moved(part, offset)
+    return parts
+
+
+def hab_a_rounded_cut(part, low, high, radius, depth_from, depth_to):
+    """A rounded-rectangle hole (x, y corners) cut through a part between two depths."""
+    shapes.cut(part, shapes.prism(rounded_outline(low, high, radius), depth_from, depth_to, "rubber", "cutter"))
+    return part
+
+
+def hab_a_vent(x, y, wide, tall, surface, slats, material="dark_panel"):
+    """A small slotted vent plate on a face at depth `surface`: a plate with slats standing proud of it."""
+    parts = [shapes.bevelled(shapes.box((x - wide / 2, y - tall / 2, surface - 0.004), (x + wide / 2, y + tall / 2,
+                                                                                        surface), material, "vent"),
+                             0.001)]
+    pitch = tall / slats
+    for at in range(slats):
+        middle = y - tall / 2 + pitch * (at + 0.5)
+        parts.append(shapes.box((x - wide / 2 + 0.008, middle - 0.003, surface - 0.009),
+                                (x + wide / 2 - 0.008, middle + 0.003, surface - 0.004), "anodized_black", "vent"))
+    return parts
+
+
+def sleep_pod(size, laid):
+    """A sleep pod of two berths stacked, as its close-up shows it: a pale panelled shell, a rounded opening into each
+    berth with a raised rim and a copper seal, a mattress on each berth's floor, a small screen and a gooseneck
+    reading lamp on each berth's back wall, a strip lamp under each berth's ceiling and a vent beside it, a control
+    column on the viewer's right with a keypad, a small display and a light switch, a blue stripe round the shell
+    between the berths, and its labels; the pillows are children of their own."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    shell = shapes.box((-wide / 2, 0.0, front), (wide / 2, tall, back), "enamel_white", "shell")
+    low_x, high_x = HAB_A_POD_OPENING
+    for bottom, top in HAB_A_BERTHS:
+        hab_a_rounded_cut(shell, (low_x, bottom), (high_x, top), 0.09, front - 0.05, back - 0.04)
+    parts = [shapes.bevelled(shell, EDGE)]
+    for bottom, top in HAB_A_BERTHS:
+        parts.append(shapes.bevelled(rounded_ring((low_x - 0.035, bottom - 0.035), (high_x + 0.035, top + 0.035), 0.12,
+                                                  0.05, front - 0.012, front + 0.002, "enamel_white", "rim"), 0.003))
+        parts.append(rounded_ring((low_x - 0.004, bottom - 0.004), (high_x + 0.004, top + 0.004), 0.092, 0.012,
+                                  front + 0.002, front + 0.05, "anodized_gold", "seal"))
+        inner_back = back - 0.04
+        parts.append(shapes.bevelled(shapes.box((low_x + 0.03, bottom, front + 0.06),
+                                                (high_x - 0.03, bottom + HAB_A_MATTRESS, inner_back - 0.01),
+                                                "quilted_beige", "mattress"), 0.02))
+        parts += wall_screen_part(high_x - 0.2, bottom + 0.37, 0.2, 0.15, inner_back, "screen", name="screen")
+        parts.append(shapes.bevelled(shapes.box((high_x - 0.32, bottom + 0.24, inner_back - 0.03),
+                                                (high_x - 0.08, bottom + 0.285, inner_back), "dark_panel",
+                                                "screen_unit"), 0.002))
+        lamp_x = high_x - 0.48
+        parts.append(shapes.cylinder((lamp_x, bottom + 0.30, inner_back), (lamp_x, bottom + 0.30, inner_back - 0.006),
+                                     0.022, "anodized_gold", 20, "reading_lamp"))
+        parts.append(shapes.cylinder((lamp_x, bottom + 0.30, inner_back - 0.006), (lamp_x, bottom + 0.42,
+                                                                                   inner_back - 0.07), 0.006,
+                                     "anodized_gold", 10, "reading_lamp"))
+        parts.append(shapes.cylinder((lamp_x, bottom + 0.42, inner_back - 0.07), (lamp_x, bottom + 0.40,
+                                                                                  inner_back - 0.13), 0.022,
+                                     "anodized_gold", 16, "reading_lamp"))
+        parts.append(shapes.cylinder((lamp_x, bottom + 0.398, inner_back - 0.133), (lamp_x, bottom + 0.394,
+                                                                                    inner_back - 0.137), 0.017,
+                                     "lamp_lens", 16, "reading_lamp_lens"))
+        ceiling = top - 0.004
+        parts.append(shapes.bevelled(shapes.box((low_x + 0.35, ceiling - 0.035, front + 0.12),
+                                                (low_x + 0.85, ceiling, front + 0.2), "bare_steel", "strip_lamp"),
+                                     0.002))
+        parts.append(shapes.box((low_x + 0.37, ceiling - 0.04, front + 0.13), (low_x + 0.83, ceiling - 0.035,
+                                                                                 front + 0.19), "lamp_strip",
+                                "strip_lamp_lens"))
+        parts += hab_a_vent(low_x + 0.22, bottom + 0.45, 0.14, 0.1, inner_back, 4, "enamel_white")
+    col_low, col_high = HAB_A_POD_COLUMN
+    middle = (col_low + col_high) / 2
+    plate = shapes.bevelled(shapes.box((col_low, 0.2, front - 0.008), (col_high, tall - 0.2, front), "enamel_white",
+                                       "control_panel"), 0.002)
+    parts.append(plate)
+    parts += wall_screen_part(middle, 1.25, 0.12, 0.08, front - 0.008, "screen_amber", name="display")
+    parts.append(label(middle, 1.12, 0.12, 0.13, front - 0.008, "keypad_print", name="keypad"))
+    parts.append(wall_button(middle, 0.98, 0.04, 0.06, front - 0.008, "anodized_black", "switch"))
+    parts.append(label(middle, 1.42, 0.16, 0.045, front - 0.008, "label_control"))
+    parts.append(label(middle, 0.62, 0.16, 0.045, front - 0.008, "label_berth_2"))
+    parts.append(label(middle, 1.62, 0.16, 0.045, front - 0.008, "label_berth_1"))
+    band_low, band_high = HAB_A_POD_STRIPE
+    for x_low, x_high in ((col_high, wide / 2), (-wide / 2, col_low)):
+        parts.append(shapes.box((x_low, band_low, front - 0.003), (x_high, band_high, front), "enamel_blue", "stripe"))
+    for side in (-1, 1):
+        x = side * wide / 2
+        parts.append(shapes.box((min(x, x + side * 0.003), band_low, front), (max(x, x + side * 0.003), band_high,
+                                                                               back), "enamel_blue", "stripe"))
+    parts.append(label(high_x - 0.2, 1.675, 0.26, 0.06, front, "label_sleep_pod"))
+    return parts
+
+
+def pillow(size, laid):
+    """A berth's pillow, as its close-up shows it: one plump rounded cushion."""
+    wide, tall, deep = size
+    return [shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), "quilted_grey",
+                                       "pillow"), min(tall, deep) * 0.4)]
+
+
+def locker_bank(size, laid):
+    """The crew's locker bank, as its close-up shows it: two steel cabinets of two lockers side by side, each door with
+    pressed louvres top and bottom, a pull and hinge pins, a hasp for a padlock at each pair's meeting edges, a crew
+    name label each and a few stickers."""
+    wide, tall, deep = size
+    half = wide / 2
+    parts = []
+    names = (("label_crew_lkr_2", "label_crew_lkr_1"), ("label_crew_lkr_4", "label_crew_lkr_3"))
+    for index, side in enumerate((1, -1)):
+        cabinet = furn_locker((half - 0.004, tall, deep), 2, names[index])
+        parts += hab_a_moved(cabinet, (side * half / 2, 0.0, 0.0))
+    front = -deep / 2
+    for middle in (half / 2, -half / 2):
+        parts.append(shapes.bevelled(shapes.box((middle - 0.02, tall * 0.43, front - 0.012),
+                                                (middle + 0.02, tall * 0.43 + 0.05, front), "bare_steel", "hasp"),
+                                     0.002))
+    door = (half - 0.004 - 0.03 - 0.008) / 2
+    for x, y, variant in ((half / 2 + door / 2 + 0.004, 1.32, "note_crew_keep_shut"),
+                          (-half / 2 - door / 2 - 0.004, 1.18, "note_crew_keep_shut")):
+        parts.append(label(x, y, 0.09, 0.06, front, variant, turn=-3.0, thick=0.004, name="sticker"))
+    return parts
+
+
+def food_shelf(size, laid):
+    """The food store, as its close-up shows it: an open steel shelf unit with a top overhanging it, sides and a back,
+    a wide bay and a narrow one either side of an upright divider, four shelves and a base each with a front lip, and
+    a kick plate; its jugs, tubs and ration boxes are children of their own."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    side_t = 0.02
+    parts = [shapes.bevelled(shapes.box((-wide / 2, tall - 0.04, front - 0.015), (wide / 2, tall, back), "galvanized_steel",
+                                        "top"), EDGE),
+             shapes.bevelled(shapes.box((-wide / 2 + 0.01, 0.0, front + 0.01), (wide / 2 - 0.01, HAB_A_SHELF_TOPS[0] - 0.025,
+                                                                                back - 0.02), "galvanized_steel",
+                                        "plinth"), 0.003),
+             shapes.box((-wide / 2 + side_t, 0.0, back - 0.02), (wide / 2 - side_t, tall - 0.04, back), "galvanized_steel",
+                        "back")]
+    for x in (-wide / 2, wide / 2 - side_t):
+        parts.append(shapes.bevelled(shapes.box((x, 0.0, front), (x + side_t, tall - 0.04, back), "galvanized_steel",
+                                                "side"), 0.003))
+    divider = (HAB_A_NARROW_BAY[1], HAB_A_WIDE_BAY[0])
+    parts.append(shapes.bevelled(shapes.box((divider[0], HAB_A_SHELF_TOPS[0], front), (divider[1], tall - 0.04,
+                                                                                         back - 0.02),
+                                            "galvanized_steel", "divider"), 0.003))
+    for level, top in enumerate(HAB_A_SHELF_TOPS):
+        for low_x, high_x in (HAB_A_WIDE_BAY, HAB_A_NARROW_BAY):
+            parts.append(shapes.box((low_x, top - 0.025, front + 0.01), (high_x, top, back - 0.02), "galvanized_steel",
+                                    "shelf"))
+            parts.append(shapes.bevelled(shapes.box((low_x, top - 0.045, front + 0.004), (high_x, top + 0.012,
+                                                                                         front + 0.016),
+                                                    "galvanized_steel", "lip"), 0.002))
+    return parts
+
+
+def food_jug(size, laid):
+    """A food jerrycan, as its close-up shows it: a squared white plastic jug with rounded edges, a carry handle
+    moulded across its top, a screw cap at one corner and a paper label on its front."""
+    wide, tall, deep = size
+    front = -deep / 2
+    body_top = tall * 0.84
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front), (wide / 2, body_top, deep / 2), "plastic_white",
+                                        "body"), 0.018)]
+    grip = shapes.box((-wide * 0.32, body_top - 0.01, -0.01), (wide * 0.18, tall, 0.01), "plastic_white", "handle")
+    furn_cut_box(grip, (-wide * 0.24, body_top + 0.008, -0.02), (wide * 0.10, tall - 0.012, 0.02))
+    parts.append(shapes.bevelled(grip, 0.004))
+    parts.append(shapes.cylinder((wide * 0.32, body_top - 0.005, deep * 0.2), (wide * 0.32, tall - 0.012, deep * 0.2),
+                                 0.018, "plastic_grey", 20, "cap"))
+    parts.append(label(0.0, body_top * 0.48, wide * 0.78, body_top * 0.5, front, "label_food_pack"))
+    return parts
+
+
+def food_tin(size, laid):
+    """A food storage tub, as its close-up shows it: a squared white jar with rounded corners, a round blue screw lid
+    and a label round its front."""
+    wide, tall, deep = size
+    front = -deep / 2
+    body_top = tall * 0.8
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front), (wide / 2, body_top, deep / 2), "plastic_white",
+                                        "body"), 0.016),
+             shapes.bevelled(shapes.cylinder((0.0, body_top - 0.004, 0.0), (0.0, tall, 0.0), min(wide, deep) * 0.47,
+                                             "anodized_blue", 32, "lid"), 0.004)]
+    parts.append(label(0.0, body_top * 0.5, wide * 0.8, body_top * 0.48, front, "label_food_storage"))
+    return parts
+
+
+def ration_box(size, laid):
+    """A ration box, as its close-up shows it: a low tan plastic box, a fitted lid with a lip a little wider than it
+    and a label on its front."""
+    wide, tall, deep = size
+    front = -deep / 2
+    lid = tall * 0.25
+    parts = [shapes.bevelled(shapes.box((-wide / 2 + 0.006, 0.0, front + 0.006), (wide / 2 - 0.006, tall - lid,
+                                                                                  deep / 2 - 0.006), "canvas_beige",
+                                        "box"), 0.01),
+             shapes.bevelled(shapes.box((-wide / 2, tall - lid, front), (wide / 2, tall, deep / 2), "canvas_beige",
+                                        "lid"), 0.008)]
+    parts.append(label(0.0, (tall - lid) * 0.5, wide * 0.62, (tall - lid) * 0.5, front + 0.006, "label_rations"))
+    return parts
+
+
+def med_box(size, laid):
+    """A carton of medical supplies, as its close-up shows it: an upright white box, a teal band round its top and its
+    foot, and a printed panel on its front."""
+    wide, tall, deep = size
+    front = -deep / 2
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front), (wide / 2, tall, deep / 2), "plastic_white", "box"),
+                             0.003)]
+    for low, high in ((tall * 0.82, tall - 0.004), (0.004, tall * 0.1)):
+        parts.append(shapes.box((-wide / 2 - 0.002, low, front - 0.002), (wide / 2 + 0.002, high, deep / 2 + 0.002),
+                                "enamel_blue", "band"))
+    parts.append(label(0.0, tall * 0.46, wide * 0.8, tall * 0.4, front - 0.002, "label_medical_supplies"))
+    return parts
+
+
+def med_bottle(size, laid):
+    """A medicine bottle, as its close-up shows it: a round amber glass bottle with shoulders and a neck, a white screw
+    cap and a paper band round it."""
+    wide, tall, deep = size
+    radius = min(wide, deep) / 2
+    shoulder = tall * 0.68
+    parts = [shapes.cylinder((0.0, 0.0, 0.0), (0.0, shoulder, 0.0), radius, "glass_tinted", 24, "bottle"),
+             shapes.cylinder((0.0, shoulder, 0.0), (0.0, shoulder + tall * 0.08, 0.0), radius * 0.75, "glass_tinted",
+                             24, "bottle"),
+             shapes.cylinder((0.0, shoulder + tall * 0.08, 0.0), (0.0, tall * 0.86, 0.0), radius * 0.45,
+                             "glass_tinted", 20, "bottle"),
+             shapes.bevelled(shapes.cylinder((0.0, tall * 0.86, 0.0), (0.0, tall, 0.0), radius * 0.55, "plastic_white",
+                                             20, "cap"), 0.002),
+             shapes.cylinder((0.0, shoulder * 0.25, 0.0), (0.0, shoulder * 0.8, 0.0), radius + 0.0015, "canvas_beige",
+                             24, "band")]
+    return parts
+
+
+def med_cabinet(size, laid):
+    """The medical cabinet, as its close-up shows it: a steel cupboard of two doors under a case of two glazed doors,
+    each door with a pull, the glazed doors' frames round their glass, a first aid cross on the right glazed door, a
+    taped note and a scuffed stencil on the cupboard; the case's boxes and bottles are children of their own (its
+    inner shelf stands behind the glass, which the parts check reads as opaque)."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    face = front + 0.015
+    lower = shapes.box((-wide / 2, 0.0, face), (wide / 2, HAB_A_MED_SPLIT, back), "painted_panel", "carcass")
+    upper = shapes.box((-wide / 2 + 0.01, HAB_A_MED_SPLIT + 0.01, face), (wide / 2 - 0.01, tall, back), "painted_panel",
+                       "carcass")
+    furn_cut_box(upper, (-wide / 2 + 0.03, HAB_A_MED_FLOOR, face - 0.05), (wide / 2 - 0.03, tall - 0.03, back - 0.02))
+    parts = [shapes.bevelled(lower, EDGE), shapes.bevelled(upper, EDGE)]
+    parts.append(shapes.box((-wide / 2 + 0.03, HAB_A_MED_SHELF - 0.018, face), (wide / 2 - 0.03, HAB_A_MED_SHELF,
+                                                                                back - 0.02), "painted_panel", "shelf"))
+    gap = 0.006
+    door_wide = (wide - 0.04 - gap) / 2
+    for index in range(2):
+        right = -wide / 2 + 0.02 + index * (door_wide + gap)
+        left = right + door_wide
+        parts.append(shapes.bevelled(shapes.box((right, 0.03, front), (left, HAB_A_MED_SPLIT - 0.02, face),
+                                                "painted_panel", "door"), 0.002))
+        pull_x = left - 0.05 if index == 0 else right + 0.05
+        parts += furn_pull(pull_x, HAB_A_MED_SPLIT * 0.62, 0.1, front)
+        frame = shapes.box((right, HAB_A_MED_SPLIT + 0.03, front), (left, tall - 0.02, face), "painted_panel",
+                           "glass_door")
+        furn_cut_box(frame, (right + 0.05, HAB_A_MED_SPLIT + 0.08, front - 0.05), (left - 0.05, tall - 0.07, face + 0.05))
+        parts.append(shapes.bevelled(frame, 0.002))
+        parts.append(shapes.box((right + 0.045, HAB_A_MED_SPLIT + 0.075, front + 0.006), (left - 0.045, tall - 0.065,
+                                                                                            front + 0.01), "glass",
+                                "glass"))
+        parts += furn_pull(pull_x, (HAB_A_MED_SPLIT + tall) / 2, 0.1, front)
+    right_door = -wide / 2 + 0.02 + door_wide / 2  # the viewer's right pair of doors' middle
+    left_door = -right_door
+    parts.append(label(right_door - 0.12, tall - 0.2, 0.1, 0.1, front + 0.006, "label_first_aid"))
+    parts.append(label(right_door - 0.04, HAB_A_MED_SPLIT * 0.8, 0.12, 0.09, front, "note_stock_check", turn=-4.0,
+                       name="note"))
+    parts.append(label(left_door + 0.02, HAB_A_MED_SPLIT * 0.84, 0.16, 0.045, front, "stencil_med_store"))
+    return parts
+
+
+def hygiene_cubicle(size, laid):
+    """The hygiene cubicle, as its close-up shows it: a booth of pale vertical panels on corner posts with an open
+    top rim, a doorway in its front with a sill and a sliding door standing part open on its track, a keypad unit and
+    labels on the fixed panel beside the doorway, a blue stripe round the outside, a copper grab rail and taped notes
+    on its side; inside, a mirror over a small shelf, a wash basin with its tap and the trap under it, WATER and WASTE
+    labels, the cubicle's label and a lamp on the back wall, and a floor tray."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    wall = 0.025
+    door_low, door_high = -0.36, 0.28  # the doorway across the front (the viewer's right of middle)
+    sill, lintel = 0.1, 2.0
+    front_panel = shapes.box((-wide / 2, 0.0, front), (wide / 2, tall - 0.04, front + wall), "enamel_white", "panel")
+    furn_cut_box(front_panel, (door_low, sill, front - 0.05), (door_high, lintel, front + wall + 0.05))
+    parts = [shapes.bevelled(front_panel, 0.003)]
+    for x in (-wide / 2, wide / 2 - wall):
+        parts.append(shapes.bevelled(shapes.box((x, 0.0, front + wall), (x + wall, tall - 0.04, back - wall),
+                                                "enamel_white", "panel"), 0.003))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, 0.0, back - wall), (wide / 2, tall - 0.04, back),
+                                            "enamel_white", "panel"), 0.003))
+    for x in (-wide / 2 - 0.006, wide / 2 - 0.034):
+        for z in (front - 0.006, back - 0.034):
+            parts.append(shapes.bevelled(shapes.box((x, 0.0, z), (x + 0.04, tall - 0.04, z + 0.04), "enamel_white",
+                                                    "post"), 0.006))
+    rim = shapes.box((-wide / 2 - 0.006, tall - 0.04, front - 0.006), (wide / 2 + 0.006, tall, back + 0.006),
+                     "brushed_steel_fine", "rim")
+    furn_cut_box(rim, (-wide / 2 + wall, tall - 0.06, front + wall), (wide / 2 - wall, tall + 0.02, back - wall))
+    parts.append(shapes.bevelled(rim, 0.003))
+    for z in (front + deep / 3, front + 2 * deep / 3):  # panel seams on the sides' outer faces
+        for side_x in (-wide / 2 - 0.004, wide / 2):
+            parts.append(shapes.box((side_x, 0.04, z - 0.006), (side_x + 0.004, tall - 0.06, z + 0.006),
+                                    "enamel_white", "seam"))
+    parts.append(shapes.box((door_low - 0.02, lintel, front - 0.02), (door_high + 0.02, lintel + 0.03, front),
+                            "brushed_steel_fine", "track"))
+    door = shapes.box((-wide / 2 + 0.06, sill + 0.01, front + wall + 0.004), (door_low + 0.16, lintel - 0.01,
+                                                                              front + wall + 0.03),
+                      "enamel_white", "door")
+    parts.append(shapes.bevelled(door, 0.003))
+    parts.append(shapes.cylinder((door_low + 0.12, 1.0, front + wall + 0.004), (door_low + 0.12, 1.22,
+                                                                              front + wall + 0.004), 0.008,
+                                 "brushed_steel_fine", 12, "handle"))
+    parts.append(shapes.box((door_low, 0.0, front - 0.004), (door_high, sill, front + wall), "enamel_white", "sill"))
+    inner_back = back - wall
+    middle = (door_low + door_high) / 2
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + wall, 0.0, front + wall), (wide / 2 - wall, sill - 0.02,
+                                                                                    back - wall), "plastic_grey",
+                                            "tray"), 0.004))
+    parts.append(shapes.bevelled(shapes.box((middle - 0.17, 1.28, inner_back - 0.01), (middle + 0.17, 1.72,
+                                                                                       inner_back), "glass",
+                                            "mirror"), 0.004))
+    parts.append(shapes.bevelled(shapes.box((middle - 0.2, 1.2, inner_back - 0.1), (middle + 0.2, 1.22, inner_back),
+                                            "brushed_steel_fine", "shelf"), 0.002))
+    basin = shapes.box((middle - 0.2, 0.72, inner_back - 0.36), (middle + 0.2, 0.86, inner_back), "enamel_white",
+                       "sink")
+    furn_cut_box(basin, (middle - 0.16, 0.76, inner_back - 0.32), (middle + 0.16, 0.9, inner_back - 0.04))
+    parts.append(shapes.bevelled(basin, 0.01))
+    parts.append(shapes.cylinder((middle, 0.86, inner_back - 0.03), (middle, 0.97, inner_back - 0.03), 0.012,
+                                 "bare_steel", 12, "tap"))
+    parts.append(shapes.cylinder((middle, 0.96, inner_back - 0.03), (middle, 0.96, inner_back - 0.14), 0.01,
+                                 "bare_steel", 12, "tap"))
+    parts.append(shapes.cylinder((middle, 0.72, inner_back - 0.18), (middle, 0.42, inner_back - 0.18), 0.02,
+                                 "bare_steel", 14, "trap"))
+    parts.append(shapes.cylinder((middle, 0.44, inner_back - 0.18), (middle, 0.44, inner_back), 0.02, "bare_steel", 14,
+                                 "trap"))
+    parts.append(label(middle + 0.28, 0.98, 0.12, 0.05, inner_back, "label_water"))
+    parts.append(label(middle + 0.28, 0.9, 0.12, 0.05, inner_back, "label_waste"))
+    parts.append(label(middle - 0.28, 1.62, 0.2, 0.09, inner_back, "label_hygiene"))
+    parts.append(label(middle - 0.28, 1.42, 0.1, 0.1, inner_back, "note_clean_daily", turn=3.0, name="note"))
+    parts.append(shapes.bevelled(shapes.box((middle - 0.12, 1.9, inner_back - 0.06), (middle + 0.12, 1.98,
+                                                                                      inner_back), "bare_steel",
+                                            "lamp"), 0.003))
+    parts.append(shapes.box((middle - 0.1, 1.9 - 0.004, inner_back - 0.055), (middle + 0.1, 1.9, inner_back - 0.005),
+                            "lamp_lens", "lamp_lens"))
+    fixed = (door_high + wide / 2) / 2  # the fixed panel's middle, the viewer's left of the doorway
+    parts.append(shapes.bevelled(shapes.box((fixed - 0.09, 1.08, front - 0.05), (fixed + 0.09, 1.34, front),
+                                            "plastic_white", "keypad_unit"), 0.008))
+    parts += wall_screen_part(fixed, 1.285, 0.11, 0.045, front - 0.05, "screen", rim=0.008, name="keypad_screen")
+    parts.append(label(fixed, 1.16, 0.12, 0.1, front - 0.05, "keypad_print", name="keypad"))
+    parts.append(label(fixed, 1.56, 0.16, 0.08, front, "sheet_log", name="sheet"))
+    stripe = (0.93, 1.03)
+    for low_x, high_x in ((door_high, wide / 2), (-wide / 2, door_low)):
+        parts.append(shapes.box((low_x, stripe[0], front - 0.003), (high_x, stripe[1], front), "enamel_blue",
+                                "stripe"))
+    for side in (-1, 1):
+        x = side * wide / 2
+        parts.append(shapes.box((min(x, x + side * 0.003), stripe[0], front), (max(x, x + side * 0.003), stripe[1],
+                                                                                back), "enamel_blue", "stripe"))
+    parts.append(shapes.box((-wide / 2, stripe[0], back), (wide / 2, stripe[1], back + 0.003), "enamel_blue", "stripe"))
+    side = -wide / 2  # the side the close-up shows: its grab rail
+    rail_z = (front + back) / 2
+    parts.append(shapes.cylinder((side - 0.05, 1.45, rail_z - 0.3), (side - 0.05, 1.45, rail_z + 0.3), 0.016,
+                                 "anodized_gold", 16, "grab_rail"))
+    for z in (rail_z - 0.3, rail_z + 0.3):
+        parts.append(shapes.cylinder((side, 1.45, z), (side - 0.05, 1.45, z), 0.014, "anodized_gold", 14,
+                                     "grab_rail"))
+    # The taped notes on the fixed panel's clear lower half (a print lies on a face the room sees from in front).
+    parts.append(label(fixed - 0.04, 0.74, 0.16, 0.12, front, "note_clean_daily", turn=-3.0, name="note"))
+    parts.append(label(fixed + 0.06, 0.56, 0.12, 0.12, front, "note_use_sparingly", turn=4.0, name="note"))
+    return parts
+
+
+# ---- Modules round (2026-10-07), block hab_b: the habitat's galley counter, mess table, stools, exam couch and light
+# ring, built in code with library surfaces as method B's parts check allows, each as its clean close-up shows it. A
+# holder never carries the loose objects on it: the pot and the kettle on the galley counter, the pillow and the
+# blanket on the exam couch are children of their own, placed on purpose (composites). Helpers are prefixed `hab_b_`.
+
+HAB_B_COUNTER_TOP = 0.04  # the galley counter's stainless top
+HAB_B_PLINTH = 0.08
+# The galley counter's fittings across its width (x of their middles, the kit's +x is the viewer's left): the
+# induction plate (where the pot stands) at the viewer's left, the hob in the middle, the sink at the viewer's right.
+HAB_B_INDUCTION_X = 0.95
+HAB_B_HOB_X = 0.12
+HAB_B_SINK_X = -0.72
+# The exam couch's raised back: how long it is and how steeply it rises.
+HAB_B_COUCH_BACK = 0.55
+HAB_B_COUCH_SLOPE = 20.0
+HAB_B_COUCH_PAD = 0.09  # the pads' thickness
+HAB_B_COUCH_FRAME_TOP = 0.56  # the frame's top, the pads lie on it
+
+
+def hab_b_spun_ring(middle_y, outer, inner, high, material, name, segments=64):
+    """A flat round ring lying level (its axis up), from `middle_y` up by `high`."""
+    return shapes.ring((0.0, middle_y, 0.0), (0.0, middle_y + high, 0.0), outer, inner, material, segments, name)
+
+
+def hab_b_latch(x, y, front, name="latch"):
+    """A small drawer latch on a face at depth `front`: a plate and a lever standing out of it."""
+    return [shapes.bevelled(shapes.box((x - 0.022, y - 0.03, front - 0.006), (x + 0.022, y + 0.03, front), "bare_steel",
+                                       name), 0.0015),
+            shapes.bevelled(shapes.box((x - 0.009, y - 0.022, front - 0.022), (x + 0.009, y + 0.012, front - 0.006),
+                                       "bare_steel", name), 0.002)]
+
+
+def hab_b_hinge(x, y, front, name="hinge"):
+    """A small butt hinge on a door's edge: a leaf on the face and its knuckle."""
+    return [shapes.box((x - 0.012, y - 0.03, front - 0.004), (x + 0.012, y + 0.03, front), "bare_steel", name),
+            shapes.cylinder((x, y - 0.032, front - 0.006), (x, y + 0.032, front - 0.006), 0.0055, "bare_steel", 10,
+                            name)]
+
+
+def hab_b_unit(right, left, top, front, back, label_variant):
+    """One cabinet unit of the galley counter between x `right` and `left`: its carcass, a drawer across its top with a
+    latch and two hinges, two doors under it with bar handles and hinges, and a STORAGE label on one door."""
+    face = front + 0.016
+    parts = [shapes.bevelled(shapes.box((right, HAB_B_PLINTH, face), (left, top, back), "painted_panel", "carcass"),
+                             EDGE)]
+    drawer_top = top - 0.02
+    drawer_low = top - 0.2
+    parts.append(shapes.bevelled(shapes.box((right + 0.015, drawer_low, front), (left - 0.015, drawer_top, face),
+                                            "painted_panel", "drawer"), 0.002))
+    middle = (right + left) / 2
+    parts += hab_b_latch(middle, (drawer_low + drawer_top) / 2 + 0.01, front)
+    parts += hab_b_hinge(right + 0.04, drawer_low + 0.03, front)
+    parts += hab_b_hinge(left - 0.04, drawer_low + 0.03, front)
+    door_top = drawer_low - 0.012
+    gap = 0.008
+    for door_right, door_left, hinge_x, handle_x in ((middle + gap / 2, left - 0.015, left - 0.03, middle + 0.11),
+                                                     (right + 0.015, middle - gap / 2, right + 0.03, middle - 0.11)):
+        parts.append(shapes.bevelled(shapes.box((door_right, HAB_B_PLINTH + 0.02, front), (door_left, door_top, face),
+                                                "painted_panel", "door"), 0.002))
+        parts += furn_pull(handle_x, door_top - 0.1, 0.14, front, upright=False, name="handle")
+        for high in (HAB_B_PLINTH + 0.1, door_top - 0.06):
+            parts += hab_b_hinge(hinge_x, high, front)
+    parts.append(label(middle - 0.2 if middle > 0 else middle + 0.2, door_top - 0.04, 0.16, 0.045, front,
+                       label_variant))
+    return parts
+
+
+def galley_counter(size, laid):
+    """The galley counter, as its close-up shows it: two steel cabinet units on a dark plinth, each with a latched
+    drawer over a pair of doors with bar handles and hinges and a STORAGE label; a stainless top with a splashback in
+    two lengths along its back; set into the top, a sink with its tap and drain (viewer's right) and a two-ring
+    electric hob (middle) with its label; an induction plate at the viewer's left. Its top is left clear round them for
+    the pot and the kettle (children of their own)."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    top = tall
+    under_top = top - HAB_B_COUNTER_TOP
+    parts = [shapes.box((-wide / 2 + 0.03, 0.0, front + 0.06), (wide / 2 - 0.03, HAB_B_PLINTH, back), "dark_panel",
+                        "plinth")]
+    joint = 0.004
+    parts += hab_b_unit(-wide / 2 + 0.01, -joint / 2, under_top, front + 0.02, back, "label_storage")
+    parts += hab_b_unit(joint / 2, wide / 2 - 0.01, under_top, front + 0.02, back, "label_storage")
+    worktop = shapes.box((-wide / 2, under_top, front - 0.005), (wide / 2, top, back), "brushed_steel_fine", "top")
+    # The sink's basin, cut down through the top and the carcass under it.
+    sink_wide, sink_deep, sink_low = 0.56, 0.38, top - 0.13
+    sink_z = 0.0
+    low = (HAB_B_SINK_X - sink_wide / 2, sink_low, sink_z - sink_deep / 2)
+    high = (HAB_B_SINK_X + sink_wide / 2, top + 0.01, sink_z + sink_deep / 2)
+    furn_cut_box(worktop, low, high)
+    parts.append(shapes.bevelled(worktop, EDGE))
+    for part in parts:
+        if part.name.split(".")[0] == "carcass":
+            furn_cut_box(part, (low[0] - 0.006, low[1] - 0.006, low[2] - 0.006), (high[0] + 0.006, top, high[2] + 0.006))
+    basin = shapes.box((low[0] - 0.005, sink_low - 0.005, low[2] - 0.005), (high[0] + 0.005, top - 0.001, high[2] + 0.005),
+                       "brushed_steel_fine", "sink")
+    furn_cut_box(basin, (low[0], sink_low, low[2]), (high[0], top + 0.01, high[2]))
+    parts.append(basin)
+    # The basin's rim round it on the top.
+    for rim_low, rim_high in (((low[0] - 0.03, low[2] - 0.03), (high[0] + 0.03, low[2])),
+                              ((low[0] - 0.03, high[2]), (high[0] + 0.03, high[2] + 0.03)),
+                              ((low[0] - 0.03, low[2]), (low[0], high[2])),
+                              ((high[0], low[2]), (high[0] + 0.03, high[2]))):
+        parts.append(shapes.bevelled(shapes.box((rim_low[0], top, rim_low[1]), (rim_high[0], top + 0.006, rim_high[1]),
+                                                "brushed_steel_fine", "sink"), 0.002))
+    parts.append(shapes.cylinder((HAB_B_SINK_X + 0.08, sink_low - 0.002, 0.11), (HAB_B_SINK_X + 0.08, sink_low + 0.006,
+                                                                                 0.11), 0.032, "bare_steel", 20, "drain"))
+    # The tap behind the basin: a pillar, a swan neck over the basin, and two lever handles.
+    tap_x, tap_z = HAB_B_SINK_X, high[2] + 0.06
+    parts.append(shapes.cylinder((tap_x, top, tap_z), (tap_x, top + 0.2, tap_z), 0.012, "bare_steel", 16, "tap"))
+    parts.append(floor_bent_tube((tap_x, top + 0.2, tap_z - 0.06), (0, 0, 1), (0, 1, 0), 0.06, 0.011, 0.0, 180.0,
+                                 "bare_steel", "tap", steps=12, sides=12))
+    parts.append(shapes.cylinder((tap_x, top + 0.2, tap_z - 0.12), (tap_x, top + 0.16, tap_z - 0.12), 0.011,
+                                 "bare_steel", 12, "tap"))
+    for side in (-1, 1):
+        parts.append(shapes.cylinder((tap_x + side * 0.07, top, tap_z), (tap_x + side * 0.07, top + 0.05, tap_z), 0.012,
+                                     "bare_steel", 12, "tap_handle"))
+        parts.append(shapes.box((tap_x + side * 0.07 - 0.006, top + 0.045, tap_z - 0.06),
+                                (tap_x + side * 0.07 + 0.006, top + 0.055, tap_z), "bare_steel", "tap_handle"))
+    parts.append(label(HAB_B_SINK_X + 0.15, top - HAB_B_COUNTER_TOP / 2, 0.12, 0.03, front - 0.005, "label_sink"))
+    # The hob: a plate standing proud of the top with two rings, each a coil of three red loops round a hub.
+    hob_wide, hob_deep = 0.46, 0.36
+    parts.append(shapes.bevelled(shapes.box((HAB_B_HOB_X - hob_wide / 2, top, -hob_deep / 2 + 0.02),
+                                            (HAB_B_HOB_X + hob_wide / 2, top + 0.012, hob_deep / 2 + 0.02),
+                                            "brushed_steel_fine", "hob"), 0.002))
+    for ring_x, ring_z in ((HAB_B_HOB_X + 0.11, -0.05), (HAB_B_HOB_X - 0.11, 0.09)):
+        parts.append(shapes.cylinder((ring_x, top + 0.012, ring_z), (ring_x, top + 0.016, ring_z), 0.1, "dark_panel",
+                                     40, "burner"))
+        for outer in (0.092, 0.068, 0.044):
+            parts.append(shapes.ring((ring_x, top + 0.016, ring_z), (ring_x, top + 0.024, ring_z), outer, outer - 0.012,
+                                     "anodized_red", 40, "burner"))
+        parts.append(shapes.cylinder((ring_x, top + 0.016, ring_z), (ring_x, top + 0.024, ring_z), 0.014, "bare_steel",
+                                     16, "burner"))
+    parts.append(label(HAB_B_HOB_X - 0.05, top - HAB_B_COUNTER_TOP / 2, 0.24, 0.03, front - 0.005, "label_electric_hob"))
+    # The induction plate: a dark glass slab lying on the top, the pot's spot, its touch keys printed on.
+    plate_low = (HAB_B_INDUCTION_X - 0.17, top, -0.17)
+    plate_high = (HAB_B_INDUCTION_X + 0.17, top + 0.012, 0.11)
+    parts.append(shapes.bevelled(shapes.box(plate_low, plate_high, "anodized_black", "induction_plate"), 0.002))
+    # The splashback along the back, in two lengths as the close-up shows it (a step where they meet).
+    parts.append(shapes.bevelled(shapes.box((-wide / 2, top, back - 0.02), (0.55, top + 0.26, back), "brushed_steel_fine",
+                                            "splashback"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((0.57, top, back - 0.02), (wide / 2, top + 0.2, back), "brushed_steel_fine",
+                                            "splashback"), 0.002))
+    return parts
+
+
+def mess_table(size, laid):
+    """The mess table, as its close-up shows it: a stainless top with a turned-down edge all round, four round legs
+    with rubber feet, and its labels (MESS TABLE, CLEAN AFTER USE, BASE PROPERTY) on the edge's front."""
+    wide, tall, deep = size
+    top_thick, edge = 0.025, 0.06
+    parts = [shapes.bevelled(shapes.box((-wide / 2, tall - top_thick, -deep / 2), (wide / 2, tall, deep / 2),
+                                        "brushed_steel_fine", "top"), 0.006)]
+    for low, high in (((-wide / 2, -deep / 2), (wide / 2, -deep / 2 + 0.012)),
+                      ((-wide / 2, deep / 2 - 0.012), (wide / 2, deep / 2)),
+                      ((-wide / 2, -deep / 2 + 0.012), (-wide / 2 + 0.012, deep / 2 - 0.012)),
+                      ((wide / 2 - 0.012, -deep / 2 + 0.012), (wide / 2, deep / 2 - 0.012))):
+        parts.append(shapes.bevelled(shapes.box((low[0], tall - edge, low[1]), (high[0], tall - top_thick, high[1]),
+                                                "brushed_steel_fine", "edge"), 0.003))
+    for x in (-wide / 2 + 0.14, wide / 2 - 0.14):
+        for z in (-deep / 2 + 0.1, deep / 2 - 0.1):
+            parts.append(shapes.cylinder((x, 0.025, z), (x, tall - edge, z), 0.025, "brushed_steel_fine", 24, "leg"))
+            parts.append(shapes.cylinder((x, 0.0, z), (x, 0.025, z), 0.029, "rubber", 24, "foot"))
+    front = -deep / 2
+    middle = tall - (edge + top_thick) / 2
+    parts.append(label(wide / 2 - 0.3, middle, 0.26, 0.026, front, "label_mess_table"))
+    parts.append(label(0.0, middle, 0.3, 0.026, front, "label_clean_after_use"))
+    parts.append(label(-wide / 2 + 0.3, middle, 0.3, 0.026, front, "label_base_property"))
+    return parts
+
+
+def stool(size, laid):
+    """A mess stool, as its close-up shows it: a round padded cushion in a steel seat pan, a column down to a spun
+    base with a collar where they meet, and a foot ring held by three stays from the column."""
+    wide, tall, deep = size
+    radius = min(wide, deep) / 2
+    pan_low = tall - 0.07
+    parts = [shapes.bevelled(shapes.cylinder((0.0, pan_low, 0.0), (0.0, tall - 0.02, 0.0), radius * 0.86, "bare_steel",
+                                             48, "seat_pan"), 0.006),
+             shapes.bevelled(shapes.cylinder((0.0, tall - 0.03, 0.0), (0.0, tall, 0.0), radius * 0.8, "vinyl_seat", 48,
+                                             "cushion"), 0.012)]
+    parts.append(shapes.cylinder((0.0, 0.03, 0.0), (0.0, pan_low, 0.0), 0.028, "bare_steel", 24, "column"))
+    base = furn_prism([(radius * math.cos(2 * math.pi * at / 48), radius * math.sin(2 * math.pi * at / 48))
+                       for at in range(48)], "y", 0.0, 0.012, "bare_steel", "base")
+    parts.append(shapes.bevelled(base, 0.003))
+    # The spun cone from the base plate up to the column.
+    cone = bmesh.new()
+    bmesh.ops.create_cone(cone, cap_ends=True, cap_tris=False, segments=48, radius1=radius * 0.9, radius2=0.05,
+                          depth=0.05)
+    bmesh.ops.translate(cone, verts=cone.verts, vec=Vector((0.0, 0.0, 0.012 + 0.025)))
+    data = bpy.data.meshes.new("base")
+    cone.to_mesh(data)
+    cone.free()
+    parts.append(shapes.mesh_object("base", data, "bare_steel"))
+    parts.append(shapes.cylinder((0.0, 0.06, 0.0), (0.0, 0.085, 0.0), 0.045, "bare_steel", 24, "collar"))
+    ring_high = 0.17
+    ring_radius = radius * 0.7
+    parts.append(floor_bent_tube((0.0, ring_high, 0.0), (1, 0, 0), (0, 0, 1), ring_radius, 0.011, 0.0, 360.0,
+                                 "bare_steel", "foot_ring", steps=40, sides=12))
+    for at in range(3):
+        angle = math.radians(90 + 120 * at)
+        parts.append(shapes.cylinder((0.028 * math.cos(angle), ring_high, -0.028 * math.sin(angle)),
+                                     ((ring_radius - 0.008) * math.cos(angle), ring_high,
+                                      -(ring_radius - 0.008) * math.sin(angle)), 0.008, "bare_steel", 10, "stay"))
+    return parts
+
+
+def exam_couch(size, laid):
+    """The medical exam couch, as its close-up shows it: a square-tube steel frame with a side rail all round on four
+    legs with feet and stretchers between them, a padded vinyl seat pad and a back pad raised on struts at the viewer's
+    right, and its labels (MEDICAL EXAM COUCH, CLEAN AFTER USE) on the front rail. The pillow and the blanket on it
+    are children of their own."""
+    wide, tall, deep = size
+    rail_high = 0.08
+    frame_top = HAB_B_COUCH_FRAME_TOP
+    half_wide, half_deep = wide / 2, deep / 2 - 0.03
+    parts = []
+    for low, high in (((-half_wide, -half_deep), (half_wide, -half_deep + 0.03)),
+                      ((-half_wide, half_deep - 0.03), (half_wide, half_deep)),
+                      ((-half_wide, -half_deep + 0.03), (-half_wide + 0.03, half_deep - 0.03)),
+                      ((half_wide - 0.03, -half_deep + 0.03), (half_wide, half_deep - 0.03))):
+        parts.append(shapes.bevelled(shapes.box((low[0], frame_top - rail_high, low[1]), (high[0], frame_top, high[1]),
+                                                "painted_panel", "frame"), 0.003))
+    leg_x, leg_z = half_wide - 0.1, half_deep - 0.05
+    for x in (-leg_x, leg_x):
+        for z in (-leg_z, leg_z):
+            parts.append(shapes.bevelled(shapes.box((x - 0.02, 0.02, z - 0.02), (x + 0.02, frame_top - rail_high, z + 0.02),
+                                                    "galvanized_steel", "leg"), 0.002))
+            parts.append(shapes.box((x - 0.022, 0.0, z - 0.022), (x + 0.022, 0.02, z + 0.022), "rubber", "foot"))
+        parts.append(shapes.bevelled(shapes.box((x - 0.015, 0.16, -leg_z + 0.02), (x + 0.015, 0.19, leg_z - 0.02),
+                                                "galvanized_steel", "stretcher"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((-leg_x + 0.02, 0.16, leg_z - 0.015), (leg_x - 0.02, 0.19, leg_z + 0.015),
+                                            "galvanized_steel", "stretcher"), 0.002))
+    # The seat pad, from the viewer's left end to the back pad's hinge.
+    hinge_x = -half_wide + HAB_B_COUCH_BACK
+    parts.append(shapes.bevelled(shapes.box((hinge_x + 0.01, frame_top, -half_deep + 0.01),
+                                            (half_wide - 0.01, frame_top + HAB_B_COUCH_PAD, half_deep - 0.01),
+                                            "vinyl_cabin", "pad"), 0.02))
+    # The back pad raised about the hinge, on two struts from the frame.
+    back = shapes.bevelled(shapes.box((-half_wide + 0.01, frame_top, -half_deep + 0.01),
+                                      (hinge_x, frame_top + HAB_B_COUCH_PAD, half_deep - 0.01), "vinyl_cabin",
+                                      "back_pad"), 0.02)
+    pivot = shapes.to_blender((hinge_x, frame_top, 0.0))
+    back.data.transform(Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(HAB_B_COUCH_SLOPE), 4, "Y")
+                        @ Matrix.Translation(-pivot))
+    parts.append(back)
+    lift = HAB_B_COUCH_BACK * 0.75 * math.sin(math.radians(HAB_B_COUCH_SLOPE))
+    for z in (-half_deep + 0.08, half_deep - 0.08):
+        parts.append(shapes.cylinder((-half_wide + 0.13, frame_top - 0.02, z), (-half_wide + 0.13, frame_top + lift - 0.01,
+                                                                                 z), 0.009, "galvanized_steel", 12,
+                                     "back_strut"))
+    front = -half_deep
+    middle = frame_top - rail_high / 2
+    parts.append(label(0.2, middle, 0.4, 0.05, front, "label_exam_couch"))
+    parts.append(label(-0.45, middle, 0.26, 0.05, front, "label_clean_after_use"))
+    return parts
+
+
+def light_ring(size, laid):
+    """The ring light over the mess table, as its close-up shows it: a heavy steel ring with a raised bead round its
+    outside and bolt heads along it, a ring of lamps under it (a socket and a glowing lens each), and four hanging rods
+    from shackles on the ring up to a canopy plate under the roof (the laid box's top)."""
+    wide, tall, deep = size
+    outer = min(wide, deep) / 2
+    inner = outer - 0.12
+    ring_high = 0.09
+    parts = [shapes.bevelled(hab_b_spun_ring(0.03, outer, inner, ring_high, "dark_panel", "ring", 96), 0.004)]
+    parts.append(hab_b_spun_ring(0.03 + ring_high * 0.35, outer + 0.008, outer - 0.01, 0.02, "dark_panel", "bead", 96))
+    for at in range(24):
+        angle = 2 * math.pi * (at + 0.5) / 24
+        out = Vector((math.cos(angle), 0.0, math.sin(angle)))
+        middle = Vector((0.0, 0.03 + ring_high * 0.75, 0.0)) + out * outer
+        parts.append(shapes.cylinder(tuple(middle), tuple(middle + out * 0.008), 0.009, "bare_steel", 10, "bolt"))
+    middle_radius = (outer + inner) / 2
+    for at in range(14):
+        angle = 2 * math.pi * at / 14
+        x, z = middle_radius * math.cos(angle), middle_radius * math.sin(angle)
+        parts.append(shapes.cylinder((x, 0.022, z), (x, 0.03, z), 0.042, "bare_steel", 24, "socket"))
+        dome = bmesh.new()
+        bmesh.ops.create_uvsphere(dome, u_segments=16, v_segments=8, radius=0.04)
+        bmesh.ops.delete(dome, geom=[vertex for vertex in dome.verts if vertex.co.z > 0.0001], context="VERTS")
+        bmesh.ops.contextual_create(dome, geom=[edge for edge in dome.edges if edge.is_boundary])
+        bmesh.ops.translate(dome, verts=dome.verts, vec=shapes.to_blender((x, 0.03, z)))
+        data = bpy.data.meshes.new("lens")
+        dome.to_mesh(data)
+        dome.free()
+        parts.append(shapes.mesh_object("lens", data, "lamp_lens"))
+    canopy_y = tall - 0.03
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, canopy_y, 0.0), (0.0, tall, 0.0), 0.16, "dark_panel", 32,
+                                                 "canopy"), 0.004))
+    for at in range(4):
+        angle = 2 * math.pi * at / 4 + math.pi / 4
+        out = Vector((math.cos(angle), 0.0, math.sin(angle)))
+        # The shackle: a clevis plate bolted on the ring's outside, standing over its top, the rod's eye through it.
+        foot = Vector((0.0, 0.03 + ring_high * 0.4, 0.0)) + out * (outer + 0.012)
+        side = Vector((-out.z, 0.0, out.x))
+        corners = [foot + side * 0.022 + out * 0.012, foot - side * 0.022 + out * 0.012,
+                   foot - side * 0.022 - out * 0.012, foot + side * 0.022 - out * 0.012]
+        plate = bmesh.new()
+        low = [plate.verts.new(shapes.to_blender(corner)) for corner in corners]
+        high = [plate.verts.new(shapes.to_blender(corner + Vector((0.0, ring_high * 0.6 + 0.05, 0.0)))) for corner in corners]
+        plate.faces.new(low)
+        plate.faces.new(list(reversed(high)))
+        for at in range(4):
+            plate.faces.new([low[at], high[at], high[(at + 1) % 4], low[(at + 1) % 4]])
+        bmesh.ops.recalc_face_normals(plate, faces=plate.faces)
+        data = bpy.data.meshes.new("shackle")
+        plate.to_mesh(data)
+        plate.free()
+        parts.append(shapes.mesh_object("shackle", data, "bare_steel"))
+        eye = foot + Vector((0.0, ring_high * 0.6 + 0.035, 0.0))
+        parts.append(shapes.cylinder(tuple(eye - side * 0.03), tuple(eye + side * 0.03), 0.009, "bare_steel", 12,
+                                     "shackle"))
+        head = Vector((0.0, canopy_y, 0.0)) + out * 0.12
+        parts.append(shapes.cylinder(tuple(eye), tuple(head), 0.006, "cast_iron_dark", 10, "rod"))
+    return parts
+
+
+def pot(size, laid):
+    """A steel cooking pot, as its close-up shows it: a straight-sided body with a floor, its rolled rim, and two
+    loop handles on riveted plates either side."""
+    wide, tall, deep = size
+    radius = min(deep, wide - 0.08) / 2
+    body = shapes.cylinder((0.0, 0.0, 0.0), (0.0, tall - 0.008, 0.0), radius, "brushed_steel_fine", 40, "body")
+    shapes.cut(body, shapes.cylinder((0.0, 0.006, 0.0), (0.0, tall + 0.05, 0.0), radius - 0.005, "brushed_steel_fine",
+                                     40, "cutter"))
+    parts = [body,
+             shapes.bevelled(shapes.ring((0.0, tall - 0.012, 0.0), (0.0, tall, 0.0), radius + 0.006, radius - 0.004,
+                                         "brushed_steel_fine", 40, "rim"), 0.002)]
+    for side in (-1, 1):
+        x = side * radius
+        parts.append(shapes.box((x - 0.006 if side < 0 else x - 0.002, tall * 0.62, -0.03),
+                                (x + 0.002 if side < 0 else x + 0.006, tall * 0.82, 0.03), "bare_steel", "handle_plate"))
+        parts.append(floor_bent_tube((x + side * 0.004, tall * 0.72, 0.0), (0, 0, 1), (side, 0, 0), 0.028, 0.004, 0.0,
+                                     180.0, "bare_steel", "handle", steps=10, sides=8))
+    return parts
+
+
+def couch_pillow(size, laid):
+    """The exam couch's pillow, as its close-up shows it: a flat pale vinyl pillow with a welted seam round its edge,
+    lying on the couch's raised back pad (tilted as the pad is, its foot the pad's face)."""
+    wide, tall, deep = size
+    thick = 0.07
+    run = (wide - 0.02) / math.cos(math.radians(HAB_B_COUCH_SLOPE))
+    pillow = shapes.bevelled(shapes.box((-run / 2, 0.0, -deep / 2 + 0.01), (run / 2, thick, deep / 2 - 0.01),
+                                        "vinyl_cabin", "pillow"), 0.025)
+    seam = shapes.bevelled(shapes.box((-run / 2 - 0.006, thick / 2 - 0.006, -deep / 2 + 0.004),
+                                      (run / 2 + 0.006, thick / 2 + 0.006, deep / 2 - 0.004), "vinyl_cabin", "seam"),
+                           0.004)
+    parts = [pillow, seam]
+    # Lying on the raised back: its high end at the viewer's right (-x), as the couch's back rises.
+    pivot = shapes.to_blender((0.0, 0.0, 0.0))
+    for part in parts:
+        part.data.transform(Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(HAB_B_COUCH_SLOPE), 4, "Y")
+                            @ Matrix.Translation(-pivot))
+    low = min(vertex.co.z for part in parts for vertex in part.data.vertices)
+    for part in parts:
+        part.data.transform(Matrix.Translation(Vector((0.0, 0.0, -low))))
+    return parts
+
+
+# ---- Modules round (2026-10-07): the airlock's and the walkway tube's fittings and furniture, built in code with
+# library surfaces as method B's parts check allows, each with every part its clean close-up shows
+# (data/library/fittings.json). The suit-up alcove's hose reel is a child of its own (one model per real-world object);
+# the dust vacuum goes to the prop pipeline. Helpers are prefixed `lock_tube_`.
+
+LOCK_TUBE_STRIPE = 0.12  # a hazard stripe's width, measured along the frame's diagonal (x + y)
+
+
+def lock_tube_area(polygon):
+    return sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(polygon, polygon[1:] + polygon[:1])) / 2
+
+
+def lock_tube_ccw(polygon):
+    """A polygon's (x, y) points counter-clockwise."""
+    return list(polygon) if lock_tube_area(polygon) >= 0 else list(reversed(polygon))
+
+
+def lock_tube_clip(polygon, clipper):
+    """A convex polygon clipped to a convex clipper (Sutherland-Hodgman), both as (x, y) lists; empty when they do not
+    meet."""
+    found = lock_tube_ccw(polygon)
+    clipper = lock_tube_ccw(clipper)
+    for (ax, ay), (bx, by) in zip(clipper, clipper[1:] + clipper[:1]):
+        def inside(point):
+            return (bx - ax) * (point[1] - ay) - (by - ay) * (point[0] - ax) >= -1e-9
+
+        def crossing(p, q):
+            dx, dy = q[0] - p[0], q[1] - p[1]
+            ex, ey = bx - ax, by - ay
+            share = (ex * (p[1] - ay) - ey * (p[0] - ax)) / (ey * dx - ex * dy)
+            return (p[0] + dx * share, p[1] + dy * share)
+        before, found = found, []
+        for at, point in enumerate(before):
+            previous = before[at - 1]
+            if inside(point):
+                if not inside(previous):
+                    found.append(crossing(previous, point))
+                found.append(point)
+            elif inside(previous):
+                found.append(crossing(previous, point))
+        if len(found) < 3:
+            return []
+    return found if abs(lock_tube_area(found)) > 1e-5 else []
+
+
+def lock_tube_chamfered(low, high, top_cut, bottom_cut):
+    """A rectangle's outline (x, y) with its top corners cut `top_cut` and its bottom ones `bottom_cut` at 45 degrees,
+    counter-clockwise."""
+    (left, bottom), (right, top) = low, high
+    found = []
+    for x, y, cut, along in ((right, bottom, bottom_cut, "up"), (right, top, top_cut, "left"),
+                             (left, top, top_cut, "down"), (left, bottom, bottom_cut, "right")):
+        if cut <= 0:
+            found.append((x, y))
+            continue
+        if along == "up":
+            found += [(x - cut, y), (x, y + cut)]
+        elif along == "left":
+            found += [(x, y - cut), (x - cut, y)]
+        elif along == "down":
+            found += [(x + cut, y), (x, y - cut)]
+        else:
+            found += [(x, y + cut), (x + cut, y)]
+    return lock_tube_ccw(found)
+
+
+def lock_tube_bar(start, end, half):
+    """A flat bar's outline from one (x, y) point to another, `half` its width either side."""
+    dx, dy = end[0] - start[0], end[1] - start[1]
+    length = math.hypot(dx, dy)
+    nx, ny = -dy / length * half, dx / length * half
+    return lock_tube_ccw([(start[0] + nx, start[1] + ny), (end[0] + nx, end[1] + ny), (end[0] - nx, end[1] - ny),
+                          (start[0] - nx, start[1] - ny)])
+
+
+def lock_tube_ring(outer, inner, depth_from, depth_to, material, name):
+    """A flat ring of any outline: the outer outline solid between two depths with the inner one cut through."""
+    ring = shapes.prism(outer, depth_from, depth_to, material, name)
+    shapes.cut(ring, shapes.prism(inner, depth_from - 0.05, depth_to + 0.05, material, "cutter"))
+    return ring
+
+
+def lock_tube_stripes(band, surface, thick=0.004):
+    """Black hazard stripes over a yellow band (a convex (x, y) outline) standing on a face at depth `surface`: the
+    band's yellow plate, and diagonal black stripes clipped to it, one stripe width apart."""
+    parts = [shapes.prism(band, surface - thick, surface + 0.002, "hazard_paint", "stripe")]
+    sums = [x + y for x, y in band]
+    start = math.floor(min(sums) / (2 * LOCK_TUBE_STRIPE)) * 2 * LOCK_TUBE_STRIPE
+    reach = 4.0
+    at = start
+    while at < max(sums):
+        def point(along, across):
+            return (along / 2 + across, along / 2 - across)
+        stripe = [point(at, -reach), point(at, reach), point(at + LOCK_TUBE_STRIPE, reach),
+                  point(at + LOCK_TUBE_STRIPE, -reach)]
+        clipped = lock_tube_clip(stripe, band)
+        if clipped:
+            parts.append(shapes.prism(clipped, surface - thick - 0.004, surface - thick, "anodized_black",
+                                      "stripe"))
+        at += 2 * LOCK_TUBE_STRIPE
+    return parts
+
+
+def door_frame(size, laid):
+    """The airlock's heavy door frame, as its close-up shows it: a bolted back flange, the frame round the doorway
+    with its outer corners cut, a stepped lip round the opening and a band of black-and-yellow hazard stripes on the
+    frame's face; the opening is exactly the shell's doorway (the door leaf, the game's own moving node, sinks into
+    the floor in it)."""
+    wide, tall, deep = size
+    half, top = DOORWAY[0] / 2, DOORWAY[1]
+    front, back = -deep / 2, deep / 2
+    opening = [(half, 0.0), (half, top), (-half, top), (-half, 0.0)]
+    flange_outline = lock_tube_chamfered((-wide / 2, 0.0), (wide / 2, tall), 0.22, 0.08)
+    frame_outline = lock_tube_chamfered((-wide / 2 + 0.045, 0.0), (wide / 2 - 0.045, tall - 0.045), 0.19, 0.06)
+    door_hole = [(half + 0.001, -0.01), (half + 0.001, top + 0.001), (-half - 0.001, top + 0.001),
+                 (-half - 0.001, -0.01)]
+    parts = [shapes.bevelled(lock_tube_ring(flange_outline, door_hole, back - 0.03, back, "dark_panel", "flange"),
+                             0.004)]
+    frame_face = front + 0.04
+    parts.append(shapes.bevelled(lock_tube_ring(frame_outline, door_hole, frame_face, back - 0.03, "painted_panel",
+                                                "frame"), 0.006))
+    lip = 0.05
+    lip_outline = [(half + lip, 0.0), (half + lip, top + lip), (-half - lip, top + lip), (-half - lip, 0.0)]
+    parts.append(shapes.bevelled(lock_tube_ring(lip_outline, door_hole, front, frame_face, "bare_steel", "lip"),
+                                 0.004))
+    # The stripe band on the frame's face: down each post and across the header, inside the cut outer corners.
+    margin = 0.02
+    outer = lock_tube_chamfered((-wide / 2 + 0.045 + margin, margin), (wide / 2 - 0.045 - margin,
+                                                                       tall - 0.045 - margin), 0.19 - margin * 0.6,
+                                0.06 - margin * 0.6)
+    inner_x, inner_top = half + lip + 0.012, top + lip + 0.012
+    bands = [[(inner_x, 0.0), (wide, 0.0), (wide, inner_top), (inner_x, inner_top)],
+             [(-wide, 0.0), (-inner_x, 0.0), (-inner_x, inner_top), (-wide, inner_top)],
+             [(-wide, inner_top), (wide, inner_top), (wide, tall), (-wide, tall)]]
+    for band in bands:
+        clipped = lock_tube_clip(band, outer)
+        if clipped:
+            parts += lock_tube_stripes(clipped, frame_face)
+    # Bolts round the flange's exposed rim.
+    rim = (wide / 2 - 0.0225)
+    for y in np.linspace(0.15, tall - 0.3, 8):
+        parts += [bolt(side * rim, float(y), back - 0.03) for side in (-1, 1)]
+    for x in np.linspace(-wide / 2 + 0.35, wide / 2 - 0.35, 6):
+        parts.append(bolt(float(x), tall - 0.0225, back - 0.03))
+    return parts
+
+
+def door_leaf(size, laid):
+    """The airlock's door leaf (the game's InnerDoor and OuterDoor draw it; it sinks into the floor), as its
+    close-up shows it: a thick slab with its top corners cut, a raised rim round its face, eight raised ribs from a
+    bolted ring at its middle out to the rim with recessed panels between them, a lock hub in the ring, two latch arms
+    on its side and an AIRLOCK sticker."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    outline = lock_tube_chamfered((-wide / 2, 0.0), (wide / 2, tall), 0.3, 0.0)
+    face = front + 0.035
+    parts = [shapes.bevelled(shapes.prism(outline, face, back, "painted_panel", "slab"), 0.008)]
+    rim_width = 0.1
+    inner = lock_tube_chamfered((-wide / 2 + rim_width, rim_width), (wide / 2 - rim_width, tall - rim_width),
+                                0.3 - rim_width * 0.6, 0.0)
+    parts.append(shapes.bevelled(lock_tube_ring(outline, inner, front + 0.005, face + 0.005, "painted_panel", "rim"),
+                                 0.005))
+    middle = (0.0, tall / 2)
+    ring_outer, ring_inner = 0.24, 0.16
+    for angle in range(0, 360, 45):
+        reach = 3.0
+        end = (middle[0] + reach * math.cos(math.radians(angle)), middle[1] + reach * math.sin(math.radians(angle)))
+        start = (middle[0] + ring_outer * 0.9 * math.cos(math.radians(angle)),
+                 middle[1] + ring_outer * 0.9 * math.sin(math.radians(angle)))
+        bar = lock_tube_clip(lock_tube_bar(start, end, 0.045), inner)
+        if bar:
+            parts.append(shapes.bevelled(shapes.prism(bar, front + 0.012, face + 0.005, "painted_panel", "rib"),
+                                         0.004))
+    parts.append(shapes.bevelled(shapes.ring((*middle, front - 0.005), (*middle, face + 0.005), ring_outer,
+                                             ring_inner, "bare_steel", 48, "hub_ring"), 0.004))
+    for at in range(8):
+        angle = 2 * math.pi * (at + 0.5) / 8
+        parts.append(bolt(middle[0] + 0.2 * math.cos(angle), middle[1] + 0.2 * math.sin(angle), front - 0.005))
+    hub = shapes.cylinder((*middle, front + 0.01), (*middle, face + 0.005), ring_inner + 0.002, "cast_steel", 40,
+                          "hub")
+    parts.append(shapes.bevelled(hub, 0.003))
+    parts.append(shapes.bevelled(shapes.box((-0.025, middle[1] - 0.12, front - 0.005), (0.025, middle[1] + 0.12,
+                                                                                       front + 0.01), "cast_steel",
+                                            "lock_bar"), 0.003))
+    # Two latch arms on the viewer's right (the kit's -x): a bolted plate on the leaf and an arm out to its edge.
+    for y in (middle[1] + 0.3, middle[1] - 0.3):
+        plate = shapes.box((-wide / 2 + 0.2, y - 0.05, front - 0.002), (-wide / 2 + 0.52, y + 0.05, face + 0.002),
+                           "bare_steel", "latch")
+        parts.append(shapes.bevelled(plate, 0.003))
+        parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.04, y - 0.025, front - 0.03),
+                                                (-wide / 2 + 0.24, y + 0.025, front - 0.002), "bare_steel", "latch"),
+                                     0.003))
+        parts += [bolt(x, y + dy, front - 0.002) for x in (-wide / 2 + 0.26, -wide / 2 + 0.46) for dy in (-0.028, 0.028)]
+    parts.append(label(0.72, 1.05, 0.3, 0.18, face, "label_airlock_leaf", name="sticker"))
+    return parts
+
+
+def suit_alcove(size, laid):
+    """The suit-up alcove the suit hangs in (the game's SuitLocker stands in it with the suit), as its close-up shows
+    it: an open-fronted steel carcass with its top corners cut and a raised frame round its mouth, a three-cushion
+    back pad, a grab rail on each side wall, a strip lamp under its top, a deck plate and a foot rail on its floor, and
+    a hook on its top; its hose reel is a child of its own beside it."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    outline = lock_tube_chamfered((-wide / 2, 0.0), (wide / 2, tall), 0.2, 0.0)
+    carcass = shapes.prism(outline, front + 0.03, back, "painted_panel", "carcass")
+    side, roof, floor_high, back_wall = 0.07, 0.14, 0.08, 0.04
+    mouth = lock_tube_chamfered((-wide / 2 + side, floor_high), (wide / 2 - side, tall - roof), 0.14, 0.0)
+    shapes.cut(carcass, shapes.prism(mouth, front - 0.05, back - back_wall, "painted_panel", "cutter"))
+    parts = [shapes.bevelled(carcass, 0.006)]
+    parts.append(shapes.bevelled(lock_tube_ring(outline, mouth, front, front + 0.03, "bare_steel", "frame"), 0.004))
+    pad_back = back - back_wall
+    for at in range(3):
+        bottom = 0.85 + at * 0.36
+        parts.append(shapes.bevelled(shapes.box((-0.28, bottom, pad_back - 0.07), (0.28, bottom + 0.34, pad_back),
+                                                "quilted_grey", "pad"), 0.02))
+    for x in (-wide / 2 + side, wide / 2 - side):
+        inward = 0.035 if x < 0 else -0.035
+        rail_x = x + inward
+        parts.append(shapes.cylinder((rail_x, 0.75, front + 0.14), (rail_x, 1.75, front + 0.14), 0.014, "anodized_gold",
+                                     16, "rail"))
+        for y in (0.75, 1.75):
+            parts.append(shapes.cylinder((x, y, front + 0.14), (rail_x, y, front + 0.14), 0.012, "anodized_gold", 12,
+                                         "rail"))
+    lamp_y = tall - roof
+    parts.append(shapes.bevelled(shapes.box((-0.3, lamp_y - 0.05, front + 0.06), (0.3, lamp_y, front + 0.16),
+                                            "bare_steel", "lamp_housing"), 0.003))
+    parts.append(shapes.content_plate((-0.27, lamp_y - 0.056, front + 0.075), (0.27, lamp_y - 0.05, front + 0.145),
+                                      "lamp_strip", "lens"))
+    parts.append(shapes.bevelled(shapes.box((-wide / 2 + side, floor_high, front + 0.05),
+                                            (wide / 2 - side, floor_high + 0.012, pad_back), "chequer_plate_steel",
+                                            "floor"), 0.002))
+    parts.append(shapes.cylinder((-wide / 2 + side, floor_high + 0.06, front + 0.1),
+                                 (wide / 2 - side, floor_high + 0.06, front + 0.1), 0.014, "bare_steel", 16,
+                                 "foot_rail"))
+    for x in (-wide / 2 + side + 0.03, wide / 2 - side - 0.03):
+        parts.append(shapes.box((x - 0.015, floor_high, front + 0.08), (x + 0.015, floor_high + 0.06, front + 0.12),
+                                "bare_steel", "foot_rail"))
+    parts.append(shapes.bevelled(shapes.box((-0.03, tall, -0.03), (0.03, tall + 0.012, 0.03), "bare_steel", "hook"),
+                                 0.002))
+    parts.append(shapes.cylinder((0.0, tall + 0.012, 0.0), (0.0, tall + 0.09, 0.0), 0.009, "bare_steel", 12, "hook"))
+    parts.append(shapes.cylinder((0.0, tall + 0.09, 0.0), (0.0, tall + 0.09, -0.06), 0.009, "bare_steel", 12, "hook"))
+    parts.append(shapes.cylinder((0.0, tall + 0.09, -0.06), (0.0, tall + 0.055, -0.06), 0.009, "bare_steel", 12, "hook"))
+    return parts
+
+
+def hose_reel(size, laid):
+    """A wall hose reel, as its close-up shows it: the air hose wound on a drum between two round flanges on an
+    axle, a hub nut and a crank on one flange, two arms out from a wall bracket to the axle's ends, and the hose's end
+    hanging down with its fitting."""
+    wide, tall, deep = size
+    back = deep / 2
+    radius = min(tall / 2 - 0.02, deep / 2 - 0.02)
+    axis_y, axis_z = tall - radius - 0.01, 0.0
+    flange_x = wide / 2 - 0.065
+    arm_x = wide / 2 - 0.03
+    parts = []
+    for side in (-1, 1):
+        x = side * flange_x
+        parts.append(shapes.bevelled(shapes.cylinder((x - 0.005, axis_y, axis_z), (x + 0.005, axis_y, axis_z), radius,
+                                                     "dark_panel", 40, "flange"), 0.002))
+    turns = 7
+    pitch = (2 * flange_x - 0.012) / turns
+    for at in range(turns):
+        x0 = -flange_x + 0.006 + pitch * at
+        parts.append(shapes.bevelled(shapes.ring((x0 + 0.001, axis_y, axis_z), (x0 + pitch - 0.001, axis_y, axis_z),
+                                                 radius * 0.72, radius * 0.4, "rubber", 32, "hose"), 0.004))
+    hose_x = flange_x - 0.04
+    parts.append(shapes.cylinder((hose_x, axis_y - radius * 0.66, axis_z - 0.03), (hose_x, 0.07, axis_z - 0.06),
+                                 0.011, "rubber", 12, "hose"))
+    parts.append(shapes.cylinder((hose_x, 0.07, axis_z - 0.06), (hose_x, 0.0, axis_z - 0.06), 0.014, "bare_steel", 6,
+                                 "nozzle"))
+    parts.append(shapes.cylinder((-arm_x, axis_y, axis_z), (arm_x, axis_y, axis_z), 0.02,
+                                 "bare_steel", 16, "axle"))
+    for side in (-1, 1):
+        x = side * arm_x
+        parts.append(shapes.cylinder((x + side * 0.01, axis_y, axis_z), (x + side * 0.025, axis_y, axis_z), 0.026,
+                                     "bare_steel", 6,
+                                     "hub"))
+        parts.append(shapes.bevelled(shapes.box((x - 0.01, axis_y - 0.02, axis_z), (x + 0.01, axis_y + 0.02,
+                                                                                     back - 0.012), "dark_panel",
+                                                "arm"), 0.002))
+        parts.append(shapes.bevelled(shapes.box((x - 0.035, axis_y - 0.09, back - 0.012), (x + 0.035, axis_y + 0.09,
+                                                                                            back), "dark_panel",
+                                                "bracket"), 0.002))
+    crank_x = flange_x + 0.012
+    parts.append(shapes.bevelled(shapes.box((crank_x, axis_y - 0.012, axis_z - radius * 0.8),
+                                            (crank_x + 0.012, axis_y + 0.012, axis_z - 0.02), "bare_steel", "crank"),
+                                 0.002))
+    parts.append(shapes.cylinder((crank_x + 0.012, axis_y, axis_z - radius * 0.75),
+                                 (crank_x + 0.03, axis_y, axis_z - radius * 0.75), 0.011, "anodized_black", 12,
+                                 "crank"))
+    return parts
+
+
+def suit_bench(size, laid):
+    """The suit-up bench, as its close-up shows it: a steel box with a lid lapping over its top, two dark seat pads
+    on the lid, SUIT-UP BENCH stencilled on its front, a label and a taped note."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    lid = 0.05
+    parts = [shapes.bevelled(shapes.box((-wide / 2 + 0.012, 0.0, front + 0.012), (wide / 2 - 0.012, tall - lid,
+                                                                                    back - 0.012), "galvanized_dull",
+                                        "body"), 0.004),
+             shapes.bevelled(shapes.box((-wide / 2, tall - lid, front), (wide / 2, tall, back), "galvanized_dull",
+                                        "lid"), 0.004)]
+    for x in (-wide / 4 - 0.03, wide / 4 + 0.03):
+        parts.append(shapes.bevelled(shapes.box((x - 0.27, tall - 0.004, front + 0.05), (x + 0.27, tall + 0.03,
+                                                                                         back - 0.05), "vinyl_cabin",
+                                                "pad"), 0.01))
+    body_face = front + 0.012
+    parts.append(label(-wide / 4, (tall - lid) * 0.45, 0.52, 0.11, body_face, "stencil_suit_up_bench", thick=0.004,
+                       name="stencil"))
+    parts.append(label(wide / 2 - 0.2, (tall - lid) * 0.72, 0.17, 0.07, body_face, "label_suit_up", name="label"))
+    parts.append(label(wide / 2 - 0.42, (tall - lid) * 0.55, 0.1, 0.1, body_face, "note_bench", turn=4.0,
+                       thick=0.004, name="note"))
+    return parts
+
+
+def status_panel(size, laid):
+    """The airlock's cycle status panel, as its close-up shows it: a steel housing with a framed main screen, a small
+    readout and a printed cycle plate, a row of round and square gauges, a keypad, buttons and a red stop button,
+    two small monitors on a mount over it, a meter box at its side with a reading window, a taped note, and its
+    cables out of glands under it back into the wall."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    housing_top = tall * 0.76
+    housing_left, housing_right = wide / 2 - 0.1, -wide / 2  # the kit's +x is the viewer's left
+    face = front + 0.03
+    parts = [shapes.bevelled(shapes.box((housing_right, 0.1, face), (housing_left, housing_top, back), "painted_panel",
+                                        "housing"), 0.004)]
+    # The main screen and its bezel, the readout and the printed cycle plate beside it.
+    parts += [part for part in wall_screen_part(housing_right + 0.17, housing_top - 0.14, 0.24, 0.17, face, "screen",
+                                                rim=0.015)]
+    parts += [part for part in wall_screen_part(housing_right + 0.355, housing_top - 0.165, 0.09, 0.07, face,
+                                                "screen_amber", rim=0.01, name="readout")]
+    parts.append(label(housing_right + 0.355, housing_top - 0.06, 0.09, 0.06, face, "label_cycle"))
+    parts.append(label(housing_right + 0.355, housing_top - 0.255, 0.075, 0.075, face, "note_cycle", turn=3.0,
+                       thick=0.004, name="note"))
+    # The gauge row: two round dials and three square meters, each with its needle.
+    gauge_y = 0.38
+    for x in (housing_left - 0.04, housing_left - 0.11):
+        parts.append(shapes.bevelled(shapes.ring((x, gauge_y, face), (x, gauge_y, face - 0.012), 0.03, 0.024,
+                                                 "bare_steel", 32, "bezel"), 0.001))
+        parts.append(shapes.cylinder((x, gauge_y, face), (x, gauge_y, face - 0.006), 0.025, "enamel_white", 32,
+                                     "gauge"))
+        parts.append(turned(shapes.box((x - 0.002, gauge_y, face - 0.01), (x + 0.002, gauge_y + 0.02, face - 0.0055),
+                                       "anodized_red", "needle"), (x, gauge_y), 35.0))
+    for at in range(3):
+        x = housing_left - 0.18 - at * 0.065
+        parts.append(shapes.bevelled(shapes.box((x - 0.028, gauge_y - 0.03, face - 0.012), (x + 0.028, gauge_y + 0.03,
+                                                                                           face), "bare_steel",
+                                                "bezel"), 0.002))
+        parts.append(shapes.box((x - 0.022, gauge_y - 0.024, face - 0.016), (x + 0.022, gauge_y + 0.024, face - 0.011),
+                                "enamel_white", "gauge"))
+        parts.append(turned(shapes.box((x - 0.002, gauge_y - 0.018, face - 0.0195), (x + 0.002, gauge_y + 0.01,
+                                                                                        face - 0.0155),
+                                       "anodized_red", "needle"), (x, gauge_y - 0.018), -30.0 + 25.0 * at))
+    # The keypad, the buttons and the stop button.
+    pad_x, pad_y = housing_left - 0.11, 0.2
+    parts.append(shapes.bevelled(shapes.box((pad_x - 0.09, pad_y - 0.06, face - 0.008), (pad_x + 0.09, pad_y + 0.06,
+                                                                                        face), "anodized_black",
+                                            "keypad"), 0.002))
+    parts.append(shapes.content_plate((pad_x - 0.082, pad_y - 0.052, face - 0.012), (pad_x + 0.082, pad_y + 0.052,
+                                                                                     face - 0.007), "keypad_print",
+                                      "keys"))
+    for x, y, material in ((housing_right + 0.17, 0.25, "anodized_red"), (housing_right + 0.17, 0.16, "anodized_red"),
+                           (housing_right + 0.12, 0.25, "anodized_black"), (housing_right + 0.12, 0.16,
+                                                                             "anodized_black")):
+        parts.append(shapes.bevelled(shapes.cylinder((x, y, face), (x, y, face - 0.012), 0.014, material, 20,
+                                                     "button"), 0.002))
+    stop_x = housing_right + 0.05
+    parts.append(shapes.bevelled(shapes.box((stop_x - 0.035, 0.15, face - 0.008), (stop_x + 0.035, 0.24, face),
+                                            "hazard_paint", "estop"), 0.002))
+    parts.append(shapes.bevelled(shapes.cylinder((stop_x, 0.195, face - 0.008), (stop_x, 0.195, face - 0.03), 0.024,
+                                                 "anodized_red", 24, "estop"), 0.004))
+    # Two small monitors on a mount over the housing.
+    mount_z = back - 0.03
+    parts.append(shapes.bevelled(shapes.box((housing_right + 0.06, housing_top, mount_z - 0.03),
+                                            (housing_left - 0.06, housing_top + 0.04, back), "dark_panel", "mount"),
+                                 0.003))
+    for x in (housing_right + 0.105, housing_left - 0.105):
+        low, high = (x - 0.095, housing_top + 0.035), (x + 0.095, tall - 0.005)
+        parts.append(shapes.bevelled(shapes.box((*low, front + 0.012), (*high, mount_z - 0.01), "plastic_grey",
+                                                "monitor"), 0.006))
+        parts.append(shapes.bevelled(rounded_ring(low, high, 0.012, 0.022, front, front + 0.012, "plastic_grey",
+                                                  "monitor"), 0.002))
+        parts.append(shapes.content_plate((low[0] + 0.022, low[1] + 0.022, front + 0.008),
+                                          (high[0] - 0.022, high[1] - 0.022, front + 0.012), "screen", "screen"))
+    # The meter box at the side, with its reading window and label.
+    box_left = wide / 2
+    parts.append(shapes.bevelled(shapes.box((housing_left + 0.005, 0.18, front + 0.04), (box_left, 0.62, back),
+                                            "grey_green_panel", "side_box"), 0.004))
+    parts.append(shapes.box((housing_left + 0.025, 0.47, front + 0.034), (box_left - 0.02, 0.56, front + 0.04),
+                            "glass_frosted", "meter"))
+    parts.append(label((housing_left + box_left) / 2 + 0.002, 0.33, 0.06, 0.05, front + 0.04, "label_meter"))
+    # Cables out of glands under the housing, down and back into the wall.
+    for x in np.linspace(housing_right + 0.08, housing_left - 0.08, 4):
+        x = float(x)
+        parts.append(shapes.cylinder((x, 0.1, front + 0.07), (x, 0.075, front + 0.07), 0.013, "bare_steel", 6,
+                                     "gland"))
+        parts.append(shapes.cylinder((x, 0.075, front + 0.07), (x, 0.03, front + 0.07), 0.009, "cable_black", 12,
+                                     "cable"))
+        parts.append(wall_sphere((x, 0.03, front + 0.07), 0.009, "cable_black", "cable", 12))
+        parts.append(shapes.cylinder((x, 0.03, front + 0.07), (x, 0.03, back), 0.009, "cable_black", 12, "cable"))
+    return parts
+
+
+def fan_unit(size, laid):
+    """The airlock's fan unit, as its close-up shows it: a steel case, a square plate on its front with the fan's
+    round mouth through it, the fan's blades and hub in a dark shroud behind a wire grille of rings and spokes, screws
+    at the plate's corners, louvres in its side, and its FAN UNIT plate, a danger sticker and a maintenance sheet."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front + 0.01), (wide / 2, tall, back), "hammertone_grey",
+                                        "case"), 0.006)]
+    middle_x, middle_y = wide * 0.08, tall * 0.53
+    plate_half = min(wide * 0.36, tall * 0.4)
+    radius = plate_half * 0.86
+    plate = shapes.box((middle_x - plate_half, middle_y - plate_half, front), (middle_x + plate_half,
+                                                                              middle_y + plate_half, front + 0.01),
+                       "dark_panel", "plate")
+    shapes.cut(plate, shapes.cylinder((middle_x, middle_y, front - 0.02), (middle_x, middle_y, front + 0.03), radius,
+                                      "dark_panel", 48, "cutter"))
+    parts.append(shapes.bevelled(plate, 0.003))
+    shroud_z = front + 0.06
+    shapes.cut(parts[0], shapes.cylinder((middle_x, middle_y, front), (middle_x, middle_y, shroud_z + 0.003), radius,
+                                         "hammertone_grey", 48, "cutter"))
+    parts.append(shapes.cylinder((middle_x, middle_y, shroud_z), (middle_x, middle_y, shroud_z + 0.006), radius,
+                                 "anodized_black", 48, "shroud"))
+    parts.append(shapes.ring((middle_x, middle_y, front + 0.01), (middle_x, middle_y, shroud_z), radius + 0.004,
+                             radius - 0.004, "anodized_black", 48, "shroud"))
+    for at in range(5):
+        angle = 2 * math.pi * at / 5
+        blade = lock_tube_bar((middle_x + 0.04 * math.cos(angle), middle_y + 0.04 * math.sin(angle)),
+                              (middle_x + (radius - 0.015) * math.cos(angle),
+                               middle_y + (radius - 0.015) * math.sin(angle)), 0.035)
+        parts.append(shapes.prism(blade, shroud_z - 0.018, shroud_z - 0.012, "bare_steel", "blade"))
+    parts.append(shapes.cylinder((middle_x, middle_y, shroud_z - 0.035), (middle_x, middle_y, shroud_z), 0.045,
+                                 "dark_panel", 32, "hub"))
+    grille_z = front - 0.006
+    for share in (0.25, 0.42, 0.59, 0.76, 0.93):
+        ring_radius = radius * share
+        parts.append(shapes.ring((middle_x, middle_y, grille_z - 0.002), (middle_x, middle_y, grille_z + 0.002),
+                                 ring_radius + 0.0025, ring_radius - 0.0025, "bare_steel", 40, "grille"))
+    for at in range(8):
+        angle = 2 * math.pi * at / 8
+        parts.append(shapes.cylinder((middle_x, middle_y, grille_z), (middle_x + radius * math.cos(angle),
+                                                                     middle_y + radius * math.sin(angle), grille_z),
+                                     0.0025, "bare_steel", 8, "grille"))
+    parts.append(shapes.cylinder((middle_x, middle_y, grille_z + 0.002), (middle_x, middle_y, grille_z - 0.004), 0.04,
+                                 "bare_steel", 24, "grille"))
+    parts += [screw(middle_x + sx * (plate_half - 0.02), middle_y + sy * (plate_half - 0.02), front)
+              for sx in (-1, 1) for sy in (-1, 1)]
+    # The labels on the strip of case beside the plate (the viewer's right, the kit's -x).
+    strip = (-wide / 2 + middle_x - plate_half) / 2 - 0.005
+    case_face = front + 0.01
+    parts.append(label(strip, tall * 0.8, 0.11, 0.06, case_face, "label_fan_unit"))
+    parts.append(label(strip, tall * 0.62, 0.1, 0.08, case_face, "label_high_voltage", name="sticker"))
+    parts.append(label(strip, tall * 0.38, 0.1, 0.15, case_face, "sheet_maintenance", thick=0.004, name="sheet"))
+    # Louvres in the case's side (the kit's -x face), built facing front and turned onto it.
+    louvre_wide, louvre_tall = min(0.24, deep * 0.55), 0.16
+    side_plate = shapes.box((-louvre_wide / 2 - 0.02, 0.08, -0.012), (louvre_wide / 2 + 0.02, 0.08 + louvre_tall + 0.04,
+                                                                       0.0), "hammertone_grey", "louvre_frame")
+    side = furn_louvres(side_plate, 0.0, 0.1 + louvre_tall / 2, louvre_wide, louvre_tall, -0.012, 0.0, 6,
+                        "hammertone_grey", back_thick=0.006)
+    louvre_parts = [shapes.bevelled(side_plate, 0.002)] + side
+    furn_spun(louvre_parts, (0.0, 0.0), 90.0)
+    for part in louvre_parts:
+        floor_moved(part, (-wide / 2, 0.0, (front + back) / 2 + 0.03))
+    return parts + louvre_parts
+
+
+def crown_strip_lamp(size, laid):
+    """A walkway tube's strip lamp along its crown, as its close-up shows it: a long steel housing, the lens set in a
+    pocket down its middle, a mounting tab with a screw at each end, and a small circuit label by one end."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    tab = 0.05
+    housing = shapes.box((-wide / 2 + tab, 0.0, front), (wide / 2 - tab, tall, back), "painted_panel", "housing")
+    lens_low, lens_high = (-wide / 2 + tab + 0.03, tall * 0.25), (wide / 2 - tab - 0.18, tall * 0.75)
+    wall_pocket(housing, lens_low, lens_high, front - 0.02, front + 0.01)
+    parts = [shapes.bevelled(housing, 0.003),
+             shapes.content_plate((*lens_low, front + 0.006), (*lens_high, front + 0.01), "lamp_strip", "lens")]
+    for side in (-1, 1):
+        x0, x1 = sorted((side * (wide / 2 - tab), side * wide / 2))
+        parts.append(shapes.bevelled(shapes.box((x0, tall * 0.2, back - 0.008), (x1, tall * 0.8, back),
+                                                "painted_panel", "tab"), 0.0015))
+        parts.append(screw((x0 + x1) / 2, tall / 2, back - 0.008))
+    parts.append(label(-wide / 2 + tab + 0.09 + (wide - 2 * tab - 0.21) + 0.0, tall / 2, 0.12, tall * 0.5, front,
+                       "label_circuit"))
+    return parts
+
+
+def hull_patch(size, laid):
+    """A repair patch on a tube's hull plate, as its close-up shows it: a plate laid over the hull, a weld bead round
+    an inner panel of it, and strips of tape across its edges."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    plate_face = back - 0.016
+    parts = [shapes.bevelled(shapes.box((-wide / 2 + 0.02, 0.02, plate_face), (wide / 2 - 0.02, tall - 0.02, back),
+                                        "galvanized_dull", "plate"), 0.003)]
+    inner = rounded_outline((-wide / 2 + 0.11, 0.1), (wide / 2 - 0.11, tall - 0.1), 0.03)
+    bead = rounded_outline((-wide / 2 + 0.125, 0.115), (wide / 2 - 0.125, tall - 0.115), 0.02)
+    parts.append(shapes.bevelled(lock_tube_ring(inner, bead, plate_face - 0.007, plate_face + 0.002, "cast_steel",
+                                                "weld"), 0.0025))
+    for x, y, along in ((-wide / 2 + 0.02, tall * 0.75, False), (wide / 2 - 0.02, tall * 0.3, False),
+                        (wide * 0.25, tall - 0.02, True), (-wide * 0.2, 0.02, True)):
+        if along:
+            low, high = (x - 0.025, y - 0.06), (x + 0.025, y + 0.06)
+        else:
+            low, high = (x - 0.06, y - 0.025), (x + 0.06, y + 0.025)
+        parts.append(shapes.bevelled(shapes.box((*low, plate_face - 0.004), (*high, back), "plastic_grey", "tape"),
+                                     0.0015))
+    return parts
+
+
+def sign_plate(size, laid):
+    """A sign at a walkway tube's end, as its close-up shows it: a yellow plate with rounded corners, a bolt at each
+    corner, the name of where the tube leads printed across it (laid `label`, a sign_* print)."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    plate = shapes.prism(rounded_outline((-wide / 2, 0.0), (wide / 2, tall), 0.02), front + 0.004, back,
+                         "hazard_paint", "plate")
+    parts = [shapes.bevelled(plate, 0.002)]
+    parts.append(label(0.0, tall / 2, wide - 0.08, tall - 0.05, front + 0.004, laid.get("label", "sign_pressure_hatch")))
+    parts += [bolt(sx * (wide / 2 - 0.022), y, front + 0.004, "cast_iron_dark") for sx in (-1, 1)
+              for y in (0.022, tall - 0.022)]
+    return parts
+
+
+def end_mat(size, laid):
+    """The dust grating at a walkway tube's end, set in its deck, its front up, as its close-up shows it: a frame
+    round a solid base plate, bars across it in a grid with gaps down to the base, and a DO NOT COVER stencil along
+    the frame."""
+    wide, long, deep = size
+    top, bottom = -deep / 2, deep / 2
+    rim = 0.04
+    parts = floor_frame((-wide / 2, 0.0), (wide / 2, long), top, bottom, rim, "galvanized_steel", "frame")
+    parts.append(shapes.box((-wide / 2 + rim, rim, bottom - 0.005), (wide / 2 - rim, long - rim, bottom),
+                            "dark_panel", "base"))
+    pitch = 0.045
+    bars = max(1, round((wide - 2 * rim) / pitch))
+    for at in range(1, bars):
+        x = -wide / 2 + rim + (wide - 2 * rim) * at / bars
+        parts.append(shapes.box((x - 0.003, rim, top + 0.001), (x + 0.003, long - rim, bottom - 0.005),
+                                "galvanized_steel", "bar"))
+    crosses = max(1, round((long - 2 * rim) / 0.11))
+    for at in range(1, crosses):
+        y = rim + (long - 2 * rim) * at / crosses
+        parts.append(shapes.box((-wide / 2 + rim, y - 0.003, top + 0.003), (wide / 2 - rim, y + 0.003,
+                                                                             bottom - 0.005), "galvanized_steel",
+                                "bar"))
+    parts.append(label(wide / 2 - 0.3, rim / 2, 0.36, rim - 0.01, top, "stencil_do_not_cover", name="stencil"))
+    return parts
+
+
+def arc_points(radius, deep, start, end):
+    """An annular sector of a tube's section in the kit frame's x-y plane about the tube's axis: from `start` to `end`
+    (degrees from the crown, toward +x), between `radius - deep` and `radius` from the axis."""
+    steps = max(2, round(abs(end - start) / 4))
+    angles = [np.radians(start + (end - start) * step / steps) for step in range(steps + 1)]
+    outer = [(radius * np.sin(angle), radius * np.cos(angle)) for angle in angles]
+    inner = [((radius - deep) * np.sin(angle), (radius - deep) * np.cos(angle)) for angle in reversed(angles)]
+    return outer + inner
+
+
+def standing(points, reference):
+    """Points moved so the reference outline's box stands on its own foot's middle (as every piece stands on its
+    origin)."""
+    middle = (min(x for x, _ in reference) + max(x for x, _ in reference)) / 2
+    foot = min(y for _, y in reference)
+    return [(x - middle, y - foot) for x, y in points]
+
+
+def hull_plate(size, laid):
+    """A walkway tube's hull plate between two hoops: a curved band of its section (`arc`: radius, depth, start and end
+    angles from the crown in degrees) as long as its bay (the kit frame's z)."""
+    wide, tall, long = size
+    outline = arc_points(*laid["arc"])
+    return [shapes.bevelled(shapes.prism(standing(outline, outline), -long / 2, long / 2,
+                                         laid.get("material", "painted_panel"), "plate"), EDGE)]
+
+
+def hoop(size, laid):
+    """A walkway tube's hoop: a steel rib round its section (`arc` as hull_plate's), as thick as its box is long,
+    a flange along its inner edge."""
+    wide, tall, long = size
+    radius, deep, start, end = laid["arc"]
+    outline = arc_points(radius, deep, start, end)
+    flange = arc_points(radius - deep + 0.02, 0.02, start, end)
+    return [shapes.bevelled(shapes.prism(standing(outline, outline), -long / 2 + 0.02, long / 2 - 0.02,
+                                         laid.get("material", "dark_panel"), "web"), 0.004),
+            shapes.bevelled(shapes.prism(standing(flange, outline), -long / 2, long / 2,
+                                         laid.get("material", "dark_panel"), "flange"), 0.003)]
+
+
 BUILDERS = {name: value for name, value in globals().items() if callable(value) and name in (
     "backer", "cable_bundle", "cable_drop", "lattice_diamond_strut", "lattice_hip_rib", "lattice_node_plate",
     "lattice_ring_rib", "machine_bay_plate", "pipe_straight", "pit_floor_plate", "pit_wall_panel",
     "ring_floor_plate", "roof_face_panel", "stair_stringer", "under_floor_box", "wall_corner_post", "wall_cornice",
-    "wall_lower_plain", "wall_skirting", "wall_upper_plain",
+    "wall_lower_plain", "wall_skirting", "wall_upper_plain", "hull_plate", "hoop",
     # method B's fittings (hub round five)
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_window", "hatch_hinge", "hatch_wall_surround", "porthole_panel",
-    "wall_lower_vent", "notice_board", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar")}
+    "wall_lower_vent", "notice_board", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar")}
 
 
 def build(kind, size, laid, name):

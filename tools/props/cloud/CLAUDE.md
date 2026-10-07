@@ -8,7 +8,7 @@ Entry: `batch.py`; its docstring says how to call it.
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
   a scene's steps (target, SAM 3 cut-outs, MoGe-2 depth, redraws) on one card, then its objects
   through `batch.py` as one batch. Their machines run the same scripts with `FARM_LOCAL_MODELS=1`.
-- **A batch builds one scene's approved rows** (2026-10-04, #121): `batch.py --inventory
+- **A batch builds approved scene rows** (2026-10-04, #121; several scenes a batch since 2026-10-07): `batch.py --inventory
   data/inventory/<scene>.json` and `scene.py` (its plan's `inventory`) refuse without the owner's
   approval on page A and the place's style text in `place.json`, and every model is named for a
   row. No per-session job scripts: the wording comes from the repo's data.

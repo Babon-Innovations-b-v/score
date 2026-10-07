@@ -100,7 +100,7 @@ def test_every_committed_inventory_is_sound():
 
 
 def test_the_habitat_and_the_flat_have_their_style_text_in_the_repo():
-    assert "Chinese state outpost on the Moon" in place.style_text("habitat")
+    assert "pale panelled sleep pods" in place.style_text("habitat")  # its style v2, from its picked concept K03
     assert "one-room state flat" in place.style_text("prologue_flat")
 
 

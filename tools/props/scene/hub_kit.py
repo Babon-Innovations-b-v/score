@@ -483,6 +483,19 @@ FRAME_POSTS = 0.2
 FRAME_HEADER = 0.093
 
 
+def joined_doorways():
+    """The doorways the kit lays no door in (a joined module's, JOINED_MODULE: its own door shuts it), for the door
+    check (gates/doors.py): each its middle on the floor in the wall, its outward normal, and the whole wall's width
+    (the joined module's shell takes the joint either side of its doorway)."""
+    found = []
+    for bearing in JOINED_MODULE:
+        normal, _ = bearing_vectors(bearing)
+        found.append({"at": [round(float(value), 4) for value in normal * (APOTHEM + SHELL_WALL / 2)],
+                      "normal": [round(float(value), 5) for value in normal], "wide": FACET_WIDE + 2 * JOINT_CLEAR, "tall": DOORWAY[1],
+                      "deep": SHELL_WALL + 0.2})
+    return found
+
+
 def framed(kinds, kind):
     """A door's frame laid so its opening is exactly the shell's doorway."""
     return (DOORWAY[0] + FRAME_POSTS, DOORWAY[1] + FRAME_HEADER, depth(kinds, f"{kind}_frame"))
@@ -959,7 +972,8 @@ def main():
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
     score = partition_score(pieces)
     pathlib.Path(sys.argv[1]).write_text(json.dumps({"room": "hub", "frame": "the Habitat node's own: x east, z south, y up from the ring floor",
-                               "counts": counts, "partition": score, "kinds": kinds_table(inventory), "pieces": pieces},
+                               "counts": counts, "partition": score, "kinds": kinds_table(inventory),
+                               "doorways": joined_doorways(), "pieces": pieces},
                               indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")
     for name, entry in score.items():

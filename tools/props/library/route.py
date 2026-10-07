@@ -65,6 +65,8 @@ SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR,
 LARGEST = 4096
 UV_FILL = 0.6
 SET_SLACK = 0.5
+# A set left this small a share of a set's room joins another set of its density with room for it (`absorbed`).
+SLIVER = 0.1
 MEASURED_SLACK = 0.85
 CHUNKY_FACES = 19000  # triangles: a prop's furniture budget is 20,000 (asset_check), its detail parts take the rest
 # A smaller object gets fewer (round six: 26 tools of 19,000 each put half a million triangles on one tool board): the
@@ -113,8 +115,8 @@ def bearing_of(laid):
 
 def shows(kind, laid):
     """What a piece shows that its model is made with, beyond its size."""
-    found = {key: laid[key] for key in ("taper", "treads", "openings") if key in laid}
-    if own_name(kind) == "hatch_wall_surround":
+    found = {key: laid[key] for key in ("taper", "treads", "openings", "arc", "material") if key in laid}
+    if kind == "hub_hatch_wall_surround":
         found["label"] = DOOR_LABELS[bearing_of(laid) % 360]
     return found
 
@@ -132,14 +134,15 @@ def made_size(size):
 
 def furniture(inventory):
     """The room's furniture models: {name: {kind, route, size, laid, atlas, prop}}, one per furniture row
-    (FURNITURE_MADE), routed by the sorter, its size (wide, tall, deep) from the row's (wide, deep, tall)."""
+    (FURNITURE_MADE) and per row a game node draws as its prop (`made_as` "prop": the airlock's moving door leaves),
+    routed by the sorter, its size (wide, tall, deep) from the row's (wide, deep, tall)."""
     found = {}
     composites = json.loads(COMPOSITES.read_text()) if COMPOSITES.exists() else {}
     for row in inventory["rows"]:
-        if row.get("made") != FURNITURE_MADE or row.get("parent"):
+        if (row.get("made") != FURNITURE_MADE and row.get("made_as") != "prop") or row.get("parent"):
             continue
         wide, deep, tall = row["size"]
-        kind = f"hub_{row['id']}"
+        kind = f"{inventory.get('scene', 'hub')}_{row['id']}"
         route = sorter.planned_route(kind)
         laid = composites.get(kind, {}).get("laid", {})  # what a parent's own build shows (a toolboard's tool layout)
         found[f"{row['id']}_1"] = {"kind": kind, "route": route, "size": [wide, tall, deep], "laid": laid,
@@ -205,7 +208,9 @@ def plan(layout, takes, inventory=None):
 def jobs(planned, takes, work, place):
     """The cloud jobs: a make_kit job per shared picture set, one make_chunky job for every generated model."""
     wear, dirt = library.wear_of(place)
-    specs = library.by_library(place)
+    # A code-built part names a library variant; a generated piece's labelled parts are the place's own materials
+    # (labels.py), which in the habitat are not named as their variants (brushed_steel takes bare_steel): both.
+    specs = dict(library.by_library(place), **library.resolved(place))
     details = json.loads(DETAILS.read_text())
     found = {}
     for atlas, names in shared_sets(planned, measured_areas(work)).items():
@@ -229,6 +234,8 @@ def jobs(planned, takes, work, place):
                        "base": own["turn"], "size": entry["size"], "screens": own.get("screens", []),
                        "cuts": own.get("cuts", []), "density": density_of(entry),
                        "decals": own.get("decals", []), "foot": entry.get("foot"), "faces": faces_for(entry["size"])})
+        if "wall" in own:  # a piece of thin rails and hooks closed thicker, so its solid copy keeps a 3 mm wall
+            chunky[-1]["wall"] = own["wall"]
     if chunky:
         found["chunky"] = {"script": "make_chunky.py", "out": str(work / "made"), "report": "report-chunky.json",
                            "density": NEAR,
@@ -304,6 +311,29 @@ def shared_sets(planned, measured=None):
             areas[place] += area_of(name)
         for index, names in enumerate(chunks):
             found[atlas if len(chunks) == 1 else f"{atlas}_{index + 1}"] = names
+    return absorbed(found, planned, measured)
+
+
+def absorbed(found, planned, measured):
+    """The sets with every one left as a sliver (under SLIVER of a set's room: two pipe lengths spilt over from a full
+    set, step 0 of the modules round, which put a 4096 picture set on the card for 0.13 m2) taken into another set of
+    the same density that still has room for it."""
+    def area_of(chunk):
+        density = SET_DENSITY[set_of(chunk)]
+        return sum(measured[name]["near" if density >= NEAR else "far"] if name in measured
+                   else seen_area(planned["models"][name]["size"]) for name in found[chunk])
+
+    def room_of(chunk):
+        return MEASURED_SLACK * UV_FILL * (LARGEST / SET_DENSITY[set_of(chunk)]) ** 2
+
+    for chunk in sorted(found, key=area_of):
+        if chunk not in found or area_of(chunk) >= SLIVER * room_of(chunk):
+            continue
+        host = next((other for other in sorted(found, key=area_of) if other != chunk
+                     and SET_DENSITY[set_of(other)] == SET_DENSITY[set_of(chunk)]
+                     and area_of(other) + area_of(chunk) <= room_of(other)), None)
+        if host is not None:
+            found[host] = found[host] + found.pop(chunk)
     return found
 
 
@@ -460,9 +490,10 @@ def game_layout(layout, planned, reports, checks):
                             "size": entry["size"]}
         if f"{name}_glow" in made:
             models[f"{name}_glow"] = {"glows": True, "part_of": name}
-    models[LIVE_SCREEN["name"]] = {"glows": True, "picture": None, "live": True, "size": LIVE_SCREEN["size"],
-                                   "shows": LIVE_SCREEN_SHOWS}
-    models[STATUS_LAMP["name"]] = {"glows": True, "lamp": STATUS_LAMP}
+    if layout.get("room", "hub") == "hub":  # the Workstation's live screens and the desks' status lamp
+        models[LIVE_SCREEN["name"]] = {"glows": True, "picture": None, "live": True, "size": LIVE_SCREEN["size"],
+                                       "shows": LIVE_SCREEN_SHOWS}
+        models[STATUS_LAMP["name"]] = {"glows": True, "lamp": STATUS_LAMP}
     counts = {}
     for found in pieces:
         if "part" not in found:

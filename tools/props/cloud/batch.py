@@ -1,16 +1,17 @@
 """Make a whole batch of models on rented Scaleway graphics cards, then delete the machines.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/batch.py <list.txt> --who "<session>"
-        --inventory data/inventory/<scene>.json
+        --inventory data/inventory/<scene>.json [data/inventory/<scene>.json ...]
         [--minutes 60] [--per-card N] [--max-cards 20] [--types L4-1-24G,L4-2-24G]
         [--no-finish] [--dry-run]
 
 The list has one model a line, `<name> <picture> [pixal.py options]`, e.g.
 `crate ~/pics/crate.png --faces 12000 --feet`; `#` starts a comment. The pictures must be ones the
-owner approved. A batch builds one scene's rows (the scene workflow of 2026-10-04, #121): it is
-refused without the scene's inventory approved by the owner (inventory.py) and its place's style
-text (place.json), and every model's name is one of its `generate` or `mechanic` rows, by the row's
-id or its prop kind, alone or after a prefix (`habitat-locker`) or before a take (`locker-b`).
+owner approved. A batch builds scenes' rows (the scene workflow of 2026-10-04, #121; several scenes
+in one batch since modules batch one, 2026-10-07): it is refused without each scene's inventory
+approved by the owner (inventory.py) and its place's style text (place.json), and every model's
+name is one of their `generate` or `mechanic` rows, by the row's id or its prop kind, alone or after
+a prefix (`habitat-locker`) or before a take (`locker-b`).
 
 The cut-out and the raw Pixal3D step run in the cloud (#55): no model runs on this PC (owner,
 2026-10-03; local_models.py). The pictures go up as they are, each machine cuts its own out with
@@ -123,16 +124,19 @@ def read_list(path):
     return models
 
 
-def from_the_inventory(models, path):
-    """The approved inventory a batch builds from; refused without one, without its place's style
-    text, or with a model on none of its rows."""
-    approved = inventories.approved_inventory(path)
-    place.style_text(approved["place"])
-    kinds = row_kinds(approved)
+def from_the_inventory(models, paths):
+    """The approved inventories a batch builds from; refused without one, without a place's style
+    text, or with a model on none of their rows."""
+    kinds = set()
+    for path in paths:
+        approved = inventories.approved_inventory(path)
+        place.style_text(approved["place"])
+        kinds |= row_kinds(approved)
     strays = [options.name for options in models if not on_a_row(options.name, kinds)]
     if strays:
-        raise SystemExit(f"on no row of {path}: {', '.join(strays)}; a batch builds only the scene's rows")
-    return approved
+        raise SystemExit(f"on no row of {', '.join(map(str, paths))}: {', '.join(strays)}; a batch builds only "
+                         "the scenes' rows")
+    return kinds
 
 
 def row_kinds(inventory):
@@ -697,8 +701,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("list")
     parser.add_argument("--who", required=True, help="the session asking")
-    parser.add_argument("--inventory", required=True, type=pathlib.Path,
-                        help="the scene's approved inventory, data/inventory/<scene>.json")
+    parser.add_argument("--inventory", required=True, type=pathlib.Path, nargs="+",
+                        help="the scenes' approved inventories, data/inventory/<scene>.json")
     parser.add_argument("--minutes", type=float, default=TARGET_MINUTES, help="aim to finish in this long")
     parser.add_argument("--per-card", type=int, default=PER_CARD)
     parser.add_argument("--max-cards", type=int, default=MAX_CARDS)

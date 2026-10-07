@@ -65,6 +65,11 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   room's made models against its own library palette.
 - **Storage:** `stored.py` keeps a room's pictures as WebP and stops an install past the room budget (modules batch
   one).
+- **A piece of thin rails and open shelves may close thicker** (`details.json` `wall`, `make_chunky.solid_copy`): the
+  solid step's 5 mm left berths, shelves and an alcove's rails under the model check's 3 mm (modules batch one).
+- **Pipe runs** (step 0 of the modules round, 2026-10-07): a wall pipe run's axis stands `pieces.PIPE_AXIS` (8 cm) off
+  the wall, its bracket and valve on the wall behind it; the layout cuts a straight pipe at every inline valve
+  (`hub_kit.split_at_fittings`), never through it.
 - **A shared picture set never silently loses density**: `bake.Atlas` stops past the 4096 side, and `route.py`
   splits a set by its boxes' seen area before the bake.
 - `tune.py`: relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high); matched freely, it crinkles every

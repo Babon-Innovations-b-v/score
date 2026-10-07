@@ -97,7 +97,7 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
             if change is not None:
                 path.write_text(json.dumps(dict(inventory, **change)))
             try:
-                batch.from_the_inventory(models, path)
+                batch.from_the_inventory(models, [path])
             except SystemExit as refused:
                 assert wanted and wanted in str(refused), refused
             else:
@@ -105,7 +105,7 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
         path.write_text(json.dumps(dict(inventory, approved="2026-10-05")))
         listing.write_text(f"sign {picture}\n")
         try:
-            batch.from_the_inventory(batch.read_list(listing), path)
+            batch.from_the_inventory(batch.read_list(listing), [path])
         except SystemExit as refused:
             assert "on no row" in str(refused)
         else:

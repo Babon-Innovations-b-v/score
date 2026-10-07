@@ -75,10 +75,16 @@
 			"habitat"
 		],
 		"style": {
-			"version": 1,
-			"text": "Inside a small Chinese state outpost on the Moon, a working base a few years in. Dark, lit only by its own fittings: glowing screens and amber displays set in dark grey consoles, thin white light strips, warm globe lamps, pools of teal and amber light, small red status lights. Dense, purposeful equipment built into curved walls that sweep up into the ceiling, cable runs, handrails, labels with small red characters, orange padded bunks and seats, orange and white door frames. Tidy and purposeful, not cluttered. The 360 scene is faultless.",
-			"from": "the habitat's fit-out painting (WORK/scene/fitout-habitat/marble/paint.json, seed 7, 2026-10-02), moved into the repo 2026-10-04",
-			"picked": ""
+			"version": 2,
+			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. The habitat's mix leans lived-in industrial: worn grey bolted panels, pipes and hand wheels high on the walls, a scuffed deck; the crew's own corners are calmer: pale panelled sleep pods with their own reading lamps and small screens, a clean pale hygiene cubicle and medical corner (clean institutional), a round light ring over the mess table at the room's middle.",
+			"from": "the base theme (shared.theme) and the habitat's picked concept K03 (concepts-world1/habitat)",
+			"picked": "2026-10-07, the coordinator's pick for the owner (asleep): the picked concept's mix within the base theme",
+			"was": {
+				"version": 1,
+				"text": "Inside a small Chinese state outpost on the Moon, a working base a few years in. Dark, lit only by its own fittings: glowing screens and amber displays set in dark grey consoles, thin white light strips, warm globe lamps, pools of teal and amber light, small red status lights. Dense, purposeful equipment built into curved walls that sweep up into the ceiling, cable runs, handrails, labels with small red characters, orange padded bunks and seats, orange and white door frames. Tidy and purposeful, not cluttered. The 360 scene is faultless.",
+				"from": "the habitat's fit-out painting (WORK/scene/fitout-habitat/marble/paint.json, seed 7, 2026-10-02), moved into the repo 2026-10-04",
+				"picked": ""
+			}
 		},
 		"plan": {
 			"world": "",
@@ -102,7 +108,10 @@
 				"lamp",
 				"room-fill",
 				"air-haze",
-				"ink-line"
+				"ink-line",
+				"hazard",
+				"board-wood",
+				"cabin-seat"
 			],
 			"accents": [
 				"machine",
@@ -113,6 +122,10 @@
 			"accents_are": "from the fit-out plan: the orange rib, the red and white banner, the dark panel, the white light strip"
 		},
 		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
 			"painted_hull_panel": {
 				"token": "hull",
 				"roughness": "matte",
@@ -153,6 +166,42 @@
 				"token": "alarm",
 				"roughness": "matte",
 				"dust": 0.0
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			},
+			"quilted_grey": {
+				"token": "cabin-padding",
+				"library": "quilted_grey"
 			}
 		},
 		"light": {
@@ -232,7 +281,7 @@
 		"wear": {
 			"level": "worked",
 			"dirt": 0.4,
-			"picked": "not yet: the hub's level, to show the library holds across rooms"
+			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
 		}
 	},
 	"prologue_flat": {
@@ -296,7 +345,9 @@
 			},
 			"painted_floorboards": {
 				"token": "floorboard",
-				"library": "painted_floorboards"
+				"library": "painted_floorboards",
+				"roughness": "matte",
+				"dust": 0.0
 			},
 			"red_paper": {
 				"token": "alarm",
@@ -876,6 +927,278 @@
 			"dirt": 0.6,
 			"dirt_token": "mars-dust",
 			"picked": "coordinator's: a year lived in (worked), Mars dust in every seam (dirt 0.6 in mars-dust)"
+		}
+	},
+	"airlock": {
+		"name": "the airlock",
+		"scenes": [
+			"airlock"
+		],
+		"style": {
+			"version": 1,
+			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. The airlock's mix leans industrial: a stout chamber of worn grey bolted panels, the two heavy doors' frames the only things striped yellow and black, the suit standing lit in its alcove, a cycle panel of screens, gauges and a keypad by each door, pipe runs with red hand wheels, a fan unit, a grated dust mat.",
+			"from": "the base theme (shared.theme) and the picked concept (concepts-world1/airlock)",
+			"picked": "2026-10-07, the coordinator's pick for the owner (asleep): the picked concept's mix within the base theme"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"steel",
+				"roof-steel",
+				"deck",
+				"hull-trim",
+				"rubber",
+				"cabin-panel",
+				"screen-teal",
+				"screen-amber",
+				"lamp",
+				"room-fill",
+				"glass"
+			],
+			"accents": [
+				"hazard",
+				"alarm",
+				"board-wood",
+				"cabin-seat"
+			],
+			"accents_are": "the airlock's hazard border, small red valve wheels and status lights, the tool board's timber and the chairs' seat covers"
+		},
+		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: engine lamps at the made fittings (modules batch one)",
+			"read_by": "the room's kit (HubKit lamps)"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.4,
+			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
+		}
+	},
+	"tube": {
+		"name": "the walkway tube",
+		"scenes": [
+			"tube"
+		],
+		"style": {
+			"version": 1,
+			"text": "A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. A walkway tube is a passage, never a room: hoops every 1.3 m, worn patched hull plates, a band of glass down each side showing the Moon, a strip light along the crown, handrails at the glass's foot, pipe and cable runs low under the glass, a collar and a sign plate at each end.",
+			"from": "the base theme (shared.theme) and the picked concept (concepts-world1/tubes)",
+			"picked": "2026-10-07, the coordinator's pick for the owner (asleep): the picked concept's mix within the base theme"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"steel",
+				"roof-steel",
+				"deck",
+				"hull-trim",
+				"rubber",
+				"cabin-panel",
+				"screen-teal",
+				"screen-amber",
+				"lamp",
+				"room-fill",
+				"glass"
+			],
+			"accents": [
+				"hazard",
+				"alarm",
+				"board-wood",
+				"cabin-seat"
+			],
+			"accents_are": "the airlock's hazard border, small red valve wheels and status lights, the tool board's timber and the chairs' seat covers"
+		},
+		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: engine lamps at the made fittings (modules batch one)",
+			"read_by": "the room's kit (HubKit lamps)"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.4,
+			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
 		}
 	}
 }

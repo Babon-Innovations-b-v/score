@@ -310,7 +310,7 @@
 			"built": {
 				"bezel": 0.873,
 				"button": 1.0,
-				"handle": 0.565,
+				"handle": 0.599,
 				"housing": 0.644,
 				"label": 1.0,
 				"monitor": 1.0,
@@ -424,7 +424,7 @@
 				"back_plate": 0.795,
 				"bar": 0.858,
 				"collar": 0.721,
-				"glass": 0.604,
+				"glass": 0.667,
 				"hoop": 0.453,
 				"screw": 0.919
 			},
@@ -459,7 +459,7 @@
 			],
 			"built": {
 				"bar": 0.948,
-				"bend": 0.413,
+				"bend": 0.481,
 				"foot": 0.894,
 				"screw": 0.949,
 				"stand_off": 0.791
@@ -475,9 +475,9 @@
 				"screw"
 			],
 			"built": {
-				"bearing_bar": 0.959,
-				"cross_bar": 0.889,
-				"frame": 0.907,
+				"bearing_bar": 1.0,
+				"cross_bar": 0.958,
+				"frame": 0.953,
 				"screw": 1.0
 			},
 			"prints_off": []
@@ -600,10 +600,10 @@
 				"ear"
 			],
 			"built": {
-				"arm": 0.877,
+				"arm": 0.524,
 				"base": 0.739,
 				"bolt": 0.789,
-				"clamp": 0.776,
+				"clamp": 0.729,
 				"ear": 0.763
 			},
 			"prints_off": []
@@ -635,11 +635,11 @@
 				"yoke"
 			],
 			"built": {
-				"body": 0.508,
+				"body": 0.492,
 				"bolt": 0.443,
-				"bonnet": 0.496,
-				"flange": 0.257,
-				"foot": 0.791,
+				"bonnet": 0.363,
+				"flange": 0.284,
+				"foot": 0.404,
 				"handwheel": 0.675,
 				"stem": 0.221,
 				"stub": 0.683,
@@ -962,6 +962,448 @@
 				"switch": 1.0
 			},
 			"prints_off": []
+		},
+		"sleep_pod": {
+			"closeup": "modules1/closeups/habitat/sleep_pod.png",
+			"parts": [
+				"shell",
+				"rim",
+				"seal",
+				"mattress",
+				"screen",
+				"screen_unit",
+				"reading_lamp",
+				"strip_lamp",
+				"vent",
+				"control_panel",
+				"display",
+				"keypad",
+				"switch",
+				"stripe",
+				"label"
+			]
+		},
+		"pillow": {
+			"closeup": "modules-r6/pics/pillow.png",
+			"parts": [
+				"pillow"
+			]
+		},
+		"locker_bank": {
+			"closeup": "modules1/closeups/habitat/locker_bank.png",
+			"parts": [
+				"carcass",
+				"door",
+				"louvre",
+				"handle",
+				"hinge",
+				"hasp",
+				"label",
+				"sticker"
+			]
+		},
+		"food_shelf": {
+			"closeup": "modules1/closeups/habitat/food_shelf.png",
+			"parts": [
+				"top",
+				"side",
+				"divider",
+				"shelf",
+				"lip",
+				"plinth"
+			]
+		},
+		"food_jug": {
+			"closeup": "modules-r6/pics/food_jug.png",
+			"parts": [
+				"body",
+				"handle",
+				"cap",
+				"label"
+			]
+		},
+		"food_tin": {
+			"closeup": "modules-r6/pics/food_tin.png",
+			"parts": [
+				"body",
+				"lid",
+				"label"
+			]
+		},
+		"ration_box": {
+			"closeup": "modules-r6/pics/ration_box.png",
+			"parts": [
+				"box",
+				"lid",
+				"label"
+			]
+		},
+		"med_cabinet": {
+			"closeup": "modules1/closeups/habitat/med_cabinet.png",
+			"parts": [
+				"carcass",
+				"door",
+				"glass_door",
+				"glass",
+				"handle",
+				"label",
+				"note"
+			]
+		},
+		"med_box": {
+			"closeup": "modules-r6/pics/med_box.png",
+			"parts": [
+				"box",
+				"band",
+				"label"
+			]
+		},
+		"med_bottle": {
+			"closeup": "modules-r6/pics/med_bottle.png",
+			"parts": [
+				"bottle",
+				"cap",
+				"band"
+			]
+		},
+		"hygiene_cubicle": {
+			"closeup": "modules1/closeups/habitat/hygiene_cubicle.png",
+			"parts": [
+				"panel",
+				"post",
+				"rim",
+				"door",
+				"handle",
+				"track",
+				"sill",
+				"tray",
+				"mirror",
+				"shelf",
+				"sink",
+				"tap",
+				"trap",
+				"lamp",
+				"keypad_unit",
+				"keypad",
+				"stripe",
+				"grab_rail",
+				"label",
+				"note",
+				"sheet"
+			]
+		},
+		"galley_counter": {
+			"closeup": "modules1/closeups/habitat/galley_counter.png",
+			"parts": [
+				"plinth",
+				"carcass",
+				"drawer",
+				"latch",
+				"door",
+				"handle",
+				"standoff",
+				"hinge",
+				"label",
+				"top",
+				"sink",
+				"drain",
+				"tap",
+				"tap_handle",
+				"hob",
+				"burner",
+				"induction_plate",
+				"splashback"
+			]
+		},
+		"mess_table": {
+			"closeup": "modules1/closeups/habitat/mess_table.png",
+			"parts": [
+				"top",
+				"edge",
+				"leg",
+				"foot",
+				"label"
+			]
+		},
+		"stool": {
+			"closeup": "modules1/closeups/habitat/stool.png",
+			"parts": [
+				"cushion",
+				"seat_pan",
+				"column",
+				"collar",
+				"base",
+				"foot_ring",
+				"stay"
+			]
+		},
+		"exam_couch": {
+			"closeup": "modules1/closeups/habitat/exam_couch.png",
+			"parts": [
+				"frame",
+				"leg",
+				"foot",
+				"stretcher",
+				"pad",
+				"back_pad",
+				"back_strut",
+				"label"
+			]
+		},
+		"light_ring": {
+			"closeup": "modules1/closeups/habitat/light_ring.png",
+			"parts": [
+				"ring",
+				"bead",
+				"bolt",
+				"socket",
+				"lens",
+				"shackle",
+				"rod"
+			]
+		},
+		"pot": {
+			"closeup": "modules-r6/pics/pot.png",
+			"parts": [
+				"body",
+				"rim",
+				"handle",
+				"handle_plate"
+			]
+		},
+		"couch_pillow": {
+			"closeup": "modules-r6/pics/couch_pillow.png",
+			"parts": [
+				"pillow",
+				"seam"
+			]
+		},
+		"door_frame": {
+			"closeup": "modules1/closeups/airlock/door_frame.png",
+			"parts": [
+				"flange",
+				"frame",
+				"lip",
+				"stripe",
+				"bolt"
+			],
+			"built": {
+				"bolt": 1.0,
+				"flange": 0.5,
+				"frame": 0.758,
+				"lip": 1.0,
+				"stripe": 0.924
+			},
+			"prints_off": []
+		},
+		"door_leaf": {
+			"closeup": "modules1/closeups/airlock/door_leaf.png",
+			"parts": [
+				"slab",
+				"rim",
+				"rib",
+				"hub_ring",
+				"hub",
+				"lock_bar",
+				"bolt",
+				"latch",
+				"sticker"
+			],
+			"built": {
+				"bolt": 1.0,
+				"hub": 0.636,
+				"hub_ring": 0.778,
+				"latch": 0.956,
+				"lock_bar": 1.0,
+				"rib": 0.95,
+				"rim": 0.98,
+				"slab": 0.733,
+				"sticker": 1.0
+			},
+			"prints_off": []
+		},
+		"suit_alcove": {
+			"closeup": "modules1/closeups/airlock/suit_alcove.png",
+			"parts": [
+				"carcass",
+				"frame",
+				"pad",
+				"rail",
+				"lamp_housing",
+				"lens",
+				"floor",
+				"foot_rail",
+				"hook"
+			],
+			"built": {
+				"carcass": 0.776,
+				"floor": 0.429,
+				"foot_rail": 0.44,
+				"frame": 1.0,
+				"hook": 0.784,
+				"lamp_housing": 0.391,
+				"lens": 0.553,
+				"pad": 0.812,
+				"rail": 0.719
+			},
+			"prints_off": []
+		},
+		"hose_reel": {
+			"closeup": "modules-r6/pics/hose_reel.png",
+			"parts": [
+				"flange",
+				"hose",
+				"nozzle",
+				"axle",
+				"hub",
+				"arm",
+				"bracket",
+				"crank"
+			],
+			"built": {
+				"arm": 0.597,
+				"axle": 0.192,
+				"bracket": 0.823,
+				"crank": 0.671,
+				"flange": 0.654,
+				"hose": 0.291,
+				"hub": 0.661,
+				"nozzle": 0.932
+			},
+			"prints_off": []
+		},
+		"suit_bench": {
+			"closeup": "modules1/closeups/airlock/suit_bench.png",
+			"parts": [
+				"body",
+				"lid",
+				"pad",
+				"stencil",
+				"label",
+				"note"
+			],
+			"built": {
+				"body": 0.71,
+				"label": 1.0,
+				"lid": 0.247,
+				"note": 1.0,
+				"pad": 0.57,
+				"stencil": 1.0
+			},
+			"prints_off": []
+		},
+		"status_panel": {
+			"closeup": "modules1/closeups/airlock/status_panel.png",
+			"parts": [
+				"housing",
+				"bezel",
+				"screen",
+				"readout",
+				"label",
+				"note",
+				"gauge",
+				"needle",
+				"keypad",
+				"keys",
+				"button",
+				"estop",
+				"mount",
+				"monitor",
+				"side_box",
+				"meter",
+				"gland",
+				"cable"
+			],
+			"built": {
+				"bezel": 0.764,
+				"button": 1.0,
+				"cable": 0.745,
+				"estop": 0.942,
+				"gauge": 0.703,
+				"gland": 0.656,
+				"housing": 0.615,
+				"keypad": 0.378,
+				"keys": 0.953,
+				"label": 1.0,
+				"meter": 1.0,
+				"monitor": 0.665,
+				"mount": 0.328,
+				"needle": 0.897,
+				"note": 0.867,
+				"readout": 0.822,
+				"screen": 0.884,
+				"side_box": 0.734
+			},
+			"prints_off": []
+		},
+		"fan_unit": {
+			"closeup": "modules1/closeups/airlock/fan_unit.png",
+			"parts": [
+				"case",
+				"plate",
+				"shroud",
+				"blade",
+				"hub",
+				"grille",
+				"screw",
+				"label",
+				"sticker",
+				"sheet",
+				"louvre",
+				"louvre_back",
+				"louvre_frame"
+			],
+			"built": {
+				"blade": 0.919,
+				"case": 0.767,
+				"grille": 0.846,
+				"hub": 0.418,
+				"label": 1.0,
+				"louvre": 0.515,
+				"louvre_back": 0.231,
+				"louvre_frame": 0.616,
+				"plate": 1.0,
+				"screw": 1.0,
+				"sheet": 1.0,
+				"shroud": 0.479,
+				"sticker": 1.0
+			},
+			"prints_off": []
+		},
+		"crown_strip_lamp": {
+			"closeup": "modules1/closeups/tube/crown_strip_lamp.png",
+			"parts": [
+				"housing",
+				"lens",
+				"tab",
+				"screw",
+				"label"
+			]
+		},
+		"hull_patch": {
+			"closeup": "modules1/closeups/tube/hull_patch.png",
+			"parts": [
+				"plate",
+				"weld",
+				"tape"
+			]
+		},
+		"sign_plate": {
+			"closeup": "modules1/closeups/tube/sign_plate.png",
+			"parts": [
+				"plate",
+				"label",
+				"bolt"
+			]
+		},
+		"end_mat": {
+			"closeup": "modules1/closeups/tube/end_mat.png",
+			"parts": [
+				"frame",
+				"base",
+				"bar",
+				"stencil"
+			]
 		}
 	}
 }
