@@ -567,7 +567,7 @@ def prop_scene(room, name, about, models):
     for index, child in enumerate(about.get("children", [])):
         placed = child_transform(child)
         resources.append((child["model"], f"c{index}"))
-        nodes.append(f'\n[node name="{node_name(child["model"])}_{index}" parent="." '
+        nodes.append(f'\n[node name="{node_name(child["model"])}_{index}" parent="." groups=["child_object"] '
                      f'instance=ExtResource("c{index}")]\ntransform = {placed}\n')
         if f"{child['model']}_glow" in models:
             glows.append((f"{child['model']}_glow", placed))
