@@ -552,11 +552,11 @@ def wall_gear(kinds, inventory):
         for high in highs:
             for across in (-0.6, 0.6):
                 found.append(on_lining(kinds, "pipe_straight", bearing, across, high - straight[1] / 2,
-                                     (FACET_WIDE / 2 - 0.02, straight[1], straight[2]), out=bracket[2]))
+                                     (FACET_WIDE / 2 - 0.02, straight[1], straight[2]), out=PIPE_AXIS - straight[2] / 2))
             found.append(on_lining(kinds, "pipe_bracket", bearing, -0.6, high - bracket[1] / 2, bracket))
             found.append(on_lining(kinds, "pipe_bracket", bearing, 0.6, high - bracket[1] / 2, bracket))
     for bearing, across, high in ((210, -0.3, 1.35), (210, -0.3, 0.75), (300, -0.5, 0.55)):  # each on a pipe laid
-        found.append(on_lining(kinds, "pipe_valve", bearing, across, high - valve[1] / 2, valve, out=bracket[2]))
+        found.append(on_lining(kinds, "pipe_valve", bearing, across, high - valve[1] / 2, valve))
     for bearing in (210, 240, 300):  # not the airlock's wall: its doorway reaches the corners
         for side in (-1, 1):
             found.append(on_lining(kinds, "pipe_elbow", bearing, side * (FACET_WIDE / 2 - elbow[0] / 2), 0.4, elbow, out=bracket[2]))
@@ -584,6 +584,92 @@ def wall_gear(kinds, inventory):
     found.append(piece("waste_bin", normal * (APOTHEM - lining(kinds, 240, 0.0, bin_size[1]) - bin_size[2] / 2 - 0.02)
                        + along * 0.95, frame_facing(-normal, (0, 1, 0)), bin_size))
     return found
+
+
+# A pipe run's inline fitting carries the run through its own stub (pieces.pipe_valve: its axis VALVE_AXIS_BACK off
+# its back), so the straight pipe stops at either end of it (step 0 of the modules round, 2026-10-07: the
+# hub's pipes ran on through their valves); a length shorter than SHORTEST_PIPE left over is dropped.
+INLINE = ("pipe_valve",)
+# How far a wall pipe run's axis stands off the wall lining (pieces.PIPE_AXIS): a short stand-off, so its brackets
+# visibly hold it (step 0: at 20 cm the clamp's arm hid behind the pipe and the bracket read as not reaching it).
+PIPE_AXIS = 0.08
+VALVE_AXIS_BACK = PIPE_AXIS
+SHORTEST_PIPE = 0.05
+ON_RUN = 0.02
+
+
+def axis_point(laid):
+    """A laid pipe piece's axis: its middle on the pipe's line (a straight pipe's middle; an inline fitting's stub)."""
+    origin = np.asarray(laid["at"], dtype=np.float64) + np.asarray(laid["y"]) * laid["size"][1] / 2
+    if laid["kind"].split("_", 1)[1] in INLINE:
+        origin = origin + np.asarray(laid["z"]) * (laid["size"][2] / 2 - VALVE_AXIS_BACK)
+    return origin
+
+
+def split_at_fittings(found):
+    """The laid pieces with every straight pipe that runs through an inline fitting cut into the lengths either side
+    of it, and every pipe bracket that would stand on the fitting moved off it along the run."""
+    inline = [laid for laid in found if laid["kind"].split("_", 1)[1] in INLINE]
+    pipes = []
+    for laid in found:
+        if laid["kind"].split("_", 1)[1] == "pipe_straight":
+            pipes += cut_pipe(laid, inline)
+        elif laid["kind"].split("_", 1)[1] != "pipe_bracket":
+            pipes.append(laid)
+    return pipes + [clear_bracket(laid, inline) for laid in found if laid["kind"].split("_", 1)[1] == "pipe_bracket"]
+
+
+def on_run(pipe, fitting):
+    """Where an inline fitting's middle stands along a pipe's run (metres from the pipe's middle), or None when the
+    fitting is not on that run."""
+    along = np.asarray(pipe["x"])
+    if abs(abs(float(along @ np.asarray(fitting["x"]))) - 1.0) > 1e-3:
+        return None
+    offset = axis_point(fitting) - axis_point(pipe)
+    shift = float(offset @ along)
+    return shift if np.linalg.norm(offset - along * shift) < ON_RUN else None
+
+
+def cut_pipe(pipe, inline):
+    """A straight pipe as the lengths of it left either side of the inline fittings on its run."""
+    half = pipe["size"][0] / 2
+    spans = [(-half, half)]
+    for fitting in inline:
+        shift = on_run(pipe, fitting)
+        if shift is None or abs(shift) >= half + fitting["size"][0] / 2:
+            continue
+        low, high = shift - fitting["size"][0] / 2, shift + fitting["size"][0] / 2
+        spans = [piece_span for start, end in spans
+                 for piece_span in ((start, min(end, low)), (max(start, high), end)) if piece_span[1] > piece_span[0]]
+    found = []
+    for start, end in spans:
+        if end - start < SHORTEST_PIPE:
+            continue
+        length = dict(pipe, size=[round(end - start, 4)] + list(pipe["size"][1:]))
+        length["at"] = [round(float(value), 4)
+                        for value in np.asarray(pipe["at"]) + np.asarray(pipe["x"]) * (start + end) / 2]
+        found.append(length)
+    return found
+
+
+def clear_bracket(bracket, inline):
+    """A pipe bracket moved along its run off any inline fitting it would stand on."""
+    for fitting in inline:
+        along = np.asarray(fitting["x"])
+        offset = np.asarray(bracket["at"]) - np.asarray(fitting["at"])
+        if abs(float(offset @ np.asarray(fitting["y"]))) > fitting["size"][1] / 2:
+            continue  # not at the fitting's height
+        if np.linalg.norm(offset - along * float(offset @ along) - np.asarray(fitting["z"]) * float(
+                offset @ np.asarray(fitting["z"]))) > 0.01:
+            continue
+        shift = float(offset @ along)
+        reach = (fitting["size"][0] + bracket["size"][0]) / 2 + 0.02
+        if abs(shift) < reach:
+            moved = dict(bracket)
+            moved["at"] = [round(float(value), 4) for value in
+                           np.asarray(fitting["at"]) + offset - along * shift + along * (reach if shift >= 0 else -reach)]
+            return moved
+    return bracket
 
 
 FURNITURE = ("talllocker", "rack", "comms", "labbench", "toolboard", "status_display", "wall_screen_cluster",
@@ -653,7 +739,7 @@ def kit_kinds(inventory):
 def laid_out(inventory):
     kinds = kit_kinds(inventory)
     found = (walls(kinds) + roof(kinds) + ceiling_gear(kinds) + floor(kinds, inventory) + pit(kinds) + stairs(kinds)
-             + doors(kinds, inventory) + clear_of_furniture(wall_gear(kinds, inventory), inventory))
+             + doors(kinds, inventory) + split_at_fittings(clear_of_furniture(wall_gear(kinds, inventory), inventory)))
     return cut_openings(found)
 
 

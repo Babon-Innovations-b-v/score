@@ -1096,6 +1096,10 @@ def grab_bar(size, laid):
 FLOOR_SEEN_TURN = {"ceiling_cable_tray": -90.0, "ceiling_duct": -90.0, "roof_apex_hub": 90.0,
                    "roof_light_fixture": 90.0}
 FLOOR_PIPE_RADIUS = 0.038  # pipe_straight's: min(tall, deep) * 0.38 at 0.1
+# How far a wall pipe run's axis stands off the wall (hub_kit.PIPE_AXIS): a bracket's base plate and a valve's foot plate
+# are on the wall, their clamp and body on the run (step 0 of the modules round, 2026-10-07: at 20 cm the clamp's arm
+# hid behind the pipe and the bracket read as not reaching it).
+PIPE_AXIS = 0.08
 
 
 def floor_bent_tube(centre, across, up, radius, thick, start, end, material, name, steps=16, sides=16):
@@ -1334,7 +1338,7 @@ def roof_light_fixture(size, laid):
                              0.006),
              shapes.bevelled(shapes.cylinder((0.0, back, 0.0), (0.0, back + 0.03, 0.0), radius * 0.6, "bare_steel", 32,
                                              "housing"), 0.004),
-             shapes.cylinder((0.0, mouth - 0.006, 0.0), (0.0, mouth, 0.0), radius - 0.015, "glass_frosted", 40, "lens"),
+             shapes.cylinder((0.0, mouth - 0.006, 0.0), (0.0, mouth, 0.0), radius - 0.015, "lamp_lens", 40, "lens"),
              shapes.bevelled(shapes.ring((0.0, mouth - 0.008, 0.0), (0.0, mouth + 0.006, 0.0), radius + 0.004,
                                          radius - 0.014, "bare_steel", 40, "bezel"), 0.002),
              shapes.bevelled(shapes.box((-0.06, tall - 0.012, -deep / 2), (0.06, tall, deep / 2), "dark_panel", "mount"),
@@ -1368,7 +1372,7 @@ def pipe_bracket(size, laid):
     wide, tall, deep = size
     back = deep / 2
     middle_y = tall / 2
-    axis_z = -deep / 2 - 0.05  # the pipe's axis: the straight pipes stand on the bracket's front, 0.1 thick
+    axis_z = back - PIPE_AXIS  # the pipe run's axis, PIPE_AXIS off the wall the base plate is bolted to
     parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, back - 0.012), (wide / 2, tall, back), "dark_panel", "base"),
                              0.003)]
     parts += bolts_along([(x, y) for x in (-wide / 2 + 0.018, wide / 2 - 0.018) for y in (0.018, tall - 0.018)],
@@ -1422,12 +1426,12 @@ def pipe_elbow(size, laid):
 
 def pipe_valve(size, laid):
     """A gate valve on a pipe run, as its close-up shows it, its handwheel facing the room: a body round the pipe on
-    the run's axis (5 cm off the valve's back, where the straight pipes run), flanged stubs either side, a bonnet
+    the run's axis (PIPE_AXIS off the valve's back, where the straight pipes run), flanged stubs either side, a bonnet
     standing out of the body toward the room, the stem through a yoke, a red handwheel with spokes on its front, and
     a foot plate on the wall behind the body."""
     wide, tall, deep = size
     axis_y = tall / 2
-    axis_z = deep / 2 - 0.05
+    axis_z = deep / 2 - PIPE_AXIS  # on the run's axis, its foot plate on the wall
     stub = FLOOR_PIPE_RADIUS
     parts = [shapes.cylinder((-wide / 2, axis_y, axis_z), (wide / 2, axis_y, axis_z), stub, "pipe_steel", 24, "stub")]
     for x in (-0.065, 0.065):
@@ -1462,6 +1466,9 @@ def pipe_valve(size, laid):
     back = deep / 2
     parts.append(shapes.bevelled(shapes.box((-0.04, 0.0, back - 0.0035), (0.04, tall, back), "dark_panel", "foot"),
                                  0.001))
+    # The saddle from the foot plate to the body: the body stands PIPE_AXIS off the wall, clear of it.
+    parts.append(shapes.bevelled(shapes.box((-0.03, axis_y - 0.025, axis_z), (0.03, axis_y + 0.025, back - 0.0035),
+                                            "dark_panel", "foot"), 0.002))
     parts += bolts_along([(0.0, 0.025), (0.0, tall - 0.025)], back - 0.0035)
     return parts
 
