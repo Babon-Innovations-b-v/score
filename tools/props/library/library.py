@@ -61,13 +61,20 @@ def wear_of(place_id, path=PLACES, library_path=LIBRARY):
     return float(theme_library(library_path)["wear_levels"][chosen["level"]]), float(chosen["dirt"])
 
 
-def spec(library, name, token, colours):
+def dirt_token_of(place_id, path=PLACES):
+    """The token a place's dirt is drawn in: its own (`wear.dirt_token`, Mars's dust on the camp, 2026-10-07), else
+    none and the library's."""
+    return json.loads(pathlib.Path(path).read_text())[place_id]["wear"].get("dirt_token")
+
+
+def spec(library, name, token, colours, dirt=None):
     """One library variant in a given token colour, as its recipe wants it: the recipe's defaults under the
-    variant's own settings, every token setting as a linear colour, its picture as a file."""
+    variant's own settings, every token setting as a linear colour, its picture as a file; its dirt in the place's
+    dirt token (`dirt`) or the library's."""
     variant = variants(library)[name]
     found = dict(library["recipes"][variant["recipe"]])
     found.update(variant)
-    found.update(library=name, token=token, colour=colours[token], dirt_colour=colours[library["dirt"]])
+    found.update(library=name, token=token, colour=colours[token], dirt_colour=colours[dirt or library["dirt"]])
     for setting in COLOUR_SETTINGS:
         if setting in found:
             found[setting] = colours[found[setting]]
@@ -76,11 +83,11 @@ def spec(library, name, token, colours):
     return found
 
 
-def library_specs(library_path=LIBRARY, tokens_path=TOKENS):
-    """Every variant in its own default token: the swatch sheet's rows."""
+def library_specs(library_path=LIBRARY, tokens_path=TOKENS, dirt=None):
+    """Every variant in its own default token: the swatch sheet's rows (dirty in `dirt`'s token, else the library's)."""
     library = theme_library(library_path)
     colours = token_colours(tokens_path)
-    return {name: spec(library, name, variant["token"], colours) for name, variant in variants(library).items()}
+    return {name: spec(library, name, variant["token"], colours, dirt) for name, variant in variants(library).items()}
 
 
 def resolved(place_id, path=PLACES, library_path=LIBRARY, tokens_path=TOKENS):
@@ -88,9 +95,10 @@ def resolved(place_id, path=PLACES, library_path=LIBRARY, tokens_path=TOKENS):
     library = theme_library(library_path)
     colours = token_colours(tokens_path)
     found = {}
+    dirt = dirt_token_of(place_id, path)
     for name, entry in json.loads(pathlib.Path(path).read_text())[place_id]["materials"].items():
         if "library" in entry:
-            found[name] = spec(library, entry["library"], entry["token"], colours)
+            found[name] = spec(library, entry["library"], entry["token"], colours, dirt)
     return found
 
 
@@ -98,7 +106,7 @@ def by_library(place_id, path=PLACES, library_path=LIBRARY, tokens_path=TOKENS):
     """Every library variant keyed by its own name, in the place's token where the place names it (the first of the
     place's materials taking it) and in the library's own otherwise: what a code-built piece's slots, which name
     library variants, are painted with in that place."""
-    found = library_specs(library_path, tokens_path)
+    found = library_specs(library_path, tokens_path, dirt_token_of(place_id, path))
     for entry in reversed(list(resolved(place_id, path, library_path, tokens_path).values())):
         found[entry["library"]] = entry
     return found

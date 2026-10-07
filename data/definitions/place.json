@@ -728,5 +728,154 @@
 			"recorded": "2026-10-07, as the game has it (street_fittings.gd LAMP_*): a caged lamp on every landing",
 			"read_by": "game/prologue/street_fittings/street_fittings.gd"
 		}
+	},
+	"expedition_camp": {
+		"name": "the first expedition's camp on Mars",
+		"scenes": [
+			"camp_outside",
+			"camp_door_dome",
+			"camp_far_dome"
+		],
+		"style": {
+			"version": 1,
+			"text": "An American private company's camp (SpaceXcitement, 2099), landed by one company ship and put up by three people, then lived in for a year; not a state base. Inflatable soft-goods domes: a woven fabric shell banded by load straps over a ring of padded tubes at the foot, quilted fabric panels between aluminium ribs inside, rigid window frames set in the fabric, a roof ring with a vent fan. Rigid parts in brushed stainless steel, anodised aluminium and carbon composite, rounded corners, smooth consumer products, flush touchscreens, few bolts showing; company and mission graphics stencilled on cargo cases. After a year: fine Mars dust in every seam and drifted against everything outside, scuffed and patched fabric, tape repairs, cables run loose, opened cargo cases turned into furniture, personal photographs and notes.",
+			"from": "the camp's concept step (mars-build, 2026-10-07): outside K05, door dome K01, far dome K08",
+			"picked": "coordinator's pick, owner may change (owner reviews world 1 at the end, 2026-10-07)"
+		},
+		"plan": {
+			"trail": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build"
+		},
+		"palette": {
+			"tokens": [
+				"hull",
+				"steel",
+				"deck",
+				"rubber",
+				"cabin-padding",
+				"cabin-seam",
+				"glass",
+				"screen-teal",
+				"lamp",
+				"mars-dust",
+				"mars-dark",
+				"idle",
+				"line"
+			],
+			"accents": [
+				"alarm",
+				"info"
+			],
+			"accents_are": "status lights, the company's stencils and the mission patches"
+		},
+		"materials": {
+			"beta_cloth": {
+				"token": "hull",
+				"library": "beta_cloth"
+			},
+			"quilted_white": {
+				"token": "hull",
+				"library": "quilted_white"
+			},
+			"dust_coated_paint": {
+				"token": "hull",
+				"library": "dust_coated_paint"
+			},
+			"stainless": {
+				"token": "steel",
+				"library": "stainless_lander"
+			},
+			"brushed_steel_fine": {
+				"token": "steel",
+				"library": "brushed_steel_fine"
+			},
+			"anodized_natural": {
+				"token": "idle",
+				"library": "anodized_natural"
+			},
+			"carbon_fibre": {
+				"token": "line",
+				"library": "carbon_fibre"
+			},
+			"plastic_white": {
+				"token": "hull",
+				"library": "plastic_white"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"regolith": {
+				"token": "mars-dust",
+				"library": "mars_regolith"
+			},
+			"sand": {
+				"token": "mars-dust",
+				"library": "mars_sand"
+			},
+			"basalt": {
+				"token": "mars-dark",
+				"library": "mars_basalt"
+			},
+			"layered_rock": {
+				"token": "mars-dust",
+				"library": "mars_layered_rock"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: lamps on rods inside (camp_rooms.gd), Mars daylight outside",
+			"read_by": "camp_rooms.gd"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/outside/concepts/K05.png",
+					"said": "landed and grown: lander, cargo, strapped domes"
+				},
+				{
+					"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/door_dome/concepts/K01.png",
+					"said": "quilted shell between ribs, stainless galley"
+				},
+				{
+					"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/far_dome/concepts/K08.png",
+					"said": "rigid partition, bunks, lit growth chamber"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "the Chinese state base's bolted, worn industrial kit or hazard stripes (the airlock alone keeps the Moon look)"
+				},
+				{
+					"picture": "",
+					"said": "big brand graphics on everything: one company name, small"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway, a doorway or a find's furniture"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.6,
+			"dirt_token": "mars-dust",
+			"picked": "coordinator's: a year lived in (worked), Mars dust in every seam (dirt 0.6 in mars-dust)"
+		}
 	}
 }
