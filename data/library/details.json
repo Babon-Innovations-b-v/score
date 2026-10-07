@@ -627,5 +627,52 @@
 		"screens": [],
 		"cuts": [],
 		"square": false
+	},
+	"campgrounds_lander": {
+		"turn": [0.99875, 0.0, -0.04994, 0.0, 1.0, 0.0, 0.04994, 0.0, 0.99875],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{"at": [0.0, 7.5], "size": [1.2, 0.3], "variant": "stencil_spacexcitement"}
+		],
+		"wall": 0.15
+	},
+	"campgrounds_crane": {
+		"turn": [0.4131, 0.0, -0.91069, 0.0, 1.0, 0.0, 0.91069, 0.0, 0.4131],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.02
+	},
+	"campgrounds_cargo_case": {
+		"turn": [0.00105, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.00105],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{"at": [0.0, 0.42], "size": [0.5, 0.12], "variant": "stencil_spacexcitement"}
+		],
+		"square": true
+	},
+	"campgrounds_cargo_case_open": {
+		"turn": [0.00854, 0.0, -0.99996, 0.0, 1.0, 0.0, 0.99996, 0.0, 0.00854],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{"at": [0.0, 0.25], "size": [0.4, 0.1], "variant": "stencil_cargo"}
+		]
+	},
+	"campgrounds_cargo_pallet": {
+		"turn": [0.07236, 0.0, -0.99738, 0.0, 1.0, 0.0, 0.99738, 0.0, 0.07236],
+		"screens": [],
+		"cuts": []
+	},
+	"campgrounds_reactor": {
+		"turn": [0.52863, 0.0, 0.84885, 0.0, 1.0, 0.0, -0.84885, 0.0, 0.52863],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{"at": [0.0, 1.3], "size": [0.6, 0.15], "variant": "label_fission_unit"},
+			{"at": [0.0, 1.05], "size": [0.5, 0.12], "variant": "label_keep_out"}
+		],
+		"wall": 0.012
 	}
 }

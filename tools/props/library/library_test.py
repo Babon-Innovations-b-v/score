@@ -149,8 +149,12 @@ def test_every_model_a_kit_room_lays_was_made_on_its_kind_s_route():
 
 def test_every_kind_of_every_kit_room_gets_a_route():
     for path in sorted((library.REPO / "data/kit").glob("*.json")):
-        found = sorter.sorted_kinds(json.loads(path.read_text()))
-        assert found and all(entry["route"] in ("code", "model", "decal") for entry in found.values()), path.stem
+        layout = json.loads(path.read_text())
+        found = sorter.sorted_kinds(layout)
+        # A room of props alone (the expedition camp's grounds) lays no kit pieces; its props' routes are held above.
+        props = any("prop" in about for about in layout["models"].values())
+        assert (found or props) and all(entry["route"] in ("code", "model", "decal") for entry in found.values()), \
+            path.stem
 
 
 def test_a_room_s_baked_pictures_are_stored_as_webp_and_its_models_point_at_them():

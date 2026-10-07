@@ -3405,6 +3405,64 @@ def hoop(size, laid):
                                          laid.get("material", "dark_panel"), "flange"), 0.003)]
 
 
+# --- the expedition camp's grounds (mars-build, 2026-10-07) -----------------------------------------------------------
+
+MAST_COLUMN_TOP = 11.0  # CampMast's lattice legs up to the lamp's housing
+MAST_LEGS_APART = 0.5
+MAST_GUY_FROM = 8.0
+MAST_HOUSING = (0.6, 0.7, 0.6)
+MAST_LAMP_HIGH = 11.4  # CampMast.LAMP_HEIGHT_M
+MAST_GUY_OUT = 3.2  # how far out the guys' anchors stand from the column
+
+
+def mast(size, laid):
+    """The camp's guyed radio mast, as its close-up shows it: four legs of a square lattice column braced across and
+    diagonally every metre, the lamp's housing on top with its lens, the aerial to the full height, and three guy wires
+    from high on the column down to anchor plates on the ground MAST_GUY_OUT away, a third of the way round from each
+    other, the first straight ahead. Its foot is the column's; its box is the guys' reach and the mast's height."""
+    wide, tall, deep = size
+    half = MAST_LEGS_APART / 2
+    corners = [(-half, -half), (half, -half), (half, half), (-half, half)]
+    parts = [shapes.cylinder((x, 0.0, z), (x, MAST_COLUMN_TOP, z), 0.03, "anodized_natural", 10, "leg")
+             for x, z in corners]
+    level = 1.0
+    while level < MAST_COLUMN_TOP:
+        for side, (x0, z0) in enumerate(corners):
+            x1, z1 = corners[(side + 1) % 4]
+            parts.append(shapes.cylinder((x0, level, z0), (x1, level, z1), 0.018, "anodized_natural", 8, "brace"))
+            parts.append(shapes.cylinder((x0, level - 1.0, z0), (x1, level, z1), 0.016, "anodized_natural", 8, "brace"))
+        level += 1.0
+    hw, hh, hd = MAST_HOUSING
+    parts.append(shapes.bevelled(shapes.box((-hw / 2, MAST_COLUMN_TOP, -hd / 2),
+                                            (hw / 2, MAST_COLUMN_TOP + hh, hd / 2), "dust_coated_paint", "housing"), 0.01))
+    for x, z in ((0.0, -hd / 2 - 0.02), (0.0, hd / 2 + 0.02), (-hw / 2 - 0.02, 0.0), (hw / 2 + 0.02, 0.0)):
+        parts.append(shapes.cylinder((x * 0.97, MAST_LAMP_HIGH, z * 0.97), (x * 1.08, MAST_LAMP_HIGH, z * 1.08), 0.09,
+                                     "lamp_lens", 16, "lens"))
+    parts.append(shapes.cylinder((0.0, MAST_COLUMN_TOP + hh, 0.0), (0.0, tall, 0.0), 0.025, "stainless_lander", 10,
+                                 "aerial"))
+    reach = MAST_GUY_OUT
+    for index in range(3):
+        angle = 2 * math.pi * index / 3 + math.pi / 2
+        way = (math.cos(angle), math.sin(angle))
+        top = (way[0] * half, MAST_GUY_FROM, way[1] * half)
+        foot = (way[0] * reach, 0.06, way[1] * reach)
+        parts.append(shapes.cylinder(top, foot, 0.0125, "galvanized_dull", 8, "guy"))
+        parts.append(shapes.bevelled(shapes.box((foot[0] - 0.14, 0.0, foot[2] - 0.14), (foot[0] + 0.14, 0.06, foot[2] + 0.14),
+                                                "galvanized_steel", "anchor"), 0.006))
+    return parts
+
+
+def ground_cable(size, laid):
+    """A length of heavy power cable lying on the ground along x, as the concept shows the camp's cables: one round
+    sheathed cable, a little slack, its middle a few millimetres higher than its ends where it lies over grit."""
+    wide, tall, deep = size
+    radius = min(tall, deep) / 2
+    steps = 6
+    points = [(-wide / 2 + wide * step / steps, radius + 0.004 * math.sin(math.pi * step / steps), 0.0)
+              for step in range(steps + 1)]
+    return [shapes.cylinder(start, end, radius, "cable_black", 12, "cable") for start, end in zip(points, points[1:])]
+
+
 BUILDERS = {name: value for name, value in globals().items() if callable(value) and name in (
     "backer", "cable_bundle", "cable_drop", "lattice_diamond_strut", "lattice_hip_rib", "lattice_node_plate",
     "lattice_ring_rib", "machine_bay_plate", "pipe_straight", "pit_floor_plate", "pit_wall_panel",
@@ -3412,7 +3470,9 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "wall_lower_plain", "wall_skirting", "wall_upper_plain", "hull_plate", "hoop",
     # method B's fittings (hub round five)
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_window", "hatch_hinge", "hatch_wall_surround", "porthole_panel",
-    "wall_lower_vent", "notice_board", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar")}
+    "wall_lower_vent", "notice_board", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
+    # the expedition camp's grounds (mars-build)
+    "mast", "ground_cable")}
 
 
 def build(kind, size, laid, name):

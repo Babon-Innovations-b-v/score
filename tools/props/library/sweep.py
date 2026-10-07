@@ -127,9 +127,10 @@ def sweep(place, folder, layout):
 def main():
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
-    place = sys.argv[1]
-    report = sweep(place, library.REPO / f"game/base/models/{place}_kit",
-                   json.loads((library.REPO / f"data/kit/{place}.json").read_text()))
+    room = sys.argv[1]
+    layout = json.loads((library.REPO / f"data/kit/{room}.json").read_text())
+    # A room's palette is its place's (place.json): the room's own name unless the layout names its place.
+    report = sweep(layout.get("place", room), library.REPO / f"game/base/models/{room}_kit", layout)
     for name, entry in sorted(report.items(), key=lambda item: item[1]["on_palette"]):
         print(f"{name:32} {entry['route'] or '-':6} on palette {entry['on_palette']:.2f}  L* {entry['lightness']}  "
               f"blotchy {entry['blotchy']}  "

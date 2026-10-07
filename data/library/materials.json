@@ -1415,6 +1415,41 @@
 					"recipe": "printed",
 					"token": "hazard",
 					"picture": "sign_garage"
+				},
+				"stencil_spacexcitement": {
+					"recipe": "printed",
+					"token": "hull",
+					"picture": "stencil_spacexcitement"
+				},
+				"stencil_cargo": {
+					"recipe": "printed",
+					"token": "hull",
+					"picture": "stencil_cargo"
+				},
+				"stencil_samples_bt": {
+					"recipe": "printed",
+					"token": "hull",
+					"picture": "stencil_samples_bt"
+				},
+				"label_fission_unit": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_fission_unit"
+				},
+				"label_keep_out": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_keep_out"
+				},
+				"label_ice_drill": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_ice_drill"
+				},
+				"label_camp_radio": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_camp_radio"
 				}
 			}
 		},
@@ -2368,6 +2403,41 @@
 		"sign_garage": {
 			"style": "label",
 			"text": "GARAGE",
+			"ink": "ink-line"
+		},
+		"stencil_spacexcitement": {
+			"style": "stencil",
+			"text": "SPACEXCITEMENT",
+			"ink": "ink-line"
+		},
+		"stencil_cargo": {
+			"style": "stencil",
+			"text": "CARGO 14",
+			"ink": "ink-line"
+		},
+		"stencil_samples_bt": {
+			"style": "stencil",
+			"text": "SAMPLES BT",
+			"ink": "ink-line"
+		},
+		"label_fission_unit": {
+			"style": "label",
+			"text": "FISSION POWER UNIT",
+			"ink": "ink-line"
+		},
+		"label_keep_out": {
+			"style": "label",
+			"text": "KEEP OUT 25 M",
+			"ink": "alarm"
+		},
+		"label_ice_drill": {
+			"style": "label",
+			"text": "ICE CORE DRILL",
+			"ink": "ink-line"
+		},
+		"label_camp_radio": {
+			"style": "label",
+			"text": "CAMP RADIO",
 			"ink": "ink-line"
 		}
 	}

@@ -1404,6 +1404,38 @@
 				"bar",
 				"stencil"
 			]
+		},
+		"mast": {
+			"closeup": "mars-build/grounds/pics/sources/mast.png",
+			"parts": [
+				"leg",
+				"brace",
+				"housing",
+				"lens",
+				"aerial",
+				"guy",
+				"anchor"
+			],
+			"built": {
+				"aerial": 0.922,
+				"anchor": 0.95,
+				"brace": 0.723,
+				"guy": 0.994,
+				"housing": 0.969,
+				"leg": 0.943,
+				"lens": 0.597
+			},
+			"prints_off": []
+		},
+		"ground_cable": {
+			"closeup": "mars-build/outside/concepts/K05.png (the cables on the ground)",
+			"parts": [
+				"cable"
+			],
+			"built": {
+				"cable": 0.907
+			},
+			"prints_off": []
 		}
 	}
 }
