@@ -175,7 +175,8 @@ def overlap_depth(mesh, other):
     if len(near) == 0:
         return 0.0
     near = near[:: max(1, len(near) // OVERLAP_SAMPLES)]
-    inside = near[other.contains(near)]
+    # The plain ray tester, not Embree's: Embree crashed the process on one of the square's meshes (2026-10-08).
+    inside = near[trimesh.ray.ray_triangle.RayMeshIntersector(other).contains_points(near)]
     if len(inside) == 0:
         return 0.0
     return float(trimesh.proximity.closest_point(other, inside)[1].max())
