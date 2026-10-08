@@ -323,7 +323,11 @@
 				"quilt",
 				"roof-steel",
 				"lamp",
-				"cabin-seam"
+				"cabin-seam",
+				"line",
+				"sign-gold",
+				"hull-trim",
+				"idle"
 			],
 			"accents": [
 				"alarm",
@@ -456,6 +460,30 @@
 			"cable_grey": {
 				"token": "cabin-seam",
 				"library": "cable_grey"
+			},
+			"facade_paint": {
+				"token": "flat-wall",
+				"library": "facade_paint"
+			},
+			"post_dark": {
+				"token": "line",
+				"library": "post_dark"
+			},
+			"anodized_gold": {
+				"token": "sign-gold",
+				"library": "anodized_gold"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"gate_grey": {
+				"token": "hull-trim",
+				"library": "gate_grey"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
 			}
 		},
 		"light": {
@@ -671,7 +699,8 @@
 				"glass",
 				"rubber",
 				"steel",
-				"cabin-seam"
+				"cabin-seam",
+				"board-wood"
 			],
 			"accents": [
 				"sign-red",
@@ -764,6 +793,10 @@
 			"cable_grey": {
 				"token": "cabin-seam",
 				"library": "cable_grey"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
 			}
 		},
 		"wear": {

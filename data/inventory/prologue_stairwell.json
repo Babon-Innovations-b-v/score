@@ -1,0 +1,444 @@
+{
+	"scene": "prologue_stairwell",
+	"place": "prologue_stairwell",
+	"plan": {
+		"world": "",
+		"seed": 7,
+		"views": [
+			{
+				"id": "v1",
+				"picture": "TMP/concepts-world1/stairwell/concepts/K02.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the owner's world-1 scale-up: build every place without stopping for review between places, after the concept picks (coordinator's, concepts-world1); the owner reviews the built world at the end",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": []
+	},
+	"rows": [
+		{
+			"id": "plaster_wall",
+			"view": "v1",
+			"box": [
+				300,
+				60,
+				1750,
+				1100
+			],
+			"name": "whitewashed wall with a green gloss lower band",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				5.0,
+				0.03,
+				3.0
+			],
+			"count": 30,
+			"thing": "prop:stairwell_plaster_wall"
+		},
+		{
+			"id": "plaster_ceiling",
+			"view": "v1",
+			"box": [
+				300,
+				40,
+				1750,
+				100
+			],
+			"name": "whitewashed ceiling",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.8,
+				5.0,
+				0.03
+			],
+			"count": 1,
+			"thing": "prop:stairwell_plaster_ceiling"
+		},
+		{
+			"id": "stair_flight",
+			"view": "v1",
+			"box": [
+				620,
+				80,
+				1260,
+				1100
+			],
+			"name": "terrazzo stair flight",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.35,
+				2.6,
+				1.5
+			],
+			"count": 6,
+			"thing": "prop:stairwell_stair_flight"
+		},
+		{
+			"id": "landing",
+			"view": "v1",
+			"box": [
+				290,
+				530,
+				1700,
+				580
+			],
+			"name": "terrazzo landing",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.8,
+				1.2,
+				0.25
+			],
+			"count": 7,
+			"thing": "prop:stairwell_landing"
+		},
+		{
+			"id": "stair_rail",
+			"view": "v1",
+			"box": [
+				620,
+				370,
+				1250,
+				870
+			],
+			"name": "wall handrail up a flight",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.6,
+				0.08,
+				2.45
+			],
+			"count": 6,
+			"thing": "prop:stairwell_stair_rail"
+		},
+		{
+			"id": "balcony_rail",
+			"view": "v1",
+			"box": [
+				620,
+				370,
+				1250,
+				560
+			],
+			"name": "rail at the head of the stairs",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.35,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:stairwell_balcony_rail"
+		},
+		{
+			"id": "timber_door_frame",
+			"view": "v1",
+			"box": [
+				1300,
+				210,
+				1420,
+				540
+			],
+			"name": "flat door frame",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.14,
+				0.24,
+				2.28
+			],
+			"count": 3,
+			"thing": "prop:stairwell_timber_door_frame"
+		},
+		{
+			"id": "timber_door_leaf",
+			"view": "v1",
+			"box": [
+				1300,
+				210,
+				1420,
+				540
+			],
+			"name": "flat door",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.94,
+				0.045,
+				2.17
+			],
+			"count": 3,
+			"thing": "prop:stairwell_timber_door_leaf"
+		},
+		{
+			"id": "security_gate",
+			"view": "v1",
+			"box": [
+				1400,
+				210,
+				1540,
+				540
+			],
+			"name": "folding steel security gate",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.95,
+				0.06,
+				2.1
+			],
+			"count": 2,
+			"thing": "prop:stairwell_security_gate"
+		},
+		{
+			"id": "wall_print",
+			"view": "v1",
+			"box": [
+				1270,
+				180,
+				1560,
+				380
+			],
+			"name": "couplets, posters, floor names",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.003,
+				1.5
+			],
+			"count": 16,
+			"thing": "prop:stairwell_wall_print"
+		},
+		{
+			"id": "cage_bulkhead",
+			"view": "v1",
+			"box": [
+				500,
+				85,
+				560,
+				160
+			],
+			"name": "caged bulkhead lamp",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.16,
+				0.2
+			],
+			"count": 7,
+			"thing": "prop:stairwell_cage_bulkhead"
+		},
+		{
+			"id": "meter_cabinet",
+			"view": "v1",
+			"box": [
+				300,
+				190,
+				420,
+				330
+			],
+			"name": "electricity meter cabinet",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.18,
+				0.7
+			],
+			"count": 4,
+			"thing": "prop:stairwell_meter_cabinet"
+		},
+		{
+			"id": "letterboxes",
+			"view": "v1",
+			"box": [
+				1300,
+				740,
+				1480,
+				850
+			],
+			"name": "residents' letterboxes",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.8,
+				0.22,
+				0.75
+			],
+			"count": 1,
+			"thing": "prop:stairwell_letterboxes"
+		},
+		{
+			"id": "lobby_notice",
+			"view": "v1",
+			"box": [
+				1200,
+				700,
+				1270,
+				780
+			],
+			"name": "residents' notice board",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.9,
+				0.05,
+				0.7
+			],
+			"count": 1,
+			"thing": "prop:stairwell_lobby_notice"
+		},
+		{
+			"id": "exit_sign",
+			"view": "v1",
+			"box": [
+				1590,
+				630,
+				1670,
+				670
+			],
+			"name": "lit exit sign",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.36,
+				0.08,
+				0.14
+			],
+			"count": 1,
+			"thing": "prop:stairwell_exit_sign"
+		},
+		{
+			"id": "street_gate",
+			"view": "v1",
+			"box": [
+				1580,
+				680,
+				1700,
+				1060
+			],
+			"name": "steel street door gate",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.05,
+				2.2
+			],
+			"count": 1,
+			"thing": "prop:stairwell_street_gate"
+		},
+		{
+			"id": "extinguisher",
+			"view": "v1",
+			"box": [
+				460,
+				440,
+				520,
+				540
+			],
+			"name": "red fire extinguisher",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.18,
+				0.15,
+				0.6
+			],
+			"count": 2,
+			"thing": "prop:stairwell_extinguisher"
+		},
+		{
+			"id": "pipe_straight",
+			"view": "v1",
+			"box": [
+				1520,
+				140,
+				1550,
+				560
+			],
+			"name": "conduit up the wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.05,
+				0.05,
+				3.0
+			],
+			"count": 4,
+			"thing": "prop:stairwell_pipe_straight"
+		},
+		{
+			"id": "fire_hose_cabinet",
+			"view": "v1",
+			"box": [
+				468,
+				1004,
+				571,
+				1163
+			],
+			"name": "red fire hose cabinet",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.45,
+				0.2,
+				0.7
+			],
+			"count": 2,
+			"thing": "prop:stairwell_fire_hose_cabinet"
+		},
+		{
+			"id": "junction_box",
+			"view": "v1",
+			"box": [
+				1720,
+				261,
+				1789,
+				323
+			],
+			"name": "junction box by the meters",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.18,
+				0.08,
+				0.22
+			],
+			"count": 3,
+			"thing": "prop:stairwell_junction_box"
+		},
+		{
+			"id": "cable_drop",
+			"view": "v1",
+			"box": [
+				592,
+				193,
+				633,
+				770
+			],
+			"name": "cables down the wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.15,
+				0.08,
+				11.7
+			],
+			"count": 1,
+			"thing": "prop:stairwell_cable_drop"
+		}
+	]
+}

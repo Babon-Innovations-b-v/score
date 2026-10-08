@@ -1,0 +1,1958 @@
+{
+	"room": "flat",
+	"place": "prologue_flat",
+	"origin": [
+		0.0,
+		9.0,
+		0.0
+	],
+	"frame": "the Earth block's: x across, z along the street, y up from the room's own floor",
+	"counts": {
+		"flat_plaster_wall": 4,
+		"flat_floorboards": 1,
+		"flat_plaster_ceiling": 1,
+		"flat_balcony_slab": 1,
+		"flat_balcony_rail": 3,
+		"flat_render_wall": 1,
+		"flat_balcony_door_frame": 1,
+		"flat_sliding_glass_leaf": 1,
+		"flat_timber_door_frame": 1,
+		"flat_timber_door_leaf": 1,
+		"flat_wardrobe": 1,
+		"flat_bedside_table": 1,
+		"flat_bed_frame": 1,
+		"flat_table": 1,
+		"flat_timber_chair": 2,
+		"flat_tv_cabinet": 1,
+		"flat_washbasin_stand": 1,
+		"flat_kitchen_counter": 1,
+		"flat_wall_shelf": 1,
+		"flat_ceiling_fan": 1,
+		"flat_tube_light": 1,
+		"flat_wall_print": 4,
+		"flat_mattress": 1,
+		"flat_quilt": 1,
+		"flat_pillow": 1,
+		"flat_bedside_lamp": 1,
+		"flat_crt_tv": 1,
+		"flat_enamel_basin": 1,
+		"flat_gas_stove": 1,
+		"flat_kettle": 1,
+		"flat_thermos": 2,
+		"flat_tea_tin": 2,
+		"flat_storage_box": 1,
+		"flat_hanging_towel": 1,
+		"flat_cooking_pot": 1,
+		"flat_plate": 1,
+		"flat_bowl_stack": 1,
+		"flat_sauce_bottle": 3
+	},
+	"kinds": {
+		"flat_plaster_wall": {
+			"group": "hangs"
+		},
+		"flat_floorboards": {
+			"group": "floors"
+		},
+		"flat_plaster_ceiling": {
+			"group": "hangs"
+		},
+		"flat_balcony_slab": {
+			"group": "floors"
+		},
+		"flat_balcony_rail": {
+			"group": "hangs"
+		},
+		"flat_render_wall": {
+			"group": "hangs"
+		},
+		"flat_balcony_door_frame": {
+			"group": "hangs"
+		},
+		"flat_sliding_glass_leaf": {
+			"group": "hangs"
+		},
+		"flat_timber_door_frame": {
+			"group": "hangs"
+		},
+		"flat_timber_door_leaf": {
+			"group": "hangs"
+		},
+		"flat_wardrobe": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_bedside_table": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_bed_frame": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_table": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_timber_chair": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_tv_cabinet": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_washbasin_stand": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_kitchen_counter": {
+			"group": "hangs",
+			"solid": true
+		},
+		"flat_wall_shelf": {
+			"group": "hangs"
+		},
+		"flat_ceiling_fan": {
+			"group": "hangs"
+		},
+		"flat_tube_light": {
+			"group": "hangs"
+		},
+		"flat_wall_print": {
+			"group": "hangs"
+		},
+		"flat_mattress": {
+			"group": "hangs"
+		},
+		"flat_quilt": {
+			"group": "hangs"
+		},
+		"flat_pillow": {
+			"group": "hangs"
+		},
+		"flat_bedside_lamp": {
+			"group": "hangs"
+		},
+		"flat_crt_tv": {
+			"group": "hangs"
+		},
+		"flat_enamel_basin": {
+			"group": "hangs"
+		},
+		"flat_gas_stove": {
+			"group": "hangs"
+		},
+		"flat_kettle": {
+			"group": "hangs"
+		},
+		"flat_thermos": {
+			"group": "hangs"
+		},
+		"flat_tea_tin": {
+			"group": "hangs"
+		},
+		"flat_storage_box": {
+			"group": "hangs"
+		},
+		"flat_hanging_towel": {
+			"group": "hangs"
+		},
+		"flat_cooking_pot": {
+			"group": "hangs"
+		},
+		"flat_plate": {
+			"group": "hangs"
+		},
+		"flat_bowl_stack": {
+			"group": "hangs"
+		},
+		"flat_sauce_bottle": {
+			"group": "hangs"
+		}
+	},
+	"models": {
+		"plaster_wall_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"floorboards_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_ceiling_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"balcony_slab_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"balcony_rail_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"balcony_rail_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"render_wall_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"balcony_door_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"sliding_glass_leaf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"timber_door_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"timber_door_leaf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wardrobe_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"bedside_table_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"bed_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"table_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"timber_chair_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"tv_cabinet_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"washbasin_stand_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"kitchen_counter_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_shelf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ceiling_fan_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"tube_light_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"mattress_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"quilt_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"pillow_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"bedside_lamp_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"crt_tv_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"crt_tv_1_screen_1": {
+			"glows": true,
+			"picture": "tv_leader"
+		},
+		"enamel_basin_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"gas_stove_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"kettle_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"thermos_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"tea_tin_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"storage_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hanging_towel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cooking_pot_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"bowl_stack_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"sauce_bottle_1": {
+			"glows": false,
+			"route": "model"
+		}
+	},
+	"pieces": [
+		{
+			"kind": "flat_plaster_wall",
+			"at": [
+				0.0,
+				0.02,
+				-5.985
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				6.0,
+				2.78,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"model": "plaster_wall_1"
+		},
+		{
+			"kind": "flat_plaster_wall",
+			"at": [
+				0.0,
+				0.02,
+				-1.015
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				6.0,
+				2.78,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"model": "plaster_wall_1"
+		},
+		{
+			"kind": "flat_plaster_wall",
+			"at": [
+				-2.985,
+				0.02,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				2.78,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [
+				[
+					-0.7,
+					0.0,
+					0.7,
+					2.2
+				]
+			],
+			"model": "plaster_wall_2"
+		},
+		{
+			"kind": "flat_plaster_wall",
+			"at": [
+				2.985,
+				0.02,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				2.78,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [
+				[
+					-2.4,
+					0.0,
+					-1.4,
+					2.2
+				]
+			],
+			"model": "plaster_wall_3"
+		},
+		{
+			"kind": "flat_floorboards",
+			"at": [
+				0.0,
+				0.005,
+				-6.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				6.0,
+				5.0,
+				0.03
+			],
+			"layer": 1,
+			"model": "floorboards_1"
+		},
+		{
+			"kind": "flat_plaster_ceiling",
+			"at": [
+				0.0,
+				2.815,
+				-6.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				6.0,
+				5.0,
+				0.03
+			],
+			"layer": 1,
+			"model": "plaster_ceiling_1"
+		},
+		{
+			"kind": "flat_balcony_slab",
+			"at": [
+				-4.3,
+				-0.18,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				4.4,
+				0.2,
+				2.2
+			],
+			"layer": 1,
+			"model": "balcony_slab_1"
+		},
+		{
+			"kind": "flat_balcony_rail",
+			"at": [
+				-5.3,
+				0.02,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				4.2,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "balcony_rail_1"
+		},
+		{
+			"kind": "flat_balcony_rail",
+			"at": [
+				-4.25,
+				0.02,
+				-5.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.1,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "balcony_rail_2"
+		},
+		{
+			"kind": "flat_balcony_rail",
+			"at": [
+				-4.25,
+				0.02,
+				-1.4
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.1,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "balcony_rail_2"
+		},
+		{
+			"kind": "flat_render_wall",
+			"at": [
+				-3.215,
+				0.02,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				4.4,
+				2.98,
+				0.03
+			],
+			"layer": 1,
+			"openings": [
+				[
+					-0.7,
+					0.0,
+					0.7,
+					2.2
+				]
+			],
+			"model": "render_wall_1"
+		},
+		{
+			"kind": "flat_balcony_door_frame",
+			"at": [
+				-3.24,
+				0.02,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.54,
+				2.62,
+				0.08
+			],
+			"layer": 1,
+			"model": "balcony_door_frame_1"
+		},
+		{
+			"kind": "flat_sliding_glass_leaf",
+			"at": [
+				-2.9363,
+				0.02,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				2.2,
+				0.0675
+			],
+			"layer": 1,
+			"node": "BalconyDoor",
+			"model": "sliding_glass_leaf_1"
+		},
+		{
+			"kind": "flat_timber_door_frame",
+			"at": [
+				3.1,
+				0.02,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.14,
+				2.28,
+				0.24
+			],
+			"layer": 1,
+			"model": "timber_door_frame_1"
+		},
+		{
+			"kind": "flat_timber_door_leaf",
+			"at": [
+				2.951,
+				0.02,
+				-2.5726
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.9452,
+				2.17,
+				0.083
+			],
+			"layer": 1,
+			"model": "timber_door_leaf_1"
+		},
+		{
+			"kind": "flat_wardrobe",
+			"at": [
+				-0.05,
+				0.02,
+				-5.6828
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.0,
+				1.9,
+				0.5745
+			],
+			"layer": 1,
+			"model": "wardrobe_1"
+		},
+		{
+			"kind": "flat_bedside_table",
+			"at": [
+				0.75,
+				0.02,
+				-5.7855
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.4,
+				0.58,
+				0.369
+			],
+			"layer": 1,
+			"model": "bedside_table_1"
+		},
+		{
+			"kind": "flat_bed_frame",
+			"at": [
+				1.955,
+				0.02,
+				-5.495
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.956,
+				0.9,
+				0.956
+			],
+			"layer": 1,
+			"model": "bed_frame_1"
+		},
+		{
+			"kind": "flat_table",
+			"at": [
+				-0.85,
+				0.02,
+				-4.25
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.9,
+				0.76,
+				0.7
+			],
+			"layer": 1,
+			"model": "table_1"
+		},
+		{
+			"kind": "flat_timber_chair",
+			"at": [
+				-0.85,
+				0.02,
+				-4.845
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.42,
+				0.9,
+				0.44
+			],
+			"layer": 1,
+			"model": "timber_chair_1"
+		},
+		{
+			"kind": "flat_timber_chair",
+			"at": [
+				-0.85,
+				0.02,
+				-3.655
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.42,
+				0.9,
+				0.44
+			],
+			"layer": 1,
+			"model": "timber_chair_1"
+		},
+		{
+			"kind": "flat_tv_cabinet",
+			"at": [
+				-2.7472,
+				0.02,
+				-5.1
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				0.5,
+				0.4455
+			],
+			"layer": 1,
+			"model": "tv_cabinet_1"
+		},
+		{
+			"kind": "flat_washbasin_stand",
+			"at": [
+				-0.95,
+				0.02,
+				-1.255
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.45,
+				0.82,
+				0.45
+			],
+			"layer": 1,
+			"model": "washbasin_stand_1"
+		},
+		{
+			"kind": "flat_kitchen_counter",
+			"at": [
+				0.65,
+				0.02,
+				-1.33
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.9,
+				1.45,
+				0.6
+			],
+			"layer": 1,
+			"model": "kitchen_counter_1"
+		},
+		{
+			"kind": "flat_wall_shelf",
+			"at": [
+				0.65,
+				1.6,
+				-1.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.25,
+				0.22
+			],
+			"layer": 1,
+			"model": "wall_shelf_1"
+		},
+		{
+			"kind": "flat_ceiling_fan",
+			"at": [
+				0.0,
+				2.335,
+				-3.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.9319,
+				0.465,
+				0.9319
+			],
+			"layer": 1,
+			"model": "ceiling_fan_1"
+		},
+		{
+			"kind": "flat_tube_light",
+			"at": [
+				1.6,
+				2.71,
+				-3.505
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.25,
+				0.09,
+				0.11
+			],
+			"layer": 1,
+			"model": "tube_light_1"
+		},
+		{
+			"kind": "flat_wall_print",
+			"at": [
+				2.2,
+				1.45,
+				-5.96
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.3,
+				0.4,
+				0.02
+			],
+			"layer": 1,
+			"print": "flat_family_photo",
+			"frame": true,
+			"model": "wall_print_1"
+		},
+		{
+			"kind": "flat_wall_print",
+			"at": [
+				1.3,
+				1.3,
+				-5.957
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				0.493,
+				0.022
+			],
+			"layer": 1,
+			"print": "flat_calendar",
+			"frame": false,
+			"model": "wall_print_2"
+		},
+		{
+			"kind": "flat_wall_print",
+			"at": [
+				-2.2,
+				1.75,
+				-1.0355
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.0,
+				0.36,
+				0.007
+			],
+			"layer": 1,
+			"print": "flat_poster_red",
+			"frame": false,
+			"model": "wall_print_3"
+		},
+		{
+			"kind": "flat_wall_print",
+			"at": [
+				2.25,
+				1.15,
+				-1.034
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.5,
+				0.71,
+				0.007
+			],
+			"layer": 1,
+			"print": "flat_astronaut_poster",
+			"frame": false,
+			"model": "wall_print_4"
+		},
+		{
+			"kind": "flat_mattress",
+			"at": [
+				1.955,
+				0.37,
+				-5.495
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.86,
+				0.14,
+				0.88
+			],
+			"layer": 1,
+			"model": "mattress_1"
+		},
+		{
+			"kind": "flat_quilt",
+			"at": [
+				2.5498,
+				0.5067,
+				-5.4952
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.5079,
+				0.284,
+				0.4946
+			],
+			"layer": 1,
+			"model": "quilt_1"
+		},
+		{
+			"kind": "flat_pillow",
+			"at": [
+				1.25,
+				0.51,
+				-5.495
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.6,
+				0.211,
+				0.43
+			],
+			"layer": 1,
+			"model": "pillow_1"
+		},
+		{
+			"kind": "flat_bedside_lamp",
+			"at": [
+				0.7498,
+				0.5963,
+				-5.7894
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.241,
+				0.4275,
+				0.2359
+			],
+			"layer": 1,
+			"model": "bedside_lamp_1"
+		},
+		{
+			"kind": "flat_crt_tv",
+			"at": [
+				-2.75,
+				0.5202,
+				-5.1001
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.5274,
+				0.3497,
+				0.4511
+			],
+			"layer": 1,
+			"model": "crt_tv_1"
+		},
+		{
+			"kind": "flat_crt_tv",
+			"at": [
+				-2.559,
+				0.595,
+				-5.05
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.23,
+				0.012
+			],
+			"layer": 1,
+			"model": "crt_tv_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "flat_enamel_basin",
+			"at": [
+				-0.9502,
+				0.736,
+				-1.2552
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.4276,
+				0.1344,
+				0.4249
+			],
+			"layer": 1,
+			"model": "enamel_basin_1"
+		},
+		{
+			"kind": "flat_gas_stove",
+			"at": [
+				1.1501,
+				0.8667,
+				-1.33
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.6264,
+				0.2166,
+				0.4728
+			],
+			"layer": 1,
+			"model": "gas_stove_1"
+		},
+		{
+			"kind": "flat_kettle",
+			"at": [
+				0.9799,
+				1.0757,
+				-1.33
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.2684,
+				0.2683,
+				0.2405
+			],
+			"layer": 1,
+			"model": "kettle_1"
+		},
+		{
+			"kind": "flat_thermos",
+			"at": [
+				0.1504,
+				1.8462,
+				-1.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.1826,
+				0.368,
+				0.1373
+			],
+			"layer": 1,
+			"model": "thermos_1"
+		},
+		{
+			"kind": "flat_thermos",
+			"at": [
+				-0.6196,
+				0.7762,
+				-4.38
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.1826,
+				0.368,
+				0.1373
+			],
+			"layer": 1,
+			"model": "thermos_1"
+		},
+		{
+			"kind": "flat_tea_tin",
+			"at": [
+				1.0,
+				1.85,
+				-1.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.092,
+				0.13,
+				0.092
+			],
+			"layer": 1,
+			"model": "tea_tin_1"
+		},
+		{
+			"kind": "flat_tea_tin",
+			"at": [
+				1.12,
+				1.85,
+				-1.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.092,
+				0.13,
+				0.092
+			],
+			"layer": 1,
+			"model": "tea_tin_1"
+		},
+		{
+			"kind": "flat_storage_box",
+			"at": [
+				-0.05,
+				1.92,
+				-5.7461
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.4485,
+				0.24,
+				0.3758
+			],
+			"layer": 1,
+			"model": "storage_box_1"
+		},
+		{
+			"kind": "flat_hanging_towel",
+			"at": [
+				1.42,
+				1.0,
+				-1.0495
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.28,
+				0.55,
+				0.039
+			],
+			"layer": 1,
+			"model": "hanging_towel_1"
+		},
+		{
+			"kind": "flat_cooking_pot",
+			"at": [
+				1.32,
+				1.08,
+				-1.33
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.298,
+				0.17,
+				0.254
+			],
+			"layer": 1,
+			"model": "cooking_pot_1"
+		},
+		{
+			"kind": "flat_plate",
+			"at": [
+				-1.0,
+				0.78,
+				-4.2
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.22,
+				0.025,
+				0.22
+			],
+			"layer": 1,
+			"model": "plate_1"
+		},
+		{
+			"kind": "flat_bowl_stack",
+			"at": [
+				0.4194,
+				1.85,
+				-1.1389
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.1573,
+				0.1436,
+				0.1556
+			],
+			"layer": 1,
+			"model": "bowl_stack_1"
+		},
+		{
+			"kind": "flat_sauce_bottle",
+			"at": [
+				0.68,
+				1.85,
+				-1.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.077,
+				0.2701,
+				0.076
+			],
+			"layer": 1,
+			"model": "sauce_bottle_1"
+		},
+		{
+			"kind": "flat_sauce_bottle",
+			"at": [
+				0.78,
+				1.85,
+				-1.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.077,
+				0.2701,
+				0.076
+			],
+			"layer": 1,
+			"model": "sauce_bottle_1"
+		},
+		{
+			"kind": "flat_sauce_bottle",
+			"at": [
+				0.88,
+				1.85,
+				-1.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.077,
+				0.2701,
+				0.076
+			],
+			"layer": 1,
+			"model": "sauce_bottle_1"
+		}
+	]
+}
