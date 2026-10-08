@@ -9,6 +9,7 @@ are real holes at the shell's own sizes (the doorway 2.2 x 2.6 m, the porthole 0
 one.
 """
 
+import importlib
 import json
 import math
 
@@ -5378,6 +5379,12 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "mast", "ground_cable",
     # the expedition camp habitat's
     "dome_wall_panel", "dome_window_panel", "dome_rib", "dome_ceiling_gore", "dome_roof_cap", "dome_deck_wedge", "dome_opening_frame", "passage_lining", "partition", "rod_lamp", "shell_gore", "shell_gore_window", "shell_gore_open", "foot_ring", "passage_hull", "pedestal_table", "sample_shelf", "stores_rack", "comms_desk", "hygiene", "case", "floor_cable", "crate", "crate_small", "ring_lamp", "wall_net")}
+
+# Earth's rooms (the prologue build, 2026-10-07): each room's builders in a module of its own beside this one, its
+# kinds shared with another room's by name (a plaster wall, a door, a print).
+EARTH_ROOMS = ("earth_flat", "earth_stairwell")
+for earth_room in EARTH_ROOMS:
+    BUILDERS.update(importlib.import_module(earth_room).BUILDERS)
 
 
 def build(kind, size, laid, name):

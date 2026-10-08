@@ -118,8 +118,16 @@ def test_no_generated_piece_keeps_its_picture_s_colours():
     assert '"picture"' not in jobs and "picture.obj" not in jobs
 
 
+EARTH_MODULES = ("earth_flat", "earth_stairwell")
+
+
+def builder_texts():
+    """pieces.py and Earth's rooms' builder modules beside it (the prologue build)."""
+    return [(HERE / "inside/pieces.py").read_text()] + [(HERE / f"inside/{name}.py").read_text() for name in EARTH_MODULES]
+
+
 def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
-    text = (HERE / "inside/pieces.py").read_text()
+    text = "\n".join(builder_texts())
     for name, entry in sorter.fittings().items():
         assert entry["closeup"] and entry["parts"], name
         assert f"def {name}(size, laid):" in text, name
@@ -128,8 +136,10 @@ def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
 def test_every_code_builder_is_on_the_allow_list():
     """pieces.py builds only plain kinds and method B's room fittings: a builder for anything else is a piece made
     by hand from a sentence."""
-    text = (HERE / "inside/pieces.py").read_text()
-    names = re.findall(r'"(\w+)"', text[text.index("BUILDERS = "):text.index("def build(")])
+    texts = builder_texts()
+    names = re.findall(r'"(\w+)"', texts[0][texts[0].index("BUILDERS = "):texts[0].index("EARTH_ROOMS")])
+    for text in texts[1:]:
+        names += re.findall(r'"(\w+)"', text[text.index("BUILDERS = "):])
     off = sorted(name for name in names if name not in sorter.PLAIN and name not in sorter.fittings())
     assert not off, f"code builders for kinds that are not plain plates, pipes, trims or fittings: {', '.join(off)}"
 

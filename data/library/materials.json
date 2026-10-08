@@ -790,6 +790,11 @@
 					"recipe": "screen",
 					"token": "ink-line",
 					"picture": "exit_sign"
+				},
+				"tv_leader": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "tv_leader"
 				}
 			}
 		},
@@ -1587,6 +1592,12 @@
 					"token": "sign-white",
 					"picture": "sheet_rations",
 					"roughness": 0.85
+				},
+				"flat_astronaut_poster": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "flat_astronaut_poster",
+					"roughness": 0.8
 				}
 			}
 		},
@@ -2719,6 +2730,14 @@
 			"title": "RATIONS",
 			"lines": 6,
 			"ink": "ink-line"
+		},
+		"tv_leader": {
+			"style": "drawn",
+			"by": "prologue-build tv_picture.py: the invented leader (game/people/person_model/leader/leader.glb) drawn front-on in Blender workbench, on a red broadcast ground with a gold banner and caption"
+		},
+		"flat_astronaut_poster": {
+			"style": "drawn",
+			"by": "prologue-build astronaut_poster.py: the game's own suit (game/base/models/hanging_suit) drawn front-on in Blender workbench, on a night ground under the title 航天英雄"
 		}
 	}
 }

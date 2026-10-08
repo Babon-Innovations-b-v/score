@@ -48,6 +48,8 @@ def palette(place):
     every = library.by_library(place)
     specs = dict(library.resolved(place))
     specs.update({name: spec for name, spec in every.items() if spec.get("family") in SHARED_FAMILIES})
+    pictures = library.theme_library()["pictures"]
+    tokens = library.token_colours()
     colours = []
     for spec in specs.values():
         dirt = np.array(spec["dirt_colour"])
@@ -57,7 +59,24 @@ def palette(place):
                 colours.append(colour * (1 - share) + dirt * share)
                 if "bare" in spec:
                     colours.append(colour * (1 - share) + np.array(spec["bare"]) * share)
+        # A print's ink is the library's too (the prologue build: the couplets' gold on their red), and so are the
+        # mixes of ink and ground along its strokes' edges.
+        picture = pictures.get(spec.get("picture", ""), {})
+        for key in ("ink", "accent", "panel"):
+            if picture.get(key) in tokens:
+                for share in MIXES:
+                    colours.append(np.array(spec["colour"]) * (1 - share) + np.array(tokens[picture[key]]) * share)
+        if picture.get("style") == "drawn":  # a photograph printed on paper: its own colours are the print's
+            colours += drawn_colours(library.PICTURES / f"{spec['picture']}.png")
     return lab(np.array(colours))
+
+
+def drawn_colours(path, count=24):
+    """A drawn picture's main colours (a photograph's), as linear RGB."""
+    from PIL import Image
+    picture = Image.open(path).convert("RGB").quantize(count)
+    palette_rgb = np.array(picture.getpalette()[:count * 3]).reshape(-1, 3)
+    return list(linear_of(palette_rgb))
 
 
 def islands_mask(uv, faces, side=MASK_SIDE):

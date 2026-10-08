@@ -63,7 +63,7 @@ REACH_HIGH = 1.8
 PIT_DEEP = 0.9  # hub_kit.PIT_DEEP: the pit's floor under the walkway
 SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR,
                "fittings": NEAR, "distant": DISTANT, "camp_shell": CAMP_SOFT, "camp_high": CAMP_SOFT, "camp_floor": FAR,
-               "camp_walls": FAR}
+               "camp_walls": FAR, "plaster": FAR}
 # The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
 # shared set is planned to fill, leaving room for packing, print drawn sharp and the faces a box's estimate misses (both
 # sides of an open box's thin walls: planned at 0.7, a floor set came out 1% past the cap, 2026-10-07).
@@ -81,6 +81,8 @@ SMALLEST_FACES = 5000
 SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share a model
 # Code-built kinds by the picture set they share, by the start of their name; the rest are wall gear and doors.
 ATLASES = (("distant", (DISTANT_PREFIX,)),
+           # Earth's big plain plaster, board and stair surfaces (the prologue build): broad and flat, half the density.
+           ("plaster", ("plaster_", "render_wall", "floorboards", "landing", "stair_flight")),
            ("fittings", ("hatch_", "porthole_panel", "wall_lower_vent", "notice_board")),  # method B's room fittings
            ("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
@@ -124,9 +126,14 @@ def bearing_of(laid):
     return round(float(np.degrees(np.arctan2(back[0], -back[2]))) % 360)
 
 
+# What a laid piece shows that its code-built model is made with (a print's picture and frame, a plaster wall's dado
+# band, a rail's rise: the prologue build).
+SHOWN = ("taper", "treads", "openings", "arc", "material", "print", "frame", "dado", "rises_to")
+
+
 def shows(kind, laid):
     """What a piece shows that its model is made with, beyond its size."""
-    found = {key: laid[key] for key in ("taper", "treads", "openings", "arc", "material") if key in laid}
+    found = {key: laid[key] for key in SHOWN if key in laid}
     found.update(laid.get("shows", {}))  # a kit room's composite parent or child: what its build shows (room_kit.py)
     if kind == "hub_hatch_wall_surround":
         found["label"] = DOOR_LABELS[bearing_of(laid) % 360]
@@ -510,7 +517,7 @@ def game_layout(layout, planned, reports, checks):
     for found in pieces:
         if "part" not in found:
             counts[found["kind"]] = counts.get(found["kind"], 0) + 1
-    kinds = {kind: {key: value for key, value in about.items() if key in ("group", "light")}
+    kinds = {kind: {key: value for key, value in about.items() if key in ("group", "light", "solid")}
              for kind, about in layout["kinds"].items() if kind in counts}
     room = {key: value for key, value in layout.items() if key not in ("pieces", "counts", "kinds")}
     return dict(room, counts=counts, kinds=kinds, models=models, pieces=pieces), held_back

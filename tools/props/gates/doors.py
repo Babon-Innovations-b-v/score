@@ -23,7 +23,7 @@ CELL = 0.05
 WALK_LOW, WALK_HIGH = 0.3, 1.8
 SIDE = 0.6
 MARGIN = 1.5
-WALLING = ("wall_", "partition", "hatch_frame", "hatch_leaf", "door_frame", "door_leaf", "porthole", "glass",
+WALLING = ("wall_", "_wall", "partition", "hatch_frame", "hatch_leaf", "door_frame", "door_leaf", "porthole", "glass",
            "corner_post", "screen_wall")
 DOORS = ("hatch_frame", "door_frame")
 
