@@ -1,4 +1,4 @@
-\begin{thebibliography}{29}
+\begin{thebibliography}{30}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -103,6 +103,23 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
   generation in {Python}.
 \newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
 
+\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
+  Fragkiadaki]{lin2025partcrafter}
+Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
+  Katerina Fragkiadaki.
+\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
+  latent diffusion transformers.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+\newblock arXiv:2506.05573.
+
+\bibitem[Tsui et~al.(2026)Tsui, Tuan, Ma, Ugrinovic, Shiratori, and
+  Kitani]{tsui2026point2part}
+Hao-Tang Tsui, Yu-Rou Tuan, Xiaoxuan Ma, Nicol{\'a}s Ugrinovic, Takaaki
+  Shiratori, and Kris Kitani.
+\newblock {Point2Part}: Unified {3D} partitioning from point prompts.
+\newblock \emph{arXiv preprint arXiv:2609.38180}, 2026.
+
 \bibitem[Wu et~al.(2026)Wu, Lou, Liu, Du, Guo, and Guo]{wu2026production}
 Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
 \newblock From visual synthesis to interactive worlds: Toward production-ready
@@ -140,16 +157,6 @@ Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
 \newblock {Pixal3D}: Pixel-aligned {3D} generation from images.
 \newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{c}}.
 
-\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
-  Fragkiadaki]{lin2025partcrafter}
-Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
-  Katerina Fragkiadaki.
-\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
-  latent diffusion transformers.
-\newblock In \emph{Advances in Neural Information Processing Systems
-  (NeurIPS)}, 2025.
-\newblock arXiv:2506.05573.
-
 \bibitem[{OpenMOSS-Team}(2026)]{moss2026}
 {OpenMOSS-Team}.
 \newblock {MOSS-SoundEffect} v2.0.
@@ -163,17 +170,12 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
   fusion and keyword-to-caption augmentation.
 \newblock \emph{arXiv preprint arXiv:2211.06687}, 2022.
 
-\bibitem[{Blender Foundation}(2026)]{blender}
-{Blender Foundation}.
-\newblock {Blender}, 2026.
-\newblock URL \url{https://www.blender.org/}.
-\newblock Version 5.0.1 used here. GPL.
-
-\bibitem[{Anthropic}(2026)]{claudecode}
-{Anthropic}.
-\newblock {Claude Code}, 2026.
-\newblock URL \url{https://www.anthropic.com/claude-code}.
-\newblock Paid subscription. Vendor material.
+\bibitem[Rein and Liu(2012)]{rein2012rebound}
+Hanno Rein and Shang-Fei Liu.
+\newblock {REBOUND}: An open-source multi-purpose {N}-body code for collisional
+  dynamics.
+\newblock \emph{Astronomy \& Astrophysics}, 537:\penalty0 A128, 2012.
+\newblock arXiv:1110.4876.
 
 \bibitem[{Google}(2026)]{nanobananapro}
 {Google}.
@@ -181,6 +183,12 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
   2026.
 \newblock URL \url{https://ai.google.dev/}.
 \newblock Paid service. Vendor material.
+
+\bibitem[Sim{\'e}oni et~al.(2025)Sim{\'e}oni, Vo, Seitzer,
+  et~al.]{simeoni2025dinov3}
+Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
+\newblock {DINOv3}.
+\newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
 
 \bibitem[Yang et~al.(2024{\natexlab{b}})Yang, Kang, Huang,
   et~al.]{yang2024dav2}
@@ -194,11 +202,10 @@ Lihe Yang, Bingyi Kang, Zilong Huang, et~al.
 \newblock URL \url{https://docs.worldlabs.ai/terms-of-service}.
 \newblock Last updated 21 January 2026; accessed 2026-10-08. Vendor material.
 
-\bibitem[Rein and Liu(2012)]{rein2012rebound}
-Hanno Rein and Shang-Fei Liu.
-\newblock {REBOUND}: An open-source multi-purpose {N}-body code for collisional
-  dynamics.
-\newblock \emph{Astronomy \& Astrophysics}, 537:\penalty0 A128, 2012.
-\newblock arXiv:1110.4876.
+\bibitem[{Anthropic}(2026)]{claudecode}
+{Anthropic}.
+\newblock {Claude Code}, 2026.
+\newblock URL \url{https://www.anthropic.com/claude-code}.
+\newblock Paid subscription. Vendor material.
 
 \end{thebibliography}

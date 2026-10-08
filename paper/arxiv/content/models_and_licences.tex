@@ -1,0 +1,34 @@
+\section{Models and licences}\label{models-and-licences}
+
+Every model must allow commercial use of its output (Table E1). Licences were read for their commercial-use clauses.
+
+\textbf{Table E1.} Models in the route.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Model
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Role
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Licence
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Nano Banana Pro \citep{nanobananapro} & concepts, close-ups, ground skins & paid API \\
+Pixal3D \citep{li2026pixal3d} & picture to 3D & MIT; DINOv3 licence \citep{simeoni2025dinov3} for its encoder \\
+PartCrafter \citep{lin2025partcrafter} & parts & MIT; its non-commercial background remover not used \\
+Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
+ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
+MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
+World Labs Marble \citep{marble_terms} & optional world step & paid; outputs owned by paid users \\
+\end{longtable}
+}
+
+Picture-to-3D, parts, surface bakes, sound, checks and assembly are automatic. Coding agents (Claude Code \citep{claudecode}) write the plans, inventories and every code builder; in the hub's final round 86 of its 98 models were code. Hand steps remained: some generated objects turned to face the right way by eye, a few labels placed by hand before a rule replaced that. Concepts and verdicts are the creator's picks.

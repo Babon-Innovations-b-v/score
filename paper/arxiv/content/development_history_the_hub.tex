@@ -1,0 +1,45 @@
+\section{Development history: the hub}\label{development-history-the-hub}
+
+The mechanisms of Section 4 came out of six rounds on one room, the central hub of the game 2099, on 6 and 7 October 2026, each answering the creator's verdict on the last (Table C1). The first two rounds were decided by side-by-side comparison of the old and new route on the same cameras.
+
+\textbf{Table C1.} The hub's six rounds. Cost: rented GPU time (€) and picture calls (\$). Frame time: mean on an RTX 5080 at night, 1600×900.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Round
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Change
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Creator's verdict
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cost
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Frame time
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1, two walls, A/B & surface library, routing by shape, room checks & preferred the new route (``Y looks much cleaner'') & €0.88 & 7.81 ms vs 7.53 \\
+2, two walls, A/B & 71-variant library, shared texture sets, roof check & preferred the new route again & €1.70 & 8.05 ms vs 8.24 \\
+3, whole room & route end to end, 74 models & old models still loaded; labels and floor fittings wrong & €1.67 & 6.78 ms (old 9.22) \\
+4, whole room & detail through the pipeline, picture colours kept & ``pretty much all of this became messy'' & €8.50, \$5.09 & 9.6 ms \\
+5, eight pieces, A/B & shape only from the pipeline, library surfaces, parts check & new method preferred for door, notice board, porthole; three pieces still wrong & €0.21 & not run \\
+6, whole room & round 5 everywhere, one model per object, straightness check & ``this looks amazing, I have no negative feedback'' & €3.48, \$1.07 & 5.6 ms \\
+\end{longtable}
+}
+
+Three findings shaped the method. Deterministic checks catch what agents miss: in round one, light leaking through walls and roof fell from 1.53 percent of 5,817 rays to zero and colour noise within surfaces from a median of 31.1 to 3.2 percent; but only walking the loaded room showed 26 old models still in it, which became the made-only check. Keeping each picture's colours made every piece bring its own wear, so surfaces now come only from the library. Generated composites melted their parts together and generated boxes leaned (a locker by 13 degrees), which led to one model per object and the straightness check (shown below). Round six drew 0.45 million triangles against round four's 1.96 million and took 187 MB on disk against 487.
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The hub's tool board in round four (left: one generated model with its picture's colours over library surfaces) and round six (right: a code-built board carrying 26 separately made tools, library surfaces only). Same camera and build.}]{figures/hub-toolboard-r4-r6.jpg}
+\caption{The hub's tool board in round four (left: one generated model with its picture's colours over library surfaces) and round six (right: a code-built board carrying 26 separately made tools, library surfaces only). Same camera and build.}
+\end{figure}
