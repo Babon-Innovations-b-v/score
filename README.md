@@ -32,6 +32,39 @@ Every change to the draft is rebuilt and committed with the PDF. `bash
 .claude/scripts/bootstrap.sh` installs a pre-commit hook that refuses a commit leaving the paper
 stale. There is no CI: checks run locally.
 
+## Cloud capacity
+
+Every model step runs on graphics cards rented from Scaleway (`tools/props/cloud/`). Stock is the
+bottleneck: on 2026-10-08 the L4 cards in pl-waw-2 were out of stock most of the day. So no job
+is tied to one card or one zone.
+
+- **Which cards a job may use** is set per job kind in `KINDS` in
+  `tools/props/cloud/capacity.py`. A kind lists every machine type whose card has the memory for it.
+  Pixal3D (three runs at once peak at 10.6 GB) may use any card of 24 GB or more, including the
+  two-card machines, because its fleet spreads work over cards. Every other kind was measured on
+  an L4 (24 GB), so it may use the single-card L4, L40S and H100 machines. To add a card type, add
+  it to `CARDS` (cards and memory per card) and to the kinds it can hold.
+- **Which zones** are listed in `ZONES` in `tools/props/cloud/scaleway.py`: fr-par-1, fr-par-2 and
+  pl-waw-2, the zones that rent cards.
+- **Order and fallback.** Offers are taken cheapest card first. Among equally cheap offers, the
+  zone with the fewest of the run's machines comes first, then the best stocked, so a big batch
+  spreads over the zones. An offer that is refused, is out of stock, or gives a machine that does
+  not answer within `START_MINUTES` (5, in `batch.py`) is dropped and the next one tried. In a
+  Pixal3D fleet, a machine that never answers is replaced from the remaining offers.
+- **Limits.** The owner's limits in `ledger.py` (4 h and EUR 60 a batch, EUR 700 a month) are checked
+  as if every card were the dearest offered. A large batch therefore leaves out the dearest card
+  types when they alone would break a limit.
+- **Forcing a type** for a measuring run: `batch.py --types` and `library_bake.py --types`.
+- **The record.** Every run writes one row per machine to the ledger
+  (`~/.farm-factory-props/cloud/ledger.jsonl`). A row holds the job kind, card type, zone, wait
+  until the machine answered, minutes worked, cost and, where the runner counts them, seconds per
+  unit of work. Failed starts are recorded too. `python3 tools/props/cloud/capacity.py report
+  [--since YYYY-MM-DD]` prints time and cost per job kind per card type, and `capacity.py offers
+  <kind>` shows where a kind can be rented right now.
+
+The machines keep their safety: each deletes itself when the runner's heartbeat goes quiet or
+the batch's time limit passes, and every run deletes its machines when it ends.
+
 ## Licence
 
 MIT, see [`LICENSE`](LICENSE). The IEEE citation style in `paper/source/ieee.csl` is from the
