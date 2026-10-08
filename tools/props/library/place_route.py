@@ -97,6 +97,13 @@ def made_size(labelled, planned, yaw):
     return [round(float(side * scale), 3) for side in (wide, tall, deep)]
 
 
+def refuse_patchy(labelled):
+    """Stops the plan on a labelled take whose paint failed the patchiness check (patchy.py, written by labels.py)."""
+    score = json.loads((labelled / "labels.json").read_text()).get("patchy")
+    if score is not None and not score.get("pass"):
+        raise SystemExit(f"{labelled.name}: its paint is patchy ({', '.join(score.get('faults', []))}); label it again")
+
+
 def code_models(row, place):
     """A code row's models (one per length) and its pieces."""
     builder, tilt = CODE_KINDS[row["id"]]
@@ -125,8 +132,10 @@ def plan(place, work, take):
             pieces += laid
             continue
         kind = f"{place}_{row['id']}"
+        labelled = work / "parts" / f"{row['id']}-{take}"
+        refuse_patchy(labelled)
         yaw = yaw_of(details[kind]["turn"])
-        size = made_size(work / "parts" / f"{row['id']}-{take}", kit_size(row["size"]), yaw)
+        size = made_size(labelled, kit_size(row["size"]), yaw)
         models[row["id"]] = {"kind": kind, "route": "model", "size": size, "budget": budget_of(row["id"]),
                              "faces": faces_for(row["id"], row["size"]), "yaw": yaw}
         if row.get("parent"):
