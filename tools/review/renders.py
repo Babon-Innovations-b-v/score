@@ -45,6 +45,8 @@ WALL_IN = 0.6
 ROOM_WALK = 0.45
 ROOF_LAYER = 2
 LAMP_WATTS = 60.0
+# A player's eye over the floor he stands on (2099: the head 1.65 m over the body's feet), for the walk inside a room.
+STANDING = 1.6
 
 
 # Where the Blender work runs: None for this PC's Blender (one at a time, the machine's lock), else a rented machine
@@ -228,12 +230,15 @@ def room_lights(kit):
     return lights
 
 
-def render_stage(stage, views, size, folder, plain=False, lights=()):
+def render_stage(stage, views, size, folder, plain=False, lights=(), shown=()):
+    """The stage drawn from the views; `shown` are the other places' stages it references (its scene record's
+    `places`, exported beside it), sent with it when it renders elsewhere."""
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views, "plain": plain,
                                                    "lights": list(lights)}, indent=1))
+    beside = [pathlib.Path(stage).parent.parent / name for name in shown]
     blender(SCENE_VIEWS, stage, folder / "views.json", folder,
-            inputs=[pathlib.Path(stage).parent, folder / "views.json"], outputs=[folder])
+            inputs=[pathlib.Path(stage).parent, *beside, folder / "views.json"], outputs=[folder])
 
 
 def walk_video(folder, out):
@@ -264,15 +269,73 @@ def timed(walk, stage):
     return [dict(view, frame=round(number * rate / WALK_RATE)) for number, view in enumerate(walk)]
 
 
-def scene_shots(place, stages, out, plain=False, room=None, kit=False):
+def record_views(scene):
+    """The scene record's own cameras (data/scene/<place>.json `views`: the player's spots, inside a room at standing
+    height), each naming the game's shot from about the same place."""
+    return [dict(looking(view["name"], view["eye"], view["aim"], fov=float(view.get("fov", 75.0))),
+                 game=view.get("game")) for view in scene.get("views", [])]
+
+
+def cutaway(scene):
+    """A room's cutaway: from high over one corner of its floor looking down across it, its roof left out."""
+    low, high = np.asarray(scene["floor"][0], dtype=float), np.asarray(scene["floor"][1], dtype=float)
+    middle = (low + high) / 2
+    reach = float(np.linalg.norm(high - low))
+    eye = [low[0] + (high[0] - low[0]) * 0.1, float(scene.get("ceiling", 3.0)) + reach * 0.35,
+           low[1] + (high[1] - low[1]) * 0.1]
+    return dict(looking("cutaway", eye, [middle[0], 0.0, middle[1]], fov=70.0), hide_layers=[ROOF_LAYER])
+
+
+def record_walk(scene):
+    """The walk: inside a room once round its floor at standing height looking across it; outside, from each of the
+    player's spots to the next, looking where the spots look."""
+    if scene.get("inside"):
+        low, high = np.asarray(scene["floor"][0], dtype=float), np.asarray(scene["floor"][1], dtype=float)
+        middle, half = (low + high) / 2, (high - low) / 2 * ROOM_WALK
+        frames = []
+        for number in range(WALK_FRAMES):
+            turn = 2 * math.pi * number / WALK_FRAMES
+            eye = [middle[0] + half[0] * math.sin(turn), STANDING, middle[1] + half[1] * math.cos(turn)]
+            aim = [middle[0] - half[0] * math.sin(turn), 1.2, middle[1] - half[1] * math.cos(turn)]
+            frames.append(looking(f"walk-{number:03d}", eye, aim, fov=75.0, look_only=True))
+        return frames
+    spots = scene.get("views", [])
+    frames = []
+    for number in range(WALK_FRAMES):
+        position = number / WALK_FRAMES * len(spots)
+        first, second = spots[int(position) % len(spots)], spots[(int(position) + 1) % len(spots)]
+        share = position - int(position)
+        eye = (1 - share) * np.asarray(first["eye"], dtype=float) + share * np.asarray(second["eye"], dtype=float)
+        aim = (1 - share) * np.asarray(first["aim"], dtype=float) + share * np.asarray(second["aim"], dtype=float)
+        frames.append(looking(f"walk-{number:03d}", eye, aim, fov=75.0, look_only=True))
+    return frames
+
+
+def places_shown(scene):
+    """The other places a scene record shows (and the ones they show), by stage name, each once."""
+    import scene as scene_record
+    found, waiting = [], [entry["stage"] for entry in (scene or {}).get("places", [])]
+    while waiting:
+        name = waiting.pop()
+        if name not in found:
+            found.append(name)
+            waiting += [entry["stage"] for entry in (scene_record.record(name) or {}).get("places", [])]
+    return found
+
+
+def scene_shots(place, stages, out, plain=False, room=None, kit=False, scene=None):
     """Every stage drawn from the same fixed cameras (set from the newest stage), and the newest one walked round, in
     their materials on their ground (`plain`: in one grey, a debug view). `stages` is {label: stage.usda}, the newest
-    last; `room` is a kit room's layout, drawn from inside by its lamps; `kit` a kit laid outdoors (a street between
-    two blocks), drawn from round it and also from inside its extent along it. The views' names per stage, and the
-    newest stage's import report as Blender read it."""
+    last. With the place's scene record (`scene`), the cameras are its own (the player's spots; a room from inside at
+    standing height and from a cutaway above) and the light is the stage's own; without one, `room` is a kit room's
+    layout, drawn from inside by its lamps, and `kit` a kit laid outdoors, drawn from round it and from inside its
+    extent. The views' names per stage, and the newest stage's import report as Blender read it."""
     low, high = stage_extent(list(stages.values())[-1])
     newest = list(stages)[-1]
-    if room is not None:
+    if scene is not None and scene.get("views"):
+        views = record_views(scene) + ([cutaway(scene)] if scene.get("inside") else [])
+        walk, lights = record_walk(scene), []
+    elif room is not None:
         views, walk, lights = room_views(low, high), room_walk(low, high), room_lights(room)
     else:
         views = game_views(place, stages[newest]) + on_the_ground(stages[newest], fixed_views(low, high))
@@ -280,11 +343,12 @@ def scene_shots(place, stages, out, plain=False, room=None, kit=False):
             views += [view for view in room_views(low, high) if view["name"] != "cutaway"]
         walk, lights = on_the_ground(stages[newest], walk_views(low, high)), []
     walk = timed(walk, stages[newest])
+    shown = places_shown(scene)
     for label, stage in stages.items():
-        render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain, lights)
-    render_stage(stages[newest], walk, WALK_SIZE, out / "scene" / "walk", plain, lights)
+        render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain, lights, shown)
+    render_stage(stages[newest], walk, WALK_SIZE, out / "scene" / "walk", plain, lights, shown)
     walk_video(out / "scene" / "walk", out / "scene")
     report = json.loads((out / "scene" / newest / "report.json").read_text())
     return {"views": [view["name"] for view in views], "report": report, "room": room is not None,
-            "lamps": len(lights),
-            "extent": [low.round(2).tolist(), high.round(2).tolist()]}
+            "lamps": len(lights), "games": {view["name"]: view.get("game") for view in views if view.get("game")},
+            "recorded": scene is not None, "extent": [low.round(2).tolist(), high.round(2).tolist()]}

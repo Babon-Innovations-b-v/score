@@ -179,6 +179,13 @@ sunk into the ground below its own contact points.
     [--stage <wreck.usda>] [--before-stage <the earlier run's wreck.usda>] [--agreement <tools/usd/views.py's folder>]
 ```
 
+A place with a scene record (`data/scene/<place>.json`: what the game drew in its own code, from room shells, stairs
+and gameplay objects to the ground, water, backdrop, lights and sky) is exported whole with `export.py ... --world
+<the game's checkout>`, and its page is drawn from the record's own cameras (the player's spots; a room from inside at
+standing height and from a cutaway above) by the stage's own lights. `--game-shots <folder>` lays each view beside the
+game's own shot from about the same place, with both pictures' mean brightness, and the page says what of the game's
+place the scene carries and what it does not ("complete vs game").
+
 Open `index.html` in the out folder in a browser, or publish the folder as it is: it needs no server. A run folder is
 what `tools/props/library/place_route.py` works in; `tools/review/records.py` lists what is read from each folder.
 Rendering takes a few minutes on the processor (the wreck: about eight); `--no-render` rebuilds the page from the

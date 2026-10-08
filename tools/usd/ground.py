@@ -76,6 +76,9 @@ class Ground:
         middle = self.direction(seat, seat_out, on_seat[0], on_seat[1])
         self.frame = seat_frame(middle, self.heading)
         self.origin = middle * self.radius
+        # A place whose frame stands on a floor above the ground (the camp's habitat, `lift` metres over the ground
+        # under its middle): its y is measured from that floor.
+        self.drop = float(self.plan_height(middle)[0][0]) + float(entry["lift"]) if "lift" in entry else 0.0
 
     def direction(self, frame, out, across, along):
         """The way out to a flat place on a seat (Seat.spot_of, then the spot's up)."""
@@ -99,7 +102,7 @@ class Ground:
 
     def in_place_frame(self, points):
         """World points (from the ball's middle) in the place's frame."""
-        return (np.atleast_2d(points) - self.origin) @ self.frame.T
+        return (np.atleast_2d(points) - self.origin) @ self.frame.T - np.array([0.0, self.drop, 0.0])
 
     def standing(self, across, along, lift):
         """Where a piece laid at (across, along) of the place stands, lifted `lift` off the ground under it, and the
@@ -110,11 +113,12 @@ class Ground:
         own = seat_frame(out, self.heading)
         return position, own @ self.frame.T
 
-    def mesh(self, low, high):
-        """The ground round a box of the place (low, high: across and along) and GROUND_MARGIN past it: points in the
-        place's frame, triangles, and each point's place on the plan's skin (u across, v along, 0 to 1)."""
-        across = np.arange(low[0] - GROUND_MARGIN, high[0] + GROUND_MARGIN + GROUND_STEP, GROUND_STEP)
-        along = np.arange(low[1] - GROUND_MARGIN, high[1] + GROUND_MARGIN + GROUND_STEP, GROUND_STEP)
+    def mesh(self, low, high, margin=GROUND_MARGIN, step=GROUND_STEP):
+        """The ground round a box of the place (low, high: across and along) and `margin` past it, its points `step`
+        apart: points in the place's frame, triangles, and each point's place on the plan's skin (u across, v along,
+        0 to 1)."""
+        across = np.arange(low[0] - margin, high[0] + margin + step, step)
+        along = np.arange(low[1] - margin, high[1] + margin + step, step)
         grid_x, grid_z = np.meshgrid(across, along)
         flat = self.frame[1] * self.radius + grid_x.reshape(-1, 1) * self.frame[0] + grid_z.reshape(-1, 1) * self.frame[2]
         directions = flat / np.linalg.norm(flat, axis=1, keepdims=True)

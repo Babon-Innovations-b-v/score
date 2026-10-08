@@ -1,0 +1,272 @@
+{
+ "place": "workshop",
+ "about": "The workshop as the game draws it beyond its kit: the shell's backing, the room fill and the indoor sky. Frame: the room's middle on its floor, x east, z south.",
+ "floor": [
+  [
+   -8.0,
+   -7.0
+  ],
+  [
+   8.0,
+   7.0
+  ]
+ ],
+ "ceiling": 4.2,
+ "inside": true,
+ "structure": [
+  {
+   "name": "shell_walls",
+   "builder": "room_walls",
+   "wide": 16.3,
+   "deep": 14.3,
+   "corner": 2.75,
+   "high": 2.8,
+   "surface": "roof_steel_paint",
+   "doors": [
+    {
+     "side": "north",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "south",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "east",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "west",
+     "wide": 2.2,
+     "tall": 2.6
+    }
+   ],
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_deck",
+   "builder": "room_deck",
+   "wide": 16.3,
+   "deep": 14.3,
+   "corner": 2.75,
+   "height": -0.042,
+   "surface": "roof_steel_paint",
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_roof",
+   "builder": "dome_roof",
+   "wide": 16.3,
+   "deep": 14.3,
+   "corner": 2.75,
+   "eave": 2.8,
+   "rise": 1.5,
+   "run": 1.6,
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    2.24,
+    0.0
+   ],
+   "colour": "#a8bcd8",
+   "energy": 0.08,
+   "range": 10.99,
+   "attenuation": 0.4,
+   "shadows": false,
+   "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.1
+  },
+  "exposure": 0.85,
+  "inside": true,
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+ },
+ "views": [
+  {
+   "name": "robot-bench",
+   "eye": [
+    0.0,
+    1.6,
+    1.9
+   ],
+   "aim": [
+    0.0,
+    0.9,
+    -0.2
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/robot-bench.png"
+  },
+  {
+   "name": "bay-nw",
+   "eye": [
+    -1.5,
+    1.6,
+    0.5
+   ],
+   "aim": [
+    -4.5,
+    0.2,
+    -3.6
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/bay-nw.png"
+  },
+  {
+   "name": "bay-ne-drawers",
+   "eye": [
+    1.5,
+    1.6,
+    0.5
+   ],
+   "aim": [
+    6.5,
+    1.0,
+    -3.5
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/bay-ne-drawers.png"
+  },
+  {
+   "name": "bay-se-elec",
+   "eye": [
+    1.5,
+    1.6,
+    -0.5
+   ],
+   "aim": [
+    7.2,
+    0.9,
+    3.2
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/bay-se-elec.png"
+  },
+  {
+   "name": "elec-bench",
+   "eye": [
+    5.6,
+    1.6,
+    3.2
+   ],
+   "aim": [
+    7.6,
+    0.9,
+    3.2
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/elec-bench.png"
+  },
+  {
+   "name": "tool-bench",
+   "eye": [
+    -3.6,
+    1.6,
+    4.6
+   ],
+   "aim": [
+    -3.6,
+    1.1,
+    7.0
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/tool-bench.png"
+  },
+  {
+   "name": "spares-shelves",
+   "eye": [
+    -5.2,
+    1.6,
+    -2.0
+   ],
+   "aim": [
+    -7.6,
+    1.0,
+    -3.4
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/spares-shelves.png"
+  },
+  {
+   "name": "screen-bank",
+   "eye": [
+    3.2,
+    1.6,
+    -4.3
+   ],
+   "aim": [
+    3.2,
+    1.4,
+    -7.0
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/screen-bank.png"
+  },
+  {
+   "name": "north-door-pipes",
+   "eye": [
+    0.0,
+    1.6,
+    -3.5
+   ],
+   "aim": [
+    0.0,
+    1.8,
+    -7.0
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/north-door-pipes.png"
+  },
+  {
+   "name": "corner-sw",
+   "eye": [
+    4.0,
+    1.7,
+    -4.0
+   ],
+   "aim": [
+    -6.0,
+    0.8,
+    5.0
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/corner-sw.png"
+  },
+  {
+   "name": "corner-ne",
+   "eye": [
+    -4.0,
+    1.7,
+    4.5
+   ],
+   "aim": [
+    6.5,
+    0.8,
+    -5.0
+   ],
+   "fov": 75,
+   "game": "place-workshop/shots/now/corner-ne.png"
+  }
+ ],
+ "game_only": [
+  "the first robot on the robot bench and its turntable (built from parts in code)",
+  "the parts tray's tiles and parts",
+  "the east tube seen through the open west doorway",
+  "the haze"
+ ]
+}
