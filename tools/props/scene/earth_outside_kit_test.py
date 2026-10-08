@@ -1,4 +1,4 @@
-"""Check the Earth's outdoor kit layouts (earth_outside_kit.py): they read the game's own numbers, every piece stands in
+"""Check the Earth's outdoor kit layouts (earth_outside_kit.py): they read the game's own numbers as recorded, every piece stands in
 a proper frame, the street keeps its way from the door to the car clear and every face it dresses stands where the
 blocks' faces are. Hands itself to the prop environment for numpy.
 Run: python3 tools/props/scene/earth_outside_kit_test.py
