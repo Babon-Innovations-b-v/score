@@ -1740,6 +1740,126 @@
 					"recipe": "printed",
 					"token": "sign-white",
 					"picture": "label_spare_parts"
+				},
+				"sign_grain_oil": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_grain_oil",
+					"roughness": 0.5
+				},
+				"sign_barber": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_barber",
+					"roughness": 0.5
+				},
+				"sign_hardware": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_hardware",
+					"roughness": 0.5
+				},
+				"sign_pharmacy": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_pharmacy",
+					"roughness": 0.5
+				},
+				"sign_laundry": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_laundry",
+					"roughness": 0.5
+				},
+				"sign_store": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_store",
+					"roughness": 0.5
+				},
+				"sign_watches": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_watches",
+					"roughness": 0.5
+				},
+				"sign_books": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_books",
+					"roughness": 0.5
+				},
+				"sign_electric": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sign_electric",
+					"roughness": 0.5
+				},
+				"sign_tea_restaurant": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "sign_tea_restaurant",
+					"roughness": 0.3
+				},
+				"notices_street": {
+					"recipe": "printed",
+					"token": "board-wood",
+					"picture": "notices_street",
+					"roughness": 0.8
+				},
+				"poster_launch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "poster_launch",
+					"roughness": 0.6
+				},
+				"sign_block_name": {
+					"recipe": "printed",
+					"token": "sign-blue",
+					"picture": "sign_block_name",
+					"roughness": 0.4
+				},
+				"banner_first": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "banner_first",
+					"roughness": 0.8
+				},
+				"banner_second": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "banner_second",
+					"roughness": 0.8
+				},
+				"banner_third": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "banner_third",
+					"roughness": 0.8
+				},
+				"sign_column_restaurant": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "sign_column_restaurant",
+					"roughness": 0.3
+				},
+				"sign_column_store": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "sign_column_store",
+					"roughness": 0.3
+				},
+				"stripes_barber": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "stripes_barber",
+					"roughness": 0.3
+				},
+				"menu_tea": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "menu_tea",
+					"roughness": 0.7
 				}
 			}
 		},
@@ -3035,6 +3155,190 @@
 			"style": "label",
 			"text": "SPARE PARTS",
 			"ink": "ink-line"
+		},
+		"sign_grain_oil": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u7cae\u6cb9\u526f\u98df"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_barber": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u7406\u53d1"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_hardware": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u4e94\u91d1\u7535\u5668"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_pharmacy": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u836f\u623f"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_laundry": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u6d17\u8863"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_store": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u58eb\u591a"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_watches": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u949f\u8868"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_books": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u4e66\u62a5"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_electric": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u7535\u5668"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"sign_tea_restaurant": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u8336\u9910\u5385"
+			],
+			"ink": "lantern",
+			"font": "black"
+		},
+		"notices_street": {
+			"style": "hanzi_sheets",
+			"ink": "ink-line",
+			"font": "sans",
+			"sheets": [
+				[
+					"\u672c\u8857\u5c01\u95ed",
+					5
+				],
+				[
+					"\u8282\u7ea6\u7528\u7535",
+					6
+				],
+				[
+					"\u5c45\u59d4\u4f1a\u901a\u77e5",
+					5
+				]
+			]
+		},
+		"poster_launch": {
+			"style": "hanzi",
+			"shape": "poster",
+			"lines": [
+				"\u5e86\u795d",
+				"\u9996\u6b21\u8f7d\u4eba",
+				"\u767b\u6708\u98de\u884c"
+			],
+			"ink": "sign-red",
+			"font": "black",
+			"rule": true
+		},
+		"sign_block_name": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u5de5\u4eba\u65b0\u6751  \u7b2c\u4e09\u5ea7"
+			],
+			"ink": "sign-white",
+			"font": "sans"
+		},
+		"banner_first": {
+			"style": "hanzi",
+			"font": "black",
+			"shape": "banner",
+			"lines": [
+				"\u4e2d\u56fd\u7b2c\u4e00"
+			],
+			"ink": "sign-gold"
+		},
+		"banner_second": {
+			"style": "hanzi",
+			"font": "black",
+			"shape": "couplet",
+			"column": "\u98de\u5411\u6708\u7403",
+			"ink": "sign-gold"
+		},
+		"banner_third": {
+			"style": "hanzi",
+			"font": "black",
+			"shape": "couplet",
+			"column": "\u4eba\u6c11\u7684\u6708\u7403\u57fa\u5730",
+			"ink": "sign-gold"
+		},
+		"sign_column_restaurant": {
+			"style": "hanzi",
+			"shape": "couplet",
+			"column": "\u4eba\u6c11\u996d\u5e97",
+			"ink": "lantern",
+			"font": "black"
+		},
+		"sign_column_store": {
+			"style": "hanzi",
+			"shape": "couplet",
+			"column": "\u7ea2\u661f\u767e\u8d27",
+			"ink": "lantern",
+			"font": "black"
+		},
+		"stripes_barber": {
+			"style": "stripes",
+			"ink": "sign-red",
+			"second": "sign-blue"
+		},
+		"menu_tea": {
+			"style": "hanzi",
+			"shape": "poster",
+			"lines": [
+				"\u4eca\u65e5\u7cbe\u9009",
+				"\u5976\u8336",
+				"\u83e0\u841d\u5305",
+				"\u53c9\u70e7\u996d"
+			],
+			"ink": "sign-white",
+			"font": "sans"
 		}
 	}
 }

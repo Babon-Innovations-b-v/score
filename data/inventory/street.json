@@ -1,0 +1,755 @@
+{
+	"scene": "street",
+	"place": "prologue_street",
+	"plan": {
+		"world": "",
+		"seed": 7,
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/street/concepts/K03.png"
+			},
+			{
+				"id": "v2",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/street/concepts/K06.png"
+			}
+		],
+		"concept": "concepts-world1/street: the coordinator's pick K03, runner-up K06 (owner may change)"
+	},
+	"approved": "2026-10-07, the owner's world 1 scale-up: every place built without stopping for review, the owner reviews everything at the end; rows from the coordinator's concept pick",
+	"migrated": "",
+	"room": {
+		"shell": "33e7e77b84580fde",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": []
+	},
+	"rows": [
+		{
+			"id": "ground_asphalt",
+			"view": "v1",
+			"box": [
+				600,
+				1100,
+				2100,
+				1536
+			],
+			"name": "wet asphalt road",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				4.1,
+				2.0,
+				0.08
+			],
+			"count": 1,
+			"thing": "kit:street_ground_asphalt",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/ground_asphalt.png"
+		},
+		{
+			"id": "ground_paving",
+			"view": "v1",
+			"box": [
+				0,
+				1100,
+				600,
+				1536
+			],
+			"name": "concrete paving slabs of the pavements",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.8,
+				2.0,
+				0.08
+			],
+			"count": 1,
+			"thing": "kit:street_ground_paving",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/ground_paving.png"
+		},
+		{
+			"id": "kerb_stone",
+			"view": "v1",
+			"box": [
+				300,
+				1050,
+				1100,
+				1300
+			],
+			"name": "concrete kerb",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.15,
+				0.14
+			],
+			"count": 1,
+			"thing": "kit:street_kerb_stone",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/kerb_stone.png"
+		},
+		{
+			"id": "render_upper",
+			"view": "v2",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "rendered wall of a storey's bay",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				3.97,
+				0.15,
+				3.0
+			],
+			"count": 1,
+			"thing": "kit:street_render_upper",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_upper.png"
+		},
+		{
+			"id": "render_lower",
+			"view": "v1",
+			"box": [
+				0,
+				450,
+				400,
+				1100
+			],
+			"name": "rendered wall of the stairwell's bay",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				5.4,
+				0.15,
+				11.9
+			],
+			"count": 1,
+			"thing": "kit:street_render_lower",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_lower.png"
+		},
+		{
+			"id": "render_shop",
+			"view": "v2",
+			"box": [
+				1900,
+				700,
+				2752,
+				1200
+			],
+			"name": "ground floor wall round a shop",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				3.97,
+				0.15,
+				2.86
+			],
+			"count": 1,
+			"thing": "kit:street_render_shop",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_shop.png"
+		},
+		{
+			"id": "facade_band",
+			"view": "v2",
+			"box": [
+				1400,
+				400,
+				2752,
+				600
+			],
+			"name": "render band along a floor",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				3.97,
+				0.08,
+				0.16
+			],
+			"count": 1,
+			"thing": "kit:street_facade_band",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/facade_band.png"
+		},
+		{
+			"id": "drainpipe",
+			"view": "v2",
+			"box": [
+				380,
+				0,
+				480,
+				1200
+			],
+			"name": "drainpipe down a facade",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.1,
+				0.1,
+				20.3
+			],
+			"count": 1,
+			"thing": "kit:street_drainpipe",
+			"group": "kit: pipe",
+			"close_up": "place-ssl/pics/drainpipe.png"
+		},
+		{
+			"id": "window_dark",
+			"view": "v2",
+			"box": [
+				2050,
+				120,
+				2550,
+				420
+			],
+			"name": "tenement window, dark",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.64,
+				0.2,
+				1.62
+			],
+			"count": 1,
+			"thing": "kit:street_window_dark",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window.png"
+		},
+		{
+			"id": "window_lit",
+			"view": "v2",
+			"box": [
+				2050,
+				120,
+				2550,
+				420
+			],
+			"name": "tenement window, lit from inside",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.64,
+				0.2,
+				1.62
+			],
+			"count": 1,
+			"thing": "kit:street_window_lit",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window.png"
+		},
+		{
+			"id": "ac_unit",
+			"view": "v2",
+			"box": [
+				2300,
+				180,
+				2580,
+				330
+			],
+			"name": "window air conditioner on its brackets",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.8,
+				0.32,
+				0.55
+			],
+			"count": 1,
+			"thing": "kit:street_ac_unit",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/ac_unit.png"
+		},
+		{
+			"id": "window_cage",
+			"view": "v1",
+			"box": [
+				620,
+				0,
+				1240,
+				420
+			],
+			"name": "steel window cage",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.88,
+				0.38,
+				1.78
+			],
+			"count": 1,
+			"thing": "kit:street_window_cage",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window_cage.png"
+		},
+		{
+			"id": "shop_shutter",
+			"view": "v1",
+			"box": [
+				2370,
+				540,
+				2710,
+				1030
+			],
+			"name": "roller shutter pulled down over a shop",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.8,
+				0.18,
+				2.45
+			],
+			"count": 1,
+			"thing": "kit:street_shop_shutter",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/shop_shutter.png"
+		},
+		{
+			"id": "shop_open",
+			"view": "v2",
+			"box": [
+				1940,
+				760,
+				2260,
+				1190
+			],
+			"name": "the barber's lit shop window and door",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.8,
+				0.25,
+				2.45
+			],
+			"count": 1,
+			"thing": "kit:street_shop_open",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/tea_front.png"
+		},
+		{
+			"id": "tea_front",
+			"view": "v2",
+			"box": [
+				1940,
+				760,
+				2260,
+				1190
+			],
+			"name": "the tea restaurant's lit front",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.8,
+				0.25,
+				2.45
+			],
+			"count": 1,
+			"thing": "kit:street_tea_front",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/tea_front.png"
+		},
+		{
+			"id": "shop_sign",
+			"view": "v2",
+			"box": [
+				2280,
+				690,
+				2620,
+				840
+			],
+			"name": "shop sign board with its lamps",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.3,
+				0.4
+			],
+			"count": 1,
+			"thing": "kit:street_shop_sign",
+			"group": "kit: sign",
+			"close_up": "place-ssl/pics/shop_sign.png"
+		},
+		{
+			"id": "neon_sign",
+			"view": "v1",
+			"box": [
+				2280,
+				290,
+				2670,
+				620
+			],
+			"name": "the tea restaurant's neon sign",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.2,
+				0.75
+			],
+			"count": 1,
+			"thing": "kit:street_neon_sign",
+			"group": "kit: sign",
+			"close_up": "place-ssl/pics/neon_sign.png"
+		},
+		{
+			"id": "door_canopy",
+			"view": "v1",
+			"box": [
+				380,
+				360,
+				1200,
+				560
+			],
+			"name": "concrete canopy over the street door with its lamp",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.8,
+				0.9,
+				0.3
+			],
+			"count": 1,
+			"thing": "kit:street_door_canopy",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/door_canopy.png"
+		},
+		{
+			"id": "street_lamp",
+			"view": "v1",
+			"box": [
+				1680,
+				200,
+				2000,
+				990
+			],
+			"name": "street lamp",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.3,
+				5.25
+			],
+			"count": 1,
+			"thing": "kit:street_street_lamp",
+			"group": "kit: light",
+			"close_up": "place-ssl/pics/street_lamp.png"
+		},
+		{
+			"id": "notice_case",
+			"view": "v1",
+			"box": [
+				40,
+				670,
+				380,
+				980
+			],
+			"name": "neighbourhood notice board on its posts",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.95,
+				0.14,
+				1.85
+			],
+			"count": 1,
+			"thing": "kit:street_notice_case",
+			"group": "kit: sign",
+			"close_up": "place-ssl/pics/notice_case.png"
+		},
+		{
+			"id": "poster_stand",
+			"view": "v1",
+			"box": [
+				370,
+				1050,
+				710,
+				1460
+			],
+			"name": "A-frame poster stand",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.62,
+				0.6,
+				1.15
+			],
+			"count": 1,
+			"thing": "kit:street_poster_stand",
+			"group": "kit: sign",
+			"close_up": "place-ssl/pics/poster_stand.png"
+		},
+		{
+			"id": "road_line",
+			"view": "v1",
+			"box": [
+				300,
+				1100,
+				900,
+				1536
+			],
+			"name": "yellow line painted on the road by each kerb",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.12,
+				0.004
+			],
+			"count": 1,
+			"thing": "kit:street_road_line",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/road_line.png"
+		},
+		{
+			"id": "facade_pipe",
+			"view": "v2",
+			"box": [
+				1900,
+				300,
+				2752,
+				600
+			],
+			"name": "gas pipe along a face over the shop signs",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				3.97,
+				0.1,
+				0.12
+			],
+			"count": 1,
+			"thing": "kit:street_facade_pipe",
+			"group": "kit: pipe",
+			"close_up": "place-ssl/pics/facade_pipe.png"
+		},
+		{
+			"id": "end_wall",
+			"view": "v2",
+			"box": [
+				700,
+				520,
+				1450,
+				700
+			],
+			"name": "harbour wall across the street's end",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				8.0,
+				0.35,
+				1.0
+			],
+			"count": 1,
+			"thing": "kit:street_end_wall",
+			"group": "kit: street",
+			"close_up": "place-ssl/pics/end_wall.png"
+		},
+		{
+			"id": "end_fence",
+			"view": "v2",
+			"box": [
+				700,
+				450,
+				1450,
+				650
+			],
+			"name": "wire fence on the harbour wall",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				8.0,
+				0.06,
+				1.6
+			],
+			"count": 1,
+			"thing": "kit:street_end_fence",
+			"group": "kit: street",
+			"close_up": "place-ssl/pics/end_fence.png"
+		},
+		{
+			"id": "window_awning",
+			"view": "v1",
+			"box": [
+				780,
+				0,
+				1300,
+				300
+			],
+			"name": "sheet-metal awning over a window",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.94,
+				0.6,
+				0.45
+			],
+			"count": 1,
+			"thing": "kit:street_window_awning",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window_awning.png"
+		},
+		{
+			"id": "drying_rack",
+			"view": "v1",
+			"box": [
+				780,
+				250,
+				1100,
+				560
+			],
+			"name": "drying rack out from a window",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.74,
+				0.75,
+				0.3
+			],
+			"count": 1,
+			"thing": "kit:street_drying_rack",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/drying_rack.png"
+		},
+		{
+			"id": "vent_louvre",
+			"view": "v1",
+			"box": [
+				180,
+				420,
+				320,
+				600
+			],
+			"name": "louvred vent in the bay's wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.6,
+				0.05,
+				0.6
+			],
+			"count": 1,
+			"thing": "kit:street_vent_louvre",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/vent_louvre.png"
+		},
+		{
+			"id": "meter_box",
+			"view": "v1",
+			"box": [
+				2300,
+				720,
+				2500,
+				900
+			],
+			"name": "electricity meter box by a shop",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.35,
+				0.15,
+				0.95
+			],
+			"count": 1,
+			"thing": "kit:street_meter_box",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/meter_box.png"
+		},
+		{
+			"id": "barber_pole",
+			"view": "v2",
+			"box": [
+				1990,
+				560,
+				2120,
+				760
+			],
+			"name": "the barber's pole",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.24,
+				0.3,
+				0.9
+			],
+			"count": 1,
+			"thing": "kit:street_barber_pole",
+			"group": "kit: sign",
+			"close_up": "place-ssl/pics/barber_pole.png"
+		},
+		{
+			"id": "menu_board",
+			"view": "v1",
+			"box": [
+				380,
+				1050,
+				710,
+				1460
+			],
+			"name": "the tea restaurant's menu board",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.55,
+				0.55,
+				1.0
+			],
+			"count": 1,
+			"thing": "kit:street_menu_board",
+			"group": "kit: sign",
+			"close_up": "place-ssl/pics/menu_board.png"
+		},
+		{
+			"id": "water_barrier_red",
+			"view": "v1",
+			"box": [
+				2120,
+				1080,
+				2730,
+				1500
+			],
+			"name": "red water-filled road barrier",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.45,
+				0.55,
+				0.8
+			],
+			"count": 1,
+			"thing": "kit:street_water_barrier_red",
+			"group": "kit: street",
+			"close_up": "place-ssl/pics/water_barrier_red.png"
+		},
+		{
+			"id": "water_barrier_white",
+			"view": "v2",
+			"box": [
+				1450,
+				1230,
+				2000,
+				1500
+			],
+			"name": "white water-filled road barrier",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.45,
+				0.55,
+				0.8
+			],
+			"count": 1,
+			"thing": "kit:street_water_barrier_white",
+			"group": "kit: street",
+			"close_up": "place-ssl/pics/water_barrier_white.png"
+		}
+	]
+}

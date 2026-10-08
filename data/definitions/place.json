@@ -1955,5 +1955,437 @@
 			"dirt": 0.4,
 			"picked": "the hub's (signed off with the hub, 2026-10-07)"
 		}
+	},
+	"prologue_street": {
+		"name": "the street at the foot of the block",
+		"scenes": [],
+		"style": {
+			"version": 1,
+			"text": "Night in a narrow street between old Hong Kong tenement blocks in 2099, closed for launch night: wet asphalt after rain mirroring the lamps and signs, concrete pavements and kerbs, facades of painted render gone grey and streaked with window grilles, air conditioners and laundry, ground floor shops behind roller shutters, a lit tea restaurant, shop signs in simplified Chinese, red and white water-filled barriers across both ends, two street lamps, a notice board and a poster stand on the pavement, the black state car waiting with its rear door open.",
+			"from": "the picked concept (concepts-world1, 2026-10-07)",
+			"picked": "2026-10-07, the coordinator's concept pick; the owner reviews the built world at the end"
+		},
+		"plan": {
+			"world": "",
+			"seed": 7,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"flat-wall",
+				"concrete",
+				"asphalt",
+				"rust",
+				"window-lit",
+				"sign-lit",
+				"ink-line",
+				"cabin-seam",
+				"glass",
+				"hull-trim",
+				"idle",
+				"lamp",
+				"line",
+				"roof-steel",
+				"rubber",
+				"steel",
+				"tile",
+				"varnish"
+			],
+			"accents": [
+				"sign-red",
+				"sign-white",
+				"lantern"
+			],
+			"accents_are": "the barriers, the shop signs and the neon"
+		},
+		"materials": {
+			"facade_paint": {
+				"token": "flat-wall",
+				"library": "facade_paint"
+			},
+			"concrete": {
+				"token": "concrete",
+				"library": "concrete"
+			},
+			"paving_stone": {
+				"token": "concrete",
+				"library": "paving_stone"
+			},
+			"wet_asphalt": {
+				"token": "asphalt",
+				"library": "wet_asphalt"
+			},
+			"grille_paint": {
+				"token": "roof-steel",
+				"library": "grille_paint"
+			},
+			"gate_grey": {
+				"token": "hull-trim",
+				"library": "gate_grey"
+			},
+			"post_dark": {
+				"token": "line",
+				"library": "post_dark"
+			},
+			"barrier_red": {
+				"token": "sign-red",
+				"library": "barrier_red"
+			},
+			"barrier_white": {
+				"token": "sign-white",
+				"library": "barrier_white"
+			},
+			"galvanized_dull": {
+				"token": "roof-steel",
+				"library": "galvanized_dull"
+			},
+			"plastic_white": {
+				"token": "hull",
+				"library": "plastic_white"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"window_lit": {
+				"token": "window-lit",
+				"library": "window_lit"
+			},
+			"sign_lit": {
+				"token": "sign-lit",
+				"library": "sign_lit"
+			},
+			"varnished_wood": {
+				"token": "varnish",
+				"library": "varnished_wood"
+			},
+			"enamel_white": {
+				"token": "sign-white",
+				"library": "enamel_white"
+			},
+			"wall_tile_white": {
+				"token": "tile",
+				"library": "wall_tile_white"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"cable_grey": {
+				"token": "cabin-seam",
+				"library": "cable_grey"
+			}
+		},
+		"wear": {
+			"level": "worn",
+			"dirt": 0.5,
+			"picked": "from causes (place job, 2026-10-07): outdoors in a wet harbour city, decades of rain and traffic; rain rusts the grilles, feet and wheels wear the kerbs and the paving"
+		},
+		"pictures": {
+			"do": [],
+			"dont": []
+		},
+		"light": {
+			"recorded": "2026-10-07, as the game has it: three street lamps (earth_site.tscn StreetLamps, dimmed each trip), the lamp under the street door's canopy and the light out of the open barber's (street_fittings.gd); the night's moonlight (night.gd)",
+			"read_by": "game/prologue/earth_site/earth_site.tscn, game/prologue/street_fittings/street_fittings.gd"
+		}
+	},
+	"prologue_square": {
+		"name": "the square below the balcony",
+		"scenes": [],
+		"style": {
+			"version": 1,
+			"text": "Night over a waterfront state square in Hong Kong in 2099, seen from a third floor balcony: pale stone paving rising in three broad terraces towards a raised stage with a red backdrop and a banner in simplified Chinese, red flags on poles along the edges, red paper lanterns strung over the crowd, steel floodlight towers, lamp posts round the edge, a promenade with palms and a rail along the harbour, tenement blocks round the square.",
+			"from": "the picked concept (concepts-world1, 2026-10-07)",
+			"picked": "2026-10-07, the coordinator's concept pick; the owner reviews the built world at the end"
+		},
+		"plan": {
+			"world": "",
+			"seed": 7,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"flat-wall",
+				"concrete",
+				"floodlight",
+				"lantern",
+				"foliage",
+				"harbour",
+				"ink-line",
+				"asphalt",
+				"cabin-seam",
+				"flat-dado",
+				"glass",
+				"hull-trim",
+				"idle",
+				"lamp",
+				"line",
+				"roof-steel",
+				"rubber",
+				"sign-lit",
+				"sign-white",
+				"steel",
+				"tile",
+				"varnish",
+				"window-lit"
+			],
+			"accents": [
+				"sign-red",
+				"sign-gold"
+			],
+			"accents_are": "the flags, the backdrop and the banners"
+		},
+		"materials": {
+			"square_paving": {
+				"token": "flat-wall",
+				"library": "square_paving"
+			},
+			"paving_stone": {
+				"token": "concrete",
+				"library": "paving_stone"
+			},
+			"concrete": {
+				"token": "concrete",
+				"library": "concrete"
+			},
+			"wet_asphalt": {
+				"token": "asphalt",
+				"library": "wet_asphalt"
+			},
+			"facade_paint": {
+				"token": "flat-wall",
+				"library": "facade_paint"
+			},
+			"grille_paint": {
+				"token": "roof-steel",
+				"library": "grille_paint"
+			},
+			"post_dark": {
+				"token": "line",
+				"library": "post_dark"
+			},
+			"galvanized_dull": {
+				"token": "roof-steel",
+				"library": "galvanized_dull"
+			},
+			"flag_red": {
+				"token": "sign-red",
+				"library": "flag_red"
+			},
+			"foliage_leaf": {
+				"token": "foliage",
+				"library": "foliage_leaf"
+			},
+			"varnished_wood": {
+				"token": "varnish",
+				"library": "varnished_wood"
+			},
+			"lantern_glow": {
+				"token": "lantern",
+				"library": "lantern_glow"
+			},
+			"floodlight_lens": {
+				"token": "floodlight",
+				"library": "floodlight_lens"
+			},
+			"window_lit": {
+				"token": "window-lit",
+				"library": "window_lit"
+			},
+			"sign_lit": {
+				"token": "sign-lit",
+				"library": "sign_lit"
+			},
+			"rail_green": {
+				"token": "flat-dado",
+				"library": "rail_green"
+			},
+			"enamel_white": {
+				"token": "sign-white",
+				"library": "enamel_white"
+			},
+			"gate_grey": {
+				"token": "hull-trim",
+				"library": "gate_grey"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"wall_tile_white": {
+				"token": "tile",
+				"library": "wall_tile_white"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"cable_grey": {
+				"token": "cabin-seam",
+				"library": "cable_grey"
+			}
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.3,
+			"picked": "from causes (place job, 2026-10-07): a civic square swept and dressed for launch night; the stone is old, the flags and lanterns new; the blocks round it as worn as the street's"
+		},
+		"pictures": {
+			"do": [],
+			"dont": []
+		},
+		"light": {
+			"recorded": "2026-10-07, as the game has it (night.gd): a lamp at the head of every square lamp, the floodlight towers thrown on the square, the lamp on the leader, the moonlight",
+			"read_by": "game/prologue/earth_site/night/night.gd"
+		}
+	},
+	"prologue_launch": {
+		"name": "the launch view across the harbour",
+		"scenes": [],
+		"style": {
+			"version": 1,
+			"text": "Night across Victoria Harbour in 2099 from a balcony: dark water with lit ferries, a dense lit far shore under dark mountains, the white rocket standing alone on its floodlit pad by the water between four steel lattice lightning masts, floodlight banks on the pad's edge, the Moon above it.",
+			"from": "the picked concept (concepts-world1, 2026-10-07)",
+			"picked": "2026-10-07, the coordinator's concept pick; the owner reviews the built world at the end"
+		},
+		"plan": {
+			"world": "",
+			"seed": 7,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"concrete",
+				"roof-steel",
+				"floodlight",
+				"harbour",
+				"night-sky",
+				"moonlight",
+				"ink-line",
+				"cabin-seam",
+				"flat-dado",
+				"glass",
+				"hull-trim",
+				"lamp",
+				"lantern",
+				"line",
+				"rubber",
+				"steel",
+				"window-lit"
+			],
+			"accents": [
+				"sign-red",
+				"machine"
+			],
+			"accents_are": "the masts' warning lamps"
+		},
+		"materials": {
+			"concrete": {
+				"token": "concrete",
+				"library": "concrete"
+			},
+			"galvanized_dull": {
+				"token": "roof-steel",
+				"library": "galvanized_dull"
+			},
+			"gate_grey": {
+				"token": "hull-trim",
+				"library": "gate_grey"
+			},
+			"floodlight_lens": {
+				"token": "floodlight",
+				"library": "floodlight_lens"
+			},
+			"lantern_glow": {
+				"token": "lantern",
+				"library": "lantern_glow"
+			},
+			"window_lit": {
+				"token": "window-lit",
+				"library": "window_lit"
+			},
+			"plastic_white": {
+				"token": "hull",
+				"library": "plastic_white"
+			},
+			"rail_green": {
+				"token": "flat-dado",
+				"library": "rail_green"
+			},
+			"post_dark": {
+				"token": "line",
+				"library": "post_dark"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"cable_grey": {
+				"token": "cabin-seam",
+				"library": "cable_grey"
+			}
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.2,
+			"picked": "from causes (place job, 2026-10-07): a state launch pad kept up for the flight; sea air weathers the masts"
+		},
+		"pictures": {
+			"do": [],
+			"dont": []
+		},
+		"light": {
+			"recorded": "2026-10-07, as the game has it (night.gd): the rocket floodlit on its pad and its streak on the harbour, the moonlight",
+			"read_by": "game/prologue/earth_site/night/night.gd"
+		}
 	}
 }

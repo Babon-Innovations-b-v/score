@@ -1,0 +1,909 @@
+{
+	"scene": "square",
+	"place": "prologue_square",
+	"plan": {
+		"world": "",
+		"seed": 7,
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/square/concepts/K04.png"
+			},
+			{
+				"id": "v2",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/square/concepts/K06.png"
+			}
+		],
+		"concept": "concepts-world1/square: the coordinator's pick (owner may change)"
+	},
+	"approved": "2026-10-07, the owner's world 1 scale-up: every place built without stopping for review, the owner reviews everything at the end; rows from the coordinator's concept pick",
+	"migrated": "",
+	"room": {
+		"shell": "41b5e6454cb89ef9",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": []
+	},
+	"rows": [
+		{
+			"id": "far_paving",
+			"view": "v1",
+			"box": [
+				600,
+				900,
+				2200,
+				1400
+			],
+			"name": "the square's stone paving",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				10.0,
+				10.0,
+				0.1
+			],
+			"count": 1,
+			"thing": "kit:square_far_paving",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/paving.png"
+		},
+		{
+			"id": "far_terrace",
+			"view": "v1",
+			"box": [
+				600,
+				900,
+				2200,
+				1400
+			],
+			"name": "a terrace of the square, paved on top",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				23.0,
+				74.0,
+				0.8
+			],
+			"count": 1,
+			"thing": "kit:square_far_terrace",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/terrace.png"
+		},
+		{
+			"id": "far_road",
+			"view": "v1",
+			"box": [
+				2000,
+				800,
+				2752,
+				1100
+			],
+			"name": "the roads round the square",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				10.0,
+				12.0,
+				0.1
+			],
+			"count": 1,
+			"thing": "kit:square_far_road",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/road.png"
+		},
+		{
+			"id": "far_promenade",
+			"view": "v1",
+			"box": [
+				0,
+				700,
+				2752,
+				900
+			],
+			"name": "the harbour promenade's paving",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				10.0,
+				14.0,
+				0.1
+			],
+			"count": 1,
+			"thing": "kit:square_far_promenade",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/promenade.png"
+		},
+		{
+			"id": "far_promenade_rail",
+			"view": "v1",
+			"box": [
+				2100,
+				900,
+				2752,
+				1130
+			],
+			"name": "the promenade's railing",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				4.0,
+				0.08,
+				1.1
+			],
+			"count": 1,
+			"thing": "kit:square_far_promenade_rail",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/promenade_rail.png"
+		},
+		{
+			"id": "far_palm",
+			"view": "v1",
+			"box": [
+				0,
+				700,
+				300,
+				1000
+			],
+			"name": "fan palm on the promenade",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				3.6,
+				3.6,
+				7.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_palm",
+			"group": "kit: street",
+			"close_up": "place-ssl/pics/palm.png"
+		},
+		{
+			"id": "far_flag_pole",
+			"view": "v1",
+			"box": [
+				1240,
+				1040,
+				1520,
+				1400
+			],
+			"name": "red flag on its pole",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.3,
+				6.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_flag_pole",
+			"group": "kit: street",
+			"close_up": "place-ssl/pics/flag_pole.png"
+		},
+		{
+			"id": "far_lantern",
+			"view": "v1",
+			"box": [
+				580,
+				1000,
+				1100,
+				1300
+			],
+			"name": "red paper lantern",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.45,
+				0.45,
+				0.65
+			],
+			"count": 1,
+			"thing": "kit:square_far_lantern",
+			"group": "kit: light",
+			"close_up": "place-ssl/pics/lantern.png"
+		},
+		{
+			"id": "far_cable",
+			"view": "v1",
+			"box": [
+				580,
+				1000,
+				1100,
+				1300
+			],
+			"name": "the cable the lanterns hang from",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.03,
+				0.03,
+				4.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_cable",
+			"group": "kit: light",
+			"close_up": "place-ssl/pics/cable.png"
+		},
+		{
+			"id": "far_floodlight_tower",
+			"view": "v1",
+			"box": [
+				580,
+				480,
+				720,
+				1060
+			],
+			"name": "floodlight tower",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.4,
+				1.6,
+				20.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_floodlight_tower",
+			"group": "kit: light",
+			"close_up": "place-ssl/pics/floodlight_tower.png"
+		},
+		{
+			"id": "far_square_lamp",
+			"view": "v1",
+			"box": [
+				130,
+				780,
+				290,
+				1000
+			],
+			"name": "lamp post round the square",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				0.4,
+				6.2
+			],
+			"count": 1,
+			"thing": "kit:square_far_square_lamp",
+			"group": "kit: light",
+			"close_up": "place-ssl/pics/square_lamp.png"
+		},
+		{
+			"id": "far_stage",
+			"view": "v1",
+			"box": [
+				680,
+				620,
+				1180,
+				900
+			],
+			"name": "the rally stage's deck, skirt and steps",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				19.5,
+				11.1,
+				3.3
+			],
+			"count": 1,
+			"thing": "kit:square_far_stage",
+			"group": "kit: stage",
+			"close_up": "place-ssl/pics/stage.png"
+		},
+		{
+			"id": "far_backdrop",
+			"view": "v1",
+			"box": [
+				680,
+				620,
+				1180,
+				900
+			],
+			"name": "the red backdrop behind the stage with its sign",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				19.5,
+				0.6,
+				14.4
+			],
+			"count": 1,
+			"thing": "kit:square_far_backdrop",
+			"group": "kit: stage",
+			"close_up": "place-ssl/pics/stage.png"
+		},
+		{
+			"id": "far_podium",
+			"view": "v1",
+			"box": [
+				680,
+				620,
+				1180,
+				900
+			],
+			"name": "the red-draped podium",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				5.0,
+				3.72,
+				0.94
+			],
+			"count": 1,
+			"thing": "kit:square_far_podium",
+			"group": "kit: stage",
+			"close_up": "place-ssl/pics/stage.png"
+		},
+		{
+			"id": "far_lectern",
+			"view": "v1",
+			"box": [
+				680,
+				620,
+				1180,
+				900
+			],
+			"name": "the lectern",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.7,
+				0.5,
+				1.15
+			],
+			"count": 1,
+			"thing": "kit:square_far_lectern",
+			"group": "kit: stage",
+			"close_up": "place-ssl/pics/stage.png"
+		},
+		{
+			"id": "far_banner",
+			"view": "v1",
+			"box": [
+				680,
+				620,
+				1180,
+				900
+			],
+			"name": "red banner down its pole",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.2,
+				0.3,
+				9.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_banner",
+			"group": "kit: stage",
+			"close_up": "place-ssl/pics/stage.png"
+		},
+		{
+			"id": "far_neon_column",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				300,
+				600
+			],
+			"name": "neon sign hung out from the block",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.8,
+				0.3,
+				4.6
+			],
+			"count": 1,
+			"thing": "kit:square_far_neon_column",
+			"group": "kit: sign",
+			"close_up": "place-ssl/pics/neon_sign.png"
+		},
+		{
+			"id": "balcony_slab",
+			"view": "v1",
+			"box": [
+				2100,
+				900,
+				2752,
+				1536
+			],
+			"name": "a balcony's slab under the player's",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.6,
+				4.4,
+				0.2
+			],
+			"count": 1,
+			"thing": "kit:square_balcony_slab",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/balcony_slab.png"
+		},
+		{
+			"id": "balcony_rail",
+			"view": "v1",
+			"box": [
+				2100,
+				900,
+				2752,
+				1536
+			],
+			"name": "a balcony's steel balustrade",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				4.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"thing": "kit:square_balcony_rail",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/balcony_rail.png"
+		},
+		{
+			"id": "render_upper",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's wall upper render",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_wall_upper_render",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_upper.png"
+		},
+		{
+			"id": "far_render_upper",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's wall upper render (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_wall_upper_render",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_upper.png"
+		},
+		{
+			"id": "render_shop",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's wall lower shop",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_wall_lower_shop",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_shop.png"
+		},
+		{
+			"id": "far_render_shop",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's wall lower shop (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_wall_lower_shop",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_shop.png"
+		},
+		{
+			"id": "facade_band",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's facade band",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_facade_band",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/facade_band.png"
+		},
+		{
+			"id": "far_facade_band",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's facade band (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_facade_band",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/facade_band.png"
+		},
+		{
+			"id": "drainpipe",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's drainpipe",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_drainpipe",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/drainpipe.png"
+		},
+		{
+			"id": "far_drainpipe",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's drainpipe (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_drainpipe",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/drainpipe.png"
+		},
+		{
+			"id": "window_dark",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's window dark",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_window_dark",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window.png"
+		},
+		{
+			"id": "far_window_dark",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's window dark (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_window_dark",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window.png"
+		},
+		{
+			"id": "window_lit",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's window lit",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_window_lit",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window.png"
+		},
+		{
+			"id": "far_window_lit",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's window lit (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_window_lit",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window.png"
+		},
+		{
+			"id": "ac_unit",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's ac unit",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_ac_unit",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/ac_unit.png"
+		},
+		{
+			"id": "far_ac_unit",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's ac unit (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_ac_unit",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/ac_unit.png"
+		},
+		{
+			"id": "window_cage",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's window cage",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_window_cage",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window_cage.png"
+		},
+		{
+			"id": "far_window_cage",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's window cage (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_window_cage",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/window_cage.png"
+		},
+		{
+			"id": "shop_shutter",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's shop shutter",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_shop_shutter",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/shop_shutter.png"
+		},
+		{
+			"id": "far_shop_shutter",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's shop shutter (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_shop_shutter",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/shop_shutter.png"
+		},
+		{
+			"id": "shop_sign",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's shop sign",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_shop_sign",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/shop_sign.png"
+		},
+		{
+			"id": "far_shop_sign",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a tenement's shop sign (far block)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.2,
+				2.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_shop_sign",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/shop_sign.png"
+		},
+		{
+			"id": "far_render_lower",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				700,
+				900
+			],
+			"name": "a far tenement's ground floor wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				3.9,
+				0.15,
+				3.0
+			],
+			"count": 1,
+			"thing": "kit:square_far_wall_lower_render",
+			"group": "kit: wall",
+			"close_up": "place-ssl/pics/render_lower.png"
+		}
+	]
+}
