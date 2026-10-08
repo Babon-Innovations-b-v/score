@@ -3492,5 +3492,202 @@
 		],
 		"screens": [],
 		"cuts": []
+	},
+	"garage_rover_lift": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"enamel_blue",
+			"bare_steel",
+			"rubber"
+		]
+	},
+	"garage_chain_hoist": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"machine_orange",
+			"cable_black",
+			"bare_steel"
+		]
+	},
+	"garage_workbench": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"wood_board",
+			"bare_steel"
+		]
+	},
+	"garage_task_lamp": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"painted_panel",
+			"cast_steel"
+		]
+	},
+	"garage_bench_vise": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"materials": [
+			"cast_steel",
+			"bare_steel"
+		]
+	},
+	"garage_toolbox": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"warning_paint",
+			"bare_steel"
+		]
+	},
+	"garage_rover_charger": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"enamel_blue",
+			"cable_black",
+			"screen"
+		]
+	},
+	"garage_control_cabinet": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"screen",
+			"plastic_grey"
+		]
+	},
+	"garage_junction_box": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"bare_steel",
+			"led_green"
+		]
+	},
+	"garage_pressure_gauge": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"materials": [
+			"bare_steel",
+			"cast_steel",
+			"warning_paint"
+		]
 	}
 }

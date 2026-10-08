@@ -928,7 +928,7 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/task_lamp.png",
 			"light": {
 				"strength": 0.5,
-				"range": 4.0
+				"reach": 4.0
 			},
 			"view": "v1",
 			"box": [
@@ -1414,7 +1414,7 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/ceiling_lamp.png",
 			"light": {
 				"strength": 1.2,
-				"range": 9.0
+				"reach": 9.0
 			},
 			"view": "v1",
 			"box": [
