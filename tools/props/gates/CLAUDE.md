@@ -25,6 +25,11 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   `concept_elements` list every element the picked concept shows, crop by crop, each a row (or a part of one) or
   dropped with a reason; the kit layout must lay each row as often as the concept shows it. Run before any spend; the
   built room is then drawn from the concept's own camera beside the concept on the place's page.
+- `names.py` (the coordinator, 2026-10-08: the camp's rod lamp baked as `pendant_lamp` overwrote the workshop's
+  lamp record and broke main; the stairwell's code `junction_box` nearly routed the lab's generated one to code): an
+  own name means one thing in every room. Fails a code-built model named as another thing, an own name made on one route here
+  and the other in another installed room (`data/kit/*.json`), and a builder defined twice. `route.py install` runs
+  it first and stops on a fault.
 - trimesh with embree (`embreex`, `rtree` in the prop environment); a whole room takes about 2 s. Every run goes
   under `systemd-run --user --scope -q -p MemoryMax=16G`.
 - Checks: `gates_test.py` (hands itself to the prop environment).

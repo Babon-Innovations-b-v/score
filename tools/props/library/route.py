@@ -21,7 +21,7 @@ split into (make_kit.py: a screen's content, a lamp's lens) and a generated piec
 own, and the room's lamps and floors as before. A generated model that fails the model check (gates/model.py) is
 not placed: its pieces are left out and listed.
 
-`install` copies the made models and their shared pictures into game/base/models/<room>_kit/, stores the pictures
+`install` runs the name check first (gates/names.py: an own name means one thing in every room), copies the made models and their shared pictures into game/base/models/<room>_kit/, stores the pictures
 compressed and stops a room past its budget (stored.py), with the pictures'
 import settings (BC7, high quality: an import left lossless took 3.7 GB of video memory in round two), points each
 kind's own scene at its first model, and puts the layout in place (data/kit/<room>.json).
@@ -38,6 +38,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "gates"))
 import library  # noqa: E402
+import names  # noqa: E402
 import sorter  # noqa: E402
 import stored  # noqa: E402
 
@@ -536,6 +537,9 @@ def install(work, room):
     """The made models and their pictures into the game, every kind's scene pointed at its first model, the layout
     into data/kit/<room>.json."""
     layout = json.loads((work / "layout.json").read_text())
+    faults = names.check(layout, room)
+    if faults:
+        raise SystemExit("the name check (gates/names.py) stops the install:\n  " + "\n  ".join(faults))
     folder = REPO / f"game/base/models/{room}_kit"
     # Godot's import files are kept, so a model installed again keeps its id and its import settings.
     imports = {found.relative_to(folder): found.read_text() for found in folder.rglob("*.import")} \

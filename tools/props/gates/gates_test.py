@@ -23,6 +23,7 @@ except ImportError:
 
 sys.path.insert(0, str(HERE))
 import doors  # noqa: E402
+import names  # noqa: E402
 import greybox  # noqa: E402
 import model  # noqa: E402
 import placement  # noqa: E402
@@ -91,6 +92,23 @@ def test_a_door_in_a_partition_that_stops_short_has_a_way_round_and_one_wall_to_
     assert len(doors.check({"pieces": short})) == 1
     screen = walls + [partition(-1.8, 2.4)]  # a screen with no door is not judged
     assert doors.check({"pieces": screen}) == []
+
+
+def test_a_model_under_another_kind_s_name_and_a_name_on_two_routes_fail_before_install():
+    """The camp's rod lamp baked as pendant_lamp_1; the stairwell's code junction box beside the lab's generated one."""
+    camp = {"pieces": [{"kind": "camp_rod_lamp", "model": "pendant_lamp_1"}], "models": {"pendant_lamp_1": {"route": "code"}}}
+    assert len(names.check(camp, "camp", others={}, texts={}, fittings={"pendant_lamp"})) == 1
+    assert names.check(camp, "camp", others={}, texts={}, fittings=set()) == []  # a name nothing else uses
+    stairwell = {"pieces": [{"kind": "stairwell_junction_box", "model": "junction_box_1"}],
+                 "models": {"junction_box_1": {"route": "code"}}}
+    lab = {"pieces": [{"kind": "lab_junction_box", "model": "junction_box_1"}], "models": {"junction_box_1": {"route": "model"}}}
+    assert len(names.check(stairwell, "stairwell", others={"lab": lab}, texts={}, fittings=set())) == 1
+    hub = {"pieces": [{"kind": "hub_pipe_straight", "model": "pipe_straight_1"}], "models": {"pipe_straight_1": {"route": "code"}}}
+    lab_pipes = {"pieces": [{"kind": "lab_pipe_straight", "model": "pipe_straight_1"}],
+                 "models": {"pipe_straight_1": {"route": "code"}}}
+    assert names.check(hub, "hub", others={"lab": lab_pipes}, texts={}, fittings=set()) == []
+    twice = 'def lamp(size, laid):\n    pass\n\n\ndef lamp(size, laid):\n    pass\n\n\nBUILDERS = {"lamp": lamp}\n'
+    assert len(names.check(hub, "hub", others={}, texts={"pieces": twice}, fittings=set())) == 1
 
 
 def main():
