@@ -28,7 +28,8 @@ Placeholder until the first real component exists.>
 The framework moved here from the game 2099 on 2026-10-08 (JoeyKardolus/2099#129), with its history (git
 filter-repo on the moved paths). Two sides: the coordinating machine runs plain Python (plans, labels, checks, the
 scene package; `.venv` from `pyproject.toml`), and every step that loads a model, bakes or renders runs on a rented
-Scaleway machine that deletes itself (`tools/props/cloud/`). No model runs on the coordinating machine.
+cloud machine that deletes itself (`tools/props/cloud/`, through the provider interface `provider.py`; Scaleway is
+the current backend). No model runs on the coordinating machine.
 
 - `tools/props/`: the prop pipeline (close-up to Pixal3D in a cloud batch, `cloud/batch.py`; finish; `pixal.py`),
   the scene tools (`scene/`: concepts, the world step, close-ups, inventories, layouts), the surface library and its
@@ -215,8 +216,9 @@ Getting a fresh machine, or a wiped one, back to working.
 
 **The framework's runtime** lives outside the repo, under `PROPS_HOME` (default `~/.farm-factory-props`, the first
 world's name, kept so the cloud ledger, keys and work carry over): `cloud/` (the runner's ssh key, the self-delete
-key, the spend ledger), `work/` (`PROPS_WORK`: takes, pictures, places' runs). The machines need the `scw` CLI
-logged in to the Scaleway project named by `SCORE_SCALEWAY_PROJECT` (by name, never an id), `uv`, and `make env`.
+key, the spend ledger), `work/` (`PROPS_WORK`: takes, pictures, places' runs). The machines need `uv`, `make env`,
+and the cloud backend's tools: for Scaleway, the current backend, the `scw` CLI logged in to the project named by
+`SCORE_SCALEWAY_PROJECT` (by name, never an id).
 
 **What survives a wipe:** everything in git. **What does not:** Claude's memory (git-ignored,
 because the repository is public), `gh` auth, any local toolchain, and anything a session left
@@ -233,5 +235,5 @@ here.>
 | Repository | `Babon-Innovations-b-v/score` |
 | Project board | `9` (org project) |
 | First user | the game 2099, `JoeyKardolus/2099` (paused 2026-10-08) |
-| Cloud | Scaleway, the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`); machines tagged `farm-factory-batch` |
-| Secrets | Scaleway Secret Manager in that project, read by name with `scaleway.secret(name)`: `worldlabs-api-key`, `gemini-api-key`, `freesound-api-key` (optional) |
+| Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway: the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; month ceiling `SCORE_MONTH_EUROS` (default 1500) |
+| Secrets | read by name with `secret_store.secret(name)`: the environment variable `SCORE_SECRET_<NAME>`, else the backend's store (Scaleway Secret Manager in that project): `worldlabs-api-key`, `gemini-api-key`, `freesound-api-key` (optional) |

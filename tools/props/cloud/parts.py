@@ -1,4 +1,4 @@
-"""Split pictured objects into parts with PartCrafter on one rented Scaleway card, bring the parts back, delete the
+"""Split pictured objects into parts with PartCrafter on one rented cloud card, bring the parts back, delete the
 machine (job robust-exp, 2026-10-06: the part splitter tried against labelling parts from the clean picture).
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/parts.py <folder of pictures> --who "<session>" \
@@ -26,7 +26,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/parts")
 # Pinned: PartCrafter's main on 2026-10-06 (last push 2026-04-16).
@@ -35,14 +35,14 @@ SETUP_MINUTES = 20
 MINUTES_A_RUN = 2
 
 
-def price(runs, project):
+def price(runs, account):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = batch.offers(list(capacity.types_for("parts")))
+    found = batch.offers(list(capacity.classes_for("parts")))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = SETUP_MINUTES + runs * MINUTES_A_RUN
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
+    spent = batch.month_spent(account)
     batch.say(f"{runs} PartCrafter runs on one card: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
               f"€{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
@@ -117,12 +117,12 @@ def main():
     options = parser.parse_args()
     counts = [int(value) for value in options.parts.split(",")]
     runs = len(list(options.folder.glob("*.png"))) * len(counts)
-    project = scaleway.project_id()
-    batch.sweep(project)
-    found, allowed_minutes = price(runs, project)
+    account = cloud.account()
+    batch.sweep(account)
+    found, allowed_minutes = price(runs, account)
     if options.dry_run:
         return
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     import pictures
     started = time.time()
@@ -131,7 +131,7 @@ def main():
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = pictures.rent_machines(run, project, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1)
         if not machines:
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], options.folder, counts)

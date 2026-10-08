@@ -1,13 +1,13 @@
 """What cloud batches have cost, and whether the next one fits the owner's limits.
 
 The owner's limits (2026-09-29): a batch runs at most four hours and spends at most €60 (raised
-from €50 for the worldfill batches), and the month at most MONTH_EUROS (€1,500 by default since 2026-10-08). Scaleway's own bill lags by hours, so the month's spend is whichever is higher,
-its bill or this ledger's sum. A batch that would pass any limit is refused before it starts.
+from €50 for the worldfill batches), and the month at most MONTH_EUROS (€1,500 by default since 2026-10-08). The
+provider's own bill lags by hours, so the month's spend is whichever is higher, its bill or this ledger's sum. A batch that would pass any limit is refused before it starts.
 """
 import datetime
-import os
 import json
 import math
+import os
 import time
 
 from paths import HOME
@@ -15,7 +15,7 @@ from paths import HOME
 LEDGER = HOME / "cloud" / "ledger.jsonl"
 BATCH_HOURS = 4
 BATCH_EUROS = 60.0
-# The month's ceiling (owner, 2026-10-08: Scaleway's credits cover about €3,000 a month): SCORE_MONTH_EUROS, else
+# The month's ceiling (owner, 2026-10-08: the cloud credits cover about €3,000 a month): SCORE_MONTH_EUROS, else
 # €1,500. Checked before every machine is rented (batch.rent); a run stops rather than pass it.
 MONTH_EUROS = float(os.environ.get("SCORE_MONTH_EUROS", "1500"))
 
@@ -46,7 +46,7 @@ def this_month():
 
 def cost(minutes, euros_per_minute, unit_minutes=1):
     """What a machine costs for `minutes`, billed by the started unit: a minute for the cards, an hour for the
-    machines Scaleway prices by the hour."""
+    machines the provider prices by the hour."""
     return math.ceil(minutes / unit_minutes) * unit_minutes * euros_per_minute
 
 

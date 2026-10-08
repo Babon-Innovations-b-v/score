@@ -1,8 +1,8 @@
-"""Run Infinigen jobs on one rented Scaleway processor machine, bring their outputs back, delete the machine.
+"""Run Infinigen jobs on one rented cloud processor machine, bring their outputs back, delete the machine.
 Nothing Infinigen runs on this PC (it ran here once beside a gate and a Blender, and WSL died, 2026-10-05).
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/infinigen.py <job folder> [...] --who "<session>" \
-        [--type POP2-32C-128G] [--hold] [--dry-run]
+        [--class cpu-32c-128gb] [--hold] [--dry-run]
 
 Each job folder holds spec.json, written by tools/props/infinigen/steer.py, and the arrays it names. Up there every
 job runs side by side as `patch.py <spec.json> <out>` under Infinigen's own Python (infinigen_setup.sh builds it from
@@ -25,13 +25,13 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import ledger  # noqa: E402
 import pictures  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 from paths import REPO  # noqa: E402
 
 VENDORED = REPO / "vendor" / "infinigen"
 REMOTE = pathlib.PurePosixPath("/root")
 # 32 processors and 128 GB: four jobs of up to ~24 GB side by side (the 2023 paper: about 24 GB a whole scene).
-MACHINE = "POP2-32C-128G"
+MACHINE = "cpu-32c-128gb"
 # Measured 2026-10-05: renting, the packages, the bpy wheel and the terrain build.
 SETUP_MINUTES = 20
 # A job's estimate when its spec names none.
@@ -39,17 +39,10 @@ JOB_MINUTES = 60
 POLL_SECONDS = 30
 
 
-def offers(machine_type):
-    """Where `machine_type` is sold, best stocked first: batch.offers' tuples."""
-    found = []
-    for zone in scaleway.ZONES:
-        stock = scaleway.stock(machine_type, zone)
-        if stock is None or stock == "shortage":
-            continue
-        price = scaleway.euros_per_minute(machine_type, zone)
-        found.append((price, batch.STOCK_ORDER.get(stock, 3), machine_type, zone, price))
-        batch.say(f"{machine_type} in {zone}: {stock}, €{price * 60:.2f} an hour (Scaleway's price list)")
-    return sorted(found, key=lambda offer: (offer[1], offer[0]))
+def offers(machine_class):
+    """Where a processor machine of `machine_class` is in stock (not short), best stocked first: provider.Offer."""
+    found = [offer for offer in batch.offers([machine_class]) if offer.stock_word != "shortage"]
+    return sorted(found, key=lambda offer: (offer.stock, offer.per_card))
 
 
 def estimate(jobs, hold, at_once):
@@ -58,15 +51,15 @@ def estimate(jobs, hold, at_once):
     return SETUP_MINUTES + max(max(minutes, default=0), sum(minutes) / at_once) + (60 if hold else 0)
 
 
-def price(jobs, machine_type, project, hold, at_once):
+def price(jobs, machine_class, account, hold, at_once):
     """Print the estimate and refuse what passes the owner's limits; the offers and the allowed minutes."""
-    found = offers(machine_type)
+    found = offers(machine_class)
     if not found:
-        raise SystemExit(f"no {machine_type} is in stock in {', '.join(scaleway.ZONES)}")
+        raise SystemExit(f"no {machine_class} machine is in stock with the {cloud.NAME} backend")
     minutes = estimate(jobs, hold, at_once)
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
-    batch.say(f"{len(jobs)} Infinigen jobs on one {machine_type}: about {minutes:.0f} min, "
+    spent = batch.month_spent(account)
+    batch.say(f"{len(jobs)} Infinigen jobs on one {machine_class} machine: about {minutes:.0f} min, "
               f"€{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
     if refused:
@@ -188,7 +181,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("jobs", nargs="*", type=pathlib.Path, help="job folders, each holding spec.json")
     parser.add_argument("--who", required=True, help="the session asking")
-    parser.add_argument("--type", default=MACHINE, help="the Scaleway processor machine")
+    parser.add_argument("--class", dest="machine_class", default=MACHINE, help="the processor machine's capability class")
     parser.add_argument("--hold", action="store_true", help="keep the machine for ssh work until `release`")
     parser.add_argument("--at-once", type=int, default=4, help="jobs side by side (default 4)")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
@@ -197,12 +190,12 @@ def main():
     for job in jobs:
         if not (job / "spec.json").exists():
             raise SystemExit(f"{job} holds no spec.json")
-    project = scaleway.project_id()
-    batch.sweep(project)
-    found, allowed_minutes = price(jobs, options.type, project, options.hold, options.at_once)
+    account = cloud.account()
+    batch.sweep(account)
+    found, allowed_minutes = price(jobs, options.machine_class, account, options.hold, options.at_once)
     if options.dry_run:
         return
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     run = pictures.Run(batch.BATCHES / time.strftime("infinigen-%Y%m%d-%H%M%S"), time.time() + allowed_minutes * 60)
     run.started = time.time()
@@ -210,9 +203,9 @@ def main():
     batch.say(f"run folder {run.folder} ({options.who})")
     machine, ended = None, {}
     try:
-        machine = batch.claim(run, project, found, 1)
+        machine = batch.claim(run, account, found, 1)
         if machine is None:
-            raise SystemExit(f"no {options.type} could be rented")
+            raise SystemExit(f"no {options.machine_class} machine could be rented")
         ended = work_on(run, machine, jobs, options.hold, options.at_once)
     finally:
         for rented in run.machines:

@@ -6,7 +6,7 @@ only finds; fetching, trimming and the loudness rule are the same for every cand
 
 - **MOSS** (the default, the owner's call 2026-10-06): the takes MOSS-SoundEffect v2.0 made on a rented card for
   each sound's prompts (`tools/props/cloud/moss_sound.py`), each with its prompt, seed and CLAP score.
-- **Freesound**, CC0 only. With an API key (Scaleway secret `freesound-api-key`, project farm-factory; apply for
+- **Freesound**, CC0 only. With an API key (the secret `freesound-api-key`, read by `secret_store.py`; apply for
   one at https://freesound.org/apiv2/apply) it asks the API with `license:"Creative Commons 0"`; without one it
   reads the site's own search page with the same filter. Either way each candidate's licence is read again off
   its own page before it is kept, and its high-quality preview is what is fetched.
@@ -264,11 +264,12 @@ class InTheGame:
 
 
 def freesound_key():
-    """The Freesound API key from Scaleway's Secret Manager, or None when there is none yet."""
+    """The Freesound API key from the secret store (an environment variable or the cloud backend's), or None when
+    there is none yet."""
     sys.path.insert(0, str(REPO / "tools" / "props" / "cloud"))
-    import scaleway  # noqa: E402  (the one place secrets are read)
+    import secret_store  # noqa: E402  (the one place secrets are read)
     try:
-        return scaleway.secret("freesound-api-key")
+        return secret_store.secret("freesound-api-key")
     except Exception as missing:  # the secret not made yet is the usual case, said and not hidden
         print(f"picker: no Freesound API key ({type(missing).__name__}); reading the site's CC0 search instead")
         return None
