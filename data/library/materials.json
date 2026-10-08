@@ -1,0 +1,3040 @@
+{
+	"is": "the base theme's material library (robust route, 2026-10-06): families of rule-based materials every room takes by name; shape comes from models and code, material only from here. Each variant is a ProcFunc recipe (tools/props/library/recipes.py) with its settings; add variants, never edit one a room already uses",
+	"wear_levels": {
+		"new": 0.0,
+		"worked": 0.4,
+		"worn": 0.8
+	},
+	"dirt": "frass",
+	"recipes": {
+		"painted_metal": {
+			"bare": "steel",
+			"roughness": 0.5,
+			"bare_roughness": 0.35,
+			"metal": 0.0,
+			"bump": 0.0004,
+			"bump_size": 0.012,
+			"edge_width": 0.006,
+			"breakup_scale": 8.0,
+			"dirt_reach": 0.08
+		},
+		"bare_metal": {
+			"roughness": 0.38,
+			"metal": 0.5,
+			"bump": 0.0002,
+			"bump_size": 0.05,
+			"dirt_reach": 0.08
+		},
+		"cast_metal": {
+			"roughness": 0.6,
+			"metal": 0.4,
+			"bump": 0.0008,
+			"bump_size": 0.004,
+			"dirt_reach": 0.06
+		},
+		"perforated_metal": {
+			"second": "ink-line",
+			"roughness": 0.5,
+			"metal": 0.0,
+			"pitch": 0.025,
+			"hole_share": 0.45,
+			"dirt_reach": 0.06
+		},
+		"chequer_plate": {
+			"roughness": 0.45,
+			"metal": 0.5,
+			"pitch": 0.035,
+			"bump": 0.0025,
+			"dirt_reach": 0.05
+		},
+		"galvanized": {
+			"second": "hull",
+			"roughness": 0.45,
+			"metal": 0.5,
+			"cell_size": 0.02,
+			"contrast": 0.25,
+			"dirt_reach": 0.06
+		},
+		"anodized": {
+			"roughness": 0.35,
+			"metal": 0.6,
+			"bump": 0.0001,
+			"bump_size": 0.02
+		},
+		"rubber": {
+			"roughness": 0.85,
+			"bump": 0.0002,
+			"bump_size": 0.002,
+			"dirt_reach": 0.05,
+			"dirt_share": 0.5
+		},
+		"quilted": {
+			"second": "cabin-seam",
+			"roughness": 0.9,
+			"quilt_size": 0.12,
+			"puff": 0.004,
+			"seam_width": 0.06,
+			"dirt_reach": 0.05
+		},
+		"composite": {
+			"second": "ink-line",
+			"roughness": 0.35,
+			"weave": 0.006,
+			"bump": 0.0002
+		},
+		"glass": {
+			"roughness": 0.05
+		},
+		"glowing": {
+			"roughness": 0.3
+		},
+		"screen": {
+			"roughness": 0.1
+		},
+		"printed": {
+			"roughness": 0.6
+		},
+		"wood": {
+			"roughness": 0.7,
+			"bump": 0.0005,
+			"bump_size": 0.01,
+			"dirt_reach": 0.05
+		},
+		"painted_plaster": {
+			"bare": "concrete",
+			"roughness": 0.8,
+			"bare_roughness": 0.9,
+			"bump": 0.0005,
+			"bump_size": 0.03,
+			"edge_width": 0.008,
+			"breakup_scale": 6.0,
+			"dirt_reach": 0.1
+		},
+		"tiles": {
+			"second": "concrete",
+			"roughness": 0.25,
+			"pitch": 0.15,
+			"grout": 0.004,
+			"bump": 0.0006,
+			"dirt_reach": 0.05
+		},
+		"terrazzo": {
+			"second": "flat-wall",
+			"roughness": 0.35,
+			"chip_size": 0.008,
+			"chip_share": 0.4,
+			"contrast": 0.5,
+			"dirt_reach": 0.06
+		},
+		"boards": {
+			"bare": "board-wood",
+			"second": "ink-line",
+			"roughness": 0.6,
+			"bare_roughness": 0.75,
+			"board_width": 0.12,
+			"gap": 0.004,
+			"bump": 0.0006,
+			"breakup_scale": 1.2,
+			"dirt_reach": 0.05
+		},
+		"rusted_metal": {
+			"bare": "rust",
+			"roughness": 0.5,
+			"bare_roughness": 0.9,
+			"metal": 0.2,
+			"bump": 0.0005,
+			"bump_size": 0.012,
+			"edge_width": 0.006,
+			"breakup_scale": 5.0,
+			"dirt_reach": 0.06
+		},
+		"wet_asphalt": {
+			"second": "concrete",
+			"roughness": 0.8,
+			"wet_roughness": 0.08,
+			"chip_size": 0.012,
+			"contrast": 0.25,
+			"wet_share": 0.3,
+			"bump": 0.0004,
+			"dirt_reach": 0.05
+		}
+	},
+	"families": {
+		"painted": {
+			"is": "Painted steel panels and parts: paint over steel, worn through on the edges by the place's wear, dirty in the cavities; colours, ages and finishes",
+			"surface": "steel_plate",
+			"variants": {
+				"painted_panel": {
+					"recipe": "painted_metal",
+					"token": "hull-trim",
+					"bare": "hull",
+					"roughness": 0.31,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							400,
+							790,
+							470,
+							860
+						],
+						"said": "the submarine control room's painted wall"
+					}
+				},
+				"dark_panel": {
+					"recipe": "painted_metal",
+					"token": "cabin-panel",
+					"roughness": 0.36,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+						"box": [
+							10,
+							15,
+							280,
+							85
+						],
+						"said": "the cockpit's dark panel between screens"
+					}
+				},
+				"deck": {
+					"recipe": "painted_metal",
+					"token": "deck",
+					"edge_width": 0.008,
+					"roughness": 0.34,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							930,
+							960,
+							1070,
+							1040
+						],
+						"said": "the control room's deck"
+					}
+				},
+				"warning_paint": {
+					"recipe": "painted_metal",
+					"token": "alarm",
+					"roughness": 0.38,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							243,
+							440,
+							263,
+							700
+						],
+						"said": "the red valve manifold's pipe"
+					}
+				},
+				"hazard_paint": {
+					"recipe": "painted_metal",
+					"token": "hazard",
+					"roughness": 0.5
+				},
+				"hull_white_gloss": {
+					"recipe": "painted_metal",
+					"token": "hull",
+					"roughness": 0.3,
+					"wear_scale": 0.6,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							925,
+							420,
+							990,
+							500
+						],
+						"said": "Kibo's white rack front"
+					},
+					"bump": 0.0006,
+					"bump_size": 0.012
+				},
+				"hull_white_old": {
+					"recipe": "painted_metal",
+					"token": "hull",
+					"roughness": 0.55,
+					"wear_scale": 1.8,
+					"bump": 0.0006
+				},
+				"machine_orange": {
+					"recipe": "painted_metal",
+					"token": "machine",
+					"roughness": 0.45
+				},
+				"olive_panel": {
+					"recipe": "painted_metal",
+					"token": "flat-dado",
+					"roughness": 0.31,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc32-iss-zvezda.jpg",
+						"box": [
+							600,
+							120,
+							780,
+							250
+						],
+						"said": "Zvezda's olive wall panels"
+					},
+					"bump": 0.0006,
+					"bump_size": 0.01
+				},
+				"grey_green_panel": {
+					"recipe": "painted_metal",
+					"token": "tarp",
+					"roughness": 0.55
+				},
+				"overall_blue_panel": {
+					"recipe": "painted_metal",
+					"token": "overall",
+					"roughness": 0.45
+				},
+				"enamel_white": {
+					"recipe": "painted_metal",
+					"token": "sign-white",
+					"roughness": 0.25,
+					"wear_scale": 0.5,
+					"bump": 0.0001
+				},
+				"enamel_blue": {
+					"recipe": "painted_metal",
+					"token": "sign-blue",
+					"roughness": 0.25,
+					"wear_scale": 0.5,
+					"bump": 0.0001
+				},
+				"roof_steel_paint": {
+					"recipe": "painted_metal",
+					"token": "roof-steel",
+					"roughness": 0.5
+				},
+				"padding_grey_paint": {
+					"recipe": "painted_metal",
+					"token": "cabin-padding",
+					"roughness": 0.6
+				},
+				"oxide_primer": {
+					"recipe": "painted_metal",
+					"token": "mars-dark",
+					"roughness": 0.75,
+					"wear_scale": 1.5
+				},
+				"hammertone_grey": {
+					"recipe": "painted_metal",
+					"token": "cabin-seam",
+					"roughness": 0.45,
+					"bump": 0.0006,
+					"bump_size": 0.01
+				},
+				"hull_white_scorched": {
+					"recipe": "painted_metal",
+					"token": "hull",
+					"roughness": 0.6,
+					"wear_scale": 2.2,
+					"bump": 0.0006
+				},
+				"bay_one_paint": {
+					"recipe": "painted_metal",
+					"token": "bay-one",
+					"roughness": 0.4
+				},
+				"bay_two_paint": {
+					"recipe": "painted_metal",
+					"token": "bay-two",
+					"roughness": 0.4
+				},
+				"bay_three_paint": {
+					"recipe": "painted_metal",
+					"token": "bay-three",
+					"roughness": 0.4
+				}
+			}
+		},
+		"steel": {
+			"is": "Unpainted steel: brushed, cast, perforated, tread plate and galvanized",
+			"surface": "steel_plate",
+			"variants": {
+				"bare_steel": {
+					"recipe": "bare_metal",
+					"token": "steel",
+					"roughness": 0.5,
+					"bump": 0.0002,
+					"bump_size": 0.05,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							845,
+							620,
+							905,
+							690
+						],
+						"said": "a grey steel box beside the valves"
+					}
+				},
+				"pipe_steel": {
+					"recipe": "bare_metal",
+					"token": "roof-steel",
+					"roughness": 0.45,
+					"dirt_reach": 0.06
+				},
+				"brushed_steel_fine": {
+					"recipe": "bare_metal",
+					"token": "steel",
+					"roughness": 0.3,
+					"bump_size": 0.02
+				},
+				"cast_steel": {
+					"recipe": "cast_metal",
+					"token": "roof-steel"
+				},
+				"cast_iron_dark": {
+					"recipe": "cast_metal",
+					"token": "line",
+					"roughness": 0.7,
+					"metal": 0.3
+				},
+				"perforated_steel": {
+					"recipe": "perforated_metal",
+					"token": "steel",
+					"metal": 0.5,
+					"roughness": 0.4,
+					"surface": "steel_grating"
+				},
+				"perforated_blue_board": {
+					"recipe": "perforated_metal",
+					"token": "overall",
+					"pitch": 0.025,
+					"hole_share": 0.3,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-1.jpg",
+						"box": [
+							610,
+							330,
+							700,
+							450
+						],
+						"said": "the workshop's blue pegboard"
+					},
+					"roughness": 0.5,
+					"surface": "steel_grating"
+				},
+				"chequer_plate_steel": {
+					"recipe": "chequer_plate",
+					"token": "steel",
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-1.jpg",
+						"box": [
+							500,
+							880,
+							700,
+							1000
+						],
+						"said": "the workshop's tread-plate floor"
+					},
+					"roughness": 0.57,
+					"bump": 0.0025
+				},
+				"chequer_plate_deck": {
+					"recipe": "chequer_plate",
+					"token": "deck",
+					"metal": 0.2,
+					"roughness": 0.55
+				},
+				"galvanized_steel": {
+					"recipe": "galvanized",
+					"token": "steel"
+				},
+				"galvanized_dull": {
+					"recipe": "galvanized",
+					"token": "roof-steel",
+					"second": "steel",
+					"contrast": 0.15,
+					"roughness": 0.55
+				}
+			}
+		},
+		"aluminium": {
+			"is": "Anodized aluminium: rails, handles, fittings",
+			"surface": "steel_plate",
+			"variants": {
+				"anodized_natural": {
+					"recipe": "anodized",
+					"token": "idle"
+				},
+				"anodized_blue": {
+					"recipe": "anodized",
+					"token": "info",
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							862,
+							150,
+							884,
+							370
+						],
+						"said": "Kibo's blue handrail"
+					},
+					"roughness": 0.35,
+					"bump": 0.0001,
+					"bump_size": 0.02
+				},
+				"anodized_black": {
+					"recipe": "anodized",
+					"token": "ink-line",
+					"roughness": 0.45
+				},
+				"anodized_red": {
+					"recipe": "anodized",
+					"token": "alarm"
+				},
+				"anodized_gold": {
+					"recipe": "anodized",
+					"token": "sign-gold"
+				}
+			}
+		},
+		"rubber": {
+			"is": "Rubber: mats, gaskets, seals, feet",
+			"surface": "rubber",
+			"variants": {
+				"rubber": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.83,
+					"bump": 0.0002,
+					"bump_size": 0.002,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-2.jpg",
+						"box": [
+							420,
+							572,
+							480,
+							600
+						],
+						"said": "the bench's dark cushion"
+					}
+				},
+				"gasket_black": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.5
+				},
+				"rubber_floor_bumpy": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.8,
+					"bump": 0.0006,
+					"bump_size": 0.004
+				},
+				"rubber_grey": {
+					"recipe": "rubber",
+					"token": "idle",
+					"roughness": 0.85
+				}
+			}
+		},
+		"plastic": {
+			"is": "Plastic and vinyl: soft-touch covers, seats, housings",
+			"surface": "rubber",
+			"variants": {
+				"vinyl_cabin": {
+					"recipe": "rubber",
+					"token": "cabin-padding",
+					"roughness": 0.65
+				},
+				"vinyl_seat": {
+					"recipe": "rubber",
+					"token": "cabin-seat",
+					"roughness": 0.6
+				},
+				"vinyl_orange": {
+					"recipe": "rubber",
+					"token": "ship-padding",
+					"roughness": 0.6
+				},
+				"plastic_grey": {
+					"recipe": "rubber",
+					"token": "idle",
+					"roughness": 0.5,
+					"bump": 0.0001
+				},
+				"plastic_white": {
+					"recipe": "rubber",
+					"token": "hull",
+					"roughness": 0.45,
+					"bump": 0.0001
+				},
+				"barrier_red": {
+					"recipe": "rubber",
+					"token": "sign-red",
+					"roughness": 0.55,
+					"bump": 0.0002,
+					"bump_size": 0.02
+				},
+				"barrier_white": {
+					"recipe": "rubber",
+					"token": "sign-white",
+					"roughness": 0.55,
+					"bump": 0.0002,
+					"bump_size": 0.02
+				}
+			}
+		},
+		"cable": {
+			"is": "Cable sheathing in the colours cables are coded in",
+			"surface": "rubber",
+			"variants": {
+				"cable_black": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.23,
+					"dirt_share": 0.3,
+					"reference": {
+						"picture": "WORK/references/hub-directions/industrial-1.jpg",
+						"box": [
+							450,
+							780,
+							600,
+							830
+						],
+						"said": "a coil of black cable"
+					},
+					"bump": 0.00036,
+					"bump_size": 0.01
+				},
+				"cable_grey": {
+					"recipe": "rubber",
+					"token": "cabin-seam",
+					"roughness": 0.4,
+					"dirt_share": 0.3
+				},
+				"cable_orange": {
+					"recipe": "rubber",
+					"token": "machine",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				},
+				"cable_red": {
+					"recipe": "rubber",
+					"token": "alarm",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				},
+				"cable_blue": {
+					"recipe": "rubber",
+					"token": "sign-blue",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				},
+				"cable_yellow": {
+					"recipe": "rubber",
+					"token": "hazard",
+					"roughness": 0.35,
+					"dirt_share": 0.3
+				}
+			}
+		},
+		"fabric": {
+			"is": "Fabric and quilted insulation: blankets, padding, soft bags",
+			"surface": "padding",
+			"variants": {
+				"quilted_white": {
+					"recipe": "quilted",
+					"token": "hull",
+					"second": "cabin-seam",
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							250,
+							520,
+							450,
+							590
+						],
+						"said": "Kibo's soft white floor panels"
+					},
+					"roughness": 0.95,
+					"puff": 0.004
+				},
+				"quilted_beige": {
+					"recipe": "quilted",
+					"token": "flat-wall",
+					"second": "line"
+				},
+				"quilted_grey": {
+					"recipe": "quilted",
+					"token": "cabin-padding",
+					"second": "cabin-seam",
+					"quilt_size": 0.08
+				},
+				"canvas_beige": {
+					"recipe": "rubber",
+					"token": "flat-wall",
+					"roughness": 0.68,
+					"bump": 0.00054,
+					"bump_size": 0.001,
+					"reference": {
+						"picture": "WORK/references/hub-directions/hc36-iss-kibo.jpg",
+						"box": [
+							440,
+							100,
+							500,
+							160
+						],
+						"said": "a beige stowage bag"
+					}
+				},
+				"quilt_cotton": {
+					"recipe": "quilted",
+					"token": "quilt",
+					"second": "ink-line",
+					"quilt_size": 0.15,
+					"seam_width": 0.04,
+					"puff": 0.003
+				},
+				"cotton_white": {
+					"recipe": "rubber",
+					"token": "sign-white",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.01
+				},
+				"flag_red": {
+					"recipe": "rubber",
+					"token": "sign-red",
+					"roughness": 0.85,
+					"bump": 0.0002,
+					"bump_size": 0.01
+				},
+				"foliage_leaf": {
+					"recipe": "rubber",
+					"token": "foliage",
+					"roughness": 0.7,
+					"bump": 0.0002,
+					"bump_size": 0.01
+				},
+				"regolith_bag": {
+					"recipe": "rubber",
+					"token": "regolith",
+					"roughness": 0.92,
+					"bump": 0.0006,
+					"bump_size": 0.004
+				}
+			}
+		},
+		"composite": {
+			"is": "Woven composite panels",
+			"surface": "steel_plate",
+			"variants": {
+				"composite_grey": {
+					"recipe": "composite",
+					"token": "cabin-seam",
+					"second": "ink-line"
+				},
+				"carbon_fibre": {
+					"recipe": "composite",
+					"token": "line",
+					"second": "ink-line",
+					"roughness": 0.25
+				},
+				"glass_fibre_panel": {
+					"recipe": "composite",
+					"token": "flat-wall",
+					"second": "cabin-seam",
+					"weave": 0.01
+				},
+				"solar_cell": {
+					"recipe": "glass",
+					"token": "solar-panel",
+					"roughness": 0.18
+				}
+			}
+		},
+		"glass": {
+			"is": "Glass that is drawn, not seen through: dark, frosted, tinted",
+			"surface": "glass",
+			"variants": {
+				"glass": {
+					"recipe": "glass",
+					"token": "glass",
+					"roughness": 0.05
+				},
+				"glass_frosted": {
+					"recipe": "glass",
+					"token": "cabin-light",
+					"roughness": 0.6
+				},
+				"glass_tinted": {
+					"recipe": "glass",
+					"token": "night-horizon",
+					"roughness": 0.08
+				}
+			}
+		},
+		"screen": {
+			"is": "Screens: dark glass, the content lit from behind; and a screen switched off",
+			"surface": "glass",
+			"variants": {
+				"screen": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "screen_status"
+				},
+				"screen_amber": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "screen_readout"
+				},
+				"screen_off": {
+					"recipe": "glass",
+					"token": "ink-line",
+					"roughness": 0.1
+				},
+				"lamp_strip": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "lamp_strip"
+				},
+				"exit_sign": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "exit_sign"
+				},
+				"tv_leader": {
+					"recipe": "screen",
+					"token": "ink-line",
+					"picture": "tv_leader"
+				}
+			}
+		},
+		"light": {
+			"is": "Things that give light: lamp lenses and LEDs",
+			"surface": "glass",
+			"variants": {
+				"lamp_lens": {
+					"recipe": "glowing",
+					"token": "lamp"
+				},
+				"led_green": {
+					"recipe": "glowing",
+					"token": "beacon-ok"
+				},
+				"led_red": {
+					"recipe": "glowing",
+					"token": "beacon-stuck"
+				},
+				"led_amber": {
+					"recipe": "glowing",
+					"token": "screen-amber"
+				},
+				"led_white": {
+					"recipe": "glowing",
+					"token": "cabin-light"
+				},
+				"window_lit": {
+					"recipe": "glowing",
+					"token": "window-lit"
+				},
+				"lantern_glow": {
+					"recipe": "glowing",
+					"token": "lantern"
+				},
+				"floodlight_lens": {
+					"recipe": "glowing",
+					"token": "floodlight"
+				},
+				"sign_lit": {
+					"recipe": "glowing",
+					"token": "sign-lit"
+				}
+			}
+		},
+		"print": {
+			"is": "Labels, plates and stencils: a picture printed on a colour",
+			"surface": "steel_plate",
+			"variants": {
+				"label_access": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_access"
+				},
+				"label_west_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_west_hatch"
+				},
+				"label_porthole": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_porthole"
+				},
+				"keypad_print": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "keypad_print",
+					"roughness": 0.4
+				},
+				"stencil_number": {
+					"recipe": "printed",
+					"token": "hull-trim",
+					"picture": "stencil_number"
+				},
+				"label_east_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_east_hatch"
+				},
+				"label_north_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_north_hatch"
+				},
+				"label_south_hatch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_south_hatch"
+				},
+				"intercom_print": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "intercom_print"
+				},
+				"notice_sheets": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "notice_sheets",
+					"roughness": 0.8
+				},
+				"label_airlock": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_airlock"
+				},
+				"label_pressure_door": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pressure_door"
+				},
+				"label_check_seal": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "label_check_seal"
+				},
+				"label_air_return": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_air_return"
+				},
+				"label_locker_a": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_locker_a"
+				},
+				"label_locker_b": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_locker_b"
+				},
+				"label_comms": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_comms"
+				},
+				"label_radio": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_radio"
+				},
+				"label_operations": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_operations"
+				},
+				"label_main_bus": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "label_main_bus"
+				},
+				"label_sign_out": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sign_out"
+				},
+				"sheet_eva": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_eva",
+					"roughness": 0.85
+				},
+				"sheet_roster": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_roster",
+					"roughness": 0.85
+				},
+				"sheet_log": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_log",
+					"roughness": 0.85
+				},
+				"sheet_plan": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_plan",
+					"roughness": 0.85
+				},
+				"sheet_spares": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_spares",
+					"roughness": 0.85
+				},
+				"note_filter": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_filter",
+					"roughness": 0.9
+				},
+				"note_link": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_link",
+					"roughness": 0.9
+				},
+				"note_channel": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_channel",
+					"roughness": 0.9
+				},
+				"stencil_keep_clear": {
+					"recipe": "printed",
+					"token": "cabin-panel",
+					"picture": "stencil_keep_clear",
+					"roughness": 0.6
+				},
+				"stencil_service_panel": {
+					"recipe": "printed",
+					"token": "cabin-panel",
+					"picture": "stencil_service_panel",
+					"roughness": 0.6
+				},
+				"label_cable_run": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_cable_run"
+				},
+				"label_caution_hot": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "label_caution_hot"
+				},
+				"label_storage_a": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_storage_a"
+				},
+				"label_life_support": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_life_support"
+				},
+				"label_air": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_air"
+				},
+				"label_power": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_power"
+				},
+				"label_water": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_water"
+				},
+				"label_handset": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_handset"
+				},
+				"label_temp": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_temp"
+				},
+				"label_control_box": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_control_box"
+				},
+				"label_circuit": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_circuit"
+				},
+				"sheet_main_box": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_main_box",
+					"roughness": 0.85
+				},
+				"label_junction": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_junction"
+				},
+				"label_samples": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_samples"
+				},
+				"label_tools": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_tools"
+				},
+				"label_glovebox": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_glovebox"
+				},
+				"label_waste": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_waste"
+				},
+				"toolboard_outlines": {
+					"recipe": "printed",
+					"token": "board-wood",
+					"picture": "toolboard_outlines",
+					"roughness": 0.8
+				},
+				"flat_poster_red": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "flat_poster_red",
+					"roughness": 0.8
+				},
+				"flat_calendar": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "flat_calendar",
+					"roughness": 0.85
+				},
+				"flat_family_photo": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "flat_family_photo",
+					"roughness": 0.3
+				},
+				"couplet_left": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "couplet_left",
+					"roughness": 0.85
+				},
+				"couplet_right": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "couplet_right",
+					"roughness": 0.85
+				},
+				"couplet_top": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "couplet_top",
+					"roughness": 0.85
+				},
+				"fu_luck": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "fu_luck",
+					"roughness": 0.85
+				},
+				"poster_moon_flight": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "poster_moon_flight",
+					"roughness": 0.85
+				},
+				"notice_residents": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "notice_residents",
+					"roughness": 0.85
+				},
+				"floor_3": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_3",
+					"roughness": 0.8
+				},
+				"floor_2": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_2",
+					"roughness": 0.8
+				},
+				"floor_1": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_1",
+					"roughness": 0.8
+				},
+				"floor_g": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "floor_g",
+					"roughness": 0.8
+				},
+				"lobby_sheets": {
+					"recipe": "printed",
+					"token": "board-wood",
+					"picture": "lobby_sheets",
+					"roughness": 0.85
+				},
+				"label_sleep_pod": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sleep_pod"
+				},
+				"label_berth_1": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_berth_1"
+				},
+				"label_berth_2": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_berth_2"
+				},
+				"label_control": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_control"
+				},
+				"label_crew_lkr_1": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_1"
+				},
+				"label_crew_lkr_2": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_2"
+				},
+				"label_crew_lkr_3": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_3"
+				},
+				"label_crew_lkr_4": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lkr_4"
+				},
+				"note_crew_keep_shut": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_crew_keep_shut",
+					"roughness": 0.9
+				},
+				"label_food_pack": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_food_pack"
+				},
+				"label_food_storage": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_food_storage"
+				},
+				"label_rations": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_rations"
+				},
+				"label_medical_supplies": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_medical_supplies"
+				},
+				"label_first_aid": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_first_aid"
+				},
+				"note_stock_check": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_stock_check",
+					"roughness": 0.9
+				},
+				"stencil_med_store": {
+					"recipe": "printed",
+					"token": "hull-trim",
+					"picture": "stencil_med_store"
+				},
+				"label_hygiene": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_hygiene"
+				},
+				"note_clean_daily": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_clean_daily",
+					"roughness": 0.9
+				},
+				"note_use_sparingly": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_use_sparingly",
+					"roughness": 0.9
+				},
+				"label_storage": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_storage"
+				},
+				"label_sink": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sink"
+				},
+				"label_electric_hob": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_electric_hob"
+				},
+				"label_mess_table": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_mess_table"
+				},
+				"label_clean_after_use": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_clean_after_use"
+				},
+				"label_base_property": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_base_property"
+				},
+				"label_exam_couch": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_exam_couch"
+				},
+				"label_airlock_leaf": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_airlock_leaf"
+				},
+				"stencil_suit_up_bench": {
+					"recipe": "printed",
+					"token": "steel",
+					"picture": "stencil_suit_up_bench",
+					"roughness": 0.6
+				},
+				"label_suit_up": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_suit_up"
+				},
+				"note_bench": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_bench",
+					"roughness": 0.9
+				},
+				"label_cycle": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_cycle"
+				},
+				"note_cycle": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_cycle",
+					"roughness": 0.9
+				},
+				"label_meter": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_meter"
+				},
+				"label_fan_unit": {
+					"recipe": "printed",
+					"token": "ink-line",
+					"picture": "label_fan_unit"
+				},
+				"label_high_voltage": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "label_high_voltage"
+				},
+				"sheet_maintenance": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_maintenance",
+					"roughness": 0.85
+				},
+				"stencil_do_not_cover": {
+					"recipe": "printed",
+					"token": "steel",
+					"picture": "stencil_do_not_cover",
+					"roughness": 0.6
+				},
+				"sign_pressure_hatch": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_pressure_hatch"
+				},
+				"sign_hub": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_hub"
+				},
+				"sign_greenhouse": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_greenhouse"
+				},
+				"sign_workshop": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_workshop"
+				},
+				"sign_airlock": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_airlock"
+				},
+				"sign_habitat": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_habitat"
+				},
+				"sign_lab": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_lab"
+				},
+				"sign_garage": {
+					"recipe": "printed",
+					"token": "hazard",
+					"picture": "sign_garage"
+				},
+				"stencil_spacexcitement": {
+					"recipe": "printed",
+					"token": "hull",
+					"picture": "stencil_spacexcitement"
+				},
+				"stencil_cargo": {
+					"recipe": "printed",
+					"token": "hull",
+					"picture": "stencil_cargo"
+				},
+				"stencil_samples_bt": {
+					"recipe": "printed",
+					"token": "hull",
+					"picture": "stencil_samples_bt"
+				},
+				"label_fission_unit": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_fission_unit"
+				},
+				"label_keep_out": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_keep_out"
+				},
+				"label_ice_drill": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_ice_drill"
+				},
+				"label_camp_radio": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_camp_radio"
+				},
+				"label_robot_bay": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_robot_bay"
+				},
+				"label_clamp_foot": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_clamp_foot"
+				},
+				"label_data_monitor": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_data_monitor"
+				},
+				"label_power_coolant": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_power_coolant"
+				},
+				"label_wrenches": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_wrenches"
+				},
+				"label_sockets": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_sockets"
+				},
+				"label_spares": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_spares"
+				},
+				"label_parts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_parts"
+				},
+				"note_ship_to": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_ship_to"
+				},
+				"stencil_part_number": {
+					"recipe": "printed",
+					"token": "flat-wall",
+					"picture": "stencil_part_number"
+				},
+				"label_esd_safe": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_esd_safe"
+				},
+				"label_oscilloscope": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_oscilloscope"
+				},
+				"label_multimeter": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_multimeter"
+				},
+				"label_bolts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_bolts"
+				},
+				"label_nuts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_nuts"
+				},
+				"label_washers": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_washers"
+				},
+				"label_screws": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_screws"
+				},
+				"label_fuses": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_fuses"
+				},
+				"label_resistors": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_resistors"
+				},
+				"label_spacexcitement": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_spacexcitement"
+				},
+				"label_galley": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_galley"
+				},
+				"label_cold_store": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_cold_store"
+				},
+				"label_chamber": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_chamber"
+				},
+				"label_crew_lockers": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crew_lockers"
+				},
+				"stencil_case": {
+					"recipe": "printed",
+					"token": "hull-trim",
+					"picture": "stencil_case"
+				},
+				"note_crew": {
+					"recipe": "printed",
+					"token": "warn",
+					"picture": "note_crew",
+					"roughness": 0.9
+				},
+				"sheet_rations": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "sheet_rations",
+					"roughness": 0.85
+				},
+				"flat_astronaut_poster": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "flat_astronaut_poster",
+					"roughness": 0.8
+				},
+				"label_grow_light": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_grow_light"
+				},
+				"note_check_cables": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_check_cables",
+					"roughness": 0.9
+				},
+				"label_rail_load": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_rail_load"
+				},
+				"label_ledge_cover": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_ledge_cover"
+				},
+				"note_ledge_cover": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_ledge_cover",
+					"roughness": 0.9
+				},
+				"label_inspection": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_inspection"
+				},
+				"label_boom": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_boom"
+				},
+				"label_seed": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_seed"
+				},
+				"label_soil": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_soil"
+				},
+				"label_crops": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crops"
+				},
+				"label_charge": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_charge"
+				},
+				"label_plug": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_plug"
+				},
+				"label_potable": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_potable"
+				},
+				"label_pump_a": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pump_a"
+				},
+				"label_pump_b": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pump_b"
+				},
+				"label_pump_c": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pump_c"
+				},
+				"label_dose_meter": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_dose_meter"
+				},
+				"label_main_unit": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_main_unit"
+				},
+				"label_nutrient_supply": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_nutrient_supply"
+				},
+				"label_humidifier": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_humidifier"
+				},
+				"label_grow_control": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_grow_control"
+				},
+				"label_caution_voltage": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_caution_voltage"
+				},
+				"label_station_log": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_station_log"
+				},
+				"label_data_entry": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_data_entry"
+				},
+				"label_spare_parts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_spare_parts"
+				}
+			}
+		},
+		"wood": {
+			"is": "Plain timber boards: a flat colour and a soft relief; a piece's grain and wear come from its own picture layer",
+			"surface": "steel_plate",
+			"variants": {
+				"wood_board": {
+					"recipe": "wood",
+					"token": "board-wood"
+				},
+				"varnished_wood": {
+					"recipe": "wood",
+					"token": "varnish",
+					"roughness": 0.35
+				},
+				"painted_floorboards": {
+					"recipe": "boards",
+					"token": "floorboard"
+				}
+			}
+		},
+		"plaster": {
+			"is": "Paint on rendered plaster and concrete, Earth (prologue build, 2026-10-07): whitewash and gloss paint chipped to the bare render on edges and scuffed at the foot of a wall by feet; bare render and concrete",
+			"surface": "plaster",
+			"variants": {
+				"whitewash": {
+					"recipe": "painted_plaster",
+					"token": "flat-wall"
+				},
+				"gloss_dado": {
+					"recipe": "painted_plaster",
+					"token": "flat-dado",
+					"roughness": 0.3
+				},
+				"ceiling_whitewash": {
+					"recipe": "painted_plaster",
+					"token": "flat-wall",
+					"roughness": 0.85,
+					"wear_scale": 0.3
+				},
+				"facade_paint": {
+					"recipe": "painted_plaster",
+					"token": "flat-wall",
+					"bare": "concrete",
+					"roughness": 0.85,
+					"wear_scale": 1.4,
+					"breakup_scale": 3.0
+				},
+				"concrete": {
+					"recipe": "cast_metal",
+					"token": "concrete",
+					"metal": 0.0,
+					"roughness": 0.88,
+					"bump": 0.0006,
+					"bump_size": 0.02
+				},
+				"concrete_dark": {
+					"recipe": "cast_metal",
+					"token": "rock",
+					"metal": 0.0,
+					"roughness": 0.9,
+					"bump": 0.0006,
+					"bump_size": 0.02
+				}
+			}
+		},
+		"tile": {
+			"is": "Ceramic, stone and terrazzo floors and walls, Earth: glazed tiles in grout, paving, terrazzo",
+			"surface": "stone",
+			"variants": {
+				"wall_tile_white": {
+					"recipe": "tiles",
+					"token": "tile"
+				},
+				"paving_stone": {
+					"recipe": "tiles",
+					"token": "concrete",
+					"second": "rock",
+					"roughness": 0.85,
+					"pitch": 0.6,
+					"grout": 0.008
+				},
+				"square_paving": {
+					"recipe": "tiles",
+					"token": "flat-wall",
+					"second": "concrete",
+					"roughness": 0.8,
+					"pitch": 1.0,
+					"grout": 0.01
+				},
+				"terrazzo_floor": {
+					"recipe": "terrazzo",
+					"token": "flat-floor"
+				},
+				"stair_terrazzo": {
+					"recipe": "terrazzo",
+					"token": "flat-floor",
+					"second": "concrete",
+					"contrast": 0.3,
+					"roughness": 0.45
+				}
+			}
+		},
+		"ground": {
+			"is": "Roads and outdoor ground, Earth: asphalt after rain",
+			"surface": "asphalt",
+			"variants": {
+				"wet_asphalt": {
+					"recipe": "wet_asphalt",
+					"token": "asphalt"
+				},
+				"road_line_paint": {
+					"recipe": "painted_plaster",
+					"token": "sign-white",
+					"bare": "asphalt",
+					"roughness": 0.6,
+					"wear_scale": 1.6
+				}
+			}
+		},
+		"rusted": {
+			"is": "Painted mild steel outdoors, Earth: grilles, gates, rails, lamp posts, rusting where the paint lets the rain in",
+			"surface": "steel_plate",
+			"variants": {
+				"grille_paint": {
+					"recipe": "rusted_metal",
+					"token": "roof-steel",
+					"wear_scale": 0.8
+				},
+				"rail_green": {
+					"recipe": "rusted_metal",
+					"token": "flat-dado",
+					"roughness": 0.4,
+					"wear_scale": 0.6
+				},
+				"gate_grey": {
+					"recipe": "rusted_metal",
+					"token": "hull-trim",
+					"wear_scale": 1.0
+				},
+				"post_dark": {
+					"recipe": "rusted_metal",
+					"token": "line",
+					"wear_scale": 0.7
+				}
+			}
+		},
+		"mars_surface": {
+			"is": "Mars's ground and rock, and what Mars's dust does to a made surface: regolith, sand, basalt, layered rock, dust-coated paint and the camp's soft goods and stainless (mars-build, 2026-10-07)",
+			"surface": "rubber",
+			"variants": {
+				"mars_regolith": {
+					"recipe": "rubber",
+					"token": "mars-dust",
+					"roughness": 0.95,
+					"bump": 0.0006,
+					"bump_size": 0.006,
+					"dirt_share": 0.2,
+					"said": "loose rocky dust ground, mars-build concept refs (Commons, NASA public domain)"
+				},
+				"mars_sand": {
+					"recipe": "rubber",
+					"token": "mars-dust",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.0015,
+					"dirt_share": 0.1,
+					"said": "fine wind-sorted sand of a dune, mars-build concept refs (Commons, NASA public domain)"
+				},
+				"mars_basalt": {
+					"recipe": "cast_metal",
+					"token": "mars-dark",
+					"roughness": 0.85,
+					"metal": 0.0,
+					"bump": 0.0012,
+					"bump_size": 0.006,
+					"dirt_reach": 0.1,
+					"said": "dark vesicular basalt boulders, mars-build concept refs (Commons, NASA public domain)"
+				},
+				"mars_layered_rock": {
+					"recipe": "wood",
+					"token": "mars-dust",
+					"roughness": 0.9,
+					"bump": 0.0008,
+					"bump_size": 0.03,
+					"dirt_reach": 0.08,
+					"said": "fine-layered sedimentary rock of a butte, mars-build concept refs (Commons, NASA public domain)"
+				},
+				"dust_coated_paint": {
+					"recipe": "painted_metal",
+					"token": "hull",
+					"bare": "steel",
+					"roughness": 0.7,
+					"bump": 0.0005,
+					"bump_size": 0.008,
+					"dirt_reach": 0.2,
+					"said": "white paint under a film of Mars dust, deepest in the cavities and low down"
+				},
+				"beta_cloth": {
+					"recipe": "rubber",
+					"token": "hull",
+					"roughness": 0.92,
+					"bump": 0.0002,
+					"bump_size": 0.0008,
+					"dirt_share": 0.6,
+					"dirt_reach": 0.12,
+					"said": "the woven soft-goods shell of an inflatable (BEAM, TransHab refs)"
+				},
+				"stainless_lander": {
+					"recipe": "bare_metal",
+					"token": "steel",
+					"roughness": 0.22,
+					"bump": 0.0001,
+					"bump_size": 0.03,
+					"said": "the lander's brushed stainless skin (private-company ship ref)"
+				}
+			}
+		},
+		"foil": {
+			"is": "Thermal blankets outside on the Moon: multi-layer insulation foil, crinkled (job place, 2026-10-07: the old station and the wreck)",
+			"surface": "steel_plate",
+			"variants": {
+				"mli_gold": {
+					"recipe": "anodized",
+					"token": "sign-gold",
+					"roughness": 0.42,
+					"metal": 0.55,
+					"bump": 0.0006,
+					"bump_size": 0.03
+				},
+				"mli_silver": {
+					"recipe": "anodized",
+					"token": "steel",
+					"roughness": 0.36,
+					"metal": 0.6,
+					"bump": 0.0006,
+					"bump_size": 0.03
+				}
+			}
+		},
+		"growing": {
+			"is": "What grows in the base's beds and trays: potting soil and young leaves, flat colour by region (the ink look), a fine relief only",
+			"surface": "rubber",
+			"variants": {
+				"potting_soil": {
+					"recipe": "rubber",
+					"token": "soil",
+					"roughness": 0.95,
+					"bump": 0.0006,
+					"bump_size": 0.006,
+					"dirt_share": 0.0,
+					"said": "the plot's own soil colour (PlotField's soil ink)"
+				},
+				"seedling_leaf": {
+					"recipe": "rubber",
+					"token": "crop-green",
+					"roughness": 0.6,
+					"bump": 0.0002,
+					"bump_size": 0.01,
+					"said": "the plot's young crop green (PlotField's crop ink)"
+				}
+			}
+		}
+	},
+	"pictures": {
+		"screen_status": {
+			"style": "status",
+			"title": "LIFE SUPPORT",
+			"rows": [
+				[
+					"CABIN",
+					"101.3 kPa"
+				],
+				[
+					"OXYGEN",
+					"21.0 %"
+				],
+				[
+					"TEMP",
+					"21.5 \u00b0C"
+				],
+				[
+					"POWER",
+					"NOMINAL"
+				]
+			],
+			"ink": "screen-teal"
+		},
+		"screen_readout": {
+			"style": "readout",
+			"title": "HATCH",
+			"value": "LOCKED",
+			"ink": "screen-amber"
+		},
+		"label_access": {
+			"style": "label",
+			"text": "ACCESS CONTROL",
+			"ink": "ink-line"
+		},
+		"label_west_hatch": {
+			"style": "label",
+			"text": "WEST HATCH",
+			"ink": "ink-line"
+		},
+		"label_porthole": {
+			"style": "label",
+			"text": "VIEWPORT",
+			"ink": "ink-line"
+		},
+		"keypad_print": {
+			"style": "keypad",
+			"ink": "sign-white"
+		},
+		"stencil_number": {
+			"style": "stencil",
+			"text": "07",
+			"ink": "ink-line"
+		},
+		"label_east_hatch": {
+			"style": "label",
+			"text": "EAST HATCH",
+			"ink": "ink-line"
+		},
+		"label_north_hatch": {
+			"style": "label",
+			"text": "NORTH HATCH",
+			"ink": "ink-line"
+		},
+		"label_south_hatch": {
+			"style": "label",
+			"text": "SOUTH HATCH",
+			"ink": "ink-line"
+		},
+		"notice_sheets": {
+			"style": "notice",
+			"ink": "ink-line",
+			"sheets": [
+				[
+					"SAFETY",
+					6
+				],
+				[
+					"DUTY ROSTER",
+					7
+				],
+				[
+					"PRESSURE LOG",
+					5
+				]
+			]
+		},
+		"intercom_print": {
+			"style": "label",
+			"text": "INTERCOM",
+			"ink": "ink-line"
+		},
+		"label_airlock": {
+			"style": "label",
+			"text": "AIRLOCK",
+			"ink": "ink-line"
+		},
+		"console_systems": {
+			"style": "status",
+			"title": "BASE SYSTEMS",
+			"rows": [
+				[
+					"POWER",
+					"4.2 kW"
+				],
+				[
+					"WATER",
+					"312 L"
+				],
+				[
+					"AIR",
+					"NOMINAL"
+				],
+				[
+					"ROBOTS",
+					"1 ACTIVE"
+				]
+			],
+			"ink": "screen-teal"
+		},
+		"lamp_strip": {
+			"style": "lens",
+			"ink": "lamp"
+		},
+		"label_pressure_door": {
+			"style": "label",
+			"text": "PRESSURE DOOR",
+			"ink": "ink-line"
+		},
+		"label_check_seal": {
+			"style": "label",
+			"text": "CHECK SEAL",
+			"ink": "ink-line"
+		},
+		"label_air_return": {
+			"style": "label",
+			"text": "AIR RETURN",
+			"ink": "ink-line"
+		},
+		"label_locker_a": {
+			"style": "label",
+			"text": "LOCKER A",
+			"ink": "ink-line"
+		},
+		"label_locker_b": {
+			"style": "label",
+			"text": "LOCKER B",
+			"ink": "ink-line"
+		},
+		"label_comms": {
+			"style": "label",
+			"text": "COMMS",
+			"ink": "ink-line"
+		},
+		"label_radio": {
+			"style": "label",
+			"text": "RADIO 1",
+			"ink": "ink-line"
+		},
+		"label_operations": {
+			"style": "label",
+			"text": "OPERATIONS",
+			"ink": "ink-line"
+		},
+		"label_main_bus": {
+			"style": "label",
+			"text": "MAIN BUS 2",
+			"ink": "ink-line"
+		},
+		"label_sign_out": {
+			"style": "label",
+			"text": "SIGN TOOLS OUT",
+			"ink": "ink-line"
+		},
+		"sheet_eva": {
+			"style": "sheet",
+			"title": "BEFORE EVA",
+			"lines": 7,
+			"ink": "ink-line"
+		},
+		"sheet_roster": {
+			"style": "sheet",
+			"title": "DUTY ROSTER",
+			"lines": 8,
+			"ink": "ink-line",
+			"table": true
+		},
+		"sheet_log": {
+			"style": "sheet",
+			"title": "PRESSURE LOG",
+			"lines": 8,
+			"ink": "ink-line",
+			"table": true
+		},
+		"sheet_plan": {
+			"style": "plan",
+			"title": "HUB LEVEL 1",
+			"ink": "ink-line"
+		},
+		"sheet_spares": {
+			"style": "sheet",
+			"title": "SUIT SPARES",
+			"lines": 5,
+			"ink": "ink-line"
+		},
+		"note_filter": {
+			"style": "note",
+			"lines": [
+				"CO2 FILTER",
+				"DUE SOL 14"
+			],
+			"ink": "ink-line"
+		},
+		"note_link": {
+			"style": "note",
+			"lines": [
+				"EARTH LINK",
+				"06:00"
+			],
+			"ink": "ink-line"
+		},
+		"note_channel": {
+			"style": "note",
+			"lines": [
+				"MISSION",
+				"CH 2"
+			],
+			"ink": "ink-line"
+		},
+		"stencil_keep_clear": {
+			"style": "stencil",
+			"text": "KEEP CLEAR",
+			"ink": "hull-trim"
+		},
+		"stencil_service_panel": {
+			"style": "stencil",
+			"text": "SERVICE PANEL",
+			"ink": "hull-trim"
+		},
+		"label_cable_run": {
+			"style": "label",
+			"text": "CABLE RUN B",
+			"ink": "ink-line"
+		},
+		"label_caution_hot": {
+			"style": "label",
+			"text": "CAUTION HOT PIPE",
+			"ink": "ink-line"
+		},
+		"label_storage_a": {
+			"style": "label",
+			"text": "STORAGE A",
+			"ink": "ink-line"
+		},
+		"label_life_support": {
+			"style": "label",
+			"text": "LIFE SUPPORT",
+			"ink": "ink-line"
+		},
+		"label_air": {
+			"style": "label",
+			"text": "AIR",
+			"ink": "ink-line"
+		},
+		"label_power": {
+			"style": "label",
+			"text": "POWER",
+			"ink": "ink-line"
+		},
+		"label_water": {
+			"style": "label",
+			"text": "WATER",
+			"ink": "ink-line"
+		},
+		"label_handset": {
+			"style": "label",
+			"text": "HANDSET PORT",
+			"ink": "ink-line"
+		},
+		"label_temp": {
+			"style": "label",
+			"text": "TEMP",
+			"ink": "ink-line"
+		},
+		"label_control_box": {
+			"style": "label",
+			"text": "CONTROL BOX",
+			"ink": "ink-line"
+		},
+		"label_circuit": {
+			"style": "label",
+			"text": "CIRCUIT 4",
+			"ink": "ink-line"
+		},
+		"sheet_main_box": {
+			"style": "sheet",
+			"title": "MAIN BOX",
+			"lines": 4,
+			"ink": "ink-line"
+		},
+		"label_junction": {
+			"style": "label",
+			"text": "JUNCTION BOX J2",
+			"ink": "ink-line"
+		},
+		"label_samples": {
+			"style": "label",
+			"text": "SAMPLES",
+			"ink": "ink-line"
+		},
+		"label_tools": {
+			"style": "label",
+			"text": "TOOLS",
+			"ink": "ink-line"
+		},
+		"label_glovebox": {
+			"style": "label",
+			"text": "GLOVEBOX",
+			"ink": "ink-line"
+		},
+		"label_waste": {
+			"style": "label",
+			"text": "WASTE",
+			"ink": "ink-line"
+		},
+		"toolboard_outlines": {
+			"style": "drawn",
+			"from": "the toolboard's own tools (round six)"
+		},
+		"flat_poster_red": {
+			"style": "hanzi",
+			"shape": "banner",
+			"lines": [
+				"\u4e3a\u7956\u56fd\u4e89\u5149"
+			],
+			"ink": "sign-gold",
+			"font": "black"
+		},
+		"flat_calendar": {
+			"style": "calendar",
+			"month": "\u5341\u6708",
+			"ink": "ink-line",
+			"accent": "sign-red",
+			"panel": "foliage",
+			"font": "sans"
+		},
+		"flat_family_photo": {
+			"style": "drawn",
+			"by": "game/prologue/earth_site/flat_pictures/portrait.png, copied"
+		},
+		"couplet_left": {
+			"style": "hanzi",
+			"shape": "couplet",
+			"column": "\u6625\u56de\u5927\u5730\u5343\u5c71\u79c0",
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"couplet_right": {
+			"style": "hanzi",
+			"shape": "couplet",
+			"column": "\u65e5\u7167\u795e\u5dde\u767e\u4e1a\u5174",
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"couplet_top": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"\u56fd\u6cf0\u6c11\u5b89"
+			],
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"fu_luck": {
+			"style": "hanzi",
+			"shape": "square",
+			"lines": [
+				"\u798f"
+			],
+			"ink": "sign-gold",
+			"font": "serif"
+		},
+		"poster_moon_flight": {
+			"style": "hanzi",
+			"shape": "poster",
+			"lines": [
+				"\u98de\u5411\u6708\u7403",
+				"\u5efa\u8bbe\u4eba\u6c11\u7684",
+				"\u6708\u7403\u57fa\u5730"
+			],
+			"ink": "sign-red",
+			"font": "black",
+			"rule": true
+		},
+		"notice_residents": {
+			"style": "hanzi",
+			"shape": "poster",
+			"lines": [
+				"\u5c45\u6c11\u516c\u7ea6",
+				"\u7231\u62a4\u516c\u7269",
+				"\u4fdd\u6301\u6e05\u6d01",
+				"\u90bb\u91cc\u4e92\u52a9"
+			],
+			"ink": "ink-line",
+			"font": "serif",
+			"rule": true
+		},
+		"floor_3": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"\u4e09\u697c"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"floor_2": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"\u4e8c\u697c"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"floor_1": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"\u4e00\u697c"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"floor_g": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"\u5730\u4e0b"
+			],
+			"ink": "sign-red",
+			"font": "black"
+		},
+		"lobby_sheets": {
+			"style": "hanzi_sheets",
+			"sheets": [
+				[
+					"\u901a\u77e5",
+					6
+				],
+				[
+					"\u53d1\u5c04\u5f53\u665a",
+					5
+				],
+				[
+					"\u505c\u6c34\u901a\u77e5",
+					6
+				]
+			],
+			"ink": "ink-line",
+			"font": "sans"
+		},
+		"exit_sign": {
+			"style": "hanzi",
+			"shape": "plate",
+			"lines": [
+				"\u5b89\u5168\u51fa\u53e3"
+			],
+			"ink": "beacon-ok",
+			"font": "black"
+		},
+		"label_sleep_pod": {
+			"style": "label",
+			"text": "SLEEP POD",
+			"ink": "ink-line"
+		},
+		"label_berth_1": {
+			"style": "label",
+			"text": "BERTH 1",
+			"ink": "ink-line"
+		},
+		"label_berth_2": {
+			"style": "label",
+			"text": "BERTH 2",
+			"ink": "ink-line"
+		},
+		"label_control": {
+			"style": "label",
+			"text": "CONTROL",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_1": {
+			"style": "label",
+			"text": "CREW LKR 1",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_2": {
+			"style": "label",
+			"text": "CREW LKR 2",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_3": {
+			"style": "label",
+			"text": "CREW LKR 3",
+			"ink": "ink-line"
+		},
+		"label_crew_lkr_4": {
+			"style": "label",
+			"text": "CREW LKR 4",
+			"ink": "ink-line"
+		},
+		"note_crew_keep_shut": {
+			"style": "note",
+			"lines": [
+				"KEEP SHUT"
+			],
+			"ink": "ink-line"
+		},
+		"label_food_pack": {
+			"style": "label",
+			"text": "FOOD PACK",
+			"ink": "ink-line"
+		},
+		"label_food_storage": {
+			"style": "label",
+			"text": "FOOD 1KG",
+			"ink": "ink-line"
+		},
+		"label_rations": {
+			"style": "label",
+			"text": "RATIONS",
+			"ink": "ink-line"
+		},
+		"label_medical_supplies": {
+			"style": "label",
+			"text": "MEDICAL",
+			"ink": "ink-line"
+		},
+		"label_first_aid": {
+			"style": "label",
+			"text": "FIRST AID",
+			"ink": "ink-line"
+		},
+		"note_stock_check": {
+			"style": "note",
+			"lines": [
+				"STOCK CHECK",
+				"SOL 30"
+			],
+			"ink": "ink-line"
+		},
+		"stencil_med_store": {
+			"style": "stencil",
+			"text": "MED 2",
+			"ink": "ink-line"
+		},
+		"label_hygiene": {
+			"style": "label",
+			"text": "HYGIENE",
+			"ink": "ink-line"
+		},
+		"note_clean_daily": {
+			"style": "note",
+			"lines": [
+				"CLEAN DAILY"
+			],
+			"ink": "ink-line"
+		},
+		"note_use_sparingly": {
+			"style": "note",
+			"lines": [
+				"USE",
+				"SPARINGLY"
+			],
+			"ink": "ink-line"
+		},
+		"label_storage": {
+			"style": "label",
+			"text": "STORAGE",
+			"ink": "ink-line"
+		},
+		"label_sink": {
+			"style": "label",
+			"text": "SINK",
+			"ink": "ink-line"
+		},
+		"label_electric_hob": {
+			"style": "label",
+			"text": "ELECTRIC HOB",
+			"ink": "ink-line"
+		},
+		"label_mess_table": {
+			"style": "label",
+			"text": "MESS TABLE",
+			"ink": "ink-line"
+		},
+		"label_clean_after_use": {
+			"style": "label",
+			"text": "CLEAN AFTER USE",
+			"ink": "ink-line"
+		},
+		"label_base_property": {
+			"style": "label",
+			"text": "BASE PROPERTY",
+			"ink": "ink-line"
+		},
+		"label_exam_couch": {
+			"style": "label",
+			"text": "MEDICAL EXAM COUCH",
+			"ink": "ink-line"
+		},
+		"label_airlock_leaf": {
+			"style": "label",
+			"text": "AIRLOCK",
+			"ink": "ink-line"
+		},
+		"stencil_suit_up_bench": {
+			"style": "stencil",
+			"text": "SUIT-UP BENCH",
+			"ink": "ink-line"
+		},
+		"label_suit_up": {
+			"style": "label",
+			"text": "SUIT-UP BENCH",
+			"ink": "ink-line"
+		},
+		"note_bench": {
+			"style": "note",
+			"lines": [
+				"BOOTS",
+				"LAST"
+			],
+			"ink": "ink-line"
+		},
+		"label_cycle": {
+			"style": "label",
+			"text": "CYCLE",
+			"ink": "ink-line"
+		},
+		"note_cycle": {
+			"style": "note",
+			"lines": [
+				"SEAL",
+				"CHECK"
+			],
+			"ink": "ink-line"
+		},
+		"label_meter": {
+			"style": "label",
+			"text": "kPa",
+			"ink": "ink-line"
+		},
+		"label_fan_unit": {
+			"style": "label",
+			"text": "FAN UNIT",
+			"ink": "sign-white"
+		},
+		"label_high_voltage": {
+			"style": "label",
+			"text": "HIGH VOLTAGE",
+			"ink": "ink-line"
+		},
+		"sheet_maintenance": {
+			"style": "sheet",
+			"title": "MAINTENANCE",
+			"lines": 6,
+			"ink": "ink-line"
+		},
+		"stencil_do_not_cover": {
+			"style": "stencil",
+			"text": "DO NOT COVER",
+			"ink": "hazard"
+		},
+		"sign_pressure_hatch": {
+			"style": "label",
+			"text": "PRESSURE HATCH",
+			"ink": "ink-line"
+		},
+		"sign_hub": {
+			"style": "label",
+			"text": "HUB",
+			"ink": "ink-line"
+		},
+		"sign_greenhouse": {
+			"style": "label",
+			"text": "GREENHOUSE",
+			"ink": "ink-line"
+		},
+		"sign_workshop": {
+			"style": "label",
+			"text": "WORKSHOP",
+			"ink": "ink-line"
+		},
+		"sign_airlock": {
+			"style": "label",
+			"text": "AIRLOCK",
+			"ink": "ink-line"
+		},
+		"sign_habitat": {
+			"style": "label",
+			"text": "HABITAT",
+			"ink": "ink-line"
+		},
+		"sign_lab": {
+			"style": "label",
+			"text": "LAB",
+			"ink": "ink-line"
+		},
+		"sign_garage": {
+			"style": "label",
+			"text": "GARAGE",
+			"ink": "ink-line"
+		},
+		"stencil_spacexcitement": {
+			"style": "stencil",
+			"text": "SPACEXCITEMENT",
+			"ink": "ink-line"
+		},
+		"stencil_cargo": {
+			"style": "stencil",
+			"text": "CARGO 14",
+			"ink": "ink-line"
+		},
+		"stencil_samples_bt": {
+			"style": "stencil",
+			"text": "SAMPLES BT",
+			"ink": "ink-line"
+		},
+		"label_fission_unit": {
+			"style": "label",
+			"text": "FISSION POWER UNIT",
+			"ink": "ink-line"
+		},
+		"label_keep_out": {
+			"style": "label",
+			"text": "KEEP OUT 25 M",
+			"ink": "alarm"
+		},
+		"label_ice_drill": {
+			"style": "label",
+			"text": "ICE CORE DRILL",
+			"ink": "ink-line"
+		},
+		"label_camp_radio": {
+			"style": "label",
+			"text": "CAMP RADIO",
+			"ink": "ink-line"
+		},
+		"label_robot_bay": {
+			"style": "label",
+			"text": "ROBOT BAY",
+			"ink": "ink-line"
+		},
+		"label_clamp_foot": {
+			"style": "label",
+			"text": "CLAMP FOOT",
+			"ink": "ink-line"
+		},
+		"label_data_monitor": {
+			"style": "label",
+			"text": "DATA MONITOR",
+			"ink": "ink-line"
+		},
+		"label_power_coolant": {
+			"style": "label",
+			"text": "POWER / COOLANT",
+			"ink": "ink-line"
+		},
+		"label_wrenches": {
+			"style": "label",
+			"text": "WRENCHES",
+			"ink": "ink-line"
+		},
+		"label_sockets": {
+			"style": "label",
+			"text": "SOCKETS",
+			"ink": "ink-line"
+		},
+		"label_spares": {
+			"style": "label",
+			"text": "SPARES",
+			"ink": "ink-line"
+		},
+		"label_parts": {
+			"style": "label",
+			"text": "PARTS",
+			"ink": "ink-line"
+		},
+		"note_ship_to": {
+			"style": "note",
+			"lines": [
+				"SHIP TO",
+				"MOON BASE",
+				"12 KG"
+			],
+			"ink": "ink-line"
+		},
+		"stencil_part_number": {
+			"style": "stencil",
+			"text": "P/N 4B-789",
+			"ink": "ink-line"
+		},
+		"label_esd_safe": {
+			"style": "label",
+			"text": "ESD SAFE AREA",
+			"ink": "ink-line"
+		},
+		"label_oscilloscope": {
+			"style": "label",
+			"text": "OSCILLOSCOPE",
+			"ink": "ink-line"
+		},
+		"label_multimeter": {
+			"style": "label",
+			"text": "MULTIMETER",
+			"ink": "ink-line"
+		},
+		"label_bolts": {
+			"style": "label",
+			"text": "BOLTS",
+			"ink": "ink-line"
+		},
+		"label_nuts": {
+			"style": "label",
+			"text": "NUTS",
+			"ink": "ink-line"
+		},
+		"label_washers": {
+			"style": "label",
+			"text": "WASHERS",
+			"ink": "ink-line"
+		},
+		"label_screws": {
+			"style": "label",
+			"text": "SCREWS",
+			"ink": "ink-line"
+		},
+		"label_fuses": {
+			"style": "label",
+			"text": "FUSES",
+			"ink": "ink-line"
+		},
+		"label_resistors": {
+			"style": "label",
+			"text": "RESISTORS",
+			"ink": "ink-line"
+		},
+		"label_spacexcitement": {
+			"style": "label",
+			"text": "SPACEXCITEMENT",
+			"ink": "ink-line"
+		},
+		"label_galley": {
+			"style": "label",
+			"text": "GALLEY  WATER 2.1 L",
+			"ink": "ink-line"
+		},
+		"label_cold_store": {
+			"style": "label",
+			"text": "COLD STORE  -18 C",
+			"ink": "ink-line"
+		},
+		"label_chamber": {
+			"style": "label",
+			"text": "GROWTH CHAMBER  SEFA",
+			"ink": "ink-line"
+		},
+		"label_crew_lockers": {
+			"style": "label",
+			"text": "OONA   BRAM   SEFA",
+			"ink": "ink-line"
+		},
+		"stencil_case": {
+			"style": "stencil",
+			"text": "SX-04",
+			"ink": "ink-line"
+		},
+		"note_crew": {
+			"style": "note",
+			"lines": [
+				"CALL MOON",
+				"SOL 2 / 14:00"
+			],
+			"ink": "ink-line"
+		},
+		"sheet_rations": {
+			"style": "sheet",
+			"title": "RATIONS",
+			"lines": 6,
+			"ink": "ink-line"
+		},
+		"tv_leader": {
+			"style": "drawn",
+			"by": "prologue-build tv_picture.py: the invented leader (game/people/person_model/leader/leader.glb) drawn front-on in Blender workbench, on a red broadcast ground with a gold banner and caption"
+		},
+		"flat_astronaut_poster": {
+			"style": "drawn",
+			"by": "prologue-build astronaut_poster.py: the game's own suit (game/base/models/hanging_suit) drawn front-on in Blender workbench, on a night ground under the title \u822a\u5929\u82f1\u96c4"
+		},
+		"label_grow_light": {
+			"style": "label",
+			"text": "GROW LIGHT 600 W",
+			"ink": "ink-line"
+		},
+		"note_check_cables": {
+			"style": "note",
+			"lines": [
+				"CHECK",
+				"CABLES",
+				"WEEKLY"
+			],
+			"ink": "ink-line"
+		},
+		"label_rail_load": {
+			"style": "label",
+			"text": "MAX LOAD 60 KG",
+			"ink": "ink-line"
+		},
+		"label_ledge_cover": {
+			"style": "label",
+			"text": "SERVICE LEDGE COVER",
+			"ink": "ink-line"
+		},
+		"note_ledge_cover": {
+			"style": "note",
+			"lines": [
+				"WIRING",
+				"CHECKED"
+			],
+			"ink": "ink-line"
+		},
+		"label_inspection": {
+			"style": "label",
+			"text": "INSPECTION",
+			"ink": "ink-line"
+		},
+		"label_boom": {
+			"style": "label",
+			"text": "WATER 2 BAR",
+			"ink": "ink-line"
+		},
+		"label_seed": {
+			"style": "label",
+			"text": "SEED",
+			"ink": "ink-line"
+		},
+		"label_soil": {
+			"style": "label",
+			"text": "SOIL",
+			"ink": "ink-line"
+		},
+		"label_crops": {
+			"style": "label",
+			"text": "CROPS",
+			"ink": "ink-line"
+		},
+		"label_charge": {
+			"style": "label",
+			"text": "CHARGE",
+			"ink": "ink-line"
+		},
+		"label_plug": {
+			"style": "label",
+			"text": "PLUG",
+			"ink": "ink-line"
+		},
+		"label_potable": {
+			"style": "label",
+			"text": "POTABLE WATER",
+			"ink": "ink-line"
+		},
+		"label_pump_a": {
+			"style": "label",
+			"text": "PUMP A",
+			"ink": "ink-line"
+		},
+		"label_pump_b": {
+			"style": "label",
+			"text": "PUMP B",
+			"ink": "ink-line"
+		},
+		"label_pump_c": {
+			"style": "label",
+			"text": "PUMP C",
+			"ink": "ink-line"
+		},
+		"label_dose_meter": {
+			"style": "label",
+			"text": "DOSE METER",
+			"ink": "ink-line"
+		},
+		"label_main_unit": {
+			"style": "label",
+			"text": "MAIN UNIT",
+			"ink": "ink-line"
+		},
+		"label_nutrient_supply": {
+			"style": "label",
+			"text": "HYDROPONIC NUTRIENT SUPPLY",
+			"ink": "ink-line"
+		},
+		"label_humidifier": {
+			"style": "label",
+			"text": "HUMIDIFIER",
+			"ink": "ink-line"
+		},
+		"label_grow_control": {
+			"style": "label",
+			"text": "GROW CONTROL",
+			"ink": "ink-line"
+		},
+		"label_caution_voltage": {
+			"style": "label",
+			"text": "CAUTION HIGH VOLTAGE",
+			"ink": "ink-line"
+		},
+		"label_station_log": {
+			"style": "label",
+			"text": "STATION LOG",
+			"ink": "ink-line"
+		},
+		"label_data_entry": {
+			"style": "label",
+			"text": "DATA ENTRY",
+			"ink": "ink-line"
+		},
+		"label_spare_parts": {
+			"style": "label",
+			"text": "SPARE PARTS",
+			"ink": "ink-line"
+		}
+	}
+}

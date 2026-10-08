@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%%TITLE%%</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:wght@700;800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #f2e8d2; --surface: #fbf4e4; --raised: #ffffff; --line: #cbbd9f;
+  --ink: #1b1714; --ink-muted: #5e5349; --ok: #2c6a22;
+  --display: 'Shantell Sans', system-ui, sans-serif;
+  --body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --data: 'IBM Plex Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #17140f; --surface: #211d17; --raised: #2c2720; --line: #443c30;
+    --ink: #f4ecdb; --ink-muted: #b6a891;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #17140f; --surface: #211d17; --raised: #2c2720; --line: #443c30;
+  --ink: #f4ecdb; --ink-muted: #b6a891;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--body); line-height: 1.55; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 40px 16px 80px; }
+h1 { font-family: var(--display); font-size: clamp(28px, 6vw, 46px); line-height: 1.1; margin: 0 0 10px; }
+.lede { font-size: clamp(15px, 2.4vw, 18px); max-width: 62ch; color: var(--ink-muted); margin: 0 0 28px; }
+.prop { background: var(--surface); border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--ink);
+        border-radius: 3px; margin: 0 0 34px; overflow: hidden; }
+.prop h2 { font-family: var(--display); font-size: 22px; margin: 0; padding: 12px 16px; border-bottom: 2px solid var(--ink); }
+.panes { display: grid; grid-template-columns: 1fr 1fr; }
+@media (max-width: 720px) { .panes { grid-template-columns: 1fr; } }
+.pane { position: relative; min-height: 320px; }
+.pane + .pane { border-left: 2px solid var(--ink); }
+@media (max-width: 720px) { .pane + .pane { border-left: 0; border-top: 2px solid var(--ink); } }
+.pane img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tag { position: absolute; left: 10px; top: 10px; z-index: 2; font-family: var(--data); font-size: 11px;
+       font-weight: 600; letter-spacing: .04em; text-transform: uppercase; background: var(--raised);
+       color: var(--ink); border: 2px solid var(--ink); border-radius: 2px; padding: 3px 7px; }
+canvas { display: block; width: 100%; height: 100%; }
+.facts { display: flex; flex-wrap: wrap; border-top: 2px solid var(--ink); }
+.fact { flex: 1 1 120px; padding: 10px 14px; border-right: 1px solid var(--line); }
+.fact:last-child { border-right: 0; }
+.fact .k { font-family: var(--data); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); }
+.fact .v { font-family: var(--data); font-size: 17px; font-weight: 600; }
+.hint { font-family: var(--data); font-size: 11px; color: var(--ink-muted); padding: 8px 16px; }
+.box { background: var(--surface); border: 2px solid var(--ink); border-radius: 3px;
+       box-shadow: 5px 5px 0 var(--ink); padding: 16px 18px; margin: 0 0 34px; }
+.box h3 { font-family: var(--display); font-size: 19px; margin: 0 0 8px; }
+.box ul { margin: 0; padding-left: 20px; }
+.box li { margin: 5px 0; }
+footer { color: var(--ink-muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>%%TITLE%%</h1>
+  <p class="lede">Each prop sits beside the picture it was built from, drawn in ink over its own texture.
+  Compare the two: what the picture shows clearly is what came through. Drag any prop to turn it.</p>
+
+  %%PROPS%%
+
+  <div class="box">
+    <h3>Reading these</h3>
+    <ul>
+      <li><b>The model rebuilds silhouette and big solid form.</b> If the prop is wrong, look at the
+      picture first: a surface it hides, or shows nearly edge-on, is a surface the mesh had to guess.</li>
+      <li><b>Small raised detail comes back as soft bulges.</b> Latches, brackets, handles and labels
+      belong in ink lines and flat colour, not in the mesh.</li>
+      <li><b>More triangles and more sampling steps do not fix a bowed prop.</b> Rewrite the sentence
+      so the object is thick solid panels, and take the picture again.</li>
+    </ul>
+  </div>
+
+  <footer>%%FOOTER%%</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+const PROPS = %%DATA%%;
+const INK = '#1b1714';
+const INK_SHELL = 0.006;
+
+// The ink line: a copy of the prop with every vertex pushed out along its own normal, drawn
+// back faces only, so it reads as an even outline behind the prop. Scaling the whole mesh
+// instead widens the line on big flat faces and loses it on thin ones.
+function pushedOutAlongNormals(geometry, distance) {
+  const shell = geometry.clone();
+  const position = shell.attributes.position;
+  const normal = shell.attributes.normal;
+  for (let i = 0; i < position.count; i++) {
+    position.setXYZ(i,
+      position.getX(i) + normal.getX(i) * distance,
+      position.getY(i) + normal.getY(i) * distance,
+      position.getZ(i) + normal.getZ(i) * distance);
+  }
+  position.needsUpdate = true;
+  return shell;
+}
+
+// One WebGL renderer for the whole page. A browser keeps only about 16 WebGL contexts alive, so a
+// renderer per pane loses the first props on the page; here each pane is a plain 2D canvas and
+// the shared renderer draws into it only while it is on screen.
+const shared = new THREE.WebGLRenderer({ antialias: true });
+shared.setPixelRatio(1);
+const views = [];
+
+function setupProp(entry) {
+  const holder = document.getElementById('view-' + entry.name);
+  if (!holder) return;
+  const canvas = document.createElement('canvas');
+  holder.appendChild(canvas);
+  const context = canvas.getContext('2d');
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(entry.background);
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
+  // Flat, even light: in this look the ink line does the shaping, not the shadow.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.62));
+  const key = new THREE.DirectionalLight(0xffffff, 0.75);
+  key.position.set(2.2, 3.4, 2.6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+  fill.position.set(-2.4, 1.2, -1.8);
+  scene.add(fill);
+
+  const pivot = new THREE.Group();
+  scene.add(pivot);
+  const view = { holder, canvas, context, scene, camera, pivot, turn: entry.turn, tilt: 0.05,
+                 dragging: false, lastX: 0, lastY: 0, idle: true, radius: 1, visible: false };
+  views.push(view);
+
+  new THREE.GLTFLoader().parse(
+    Uint8Array.from(atob(entry.glb), c => c.charCodeAt(0)).buffer, '', gltf => {
+      const model = gltf.scene;
+      const meshes = [];
+      model.traverse(node => { if (node.isMesh) meshes.push(node); });
+      meshes.forEach(node => {
+        if (!node.geometry.attributes.normal) node.geometry.computeVertexNormals();
+        // A finished model carries the picture's own pixels as its base-colour texture; one
+        // with flat colour per vertex keeps that; anything else is painted the one token colour.
+        const texture = node.material && node.material.map;
+        const painted = !!node.geometry.attributes.color;
+        node.material = new THREE.MeshLambertMaterial(texture
+          ? { map: texture }
+          : painted ? { vertexColors: true } : { color: new THREE.Color(entry.colour) });
+        node.add(new THREE.Mesh(
+          pushedOutAlongNormals(node.geometry, INK_SHELL),
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(INK), side: THREE.BackSide })));
+      });
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      model.position.sub(box.getCenter(new THREE.Vector3()));
+      pivot.add(model);
+      // Far enough back that the prop fits however the pane is shaped, and stays framed as it turns.
+      view.radius = 0.5 * Math.max(size.y, Math.hypot(size.x, size.z));
+    }, () => { holder.insertAdjacentHTML('beforeend', '<p class="hint">could not load this prop</p>'); });
+
+  holder.addEventListener('pointerdown', event => {
+    view.dragging = true; view.idle = false; view.lastX = event.clientX; view.lastY = event.clientY;
+    holder.setPointerCapture(event.pointerId);
+  });
+  holder.addEventListener('pointermove', event => {
+    if (!view.dragging) return;
+    view.turn += (event.clientX - view.lastX) * 0.01;
+    view.tilt = Math.max(-1.1, Math.min(1.1, view.tilt + (event.clientY - view.lastY) * 0.008));
+    view.lastX = event.clientX; view.lastY = event.clientY;
+  });
+  holder.addEventListener('pointerup', event => {
+    view.dragging = false; holder.releasePointerCapture(event.pointerId);
+  });
+}
+
+function drawView(view) {
+  const ratio = Math.min(devicePixelRatio, 2);
+  const width = Math.round(view.holder.clientWidth * ratio);
+  const height = Math.round(view.holder.clientHeight * ratio);
+  if (!width || !height) return;
+  if (view.canvas.width !== width || view.canvas.height !== height) {
+    view.canvas.width = width; view.canvas.height = height;
+  }
+  shared.setSize(width, height, false);
+  const camera = view.camera;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  const vertical = THREE.MathUtils.degToRad(camera.fov) / 2;
+  const horizontal = Math.atan(Math.tan(vertical) * camera.aspect);
+  camera.position.set(0, view.radius * 0.22, view.radius / Math.sin(Math.min(vertical, horizontal)) * 1.2);
+  camera.lookAt(0, 0, 0);
+  if (view.idle) view.turn += 0.0035;
+  view.pivot.rotation.y = view.turn;
+  view.pivot.rotation.x = view.tilt;
+  shared.render(view.scene, camera);
+  view.context.drawImage(shared.domElement, 0, 0);
+}
+
+PROPS.forEach(setupProp);
+const watcher = new IntersectionObserver(entries => entries.forEach(item => {
+  const view = views.find(candidate => candidate.holder === item.target);
+  if (view) view.visible = item.isIntersecting;
+}), { rootMargin: '200px' });
+views.forEach(view => watcher.observe(view.holder));
+(function frame() {
+  requestAnimationFrame(frame);
+  views.forEach(view => { if (view.visible) drawView(view); });
+})();
+</script>
+</body>
+</html>

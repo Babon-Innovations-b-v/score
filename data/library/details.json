@@ -1,0 +1,3420 @@
+{
+	"is": "what a generated piece is made with besides its labelled parts (rounds two to four): its `turn` from its finished Pixal3D model's frame into the kit's (nine numbers, row by row), its `screens` laid as glowing pieces of their own, and its `cuts`, the openings a single picture's model fills in. Positions in metres on the piece's front, from the middle of its foot, at its laid size. Labels, screws and keypads come with the picture now (round four).",
+	"hub_ceiling_cable_tray": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_ceiling_duct": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_chair": {
+		"materials": [
+			"vinyl_seat",
+			"pipe_steel",
+			"bare_steel",
+			"rubber"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_comms": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.5,
+					0.62
+				],
+				"size": [
+					0.22,
+					0.06
+				],
+				"variant": "label_comms"
+			},
+			{
+				"at": [
+					-0.5,
+					0.45
+				],
+				"size": [
+					0.08,
+					0.08
+				],
+				"variant": "note_channel",
+				"turn": -4.0
+			}
+		]
+	},
+	"hub_conduit_box": {
+		"turn": [
+			0.0,
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_console": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.6,
+					0.55
+				],
+				"size": [
+					0.3,
+					0.07
+				],
+				"variant": "label_operations"
+			},
+			{
+				"at": [
+					-0.7,
+					0.35
+				],
+				"size": [
+					0.18,
+					0.05
+				],
+				"variant": "label_main_bus"
+			}
+		]
+	},
+	"hub_door_control_box": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.235
+				],
+				"size": [
+					0.14,
+					0.07
+				],
+				"variant": "screen_amber"
+			}
+		],
+		"cuts": []
+	},
+	"hub_door_strip_lamp": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.03
+				],
+				"size": [
+					1.08,
+					0.035
+				],
+				"variant": "lamp_strip"
+			}
+		],
+		"cuts": []
+	},
+	"hub_floor_access_hatch": {
+		"turn": [
+			0.5838,
+			0.0,
+			0.8119,
+			-0.8119,
+			0.0,
+			0.5838,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_floor_grating": {
+		"turn": [
+			-0.4094,
+			0.0,
+			0.9123,
+			-0.9123,
+			0.0,
+			-0.4094,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_grab_bar": {
+		"turn": [
+			0.0,
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_frame": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": [
+			{
+				"box": [
+					-1.12,
+					-0.1,
+					1.12,
+					2.62
+				]
+			}
+		]
+	},
+	"hub_hatch_hinge": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_leaf": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_wall_surround": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [
+			{
+				"box": [
+					-1.1,
+					-0.1,
+					1.1,
+					2.6
+				]
+			}
+		]
+	},
+	"hub_hatch_wheel": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hatch_window": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_intercom_panel": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_labbench": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_notice_board": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pipe_bracket": {
+		"turn": [
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pipe_elbow": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pipe_valve": {
+		"turn": [
+			0.0,
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pit_junction_box": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_porthole_panel": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [
+			{
+				"circle": [
+					0.0,
+					0.6,
+					0.3
+				]
+			}
+		]
+	},
+	"hub_rack": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_roof_apex_hub": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_roof_light_fixture": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_small_readout": {
+		"turn": [
+			1.0,
+			-0.0026,
+			0.0,
+			-0.0026,
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.13
+				],
+				"size": [
+					0.2,
+					0.12
+				],
+				"variant": "screen_amber"
+			}
+		],
+		"cuts": []
+	},
+	"hub_status_display": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [
+			{
+				"at": [
+					-0.01,
+					0.516
+				],
+				"size": [
+					1.659,
+					0.747
+				],
+				"variant": "screen"
+			}
+		],
+		"cuts": []
+	},
+	"hub_talllocker": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.3,
+					1.62
+				],
+				"size": [
+					0.2,
+					0.06
+				],
+				"variant": "label_locker_a"
+			},
+			{
+				"at": [
+					-0.3,
+					1.62
+				],
+				"size": [
+					0.2,
+					0.06
+				],
+				"variant": "label_locker_b"
+			},
+			{
+				"at": [
+					-0.3,
+					1.33
+				],
+				"size": [
+					0.15,
+					0.2
+				],
+				"variant": "sheet_spares",
+				"turn": 3.0
+			}
+		]
+	},
+	"hub_toolboard": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.1
+				],
+				"size": [
+					0.3,
+					0.06
+				],
+				"variant": "label_sign_out"
+			}
+		]
+	},
+	"hub_tread_mat": {
+		"turn": [
+			0.1483,
+			0.0,
+			-0.9889,
+			0.9889,
+			0.0,
+			0.1483,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_cage_lamp": {
+		"turn": [
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_lower_patched": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_lower_vent": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_screen_cluster": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [
+			{
+				"at": [
+					-0.37,
+					0.346
+				],
+				"size": [
+					0.264,
+					0.203
+				],
+				"variant": "screen_amber"
+			},
+			{
+				"at": [
+					0.005,
+					0.348
+				],
+				"size": [
+					0.266,
+					0.203
+				],
+				"variant": "screen_amber"
+			},
+			{
+				"at": [
+					0.38,
+					0.348
+				],
+				"size": [
+					0.268,
+					0.2
+				],
+				"variant": "screen_amber"
+			}
+		],
+		"cuts": []
+	},
+	"hub_wall_upper_cables": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_upper_patched": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_upper_pipes": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wall_upper_screen_recess": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.076,
+					1.482
+				],
+				"size": [
+					0.135,
+					0.058
+				],
+				"variant": "screen_amber"
+			}
+		],
+		"cuts": []
+	},
+	"hub_waste_bin": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_radio": {
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": true
+	},
+	"hub_telephone": {
+		"materials": [
+			"dark_panel",
+			"pipe_steel",
+			"bare_steel",
+			"rubber"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_desklamp": {
+		"materials": [
+			"bare_steel",
+			"pipe_steel"
+		],
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_headset": {
+		"materials": [
+			"bare_steel",
+			"pipe_steel",
+			"rubber"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_microscope": {
+		"materials": [
+			"painted_panel",
+			"bare_steel",
+			"pipe_steel",
+			"dark_panel"
+		],
+		"turn": [
+			-1.0,
+			0.0,
+			-0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_wrench": {
+		"materials": [
+			"bare_steel"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_hammer": {
+		"materials": [
+			"bare_steel",
+			"pipe_steel",
+			"rubber"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pump_pliers": {
+		"materials": [
+			"bare_steel",
+			"warning_paint"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			-0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_pliers": {
+		"materials": [
+			"bare_steel",
+			"warning_paint"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			-0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"hub_screwdriver": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_door_frame": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [
+			{
+				"box": [
+					-1.16,
+					-0.1,
+					1.16,
+					2.66
+				]
+			}
+		],
+		"wall": 0.008
+	},
+	"airlock_door_leaf": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_door_strip_lamp": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.03
+				],
+				"size": [
+					1.08,
+					0.035
+				],
+				"variant": "lamp_strip"
+			}
+		],
+		"cuts": []
+	},
+	"airlock_dust_vacuum": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_fan_unit": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_floor_grating": {
+		"turn": [
+			-0.0838,
+			0.0,
+			0.9965,
+			-0.9965,
+			0.0,
+			-0.0838,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_pipe_valve": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_status_panel": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"airlock_suit_alcove": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"airlock_suit_bench": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_door_strip_lamp": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.03
+				],
+				"size": [
+					1.08,
+					0.035
+				],
+				"variant": "lamp_strip"
+			}
+		],
+		"cuts": []
+	},
+	"habitat_exam_couch": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_food_shelf": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_galley_counter": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_hygiene_cubicle": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_light_ring": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_locker_bank": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_med_cabinet": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_mess_table": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_pipe_valve": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_sleep_pod": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.012
+	},
+	"habitat_stool": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_tread_mat": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_wall_lower_patched": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_wall_screen_cluster": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"tube_crown_strip_lamp": {
+		"turn": [
+			-0.018,
+			0.0,
+			0.9998,
+			-0.9998,
+			0.0,
+			-0.018,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.03
+				],
+				"size": [
+					1.08,
+					0.035
+				],
+				"variant": "lamp_strip"
+			}
+		],
+		"cuts": []
+	},
+	"tube_end_mat": {
+		"turn": [
+			0.0283,
+			0.0,
+			-0.9996,
+			0.9996,
+			0.0,
+			0.0283,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"tube_hull_patch": {
+		"turn": [
+			0.216,
+			0.0,
+			-0.9764,
+			0.9764,
+			0.0,
+			0.216,
+			0.0,
+			-1.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"tube_sign_plate": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_frame": {
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": [
+			{
+				"box": [
+					-1.12,
+					-0.1,
+					1.12,
+					2.62
+				]
+			}
+		]
+	},
+	"habitat_hatch_leaf": {
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_wheel": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_hinge": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_hatch_window": {
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"habitat_kettle": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		]
+	},
+	"habitat_blanket": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		]
+	},
+	"old_station_hab_lander": {
+		"materials": [
+			"mli_gold",
+			"mli_silver",
+			"bare_steel",
+			"galvanized_dull",
+			"glass",
+			"lamp_lens",
+			"regolith_bag",
+			"hull_white_old"
+		],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_first_module": {
+		"materials": [
+			"mli_gold",
+			"mli_silver",
+			"galvanized_dull",
+			"bare_steel",
+			"hull_white_old"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_lab_module": {
+		"materials": [
+			"hull_white_old",
+			"dark_panel",
+			"bare_steel",
+			"glass"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_rover": {
+		"materials": [
+			"hull_white_old",
+			"rubber",
+			"glass",
+			"bare_steel",
+			"dark_panel"
+		],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_solar_mast": {
+		"materials": [
+			"galvanized_dull",
+			"solar_cell",
+			"bare_steel"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_solar_mast_dead": {
+		"materials": [
+			"galvanized_dull",
+			"mli_gold",
+			"mli_silver",
+			"solar_cell"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_comms_mast": {
+		"materials": [
+			"bare_steel",
+			"hull_white_old",
+			"galvanized_dull"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_radiator": {
+		"materials": [
+			"bare_steel",
+			"galvanized_dull"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_power_unit": {
+		"materials": [
+			"galvanized_dull",
+			"bare_steel",
+			"mli_gold",
+			"dark_panel"
+		],
+		"turn": [
+			0.065403,
+			0.0,
+			-0.997859,
+			0.0,
+			1.0,
+			0.0,
+			0.997859,
+			0.0,
+			0.065403
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_parts_rack": {
+		"materials": [
+			"bare_steel",
+			"galvanized_dull"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_bag_pile": {
+		"materials": [
+			"regolith_bag"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_bag_stack": {
+		"materials": [
+			"regolith_bag"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_spare_wheel": {
+		"materials": [
+			"rubber",
+			"galvanized_dull",
+			"bare_steel"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"old_station_gas_bottle": {
+		"materials": [
+			"bare_steel",
+			"galvanized_dull",
+			"hull_white_old"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_aft_section": {
+		"materials": [
+			"hull_white_scorched",
+			"bare_steel",
+			"cast_iron_dark",
+			"roof_steel_paint",
+			"mli_gold"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_forward_section": {
+		"materials": [
+			"hull_white_scorched",
+			"bare_steel",
+			"cast_iron_dark"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_work_lamp": {
+		"materials": [
+			"bare_steel",
+			"lamp_lens",
+			"glass",
+			"cast_iron_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_hull_panel": {
+		"materials": [
+			"hull_white_scorched",
+			"bare_steel",
+			"cast_iron_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_small_panel": {
+		"materials": [
+			"hull_white_scorched",
+			"bare_steel",
+			"cast_iron_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_pressure_sphere": {
+		"materials": [
+			"bare_steel",
+			"roof_steel_paint"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_foil_blanket": {
+		"materials": [
+			"mli_gold"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_access_cover": {
+		"materials": [
+			"hull_white_scorched",
+			"bare_steel",
+			"cast_iron_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_leg_strut": {
+		"materials": [
+			"bare_steel",
+			"hull_white_scorched",
+			"cast_iron_dark"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_leg_foot": {
+		"materials": [
+			"bare_steel",
+			"hull_white_scorched",
+			"cast_iron_dark"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_ring_frame": {
+		"materials": [
+			"cast_iron_dark",
+			"bare_steel"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_tank_dome": {
+		"materials": [
+			"bare_steel",
+			"hull_white_scorched"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"wreck_fragment": {
+		"materials": [
+			"hull_white_scorched",
+			"bare_steel",
+			"cast_iron_dark"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": false
+	},
+	"lab_desk": {
+		"materials": [
+			"painted_panel",
+			"dark_panel",
+			"bare_steel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		]
+	},
+	"lab_desk_chair": {
+		"materials": [
+			"vinyl_seat",
+			"cast_steel",
+			"bare_steel",
+			"rubber"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"regions": [
+			{
+				"box": [
+					-0.33,
+					0.4,
+					-0.32,
+					0.33,
+					0.53,
+					0.32
+				],
+				"variant": "vinyl_seat"
+			},
+			{
+				"box": [
+					-0.33,
+					0.56,
+					0.02,
+					0.33,
+					0.91,
+					0.32
+				],
+				"variant": "vinyl_seat"
+			}
+		]
+	},
+	"lab_sample_store": {
+		"materials": [
+			"painted_panel",
+			"bare_steel",
+			"glass",
+			"dark_panel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"decals": [
+			{
+				"at": [
+					-0.18,
+					0.55
+				],
+				"size": [
+					0.24,
+					0.06
+				],
+				"variant": "label_samples"
+			}
+		]
+	},
+	"lab_microscope": {
+		"materials": [
+			"enamel_white",
+			"dark_panel",
+			"bare_steel",
+			"plastic_grey"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		]
+	},
+	"lab_instrument_unit": {
+		"materials": [
+			"plastic_grey",
+			"dark_panel",
+			"glass"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		]
+	},
+	"lab_desk_keyboard": {
+		"materials": [
+			"plastic_grey",
+			"dark_panel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		]
+	},
+	"lab_sample_tray": {
+		"materials": [
+			"bare_steel",
+			"cast_steel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		]
+	},
+	"lab_gauge_panel": {
+		"materials": [
+			"painted_panel",
+			"bare_steel",
+			"pipe_steel",
+			"glass"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"decals": []
+	},
+	"lab_junction_box": {
+		"materials": [
+			"painted_panel",
+			"dark_panel",
+			"pipe_steel",
+			"bare_steel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"decals": []
+	},
+	"lab_fire_extinguisher": {
+		"materials": [
+			"warning_paint",
+			"rubber",
+			"bare_steel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		]
+	},
+	"lab_task_lamp": {
+		"materials": [
+			"painted_panel",
+			"bare_steel",
+			"lamp_lens"
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					-0.22
+				],
+				"size": [
+					0.09,
+					0.09
+				],
+				"variant": "lamp_strip",
+				"facing": "down"
+			}
+		],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		]
+	},
+	"lab_ceiling_lamp": {
+		"materials": [
+			"painted_panel",
+			"bare_steel",
+			"cast_steel",
+			"lamp_lens"
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.0
+				],
+				"size": [
+					0.5,
+					0.18
+				],
+				"variant": "lamp_strip",
+				"facing": "down"
+			}
+		],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		]
+	},
+	"lab_glovebox_cabinet": {
+		"materials": [
+			"painted_panel",
+			"glass",
+			"rubber",
+			"bare_steel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"decals": [
+			{
+				"at": [
+					0.04,
+					0.35
+				],
+				"size": [
+					0.22,
+					0.06
+				],
+				"variant": "label_glovebox"
+			}
+		],
+		"regions": [
+			{
+				"box": [
+					-0.47,
+					0.8,
+					-0.4,
+					0.47,
+					1.12,
+					0.12
+				],
+				"variant": "glass"
+			}
+		]
+	},
+	"lab_desk_monitor": {
+		"materials": [
+			"plastic_grey",
+			"dark_panel",
+			"glass"
+		],
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.215
+				],
+				"size": [
+					0.25,
+					0.18
+				],
+				"variant": "screen"
+			}
+		],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		]
+	},
+	"workshop_desklamp": {
+		"materials": [
+			"bare_steel",
+			"pipe_steel"
+		],
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"workshop_wrench": {
+		"materials": [
+			"bare_steel"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"workshop_hammer": {
+		"materials": [
+			"bare_steel",
+			"pipe_steel",
+			"rubber"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"workshop_pump_pliers": {
+		"materials": [
+			"bare_steel",
+			"warning_paint"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			-0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"workshop_pliers": {
+		"materials": [
+			"bare_steel",
+			"warning_paint"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			-0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"camp_galley": {
+		"materials": [
+			"stainless",
+			"anodized_natural",
+			"carbon_fibre"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.3,
+					1.7
+				],
+				"size": [
+					0.3,
+					0.06
+				],
+				"variant": "label_galley"
+			},
+			{
+				"at": [
+					-0.35,
+					1.62
+				],
+				"size": [
+					0.12,
+					0.12
+				],
+				"variant": "note_crew",
+				"turn": 4.0
+			}
+		],
+		"square": true
+	},
+	"camp_cold_store": {
+		"materials": [
+			"stainless",
+			"anodized_natural",
+			"carbon_fibre"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.82
+				],
+				"size": [
+					0.3,
+					0.06
+				],
+				"variant": "label_cold_store"
+			},
+			{
+				"at": [
+					0.0,
+					0.6
+				],
+				"size": [
+					0.34,
+					0.06
+				],
+				"variant": "label_spacexcitement"
+			}
+		],
+		"square": true
+	},
+	"camp_bunk": {
+		"materials": [
+			"anodized_natural",
+			"quilted_white",
+			"stainless"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"square": true
+	},
+	"camp_lockers": {
+		"materials": [
+			"stainless",
+			"anodized_natural",
+			"carbon_fibre"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					1.78
+				],
+				"size": [
+					1.0,
+					0.05
+				],
+				"variant": "label_crew_lockers"
+			},
+			{
+				"at": [
+					0.45,
+					1.3
+				],
+				"size": [
+					0.15,
+					0.2
+				],
+				"variant": "sheet_rations",
+				"turn": -3.0
+			}
+		],
+		"square": true
+	},
+	"camp_growth_chamber": {
+		"materials": [
+			"stainless",
+			"glass",
+			"plastic_white"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.35,
+					0.6
+				],
+				"size": [
+					0.3,
+					0.06
+				],
+				"variant": "label_chamber"
+			}
+		],
+		"square": true
+	},
+	"flat_gas_stove": {
+		"materials": [
+			"enamel_white",
+			"bare_steel",
+			"rubber"
+		],
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_quilt": {
+		"materials": [
+			"quilt_cotton"
+		],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_sauce_bottle": {
+		"materials": [
+			"glass",
+			"cotton_white",
+			"warning_paint"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_thermos": {
+		"materials": [
+			"rail_green",
+			"bare_steel",
+			"rubber"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"stairwell_extinguisher": {
+		"materials": [
+			"warning_paint",
+			"rubber",
+			"bare_steel"
+		],
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_pillow": {
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			-1.0,
+			0.0,
+			0.0,
+			-0.0,
+			-1.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_crt_tv": {
+		"materials": [
+			"plastic_grey",
+			"screen_off",
+			"bare_steel",
+			"rubber"
+		],
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [
+			{
+				"at": [
+					0.05,
+					0.19
+				],
+				"size": [
+					0.3,
+					0.23
+				],
+				"variant": "tv_leader"
+			}
+		],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_kettle": {
+		"materials": [
+			"bare_steel",
+			"rubber"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_enamel_basin": {
+		"materials": [
+			"enamel_white"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_bedside_lamp": {
+		"materials": [
+			"cotton_white",
+			"anodized_gold"
+		],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_bowl_stack": {
+		"materials": [
+			"enamel_white"
+		],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"campgrounds_lander": {
+		"materials": [
+			"stainless",
+			"dust_coated_paint"
+		],
+		"turn": [
+			0.99875,
+			0.0,
+			-0.04994,
+			0.0,
+			1.0,
+			0.0,
+			0.04994,
+			0.0,
+			0.99875
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					7.5
+				],
+				"size": [
+					1.2,
+					0.3
+				],
+				"variant": "stencil_spacexcitement"
+			}
+		],
+		"wall": 0.15
+	},
+	"campgrounds_crane": {
+		"materials": [
+			"dust_coated_paint",
+			"stainless",
+			"anodized_natural"
+		],
+		"turn": [
+			0.4131,
+			0.0,
+			-0.91069,
+			0.0,
+			1.0,
+			0.0,
+			0.91069,
+			0.0,
+			0.4131
+		],
+		"screens": [],
+		"cuts": [],
+		"wall": 0.02
+	},
+	"campgrounds_cargo_case": {
+		"materials": [
+			"anodized_natural",
+			"dust_coated_paint",
+			"rubber"
+		],
+		"turn": [
+			0.00105,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.00105
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.42
+				],
+				"size": [
+					0.5,
+					0.12
+				],
+				"variant": "stencil_spacexcitement"
+			}
+		],
+		"square": true
+	},
+	"campgrounds_cargo_case_open": {
+		"materials": [
+			"anodized_natural",
+			"dust_coated_paint",
+			"carbon_fibre",
+			"rubber"
+		],
+		"turn": [
+			0.00854,
+			0.0,
+			-0.99996,
+			0.0,
+			1.0,
+			0.0,
+			0.99996,
+			0.0,
+			0.00854
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.25
+				],
+				"size": [
+					0.4,
+					0.1
+				],
+				"variant": "stencil_cargo"
+			}
+		]
+	},
+	"campgrounds_cargo_pallet": {
+		"materials": [
+			"stainless",
+			"anodized_natural"
+		],
+		"turn": [
+			0.07236,
+			0.0,
+			-0.99738,
+			0.0,
+			1.0,
+			0.0,
+			0.99738,
+			0.0,
+			0.07236
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"campgrounds_reactor": {
+		"materials": [
+			"stainless",
+			"anodized_natural",
+			"carbon_fibre",
+			"rubber"
+		],
+		"turn": [
+			0.52863,
+			0.0,
+			0.84885,
+			0.0,
+			1.0,
+			0.0,
+			-0.84885,
+			0.0,
+			0.52863
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					1.3
+				],
+				"size": [
+					0.6,
+					0.15
+				],
+				"variant": "label_fission_unit"
+			},
+			{
+				"at": [
+					0.0,
+					1.05
+				],
+				"size": [
+					0.5,
+					0.12
+				],
+				"variant": "label_keep_out"
+			}
+		],
+		"wall": 0.012
+	},
+	"campgrounds_mast_cabinet": {
+		"materials": [
+			"dust_coated_paint",
+			"anodized_natural",
+			"carbon_fibre"
+		],
+		"turn": [
+			0.86404,
+			0.0,
+			-0.50343,
+			0.0,
+			1.0,
+			0.0,
+			0.50343,
+			0.0,
+			0.86404
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.95
+				],
+				"size": [
+					0.4,
+					0.1
+				],
+				"variant": "label_camp_radio"
+			}
+		]
+	},
+	"campgrounds_drift": {
+		"materials": [
+			"regolith"
+		],
+		"turn": [
+			0.7724,
+			0.0,
+			0.63514,
+			0.0,
+			1.0,
+			0.0,
+			-0.63514,
+			0.0,
+			0.7724
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"greenhouse_chair": {
+		"materials": [
+			"vinyl_seat",
+			"pipe_steel",
+			"bare_steel",
+			"rubber"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"greenhouse_desklamp": {
+		"materials": [
+			"bare_steel",
+			"pipe_steel"
+		],
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"greenhouse_seed_tray": {
+		"materials": [
+			"tray_plastic",
+			"potting_soil",
+			"seedling_leaf"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": []
+	}
+}

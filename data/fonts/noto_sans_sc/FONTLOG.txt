@@ -1,0 +1,18 @@
+FONTLOG for the Noto Sans SC files in this folder
+
+These are modified versions of Noto Sans SC (Google, from Adobe's Source Han Sans), used under the
+SIL Open Font License 1.1 in OFL.txt beside them. The family name is kept: the licence reserves
+only the name "Source", which none of these files carries.
+
+NotoSansSC-Regular.otf (2026-09-27): Noto Sans SC Regular, cut to the GB2312 characters plus
+ASCII and the CJK punctuation, its line box set to its ideographs' own 880/-120, as the fallback
+of every Barlow font in the interface.
+
+NotoSansSC-Bold.ttf and NotoSansSC-Black.ttf (2026-10-04): the variable Noto Sans SC from the
+Google Fonts repository (ofl/notosanssc/NotoSansSC[wght].ttf, sha256
+a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da), instanced at weight 700 and 900
+with fontTools.varLib.instancer (names updated), then cut with fontTools.subset to the 7,445
+GB2312 characters, ASCII, the CJK symbols and punctuation (U+3000 to U+303F), the full-width forms
+(U+FF00 to U+FFEF) and · — … ‘ ’ “ ” × №, every layout feature and name kept, hinting dropped.
+They draw the Mandarin signs on the Moon base and on Earth (game/art/signs/): Bold on plates,
+panels and frames, Black on banners.

@@ -1,0 +1,1900 @@
+{
+	"scene": "greenhouse",
+	"place": "greenhouse",
+	"plan": {
+		"world": "",
+		"seed": 0,
+		"concept": "concepts-world1/greenhouse/concepts/K09.png",
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/greenhouse/concepts/K09.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: the owner reviews every place at the end); plan: the concept K09 at the game's own numbers",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": [],
+		"layout": {
+			"inside": [
+				16.0,
+				18.0
+			],
+			"corner": 1.2,
+			"wall": 2.8,
+			"rise": 3.4,
+			"run": 5.5,
+			"doors": {
+				"north": "hatch",
+				"south": "hatch",
+				"east": "hatch",
+				"west": "hatch"
+			},
+			"open": [
+				"east"
+			],
+			"glass_dome": true,
+			"features": {
+				"north": {
+					"upper": "wall_upper_cables"
+				},
+				"south": {
+					"lower": "wall_lower_vent",
+					"upper": "wall_upper_patched"
+				},
+				"west": {
+					"lower": "wall_lower_patched",
+					"upper": "wall_upper_cables"
+				},
+				"east": {
+					"upper": "wall_upper_cables"
+				}
+			}
+		}
+	},
+	"rows": [
+		{
+			"id": "wall_lower_plain",
+			"view": "v1",
+			"box": [
+				1514,
+				881,
+				2064,
+				1046
+			],
+			"name": "plain lower wall panel, bolted",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_lower_plain",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_upper_plain",
+			"view": "v1",
+			"box": [
+				1514,
+				881,
+				2064,
+				1046
+			],
+			"name": "plain upper wall panel, bolted",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.7
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_upper_plain",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_upper_cables",
+			"view": "v1",
+			"box": [
+				2064,
+				179,
+				2339,
+				413
+			],
+			"name": "upper wall panel with cable bundles clipped along it",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				1.7
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_upper_cables",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_lower_vent",
+			"view": "v1",
+			"box": [
+				1514,
+				881,
+				2064,
+				1046
+			],
+			"name": "lower wall panel with an air vent",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_lower_vent",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_skirting",
+			"view": "v1",
+			"box": [
+				1514,
+				881,
+				2064,
+				1046
+			],
+			"name": "rubber skirting at the wall's foot",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_skirting",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_cornice",
+			"view": "v1",
+			"box": [
+				413,
+				206,
+				1376,
+				344
+			],
+			"name": "cornice along the wall's top, where the glass dome starts",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.16,
+				0.18
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_cornice",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "lattice_hip_rib",
+			"view": "v1",
+			"box": [
+				275,
+				0,
+				2683,
+				454
+			],
+			"name": "dome rib running up the glass dome",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.12,
+				0.12,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_lattice_hip_rib",
+			"made": "kit piece",
+			"group": "kit: ceiling",
+			"at": []
+		},
+		{
+			"id": "lattice_ring_rib",
+			"view": "v1",
+			"box": [
+				275,
+				0,
+				2683,
+				454
+			],
+			"name": "dome hoop running round the glass dome",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				1.0,
+				0.1,
+				0.1
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_lattice_ring_rib",
+			"made": "kit piece",
+			"group": "kit: ceiling",
+			"at": []
+		},
+		{
+			"id": "lattice_node_plate",
+			"view": "v1",
+			"box": [
+				275,
+				0,
+				2683,
+				454
+			],
+			"name": "node plate where the dome's ribs and hoops meet",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.26,
+				0.05,
+				0.26
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_lattice_node_plate",
+			"made": "kit piece",
+			"group": "kit: ceiling",
+			"at": []
+		},
+		{
+			"id": "ring_floor_plate",
+			"view": "v1",
+			"box": [
+				771,
+				605,
+				1101,
+				716
+			],
+			"name": "deck plate, bolted",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.04,
+				1.2
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_ring_floor_plate",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "ledge_cover",
+			"view": "v1",
+			"box": [
+				206,
+				743,
+				716,
+				1046
+			],
+			"name": "service ledge cover: a long steel lid with a recessed bar handle",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.06,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_ledge_cover",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "hatch_frame",
+			"view": "v1",
+			"box": [
+				729,
+				268,
+				915,
+				454
+			],
+			"name": "tube hatch frame round the doorway",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.3,
+				2.693
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_hatch_frame",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_leaf",
+			"view": "v1",
+			"box": [
+				729,
+				268,
+				915,
+				454
+			],
+			"name": "tube hatch door leaf",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.26,
+				0.12,
+				2.66
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_hatch_leaf",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_wheel",
+			"view": "v1",
+			"box": [
+				729,
+				268,
+				915,
+				454
+			],
+			"name": "tube hatch locking hand wheel",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.08,
+				0.5
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_hatch_wheel",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_hinge",
+			"view": "v1",
+			"box": [
+				729,
+				268,
+				915,
+				454
+			],
+			"name": "tube hatch hinge",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_hatch_hinge",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_window",
+			"view": "v1",
+			"box": [
+				729,
+				268,
+				915,
+				454
+			],
+			"name": "tube hatch round window",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.06,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_hatch_window",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "door_strip_lamp",
+			"view": "v1",
+			"box": [
+				1004,
+				193,
+				1183,
+				227
+			],
+			"name": "strip light over a hatch",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				0.08
+			],
+			"count": 4,
+			"thing": "prop:greenhouse_door_strip_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [
+				{
+					"wall": "north",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.02
+				},
+				{
+					"wall": "south",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.02
+				},
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.02
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.02
+				}
+			],
+			"light": {
+				"strength": 0.2,
+				"reach": 5.0,
+				"high": 0.5
+			}
+		},
+		{
+			"id": "door_control_box",
+			"view": "v1",
+			"box": [
+				881,
+				495,
+				922,
+				550
+			],
+			"name": "hatch control box with lit buttons",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.26,
+				0.12,
+				0.36
+			],
+			"count": 4,
+			"thing": "prop:greenhouse_door_control_box",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": [
+				{
+					"wall": "north",
+					"across": 1.55,
+					"bottom": 1.25
+				},
+				{
+					"wall": "south",
+					"across": 1.55,
+					"bottom": 1.25
+				},
+				{
+					"wall": "east",
+					"across": 1.55,
+					"bottom": 1.25
+				},
+				{
+					"wall": "west",
+					"across": 1.55,
+					"bottom": 1.25
+				}
+			]
+		},
+		{
+			"id": "grab_bar",
+			"view": "v1",
+			"box": [
+				881,
+				495,
+				922,
+				550
+			],
+			"name": "grab bar beside a hatch",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.14,
+				0.12,
+				0.7
+			],
+			"count": 4,
+			"thing": "prop:greenhouse_grab_bar",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": [
+				{
+					"wall": "north",
+					"across": -1.55,
+					"bottom": 0.95
+				},
+				{
+					"wall": "south",
+					"across": -1.55,
+					"bottom": 0.95
+				},
+				{
+					"wall": "east",
+					"across": -1.55,
+					"bottom": 0.95
+				},
+				{
+					"wall": "west",
+					"across": -1.55,
+					"bottom": 0.95
+				}
+			]
+		},
+		{
+			"id": "wall_cage_lamp",
+			"view": "v1",
+			"box": [
+				2243,
+				523,
+				2312,
+				619
+			],
+			"name": "work lamp in a wire cage on the wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.18,
+				0.12,
+				0.25
+			],
+			"count": 8,
+			"thing": "prop:greenhouse_wall_cage_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [
+				{
+					"wall": "north",
+					"across": -1.9,
+					"bottom": 2.25
+				},
+				{
+					"wall": "north",
+					"across": 1.9,
+					"bottom": 2.25
+				},
+				{
+					"wall": "west",
+					"across": -4.5,
+					"bottom": 2.25
+				},
+				{
+					"wall": "west",
+					"across": 4.5,
+					"bottom": 2.25
+				},
+				{
+					"wall": "east",
+					"across": -4.5,
+					"bottom": 2.25
+				},
+				{
+					"wall": "east",
+					"across": 4.5,
+					"bottom": 2.25
+				},
+				{
+					"wall": "south",
+					"across": -6.2,
+					"bottom": 2.25
+				},
+				{
+					"wall": "south",
+					"across": 6.2,
+					"bottom": 2.25
+				}
+			],
+			"light": {
+				"strength": 0.35,
+				"reach": 6.0,
+				"high": 0.5
+			}
+		},
+		{
+			"id": "pipe_straight",
+			"view": "v1",
+			"box": [
+				344,
+				275,
+				963,
+				454
+			],
+			"name": "pipe run with flanges",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.1,
+				0.1
+			],
+			"count": 14,
+			"thing": "prop:greenhouse_pipe_straight",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "west",
+					"across": -4.6,
+					"bottom": 1.75,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": -4.6,
+					"bottom": 2.05,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 4.6,
+					"bottom": 1.75,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 4.6,
+					"bottom": 2.05,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": -4.6,
+					"bottom": 1.75,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": -4.6,
+					"bottom": 2.05,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": 4.6,
+					"bottom": 1.75,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": 4.6,
+					"bottom": 2.05,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": -4.6,
+					"bottom": 0.62,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 4.6,
+					"bottom": 0.62,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": -4.6,
+					"bottom": 0.62,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": 4.6,
+					"bottom": 0.62,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "south",
+					"across": -4.6,
+					"bottom": 0.62,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "south",
+					"across": 4.6,
+					"bottom": 0.62,
+					"size": [
+						5.6,
+						0.1,
+						0.1
+					]
+				}
+			]
+		},
+		{
+			"id": "pipe_valve",
+			"view": "v1",
+			"box": [
+				275,
+				523,
+				372,
+				771
+			],
+			"name": "valve on a pipe with a red hand wheel",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.2,
+				0.3
+			],
+			"count": 4,
+			"thing": "prop:greenhouse_pipe_valve",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "west",
+					"across": -4.0,
+					"bottom": 1.6
+				},
+				{
+					"wall": "east",
+					"across": 2.0,
+					"bottom": 1.9
+				},
+				{
+					"wall": "south",
+					"across": 3.0,
+					"bottom": 0.52
+				},
+				{
+					"wall": "west",
+					"across": 5.5,
+					"bottom": 0.52
+				}
+			]
+		},
+		{
+			"id": "pipe_bracket",
+			"view": "v1",
+			"box": [
+				344,
+				275,
+				963,
+				454
+			],
+			"name": "a steel wall bracket clamping a pipe",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.1
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_pipe_bracket",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [],
+			"why": "laid by room_kit.py from the room's pipe runs"
+		},
+		{
+			"id": "conduit_box",
+			"view": "v1",
+			"box": [
+				2064,
+				179,
+				2339,
+				413
+			],
+			"name": "small grey conduit junction box",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.1,
+				0.2
+			],
+			"count": 3,
+			"thing": "prop:greenhouse_conduit_box",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": [
+				{
+					"wall": "north",
+					"across": 6.7,
+					"bottom": 1.9
+				},
+				{
+					"wall": "south",
+					"across": -2.3,
+					"bottom": 1.6
+				},
+				{
+					"wall": "south",
+					"across": 3.0,
+					"bottom": 1.6
+				}
+			]
+		},
+		{
+			"id": "small_readout",
+			"view": "v1",
+			"box": [
+				2504,
+				344,
+				2587,
+				454
+			],
+			"name": "small wall readout of the room's air and water",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.06,
+				0.25
+			],
+			"count": 2,
+			"thing": "prop:greenhouse_small_readout",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "east",
+					"across": -2.4,
+					"bottom": 0.8
+				},
+				{
+					"wall": "west",
+					"across": 2.4,
+					"bottom": 0.8
+				}
+			]
+		},
+		{
+			"id": "notice_board",
+			"view": "v1",
+			"box": [
+				2325,
+				385,
+				2477,
+				523
+			],
+			"name": "notice board of grow logs and rotas",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.8,
+				0.05,
+				0.6
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_notice_board",
+			"made": "kit piece",
+			"group": "kit: sign",
+			"at": [
+				{
+					"wall": "south",
+					"across": -4.2,
+					"bottom": 1.6
+				}
+			]
+		},
+		{
+			"id": "intercom_panel",
+			"view": "v1",
+			"box": [
+				881,
+				495,
+				922,
+				550
+			],
+			"name": "intercom panel beside the hatch",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.25,
+				0.06,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_intercom_panel",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": [
+				{
+					"wall": "east",
+					"across": 1.4,
+					"bottom": 0.62
+				}
+			]
+		},
+		{
+			"id": "tread_mat",
+			"view": "v1",
+			"box": [
+				771,
+				605,
+				1101,
+				716
+			],
+			"name": "grated dust mat before a hatch",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.02,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_tread_mat",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": [
+				{
+					"x": 0.0,
+					"z": 7.55,
+					"facing": 0
+				}
+			],
+			"lies": "floor"
+		},
+		{
+			"id": "grow_light_bar",
+			"view": "v1",
+			"box": [
+				771,
+				454,
+				1459,
+				771
+			],
+			"name": "LED grow-light bar housing over the plot",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				3.0,
+				0.3,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_grow_light_bar",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": []
+		},
+		{
+			"id": "grow_light_glow",
+			"view": "v1",
+			"box": [
+				771,
+				454,
+				1459,
+				771
+			],
+			"name": "the grow-light bar's lit LED lens (dimmed by the grow lights' timer)",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.9,
+				0.22,
+				0.03
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_grow_light_glow",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": []
+		},
+		{
+			"id": "rig_rail",
+			"view": "v1",
+			"box": [
+				743,
+				248,
+				2009,
+				771
+			],
+			"name": "steel frame rail of the grow-light gantry",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.75,
+				0.14,
+				0.16
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_rig_rail",
+			"made": "kit piece",
+			"group": "kit: ceiling",
+			"at": []
+		},
+		{
+			"id": "rig_hanger",
+			"view": "v1",
+			"box": [
+				826,
+				0,
+				1046,
+				578
+			],
+			"name": "wire rope hanger from the dome to the gantry",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.1,
+				0.1,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_rig_hanger",
+			"made": "kit piece",
+			"group": "kit: ceiling",
+			"at": []
+		},
+		{
+			"id": "irrigation_boom",
+			"view": "v1",
+			"box": [
+				743,
+				248,
+				2009,
+				771
+			],
+			"name": "irrigation boom with drip emitters beside a light bar",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				3.0,
+				0.1,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_irrigation_boom",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": []
+		},
+		{
+			"id": "water_tank",
+			"view": "v1",
+			"box": [
+				399,
+				509,
+				633,
+				729
+			],
+			"name": "square water tank on a steel stand, the irrigation main's source",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				1.6,
+				1.6
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_water_tank",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -5.0,
+					"y": 0.9,
+					"z": -8.05,
+					"facing": 180
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "dosing_unit",
+			"view": "v1",
+			"box": [
+				564,
+				468,
+				729,
+				647
+			],
+			"name": "nutrient dosing unit cabinet",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.6,
+				1.3
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_dosing_unit",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -3.05,
+					"y": 0.9,
+					"z": -8.6,
+					"facing": 180
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "control_console",
+			"view": "v1",
+			"box": [
+				1527,
+				234,
+				2036,
+				592
+			],
+			"name": "grow control console with a bank of small screens",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.2,
+				0.8,
+				1.6
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_control_console",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 3.5,
+					"y": 0.9,
+					"z": -8.55,
+					"facing": 180
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "work_desk",
+			"view": "v1",
+			"box": [
+				2147,
+				454,
+				2367,
+				716
+			],
+			"name": "steel writing desk with a drawer pedestal",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				0.7,
+				0.76
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_work_desk",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 5.65,
+					"y": 0.9,
+					"z": -8.6,
+					"facing": 180
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "chair",
+			"view": "v1",
+			"box": [
+				2064,
+				647,
+				2174,
+				757
+			],
+			"name": "swivel work chair",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.6,
+				0.6,
+				0.9
+			],
+			"count": 2,
+			"thing": "prop:greenhouse_chair",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 3.5,
+					"y": 0.9,
+					"z": -7.55,
+					"facing": 0
+				},
+				{
+					"x": 5.65,
+					"y": 0.9,
+					"z": -7.6,
+					"facing": 10
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "seedling_shelf",
+			"view": "v1",
+			"box": [
+				949,
+				248,
+				1266,
+				468
+			],
+			"name": "seedling rack: open steel shelves with a grow-light tube under each",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.8,
+				0.5,
+				1.8
+			],
+			"count": 2,
+			"thing": "prop:greenhouse_seedling_shelf",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 7.5,
+					"y": 0.42,
+					"z": -5.5,
+					"facing": 270
+				},
+				{
+					"x": 7.5,
+					"y": 0.42,
+					"z": -3.45,
+					"facing": 270
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "humidifier",
+			"view": "v1",
+			"box": [
+				399,
+				509,
+				633,
+				729
+			],
+			"name": "ultrasonic humidifier: the room's damp air for mycelium (shown while one is fitted)",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.7,
+				0.5,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_humidifier",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -7.5,
+					"y": 0.42,
+					"z": -5.0,
+					"facing": 90
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "dock_pad_one",
+			"view": "v1",
+			"box": [
+				1362,
+				1073,
+				1789,
+				1321
+			],
+			"name": "robot dock pad, bay one's stripe",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.04,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_dock_pad_one",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "dock_pad_two",
+			"view": "v1",
+			"box": [
+				1362,
+				1073,
+				1789,
+				1321
+			],
+			"name": "robot dock pad, bay two's stripe",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.04,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_dock_pad_two",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "dock_pad_three",
+			"view": "v1",
+			"box": [
+				1362,
+				1073,
+				1789,
+				1321
+			],
+			"name": "robot dock pad, bay three's stripe",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.04,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_dock_pad_three",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "charge_post",
+			"view": "v1",
+			"box": [
+				1362,
+				1073,
+				1789,
+				1321
+			],
+			"name": "robot charging post with its charge bar's window",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.14,
+				0.1,
+				0.7
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_charge_post",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": []
+		},
+		{
+			"id": "seed_bin",
+			"view": "v1",
+			"box": [
+				1968,
+				771,
+				2339,
+				991
+			],
+			"name": "the station's seed bin, open topped",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.55,
+				0.6,
+				0.8
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_seed_bin",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": []
+		},
+		{
+			"id": "soil_bin",
+			"view": "v1",
+			"box": [
+				1968,
+				771,
+				2339,
+				991
+			],
+			"name": "the station's soil bin, open topped",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.7,
+				0.45
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_soil_bin",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": []
+		},
+		{
+			"id": "crop_crate",
+			"view": "v1",
+			"box": [
+				1968,
+				771,
+				2339,
+				991
+			],
+			"name": "the station's slatted crop crate",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.8,
+				0.7,
+				0.55
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_crop_crate",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": []
+		},
+		{
+			"id": "wall_screen_cluster",
+			"view": "v1",
+			"box": [
+				2009,
+				385,
+				2339,
+				523
+			],
+			"name": "cluster of small screens on a bracket over the desk",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				0.6
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_screen_cluster",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "north",
+					"across": -5.55,
+					"bottom": 1.9
+				}
+			]
+		},
+		{
+			"id": "status_display",
+			"view": "v1",
+			"box": [
+				1527,
+				234,
+				2036,
+				413
+			],
+			"name": "grow status display over the robot station",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.1,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_status_display",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "south",
+					"across": 4.2,
+					"bottom": 1.45
+				}
+			]
+		},
+		{
+			"id": "cable_bundle",
+			"view": "v1",
+			"box": [
+				2064,
+				179,
+				2339,
+				413
+			],
+			"name": "cable run clipped along the wall's top",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.08,
+				0.12
+			],
+			"count": 4,
+			"thing": "prop:greenhouse_cable_bundle",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": [
+				{
+					"wall": "north",
+					"across": -4.6,
+					"bottom": 2.52,
+					"size": [
+						2.6,
+						0.08,
+						0.08
+					]
+				},
+				{
+					"wall": "north",
+					"across": 4.6,
+					"bottom": 2.52,
+					"size": [
+						2.6,
+						0.08,
+						0.08
+					]
+				},
+				{
+					"wall": "south",
+					"across": -4.6,
+					"bottom": 2.52,
+					"size": [
+						2.6,
+						0.08,
+						0.08
+					]
+				},
+				{
+					"wall": "south",
+					"across": 4.6,
+					"bottom": 2.52,
+					"size": [
+						2.6,
+						0.08,
+						0.08
+					]
+				}
+			]
+		},
+		{
+			"id": "cable_drop",
+			"view": "v1",
+			"box": [
+				2339,
+				179,
+				2422,
+				413
+			],
+			"name": "cable drop from the wall's top run down to a box",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.15,
+				0.08,
+				1.2
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_cable_drop",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": [
+				{
+					"wall": "south",
+					"across": -2.6,
+					"bottom": 1.28,
+					"size": [
+						0.15,
+						1.2,
+						0.08
+					]
+				}
+			]
+		},
+		{
+			"id": "wall_lower_patched",
+			"view": "v1",
+			"box": [
+				1514,
+				881,
+				2064,
+				1046
+			],
+			"name": "lower wall panel with a welded patch and taped repairs",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_lower_patched",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_upper_patched",
+			"view": "v1",
+			"box": [
+				1514,
+				881,
+				2064,
+				1046
+			],
+			"name": "upper wall panel with a welded patch",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.7
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_wall_upper_patched",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "waste_bin",
+			"view": "v1",
+			"box": [
+				2257,
+				619,
+				2339,
+				716
+			],
+			"name": "waste bin by the desk",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.3,
+				0.3,
+				0.45
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_waste_bin",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 6.75,
+					"y": 0.9,
+					"z": -7.55,
+					"facing": 270
+				}
+			]
+		},
+		{
+			"id": "floor_grating",
+			"view": "v1",
+			"box": [
+				771,
+				605,
+				1101,
+				716
+			],
+			"name": "floor grating over the drain duct",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.05,
+				1.0
+			],
+			"count": 2,
+			"thing": "prop:greenhouse_floor_grating",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": [
+				{
+					"x": 3.2,
+					"z": 6.95,
+					"facing": 0
+				},
+				{
+					"x": 5.4,
+					"z": 6.95,
+					"facing": 0
+				}
+			],
+			"lies": "floor"
+		},
+		{
+			"id": "under_floor_box",
+			"view": "v1",
+			"box": [
+				771,
+				605,
+				1101,
+				716
+			],
+			"name": "duct box under a floor grating",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				1.0,
+				0.3
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_under_floor_box",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": [],
+			"why": "laid by room_kit.py under every set-in grating"
+		},
+		{
+			"id": "keyboard",
+			"view": "v1",
+			"box": [
+				1527,
+				234,
+				2036,
+				592
+			],
+			"name": "keyboard on the console's desk",
+			"kind": "code",
+			"anchor": "on:control_console",
+			"size": [
+				0.46,
+				0.17,
+				0.035
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_keyboard",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [],
+			"parent": "control_console"
+		},
+		{
+			"id": "desklamp",
+			"view": "v1",
+			"box": [
+				2243,
+				523,
+				2312,
+				626
+			],
+			"name": "desk lamp",
+			"kind": "generate",
+			"anchor": "on:work_desk",
+			"size": [
+				0.32,
+				0.22,
+				0.52
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_desklamp",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [],
+			"parent": "work_desk"
+		},
+		{
+			"id": "seed_tray",
+			"view": "v1",
+			"box": [
+				949,
+				248,
+				1266,
+				468
+			],
+			"name": "seedling tray of young plants",
+			"kind": "generate",
+			"anchor": "on:seedling_shelf",
+			"size": [
+				0.6,
+				0.4,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_seed_tray",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [],
+			"parent": "seedling_shelf"
+		}
+	]
+}

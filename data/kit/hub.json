@@ -1,0 +1,15180 @@
+{
+	"room": "hub",
+	"frame": "the Habitat node's own: x east, z south, y up from the ring floor",
+	"partition": {
+		"walls": {
+			"samples": 23736,
+			"coverage": 1.0,
+			"overlap": 0.0006,
+			"gaps": 0.0
+		},
+		"ring floor": {
+			"samples": 17885,
+			"coverage": 0.9875,
+			"overlap": 0.0323,
+			"gaps": 0.0125
+		},
+		"pit wall": {
+			"samples": 4806,
+			"coverage": 0.9823,
+			"overlap": 0.0545,
+			"gaps": 0.0177
+		},
+		"pit floor": {
+			"samples": 6528,
+			"coverage": 1.0,
+			"overlap": 0.0317,
+			"gaps": 0.0
+		},
+		"roof": {
+			"samples": 22284,
+			"coverage": 1.0,
+			"overlap": 0.0043,
+			"gaps": 0.0
+		},
+		"all": {
+			"coverage": 0.9959,
+			"overlap": 0.0154,
+			"gaps": 0.0041
+		}
+	},
+	"counts": {
+		"hub_hatch_wall_surround": 5,
+		"hub_wall_lower_plain": 8,
+		"hub_wall_upper_cables": 4,
+		"hub_wall_lower_vent": 4,
+		"hub_wall_upper_patched": 2,
+		"hub_wall_lower_patched": 2,
+		"hub_wall_upper_screen_recess": 2,
+		"hub_wall_upper_pipes": 4,
+		"hub_porthole_panel": 1,
+		"hub_wall_upper_plain": 4,
+		"hub_wall_cornice": 12,
+		"hub_wall_corner_post": 10,
+		"hub_wall_skirting": 7,
+		"hub_roof_face_panel": 12,
+		"hub_lattice_ring_rib": 36,
+		"hub_lattice_hip_rib": 12,
+		"hub_lattice_diamond_strut": 48,
+		"hub_lattice_node_plate": 36,
+		"hub_roof_apex_hub": 1,
+		"hub_ceiling_cable_tray": 5,
+		"hub_ceiling_duct": 2,
+		"hub_roof_light_fixture": 4,
+		"hub_ring_floor_plate": 12,
+		"hub_floor_grating": 6,
+		"hub_floor_access_hatch": 3,
+		"hub_tread_mat": 4,
+		"hub_under_floor_box": 5,
+		"hub_pit_wall_panel": 10,
+		"hub_pipe_straight": 56,
+		"hub_pit_junction_box": 3,
+		"hub_pit_floor_plate": 29,
+		"hub_machine_bay_plate": 2,
+		"hub_stair_stringer": 2,
+		"hub_hatch_frame": 6,
+		"hub_hatch_leaf": 2,
+		"hub_hatch_wheel": 2,
+		"hub_hatch_window": 2,
+		"hub_hatch_hinge": 8,
+		"hub_door_strip_lamp": 5,
+		"hub_door_control_box": 5,
+		"hub_grab_bar": 4,
+		"hub_status_display": 1,
+		"hub_wall_screen_cluster": 1,
+		"hub_notice_board": 1,
+		"hub_pipe_valve": 2,
+		"hub_pipe_elbow": 2,
+		"hub_cable_bundle": 12,
+		"hub_cable_drop": 4,
+		"hub_conduit_box": 6,
+		"hub_wall_cage_lamp": 5,
+		"hub_small_readout": 2,
+		"hub_intercom_panel": 1,
+		"hub_waste_bin": 1,
+		"hub_pipe_bracket": 10
+	},
+	"kinds": {
+		"hub_wall_lower_plain": {
+			"group": "hangs"
+		},
+		"hub_wall_lower_vent": {
+			"group": "hangs"
+		},
+		"hub_wall_lower_patched": {
+			"group": "hangs"
+		},
+		"hub_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"hub_wall_upper_pipes": {
+			"group": "hangs"
+		},
+		"hub_wall_upper_cables": {
+			"group": "hangs"
+		},
+		"hub_wall_upper_screen_recess": {
+			"group": "hangs"
+		},
+		"hub_wall_upper_patched": {
+			"group": "hangs"
+		},
+		"hub_wall_corner_post": {
+			"group": "hangs"
+		},
+		"hub_wall_cornice": {
+			"group": "hangs"
+		},
+		"hub_wall_skirting": {
+			"group": "hangs"
+		},
+		"hub_hatch_wall_surround": {
+			"group": "hangs"
+		},
+		"hub_roof_face_panel": {
+			"group": "floors"
+		},
+		"hub_lattice_hip_rib": {
+			"group": "hangs"
+		},
+		"hub_lattice_ring_rib": {
+			"group": "hangs"
+		},
+		"hub_lattice_diamond_strut": {
+			"group": "hangs"
+		},
+		"hub_lattice_node_plate": {
+			"group": "hangs"
+		},
+		"hub_roof_apex_hub": {
+			"group": "hangs"
+		},
+		"hub_ceiling_cable_tray": {
+			"group": "hangs"
+		},
+		"hub_ceiling_duct": {
+			"group": "hangs"
+		},
+		"hub_roof_light_fixture": {
+			"light": {
+				"strength": 0.16,
+				"reach": 6.0,
+				"high": 0.1
+			},
+			"group": "hangs"
+		},
+		"hub_ring_floor_plate": {
+			"group": "floors"
+		},
+		"hub_floor_grating": {
+			"group": "floors"
+		},
+		"hub_floor_access_hatch": {
+			"group": "floors"
+		},
+		"hub_tread_mat": {
+			"group": "floors"
+		},
+		"hub_pit_wall_panel": {
+			"group": "hangs"
+		},
+		"hub_pit_floor_plate": {
+			"group": "floors"
+		},
+		"hub_stair_stringer": {
+			"group": "floors"
+		},
+		"hub_under_floor_box": {
+			"group": "hangs"
+		},
+		"hub_pit_junction_box": {
+			"group": "hangs"
+		},
+		"hub_machine_bay_plate": {
+			"group": "floors"
+		},
+		"hub_hatch_frame": {
+			"group": "hangs"
+		},
+		"hub_hatch_leaf": {
+			"group": "hangs"
+		},
+		"hub_hatch_wheel": {
+			"group": "hangs"
+		},
+		"hub_hatch_hinge": {
+			"group": "hangs"
+		},
+		"hub_hatch_window": {
+			"group": "hangs"
+		},
+		"hub_door_strip_lamp": {
+			"light": {
+				"strength": 0.05,
+				"reach": 3.0,
+				"high": 0.5
+			},
+			"group": "hangs"
+		},
+		"hub_door_control_box": {
+			"group": "hangs"
+		},
+		"hub_grab_bar": {
+			"group": "hangs"
+		},
+		"hub_porthole_panel": {
+			"group": "hangs"
+		},
+		"hub_pipe_straight": {
+			"group": "hangs"
+		},
+		"hub_pipe_elbow": {
+			"group": "hangs"
+		},
+		"hub_pipe_valve": {
+			"group": "hangs"
+		},
+		"hub_pipe_bracket": {
+			"group": "hangs"
+		},
+		"hub_cable_bundle": {
+			"group": "hangs"
+		},
+		"hub_cable_drop": {
+			"group": "hangs"
+		},
+		"hub_conduit_box": {
+			"group": "hangs"
+		},
+		"hub_wall_cage_lamp": {
+			"light": {
+				"strength": 0.05,
+				"reach": 3.5,
+				"high": 0.5
+			},
+			"group": "hangs"
+		},
+		"hub_status_display": {
+			"group": "hangs"
+		},
+		"hub_wall_screen_cluster": {
+			"group": "hangs"
+		},
+		"hub_small_readout": {
+			"group": "hangs"
+		},
+		"hub_intercom_panel": {
+			"group": "hangs"
+		},
+		"hub_notice_board": {
+			"group": "hangs"
+		},
+		"hub_waste_bin": {}
+	},
+	"models": {
+		"hatch_wall_surround_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_cables_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_vent_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_patched_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_wall_surround_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_patched_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_screen_recess_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_screen_recess_1_glow": {
+			"glows": true
+		},
+		"hatch_wall_surround_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_pipes_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_wall_surround_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"porthole_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_wall_surround_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cornice_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_corner_post_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_skirting_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"lattice_ring_rib_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"lattice_ring_rib_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"lattice_ring_rib_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"lattice_hip_rib_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"lattice_diamond_strut_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"lattice_node_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_apex_hub_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ceiling_cable_tray_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ceiling_duct_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_light_fixture_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_light_fixture_1_glow": {
+			"glows": true
+		},
+		"ring_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"floor_grating_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"floor_access_hatch_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"tread_mat_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"under_floor_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"under_floor_box_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"pit_wall_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pit_junction_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pit_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"machine_bay_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"floor_grating_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"pit_floor_plate_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"stair_stringer_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_leaf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_wheel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_window_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_hinge_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_strip_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_strip_lamp_1_glow": {
+			"glows": true
+		},
+		"door_control_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_control_box_1_glow": {
+			"glows": true
+		},
+		"grab_bar_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"status_display_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"status_display_1_glow": {
+			"glows": true
+		},
+		"wall_screen_cluster_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_screen_cluster_1_glow": {
+			"glows": true
+		},
+		"notice_board_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_valve_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_elbow_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cable_bundle_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cable_drop_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"conduit_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cage_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cage_lamp_1_glow": {
+			"glows": true
+		},
+		"small_readout_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1_glow": {
+			"glows": true
+		},
+		"intercom_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"waste_bin_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_bracket_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"console_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "hub_console",
+			"size": [
+				2.6,
+				1.2,
+				0.6
+			],
+			"children": [
+				{
+					"model": "monitor_1",
+					"at": [
+						0.0,
+						0.76,
+						0.207
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "monitor_1",
+					"at": [
+						0.496,
+						0.76,
+						0.158
+					],
+					"turn": 12.0
+				},
+				{
+					"model": "monitor_1",
+					"at": [
+						-0.515,
+						0.76,
+						0.194
+					],
+					"turn": -12.0
+				},
+				{
+					"model": "monitor_2",
+					"at": [
+						1.0,
+						0.76,
+						0.1
+					],
+					"turn": 24.0
+				},
+				{
+					"model": "monitor_3",
+					"at": [
+						-1.0,
+						0.76,
+						0.1
+					],
+					"turn": -24.0
+				},
+				{
+					"model": "keyboard_1",
+					"at": [
+						0.25,
+						0.76,
+						-0.12
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "keyboard_1",
+					"at": [
+						-0.25,
+						0.76,
+						-0.12
+					],
+					"turn": 0.0
+				}
+			]
+		},
+		"labbench_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "hub_labbench",
+			"size": [
+				2.0,
+				1.5,
+				0.7
+			],
+			"children": [
+				{
+					"model": "glovebox_1",
+					"at": [
+						-0.5,
+						0.85,
+						-0.014
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "microscope_1",
+					"at": [
+						0.6,
+						0.85,
+						0.0
+					],
+					"turn": -20.0
+				}
+			]
+		},
+		"chair_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "hub_chair",
+			"size": [
+				0.6,
+				0.9,
+				0.6
+			],
+			"children": []
+		},
+		"talllocker_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "hub_talllocker",
+			"size": [
+				1.2,
+				2.0,
+				0.55
+			],
+			"children": []
+		},
+		"rack_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "hub_rack",
+			"size": [
+				0.6,
+				1.9,
+				0.6
+			],
+			"children": []
+		},
+		"comms_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "hub_comms",
+			"size": [
+				1.5,
+				1.2,
+				0.7
+			],
+			"children": [
+				{
+					"model": "radio_1",
+					"at": [
+						0.21,
+						0.76,
+						0.12
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "radio_1",
+					"at": [
+						-0.26,
+						0.76,
+						0.12
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "telephone_1",
+					"at": [
+						0.58,
+						0.76,
+						-0.05
+					],
+					"turn": -15.0
+				},
+				{
+					"model": "desklamp_1",
+					"at": [
+						-0.6,
+						0.76,
+						0.15
+					],
+					"turn": 20.0
+				},
+				{
+					"model": "headset_1",
+					"at": [
+						-0.825,
+						0.38,
+						0.0
+					],
+					"turn": 90.0
+				}
+			]
+		},
+		"toolboard_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "hub_toolboard",
+			"size": [
+				1.2,
+				0.8,
+				0.08
+			],
+			"children": [
+				{
+					"model": "wrench_1",
+					"at": [
+						0.53,
+						0.51,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_1",
+					"at": [
+						0.48,
+						0.51,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_1",
+					"at": [
+						0.43,
+						0.51,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_2",
+					"at": [
+						0.38,
+						0.55,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_2",
+					"at": [
+						0.33,
+						0.55,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_2",
+					"at": [
+						0.28,
+						0.55,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_3",
+					"at": [
+						0.23,
+						0.59,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_3",
+					"at": [
+						0.18,
+						0.59,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_3",
+					"at": [
+						0.13,
+						0.59,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_3",
+					"at": [
+						0.08,
+						0.59,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "hammer_1",
+					"at": [
+						-0.04,
+						0.44,
+						0.0015
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "hammer_1",
+					"at": [
+						-0.17,
+						0.44,
+						0.0015
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "hammer_1",
+					"at": [
+						-0.3,
+						0.44,
+						0.0015
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "pump_pliers_1",
+					"at": [
+						-0.46,
+						0.49,
+						0.0065
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "wrench_4",
+					"at": [
+						0.52,
+						0.1,
+						0.0105
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "pliers_1",
+					"at": [
+						0.41,
+						0.2,
+						0.0065
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "pliers_1",
+					"at": [
+						0.32,
+						0.2,
+						0.0065
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "pliers_1",
+					"at": [
+						0.23,
+						0.2,
+						0.0065
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "pliers_1",
+					"at": [
+						0.14,
+						0.2,
+						0.0065
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "pliers_1",
+					"at": [
+						0.05,
+						0.2,
+						0.0065
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "pliers_1",
+					"at": [
+						-0.04,
+						0.2,
+						0.0065
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "screwdriver_1",
+					"at": [
+						-0.2,
+						0.08,
+						0.0015
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "screwdriver_1",
+					"at": [
+						-0.27,
+						0.08,
+						0.0015
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "screwdriver_1",
+					"at": [
+						-0.34,
+						0.08,
+						0.0015
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "screwdriver_1",
+					"at": [
+						-0.41,
+						0.08,
+						0.0015
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "screwdriver_1",
+					"at": [
+						-0.48,
+						0.08,
+						0.0015
+					],
+					"turn": 0.0
+				}
+			]
+		},
+		"monitor_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "console_1",
+			"size": [
+				0.5,
+				0.385,
+				0.17
+			]
+		},
+		"monitor_2": {
+			"glows": false,
+			"route": "code",
+			"child_of": "console_1",
+			"size": [
+				0.5,
+				0.385,
+				0.17
+			]
+		},
+		"monitor_2_glow": {
+			"glows": true,
+			"part_of": "monitor_2"
+		},
+		"monitor_3": {
+			"glows": false,
+			"route": "code",
+			"child_of": "console_1",
+			"size": [
+				0.5,
+				0.385,
+				0.17
+			]
+		},
+		"monitor_3_glow": {
+			"glows": true,
+			"part_of": "monitor_3"
+		},
+		"keyboard_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "console_1",
+			"size": [
+				0.46,
+				0.03,
+				0.21
+			]
+		},
+		"glovebox_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "labbench_1",
+			"size": [
+				0.96,
+				0.72,
+				0.718
+			]
+		},
+		"microscope_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "labbench_1",
+			"size": [
+				0.3,
+				0.42,
+				0.26
+			]
+		},
+		"radio_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "comms_1",
+			"size": [
+				0.4,
+				0.26,
+				0.24
+			]
+		},
+		"telephone_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "comms_1",
+			"size": [
+				0.22,
+				0.13,
+				0.24
+			]
+		},
+		"desklamp_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "comms_1",
+			"size": [
+				0.3,
+				0.52,
+				0.22
+			]
+		},
+		"headset_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "comms_1",
+			"size": [
+				0.2,
+				0.27,
+				0.1
+			]
+		},
+		"wrench_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "toolboard_1",
+			"size": [
+				0.039,
+				0.23,
+				0.012
+			]
+		},
+		"wrench_2": {
+			"glows": false,
+			"route": "model",
+			"child_of": "toolboard_1",
+			"size": [
+				0.032,
+				0.19,
+				0.012
+			]
+		},
+		"wrench_3": {
+			"glows": false,
+			"route": "model",
+			"child_of": "toolboard_1",
+			"size": [
+				0.026,
+				0.15,
+				0.012
+			]
+		},
+		"hammer_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "toolboard_1",
+			"size": [
+				0.12,
+				0.3,
+				0.03
+			]
+		},
+		"pump_pliers_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "toolboard_1",
+			"size": [
+				0.07,
+				0.25,
+				0.02
+			]
+		},
+		"wrench_4": {
+			"glows": false,
+			"route": "model",
+			"child_of": "toolboard_1",
+			"size": [
+				0.051,
+				0.3,
+				0.012
+			]
+		},
+		"pliers_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "toolboard_1",
+			"size": [
+				0.07,
+				0.2,
+				0.02
+			]
+		},
+		"screwdriver_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "toolboard_1",
+			"size": [
+				0.031,
+				0.22,
+				0.03
+			]
+		},
+		"console_screen_1": {
+			"glows": true,
+			"picture": null,
+			"live": true,
+			"size": [
+				0.44,
+				0.26,
+				0.004
+			],
+			"shows": {
+				"left": "screen_status",
+				"right": "console_systems"
+			}
+		},
+		"status_lamp_1": {
+			"glows": true,
+			"lamp": {
+				"name": "status_lamp_1",
+				"radius": 0.03
+			}
+		}
+	},
+	"pieces": [
+		{
+			"kind": "hub_hatch_wall_surround",
+			"at": [
+				0.0,
+				0.0,
+				-4.457
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.4115,
+				3.1,
+				0.086
+			],
+			"layer": 1,
+			"model": "hatch_wall_surround_1"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				1.7129,
+				0.0,
+				-4.1726
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				2.7571,
+				0.0,
+				-3.5697
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "hub_wall_upper_cables",
+			"at": [
+				1.7012,
+				1.1,
+				-4.1523
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.107
+			],
+			"layer": 1,
+			"model": "wall_upper_cables_1"
+		},
+		{
+			"kind": "hub_wall_upper_cables",
+			"at": [
+				2.7454,
+				1.1,
+				-3.5494
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.107
+			],
+			"layer": 1,
+			"model": "wall_upper_cables_1"
+		},
+		{
+			"kind": "hub_wall_lower_vent",
+			"at": [
+				3.5649,
+				0.0,
+				-2.7544
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.071
+			],
+			"layer": 1,
+			"model": "wall_lower_vent_1"
+		},
+		{
+			"kind": "hub_wall_lower_vent",
+			"at": [
+				4.1678,
+				0.0,
+				-1.7102
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.071
+			],
+			"layer": 1,
+			"model": "wall_lower_vent_1"
+		},
+		{
+			"kind": "hub_wall_upper_patched",
+			"at": [
+				3.5662,
+				1.1,
+				-2.7551
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.068
+			],
+			"layer": 1,
+			"model": "wall_upper_patched_1"
+		},
+		{
+			"kind": "hub_wall_upper_patched",
+			"at": [
+				4.1691,
+				1.1,
+				-1.7109
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.068
+			],
+			"layer": 1,
+			"model": "wall_upper_patched_1"
+		},
+		{
+			"kind": "hub_hatch_wall_surround",
+			"at": [
+				4.457,
+				0.0,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				2.4115,
+				3.1,
+				0.086
+			],
+			"layer": 1,
+			"model": "hatch_wall_surround_2"
+		},
+		{
+			"kind": "hub_wall_lower_patched",
+			"at": [
+				4.1713,
+				0.0,
+				1.7122
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.063
+			],
+			"layer": 1,
+			"model": "wall_lower_patched_1"
+		},
+		{
+			"kind": "hub_wall_lower_patched",
+			"at": [
+				3.5684,
+				0.0,
+				2.7563
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.063
+			],
+			"layer": 1,
+			"model": "wall_lower_patched_1"
+		},
+		{
+			"kind": "hub_wall_upper_screen_recess",
+			"at": [
+				4.1639,
+				1.1,
+				1.7079
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.08
+			],
+			"layer": 1,
+			"model": "wall_upper_screen_recess_1"
+		},
+		{
+			"kind": "hub_wall_upper_screen_recess",
+			"at": [
+				4.3019,
+				2.352,
+				1.4609
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.196,
+				0.106,
+				0.004
+			],
+			"layer": 1,
+			"model": "wall_upper_screen_recess_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_wall_upper_screen_recess",
+			"at": [
+				3.561,
+				1.1,
+				2.7521
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.08
+			],
+			"layer": 1,
+			"model": "wall_upper_screen_recess_1"
+		},
+		{
+			"kind": "hub_wall_upper_screen_recess",
+			"at": [
+				3.699,
+				2.352,
+				2.5051
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.196,
+				0.106,
+				0.004
+			],
+			"layer": 1,
+			"model": "wall_upper_screen_recess_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				2.7571,
+				0.0,
+				3.5697
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				1.7129,
+				0.0,
+				4.1726
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "hub_wall_upper_cables",
+			"at": [
+				2.7454,
+				1.1,
+				3.5494
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.107
+			],
+			"layer": 1,
+			"model": "wall_upper_cables_1"
+		},
+		{
+			"kind": "hub_wall_upper_cables",
+			"at": [
+				1.7012,
+				1.1,
+				4.1523
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.107
+			],
+			"layer": 1,
+			"model": "wall_upper_cables_1"
+		},
+		{
+			"kind": "hub_hatch_wall_surround",
+			"at": [
+				0.0,
+				0.0,
+				4.457
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.4115,
+				3.1,
+				0.086
+			],
+			"layer": 1,
+			"model": "hatch_wall_surround_3"
+		},
+		{
+			"kind": "hub_wall_lower_vent",
+			"at": [
+				-1.7102,
+				0.0,
+				4.1678
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.071
+			],
+			"layer": 1,
+			"model": "wall_lower_vent_1"
+		},
+		{
+			"kind": "hub_wall_lower_vent",
+			"at": [
+				-2.7544,
+				0.0,
+				3.5649
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.071
+			],
+			"layer": 1,
+			"model": "wall_lower_vent_1"
+		},
+		{
+			"kind": "hub_wall_upper_pipes",
+			"at": [
+				-1.7002,
+				1.1,
+				4.1505
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.111
+			],
+			"layer": 1,
+			"model": "wall_upper_pipes_1"
+		},
+		{
+			"kind": "hub_wall_upper_pipes",
+			"at": [
+				-2.7444,
+				1.1,
+				3.5476
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.111
+			],
+			"layer": 1,
+			"model": "wall_upper_pipes_1"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				-3.5697,
+				0.0,
+				2.7571
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				-4.1726,
+				0.0,
+				1.7129
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "hub_wall_upper_pipes",
+			"at": [
+				-3.5476,
+				1.1,
+				2.7444
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.111
+			],
+			"layer": 1,
+			"model": "wall_upper_pipes_1"
+		},
+		{
+			"kind": "hub_wall_upper_pipes",
+			"at": [
+				-4.1505,
+				1.1,
+				1.7002
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2458,
+				2.0,
+				0.111
+			],
+			"layer": 1,
+			"model": "wall_upper_pipes_1"
+		},
+		{
+			"kind": "hub_hatch_wall_surround",
+			"at": [
+				-4.457,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4115,
+				3.1,
+				0.086
+			],
+			"layer": 1,
+			"model": "hatch_wall_surround_4"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				-4.1726,
+				0.0,
+				-1.7129
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "hub_wall_lower_plain",
+			"at": [
+				-3.6447,
+				0.0,
+				-2.6272
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.9458,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "hub_porthole_panel",
+			"at": [
+				-3.8538,
+				1.75,
+				-2.225
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2,
+				1.2,
+				0.1
+			],
+			"layer": 1,
+			"model": "porthole_panel_1"
+		},
+		{
+			"kind": "hub_wall_upper_plain",
+			"at": [
+				-4.3226,
+				1.1,
+				-1.4531
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.6058,
+				2.0,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "hub_wall_upper_plain",
+			"at": [
+				-3.4947,
+				1.1,
+				-2.887
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.3058,
+				2.0,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "hub_wall_upper_plain",
+			"at": [
+				-3.8711,
+				1.1,
+				-2.235
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2,
+				0.65,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "hub_wall_upper_plain",
+			"at": [
+				-3.8711,
+				2.95,
+				-2.235
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.2,
+				0.15,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "hub_hatch_wall_surround",
+			"at": [
+				-2.2285,
+				0.0,
+				-3.8599
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				2.4115,
+				3.1,
+				0.086
+			],
+			"layer": 1,
+			"model": "hatch_wall_surround_5"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				0.0,
+				2.92,
+				-4.42
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				1.1868,
+				0.0,
+				-4.429
+			],
+			"x": [
+				-0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.25882,
+				0.0,
+				-0.96593
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_skirting",
+			"at": [
+				2.235,
+				0.0,
+				-3.8711
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				2.4115,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				2.21,
+				2.92,
+				-3.8278
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				3.2422,
+				0.0,
+				-3.2422
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.70711,
+				0.0,
+				-0.70711
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_skirting",
+			"at": [
+				3.8711,
+				0.0,
+				-2.235
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				2.4115,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				3.8278,
+				2.92,
+				-2.21
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				4.429,
+				0.0,
+				-1.1868
+			],
+			"x": [
+				-0.25882,
+				0.0,
+				-0.96593
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				4.42,
+				2.92,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				4.429,
+				0.0,
+				1.1868
+			],
+			"x": [
+				0.25882,
+				0.0,
+				-0.96593
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.96593,
+				0.0,
+				0.25882
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_skirting",
+			"at": [
+				3.8711,
+				0.0,
+				2.235
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				2.4115,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				3.8278,
+				2.92,
+				2.21
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				3.2422,
+				0.0,
+				3.2422
+			],
+			"x": [
+				0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.70711,
+				0.0,
+				0.70711
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_skirting",
+			"at": [
+				2.235,
+				0.0,
+				3.8711
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				2.4115,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				2.21,
+				2.92,
+				3.8278
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				1.1868,
+				0.0,
+				4.429
+			],
+			"x": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.25882,
+				0.0,
+				0.96593
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				0.0,
+				2.92,
+				4.42
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				-1.1868,
+				0.0,
+				4.429
+			],
+			"x": [
+				0.96593,
+				-0.0,
+				0.25882
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.25882,
+				0.0,
+				0.96593
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_skirting",
+			"at": [
+				-2.235,
+				0.0,
+				3.8711
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				2.4115,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				-2.21,
+				2.92,
+				3.8278
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				-3.2422,
+				0.0,
+				3.2422
+			],
+			"x": [
+				0.70711,
+				-0.0,
+				0.70711
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.70711,
+				0.0,
+				0.70711
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_skirting",
+			"at": [
+				-3.8711,
+				0.0,
+				2.235
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				2.4115,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				-3.8278,
+				2.92,
+				2.21
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				-4.429,
+				0.0,
+				1.1868
+			],
+			"x": [
+				0.25882,
+				-0.0,
+				0.96593
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.96593,
+				0.0,
+				0.25882
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				-4.42,
+				2.92,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_corner_post",
+			"at": [
+				-4.429,
+				0.0,
+				-1.1868
+			],
+			"x": [
+				-0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.96593,
+				0.0,
+				-0.25882
+			],
+			"size": [
+				0.14,
+				3.1,
+				0.147
+			],
+			"layer": 1,
+			"model": "wall_corner_post_1"
+		},
+		{
+			"kind": "hub_wall_skirting",
+			"at": [
+				-3.8711,
+				0.0,
+				-2.235
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				2.4115,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				-3.8278,
+				2.92,
+				-2.21
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_wall_cornice",
+			"at": [
+				-2.21,
+				2.92,
+				-3.8278
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				2.4115,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				0.0,
+				3.0704,
+				-4.6492
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.3534,
+				0.93547
+			],
+			"z": [
+				-0.0,
+				0.93547,
+				-0.3534
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				2.3246,
+				3.0704,
+				-4.0263
+			],
+			"x": [
+				-0.86603,
+				-0.0,
+				-0.5
+			],
+			"y": [
+				-0.46774,
+				0.3534,
+				0.81014
+			],
+			"z": [
+				0.1767,
+				0.93547,
+				-0.30605
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				4.0263,
+				3.0704,
+				-2.3246
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				-0.81014,
+				0.3534,
+				0.46774
+			],
+			"z": [
+				0.30605,
+				0.93547,
+				-0.1767
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				4.6492,
+				3.0704,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.93547,
+				0.3534,
+				0.0
+			],
+			"z": [
+				0.3534,
+				0.93547,
+				-0.0
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				4.0263,
+				3.0704,
+				2.3246
+			],
+			"x": [
+				0.5,
+				-0.0,
+				-0.86603
+			],
+			"y": [
+				-0.81014,
+				0.3534,
+				-0.46774
+			],
+			"z": [
+				0.30605,
+				0.93547,
+				0.1767
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				2.3246,
+				3.0704,
+				4.0263
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				-0.46774,
+				0.3534,
+				-0.81014
+			],
+			"z": [
+				0.1767,
+				0.93547,
+				0.30605
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				0.0,
+				3.0704,
+				4.6492
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				-0.0,
+				0.3534,
+				-0.93547
+			],
+			"z": [
+				0.0,
+				0.93547,
+				0.3534
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				-2.3246,
+				3.0704,
+				4.0263
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.46774,
+				0.3534,
+				-0.81014
+			],
+			"z": [
+				-0.1767,
+				0.93547,
+				0.30605
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				-4.0263,
+				3.0704,
+				2.3246
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.81014,
+				0.3534,
+				-0.46774
+			],
+			"z": [
+				-0.30605,
+				0.93547,
+				0.1767
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				-4.6492,
+				3.0704,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.93547,
+				0.3534,
+				-0.0
+			],
+			"z": [
+				-0.3534,
+				0.93547,
+				0.0
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				-4.0263,
+				3.0704,
+				-2.3246
+			],
+			"x": [
+				-0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.81014,
+				0.3534,
+				0.46774
+			],
+			"z": [
+				-0.30605,
+				0.93547,
+				-0.1767
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_roof_face_panel",
+			"at": [
+				-2.3246,
+				3.0704,
+				-4.0263
+			],
+			"x": [
+				-0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.46774,
+				0.3534,
+				0.81014
+			],
+			"z": [
+				-0.1767,
+				0.93547,
+				-0.30605
+			],
+			"size": [
+				2.5096,
+				4.9581,
+				0.05
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				2.155,
+				2.96,
+				-3.7326
+			],
+			"x": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				3.7326,
+				2.96,
+				-2.155
+			],
+			"x": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				4.31,
+				2.96,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				3.7326,
+				2.96,
+				2.155
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				2.155,
+				2.96,
+				3.7326
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.0,
+				2.96,
+				4.31
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-2.155,
+				2.96,
+				3.7326
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-3.7326,
+				2.96,
+				2.155
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-4.31,
+				2.96,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-3.7326,
+				2.96,
+				-2.155
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				-0.86603,
+				-0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-2.155,
+				2.96,
+				-3.7326
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				-0.5,
+				-0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.0,
+				2.96,
+				-4.31
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				2.3365,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				1.1958,
+				3.708,
+				-2.0712
+			],
+			"x": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				2.0712,
+				3.708,
+				-1.1958
+			],
+			"x": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				2.3916,
+				3.708,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				2.0712,
+				3.708,
+				1.1958
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				1.1958,
+				3.708,
+				2.0712
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.0,
+				3.708,
+				2.3916
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-1.1958,
+				3.708,
+				2.0712
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-2.0712,
+				3.708,
+				1.1958
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-2.3916,
+				3.708,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-2.0712,
+				3.708,
+				-1.1958
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				-0.86603,
+				-0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-1.1958,
+				3.708,
+				-2.0712
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				-0.5,
+				-0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.0,
+				3.708,
+				-2.3916
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				1.3084,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.2366,
+				4.456,
+				-0.4098
+			],
+			"x": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.4098,
+				4.456,
+				-0.2366
+			],
+			"x": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.4732,
+				4.456,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.4098,
+				4.456,
+				0.2366
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.2366,
+				4.456,
+				0.4098
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.0,
+				4.456,
+				0.4732
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-0.2366,
+				4.456,
+				0.4098
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-0.4098,
+				4.456,
+				0.2366
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-0.4732,
+				4.456,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-0.4098,
+				4.456,
+				-0.2366
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				-0.86603,
+				-0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				-0.2366,
+				4.456,
+				-0.4098
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				-0.5,
+				-0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_ring_rib",
+			"at": [
+				0.0,
+				4.456,
+				-0.4732
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.2804,
+				0.1,
+				0.1
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_3"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				1.1683,
+				2.96,
+				-4.36
+			],
+			"x": [
+				-0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				-0.24221,
+				0.35245,
+				0.90394
+			],
+			"z": [
+				0.09122,
+				0.93583,
+				-0.34044
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.18,
+				2.96,
+				-3.7759
+			],
+			"x": [
+				-0.65829,
+				0.0,
+				-0.75277
+			],
+			"y": [
+				-0.70621,
+				0.34622,
+				0.61757
+			],
+			"z": [
+				0.26062,
+				0.93815,
+				-0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.6542,
+				3.708,
+				-2.4416
+			],
+			"x": [
+				-0.98106,
+				-0.0,
+				-0.19371
+			],
+			"y": [
+				-0.18173,
+				0.34622,
+				0.92039
+			],
+			"z": [
+				0.06706,
+				0.93815,
+				-0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.18,
+				2.96,
+				-3.7759
+			],
+			"x": [
+				-0.98106,
+				-0.0,
+				-0.19371
+			],
+			"y": [
+				-0.18173,
+				0.34622,
+				0.92039
+			],
+			"z": [
+				0.06706,
+				0.93815,
+				-0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				1.7874,
+				3.708,
+				-1.7874
+			],
+			"x": [
+				-0.65829,
+				0.0,
+				-0.75277
+			],
+			"y": [
+				-0.70621,
+				0.34622,
+				0.61757
+			],
+			"z": [
+				0.26062,
+				0.93815,
+				-0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				3.1917,
+				2.96,
+				-3.1917
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				-0.66173,
+				0.35245,
+				0.66173
+			],
+			"z": [
+				0.24922,
+				0.93583,
+				-0.24922
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				3.7759,
+				2.96,
+				-2.18
+			],
+			"x": [
+				-0.19371,
+				0.0,
+				-0.98106
+			],
+			"y": [
+				-0.92039,
+				0.34622,
+				0.18173
+			],
+			"z": [
+				0.33966,
+				0.93815,
+				-0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				1.7874,
+				3.708,
+				-1.7874
+			],
+			"x": [
+				-0.75277,
+				-0.0,
+				-0.65829
+			],
+			"y": [
+				-0.61757,
+				0.34622,
+				0.70621
+			],
+			"z": [
+				0.22791,
+				0.93815,
+				-0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				3.7759,
+				2.96,
+				-2.18
+			],
+			"x": [
+				-0.75277,
+				0.0,
+				-0.65829
+			],
+			"y": [
+				-0.61757,
+				0.34622,
+				0.70621
+			],
+			"z": [
+				0.22791,
+				0.93815,
+				-0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.4416,
+				3.708,
+				-0.6542
+			],
+			"x": [
+				-0.19371,
+				-0.0,
+				-0.98106
+			],
+			"y": [
+				-0.92039,
+				0.34622,
+				0.18173
+			],
+			"z": [
+				0.33966,
+				0.93815,
+				-0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				4.36,
+				2.96,
+				-1.1683
+			],
+			"x": [
+				-0.25882,
+				0.0,
+				-0.96593
+			],
+			"y": [
+				-0.90394,
+				0.35245,
+				0.24221
+			],
+			"z": [
+				0.34044,
+				0.93583,
+				-0.09122
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				4.36,
+				2.96,
+				0.0
+			],
+			"x": [
+				0.32277,
+				-0.0,
+				-0.94648
+			],
+			"y": [
+				-0.88794,
+				0.34622,
+				-0.30281
+			],
+			"z": [
+				0.32768,
+				0.93815,
+				0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.4416,
+				3.708,
+				-0.6542
+			],
+			"x": [
+				-0.32277,
+				-0.0,
+				-0.94648
+			],
+			"y": [
+				-0.88794,
+				0.34622,
+				0.30281
+			],
+			"z": [
+				0.32768,
+				0.93815,
+				-0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				4.36,
+				2.96,
+				0.0
+			],
+			"x": [
+				-0.32277,
+				0.0,
+				-0.94648
+			],
+			"y": [
+				-0.88794,
+				0.34622,
+				0.30281
+			],
+			"z": [
+				0.32768,
+				0.93815,
+				-0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.4416,
+				3.708,
+				0.6542
+			],
+			"x": [
+				0.32277,
+				-0.0,
+				-0.94648
+			],
+			"y": [
+				-0.88794,
+				0.34622,
+				-0.30281
+			],
+			"z": [
+				0.32768,
+				0.93815,
+				0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				4.36,
+				2.96,
+				1.1683
+			],
+			"x": [
+				0.25882,
+				0.0,
+				-0.96593
+			],
+			"y": [
+				-0.90394,
+				0.35245,
+				-0.24221
+			],
+			"z": [
+				0.34044,
+				0.93583,
+				0.09122
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				3.7759,
+				2.96,
+				2.18
+			],
+			"x": [
+				0.75277,
+				0.0,
+				-0.65829
+			],
+			"y": [
+				-0.61757,
+				0.34622,
+				-0.70621
+			],
+			"z": [
+				0.22791,
+				0.93815,
+				0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.4416,
+				3.708,
+				0.6542
+			],
+			"x": [
+				0.19371,
+				-0.0,
+				-0.98106
+			],
+			"y": [
+				-0.92039,
+				0.34622,
+				-0.18173
+			],
+			"z": [
+				0.33966,
+				0.93815,
+				0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				3.7759,
+				2.96,
+				2.18
+			],
+			"x": [
+				0.19371,
+				0.0,
+				-0.98106
+			],
+			"y": [
+				-0.92039,
+				0.34622,
+				-0.18173
+			],
+			"z": [
+				0.33966,
+				0.93815,
+				0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				1.7874,
+				3.708,
+				1.7874
+			],
+			"x": [
+				0.75277,
+				0.0,
+				-0.65829
+			],
+			"y": [
+				-0.61757,
+				0.34622,
+				-0.70621
+			],
+			"z": [
+				0.22791,
+				0.93815,
+				0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				3.1917,
+				2.96,
+				3.1917
+			],
+			"x": [
+				0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				-0.66173,
+				0.35245,
+				-0.66173
+			],
+			"z": [
+				0.24922,
+				0.93583,
+				0.24922
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.18,
+				2.96,
+				3.7759
+			],
+			"x": [
+				0.98106,
+				-0.0,
+				-0.19371
+			],
+			"y": [
+				-0.18173,
+				0.34622,
+				-0.92039
+			],
+			"z": [
+				0.06706,
+				0.93815,
+				0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				1.7874,
+				3.708,
+				1.7874
+			],
+			"x": [
+				0.65829,
+				0.0,
+				-0.75277
+			],
+			"y": [
+				-0.70621,
+				0.34622,
+				-0.61757
+			],
+			"z": [
+				0.26062,
+				0.93815,
+				0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				2.18,
+				2.96,
+				3.7759
+			],
+			"x": [
+				0.65829,
+				0.0,
+				-0.75277
+			],
+			"y": [
+				-0.70621,
+				0.34622,
+				-0.61757
+			],
+			"z": [
+				0.26062,
+				0.93815,
+				0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.6542,
+				3.708,
+				2.4416
+			],
+			"x": [
+				0.98106,
+				-0.0,
+				-0.19371
+			],
+			"y": [
+				-0.18173,
+				0.34622,
+				-0.92039
+			],
+			"z": [
+				0.06706,
+				0.93815,
+				0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				1.1683,
+				2.96,
+				4.36
+			],
+			"x": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				-0.24221,
+				0.35245,
+				-0.90394
+			],
+			"z": [
+				0.09122,
+				0.93583,
+				0.34044
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.0,
+				2.96,
+				4.36
+			],
+			"x": [
+				0.94648,
+				0.0,
+				0.32277
+			],
+			"y": [
+				0.30281,
+				0.34622,
+				-0.88794
+			],
+			"z": [
+				-0.11175,
+				0.93815,
+				0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.6542,
+				3.708,
+				2.4416
+			],
+			"x": [
+				0.94648,
+				0.0,
+				-0.32277
+			],
+			"y": [
+				-0.30281,
+				0.34622,
+				-0.88794
+			],
+			"z": [
+				0.11175,
+				0.93815,
+				0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.0,
+				2.96,
+				4.36
+			],
+			"x": [
+				0.94648,
+				-0.0,
+				-0.32277
+			],
+			"y": [
+				-0.30281,
+				0.34622,
+				-0.88794
+			],
+			"z": [
+				0.11175,
+				0.93815,
+				0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-0.6542,
+				3.708,
+				2.4416
+			],
+			"x": [
+				0.94648,
+				0.0,
+				0.32277
+			],
+			"y": [
+				0.30281,
+				0.34622,
+				-0.88794
+			],
+			"z": [
+				-0.11175,
+				0.93815,
+				0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				-1.1683,
+				2.96,
+				4.36
+			],
+			"x": [
+				0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.24221,
+				0.35245,
+				-0.90394
+			],
+			"z": [
+				-0.09122,
+				0.93583,
+				0.34044
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.18,
+				2.96,
+				3.7759
+			],
+			"x": [
+				0.65829,
+				0.0,
+				0.75277
+			],
+			"y": [
+				0.70621,
+				0.34622,
+				-0.61757
+			],
+			"z": [
+				-0.26062,
+				0.93815,
+				0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-0.6542,
+				3.708,
+				2.4416
+			],
+			"x": [
+				0.98106,
+				-0.0,
+				0.19371
+			],
+			"y": [
+				0.18173,
+				0.34622,
+				-0.92039
+			],
+			"z": [
+				-0.06706,
+				0.93815,
+				0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.18,
+				2.96,
+				3.7759
+			],
+			"x": [
+				0.98106,
+				-0.0,
+				0.19371
+			],
+			"y": [
+				0.18173,
+				0.34622,
+				-0.92039
+			],
+			"z": [
+				-0.06706,
+				0.93815,
+				0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-1.7874,
+				3.708,
+				1.7874
+			],
+			"x": [
+				0.65829,
+				0.0,
+				0.75277
+			],
+			"y": [
+				0.70621,
+				0.34622,
+				-0.61757
+			],
+			"z": [
+				-0.26062,
+				0.93815,
+				0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				-3.1917,
+				2.96,
+				3.1917
+			],
+			"x": [
+				0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.66173,
+				0.35245,
+				-0.66173
+			],
+			"z": [
+				-0.24922,
+				0.93583,
+				0.24922
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-3.7759,
+				2.96,
+				2.18
+			],
+			"x": [
+				0.19371,
+				0.0,
+				0.98106
+			],
+			"y": [
+				0.92039,
+				0.34622,
+				-0.18173
+			],
+			"z": [
+				-0.33966,
+				0.93815,
+				0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-1.7874,
+				3.708,
+				1.7874
+			],
+			"x": [
+				0.75277,
+				0.0,
+				0.65829
+			],
+			"y": [
+				0.61757,
+				0.34622,
+				-0.70621
+			],
+			"z": [
+				-0.22791,
+				0.93815,
+				0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-3.7759,
+				2.96,
+				2.18
+			],
+			"x": [
+				0.75277,
+				0.0,
+				0.65829
+			],
+			"y": [
+				0.61757,
+				0.34622,
+				-0.70621
+			],
+			"z": [
+				-0.22791,
+				0.93815,
+				0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.4416,
+				3.708,
+				0.6542
+			],
+			"x": [
+				0.19371,
+				0.0,
+				0.98106
+			],
+			"y": [
+				0.92039,
+				0.34622,
+				-0.18173
+			],
+			"z": [
+				-0.33966,
+				0.93815,
+				0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				-4.36,
+				2.96,
+				1.1683
+			],
+			"x": [
+				0.25882,
+				-0.0,
+				0.96593
+			],
+			"y": [
+				0.90394,
+				0.35245,
+				-0.24221
+			],
+			"z": [
+				-0.34044,
+				0.93583,
+				0.09122
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-4.36,
+				2.96,
+				0.0
+			],
+			"x": [
+				-0.32277,
+				0.0,
+				0.94648
+			],
+			"y": [
+				0.88794,
+				0.34622,
+				0.30281
+			],
+			"z": [
+				-0.32768,
+				0.93815,
+				-0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.4416,
+				3.708,
+				0.6542
+			],
+			"x": [
+				0.32277,
+				0.0,
+				0.94648
+			],
+			"y": [
+				0.88794,
+				0.34622,
+				-0.30281
+			],
+			"z": [
+				-0.32768,
+				0.93815,
+				0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-4.36,
+				2.96,
+				0.0
+			],
+			"x": [
+				0.32277,
+				0.0,
+				0.94648
+			],
+			"y": [
+				0.88794,
+				0.34622,
+				-0.30281
+			],
+			"z": [
+				-0.32768,
+				0.93815,
+				0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.4416,
+				3.708,
+				-0.6542
+			],
+			"x": [
+				-0.32277,
+				0.0,
+				0.94648
+			],
+			"y": [
+				0.88794,
+				0.34622,
+				0.30281
+			],
+			"z": [
+				-0.32768,
+				0.93815,
+				-0.11175
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				-4.36,
+				2.96,
+				-1.1683
+			],
+			"x": [
+				-0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.90394,
+				0.35245,
+				0.24221
+			],
+			"z": [
+				-0.34044,
+				0.93583,
+				-0.09122
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-3.7759,
+				2.96,
+				-2.18
+			],
+			"x": [
+				-0.75277,
+				0.0,
+				0.65829
+			],
+			"y": [
+				0.61757,
+				0.34622,
+				0.70621
+			],
+			"z": [
+				-0.22791,
+				0.93815,
+				-0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.4416,
+				3.708,
+				-0.6542
+			],
+			"x": [
+				-0.19371,
+				0.0,
+				0.98106
+			],
+			"y": [
+				0.92039,
+				0.34622,
+				0.18173
+			],
+			"z": [
+				-0.33966,
+				0.93815,
+				-0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-3.7759,
+				2.96,
+				-2.18
+			],
+			"x": [
+				-0.19371,
+				-0.0,
+				0.98106
+			],
+			"y": [
+				0.92039,
+				0.34622,
+				0.18173
+			],
+			"z": [
+				-0.33966,
+				0.93815,
+				-0.06706
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-1.7874,
+				3.708,
+				-1.7874
+			],
+			"x": [
+				-0.75277,
+				0.0,
+				0.65829
+			],
+			"y": [
+				0.61757,
+				0.34622,
+				0.70621
+			],
+			"z": [
+				-0.22791,
+				0.93815,
+				-0.26062
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				-3.1917,
+				2.96,
+				-3.1917
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.66173,
+				0.35245,
+				0.66173
+			],
+			"z": [
+				-0.24922,
+				0.93583,
+				-0.24922
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.18,
+				2.96,
+				-3.7759
+			],
+			"x": [
+				-0.98106,
+				0.0,
+				0.19371
+			],
+			"y": [
+				0.18173,
+				0.34622,
+				0.92039
+			],
+			"z": [
+				-0.06706,
+				0.93815,
+				-0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-1.7874,
+				3.708,
+				-1.7874
+			],
+			"x": [
+				-0.65829,
+				-0.0,
+				0.75277
+			],
+			"y": [
+				0.70621,
+				0.34622,
+				0.61757
+			],
+			"z": [
+				-0.26062,
+				0.93815,
+				-0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-2.18,
+				2.96,
+				-3.7759
+			],
+			"x": [
+				-0.65829,
+				-0.0,
+				0.75277
+			],
+			"y": [
+				0.70621,
+				0.34622,
+				0.61757
+			],
+			"z": [
+				-0.26062,
+				0.93815,
+				-0.22791
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-0.6542,
+				3.708,
+				-2.4416
+			],
+			"x": [
+				-0.98106,
+				-0.0,
+				0.19371
+			],
+			"y": [
+				0.18173,
+				0.34622,
+				0.92039
+			],
+			"z": [
+				-0.06706,
+				0.93815,
+				-0.33966
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_hip_rib",
+			"at": [
+				-1.1683,
+				2.96,
+				-4.36
+			],
+			"x": [
+				-0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.24221,
+				0.35245,
+				0.90394
+			],
+			"z": [
+				-0.09122,
+				0.93583,
+				-0.34044
+			],
+			"size": [
+				0.12,
+				4.6304,
+				0.12
+			],
+			"layer": 2,
+			"model": "lattice_hip_rib_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.0,
+				2.96,
+				-4.36
+			],
+			"x": [
+				-0.94648,
+				0.0,
+				-0.32277
+			],
+			"y": [
+				-0.30281,
+				0.34622,
+				0.88794
+			],
+			"z": [
+				0.11175,
+				0.93815,
+				-0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				-0.6542,
+				3.708,
+				-2.4416
+			],
+			"x": [
+				-0.94648,
+				0.0,
+				0.32277
+			],
+			"y": [
+				0.30281,
+				0.34622,
+				0.88794
+			],
+			"z": [
+				-0.11175,
+				0.93815,
+				-0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.0,
+				2.96,
+				-4.36
+			],
+			"x": [
+				-0.94648,
+				0.0,
+				0.32277
+			],
+			"y": [
+				0.30281,
+				0.34622,
+				0.88794
+			],
+			"z": [
+				-0.11175,
+				0.93815,
+				-0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_diamond_strut",
+			"at": [
+				0.6542,
+				3.708,
+				-2.4416
+			],
+			"x": [
+				-0.94648,
+				0.0,
+				-0.32277
+			],
+			"y": [
+				-0.30281,
+				0.34622,
+				0.88794
+			],
+			"z": [
+				0.11175,
+				0.93815,
+				-0.32768
+			],
+			"size": [
+				0.08,
+				2.1605,
+				0.08
+			],
+			"layer": 2,
+			"model": "lattice_diamond_strut_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				1.2071,
+				2.9605,
+				-4.5049
+			],
+			"x": [
+				-0.96593,
+				-0.0,
+				-0.25882
+			],
+			"y": [
+				-0.25882,
+				-0.0,
+				0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				3.2978,
+				2.9605,
+				-3.2978
+			],
+			"x": [
+				-0.70711,
+				-0.0,
+				-0.70711
+			],
+			"y": [
+				-0.70711,
+				-0.0,
+				0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				4.5049,
+				2.9605,
+				-1.2071
+			],
+			"x": [
+				-0.25882,
+				-0.0,
+				-0.96593
+			],
+			"y": [
+				-0.96593,
+				-0.0,
+				0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				4.5049,
+				2.9605,
+				1.2071
+			],
+			"x": [
+				0.25882,
+				0.0,
+				-0.96593
+			],
+			"y": [
+				-0.96593,
+				-0.0,
+				-0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				3.2978,
+				2.9605,
+				3.2978
+			],
+			"x": [
+				0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				-0.70711,
+				-0.0,
+				-0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				1.2071,
+				2.9605,
+				4.5049
+			],
+			"x": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				-0.25882,
+				-0.0,
+				-0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-1.2071,
+				2.9605,
+				4.5049
+			],
+			"x": [
+				0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.25882,
+				-0.0,
+				-0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-3.2978,
+				2.9605,
+				3.2978
+			],
+			"x": [
+				0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.70711,
+				-0.0,
+				-0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-4.5049,
+				2.9605,
+				1.2071
+			],
+			"x": [
+				0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.96593,
+				-0.0,
+				-0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-4.5049,
+				2.9605,
+				-1.2071
+			],
+			"x": [
+				-0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.96593,
+				-0.0,
+				0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-3.2978,
+				2.9605,
+				-3.2978
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.70711,
+				-0.0,
+				0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-1.2071,
+				2.9605,
+				-4.5049
+			],
+			"x": [
+				-0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.25882,
+				-0.0,
+				0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.693,
+				3.7085,
+				-2.5865
+			],
+			"x": [
+				-0.96593,
+				-0.0,
+				-0.25882
+			],
+			"y": [
+				-0.25882,
+				-0.0,
+				0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				1.8934,
+				3.7085,
+				-1.8934
+			],
+			"x": [
+				-0.70711,
+				-0.0,
+				-0.70711
+			],
+			"y": [
+				-0.70711,
+				-0.0,
+				0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				2.5865,
+				3.7085,
+				-0.693
+			],
+			"x": [
+				-0.25882,
+				-0.0,
+				-0.96593
+			],
+			"y": [
+				-0.96593,
+				-0.0,
+				0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				2.5865,
+				3.7085,
+				0.693
+			],
+			"x": [
+				0.25882,
+				0.0,
+				-0.96593
+			],
+			"y": [
+				-0.96593,
+				-0.0,
+				-0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				1.8934,
+				3.7085,
+				1.8934
+			],
+			"x": [
+				0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				-0.70711,
+				-0.0,
+				-0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.693,
+				3.7085,
+				2.5865
+			],
+			"x": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				-0.25882,
+				-0.0,
+				-0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.693,
+				3.7085,
+				2.5865
+			],
+			"x": [
+				0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.25882,
+				-0.0,
+				-0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-1.8934,
+				3.7085,
+				1.8934
+			],
+			"x": [
+				0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.70711,
+				-0.0,
+				-0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-2.5865,
+				3.7085,
+				0.693
+			],
+			"x": [
+				0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.96593,
+				-0.0,
+				-0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-2.5865,
+				3.7085,
+				-0.693
+			],
+			"x": [
+				-0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.96593,
+				-0.0,
+				0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-1.8934,
+				3.7085,
+				-1.8934
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.70711,
+				-0.0,
+				0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.693,
+				3.7085,
+				-2.5865
+			],
+			"x": [
+				-0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.25882,
+				-0.0,
+				0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.179,
+				4.4565,
+				-0.6681
+			],
+			"x": [
+				-0.96593,
+				-0.0,
+				-0.25882
+			],
+			"y": [
+				-0.25882,
+				-0.0,
+				0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.4891,
+				4.4565,
+				-0.4891
+			],
+			"x": [
+				-0.70711,
+				-0.0,
+				-0.70711
+			],
+			"y": [
+				-0.70711,
+				-0.0,
+				0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.6681,
+				4.4565,
+				-0.179
+			],
+			"x": [
+				-0.25882,
+				-0.0,
+				-0.96593
+			],
+			"y": [
+				-0.96593,
+				-0.0,
+				0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.6681,
+				4.4565,
+				0.179
+			],
+			"x": [
+				0.25882,
+				0.0,
+				-0.96593
+			],
+			"y": [
+				-0.96593,
+				-0.0,
+				-0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.4891,
+				4.4565,
+				0.4891
+			],
+			"x": [
+				0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				-0.70711,
+				-0.0,
+				-0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				0.179,
+				4.4565,
+				0.6681
+			],
+			"x": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				-0.25882,
+				-0.0,
+				-0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.179,
+				4.4565,
+				0.6681
+			],
+			"x": [
+				0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.25882,
+				-0.0,
+				-0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.4891,
+				4.4565,
+				0.4891
+			],
+			"x": [
+				0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.70711,
+				-0.0,
+				-0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.6681,
+				4.4565,
+				0.179
+			],
+			"x": [
+				0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.96593,
+				-0.0,
+				-0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.6681,
+				4.4565,
+				-0.179
+			],
+			"x": [
+				-0.25882,
+				0.0,
+				0.96593
+			],
+			"y": [
+				0.96593,
+				-0.0,
+				0.25882
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.4891,
+				4.4565,
+				-0.4891
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.70711,
+				-0.0,
+				0.70711
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_lattice_node_plate",
+			"at": [
+				-0.179,
+				4.4565,
+				-0.6681
+			],
+			"x": [
+				-0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.25882,
+				-0.0,
+				0.96593
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.049
+			],
+			"layer": 2,
+			"model": "lattice_node_plate_1"
+		},
+		{
+			"kind": "hub_roof_apex_hub",
+			"at": [
+				0.0,
+				4.36,
+				0.0
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.6,
+				0.3,
+				0.6
+			],
+			"layer": 2,
+			"model": "roof_apex_hub_1"
+		},
+		{
+			"kind": "hub_ceiling_cable_tray",
+			"at": [
+				0.0,
+				3.27,
+				-4.05
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				-0.0,
+				-0.93547,
+				0.3534
+			],
+			"z": [
+				0.0,
+				-0.3534,
+				-0.93547
+			],
+			"size": [
+				2.0,
+				0.1,
+				0.3
+			],
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
+		},
+		{
+			"kind": "hub_ceiling_cable_tray",
+			"at": [
+				3.5074,
+				3.27,
+				2.025
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				-0.30605,
+				-0.93547,
+				-0.1767
+			],
+			"z": [
+				0.81014,
+				-0.3534,
+				0.46774
+			],
+			"size": [
+				2.0,
+				0.1,
+				0.3
+			],
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
+		},
+		{
+			"kind": "hub_ceiling_cable_tray",
+			"at": [
+				0.0,
+				3.27,
+				4.05
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				-0.0,
+				-0.93547,
+				-0.3534
+			],
+			"z": [
+				0.0,
+				-0.3534,
+				0.93547
+			],
+			"size": [
+				2.0,
+				0.1,
+				0.3
+			],
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
+		},
+		{
+			"kind": "hub_ceiling_cable_tray",
+			"at": [
+				-3.5074,
+				3.27,
+				2.025
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.30605,
+				-0.93547,
+				-0.1767
+			],
+			"z": [
+				-0.81014,
+				-0.3534,
+				0.46774
+			],
+			"size": [
+				2.0,
+				0.1,
+				0.3
+			],
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
+		},
+		{
+			"kind": "hub_ceiling_cable_tray",
+			"at": [
+				-3.5074,
+				3.27,
+				-2.025
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.30605,
+				-0.93547,
+				0.1767
+			],
+			"z": [
+				-0.81014,
+				-0.3534,
+				-0.46774
+			],
+			"size": [
+				2.0,
+				0.1,
+				0.3
+			],
+			"layer": 2,
+			"model": "ceiling_cable_tray_1"
+		},
+		{
+			"kind": "hub_ceiling_duct",
+			"at": [
+				3.5074,
+				3.27,
+				-2.025
+			],
+			"x": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				-0.30605,
+				-0.93547,
+				0.1767
+			],
+			"z": [
+				0.81014,
+				-0.3534,
+				-0.46774
+			],
+			"size": [
+				2.0,
+				0.3,
+				0.35
+			],
+			"layer": 2,
+			"model": "ceiling_duct_1"
+		},
+		{
+			"kind": "hub_ceiling_duct",
+			"at": [
+				-2.025,
+				3.27,
+				3.5074
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.1767,
+				-0.93547,
+				-0.30605
+			],
+			"z": [
+				-0.46774,
+				-0.3534,
+				0.81014
+			],
+			"size": [
+				2.0,
+				0.3,
+				0.35
+			],
+			"layer": 2,
+			"model": "ceiling_duct_1"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				1.8385,
+				3.2,
+				-1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.398,
+				0.35,
+				0.4
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				1.8385,
+				3.287,
+				-1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.31,
+				0.006,
+				0.31
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				1.8385,
+				3.2,
+				1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.398,
+				0.35,
+				0.4
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				1.8385,
+				3.287,
+				1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.31,
+				0.006,
+				0.31
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				-1.8385,
+				3.2,
+				1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.398,
+				0.35,
+				0.4
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				-1.8385,
+				3.287,
+				1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.31,
+				0.006,
+				0.31
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				-1.8385,
+				3.2,
+				-1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.398,
+				0.35,
+				0.4
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1"
+		},
+		{
+			"kind": "hub_roof_light_fixture",
+			"at": [
+				-1.8385,
+				3.287,
+				-1.8385
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.31,
+				0.006,
+				0.31
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				0.0,
+				0.0,
+				-4.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"openings": [
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				2.25,
+				0.0,
+				-3.8971
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"openings": [
+				[
+					-0.404,
+					1.146,
+					0.404,
+					1.954
+				]
+			],
+			"model": "ring_floor_plate_2"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				3.8971,
+				0.0,
+				-2.25
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"openings": [
+				[
+					-0.504,
+					0.146,
+					0.504,
+					1.154
+				]
+			],
+			"model": "ring_floor_plate_3"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				4.5,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"openings": [
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				3.8971,
+				0.0,
+				2.25
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				2.25,
+				0.0,
+				3.8971
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				0.0,
+				0.0,
+				4.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"openings": [
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				-2.25,
+				0.0,
+				3.8971
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"openings": [
+				[
+					-0.504,
+					0.146,
+					0.504,
+					1.154
+				],
+				[
+					-0.404,
+					1.146,
+					0.404,
+					1.954
+				]
+			],
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				-3.8971,
+				0.0,
+				2.25
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				-4.5,
+				0.0,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"openings": [
+				[
+					-0.404,
+					1.146,
+					0.404,
+					1.954
+				],
+				[
+					-0.704,
+					0.146,
+					0.704,
+					1.054
+				]
+			],
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				-3.8971,
+				0.0,
+				-2.25
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "hub_ring_floor_plate",
+			"at": [
+				-2.25,
+				0.0,
+				-3.8971
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.4094,
+				2.11,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5311,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				2.9012,
+				-0.003,
+				-1.675
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.054
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grating_1"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				-1.675,
+				-0.003,
+				2.9012
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.054
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grating_1"
+		},
+		{
+			"kind": "hub_floor_access_hatch",
+			"at": [
+				1.275,
+				0.0023,
+				-2.2084
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.8,
+				0.8,
+				0.0445
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_access_hatch_1"
+		},
+		{
+			"kind": "hub_floor_access_hatch",
+			"at": [
+				-1.275,
+				0.0023,
+				2.2084
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.8,
+				0.8,
+				0.0445
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_access_hatch_1"
+		},
+		{
+			"kind": "hub_floor_access_hatch",
+			"at": [
+				-2.55,
+				0.0023,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.8,
+				0.8,
+				0.0445
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_access_hatch_1"
+		},
+		{
+			"kind": "hub_tread_mat",
+			"at": [
+				0.0,
+				0.01,
+				-3.45
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.9,
+				0.02
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "tread_mat_1"
+		},
+		{
+			"kind": "hub_tread_mat",
+			"at": [
+				3.45,
+				0.01,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.9,
+				0.02
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "tread_mat_1"
+		},
+		{
+			"kind": "hub_tread_mat",
+			"at": [
+				0.0,
+				0.01,
+				3.45
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.9,
+				0.02
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "tread_mat_1"
+		},
+		{
+			"kind": "hub_tread_mat",
+			"at": [
+				-3.45,
+				0.01,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.9,
+				0.02
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "tread_mat_1"
+		},
+		{
+			"kind": "hub_under_floor_box",
+			"at": [
+				3.7932,
+				-0.13,
+				-2.19
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.06,
+				1.06,
+				0.18
+			],
+			"layer": 1,
+			"model": "under_floor_box_1"
+		},
+		{
+			"kind": "hub_under_floor_box",
+			"at": [
+				-2.19,
+				-0.13,
+				3.7932
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.06,
+				1.06,
+				0.18
+			],
+			"layer": 1,
+			"model": "under_floor_box_1"
+		},
+		{
+			"kind": "hub_under_floor_box",
+			"at": [
+				1.69,
+				-0.13,
+				-2.9272
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.86,
+				0.86,
+				0.18
+			],
+			"layer": 1,
+			"model": "under_floor_box_2"
+		},
+		{
+			"kind": "hub_under_floor_box",
+			"at": [
+				-1.69,
+				-0.13,
+				2.9272
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.86,
+				0.86,
+				0.18
+			],
+			"layer": 1,
+			"model": "under_floor_box_2"
+		},
+		{
+			"kind": "hub_under_floor_box",
+			"at": [
+				-3.38,
+				-0.13,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.86,
+				0.86,
+				0.18
+			],
+			"layer": 1,
+			"model": "under_floor_box_2"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				0.7076,
+				-0.9,
+				-2.1779
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				-0.30902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.30902,
+				0.0,
+				-0.95106
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				1.8526,
+				-0.9,
+				-1.346
+			],
+			"x": [
+				-0.58779,
+				0.0,
+				-0.80902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.80902,
+				0.0,
+				-0.58779
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.4498,
+				-0.35,
+				-1.573
+			],
+			"x": [
+				0.73531,
+				0.0,
+				0.67773
+			],
+			"y": [
+				0.67773,
+				0.0,
+				-0.73531
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.7307,
+				-0.35,
+				-1.2574
+			],
+			"x": [
+				0.58779,
+				0.0,
+				0.80902
+			],
+			"y": [
+				0.80902,
+				0.0,
+				-0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.944,
+				-0.35,
+				-0.8928
+			],
+			"x": [
+				0.41734,
+				0.0,
+				0.90875
+			],
+			"y": [
+				0.90875,
+				0.0,
+				-0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.4498,
+				-0.55,
+				-1.573
+			],
+			"x": [
+				0.73531,
+				0.0,
+				0.67773
+			],
+			"y": [
+				0.67773,
+				0.0,
+				-0.73531
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.7307,
+				-0.55,
+				-1.2574
+			],
+			"x": [
+				0.58779,
+				0.0,
+				0.80902
+			],
+			"y": [
+				0.80902,
+				0.0,
+				-0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.944,
+				-0.55,
+				-0.8928
+			],
+			"x": [
+				0.41734,
+				0.0,
+				0.90875
+			],
+			"y": [
+				0.90875,
+				0.0,
+				-0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				2.29,
+				-0.9,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				2.0975,
+				-0.35,
+				-0.4204
+			],
+			"x": [
+				0.19652,
+				0.0,
+				0.9805
+			],
+			"y": [
+				0.9805,
+				0.0,
+				-0.19652
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				2.1392,
+				-0.35,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				2.0975,
+				-0.35,
+				0.4204
+			],
+			"x": [
+				-0.19652,
+				0.0,
+				0.9805
+			],
+			"y": [
+				0.9805,
+				0.0,
+				0.19652
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				2.0975,
+				-0.55,
+				-0.4204
+			],
+			"x": [
+				0.19652,
+				0.0,
+				0.9805
+			],
+			"y": [
+				0.9805,
+				0.0,
+				-0.19652
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				2.1392,
+				-0.55,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				2.0975,
+				-0.55,
+				0.4204
+			],
+			"x": [
+				-0.19652,
+				0.0,
+				0.9805
+			],
+			"y": [
+				0.9805,
+				0.0,
+				0.19652
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				1.8526,
+				-0.9,
+				1.346
+			],
+			"x": [
+				0.58779,
+				0.0,
+				-0.80902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.80902,
+				0.0,
+				0.58779
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.944,
+				-0.35,
+				0.8928
+			],
+			"x": [
+				-0.41734,
+				0.0,
+				0.90875
+			],
+			"y": [
+				0.90875,
+				0.0,
+				0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.7307,
+				-0.35,
+				1.2574
+			],
+			"x": [
+				-0.58779,
+				0.0,
+				0.80902
+			],
+			"y": [
+				0.80902,
+				0.0,
+				0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.4498,
+				-0.35,
+				1.573
+			],
+			"x": [
+				-0.73531,
+				0.0,
+				0.67773
+			],
+			"y": [
+				0.67773,
+				0.0,
+				0.73531
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.944,
+				-0.55,
+				0.8928
+			],
+			"x": [
+				-0.41734,
+				0.0,
+				0.90875
+			],
+			"y": [
+				0.90875,
+				0.0,
+				0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.7307,
+				-0.55,
+				1.2574
+			],
+			"x": [
+				-0.58779,
+				0.0,
+				0.80902
+			],
+			"y": [
+				0.80902,
+				0.0,
+				0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.4498,
+				-0.55,
+				1.573
+			],
+			"x": [
+				-0.73531,
+				0.0,
+				0.67773
+			],
+			"y": [
+				0.67773,
+				0.0,
+				0.73531
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				0.7076,
+				-0.9,
+				2.1779
+			],
+			"x": [
+				0.95106,
+				0.0,
+				-0.30902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.30902,
+				0.0,
+				0.95106
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.048,
+				-0.35,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				0.48989
+			],
+			"y": [
+				0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.6611,
+				-0.35,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				0.30902
+			],
+			"y": [
+				0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.2484,
+				-0.35,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				0.11609
+			],
+			"y": [
+				0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				1.048,
+				-0.55,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				0.48989
+			],
+			"y": [
+				0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.6611,
+				-0.55,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				0.30902
+			],
+			"y": [
+				0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				0.2484,
+				-0.55,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				0.11609
+			],
+			"y": [
+				0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				-0.7076,
+				-0.9,
+				2.1779
+			],
+			"x": [
+				0.95106,
+				-0.0,
+				0.30902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.30902,
+				0.0,
+				0.95106
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.2484,
+				-0.35,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				-0.11609
+			],
+			"y": [
+				-0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.6611,
+				-0.35,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				-0.30902
+			],
+			"y": [
+				-0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.048,
+				-0.35,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				-0.48989
+			],
+			"y": [
+				-0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.2484,
+				-0.55,
+				2.1248
+			],
+			"x": [
+				-0.99324,
+				0.0,
+				-0.11609
+			],
+			"y": [
+				-0.11609,
+				0.0,
+				0.99324
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-0.6611,
+				-0.55,
+				2.0345
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				-0.30902
+			],
+			"y": [
+				-0.30902,
+				0.0,
+				0.95106
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.048,
+				-0.55,
+				1.865
+			],
+			"x": [
+				-0.87178,
+				0.0,
+				-0.48989
+			],
+			"y": [
+				-0.48989,
+				0.0,
+				0.87178
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				-1.8526,
+				-0.9,
+				1.346
+			],
+			"x": [
+				0.58779,
+				-0.0,
+				0.80902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.80902,
+				0.0,
+				0.58779
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.7307,
+				-0.35,
+				1.2574
+			],
+			"x": [
+				-0.58779,
+				0.0,
+				-0.80902
+			],
+			"y": [
+				-0.80902,
+				0.0,
+				0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.944,
+				-0.35,
+				0.8928
+			],
+			"x": [
+				-0.41734,
+				0.0,
+				-0.90875
+			],
+			"y": [
+				-0.90875,
+				0.0,
+				0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.7307,
+				-0.55,
+				1.2574
+			],
+			"x": [
+				-0.58779,
+				0.0,
+				-0.80902
+			],
+			"y": [
+				-0.80902,
+				0.0,
+				0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.944,
+				-0.55,
+				0.8928
+			],
+			"x": [
+				-0.41734,
+				0.0,
+				-0.90875
+			],
+			"y": [
+				-0.90875,
+				0.0,
+				0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				-2.29,
+				-0.9,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.1392,
+				-0.35,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.0975,
+				-0.35,
+				-0.4204
+			],
+			"x": [
+				0.19652,
+				0.0,
+				-0.9805
+			],
+			"y": [
+				-0.9805,
+				-0.0,
+				-0.19652
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.1392,
+				-0.55,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.0975,
+				-0.55,
+				-0.4204
+			],
+			"x": [
+				0.19652,
+				0.0,
+				-0.9805
+			],
+			"y": [
+				-0.9805,
+				-0.0,
+				-0.19652
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				-1.8526,
+				-0.9,
+				-1.346
+			],
+			"x": [
+				-0.58779,
+				0.0,
+				0.80902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.80902,
+				0.0,
+				-0.58779
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.944,
+				-0.35,
+				-0.8928
+			],
+			"x": [
+				0.41734,
+				0.0,
+				-0.90875
+			],
+			"y": [
+				-0.90875,
+				-0.0,
+				-0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.7307,
+				-0.35,
+				-1.2574
+			],
+			"x": [
+				0.58779,
+				0.0,
+				-0.80902
+			],
+			"y": [
+				-0.80902,
+				-0.0,
+				-0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.4498,
+				-0.35,
+				-1.573
+			],
+			"x": [
+				0.73531,
+				0.0,
+				-0.67773
+			],
+			"y": [
+				-0.67773,
+				-0.0,
+				-0.73531
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.944,
+				-0.55,
+				-0.8928
+			],
+			"x": [
+				0.41734,
+				0.0,
+				-0.90875
+			],
+			"y": [
+				-0.90875,
+				-0.0,
+				-0.41734
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.7307,
+				-0.55,
+				-1.2574
+			],
+			"x": [
+				0.58779,
+				0.0,
+				-0.80902
+			],
+			"y": [
+				-0.80902,
+				-0.0,
+				-0.58779
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.4498,
+				-0.55,
+				-1.573
+			],
+			"x": [
+				0.73531,
+				0.0,
+				-0.67773
+			],
+			"y": [
+				-0.67773,
+				-0.0,
+				-0.73531
+			],
+			"z": [
+				-0.0,
+				1.0,
+				-0.0
+			],
+			"size": [
+				0.4345,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "hub_pit_wall_panel",
+			"at": [
+				-0.7076,
+				-0.9,
+				-2.1779
+			],
+			"x": [
+				-0.95106,
+				0.0,
+				0.30902
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.30902,
+				0.0,
+				-0.95106
+			],
+			"size": [
+				1.464,
+				0.9,
+				0.08
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "hub_pit_junction_box",
+			"at": [
+				1.0993,
+				-0.63,
+				-1.904
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				0.3,
+				0.36,
+				0.103
+			],
+			"layer": 1,
+			"model": "pit_junction_box_1"
+		},
+		{
+			"kind": "hub_pit_junction_box",
+			"at": [
+				-1.4131,
+				-0.63,
+				1.6842
+			],
+			"x": [
+				0.76604,
+				-0.0,
+				0.64279
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.64279,
+				0.0,
+				0.76604
+			],
+			"size": [
+				0.3,
+				0.36,
+				0.103
+			],
+			"layer": 1,
+			"model": "pit_junction_box_1"
+		},
+		{
+			"kind": "hub_pit_junction_box",
+			"at": [
+				-2.1651,
+				-0.63,
+				0.3817
+			],
+			"x": [
+				0.17365,
+				-0.0,
+				0.98481
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98481,
+				0.0,
+				0.17365
+			],
+			"size": [
+				0.3,
+				0.36,
+				0.103
+			],
+			"layer": 1,
+			"model": "pit_junction_box_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-2.0,
+				-0.878,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-2.0,
+				-0.878,
+				-0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-2.0,
+				-0.878,
+				0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-2.0,
+				-0.878,
+				1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-2.0,
+				-0.878,
+				2.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-1.0,
+				-0.878,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-1.0,
+				-0.878,
+				-0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-1.0,
+				-0.878,
+				0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-1.0,
+				-0.878,
+				1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				-1.0,
+				-0.878,
+				2.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.878,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.878,
+				-0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.878,
+				0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.878,
+				1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.878,
+				2.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				1.0,
+				-0.878,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				1.0,
+				-0.878,
+				-0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				1.0,
+				-0.878,
+				0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				1.0,
+				-0.878,
+				1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				1.0,
+				-0.878,
+				2.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				2.0,
+				-0.878,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				2.0,
+				-0.878,
+				-0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				2.0,
+				-0.878,
+				0.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				2.0,
+				-0.878,
+				1.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				2.0,
+				-0.878,
+				2.5
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0,
+				1.0,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_1"
+		},
+		{
+			"kind": "hub_machine_bay_plate",
+			"at": [
+				1.0,
+				-0.866,
+				1.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.0,
+				2.0,
+				0.06
+			],
+			"layer": 1,
+			"model": "machine_bay_plate_1"
+		},
+		{
+			"kind": "hub_machine_bay_plate",
+			"at": [
+				-1.0,
+				-0.866,
+				1.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				2.0,
+				2.0,
+				0.06
+			],
+			"layer": 1,
+			"model": "machine_bay_plate_1"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				0.0,
+				-0.203,
+				-2.1025
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.2275,
+				0.054
+			],
+			"layer": 1,
+			"model": "floor_grating_2"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.36,
+				-2.1205
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.14,
+				0.18,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				0.0,
+				-0.383,
+				-1.875
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.2275,
+				0.054
+			],
+			"layer": 1,
+			"model": "floor_grating_2"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.54,
+				-1.893
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.14,
+				0.18,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				0.0,
+				-0.563,
+				-1.6475
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.2275,
+				0.054
+			],
+			"layer": 1,
+			"model": "floor_grating_2"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.72,
+				-1.6655
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.14,
+				0.18,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_floor_grating",
+			"at": [
+				0.0,
+				-0.743,
+				-1.42
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.14,
+				0.2275,
+				0.054
+			],
+			"layer": 1,
+			"model": "floor_grating_2"
+		},
+		{
+			"kind": "hub_pit_floor_plate",
+			"at": [
+				0.0,
+				-0.9,
+				-1.438
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.14,
+				0.18,
+				0.044
+			],
+			"layer": 1,
+			"model": "pit_floor_plate_2"
+		},
+		{
+			"kind": "hub_stair_stringer",
+			"at": [
+				-0.5815,
+				-0.9,
+				-1.875
+			],
+			"x": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.91,
+				0.72,
+				0.037
+			],
+			"layer": 1,
+			"treads": 4,
+			"model": "stair_stringer_1"
+		},
+		{
+			"kind": "hub_stair_stringer",
+			"at": [
+				0.5885,
+				-0.9,
+				-1.875
+			],
+			"x": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.91,
+				0.72,
+				0.037
+			],
+			"layer": 1,
+			"treads": 4,
+			"model": "stair_stringer_1"
+		},
+		{
+			"kind": "hub_hatch_frame",
+			"at": [
+				0.0,
+				0.0,
+				-4.35
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "hub_hatch_leaf",
+			"at": [
+				0.0,
+				0.0,
+				-4.14
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.26,
+				2.66,
+				0.12
+			],
+			"layer": 1,
+			"model": "hatch_leaf_1"
+		},
+		{
+			"kind": "hub_hatch_wheel",
+			"at": [
+				0.0,
+				0.9,
+				-4.04
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.5,
+				0.5,
+				0.08
+			],
+			"layer": 1,
+			"model": "hatch_wheel_1"
+		},
+		{
+			"kind": "hub_hatch_window",
+			"at": [
+				0.0,
+				1.65,
+				-4.08
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.4,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "hatch_window_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				-1.19,
+				0.512,
+				-4.125
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				-1.19,
+				2.012,
+				-4.125
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_hatch_frame",
+			"at": [
+				4.35,
+				0.0,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "hub_hatch_frame",
+			"at": [
+				4.65,
+				0.0,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				4.125,
+				0.512,
+				-1.06
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				4.125,
+				2.012,
+				-1.06
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_hatch_frame",
+			"at": [
+				0.0,
+				0.0,
+				4.35
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "hub_hatch_leaf",
+			"at": [
+				0.0,
+				0.0,
+				4.14
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.26,
+				2.66,
+				0.12
+			],
+			"layer": 1,
+			"model": "hatch_leaf_1"
+		},
+		{
+			"kind": "hub_hatch_wheel",
+			"at": [
+				0.0,
+				0.9,
+				4.04
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.5,
+				0.5,
+				0.08
+			],
+			"layer": 1,
+			"model": "hatch_wheel_1"
+		},
+		{
+			"kind": "hub_hatch_window",
+			"at": [
+				0.0,
+				1.65,
+				4.08
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "hatch_window_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				1.19,
+				0.512,
+				4.125
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				1.19,
+				2.012,
+				4.125
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_hatch_frame",
+			"at": [
+				-4.35,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "hub_hatch_frame",
+			"at": [
+				-4.65,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				-4.125,
+				0.512,
+				1.06
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_hatch_hinge",
+			"at": [
+				-4.125,
+				2.012,
+				1.06
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				0.0,
+				2.94,
+				-4.368
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				0.0,
+				2.95,
+				-4.326
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				4.368,
+				2.94,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				4.326,
+				2.95,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				0.0,
+				2.94,
+				4.368
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				0.0,
+				2.95,
+				4.326
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				-4.368,
+				2.94,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				-4.326,
+				2.95,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				-2.184,
+				2.94,
+				-3.7828
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "hub_door_strip_lamp",
+			"at": [
+				-2.163,
+				2.95,
+				-3.7464
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				1.4575,
+				1.27,
+				-4.1665
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				1.4754,
+				1.526,
+				-4.0915
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				4.2001,
+				1.27,
+				-1.4793
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				4.1781,
+				1.526,
+				-1.4054
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				1.4593,
+				1.27,
+				4.1655
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				1.3854,
+				1.526,
+				4.1435
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				-4.1481,
+				1.27,
+				1.4493
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				-4.1261,
+				1.526,
+				1.3754
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				-3.3811,
+				1.27,
+				-2.8977
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "hub_door_control_box",
+			"at": [
+				-3.3061,
+				1.526,
+				-2.9156
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_grab_bar",
+			"at": [
+				1.737,
+				0.9,
+				-4.0086
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				0.13,
+				0.7,
+				0.12
+			],
+			"layer": 1,
+			"model": "grab_bar_1"
+		},
+		{
+			"kind": "hub_grab_bar",
+			"at": [
+				4.0432,
+				0.9,
+				-1.757
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.13,
+				0.7,
+				0.12
+			],
+			"layer": 1,
+			"model": "grab_bar_1"
+		},
+		{
+			"kind": "hub_grab_bar",
+			"at": [
+				1.737,
+				0.9,
+				4.0086
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.13,
+				0.7,
+				0.12
+			],
+			"layer": 1,
+			"model": "grab_bar_1"
+		},
+		{
+			"kind": "hub_grab_bar",
+			"at": [
+				-3.9912,
+				0.9,
+				1.727
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.13,
+				0.7,
+				0.12
+			],
+			"layer": 1,
+			"model": "grab_bar_1"
+		},
+		{
+			"kind": "hub_status_display",
+			"at": [
+				2.3437,
+				1.73,
+				-3.6675
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				2.0,
+				1.0,
+				0.104
+			],
+			"layer": 1,
+			"model": "status_display_1"
+		},
+		{
+			"kind": "hub_status_display",
+			"at": [
+				2.3297,
+				1.8,
+				-3.6432
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.86,
+				0.86,
+				0.004
+			],
+			"layer": 1,
+			"model": "status_display_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_wall_screen_cluster",
+			"at": [
+				4.0816,
+				1.6,
+				1.6683
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.2,
+				0.6,
+				0.102
+			],
+			"layer": 1,
+			"model": "wall_screen_cluster_1"
+		},
+		{
+			"kind": "hub_wall_screen_cluster",
+			"at": [
+				4.0721,
+				1.6384,
+				1.6628
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.86,
+				0.419,
+				0.004
+			],
+			"layer": 1,
+			"model": "wall_screen_cluster_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_notice_board",
+			"at": [
+				3.8135,
+				1.13,
+				-2.2248
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.8,
+				0.6,
+				0.05
+			],
+			"layer": 1,
+			"model": "notice_board_1"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.112,
+				0.7,
+				3.8152
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.1429,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.4686,
+				0.7,
+				4.1866
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.7429,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.6996,
+				0.7,
+				3.4759
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.082,
+				1.3,
+				3.7632
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.1429,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.4386,
+				1.3,
+				4.1346
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.7429,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.6696,
+				1.3,
+				3.4239
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.6304,
+				1.9,
+				4.0239
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.6696,
+				1.9,
+				3.4239
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-2.6896,
+				2.69,
+				-3.4586
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-1.6504,
+				2.69,
+				-4.0586
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-3.4239,
+				2.55,
+				2.6696
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_straight",
+			"at": [
+				-4.0239,
+				2.55,
+				1.6304
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.1858,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "hub_pipe_valve",
+			"at": [
+				-1.8802,
+				1.2,
+				3.8566
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "hub_pipe_valve",
+			"at": [
+				-1.9102,
+				0.6,
+				3.9086
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "hub_pipe_elbow",
+			"at": [
+				-1.2074,
+				0.396,
+				4.1988
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.304,
+				0.304,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_elbow_1"
+		},
+		{
+			"kind": "hub_pipe_elbow",
+			"at": [
+				-4.2008,
+				0.396,
+				1.204
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.304,
+				0.304,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_elbow_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				1.6604,
+				2.76,
+				-4.0759
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				2.6996,
+				2.76,
+				-3.4759
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				3.5105,
+				2.76,
+				-2.7196
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				4.1105,
+				2.76,
+				-1.6804
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				4.0932,
+				2.76,
+				1.6704
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				3.4932,
+				2.76,
+				2.7096
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				2.6996,
+				2.76,
+				3.4759
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				1.6604,
+				2.76,
+				4.0759
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				-3.4586,
+				2.76,
+				2.6896
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				-4.0586,
+				2.76,
+				1.6504
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				-4.1105,
+				2.76,
+				-1.6804
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_bundle",
+			"at": [
+				-3.5105,
+				2.76,
+				-2.7196
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				1.1858,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "hub_cable_drop",
+			"at": [
+				3.3105,
+				1.56,
+				-3.066
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "hub_cable_drop",
+			"at": [
+				3.2932,
+				1.56,
+				3.056
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "hub_cable_drop",
+			"at": [
+				-4.2586,
+				1.56,
+				1.304
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "hub_cable_drop",
+			"at": [
+				-4.3105,
+				1.56,
+				-1.334
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "hub_conduit_box",
+			"at": [
+				3.7849,
+				2.355,
+				-2.2285
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "hub_conduit_box",
+			"at": [
+				3.805,
+				2.355,
+				2.1535
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "hub_conduit_box",
+			"at": [
+				2.2085,
+				2.355,
+				3.7502
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "hub_conduit_box",
+			"at": [
+				-3.5829,
+				2.355,
+				2.4583
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "hub_conduit_box",
+			"at": [
+				-3.3724,
+				2.355,
+				-2.9429
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "hub_conduit_box",
+			"at": [
+				-2.9995,
+				2.355,
+				3.2704
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				3.775,
+				2.45,
+				2.1795
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.18,
+				0.245,
+				0.122
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				3.7716,
+				2.466,
+				2.1775
+			],
+			"x": [
+				0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.088,
+				0.219,
+				0.088
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				2.1695,
+				2.45,
+				3.7577
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.18,
+				0.245,
+				0.122
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				2.1675,
+				2.466,
+				3.7543
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.088,
+				0.219,
+				0.088
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				-2.1595,
+				2.45,
+				3.7403
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.18,
+				0.245,
+				0.122
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				-2.1575,
+				2.466,
+				3.7369
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.088,
+				0.219,
+				0.088
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				-3.7403,
+				2.45,
+				2.1595
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.18,
+				0.245,
+				0.122
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				-3.7369,
+				2.466,
+				2.1575
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.088,
+				0.219,
+				0.088
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				-3.3423,
+				2.45,
+				-2.9689
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.18,
+				0.245,
+				0.122
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1"
+		},
+		{
+			"kind": "hub_wall_cage_lamp",
+			"at": [
+				-3.3389,
+				2.466,
+				-2.9669
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.088,
+				0.219,
+				0.088
+			],
+			"layer": 1,
+			"model": "wall_cage_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_small_readout",
+			"at": [
+				-2.9544,
+				1.35,
+				3.3172
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "hub_small_readout",
+			"at": [
+				-2.9204,
+				1.437,
+				3.3183
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_small_readout",
+			"at": [
+				-4.1192,
+				1.35,
+				-1.6854
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "hub_small_readout",
+			"at": [
+				-4.1203,
+				1.437,
+				-1.6514
+			],
+			"x": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "hub_intercom_panel",
+			"at": [
+				3.3683,
+				1.2,
+				-2.9839
+			],
+			"x": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"size": [
+				0.25,
+				0.4,
+				0.062
+			],
+			"layer": 1,
+			"model": "intercom_panel_1"
+		},
+		{
+			"kind": "hub_waste_bin",
+			"at": [
+				-4.143,
+				0.0,
+				1.2951
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.3,
+				0.438,
+				0.381
+			],
+			"layer": 1,
+			"model": "waste_bin_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-1.6689,
+				0.69,
+				4.0906
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-2.7081,
+				0.69,
+				3.4906
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-1.6389,
+				1.29,
+				4.0386
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-2.6781,
+				1.29,
+				3.4386
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-1.6389,
+				1.89,
+				4.0386
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-2.6781,
+				1.89,
+				3.4386
+			],
+			"x": [
+				0.86603,
+				-0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-2.6981,
+				2.68,
+				-3.4733
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-1.6589,
+				2.68,
+				-4.0733
+			],
+			"x": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.5,
+				0.0,
+				-0.86603
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-3.4386,
+				2.54,
+				2.6781
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "hub_pipe_bracket",
+			"at": [
+				-4.0386,
+				2.54,
+				1.6389
+			],
+			"x": [
+				0.5,
+				-0.0,
+				0.86603
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86603,
+				0.0,
+				0.5
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		}
+	]
+}

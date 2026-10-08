@@ -1,0 +1,1023 @@
+{
+ "scene": "lab",
+ "place": "lab",
+ "plan": {
+  "world": "",
+  "seed": 0,
+  "concept": "concepts-world1/lab/concepts/K06.png",
+  "views": [
+   {
+    "id": "v1",
+    "picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/lab/concepts/K06.png"
+   }
+  ]
+ },
+ "approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K06, runner-up K02",
+ "migrated": "",
+ "room": {
+  "shell": "",
+  "light": "place",
+  "backdrop": "",
+  "wall_fill": [],
+  "layout": {
+   "inside": [
+    6.0,
+    6.0
+   ],
+   "corner": 1.6,
+   "wall": 2.8,
+   "rise": 1.0,
+   "run": 1.2,
+   "doors": {
+    "north": "hatch",
+    "south": "hatch"
+   },
+   "open": [],
+   "features": {},
+   "ledges": {
+    "east": 0.42,
+    "west": 0.42
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "wall_lower_plain",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "plain lower wall panel, bolted",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.06,
+    1.1
+   ],
+   "count": 1,
+   "thing": "prop:lab_wall_lower_plain",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": []
+  },
+  {
+   "id": "wall_upper_plain",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "plain upper wall panel, bolted",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.06,
+    1.7
+   ],
+   "count": 1,
+   "thing": "prop:lab_wall_upper_plain",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": []
+  },
+  {
+   "id": "wall_skirting",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "rubber skirting at the wall's foot",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.06,
+    0.12
+   ],
+   "count": 1,
+   "thing": "prop:lab_wall_skirting",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": []
+  },
+  {
+   "id": "wall_cornice",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "cornice along the wall's top",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.16,
+    0.18
+   ],
+   "count": 1,
+   "thing": "prop:lab_wall_cornice",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": []
+  },
+  {
+   "id": "ring_floor_plate",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "deck plate, bolted",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    1.2,
+    0.04,
+    1.2
+   ],
+   "count": 1,
+   "thing": "prop:lab_ring_floor_plate",
+   "made": "kit piece",
+   "group": "kit: floor",
+   "at": []
+  },
+  {
+   "id": "roof_face_panel",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "dome plate",
+   "kind": "code",
+   "anchor": "ceiling",
+   "size": [
+    1.2,
+    0.05,
+    1.0
+   ],
+   "count": 1,
+   "thing": "prop:lab_roof_face_panel",
+   "made": "kit piece",
+   "group": "kit: ceiling",
+   "at": []
+  },
+  {
+   "id": "pit_wall_panel",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "the riser plate of a side ledge, bolted",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    1.0,
+    0.04,
+    0.42
+   ],
+   "count": 1,
+   "thing": "prop:lab_pit_wall_panel",
+   "made": "kit piece",
+   "group": "kit: floor",
+   "at": []
+  },
+  {
+   "id": "hatch_frame",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "the heavy steel frame round a tube hatch opening, bolted (the hub's door kit)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    2.4,
+    0.3,
+    2.693
+   ],
+   "count": 1,
+   "thing": "prop:lab_hatch_frame",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [],
+   "parts": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_hinge",
+    "hatch_window"
+   ]
+  },
+  {
+   "id": "hatch_leaf",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a thick steel pressure hatch door leaf (the hub's door kit)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    2.26,
+    0.12,
+    2.66
+   ],
+   "count": 1,
+   "thing": "prop:lab_hatch_leaf",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [],
+   "parts": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_hinge",
+    "hatch_window"
+   ]
+  },
+  {
+   "id": "hatch_wheel",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a steel locking hand wheel (the hub's door kit)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.5,
+    0.08,
+    0.5
+   ],
+   "count": 1,
+   "thing": "prop:lab_hatch_wheel",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [],
+   "parts": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_hinge",
+    "hatch_window"
+   ]
+  },
+  {
+   "id": "hatch_hinge",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a heavy steel door hinge (the hub's door kit)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.12,
+    0.15,
+    0.4
+   ],
+   "count": 1,
+   "thing": "prop:lab_hatch_hinge",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [],
+   "parts": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_hinge",
+    "hatch_window"
+   ]
+  },
+  {
+   "id": "hatch_window",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a small round window in a hatch leaf (the hub's door kit)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.4,
+    0.06,
+    0.4
+   ],
+   "count": 1,
+   "thing": "prop:lab_hatch_window",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [],
+   "parts": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_hinge",
+    "hatch_window"
+   ]
+  },
+  {
+   "id": "door_strip_lamp",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a strip lamp in a steel housing over a door (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.1,
+    0.08
+   ],
+   "count": 2,
+   "thing": "prop:lab_door_strip_lamp",
+   "made": "kit piece",
+   "group": "kit: light",
+   "at": [
+    {
+     "wall": "north",
+     "across": 0.0,
+     "bottom": 2.66,
+     "out": 0.1
+    },
+    {
+     "wall": "south",
+     "across": 0.0,
+     "bottom": 2.66,
+     "out": 0.1
+    }
+   ],
+   "light": {
+    "strength": 0.15,
+    "reach": 4.0,
+    "high": 0.5
+   }
+  },
+  {
+   "id": "door_control_box",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a steel door control box with a keypad and a status light (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.26,
+    0.12,
+    0.36
+   ],
+   "count": 2,
+   "thing": "prop:lab_door_control_box",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [
+    {
+     "wall": "corner10",
+     "across": 0.0,
+     "bottom": 1.2
+    },
+    {
+     "wall": "corner18",
+     "across": 0.0,
+     "bottom": 1.2
+    }
+   ]
+  },
+  {
+   "id": "tread_mat",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a tread-plate mat before a hatch (the hub's)",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    1.4,
+    0.02,
+    0.9
+   ],
+   "count": 2,
+   "thing": "prop:lab_tread_mat",
+   "made": "kit piece",
+   "group": "kit: floor",
+   "at": [
+    {
+     "x": 0.0,
+     "z": -2.45,
+     "facing": 180
+    },
+    {
+     "x": 0.0,
+     "z": 2.45,
+     "facing": 0
+    }
+   ],
+   "lies": "floor"
+  },
+  {
+   "id": "pipe_straight",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "gas line with flanges",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.0,
+    0.08,
+    0.08
+   ],
+   "count": 4,
+   "thing": "prop:lab_pipe_straight",
+   "made": "kit piece",
+   "group": "kit: pipe",
+   "at": [
+    {
+     "wall": "east",
+     "across": 0.0,
+     "bottom": 2.15,
+     "size": [
+      2.8,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "east",
+     "across": 0.0,
+     "bottom": 2.4,
+     "size": [
+      2.8,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "west",
+     "across": 0.0,
+     "bottom": 2.15,
+     "size": [
+      2.8,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "west",
+     "across": 0.0,
+     "bottom": 2.4,
+     "size": [
+      2.8,
+      0.08,
+      0.08
+     ]
+    }
+   ]
+  },
+  {
+   "id": "pipe_valve",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "an inline gas valve with a red hand wheel (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.3,
+    0.2,
+    0.3
+   ],
+   "count": 2,
+   "thing": "prop:lab_pipe_valve",
+   "made": "kit piece",
+   "group": "kit: pipe",
+   "at": [
+    {
+     "wall": "east",
+     "across": 0.7,
+     "bottom": 2.04
+    },
+    {
+     "wall": "west",
+     "across": -0.7,
+     "bottom": 2.29
+    }
+   ]
+  },
+  {
+   "id": "pipe_bracket",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a steel wall bracket clamping a pipe (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.12,
+    0.15,
+    0.1
+   ],
+   "count": 1,
+   "thing": "prop:lab_pipe_bracket",
+   "made": "kit piece",
+   "group": "kit: pipe",
+   "at": []
+  },
+  {
+   "id": "desk",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "lab desk: a pale grey steel top on a three-drawer pedestal and two legs",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    1.4,
+    0.75,
+    0.76
+   ],
+   "count": 2,
+   "thing": "prop:lab_desk",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": -1.5,
+     "y": 0.0,
+     "z": -1.5,
+     "facing": 180
+    },
+    {
+     "x": 1.5,
+     "y": 0.0,
+     "z": -1.5,
+     "facing": 180
+    }
+   ],
+   "solid": true,
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/lab_desk.png"
+  },
+  {
+   "id": "desk_chair",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "office swivel chair, grey padded seat and back, five-wheel base",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    0.65,
+    0.62,
+    0.9
+   ],
+   "count": 2,
+   "thing": "prop:lab_desk_chair",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": -1.5,
+     "y": 0.0,
+     "z": -0.75,
+     "facing": 0
+    },
+    {
+     "x": 1.5,
+     "y": 0.0,
+     "z": -0.75,
+     "facing": 0
+    }
+   ],
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_chair.png"
+  },
+  {
+   "id": "sample_store",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "sample store: riveted steel drawer cabinet with meters on top",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    1.2,
+    0.7,
+    1.0
+   ],
+   "count": 1,
+   "thing": "prop:lab_sample_store",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": -2.62,
+     "y": 0.42,
+     "z": 0.0,
+     "facing": 90
+    }
+   ],
+   "solid": true,
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_store.png"
+  },
+  {
+   "id": "glovebox_cabinet",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "glovebox cabinet: sealed box with a sloped window and two glove ports on a cabinet",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    1.15,
+    0.78,
+    1.15
+   ],
+   "count": 1,
+   "thing": "prop:lab_glovebox_cabinet",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": 2.59,
+     "y": 0.42,
+     "z": 0.0,
+     "facing": 270
+    }
+   ],
+   "solid": true,
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/glovebox_cabinet.png"
+  },
+  {
+   "id": "microscope",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "large white research microscope on its stand",
+   "kind": "generate",
+   "anchor": "on:desk",
+   "size": [
+    0.34,
+    0.39,
+    0.62
+   ],
+   "count": 1,
+   "thing": "prop:lab_microscope",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "desk",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/microscope.png"
+  },
+  {
+   "id": "desk_monitor",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "small beige computer monitor with a green screen",
+   "kind": "generate",
+   "anchor": "on:desk",
+   "size": [
+    0.36,
+    0.33,
+    0.36
+   ],
+   "count": 1,
+   "thing": "prop:lab_desk_monitor",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "desk",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_monitor.png"
+  },
+  {
+   "id": "instrument_unit",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "beige benchtop analyser with a small screen, knobs and meters",
+   "kind": "generate",
+   "anchor": "on:desk",
+   "size": [
+    0.5,
+    0.48,
+    0.42
+   ],
+   "count": 1,
+   "thing": "prop:lab_instrument_unit",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "desk",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/instrument_unit.png"
+  },
+  {
+   "id": "desk_keyboard",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "beige computer keyboard",
+   "kind": "generate",
+   "anchor": "on:desk",
+   "size": [
+    0.44,
+    0.2,
+    0.05
+   ],
+   "count": 1,
+   "thing": "prop:lab_desk_keyboard",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "desk",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_keyboard.png"
+  },
+  {
+   "id": "sample_tray",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "shallow steel tray of moon rock chips",
+   "kind": "generate",
+   "anchor": "on:sample_store",
+   "size": [
+    0.45,
+    0.32,
+    0.07
+   ],
+   "count": 1,
+   "thing": "prop:lab_sample_tray",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "sample_store",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_tray.png"
+  },
+  {
+   "id": "gauge_panel",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "wall gas control panel: two junction boxes and a pressure gauge",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.75,
+    0.2,
+    0.43
+   ],
+   "count": 1,
+   "thing": "prop:lab_gauge_panel",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": [
+    {
+     "wall": "east",
+     "across": -0.75,
+     "bottom": 1.75
+    }
+   ],
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/gauge_panel.png"
+  },
+  {
+   "id": "junction_box",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "steel junction box with two switches and conduits",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.25,
+    0.2,
+    0.4
+   ],
+   "count": 1,
+   "thing": "prop:lab_junction_box",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": [
+    {
+     "wall": "west",
+     "across": 0.85,
+     "bottom": 1.6
+    }
+   ],
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/junction_box.png"
+  },
+  {
+   "id": "fire_extinguisher",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "red fire extinguisher in a wall bracket",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.28,
+    0.2,
+    0.55
+   ],
+   "count": 1,
+   "thing": "prop:lab_fire_extinguisher",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": [
+    {
+     "wall": "west",
+     "across": -1.05,
+     "bottom": 0.55
+    }
+   ],
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/fire_extinguisher.png"
+  },
+  {
+   "id": "task_lamp",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "wall task lamp: a cone shade on a jointed arm",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.16,
+    0.6,
+    0.28
+   ],
+   "count": 2,
+   "thing": "prop:lab_task_lamp",
+   "made": "kit piece",
+   "group": "kit: light",
+   "at": [
+    {
+     "wall": "corner7",
+     "across": 0.0,
+     "bottom": 1.95
+    },
+    {
+     "wall": "corner11",
+     "across": 0.0,
+     "bottom": 1.95
+    }
+   ],
+   "light": {
+    "strength": 0.12,
+    "reach": 3.0,
+    "high": 0.1
+   },
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/task_lamp.png"
+  },
+  {
+   "id": "ceiling_lamp",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "ceiling flood lamp: steel housing, frosted lens behind a grille",
+   "kind": "generate",
+   "anchor": "ceiling",
+   "size": [
+    0.6,
+    0.26,
+    0.2
+   ],
+   "count": 2,
+   "thing": "prop:lab_ceiling_lamp",
+   "made": "kit piece",
+   "group": "kit: light",
+   "at": [
+    {
+     "x": -1.0,
+     "y": 3.58,
+     "z": 0.3,
+     "facing": 90
+    },
+    {
+     "x": 1.0,
+     "y": 3.58,
+     "z": 0.3,
+     "facing": 270
+    }
+   ],
+   "light": {
+    "strength": 0.3,
+    "reach": 7.0,
+    "high": 0.05
+   },
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/ceiling_lamp.png"
+  }
+ ]
+}

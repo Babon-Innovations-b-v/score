@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "procfunc"
+dynamic = ["version"]
+description = "Function-Oriented Abstractions for Procedural 3D Generation in Python"
+readme = "README.md"
+license = "BSD-3-Clause"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "bpy==4.2.0",
+    "numpy>=1.23.5,<2",
+    "pandas>=1.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/princeton-vl/procfunc"
+Repository = "https://github.com/princeton-vl/procfunc"
+
+[project.scripts]
+procfunc = "procfunc.cli:cli"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.2,<10",
+]
+dev = [
+    "pytest>=7.2,<10",
+    "pytest-xdist",
+    "ruff>=0.15,<0.16",
+    "ty",
+    "imageio",
+    "matplotlib",
+    "coverage",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-argparse",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "procfunc.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+procfunc = ["nodes/manifest.json", "ops/manifest.json"]
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+markers = ["render: requires a render-capable Blender environment"]
+
+[tool.ruff]
+exclude = ["examples", "experiments"]
+
+[tool.ruff.lint]
+
+select = [
+    "E",
+    "I",
+    "F",
+    "S102", # no exec(),
+    "TID251", # custom banned imports
+    "TID252", # relative imports only allowed for siblings
+
+]
+ignore = [
+    "E501", # over-length lines, formatter should handle it
+    "E741", # ambigous variable name
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ty.rules]
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"

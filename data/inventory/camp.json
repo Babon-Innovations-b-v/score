@@ -1,0 +1,769 @@
+{
+	"scene": "camp",
+	"place": "expedition_camp",
+	"plan": {
+		"world": "",
+		"seed": 0,
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/door_dome/concepts/K01.png"
+			},
+			{
+				"id": "v2",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/far_dome/concepts/K08.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, world 1 scale-up (the owner: build every place without stopping for review, he reviews at the end); concept picks door dome K01, far dome K08, coordinator's pick, owner may change",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": []
+	},
+	"rows": [
+		{
+			"id": "dome_wall_panel",
+			"view": "v1",
+			"box": [
+				600,
+				200,
+				900,
+				640
+			],
+			"name": "quilted fabric wall panel between ribs, skirting and top band",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.1,
+				3.4
+			],
+			"count": 7,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "dome_window_panel",
+			"view": "v1",
+			"box": [
+				280,
+				160,
+				560,
+				420
+			],
+			"name": "quilted wall panel round a rigid window frame, dark glass",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.14,
+				3.4
+			],
+			"count": 20,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "dome_rib",
+			"view": "v1",
+			"box": [
+				880,
+				180,
+				940,
+				640
+			],
+			"name": "anodised aluminium rib at every panel join",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.14,
+				0.12,
+				3.4
+			],
+			"count": 24,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "dome_ceiling_gore",
+			"view": "v1",
+			"box": [
+				400,
+				40,
+				1300,
+				260
+			],
+			"name": "quilted ceiling gore rising from the wall to the roof cap",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.0,
+				4.0,
+				2.0
+			],
+			"count": 30,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "dome_roof_cap",
+			"view": "v1",
+			"box": [
+				760,
+				40,
+				1180,
+				160
+			],
+			"name": "roof cap: quilted disc with a ring, a vent fan and a ring of lamp lens",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				5.6,
+				5.6,
+				0.2
+			],
+			"count": 2,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "dome_deck_wedge",
+			"view": "v1",
+			"box": [
+				500,
+				500,
+				1200,
+				900
+			],
+			"name": "deck plate from the dome's middle to its wall",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				7.0,
+				0.04
+			],
+			"count": 30,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "dome_opening_frame",
+			"view": "v1",
+			"box": [
+				180,
+				520,
+				420,
+				900
+			],
+			"name": "rigid frame round a doorway in the soft wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.2,
+				2.7
+			],
+			"count": 3,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "passage_lining",
+			"view": "v2",
+			"box": [
+				1200,
+				560,
+				1500,
+				900
+			],
+			"name": "the way through's quilted sides, ceiling and deck",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.6,
+				1.0,
+				2.7
+			],
+			"count": 1,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "partition",
+			"view": "v2",
+			"box": [
+				800,
+				300,
+				1300,
+				800
+			],
+			"name": "rigid composite partition with its doorway frame",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				10.0,
+				0.12,
+				3.0
+			],
+			"count": 1,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "rod_lamp",
+			"view": "v1",
+			"box": [
+				700,
+				60,
+				800,
+				200
+			],
+			"name": "lamp on a rod from the ceiling: housing and lens",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.4,
+				0.4,
+				2.5
+			],
+			"count": 6,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "shell_gore",
+			"view": "v1",
+			"box": [
+				80,
+				40,
+				700,
+				700
+			],
+			"name": "strapped soft-goods shell gore from the foot ring to the roof top",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.2,
+				0.1,
+				6.8
+			],
+			"count": 7,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "shell_gore_window",
+			"view": "v1",
+			"box": [
+				120,
+				200,
+				400,
+				600
+			],
+			"name": "shell gore with a rigid window frame and dark glass",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.2,
+				0.2,
+				6.8
+			],
+			"count": 20,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "shell_gore_open",
+			"view": "v1",
+			"box": [
+				100,
+				520,
+				420,
+				900
+			],
+			"name": "shell gore over an opening, open below 3 m for the tube",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.2,
+				0.1,
+				3.8
+			],
+			"count": 3,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "foot_ring",
+			"view": "v1",
+			"box": [
+				60,
+				640,
+				1600,
+				900
+			],
+			"name": "padded tube round a dome's foot with strap bands",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.2,
+				1.2,
+				1.2
+			],
+			"count": 27,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "passage_hull",
+			"view": "v2",
+			"box": [
+				1500,
+				300,
+				1900,
+				700
+			],
+			"name": "strapped soft-goods hull over the way through",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.2,
+				1.0,
+				3.3
+			],
+			"count": 1,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "galley",
+			"view": "v1",
+			"box": [
+				1000,
+				330,
+				1300,
+				640
+			],
+			"name": "stainless galley counter: worktop with hob and sink, cupboards under and over",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.348,
+				1.215,
+				1.9
+			],
+			"count": 1,
+			"thing": "prop:camp_galley",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_galley"
+		},
+		{
+			"id": "cold_store",
+			"view": "v1",
+			"box": [
+				1060,
+				420,
+				1250,
+				640
+			],
+			"name": "stainless chest freezer with its lid",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.97,
+				1.071,
+				1.02
+			],
+			"count": 1,
+			"thing": "prop:camp_cold_store",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_cold_store"
+		},
+		{
+			"id": "pedestal_table",
+			"view": "v1",
+			"box": [
+				600,
+				500,
+				900,
+				700
+			],
+			"name": "mess table: stainless top on one pedestal",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.15,
+				0.8,
+				0.87
+			],
+			"count": 1,
+			"thing": "prop:camp_pedestal_table",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_pedestal_table"
+		},
+		{
+			"id": "comms_desk",
+			"view": "v1",
+			"box": [
+				200,
+				360,
+				520,
+				560
+			],
+			"name": "comms desk with a drawer cabinet (and the far dome's terminal desk)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.59,
+				0.736,
+				0.74
+			],
+			"count": 2,
+			"thing": "prop:camp_comms_desk",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_comms_desk"
+		},
+		{
+			"id": "monitor",
+			"view": "v1",
+			"box": [
+				240,
+				300,
+				480,
+				400
+			],
+			"name": "desk screen on its foot",
+			"kind": "code",
+			"anchor": "on:comms_desk",
+			"size": [
+				0.5,
+				0.17,
+				0.385
+			],
+			"count": 2,
+			"thing": "prop:camp_monitor",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"parent": "comms_desk"
+		},
+		{
+			"id": "radio",
+			"view": "v1",
+			"box": [
+				400,
+				330,
+				500,
+				400
+			],
+			"name": "field radio with its handset",
+			"kind": "code",
+			"anchor": "on:comms_desk",
+			"size": [
+				0.4,
+				0.24,
+				0.26
+			],
+			"count": 1,
+			"thing": "prop:camp_radio",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"parent": "comms_desk"
+		},
+		{
+			"id": "stores_rack",
+			"view": "v1",
+			"box": [
+				560,
+				200,
+				760,
+				420
+			],
+			"name": "aluminium shelving rack",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.8,
+				0.5,
+				1.9
+			],
+			"count": 1,
+			"thing": "prop:camp_stores_rack",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_stores_rack"
+		},
+		{
+			"id": "case",
+			"view": "v1",
+			"box": [
+				580,
+				220,
+				740,
+				400
+			],
+			"name": "hard cargo case with latches and a stencilled number",
+			"kind": "code",
+			"anchor": "on:stores_rack",
+			"size": [
+				0.45,
+				0.35,
+				0.42
+			],
+			"count": 16,
+			"thing": "prop:camp_case",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"parent": "stores_rack"
+		},
+		{
+			"id": "hygiene",
+			"view": "v1",
+			"box": [
+				1300,
+				300,
+				1500,
+				640
+			],
+			"name": "hygiene cubicle of composite panels with a folding door",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				1.1,
+				2.2
+			],
+			"count": 1,
+			"thing": "prop:camp_hygiene",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_hygiene"
+		},
+		{
+			"id": "ring_lamp",
+			"view": "v2",
+			"box": [
+				560,
+				260,
+				700,
+				320
+			],
+			"name": "ring lamp on the ceiling: housing and glowing lens ring",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.7,
+				0.7,
+				0.17
+			],
+			"count": 6,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "wall_net",
+			"view": "v1",
+			"box": [
+				880,
+				280,
+				1130,
+				420
+			],
+			"name": "soft storage net with fabric pockets on the lining",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.12,
+				0.8
+			],
+			"count": 6,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "floor_cable",
+			"view": "v1",
+			"box": [
+				700,
+				560,
+				1200,
+				760
+			],
+			"name": "power cables run loose over the deck with a plug block",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.0,
+				0.15,
+				0.06
+			],
+			"count": 10,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
+		},
+		{
+			"id": "crate",
+			"view": "v1",
+			"box": [
+				880,
+				450,
+				1060,
+				540
+			],
+			"name": "big SpaceXcitement cargo crate",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.55,
+				0.55
+			],
+			"count": 6,
+			"thing": "prop:camp_crate",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_crate"
+		},
+		{
+			"id": "crate_small",
+			"view": "v2",
+			"box": [
+				420,
+				410,
+				540,
+				480
+			],
+			"name": "small crate as a bedside table or footstool",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.6,
+				0.45,
+				0.45
+			],
+			"count": 6,
+			"thing": "prop:camp_crate_small",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_crate_small"
+		},
+		{
+			"id": "bunk",
+			"view": "v2",
+			"box": [
+				300,
+				300,
+				700,
+				600
+			],
+			"name": "single bunk: aluminium frame, mattress, blanket, pillow, drawer",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.9,
+				0.6
+			],
+			"count": 3,
+			"thing": "prop:camp_bunk",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_bunk"
+		},
+		{
+			"id": "lockers",
+			"view": "v2",
+			"box": [
+				880,
+				160,
+				1120,
+				420
+			],
+			"name": "three tall aluminium lockers as one unit",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.5,
+				0.5,
+				1.9
+			],
+			"count": 1,
+			"thing": "prop:camp_lockers",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_lockers"
+		},
+		{
+			"id": "growth_chamber",
+			"view": "v2",
+			"box": [
+				1180,
+				340,
+				1400,
+				560
+			],
+			"name": "plant growth chamber: cabinet, glass hood, grow light, trays",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				1.3,
+				0.8,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:camp_growth_chamber",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_growth_chamber"
+		},
+		{
+			"id": "sample_shelf",
+			"view": "v2",
+			"box": [
+				1100,
+				560,
+				1350,
+				820
+			],
+			"name": "open aluminium shelf with four boards",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.44,
+				0.5,
+				1.9
+			],
+			"count": 1,
+			"thing": "prop:camp_sample_shelf",
+			"made": "made by the route",
+			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
+			"prop": "camp_sample_shelf"
+		}
+	]
+}

@@ -1,0 +1,13 @@
+FONTLOG for ZCOOLQingKeHuangYou-Regular.ttf
+
+A modified version of ZCOOL QingKe HuangYou (Zheng Qingke, The ZCOOL QingKe HuangYou Project
+Authors, https://github.com/googlefonts/zcool-qingke-huangyou), used under the SIL Open Font
+License 1.1 in OFL.txt beside it.
+
+ZCOOLQingKeHuangYou-Regular.ttf (2026-10-04): the Google Fonts repository's file
+(ofl/zcoolqingkehuangyou/ZCOOLQingKeHuangYou-Regular.ttf, sha256
+54f0c0df4308cd74cd0f2fd3494ae054dbc4a1fd6fa7d71f4807eb4cdd8b4136), cut with fontTools.subset to
+the GB2312 characters it has, ASCII, the CJK symbols and punctuation (U+3000 to U+303F), the
+full-width forms (U+FF00 to U+FFEF) and · — … ‘ ’ “ ” × №, every layout feature and name kept,
+hinting dropped. Its square, even display letters draw the backlit light boxes
+(game/art/signs/).

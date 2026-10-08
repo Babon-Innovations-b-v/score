@@ -1,0 +1,10637 @@
+{
+	"room": "airlock",
+	"frame": "the room's own: its middle on its floor, x east, z south, y up",
+	"counts": {
+		"airlock_wall_lower_plain": 26,
+		"airlock_wall_upper_plain": 26,
+		"airlock_wall_skirting": 22,
+		"airlock_wall_cornice": 20,
+		"airlock_ring_floor_plate": 29,
+		"airlock_door_frame": 2,
+		"airlock_roof_face_panel": 141,
+		"airlock_suit_alcove": 1,
+		"airlock_suit_bench": 1,
+		"airlock_status_panel": 2,
+		"airlock_fan_unit": 1,
+		"airlock_dust_vacuum": 1,
+		"airlock_pipe_straight": 6,
+		"airlock_pipe_valve": 4,
+		"airlock_door_strip_lamp": 4,
+		"airlock_beacon": 1,
+		"airlock_roof_light_fixture": 2,
+		"airlock_lock_console": 1,
+		"airlock_lock_gauge_panel": 1,
+		"airlock_vent_grille": 2,
+		"airlock_hose_coil": 1,
+		"airlock_small_readout": 1,
+		"airlock_door_control_box": 2,
+		"airlock_conduit_box": 1,
+		"airlock_notice_board": 1,
+		"airlock_cable_drop": 1,
+		"airlock_cable_bundle": 2,
+		"airlock_floor_grating": 2,
+		"airlock_under_floor_box": 2,
+		"airlock_pipe_bracket": 8,
+		"airlock_hose_reel": 1,
+		"airlock_tool_case": 1
+	},
+	"kinds": {
+		"airlock_wall_lower_plain": {
+			"group": "hangs"
+		},
+		"airlock_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"airlock_wall_skirting": {
+			"group": "hangs"
+		},
+		"airlock_wall_cornice": {
+			"group": "hangs"
+		},
+		"airlock_ring_floor_plate": {
+			"group": "floors"
+		},
+		"airlock_roof_face_panel": {
+			"group": "floors"
+		},
+		"airlock_door_frame": {
+			"group": "hangs"
+		},
+		"airlock_suit_alcove": {},
+		"airlock_suit_bench": {
+			"solid": true
+		},
+		"airlock_status_panel": {
+			"group": "hangs"
+		},
+		"airlock_fan_unit": {
+			"group": "hangs",
+			"solid": true
+		},
+		"airlock_dust_vacuum": {
+			"solid": true
+		},
+		"airlock_pipe_straight": {
+			"group": "hangs"
+		},
+		"airlock_pipe_valve": {
+			"group": "hangs"
+		},
+		"airlock_door_strip_lamp": {
+			"light": {
+				"strength": 0.15,
+				"reach": 4.0,
+				"high": 0.5
+			},
+			"group": "hangs"
+		},
+		"airlock_floor_grating": {},
+		"airlock_pipe_bracket": {
+			"group": "hangs"
+		},
+		"airlock_under_floor_box": {},
+		"airlock_hose_reel": {},
+		"airlock_beacon": {
+			"group": "hangs",
+			"outside": true
+		},
+		"airlock_roof_light_fixture": {
+			"light": {
+				"strength": 0.55,
+				"reach": 5.0,
+				"high": 0.1
+			},
+			"group": "hangs"
+		},
+		"airlock_lock_console": {
+			"group": "hangs"
+		},
+		"airlock_lock_gauge_panel": {
+			"group": "hangs"
+		},
+		"airlock_vent_grille": {
+			"group": "hangs"
+		},
+		"airlock_hose_coil": {
+			"group": "hangs"
+		},
+		"airlock_tool_case": {},
+		"airlock_small_readout": {
+			"group": "hangs"
+		},
+		"airlock_door_control_box": {
+			"group": "hangs"
+		},
+		"airlock_conduit_box": {
+			"group": "hangs"
+		},
+		"airlock_notice_board": {
+			"group": "hangs"
+		},
+		"airlock_cable_drop": {
+			"group": "hangs"
+		},
+		"airlock_cable_bundle": {
+			"group": "hangs"
+		}
+	},
+	"models": {
+		"wall_lower_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_skirting_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cornice_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_skirting_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cornice_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_skirting_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cornice_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_8": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_9": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_10": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_11": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_12": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_8": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_9": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_10": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_11": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_12": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_13": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_14": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_15": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_16": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_17": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_18": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_19": {
+			"glows": false,
+			"route": "code"
+		},
+		"suit_alcove_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"suit_alcove_1_glow": {
+			"glows": true
+		},
+		"suit_bench_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"status_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"status_panel_1_glow": {
+			"glows": true
+		},
+		"fan_unit_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dust_vacuum_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"pipe_straight_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_valve_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_strip_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_strip_lamp_1_glow": {
+			"glows": true
+		},
+		"beacon_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"beacon_1_glow": {
+			"glows": true
+		},
+		"roof_light_fixture_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_light_fixture_1_glow": {
+			"glows": true
+		},
+		"lock_console_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"lock_console_1_glow": {
+			"glows": true
+		},
+		"lock_gauge_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"vent_grille_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hose_coil_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1_glow": {
+			"glows": true
+		},
+		"door_control_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_control_box_1_glow": {
+			"glows": true
+		},
+		"conduit_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"notice_board_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cable_drop_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cable_bundle_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"floor_grating_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"under_floor_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_bracket_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hose_reel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"tool_case_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_leaf_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "airlock_door_leaf",
+			"size": [
+				2.4,
+				2.7,
+				0.2
+			],
+			"children": []
+		}
+	},
+	"pieces": [
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.509,
+				0.0,
+				2.4477
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.509,
+				1.1,
+				2.4477
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.4972,
+				0.0,
+				2.3889
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.4992,
+				2.62,
+				2.3987
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.7103,
+				0.0,
+				2.3644
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.7103,
+				1.1,
+				2.3644
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.6769,
+				0.0,
+				2.3145
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.6825,
+				2.62,
+				2.3228
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.8644,
+				0.0,
+				2.2103
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.8644,
+				1.1,
+				2.2103
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.8145,
+				0.0,
+				2.1769
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.8228,
+				2.62,
+				2.1825
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.9477,
+				0.0,
+				2.009
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.9477,
+				1.1,
+				2.009
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.8889,
+				0.0,
+				1.9972
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.8987,
+				2.62,
+				1.9992
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.97,
+				0.0,
+				1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.97,
+				1.1,
+				1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.97,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.97,
+				1.1,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.97,
+				0.0,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.97,
+				1.1,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.91,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				3.8,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_2"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.92,
+				2.62,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				3.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_2"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.9477,
+				0.0,
+				-2.009
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.9477,
+				1.1,
+				-2.009
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.8889,
+				0.0,
+				-1.9972
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.8987,
+				2.62,
+				-1.9992
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.8644,
+				0.0,
+				-2.2103
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.8644,
+				1.1,
+				-2.2103
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.8145,
+				0.0,
+				-2.1769
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.8228,
+				2.62,
+				-2.1825
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.7103,
+				0.0,
+				-2.3644
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.7103,
+				1.1,
+				-2.3644
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.6769,
+				0.0,
+				-2.3145
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.6825,
+				2.62,
+				-2.3228
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.509,
+				0.0,
+				-2.4477
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.509,
+				1.1,
+				-2.4477
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.4972,
+				0.0,
+				-2.3889
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				1.4992,
+				2.62,
+				-2.3987
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.25,
+				0.0,
+				-2.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.25,
+				1.1,
+				-2.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.25,
+				0.0,
+				-2.41
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.25,
+				0.0,
+				-2.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.25,
+				1.1,
+				-2.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.25,
+				0.0,
+				-2.41
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				0.0,
+				2.62,
+				-2.42
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				2.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_3"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.509,
+				0.0,
+				-2.4477
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.509,
+				1.1,
+				-2.4477
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.4972,
+				0.0,
+				-2.3889
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.4992,
+				2.62,
+				-2.3987
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.7103,
+				0.0,
+				-2.3644
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.7103,
+				1.1,
+				-2.3644
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.6769,
+				0.0,
+				-2.3145
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.6825,
+				2.62,
+				-2.3228
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.8644,
+				0.0,
+				-2.2103
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.8644,
+				1.1,
+				-2.2103
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.8145,
+				0.0,
+				-2.1769
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.8228,
+				2.62,
+				-2.1825
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.9477,
+				0.0,
+				-2.009
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.9477,
+				1.1,
+				-2.009
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.8889,
+				0.0,
+				-1.9972
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.8987,
+				2.62,
+				-1.9992
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.97,
+				0.0,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.97,
+				1.1,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.97,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.97,
+				1.1,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.97,
+				0.0,
+				1.2667
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.97,
+				1.1,
+				1.2667
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3067,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.91,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				3.8,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_2"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.92,
+				2.62,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				3.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_2"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.9477,
+				0.0,
+				2.009
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.9477,
+				1.1,
+				2.009
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.8889,
+				0.0,
+				1.9972
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.8987,
+				2.62,
+				1.9992
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.8644,
+				0.0,
+				2.2103
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.8644,
+				1.1,
+				2.2103
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.8145,
+				0.0,
+				2.1769
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.8228,
+				2.62,
+				2.1825
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.7103,
+				0.0,
+				2.3644
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.7103,
+				1.1,
+				2.3644
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.6769,
+				0.0,
+				2.3145
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.6825,
+				2.62,
+				2.3228
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.509,
+				0.0,
+				2.4477
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2741,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.509,
+				1.1,
+				2.4477
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2741,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.4972,
+				0.0,
+				2.3889
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2341,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				-1.4992,
+				2.62,
+				2.3987
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.2741,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				-1.25,
+				0.0,
+				2.47
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				-1.25,
+				1.1,
+				2.47
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				-1.25,
+				0.0,
+				2.41
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "airlock_wall_lower_plain",
+			"at": [
+				1.25,
+				0.0,
+				2.47
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "airlock_wall_upper_plain",
+			"at": [
+				1.25,
+				1.1,
+				2.47
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "airlock_wall_skirting",
+			"at": [
+				1.25,
+				0.0,
+				2.41
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "airlock_wall_cornice",
+			"at": [
+				0.0,
+				2.62,
+				2.42
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				2.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_3"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.3333,
+				-0.02,
+				-1.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2667,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					0.5293,
+					0.0,
+					0.6666,
+					0.554
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.3333,
+				-0.02,
+				-0.6333
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2667,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_2"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.3333,
+				-0.02,
+				0.6333
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2667,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					0.5293,
+					0.7127,
+					0.6666,
+					1.2667
+				]
+			],
+			"model": "ring_floor_plate_3"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-1.8961
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2628,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.6666,
+					0.0,
+					0.6666,
+					0.554
+				]
+			],
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-0.6333
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2667,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_2"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				0.6333
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2628,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.6666,
+					0.7127,
+					0.6666,
+					1.2667
+				]
+			],
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.3333,
+				-0.02,
+				-1.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2667,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.6666,
+					0.0,
+					-0.5293,
+					0.554
+				]
+			],
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.3333,
+				-0.02,
+				-0.6333
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2667,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_2"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.3333,
+				-0.02,
+				0.6333
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.3333,
+				1.2667,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.6666,
+					0.7127,
+					-0.5293,
+					1.2667
+				]
+			],
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-0.7,
+				-0.02,
+				-2.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.104,
+					0.146,
+					0.7,
+					0.6
+				]
+			],
+			"model": "ring_floor_plate_8"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				0.7,
+				-0.02,
+				-2.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.7,
+					0.146,
+					0.104,
+					0.6
+				]
+			],
+			"model": "ring_floor_plate_9"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-0.7,
+				-0.02,
+				1.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.104,
+					0.0,
+					0.7,
+					0.454
+				]
+			],
+			"model": "ring_floor_plate_10"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				0.7,
+				-0.02,
+				1.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.7,
+					0.0,
+					0.104,
+					0.454
+				]
+			],
+			"model": "ring_floor_plate_11"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.5148,
+				-0.02,
+				2.4772
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.7269,
+				-0.02,
+				2.3893
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.8893,
+				-0.02,
+				2.2269
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.9772,
+				-0.02,
+				2.0148
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.5148,
+				-0.02,
+				-2.4772
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.7269,
+				-0.02,
+				-2.3893
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.8893,
+				-0.02,
+				-2.2269
+			],
+			"x": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				1.9772,
+				-0.02,
+				-2.0148
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.5148,
+				-0.02,
+				-2.4772
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.7269,
+				-0.02,
+				-2.3893
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.8893,
+				-0.02,
+				-2.2269
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.9772,
+				-0.02,
+				-2.0148
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.5148,
+				-0.02,
+				2.4772
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.7269,
+				-0.02,
+				2.3893
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.8893,
+				-0.02,
+				2.2269
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_ring_floor_plate",
+			"at": [
+				-1.9772,
+				-0.02,
+				2.0148
+			],
+			"x": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.2325,
+				0.5885,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "airlock_door_frame",
+			"at": [
+				0.0,
+				0.0,
+				-2.35
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				2.76,
+				2.78,
+				0.3
+			],
+			"layer": 1,
+			"model": "door_frame_1"
+		},
+		{
+			"kind": "airlock_door_frame",
+			"at": [
+				0.0,
+				0.0,
+				2.35
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				2.76,
+				2.78,
+				0.3
+			],
+			"layer": 1,
+			"model": "door_frame_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5364,
+				2.7913,
+				2.5861
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.04436,
+				0.9738,
+				-0.22303
+			],
+			"z": [
+				0.18998,
+				0.2274,
+				0.95509
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7887,
+				2.7913,
+				2.4816
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.12633,
+				0.9738,
+				-0.18907
+			],
+			"z": [
+				0.54102,
+				0.2274,
+				0.80969
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9816,
+				2.7913,
+				2.2887
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.18907,
+				0.9738,
+				-0.12633
+			],
+			"z": [
+				0.80969,
+				0.2274,
+				0.54102
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.0861,
+				2.7913,
+				2.0364
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.22303,
+				0.9738,
+				-0.04436
+			],
+			"z": [
+				0.95509,
+				0.2274,
+				0.18998
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.1135,
+				2.7912,
+				1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.23161,
+				0.97281,
+				0.0
+			],
+			"z": [
+				0.97281,
+				0.23161,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.1135,
+				2.7912,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.23161,
+				0.97281,
+				0.0
+			],
+			"z": [
+				0.97281,
+				0.23161,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.1135,
+				2.7912,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.23161,
+				0.97281,
+				0.0
+			],
+			"z": [
+				0.97281,
+				0.23161,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.0861,
+				2.7913,
+				-2.0364
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.22303,
+				0.9738,
+				0.04436
+			],
+			"z": [
+				0.95509,
+				0.2274,
+				-0.18998
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9816,
+				2.7913,
+				-2.2887
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.18907,
+				0.9738,
+				0.12633
+			],
+			"z": [
+				0.80969,
+				0.2274,
+				-0.54102
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7887,
+				2.7913,
+				-2.4816
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.12633,
+				0.9738,
+				0.18907
+			],
+			"z": [
+				0.54102,
+				0.2274,
+				-0.80969
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5364,
+				2.7913,
+				-2.5861
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.04436,
+				0.9738,
+				0.22303
+			],
+			"z": [
+				0.18998,
+				0.2274,
+				-0.95509
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				2.7912,
+				-2.6135
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.97281,
+				0.23161
+			],
+			"z": [
+				-0.0,
+				0.23161,
+				-0.97281
+			],
+			"size": [
+				1.4,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				2.7912,
+				-2.6135
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.97281,
+				0.23161
+			],
+			"z": [
+				-0.0,
+				0.23161,
+				-0.97281
+			],
+			"size": [
+				1.4,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5364,
+				2.7913,
+				-2.5861
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.04436,
+				0.9738,
+				0.22303
+			],
+			"z": [
+				-0.18998,
+				0.2274,
+				-0.95509
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7887,
+				2.7913,
+				-2.4816
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.12633,
+				0.9738,
+				0.18907
+			],
+			"z": [
+				-0.54102,
+				0.2274,
+				-0.80969
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9816,
+				2.7913,
+				-2.2887
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.18907,
+				0.9738,
+				0.12633
+			],
+			"z": [
+				-0.80969,
+				0.2274,
+				-0.54102
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.0861,
+				2.7913,
+				-2.0364
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.22303,
+				0.9738,
+				0.04436
+			],
+			"z": [
+				-0.95509,
+				0.2274,
+				-0.18998
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.1135,
+				2.7912,
+				-1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.23161,
+				0.97281,
+				0.0
+			],
+			"z": [
+				-0.97281,
+				0.23161,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.1135,
+				2.7912,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.23161,
+				0.97281,
+				0.0
+			],
+			"z": [
+				-0.97281,
+				0.23161,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.1135,
+				2.7912,
+				1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.23161,
+				0.97281,
+				0.0
+			],
+			"z": [
+				-0.97281,
+				0.23161,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.0861,
+				2.7913,
+				2.0364
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.22303,
+				0.9738,
+				-0.04436
+			],
+			"z": [
+				-0.95509,
+				0.2274,
+				0.18998
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9816,
+				2.7913,
+				2.2887
+			],
+			"x": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.18907,
+				0.9738,
+				-0.12633
+			],
+			"z": [
+				-0.80969,
+				0.2274,
+				0.54102
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7887,
+				2.7913,
+				2.4816
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.12633,
+				0.9738,
+				-0.18907
+			],
+			"z": [
+				-0.54102,
+				0.2274,
+				0.80969
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5364,
+				2.7913,
+				2.5861
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.04436,
+				0.9738,
+				-0.22303
+			],
+			"z": [
+				-0.18998,
+				0.2274,
+				0.95509
+			],
+			"size": [
+				0.2846,
+				0.1552,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9507,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				2.7912,
+				2.6135
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.97281,
+				-0.23161
+			],
+			"z": [
+				-0.0,
+				0.23161,
+				0.97281
+			],
+			"size": [
+				1.4,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				2.7912,
+				2.6135
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.97281,
+				-0.23161
+			],
+			"z": [
+				-0.0,
+				0.23161,
+				0.97281
+			],
+			"size": [
+				1.4,
+				0.1554,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5302,
+				2.936,
+				2.5544
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.11662,
+				0.80165,
+				-0.5863
+			],
+			"z": [
+				0.15639,
+				0.59779,
+				0.78625
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7706,
+				2.936,
+				2.4548
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.33211,
+				0.80165,
+				-0.49705
+			],
+			"z": [
+				0.44537,
+				0.59779,
+				0.66655
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9548,
+				2.936,
+				2.2706
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.49705,
+				0.80165,
+				-0.33211
+			],
+			"z": [
+				0.66655,
+				0.59779,
+				0.44537
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.0544,
+				2.936,
+				2.0302
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.5863,
+				0.80165,
+				-0.11662
+			],
+			"z": [
+				0.78625,
+				0.59779,
+				0.15639
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.0807,
+				2.9358,
+				1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.60524,
+				0.79604,
+				0.0
+			],
+			"z": [
+				0.79604,
+				0.60524,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.0807,
+				2.9358,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.60524,
+				0.79604,
+				0.0
+			],
+			"z": [
+				0.79604,
+				0.60524,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.0807,
+				2.9358,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.60524,
+				0.79604,
+				0.0
+			],
+			"z": [
+				0.79604,
+				0.60524,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				2.0544,
+				2.936,
+				-2.0302
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.5863,
+				0.80165,
+				0.11662
+			],
+			"z": [
+				0.78625,
+				0.59779,
+				-0.15639
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9548,
+				2.936,
+				-2.2706
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.49705,
+				0.80165,
+				0.33211
+			],
+			"z": [
+				0.66655,
+				0.59779,
+				-0.44537
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7706,
+				2.936,
+				-2.4548
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.33211,
+				0.80165,
+				0.49705
+			],
+			"z": [
+				0.44537,
+				0.59779,
+				-0.66655
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5302,
+				2.936,
+				-2.5544
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.11662,
+				0.80165,
+				0.5863
+			],
+			"z": [
+				0.15639,
+				0.59779,
+				-0.78625
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				2.9358,
+				-2.5807
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.79604,
+				0.60524
+			],
+			"z": [
+				-0.0,
+				0.60524,
+				-0.79604
+			],
+			"size": [
+				1.4,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				2.9358,
+				-2.5807
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.79604,
+				0.60524
+			],
+			"z": [
+				-0.0,
+				0.60524,
+				-0.79604
+			],
+			"size": [
+				1.4,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5302,
+				2.936,
+				-2.5544
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.11662,
+				0.80165,
+				0.5863
+			],
+			"z": [
+				-0.15639,
+				0.59779,
+				-0.78625
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7706,
+				2.936,
+				-2.4548
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.33211,
+				0.80165,
+				0.49705
+			],
+			"z": [
+				-0.44537,
+				0.59779,
+				-0.66655
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9548,
+				2.936,
+				-2.2706
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.49705,
+				0.80165,
+				0.33211
+			],
+			"z": [
+				-0.66655,
+				0.59779,
+				-0.44537
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.0544,
+				2.936,
+				-2.0302
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.5863,
+				0.80165,
+				0.11662
+			],
+			"z": [
+				-0.78625,
+				0.59779,
+				-0.15639
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.0807,
+				2.9358,
+				-1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.60524,
+				0.79604,
+				0.0
+			],
+			"z": [
+				-0.79604,
+				0.60524,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.0807,
+				2.9358,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.60524,
+				0.79604,
+				0.0
+			],
+			"z": [
+				-0.79604,
+				0.60524,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.0807,
+				2.9358,
+				1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.60524,
+				0.79604,
+				0.0
+			],
+			"z": [
+				-0.79604,
+				0.60524,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-2.0544,
+				2.936,
+				2.0302
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.5863,
+				0.80165,
+				-0.11662
+			],
+			"z": [
+				-0.78625,
+				0.59779,
+				0.15639
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9548,
+				2.936,
+				2.2706
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.49705,
+				0.80165,
+				-0.33211
+			],
+			"z": [
+				-0.66655,
+				0.59779,
+				0.44537
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7706,
+				2.936,
+				2.4548
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.33211,
+				0.80165,
+				-0.49705
+			],
+			"z": [
+				-0.44537,
+				0.59779,
+				0.66655
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5302,
+				2.936,
+				2.5544
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.11662,
+				0.80165,
+				-0.5863
+			],
+			"z": [
+				-0.15639,
+				0.59779,
+				0.78625
+			],
+			"size": [
+				0.2701,
+				0.1734,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8479,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				2.9358,
+				2.5807
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.79604,
+				-0.60524
+			],
+			"z": [
+				-0.0,
+				0.60524,
+				0.79604
+			],
+			"size": [
+				1.4,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				2.9358,
+				2.5807
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.79604,
+				-0.60524
+			],
+			"z": [
+				-0.0,
+				0.60524,
+				0.79604
+			],
+			"size": [
+				1.4,
+				0.1746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5107,
+				3.0713,
+				2.4564
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.15799,
+				0.58664,
+				-0.79428
+			],
+			"z": [
+				0.11445,
+				0.80984,
+				0.57537
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7151,
+				3.0713,
+				2.3717
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.44993,
+				0.58664,
+				-0.67336
+			],
+			"z": [
+				0.32592,
+				0.80984,
+				0.48778
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.8717,
+				3.0713,
+				2.2151
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.67336,
+				0.58664,
+				-0.44993
+			],
+			"z": [
+				0.48778,
+				0.80984,
+				0.32592
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9564,
+				3.0713,
+				2.0107
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.79428,
+				0.58664,
+				-0.15799
+			],
+			"z": [
+				0.57537,
+				0.80984,
+				0.11445
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9787,
+				3.0712,
+				1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.8152,
+				0.57918,
+				0.0
+			],
+			"z": [
+				0.57918,
+				0.8152,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9787,
+				3.0712,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.8152,
+				0.57918,
+				0.0
+			],
+			"z": [
+				0.57918,
+				0.8152,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9787,
+				3.0712,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.8152,
+				0.57918,
+				0.0
+			],
+			"z": [
+				0.57918,
+				0.8152,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.9564,
+				3.0713,
+				-2.0107
+			],
+			"x": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				-0.79428,
+				0.58664,
+				0.15799
+			],
+			"z": [
+				0.57537,
+				0.80984,
+				-0.11445
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.8717,
+				3.0713,
+				-2.2151
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.67336,
+				0.58664,
+				0.44993
+			],
+			"z": [
+				0.48778,
+				0.80984,
+				-0.32592
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7151,
+				3.0713,
+				-2.3717
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				-0.44993,
+				0.58664,
+				0.67336
+			],
+			"z": [
+				0.32592,
+				0.80984,
+				-0.48778
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5107,
+				3.0713,
+				-2.4564
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.15799,
+				0.58664,
+				0.79428
+			],
+			"z": [
+				0.11445,
+				0.80984,
+				-0.57537
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				3.0712,
+				-2.4787
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.57918,
+				0.8152
+			],
+			"z": [
+				-0.0,
+				0.8152,
+				-0.57918
+			],
+			"size": [
+				1.4,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				3.0712,
+				-2.4787
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.57918,
+				0.8152
+			],
+			"z": [
+				-0.0,
+				0.8152,
+				-0.57918
+			],
+			"size": [
+				1.4,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5107,
+				3.0713,
+				-2.4564
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.15799,
+				0.58664,
+				0.79428
+			],
+			"z": [
+				-0.11445,
+				0.80984,
+				-0.57537
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7151,
+				3.0713,
+				-2.3717
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.44993,
+				0.58664,
+				0.67336
+			],
+			"z": [
+				-0.32592,
+				0.80984,
+				-0.48778
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.8717,
+				3.0713,
+				-2.2151
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.67336,
+				0.58664,
+				0.44993
+			],
+			"z": [
+				-0.48778,
+				0.80984,
+				-0.32592
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9564,
+				3.0713,
+				-2.0107
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.79428,
+				0.58664,
+				0.15799
+			],
+			"z": [
+				-0.57537,
+				0.80984,
+				-0.11445
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9787,
+				3.0712,
+				-1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.8152,
+				0.57918,
+				0.0
+			],
+			"z": [
+				-0.57918,
+				0.8152,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9787,
+				3.0712,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.8152,
+				0.57918,
+				0.0
+			],
+			"z": [
+				-0.57918,
+				0.8152,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9787,
+				3.0712,
+				1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.8152,
+				0.57918,
+				0.0
+			],
+			"z": [
+				-0.57918,
+				0.8152,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.9564,
+				3.0713,
+				2.0107
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.79428,
+				0.58664,
+				-0.15799
+			],
+			"z": [
+				-0.57537,
+				0.80984,
+				0.11445
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.8717,
+				3.0713,
+				2.2151
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.67336,
+				0.58664,
+				-0.44993
+			],
+			"z": [
+				-0.48778,
+				0.80984,
+				0.32592
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7151,
+				3.0713,
+				2.3717
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.44993,
+				0.58664,
+				-0.67336
+			],
+			"z": [
+				-0.32592,
+				0.80984,
+				0.48778
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5107,
+				3.0713,
+				2.4564
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.15799,
+				0.58664,
+				-0.79428
+			],
+			"z": [
+				-0.11445,
+				0.80984,
+				0.57537
+			],
+			"size": [
+				0.2285,
+				0.2067,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7102,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				3.0712,
+				2.4787
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.57918,
+				-0.8152
+			],
+			"z": [
+				-0.0,
+				0.8152,
+				0.57918
+			],
+			"size": [
+				1.4,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				3.0712,
+				2.4787
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.57918,
+				-0.8152
+			],
+			"z": [
+				-0.0,
+				0.8152,
+				0.57918
+			],
+			"size": [
+				1.4,
+				0.2093,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.4787,
+				3.1906,
+				2.2956
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.17944,
+				0.39241,
+				-0.90212
+			],
+			"z": [
+				0.07656,
+				0.91979,
+				0.38487
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.624,
+				3.1906,
+				2.2353
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				-0.51101,
+				0.39241,
+				-0.76478
+			],
+			"z": [
+				0.21801,
+				0.91979,
+				0.32628
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7353,
+				3.1906,
+				2.124
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.76478,
+				0.39241,
+				-0.51101
+			],
+			"z": [
+				0.32628,
+				0.91979,
+				0.21801
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7956,
+				3.1906,
+				1.9787
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.90212,
+				0.39241,
+				-0.17944
+			],
+			"z": [
+				0.38487,
+				0.91979,
+				0.07656
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.8115,
+				3.1905,
+				1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.9225,
+				0.386,
+				0.0
+			],
+			"z": [
+				0.386,
+				0.9225,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.8115,
+				3.1905,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.9225,
+				0.386,
+				0.0
+			],
+			"z": [
+				0.386,
+				0.9225,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.8115,
+				3.1905,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.9225,
+				0.386,
+				0.0
+			],
+			"z": [
+				0.386,
+				0.9225,
+				0.0
+			],
+			"size": [
+				1.2667,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7956,
+				3.1906,
+				-1.9787
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.90212,
+				0.39241,
+				0.17944
+			],
+			"z": [
+				0.38487,
+				0.91979,
+				-0.07656
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.7353,
+				3.1906,
+				-2.124
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.76478,
+				0.39241,
+				0.51101
+			],
+			"z": [
+				0.32628,
+				0.91979,
+				-0.21801
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.624,
+				3.1906,
+				-2.2353
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.51101,
+				0.39241,
+				0.76478
+			],
+			"z": [
+				0.21801,
+				0.91979,
+				-0.32628
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.4787,
+				3.1906,
+				-2.2956
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.17944,
+				0.39241,
+				0.90212
+			],
+			"z": [
+				0.07656,
+				0.91979,
+				-0.38487
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				3.1905,
+				-2.3115
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.386,
+				0.9225
+			],
+			"z": [
+				-0.0,
+				0.9225,
+				-0.386
+			],
+			"size": [
+				1.4,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				3.1905,
+				-2.3115
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.386,
+				0.9225
+			],
+			"z": [
+				-0.0,
+				0.9225,
+				-0.386
+			],
+			"size": [
+				1.4,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.4787,
+				3.1906,
+				-2.2956
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.17944,
+				0.39241,
+				0.90212
+			],
+			"z": [
+				-0.07656,
+				0.91979,
+				-0.38487
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.624,
+				3.1906,
+				-2.2353
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.51101,
+				0.39241,
+				0.76478
+			],
+			"z": [
+				-0.21801,
+				0.91979,
+				-0.32628
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7353,
+				3.1906,
+				-2.124
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.76478,
+				0.39241,
+				0.51101
+			],
+			"z": [
+				-0.32628,
+				0.91979,
+				-0.21801
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7956,
+				3.1906,
+				-1.9787
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.90212,
+				0.39241,
+				0.17944
+			],
+			"z": [
+				-0.38487,
+				0.91979,
+				-0.07656
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.8115,
+				3.1905,
+				-1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.9225,
+				0.386,
+				0.0
+			],
+			"z": [
+				-0.386,
+				0.9225,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.8115,
+				3.1905,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.9225,
+				0.386,
+				0.0
+			],
+			"z": [
+				-0.386,
+				0.9225,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.8115,
+				3.1905,
+				1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.9225,
+				0.386,
+				0.0
+			],
+			"z": [
+				-0.386,
+				0.9225,
+				-0.0
+			],
+			"size": [
+				1.2667,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7956,
+				3.1906,
+				1.9787
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.90212,
+				0.39241,
+				-0.17944
+			],
+			"z": [
+				-0.38487,
+				0.91979,
+				0.07656
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.7353,
+				3.1906,
+				2.124
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.76478,
+				0.39241,
+				-0.51101
+			],
+			"z": [
+				-0.32628,
+				0.91979,
+				0.21801
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.624,
+				3.1906,
+				2.2353
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.51101,
+				0.39241,
+				-0.76478
+			],
+			"z": [
+				-0.21801,
+				0.91979,
+				0.32628
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.4787,
+				3.1906,
+				2.2956
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.17944,
+				0.39241,
+				-0.90212
+			],
+			"z": [
+				-0.07656,
+				0.91979,
+				0.38487
+			],
+			"size": [
+				0.1618,
+				0.2391,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.4638,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				3.1905,
+				2.3115
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.386,
+				-0.9225
+			],
+			"z": [
+				-0.0,
+				0.9225,
+				0.386
+			],
+			"size": [
+				1.4,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				3.1905,
+				2.3115
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.386,
+				-0.9225
+			],
+			"z": [
+				-0.0,
+				0.9225,
+				0.386
+			],
+			"size": [
+				1.4,
+				0.2431,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.4364,
+				3.2834,
+				2.083
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.19057,
+				0.21392,
+				-0.95808
+			],
+			"z": [
+				0.04173,
+				0.97685,
+				0.20981
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5037,
+				3.2834,
+				2.0553
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.54394,
+				0.20357,
+				-0.81406
+			],
+			"z": [
+				0.1131,
+				0.97906,
+				0.16926
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5553,
+				3.2834,
+				2.0037
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.81406,
+				0.20357,
+				-0.54394
+			],
+			"z": [
+				0.16926,
+				0.97906,
+				0.1131
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.583,
+				3.2834,
+				1.9364
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				-0.95808,
+				0.21392,
+				-0.19057
+			],
+			"z": [
+				0.20981,
+				0.97685,
+				0.04173
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5902,
+				3.2835,
+				1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.97542,
+				0.22035,
+				0.0
+			],
+			"z": [
+				0.22035,
+				0.97542,
+				0.0
+			],
+			"size": [
+				1.266,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9641,
+			"model": "roof_face_panel_15"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5902,
+				3.2835,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.97542,
+				0.22035,
+				0.0
+			],
+			"z": [
+				0.22035,
+				0.97542,
+				0.0
+			],
+			"size": [
+				1.266,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9641,
+			"model": "roof_face_panel_15"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5902,
+				3.2835,
+				-1.2667
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.97542,
+				0.22035,
+				0.0
+			],
+			"z": [
+				0.22035,
+				0.97542,
+				0.0
+			],
+			"size": [
+				1.266,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9641,
+			"model": "roof_face_panel_15"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.583,
+				3.2834,
+				-1.9364
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.95808,
+				0.21392,
+				0.19057
+			],
+			"z": [
+				0.20981,
+				0.97685,
+				-0.04173
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5553,
+				3.2834,
+				-2.0037
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.81406,
+				0.20357,
+				0.54394
+			],
+			"z": [
+				0.16926,
+				0.97906,
+				-0.1131
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.5037,
+				3.2834,
+				-2.0553
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.54394,
+				0.20357,
+				0.81406
+			],
+			"z": [
+				0.1131,
+				0.97906,
+				-0.16926
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.4364,
+				3.2834,
+				-2.083
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.19057,
+				0.21392,
+				0.95808
+			],
+			"z": [
+				0.04173,
+				0.97685,
+				-0.20981
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				3.2835,
+				-2.0902
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.22035,
+				0.97542
+			],
+			"z": [
+				-0.0,
+				0.97542,
+				-0.22035
+			],
+			"size": [
+				1.399,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9513,
+			"model": "roof_face_panel_16"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				3.2835,
+				-2.0902
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.22035,
+				0.97542
+			],
+			"z": [
+				-0.0,
+				0.97542,
+				-0.22035
+			],
+			"size": [
+				1.399,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9513,
+			"model": "roof_face_panel_16"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.4364,
+				3.2834,
+				-2.083
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.19057,
+				0.21392,
+				0.95808
+			],
+			"z": [
+				-0.04173,
+				0.97685,
+				-0.20981
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5037,
+				3.2834,
+				-2.0553
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.54394,
+				0.20357,
+				0.81406
+			],
+			"z": [
+				-0.1131,
+				0.97906,
+				-0.16926
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5553,
+				3.2834,
+				-2.0037
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.81406,
+				0.20357,
+				0.54394
+			],
+			"z": [
+				-0.16926,
+				0.97906,
+				-0.1131
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.583,
+				3.2834,
+				-1.9364
+			],
+			"x": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.95808,
+				0.21392,
+				0.19057
+			],
+			"z": [
+				-0.20981,
+				0.97685,
+				-0.04173
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5902,
+				3.2835,
+				-1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.97542,
+				0.22035,
+				0.0
+			],
+			"z": [
+				-0.22035,
+				0.97542,
+				-0.0
+			],
+			"size": [
+				1.266,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9641,
+			"model": "roof_face_panel_15"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5902,
+				3.2835,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.97542,
+				0.22035,
+				0.0
+			],
+			"z": [
+				-0.22035,
+				0.97542,
+				-0.0
+			],
+			"size": [
+				1.266,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9641,
+			"model": "roof_face_panel_15"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5902,
+				3.2835,
+				1.2667
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.97542,
+				0.22035,
+				0.0
+			],
+			"z": [
+				-0.22035,
+				0.97542,
+				-0.0
+			],
+			"size": [
+				1.266,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9641,
+			"model": "roof_face_panel_15"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.583,
+				3.2834,
+				1.9364
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.95808,
+				0.21392,
+				-0.19057
+			],
+			"z": [
+				-0.20981,
+				0.97685,
+				0.04173
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5553,
+				3.2834,
+				2.0037
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.81406,
+				0.20357,
+				-0.54394
+			],
+			"z": [
+				-0.16926,
+				0.97906,
+				0.1131
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.5037,
+				3.2834,
+				2.0553
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.54394,
+				0.20357,
+				-0.81406
+			],
+			"z": [
+				-0.1131,
+				0.97906,
+				0.16926
+			],
+			"size": [
+				0.0747,
+				0.2886,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_14"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.4364,
+				3.2834,
+				2.083
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.19057,
+				0.21392,
+				-0.95808
+			],
+			"z": [
+				-0.04173,
+				0.97685,
+				0.20981
+			],
+			"size": [
+				0.0746,
+				0.2746,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.7,
+				3.2835,
+				2.0902
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.22035,
+				-0.97542
+			],
+			"z": [
+				-0.0,
+				0.97542,
+				0.22035
+			],
+			"size": [
+				1.399,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9513,
+			"model": "roof_face_panel_16"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.7,
+				3.2835,
+				2.0902
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.22035,
+				-0.97542
+			],
+			"z": [
+				-0.0,
+				0.97542,
+				0.22035
+			],
+			"size": [
+				1.399,
+				0.2688,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9513,
+			"model": "roof_face_panel_16"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.3305,
+				3.3423,
+				1.2212
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.99745,
+				0.07144,
+				0.0
+			],
+			"z": [
+				0.07144,
+				0.99745,
+				0.0
+			],
+			"size": [
+				1.2187,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8454,
+			"model": "roof_face_panel_17"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.3305,
+				3.3423,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.99745,
+				0.07144,
+				0.0
+			],
+			"z": [
+				0.07144,
+				0.99745,
+				0.0
+			],
+			"size": [
+				1.2187,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8454,
+			"model": "roof_face_panel_17"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				1.3305,
+				3.3423,
+				-1.2212
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.99745,
+				0.07144,
+				0.0
+			],
+			"z": [
+				0.07144,
+				0.99745,
+				0.0
+			],
+			"size": [
+				1.2187,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8454,
+			"model": "roof_face_panel_17"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.6659,
+				3.3423,
+				-1.8305
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.07144,
+				0.99745
+			],
+			"z": [
+				-0.0,
+				0.99745,
+				-0.07144
+			],
+			"size": [
+				1.3287,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7873,
+			"model": "roof_face_panel_18"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.6659,
+				3.3423,
+				-1.8305
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.07144,
+				0.99745
+			],
+			"z": [
+				-0.0,
+				0.99745,
+				-0.07144
+			],
+			"size": [
+				1.3287,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7873,
+			"model": "roof_face_panel_18"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.3305,
+				3.3423,
+				-1.2212
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.99745,
+				0.07144,
+				0.0
+			],
+			"z": [
+				-0.07144,
+				0.99745,
+				-0.0
+			],
+			"size": [
+				1.2187,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8454,
+			"model": "roof_face_panel_17"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.3305,
+				3.3423,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.99745,
+				0.07144,
+				0.0
+			],
+			"z": [
+				-0.07144,
+				0.99745,
+				-0.0
+			],
+			"size": [
+				1.2187,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8454,
+			"model": "roof_face_panel_17"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-1.3305,
+				3.3423,
+				1.2212
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.99745,
+				0.07144,
+				0.0
+			],
+			"z": [
+				-0.07144,
+				0.99745,
+				-0.0
+			],
+			"size": [
+				1.2187,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8454,
+			"model": "roof_face_panel_17"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				-0.6659,
+				3.3423,
+				1.8305
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.07144,
+				-0.99745
+			],
+			"z": [
+				-0.0,
+				0.99745,
+				0.07144
+			],
+			"size": [
+				1.3287,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7873,
+			"model": "roof_face_panel_18"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.6659,
+				3.3423,
+				1.8305
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.07144,
+				-0.99745
+			],
+			"z": [
+				-0.0,
+				0.99745,
+				0.07144
+			],
+			"size": [
+				1.3287,
+				0.284,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7873,
+			"model": "roof_face_panel_18"
+		},
+		{
+			"kind": "airlock_roof_face_panel",
+			"at": [
+				0.0,
+				3.3551,
+				-1.5486
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				2.0971,
+				3.0971,
+				0.05
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_19"
+		},
+		{
+			"kind": "airlock_suit_alcove",
+			"at": [
+				1.58,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				2.299,
+				0.72
+			],
+			"layer": 1,
+			"model": "suit_alcove_1"
+		},
+		{
+			"kind": "airlock_suit_alcove",
+			"at": [
+				1.33,
+				2.004,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.54,
+				0.006,
+				0.07
+			],
+			"layer": 1,
+			"model": "suit_alcove_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_suit_bench",
+			"at": [
+				-1.715,
+				0.0,
+				-0.2
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.51,
+				0.45
+			],
+			"layer": 1,
+			"model": "suit_bench_1"
+		},
+		{
+			"kind": "airlock_status_panel",
+			"at": [
+				1.88,
+				1.171,
+				-1.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.5,
+				0.874,
+				0.12
+			],
+			"layer": 1,
+			"model": "status_panel_1"
+		},
+		{
+			"kind": "airlock_status_panel",
+			"at": [
+				1.839,
+				1.624,
+				-1.461
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.358,
+				0.399,
+				0.022
+			],
+			"layer": 1,
+			"model": "status_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_status_panel",
+			"at": [
+				1.88,
+				1.271,
+				1.45
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.5,
+				0.874,
+				0.12
+			],
+			"layer": 1,
+			"model": "status_panel_1"
+		},
+		{
+			"kind": "airlock_status_panel",
+			"at": [
+				1.839,
+				1.724,
+				1.489
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.358,
+				0.399,
+				0.022
+			],
+			"layer": 1,
+			"model": "status_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_fan_unit",
+			"at": [
+				1.71,
+				0.0,
+				1.4089
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.6178,
+				0.6,
+				0.46
+			],
+			"layer": 1,
+			"model": "fan_unit_1"
+		},
+		{
+			"kind": "airlock_dust_vacuum",
+			"at": [
+				-1.7639,
+				-0.0027,
+				1.4
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.458,
+				0.6051,
+				0.3562
+			],
+			"layer": 1,
+			"model": "dust_vacuum_1"
+		},
+		{
+			"kind": "airlock_pipe_straight",
+			"at": [
+				-1.86,
+				1.9,
+				-1.45
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.8,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "airlock_pipe_straight",
+			"at": [
+				-1.86,
+				1.9,
+				-0.15
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "airlock_pipe_straight",
+			"at": [
+				-1.86,
+				1.9,
+				1.3
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.1,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "airlock_pipe_straight",
+			"at": [
+				-1.86,
+				2.06,
+				-1.2
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "airlock_pipe_straight",
+			"at": [
+				-1.86,
+				2.06,
+				0.3
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.1,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "airlock_pipe_straight",
+			"at": [
+				-1.86,
+				2.06,
+				1.5
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.7,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_5"
+		},
+		{
+			"kind": "airlock_pipe_valve",
+			"at": [
+				-1.84,
+				1.8,
+				-0.9
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "airlock_pipe_valve",
+			"at": [
+				-1.84,
+				1.8,
+				0.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "airlock_pipe_valve",
+			"at": [
+				-1.84,
+				1.96,
+				-0.4
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "airlock_pipe_valve",
+			"at": [
+				-1.84,
+				1.96,
+				1.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				0.0,
+				2.7,
+				-2.288
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				0.0,
+				2.71,
+				-2.246
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				0.0,
+				2.7,
+				2.288
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				0.0,
+				2.71,
+				2.246
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				-1.788,
+				2.32,
+				-0.2
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				-1.746,
+				2.33,
+				-0.2
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				1.788,
+				2.4,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "airlock_door_strip_lamp",
+			"at": [
+				1.746,
+				2.41,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_beacon",
+			"at": [
+				0.0,
+				3.4,
+				0.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.3,
+				0.19,
+				0.3
+			],
+			"layer": 2,
+			"model": "beacon_1"
+		},
+		{
+			"kind": "airlock_beacon",
+			"at": [
+				0.0,
+				3.59,
+				0.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.198,
+				0.19,
+				0.198
+			],
+			"layer": 2,
+			"model": "beacon_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_roof_light_fixture",
+			"at": [
+				0.5,
+				2.98,
+				-1.1
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.398,
+				0.35,
+				0.4
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1"
+		},
+		{
+			"kind": "airlock_roof_light_fixture",
+			"at": [
+				0.5,
+				3.067,
+				-1.1
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.31,
+				0.006,
+				0.31
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_roof_light_fixture",
+			"at": [
+				0.5,
+				2.98,
+				1.1
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.398,
+				0.35,
+				0.4
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1"
+		},
+		{
+			"kind": "airlock_roof_light_fixture",
+			"at": [
+				0.5,
+				3.067,
+				1.1
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.31,
+				0.006,
+				0.31
+			],
+			"layer": 1,
+			"model": "roof_light_fixture_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_lock_console",
+			"at": [
+				-1.855,
+				0.85,
+				-0.2
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				0.95,
+				0.17
+			],
+			"layer": 1,
+			"model": "lock_console_1"
+		},
+		{
+			"kind": "airlock_lock_console",
+			"at": [
+				-1.803,
+				1.2382,
+				-0.18
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.756,
+				0.5154,
+				0.034
+			],
+			"layer": 1,
+			"model": "lock_console_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_lock_gauge_panel",
+			"at": [
+				-1.8737,
+				1.15,
+				1.15
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.5,
+				0.4,
+				0.1326
+			],
+			"layer": 1,
+			"model": "lock_gauge_panel_1"
+		},
+		{
+			"kind": "airlock_vent_grille",
+			"at": [
+				-1.9181,
+				2.2,
+				1.55
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.4,
+				0.25,
+				0.0438
+			],
+			"layer": 1,
+			"model": "vent_grille_1"
+		},
+		{
+			"kind": "airlock_vent_grille",
+			"at": [
+				1.9181,
+				0.15,
+				-1.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.4,
+				0.25,
+				0.0438
+			],
+			"layer": 1,
+			"model": "vent_grille_1"
+		},
+		{
+			"kind": "airlock_hose_coil",
+			"at": [
+				1.8915,
+				1.53,
+				0.95
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.26,
+				0.32,
+				0.097
+			],
+			"layer": 1,
+			"model": "hose_coil_1"
+		},
+		{
+			"kind": "airlock_small_readout",
+			"at": [
+				-1.91,
+				1.3,
+				-1.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "airlock_small_readout",
+			"at": [
+				-1.894,
+				1.387,
+				-1.57
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_door_control_box",
+			"at": [
+				-1.877,
+				0.85,
+				-1.599
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "airlock_door_control_box",
+			"at": [
+				-1.821,
+				1.106,
+				-1.652
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_door_control_box",
+			"at": [
+				1.877,
+				0.25,
+				0.849
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "airlock_door_control_box",
+			"at": [
+				1.821,
+				0.506,
+				0.902
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "airlock_conduit_box",
+			"at": [
+				1.892,
+				0.955,
+				0.9125
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "airlock_notice_board",
+			"at": [
+				-1.915,
+				0.95,
+				-1.05
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.5,
+				0.6,
+				0.05
+			],
+			"layer": 1,
+			"model": "notice_board_1"
+		},
+		{
+			"kind": "airlock_cable_drop",
+			"at": [
+				-1.9,
+				0.0,
+				0.62
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.15,
+				1.75,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "airlock_cable_bundle",
+			"at": [
+				-1.9,
+				2.48,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				3.7,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "airlock_cable_bundle",
+			"at": [
+				1.9,
+				2.48,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				3.7,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "airlock_floor_grating",
+			"at": [
+				0.0,
+				-0.023,
+				2.35
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.6,
+				1.0,
+				0.054
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grating_1"
+		},
+		{
+			"kind": "airlock_floor_grating",
+			"at": [
+				0.0,
+				-0.023,
+				-2.35
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.6,
+				1.0,
+				0.054
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grating_1"
+		},
+		{
+			"kind": "airlock_under_floor_box",
+			"at": [
+				0.0,
+				-0.13,
+				2.38
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.66,
+				1.06,
+				0.18
+			],
+			"layer": 1,
+			"model": "under_floor_box_1"
+		},
+		{
+			"kind": "airlock_under_floor_box",
+			"at": [
+				0.0,
+				-0.13,
+				-2.38
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.66,
+				1.06,
+				0.18
+			],
+			"layer": 1,
+			"model": "under_floor_box_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				1.89,
+				-1.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				1.89,
+				-0.5333
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				1.89,
+				0.5333
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				1.89,
+				1.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				2.05,
+				-1.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				2.05,
+				-0.5333
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				2.05,
+				0.5333
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_pipe_bracket",
+			"at": [
+				-1.877,
+				2.05,
+				1.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "airlock_hose_reel",
+			"at": [
+				1.77,
+				1.1,
+				-0.82
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.37,
+				0.37,
+				0.34
+			],
+			"layer": 1,
+			"child_of": "airlock_suit_alcove",
+			"model": "hose_reel_1"
+		},
+		{
+			"kind": "airlock_tool_case",
+			"at": [
+				-1.732,
+				0.51,
+				0.2196
+			],
+			"x": [
+				0.13917,
+				0.0,
+				0.99027
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99027,
+				-0.0,
+				0.13917
+			],
+			"size": [
+				0.3,
+				0.08,
+				0.186
+			],
+			"layer": 1,
+			"child_of": "airlock_suit_bench",
+			"model": "tool_case_1"
+		}
+	]
+}

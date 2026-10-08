@@ -1,0 +1,12113 @@
+{
+	"room": "lab",
+	"frame": "the room's own: its middle on its floor, x east, z south, y up",
+	"counts": {
+		"lab_wall_lower_plain": 24,
+		"lab_wall_upper_plain": 24,
+		"lab_wall_skirting": 22,
+		"lab_wall_cornice": 20,
+		"lab_ring_floor_plate": 66,
+		"lab_pit_wall_panel": 10,
+		"lab_hatch_frame": 2,
+		"lab_hatch_leaf": 2,
+		"lab_hatch_wheel": 2,
+		"lab_hatch_window": 2,
+		"lab_hatch_hinge": 4,
+		"lab_roof_face_panel": 148,
+		"lab_door_strip_lamp": 2,
+		"lab_door_control_box": 2,
+		"lab_pipe_straight": 6,
+		"lab_pipe_valve": 2,
+		"lab_desk": 2,
+		"lab_desk_chair": 2,
+		"lab_sample_store": 1,
+		"lab_glovebox_cabinet": 1,
+		"lab_gauge_panel": 1,
+		"lab_junction_box": 1,
+		"lab_fire_extinguisher": 1,
+		"lab_task_lamp": 2,
+		"lab_ceiling_lamp": 2,
+		"lab_tread_mat": 2,
+		"lab_pipe_bracket": 12,
+		"lab_microscope": 2,
+		"lab_desk_monitor": 2,
+		"lab_instrument_unit": 2,
+		"lab_desk_keyboard": 2,
+		"lab_sample_tray": 2
+	},
+	"kinds": {
+		"lab_wall_lower_plain": {
+			"group": "hangs"
+		},
+		"lab_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"lab_wall_skirting": {
+			"group": "hangs"
+		},
+		"lab_wall_cornice": {
+			"group": "hangs"
+		},
+		"lab_ring_floor_plate": {
+			"group": "floors"
+		},
+		"lab_roof_face_panel": {
+			"group": "floors"
+		},
+		"lab_pit_wall_panel": {},
+		"lab_hatch_frame": {
+			"group": "hangs"
+		},
+		"lab_hatch_leaf": {
+			"group": "hangs"
+		},
+		"lab_hatch_wheel": {
+			"group": "hangs"
+		},
+		"lab_hatch_hinge": {
+			"group": "hangs"
+		},
+		"lab_hatch_window": {
+			"group": "hangs"
+		},
+		"lab_door_strip_lamp": {
+			"light": {
+				"strength": 0.15,
+				"reach": 4.0,
+				"high": 0.5
+			},
+			"group": "hangs"
+		},
+		"lab_door_control_box": {
+			"group": "hangs"
+		},
+		"lab_tread_mat": {},
+		"lab_pipe_straight": {
+			"group": "hangs"
+		},
+		"lab_pipe_valve": {
+			"group": "hangs"
+		},
+		"lab_pipe_bracket": {
+			"group": "hangs"
+		},
+		"lab_desk": {},
+		"lab_desk_chair": {},
+		"lab_sample_store": {},
+		"lab_glovebox_cabinet": {},
+		"lab_microscope": {},
+		"lab_desk_monitor": {},
+		"lab_instrument_unit": {},
+		"lab_desk_keyboard": {},
+		"lab_sample_tray": {},
+		"lab_gauge_panel": {
+			"group": "hangs"
+		},
+		"lab_junction_box": {
+			"group": "hangs"
+		},
+		"lab_fire_extinguisher": {
+			"group": "hangs"
+		},
+		"lab_task_lamp": {
+			"light": {
+				"strength": 0.12,
+				"reach": 3.0,
+				"high": 0.1
+			},
+			"group": "hangs"
+		},
+		"lab_ceiling_lamp": {
+			"light": {
+				"strength": 0.3,
+				"reach": 7.0,
+				"high": 0.05
+			},
+			"group": "hangs"
+		}
+	},
+	"models": {
+		"wall_lower_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_skirting_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cornice_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_skirting_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_cornice_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_skirting_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_8": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_9": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_10": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_11": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_12": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_13": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_14": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_15": {
+			"glows": false,
+			"route": "code"
+		},
+		"pit_wall_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_leaf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_wheel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_window_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hatch_hinge_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_8": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_9": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_10": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_11": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_12": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_13": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_strip_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_strip_lamp_1_glow": {
+			"glows": true
+		},
+		"door_control_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_control_box_1_glow": {
+			"glows": true
+		},
+		"pipe_straight_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_valve_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"desk_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"desk_chair_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"sample_store_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"glovebox_cabinet_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"gauge_panel_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"junction_box_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"fire_extinguisher_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"task_lamp_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"ceiling_lamp_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"tread_mat_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_bracket_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"microscope_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"desk_monitor_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"desk_monitor_1_screen_1": {
+			"glows": true,
+			"picture": "screen_status"
+		},
+		"instrument_unit_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"desk_keyboard_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"sample_tray_1": {
+			"glows": false,
+			"route": "model"
+		}
+	},
+	"pieces": [
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				1.7003,
+				0.0,
+				2.9097
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				1.7003,
+				1.1,
+				2.9097
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				1.6886,
+				0.0,
+				2.8508
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				1.6905,
+				2.62,
+				2.8606
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.2552,
+				0.0,
+				2.6798
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.2552,
+				1.1,
+				2.6798
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				2.2218,
+				0.0,
+				2.63
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				2.2274,
+				2.62,
+				2.6383
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.6798,
+				0.0,
+				2.2552
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.6798,
+				1.1,
+				2.2552
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				2.63,
+				0.0,
+				2.2218
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				2.6383,
+				2.62,
+				2.2274
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.9097,
+				0.0,
+				1.7003
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.9097,
+				1.1,
+				1.7003
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				2.8508,
+				0.0,
+				1.6886
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				2.8606,
+				2.62,
+				1.6905
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.97,
+				0.0,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.97,
+				1.1,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.97,
+				0.0,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.97,
+				1.1,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				2.91,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.8,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_2"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				2.92,
+				2.62,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_2"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.9097,
+				0.0,
+				-1.7003
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.9097,
+				1.1,
+				-1.7003
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				2.8508,
+				0.0,
+				-1.6886
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				2.8606,
+				2.62,
+				-1.6905
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.6798,
+				0.0,
+				-2.2552
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.6798,
+				1.1,
+				-2.2552
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				2.63,
+				0.0,
+				-2.2218
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				2.6383,
+				2.62,
+				-2.2274
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				2.2552,
+				0.0,
+				-2.6798
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				2.2552,
+				1.1,
+				-2.6798
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				2.2218,
+				0.0,
+				-2.63
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				2.2274,
+				2.62,
+				-2.6383
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				1.7003,
+				0.0,
+				-2.9097
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				1.7003,
+				1.1,
+				-2.9097
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				1.6886,
+				0.0,
+				-2.8508
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				1.6905,
+				2.62,
+				-2.8606
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				1.25,
+				0.0,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				1.25,
+				1.1,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				1.25,
+				0.0,
+				-2.91
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-1.25,
+				0.0,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-1.25,
+				1.1,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-1.25,
+				0.0,
+				-2.91
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				0.0,
+				2.62,
+				-2.92
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				2.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_2"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-1.7003,
+				0.0,
+				-2.9097
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-1.7003,
+				1.1,
+				-2.9097
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-1.6886,
+				0.0,
+				-2.8508
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-1.6905,
+				2.62,
+				-2.8606
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.2552,
+				0.0,
+				-2.6798
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.2552,
+				1.1,
+				-2.6798
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-2.2218,
+				0.0,
+				-2.63
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-2.2274,
+				2.62,
+				-2.6383
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.6798,
+				0.0,
+				-2.2552
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.6798,
+				1.1,
+				-2.2552
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-2.63,
+				0.0,
+				-2.2218
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-2.6383,
+				2.62,
+				-2.2274
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.9097,
+				0.0,
+				-1.7003
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.9097,
+				1.1,
+				-1.7003
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-2.8508,
+				0.0,
+				-1.6886
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-2.8606,
+				2.62,
+				-1.6905
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.97,
+				0.0,
+				-0.7
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.97,
+				1.1,
+				-0.7
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.97,
+				0.0,
+				0.7
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.97,
+				1.1,
+				0.7
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.44,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-2.91,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.8,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_2"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-2.92,
+				2.62,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_2"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.9097,
+				0.0,
+				1.7003
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.9097,
+				1.1,
+				1.7003
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-2.8508,
+				0.0,
+				1.6886
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-2.8606,
+				2.62,
+				1.6905
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.6798,
+				0.0,
+				2.2552
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.6798,
+				1.1,
+				2.2552
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-2.63,
+				0.0,
+				2.2218
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-2.6383,
+				2.62,
+				2.2274
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-2.2552,
+				0.0,
+				2.6798
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-2.2552,
+				1.1,
+				2.6798
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-2.2218,
+				0.0,
+				2.63
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-2.2274,
+				2.62,
+				2.6383
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-1.7003,
+				0.0,
+				2.9097
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6643,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-1.7003,
+				1.1,
+				2.9097
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6643,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-1.6886,
+				0.0,
+				2.8508
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6243,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_1"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				-1.6905,
+				2.62,
+				2.8606
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.6643,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_1"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				-1.25,
+				0.0,
+				2.97
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				-1.25,
+				1.1,
+				2.97
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				-1.25,
+				0.0,
+				2.91
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "lab_wall_lower_plain",
+			"at": [
+				1.25,
+				0.0,
+				2.97
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.16,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "lab_wall_upper_plain",
+			"at": [
+				1.25,
+				1.1,
+				2.97
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.34,
+				1.7,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "lab_wall_skirting",
+			"at": [
+				1.25,
+				0.0,
+				2.91
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_skirting_3"
+		},
+		{
+			"kind": "lab_wall_cornice",
+			"at": [
+				0.0,
+				2.62,
+				2.92
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				2.84,
+				0.18,
+				0.16
+			],
+			"layer": 1,
+			"model": "wall_cornice_2"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4,
+				-0.02,
+				-1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4,
+				-0.02,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-1.2,
+				-0.02,
+				-1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-1.2,
+				-0.02,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				1.2,
+				-0.02,
+				-1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				1.2,
+				-0.02,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4,
+				-0.02,
+				-1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4,
+				-0.02,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-0.7,
+				-0.02,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				1.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.004,
+					0.096,
+					0.7,
+					1.004
+				]
+			],
+			"model": "ring_floor_plate_2"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				0.7,
+				-0.02,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				1.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.7,
+					0.096,
+					0.004,
+					1.004
+				]
+			],
+			"model": "ring_floor_plate_3"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-0.7,
+				-0.02,
+				1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				1.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.004,
+					0.596,
+					0.7,
+					1.504
+				]
+			],
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				0.7,
+				-0.02,
+				1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				1.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.7,
+					0.596,
+					0.004,
+					1.504
+				]
+			],
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				1.7061,
+				-0.02,
+				2.9391
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.2718,
+				-0.02,
+				2.7048
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.7048,
+				-0.02,
+				2.2718
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.9391,
+				-0.02,
+				1.7061
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				1.7061,
+				-0.02,
+				-2.9391
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.2718,
+				-0.02,
+				-2.7048
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.7048,
+				-0.02,
+				-2.2718
+			],
+			"x": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.9391,
+				-0.02,
+				-1.7061
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-1.7061,
+				-0.02,
+				-2.9391
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.2718,
+				-0.02,
+				-2.7048
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.7048,
+				-0.02,
+				-2.2718
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.9391,
+				-0.02,
+				-1.7061
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-1.7061,
+				-0.02,
+				2.9391
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.2718,
+				-0.02,
+				2.7048
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.7048,
+				-0.02,
+				2.2718
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.9391,
+				-0.02,
+				1.7061
+			],
+			"x": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6227,
+				1.5693,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.5,
+				0.4,
+				-1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.5,
+				0.4,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.5,
+				0.4,
+				-1.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_8"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4937,
+				0.4,
+				-1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9875,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_9"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4746,
+				0.4,
+				-2.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9492,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_10"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4416,
+				0.4,
+				-2.2
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.8832,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_11"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.3928,
+				0.4,
+				-2.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7856,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.3245,
+				0.4,
+				-2.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.649,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_13"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.2292,
+				0.4,
+				-2.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.4583,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_14"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.0873,
+				0.4,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.1746,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_15"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.5,
+				0.4,
+				1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_8"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4937,
+				0.4,
+				1.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9875,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_9"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4746,
+				0.4,
+				1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9492,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_10"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.4416,
+				0.4,
+				2.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.8832,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_11"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.3928,
+				0.4,
+				2.2
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7856,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.3245,
+				0.4,
+				2.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.649,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_13"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.2292,
+				0.4,
+				2.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.4583,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_14"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				2.0873,
+				0.4,
+				2.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.1746,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_15"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				1.98,
+				0.0,
+				-2.3066
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				1.98,
+				0.0,
+				-1.1533
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				1.98,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				1.98,
+				0.0,
+				1.1533
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				1.98,
+				0.0,
+				2.3066
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.5,
+				0.4,
+				-1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.5,
+				0.4,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				1.4,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.5,
+				0.4,
+				-1.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_8"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4937,
+				0.4,
+				-1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9875,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_9"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4746,
+				0.4,
+				-2.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9492,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_10"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4416,
+				0.4,
+				-2.2
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.8832,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_11"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.3928,
+				0.4,
+				-2.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7856,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.3245,
+				0.4,
+				-2.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.649,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_13"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.2292,
+				0.4,
+				-2.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.4583,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_14"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.0873,
+				0.4,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.1746,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_15"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.5,
+				0.4,
+				1.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_8"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4937,
+				0.4,
+				1.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9875,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_9"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4746,
+				0.4,
+				1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.9492,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_10"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.4416,
+				0.4,
+				2.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.8832,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_11"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.3928,
+				0.4,
+				2.2
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7856,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_12"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.3245,
+				0.4,
+				2.4
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.649,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_13"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.2292,
+				0.4,
+				2.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.4583,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_14"
+		},
+		{
+			"kind": "lab_ring_floor_plate",
+			"at": [
+				-2.0873,
+				0.4,
+				2.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.1746,
+				0.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_15"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				-1.98,
+				0.0,
+				-2.3066
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				-1.98,
+				0.0,
+				-1.1533
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				-1.98,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				-1.98,
+				0.0,
+				1.1533
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_pit_wall_panel",
+			"at": [
+				-1.98,
+				0.0,
+				2.3066
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1533,
+				0.42,
+				0.04
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "lab_hatch_frame",
+			"at": [
+				0.0,
+				0.0,
+				-2.85
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "lab_hatch_leaf",
+			"at": [
+				0.0,
+				0.0,
+				-2.76
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				2.26,
+				2.66,
+				0.12
+			],
+			"layer": 1,
+			"door": "north",
+			"model": "hatch_leaf_1"
+		},
+		{
+			"kind": "lab_hatch_wheel",
+			"at": [
+				0.0,
+				0.9,
+				-2.66
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.5,
+				0.5,
+				0.08
+			],
+			"layer": 1,
+			"door": "north",
+			"model": "hatch_wheel_1"
+		},
+		{
+			"kind": "lab_hatch_window",
+			"at": [
+				0.0,
+				1.65,
+				-2.7
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.4,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"door": "north",
+			"model": "hatch_window_1"
+		},
+		{
+			"kind": "lab_hatch_hinge",
+			"at": [
+				1.19,
+				0.512,
+				-2.625
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "lab_hatch_hinge",
+			"at": [
+				1.19,
+				2.012,
+				-2.625
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "lab_hatch_frame",
+			"at": [
+				0.0,
+				0.0,
+				2.85
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				2.4,
+				2.693,
+				0.3
+			],
+			"layer": 1,
+			"model": "hatch_frame_1"
+		},
+		{
+			"kind": "lab_hatch_leaf",
+			"at": [
+				0.0,
+				0.0,
+				2.76
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				2.26,
+				2.66,
+				0.12
+			],
+			"layer": 1,
+			"door": "south",
+			"model": "hatch_leaf_1"
+		},
+		{
+			"kind": "lab_hatch_wheel",
+			"at": [
+				0.0,
+				0.9,
+				2.66
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.5,
+				0.5,
+				0.08
+			],
+			"layer": 1,
+			"door": "south",
+			"model": "hatch_wheel_1"
+		},
+		{
+			"kind": "lab_hatch_window",
+			"at": [
+				0.0,
+				1.65,
+				2.7
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"door": "south",
+			"model": "hatch_window_1"
+		},
+		{
+			"kind": "lab_hatch_hinge",
+			"at": [
+				-1.19,
+				0.512,
+				2.625
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "lab_hatch_hinge",
+			"at": [
+				-1.19,
+				2.012,
+				2.625
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.376,
+				0.15
+			],
+			"layer": 1,
+			"model": "hatch_hinge_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.7276,
+				2.7942,
+				3.0475
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.0297,
+				0.98835,
+				-0.1493
+			],
+			"z": [
+				0.19282,
+				0.15223,
+				0.96935
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.3332,
+				2.7942,
+				2.7967
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				-0.08457,
+				0.98835,
+				-0.12657
+			],
+			"z": [
+				0.5491,
+				0.15223,
+				0.82178
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7967,
+				2.7942,
+				2.3332
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.12657,
+				0.98835,
+				-0.08457
+			],
+			"z": [
+				0.82178,
+				0.15223,
+				0.5491
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.0475,
+				2.7942,
+				1.7276
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.1493,
+				0.98835,
+				-0.0297
+			],
+			"z": [
+				0.96935,
+				0.15223,
+				0.19282
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.1129,
+				2.7942,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.15514,
+				0.98789,
+				0.0
+			],
+			"z": [
+				0.98789,
+				0.15514,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.1129,
+				2.7942,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.15514,
+				0.98789,
+				0.0
+			],
+			"z": [
+				0.98789,
+				0.15514,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.0475,
+				2.7942,
+				-1.7276
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.1493,
+				0.98835,
+				0.0297
+			],
+			"z": [
+				0.96935,
+				0.15223,
+				-0.19282
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7967,
+				2.7942,
+				-2.3332
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.12657,
+				0.98835,
+				0.08457
+			],
+			"z": [
+				0.82178,
+				0.15223,
+				-0.5491
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.3332,
+				2.7942,
+				-2.7967
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.08457,
+				0.98835,
+				0.12657
+			],
+			"z": [
+				0.5491,
+				0.15223,
+				-0.82178
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.7276,
+				2.7942,
+				-3.0475
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.0297,
+				0.98835,
+				0.1493
+			],
+			"z": [
+				0.19282,
+				0.15223,
+				-0.96935
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				2.7942,
+				-3.1129
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.98789,
+				0.15514
+			],
+			"z": [
+				-0.0,
+				0.15514,
+				-0.98789
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				2.7942,
+				-3.1129
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.98789,
+				0.15514
+			],
+			"z": [
+				-0.0,
+				0.15514,
+				-0.98789
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.7276,
+				2.7942,
+				-3.0475
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0297,
+				0.98835,
+				0.1493
+			],
+			"z": [
+				-0.19282,
+				0.15223,
+				-0.96935
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.3332,
+				2.7942,
+				-2.7967
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.08457,
+				0.98835,
+				0.12657
+			],
+			"z": [
+				-0.5491,
+				0.15223,
+				-0.82178
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7967,
+				2.7942,
+				-2.3332
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.12657,
+				0.98835,
+				0.08457
+			],
+			"z": [
+				-0.82178,
+				0.15223,
+				-0.5491
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.0475,
+				2.7942,
+				-1.7276
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.1493,
+				0.98835,
+				0.0297
+			],
+			"z": [
+				-0.96935,
+				0.15223,
+				-0.19282
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.1129,
+				2.7942,
+				-0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.15514,
+				0.98789,
+				0.0
+			],
+			"z": [
+				-0.98789,
+				0.15514,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.1129,
+				2.7942,
+				0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.15514,
+				0.98789,
+				0.0
+			],
+			"z": [
+				-0.98789,
+				0.15514,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.0475,
+				2.7942,
+				1.7276
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.1493,
+				0.98835,
+				-0.0297
+			],
+			"z": [
+				-0.96935,
+				0.15223,
+				0.19282
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7967,
+				2.7942,
+				2.3332
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.12657,
+				0.98835,
+				-0.08457
+			],
+			"z": [
+				-0.82178,
+				0.15223,
+				0.5491
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.3332,
+				2.7942,
+				2.7967
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.08457,
+				0.98835,
+				-0.12657
+			],
+			"z": [
+				-0.5491,
+				0.15223,
+				0.82178
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.7276,
+				2.7942,
+				3.0475
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0297,
+				0.98835,
+				-0.1493
+			],
+			"z": [
+				-0.19282,
+				0.15223,
+				0.96935
+			],
+			"size": [
+				0.6749,
+				0.2588,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9768,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				2.7942,
+				3.1129
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.98789,
+				-0.15514
+			],
+			"z": [
+				-0.0,
+				0.15514,
+				0.98789
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				2.7942,
+				3.1129
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.98789,
+				-0.15514
+			],
+			"z": [
+				-0.0,
+				0.15514,
+				0.98789
+			],
+			"size": [
+				1.4,
+				0.259,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.7203,
+				3.045,
+				3.0103
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.0855,
+				0.89885,
+				-0.42984
+			],
+			"z": [
+				0.17536,
+				0.43826,
+				0.88158
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.3121,
+				3.045,
+				2.7652
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.24349,
+				0.89885,
+				-0.3644
+			],
+			"z": [
+				0.49937,
+				0.43826,
+				0.74736
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7652,
+				3.045,
+				2.3121
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.3644,
+				0.89885,
+				-0.24349
+			],
+			"z": [
+				0.74736,
+				0.43826,
+				0.49937
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.0103,
+				3.045,
+				1.7203
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.42984,
+				0.89885,
+				-0.0855
+			],
+			"z": [
+				0.88158,
+				0.43826,
+				0.17536
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.0744,
+				3.0449,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.44516,
+				0.89545,
+				0.0
+			],
+			"z": [
+				0.89545,
+				0.44516,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.0744,
+				3.0449,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.44516,
+				0.89545,
+				0.0
+			],
+			"z": [
+				0.89545,
+				0.44516,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				3.0103,
+				3.045,
+				-1.7203
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.42984,
+				0.89885,
+				0.0855
+			],
+			"z": [
+				0.88158,
+				0.43826,
+				-0.17536
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7652,
+				3.045,
+				-2.3121
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.3644,
+				0.89885,
+				0.24349
+			],
+			"z": [
+				0.74736,
+				0.43826,
+				-0.49937
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.3121,
+				3.045,
+				-2.7652
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				-0.24349,
+				0.89885,
+				0.3644
+			],
+			"z": [
+				0.49937,
+				0.43826,
+				-0.74736
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.7203,
+				3.045,
+				-3.0103
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.0855,
+				0.89885,
+				0.42984
+			],
+			"z": [
+				0.17536,
+				0.43826,
+				-0.88158
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.0449,
+				-3.0744
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.89545,
+				0.44516
+			],
+			"z": [
+				-0.0,
+				0.44516,
+				-0.89545
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.0449,
+				-3.0744
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.89545,
+				0.44516
+			],
+			"z": [
+				-0.0,
+				0.44516,
+				-0.89545
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.7203,
+				3.045,
+				-3.0103
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0855,
+				0.89885,
+				0.42984
+			],
+			"z": [
+				-0.17536,
+				0.43826,
+				-0.88158
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.3121,
+				3.045,
+				-2.7652
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.24349,
+				0.89885,
+				0.3644
+			],
+			"z": [
+				-0.49937,
+				0.43826,
+				-0.74736
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7652,
+				3.045,
+				-2.3121
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.3644,
+				0.89885,
+				0.24349
+			],
+			"z": [
+				-0.74736,
+				0.43826,
+				-0.49937
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.0103,
+				3.045,
+				-1.7203
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.42984,
+				0.89885,
+				0.0855
+			],
+			"z": [
+				-0.88158,
+				0.43826,
+				-0.17536
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.0744,
+				3.0449,
+				-0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.44516,
+				0.89545,
+				0.0
+			],
+			"z": [
+				-0.89545,
+				0.44516,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.0744,
+				3.0449,
+				0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.44516,
+				0.89545,
+				0.0
+			],
+			"z": [
+				-0.89545,
+				0.44516,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-3.0103,
+				3.045,
+				1.7203
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.42984,
+				0.89885,
+				-0.0855
+			],
+			"z": [
+				-0.88158,
+				0.43826,
+				0.17536
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7652,
+				3.045,
+				2.3121
+			],
+			"x": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.3644,
+				0.89885,
+				-0.24349
+			],
+			"z": [
+				-0.74736,
+				0.43826,
+				0.49937
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.3121,
+				3.045,
+				2.7652
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.24349,
+				0.89885,
+				-0.3644
+			],
+			"z": [
+				-0.49937,
+				0.43826,
+				0.74736
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.7203,
+				3.045,
+				3.0103
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0855,
+				0.89885,
+				-0.42984
+			],
+			"z": [
+				-0.17536,
+				0.43826,
+				0.88158
+			],
+			"size": [
+				0.6587,
+				0.2625,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.9306,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.0449,
+				3.0744
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.89545,
+				-0.44516
+			],
+			"z": [
+				-0.0,
+				0.44516,
+				0.89545
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.0449,
+				3.0744
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.89545,
+				-0.44516
+			],
+			"z": [
+				-0.0,
+				0.44516,
+				0.89545
+			],
+			"size": [
+				1.4,
+				0.2635,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.6984,
+				3.2769,
+				2.9002
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.13077,
+				0.74211,
+				-0.6574
+			],
+			"z": [
+				0.14478,
+				0.67028,
+				0.72785
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.2498,
+				3.2769,
+				2.6718
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.37239,
+				0.74211,
+				-0.55732
+			],
+			"z": [
+				0.41229,
+				0.67028,
+				0.61704
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.6718,
+				3.2769,
+				2.2498
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.55732,
+				0.74211,
+				-0.37239
+			],
+			"z": [
+				0.61704,
+				0.67028,
+				0.41229
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.9002,
+				3.2769,
+				1.6984
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.6574,
+				0.74211,
+				-0.13077
+			],
+			"z": [
+				0.72785,
+				0.67028,
+				0.14478
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.9599,
+				3.2768,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.67742,
+				0.7356,
+				0.0
+			],
+			"z": [
+				0.7356,
+				0.67742,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.9599,
+				3.2768,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.67742,
+				0.7356,
+				0.0
+			],
+			"z": [
+				0.7356,
+				0.67742,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.9002,
+				3.2769,
+				-1.6984
+			],
+			"x": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				-0.6574,
+				0.74211,
+				0.13077
+			],
+			"z": [
+				0.72785,
+				0.67028,
+				-0.14478
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.6718,
+				3.2769,
+				-2.2498
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.55732,
+				0.74211,
+				0.37239
+			],
+			"z": [
+				0.61704,
+				0.67028,
+				-0.41229
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.2498,
+				3.2769,
+				-2.6718
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.37239,
+				0.74211,
+				0.55732
+			],
+			"z": [
+				0.41229,
+				0.67028,
+				-0.61704
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.6984,
+				3.2769,
+				-2.9002
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.13077,
+				0.74211,
+				0.6574
+			],
+			"z": [
+				0.14478,
+				0.67028,
+				-0.72785
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.2768,
+				-2.9599
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.7356,
+				0.67742
+			],
+			"z": [
+				-0.0,
+				0.67742,
+				-0.7356
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.2768,
+				-2.9599
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.7356,
+				0.67742
+			],
+			"z": [
+				-0.0,
+				0.67742,
+				-0.7356
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.6984,
+				3.2769,
+				-2.9002
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.13077,
+				0.74211,
+				0.6574
+			],
+			"z": [
+				-0.14478,
+				0.67028,
+				-0.72785
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.2498,
+				3.2769,
+				-2.6718
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.37239,
+				0.74211,
+				0.55732
+			],
+			"z": [
+				-0.41229,
+				0.67028,
+				-0.61704
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.6718,
+				3.2769,
+				-2.2498
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.55732,
+				0.74211,
+				0.37239
+			],
+			"z": [
+				-0.61704,
+				0.67028,
+				-0.41229
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.9002,
+				3.2769,
+				-1.6984
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.6574,
+				0.74211,
+				0.13077
+			],
+			"z": [
+				-0.72785,
+				0.67028,
+				-0.14478
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.9599,
+				3.2768,
+				-0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.67742,
+				0.7356,
+				0.0
+			],
+			"z": [
+				-0.7356,
+				0.67742,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.9599,
+				3.2768,
+				0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.67742,
+				0.7356,
+				0.0
+			],
+			"z": [
+				-0.7356,
+				0.67742,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.9002,
+				3.2769,
+				1.6984
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.6574,
+				0.74211,
+				-0.13077
+			],
+			"z": [
+				-0.72785,
+				0.67028,
+				0.14478
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.6718,
+				3.2769,
+				2.2498
+			],
+			"x": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.55732,
+				0.74211,
+				-0.37239
+			],
+			"z": [
+				-0.61704,
+				0.67028,
+				0.41229
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.2498,
+				3.2769,
+				2.6718
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.37239,
+				0.74211,
+				-0.55732
+			],
+			"z": [
+				-0.41229,
+				0.67028,
+				0.61704
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.6984,
+				3.2769,
+				2.9002
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.13077,
+				0.74211,
+				-0.6574
+			],
+			"z": [
+				-0.14478,
+				0.67028,
+				0.72785
+			],
+			"size": [
+				0.6126,
+				0.2737,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8811,
+			"model": "roof_face_panel_5"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.2768,
+				2.9599
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.7356,
+				-0.67742
+			],
+			"z": [
+				-0.0,
+				0.67742,
+				0.7356
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.2768,
+				2.9599
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.7356,
+				-0.67742
+			],
+			"z": [
+				-0.0,
+				0.67742,
+				0.7356
+			],
+			"size": [
+				1.4,
+				0.2761,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_6"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.6633,
+				3.4771,
+				2.7236
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.16343,
+				0.54611,
+				-0.82162
+			],
+			"z": [
+				0.10654,
+				0.83771,
+				0.53561
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.1498,
+				3.4771,
+				2.5221
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				-0.46541,
+				0.54611,
+				-0.69653
+			],
+			"z": [
+				0.3034,
+				0.83771,
+				0.45407
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.5221,
+				3.4771,
+				2.1498
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.69653,
+				0.54611,
+				-0.46541
+			],
+			"z": [
+				0.45407,
+				0.83771,
+				0.3034
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7236,
+				3.4771,
+				1.6633
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.82162,
+				0.54611,
+				-0.16343
+			],
+			"z": [
+				0.53561,
+				0.83771,
+				0.10654
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7763,
+				3.477,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.84251,
+				0.53868,
+				0.0
+			],
+			"z": [
+				0.53868,
+				0.84251,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7763,
+				3.477,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.84251,
+				0.53868,
+				0.0
+			],
+			"z": [
+				0.53868,
+				0.84251,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.7236,
+				3.4771,
+				-1.6633
+			],
+			"x": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				-0.82162,
+				0.54611,
+				0.16343
+			],
+			"z": [
+				0.53561,
+				0.83771,
+				-0.10654
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.5221,
+				3.4771,
+				-2.1498
+			],
+			"x": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.69653,
+				0.54611,
+				0.46541
+			],
+			"z": [
+				0.45407,
+				0.83771,
+				-0.3034
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.1498,
+				3.4771,
+				-2.5221
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.46541,
+				0.54611,
+				0.69653
+			],
+			"z": [
+				0.3034,
+				0.83771,
+				-0.45407
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.6633,
+				3.4771,
+				-2.7236
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.16343,
+				0.54611,
+				0.82162
+			],
+			"z": [
+				0.10654,
+				0.83771,
+				-0.53561
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.477,
+				-2.7763
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.53868,
+				0.84251
+			],
+			"z": [
+				-0.0,
+				0.84251,
+				-0.53868
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.477,
+				-2.7763
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.53868,
+				0.84251
+			],
+			"z": [
+				-0.0,
+				0.84251,
+				-0.53868
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.6633,
+				3.4771,
+				-2.7236
+			],
+			"x": [
+				-0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.16343,
+				0.54611,
+				0.82162
+			],
+			"z": [
+				-0.10654,
+				0.83771,
+				-0.53561
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.1498,
+				3.4771,
+				-2.5221
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.46541,
+				0.54611,
+				0.69653
+			],
+			"z": [
+				-0.3034,
+				0.83771,
+				-0.45407
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.5221,
+				3.4771,
+				-2.1498
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.69653,
+				0.54611,
+				0.46541
+			],
+			"z": [
+				-0.45407,
+				0.83771,
+				-0.3034
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7236,
+				3.4771,
+				-1.6633
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.82162,
+				0.54611,
+				0.16343
+			],
+			"z": [
+				-0.53561,
+				0.83771,
+				-0.10654
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7763,
+				3.477,
+				-0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.84251,
+				0.53868,
+				0.0
+			],
+			"z": [
+				-0.53868,
+				0.84251,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7763,
+				3.477,
+				0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.84251,
+				0.53868,
+				0.0
+			],
+			"z": [
+				-0.53868,
+				0.84251,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.7236,
+				3.4771,
+				1.6633
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.82162,
+				0.54611,
+				-0.16343
+			],
+			"z": [
+				-0.53561,
+				0.83771,
+				0.10654
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.5221,
+				3.4771,
+				2.1498
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.69653,
+				0.54611,
+				-0.46541
+			],
+			"z": [
+				-0.45407,
+				0.83771,
+				0.3034
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.1498,
+				3.4771,
+				2.5221
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.46541,
+				0.54611,
+				-0.69653
+			],
+			"z": [
+				-0.3034,
+				0.83771,
+				0.45407
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.6633,
+				3.4771,
+				2.7236
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.16343,
+				0.54611,
+				-0.82162
+			],
+			"z": [
+				-0.10654,
+				0.83771,
+				0.53561
+			],
+			"size": [
+				0.5394,
+				0.2861,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.8236,
+			"model": "roof_face_panel_7"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.477,
+				2.7763
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.53868,
+				-0.84251
+			],
+			"z": [
+				-0.0,
+				0.84251,
+				0.53868
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.477,
+				2.7763
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.53868,
+				-0.84251
+			],
+			"z": [
+				-0.0,
+				0.84251,
+				0.53868
+			],
+			"size": [
+				1.4,
+				0.2901,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_8"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.6173,
+				3.6315,
+				2.4922
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.18403,
+				0.33196,
+				-0.92517
+			],
+			"z": [
+				0.06476,
+				0.94329,
+				0.32558
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.0187,
+				3.6315,
+				2.3259
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"y": [
+				-0.52407,
+				0.33196,
+				-0.78432
+			],
+			"z": [
+				0.18442,
+				0.94329,
+				0.27601
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.3259,
+				3.6315,
+				2.0187
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.78432,
+				0.33196,
+				-0.52407
+			],
+			"z": [
+				0.27601,
+				0.94329,
+				0.18442
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.4922,
+				3.6315,
+				1.6173
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				-0.92517,
+				0.33196,
+				-0.18403
+			],
+			"z": [
+				0.32558,
+				0.94329,
+				0.06476
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.5356,
+				3.6315,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.94528,
+				0.32626,
+				0.0
+			],
+			"z": [
+				0.32626,
+				0.94528,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.5356,
+				3.6315,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.94528,
+				0.32626,
+				0.0
+			],
+			"z": [
+				0.32626,
+				0.94528,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.4922,
+				3.6315,
+				-1.6173
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.92517,
+				0.33196,
+				0.18403
+			],
+			"z": [
+				0.32558,
+				0.94329,
+				-0.06476
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.3259,
+				3.6315,
+				-2.0187
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.78432,
+				0.33196,
+				0.52407
+			],
+			"z": [
+				0.27601,
+				0.94329,
+				-0.18442
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.0187,
+				3.6315,
+				-2.3259
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.52407,
+				0.33196,
+				0.78432
+			],
+			"z": [
+				0.18442,
+				0.94329,
+				-0.27601
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.6173,
+				3.6315,
+				-2.4922
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.18403,
+				0.33196,
+				0.92517
+			],
+			"z": [
+				0.06476,
+				0.94329,
+				-0.32558
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.6315,
+				-2.5356
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.32626,
+				0.94528
+			],
+			"z": [
+				-0.0,
+				0.94528,
+				-0.32626
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.6315,
+				-2.5356
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.32626,
+				0.94528
+			],
+			"z": [
+				-0.0,
+				0.94528,
+				-0.32626
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.6173,
+				3.6315,
+				-2.4922
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.18403,
+				0.33196,
+				0.92517
+			],
+			"z": [
+				-0.06476,
+				0.94329,
+				-0.32558
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.0187,
+				3.6315,
+				-2.3259
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.52407,
+				0.33196,
+				0.78432
+			],
+			"z": [
+				-0.18442,
+				0.94329,
+				-0.27601
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.3259,
+				3.6315,
+				-2.0187
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.78432,
+				0.33196,
+				0.52407
+			],
+			"z": [
+				-0.27601,
+				0.94329,
+				-0.18442
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.4922,
+				3.6315,
+				-1.6173
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.92517,
+				0.33196,
+				0.18403
+			],
+			"z": [
+				-0.32558,
+				0.94329,
+				-0.06476
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.5356,
+				3.6315,
+				-0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.94528,
+				0.32626,
+				0.0
+			],
+			"z": [
+				-0.32626,
+				0.94528,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.5356,
+				3.6315,
+				0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.94528,
+				0.32626,
+				0.0
+			],
+			"z": [
+				-0.32626,
+				0.94528,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.4922,
+				3.6315,
+				1.6173
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.92517,
+				0.33196,
+				-0.18403
+			],
+			"z": [
+				-0.32558,
+				0.94329,
+				0.06476
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.3259,
+				3.6315,
+				2.0187
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.78432,
+				0.33196,
+				-0.52407
+			],
+			"z": [
+				-0.27601,
+				0.94329,
+				0.18442
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.0187,
+				3.6315,
+				2.3259
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.52407,
+				0.33196,
+				-0.78432
+			],
+			"z": [
+				-0.18442,
+				0.94329,
+				0.27601
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.6173,
+				3.6315,
+				2.4922
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.18403,
+				0.33196,
+				-0.92517
+			],
+			"z": [
+				-0.06476,
+				0.94329,
+				0.32558
+			],
+			"size": [
+				0.4438,
+				0.2964,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.7502,
+			"model": "roof_face_panel_9"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.6315,
+				2.5356
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.32626,
+				-0.94528
+			],
+			"z": [
+				-0.0,
+				0.94528,
+				0.32626
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.6315,
+				2.5356
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.32626,
+				-0.94528
+			],
+			"z": [
+				-0.0,
+				0.94528,
+				0.32626
+			],
+			"size": [
+				1.4,
+				0.3016,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_10"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.5635,
+				3.7291,
+				2.2217
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"y": [
+				-0.19389,
+				0.11077,
+				-0.97475
+			],
+			"z": [
+				0.02161,
+				0.99385,
+				0.10864
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.8655,
+				3.7291,
+				2.0966
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.55215,
+				0.11077,
+				-0.82635
+			],
+			"z": [
+				0.06154,
+				0.99385,
+				0.0921
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.0966,
+				3.7291,
+				1.8655
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"y": [
+				-0.82635,
+				0.11077,
+				-0.55215
+			],
+			"z": [
+				0.0921,
+				0.99385,
+				0.06154
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.2217,
+				3.7291,
+				1.5635
+			],
+			"x": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"y": [
+				-0.97475,
+				0.11077,
+				-0.19389
+			],
+			"z": [
+				0.10864,
+				0.99385,
+				0.02161
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.2543,
+				3.7291,
+				0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.99408,
+				0.10867,
+				0.0
+			],
+			"z": [
+				0.10867,
+				0.99408,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.2543,
+				3.7291,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.99408,
+				0.10867,
+				0.0
+			],
+			"z": [
+				0.10867,
+				0.99408,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.2217,
+				3.7291,
+				-1.5635
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				-0.97475,
+				0.11077,
+				0.19389
+			],
+			"z": [
+				0.10864,
+				0.99385,
+				-0.02161
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				2.0966,
+				3.7291,
+				-1.8655
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				-0.82635,
+				0.11077,
+				0.55215
+			],
+			"z": [
+				0.0921,
+				0.99385,
+				-0.06154
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.8655,
+				3.7291,
+				-2.0966
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				-0.55215,
+				0.11077,
+				0.82635
+			],
+			"z": [
+				0.06154,
+				0.99385,
+				-0.0921
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				1.5635,
+				3.7291,
+				-2.2217
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				-0.19389,
+				0.11077,
+				0.97475
+			],
+			"z": [
+				0.02161,
+				0.99385,
+				-0.10864
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.7291,
+				-2.2543
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.10867,
+				0.99408
+			],
+			"z": [
+				-0.0,
+				0.99408,
+				-0.10867
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.7291,
+				-2.2543
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.10867,
+				0.99408
+			],
+			"z": [
+				-0.0,
+				0.99408,
+				-0.10867
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.5635,
+				3.7291,
+				-2.2217
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.19389,
+				0.11077,
+				0.97475
+			],
+			"z": [
+				-0.02161,
+				0.99385,
+				-0.10864
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.8655,
+				3.7291,
+				-2.0966
+			],
+			"x": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.55215,
+				0.11077,
+				0.82635
+			],
+			"z": [
+				-0.06154,
+				0.99385,
+				-0.0921
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.0966,
+				3.7291,
+				-1.8655
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.82635,
+				0.11077,
+				0.55215
+			],
+			"z": [
+				-0.0921,
+				0.99385,
+				-0.06154
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.2217,
+				3.7291,
+				-1.5635
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.97475,
+				0.11077,
+				0.19389
+			],
+			"z": [
+				-0.10864,
+				0.99385,
+				-0.02161
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.2543,
+				3.7291,
+				-0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.99408,
+				0.10867,
+				0.0
+			],
+			"z": [
+				-0.10867,
+				0.99408,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.2543,
+				3.7291,
+				0.7
+			],
+			"x": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.99408,
+				0.10867,
+				0.0
+			],
+			"z": [
+				-0.10867,
+				0.99408,
+				-0.0
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.2217,
+				3.7291,
+				1.5635
+			],
+			"x": [
+				0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.97475,
+				0.11077,
+				-0.19389
+			],
+			"z": [
+				-0.10864,
+				0.99385,
+				0.02161
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-2.0966,
+				3.7291,
+				1.8655
+			],
+			"x": [
+				0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.82635,
+				0.11077,
+				-0.55215
+			],
+			"z": [
+				-0.0921,
+				0.99385,
+				0.06154
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.8655,
+				3.7291,
+				2.0966
+			],
+			"x": [
+				0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.55215,
+				0.11077,
+				-0.82635
+			],
+			"z": [
+				-0.06154,
+				0.99385,
+				0.0921
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-1.5635,
+				3.7291,
+				2.2217
+			],
+			"x": [
+				0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.19389,
+				0.11077,
+				-0.97475
+			],
+			"z": [
+				-0.02161,
+				0.99385,
+				0.10864
+			],
+			"size": [
+				0.3325,
+				0.3044,
+				0.035
+			],
+			"layer": 2,
+			"taper": 0.6398,
+			"model": "roof_face_panel_11"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.7,
+				3.7291,
+				2.2543
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.10867,
+				-0.99408
+			],
+			"z": [
+				-0.0,
+				0.99408,
+				0.10867
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.7,
+				3.7291,
+				2.2543
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.10867,
+				-0.99408
+			],
+			"z": [
+				-0.0,
+				0.99408,
+				0.10867
+			],
+			"size": [
+				1.4,
+				0.3102,
+				0.035
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_12"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.9739,
+				3.7551,
+				-1.9478
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.9478,
+				1.9478,
+				0.05
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				-0.9739,
+				3.7551,
+				0.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.9478,
+				1.9478,
+				0.05
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.9739,
+				3.7551,
+				-1.9478
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.9478,
+				1.9478,
+				0.05
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "lab_roof_face_panel",
+			"at": [
+				0.9739,
+				3.7551,
+				0.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.9478,
+				1.9478,
+				0.05
+			],
+			"layer": 2,
+			"taper": 1.0,
+			"model": "roof_face_panel_13"
+		},
+		{
+			"kind": "lab_door_strip_lamp",
+			"at": [
+				0.0,
+				2.66,
+				-2.788
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "lab_door_strip_lamp",
+			"at": [
+				0.0,
+				2.67,
+				-2.746
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "lab_door_strip_lamp",
+			"at": [
+				0.0,
+				2.66,
+				2.788
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "lab_door_strip_lamp",
+			"at": [
+				0.0,
+				2.67,
+				2.746
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "lab_door_control_box",
+			"at": [
+				-1.6831,
+				1.2,
+				-2.8183
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "lab_door_control_box",
+			"at": [
+				-1.6202,
+				1.456,
+				-2.7737
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "lab_door_control_box",
+			"at": [
+				-1.6811,
+				1.2,
+				2.8187
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.262,
+				0.36,
+				0.126
+			],
+			"layer": 1,
+			"model": "door_control_box_1"
+		},
+		{
+			"kind": "lab_door_control_box",
+			"at": [
+				-1.7222,
+				1.456,
+				2.7534
+			],
+			"x": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.084,
+				0.075,
+				0.006
+			],
+			"layer": 1,
+			"model": "door_control_box_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				2.86,
+				2.15,
+				0.425
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.95,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				2.86,
+				2.15,
+				-1.125
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.55,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				2.86,
+				2.4,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.8,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.86,
+				2.15,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.8,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.86,
+				2.4,
+				-1.125
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.55,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.86,
+				2.4,
+				0.425
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.95,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "lab_pipe_valve",
+			"at": [
+				2.84,
+				2.04,
+				-0.7
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "lab_pipe_valve",
+			"at": [
+				-2.84,
+				2.29,
+				-0.7
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "lab_desk",
+			"at": [
+				-1.4999,
+				-0.001,
+				-1.5001
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4024,
+				0.762,
+				0.7524
+			],
+			"layer": 1,
+			"model": "desk_1"
+		},
+		{
+			"kind": "lab_desk",
+			"at": [
+				1.5001,
+				-0.001,
+				-1.5001
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4024,
+				0.762,
+				0.7524
+			],
+			"layer": 1,
+			"model": "desk_1"
+		},
+		{
+			"kind": "lab_desk_chair",
+			"at": [
+				-1.5006,
+				-0.0018,
+				-0.7492
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.6538,
+				0.9045,
+				0.6218
+			],
+			"layer": 1,
+			"model": "desk_chair_1"
+		},
+		{
+			"kind": "lab_desk_chair",
+			"at": [
+				1.4994,
+				-0.0018,
+				-0.7492
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.6538,
+				0.9045,
+				0.6218
+			],
+			"layer": 1,
+			"model": "desk_chair_1"
+		},
+		{
+			"kind": "lab_sample_store",
+			"at": [
+				-2.6199,
+				0.4181,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.2033,
+				1.004,
+				0.7033
+			],
+			"layer": 1,
+			"model": "sample_store_1"
+		},
+		{
+			"kind": "lab_glovebox_cabinet",
+			"at": [
+				2.5899,
+				0.4188,
+				0.0007
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1503,
+				1.1528,
+				0.7831
+			],
+			"layer": 1,
+			"model": "glovebox_cabinet_1"
+		},
+		{
+			"kind": "lab_gauge_panel",
+			"at": [
+				2.8385,
+				1.7501,
+				0.7521
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.7524,
+				0.4332,
+				0.2031
+			],
+			"layer": 1,
+			"model": "gauge_panel_1"
+		},
+		{
+			"kind": "lab_junction_box",
+			"at": [
+				-2.84,
+				1.5971,
+				0.85
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.2496,
+				0.4069,
+				0.1998
+			],
+			"layer": 1,
+			"model": "junction_box_1"
+		},
+		{
+			"kind": "lab_fire_extinguisher",
+			"at": [
+				-2.8415,
+				0.5463,
+				-1.0485
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.2842,
+				0.5568,
+				0.204
+			],
+			"layer": 1,
+			"model": "fire_extinguisher_1"
+		},
+		{
+			"kind": "lab_task_lamp",
+			"at": [
+				2.0709,
+				1.9499,
+				-2.4037
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.1672,
+				0.2802,
+				0.6033
+			],
+			"layer": 1,
+			"model": "task_lamp_1"
+		},
+		{
+			"kind": "lab_task_lamp",
+			"at": [
+				-2.0705,
+				1.9499,
+				-2.4039
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.1672,
+				0.2802,
+				0.6033
+			],
+			"layer": 1,
+			"model": "task_lamp_1"
+		},
+		{
+			"kind": "lab_ceiling_lamp",
+			"at": [
+				-1.0003,
+				3.5793,
+				0.2998
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.6077,
+				0.2009,
+				0.2665
+			],
+			"layer": 1,
+			"model": "ceiling_lamp_1"
+		},
+		{
+			"kind": "lab_ceiling_lamp",
+			"at": [
+				1.0003,
+				3.5793,
+				0.3002
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.6077,
+				0.2009,
+				0.2665
+			],
+			"layer": 1,
+			"model": "ceiling_lamp_1"
+		},
+		{
+			"kind": "lab_tread_mat",
+			"at": [
+				0.0,
+				-0.01,
+				-2.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.9,
+				0.02
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "tread_mat_1"
+		},
+		{
+			"kind": "lab_tread_mat",
+			"at": [
+				0.0,
+				-0.01,
+				2.9
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.4,
+				0.9,
+				0.02
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "tread_mat_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.877,
+				2.13,
+				1.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.877,
+				2.13,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.877,
+				2.13,
+				-1.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.877,
+				2.38,
+				1.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.877,
+				2.38,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.877,
+				2.38,
+				-1.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.877,
+				2.13,
+				-1.15
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.877,
+				2.13,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.877,
+				2.13,
+				1.15
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.877,
+				2.38,
+				-1.15
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.877,
+				2.38,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.877,
+				2.38,
+				1.15
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_microscope",
+			"at": [
+				-1.9793,
+				0.7576,
+				-1.5807
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.3469,
+				0.6218,
+				0.3955
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "microscope_1"
+		},
+		{
+			"kind": "lab_desk_monitor",
+			"at": [
+				-1.4993,
+				0.756,
+				-1.67
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.3671,
+				0.3679,
+				0.3386
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_monitor_1"
+		},
+		{
+			"kind": "lab_desk_monitor",
+			"at": [
+				-1.5,
+				0.885,
+				-1.4967
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.25,
+				0.18,
+				0.012
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_monitor_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "lab_instrument_unit",
+			"at": [
+				-1.0598,
+				0.7599,
+				-1.5798
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.5072,
+				0.4237,
+				0.4868
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "instrument_unit_1"
+		},
+		{
+			"kind": "lab_desk_keyboard",
+			"at": [
+				-1.5001,
+				0.7562,
+				-1.2899
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.4486,
+				0.0584,
+				0.2076
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_keyboard_1"
+		},
+		{
+			"kind": "lab_microscope",
+			"at": [
+				1.0207,
+				0.7576,
+				-1.5807
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.3469,
+				0.6218,
+				0.3955
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "microscope_1"
+		},
+		{
+			"kind": "lab_desk_monitor",
+			"at": [
+				1.5007,
+				0.756,
+				-1.67
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.3671,
+				0.3679,
+				0.3386
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_monitor_1"
+		},
+		{
+			"kind": "lab_desk_monitor",
+			"at": [
+				1.5,
+				0.885,
+				-1.4967
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.25,
+				0.18,
+				0.012
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_monitor_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "lab_instrument_unit",
+			"at": [
+				1.9402,
+				0.7599,
+				-1.5798
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.5072,
+				0.4237,
+				0.4868
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "instrument_unit_1"
+		},
+		{
+			"kind": "lab_desk_keyboard",
+			"at": [
+				1.4999,
+				0.7562,
+				-1.2899
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.4486,
+				0.0584,
+				0.2076
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_keyboard_1"
+		},
+		{
+			"kind": "lab_sample_tray",
+			"at": [
+				-2.6204,
+				1.4164,
+				0.2902
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.4517,
+				0.0781,
+				0.3237
+			],
+			"layer": 1,
+			"child_of": "lab_sample_store",
+			"model": "sample_tray_1"
+		},
+		{
+			"kind": "lab_sample_tray",
+			"at": [
+				-2.6403,
+				1.4164,
+				-0.2897
+			],
+			"x": [
+				0.06976,
+				0.0,
+				0.99756
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99756,
+				-0.0,
+				0.06976
+			],
+			"size": [
+				0.4517,
+				0.0781,
+				0.3237
+			],
+			"layer": 1,
+			"child_of": "lab_sample_store",
+			"model": "sample_tray_1"
+		}
+	]
+}
