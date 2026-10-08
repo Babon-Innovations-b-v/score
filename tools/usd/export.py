@@ -5,7 +5,9 @@
 
 The labelled parts are read where the run's records put them: with --work, <work>/parts/<model>-<take>/ for the take
 plan-route.json names; with --parts (or a run that recorded no take), each model's newest take of any name
-(`<model>-r1` from a first run, `<model>-s1` from the framework's rerun), one <variant>.ply per library surface.
+(`<model>-r1` from a first run, `<model>-s1` from the framework's rerun), one <variant>.ply per library surface;
+with neither, the takes stored in the repository (`data/parts`, tools/props/library/stored_parts.py) by the place's
+`models.json` entry.
 
 A place today is its made models (glTF) and its layout (`data/kit/<place>.json`), read by the game in Godot. The
 stage holds the same place in three layers, from the strongest down:
@@ -68,6 +70,7 @@ import glb_file  # noqa: E402
 import ground as grounds  # noqa: E402
 import library  # noqa: E402
 import package  # noqa: E402
+import stored_parts  # noqa: E402
 
 KITS = REPO / "data/kit"
 INVENTORIES = REPO / "data/inventory"
@@ -135,9 +138,9 @@ def labelled_take(parts, model, take=None):
     rerun); None when the model has none."""
     if parts is None:
         return None
-    if isinstance(parts, dict):  # a kit room's run: each model's labelled folder as its bake job names it
+    if isinstance(parts, dict):  # a kit room's run or the stored takes: each model's labelled folder or stored take
         found = parts.get(model)
-        return found if found is not None and found.is_dir() else None
+        return found if found is not None and found.exists() else None
     if take is not None:
         found = pathlib.Path(parts) / f"{model}-{take}"
         return found if found.is_dir() else None
@@ -161,18 +164,28 @@ def run_parts(work):
     return work / "parts", planned.get("take")
 
 
-def part_points(take, turn, size):
-    """Each labelled part's points in the kit frame the made model stands in: turned by the kind's turn and fitted
-    to its laid size on the middle of its foot, as the route's make_chunky does; (points, variant of each point)."""
+def take_points(take):
+    """A labelled take's points and the variant of each: a stored take (.npz) read whole, a folder of .ply thinned
+    to PART_POINTS."""
+    if take.suffix == ".npz":
+        return stored_parts.read(take)
     files = sorted(take.glob("*.ply"))
     if not files:
         raise ValueError(f"{take}: no labelled parts")
     meshes = [trimesh.load(found, process=False) for found in files]
     total = sum(len(mesh.vertices) for mesh in meshes)
     stride = max(1, total // PART_POINTS)
-    points = np.vstack([np.asarray(mesh.vertices)[::stride] for mesh in meshes]) @ np.asarray(turn).reshape(3, 3).T
+    points = np.vstack([np.asarray(mesh.vertices)[::stride] for mesh in meshes])
     names = np.concatenate([np.full(len(np.asarray(mesh.vertices)[::stride]), found.stem)
                             for mesh, found in zip(meshes, files)])
+    return points, names
+
+
+def part_points(take, turn, size):
+    """Each labelled part's points in the kit frame the made model stands in: turned by the kind's turn and fitted
+    to its laid size on the middle of its foot, as the route's make_chunky does; (points, variant of each point)."""
+    points, names = take_points(take)
+    points = points @ np.asarray(turn).reshape(3, 3).T
     low, high = points.min(axis=0), points.max(axis=0)
     foot = np.array([(low[0] + high[0]) / 2, low[1], (low[2] + high[2]) / 2])
     return (points - foot) * (np.asarray(size, dtype=np.float64) / (high - low)), names
@@ -532,9 +545,12 @@ def write_root(place, out):
 
 def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None):
     """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
-    `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read. `ground`
-    is the place's tools/usd/ground.Ground; without one the place is flat."""
+    `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read; without
+    `parts`, the place's stored takes (data/parts). `ground` is the place's tools/usd/ground.Ground; without one the
+    place is flat."""
     out = pathlib.Path(out)
+    if parts is None:
+        parts = stored_parts.takes_of(place)
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
     if kit["pieces"] and "x" in kit["pieces"][0]:
         kit = dict(kit, pieces=kit_room_pieces(kit, models))

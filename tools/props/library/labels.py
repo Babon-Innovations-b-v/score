@@ -25,7 +25,8 @@ the share of the model a part clearly holds, how much of it lies near any part);
 reported and the model painted as one part, never in blotches. The result is checked by patchy.py (written into labels.json as `patchy`) and moved onto the
 finished model (raw to upright, register.py), cut to the finished model's box (the raw model's floaters go) and
 written as one .ply per material (what the bake paints from), plus parts/part_XX.ply, one per part (a door, a lid, a
-wheel: the moving pieces come from the same split), and labels.json.
+wheel: the moving pieces come from the same split), and labels.json; a sample of it is stored in the repository
+(stored_parts.py, data/parts/<take>.npz).
 No model runs here: numpy and the picture.
 """
 import argparse
@@ -47,6 +48,7 @@ import glb_file  # noqa: E402
 import library  # noqa: E402
 import patchy  # noqa: E402
 import register  # noqa: E402
+import stored_parts  # noqa: E402
 from paths import REPO, WORK  # noqa: E402
 
 PIXAL = WORK / "pixal"
@@ -166,7 +168,7 @@ def part_points(folder):
     parts = [part for part in parts if part.area >= PART_LEAST * total]
     areas = np.array([part.area for part in parts])
     counts = np.maximum(PART_FLOOR, (SAMPLED * areas / areas.sum()).astype(int))
-    points = np.vstack([part.sample(count) for part, count in zip(parts, counts)])
+    points = np.vstack([part.sample(count, seed=number) for number, (part, count) in enumerate(zip(parts, counts))])
     return points, np.repeat(np.arange(len(parts)), counts)
 
 
@@ -267,7 +269,7 @@ def without_crumbs(mesh, part_of):
 def parts_on_model(folder, mesh):
     """Every face's part from a splitter's parts laid onto the model, and the registration report."""
     points, owner = part_points(folder)
-    matrix, gap = register.aligned(points, mesh.sample(SAMPLED), tries=REGISTER_TRIES)
+    matrix, gap = register.aligned(points, mesh.sample(SAMPLED, seed=0), tries=REGISTER_TRIES)
     moved = points @ matrix[:3, :3].T + matrix[:3, 3]
     count = int(owner.max()) + 1
     scores = nearest_parts(mesh, moved, owner, count)
@@ -419,7 +421,9 @@ def main():
         old.unlink()  # a material or part the new labels no longer have must not reach the bake
     materials = allowed_materials(arguments.place, arguments.kind,
                                   [name for name in arguments.without.split(",") if name])
-    np.random.seed(0)  # the samples registration reads: the same take labels the same way every run
+    np.random.seed(0)  # with the samples' own seeds (trimesh draws from its own generator, not numpy's global
+    # one): the same take labels the same way every run; unseeded, the torn ship's aft section registered on one
+    # run and not the next (2026-10-08)
     mesh = welded(trimesh.load(PIXAL / f"{arguments.take}.glb", force="mesh", process=False))
     colours = face_colours(mesh, arguments.take)
     report = {"take": arguments.take, "kind": arguments.kind, "allowed": list(materials),
@@ -437,7 +441,8 @@ def main():
     order = sorted({names[index] for index in chosen})
     labels = np.array([order.index(names[index]) for index in chosen])[part_of]
     final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
-    matrix, gap = onto_finished(mesh.sample(SAMPLED), final.sample(SAMPLED), finish_turn(arguments.take))
+    matrix, gap = onto_finished(mesh.sample(SAMPLED, seed=1), final.sample(SAMPLED, seed=2),
+                                finish_turn(arguments.take))
     report["upright_gap"] = round(gap, 4)
     mesh.apply_transform(matrix)
     report["shares"], inside = write_parts(mesh, labels, order, part_of, final.bounds, arguments.out)
@@ -449,6 +454,7 @@ def main():
     kept, kept_labels, _, kept_parts = patchy.labelled_parts(arguments.out)
     report["patchy"] = patchy.score(kept, kept_labels, kept_parts)
     (arguments.out / "labels.json").write_text(json.dumps(report, indent=1))
+    stored_parts.write(arguments.out, arguments.take)
     print(json.dumps({key: report[key] for key in ("take", "way", "shares", "patchy") + (
         ("registration",) if "registration" in report else ())}))
 
