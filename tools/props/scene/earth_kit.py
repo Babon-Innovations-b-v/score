@@ -48,6 +48,11 @@ STREET_PLATE = 0.15
 STREET_PAVED_TOP = 0.14
 # How far out of the street face's plates the open street gate's spot stands (its made box then clears them by 5 mm).
 GATE_CLEAR = 0.14
+# How far along the street from the doorway's middle the open gate's middle stands: clear of the next shop's shutter.
+GATE_ALONG = 0.93
+# The open gate's height: under the door canopy's underside (2.1 m over the street, earth_outside_kit's door_canopy) off
+# the pavement; at 2.2 m it stood 24 cm up into the canopy.
+GATE_TALL = 1.9
 LINING = 0.03  # a wall lining's depth
 UP = np.array([0.0, 1.0, 0.0])
 DOWN = -UP
@@ -336,8 +341,8 @@ def stair_fittings(room, west, east, far, door):
         # (earth_outside_kit.PLATE_DEEP, PAVED_TOP). Its made model's box stands 8 cm behind the spot's middle and a
         # shop's render plate is made 16 mm proud of the plan, so the spot is GATE_CLEAR out: at 3 cm the gate stood
         # 9 cm inside the plate, which the scene check read as sunk.
-        piece(room, "street_gate", (east + WALL + STREET_PLATE + GATE_CLEAR, STREET_PAVED_TOP, FRONT_DOOR_Z + 1.0), WEST,
-              (1.0, 2.2, 0.05), near=True, foot=0.0),
+        piece(room, "street_gate", (east + WALL + STREET_PLATE + GATE_CLEAR, STREET_PAVED_TOP, FRONT_DOOR_Z + GATE_ALONG), WEST,
+              (1.0, GATE_TALL, 0.05), near=True, foot=0.0),
         piece(room, "wall_print", (3.95, 9.0 - 0.5, far + LINING + 0.004), NORTH, (0.75, 1.05, 0.003),
               print="poster_moon_flight", near=True),
         piece(room, "wall_print", (3.95, 4.5 + 1.0, far + LINING + 0.004), NORTH, (0.75, 1.05, 0.003),
