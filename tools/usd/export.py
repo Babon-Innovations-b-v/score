@@ -535,7 +535,9 @@ def lamp(stage, path, entry, ground=None):
     stand_on(light, entry["at"], ground)
     light.CreateRadiusAttr(scene_record.LAMP_RADIUS)
     energy = scene_record.LAMP_ENERGY * float(entry.get("strength", 1.0))
-    light.CreateIntensityAttr(scene_record.OMNI_PER_ENERGY * energy / scene_record.SPHERE_WATTS_PER_INTENSITY)
+    matched = scene_record.reach_matched({"energy": energy, "range": float(entry.get("range", 6.0)),
+                                          "attenuation": scene_record.LAMP_ATTENUATION})
+    light.CreateIntensityAttr(scene_record.OMNI_PER_ENERGY * matched / scene_record.SPHERE_WATTS_PER_INTENSITY)
     light.CreateColorAttr(Gf.Vec3f(*scene_record.colour(scene_record.LAMP_COLOUR)))
     light.GetPrim().CreateAttribute("score:strength", Sdf.ValueTypeNames.Float).Set(float(entry.get("strength", 1.0)))
     light.GetPrim().CreateAttribute("score:range", Sdf.ValueTypeNames.Float).Set(float(entry.get("range", 6.0)))

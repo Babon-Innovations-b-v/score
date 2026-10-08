@@ -25,7 +25,8 @@ as numbers copied from the game (each entry names the game file it came from), a
     game_only   what the game draws there that the scene does not carry, said plainly (a crowd, the stars)
 
 Light units. The game's energies are unitless (Godot): a directional light of energy E lights a white floor it faces to
-about E, an omni light of energy E about E at a metre. The stage holds watts as Blender's USD reader takes them (a sphere
+about E, an omni light of energy E about E at a metre, falling off as its distance to the power of its `attenuation`
+(a physical light's is 2), so an omni or spot light's energy is matched halfway out to its range (reach_matched). The stage holds watts as Blender's USD reader takes them (a sphere
 light's intensity times pi is its watts; a distant light's intensity times 4 its strength in W/m^2), from
 SUN_PER_ENERGY and OMNI_PER_ENERGY; `score:game:energy`, `range` and `attenuation` keep the game's own numbers for an
 engine that reads them back.
@@ -276,6 +277,16 @@ def aim_turn(eye, aim):
     return Gf.Matrix3d(*across, *upward, *back).ExtractRotation().GetQuat()
 
 
+def reach_matched(entry):
+    """A lamp's energy as a physical light needs it to light what it lights in the game: the game's fall-off is its
+    distance to the power `attenuation` (2 is a physical light's), so the energy is matched halfway out to its range,
+    energy x (range / 2) ^ (2 - attenuation); a lamp with no range keeps its energy."""
+    energy = float(entry["energy"])
+    if "range" not in entry:
+        return energy
+    return energy * (float(entry["range"]) / 2.0) ** (2.0 - float(entry.get("attenuation", 1.0)))
+
+
 def write_light(stage, path, entry):
     """One of the game's lights as a UsdLux light (see the module's note on units)."""
     kind = entry["type"]
@@ -288,7 +299,7 @@ def write_light(stage, path, entry):
         light.AddOrientOp().Set(Gf.Quatf(aim_turn([0.0, 0.0, 0.0], entry["toward"])))
     else:
         light = UsdLux.SphereLight.Define(stage, path)
-        watts = OMNI_PER_ENERGY * float(entry["energy"])
+        watts = OMNI_PER_ENERGY * reach_matched(entry)
         light.CreateIntensityAttr(watts / SPHERE_WATTS_PER_INTENSITY)
         light.CreateRadiusAttr(float(entry.get("radius", LAMP_RADIUS)))
         light.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry["at"])))
