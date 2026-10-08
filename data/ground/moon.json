@@ -1,0 +1,32 @@
+{
+ "about": "The Moon's planned ground round the base of the game 2099 (its game/world/ground/moon_plan.json, #130 there): the heights picture (sixteen bits in red and green: height = code / 65535 * span - low, metres), its skin (the same square), the square's side in metres, the ball's radius, the base seat's way out the square is laid on (ModuleFloors.STANDS), and each place's seat: its way out and its heading (radians about out), as the game's Seat has them. The wreck's is the base seat walked 55 m on the bearing (-30, 100) and turned so its along runs home (Wreck.seat); the old station's is the base seat itself, its layout offset by the kit's on_seat.",
+ "heights": "moon_plan_heights.png",
+ "skin": "moon_plan_skin.jpg",
+ "side": 260.0,
+ "low": 20.0,
+ "span": 40.0,
+ "radius": 220.0,
+ "plan_out": [
+  0.420568151,
+  0.720973973,
+  -0.550744007
+ ],
+ "places": {
+  "wreck": {
+   "out": [
+    0.41184691,
+    0.84711296,
+    -0.335829949
+   ],
+   "heading": 2.884127461
+  },
+  "old_station": {
+   "out": [
+    0.420568151,
+    0.720973973,
+    -0.550744007
+   ],
+   "heading": 0.0
+  }
+ }
+}

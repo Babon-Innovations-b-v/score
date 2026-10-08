@@ -23,10 +23,12 @@ PLACE = "wreck"  # a place the library knows; its layout and inventory here are 
 TOP, BOTTOM, EDITED = "hull_white_scorched", "bare_steel", "cast_iron_dark"
 
 
-def box_gltf(folder, name="box"):
-    """A 1 m box standing on its foot, as a made model `name`: one node, one primitive, normals, uvs and baked maps."""
-    box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
-    box.apply_translation((0.0, 0.5, 0.0))
+def box_gltf(folder, name="box", shape=None):
+    """A 1 m box standing on its foot (or any other `shape`), as a made model `name`: one node, one primitive,
+    normals, uvs and baked maps."""
+    box = shape.copy() if shape is not None else trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+    if shape is None:
+        box.apply_translation((0.0, 0.5, 0.0))
     box = box.unmerge_vertices() or box
     positions = np.asarray(box.vertices, dtype=np.float32)
     normals = np.asarray(box.vertex_normals, dtype=np.float32)

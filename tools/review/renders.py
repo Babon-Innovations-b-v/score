@@ -79,12 +79,33 @@ def model_shots(names, runs, colours, out):
 # --- the scene ----------------------------------------------------------------------------------------------------
 
 def stage_extent(stage):
-    """The stage's drawn objects' box in its own frame (metres, y up), colliders left out: (low, high)."""
+    """The place's drawn objects' box in the stage's own frame (metres, y up), colliders and the ground left out:
+    (low, high)."""
     from pxr import Usd, UsdGeom
     opened = Usd.Stage.Open(str(stage))
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
-    box = cache.ComputeWorldBound(opened.GetPseudoRoot()).ComputeAlignedRange()
+    objects = opened.GetDefaultPrim().GetChild("Objects")
+    box = cache.ComputeWorldBound(objects if objects.IsValid() else opened.GetPseudoRoot()).ComputeAlignedRange()
     return np.array(box.GetMin()), np.array(box.GetMax())
+
+
+def on_the_ground(stage, views, level=None):
+    """The views with every eye and aim lifted by the ground's height under it (the stage's Ground; a flat place's
+    ground is y = 0), so an eye at 1.7 m is 1.7 m over the ground where it stands. `level` is the height the views
+    already stand on at each (x, z), taken off first (the game's views stand on the level ball)."""
+    from pxr import Usd
+    import resting
+    opened = Usd.Stage.Open(str(stage))
+    height = resting.ground_height(opened, opened.GetDefaultPrim().GetName())
+    lifted = []
+    for view in views:
+        points = np.array([view["eye"], view["aim"]])
+        under = np.nan_to_num(height(points[:, [0, 2]]))
+        if level is not None:
+            under = under - level(points[:, [0, 2]])
+        lifted.append(dict(view, eye=[*map(float, points[0] + [0, under[0], 0])],
+                           aim=[*map(float, points[1] + [0, under[1], 0])]))
+    return lifted
 
 
 def looking(name, eye, aim, fov=LENS, look_only=False):
@@ -109,12 +130,19 @@ def fixed_views(low, high):
     return views
 
 
-def game_views(place):
-    """The game's own bench cameras for the place, where tools/usd/views.py knows them (the wreck)."""
+def game_views(place, stage):
+    """The game's own bench cameras for the place, where tools/usd/views.py knows them (the wreck), lifted by the
+    hills under them when the stage has its ground (views.py lays them on the level ball)."""
     if place != "wreck":
         return []
     import views
-    return [views.place_view(name, *ends) for name, ends in views.WRECK_VIEWS.items()]
+    found = [views.place_view(name, *ends) for name, ends in views.WRECK_VIEWS.items()]
+    from pxr import Usd
+    opened = Usd.Stage.Open(str(stage))
+    if not opened.GetDefaultPrim().GetChild("Ground").IsValid():
+        return found
+    radius = views.MOON_RADIUS
+    return on_the_ground(stage, found, lambda flat: np.sqrt(radius ** 2 - (flat ** 2).sum(axis=1)) - radius)
 
 
 def walk_views(low, high):
@@ -130,9 +158,9 @@ def walk_views(low, high):
     return frames
 
 
-def render_stage(stage, views, size, folder):
+def render_stage(stage, views, size, folder, plain=False):
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views}, indent=1))
+    (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views, "plain": plain}, indent=1))
     blender(SCENE_VIEWS, stage, folder / "views.json", folder)
 
 
@@ -151,16 +179,17 @@ def walk_video(folder, out):
     strip.save(out / "walk-strip.jpg", quality=85)
 
 
-def scene_shots(place, stages, out):
-    """Every stage drawn from the same fixed cameras (set from the newest stage), and the newest one walked round.
-    `stages` is {label: stage.usda}, the newest last. The views' names per stage, and the newest stage's import
-    report as Blender read it."""
+def scene_shots(place, stages, out, plain=False):
+    """Every stage drawn from the same fixed cameras (set from the newest stage), and the newest one walked round, in
+    their materials on their ground (`plain`: in one grey, a debug view). `stages` is {label: stage.usda}, the newest
+    last. The views' names per stage, and the newest stage's import report as Blender read it."""
     low, high = stage_extent(list(stages.values())[-1])
-    views = game_views(place) + fixed_views(low, high)
-    for label, stage in stages.items():
-        render_stage(stage, views, VIEW_SIZE, out / "scene" / label)
     newest = list(stages)[-1]
-    render_stage(stages[newest], walk_views(low, high), WALK_SIZE, out / "scene" / "walk")
+    views = game_views(place, stages[newest]) + on_the_ground(stages[newest], fixed_views(low, high))
+    for label, stage in stages.items():
+        render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain)
+    render_stage(stages[newest], on_the_ground(stages[newest], walk_views(low, high)), WALK_SIZE,
+                 out / "scene" / "walk", plain)
     walk_video(out / "scene" / "walk", out / "scene")
     report = json.loads((out / "scene" / newest / "report.json").read_text())
     return {"views": [view["name"] for view in views], "report": report,

@@ -9,6 +9,7 @@ is.
         [--stage <stage.usda>] [--before-stage <the earlier run's stage.usda>]
         [--agreement <tools/usd/views.py's out folder>]
         [--no-render]                               # reuse the Blender renders already in <out>
+        [--plain]                                   # debug: the scene in one plain grey instead of its materials
 
 What each folder holds is in records.py. The pictures no stage drew (each model and its parts, the assembled scene from
 fixed cameras and a walk round it) are rendered by headless Blender (renders.py); the scene comes from the place's
@@ -30,6 +31,7 @@ sys.path.insert(0, str(HERE.parents[1] / "tools/props/gates"))
 sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
 import records  # noqa: E402
 import renders  # noqa: E402
+import resting  # noqa: E402  (tools/usd, on the path renders puts it)
 from model import SPREAD_LIMIT, THINNEST_LIMIT  # noqa: E402
 from sweep import ON_PALETTE  # noqa: E402
 
@@ -273,8 +275,9 @@ def scene_section(scene, out):
                  .exists()]
         tiles.append(pair(paths[0], paths[-1], escaped(view)) if len(paths) > 1 else figure(paths[-1], escaped(view)))
     report = scene["report"]
-    body = ("<p>Rendered by Blender from the place's OpenUSD stage, no game engine: the place on a plain grey ground "
-            "under a low sun.</p>"
+    body = ("<p>Rendered by Blender from the place's OpenUSD stage, no game engine: the place in its baked materials "
+            "on its own ground (the planned Moon ground round it, in the plan's skin, where the stage has it) under a "
+            "low sun, with a weak fill from the other side so no side is black.</p>"
             + facts([("layers", escaped(" over ".join(report["layers"]))), ("objects", report["objects"]),
                       ("triangles", f"{report['triangles']:,}"), ("materials", len(report["materials"])),
                       ("extent, m", escaped(f"{scene['extent'][0]} to {scene['extent'][1]}"))])
@@ -358,6 +361,33 @@ def agreement_block(folder):
             f"{tiles}</div>")
 
 
+def resting_rows(label, judged):
+    rows = []
+    for found in judged:
+        if found.get("passed") is not False:
+            continue
+        gap = "" if found["gap"] is None else f"{found['gap'] * 100:.1f}"
+        rows.append(f"<tr><td>{escaped(label)}</td><td>{escaped(found['object'])}</td><td class=\"num\">{gap}</td>"
+                    f"<td class=\"num\">{found['depth'] * 100:.1f}</td><td>{verdict(False)}</td>"
+                    f"<td>{escaped(found['result'])}</td></tr>")
+    return rows
+
+
+def resting_block(stages):
+    """The resting check (tools/usd/resting.py) on every stage ({label: its verdicts}): each object that floats,
+    tips or is sunk, and why."""
+    if not stages:
+        return missing("no OpenUSD stage given")
+    counts = [f"{escaped(label)}: {sum(found.get('passed') is not False for found in judged)} of {len(judged)} "
+              f"objects rest" for label, judged in stages.items()]
+    rows = [row for label, judged in stages.items() for row in resting_rows(label, judged)]
+    return (f"<p>Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): "
+            f"one floating over what is under it, one whose weight stands outside what it touches (it tips, one end "
+            f"in the air), or one sunk deeper than it was laid, each by more than {resting.TOLERANCE * 100:.0f} cm, "
+            f"fails; a hung object is not checked. {'; '.join(counts)}.</p>"
+            + table(["stage", "object", "gap, cm", "depth, cm", "result", "caught"], rows, "Every object rests."))
+
+
 def table(head, rows, empty):
     if not rows:
         return f"<p>{empty}</p>"
@@ -365,7 +395,7 @@ def table(head, rows, empty):
             f'<tbody>{"".join(rows)}</tbody></table></div>')
 
 
-def checks_section(runs, agreement):
+def checks_section(runs, agreement, rests):
     gates = [row for label, run in runs.items() if run and run["checks"] for row in gate_rows(label, run["checks"])]
     sweeps = [row for label, run in runs.items() if run and run["sweep"] for row in sweep_rows(label, run["sweep"])]
     body = ("<h3>Model gate</h3><p>Every made model at its laid size: a wall under 3 mm or proportions more than 20% "
@@ -382,6 +412,7 @@ def checks_section(runs, agreement):
                if sweeps else missing("no sweep.json in any run"))
             + "<h3>Rebakes</h3><p>Models a run baked more than once, in order (the bake reports in made/).</p>"
             + table(["run", "model", "bakes"], bake_rows(runs), "No model was baked twice.")
+            + "<h3>Resting on the ground</h3>" + resting_block(rests)
             + "<h3>Against the game</h3>" + agreement_block(agreement))
     return section("checks", "Checks and what they caught", body)
 
@@ -409,6 +440,7 @@ def arguments():
     for name in ("before", "concept", "references", "stage", "before-stage", "agreement"):
         parser.add_argument(f"--{name}", type=pathlib.Path)
     parser.add_argument("--no-render", action="store_true")
+    parser.add_argument("--plain", action="store_true")
     return parser.parse_args()
 
 
@@ -421,7 +453,7 @@ def render_all(options, runs, out):
         found = json.loads((out / "renders.json").read_text())
         return found["shots"], found["scene"]
     shots = renders.model_shots(names, runs, records.surfaces(options.place), out)
-    scene = renders.scene_shots(options.place, stages, out) if stages else None
+    scene = renders.scene_shots(options.place, stages, out, options.plain) if stages else None
     (out / "renders.json").write_text(json.dumps({"shots": shots, "scene": scene}, indent=1))
     return shots, scene
 
@@ -447,7 +479,8 @@ def build(options):
         models_section(runs, shots, out, closeups),
         surfaces_section(options.place, runs),
         scene_section(scene, out),
-        checks_section(runs, options.agreement),
+        checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in
+                                                 (("before", options.before_stage), ("now", options.stage)) if stage}),
     ]
     sources = facts([(label, escaped(run["folder"])) for label, run in runs.items() if run])
     page = (TEMPLATE.read_text().replace("{{TITLE}}", escaped(f"{style['name'].removeprefix('the ').title()} review"))

@@ -14,7 +14,12 @@ stage holds the same place in three layers, from the strongest down:
     <out>/layers/edit.usda       the creator's changes; made empty once and never written here again
     <out>/layers/base.usda       what the framework made; rewritten whole on every export
     <out>/assets/<model>.usdc    each model once, referenced by every object that is laid with it
-    <out>/assets/textures/       the models' baked maps, as PNG
+    <out>/assets/textures/       the models' baked maps, and the ground's skin, as PNG
+
+A place outside with a ground record (data/ground/, read by tools/usd/ground.py) stands on it as the game stands it:
+each object on a seat of its own under its spot (a `seat` orient op: the ball's curve under it), lifted by its `at`
+height off the planned ground there, and the ground round the place is `/<place>/Ground`, a mesh of the planned
+heights in the plan's skin. Without a record (a room, `--flat`) the ground is y = 0 and `at` is the position.
 
 Because the edit layer sits above the base and objects keep their names across exports (`<row>_<n>`, the n-th
 object of an inventory row in the layout's order), regenerating the base keeps every edit: a moved object stays
@@ -57,8 +62,10 @@ from scipy.spatial import cKDTree
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools/props"))
+sys.path.insert(0, str(REPO / "tools/usd"))
 sys.path.insert(0, str(REPO / "tools/props/library"))
 import glb_file  # noqa: E402
+import ground as grounds  # noqa: E402
 import library  # noqa: E402
 import package  # noqa: E402
 
@@ -383,15 +390,16 @@ def library_materials(stage, place, root):
             material.GetPrim().CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(str(spec[key]))
 
 
-def laid_object(stage, path, piece, row, asset, sound):
-    """One object of the place: its model referenced, its transform as the game lays it, its kind, inventory row,
-    name and sound."""
+def laid_object(stage, path, piece, row, asset, sound, ground=None):
+    """One object of the place: its model referenced, its transform as the game lays it (on the place's ground when
+    it has one: stood on a seat of its own under its spot, lifted off the ground there), its kind, inventory row,
+    name, lift and sound."""
     xform = UsdGeom.Xform.Define(stage, path)
     xform.GetPrim().GetReferences().AddReference(asset)
     if "matrix" in piece:  # a kit room's piece: its frame as one transform (USD's matrices are row by row, transposed)
         xform.AddTransformOp().Set(Gf.Matrix4d(np.asarray(piece["matrix"]).T.tolist()))
     else:
-        xform.AddTranslateOp().Set(Gf.Vec3d(*piece["at"]))
+        stand_on(xform, piece["at"], ground)
         xform.AddRotateYOp().Set(-float(piece.get("facing", 0.0)))
         xform.AddRotateXOp().Set(float(piece.get("tilt", 0.0)))
         xform.AddScaleOp().Set(Gf.Vec3f(float(piece.get("scale", 1.0))))
@@ -402,18 +410,61 @@ def laid_object(stage, path, piece, row, asset, sound):
     for name, value in values.items():
         xform.GetPrim().CreateAttribute(name, Sdf.ValueTypeNames.String).Set(value)
     xform.GetPrim().CreateAttribute("score:size", Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(*piece["size"]))
+    if "at" in piece:
+        xform.GetPrim().CreateAttribute("score:lift", Sdf.ValueTypeNames.Float).Set(float(piece["at"][1]))
 
 
-def lamp(stage, path, entry):
+def stand_on(xform, at, ground):
+    """Where a laid thing stands: at its `at` on a flat place; on a place with ground, on the ground under its spot
+    lifted by its up, and turned with its own seat (the ball's curve under it) by an orient op named `seat`."""
+    if ground is None:
+        xform.AddTranslateOp().Set(Gf.Vec3d(*at))
+        return
+    position, seat_turn = ground.standing(float(at[0]), float(at[2]), float(at[1]))
+    xform.AddTranslateOp().Set(Gf.Vec3d(*position.tolist()))
+    turn = Gf.Matrix3d(*seat_turn.reshape(-1).tolist()).ExtractRotation().GetQuat()
+    xform.AddOrientOp(UsdGeom.XformOp.PrecisionDouble, "seat").Set(turn)
+
+
+def ground_mesh(stage, path, ground, pieces, out):
+    """The place's ground round its pieces: a drawn mesh of the planned heights, coloured with the plan's skin (cut
+    to the patch, as PNG under assets/textures), and a static collider."""
+    spots = np.array([[piece["at"][0], piece["at"][2]] for piece in pieces])
+    points, triangles, skin_at = ground.mesh(spots.min(axis=0), spots.max(axis=0))
+    picture = Image.open(ground.skin).convert("RGB")
+    wide, tall = picture.size
+    low = np.floor(skin_at.min(axis=0) * [wide, tall]).astype(int).clip(0, [wide - 1, tall - 1])
+    high = np.ceil(skin_at.max(axis=0) * [wide, tall]).astype(int).clip(1, [wide, tall])
+    textures = out / "assets/textures"
+    textures.mkdir(parents=True, exist_ok=True)
+    picture.crop((*low, *high)).save(textures / "ground_skin.png")
+    inside = (skin_at * [wide, tall] - low) / (high - low)
+    mesh = UsdGeom.Mesh.Define(stage, path)
+    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points.astype(np.float32)))
+    mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(triangles), 3, dtype=np.int32)))
+    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(triangles.reshape(-1).astype(np.int32)))
+    UsdGeom.PrimvarsAPI(mesh).CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.vertex).Set(
+        Vt.Vec2fArray.FromNumpy(np.column_stack([inside[:, 0], 1.0 - inside[:, 1]]).astype(np.float32)))
+    mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
+    mesh.CreateExtentAttr([Gf.Vec3f(*points.min(axis=0)), Gf.Vec3f(*points.max(axis=0))])
+    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
+    mesh.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
+    material = baked_material(stage, f"{path}_look", {"base_color": "../assets/textures/ground_skin.png"}, None)
+    shader = UsdShade.Shader(stage.GetPrimAtPath(f"{path}_look/surface"))
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(1.0)  # regolith has no shine
+    UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
+
+
+def lamp(stage, path, entry, ground=None):
     """A lamp of the layout: a small sphere light where it hangs, its strength and reach as the game reads them."""
     light = UsdLux.SphereLight.Define(stage, path)
-    light.AddTranslateOp().Set(Gf.Vec3d(*entry["at"]))
+    stand_on(light, entry["at"], ground)
     light.CreateRadiusAttr(0.05)
     light.GetPrim().CreateAttribute("score:strength", Sdf.ValueTypeNames.Float).Set(float(entry.get("strength", 1.0)))
     light.GetPrim().CreateAttribute("score:range", Sdf.ValueTypeNames.Float).Set(float(entry.get("range", 6.0)))
 
 
-def write_base(place, kit, inventory, assets, out, children):
+def write_base(place, kit, inventory, assets, out, children, ground=None):
     """The generated layer, rewritten whole: the place's root, its library surfaces, its objects (each child under
     the object it stands on, named as objects are, so moving the parent moves it) and its lamps."""
     path = out / "layers/base.usda"
@@ -431,7 +482,7 @@ def write_base(place, kit, inventory, assets, out, children):
     for name, piece in zip(object_names(kit["pieces"]), kit["pieces"]):
         model = piece["model"]
         laid_object(stage, f"/{place}/Objects/{name}", piece, rows.get(piece["row"], {}),
-                    f"../assets/{model}.usdc", assets[model])
+                    f"../assets/{model}.usdc", assets[model], ground)
         on_it = children.get(piece["row"], [])
         for child_name, child in zip(object_names(on_it), on_it):
             laid_object(stage, f"/{place}/Objects/{name}/{child_name}", child, rows.get(child["row"], {}),
@@ -439,7 +490,9 @@ def write_base(place, kit, inventory, assets, out, children):
     if kit.get("lamps"):
         UsdGeom.Scope.Define(stage, f"/{place}/Lamps")
     for number, entry in enumerate(kit.get("lamps", []), start=1):
-        lamp(stage, f"/{place}/Lamps/lamp_{number}", entry)
+        lamp(stage, f"/{place}/Lamps/lamp_{number}", entry, ground)
+    if ground is not None:
+        ground_mesh(stage, f"/{place}/Ground", ground, kit["pieces"], out)
     layer.Save()
 
 
@@ -469,9 +522,10 @@ def write_root(place, out):
 
 # --- the way in ---------------------------------------------------------------------------------------------------
 
-def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None):
+def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None):
     """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
-    `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read."""
+    `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read. `ground`
+    is the place's tools/usd/ground.Ground; without one the place is flat."""
     out = pathlib.Path(out)
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
     if kit["pieces"] and "x" in kit["pieces"][0]:
@@ -490,7 +544,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         turn = details.get(piece["kind"], {}).get("turn", [1, 0, 0, 0, 1, 0, 0, 0, 1])
         largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds)
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
-    write_base(place, kit, inventory, assets, out, children)
+    write_base(place, kit, inventory, assets, out, children, ground)
     ensure_edit(out)
     return write_root(place, out)
 
@@ -503,9 +557,12 @@ def main():
     found = parser.add_mutually_exclusive_group()
     found.add_argument("--work", type=pathlib.Path, help="the route run's work folder: its parts and recorded take")
     found.add_argument("--parts", type=pathlib.Path, help="a folder of labelled takes, each model's newest read")
+    parser.add_argument("--flat", action="store_true", help="lay the place on flat ground even if it has a ground")
     arguments = parser.parse_args()
     parts, take = run_parts(arguments.work) if arguments.work else (arguments.parts, None)
-    print(export(arguments.place, arguments.models, arguments.out, parts, take=take))
+    kit = json.loads((KITS / f"{arguments.place}.json").read_text())
+    laid_on = None if arguments.flat else grounds.place_ground(arguments.place, kit.get("on_seat", [0.0, 0.0]))
+    print(export(arguments.place, arguments.models, arguments.out, parts, take=take, ground=laid_on))
 
 
 if __name__ == "__main__":
