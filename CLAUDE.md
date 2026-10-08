@@ -1,13 +1,6 @@
 # CLAUDE.md
 
-> **Spawned from the `starter` template.** Fill in the four `<...>` placeholders below, run
-> `bash .claude/scripts/bootstrap.sh`, then `python3 .claude/scripts/setup-github.py --board`, and
-> delete this block. Everything else works as it stands.
->
-> - `<PROJECT>` — what this repo is, in one line.
-> - `<OWNER>` — the GitHub login that owns it (assignee default).
-> - Deployment section — how a push reaches whatever runs the thing.
-> - Bible chapter map — cross out the chapters this project has no use for.
+SCORE: a framework that compiles a creator's picks into a complete, owned, editable world (coding agents and open models in cloud batches, checks before every paid step), and its paper. Public repository, MIT. Owner: `@JoeyKardolus`.
 
 ## Persona
 
@@ -32,7 +25,7 @@ Topic → bible chapter ID. Pick the ones the prompt touches and read them befor
 | Big picture / system diagram | `architecture/system-context` |
 | Component map (what runs where) | `architecture/components` |
 | Request and job lifecycles | `architecture/lifecycles` |
-| Trust boundaries / auth / secrets | `architecture/trust-boundaries` |
+| ~~Trust boundaries / auth / secrets~~ (offline batches, secrets only by name: not used yet) | `architecture/trust-boundaries` |
 | Failure scope + recovery | `architecture/failure` |
 | Build, test and release | `build/release` |
 | Workflow — grill → plan → code → close, the mechanism stack, the board, what to run before pushing, commit style | `workflow/loop` |
@@ -72,8 +65,9 @@ Per-area overlays: `<area>/CLAUDE.md` auto-loads when files in its directory are
 
 ## Deployment
 
-<How a push to `main` reaches whatever runs this project. If nothing is deployed, say so here in
-one line and delete the rest of this section: an empty section invites invented answers.>
+Nothing is deployed. A push to `main` publishes the source, the paper's PDF and its arXiv tree; nothing runs from it. No GitHub Actions.
+
+**Public from the first commit.** Nothing from babon or Movalytics (business files, data, people, clients), no secrets, keys or cloud account and project ids, ever: not in code, docs, the paper, its comments, or `.claude/memory`.
 
 ## Autonomy boundaries
 

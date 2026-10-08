@@ -22,6 +22,10 @@ def test_one_file_that_is_not_a_document_runs_everything():
     assert gate_scope.plan({"docs/bible.md", "src/app.py"}, "")[0] == "full"
 
 
+def test_the_paper_draft_is_a_build_input_not_a_document():
+    assert gate_scope.plan({"paper/source/score.md"}, "")[0] == "full"
+
+
 def test_nothing_to_compare_with_runs_everything():
     assert gate_scope.plan(None, "")[0] == "full"
 
