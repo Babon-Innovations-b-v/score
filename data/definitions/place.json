@@ -2387,5 +2387,389 @@
 			"recorded": "2026-10-07, as the game has it (night.gd): the rocket floodlit on its pad and its streak on the harbour, the moonlight",
 			"read_by": "game/prologue/earth_site/night/night.gd"
 		}
+	},
+	"garage": {
+		"name": "the garage",
+		"scenes": [
+			"garage"
+		],
+		"style": {
+			"version": 1,
+			"text": "Where the base's rover is kept and customised: a rover lift in the middle, a tool wall and workbench, racks of wheels, battery packs and hold boxes, a charge post, the rover parked on a marked bay; three heavy sealing hatches into the base and one big door onto the Moon, with warning beacons and pressure gauges, because the whole room is pumped empty of air before the big door opens. A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. An even mix: worn, patched walls with pipes, valves and tool boards, while every work place (the console, the status wall, the lab bench, the comms desk, the racks) is dense with screens, readouts, switches and neat cable runs; work lamps plus screen glow.",
+			"from": "the hub's locked style (one kit language) with the room's own function",
+			"picked": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up; owner may change)"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": "",
+			"concept": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/garage/picks.json"
+		},
+		"palette": {
+			"tokens": [
+				"steel",
+				"roof-steel",
+				"deck",
+				"hull-trim",
+				"rubber",
+				"cabin-panel",
+				"screen-teal",
+				"screen-amber",
+				"lamp",
+				"room-fill",
+				"glass"
+			],
+			"accents": [
+				"hazard",
+				"alarm",
+				"board-wood",
+				"cabin-seat",
+				"sign-blue",
+				"machine",
+				"idle",
+				"beacon-ok",
+				"beacon-stuck",
+				"floodlight"
+			],
+			"accents_are": "the airlock's hazard border, small red valve wheels and status lights, the tool board's timber and the chairs' seat covers; the lift's and the charge post's blue enamel, the hoists' and the crane's machine orange, grey plastic casings, the lamps' and beacons' lit lenses"
+		},
+		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			},
+			"enamel_blue": {
+				"token": "sign-blue",
+				"library": "enamel_blue"
+			},
+			"machine_orange": {
+				"token": "machine",
+				"library": "machine_orange"
+			},
+			"cast_steel": {
+				"token": "roof-steel",
+				"library": "cast_steel"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"chequer_plate_steel": {
+				"token": "steel",
+				"library": "chequer_plate_steel"
+			},
+			"galvanized_steel": {
+				"token": "steel",
+				"library": "galvanized_steel"
+			},
+			"led_green": {
+				"token": "beacon-ok",
+				"library": "led_green"
+			},
+			"led_red": {
+				"token": "beacon-stuck",
+				"library": "led_red"
+			},
+			"led_amber": {
+				"token": "screen-amber",
+				"library": "led_amber"
+			},
+			"floodlight_lens": {
+				"token": "floodlight",
+				"library": "floodlight_lens"
+			},
+			"gasket_black": {
+				"token": "rubber",
+				"library": "gasket_black"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: work lamps and screen glow, beacons over the doors while the air is out",
+			"read_by": "the room's kit lamps"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.5,
+			"cause": "moon dust carried in on the rover's tyres every trip, oil and grease round the lift and the bench",
+			"picked": "2026-10-07, the coordinator, from its causes (owner may change)"
+		}
+	},
+	"hangar": {
+		"name": "the hangar",
+		"scenes": [
+			"hangar"
+		],
+		"style": {
+			"version": 1,
+			"text": "A tall, long hall that holds the ship: the ship on its pad in the middle under a roof that opens in two great sliding leaves, a framed wall with posts and a bridge crane on rails along the long walls, the ship bench and the fuel point beside the ship, parts racks and crates, a mobile access stair, a control desk at the end by the hatch; three heavy sealing hatches into the base, warning beacons and pressure gauges, because the whole hall is pumped empty of air before the roof opens. A lived-in industrial working station crossed with a dense high-tech cockpit. The structure is worn and patched: bolted metal panels, exposed pipes and valves, hand wheels, tool boards, scuffed deck plates and taped repairs, a base that has been worked hard for years. The work places are dense with technology: screens, readouts, switches, labelled breakers and neat cable runs at every console, desk and rack. Lit by hard work lamps over the structure and by the screens at the work places, with real shadow between. An even mix: worn, patched walls with pipes, valves and tool boards, while every work place (the console, the status wall, the lab bench, the comms desk, the racks) is dense with screens, readouts, switches and neat cable runs; work lamps plus screen glow.",
+			"from": "the hub's locked style (one kit language) with the room's own function",
+			"picked": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up; owner may change)"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": "",
+			"concept": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/hangar/picks.json"
+		},
+		"palette": {
+			"tokens": [
+				"steel",
+				"roof-steel",
+				"deck",
+				"hull-trim",
+				"rubber",
+				"cabin-panel",
+				"screen-teal",
+				"screen-amber",
+				"lamp",
+				"room-fill",
+				"glass"
+			],
+			"accents": [
+				"hazard",
+				"alarm",
+				"board-wood",
+				"cabin-seat",
+				"sign-blue",
+				"machine",
+				"idle",
+				"beacon-ok",
+				"beacon-stuck",
+				"floodlight"
+			],
+			"accents_are": "the airlock's hazard border, small red valve wheels and status lights, the tool board's timber and the chairs' seat covers; the lift's and the charge post's blue enamel, the hoists' and the crane's machine orange, grey plastic casings, the lamps' and beacons' lit lenses"
+		},
+		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			},
+			"enamel_blue": {
+				"token": "sign-blue",
+				"library": "enamel_blue"
+			},
+			"machine_orange": {
+				"token": "machine",
+				"library": "machine_orange"
+			},
+			"cast_steel": {
+				"token": "roof-steel",
+				"library": "cast_steel"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"chequer_plate_steel": {
+				"token": "steel",
+				"library": "chequer_plate_steel"
+			},
+			"galvanized_steel": {
+				"token": "steel",
+				"library": "galvanized_steel"
+			},
+			"led_green": {
+				"token": "beacon-ok",
+				"library": "led_green"
+			},
+			"led_red": {
+				"token": "beacon-stuck",
+				"library": "led_red"
+			},
+			"led_amber": {
+				"token": "screen-amber",
+				"library": "led_amber"
+			},
+			"floodlight_lens": {
+				"token": "floodlight",
+				"library": "floodlight_lens"
+			},
+			"gasket_black": {
+				"token": "rubber",
+				"library": "gasket_black"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: work lamps and screen glow, beacons over the doors while the air is out",
+			"read_by": "the room's kit lamps"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.45,
+			"cause": "moon dust settling through the open roof on every launch and landing, scuffs from crates and the stair's wheels",
+			"picked": "2026-10-07, the coordinator, from its causes (owner may change)"
+		}
 	}
 }

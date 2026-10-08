@@ -1,0 +1,1429 @@
+{
+	"scene": "garage",
+	"place": "garage",
+	"plan": {
+		"world": "",
+		"seed": 0,
+		"concept": "place-gh/garage/concepts/K04.png",
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/garage/concepts/K04.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K04",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": [],
+		"layout": {
+			"inside": [
+				14.0,
+				12.0
+			],
+			"corner": 3.0,
+			"wall": 4.6,
+			"rise": 1.3,
+			"run": 1.8,
+			"bands": [
+				1.1,
+				2.9,
+				4.6
+			],
+			"doors": {
+				"north": "hatch",
+				"east": "hatch",
+				"west": "hatch"
+			},
+			"open": [
+				"north"
+			],
+			"features": {},
+			"big_door": {
+				"wall": "south",
+				"wide": 5.0,
+				"high": 4.0
+			},
+			"leaf": {
+				"size": [
+					2.5,
+					4.0
+				],
+				"lies": "wall",
+				"kit": "gdoor"
+			}
+		}
+	},
+	"rows": [
+		{
+			"id": "wall_lower_plain",
+			"name": "a worn bolted steel wall panel, lower band",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_wall_lower_plain"
+		},
+		{
+			"id": "wall_upper_plain",
+			"name": "a worn bolted steel wall panel, upper bands",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				2.0
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_wall_upper_plain"
+		},
+		{
+			"id": "wall_skirting",
+			"name": "a scuffed steel skirting band along the wall's foot",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				0.12
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_wall_skirting"
+		},
+		{
+			"id": "wall_cornice",
+			"name": "a steel cornice band along the wall's top",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.16,
+				0.18
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_wall_cornice"
+		},
+		{
+			"id": "wall_corner_post",
+			"name": "a square steel post with bolts standing up the wall (and the big door's frame)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.2,
+				3.0
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_wall_corner_post"
+		},
+		{
+			"id": "ring_floor_plate",
+			"name": "a heavy steel deck plate, diamond tread, bolted",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.04,
+				1.2
+			],
+			"count": 1,
+			"group": "kit: floor",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_ring_floor_plate"
+		},
+		{
+			"id": "roof_face_panel",
+			"name": "a ribbed steel roof plate",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.4,
+				0.05,
+				2.4
+			],
+			"count": 1,
+			"group": "kit: ceiling",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_roof_face_panel"
+		},
+		{
+			"id": "lattice_ring_rib",
+			"name": "a straight steel I-beam: crane rail, roof and door-leaf rib",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.4,
+				0.3,
+				0.2
+			],
+			"count": 1,
+			"group": "kit: ceiling",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_lattice_ring_rib"
+		},
+		{
+			"id": "hatch_frame",
+			"name": "the heavy steel frame round a tube hatch opening, bolted (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.3,
+				2.693
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_hatch_frame"
+		},
+		{
+			"id": "hatch_leaf",
+			"name": "a thick steel pressure hatch door leaf (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.26,
+				0.12,
+				2.66
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_hatch_leaf"
+		},
+		{
+			"id": "hatch_wheel",
+			"name": "a steel locking hand wheel (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.08,
+				0.5
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_hatch_wheel"
+		},
+		{
+			"id": "hatch_hinge",
+			"name": "a heavy steel door hinge (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.4
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_hatch_hinge"
+		},
+		{
+			"id": "hatch_window",
+			"name": "a small round window in a hatch leaf (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.06,
+				0.4
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_hatch_window"
+		},
+		{
+			"id": "pipe_bracket",
+			"name": "a steel wall bracket clamping a pipe (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.1
+			],
+			"count": 1,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_pipe_bracket"
+		},
+		{
+			"id": "tread_mat",
+			"name": "a tread-plate mat before a hatch (the hub's)",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.02,
+				0.9
+			],
+			"count": 3,
+			"group": "kit: floor",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"z": -5.45,
+					"facing": 180
+				},
+				{
+					"x": -6.45,
+					"z": 0.0,
+					"facing": 90
+				},
+				{
+					"x": 6.45,
+					"z": 0.0,
+					"facing": 270
+				}
+			],
+			"lies": "floor",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_tread_mat"
+		},
+		{
+			"id": "machine_bay_plate",
+			"name": "the lift's base: a heavy tread plate with tie-down points set into the floor",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.2,
+				4.6,
+				0.05
+			],
+			"count": 1,
+			"group": "kit: floor",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"z": -0.9,
+					"facing": 0
+				}
+			],
+			"lies": "floor",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_machine_bay_plate"
+		},
+		{
+			"id": "pipe_straight",
+			"name": "a coolant line with flanges",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.1,
+				0.1
+			],
+			"count": 3,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "north",
+					"across": 0.0,
+					"bottom": 3.4,
+					"size": [
+						7.4,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "north",
+					"across": 0.0,
+					"bottom": 3.75,
+					"size": [
+						7.4,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 3.4,
+					"size": [
+						5.4,
+						0.1,
+						0.1
+					]
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_pipe_straight"
+		},
+		{
+			"id": "pipe_valve",
+			"name": "an inline valve with a red hand wheel (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.2,
+				0.3
+			],
+			"count": 1,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "north",
+					"across": 2.2,
+					"bottom": 3.3
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_pipe_valve"
+		},
+		{
+			"id": "cable_bundle",
+			"name": "a bundle of cables held by clips (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.08,
+				0.12
+			],
+			"count": 3,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 3.9,
+					"size": [
+						5.6,
+						0.08,
+						0.12
+					]
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 3.9,
+					"size": [
+						5.6,
+						0.08,
+						0.12
+					]
+				},
+				{
+					"wall": "north",
+					"across": 0.0,
+					"bottom": 4.15,
+					"size": [
+						7.6,
+						0.08,
+						0.12
+					]
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_cable_bundle"
+		},
+		{
+			"id": "cable_drop",
+			"name": "a vertical run of cables dropping from the top cable run into a panel (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.15,
+				0.08,
+				1.2
+			],
+			"count": 4,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "west",
+					"across": -2.4,
+					"bottom": 1.75,
+					"size": [
+						0.15,
+						2.1,
+						0.08
+					]
+				},
+				{
+					"wall": "east",
+					"across": 2.4,
+					"bottom": 1.75,
+					"size": [
+						0.15,
+						2.1,
+						0.08
+					]
+				},
+				{
+					"wall": "north",
+					"across": -2.2,
+					"bottom": 2.8,
+					"size": [
+						0.15,
+						1.3,
+						0.08
+					]
+				},
+				{
+					"wall": "west",
+					"across": 2.1,
+					"bottom": 2.8,
+					"size": [
+						0.15,
+						1.05,
+						0.08
+					]
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_cable_drop"
+		},
+		{
+			"id": "door_control_box",
+			"name": "a steel door control box with a keypad and a red and green status light (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.26,
+				0.12,
+				0.36
+			],
+			"count": 3,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "north",
+					"across": 1.55,
+					"bottom": 1.25
+				},
+				{
+					"wall": "east",
+					"across": -1.55,
+					"bottom": 1.25
+				},
+				{
+					"wall": "west",
+					"across": 1.55,
+					"bottom": 1.25
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_door_control_box"
+		},
+		{
+			"id": "small_readout",
+			"name": "a small square wall readout screen with buttons beside it (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.06,
+				0.25
+			],
+			"count": 2,
+			"group": "kit: screen",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "west",
+					"across": -2.4,
+					"bottom": 2.0
+				},
+				{
+					"wall": "east",
+					"across": 2.4,
+					"bottom": 2.0
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_small_readout"
+		},
+		{
+			"id": "rover_lift",
+			"name": "a two-post vehicle lift for a rover: two tall square steel posts with swing arms, joined over the top by a steel beam, a tread-plate base between them",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				3.4,
+				1.6,
+				3.4
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 0.0,
+					"z": -0.9,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/rover_lift.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_rover_lift"
+		},
+		{
+			"id": "chain_hoist",
+			"name": "a yellow electric chain hoist with its pendant control and a hook",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				0.45,
+				0.3,
+				0.8
+			],
+			"count": 1,
+			"group": "kit: ceiling",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 2.6,
+					"z": -1.6,
+					"facing": 90
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/chain_hoist.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_chain_hoist"
+		},
+		{
+			"id": "workbench",
+			"name": "a heavy steel workbench with a worn top, a bank of drawers under it and a pegboard back panel with hand tools hanging on it and a shelf on top",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.4,
+				0.7,
+				1.9
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -2.6,
+					"y": 0.0,
+					"z": -5.590000000000001,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/workbench.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_workbench"
+		},
+		{
+			"id": "bench_vise",
+			"name": "a cast steel bench vise",
+			"kind": "generate",
+			"anchor": "on:workbench",
+			"size": [
+				0.22,
+				0.4,
+				0.2
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/bench_vise.png",
+			"parent": "workbench",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_bench_vise"
+		},
+		{
+			"id": "toolbox",
+			"name": "a red steel toolbox with a handle",
+			"kind": "generate",
+			"anchor": "on:workbench",
+			"size": [
+				0.45,
+				0.22,
+				0.22
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/toolbox.png",
+			"parent": "workbench",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_toolbox"
+		},
+		{
+			"id": "task_lamp",
+			"name": "a wall-mounted gooseneck work lamp with a cone shade",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.25,
+				0.4,
+				0.45
+			],
+			"count": 1,
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -1.5,
+					"y": 2.0,
+					"z": -5.74,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/task_lamp.png",
+			"light": {
+				"strength": 0.5,
+				"range": 4.0
+			},
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_task_lamp"
+		},
+		{
+			"id": "tyre_shelving",
+			"name": "a tall steel shelving unit of four shelves holding big knobbly rover tyres and cardboard parts boxes",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.4,
+				0.6,
+				2.2
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 2.6,
+					"y": 0.0,
+					"z": -5.640000000000001,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/tyre_shelving.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_tyre_shelving"
+		},
+		{
+			"id": "spares_shelf",
+			"name": "a narrow steel shelf unit with a toolbox, a radio-sized spare unit, spare wheels on the bottom shelf",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.8,
+				0.5,
+				1.9
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -6.69,
+					"y": 0.0,
+					"z": -2.1,
+					"facing": 90
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/spares_shelf.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_spares_shelf"
+		},
+		{
+			"id": "fluid_shelves",
+			"name": "a steel shelf unit with blue and yellow fluid canisters, jerrycans, spray cans, a grey storage box and cardboard boxes",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.8,
+				0.5,
+				1.9
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 6.69,
+					"y": 0.0,
+					"z": -2.1,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/fluid_shelves.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_fluid_shelves"
+		},
+		{
+			"id": "breaker_panel",
+			"name": "a wall breaker panel: a grey steel box with three big rotary switches and labels",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.6,
+				0.12,
+				0.5
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -2.8,
+					"y": 2.3,
+					"z": -5.880000000000001,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/breaker_panel.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_breaker_panel"
+		},
+		{
+			"id": "junction_box",
+			"name": "a steel electrical junction box with a green status lamp and two switches, conduits into its top",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.15,
+				0.5
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 2.6,
+					"y": 2.4,
+					"z": -5.865,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/junction_box.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_junction_box"
+		},
+		{
+			"id": "pressure_gauge",
+			"name": "a round pressure gauge on a short pipe stub with a valve, on a wall plate",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.25,
+				0.12,
+				0.35
+			],
+			"count": 4,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -1.55,
+					"y": 1.6,
+					"z": -5.880000000000001,
+					"facing": 180
+				},
+				{
+					"x": 6.880000000000001,
+					"y": 1.6,
+					"z": 1.55,
+					"facing": 270
+				},
+				{
+					"x": -6.880000000000001,
+					"y": 1.6,
+					"z": -1.55,
+					"facing": 90
+				},
+				{
+					"x": 3.1,
+					"y": 1.6,
+					"z": 5.880000000000001,
+					"facing": 0
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/pressure_gauge.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_pressure_gauge"
+		},
+		{
+			"id": "control_cabinet",
+			"name": "a standing steel control cabinet with a tilted screen, a keypad and lit buttons, cables running up from its top",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.6,
+				0.5,
+				1.5
+			],
+			"count": 2,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -5.84,
+					"y": 0.0,
+					"z": 4.84,
+					"facing": 45
+				},
+				{
+					"x": 5.84,
+					"y": 0.0,
+					"z": 4.84,
+					"facing": 315
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/control_cabinet.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_control_cabinet"
+		},
+		{
+			"id": "charge_post",
+			"name": "a rover charge post: a blue steel pillar with a small screen, a coiled charging cable and its plug in a holster",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.5,
+				0.4,
+				1.4
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 2.55,
+					"y": 0.0,
+					"z": 1.9,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/charge_post.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_charge_post"
+		},
+		{
+			"id": "parts_trolley",
+			"name": "a two-shelf steel parts trolley on castors with tools and a red tray on top",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.6,
+				0.95
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -3.1,
+					"y": 0.0,
+					"z": -3.5,
+					"facing": 90
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/parts_trolley.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_parts_trolley"
+		},
+		{
+			"id": "wheel_stand",
+			"name": "a big knobbly rover tyre on its rim lying on a low steel stand",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.9,
+				0.85
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -3.6,
+					"y": 0.0,
+					"z": 0.6,
+					"facing": 90
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/wheel_stand.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_wheel_stand"
+		},
+		{
+			"id": "bay_panel",
+			"name": "a wall control panel for pumping the room's air out and in: a pressure gauge, a small screen, three big lit push buttons and a key switch, in a steel box",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.9,
+				0.12,
+				0.8
+			],
+			"count": 2,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -6.880000000000001,
+					"y": 0.95,
+					"z": 2.4,
+					"facing": 90
+				},
+				{
+					"x": 6.880000000000001,
+					"y": 0.95,
+					"z": 2.4,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/bay_panel.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_bay_panel"
+		},
+		{
+			"id": "beacon",
+			"name": "a red warning lamp in a steel housing on a wall bracket, rotating",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.2,
+				0.18
+			],
+			"count": 5,
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 2.95,
+					"z": -5.840000000000001,
+					"facing": 180
+				},
+				{
+					"x": -6.840000000000001,
+					"y": 2.95,
+					"z": 0.0,
+					"facing": 90
+				},
+				{
+					"x": 6.840000000000001,
+					"y": 2.95,
+					"z": 0.0,
+					"facing": 270
+				},
+				{
+					"x": -3.0,
+					"y": 4.15,
+					"z": 5.840000000000001,
+					"facing": 0
+				},
+				{
+					"x": 3.0,
+					"y": 4.15,
+					"z": 5.840000000000001,
+					"facing": 0
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/beacon.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_beacon"
+		},
+		{
+			"id": "ceiling_lamp",
+			"name": "an industrial high-bay lamp: a steel reflector hood with a caged lens",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				0.5,
+				0.5,
+				0.4
+			],
+			"count": 4,
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -3.5,
+					"y": 5.45,
+					"z": -2.5,
+					"facing": 0
+				},
+				{
+					"x": -3.5,
+					"y": 5.45,
+					"z": 2.5,
+					"facing": 0
+				},
+				{
+					"x": 3.5,
+					"y": 5.45,
+					"z": -2.5,
+					"facing": 0
+				},
+				{
+					"x": 3.5,
+					"y": 5.45,
+					"z": 2.5,
+					"facing": 0
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/ceiling_lamp.png",
+			"light": {
+				"strength": 1.2,
+				"range": 9.0
+			},
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:garage_ceiling_lamp"
+		}
+	]
+}
