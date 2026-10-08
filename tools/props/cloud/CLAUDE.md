@@ -48,6 +48,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   folder (`<name>.svviews`), and finishing stays here with `pixal.py --finish-only` (no model).
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
 - The generator's arguments come from `pixal.generator_arguments`, so both routes build the same.
+- **Any Blender script runs on a rented machine** (`blender_cloud.py`, 2026-10-08, BLENDER IN THE CLOUD): a job
+  names a repo script, its arguments, its input and output paths (kept at their absolute paths under /root/fs up
+  there, so the script needs no change) and its minutes; a tool calls `blender_cloud.run_elsewhere`. Physics
+  (settling) on a 32-core processor machine by default, renders on a card (`--classes gpu-24gb,...`, Cycles on the card
+  via FARM_CYCLES_GPU). One call is one machine; run calls side by side for many. The PC's own Blender (one at a time,
+  the machine lock) is for checks of seconds only.
 - **The material library bakes on a card** (`library_bake.py`, `library_setup.sh`; job robust-exp, 2026-10-06):
   Blender 5.0.1 from blender.org, Cycles on OptiX, ProcFunc and infinigen2 from the repo's vendored copies; jobs are
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core

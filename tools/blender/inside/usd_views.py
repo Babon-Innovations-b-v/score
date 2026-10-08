@@ -16,6 +16,7 @@ leaves out every object whose `score:layer` is one of them (a room's roof, for a
 """
 import json
 import math
+import os
 import pathlib
 import sys
 
@@ -34,6 +35,7 @@ FILL_ELEVATION = 25.0
 SKY_LIGHT = 0.04
 PLAIN_COLOUR = (0.6, 0.6, 0.6, 1.0)
 SAMPLES = 16
+CARD_SAMPLES = 64
 # The stage's y-up frame onto Blender's z-up: (x, y, z) -> (x, -z, y), as Blender's importer turns a y-up stage.
 Y_UP_TO_Z_UP = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))
 
@@ -151,15 +153,50 @@ def stage_ground(objects):
     return next((item for item in objects if item.type == "MESH" and item.name.split(".")[0] == "Ground"), None)
 
 
-def renderer(scene, size):
-    """Eevee on the processor's drawing, the picture's size, PNG with alpha."""
-    for engine in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT"):
+def cycles_on_card(scene):
+    """Cycles on the machine's graphics card (OptiX, else CUDA), denoised: a rented card machine
+    (tools/props/cloud/blender_cloud.py sets FARM_CYCLES_GPU)."""
+    scene.render.engine = "CYCLES"
+    preferences = bpy.context.preferences.addons["cycles"].preferences
+    for kind in ("OPTIX", "CUDA"):
         try:
-            scene.render.engine = engine
-            break
+            preferences.compute_device_type = kind
         except TypeError:
             continue
-    scene.eevee.taa_render_samples = SAMPLES
+        preferences.get_devices()
+        if any(device.type == kind for device in preferences.devices):
+            for device in preferences.devices:
+                device.use = device.type == kind
+            scene.cycles.device = "GPU"
+            scene.cycles.samples = CARD_SAMPLES
+            scene.cycles.use_denoising = True
+            return
+    raise RuntimeError("FARM_CYCLES_GPU is set but no OptiX or CUDA card was found")
+
+
+def cycles_on_processor(scene):
+    """Cycles on a rented processor machine, denoised: no screen there for Eevee (FARM_CYCLES_CPU)."""
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = CARD_SAMPLES
+    scene.cycles.use_denoising = True
+
+
+def renderer(scene, size):
+    """Eevee on the processor's drawing (here), or Cycles on a rented card or processor machine, the picture's size,
+    PNG with alpha."""
+    if os.environ.get("FARM_CYCLES_GPU"):
+        cycles_on_card(scene)
+    elif os.environ.get("FARM_CYCLES_CPU"):
+        cycles_on_processor(scene)
+    else:
+        for engine in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT"):
+            try:
+                scene.render.engine = engine
+                break
+            except TypeError:
+                continue
+        scene.eevee.taa_render_samples = SAMPLES
     scene.render.resolution_x, scene.render.resolution_y = size
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
