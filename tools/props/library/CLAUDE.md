@@ -4,6 +4,11 @@ The theme's material library and the robust route's piece making (job robust-exp
 are kept apart: models and code give shape only; every part names a library variant, a ProcFunc recipe coloured
 from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstrap` item 11.
 
+- **An outdoor place and the scene package** (moved from 2099, #129 there): `place_route.py` plans a place with no kit
+  layout from its inventory rows (models, bake jobs, the model gate and straightness, `split` for a take too long for
+  one piece); `package.py` writes what any engine loads, every object its glTF and `scene.json` with each copy's
+  transform, and refuses a package that does not match the inventory. `route.py install` (kit rooms) still writes the
+  game 2099's Godot files: that is its adapter, to move out when 2099 consumes the package.
 - **The library is data and only grows.** `data/library/materials.json` holds families of variants (each a recipe
   name, a token, its settings over the recipe's defaults, and the reference patch it was tuned to), the wear
   levels and the printed pictures; a place takes variants by name in its own `materials` in `place.json`, with its
