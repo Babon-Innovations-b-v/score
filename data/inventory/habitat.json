@@ -37,7 +37,8 @@
 			"open": [],
 			"features": {
 				"east": {
-					"lower": "wall_lower_patched"
+					"lower": "wall_lower_patched",
+					"upper": "wall_upper_cables"
 				},
 				"south": {
 					"lower": "wall_lower_patched"
@@ -678,30 +679,100 @@
 			"at": [
 				{
 					"wall": "west",
-					"across": 0.0,
+					"across": -2.1,
 					"bottom": 2.1,
 					"size": [
-						5.8,
+						1.6,
 						0.1,
 						0.1
 					]
 				},
 				{
 					"wall": "west",
-					"across": 0.0,
+					"across": 2.1,
+					"bottom": 2.1,
+					"size": [
+						1.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": -2.1,
 					"bottom": 2.26,
 					"size": [
-						5.8,
+						1.6,
 						0.1,
 						0.1
 					]
 				},
 				{
 					"wall": "west",
-					"across": 0.0,
+					"across": 2.1,
+					"bottom": 2.26,
+					"size": [
+						1.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": -2.1,
 					"bottom": 2.42,
 					"size": [
-						5.8,
+						1.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 2.1,
+					"bottom": 2.42,
+					"size": [
+						1.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": -2.1,
+					"bottom": 2.36,
+					"size": [
+						1.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": 2.1,
+					"bottom": 2.36,
+					"size": [
+						1.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": -2.1,
+					"bottom": 2.5,
+					"size": [
+						1.6,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": 2.1,
+					"bottom": 2.5,
+					"size": [
+						1.6,
 						0.1,
 						0.1
 					]
@@ -737,7 +808,7 @@
 				},
 				{
 					"wall": "west",
-					"across": 1.1,
+					"across": 1.8,
 					"bottom": 2.16
 				}
 			]
@@ -862,6 +933,16 @@
 					"x": 0.0,
 					"z": 4.5,
 					"facing": 0
+				},
+				{
+					"x": -5.45,
+					"z": 0.0,
+					"facing": 90
+				},
+				{
+					"x": 5.45,
+					"z": 0.0,
+					"facing": 270
 				}
 			],
 			"lies": "floor"
@@ -923,7 +1004,7 @@
 				0.14,
 				0.26
 			],
-			"count": 13,
+			"count": 14,
 			"thing": "prop:habitat_food_jug",
 			"parent": "food_shelf",
 			"made": "kit piece",
@@ -941,15 +1022,15 @@
 			"id": "food_tin",
 			"name": "food tin",
 			"kind": "code",
-			"anchor": "on:food_shelf",
+			"anchor": "on:locker_bank",
 			"size": [
 				0.13,
 				0.13,
 				0.17
 			],
-			"count": 12,
+			"count": 15,
 			"thing": "prop:habitat_food_tin",
-			"parent": "food_shelf",
+			"parent": "locker_bank",
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
@@ -971,7 +1052,7 @@
 				0.15,
 				0.1
 			],
-			"count": 3,
+			"count": 4,
 			"thing": "prop:habitat_ration_box",
 			"parent": "food_shelf",
 			"made": "kit piece",
@@ -1115,7 +1196,7 @@
 				0.06,
 				0.14
 			],
-			"count": 7,
+			"count": 9,
 			"thing": "prop:habitat_med_bottle",
 			"parent": "med_cabinet",
 			"made": "kit piece",
@@ -1128,6 +1209,766 @@
 				2539,
 				633
 			]
+		},
+		{
+			"id": "supply_cart",
+			"view": "v1",
+			"box": [
+				315,
+				757,
+				560,
+				1020
+			],
+			"name": "a two-shelf steel supply cart by the lockers",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.75,
+				0.45,
+				0.85
+			],
+			"count": 1,
+			"thing": "prop:habitat_supply_cart",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"x": -4.85,
+					"y": 0.0,
+					"z": -2.0,
+					"facing": 90
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "gas_cylinder",
+			"view": "v1",
+			"box": [
+				1425,
+				1305,
+				1560,
+				1430
+			],
+			"name": "gas cylinders by the galley",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.28,
+				0.28,
+				0.62
+			],
+			"count": 2,
+			"thing": "prop:habitat_gas_cylinder",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"x": -4.05,
+					"y": 0.0,
+					"z": 4.45,
+					"facing": 0
+				},
+				{
+					"x": -4.35,
+					"y": 0.0,
+					"z": 4.2,
+					"facing": 30,
+					"size": [
+						0.2,
+						0.5,
+						0.2
+					]
+				}
+			]
+		},
+		{
+			"id": "floor_marking",
+			"view": "v1",
+			"box": [
+				1360,
+				650,
+				1730,
+				730
+			],
+			"name": "the painted outline on the deck before each sleep pod",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.02,
+				0.8
+			],
+			"count": 2,
+			"thing": "prop:habitat_floor_marking",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"x": -2.55,
+					"z": -3.5,
+					"facing": 180
+				},
+				{
+					"x": 2.55,
+					"z": -3.5,
+					"facing": 180
+				}
+			],
+			"lies": "floor"
+		},
+		{
+			"id": "slippers",
+			"view": "v1",
+			"box": [
+				1500,
+				660,
+				1600,
+				720
+			],
+			"name": "a pair of slippers on the deck before a sleep pod",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.28,
+				0.26,
+				0.07
+			],
+			"count": 2,
+			"thing": "prop:habitat_slippers",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"x": -2.15,
+					"y": 0.0,
+					"z": -3.55,
+					"facing": 180
+				},
+				{
+					"x": 2.95,
+					"y": 0.0,
+					"z": -3.55,
+					"facing": 180
+				}
+			]
+		},
+		{
+			"id": "cable_coil",
+			"view": "v1",
+			"box": [
+				965,
+				435,
+				1040,
+				512
+			],
+			"name": "a coil of cable hung on the wall beside the left sleep pod",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.12,
+				0.45
+			],
+			"count": 1,
+			"thing": "prop:habitat_cable_coil",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"wall": "north",
+					"across": 3.82,
+					"bottom": 0.15
+				}
+			]
+		},
+		{
+			"id": "cable_drop",
+			"view": "v1",
+			"box": [
+				1690,
+				270,
+				1760,
+				420
+			],
+			"name": "cable runs dropping beside the sleep pods",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.15,
+				0.08,
+				1.2
+			],
+			"count": 2,
+			"thing": "prop:habitat_cable_drop",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"wall": "north",
+					"across": -3.82,
+					"bottom": 1.2
+				},
+				{
+					"wall": "north",
+					"across": -1.36,
+					"bottom": 1.3
+				}
+			]
+		},
+		{
+			"id": "door_control_box",
+			"view": "v1",
+			"box": [
+				1420,
+				500,
+				1460,
+				560
+			],
+			"name": "a keypad box beside the north and south hatches",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.26,
+				0.12,
+				0.36
+			],
+			"count": 2,
+			"thing": "prop:habitat_door_control_box",
+			"made": "kit piece",
+			"group": "kit: door",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"wall": "north",
+					"across": 1.36,
+					"bottom": 1.1
+				},
+				{
+					"wall": "south",
+					"across": 1.36,
+					"bottom": 1.1
+				}
+			]
+		},
+		{
+			"id": "small_readout",
+			"view": "v1",
+			"box": [
+				1450,
+				280,
+				1530,
+				350
+			],
+			"name": "small panels: a breaker panel by the screens, an outlet panel by the exam couch",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.06,
+				0.25
+			],
+			"count": 2,
+			"thing": "prop:habitat_small_readout",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"wall": "corner13",
+					"across": 0.0,
+					"bottom": 1.4
+				},
+				{
+					"wall": "east",
+					"across": -1.6,
+					"bottom": 1.0
+				}
+			]
+		},
+		{
+			"id": "conduit_box",
+			"view": "v1",
+			"box": [
+				2470,
+				470,
+				2540,
+				510
+			],
+			"name": "a junction box low on the north-east wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.1,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:habitat_conduit_box",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"wall": "corner6",
+					"across": 0.0,
+					"bottom": 1.5
+				}
+			]
+		},
+		{
+			"id": "wall_cage_lamp",
+			"view": "v1",
+			"box": [
+				2340,
+				680,
+				2380,
+				720
+			],
+			"name": "the wall lamp over the exam couch",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.18,
+				0.12,
+				0.25
+			],
+			"count": 1,
+			"thing": "prop:habitat_wall_cage_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"wall": "east",
+					"across": -2.4,
+					"bottom": 1.45
+				}
+			],
+			"light": {
+				"strength": 0.08,
+				"reach": 3.0,
+				"high": 0.5
+			}
+		},
+		{
+			"id": "waste_bin",
+			"view": "v1",
+			"box": [
+				2620,
+				940,
+				2680,
+				1010
+			],
+			"name": "a blue bin by the exam couch",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.3,
+				0.3,
+				0.45
+			],
+			"count": 1,
+			"thing": "prop:habitat_waste_bin",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"at": [
+				{
+					"x": 5.55,
+					"y": 0.0,
+					"z": 3.45,
+					"facing": 270
+				}
+			]
+		},
+		{
+			"id": "wall_upper_cables",
+			"view": "v1",
+			"box": [
+				1834,
+				150,
+				2400,
+				420
+			],
+			"name": "the upper wall panels with cable runs and a junction block (east wall)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2057713659400522,
+				0.1,
+				2.0
+			],
+			"count": 1,
+			"thing": "prop:habitat_wall_upper_cables",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03"
+		},
+		{
+			"id": "storage_case",
+			"view": "v1",
+			"box": [
+				1600,
+				212,
+				1727,
+				308
+			],
+			"name": "storage case",
+			"kind": "code",
+			"anchor": "on:sleep_pod",
+			"size": [
+				0.5,
+				0.36,
+				0.26
+			],
+			"count": 3,
+			"thing": "prop:habitat_storage_case",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"parent": "sleep_pod"
+		},
+		{
+			"id": "tool_case",
+			"view": "v1",
+			"box": [
+				232,
+				500,
+				352,
+				590
+			],
+			"name": "tool case",
+			"kind": "code",
+			"anchor": "on:locker_bank",
+			"size": [
+				0.42,
+				0.3,
+				0.22
+			],
+			"count": 2,
+			"thing": "prop:habitat_tool_case",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"parent": "locker_bank"
+		},
+		{
+			"id": "tea_towel",
+			"view": "v1",
+			"box": [
+				1550,
+				1300,
+				1600,
+				1405
+			],
+			"name": "tea towel",
+			"kind": "code",
+			"anchor": "on:galley_counter",
+			"size": [
+				0.2,
+				0.03,
+				0.38
+			],
+			"count": 2,
+			"thing": "prop:habitat_tea_towel",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"parent": "galley_counter"
 		}
-	]
+	],
+	"concept_elements": [
+		{
+			"element": "dome shell: ribbed, bolted grey dome panels",
+			"where": "ceiling",
+			"count": 1,
+			"row": "roof_face_panel"
+		},
+		{
+			"element": "walls: worn grey bolted panels, lower and upper bands, skirting and cornice",
+			"where": "walls",
+			"count": 1,
+			"row": "wall_lower_plain"
+		},
+		{
+			"element": "patched lower panels",
+			"where": "east, south",
+			"count": 1,
+			"row": "wall_lower_patched"
+		},
+		{
+			"element": "deck plates with seams and bolt heads",
+			"where": "floor",
+			"count": 1,
+			"row": "ring_floor_plate"
+		},
+		{
+			"element": "four tube hatches with frames, leaves, wheels, windows and hinges",
+			"where": "walls",
+			"count": 4,
+			"row": "hatch_frame"
+		},
+		{
+			"element": "strip lamps over the hatches",
+			"where": "walls",
+			"count": 4,
+			"row": "door_strip_lamp"
+		},
+		{
+			"element": "grated dust mats at the hatches",
+			"where": "floor",
+			"count": 4,
+			"row": "tread_mat"
+		},
+		{
+			"element": "round light ring with globe lamps on hanging rods",
+			"where": "ceiling",
+			"count": 1,
+			"row": "light_ring"
+		},
+		{
+			"element": "sleep pods stacked two high, each berth with mattress, pillow, screen, reading lamp, strip lamp, vent",
+			"where": "north",
+			"count": 2,
+			"row": "sleep_pod"
+		},
+		{
+			"element": "the pods' central control column with screens, keypad, switches",
+			"where": "north",
+			"count": 1,
+			"row": "sleep_pod",
+			"part": true
+		},
+		{
+			"element": "pillows on the berths",
+			"where": "north",
+			"count": 4,
+			"row": "pillow"
+		},
+		{
+			"element": "grey storage case on the right pod's top",
+			"where": "north",
+			"count": 1,
+			"row": "storage_case"
+		},
+		{
+			"element": "cable runs dropping down the pods' sides",
+			"where": "north",
+			"count": 2,
+			"row": "cable_drop"
+		},
+		{
+			"element": "coiled cable hung on the wall by the left pod",
+			"where": "north",
+			"count": 1,
+			"row": "cable_coil"
+		},
+		{
+			"element": "painted outline on the deck before each pod",
+			"where": "floor",
+			"count": 2,
+			"row": "floor_marking"
+		},
+		{
+			"element": "slippers before the pods",
+			"where": "floor",
+			"count": 2,
+			"row": "slippers"
+		},
+		{
+			"element": "wall screen cluster, six screens (north-west)",
+			"where": "corner",
+			"count": 1,
+			"row": "wall_screen_cluster"
+		},
+		{
+			"element": "small breaker panels on the west wall",
+			"where": "corner",
+			"count": 1,
+			"row": "small_readout"
+		},
+		{
+			"element": "three high pipe runs with hand-wheel valves (west)",
+			"where": "west",
+			"count": 3,
+			"row": "pipe_straight"
+		},
+		{
+			"element": "hand-wheel valves",
+			"where": "west",
+			"count": 2,
+			"row": "pipe_valve"
+		},
+		{
+			"element": "pipe brackets",
+			"where": "walls",
+			"count": 1,
+			"row": "pipe_bracket"
+		},
+		{
+			"element": "crew locker bank, louvred doors, labels",
+			"where": "west",
+			"count": 1,
+			"row": "locker_bank"
+		},
+		{
+			"element": "blue tool case and tins on the locker bank",
+			"where": "west",
+			"count": 1,
+			"row": "tool_case"
+		},
+		{
+			"element": "food store shelf with jugs, tins and ration boxes",
+			"where": "west",
+			"count": 1,
+			"row": "food_shelf"
+		},
+		{
+			"element": "green and grey cases on the food shelf's top",
+			"where": "west",
+			"count": 2,
+			"row": "storage_case"
+		},
+		{
+			"element": "supply cart with a crate, jars and a case",
+			"where": "west",
+			"count": 1,
+			"row": "supply_cart"
+		},
+		{
+			"element": "mess table",
+			"where": "floor",
+			"count": 1,
+			"row": "mess_table"
+		},
+		{
+			"element": "round stools",
+			"where": "floor",
+			"count": 4,
+			"row": "stool"
+		},
+		{
+			"element": "galley counter with hob, sink and tap, drawers and doors",
+			"where": "south",
+			"count": 1,
+			"row": "galley_counter"
+		},
+		{
+			"element": "induction plate and two-ring hob",
+			"where": "south",
+			"count": 1,
+			"row": "galley_counter",
+			"part": true
+		},
+		{
+			"element": "kettle and pot",
+			"where": "south",
+			"count": 1,
+			"row": "kettle"
+		},
+		{
+			"element": "tea towels hung on the counter",
+			"where": "south",
+			"count": 2,
+			"row": "tea_towel"
+		},
+		{
+			"element": "gas cylinders with hoses by the counter",
+			"where": "south",
+			"count": 2,
+			"row": "gas_cylinder"
+		},
+		{
+			"element": "hygiene cubicle: pale panels, sliding door, sink, mirror, grab rail, keypad, stripe",
+			"where": "east",
+			"count": 1,
+			"row": "hygiene_cubicle"
+		},
+		{
+			"element": "exam couch with pillow and folded blanket",
+			"where": "east",
+			"count": 1,
+			"row": "exam_couch"
+		},
+		{
+			"element": "wall-hung medical cabinet with glass doors",
+			"where": "east",
+			"count": 1,
+			"row": "med_cabinet"
+		},
+		{
+			"element": "medicine boxes and bottles in it",
+			"where": "east",
+			"count": 7,
+			"row": "med_box"
+		},
+		{
+			"element": "wall lamp over the couch",
+			"where": "east",
+			"count": 1,
+			"row": "wall_cage_lamp"
+		},
+		{
+			"element": "outlet panel by the couch",
+			"where": "east",
+			"count": 1,
+			"row": "small_readout"
+		},
+		{
+			"element": "cable runs and a junction block high on the east wall",
+			"where": "east",
+			"count": 1,
+			"row": "wall_upper_cables"
+		},
+		{
+			"element": "two high pipe runs with brackets (east)",
+			"where": "east",
+			"count": 2,
+			"row": "pipe_straight"
+		},
+		{
+			"element": "junction box low on the north-east wall",
+			"where": "corner",
+			"count": 1,
+			"row": "conduit_box"
+		},
+		{
+			"element": "blue bin by the couch",
+			"where": "floor",
+			"count": 1,
+			"row": "waste_bin"
+		},
+		{
+			"element": "keypad boxes by the hatches",
+			"where": "north, south",
+			"count": 2,
+			"row": "door_control_box"
+		},
+		{
+			"element": "the hygiene cubicle's hanging blue garment bag",
+			"where": "east",
+			"count": 1,
+			"dropped": "a soft garment bag hanging inside the cubicle: not built this round (a question for the owner)"
+		},
+		{
+			"element": "the crew members",
+			"where": "floor",
+			"count": 3,
+			"dropped": "people are not in the room's kit"
+		},
+		{
+			"element": "regolith bags, the cut-away shell and its insulation, the Moon outside",
+			"where": "outside",
+			"count": 1,
+			"dropped": "outside the shell: the cutaway view's own, not the room's inside"
+		}
+	],
+	"concept": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/habitat/concepts/K03.png"
 }

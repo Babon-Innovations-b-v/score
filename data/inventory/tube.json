@@ -1,0 +1,491 @@
+{
+	"scene": "tube",
+	"place": "tube",
+	"plan": {
+		"world": "",
+		"seed": 0,
+		"concept": "concepts-world1/tubes/concepts/K12.png",
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/tubes/concepts/K12.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the coordinator's pick for the owner (asleep; the owner's rule: after the concept and style picks everything runs on its own); plan: the concept K12",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": [],
+		"layout": {
+			"section": {
+				"radius": 1.6,
+				"axis": 1.1,
+				"bay": 1.3
+			}
+		}
+	},
+	"rows": [
+		{
+			"id": "ring_floor_plate",
+			"view": "v1",
+			"box": [
+				826,
+				1073,
+				1582,
+				1536
+			],
+			"name": "deck plate, bolted",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.32,
+				0.04,
+				1.3
+			],
+			"count": 1,
+			"thing": "prop:tube_ring_floor_plate",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "hull_plate",
+			"view": "v1",
+			"box": [
+				537,
+				55,
+				894,
+				358
+			],
+			"name": "curved hull plate of the tube's section, and the rails along the glass band's edges",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.6,
+				0.04,
+				1.3
+			],
+			"count": 1,
+			"thing": "prop:tube_hull_plate",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "hoop",
+			"view": "v1",
+			"box": [
+				1046,
+				413,
+				1761,
+				1032
+			],
+			"name": "steel hoop round the tube's section; the collar at each end a heavier one",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				3.0,
+				0.09,
+				2.6
+			],
+			"count": 1,
+			"thing": "prop:tube_hoop",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "pipe_straight",
+			"view": "v1",
+			"box": [
+				330,
+				963,
+				1101,
+				1376
+			],
+			"name": "handrail and pipe runs along the tube",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"count": 8,
+			"thing": "prop:tube_pipe_straight",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": []
+		},
+		{
+			"id": "cable_bundle",
+			"view": "v1",
+			"box": [
+				1555,
+				55,
+				2257,
+				523
+			],
+			"name": "cable run along the crown",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.3,
+				0.08,
+				0.12
+			],
+			"count": 2,
+			"thing": "prop:tube_cable_bundle",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": []
+		},
+		{
+			"id": "crown_strip_lamp",
+			"view": "v1",
+			"box": [
+				1342,
+				0,
+				1424,
+				385
+			],
+			"name": "long ceiling strip light along the crown",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				1.2,
+				0.12,
+				0.1
+			],
+			"count": 1,
+			"thing": "prop:tube_crown_strip_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [],
+			"light": {
+				"strength": 0.15,
+				"reach": 3.5,
+				"high": 0.5
+			}
+		},
+		{
+			"id": "hull_patch",
+			"view": "v1",
+			"box": [
+				537,
+				55,
+				894,
+				358
+			],
+			"name": "welded repair patch on a hull plate, taped",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.7,
+				0.04,
+				0.5
+			],
+			"count": 2,
+			"thing": "prop:tube_hull_patch",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "sign_plate",
+			"view": "v1",
+			"box": [
+				1225,
+				406,
+				1307,
+				461
+			],
+			"name": "small yellow sign plate reading PRESSURE HATCH",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.02,
+				0.16
+			],
+			"count": 3,
+			"thing": "prop:tube_sign_plate",
+			"made": "kit piece",
+			"group": "kit: sign",
+			"at": []
+		},
+		{
+			"id": "end_mat",
+			"view": "v1",
+			"box": [
+				881,
+				1238,
+				1238,
+				1404
+			],
+			"name": "grated deck dust strip at the tube's end",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.02,
+				0.5
+			],
+			"count": 1,
+			"thing": "prop:tube_end_mat",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "rail_bracket",
+			"view": "v1",
+			"box": [
+				660,
+				900,
+				760,
+				1000
+			],
+			"name": "a handrail bracket: a foot plate bolted to the hull, a bent bar arm and a cradle ring round the rail",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.04,
+				0.131,
+				0.07
+			],
+			"count": 2,
+			"thing": "prop:tube_rail_bracket",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "pipe_bracket",
+			"view": "v1",
+			"box": [
+				729,
+				1100,
+				790,
+				1160
+			],
+			"name": "a steel wall bracket clamping a pipe (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.1
+			],
+			"count": 6,
+			"thing": "prop:tube_pipe_bracket",
+			"group": "kit: pipe",
+			"made": "kit piece"
+		},
+		{
+			"id": "small_readout",
+			"view": "v1",
+			"box": [
+				950,
+				502,
+				1025,
+				598
+			],
+			"name": "a small square wall readout screen with buttons beside it (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.06,
+				0.25
+			],
+			"count": 1,
+			"thing": "prop:tube_small_readout",
+			"group": "kit: screen",
+			"made": "kit piece"
+		},
+		{
+			"id": "conduit_box",
+			"view": "v1",
+			"box": [
+				819,
+				461,
+				881,
+				530
+			],
+			"name": "a small steel conduit junction box with cable glands (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.1,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:tube_conduit_box",
+			"group": "kit: wall",
+			"made": "kit piece"
+		}
+	],
+	"concept_elements": [
+		{
+			"element": "curved hull plates, crown and feet, with seams and bolts",
+			"where": "hull",
+			"count": 3,
+			"row": "hull_plate"
+		},
+		{
+			"element": "ring frames (hoops) every bay, carrying the glass mullions",
+			"where": "hull",
+			"count": 1,
+			"row": "hoop"
+		},
+		{
+			"element": "glass bands both sides with their top and bottom frames",
+			"where": "hull",
+			"count": 2,
+			"dropped": "the glass is the tube's own (LinkTube); its frames are the hull plates' edge strips"
+		},
+		{
+			"element": "strip light along the crown",
+			"where": "ceiling",
+			"count": 1,
+			"row": "crown_strip_lamp"
+		},
+		{
+			"element": "deck plates",
+			"where": "floor",
+			"count": 1,
+			"row": "ring_floor_plate"
+		},
+		{
+			"element": "darker, scuffed squares on the deck",
+			"where": "floor",
+			"count": 3,
+			"dropped": "wear on the deck plates' own surface (the library's room wear), not objects: a laid plate there would stand proud of the walking deck"
+		},
+		{
+			"element": "handrail each side just under the glass",
+			"where": "wall",
+			"count": 2,
+			"row": "pipe_straight"
+		},
+		{
+			"element": "handrail brackets (bent hooks) near each hoop",
+			"where": "wall",
+			"count": 2,
+			"row": "rail_bracket"
+		},
+		{
+			"element": "pipe run low on the left, several pipes",
+			"where": "wall",
+			"count": 3,
+			"row": "pipe_straight"
+		},
+		{
+			"element": "clamp brackets on the low pipes",
+			"where": "wall",
+			"count": 3,
+			"row": "pipe_bracket"
+		},
+		{
+			"element": "pipe bundle high on the right above the glass, several sizes",
+			"where": "wall",
+			"count": 3,
+			"row": "pipe_straight"
+		},
+		{
+			"element": "clamp brackets on the high right pipes",
+			"where": "wall",
+			"count": 3,
+			"row": "pipe_bracket"
+		},
+		{
+			"element": "blue tape bands on the high pipes",
+			"where": "wall",
+			"count": 4,
+			"dropped": "colour bands painted on a plain pipe; a PLAIN kind carries no print, so the pipes stay their library steel"
+		},
+		{
+			"element": "cable run high on the right with clips",
+			"where": "wall",
+			"count": 1,
+			"row": "cable_bundle"
+		},
+		{
+			"element": "cable run high on the left above the glass with clips",
+			"where": "wall",
+			"count": 1,
+			"row": "cable_bundle"
+		},
+		{
+			"element": "welded and taped patch on the crown",
+			"where": "hull",
+			"count": 1,
+			"row": "hull_patch"
+		},
+		{
+			"element": "welded and taped patch low on the right",
+			"where": "wall",
+			"count": 1,
+			"row": "hull_patch"
+		},
+		{
+			"element": "small wall screen on a bracket high on the left",
+			"where": "wall",
+			"count": 1,
+			"row": "small_readout"
+		},
+		{
+			"element": "small junction box with a sticker high on the left",
+			"where": "wall",
+			"count": 1,
+			"row": "conduit_box"
+		},
+		{
+			"element": "small placards by the screen and the glass frames",
+			"where": "wall (one a bay, every 6 bays: the kit lays one bay and one end)",
+			"count": 1,
+			"row": "sign_plate"
+		},
+		{
+			"element": "small display behind the right glass frame",
+			"where": "wall",
+			"count": 1,
+			"dropped": "it stands outside the glass band (the far side of the glass, outside the tube's hull)"
+		},
+		{
+			"element": "two yellow danger plates on the collar either side of the crown",
+			"where": "end",
+			"count": 2,
+			"row": "sign_plate"
+		},
+		{
+			"element": "collar ring round the far hatch",
+			"where": "end",
+			"count": 1,
+			"row": "hoop"
+		},
+		{
+			"element": "the far hatch with its window and wheel",
+			"where": "end",
+			"count": 1,
+			"dropped": "the joined module's own door spot: its hatch is that room's"
+		},
+		{
+			"element": "dust strip inside the collar",
+			"where": "end",
+			"count": 1,
+			"row": "end_mat"
+		},
+		{
+			"element": "two crew members",
+			"where": "floor",
+			"count": 2,
+			"dropped": "people, not part of the room"
+		}
+	],
+	"concept": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/tubes/concepts/K12.png"
+}

@@ -450,6 +450,21 @@
 					"wall": "west",
 					"across": -0.9,
 					"bottom": 1.8
+				},
+				{
+					"wall": "west",
+					"across": 0.6,
+					"bottom": 1.8
+				},
+				{
+					"wall": "west",
+					"across": -0.4,
+					"bottom": 1.96
+				},
+				{
+					"wall": "west",
+					"across": 1.0,
+					"bottom": 1.96
 				}
 			]
 		},
@@ -486,6 +501,18 @@
 					"across": 0.0,
 					"bottom": 2.7,
 					"out": 0.1
+				},
+				{
+					"wall": "west",
+					"across": -0.2,
+					"bottom": 2.32,
+					"out": 0.1
+				},
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 2.4,
+					"out": 0.1
 				}
 			],
 			"light": {
@@ -520,6 +547,11 @@
 					"x": 0.0,
 					"z": 1.85,
 					"facing": 0
+				},
+				{
+					"x": 0.0,
+					"z": -1.85,
+					"facing": 180
 				}
 			],
 			"lies": "floor"
@@ -593,6 +625,690 @@
 				2105,
 				908
 			]
+		},
+		{
+			"id": "beacon",
+			"view": "v1",
+			"box": [
+				1260,
+				20,
+				1420,
+				160
+			],
+			"name": "the amber warning beacon on the airlock's roof: a bolted flange, a grey body and an amber dome",
+			"kind": "code",
+			"anchor": "roof",
+			"size": [
+				0.3,
+				0.3,
+				0.38
+			],
+			"count": 1,
+			"thing": "prop:airlock_beacon",
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 3.4,
+					"z": 0.0,
+					"facing": 180,
+					"layer": 2
+				}
+			],
+			"why_code": "modules round: the beacon over the airlock (concept K02), a kit piece of its own, made-only"
+		},
+		{
+			"id": "roof_light_fixture",
+			"view": "v1",
+			"box": [
+				1100,
+				230,
+				1320,
+				290
+			],
+			"name": "a caged industrial ceiling flood lamp fixture hung from the lattice",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				0.4,
+				0.4,
+				0.35
+			],
+			"count": 2,
+			"thing": "prop:airlock_roof_light_fixture",
+			"group": "kit: light",
+			"made": "kit piece",
+			"sound": "lamp_buzz",
+			"light": {
+				"strength": 0.55,
+				"reach": 5.0,
+				"high": 0.1
+			},
+			"at": [
+				{
+					"x": 0.5,
+					"y": 2.98,
+					"z": -1.1,
+					"facing": 0
+				},
+				{
+					"x": 0.5,
+					"y": 2.98,
+					"z": 1.1,
+					"facing": 0
+				}
+			],
+			"why_code": "modules round: the airlock's two lights hung bare under its dome; the hub's caged lamp"
+		},
+		{
+			"id": "lock_console",
+			"view": "v1",
+			"box": [
+				1150,
+				270,
+				1370,
+				550
+			],
+			"name": "the airlock's cycle console over the suit-up bench: two monitors on its top, a status screen, a readout, five gauges, a keypad, buttons and a red stop button",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.18,
+				0.95
+			],
+			"count": 1,
+			"thing": "prop:airlock_lock_console",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "west",
+					"across": -0.2,
+					"bottom": 0.85
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "lock_gauge_panel",
+			"view": "v1",
+			"box": [
+				1440,
+				285,
+				1565,
+				390
+			],
+			"name": "a gauge panel: two analog meters, toggle switches, red buttons and a label",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.12,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:airlock_lock_gauge_panel",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "west",
+					"across": 1.15,
+					"bottom": 1.15
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "vent_grille",
+			"view": "v1",
+			"box": [
+				540,
+				330,
+				645,
+				400
+			],
+			"name": "a louvred vent grille in a rounded frame bolted at its corners",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.05,
+				0.25
+			],
+			"count": 2,
+			"thing": "prop:airlock_vent_grille",
+			"made": "kit piece",
+			"group": "kit: vent",
+			"at": [
+				{
+					"wall": "west",
+					"across": 1.55,
+					"bottom": 2.2
+				},
+				{
+					"wall": "east",
+					"across": 1.0,
+					"bottom": 0.15
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "hose_coil",
+			"view": "v1",
+			"box": [
+				2030,
+				450,
+				2125,
+				565
+			],
+			"name": "a coiled air hose hung on a bolted wall hook",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.12,
+				0.5
+			],
+			"count": 1,
+			"thing": "prop:airlock_hose_coil",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "east",
+					"across": -0.95,
+					"bottom": 1.35
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "tool_case",
+			"view": "v1",
+			"box": [
+				1500,
+				700,
+				1560,
+				735
+			],
+			"name": "tool case",
+			"kind": "code",
+			"anchor": "on:suit_bench",
+			"size": [
+				0.3,
+				0.18,
+				0.08
+			],
+			"count": 1,
+			"thing": "prop:airlock_tool_case",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [],
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"parent": "suit_bench"
+		},
+		{
+			"id": "small_readout",
+			"view": "v1",
+			"box": [
+				1170,
+				620,
+				1230,
+				700
+			],
+			"name": "a small square wall readout screen with buttons beside it",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.06,
+				0.25
+			],
+			"count": 1,
+			"thing": "prop:airlock_small_readout",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "west",
+					"across": -1.6,
+					"bottom": 1.3
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "door_control_box",
+			"view": "v1",
+			"box": [
+				1180,
+				700,
+				1220,
+				750
+			],
+			"name": "a steel box with a keypad and a status light: a junction box by the inner door and a power socket box by the fan",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.26,
+				0.12,
+				0.36
+			],
+			"count": 2,
+			"thing": "prop:airlock_door_control_box",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": [
+				{
+					"wall": "west",
+					"across": -1.6,
+					"bottom": 0.85
+				},
+				{
+					"wall": "east",
+					"across": -0.85,
+					"bottom": 0.25
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "conduit_box",
+			"view": "v1",
+			"box": [
+				2110,
+				540,
+				2150,
+				590
+			],
+			"name": "a small steel conduit junction box with cable glands",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.1,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:airlock_conduit_box",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "east",
+					"across": -0.95,
+					"bottom": 0.95
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "notice_board",
+			"view": "v1",
+			"box": [
+				1230,
+				670,
+				1290,
+				720
+			],
+			"name": "a caution notice taped on a steel plate",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.05,
+				0.6
+			],
+			"count": 1,
+			"thing": "prop:airlock_notice_board",
+			"made": "kit piece",
+			"group": "kit: sign",
+			"at": [
+				{
+					"wall": "west",
+					"across": -1.05,
+					"bottom": 0.95,
+					"size": [
+						0.5,
+						0.6,
+						0.05
+					]
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "cable_drop",
+			"view": "v1",
+			"box": [
+				1220,
+				540,
+				1310,
+				790
+			],
+			"name": "a run of black cables from the console down the wall to the floor",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.15,
+				0.08,
+				1.2
+			],
+			"count": 1,
+			"thing": "prop:airlock_cable_drop",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "west",
+					"across": 0.62,
+					"bottom": 0.0,
+					"size": [
+						0.15,
+						1.75,
+						0.08
+					]
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+		},
+		{
+			"id": "cable_bundle",
+			"view": "v1",
+			"box": [
+				700,
+				200,
+				1600,
+				260
+			],
+			"name": "a bundle of black and grey cables held by clips along the wall tops",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.08,
+				0.12
+			],
+			"count": 2,
+			"thing": "prop:airlock_cable_bundle",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 2.48,
+					"size": [
+						3.7,
+						0.12,
+						0.08
+					]
+				},
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 2.48,
+					"size": [
+						3.7,
+						0.12,
+						0.08
+					]
+				}
+			],
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
 		}
-	]
+	],
+	"concept_elements": [
+		{
+			"element": "pipe runs on the wall, with elbows",
+			"where": "west",
+			"count": 2,
+			"row": "pipe_straight"
+		},
+		{
+			"element": "red hand-wheel valves on the pipes",
+			"where": "west",
+			"count": 4,
+			"row": "pipe_valve"
+		},
+		{
+			"element": "pipe brackets",
+			"where": "west",
+			"count": 8,
+			"row": "pipe_bracket"
+		},
+		{
+			"element": "louvred vent grille high on the wall",
+			"where": "west",
+			"count": 1,
+			"row": "vent_grille"
+		},
+		{
+			"element": "breaker readout panel beside the inner door",
+			"where": "west",
+			"count": 1,
+			"row": "small_readout"
+		},
+		{
+			"element": "small junction box under it",
+			"where": "west",
+			"count": 1,
+			"row": "door_control_box"
+		},
+		{
+			"element": "caution notice taped on the wall",
+			"where": "west",
+			"count": 1,
+			"row": "notice_board"
+		},
+		{
+			"element": "the cycle console over the bench: monitors, status screen, gauges, keypad, buttons",
+			"where": "west",
+			"count": 1,
+			"row": "lock_console"
+		},
+		{
+			"element": "cable bundle running down from the console to the floor",
+			"where": "west",
+			"count": 1,
+			"row": "cable_drop"
+		},
+		{
+			"element": "gauge panel with meters, switches and red buttons",
+			"where": "west",
+			"count": 1,
+			"row": "lock_gauge_panel"
+		},
+		{
+			"element": "suit-up bench",
+			"where": "west",
+			"count": 1,
+			"row": "suit_bench"
+		},
+		{
+			"element": "tool case on the bench",
+			"where": "west",
+			"count": 1,
+			"row": "tool_case"
+		},
+		{
+			"element": "dust vacuum with its hose",
+			"where": "west",
+			"count": 1,
+			"row": "dust_vacuum"
+		},
+		{
+			"element": "strip lamp over the console",
+			"where": "west",
+			"count": 1,
+			"row": "door_strip_lamp"
+		},
+		{
+			"element": "cable runs along the wall tops under the dome",
+			"where": "west and east",
+			"count": 2,
+			"row": "cable_bundle"
+		},
+		{
+			"element": "inner door with its striped frame",
+			"where": "north",
+			"count": 1,
+			"row": "door_frame"
+		},
+		{
+			"element": "inner door leaf",
+			"where": "north",
+			"count": 1,
+			"row": "door_leaf"
+		},
+		{
+			"element": "outer door striped in the floor at the ramp",
+			"where": "south",
+			"count": 1,
+			"row": "door_frame"
+		},
+		{
+			"element": "strip lamps over the doors",
+			"where": "north and south",
+			"count": 2,
+			"row": "door_strip_lamp"
+		},
+		{
+			"element": "grated dust mat by the inner door",
+			"where": "floor",
+			"count": 1,
+			"row": "floor_grating"
+		},
+		{
+			"element": "grated dust mat at the outer door",
+			"where": "floor",
+			"count": 1,
+			"row": "floor_grating"
+		},
+		{
+			"element": "duct boxes under the gratings",
+			"where": "floor",
+			"count": 2,
+			"row": "under_floor_box"
+		},
+		{
+			"element": "suit alcove with its lamp, rails and deck plate",
+			"where": "east",
+			"count": 1,
+			"row": "suit_alcove"
+		},
+		{
+			"element": "the suit in the alcove",
+			"where": "east",
+			"count": 1,
+			"dropped": "the game's own suit (SuitLocker); whether it goes through the route is a question for the owner"
+		},
+		{
+			"element": "hose reel beside the alcove",
+			"where": "east",
+			"count": 1,
+			"row": "hose_reel"
+		},
+		{
+			"element": "coiled hose hung on a hook",
+			"where": "east",
+			"count": 1,
+			"row": "hose_coil"
+		},
+		{
+			"element": "two status terminals with screens and keypads",
+			"where": "east",
+			"count": 2,
+			"row": "status_panel"
+		},
+		{
+			"element": "junction box with its conduit",
+			"where": "east",
+			"count": 1,
+			"row": "conduit_box"
+		},
+		{
+			"element": "power socket box low by the fan",
+			"where": "east",
+			"count": 1,
+			"row": "door_control_box"
+		},
+		{
+			"element": "fan unit",
+			"where": "east",
+			"count": 1,
+			"row": "fan_unit"
+		},
+		{
+			"element": "small louvred vent low beside the fan",
+			"where": "east",
+			"count": 1,
+			"row": "vent_grille"
+		},
+		{
+			"element": "strip lamp over the alcove wall",
+			"where": "east",
+			"count": 1,
+			"row": "door_strip_lamp"
+		},
+		{
+			"element": "bolted wall panels, skirting and cornice",
+			"where": "every wall",
+			"count": 1,
+			"row": "wall_lower_plain"
+		},
+		{
+			"element": "deck plates on the floor",
+			"where": "floor",
+			"count": 1,
+			"row": "ring_floor_plate"
+		},
+		{
+			"element": "dome lining plates",
+			"where": "ceiling",
+			"count": 1,
+			"row": "roof_face_panel"
+		},
+		{
+			"element": "two lamps under the dome",
+			"where": "ceiling",
+			"count": 2,
+			"row": "roof_light_fixture"
+		},
+		{
+			"element": "amber beacon on the roof",
+			"where": "roof",
+			"count": 1,
+			"row": "beacon"
+		},
+		{
+			"element": "a crew member sitting on the bench",
+			"where": "west",
+			"count": 1,
+			"dropped": "a person, not a prop"
+		},
+		{
+			"element": "sandbags piled outside the walls",
+			"where": "outside",
+			"count": 1,
+			"dropped": "outside the shell: the outdoor ground's, not the room's"
+		},
+		{
+			"element": "the ramp down from the outer door",
+			"where": "outside",
+			"count": 1,
+			"dropped": "outside the shell: the airlock scene's own ramp"
+		},
+		{
+			"element": "insulation in the cut-away wall section",
+			"where": "cut-away",
+			"count": 1,
+			"dropped": "the concept's cut-away view only, not seen from inside"
+		}
+	],
+	"concept": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/airlock/concepts/K02.png"
 }
