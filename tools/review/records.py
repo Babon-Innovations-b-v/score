@@ -41,7 +41,7 @@ def place_key(place):
     if place in places:
         return place
     found = json_or_none(INVENTORIES / f"{place}.json") or {}
-    return found.get("place", place)
+    return found.get("place", (kit(place) or {}).get("place", place))
 
 
 def place_style(place):
@@ -59,6 +59,8 @@ def work_path(written):
 def inventory(place):
     """The approved inventory: its rows, and the picture each row's box is drawn on."""
     found = json_or_none(INVENTORIES / f"{place}.json")
+    if found is None:  # a room keeps its inventory under its place's name (the prologue's flat: prologue_flat)
+        found = json_or_none(INVENTORIES / f"{(kit(place) or {}).get('place', place)}.json")
     if found is None:
         return None
     views = {view["id"]: work_path(view["picture"]) for view in found["plan"]["views"]}
