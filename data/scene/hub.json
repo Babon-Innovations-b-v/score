@@ -349,6 +349,63 @@
    "from": "habitat.tscn:19-25"
   }
  ],
+ "places": [
+  {
+   "name": "west_tube",
+   "stage": "tube",
+   "at": [
+    9.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": -90.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "east_tube",
+   "stage": "tube",
+   "at": [
+    -4.65,
+    0.0,
+    0.0
+   ],
+   "yaw": -90.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "airlock",
+   "stage": "airlock",
+   "at": [
+    -3.575,
+    0.0,
+    -6.192
+   ],
+   "yaw": -150.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "greenhouse",
+   "stage": "greenhouse",
+   "at": [
+    17.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": -180.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "workshop",
+   "stage": "workshop",
+   "at": [
+    -17.0,
+    0.0,
+    0.0
+   ],
+   "yaw": -180.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  }
+ ],
  "lights": [
   {
    "type": "omni",
@@ -469,7 +526,7 @@
  "game_only": [
   "the tool board's 26 tools",
   "the crew member standing in the room",
-  "what the open doorways show (the tubes and the airlock)",
+  "the Moon outside the tubes' glass",
   "the ink outline pass and the haze"
  ]
 }

@@ -1,6 +1,6 @@
 {
  "place": "tube",
- "about": "A walkway tube between two rooms, 4.35 m long as the base's east and west tubes are (ModuleFloors), laid bay by bay as the game's TubeKit lays it, with the hull's dark backing and its deck. Frame: x across, y up from the deck, z along it from one end.",
+ "about": "A walkway tube between two rooms, 4.35 m long as the base's east and west tubes are (ModuleFloors), laid bay by bay as the game's TubeKit lays it, with the hull's dark backing and its deck, and (as the west tube) the hub and the greenhouse at its ends. Frame: x across, y up from the deck, z along it from its greenhouse end.",
  "tube_length": 4.35,
  "floor": [
   [
@@ -14,6 +14,30 @@
  ],
  "ceiling": 2.7,
  "inside": true,
+ "places": [
+  {
+   "name": "hub",
+   "stage": "hub",
+   "at": [
+    0.0,
+    0.0,
+    9.0
+   ],
+   "yaw": 90.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "greenhouse",
+   "stage": "greenhouse",
+   "at": [
+    -0.0,
+    0.0,
+    -8.0
+   ],
+   "yaw": -90.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  }
+ ],
  "structure": [
   {
    "name": "hull_crown",
@@ -154,7 +178,6 @@
  ],
  "game_only": [
   "the glass between the hull's crown and feet (almost clear in the game)",
-  "the Moon's ground and sky seen through it",
-  "the rooms at either end"
+  "the Moon's ground and sky seen through it"
  ]
 }
