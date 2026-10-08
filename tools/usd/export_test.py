@@ -164,9 +164,11 @@ def stored_takes_paint_like_their_labels():
         export.stored_parts.write(folder / "parts/box-r1", "box-r1", stored)
         (stored / export.stored_parts.INDEX).write_text(json.dumps({PLACE: {"box": "box-r1"}}))
         place_files(folder, (2.0, 0.0, 0.0))
-        path = export.export(PLACE, folder / "models", folder / "stage", parts=export.stored_parts.takes_of(PLACE, stored),
-                             kit_path=folder / "kit.json", inventory_path=folder / "inventory.json")
-        mesh = UsdGeom.Mesh(Usd.Stage.Open(str(path)).GetPrimAtPath(f"/{PLACE}/Objects/box_1/geo"))
+        path = export.export(PLACE, folder / "models", folder / "stage",
+                             parts=export.stored_parts.takes_of(PLACE, stored), kit_path=folder / "kit.json",
+                             inventory_path=folder / "inventory.json")
+        stage = Usd.Stage.Open(str(path))
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Objects/box_2/geo"))
         points = np.asarray(mesh.GetPointsAttr().Get())
         triangles = np.asarray(mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
         heights = points[triangles].mean(axis=1)[:, 1]
