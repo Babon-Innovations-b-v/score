@@ -21,7 +21,9 @@ Licence
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Nano Banana Pro \citep{nanobananapro} & concepts, close-ups, ground skins & paid API \\
+Nano Banana Pro \citep{nanobananapro} & concepts, close-ups the open model fails, ground skins & paid API \\
+Qwen-Image-Edit-2511 \citep{qwenimageedit} & close-ups, first & Apache-2.0 \\
+Qwen3.8-27B \citep{qwen38} & the close-ups' shape check; each part's material & Apache-2.0 \\
 Pixal3D \citep{li2026pixal3d} & picture to 3D & MIT; DINOv3 licence \citep{simeoni2025dinov3} for its encoder \\
 PartCrafter \citep{lin2025partcrafter} & parts & MIT; its non-commercial background remover not used \\
 Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
@@ -52,6 +54,44 @@ usable & 3 \\
 marginal & 1 \\
 wrong shape (microscope, chair, sample tray) & 3 \\
 refused (glovebox) & 1 \\
+\end{longtable}
+}
+
+The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand as good, usable, marginal, wrong or failed, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none of the pictures scored wrong or failed, and failed nine that were good or usable, each of which then cost a picture from the closed model. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it gave a different verdict on 7 of them. On the lab's 22 generated rows, an earlier version of the check accepted 8 of the open model's close-ups and sent 14 to the closed model; 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. On the 17 rows that world 1 still needed afterwards, from three places, none of the open model's pictures passed; the closed model's pictures were accepted for 10 rows, and 7 rows were left for the creator to look at.
+
+\textbf{Table E3.} The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Run
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Close-ups
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Open model accepted
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Closed model accepted
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Left for the creator
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cloud
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Closed model
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Lab, 22 rows (earlier check: one answer) & 22 & 8 & 14 & 0 & €4.12 & \$2.81 \\
+World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 & \$4.02 \\
 \end{longtable}
 }
 

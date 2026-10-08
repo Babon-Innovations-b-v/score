@@ -1,4 +1,4 @@
-\begin{thebibliography}{35}
+\begin{thebibliography}{37}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -189,6 +189,27 @@ Biwen Lei, Yang Li, Xinhai Liu, et~al.
   asset generation.
 \newblock \emph{arXiv preprint arXiv:2509.12815}, 2025.
 
+\bibitem[{Qwen Team}(2025)]{qwenimageedit}
+{Qwen Team}.
+\newblock {Qwen-Image-Edit-2511} model card.
+\newblock Hugging Face, 2025.
+\newblock URL \url{https://huggingface.co/Qwen/Qwen-Image-Edit-2511}.
+\newblock Apache-2.0. Vendor material.
+
+\bibitem[{Qwen Team}(2026)]{qwen38}
+{Qwen Team}.
+\newblock {Qwen3.8-27B} model card.
+\newblock Hugging Face, 2026.
+\newblock URL \url{https://huggingface.co/Qwen/Qwen3.8-27B}.
+\newblock Apache-2.0. Vendor material.
+
+\bibitem[{Google}(2026)]{nanobananapro}
+{Google}.
+\newblock {Gemini 3 Pro Image (``Nano Banana Pro'') through the Gemini {API}},
+  2026.
+\newblock URL \url{https://ai.google.dev/}.
+\newblock Paid service. Vendor material.
+
 \bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
   Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
 Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
@@ -208,13 +229,6 @@ Hanno Rein and Shang-Fei Liu.
   dynamics.
 \newblock \emph{Astronomy \& Astrophysics}, 537:\penalty0 A128, 2012.
 \newblock arXiv:1110.4876.
-
-\bibitem[{Google}(2026)]{nanobananapro}
-{Google}.
-\newblock {Gemini 3 Pro Image (``Nano Banana Pro'') through the Gemini {API}},
-  2026.
-\newblock URL \url{https://ai.google.dev/}.
-\newblock Paid service. Vendor material.
 
 \bibitem[Sim{\'e}oni et~al.(2025)Sim{\'e}oni, Vo, Seitzer,
   et~al.]{simeoni2025dinov3}

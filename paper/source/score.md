@@ -2,7 +2,7 @@
 title: "SCORE: A Framework for Synthesizing Complete, Owned, Responsive Environments"
 author:
   - "J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands"
-date: "Working draft, 8 October 2026"
+date: "Working draft, 9 October 2026"
 abstract: |
   Games, films and robot training need 3D worlds that are complete, editable and owned by the people who make them. World models and one-shot 3D generators can produce a convincing place from a sentence or a picture, but they give frames that no engine can open, or one fused scene without separate objects or clear rights. Studios have always built worlds in stages, from concept art and layout to modelling, surfacing, sound and review. We present SCORE, a world generation framework that keeps these stages and automates large parts of them with open vision foundation models, procedural tools and coding agents, while the creator chooses and reviews. Because every stage's output is kept, the creator can rerun or fix any single stage, and because every model allows commercial use, the creator holds full commercial rights. We demonstrate SCORE on the game world of 2099 and plan three further worlds of different kinds. Open models, working in checkable stages, can build worlds that a creator owns and keeps editing. Code and paper are available at https://github.com/Babon-Innovations-b-v/score (MIT license).
 ---
@@ -50,7 +50,7 @@ This paper makes three contributions:
 
 ![The stages on one place, the central hub of the game 2099. (a) The concept, drawn by a picture model from the creator's reference pictures and chosen by the creator. (b) The dimensioned plan in metres, with walkways and standing spots. (c) An excerpt of the scene inventory, which has 74 rows. (d) Close-up pictures of two objects. (e) One surface from the shared library of rule-based surfaces at three wear settings. (f) The assembled room in the game engine.](figures/fig-overview.jpg){width=100%}
 
-Figure 1 shows the stages on one place. The creator chooses a concept (a), and a coding agent turns it into a dimensioned plan (b) and a scene inventory (c). A picture model draws a close-up of every object in the inventory (d). Each object is then built in code or generated in 3D, its parts are painted from the shared library of rule-based surfaces (e), and the place is assembled in an engine (f). The output of every stage is kept, so the creator can trace a weak result to the stage that caused it, rerun or fix that stage, and regenerate the stages after it while keeping their own edits. The sections below describe each stage with an example.
+Figure 1 shows the stages on one place. The creator chooses a concept (a), and a coding agent turns it into a dimensioned plan (b) and a scene inventory (c). An open picture model draws a close-up of every object in the inventory, and a closed one redraws those that fail a shape check (d). Each object is then built in code or generated in 3D, its parts are painted from the shared library of rule-based surfaces (e), and the place is assembled in an engine (f). The output of every stage is kept, so the creator can trace a weak result to the stage that caused it, rerun or fix that stage, and regenerate the stages after it while keeping their own edits. The sections below describe each stage with an example.
 
 <!-- Hub concept C12, plan v3, inventory data/inventory/hub.json (74 rows), close-ups hubrefs/c12/clean, swatches robust-exp/img, shot robust-exp/r6/shots/now/wide-south. -->
 
@@ -62,6 +62,12 @@ The inventory decides what exists in a place. A coding agent cuts the concept in
 
 <!-- place-lab/tools/elements.json: 47 elements, 7 dropped. Rule: memory project-scene-workflow (2026-10-08); issue #130, 2026-10-07T23:04. -->
 
+## Close-ups: the open model first
+
+Every object is built from a close-up: a picture of the object alone on a plain background, drawn from its crop of the concept. Qwen-Image-Edit-2511 [@qwenimageedit], an open model that runs on our own rented cards, draws every close-up first. A shape check then decides, without a person, whether the picture may go on to the 3D step. Its first half measures the picture: a plain border all round, one object filling a sensible share of the frame, and an outline in the proportions of the inventory row's box. Its second half is an open vision-language model, Qwen3.8-27B [@qwen38], which sees the crop beside the close-up and answers set questions (one object, a clean background, the whole object, the same object, no parts missing or added, the right proportions); each question is asked three times with different seeds and the majority decides. Only a close-up that fails is redrawn by Nano Banana Pro [@nanobananapro], first from the crop alone and then with the whole concept beside it, and its pictures pass the same check. The check leans towards failing, because a wrong picture that passes costs a bad 3D model, while a good one that fails costs only a picture from the closed model (Appendix E).
+
+<!-- Stage and check: tools/props/closeup/stage.py and check.py (score d323674, 87e5ffb); the owner's decision of 2026-10-08 (briefs/score-common.txt, CLOSE-UPS). -->
+
 ## Code or generation: the parts check
 
 ![The parts check decides how each object is built. Top: the close-up picture of four objects. Bottom: the object as built. The notice board and the tall locker are built in code, because their code builds show every part of their close-ups. The microscope and the desk chair are generated with Pixal3D, because no code build shows all of their parts.](figures/fig-parts-check.jpg){width=100%}
@@ -72,7 +78,7 @@ Picture-to-3D models build chunky solids well, but flat panels, thin beams and o
 
 ![(a) Three surfaces from the shared library of rule-based surfaces (painted panel, bare steel and deck plate) at wear settings 0, 0.4 and 0.8. (b) The hub's tool board when each generated piece kept the colours of its own picture (left), and after every surface came from the library and each tool became its own model (right). Both shots use the same camera and the same build of the game.](figures/fig-surfaces.jpg){width=100%}
 
-Models and code builders give shape only. Every part of every object takes one surface from a shared library of rule-based surfaces, written as ProcFunc functions [@raistrick2026procfunc] that are built on Infinigen's shaders [@raistrick2023infinigen] and take their colours from the place's palette (Figure 4a). A room has one wear setting, and wear is applied where it has a cause, such as edges and the places where feet pass. On a generated model, PartCrafter [@lin2025partcrafter] splits the shape into parts, and the model's picture only chooses which library surface each part takes. Figure 4b shows why: when each piece kept the colours of its own picture, every piece brought its own rust and stains, and the room looked inconsistent. Sound is attached in the same way, to surfaces, rooms and objects, and is generated by MOSS-SoundEffect [@moss2026] (Appendix F).
+Models and code builders give shape only. Every part of every object takes one surface from a shared library of rule-based surfaces, written as ProcFunc functions [@raistrick2026procfunc] that are built on Infinigen's shaders [@raistrick2023infinigen] and take their colours from the place's palette (Figure 4a). A room has one wear setting, and wear is applied where it has a cause, such as edges and the places where feet pass. On a generated model, PartCrafter [@lin2025partcrafter] splits the shape into parts, and an open vision-language model, shown each part outlined on the close-up, names the library surface it takes; the picture's colours are not kept. Figure 4b shows why: when each piece kept the colours of its own picture, every piece brought its own rust and stains, and the room looked inconsistent. Sound is attached in the same way, to surfaces, rooms and objects, and is generated by MOSS-SoundEffect [@moss2026] (Appendix F).
 
 ## Terrain
 
@@ -96,6 +102,14 @@ Every place is exported as one OpenUSD stage [@openusd] in which each object car
 
 <!-- Wreck stage: tools/usd/export.py on data/kit/wreck.json; renders by tools/usd/views.py (Blender 5.0.1, headless); the edit survival is checked by tools/usd/export_test.py. -->
 
+A place's stage holds more than its inventory's objects. A scene record adds what the place needs around them, each piece built by a code builder and painted from the library: the room's shell and stairs, the ground out to the horizon, water, the far backdrop, the neighbouring places seen through open doorways (each referenced as its own stage), every light with the sky and the exposure, and the cameras that the place is judged from.
+
+<!-- Scene record: tools/usd/scene.py, builders.py, data/scene/<place>.json (score f51d92b, 2708ff2, 3a28fe7); 17 records for world 1 (data/scene). -->
+
+Before a place is accepted, its loose objects are dropped in a physics simulation on the stage's own ground with their own triangles, and each rest pose is written back into the layout. Settling only corrects: an object that would turn or drift further than a small limit keeps its laid pose and fails the resting check, which also fails anything floating, tipping, sunk into the ground or lying inside another piece (Appendix D). A large move is a fault of the layout, not of physics, and the layout follows the creator's concept. On the wreck, 11 of 22 pieces rested as first laid. The coordinating agent then laid the wreck out again after its concept and cut shallow dents in the ground where pieces had struck it, and all 22 rested; the creator has not yet reviewed this new layout. On the old station, the check found a pile of sandbags lying inside the lander's legs, and once the pile was moved, all 29 pieces rested.
+
+<!-- Settling and the resting check: tools/usd/settle.py, resting.py, ground.py dent (score e5d829c); wreck 11/22 before and 22/22 after, old station 29/29 with bag_pile_5 moved: progress-usd.txt 2026-10-08T23:27. -->
+
 A place's people are part of its stage. Its cast records who is there, how many, where, doing what and why each is there, and nobody is placed who is not in it. Each person becomes a skinned character (UsdSkel) that plays a clip from its own starting point, in a layer of its own between the creator's edit layer and the base. A crowd is one point instancer of a cheap body, with a prototype for each clip, phase and palette of clothes. The bodies come from the game 2099's character tools: SOMA-X bodies shaped by SAM 3D Body [@yang2026sam3dbody], clips that Kimodo wrote from sentences [@rempe2026kimodo], and clothes draped by GarmentCode. On the leader's walk, UsdSkel skins the converted body to within about a micrometre of the points the glTF file's own skinning gives. The prologue's square holds the leader on the podium, a front row of 24 people mixed from six kit builds, and a crowd of 10,000.
 
 <!-- Characters: tools/characters (skel_usd.py, cast.py), data/characters/square.json; skinning agreement measured 2026-10-08 on the leader's walking clip, frame 20 (max 0.0013 mm); checked by tools/characters/characters_test.py. -->
@@ -108,18 +122,18 @@ A place's people are part of its stage. Its cast records who is there, how many,
 
 Each place ends with the creator's review. The review tools that SCORE supplies are pages that show each stage's output side by side, before-and-after shots from the same cameras, walkthroughs inside the engine, and the result of every check. An optional world step can turn the concept into a whole room that can be walked through, so that walls and objects the concept does not show can be seen; nothing it produces is shipped.
 
-For the wreck, the review page is a static folder built only from the files the stages wrote, with the assembled scene rendered by Blender from the place's OpenUSD stage from fixed cameras and along a walk round it (Figure 8).
+A review page is a static folder built only from the files the stages wrote, with the assembled scene rendered by Blender from the place's OpenUSD stage, on rented cards, from the cameras of its scene record and along a walk through it (Figure 8). Each view is laid beside the game's own shot from the same spot, and a view that is much darker than the game's fails a brightness check, which is how lamps whose light fell off too fast were found. A place with people shows each of them close and the crowd wide, and its walk is drawn at consecutive moments of the stage's time, so that the people move.
 
 ![The wreck's review page, from two runs of the route over the same place. (a) One model: its close-up, its labelled parts (one colour per library surface) and its baked model, each from the first run and the rerun, drawn from the same camera. (b) The assembled scene from one fixed camera, before and after the rerun. (c) The parts check for each take, with what it caught in the rerun: the split of seven takes did not register against their pictures, so each was painted whole.](figures/fig-review.jpg){width=100%}
 
-<!-- Page: tools/review/page.py wreck, runs place-outside/work/wreck (before) and ~/.farm-factory-props/work/place/wreck-score1 (now); "seven takes": the labels.json files in wreck-score1/parts, registration.registered false in 7 of them. -->
+<!-- Scene record views, game shots, brightness: tools/review/CLAUDE.md, page.py --game-shots (score f51d92b); the lamps: score 3a28fe7 (the rocket's floodlight, progress-complete-scenes.txt 00:00). Characters section: tools/review/characters.py (score 93df6a5). Page: tools/review/page.py wreck, runs place-outside/work/wreck (before) and ~/.farm-factory-props/work/place/wreck-score1 (now); "seven takes": the labels.json files in wreck-score1/parts, registration.registered false in 7 of them. -->
 
 # Results across worlds
 
 We build four worlds with the same stages: the game world of 2099 (a Moon base and its surroundings, a camp on Mars, and a prologue on Earth), a stylised underwater world, a simulation world for robots, and a third-person fantasy world.
 
 ::: gap
-**Gap: Table 1, results per world and stage.** For each world, this table will give the number of places, the wall-clock time, the cost in GPU time and in picture calls, the number of models built in code and generated, and the faults caught before spending at each stage against those found afterwards. It waits until world 1 is finished and reviewed by its creator (most of its places are built, but none after its first room has yet been reviewed in play) and until worlds 2 to 4 are built. The records for each place will be in Appendix B.
+**Gap: Table 1, results per world and stage.** For each world, this table will give the number of places, the wall-clock time, the cost in GPU time and in picture calls, the number of models built in code and generated, and the faults caught before spending at each stage against those found afterwards. All 17 places of world 1 are built and their records are in Appendix B, but they become results only when the creator has reviewed the world, which has not happened since its first room; worlds 2 to 4 have not been started.
 :::
 
 ::: gap
@@ -149,7 +163,8 @@ We build four worlds with the same stages: the game world of 2099 (a Moon base a
 - **One creator, one world so far.** Every verdict on the results is one creator's, and only the first world has been built.
 - **Code builders do not scale well.** They give clean objects, but a coding agent has to write one for every kind of object.
 - **Places come out sparser than their concepts.** The concept-density check catches this but does not fix it.
-- **One stage depends on a closed, paid picture model.** Nano Banana Pro, a closed and paid service, draws the concepts and close-ups; its daily limits set the pace of world 1, and it can change or be retired, which limits reproducibility and leaves a public framework depending on a closed service for one stage. A cheaper model of the same family did not replace it (Appendix E).
+- **One stage still depends on a closed, paid picture model.** Nano Banana Pro, a closed and paid service, draws the concepts and every close-up that the open model's pictures fail. On the last 17 close-ups of world 1, none of the open model's pictures passed the shape check, so the closed model drew every close-up that was accepted. Its daily limits set the pace of world 1, and it can change or be retired, which limits reproducibility and leaves a public framework depending on a closed service for one stage. A cheaper model of the same family did not replace it (Appendix E).
+- **Parts do not follow finishes.** PartCrafter's parts follow shape, not paint, so a finish that does not have its own part, such as a gold foil patch on a white hull or a brown seat on a grey frame, is still lost when the part is painted with one surface.
 - **Objects are physical but not interactive.** Seats, terminals and other usable objects do not work in the output.
 
 
@@ -159,7 +174,7 @@ We build four worlds with the same stages: the game world of 2099 (a Moon base a
 - Add a game engine adapter for the OpenUSD scene, and write each object's mass and friction into it.
 - Make assets interactable, which robotics in particular needs.
 - Make the other worlds' animals the way people are made, from a picture of each to a rigged, animated character, starting with fish for the underwater world.
-- Replace the closed picture model for close-ups: an open picture model, run in our own cloud batches, is being tested for this stage.
+- Make the open picture model's close-ups pass the shape check more often, so that the closed model is needed less.
 - Wrap open solvers as stages for worlds at other scales, starting with orbital dynamics through REBOUND [@rein2012rebound].
 - Evaluate SCORE on LEGO-Bench [@li2026lego].
 
@@ -186,11 +201,32 @@ SCORE builds complete, owned and responsive worlds from a creator's choices, by 
 
 # Detailed per-stage results
 
-::: gap
-**Gap.** For every place, this appendix will give the wall-clock time, the cost, the number of models built in code and generated, and every fault caught before or found after spending, by stage and by check. Records already exist for 21 place runs of world 1, but they are not results until that world is finished and reviewed; worlds 2 to 4 have not been started.
-:::
+Table B1 gives the records of world 1's 17 places as the build logs and the cloud ledger hold them. They are records, not yet results: the creator has not reviewed world 1 since its first room, and worlds 2 to 4 have not been started. The cloud costs are lower bounds. The ledger attributes a batch to a place by the work folders and take names in it; review renders (€24.24), the shape-check judge (€22.81), the game's shared test machines (€32.63), settling (€4.43), the open picture models (€10.27) and the repainting and spreading work (€8.44) could not be attributed to one place. No time or cost is recorded for each stage of a place separately, only for each batch, so the table gives none. The resting check is the one on each place's review page of 8 October, before the night's complete stages were exported; it counts every piece it fails, including many deck plates that it finds sunk by 4 cm, which have not been judged as real faults or not.
 
-<!-- 21 place runs: scaling-world1.tsv (local R&D log). -->
+**Table B1.** World 1, per place. Models are those built in code and those generated. Cloud is the ledger's rented machine time attributed to the place, in euros; pictures are the picture model's calls in dollars, from the build logs. Faults are those the checks caught before money was spent and those found after.
+
+| Place | Rows | Pieces | Models, code / generated | Cloud | Pictures | Faults before / after | Resting |
+|---|---|---|---|---|---|---|---|
+| Hub | 74 | 460 | 88 / 12 | €3.65 | $1.07 | not counted | 405 of 460 |
+| Lab | 47 | 412 | 54 / 22 | €8.36 | $4.15 | 13 / 12 | 373 of 412 |
+| Greenhouse | 59 | 1,248 | 146 / 3 | €3.07 | $2.13 | 7 / 3 | 1,154 of 1,248 |
+| Workshop | 54 | 814 | 97 / 8 | €2.18 | $3.35 | 3 / 9 | 671 of 814 |
+| Airlock | 33 | 330 | 73 / 1 | €2.53 | $0.13 | 1 / 5 | 296 of 330 |
+| Walkway tube | 13 | 39 | 23 / 0 | €0.81 | $0 | 0 / 2 | 38 of 39 |
+| Habitat | 53 | 637 | 100 / 2 | €5.70 | $1.34 | 1 / 4 | 543 of 637 |
+| Garage | 41 | 602 | 75 / 19 | €4.29 | $8.71 with the hangar | 3 / not counted, with the hangar | 493 of 602 |
+| Hangar | 37 | 1,686 | 61 / 13 | €4.22 | with the garage | with the garage | 865 of 1,686 |
+| Wreck | 14 | 22 | 3 / 13 | €4.88 | $2.68 | 2 / 1 | 22 of 22 |
+| Old station | 17 | 28 | 10 / 14 | €4.93 | $3.22 | 5 / 2 | 29 of 29 |
+| Mars camp | 33 | 218 | 51 / 5 | €3.47 | $1.21 | 4 / 8 | 127 of 218 |
+| Launch view | 4 | 67 | 4 / 1 | €0.33 | $0.40 | 1 / 2 | 8 of 67 |
+| Square | 40 | 4,135 | 74 / 2 | €1.64 | $1.07 | 3 / 4 | 3,712 of 4,135 |
+| Street | 33 | 1,198 | 45 / 2 | €0.98 | $1.74 | 7 / 6 | 1,179 of 1,198 |
+| Stairwell | 21 | 118 | 42 / 1 | €1.23 | $2.41 with the flat | 2 / 6 | 117 of 118 |
+| Flat | 38 | 52 | 35 / 9 | €2.44 | with the stairwell | 5 / 6 | 50 of 52 |
+| World 1 | 611 | 12,066 | 981 / 127 | €54.71 | | | 10,082 of 12,066 |
+
+<!-- Rows: data/inventory/<place>.json (flat and stairwell: prologue_flat.json, prologue_stairwell.json). Pieces and models: data/kit/<place>.json (pieces; models[*].route code or model), glow parts left out. Cloud: ~/.farm-factory-props/cloud/ledger.jsonl rows from 2026-10-07T00:00Z, attributed by work folder and take name (bakes split per job entry, Pixal3D by job seconds, PartCrafter by folder; the hub's round six only, rows 219-236 and 239); unattributed sums the same way. Pictures and faults: playtest3/scaling-world1.tsv columns gemini_usd, faults_caught_before_spend, faults_after (lab rows 6 and 21 added: $2.68 + $1.47, faults 9/9 + 4/3); hub pictures progress-hub-r5.txt; the hub's faults are not tabulated in the tsv. Resting: "Resting on the ground" tables of ~/.farm-factory-props/work/review/<place>/index.html, 2026-10-08 17:05 to 23:25; wreck and old station progress-usd.txt 23:27. The world's resting total over 12,066 pieces: the per-place counts summed (the old station's 29 objects include a child piece). -->
 
 # Development history
 
@@ -229,8 +265,11 @@ Three findings shaped the method. First, deterministic checks catch what agents 
 - **Model check:** every model must be a closed solid with walls at least 3 mm thick. A generated box fails if one of its sides tilts more than 2 degrees or is warped. The step that makes a generated model solid stops itself if the model's bounding box grows more than 3 percent.
 - **Palette sweep and storage budget:** the colours of every model are compared with the place's library palette, and each room may use at most 250 MB on disk and 640 MB of textures on the graphics card.
 - **Scene check and made-only check:** in the engine, these checks find anything that floats, sinks or overlaps, and any visible mesh that the framework did not make. A made-only finding can never be waived.
+- **Close-up shape check:** the picture must have a plain border all round, one object filling a sensible share of the frame, and an outline within a set proportion of the inventory row's box; the judge's seven questions must pass by a majority of three sampled answers. A close-up passes only when both halves pass.
+- **Settling and resting check:** on the OpenUSD stage, loose objects are dropped with their own triangles onto the ground and the fixed objects. An object that would turn more than 15 degrees or drift more than 30 cm keeps its laid pose and is marked as not resting; small debris, with no side over 1.4 m, may turn freely and drift up to 1 m. The resting check then fails anything floating, tipping, sunk below its contact points, lying inside another piece or marked as not resting. Hung objects are exempt by their inventory anchor, and fixed objects are not judged for tipping.
+- **Brightness check:** each view of a place's stage on its review page is shown beside the game's shot from the same spot, and a view whose mean brightness is under half the game's fails.
 
-<!-- 2099 docs/bible.md items 11-12; progress-robust-exp.txt round two [surface check] and round three; progress-hub-r5.txt; #130 comment 2026-10-07T18:52 (door check). -->
+<!-- 2099 docs/bible.md items 11-12; progress-robust-exp.txt round two [surface check] and round three; progress-hub-r5.txt; #130 comment 2026-10-07T18:52 (door check). Close-up check: tools/props/closeup/check.py. Settling and resting: tools/usd/CLAUDE.md, settle.py, resting.py (15 degrees, 30 cm; debris 1.4 m, 1 m). Brightness: tools/review/CLAUDE.md (a scene view under half the game's). -->
 
 # Models and licences
 
@@ -240,7 +279,9 @@ Every model in the framework must allow commercial use of its output (Table E1).
 
 | Model | Role | Licence |
 |---|---|---|
-| Nano Banana Pro [@nanobananapro] | concepts, close-ups, ground skins | paid API |
+| Nano Banana Pro [@nanobananapro] | concepts, close-ups the open model fails, ground skins | paid API |
+| Qwen-Image-Edit-2511 [@qwenimageedit] | close-ups, first | Apache-2.0 |
+| Qwen3.8-27B [@qwen38] | the close-ups' shape check; each part's material | Apache-2.0 |
 | Pixal3D [@li2026pixal3d] | picture to 3D | MIT; DINOv3 licence [@simeoni2025dinov3] for its encoder |
 | PartCrafter [@lin2025partcrafter] | parts | MIT; its non-commercial background remover not used |
 | Depth Anything V2 Small [@yang2024dav2] | ground relief | Apache-2.0 |
@@ -265,6 +306,17 @@ On our tier, Nano Banana Pro allows 250 pictures a day and 20 a minute; the chea
 | refused (glovebox) | 1 |
 
 <!-- Tier limits and the 10-pair check: /home/dupe/.claude/jobs/3326150f/tmp/briefs/score-common.txt, lines PICTURE MODELS and CLOSE-UP CHECK RESULT (2026-10-08); check page https://claude.ai/artifact/J3cbncinKkyPJuNhwk47uH (private). -->
+
+The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand as good, usable, marginal, wrong or failed, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none of the pictures scored wrong or failed, and failed nine that were good or usable, each of which then cost a picture from the closed model. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it gave a different verdict on 7 of them. On the lab's 22 generated rows, an earlier version of the check accepted 8 of the open model's close-ups and sent 14 to the closed model; 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. On the 17 rows that world 1 still needed afterwards, from three places, none of the open model's pictures passed; the closed model's pictures were accepted for 10 rows, and 7 rows were left for the creator to look at.
+
+**Table E3.** The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
+
+| Run | Close-ups | Open model accepted | Closed model accepted | Left for the creator | Cloud | Closed model |
+|---|---|---|---|---|---|---|
+| Lab, 22 rows (earlier check: one answer) | 22 | 8 | 14 | 0 | €4.12 | $2.81 |
+| World 1's remaining rows (three places) | 17 | 0 | 10 | 7 | €3.06 | $4.02 |
+
+<!-- Tuning: progress-openpics.txt 18:53 (vote: 29/40 agree, 0 wrong/failed passed, 2 marginal passed, 9 wrong fails; Pro 10/10), greedy rejected 17:56 (7/51 differed). Lab: progress-openpics.txt 17:35 (8 Qwen, 14 Pro, 7 Pro first takes failed for the room or dimension lines, all crop-only retakes passed, EUR 4.12 cloud, $2.81 Pro). World 1: progress-world1-score.txt 18:55 (workshop, greenhouse, campgrounds; 17 rows) and 20:12 (10/17 accepted, all by Pro, Qwen 0/17, 7 for review, EUR 3.06, Pro $4.02). -->
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound generation, all checks and the assembly run automatically. Coding agents (Claude Code [@claudecode]) write the plans, the inventories and every code builder; in the hub's final round, 86 of its 98 models were built in code. Some steps were still done by hand: some generated objects were turned to face the right way by eye, and a few labels were placed by hand before a rule took over that job. The concepts and the verdicts are the creator's own choices.
 
@@ -300,6 +352,43 @@ A batch asks for a class of machine, such as one card with 24 GB, and takes what
 
 <!-- Out of stock most of the day: handoff cloudgame.txt (2026-10-08) and batch logs of that day. Table and paragraph: the cloud ledger rows of batches library-20261008-134330, library-20261008-134449, batch-20261008-134244, batch-20261008-134426 and batch-20261008-141143 (start_wait_minutes, minutes, euros, unit_seconds, peak_gb), summarised in the capacity job's progress log tmp/playtest3/progress-capacity.txt (14:45 table). Close-ups: the wreck's work_lamp, pressure_sphere, ring_frame (3) and ten of its close-ups (10). L40S out of stock: ledger attempts 13:44 and 14:12. P100: setup.log of batch-20261008-134506 ("NVIDIA-SMI has failed"). -->
 
+Since 8 October, every kind of batch is spread over many machines at once: each machine is set up once and takes the next job from one queue as it finishes one, and a batch rents enough machines that each works about as long as its setup takes. Table G2 compares the same batches on one machine and spread. A spread batch ended 1.2 to 2.7 times sooner and cost 4 to 63 percent more, because every added machine spends part of its time setting up.
+
+**Table G2.** The same batches on one machine and spread over several, 8 October 2026.
+
+| Batch | Machines | Time | Cost | On one machine |
+|---|---|---|---|---|
+| Blender, 6 jobs | 3 L4 | 7.0 min | €0.28 | 14.3 min, €0.20 |
+| Library bake, 22 jobs | 4 L4 | 10 min | €0.43 | 27 min, €0.35 |
+| Pictures (FLUX.2 klein), 120 | 3 L4 | 5 min | €0.20 | 10 min, €0.14 |
+| Pictures without light, 32 | 2 L4 | 4 min | €0.10 | 6 min, €0.08 |
+| PartCrafter, 12 runs | 2 L4 | 19.3 min | €0.49 | 35.2 min, €0.47 |
+| Shape-check judge, 184 questions | 2 H100 | 16 min | €1.48 | 19 min, €0.91 |
+| Qwen-Image-Edit, 16 close-ups | 3 H100 | 11 min | €1.53 | 26 min, €1.24 |
+
+<!-- progress-fleet.txt: "spread runs done" and "Baselines (SCORE_MAX_MACHINES=all=1)" lines; code score bf6688b (spread.py). -->
+
+Table G3 sums the cloud ledger, in which every runner records each machine it rents, by type of machine, from the first batch on 29 September to the end of 8 October 2026. It holds the game 2099's own test and benchmark machines as well as the framework's batches, and the machines of the earliest batches, worth €34.69, were recorded without their type.
+
+**Table G3.** Rented machines by type, 29 September to 8 October 2026.
+
+| Machine | Rentals | Machine time | Cost |
+|---|---|---|---|
+| L4, 24 GB | 793 | 331.1 h | €266.19 |
+| H100 PCIe, 80 GB | 29 | 7.4 h | €21.69 |
+| two H100 SXM, 80 GB each | 14 | 1.5 h | €11.03 |
+| 32-core processor, 128 GB | 26 | 5.4 h | €9.85 |
+| two L4, 24 GB each | 3 | 3.4 h | €5.38 |
+| 16-core processor, 64 GB | 13 | 2.3 h | €4.81 |
+| 32-core processor, 64 GB | 5 | 0.9 h | €4.26 |
+| L40S, 48 GB | 6 | 2.7 h | €4.07 |
+| P100, 16 GB | 2 | 0.1 h | €2.44 |
+| 16-core processor, 128 GB | 2 | 1.6 h | €1.36 |
+| type not recorded | | | €34.69 |
+| total | | | €366.76 |
+
+<!-- ~/.farm-factory-props/cloud/ledger.jsonl, rows started before 2026-10-08T22:00Z (midnight CEST), 746 rows from 2026-09-29T10:07Z; machines[].type, minutes, euros summed; rows without machines[] summed as "type not recorded". Types: L4-1-24G, H100-1-80G, H100-SXM-2-80G, POP2-32C-128G, L4-2-24G, POP2-16C-64G, POP2-HC-32C-64G, L40S-1-48G, RENDER-S, POP2-HM-16C-128G. -->
+
 ::: gap
-**Gap: cost tables.** These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds; the figures per place so far are lower bounds taken from the build logs.
+**Gap: cost tables.** These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds and on the bill; the figures per place so far (Appendix B) are lower bounds taken from the build logs.
 :::
