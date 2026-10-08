@@ -506,8 +506,6 @@ def render_all(options, runs, out):
     kit_run = any(run.get("kit") for run in runs.values() if run)
     names = list(shown_models(planned, kit_run)) if planned else []
     stages = {label: stage for label, stage in (("before", options.before_stage), ("now", options.stage)) if stage}
-    if getattr(options, "cloud", False):
-        renders.CLOUD = renders.CLOUD_CLASSES
     if options.no_render:
         found = json.loads((out / "renders.json").read_text())
         return found["shots"], found["scene"], found.get("characters")
@@ -530,7 +528,15 @@ def build(options):
     if runs["before"] is None:
         del runs["before"]
     pictures = Pictures(out)
-    shots, scene, cast = render_all(options, runs, out)
+    if getattr(options, "cloud", False) and not options.no_render:  # one rented machine for every render of the page
+        sys.path.insert(0, str(HERE.parents[1] / "tools/props/cloud"))
+        import blender_cloud
+        with blender_cloud.Machine(renders.CLOUD_CLASSES, "review page") as machine:
+            renders.CLOUD = machine
+            shots, scene, cast = render_all(options, runs, out)
+        renders.CLOUD = None
+    else:
+        shots, scene, cast = render_all(options, runs, out)
     copy_agreement(options.agreement, out)
     style = records.place_style(options.place)
     concept = records.concept(options.concept)

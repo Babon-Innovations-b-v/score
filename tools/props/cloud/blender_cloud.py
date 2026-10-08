@@ -5,7 +5,14 @@ Blender run on the owner's PC at a time, so renders, settling and review pages r
     ~/.farm-factory-props/env/bin/python tools/props/cloud/blender_cloud.py <job.json> [<job.json> ...] \
         --who "<session>" [--classes cpu-32c-128gb[,...]] [--dry-run]
 
-A tool on this PC calls `run_elsewhere` (tools/usd/settle.py --cloud, tools/review/page.py --cloud). A job:
+A tool on this PC calls `run_elsewhere` for one job (tools/usd/settle.py --cloud), or holds one machine for a chain
+of jobs with `Machine` (tools/review/page.py --cloud: model shots, every stage's views and the walk on one machine):
+
+    with blender_cloud.Machine(classes, who) as machine:
+        machine.run(script, arguments, inputs, outputs, minutes)   # as many as the tool needs
+
+which runs this file with --serve on a queue folder: it rents once, runs each job written to the queue in turn, and
+deletes the machine when the tool closes the queue or after IDLE_MINUTES with nothing to do. A job:
     {"script": "tools/blender/inside/settle_stage.py",   a Blender script in this repo
      "args": ["/abs/stage.usda", "/abs/job.json", "/abs/out.json"],   what follows its `--`
      "inputs": ["/abs/folder", "/abs/file"],   files and folders it reads (sent as they are)
@@ -45,6 +52,9 @@ KIND = "blender"
 # Settling and other physics: the processor machines, tried in turn as their stock moves.
 DEFAULT_CLASSES = ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb")
 ALWAYS_SHIPPED = ("tools/blender/inside",)
+# A held machine (--serve): the chain's expected minutes for the owner's limits, and how long it waits for the next job.
+SERVE_MINUTES = 60
+IDLE_MINUTES = 10
 
 
 def run_line(job, card):
@@ -123,6 +133,47 @@ def run_job(log_folder, host, number, job, card):
     return round(time.time() - began, 1)
 
 
+def serve(run, machine, queue, idle_minutes):
+    """One machine for a chain: Blender up, then each job file written to `queue` run in turn (`<n>.done` or
+    `<n>.failed` beside it), until the queue is closed (`close`) and empty or nothing came for `idle_minutes`."""
+    import pictures
+    log_folder = machine["folder"]
+    stop = threading.Event()
+    sent = set(ALWAYS_SHIPPED)
+    try:
+        host = machine["host"]
+        batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
+        set_up(log_folder, host, [])
+        (queue / "ready").write_text(machine.get("class", ""))
+        card = machine.get("class", "").startswith("gpu")
+        last = time.time()
+        while time.time() < run.deadline:
+            waiting = sorted((path for path in queue.glob("*.json") if not path.with_suffix(".done").exists()
+                              and not path.with_suffix(".failed").exists()), key=lambda path: int(path.stem))
+            if not waiting:
+                if (queue / "close").exists() or time.time() - last > idle_minutes * 60:
+                    return
+                time.sleep(2)
+                continue
+            job = json.loads(waiting[0].read_text())
+            try:
+                for folder in set(shipped([job])) - sent:
+                    parent = (REMOTE / "repo" / folder).parent
+                    batch.remote(log_folder, host, f"mkdir -p {parent}", check=True)
+                    batch.copy(log_folder, [REPO / folder], f"root@{host}:{parent}/", "--exclude", "__pycache__")
+                    sent.add(folder)
+                seconds = run_job(log_folder, host, int(waiting[0].stem), job, card)
+                machine.setdefault("unit_seconds", []).append(seconds)
+                waiting[0].with_suffix(".done").write_text(str(seconds))
+            except subprocess.CalledProcessError as failed:
+                waiting[0].with_suffix(".failed").write_text(f"{failed}; log: {log_folder}/job{waiting[0].stem}.log")
+            last = time.time()
+    finally:
+        stop.set()
+        batch.delete_machine(machine)
+
+
 def work_on(run, machine, jobs):
     """One machine from boot to delete: Blender up, every job run, every output back."""
     import pictures
@@ -145,16 +196,54 @@ def work_on(run, machine, jobs):
 CLOUD_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
 
 
+def job_of(script, arguments, inputs, outputs, minutes):
+    """A job as this file takes it."""
+    return {"script": str(pathlib.Path(script).resolve().relative_to(REPO)),
+            "args": [str(argument) for argument in arguments],
+            "inputs": [str(path) for path in inputs], "outputs": [str(path) for path in outputs], "minutes": minutes}
+
+
+class Machine:
+    """One rented machine held for a chain of jobs from one tool run (this file's --serve on a queue folder)."""
+
+    def __init__(self, classes, who, minutes=SERVE_MINUTES):
+        self.classes, self.who, self.minutes = classes, who, minutes
+        self.queue = batch.BATCHES / "queues" / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}"
+        self.process, self.count = None, 0
+
+    def __enter__(self):
+        self.queue.mkdir(parents=True)
+        self.process = subprocess.Popen([str(CLOUD_PYTHON), str(HERE / "blender_cloud.py"), "--serve", str(self.queue),
+                                         "--who", self.who, "--classes", ",".join(self.classes),
+                                         "--minutes", str(self.minutes)])
+        return self
+
+    def run(self, script, arguments, inputs, outputs, minutes=10):
+        """One job on the held machine; returns when its outputs are back, raises when it or the machine failed."""
+        self.count += 1
+        job = self.queue / f"{self.count}.json"
+        job.write_text(json.dumps(job_of(script, arguments, inputs, outputs, minutes), indent=1))
+        while True:
+            if job.with_suffix(".done").exists():
+                return
+            if job.with_suffix(".failed").exists():
+                raise RuntimeError(f"the cloud Blender job failed: {job.with_suffix('.failed').read_text()}")
+            if self.process.poll() is not None:
+                raise RuntimeError(f"the cloud Blender machine for {self.queue} ended before {job.name} ran")
+            time.sleep(2)
+
+    def __exit__(self, *_):
+        (self.queue / "close").write_text("")
+        self.process.wait()
+
+
 def run_elsewhere(script, arguments, inputs, outputs, classes, who, minutes=10):
     """For a tool on this PC: run one Blender script on a rented machine (a call of this file), its outputs back
     where they belong; raises when the run fails."""
     folder = batch.BATCHES / "requests"
     folder.mkdir(parents=True, exist_ok=True)
     job_path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}-{threading.get_ident()}.json"
-    job_path.write_text(json.dumps({"script": str(pathlib.Path(script).resolve().relative_to(REPO)),
-                                    "args": [str(argument) for argument in arguments],
-                                    "inputs": [str(path) for path in inputs], "outputs": [str(path) for path in outputs],
-                                    "minutes": minutes}, indent=1))
+    job_path.write_text(json.dumps(job_of(script, arguments, inputs, outputs, minutes), indent=1))
     command = [str(CLOUD_PYTHON), str(HERE / "blender_cloud.py"), str(job_path), "--who", who,
                "--classes", ",".join(classes)]
     if subprocess.run(command).returncode != 0:
@@ -163,12 +252,14 @@ def run_elsewhere(script, arguments, inputs, outputs, classes, who, minutes=10):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("jobs", nargs="+", type=pathlib.Path)
+    parser.add_argument("jobs", nargs="*", type=pathlib.Path)
+    parser.add_argument("--serve", type=pathlib.Path, help="hold one machine for the jobs written to this queue folder")
+    parser.add_argument("--minutes", type=float, default=SERVE_MINUTES, help="--serve: the chain's expected minutes")
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     parser.add_argument("--classes", help="capability classes in the order to try, comma separated")
     options = parser.parse_args()
-    jobs = [json.loads(path.read_text()) for path in options.jobs]
+    jobs = [json.loads(path.read_text()) for path in options.jobs] or [{"minutes": options.minutes}]
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
     account = cloud.account()
     batch.sweep(account)
@@ -185,13 +276,18 @@ def main():
     try:
         machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
         if not machines:
+            if options.serve:
+                (options.serve / "failed").write_text("no machine could be rented")
             raise SystemExit("no machine could be rented")
-        work_on(run, machines[0], jobs)
+        if options.serve:
+            serve(run, machines[0], options.serve, IDLE_MINUTES)
+        else:
+            work_on(run, machines[0], jobs)
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
         entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
-                 "kind": KIND, "who": options.who, "jobs": [job["script"] for job in jobs],
+                 "kind": KIND, "who": options.who, "jobs": [job.get("script", "a held machine") for job in jobs],
                  **ledger.machines_record(run.machines, run.attempts, started),
                  "wall_minutes": (time.time() - started) / 60}
         ledger.record(entry)

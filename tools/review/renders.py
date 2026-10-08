@@ -47,8 +47,8 @@ ROOF_LAYER = 2
 LAMP_WATTS = 60.0
 
 
-# Where the Blender work runs: None for this PC's Blender (one at a time, the machine's lock), else the capability
-# classes of a rented machine (tools/props/cloud/blender_cloud.py), set by page.py --cloud.
+# Where the Blender work runs: None for this PC's Blender (one at a time, the machine's lock), else a rented machine
+# held for the page's whole build (tools/props/cloud/blender_cloud.Machine), set by page.py --cloud.
 CLOUD = None
 CLOUD_CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb")
 
@@ -56,9 +56,7 @@ CLOUD_CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-6
 def blender(script, *arguments, inputs=(), outputs=()):
     """Run a Blender script here, or on a rented card when CLOUD is set (its inputs sent, its outputs brought back)."""
     if CLOUD:
-        sys.path.insert(0, str(REPO / "tools/props/cloud"))
-        import blender_cloud
-        blender_cloud.run_elsewhere(script, arguments, inputs, outputs, CLOUD, "review page", minutes=20)
+        CLOUD.run(script, arguments, inputs, outputs, minutes=20)
         return
     command = [sys.executable, str(SESSION), "batch", str(script), "--", *map(str, arguments)]
     if subprocess.run(command, stdout=subprocess.DEVNULL).returncode != 0:
