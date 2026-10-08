@@ -5,13 +5,14 @@
     "paper/figures/fig-overview.jpg": "e51a1352d0e88e35817d2097067dd72856e0670bb8ed14436c81b70673e4594b",
     "paper/figures/fig-partition.jpg": "f2bfe7e9e406900c810f2cc99dd7b2432cc8d843ce98e69c0545ced10daf0dd3",
     "paper/figures/fig-parts-check.jpg": "2fb3470887f9fbd3a9e4adac11b3ce6f2647a1687094094fe76737c1261bd409",
+    "paper/figures/fig-review.jpg": "66578175d6551ef2359d46b4e52f1a097b5c51b70d5c8a5dc915952e93ef820b",
     "paper/figures/fig-surfaces.jpg": "b990b29caf2c7272d0eb7c3f30d4a10dc665ce23a2efbb6f76ccf8152f88ca07",
     "paper/figures/fig-terrain.jpg": "6ec7bc91533c2d4ed0eb0c233d348e46a099fb55ffa40f41f9afd88a8f986f86",
     "paper/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "d20c367d7e9ac9ddd69eb80bf24143519be5a69ca65afa27335e6bf8f3f45d9d",
     "paper/source/refs.bib": "892cd9f223c75f8e7d63be77030bb61b462165881b9536d6ff40a538280eac30",
-    "paper/source/score.md": "dc5eae107fc206c109bdd14ab675de4746fee632a2779a8cc7740a51acd5f25f"
+    "paper/source/score.md": "35045b4d69373a3e3e23c3def15d956d415af81751b6b613272cbf91ffbabd2c"
   },
   "outputs": {
     "paper/arxiv/content/abstract.tex": "1a0c0d79ea980ff7a0c7ed48d38e978251db6877b8177a08f796b0c6f9f28cd7",
@@ -25,7 +26,7 @@
     "paper/arxiv/content/future_work.tex": "91cc8534759651db9deccd6013ef2178ac6692ea4934985e016885ee34c45a99",
     "paper/arxiv/content/introduction.tex": "3f7f7b84db668a4711ea1f6a10d22eed60a1eb22fcae78002d96f76b653ec7eb",
     "paper/arxiv/content/limitations.tex": "d4ad09d33ea4f9c568a749b1532f70eb3aa58f35d4a3986ecb0aad606dfdaa37",
-    "paper/arxiv/content/methods.tex": "d9ef292e84db8ca03ff7a28db2569a7ec4bf3b9cea64cd92e39dae10355f8d2d",
+    "paper/arxiv/content/methods.tex": "4ea69fbdc1fafcabbe3524d504440b602529503f10f7feb5cec4c1da00e49aac",
     "paper/arxiv/content/models_and_licences.tex": "b1fc9f731c007537a21e06d7768c96e00082140ed3e28bde7da9d24b2a95290d",
     "paper/arxiv/content/per_world_demos.tex": "6028f9cb751abe0cca6e071814e670fd12b91067d50274a24d6ec1e7ccece801",
     "paper/arxiv/content/results_across_worlds.tex": "e50f2f34d465c0ff9cd2d4eb309b5aad415baa4d1b9913abce6de5455d5273fd",
@@ -35,14 +36,15 @@
     "paper/arxiv/figures/fig-overview.jpg": "e51a1352d0e88e35817d2097067dd72856e0670bb8ed14436c81b70673e4594b",
     "paper/arxiv/figures/fig-partition.jpg": "f2bfe7e9e406900c810f2cc99dd7b2432cc8d843ce98e69c0545ced10daf0dd3",
     "paper/arxiv/figures/fig-parts-check.jpg": "2fb3470887f9fbd3a9e4adac11b3ce6f2647a1687094094fe76737c1261bd409",
+    "paper/arxiv/figures/fig-review.jpg": "66578175d6551ef2359d46b4e52f1a097b5c51b70d5c8a5dc915952e93ef820b",
     "paper/arxiv/figures/fig-surfaces.jpg": "b990b29caf2c7272d0eb7c3f30d4a10dc665ce23a2efbb6f76ccf8152f88ca07",
     "paper/arxiv/figures/fig-terrain.jpg": "6ec7bc91533c2d4ed0eb0c233d348e46a099fb55ffa40f41f9afd88a8f986f86",
     "paper/arxiv/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
     "paper/arxiv/main.bbl": "34957973be690331f0d9f17d8eb1aaf3bd85b9975350a6e0a1d5e10214455628",
-    "paper/arxiv/main.pdf": "bd409826b3652e6e6731a0accdaa865633060142ad16f99521541df9d3335f5e",
+    "paper/arxiv/main.pdf": "3048c7ae3ada004c45067d25b2d9a79a6c7a0c77cff1008b22f6f68b20955998",
     "paper/arxiv/main.tex": "145a6b17a8e36517e04bdf54462f7d732af6a866e9f623a5718f384440b974ec",
     "paper/arxiv/refs.bib": "892cd9f223c75f8e7d63be77030bb61b462165881b9536d6ff40a538280eac30",
-    "paper/out/score.pdf": "1162c204902e913e33fe8d38f4aa5b316c907c9b4338f82eeed67dbff108b6b3",
-    "paper/out/score.tex": "78ec6b714a8f77eede33472ea8aa693e269ed0002a2109118aaa78588d9788f7"
+    "paper/out/score.pdf": "5c9065891cf25e5916b4819845990e086af4d65dae849bc5e5759db4e5d796da",
+    "paper/out/score.tex": "67e34c1145977a0042778167d1171cbc04d3b4ddcc00cb6fb4a3161acd2c5784"
   }
 }

@@ -281,7 +281,7 @@ def scene_section(scene, out):
             + "<h3>A walk round it</h3><video src=\"scene/walk.mp4\" controls loop muted playsinline "
               "poster=\"scene/walk-strip.jpg\"></video>"
             + figure("scene/walk-strip.jpg", "the walk, every tenth frame")
-            + f'<h3>Fixed cameras</h3><div class="grid wide">{"".join(tiles)}</div>')
+            + f'<h3>Fixed cameras</h3><div class="grid {"pairs" if len(labels) > 1 else "wide"}">{"".join(tiles)}</div>')
     return section("scene", "The assembled scene", body)
 
 
