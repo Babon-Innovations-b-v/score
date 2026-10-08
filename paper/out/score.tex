@@ -1067,7 +1067,7 @@ This part is not built yet.
 \section{Cost and infrastructure}\label{cost-and-infrastructure}
 
 Every heavy step runs on rented machines that are deleted after each
-batch: NVIDIA L4 graphics cards for picture-to-3D, part splitting and
+batch: NVIDIA graphics cards for picture-to-3D, part splitting and
 baking, and processor-only machines when no cards are in stock. The
 engine's tests, its screenshots and its frame-time benchmark also run on
 rented machines. A full test run took 542 s there, against 596 s on the
@@ -1075,6 +1075,64 @@ local computer, and frame times measured on an L4 card are converted to
 the local RTX 5080 by a measured factor of 3.47. A picture costs about
 \$0.134 at the resolution we use. The picture model's limits on speed
 are described under Limitations.
+
+A batch asks for a class of machine, such as one card with 24 GB, and
+takes whatever the provider has in stock across three zones and three
+card types, because on 8 October the cheapest type was out of stock in
+one zone for most of the day. Table G1 compares the same jobs on two
+card types. An H100 runs ten Pixal3D takes at once in 31 GB of its 80
+GB, and makes nearly three times as many models an hour as an L4. It has
+no ray-tracing cores, so it bakes 2.6 times slower than an L4. Pixal3D
+therefore takes 80 GB cards first, and a bake takes an H100 only when no
+other card has been free for five minutes. The L40S was out of stock on
+both attempts, and the provider's P100 machines started but their driver
+did not see the card.
+
+\textbf{Table G1.} The same jobs on two card types, 8 October 2026. Wait
+is the time from the order until the machine answers; machine time is
+the whole rental, setup included.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Card
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Job
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+At once
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Wait
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Machine time
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cost
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Per take
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+L4, 24 GB & Pixal3D, 3 close-ups & 3 & 0.4 min & 28.0 min & €0.38 &
+€0.13, 6.4 an hour \\
+H100, 80 GB & Pixal3D, the same 3 & 3 & 0.6 min & 13.9 min & €0.67 &
+€0.22, 12.9 an hour \\
+H100, 80 GB & Pixal3D, 10 close-ups & 10 & 0.6 min & 33.1 min & €1.62 &
+€0.16, 18.1 an hour \\
+L4, 24 GB & bake: 60 surfaces at 3 wear levels & 1 & 0.4 min & 3.8 min
+(bake 138 s) & €0.05 & \\
+H100, 80 GB & the same bake & 1 & 0.6 min & 7.5 min (bake 360 s) & €0.38
+& \\
+\end{longtable}
+}
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
