@@ -3,8 +3,8 @@
 #
 #   bash .claude/scripts/bootstrap.sh
 #
-# Two jobs: link Claude's memory folder into the tracked repo so memory survives a
-# wiped machine, and report anything else the loop needs that is not here yet.
+# Link Claude's memory folder into the repo (git-ignored: the repo is public), use the
+# repo's git hooks, and report anything else the loop needs that is not here yet.
 # Safe to re-run: every step skips what is already done.
 set -euo pipefail
 
@@ -16,8 +16,8 @@ say() { printf '%s\n' "$*"; }
 # --- 1. Link Claude's memory folder into the repo --------------------------
 # Claude Code stores memory at ~/.claude/projects/<encoded-repo-path>/memory, where
 # the encoded path is the absolute repo path with every / turned into -. Point that
-# folder at the repo's tracked .claude/memory so memory rides along with git, and the
-# Stop hook in .claude/settings.json commits and pushes it.
+# folder at the repo's .claude/memory. That folder is git-ignored, so memory stays on this
+# machine and is never pushed to the public repository.
 link_memory() {
   local enc target
   enc="$(printf '%s' "$REPO" | sed 's#/#-#g')"

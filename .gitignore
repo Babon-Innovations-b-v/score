@@ -32,3 +32,6 @@ yarn-error.log*
 .claude/worktrees/
 .claude/state/
 tmp/
+
+# Claude's memory: private working notes, never pushed (this repository is public)
+.claude/memory/
