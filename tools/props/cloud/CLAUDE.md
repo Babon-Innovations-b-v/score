@@ -49,8 +49,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
 - The generator's arguments come from `pixal.generator_arguments`, so both routes build the same.
 - **Any Blender script runs on a rented machine** (`blender_cloud.py`, 2026-10-08, BLENDER IN THE CLOUD): a job
-  names a repo script, its arguments, its input and output paths (kept at their absolute paths under /root/fs up
-  there, so the script needs no change) and its minutes; a tool calls `blender_cloud.run_elsewhere`. Physics
+  names a repo script, its arguments, its input and output paths (at the same absolute paths up there, so neither
+  the script nor the paths inside its input files change) and its minutes; a tool calls `blender_cloud.run_elsewhere`. Physics
   (settling) on a 32-core processor machine by default, renders on a card (`--classes gpu-24gb,...`, Cycles on the card
   via FARM_CYCLES_GPU). One call is one machine; run calls side by side for many. The PC's own Blender (one at a time,
   the machine lock) is for checks of seconds only.

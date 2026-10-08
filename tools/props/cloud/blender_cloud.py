@@ -12,8 +12,8 @@ A tool on this PC calls `run_elsewhere` (tools/usd/settle.py --cloud, tools/revi
      "outputs": ["/abs/out.json", "/abs/folder"],   files and folders it writes (brought back)
      "minutes": 5}   about how long it runs on the machine
 
-Every input and output keeps its absolute path under /root/fs on the machine, and every argument that is one of
-those paths, or lies inside one, is moved there, so a script needs no change to run up there. The script's own
+Every input and output lies at the same absolute path on the machine as here, so a script, its arguments and the paths
+inside its input files (a review page's shots.json names the model files) need no change to run up there. The script's own
 folder and tools/blender/inside go up with it. The jobs of one call run one after another on one machine; run several
 calls side by side for several machines. Classes: a processor machine for physics (settling: cpu-32c-128gb first,
 the default), a card for renders (`--classes gpu-24gb`, Cycles on the card; on a processor machine Cycles renders on
@@ -40,7 +40,6 @@ from paths import REPO  # noqa: E402
 from provider import cloud  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/lib")
-FILES = pathlib.PurePosixPath("/root/fs")
 SETUP_MINUTES = 8
 KIND = "blender"
 # Settling and other physics: the processor machines, tried in turn as their stock moves.
@@ -48,27 +47,9 @@ DEFAULT_CLASSES = ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64
 ALWAYS_SHIPPED = ("tools/blender/inside",)
 
 
-def remote_path(path):
-    """Where a local absolute path lies on the machine."""
-    return FILES / str(pathlib.Path(path).resolve()).lstrip("/")
-
-
-def moved_argument(argument, paths):
-    """An argument moved to the machine when it is one of the job's paths or lies inside one; else as it is."""
-    for path in paths:
-        local = pathlib.Path(path).resolve()
-        try:
-            inside = pathlib.Path(argument).resolve().relative_to(local)
-        except (ValueError, OSError):
-            continue
-        return str(remote_path(local) / inside) if str(inside) != "." else str(remote_path(local))
-    return argument
-
-
 def run_line(job, card):
-    """The command that runs a job's script on the machine, its arguments moved there."""
-    paths = [*job.get("inputs", ()), *job.get("outputs", ())]
-    arguments = [moved_argument(argument, paths) for argument in job.get("args", ())]
+    """The command that runs a job's script on the machine."""
+    arguments = [str(argument) for argument in job.get("args", ())]
     blender = ["/root/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
                str(REMOTE / "repo" / job["script"]), "--", *arguments]
     engine = "FARM_CYCLES_GPU=1" if card else "FARM_CYCLES_CPU=1"
@@ -99,9 +80,8 @@ def price(jobs, account, classes):
 def send(log_folder, host, local):
     """One input (file or folder) to its place on the machine."""
     local = pathlib.Path(local).resolve()
-    place = remote_path(local)
-    batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(place.parent))}", check=True)
-    batch.copy(log_folder, [local], f"root@{host}:{place.parent}/")
+    batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(local.parent))}", check=True)
+    batch.copy(log_folder, [local], f"root@{host}:{local.parent}/")
 
 
 def bring_back(log_folder, host, local):
@@ -109,7 +89,7 @@ def bring_back(log_folder, host, local):
     local = pathlib.Path(local).resolve()
     local.parent.mkdir(parents=True, exist_ok=True)
     try:
-        batch.copy(log_folder, [f"root@{host}:{remote_path(local)}"], f"{local.parent}/")
+        batch.copy(log_folder, [f"root@{host}:{local}"], f"{local.parent}/")
     except subprocess.CalledProcessError:
         batch.say(f"the machine wrote no {local}")
 
@@ -130,7 +110,8 @@ def run_job(log_folder, host, number, job, card):
     for local in job.get("inputs", ()):
         send(log_folder, host, local)
     for local in job.get("outputs", ()):
-        batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(remote_path(local).parent))}", check=True)
+        batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(pathlib.Path(local).resolve().parent))}",
+                     check=True)
     began = time.time()
     try:
         with (log_folder / f"job{number}.log").open("w") as log:
