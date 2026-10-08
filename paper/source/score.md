@@ -133,14 +133,17 @@ We build four worlds with the same route: the game world of 2099 (a Moon base an
 - **One creator, one world so far.** Every verdict on the results is one creator's, and only the first world has been built.
 - **Code builders do not scale well.** They give clean objects, but a coding agent has to write one for every kind of object.
 - **Places come out sparser than their concepts.** The concept-density check catches this but does not fix it.
-- **Picture-model quotas set the pace.** A build waits on the daily quota of the picture model, not on the cost of computing.
+- **One stage depends on a closed, paid picture model.** The concepts and close-ups are drawn by Nano Banana Pro. On our tier it allows about 250 pictures a day and 20 a minute, and these limits, not the cost of computing, set the pace of world 1. The model can change or be retired, which limits how well a build can be reproduced, and it leaves a public framework depending on a closed service for one key stage. The cheaper Nano Banana did not replace it: on 10 close-ups of the lab it gave 2 good pictures, 3 usable, 1 marginal and 3 with the wrong shape, refused 1 outright, and refused the standard prompt for 6 of the 10.
 - **Objects are physical but not interactive.** Seats, terminals and other usable objects do not work in the output.
+
+<!-- Tier limits and the 10-pair check: /home/dupe/.claude/jobs/3326150f/tmp/briefs/score-common.txt, lines PICTURE MODELS and CLOSE-UP CHECK RESULT (2026-10-08); check page https://claude.ai/artifact/J3cbncinKkyPJuNhwk47uH (private). -->
 
 # Future work
 
 - Build the three further worlds: a stylised underwater world, a simulation world for robots, and a third-person fantasy world.
 - Finish the OpenUSD export with its edit layers, and add engine adapters beyond Godot, starting with Blender.
 - Make assets interactable, which robotics in particular needs.
+- Replace the closed picture model for close-ups: an open picture model, run in our own cloud batches, is being tested for this stage.
 - Wrap open solvers as stages for worlds at other scales, starting with orbital dynamics through REBOUND [@rein2012rebound].
 - Evaluate SCORE on LEGO-Bench [@li2026lego].
 
@@ -248,7 +251,7 @@ Light adds up, so it is planned as layers. For each kind of module, the bounce l
 
 # Cost and infrastructure
 
-Every heavy step runs on rented machines that are deleted after each batch: NVIDIA L4 graphics cards for picture-to-3D, part splitting and baking, and processor-only machines when no cards are in stock. The engine's tests, its screenshots and its frame-time benchmark also run on rented machines. A full test run took 542 s there, against 596 s on the local computer, and frame times measured on an L4 card are converted to the local RTX 5080 by a measured factor of 3.47. A picture costs about $0.134 at the resolution we use. In practice the limit on speed was the picture model's shared daily quota of 250 pictures, not the cost of computing.
+Every heavy step runs on rented machines that are deleted after each batch: NVIDIA L4 graphics cards for picture-to-3D, part splitting and baking, and processor-only machines when no cards are in stock. The engine's tests, its screenshots and its frame-time benchmark also run on rented machines. A full test run took 542 s there, against 596 s on the local computer, and frame times measured on an L4 card are converted to the local RTX 5080 by a measured factor of 3.47. A picture costs about $0.134 at the resolution we use. The picture model's limits on speed are described under Limitations.
 
 <!-- 542 vs 596 s, 3.47: #130 comments 2026-10-07T21:57 and 23:02. $0.134: 2099 paper README "What it cost". 250 a day: #130 comment 2026-10-08T03:31. -->
 
