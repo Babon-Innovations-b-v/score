@@ -1,4 +1,4 @@
-\begin{thebibliography}{38}
+\begin{thebibliography}{36}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -189,6 +189,14 @@ Biwen Lei, Yang Li, Xinhai Liu, et~al.
   asset generation.
 \newblock \emph{arXiv preprint arXiv:2509.12815}, 2025.
 
+\bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
+  Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
+Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
+  Parakh, Hongyu Wen, Dylan Li, Yiming Zuo, Erich Liang, and Jia Deng.
+\newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
+  generation in {Python}.
+\newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
+
 \bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
 {Pixar Animation Studios} and {Alliance for OpenUSD}.
 \newblock {OpenUSD}: Universal scene description, 2026.
@@ -198,26 +206,6 @@ Biwen Lei, Yang Li, Xinhai Liu, et~al.
 {The Khronos Group}.
 \newblock {glTF} 2.0 specification, 2021.
 \newblock URL \url{https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html}.
-
-\bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
-  Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
-Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
-  Parakh, Hongyu Wen, Dylan Li, Yiming Zuo, Erich Liang, and Jia Deng.
-\newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
-  generation in {Python}.
-\newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
-
-\bibitem[Wu et~al.(2022)Wu, Chen, Zhang, et~al.]{wu2022clap}
-Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
-\newblock Large-scale contrastive language-audio pretraining with feature
-  fusion and keyword-to-caption augmentation.
-\newblock \emph{arXiv preprint arXiv:2211.06687}, 2022.
-
-\bibitem[Becker et~al.(2025)Becker, Rush, Barnes, and Rein]{becker2025metr}
-Joel Becker, Nate Rush, Elizabeth Barnes, and David Rein.
-\newblock Measuring the impact of early-2025 {AI} on experienced open-source
-  developer productivity.
-\newblock \emph{arXiv preprint arXiv:2507.09089}, 2025.
 
 \bibitem[Rein and Liu(2012)]{rein2012rebound}
 Hanno Rein and Shang-Fei Liu.

@@ -23,7 +23,7 @@ abstract: |
 -->
 
 ::: gap
-**Gap: Figure 1, teaser.** This figure will show four worlds made with SCORE: the game world of 2099, a stylised underwater world, a simulation world for robots, and a third-person fantasy world. Each will appear as its chosen concept beside the finished world in its engine. It waits until the four worlds are finished and accepted by their creators.
+**Gap: teaser figure.** This figure will show four worlds made with SCORE: the game world of 2099, a stylised underwater world, a simulation world for robots, and a third-person fantasy world. Each will appear as its chosen concept beside the finished world in its engine. It waits until the four worlds are finished and accepted by their creators.
 :::
 
 # Introduction
@@ -48,31 +48,55 @@ This paper makes three contributions:
 
 # Methods
 
-SCORE generates a world once, offline, in batches on rented cloud machines. Its input is the creator's choices for each place in the world: reference pictures, a concept picture and a style. One world spans the scales that its story needs; the game world of 2099, for example, holds rooms, the ground of the Moon and the ground of Mars. Scales far from these, such as galaxies or cells, make worlds of their own, each with its own solvers. The output is one canonical scene: an OpenUSD stage [@openusd] with glTF geometry [@gltf2]. Every object in it carries its kind, its position in metres, its collision shape, its mass, the material and surface of each of its parts, and its sound, and each world carries its own physical settings, such as its gravity. Game engines, Blender and robotics simulators load this scene through thin adapters. The framework writes a generated base layer, and the creator's own changes live in edit layers above it.
+![The route on one place, the central hub of the game 2099. (a) The concept, drawn by a picture model from the creator's reference pictures and chosen by the creator. (b) The dimensioned plan in metres, with walkways and standing spots. (c) An excerpt of the scene inventory, which has 74 rows. (d) Close-up pictures of two objects. (e) One surface from the shared library at three wear settings. (f) The assembled room in the game engine.](figures/fig-overview.jpg){width=100%}
 
-**Stages.** Between the creator's choices and the finished scene, coding agents and open models work through a fixed sequence of stages. First, a picture model draws the concept from reference pictures that the creator chose. It is never drawn from words alone, because words lead to generic shapes, and pictures that will be turned into 3D are drawn with a level, telephoto camera so that the models built from them stand straight. Second, a dimensioned plan in metres fixes the scale of the place and how a person moves through it: the walkways, a standing spot at every work place, and a way to reach every level. This plan comes before any further drawing, because concept pictures tend to come out at the scale of a doll's house. Third, the inventory lists every element of the concept as a row, with its kind, its anchor, its size and its count. The inventory divides the whole concept into rows: nothing is made or placed unless it is a row, and no element of the concept is dropped without a written reason. The stages that follow make one clean close-up picture of each object, a shape for each object, its surfaces and its sound, and then assemble the scene. The output of each stage is kept. The creator can therefore trace a weak result to the stage that caused it, rerun or fix that stage by hand, and regenerate every later stage; regeneration replaces the base layer and keeps every edit. The libraries of surfaces and sounds grow with each world and are reused in the next one, so the work done for one world is not lost.
+Figure 1 shows the route on one place. The creator chooses a concept (a), and a coding agent turns it into a dimensioned plan (b) and a scene inventory (c). A picture model draws a close-up of every object in the inventory (d). Each object is then built in code or generated in 3D, its parts are painted from a shared library of surfaces (e), and the place is assembled in an engine (f). The output of every stage is kept, so the creator can trace a weak result to the stage that caused it, rerun or fix that stage, and regenerate the stages after it. The sections below describe each stage with an example.
 
-Large outdoor places follow the same pattern at their own scale. A dimensioned plan places the flat areas and the paths that the place needs. A diorama picture drawn over the plan then sets the shape of the landforms, and the terrain heights follow that picture. A skin is painted over the plan, with fine relief taken from monocular depth estimation [@yang2024dav2], and rocks are made as single generated models. All of this is built directly on the world's own curved ground. Real height data, such as measured maps of the Moon, is used only to test this route and never as its source, because many worlds are made up.
+<!-- Hub concept C12, plan v3, inventory data/inventory/hub.json (74 rows), close-ups hubrefs/c12/clean, swatches robust-exp/img, shot robust-exp/r6/shots/now/wide-south. -->
 
-**Checks before spending.** Every stage that costs money is preceded by deterministic checks that run on real geometry rather than on an agent's judgement. The reason is cost: a fault costs nothing to fix in the plan, cents at a picture, tens of cents and about an hour at a 3D model, and an evening of the creator's time once the place has been built and played. The plan is checked for light leaking out of the room, for blocked openings, for pieces that do not sit on their surface, and for doors that do not separate their two sides. The inventory is checked against every element of the concept. Each model is checked to be closed, thick enough and straight. The surfaces are checked against the place's palette and storage budget. The assembled scene is checked for anything that floats or sinks, and for any visible mesh that the route did not make (Appendix D). A failed check sends the work back one stage; work never moves forward with a known fault.
+## Inventory as a partition of the concept
 
-<!-- Fault cost per stage (€0.18 and 75 minutes at the model): 2099 paper writing/outline.md 9f. Doll-house scale and dimensioned plan: 2099 paper README, "The hub"; memory project-scene-workflow. Exhaustive partition: memory project-scene-workflow (concept density, 2026-10-08). Terrain route: issue #130 comments 2026-10-06T21:05 and 19:33; memory feedback-framework-absorbs-tools. -->
+![The inventory of the lab on the Moon base, built from its concept. Left: the concept, cut into twelve tiles. Right: examples of how each visible element maps to an inventory row, or is dropped with a written reason. Of the 47 elements in this concept, 40 were mapped to inventory rows and 7 were dropped with a written reason.](figures/fig-partition.jpg){width=100%}
 
-**Code or generation, one model per object.** For each kind of object, the shape stage decides whether the object is built by a code builder, which a coding agent writes, or generated as a model. Picture-to-3D models build chunky solids well but flat panels, thin beams and openings badly: they make panels about as deep as they are wide, and beams several times too thick. Code builders are exact and straight, but they show only the parts that the agent wrote. The **parts check** decides between the two. A kind of object is built in code only when its code build shows every part that its close-up picture shows; otherwise it is generated from the close-up with Pixal3D [@li2026pixal3d] and then made solid. Composite objects are split in the inventory, so that each real-world object becomes one model: a console, for example, is a desk carrying separate monitors and keyboards rather than one fused mesh. Moving parts such as doors and hatches are made as separate parts so that they can move. Generated models keep their full detail near the player. Their triangle count follows their size, with a minimum for small objects, and detail at a distance is reduced by the engine's level-of-detail system, never by cutting the mesh itself.
+The inventory decides what exists in a place. A coding agent cuts the concept into tiles and lists every visible element, and each element either becomes a row (with its kind, anchor, size and count) or is dropped with a written reason (Figure 2). Nothing is made or placed that is not a row. After the build, the place is rendered from the concept's own camera and compared with the concept; a place that is clearly sparser than its concept fails this concept-density check.
 
-**Shape and surface apart.** A shape carries no surface of its own. Every part of every object takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc], which are built on Infinigen's shaders [@raistrick2023infinigen]. The surfaces take their colours from the place's palette, and expose wear, dirt and a random seed as settings. Each room has one wear setting, and wear is applied where it has a cause, such as on edges and where feet pass, so every piece in a room agrees on what worn steel looks like. A generated model is split into parts by PartCrafter [@lin2025partcrafter], and the model's picture is used only to choose which library surface each part takes. Labels and notes are added as a few decals. Sound and light are built from data and layers in the same way. Each surface carries its own footsteps and impact sounds, each room computes its echo from its size and surfaces, and each object has its own sound. These sounds are generated by MOSS-SoundEffect [@moss2026] and chosen by how well CLAP [@wu2022clap] matches them to their prompts (Appendix F). Light is planned to be baked per group of lamps as separate layers, which are then mixed live according to each lamp's brightness.
+<!-- place-lab/tools/elements.json: 47 elements, 7 dropped. Rule: memory project-scene-workflow (2026-10-08); issue #130, 2026-10-07T23:04. -->
 
-**The optional world step.** A concept picture shows a place from one view: two or three walls, and each object from one side. An optional world step turns the concept into a whole room that can be walked through, so that every object and every wall can be seen from any side. In the early rooms of 2099 this step provided the scene plan; in our runs it used World Labs Marble, and its outputs are credited "Generated using World Labs". Nothing that the world step produces is shipped as part of the world.
+## Code or generation: the parts check
 
-**Review tools.** Each place ends with the creator's review, and SCORE supplies the tools for it: pages that show the outputs of each stage side by side, before-and-after shots taken from the same cameras, walkthroughs inside the engine, and the result of every check. How the creator forms a judgement with these tools is up to the creator.
+![The parts check decides how each object is built. Top: the close-up picture of four objects. Bottom: the object as built. The notice board and the tall locker are built in code, because their code builds show every part of their close-ups. The microscope and the desk chair are generated with Pixal3D, because no code build shows all of their parts.](figures/fig-parts-check.jpg){width=100%}
+
+Picture-to-3D models build chunky solids well, but flat panels, thin beams and openings badly, while code builders are exact and straight but show only the parts that the coding agent wrote. For each kind of object, the parts check renders a code build from the front and compares it with the close-up picture: if every part of the close-up is visible in the build, the kind is built in code, and otherwise it is generated from the close-up with Pixal3D [@li2026pixal3d] and made solid (Figure 3). Composite objects are split in the inventory, so that a console becomes a desk carrying separate monitors and keyboards, and every real-world object becomes one model.
+
+## Shape and surface apart
+
+![(a) Three surfaces from the shared library (painted panel, bare steel and deck plate) at wear settings 0, 0.4 and 0.8. (b) The hub's tool board when each generated piece kept the colours of its own picture (left), and after every surface came from the library and each tool became its own model (right). Both shots use the same camera and the same build of the game.](figures/fig-surfaces.jpg){width=100%}
+
+Models and code builders give shape only. Every part of every object takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc], which are built on Infinigen's shaders [@raistrick2023infinigen] and take their colours from the place's palette (Figure 4a). A room has one wear setting, and wear is applied where it has a cause, such as edges and the places where feet pass. On a generated model, PartCrafter [@lin2025partcrafter] splits the shape into parts, and the model's picture only chooses which library surface each part takes. Figure 4b shows why: when each piece kept the colours of its own picture, every piece brought its own rust and stains, and the room looked inconsistent. Sound is attached in the same way, to surfaces, rooms and objects, and is generated by MOSS-SoundEffect [@moss2026] (Appendix F).
+
+## Terrain
+
+![The route for large outdoor places, on the ground around the Moon base. (a) The dimensioned plan with the base's flat areas and paths. (b) A diorama picture drawn over the plan. (c) The heights that follow the diorama, shown shaded. (d) The skin painted over the plan. (e) The result in the engine, seen from a crater rim.](figures/fig-terrain.jpg){width=100%}
+
+Large outdoor places follow the same pattern (Figure 5). A dimensioned plan places the flat areas and paths the place needs (a), a diorama picture drawn over the plan sets the landforms (b), and the heights follow the picture (c). A skin is painted over the plan, with fine relief from monocular depth [@yang2024dav2] (d), rocks are single generated models, and everything is built on the world's own curved ground (e).
+
+## Checks before spending
+
+![A fault caught by the placement check. (a) In the first build of the hub, a conduit box covered the porthole. (b) In the new route, the placement check found the box in front of the opening and moved it 0.5 m along the wall before anything was spent.](figures/fig-checks.jpg){width=100%}
+
+Every stage that costs money is preceded by deterministic checks on real geometry rather than on an agent's judgement, because a fault costs nothing to fix in the plan but an evening of the creator's time once the place is built. The checks look for light leaking out of the room, pieces in front of openings or off their surface, doors that do not separate their two sides, models that are open, too thin or leaning, and surfaces off the palette (Appendix D). Figure 6 shows one fault the placement check caught. A failed check sends the work back one stage.
+
+<!-- Porthole: robust-exp progress log [gates] ("Placement gate slid the conduit box 0.50 m along its wall"); shots robust-exp/img x/y-porthole-close (x = A, y = B for round one). -->
+
+## The canonical scene
 
 ::: gap
-**Gap: Figure 2, the framework.** This figure will show the stages with their kept outputs, the scene's base and edit layers, and the engine adapters. It will be drawn once the scene export, which is being built in the framework repository, exists.
+**Gap: figure of the scene with its layers.** This figure will show one place as an OpenUSD stage [@openusd] with glTF geometry [@gltf2], in which every object carries its collision, mass and material, with the framework's generated base layer, a creator's edit layer above it, and the same scene loaded in two engines. It waits until the scene export, its layers and a second engine adapter are built in the framework repository; the case study so far used glTF models and a JSON layout loaded in Godot.
 :::
 
-::: gap
-**Gap: Figure 3, one place through the stages.** This figure will follow one place from its concept to the finished world, showing the output of each stage and the checks that fired on it. It waits until a place has been built and accepted on the final route.
-:::
+## Review tools
+
+Each place ends with the creator's review. SCORE supplies pages that show each stage's outputs side by side, before-and-after shots from the same cameras, walkthroughs inside the engine, and the result of every check. An optional world step can turn the concept into a whole room that can be walked through, so that walls and objects the concept does not show can be seen; nothing it produces is shipped.
 
 # Results across worlds
 
@@ -83,7 +107,7 @@ We build four worlds with the same route: the game world of 2099 (a Moon base an
 :::
 
 ::: gap
-**Gap: Figure 4, one place per world.** This figure will show one representative place from each world beside its concept, rendered from the concept's own camera. It waits on the same worlds; every place will be shown in Appendix A.
+**Gap: figure of one place per world.** This figure will show one representative place from each world beside its concept, rendered from the concept's own camera. It waits on the same worlds; every place will be shown in Appendix A.
 :::
 
 # Evaluation
@@ -104,15 +128,25 @@ We build four worlds with the same route: the game world of 2099 (a Moon base an
 **Gap: robots in the simulation world.** This section will show a rigged robot loaded together with the simulation world in a robotics simulator, with masses, friction and joints written into the scene, and with motion from the framework's motion models. It waits on world 3.
 :::
 
-# Discussion and outlook
+# Limitations
 
-SCORE takes the opposite route to a world model. A world model learns to show only what the player sees, one frame at a time. SCORE builds everything in detail, so that the world cannot break when the player looks somewhere unexpected, and so that it can be used today in existing engines. Neither route is right in general, and world models are improving quickly. What a built world offers is that it can be edited, that it is owned, and that an engine can load it. Its price is that everything has to be built. As models make objects, surfaces and sounds cheap, producing content stops being the hard part, and the creator's direction becomes the scarce input. For that reason SCORE places the creator's decisions at the start of each place, and turns everything that can be checked automatically into checks that need no attention from the creator. Whether this saves the creator time overall has not been established. In one randomised trial with early-2025 tools, experienced developers working on code they knew well were slower with AI assistance than without it [@becker2025metr].
+- **One creator, one world so far.** Every verdict on the results is one creator's, and only the first world has been built.
+- **Code builders do not scale well.** They give clean objects, but a coding agent has to write one for every kind of object.
+- **Places come out sparser than their concepts.** The concept-density check catches this but does not fix it.
+- **Picture-model quotas set the pace.** A build waits on the daily quota of the picture model, not on the cost of computing.
+- **Objects are physical but not interactive.** Seats, terminals and other usable objects do not work in the output.
 
-The route has clear weaknesses. Code builders produce clean objects, but an agent has to write a new builder for every kind of object, which scales worse than generation does. A concept picture shows only one side of a place, so the places built from it come out sparser than the concept; the concept-density check catches this but does not fix it, and the optional world step is meant to fix it. Finally, the pace of a build is set by the daily quotas of the picture models, not by the cost of computing.
+# Future work
 
-Beyond the four worlds, SCORE is meant to be packaged so that a creator can run it through a coding assistant. Its objects are physical but not yet interactive: seats, terminals and other usable objects do not work in the framework's output, and making assets truly interactable, which robotics in particular needs, is further work outside the scope of this paper. It is also meant to reach further scales: worlds of galaxies or of cells need established open solvers, wrapped as stages of their own, and orbital dynamics through REBOUND [@rein2012rebound] is planned as the first of these.
+- Build the three further worlds: a stylised underwater world, a simulation world for robots, and a third-person fantasy world.
+- Finish the OpenUSD export with its edit layers, and add engine adapters beyond Godot, starting with Blender.
+- Make assets interactable, which robotics in particular needs.
+- Wrap open solvers as stages for worlds at other scales, starting with orbital dynamics through REBOUND [@rein2012rebound].
+- Evaluate SCORE on LEGO-Bench [@li2026lego].
 
-<!-- Genie contrast and outlook: playtest3/paper-notes-owner.txt (2026-10-05, 2026-10-06). Attention thesis: 2099 paper README "Does the limit move?". Weaknesses: issue JoeyKardolus/2099#130 (lab, greenhouse, 2026-10-07/08); session record 2026-10-08T09:27Z; quotas #130 comment 2026-10-08T09:18. -->
+# Conclusion
+
+SCORE builds complete, owned and physical worlds from a creator's choices, by joining open vision foundation models, procedural tools and coding agents into one route whose stages can be checked, traced and rerun. On its first world, the parts check, one model per object and a shared surface library made a room consistent, and checks before spending caught faults before money was spent. Whether the route holds across different kinds of worlds is what the remaining worlds and the benchmark will show.
 
 # References {-}
 
@@ -162,11 +196,10 @@ The mechanisms of Section 2 then came out of six rounds of work on one room, the
 
 <!-- R1: local R&D log progress-robust-exp.txt [A/B numbers], blind key, quote at "ROUND TWO". R2: [A/B round two], [spend round two]; session record 2026-10-06T16:52Z. R3: progress-robust-exp.txt round three and fix round. R4: progress-hub-r4.txt; #130 comment 2026-10-07T05:29; quote in brief job-hub-r5-test.txt. R5: progress-hub-r5.txt; verdict as relayed in handoffs/hub-r5.txt. R6: progress-hub-r5.txt ROUND SIX; #130 comments 2026-10-07T15:55 and 16:20. -->
 
-Three findings shaped the method. First, deterministic checks catch what agents miss. In round one, the share of rays that leaked out through walls and roof fell from 1.53 percent of 5,817 rays to zero, and the colour noise within surfaces fell from a median of 31.1 to 3.2 percent. Only walking through the loaded room, however, showed that 26 old models were still in it, and that finding became the made-only check. Second, when each generated piece kept the colours of its own picture, every piece brought its own wear, and the room looked inconsistent; surfaces have since come only from the library. Third, generated composite objects melted their parts together, and generated boxes leaned (one locker by 13 degrees). This led to one model per real-world object and to the straightness check (see the figure below). By round six the room used 0.45 million triangles, against 1.96 million in round four, and 187 MB on disk, against 487 MB.
+Three findings shaped the method. First, deterministic checks catch what agents miss. In round one, the share of rays that leaked out through walls and roof fell from 1.53 percent of 5,817 rays to zero, and the colour noise within surfaces fell from a median of 31.1 to 3.2 percent. Only walking through the loaded room, however, showed that 26 old models were still in it, and that finding became the made-only check. Second, when each generated piece kept the colours of its own picture, every piece brought its own wear, and the room looked inconsistent; surfaces have since come only from the library. Third, generated composite objects melted their parts together, and generated boxes leaned (one locker by 13 degrees). This led to one model per real-world object and to the straightness check (Figure 4b). By round six the room used 0.45 million triangles, against 1.96 million in round four, and 187 MB on disk, against 487 MB.
 
 <!-- Numbers: progress-robust-exp.txt [A/B numbers] and round three fix round; 2099 docs/bible.md item 11 (locker); #130 comment 2026-10-07T15:55 (round six vs four). -->
 
-![The hub's tool board in round four (left: one generated model with its picture's colours over library surfaces) and round six (right: a code-built board carrying 26 separately made tools, library surfaces only). Both shots use the same camera and the same build of the game.](figures/hub-toolboard-r4-r6.jpg){width=100%}
 
 # Check details
 
