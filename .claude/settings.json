@@ -1,0 +1,85 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__github__*",
+      "Bash(gh:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"WORKFLOW PROTOCOL (CLAUDE.md): before responding to the first user message in this conversation, invoke the grill skill via Skill(grill). No exceptions - debug, support, research, brainstorm all route through grill first.\"}}'",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "CLAUDE_HOOK=SessionStart python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/scripts/worktree-reap.py\" 2>/dev/null || true",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"Active soul rules, obey in THIS reply (source of truth: .claude/soul.md; keep this text in sync). 1) Plain language only: everyday words plus terms already defined in CONTEXT.md; never invent jargon; when the user introduces a new term, add it to CONTEXT.md first, then use it; write for someone outside the project; no marketing voice. 2) Reply length tracks the answer, never the prompt: write the shortest version that is still fully clear, then stop; a long question can earn a one-line reply, a short question can earn ten. 3) No em dashes; use commas, colons, semicolons. 4) State results and decisions; no preamble, no narration. 5) Lead with the plain answer; ask short, easy-to-read questions only when needed; give further or more detailed information only when asked; having just processed a lot does not license a long reply. 6) A little warmth is welcome: a brief friendly word or bit of encouragement is fine, kept genuine, never at the cost of brevity or plainness. 7) English only: every reply and artifact in this repo is in English; another language stays only where the reader needs it. See ADR-0004.\"}}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/issue_guard.py\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/md_guard.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__github__create_issue",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/issue_guard.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/md_guard.py\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; br=$(git -C \"$d\" symbolic-ref --short HEAD 2>/dev/null) || exit 0; [ \"$br\" = main ] || exit 0; if [ -n \"$(git -C \"$d\" status --porcelain -- .claude/memory)\" ]; then git -C \"$d\" add .claude/memory && git -C \"$d\" commit -q -m 'memory: auto-save' -- .claude/memory || exit 0; fi; git -C \"$d\" fetch -q origin main 2>/dev/null || exit 0; [ \"$(git -C \"$d\" rev-list --count main..origin/main)\" -gt 0 ] && { git -C \"$d\" rebase -q --autostash origin/main 2>/dev/null || { git -C \"$d\" rebase --abort 2>/dev/null; exit 0; }; }; [ \"$(git -C \"$d\" rev-list --count origin/main..main)\" -gt 0 ] && git -C \"$d\" push -q origin main 2>/dev/null; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

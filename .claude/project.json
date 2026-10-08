@@ -1,0 +1,14 @@
+{
+  "_comment": "The one place repo, board and people are named. Filled by .claude/scripts/setup-github.py; edit by hand for people and areas. Scripts and hooks read this, nothing is hard-coded. A repo spawned from the template inherits these values and setup-github.py resets them on first run, because ids from another repo's board are not yours.",
+  "repo": "JoeyKardolus/starter",
+  "owner": "JoeyKardolus",
+  "project": {
+    "number": 1,
+    "owner": "JoeyKardolus"
+  },
+  "backlog_prd": 1,
+  "areas": [],
+  "people": {
+    "JoeyKardolus": "JoeyKardolus"
+  }
+}
