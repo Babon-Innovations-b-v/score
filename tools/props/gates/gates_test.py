@@ -28,7 +28,10 @@ import greybox  # noqa: E402
 import model  # noqa: E402
 import placement  # noqa: E402
 import room  # noqa: E402
+import shell  # noqa: E402
+import surface  # noqa: E402
 from room import hub_kit  # noqa: E402
+import room_kit  # noqa: E402
 
 
 def on_wall(bearing, across, bottom, size, kind="hub_conduit_box"):
@@ -60,9 +63,62 @@ def test_a_ray_out_through_the_porthole_is_an_opening_and_one_beside_it_is_not()
 
 def test_a_box_in_front_of_the_porthole_clashes_and_one_beside_it_does_not():
     size = (0.2, 0.2, 0.1)
-    layout = {"pieces": [on_wall(300, 0.0, 2.25, size), on_wall(300, 0.8, 2.25, size),
+    layout = {"room": "hub", "pieces": [on_wall(300, 0.0, 2.25, size), on_wall(300, 0.8, 2.25, size),
                          on_wall(300, 0.0, 1.75, (1.2, 1.2, 0.1), "hub_porthole_panel")]}
     assert [found[0] for found in placement.clashes(layout)] == [0]
+
+
+def bay_piece(kind, wall, across, bottom, size, out=0.0):
+    """A piece of the garage (a rounded bay, its numbers from its inventory) against one of its walls."""
+    return room_kit.on_side("garage", kind, room_kit.side_named(shell.rounded_numbers({"room": "garage"}), wall), across,
+                            bottom, size, out=out)
+
+
+def test_a_bay_s_wall_gear_is_judged_against_its_own_walls_not_the_hub_s():
+    """The garage is a 14 by 12 m rounded room: a box flush on its east wall passes, one stood 0.4 m off it or turned
+    on it fails, and its lining's panels lapping past their run do not reach past their wall."""
+    kinds = {"garage_junction_box": {"group": "hangs"}, "garage_wall_lower_plain": {"group": "hangs"}}
+    flush = bay_piece("junction_box", "east", 1.0, 1.2, (0.3, 0.4, 0.15), out=0.06)
+    off = bay_piece("junction_box", "east", -1.0, 1.2, (0.3, 0.4, 0.15), out=0.46)
+    turned = bay_piece("junction_box", "east", 2.0, 1.2, (0.3, 0.4, 0.15), out=0.06)
+    turned["x"], turned["z"] = turned["z"], [-value for value in turned["x"]]
+    panel = bay_piece("wall_lower_plain", "south", 4.0 - 0.6, 0.0, (1.2 + room_kit.LAP, 1.16, 0.06))  # its run ends 4 m out
+    layout = {"room": "garage", "kinds": kinds, "pieces": [flush, off, turned, panel]}
+    assert [found[0] for found in surface.faults(layout)] == [1, 2]
+
+
+def test_a_roof_lamp_standing_up_to_a_flat_roof_plate_passes_and_one_hung_short_of_it_fails():
+    """room_kit lays a roof row standing, its head at the roof: the hangar's flat roof is lined at 13 m."""
+    plate = {"kind": "hangar_roof_face_panel", "at": [0.0, 12.975, -1.0], "x": [-1.0, 0.0, 0.0], "y": [0.0, 0.0, 1.0],
+             "z": [0.0, 1.0, 0.0], "size": [2.0, 2.0, 0.05]}
+    lamp = {"kind": "hangar_ceiling_lamp", "at": [0.0, 12.55, 0.0], "x": [1.0, 0.0, 0.0], "y": [0.0, 1.0, 0.0],
+            "z": [0.0, 0.0, 1.0], "size": [0.5, 0.4, 0.5]}
+    short = dict(lamp, at=[0.5, 12.2, 0.5])
+    outside = dict(lamp, at=[3.0, 12.55, 0.0])  # under the roof door's opening, where no plate is
+    layout = {"room": "hangar", "kinds": {}, "pieces": [plate, lamp, short, outside]}
+    assert [found[0] for found in surface.faults(layout)] == [2, 3]
+
+
+def test_a_box_in_a_bay_s_doorway_clashes_and_the_lining_lapping_to_its_edge_does_not():
+    """The garage's east hatch (2.2 m wide) and its south big door (5 m wide, 4 m high)."""
+    box = bay_piece("parts_trolley", "east", 0.3, 0.0, (0.6, 0.9, 0.5), out=0.1)
+    beside = bay_piece("parts_trolley", "east", 2.0, 0.0, (0.6, 0.9, 0.5), out=0.1)
+    lapping = bay_piece("wall_lower_plain", "east", 1.1 + 0.6, 0.0, (1.2 + room_kit.LAP, 1.16, 0.06))
+    post_in_door = bay_piece("wall_corner_post", "south", 1.0, 0.0, (0.2, 4.2, 0.2), out=0.06)
+    post_beside = bay_piece("wall_corner_post", "south", 2.6, 0.0, (0.2, 4.2, 0.2), out=0.06)
+    layout = {"room": "garage", "pieces": [box, beside, lapping, post_in_door, post_beside]}
+    assert placement.clashes(layout) == [(0, "garage_parts_trolley", "doorway east"),
+                                         (3, "garage_wall_corner_post", "big door south")]
+
+
+def test_a_place_with_no_known_shell_or_a_kit_in_its_own_frame_is_not_judged():
+    for layout in ({"room": "street", "pieces": []},
+                   {"room": "garage", "pieces": [{"kind": "gdoor_wall_upper_plain"}]}):
+        try:
+            shell.walls(layout)
+        except SystemExit:
+            continue
+        raise AssertionError(f"{layout['room']} was judged")
 
 
 def test_a_model_in_its_laid_proportions_passes_and_a_cube_laid_as_a_panel_fails():

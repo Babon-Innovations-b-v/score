@@ -10,7 +10,11 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   through each real opening, pieces poking out of the shell's outer skin, the sector's budget.
   `placement.py` (G6): pieces standing in front of a real opening. `surface.py` (G6): every hung piece flush on its
   host plane, turned to it and inside its face (the hub's trays lay radially across the lattice, which the
-  envelope test cannot see). `model.py` (G5): watertight, pieces, proportion spread on the sides the shape class
+  envelope test cannot see). Both judge a room against its own shell (`shell.py`, job world1-finish2, 2026-10-09:
+  shaped for the hub, they gave the garage and the hangar hundreds of false findings): the hub's faceted walls and
+  openings from its constants, a rounded room's (room_kit, bay_kit) walls, door spots and big door from its
+  inventory's numbers and its roof gear against its laid roof plates; any other place, or a kit in its own frame (a
+  door leaf), stops the check. `model.py` (G5): watertight, pieces, proportion spread on the sides the shape class
   can be judged on, thinnest wall.
 - `round_room.py` (modules batch one, 2026-10-07): the same leak, envelope and doorway checks for a rounded room
   (the habitat, the airlock) from its inventory's numbers, and solid furniture crowding; `--boxes` runs it on the
