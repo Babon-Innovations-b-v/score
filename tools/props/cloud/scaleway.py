@@ -6,12 +6,13 @@ wrong account.
 """
 import base64
 import json
+import os
 import subprocess
 import time
 
-# The project the owner set aside for this game's machines; looked up by name, so no account
-# id sits in the repo.
-PROJECT_NAME = "farm-factory"
+# The Scaleway project the machines are rented in, looked up by name, so no account id sits in the repo:
+# SCORE_SCALEWAY_PROJECT, else the one the owner set aside for the first world's machines.
+PROJECT_NAME = os.environ.get("SCORE_SCALEWAY_PROJECT", "farm-factory")
 # Ubuntu 24.04 with the NVIDIA driver and CUDA runtime, Scaleway's own GPU image.
 IMAGE = "ubuntu_noble_gpu_os_13_nvidia"
 # Plain Ubuntu 24.04, for the processor-only machines (POP2) Infinigen runs on.
@@ -35,7 +36,7 @@ def scw(*arguments):
 
 
 def project_id():
-    """The id of the farm-factory project."""
+    """The id of the project named PROJECT_NAME."""
     found = [project for project in scw("account", "project", "list", f"name={PROJECT_NAME}")
              if project["name"] == PROJECT_NAME]
     if len(found) != 1:
@@ -44,7 +45,7 @@ def project_id():
 
 
 def secret(name):
-    """The latest value of the farm-factory project's secret `name` in Secret Manager; it is
+    """The latest value of the project's secret `name` in Secret Manager; it is
     handed back, never printed or written."""
     version = scw("secret", "version", "access-by-path", f"secret-name={name}",
                   f"project-id={project_id()}", "revision=latest")
