@@ -1,0 +1,24 @@
+\section{Introduction}\label{introduction}
+
+A person who wants to make a world, for a game, a film, a simulation or a robot to train in, faces the same problem whatever tools they use: the world has to be complete, and it has to be theirs. Complete means more than looking right from one camera. Doors open, floors hold, machines sit where they can be reached, rooms have light and sound, and every object can be found, moved, replaced and given behaviour. Theirs means the creator decides what the world is, can change any part of it later without starting over, and holds the rights to all of it.
+
+Generative models have made the first impression of a world cheap. Genie 3 turns a prompt into a world a person can move through in real time \citep{genie3, bruce2024genie}. Image and video models give a convincing view of a room from one picture, and picture-to-3D models give a mesh of an object from one view \citep{li2026pixal3d, xiang2024trellis}. Yet neither kind of output is easy to build on. A world model renders frames: its own announcement lists a constrained range of actions and a few minutes of continuous interaction among its limits \citep{genie3}, and nothing it makes can be opened in an editor. A one-shot 3D scene is one fused asset; a recent paper describes such outputs as ``static monolithic assets with limited editability and physical interaction'' \citep{hu2026worldact}. Neither gives a creator a world they can keep working on.
+
+SCORE takes the opposite approach. It treats world creation as offline compilation: heavy model work happens once, in batches, before anyone plays, and what comes out is a fixed set of files a game engine or simulator loads. The creator writes the score, and coding agents and open tools play it. The creator picks references, concepts and a style at a few fixed points. Everything between those points is a stage whose output is explicit data or code: a plan in metres, an inventory of every object, one model per real-world object, surfaces from a shared library, sound for every surface and object. Because each stage hands on something an agent can read and check, cheap checks can run before every step that costs money, and a coding agent can do the joining work that would otherwise fall to a technical artist.
+
+This is a different bet from a world model's. A world model learns to show only what the player sees, frame by frame. SCORE builds everything in full, so that the world cannot break when the player looks somewhere unexpected and can be used today in the engines and tools people already have. Neither approach is right or wrong; they answer different needs, and world models are improving fast. What SCORE offers is the part they do not: a world that is complete, owned and editable.
+
+This paper makes three contributions:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{A method.} SCORE as a world compiler: its stages, what each stage hands on, the checks that run before money is spent, and the rules that decide whether a piece is built in code or by a picture-to-3D model (Section 3).
+\item
+  \textbf{A worked world.} The first world built with it, the game world of 2099, with time, cost and the faults caught for each place, and the base's central room as a case study over six rounds with the owner's blind picks (Section 5).
+\item
+  \textbf{An honest account of the limits.} Where the route failed, what was a human pick, what a coding agent wrote and what was a hand fix (Sections 4 and 6).
+\end{enumerate}
+
+The name needs one note. SCORE is not WorldScore, a benchmark for world generation \citep{duan2025worldscore}, which we may report against; it is not score distillation in text-to-3D \citep{poole2022dreamfusion}; and it is not SCoRe, a reinforcement learning method for language models \citep{kumar2024score}.
