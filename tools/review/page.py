@@ -332,10 +332,10 @@ def complete_line(place, scene, judged, passed):
     record = scene_record.record(place)
     if record is None:
         return "<p><b>Complete vs game:</b> no scene record yet: only the made pieces are in the scene.</p>"
-    carried = [f"{len(record.get(key, []))} {word}" for key, word in
-               (("structure", "structure pieces built in code"), ("ground", "ground pieces"), ("water", "water"),
-                ("objects", "gameplay objects"), ("backdrop", "backdrop arcs"), ("lights", "lights of its own"))
-               if record.get(key)]
+    carried = [f"{word} ({len(record.get(key, []))})" for key, word in
+               (("structure", "structure built in code"), ("ground", "ground"), ("water", "water"),
+                ("objects", "gameplay objects"), ("backdrop", "backdrop arcs"), ("places", "other places seen from it"),
+                ("lights", "lights of its own")) if record.get(key)]
     if record.get("planned_ground"):
         carried.append("the planned ground out to the horizon")
     if record.get("environment"):
