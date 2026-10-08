@@ -25,13 +25,46 @@ Placeholder until the first real component exists.>
 
 ## architecture/components
 
-<What runs where: each running piece, what it is responsible for, and where its code lives.
-Placeholder.>
+The framework moved here from the game 2099 on 2026-10-08 (JoeyKardolus/2099#129), with its history (git
+filter-repo on the moved paths). Two sides: the coordinating machine runs plain Python (plans, labels, checks, the
+scene package; `.venv` from `pyproject.toml`), and every step that loads a model, bakes or renders runs on a rented
+Scaleway machine that deletes itself (`tools/props/cloud/`). No model runs on the coordinating machine.
+
+- `tools/props/`: the prop pipeline (close-up to Pixal3D in a cloud batch, `cloud/batch.py`; finish; `pixal.py`),
+  the scene tools (`scene/`: concepts, the world step, close-ups, inventories, layouts), the surface library and its
+  piece making (`library/`: recipes, labels by parts, `make_chunky`/`make_kit` baked in the cloud, `route.py` for kit
+  rooms, `place_route.py` for outdoor places, `package.py` for the scene package), the gates (`gates/`), Infinigen
+  grounds and life (`infinigen/`). Each directory's rules are in its overlay.
+- `tools/blender/`: the headless Blender launcher (never a window on the owner's screen).
+- `tools/sound/`: the sound picker and the loudness rule; MOSS takes are made in the cloud.
+- `data/library/`: the surface library (materials, fittings, composites, details per kind, printed pictures);
+  `data/fonts/`: the fonts printed labels use (SIL OFL).
+- The first world's data, the game 2099's, read as the example world: `data/definitions/place.json` (each place's
+  style, palette, materials, wear), `design/tokens/tokens.json` (the palette), `data/inventory/` (scene
+  inventories), `data/kit/` (laid kit rooms), `data/sound/` (sound briefs). Some tools still name the game's files
+  (`route.py install`, the sound picker's apply, `inventory.py`'s shell hash): that is the game's adapter, to move out
+  when 2099 consumes the package.
+- `vendor/`: third-party tools as released, each pinned with its licence (ADR-0002).
+
+**The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
+`scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
+Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next task.
 
 ## architecture/lifecycles
 
-<What happens end to end for the two or three paths that matter: a request, a job, a build.
-Placeholder.>
+**One outdoor place, end to end** (the wreck is the worked example; commands in the README):
+
+1. The place's record: its picked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
+   with its size and spots), each kind's turn and allowed materials in `data/library/details.json`, and one close-up
+   per generated row. Recorded inputs live in the work folder (`PROPS_WORK`), not in git (the pictures are large).
+2. Pixal3D models from the close-ups, one cloud batch (`cloud/batch.py`, refused without the approved inventory).
+3. PartCrafter parts from each model's cut-out (`cloud/parts.py`), the painting unit.
+4. Labels: every part one allowed library material (`library/labels.py`), checked for patchy paint; a take too long
+   for one piece is split (`place_route.py split`).
+5. The plan and the bake jobs (`place_route.py plan`), baked in the cloud (`cloud/library_bake.py`, `--processor`
+   when no card is in stock).
+6. The model gate and straightness (`place_route.py check`).
+7. The scene package and its check (`package.py`).
 
 ## architecture/trust-boundaries
 
@@ -55,6 +88,10 @@ Nothing is released yet but the paper. Commands, run locally (there is no CI and
   input, not a document); the tests include `paper/build/test_paper_current.py`, which fails when
   the files on disk no longer match the stamp, so a draft changed without a rebuild, or a
   generated file edited by hand, is red. Then the ADR index check.
+- `make env` builds the framework's Python environment (`.venv`, `uv sync`); `make tests` runs every framework
+  check (`tools/**/*_test.py`, plain scripts, each under a 16 GB memory cap), or only the ones named with
+  `TESTS="..."`. `make check` runs them when code changed. While working, run only the checks your change touches.
+  Render checks run Blender headless on a cloud machine, never here; nothing here runs Godot.
 - `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
   any commit that touches `paper/`. A green run means the committed PDF is the draft's.
 
@@ -176,6 +213,11 @@ Getting a fresh machine, or a wiped one, back to working.
    GitHub-side state and are not copied by "Use this template", so a repo spawned from the template
    starts without them.
 
+**The framework's runtime** lives outside the repo, under `PROPS_HOME` (default `~/.farm-factory-props`, the first
+world's name, kept so the cloud ledger, keys and work carry over): `cloud/` (the runner's ssh key, the self-delete
+key, the spend ledger), `work/` (`PROPS_WORK`: takes, pictures, places' runs). The machines need the `scw` CLI
+logged in to the Scaleway project named by `SCORE_SCALEWAY_PROJECT` (by name, never an id), `uv`, and `make env`.
+
 **What survives a wipe:** everything in git. **What does not:** Claude's memory (git-ignored,
 because the repository is public), `gh` auth, any local toolchain, and anything a session left
 uncommitted.
@@ -188,5 +230,8 @@ here.>
 
 | What | Value |
 |---|---|
-| Repository | `<owner>/<repo>` |
-| Project board | `<number>` |
+| Repository | `Babon-Innovations-b-v/score` |
+| Project board | `9` (org project) |
+| First user | the game 2099, `JoeyKardolus/2099` (paused 2026-10-08) |
+| Cloud | Scaleway, the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`); machines tagged `farm-factory-batch` |
+| Secrets | Scaleway Secret Manager in that project, read by name with `scaleway.secret(name)`: `worldlabs-api-key`, `gemini-api-key`, `freesound-api-key` (optional) |
