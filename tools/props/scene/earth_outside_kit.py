@@ -5,7 +5,7 @@ HubKit draws, the hub's way (hub_kit.py): code only lays out, every visible piec
     python3 tools/props/scene/earth_outside_kit.py street <out.json>     # writes the laid-out place, prints its counts
 
 Frame: EarthSite's own metres (x across the block, the street at +x, the square at -x; z along the street, +z
-towards the capsule; y up from the street). The numbers are read from earth_site.gd and street_fittings.gd themselves
+towards the capsule; y up from the street). The numbers are read from earth_site.gd itself
 (`constants`), so a wall moved there moves its pieces here.
 
 Every piece is written as the hub's are: its kind (`<room>_<name>`), where its origin stands (the middle of its foot),
@@ -28,7 +28,6 @@ import numpy as np
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SITE = REPO / "game/prologue/earth_site/earth_site.gd"
-FITTINGS = REPO / "game/prologue/street_fittings/street_fittings.gd"
 UP = np.array([0.0, 1.0, 0.0])
 
 # A storey of the blocks (Tenement.STOREY) and how wide a bay is meant to be along a face (Tenement.BAY).
@@ -104,6 +103,9 @@ AWNING = (WINDOW[0] + 0.3, 0.45, 0.6)
 RACK = (WINDOW[0] + 0.1, 0.3, 0.75)
 GAS_PIPE = (0.12, 0.1)
 GAS_PIPE_HIGH = 3.45
+# The air conditioners on the stairwell's bay: along the street at this z, their tops this far over each half landing.
+BAY_AC_Z = -5.4
+BAY_AC_HIGH = 1.0
 METER = (0.35, 0.95, 0.15)
 VENT = (0.6, 0.6, 0.05)
 BARBER_POLE = (0.24, 0.9, 0.3)
@@ -171,9 +173,8 @@ def square_blocks_at(path=SITE):
 
 
 def site():
-    """EarthSite's numbers, with the street fittings' under their own names (prefixed FITTINGS_)."""
+    """EarthSite's numbers, with the square's blocks under their letters."""
     found = constants(SITE)
-    found.update({f"FITTINGS_{name}": value for name, value in constants(FITTINGS).items()})
     for letter, (at, _) in zip("ABCD", square_blocks_at()):
         found[f"BLOCK_{letter}"] = at
     return found
@@ -424,30 +425,26 @@ def street_barriers(room, numbers, faces):
 
 
 def bay_face(room, numbers, face):
-    """The stairwell's bay seen from the street: up to the flat's roof one rendered plate with the street door's and
-    the half landings' windows cut through it (the stairwell's own glass and bars stand in them), an air conditioner
-    under each window, the canopy over the door; over it the storeys of the block like the rest."""
+    """The stairwell's bay seen from the street: up to the flat's roof rendered plates with the street door cut through
+    them (the stairwell's kit has no window to the street), an air conditioner at each half landing, the canopy over
+    the door; over it the storeys of the block like the rest."""
     stair_top = numbers["FLAT_LEVEL"] + numbers["FLAT_HEIGHT"] + numbers["WALL"]
     door_along = face.along_of(numbers["FRONT_DOOR_Z"])
     door = numbers["STREET_DOORWAY"]
-    window_along = face.along_of(numbers["FITTINGS_WINDOW_Z"])
-    window = numbers["FITTINGS_WINDOW"]
-    sill = numbers["FITTINGS_WINDOW_SILL"]
+    ac_along = face.along_of(BAY_AC_Z)
     rise = numbers["FLIGHT_RISE"]
     half_landings = [rise * step for step in range(1, int(numbers["FLAT_LEVEL"] / rise), 2)]
     openings = [cut(door_along - door[0] / 2, 0.0, door[0], door[1] - face.ground)]
-    openings += [cut(window_along - window[0] / 2, level + sill - face.ground, window[0], window[1])
-                 for level in half_landings]
-    # In storeys' plates, cut between the half landings' windows, so no one plate takes a whole picture set.
+    # In storeys' plates, cut at each half landing's height, so no one plate takes a whole picture set.
     found = []
-    bands = [face.ground] + [level + sill - 0.25 for level in half_landings] + [stair_top]
+    bands = [face.ground] + [level + BAY_AC_HIGH for level in half_landings] + [stair_top]
     for low, high in zip(bands, bands[1:]):
         own = [[x0, y0 - (low - face.ground), x1, y1 - (low - face.ground)] for x0, y0, x1, y1 in openings
                if y0 + face.ground < high and y1 + face.ground > low]
         found.append(face.on(room, "render_lower", 0.0, low, (face.length, high - low, PLATE_DEEP),
                              **({"openings": own} if own else {})))
     for level in half_landings:
-        found.append(face.on(room, "ac_unit", window_along, level + sill - 0.15 - AC[1], AC, proud=PLATE_DEEP))
+        found.append(face.on(room, "ac_unit", ac_along, level + BAY_AC_HIGH - 0.15 - AC[1], AC, proud=PLATE_DEEP))
     found.append(face.on(room, "door_canopy", door_along, CANOPY_HIGH, CANOPY, proud=PLATE_DEEP))
     found.append(face.on(room, "vent_louvre", door_along + 1.6, face.ground + 1.2, VENT, proud=PLATE_DEEP))
     found.append(face.on(room, "shop_sign", door_along, CANOPY_HIGH + CANOPY[1] + 0.1, SIGN, proud=PLATE_DEEP,
@@ -780,23 +777,18 @@ def bay_stack(room, numbers):
     for level in numbers["BAY_LEVELS"]:
         found.append(flat_slab(room, (face_x - slab_out / 2, middle_z), (slab_out, slab_wide), level))
         front = Face((balcony[0] - wall / 2, 0.0, middle_z), out, balcony[3] + wall, BALCONY_RAIL_HIGH)
-        found.append(front.on(room, "balcony_rail", 0.0, level, (balcony[3] + wall, BALCONY_RAIL_HIGH, 0.06)))
+        found.append(front.on(room, "bay_balcony_rail", 0.0, level, (balcony[3] + wall, BALCONY_RAIL_HIGH, 0.06)))
         for side in (-1.0, 1.0):
             side_face = Face((face_x - slab_out / 2 + wall / 4, 0.0, middle_z + side * (balcony[3] + wall) / 2),
                              (0.0, 0.0, side), slab_out - wall / 2, BALCONY_RAIL_HIGH)
-            found.append(side_face.on(room, "balcony_rail", 0.0, level, (slab_out - wall / 2, BALCONY_RAIL_HIGH, 0.06),
+            found.append(side_face.on(room, "bay_balcony_rail", 0.0, level, (slab_out - wall / 2, BALCONY_RAIL_HIGH, 0.06),
                                       proud=-0.03))
         window = numbers["BAY_WINDOW"]
         face = Face((face_x, 0.0, middle_z), out, slab_wide, 3.0)
         found.append(face.on(room, "window_dark", 0.0, level + 0.3, (window[0], window[1], WINDOW[2])))
-    # The flat's own small windows either side of its balcony door, the drainpipe down the bay's corner and the
-    # shop's shutter at its foot.
+    # The drainpipe down the bay's corner and the shop's shutter at its foot (the flat's own wall is its kit's).
     spot = numbers["BALCONY_SPOT"]
     face = Face((face_x, 0.0, spot[2]), out, slab_wide, 3.0)
-    small = (window[0] * 0.6, window[1] * 0.6, WINDOW[2])
-    for along in numbers["FLAT_WALL_WINDOWS"]:
-        found.append(face.on(room, "window_dark", face.along_of(spot[2] + along), numbers["FLAT_LEVEL"] + 1.3
-                             - small[1] / 2, small))
     pipe = numbers["DRAINPIPE_THICKNESS"]
     found.append(face.on(room, "drainpipe", face.along_of(numbers["DRAINPIPE_Z"]), 0.0,
                          (pipe, numbers["BUILDING_TOP"], pipe), proud=pipe / 2))
@@ -807,7 +799,7 @@ def bay_stack(room, numbers):
 
 def flat_slab(room, middle, size, top):
     """A balcony's concrete slab, its top at `top` (a plain plate lying flat)."""
-    return flat(room, "balcony_slab", middle, np.array([0.0, 0.0, 1.0]), (size[1], size[0], BALCONY_SLAB), top)
+    return flat(room, "bay_balcony_slab", middle, np.array([0.0, 0.0, 1.0]), (size[1], size[0], BALCONY_SLAB), top)
 
 
 def square(numbers):
@@ -872,7 +864,7 @@ def launch(numbers):
 
 PLACES = {"street": street, "square": square, "launch": launch}
 FLOORS = ("ground_asphalt", "ground_paving", "kerb_stone", "road_line", "far_paving", "far_terrace", "far_road", "far_promenade",
-          "balcony_slab", "far_pad")
+          "bay_balcony_slab", "far_pad")
 STANDING = ("water_barrier_red", "water_barrier_white", "street_lamp", "notice_case", "poster_stand", "menu_board",
             "end_wall", "end_fence", "far_palm",
             "far_flag_pole", "far_floodlight_tower", "far_square_lamp", "far_stage", "far_backdrop", "far_podium",

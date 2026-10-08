@@ -517,7 +517,7 @@ def far_pad(size, laid):
     return plate(size, "concrete", laid, "slab", 0.03)
 
 
-def balcony_slab(size, laid):
+def bay_balcony_slab(size, laid):
     """A balcony's concrete slab with its drip edge."""
     return plate(size, "concrete", laid, "slab", 0.01)
 
@@ -549,7 +549,7 @@ def far_promenade_rail(size, laid):
     return rail_run(size, "rail_green", 0)
 
 
-def balcony_rail(size, laid):
+def bay_balcony_rail(size, laid):
     """A run of a balcony's steel balustrade: posts, top and middle rails and upright bars."""
     return rail_run(size, "grille_paint", max(2, round(size[0] / 0.14)))
 
@@ -988,7 +988,7 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "facade_band", "drainpipe", "window_dark", "window_lit", "ac_unit", "window_cage",
     "shop_shutter", "tea_front", "shop_open", "shop_sign", "neon_sign", "door_canopy",
     "street_lamp", "notice_case", "poster_stand", "far_paving", "far_terrace", "far_road",
-    "far_promenade", "far_pad", "balcony_slab", "far_cable", "far_promenade_rail", "balcony_rail",
+    "far_promenade", "far_pad", "bay_balcony_slab", "far_cable", "far_promenade_rail", "bay_balcony_rail",
     "far_render_upper", "far_render_lower", "far_render_shop", "far_facade_band", "far_drainpipe", "far_stage",
     "far_backdrop", "far_podium", "far_lectern", "far_banner", "far_floodlight_tower", "far_square_lamp",
     "far_lantern", "far_neon_column", "far_lightning_mast", "far_pad_floodlight", "far_window_dark", "far_window_lit",

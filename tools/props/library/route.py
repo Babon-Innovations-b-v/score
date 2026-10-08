@@ -92,7 +92,7 @@ ATLASES = (("distant", (DISTANT_PREFIX,)),
                              "door_canopy", "notice_case", "poster_stand", "street_lamp", "meter_box", "vent_louvre",
                              "barber_pole", "menu_board", "road_line", "end_wall", "end_fence")),  # Earth, by the walk
            ("facade", ("render_upper", "window_dark", "window_lit", "ac_unit", "window_cage", "facade_band",
-                       "drainpipe", "balcony_", "window_awning", "drying_rack", "facade_pipe")),  # Earth, over it
+                       "drainpipe", "bay_balcony_", "window_awning", "drying_rack", "facade_pipe")),  # Earth, over it
            ("fittings", ("hatch_", "porthole_panel", "wall_lower_vent", "notice_board")),  # method B's room fittings
            ("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
