@@ -3,7 +3,7 @@ results back; delete the machine (job robust-exp, 2026-10-06: after a local bake
 coordinator moved every Blender bake to the cloud).
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/library_bake.py <job.json> [<job.json> ...] \
-        --who "<session>" [--dry-run]
+        --who "<session>" [--types L40S-1-48G] [--dry-run]
 
 Each job is one of tools/props/library/inside/'s: it names its `script` (make_kit.py, make_chunky.py, show.py or
 swatch.py) and its `out` folder; a make_chunky job's pieces name their `parts` folders (labels.py). Up there Blender
@@ -25,6 +25,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import ledger  # noqa: E402
 import scaleway  # noqa: E402
 from paths import REPO  # noqa: E402
@@ -47,21 +48,22 @@ def card_minutes(job):
     return sum(len(job.get(key, ())) * minutes for key, minutes in MINUTES_EACH.items())
 
 
-def machine_offers(processor):
-    """Where the job can run: an L4 card, or (with --processor, when no card is in stock) a 32-core processor
-    machine, where Cycles bakes on the processor at about a third of a card's speed."""
+def machine_offers(processor, types):
+    """Where the job can run: any card that holds a bake (capacity.py) or the `types` asked for, or (with
+    --processor, when no card is in stock) a 32-core processor machine, where Cycles bakes on the processor at
+    about a third of a card's speed."""
     if processor:
         import infinigen
 
         return [offer for machine in PROCESSORS for offer in infinigen.offers(machine)]
-    return batch.offers(list(batch.TYPES[:1]))
+    return batch.offers(types or list(capacity.types_for("library")))
 
 
-def price(jobs, project, processor):
+def price(jobs, project, processor, types):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = machine_offers(processor)
+    found = machine_offers(processor, types)
     if not found:
-        raise SystemExit(f"no {'processor machine' if processor else 'L4 card'} is sold in the zones used")
+        raise SystemExit(f"no {'processor machine' if processor else 'card that holds a bake'} is sold in the zones used")
     minutes = SETUP_MINUTES + sum(card_minutes(job) for job in jobs) * (PROCESSOR_SLOWER if processor else 1)
     dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
@@ -110,7 +112,7 @@ def work_on(run, machine, jobs, processor):
     log_folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(log_folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
         for shipped in SHIPPED:
@@ -138,6 +140,7 @@ def work_on(run, machine, jobs, processor):
                 with (log_folder / f"job{number}.log").open("w") as log:
                     batch.remote(log_folder, host, run_line(job["script"], job_path, processor), check=True, stdout=log,
                                  stderr=subprocess.STDOUT)
+                machine.setdefault("unit_seconds", []).append(round(time.time() - began, 1))
             finally:
                 pathlib.Path(job["out"]).mkdir(parents=True, exist_ok=True)
                 batch.copy(log_folder, [f"root@{host}:{moved['out']}/"], f"{job['out']}/")
@@ -148,16 +151,13 @@ def work_on(run, machine, jobs, processor):
 
 
 def record(run, machines, started, jobs):
-    rows = [{"type": machine["type"], "zone": machine["zone"],
-             "minutes": (machine["deleted"] - machine["created"]) / 60,
-             "euros": ledger.cost((machine["deleted"] - machine["created"]) / 60, machine["price"])}
-            for machine in machines]
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run.folder.name,
-             "kind": "library", "jobs": [job["out"] for job in jobs], "machines": rows,
-             "euros": sum(row["euros"] for row in rows), "machine_minutes": sum(row["minutes"] for row in rows),
+             "kind": "library", "jobs": [job["out"] for job in jobs],
+             **ledger.machines_record(machines, run.attempts, started),
              "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
-    batch.say(f"library: {entry['wall_minutes']:.0f} min on {len(rows)} machine, €{entry['euros']:.2f}")
+    batch.say(f"library: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machine, "
+              f"€{entry['euros']:.2f}")
     return entry
 
 
@@ -167,11 +167,12 @@ def main():
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     parser.add_argument("--processor", action="store_true", help="a processor machine, when no card is in stock")
+    parser.add_argument("--types", help="only these machine types, comma separated (a measuring run)")
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs]
     project = scaleway.project_id()
     batch.sweep(project)
-    found, allowed_minutes = price(jobs, project, options.processor)
+    found, allowed_minutes = price(jobs, project, options.processor, options.types and options.types.split(","))
     if options.dry_run:
         return
     scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
@@ -190,9 +191,9 @@ def main():
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], jobs, options.processor)
     finally:
-        for machine in machines:
+        for machine in run.machines:
             batch.delete_machine(machine)
-        entry = record(run, machines, started, jobs)
+        entry = record(run, run.machines, started, jobs)
         (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
         print(json.dumps(entry))
 

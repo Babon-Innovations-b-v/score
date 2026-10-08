@@ -23,6 +23,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import ledger  # noqa: E402
 import scaleway  # noqa: E402
 from paths import REPO  # noqa: E402
@@ -34,8 +35,6 @@ MODEL_PAGE = "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0"
 REMOTE = pathlib.PurePosixPath("/root/sfx")
 SOUNDS = REPO / "data" / "sound" / "sounds.json"
 OUT = pathlib.Path.home() / ".cache" / "farm-factory" / "sound-picker" / "moss"
-## Cards in the order tried: an L4 fits; the trial found only an H100 free.
-CARDS = ("L4-1-24G", "L40S-1-48G", "L4-2-24G", "H100-1-80G")
 SETUP_MINUTES = 8
 MINUTES_A_CLIP = 0.4
 ## The most this tool spends on one run, in euros (the budget for the whole game's sound in one go, 2026-10-06).
@@ -58,7 +57,7 @@ def jobs_for(page, sounds_path=SOUNDS):
 
 def price(jobs, project):
     """The offers and the minutes allowed; refused when over the owner's limits or this tool's budget."""
-    found = batch.offers(list(CARDS))
+    found = batch.offers(list(capacity.types_for("moss-sound")))
     if not found:
         raise SystemExit("no card is sold in the zones used")
     minutes = SETUP_MINUTES + len(jobs) * MINUTES_A_CLIP
@@ -82,7 +81,7 @@ def work_on(run, machine, jobs, out):
     log_folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(log_folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
         batch.remote(log_folder, host, f"mkdir -p {REMOTE}/out", check=True)
@@ -116,13 +115,9 @@ def write_manifest(out, jobs):
 
 
 def record(run, machines, started, out, made):
-    rows = [{"type": machine["type"], "zone": machine["zone"],
-             "minutes": (machine["deleted"] - machine["created"]) / 60,
-             "euros": ledger.cost((machine["deleted"] - machine["created"]) / 60, machine["price"])}
-            for machine in machines]
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run.folder.name,
-             "kind": "moss-sound", "folder": str(out), "takes": len(made), "machines": rows,
-             "euros": sum(row["euros"] for row in rows), "machine_minutes": sum(row["minutes"] for row in rows),
+             "kind": "moss-sound", "folder": str(out), "takes": len(made),
+             **ledger.machines_record(machines, run.attempts, started),
              "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
     batch.say(f"moss: {len(made)} takes, {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f}")
@@ -158,11 +153,11 @@ def main():
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], jobs, out)
     finally:
-        for machine in machines:
+        for machine in run.machines:
             batch.delete_machine(machine)
         if out.exists():
             made = write_manifest(out, jobs)
-        entry = record(run, machines, started, out, made)
+        entry = record(run, run.machines, started, out, made)
         (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
         print(json.dumps(entry))
 

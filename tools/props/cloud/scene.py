@@ -46,6 +46,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "scene"))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
 import place  # noqa: E402
@@ -194,9 +195,9 @@ def command(step):
 
 def price(plan, project):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = batch.offers(list(batch.TYPES[:1]))
+    found = batch.offers(list(capacity.types_for("scene")))
     if not found:
-        raise SystemExit("no L4 card is sold in the zones used")
+        raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = SETUP_MINUTES + sum(STEP_MINUTES[step] for step, _ in steps(plan))
     dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
@@ -241,7 +242,7 @@ def work_on(run, machine, plan):
     folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
         set_up(folder, host, plan)
@@ -258,18 +259,13 @@ def work_on(run, machine, plan):
 
 def record(run, machines, plan, started):
     """Write the scene's run to the ledger and say what it cost."""
-    rows = [{"type": machine["type"], "zone": machine["zone"],
-             "minutes": (machine["deleted"] - machine["created"]) / 60,
-             "euros": ledger.cost((machine["deleted"] - machine["created"]) / 60, machine["price"])}
-            for machine in machines]
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
              "batch": run.folder.name, "kind": "scene", "room": plan["room"],
-             "steps": [step for step, _ in steps(plan)], "machines": rows,
-             "euros": sum(row["euros"] for row in rows),
-             "machine_minutes": sum(row["minutes"] for row in rows),
+             "steps": [step for step, _ in steps(plan)], **ledger.machines_record(machines, run.attempts, started),
              "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
-    batch.say(f"{plan['room']}: {entry['wall_minutes']:.0f} min on {len(rows)} machine, €{entry['euros']:.2f}")
+    batch.say(f"{plan['room']}: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machine, "
+              f"€{entry['euros']:.2f}")
 
 
 def build(plan, who, folder):
@@ -314,9 +310,9 @@ def main():
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], plan)
     finally:
-        for machine in machines:
+        for machine in run.machines:
             batch.delete_machine(machine)
-        record(run, machines, plan, started)
+        record(run, run.machines, plan, started)
     if "build" in plan:
         build(plan, options.who, folder)
 

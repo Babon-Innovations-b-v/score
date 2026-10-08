@@ -24,6 +24,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import ledger  # noqa: E402
 import scaleway  # noqa: E402
 from local_models import ALLOW  # noqa: E402
@@ -40,9 +41,9 @@ SECONDS_A_MATTE = 3
 
 def price(cameras, project, mattes=0):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = batch.offers(list(batch.TYPES[:1]))
+    found = batch.offers(list(capacity.types_for("closeups")))
     if not found:
-        raise SystemExit("no L4 card is sold in the zones used")
+        raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = SETUP_MINUTES + (cameras * SECONDS_A_CAMERA + mattes * SECONDS_A_MATTE) / 60
     dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
@@ -65,7 +66,7 @@ def work_on(run, machine, folder, splats, pictures_folder=None):
     log_folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(log_folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
         batch.remote(log_folder, host, f"mkdir -p {REMOTE}/repo/tools {REMOTE}/out", check=True)
@@ -103,16 +104,13 @@ def work_on(run, machine, folder, splats, pictures_folder=None):
 
 
 def record(run, machines, folder, started, cameras):
-    rows = [{"type": machine["type"], "zone": machine["zone"],
-             "minutes": (machine["deleted"] - machine["created"]) / 60,
-             "euros": ledger.cost((machine["deleted"] - machine["created"]) / 60, machine["price"])}
-            for machine in machines]
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run.folder.name,
-             "kind": "closeups", "folder": str(folder), "cameras": cameras, "machines": rows,
-             "euros": sum(row["euros"] for row in rows), "machine_minutes": sum(row["minutes"] for row in rows),
+             "kind": "closeups", "folder": str(folder), "cameras": cameras,
+             **ledger.machines_record(machines, run.attempts, started),
              "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
-    batch.say(f"close-ups: {entry['wall_minutes']:.0f} min on {len(rows)} machine, €{entry['euros']:.2f}")
+    batch.say(f"close-ups: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machine, "
+              f"€{entry['euros']:.2f}")
     return entry
 
 
@@ -145,9 +143,9 @@ def main():
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], options.folder, options.splats, options.matte)
     finally:
-        for machine in machines:
+        for machine in run.machines:
             batch.delete_machine(machine)
-        entry = record(run, machines, options.folder, started, cameras)
+        entry = record(run, run.machines, options.folder, started, cameras)
         (options.folder / "cloud.json").write_text(json.dumps(entry, indent=1))
 
 

@@ -7,6 +7,7 @@ its bill or this ledger's sum. A batch that would pass any limit is refused befo
 import datetime
 import json
 import math
+import time
 
 from paths import HOME
 
@@ -40,9 +41,37 @@ def this_month():
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m")
 
 
-def cost(minutes, euros_per_minute):
-    """What a machine costs for `minutes`, billed by the started minute."""
-    return math.ceil(minutes) * euros_per_minute
+def cost(minutes, euros_per_minute, unit_minutes=1):
+    """What a machine costs for `minutes`, billed by the started unit: a minute for the cards, an hour for the
+    machines Scaleway prices by the hour."""
+    return math.ceil(minutes / unit_minutes) * unit_minutes * euros_per_minute
+
+
+def machine_row(machine):
+    """The ledger's record of one rented machine: its type, zone and cards; whether it answered, how long that
+    took and how long it worked after; its whole time and cost; and what the runner counted of its work."""
+    ended = machine.get("deleted") or time.time()
+    ready = machine.get("ready")
+    minutes = (ended - machine["created"]) / 60
+    row = {"type": machine["type"], "zone": machine["zone"], "cards": machine.get("cards"),
+           "started": ready is not None,
+           "start_wait_minutes": ((ready or ended) - machine["created"]) / 60,
+           "work_minutes": (ended - ready) / 60 if ready else 0.0, "minutes": minutes,
+           "euros": cost(minutes, machine["price"], machine.get("unit_minutes", 1))}
+    row.update({key: machine[key] for key in ("peak_gb", "made", "unit_seconds") if machine.get(key) is not None})
+    return row
+
+
+def machines_record(machines, attempts, started):
+    """The part of a run's ledger entry about its machines: a row each, the starts that failed before them
+    (offers refused or out of stock, machines that never answered), the run's wait for its first machine,
+    and the minutes and euros of all of them."""
+    rows = [machine_row(machine) for machine in machines]
+    ready = [machine["ready"] for machine in machines if machine.get("ready")]
+    return {"machines": rows, "attempts": list(attempts),
+            "start_wait_minutes": (min(ready) - started) / 60 if ready else None,
+            "machine_minutes": sum(row["minutes"] for row in rows + list(attempts)),
+            "euros": sum(row["euros"] for row in rows + list(attempts))}
 
 
 def minutes_allowed(euros_per_minute, spent_this_month):
