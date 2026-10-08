@@ -44,8 +44,19 @@ who can read them. Placeholder.>
 
 ## build/release
 
-<How the project is built, tested and released. The exact commands, and what a green run means.
-Placeholder.>
+Nothing is released yet but the paper. Commands, run locally (there is no CI and no GitHub Actions):
+
+- `make paper`: builds the paper from `paper/source/score.md` with pandoc into `paper/out/score.tex`
+  and `score.pdf` (citeproc, IEEE style) and into the arXiv tree `paper/arxiv/` (`main.tex`,
+  `content/`, `figures/`, `refs.bib`, `main.bbl`, `main.pdf`). PDF engine: xelatex if installed,
+  else tectonic. The build writes `paper/out/stamp.json`, the sha256 of every input (draft,
+  bibliography, style, filter, figures, the build script) and every output.
+- `make check`: the gate. `gate-scope.py` decides whether tests run (`paper/` counts as a build
+  input, not a document); the tests include `paper/build/test_paper_current.py`, which fails when
+  the files on disk no longer match the stamp, so a draft changed without a rebuild, or a
+  generated file edited by hand, is red. Then the ADR index check.
+- `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
+  any commit that touches `paper/`. A green run means the committed PDF is the draft's.
 
 **Scope the gate.** Running every test on every push stops scaling once several sessions work
 side by side on one machine. The project's test command asks
@@ -65,8 +76,8 @@ a change can reach, and keep its rules:
   is named after changes, and an exception is written down with the reason.
 - **Print the reasons**, one line each, so whoever reads the gate's output sees what was skipped.
 
-Two grown versions to copy from: the babon repo's `engine/infra/ops/gate_scope/` (Python import
-graph) and farm-factory's `tools/test/scope/` (Godot scripts, scenes and `res://` paths).
+A grown version to copy from: the game 2099's `tools/test/scope/` (Godot scripts, scenes and
+`res://` paths).
 
 ## workflow/loop
 

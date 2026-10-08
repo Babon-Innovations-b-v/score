@@ -27,6 +27,9 @@ REPO = Path(__file__).resolve().parents[2]
 DOC_PREFIXES = (".claude/", "docs/", ".github/ISSUE_TEMPLATE/")
 DOC_SUFFIXES = (".md",)
 DOC_NAMES = ("LICENSE", ".gitignore", ".gitattributes", ".mcp.json")
+# Markdown that is a build input, not a note: the paper's draft is built into its PDF and
+# LaTeX, and the check that they are current must run when it changes.
+BUILT_PREFIXES = ("paper/",)
 
 
 def git_lines(*args):
@@ -48,6 +51,8 @@ def changed_paths():
 
 def is_document(path):
     """True for a path no build or test reads."""
+    if path.startswith(BUILT_PREFIXES):
+        return False
     return path.startswith(DOC_PREFIXES) or path.endswith(DOC_SUFFIXES) or path in DOC_NAMES
 
 

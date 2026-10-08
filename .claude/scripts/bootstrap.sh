@@ -74,7 +74,16 @@ check_project_json() {
   fi
 }
 
+# --- 3. Use the repo's own git hooks ---------------------------------------
+# .githooks/pre-commit refuses a commit that leaves the paper's PDF and LaTeX older than
+# its Markdown draft.
+use_repo_hooks() {
+  git -C "$REPO" config core.hooksPath .githooks
+  say "git hooks: .githooks"
+}
+
 link_memory
+use_repo_hooks
 check_gh
 check_project_json
 say ""
