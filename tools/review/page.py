@@ -30,6 +30,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "tools/props/gates"))
 sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
+import characters  # noqa: E402
 import records  # noqa: E402
 import renders  # noqa: E402
 import resting  # noqa: E402  (tools/usd, on the path renders puts it)
@@ -313,6 +314,30 @@ def scene_section(scene, out):
     return section("scene", "The assembled scene", body)
 
 
+def characters_section(cast):
+    """The place's characters: why each entry of its cast is there, each one close, each group and the crowd wide, and
+    a moving shot of each named person, group and crowd view."""
+    if cast is None:
+        return section("characters", "Characters", missing("no cast in data/characters, or no stage to draw it in"))
+    if not cast["who"] and not cast["crowd"]:
+        return section("characters", "Characters", f"<p>Nobody. {escaped(cast['note'])}</p>")
+    rows = "".join(f"<tr><td>{escaped(entry['name'])}</td><td>{escaped(entry['why'])}</td></tr>" for entry in cast["why"])
+    doing = {person["name"]: f"{person['character']}, {person['doing']}" for person in cast["who"]}
+    closes = "".join(figure(f"characters/close/{view}-look.png", escaped(f"{view.removeprefix('close-')}: "
+                                                                          f"{doing[view.removeprefix('close-')]}"))
+                     for view in cast["closes"])
+    wides = "".join(figure(f"characters/wide/{view}-look.png", escaped(view)) for view in cast["wides"])
+    moves = "".join(f'<figure><video src="characters/{escaped(view)}.mp4" controls loop muted playsinline></video>'
+                    f"<figcaption>{escaped(view)}</figcaption></figure>" for view in cast["moves"])
+    body = (f"<p>Skinned characters from the place's cast (data/characters), each playing its clip in the OpenUSD "
+            f"stage's characters layer; {len(cast['who'])} placed one by one and {cast['crowd']:,} in the crowd.</p>"
+            f"<table><tr><th>who</th><th>why they are there</th></tr>{rows}</table>"
+            f'<h3>Moving</h3><div class="grid">{moves}</div>'
+            f'<h3>Groups and the crowd</h3><div class="grid wide">{wides}</div>'
+            f'<h3>Each one close</h3><div class="grid">{closes}</div>')
+    return section("characters", "Characters", body)
+
+
 # --- checks -------------------------------------------------------------------------------------------------------
 
 def gate_rows(label, checks):
@@ -485,7 +510,7 @@ def render_all(options, runs, out):
         renders.CLOUD = renders.CLOUD_CLASSES
     if options.no_render:
         found = json.loads((out / "renders.json").read_text())
-        return found["shots"], found["scene"]
+        return found["shots"], found["scene"], found.get("characters")
     shots = renders.model_shots(names, runs, records.surfaces(options.place), out)
     layout = records.kit(options.place)
     # A kit room with a roof (draw layer 2) is drawn from inside; a kit laid outdoors (the prologue's street) from round it.
@@ -493,8 +518,9 @@ def render_all(options, runs, out):
         else None
     outdoor_kit = room is None and bool(layout and layout.get("pieces") and "x" in layout["pieces"][0])
     scene = renders.scene_shots(options.place, stages, out, options.plain, room, outdoor_kit) if stages else None
-    (out / "renders.json").write_text(json.dumps({"shots": shots, "scene": scene}, indent=1))
-    return shots, scene
+    cast = characters.shots(options.place, options.stage, out) if options.stage else None
+    (out / "renders.json").write_text(json.dumps({"shots": shots, "scene": scene, "characters": cast}, indent=1))
+    return shots, scene, cast
 
 
 def build(options):
@@ -504,7 +530,7 @@ def build(options):
     if runs["before"] is None:
         del runs["before"]
     pictures = Pictures(out)
-    shots, scene = render_all(options, runs, out)
+    shots, scene, cast = render_all(options, runs, out)
     copy_agreement(options.agreement, out)
     style = records.place_style(options.place)
     concept = records.concept(options.concept)
@@ -518,6 +544,7 @@ def build(options):
         models_section(runs, shots, out, closeups),
         surfaces_section(options.place, runs),
         scene_section(scene, out),
+        characters_section(cast),
         checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in
                                                  (("before", options.before_stage), ("now", options.stage)) if stage}),
     ]

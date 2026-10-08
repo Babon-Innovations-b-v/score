@@ -36,6 +36,12 @@ the current backend). No model runs on the coordinating machine.
   piece making (`library/`: recipes, labels by parts, `make_chunky`/`make_kit` baked in the cloud, `route.py` for kit
   rooms, `place_route.py` for outdoor places, `package.py` for the scene package), the gates (`gates/`), Infinigen
   grounds and life (`infinigen/`). Each directory's rules are in its overlay.
+- `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body
+  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode clothes; moved from 2099's `tools/crew`
+  with its history, its model steps not yet on the cloud); `skel_usd.py` turns a body into a UsdSkel asset;
+  `cast.py` writes a place's characters layer (`<stage>/layers/characters.usda`, between the edit layer and the
+  base) from its cast in `data/characters/<place>.json`: named people, kit groups mixed by seed, and a crowd as one
+  PointInstancer. The review page draws them (`tools/review/characters.py`).
 - `tools/blender/`: the headless Blender launcher (never a window on the owner's screen).
 - `tools/sound/`: the sound picker and the loudness rule; MOSS takes are made in the cloud.
 - `data/library/`: the surface library (materials, fittings, composites, details per kind, printed pictures);

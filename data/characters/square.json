@@ -1,0 +1,237 @@
+{
+ "place": "square",
+ "from": "the game 2099's EarthSite (game/prologue/earth_site/earth_site.gd _build_the_podium, _fill_the_square; game/people/crowd/crowd.gd), first trip, in EarthSite's own frame as the square's kit",
+ "people": [
+  {
+   "name": "leader",
+   "character": "leader",
+   "doing": "pointing",
+   "at": [
+    -45.65,
+    4.24,
+    -3.7
+   ],
+   "facing_to": [
+    -4.0,
+    4.24,
+    -3.5
+   ],
+   "why": "the leader speaking from the podium"
+  }
+ ],
+ "groups": [
+  {
+   "name": "front_row",
+   "character": "kit",
+   "outfit": "plain",
+   "count": 24,
+   "seed": 5000,
+   "band": [
+    -13.0,
+    -16.0,
+    8.0,
+    26.0
+   ],
+   "doing": [
+    "standing",
+    "shifting",
+    "clapping",
+    "cheering"
+   ],
+   "phase_step": 0.37,
+   "facing_to": [
+    -45.5,
+    3.3,
+    -3.5
+   ],
+   "why": "the crowd's front row under the balcony, close enough to be drawn in detail"
+  }
+ ],
+ "crowd": {
+  "name": "crowd",
+  "character": "kit_m_avg",
+  "body": "far",
+  "count": 10000,
+  "seed": 103,
+  "spread": [
+   -42.0,
+   -56.0,
+   38.4,
+   112.0
+  ],
+  "kept_off": [
+   [
+    -44.0,
+    -13.0,
+    4.5,
+    19.0
+   ]
+  ],
+  "keep_clear_of": "front_row",
+  "clear_radius": 0.7,
+  "tiers": [
+   [
+    -38.0,
+    0.0,
+    -40.0,
+    23.0,
+    0.8,
+    74.0
+   ],
+   [
+    -36.0,
+    0.0,
+    -33.0,
+    15.0,
+    1.6,
+    60.0
+   ],
+   [
+    -34.0,
+    0.0,
+    -26.0,
+    7.0,
+    2.4,
+    46.0
+   ]
+  ],
+  "tier_tread": 0.9,
+  "tier_half_step": 0.4,
+  "facing_to": [
+   -45.5,
+   3.3,
+   -3.5
+  ],
+  "turn_jitter": 0.35,
+  "height_jitter": 0.06,
+  "doing": [
+   "standing",
+   "shifting",
+   "clapping",
+   "cheering"
+  ],
+  "shares": [
+   0.45,
+   0.3,
+   0.15,
+   0.1
+  ],
+  "phases": 4,
+  "palettes": [
+   [
+    [
+     226,
+     172,
+     138
+    ],
+    [
+     58,
+     82,
+     124
+    ],
+    [
+     22,
+     22,
+     24
+    ]
+   ],
+   [
+    [
+     226,
+     172,
+     138
+    ],
+    [
+     120,
+     120,
+     118
+    ],
+    [
+     22,
+     22,
+     24
+    ]
+   ],
+   [
+    [
+     226,
+     172,
+     138
+    ],
+    [
+     50,
+     57,
+     78
+    ],
+    [
+     32,
+     34,
+     34
+    ]
+   ],
+   [
+    [
+     226,
+     172,
+     138
+    ],
+    [
+     66,
+     66,
+     70
+    ],
+    [
+     22,
+     22,
+     24
+    ]
+   ],
+   [
+    [
+     226,
+     172,
+     138
+    ],
+    [
+     86,
+     94,
+     58
+    ],
+    [
+     30,
+     28,
+     26
+    ]
+   ]
+  ],
+  "palette_parts": [
+   "skin",
+   "clothes",
+   "boots"
+  ],
+  "palette_shares": [
+   0.34,
+   0.26,
+   0.18,
+   0.16,
+   0.06
+  ],
+  "why": "the people who came to the square for the launch, facing the podium",
+  "views": [
+   {
+    "name": "from_the_balcony",
+    "eye": [
+     -4.0,
+     10.6,
+     -3.5
+    ],
+    "aim": [
+     -45.65,
+     5.84,
+     -3.7
+    ],
+    "fov": 60.0
+   }
+  ]
+ }
+}
