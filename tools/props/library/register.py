@@ -43,11 +43,12 @@ def similarity(source, target):
     return scale, rotation, target_middle - scale * rotation @ source_middle
 
 
-def aligned(source_points, target_points, turns=True, tries=1):
+def aligned(source_points, target_points, turns=True, tries=1, two_way=False):
     """The 4x4 matrix laying `source_points` on `target_points`, and the median gap left (in target units). The fit
     starts from the quarter turn that lies best; with `tries` over 1, from that many of the best and keeps the
     closest fit (a part splitter's model stands in its own frame, tilted off the picture's camera by the view's
-    elevation, so the best start is not always the best end: job paint, 2026-10-08)."""
+    elevation, so the best start is not always the best end: job paint, 2026-10-08). `two_way` fits on pairs found
+    both ways (two_way_pairs), which keeps the fit from shrinking the source into part of the target."""
     tree = cKDTree(target_points)
     source_middle, source_size = robust_frame(source_points)
     target_middle, target_size = robust_frame(target_points)
@@ -58,7 +59,7 @@ def aligned(source_points, target_points, turns=True, tries=1):
         starts.append((np.median(tree.query(moved)[0]), rotation))
     starts.sort(key=lambda start: start[0])
     fits = [fitted(source_points, target_points, tree, rotation, scale,
-                   target_middle - scale * rotation @ source_middle) for _, rotation in starts[:tries]]
+                   target_middle - scale * rotation @ source_middle, two_way) for _, rotation in starts[:tries]]
     if len(fits) == 1:
         return fits[0]
     return min(fits, key=lambda fit: both_ways(source_points, target_points, tree, fit[0]))
@@ -71,15 +72,34 @@ def both_ways(source_points, target_points, tree, matrix):
     return float(np.median(tree.query(moved)[0]) + np.median(cKDTree(moved).query(target_points)[0]))
 
 
-def fitted(source_points, target_points, tree, rotation, scale, shift):
+def fitted(source_points, target_points, tree, rotation, scale, shift, two_way=False):
     """ROUNDS of a trimmed similarity fit from a start; the 4x4 matrix and the median gap left."""
     for _ in range(ROUNDS):
         moved = source_points @ rotation.T * scale + shift
-        distance, index = tree.query(moved)
-        keep = distance < np.percentile(distance, KEEP_SHARE)
-        scale, rotation, shift = similarity(source_points[keep], target_points[index[keep]])
+        pairs = two_way_pairs if two_way else one_way_pairs
+        paired_source, paired_target = pairs(source_points, target_points, tree, moved)
+        scale, rotation, shift = similarity(paired_source, paired_target)
     matrix = np.eye(4)
     matrix[:3, :3] = rotation * scale
     matrix[:3, 3] = shift
     gap = float(np.median(tree.query(source_points @ matrix[:3, :3].T + shift)[0]))
     return matrix, gap
+
+
+def one_way_pairs(source_points, target_points, tree, moved):
+    """Trimmed nearest pairs from the moved source to the target (the target's floaters find no partner)."""
+    distance, index = tree.query(moved)
+    keep = distance < np.percentile(distance, KEEP_SHARE)
+    return source_points[keep], target_points[index[keep]]
+
+
+def two_way_pairs(source_points, target_points, tree, moved):
+    """Trimmed nearest pairs from the moved source to the target and from the target back to the moved source. Pairs
+    one way only let a trimmed fit with free scale shrink the source into one part of the target (a desk's split fitted
+    at 0.6 of its size, half the desk left uncovered: job repaint, 2026-10-08); the pairs back pull it out to the
+    target's whole extent."""
+    forth_source, forth_target = one_way_pairs(source_points, target_points, tree, moved)
+    back_distance, back_index = cKDTree(moved).query(target_points)
+    back_keep = back_distance < np.percentile(back_distance, KEEP_SHARE)
+    return (np.vstack([forth_source, source_points[back_index[back_keep]]]),
+            np.vstack([forth_target, target_points[back_keep]]))

@@ -10,6 +10,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   rename an object or reorder how names are given without a migration of every edit layer.
 - **Converted, not referenced.** glTF geometry becomes UsdGeomMesh with UsdPreviewSurface materials and PNG maps:
   usd-core and Blender read no glTF inside USD. Parts are GeomSubsets named after their library surface.
+  The parts come from `data/parts` (`../props/library/stored_parts.py`: a stored sample of each labelled take, by
+  `models.json`), never from a work or tmp folder.
 - **No fake data.** What is not known is not written: mass and friction are absent until the framework records
   them; a model without labelled parts gets one baked material and no surfaces.
 - Stages are written outside the repo (`~/.farm-factory-props/work/usd/<place>/`); nothing generated is committed.
