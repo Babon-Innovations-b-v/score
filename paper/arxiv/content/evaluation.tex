@@ -1,7 +1,31 @@
 \section{Evaluation}\label{evaluation}
 
-\textbf{Benchmark.} SCORE has not been compared with any other system. The intended evaluation is LEGO-Bench \citep{li2026lego}, which scores scenes rebuilt from pictures in Blender. It has not been run: its code is not released yet, and SCORE first needs the scene export and Blender adapter described in Section 3.1, which are being built.
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Style coherence.} Whether a room keeps one style is judged here only by the creator's eye on pages and in play. A measured test (colour distance to the palette per input class, lightness spread, ink density) has been proposed for the game but not built, so no coherence number is reported.
+\textbf{Gap: LEGO-Bench.} Scores of SCORE on LEGO-Bench \citep{li2026lego}, LEGO-Anything's benchmark of scenes rebuilt from pictures. Waits on the benchmark's code release and on SCORE's OpenUSD export with its Blender adapter.
 
-\textbf{Breadth.} One world of one kind is not evidence that the framework generalises. Three more worlds are planned to test that: a stylised underwater world, a physically accurate simulation world for robots, which needs masses, friction and joints the route does not yet produce, and a third-person fantasy world. Scales that are computed rather than modelled, such as orbits, would enter as open solvers wrapped as stages, starting with REBOUND \citep{rein2012rebound}; none is wrapped yet.
+\end{minipage}}\end{center}
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: world-step ablation.} The route with and without the optional world step on the same places: inventory coverage of the concept, concept density of the built room, cost, and the creator's blind pick. Waits on the route running from the framework repository; the first internal run stopped when the game work paused.
+
+\end{minipage}}\end{center}
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: style coherence.} A measure of whether a room keeps one style, from rendered frames: colour distance to the place's palette per kind of source, lightness spread and ink density, set against the creator's blind picks. The measure is designed and not built.
+
+\end{minipage}}\end{center}
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: physics in the robotics world.} A rigged robot in the simulation world, loaded in a robotics simulator, with masses, friction and joints compiled from the scene. Waits on world 3 and on those properties in the scene schema.
+
+\end{minipage}}\end{center}
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: solver plugins.} Scales that are computed rather than modelled, starting with orbits through REBOUND \citep{rein2012rebound}, wrapped as stages with the same strict interfaces. Waits on the plugin interface in the framework repository.
+
+\end{minipage}}\end{center}

@@ -4,156 +4,145 @@ author:
   - "J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands"
 date: "Working draft, 8 October 2026"
 abstract: |
-  World models and one-shot 3D generators can produce a convincing place from a sentence or a picture, but their output is hard to build on: a stream of frames, or one fused scene without separate objects, collision or clear rights. We present SCORE, a framework that treats world creation as offline compilation. A creator picks references, a concept and a style; coding agents and open models then compile those picks, in cloud batches, through stages with explicit and checkable outputs: a dimensioned plan, an inventory of objects, one model per real-world object, surfaces from a shared rule-based library, generated sound, and a scene a game engine loads. Cheap deterministic checks run before every paid step, and every model in the route allows commercial use of its output. We report a first case study, the game world of the game 2099. Its central room was rebuilt in six rounds; the creator preferred the new route in both blind comparisons and accepted the sixth round. The rest of the world was then built on the same route, at a recorded cost of €46.67 of rented GPU time and $40.72 of picture-model calls, and showed clear weaknesses: most models were written as code by agents, and rooms came out sparser than their concepts. This is a system description with a single case study and no comparison yet; benchmark evaluation is planned.
+  World models and one-shot 3D generators produce a convincing place from a sentence or a picture, but not a world a creator can build on: their output is a stream of frames or one fused scene, without separate objects, collision or clear rights. SCORE treats world creation as offline compilation. The creator picks references, a concept and a style; coding agents and open models compile those picks in cloud batches, through stages with explicit and checkable outputs, into a canonical OpenUSD scene that engines and simulators load. Every object is its own model, every surface comes from one shared rule-based library, sound is generated per surface, room and object, cheap deterministic checks run before every paid step, and every model in the route allows commercial use of its output. The creator's edits live in their own layers and survive regeneration.
 ---
 
 <!--
-  Draft conventions.
-  - Every number is read from a file, named in a comment like this one. "Local R&D log" means
-    the build sessions' own logs on the author's machine, to be published with the framework.
-  - Work not done is said in the text as planned or in progress, never shown as a result.
-  - The world step (World Labs Marble in our runs) is one optional step of the method. No result
-    here compares it with another model or judges it on its own.
+  Draft conventions (paper/CLAUDE.md).
+  - The draft has the final paper's structure. Settled content is written fully; every place
+    where final content will go holds a gap box saying what goes there and what it waits on.
+  - Every number is read from a file, named in a comment beside it. "Local R&D log" means the
+    build sessions' own logs, to be published with the framework.
+  - The world step (World Labs Marble in our runs) is one optional step. No result compares it
+    with another model or judges it on its own.
 -->
+
+::: gap
+**Gap: teaser figure.** One row per world built with SCORE (the game world of 2099, a stylised underwater world, a simulation world for robots, a third-person fantasy world), each showing the creator's picked concept beside the finished world in its engine. Waits on the four worlds being finished and accepted by their creator.
+:::
 
 # Introduction
 
-Anyone making a world for a game, a film or a robot to train in needs it to be complete and to be theirs. Complete means doors open, floors hold, every object can be found, moved and given behaviour, and rooms have light and sound. Theirs means the creator decides what the world is, can change any part later without starting over, and holds the rights to all of it.
+A creator who wants a world for a game, a film or a robot to train in needs it complete and owned. Complete means every door, floor, object, light and sound exists and works when the player looks anywhere. Owned means the creator decides what the world is, can change any part later without starting over, and holds the rights to all of it.
 
-Generative models have made the first impression of a world cheap, but not this. Genie 3 renders a world a person can move through in real time, with a constrained range of actions and a few minutes of continuous interaction among its stated limits [@genie3; @bruce2024genie]. One-shot 3D world generators return one fused asset; a recent paper describes such outputs as "static monolithic assets with limited editability and physical interaction" [@hu2026worldact].
+World models make the first impression of a world cheap but give neither. Genie 3 renders a world a person can move through in real time, with a constrained range of actions and a few minutes of continuous interaction among its stated limits [@genie3; @bruce2024genie]. One-shot 3D world generators return "static monolithic assets with limited editability and physical interaction" [@hu2026worldact].
 
-SCORE takes the opposite approach: build everything in full, offline, so the world cannot break when a player looks somewhere unexpected and can be used today in existing engines. The creator writes the score; coding agents and open tools play it. The creator decides at a few fixed points (references, concept, style, review); between those points, every stage hands on explicit data or code that an agent can read and a deterministic check can test before money is spent. Neither this approach nor a world model's is right in general; they serve different needs.
+SCORE takes the opposite approach. It builds everything in full, offline, so the world cannot break and can be used today in the engines and tools the creator already has. The creator writes the score; coding agents and open tools play it. The creator decides at a few fixed points (references, concept, style, review). Between them, every stage hands on explicit data or code that an agent can read and a deterministic check can test before money is spent, and the agents do the joining work a technical artist would otherwise do.
 
-This paper describes the framework as a world compiler (Section 3) and reports one case study, the game world of 2099, built by one creator directing Claude Code agents (Section 5). We separate what was automatic, what an agent wrote, what was fixed by hand and what was a human pick, and we leave each unfinished part visible where it belongs, with the reason it is not done yet. SCORE is unrelated to WorldScore, a world-generation benchmark [@duan2025worldscore], to score distillation [@poole2022dreamfusion] and to SCoRe [@kumar2024score].
+Our contributions are: SCORE as a world compiler, with its stages, canonical scene and checks (Section 3); the rules that keep generated worlds coherent and editable, chiefly the parts check, one model per object and a shared surface library (Sections 3.3 and 3.4); and four worlds of different kinds built with it, with time, cost and the faults caught before spending at every stage (Section 5).
 
 # Related work
 
-**World models and world generators.** Genie learns an interactive environment from video [@bruce2024genie]. WorldGen generates traversable, editable worlds from text [@wang2025worldgen]; WorldAct decomposes a monolithic generated world into objects after the fact [@hu2026worldact]; WorldSculpt composes per-object meshes from grounded video [@niu2026worldsculpt]. SCORE ships no world-model output; a world generator may appear only as an optional reference step (Section 3.6).
+Genie learns an interactive environment from video [@bruce2024genie]; WorldGen generates traversable worlds from text [@wang2025worldgen]; WorldAct and WorldSculpt recover separate objects from generated worlds or video [@hu2026worldact; @niu2026worldsculpt]. SCORE ships no generated world: a world generator may enter only as an optional reference step (Section 3.6).
 
-**Agents that build scenes.** Holodeck has a language model write spatial constraints for a solver [@yang2024holodeck]; SceneCraft and recursive code world models write scenes as programs and compare renders with a reference [@hu2024scenecraft; @li2026rcwm]; WorldClaw and AutoUE use agents to assemble open worlds and game code [@guo2026worldclaw; @yin2026autoue]; 3D-RE-GEN and SceneConductor decompose one picture into placed objects [@sautter2025regen; @kim2026sceneconductor]. LEGO-Anything is closest in spirit: its coding agents show "weak scene initialization, regressive edits during iteration, and unreliable self-evaluation", addressed with tools rather than training [@li2026lego]. SCORE shares that position but builds worlds that do not exist yet, to a person's picks.
+Holodeck places retrieved objects by solving language-model constraints [@yang2024holodeck]; SceneCraft and recursive code world models write scenes as programs and compare renders [@hu2024scenecraft; @li2026rcwm]; WorldClaw and AutoUE use agents to assemble open worlds and game code [@guo2026worldclaw; @yin2026autoue]. LEGO-Anything finds that coding agents start scenes weakly, regress while editing and judge their own geometry unreliably, and fixes this with tools rather than training [@li2026lego]. SCORE shares that stance and applies it to worlds that do not exist yet, built to a person's picks.
 
-**Procedural generation, parts and style.** Infinigen and Infinigen Indoors generate worlds and rooms from rules, with materials as their own generators [@raistrick2023infinigen; @raistrick2024indoors]; ProcFunc gives these generators an interface on which language models make far fewer coding errors [@raistrick2026procfunc]. PartCrafter and Point2Part split shapes into parts [@lin2025partcrafter; @tsui2026point2part]. Keeping one style across generated assets is named as open [@wu2026production; @yang2026flowscene]; Hunyuan3D Studio fixes it at the picture [@lei2025hunyuanstudio]. SCORE instead takes surface out of the generated models altogether.
+Infinigen and Infinigen Indoors generate worlds and rooms from procedural rules, with materials as their own generators [@raistrick2023infinigen; @raistrick2024indoors], and ProcFunc gives these generators an interface language models write with far fewer errors [@raistrick2026procfunc]. Keeping one style across generated assets is an open problem [@wu2026production; @yang2026flowscene]; Hunyuan3D Studio fixes style at the picture [@lei2025hunyuanstudio]. SCORE removes surface from generated models altogether.
 
 # Method
 
-## Stages
+## A world compiler
 
-SCORE compiles a world once, offline, in batches; nothing is generated while it is played. Each stage's output is explicit and inspectable:
+SCORE compiles a world once, offline, in batches; nothing is generated while it is played, and each scale of a world (a room, a planet's ground, an orbit) is its own kind of world. Table 1 lists the stages. Each stage's output is explicit, cached and checked before the next paid stage starts.
 
-1. **Concept.** A picture model draws concepts from the creator's references; the creator picks one.
-2. **Dimensioned plan.** A coding agent turns the concept into a plan in metres: shell, doorways, walkways, floor levels.
-3. **Inventory.** Every object becomes a row with kind, anchor, size and count; composites become a parent row with children (Section 3.3).
-4. **Close-ups.** One clean, front-on picture per object.
-5. **Shape.** Each kind is either built by a code builder that an agent writes, or made by the prop pipeline: Pixal3D [@li2026pixal3d] in a cloud batch, closed into a solid, triangles set by size.
-6. **Surfaces.** Every part takes one surface from the shared library (Section 3.4), baked in the cloud.
-7. **Sound.** Generated per surface, room and object (Section 3.4).
-8. **Assembly and review.** The scene is assembled for the engine, shot from fixed cameras and reviewed by the creator, who keeps it or sends it back one stage.
+**Table 1.** Stages, their outputs and the checks that gate the next stage.
 
-A compiler needs one intermediate form all stages agree on. In the case study that form is glTF 2.0 models [@gltf2] plus one JSON layout per place, read by a Godot adapter [@godot]. The intended canonical form is an OpenUSD stage [@openusd] with a generated base layer the compiler may rewrite and edit layers that hold the creator's changes, so edits survive regeneration, loaded by thin adapters for other engines and simulators. That scene format is not used yet: the case study ran inside one game on one engine, and the export with its layer split and a second adapter (Blender first) is being built in the framework repository.
+| Stage | Output | Check before the next stage |
+|---|---|---|
+| Concept | picked concept picture | creator's pick |
+| Plan | dimensioned plan in metres | room and door checks |
+| Inventory | every object as a row; children on parents | concept-density check |
+| Close-ups | one clean picture per object | one object per picture |
+| Shape | code builder or picture-to-3D model per kind | parts check, model check |
+| Surfaces | baked maps from the shared library | palette sweep, storage budget |
+| Sound | sound per surface, room and object | loudness and fault checks |
+| Assembly | the OpenUSD scene and engine builds | scene check, made-only check |
+| Review | shots from fixed cameras | creator's keep or send-back |
+
+**The canonical scene.** All stages write one OpenUSD stage [@openusd] with glTF geometry [@gltf2]. Every object carries its name, kind, place in metres, collision, the library surface of each part, its sound, and tags for what a person can do with it (door, seat, terminal, airlock). The compiler owns a generated base layer and may rewrite it; the creator's changes live in edit layers above it, so a regeneration replaces the base and keeps the edits. Engines and simulators (Godot, Blender, Unreal, robotics simulators) load the same stage through thin adapters.
 
 ## Checks before spending
 
-A fault costs nothing in the plan, cents at the picture, about €0.18 and 75 minutes at the 3D model, and an evening of the creator's time once a room is built and played. Each paid stage is therefore preceded by cheap deterministic checks on real geometry, and a failure sends work back one stage. Room checks cast rays for light leaks, pieces blocking openings and pieces off their surface (about two seconds a room); a door check requires every door to fully separate its two sides; a concept-density check requires every element of the concept to have an inventory row or a written reason; a model check requires closed solids with walls of at least 3 mm and fails generated boxes that tilt more than 2 degrees; a palette sweep and a storage budget (250 MB on disk, 640 MB on the GPU per room) follow; after install, a scene check finds what floats or sinks and fails on any visible mesh the route did not make.
+A fault costs nothing in the plan, cents at the picture, about €0.18 and 75 minutes at the 3D model, and an evening of the creator's time once a room is built and played. Each paid stage is therefore gated by deterministic checks on real geometry, never by an agent's judgement, and a failure sends work back one stage. Room checks cast rays for leaks through walls and roof, pieces blocking openings and pieces off their surface, in about two seconds a room. A door check requires every door to separate its two sides. A concept-density check requires every element of the concept to have an inventory row or a written reason. A model check requires closed solids with walls of at least 3 mm and fails generated boxes that lean more than 2 degrees. A palette sweep and a storage budget per room follow, and after assembly a scene check finds what floats or sinks and fails on any visible mesh the route did not make.
 
-<!-- Fault cost per stage: 2099 paper writing/outline.md 9f. Checks and limits: 2099 docs/bible.md items 11-12; local R&D logs progress-robust-exp.txt, progress-hub-r5.txt; issue JoeyKardolus/2099#130, 2026-10-07. -->
+<!-- Fault cost: 2099 paper writing/outline.md 9f. Checks and limits: 2099 docs/bible.md items 11-12; local R&D logs progress-robust-exp.txt, progress-hub-r5.txt. -->
 
 ## Code or pipeline, one model per object
 
-Picture-to-3D models handle chunky solids well and flat panels, thin beams and openings badly; in the case study they made panels about as deep as they were wide and beams 3 to 10 times too thick. Agent-written code builders are exact and light but show only the parts the agent thought to write. The routing rule that held is a check, the **parts check**: a kind is built in code only when its code build shows every part its clean close-up shows (each at least 10 percent visible, no label over a part); otherwise it goes through the prop pipeline. Composites are split before generation, one model per real-world object: a tool board is a code-built board carrying 26 separately made tools, a console its monitors and keyboards.
-
-<!-- Panels and beams: 2099 paper writing/outline.md 9e. Parts check and composites: 2099 docs/bible.md item 11, rounds five and six. -->
+Picture-to-3D models build chunky solids well and flat panels, thin beams and openings badly; agent-written code builders are exact, light and straight, but show only the parts the agent wrote. SCORE routes each object kind by the **parts check**: a kind is built in code only when its code build shows every part its clean close-up shows, each at least 10 percent visible and none under a label. Every other kind goes through the prop pipeline: Pixal3D [@li2026pixal3d] in a cloud batch, closed into a solid, triangles set by size. Composites are split before generation, one model per real-world object: a tool board is a board carrying its tools, a console its monitors and keyboards, each made on its own.
 
 ## Surfaces and sound
 
-Models and code give shape only. Every part takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc] built on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette tokens, with wear, dirt and seed as named settings; a room has one wear setting, applied from causes such as edges and foot traffic. On a generated model, PartCrafter parts [@lin2025partcrafter] laid onto the shape decide which surface each part takes. Labels go on as a few decals. The library held 71 variants in 12 families from 14 recipes after its second round. Which surface a whole part takes is still chosen by votes of its faces' picture colours, and shading in the picture can flip faces between surfaces; assigning one surface per part, with the picture only choosing which, is being built and was not in place for the case study. Sound is compiled the same way: each surface carries its footsteps and impacts, each room its echo, each inventory row its own sound, all generated in one batch by MOSS-SoundEffect v2.0 [@moss2026], chosen by CLAP prompt match [@wu2022clap] less measured faults, and levelled under a -3 dBTP true peak.
-
-<!-- 71/12/14: local R&D log progress-robust-exp.txt, round two. Sound: 2099 docs/bible.md item 12. -->
+Models and code give shape only. Every part takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc] on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette, with wear, dirt and seed as named settings. A room has one wear setting, applied from causes: edges, foot traffic, drips. Parts of a generated model come from PartCrafter [@lin2025partcrafter], and each part takes one surface, chosen from its picture. Labels are a few decals on clear flat spots. Sound is compiled the same way: each surface carries its footsteps and impacts, each room its echo from its size and surfaces, each object its own sound, generated in one batch by MOSS-SoundEffect [@moss2026], chosen by CLAP prompt match [@wu2022clap] less measured faults, and levelled under a -3 dBTP true peak. The libraries of surfaces and sounds grow with each world and are reused in the next.
 
 ## Cloud batches and human picks
 
-Every heavy step runs in a rented cloud batch that is deleted afterwards, records its cost, and stops itself if its output grows past its expected size. The creator's picks happen at fixed points; where two routes compete the pick is blind, both drawn the same way and labelled X and Y at random.
+Every heavy step runs in a rented cloud machine that is deleted afterwards, records its cost per batch, and stops itself when its output grows past its expected size. The creator picks at fixed points only. Where two routes compete the pick is blind: both drawn the same way, labelled X and Y at random.
 
 ## The optional world step
 
-A concept shows one view. An optional world step can turn it into a walkable whole-room reference from which every object and every wall can be seen (World Labs Marble in our runs). Its output is never shipped. The case study below was built without it. Whether it makes fuller rooms is not yet known: the comparison of the route with and without the step, as an ablation of the method, has not been run, because the game work was paused the day the first internal run began.
-
-<!-- Route ran without the world step from 2026-10-07: session record of 2026-10-08; local R&D log progress-worldstep.txt. -->
+A concept shows one view. An optional world step turns it into a walkable whole-room reference, so close-ups can show every object from every side and the walls the concept does not show can be filled in its style. World Labs Marble served this step in our runs; its output is never shipped, and anything derived from it is credited "Generated using World Labs".
 
 # Implementation
 
-The route runs as Python tools (planning, routing, baking, install, checks), engine-side checks in Godot, and runners for rented NVIDIA L4 machines with headless Blender 5.0.1 [@blender]. It currently lives inside the game's repository; moving it into the framework repository, engine-agnostic, is the next step, so the route cannot yet be run from this repository on its own. The work was done by Claude Code agent sessions [@claudecode] directed by one person; up to twelve ran at once during the world build. Table 1 lists the models used; licences were read for their commercial-use clauses only, and this is not legal advice.
+SCORE runs as Python tools for planning, routing, baking, assembly and checks, with headless Blender [@blender] and rented NVIDIA L4 machines for every heavy step. Claude Code agents [@claudecode] write the plans, inventories and code builders under one creator's direction. Table 2 lists the models; each allows commercial use of its output.
 
-**Table 1.** Models and services in the route.
+**Table 2.** Models in the route.
 
-| Model or service | Used for | Licence or terms |
+| Model | Role | Licence |
 |---|---|---|
-| Nano Banana Pro [@nanobananapro] | concepts, close-ups, ground skins | paid API |
-| Pixal3D [@li2026pixal3d] | picture-to-3D shape | MIT; DINOv3 encoder [@simeoni2025dinov3] under its own licence |
-| PartCrafter [@lin2025partcrafter] | part boundaries | MIT |
+| Nano Banana Pro [@nanobananapro] | concepts, close-ups | paid API |
+| Pixal3D [@li2026pixal3d] | picture to 3D | MIT; DINOv3 licence for its encoder |
+| PartCrafter [@lin2025partcrafter] | parts | MIT |
 | Depth Anything V2 Small [@yang2024dav2] | ground relief | Apache-2.0 |
-| ProcFunc, Infinigen shaders | surface library | BSD-3-Clause |
-| MOSS-SoundEffect v2.0 [@moss2026], CLAP [@wu2022clap] | sound | Apache-2.0 |
-| World Labs Marble [@marble_terms] | optional world step only | paid; outputs owned by paid users |
+| ProcFunc, Infinigen shaders | surfaces | BSD-3-Clause |
+| MOSS-SoundEffect, CLAP | sound | Apache-2.0 |
+| World Labs Marble [@marble_terms] | optional world step | paid; outputs owned by paid users |
 
-**What was automatic and what was not.** Picture-to-3D, part splitting, surface bakes, sound, all checks and install were automatic. Every code builder was written by a coding agent from a close-up; in the central room's final round 86 of its 98 models were code. Some generated objects were turned to face the right way by eye, a few labels were placed by hand before a rule replaced that, and agents fixed the faults the checks found. Concepts and verdicts were the creator's picks, except where an agent's interim concept pick is marked as such.
+**Lessons from development.** The rules above came out of six rounds on one room, the central hub of the game 2099, each answering the creator's verdict on the last. Three findings shaped the method. Deterministic checks catch what agents miss: the first round's room checks cut light leaking through walls and roof from 1.53 percent of 5,817 rays to zero, but only walking the loaded room showed 26 old models still in it, which became the made-only check. Keeping each picture's own colours made every piece bring its own wear, so the creator judged the room messy; surfaces now come only from the library. And generated composites melted their parts together and generated boxes leaned (one locker by 13 degrees), which led to one model per object and the straightness check. The creator preferred the new route in both blind comparisons and accepted the sixth round.
 
-<!-- 86 of 98: 2099 docs/bible.md item 11. Hand steps: session record 2026-10-07T16:33Z. Twelve agents: session record 2026-10-08T00:28Z. -->
+<!-- 1.53% of 5,817 rays: progress-robust-exp.txt [A/B numbers]. 26 old models: progress-robust-exp.txt round three fix round. "messy": brief job-hub-r5-test.txt quoting the owner on round four. Locker 13 degrees: 2099 docs/bible.md item 11. Blind picks: progress-robust-exp.txt (round one key and quote; round two key), session record 2026-10-06T16:52Z. Accepted: issue JoeyKardolus/2099#130, 2026-10-07T16:20. -->
 
-# Case study: the world of 2099
+# Results
 
-2099 is a first-person automation game on a Moon base, with a prologue on Earth and a Mars expedition camp. Its central room, the hub, served as the test bench for the route; the rest of the world was then built on the route the hub settled.
+::: gap
+**Gap: results table across worlds.** For each place of each world: wall time, cost in GPU time and picture calls, models made in code and through the prop pipeline, and faults caught before spending per stage against faults found after. Waits on world 1 being finished and reviewed by its creator (most of its places are built, none after the hub yet reviewed in play) and on worlds 2 to 4.
+:::
 
-## The hub in six rounds
-
-The hub's structure came from a cutaway the creator picked from twenty drawn from his reference pictures (Figure 1). It was then rebuilt six times on 6 and 7 October 2026 (Table 2).
-
-![The picked concept for the hub (cutaway C12): a twelve-sided shell over a sunken pit, drawn by Nano Banana Pro from reference pictures the creator kept. It fixes the room's structure and is not shipped.](figures/hub-concept-c12.jpg){width=80%}
-
-**Table 2.** The hub's six rounds. Cost is rented GPU time (€) and picture calls ($). Frame time is the mean on an RTX 5080 at night, 1600×900.
-
-| Round | Change | Creator's verdict | Cost | Frame time |
-|---|---|---|---|---|
-| 1, two walls, A/B | surface library, routing by shape, room checks | blind pick for the new route ("Y looks much cleaner") | €0.88 | 7.81 ms vs 7.53 |
-| 2, two walls, A/B | 71-variant library, shared texture sets, roof check | blind pick for the new route | €1.70 | 8.05 ms vs 8.24 |
-| 3, whole room | route end to end, 74 models | old models still loaded; labels and floor fittings wrong | €1.67 | 6.78 ms (old 9.22) |
-| 4, whole room | detail through the pipeline, picture colours kept | "pretty much all of this became messy" | €8.50, $5.09 | 9.6 ms |
-| 5, eight pieces, A/B | shape only from the pipeline, library surfaces, parts check | new method preferred for door, notice board, porthole; three pieces still wrong | €0.21 | not run |
-| 6, whole room | round 5 everywhere, one model per object, straightness check | "this looks amazing, I have no negative feedback" | €3.48, $1.07 | 5.6 ms |
-
-<!-- R1: progress-robust-exp.txt [A/B numbers], blind key, quote at "ROUND TWO". R2: [A/B round two], [spend round two]; session record 2026-10-06T16:52Z. R3: progress-robust-exp.txt round three and fix round. R4: progress-hub-r4.txt; #130 comment 2026-10-07T05:29; quote in brief job-hub-r5-test.txt. R5: progress-hub-r5.txt; verdict as relayed in handoffs/hub-r5.txt. R6: progress-hub-r5.txt ROUND SIX; #130 comments 2026-10-07T15:55 and 16:20. -->
-
-Three findings came out of it. First, deterministic checks found what agents missed: in round one, light escaping through walls and roof fell from 1.53 percent of 5,817 rays to zero, and colour noise within surfaces from a median of 31.1 to 3.2 percent. They did not find what only play showed: in round three 26 old models were still loaded, which led to the check that fails on any visible mesh the route did not make. Second, the split between code and pipeline was the hard decision: routing by shape lost detail (round three), keeping each picture's colours made every piece bring its own wear (round four), and the parts check with library-only surfaces and one model per object was what the creator accepted (Figure 2). Third, consistency and cost moved together: round six drew 0.45 million triangles against round four's 1.96 million, at 5.6 against 9.6 ms a frame and 187 against 487 MB on disk.
-
-<!-- 1.53% of 5,817; 31.1 to 3.2%: progress-robust-exp.txt [A/B numbers]. 26: round three fix round. Round six vs four: #130 comment 2026-10-07T15:55. -->
-
-![The hub's tool board in round four (left: one generated model with its picture's colours over library surfaces) and round six (right: a code-built board with 26 separately made tools, library surfaces only). Same camera and build.](figures/hub-toolboard-r4-r6.jpg){width=100%}
-
-## The rest of the world
-
-After the hub was accepted, the route was run on the other places in parallel, about one agent per place, from the evening of 7 October until the game work was paused at noon on 8 October. The per-place records (21 entries) cover the planned Moon ground, the old station and the wreck, the base's lab, workshop, greenhouse, habitat, airlock and walkway tubes, the prologue's flat, stairwell, street, square and launch view, and the Mars ground, camp grounds and habitat. Together they record €46.67 of rented GPU time and $40.72 of picture calls, as floors from the agents' notes, and 971 models: 865 code builders and 106 through the prop pipeline. Single places mostly cost a few euros, while their wall time ran to many hours, much of it waiting for machines and quotas.
-
-<!-- All figures: scaling-world1.tsv (local R&D log), 21 rows summed; the garage row's "~2.60" counted as 2.60; shared rows counted once. -->
-
-The creator accepted the old station and the wreck on first sight ("it just looks great"), and preferred the planned Moon ground to a crater generated with Infinigen, in a comparison that was not blind because the two were rendered differently. The other places are built and pass their checks, but have not been reviewed by the creator in play: the game work was paused before that review, so their acceptance is open. The weaknesses were consistent across places. Code builders gave clean pieces but sparse rooms, and do not scale: each kind needs an agent to write a builder. Rooms read sparser than their concepts, which a concept shows from one side only; this gave rise to the concept-density check. Choosing surfaces by picture colour produced patchy materials. And the pace was set by daily picture quotas and GPU stock, not by compute cost. A count of faults caught per check, before and after spending, belongs here and is not given: the per-place records hold the faults as free text, which still has to be coded by hand.
-
-<!-- Old station and wreck: #130 comment 2026-10-07T21:16. Ground: progress-moonground.txt 23:44. Patchy surfaces, quotas: session record 2026-10-08T09:27Z; #130 comments 2026-10-08T03:31, 09:18. -->
+::: gap
+**Gap: one figure per world.** The picked concept beside the finished place from the concept's own camera, for the main places of each world. Waits on the same worlds.
+:::
 
 # Evaluation
 
-**Benchmark.** SCORE has not been compared with any other system. The intended evaluation is LEGO-Bench [@li2026lego], which scores scenes rebuilt from pictures in Blender. It has not been run: its code is not released yet, and SCORE first needs the scene export and Blender adapter described in Section 3.1, which are being built.
+::: gap
+**Gap: LEGO-Bench.** Scores of SCORE on LEGO-Bench [@li2026lego], LEGO-Anything's benchmark of scenes rebuilt from pictures. Waits on the benchmark's code release and on SCORE's OpenUSD export with its Blender adapter.
+:::
 
-<!-- LEGO-Bench scorer in Blender: 2099 docs/bible.md, Blender coding agents (#128, "the version LEGO-Anything's scorer runs"). Code not released: 2099 paper material/07-sources.md [29]. Proposed coherence test: 2099 paper README, "Coherence: the first failure, and a proposed measure". -->
+::: gap
+**Gap: world-step ablation.** The route with and without the optional world step on the same places: inventory coverage of the concept, concept density of the built room, cost, and the creator's blind pick. Waits on the route running from the framework repository; the first internal run stopped when the game work paused.
+:::
 
-**Style coherence.** Whether a room keeps one style is judged here only by the creator's eye on pages and in play. A measured test (colour distance to the palette per input class, lightness spread, ink density) has been proposed for the game but not built, so no coherence number is reported.
+::: gap
+**Gap: style coherence.** A measure of whether a room keeps one style, from rendered frames: colour distance to the place's palette per kind of source, lightness spread and ink density, set against the creator's blind picks. The measure is designed and not built.
+:::
 
-**Breadth.** One world of one kind is not evidence that the framework generalises. Three more worlds are planned to test that: a stylised underwater world, a physically accurate simulation world for robots, which needs masses, friction and joints the route does not yet produce, and a third-person fantasy world. Scales that are computed rather than modelled, such as orbits, would enter as open solvers wrapped as stages, starting with REBOUND [@rein2012rebound]; none is wrapped yet.
+::: gap
+**Gap: physics in the robotics world.** A rigged robot in the simulation world, loaded in a robotics simulator, with masses, friction and joints compiled from the scene. Waits on world 3 and on those properties in the scene schema.
+:::
+
+::: gap
+**Gap: solver plugins.** Scales that are computed rather than modelled, starting with orbits through REBOUND [@rein2012rebound], wrapped as stages with the same strict interfaces. Waits on the plugin interface in the framework repository.
+:::
 
 # Limitations
 
-This is a single case study by one creator, and every verdict in it is his; two were blind, the rest were not. Most models were written as code by a coding agent, which says as much about the agent as about the framework. Costs are floors from the agents' notes, not reconciled with the cloud bill, and the creator's and agents' time is not costed. Licences were read for their commercial clauses only.
+Every verdict on the worlds so far is one creator's. Most models in the first world were code builders written by a coding agent, so the clean result depends on the agent as much as on the framework, and each new kind of object costs an agent's builder. Rooms built from one concept picture come out sparser than the concept, which the concept-density check catches but does not fix. Daily picture-model quotas and GPU stock, not compute cost, set the pace of a build.
+
+<!-- 865 of 971 models were code builders: scaling-world1.tsv (local R&D log). Sparse rooms and quotas: issue JoeyKardolus/2099#130, 2026-10-07T23:04 (lab), 2026-10-08T09:18 (greenhouse, quota). -->
 
 # Availability
 
-SCORE and this paper are developed in the open at <https://github.com/Babon-Innovations-b-v/score> under the MIT licence. The build logs cited in this draft will be published with the framework code.
+SCORE is developed in the open at <https://github.com/Babon-Innovations-b-v/score> under the MIT licence. The build logs behind every reported number are published with it.
 
 # References {-}

@@ -10,7 +10,7 @@ python3 build/build.py --check  # exit 1 when a committed output is stale (also 
 
 ## Layout
 
-- `source/`: `score.md` (front matter: title, author, date, abstract), `refs.bib`, `ieee.csl`, `todo.lua`.
+- `source/`: `score.md` (front matter: title, author, date, abstract), `refs.bib`, `ieee.csl`, `markers.lua` (gap boxes and TODO marks).
 - `figures/`: the pictures the draft uses, JPEG, ours and safe to publish.
 - `build/`: the build script and the check that the build is current.
 - `out/`: pandoc's standalone `.tex` and `.pdf` (citeproc, IEEE), and `stamp.json`, the hashes the check compares.
@@ -21,8 +21,8 @@ python3 build/build.py --check  # exit 1 when a committed output is stale (also 
 ## Rules for the draft
 
 - **Every number is read from a file**, named in an HTML comment beside it. No number from memory.
-- **Gaps stay visible where they belong.** Work not done is said plainly in the section it belongs to (method, results, evaluation): what goes there and why it cannot be filled yet, in a sentence or two. Never a result-shaped placeholder. `[text]{.todo}` (prints red) is only for a number still being checked, and does not reach a shared draft.
-- **Compact:** about 6 to 8 pages plus references for arXiv cs.CV, few figures.
+- **The draft has the final paper's structure.** Settled content (problem, method) is written fully, tight, without hedging. Wherever final content will go (a figure, a results table, an evaluation), a gap box stands in its place: `::: gap` ... `:::`, starting `**Gap: <what>.**`, one or two sentences on what goes there and what it waits on. A gap is filled by replacing the box. `[text]{.todo}` (prints red) is only for a number still being checked, and does not reach a shared draft.
+- **Short:** about 4 to 5 pages plus references while gaps are open; it grows as they fill. No filler: no disclaimers, no repeated hedges, related work only where it positions SCORE.
 - **A change to the draft is rebuilt and committed in the same commit** as the PDF and LaTeX.
 - **The world step** (World Labs Marble in our runs) is one optional step of the method. Never
   compare it with another model or judge it on its own (World Labs ToS §2.8(d)); results are
