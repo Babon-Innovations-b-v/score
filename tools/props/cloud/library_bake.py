@@ -186,7 +186,7 @@ def main():
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = pictures.rent_machines(run, account, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1, kind="library")
         if not machines:
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], jobs, options.processor)

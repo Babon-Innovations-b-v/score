@@ -95,9 +95,11 @@ order that waits least, and is never tied to one card or one zone.
   Pixal3D may use any card of 24 GB or more, including two-card machines, because its fleet spreads
   work over cards. Every other kind was measured on a 24 GB card, so it may use the single-card
   classes of 24, 48 and 80 GB.
-- **Order and fallback.** Offers are taken best stocked first, then in `SPEED_ORDER` (24, 48 and 80 GB,
-  then the two-card classes), then the zone with the fewest of the run's machines, so a big batch
-  spreads over the zones. An offer that is refused, says "out of stock" for a minute, or gives a
+- **Order and fallback.** Offers are taken best stocked first, then in the kind's order of classes, then
+  the zone with the fewest of the run's machines, so a big batch spreads over the zones. The default
+  order is `SPEED_ORDER` (24, 48 and 80 GB, then the two-card classes). Pixal3D takes 80 GB cards first,
+  since one runs ten takes at once. Bakes in Cycles take cards with ray-tracing cores first and an
+  80 GB card without them only after 5 minutes with nothing else to be had (`KIND_ORDER`, `LATE`). An offer that is refused, says "out of stock" for a minute, or gives a
   machine that does not answer within `START_MINUTES` (5, in `batch.py`) is dropped and the next one
   tried. In a Pixal3D fleet, a machine that never answers is replaced from the remaining offers.
 - **Several jobs on one big card.** A card runs as many Pixal3D jobs at once as its memory holds:
