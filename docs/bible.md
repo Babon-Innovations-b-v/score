@@ -58,6 +58,9 @@ Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next t
 1. The place's record: its picked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
    with its size and spots), each kind's turn and allowed materials in `data/library/details.json`, and one close-up
    per generated row. Recorded inputs live in the work folder (`PROPS_WORK`), not in git (the pictures are large).
+   The close-ups come from the close-up stage (`tools/props/closeup/stage.py`): Qwen-Image-Edit-2511 draws every
+   one in a cloud batch, a shape check (cheap measurements and an open vision-language judge, tuned to fail rather
+   than pass a wrong shape) accepts or fails each, and Nano Banana Pro draws only the failures.
 2. Pixal3D models from the close-ups, one cloud batch (`cloud/batch.py`, refused without the approved inventory).
 3. PartCrafter parts from each model's cut-out (`cloud/parts.py`), the painting unit.
 4. Labels: every part one allowed library material (`library/labels.py`), checked for patchy paint; a take too long

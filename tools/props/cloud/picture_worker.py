@@ -1,6 +1,6 @@
 """Runs on a rented machine: draws every picture in its share with one picture model.
 
-    /root/venv/bin/python picture_worker.py /root/pics/jobs.json <pipeline class> <whole GB>
+    /root/venv/bin/python picture_worker.py /root/pics/jobs.json <pipeline class> <whole GB> [<part> <parts>]
 
 The model's weights are under /root/model (picture_setup.sh), loaded with the named diffusers
 pipeline; it is held on the card whole when the card has <whole GB> of memory, and moved on and off
@@ -8,7 +8,8 @@ the card part by part otherwise. Each job is {"name", "wording", "seed", "steps"
 "call" being the model's own settings (pictures.MODELS), and optionally "width" and "height" for a
 picture that is not square (a panorama). The reference photos are already under /root/pics/refs/;
 each picture is written to /root/pics/out/<name>.png, and a line "<name> <seconds>" is printed as it
-lands, so the runner can follow along.
+lands, so the runner can follow along. A machine with several cards runs one worker a card, each drawing the
+<part>th of <parts> slices of the list (its card chosen by CUDA_VISIBLE_DEVICES).
 """
 import json
 import pathlib
@@ -47,7 +48,8 @@ def arguments(job):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     pipeline = load(sys.argv[2], float(sys.argv[3]))
-    for job in json.loads(pathlib.Path(sys.argv[1]).read_text()):
+    part, parts = (int(sys.argv[4]), int(sys.argv[5])) if len(sys.argv) > 5 else (0, 1)
+    for job in json.loads(pathlib.Path(sys.argv[1]).read_text())[part::parts]:
         start = time.time()
         pipeline(**arguments(job)).images[0].save(OUT / f"{job['name']}.png")
         print(job["name"], round(time.time() - start, 1), flush=True)

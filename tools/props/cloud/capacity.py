@@ -50,6 +50,8 @@ KINDS = {
     # A 20B picture model (Qwen-Image-Edit, pictures.MODELS): 58 GB of weights, held whole on an 80 GB card and
     # moved on and off a 48 GB one part by part; one card of a two-card machine is used.
     "pictures-20b": ("gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
+    # The close-up judge (judge.py): a 27B vision-language model in FP8, 30 GB of weights, through vLLM.
+    "judge": ("gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
     "moss-sound": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
 }
 # Kinds that take their offers in an order of their own. Pixal3D: the 80 GB cards first, which run ten takes at once
