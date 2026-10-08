@@ -241,4 +241,6 @@ def delete(server_id, zone):
                                "with-ip=true", "with-volumes=all"], capture_output=True, text=True)
         if done.returncode == 0:
             return True
+        if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
+            return False  # it went while the terminate was refused (another run's sweep, its own self-delete)
     raise RuntimeError(f"deleting {server_id} failed: {done.stderr.strip()}")
