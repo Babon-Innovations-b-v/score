@@ -193,6 +193,15 @@ def test_a_report_no_current_job_names_is_not_read():
         assert set(package.made_reports(work)) == {"ring_3"}, "with no jobs, every report is read"
 
 
+def test_the_camp_grounds_are_painted_as_the_camp_and_their_cables_are_code_lengths():
+    assert place_route.styled_as("campgrounds") == "expedition_camp"
+    assert place_route.styled_as("wreck") == "wreck"
+    row = {"id": "ground_cable", "size": [2.0, 0.05, 0.05], "at": [{"x": 0.0, "z": 0.0, "facing": 30.0}] * 3}
+    models, pieces = place_route.code_models(row, "campgrounds")
+    assert list(models) == ["ground_cable_2"] and models["ground_cable_2"]["builder"] == "ground_cable"
+    assert models["ground_cable_2"]["size"] == [2.0, 0.05, 0.05] and len(pieces) == 3
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:
