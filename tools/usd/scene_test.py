@@ -74,7 +74,7 @@ def check_lights_and_structure(folder):
     assert stage.GetPrimAtPath(f"/{PLACE}/Water/harbour").IsValid()
     omni = UsdLux.SphereLight(stage.GetPrimAtPath(f"/{PLACE}/Lights/light_1"))
     watts = omni.GetIntensityAttr().Get() * scene.SPHERE_WATTS_PER_INTENSITY
-    assert math.isclose(watts, scene.OMNI_PER_ENERGY * 1.92, rel_tol=1e-6), watts
+    assert math.isclose(watts, scene.OMNI_PER_ENERGY * 1.92 * 3.0 ** -0.2, rel_tol=1e-6), watts  # matched at 3 m
     assert omni.GetPrim().GetAttribute("score:game:energy").Get() == np.float32(1.92)
     assert math.isclose(omni.GetColorAttr().Get()[0], 1.0, rel_tol=1e-6)  # #ffd29a's red is full
     spot = stage.GetPrimAtPath(f"/{PLACE}/Lights/light_2")
