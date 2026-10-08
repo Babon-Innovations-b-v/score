@@ -1,6 +1,6 @@
 \section{Models and licences}\label{models-and-licences}
 
-Every model must allow commercial use of its output (Table E1). Licences were read for their commercial-use clauses.
+Every model must allow commercial use of its output (Table E1); candidates were dropped on this rule, among them NVIDIA's Lyra 2.0 (weights for internal research only) and Hunyuan3D 2.1 (its licence does not apply in the European Union). Licences were read for their commercial-use clauses. Four of these models read pictures through Meta's DINO family, each through its own copy; what passes between them is pictures, masks, depths and meshes, never one model's inner features.
 
 \textbf{Table E1.} Models in the route.
 
@@ -28,6 +28,9 @@ Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
 World Labs Marble \citep{marble_terms} & optional world step & paid; outputs owned by paid users \\
+FLUX.2 klein 4B \citep{flux2klein} & earlier prop pictures & Apache-2.0 \\
+MoGe-2 \citep{wang2025moge2}, SAM 3 \citep{carion2025sam3} & measuring and finding objects in pictures & MIT; SAM Licence \\
+Kimodo \citep{rempe2026kimodo}, SAM 3D Body \citep{yang2026sam3dbody} & motion from sentences; body shape from a picture & Apache-2.0 code, NVIDIA Open Model License; SAM Licence \\
 \end{longtable}
 }
 
