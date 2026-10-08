@@ -36,7 +36,7 @@
 		"square_render_upper": 126,
 		"square_window_lit": 38,
 		"square_facade_band": 126,
-		"square_window_dark": 96,
+		"square_window_dark": 94,
 		"square_window_awning": 37,
 		"square_drying_rack": 26,
 		"square_ac_unit": 65,
@@ -45,8 +45,8 @@
 		"square_meter_box": 18,
 		"square_drainpipe": 5,
 		"square_far_neon_column": 2,
-		"square_balcony_slab": 6,
-		"square_balcony_rail": 18
+		"square_bay_balcony_slab": 6,
+		"square_bay_balcony_rail": 18
 	},
 	"kinds": {
 		"square_far_paving": {
@@ -169,10 +169,10 @@
 			"group": "hangs",
 			"night_glow": 0.2
 		},
-		"square_balcony_slab": {
+		"square_bay_balcony_slab": {
 			"group": "floors"
 		},
-		"square_balcony_rail": {
+		"square_bay_balcony_rail": {
 			"group": "hangs"
 		}
 	},
@@ -532,23 +532,19 @@
 		"far_neon_column_2_glow": {
 			"glows": true
 		},
-		"balcony_slab_1": {
+		"bay_balcony_slab_1": {
 			"glows": false,
 			"route": "code"
 		},
-		"balcony_rail_1": {
+		"bay_balcony_rail_1": {
 			"glows": false,
 			"route": "code"
 		},
-		"balcony_rail_2": {
+		"bay_balcony_rail_2": {
 			"glows": false,
 			"route": "code"
 		},
 		"window_dark_2": {
-			"glows": false,
-			"route": "code"
-		},
-		"window_dark_3": {
 			"glows": false,
 			"route": "code"
 		},
@@ -130337,7 +130333,7 @@
 			"part": "glow"
 		},
 		{
-			"kind": "square_balcony_slab",
+			"kind": "square_bay_balcony_slab",
 			"at": [
 				-5.4,
 				2.9,
@@ -130364,10 +130360,10 @@
 				0.2
 			],
 			"layer": 1,
-			"model": "balcony_slab_1"
+			"model": "bay_balcony_slab_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-5.33,
 				3.0,
@@ -130394,10 +130390,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_1"
+			"model": "bay_balcony_rail_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				3.0,
@@ -130424,10 +130420,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				3.0,
@@ -130454,7 +130450,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
 			"kind": "square_window_dark",
@@ -130487,7 +130483,7 @@
 			"model": "window_dark_2"
 		},
 		{
-			"kind": "square_balcony_slab",
+			"kind": "square_bay_balcony_slab",
 			"at": [
 				-5.4,
 				5.9,
@@ -130514,10 +130510,10 @@
 				0.2
 			],
 			"layer": 1,
-			"model": "balcony_slab_1"
+			"model": "bay_balcony_slab_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-5.33,
 				6.0,
@@ -130544,10 +130540,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_1"
+			"model": "bay_balcony_rail_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				6.0,
@@ -130574,10 +130570,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				6.0,
@@ -130604,7 +130600,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
 			"kind": "square_window_dark",
@@ -130637,7 +130633,7 @@
 			"model": "window_dark_2"
 		},
 		{
-			"kind": "square_balcony_slab",
+			"kind": "square_bay_balcony_slab",
 			"at": [
 				-5.4,
 				11.9,
@@ -130664,10 +130660,10 @@
 				0.2
 			],
 			"layer": 1,
-			"model": "balcony_slab_1"
+			"model": "bay_balcony_slab_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-5.33,
 				12.0,
@@ -130694,10 +130690,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_1"
+			"model": "bay_balcony_rail_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				12.0,
@@ -130724,10 +130720,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				12.0,
@@ -130754,7 +130750,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
 			"kind": "square_window_dark",
@@ -130787,7 +130783,7 @@
 			"model": "window_dark_2"
 		},
 		{
-			"kind": "square_balcony_slab",
+			"kind": "square_bay_balcony_slab",
 			"at": [
 				-5.4,
 				14.9,
@@ -130814,10 +130810,10 @@
 				0.2
 			],
 			"layer": 1,
-			"model": "balcony_slab_1"
+			"model": "bay_balcony_slab_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-5.33,
 				15.0,
@@ -130844,10 +130840,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_1"
+			"model": "bay_balcony_rail_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				15.0,
@@ -130874,10 +130870,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				15.0,
@@ -130904,7 +130900,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
 			"kind": "square_window_dark",
@@ -130937,7 +130933,7 @@
 			"model": "window_dark_2"
 		},
 		{
-			"kind": "square_balcony_slab",
+			"kind": "square_bay_balcony_slab",
 			"at": [
 				-5.4,
 				17.9,
@@ -130964,10 +130960,10 @@
 				0.2
 			],
 			"layer": 1,
-			"model": "balcony_slab_1"
+			"model": "bay_balcony_slab_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-5.33,
 				18.0,
@@ -130994,10 +130990,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_1"
+			"model": "bay_balcony_rail_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				18.0,
@@ -131024,10 +131020,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				18.0,
@@ -131054,7 +131050,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
 			"kind": "square_window_dark",
@@ -131087,7 +131083,7 @@
 			"model": "window_dark_2"
 		},
 		{
-			"kind": "square_balcony_slab",
+			"kind": "square_bay_balcony_slab",
 			"at": [
 				-5.4,
 				20.9,
@@ -131114,10 +131110,10 @@
 				0.2
 			],
 			"layer": 1,
-			"model": "balcony_slab_1"
+			"model": "bay_balcony_slab_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-5.33,
 				21.0,
@@ -131144,10 +131140,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_1"
+			"model": "bay_balcony_rail_1"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				21.0,
@@ -131174,10 +131170,10 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
-			"kind": "square_balcony_rail",
+			"kind": "square_bay_balcony_rail",
 			"at": [
 				-4.25,
 				21.0,
@@ -131204,7 +131200,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "balcony_rail_2"
+			"model": "bay_balcony_rail_2"
 		},
 		{
 			"kind": "square_window_dark",
@@ -131235,66 +131231,6 @@
 			],
 			"layer": 1,
 			"model": "window_dark_2"
-		},
-		{
-			"kind": "square_window_dark",
-			"at": [
-				-3.3,
-				9.7,
-				-5.05
-			],
-			"x": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				0.84,
-				1.2,
-				0.2
-			],
-			"layer": 1,
-			"model": "window_dark_3"
-		},
-		{
-			"kind": "square_window_dark",
-			"at": [
-				-3.3,
-				9.7,
-				-1.95
-			],
-			"x": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				0.84,
-				1.2,
-				0.2
-			],
-			"layer": 1,
-			"model": "window_dark_3"
 		},
 		{
 			"kind": "square_drainpipe",

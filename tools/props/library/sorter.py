@@ -60,7 +60,7 @@ PLAIN = frozenset((
     # Earth's square and launch view (world 1): the square's paving and terraces, the roads, the promenade and its
     # rail, the launch pad's apron, the lanterns' cable, the bay's balcony slabs and rails, the far blocks' plates
     "far_paving", "far_terrace", "far_road", "far_promenade", "far_pad", "far_cable", "far_promenade_rail",
-    "balcony_slab", "balcony_rail", "far_render_upper", "far_render_lower", "far_render_shop", "far_facade_band",
+    "bay_balcony_slab", "bay_balcony_rail", "far_render_upper", "far_render_lower", "far_render_shop", "far_facade_band",
     "far_drainpipe",
     # the street's density pass: its yellow lines, the pipes and cables along its faces, the harbour wall and fence
     "road_line", "facade_pipe", "end_wall", "end_fence",

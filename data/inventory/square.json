@@ -400,7 +400,7 @@
 			"close_up": "place-ssl/pics/neon_sign.png"
 		},
 		{
-			"id": "balcony_slab",
+			"id": "bay_balcony_slab",
 			"view": "v1",
 			"box": [
 				2100,
@@ -417,12 +417,12 @@
 				0.2
 			],
 			"count": 1,
-			"thing": "kit:square_balcony_slab",
+			"thing": "kit:square_bay_balcony_slab",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/balcony_slab.png"
 		},
 		{
-			"id": "balcony_rail",
+			"id": "bay_balcony_rail",
 			"view": "v1",
 			"box": [
 				2100,
@@ -439,7 +439,7 @@
 				1.1
 			],
 			"count": 1,
-			"thing": "kit:square_balcony_rail",
+			"thing": "kit:square_bay_balcony_rail",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/balcony_rail.png"
 		},
