@@ -1,26 +1,49 @@
-"""The few Scaleway calls the batch runner makes, through the logged-in `scw` command.
+"""The Scaleway backend of the cloud layer (`../provider.py` says what a backend gives), through the logged-in `scw`
+command. Scaleway is the backend the framework runs on today.
 
-Every call names the project and the zone itself. The CLI's default profile points at another
-project, and it is never changed from here, so leaving either out would rent a machine on the
-wrong account.
+Every call names the project and the zone itself. The CLI's default profile may point at another project, and it is
+never changed from here, so leaving either out could rent a machine on the wrong account. The "account" of the
+provider interface is a Scaleway project here.
 """
 import base64
 import functools
 import json
 import os
+import pathlib
 import subprocess
+import sys
 import time
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+from provider import Offer, cards  # noqa: E402
+
+NAME = "scaleway"
 # The Scaleway project the machines are rented in, looked up by name, so no account id sits in the repo:
 # SCORE_SCALEWAY_PROJECT, else the one the owner set aside for the first world's machines.
 PROJECT_NAME = os.environ.get("SCORE_SCALEWAY_PROJECT", "farm-factory")
-# Ubuntu 24.04 with the NVIDIA driver and CUDA runtime, Scaleway's own GPU image.
-IMAGE = "ubuntu_noble_gpu_os_13_nvidia"
-# Plain Ubuntu 24.04, for the processor-only machines (POP2) Infinigen runs on.
-CPU_IMAGE = "ubuntu_noble"
+# Ubuntu 24.04 with the NVIDIA driver and CUDA runtime (Scaleway's own GPU image), and plain Ubuntu 24.04 for the
+# processor machines.
+IMAGES = {"gpu": "ubuntu_noble_gpu_os_13_nvidia", "cpu": "ubuntu_noble"}
+# Each capability class as the Scaleway machine types that give it, tried in this order (2026-10-08). The P100
+# (RENDER-S) gives none: this GPU image's driver does not see its card.
+CLASSES = {
+    "gpu-24gb": ("L4-1-24G",),
+    "gpu-48gb": ("L40S-1-48G",),
+    "gpu-80gb": ("H100-1-80G",),
+    "gpu-24gb-x2": ("L4-2-24G",),
+    "gpu-80gb-x2": ("H100-SXM-2-80G", "H100-2-80G"),
+    "cpu-32c-128gb": ("POP2-32C-128G",),
+    "cpu-32c-64gb": ("POP2-HC-32C-64G",),
+    "cpu-32c-256gb": ("POP2-HM-32C-256G",),
+    "cpu-16c-64gb": ("POP2-16C-64G",),
+    "cpu-16c-128gb": ("POP2-HM-16C-128G",),
+}
 # Minutes in each unit Scaleway's price list prices a machine by: the cards by the minute, the
 # processor machines (POP2) by the hour (2026-10-05).
 PER_UNIT_MINUTES = {"minute": 1, "hour": 60}
+# Scaleway's words for a type's stock, best first.
+STOCK_ORDER = {"available": 0, "scarce": 1, "shortage": 2}
 # Every machine the runner rents carries this tag, so a sweep can find what a crashed run left.
 TAG = "farm-factory-batch"
 # The zones that rent graphics cards (2026-09-29).
@@ -36,8 +59,8 @@ def scw(*arguments):
     return json.loads(done.stdout) if done.stdout.strip() else None
 
 
-def project_id():
-    """The id of the project named PROJECT_NAME."""
+def account():
+    """The id of the Scaleway project named PROJECT_NAME: the account every call rents in and deletes from."""
     found = [project for project in scw("account", "project", "list", f"name={PROJECT_NAME}")
              if project["name"] == PROJECT_NAME]
     if len(found) != 1:
@@ -49,7 +72,7 @@ def secret(name):
     """The latest value of the project's secret `name` in Secret Manager; it is
     handed back, never printed or written."""
     version = scw("secret", "version", "access-by-path", f"secret-name={name}",
-                  f"project-id={project_id()}", "revision=latest")
+                  f"project-id={account()}", "revision=latest")
     return base64.b64decode(version["data"]).decode().strip()
 
 
@@ -73,18 +96,20 @@ def price(machine_type, zone):
     raise SystemExit(f"no price for {machine_type} in {zone}")
 
 
-def euros_per_minute(machine_type, zone):
-    """What one minute of `machine_type` costs in `zone`, from Scaleway's price list."""
-    return price(machine_type, zone)[0]
-
-
-def stock(machine_type, zone):
-    """Scaleway's word for how many `machine_type` are left in `zone`: available, scarce,
-    shortage, or None where it is not sold."""
-    for listed in scw("instance", "server-type", "list", f"zone={zone}"):
-        if listed["name"] == machine_type:
-            return listed.get("availability")
-    return None
+def offers(classes):
+    """Every place a machine of one of `classes` can be rented: an Offer for each type and zone that sells it."""
+    found = []
+    for zone in ZONES:
+        listed = {server["name"]: server.get("availability") for server in scw("instance", "server-type", "list",
+                                                                                 f"zone={zone}")}
+        for machine_class in classes:
+            for order, machine_type in enumerate(CLASSES.get(machine_class, ())):
+                if machine_type not in listed:
+                    continue
+                euros = price(machine_type, zone)[0]
+                found.append(Offer(euros / max(1, cards(machine_class)), STOCK_ORDER.get(listed[machine_type], 3),
+                                   machine_type, zone, euros, machine_class, order, listed[machine_type]))
+    return found
 
 
 def month_spend(project):
@@ -105,9 +130,11 @@ def allow_key(project, name, public_key):
             f"project-id={project}")
 
 
-def create(project, machine_type, zone, name, tags, disk_gb, image=IMAGE):
-    """Rent and start one machine: (its id, None), or (None, Scaleway's reason) when refused,
+def create(project, offer, name, tags, disk_gb):
+    """Rent and start one machine of `offer`: (its id, None), or (None, Scaleway's reason) when refused,
     as when the zone is out of stock or the quota is used up."""
+    machine_type, zone = offer.type, offer.zone
+    image = IMAGES["gpu" if cards(offer.machine_class) else "cpu"]
     done = subprocess.run(
         ["scw", "instance", "server", "create", f"project-id={project}", f"zone={zone}",
          f"type={machine_type}", f"image={image}", f"name={name}", "ip=ipv4",

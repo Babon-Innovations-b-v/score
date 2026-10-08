@@ -1,4 +1,4 @@
-"""Make a whole list of pictures on rented Scaleway graphics cards, then delete the machines.
+"""Make a whole list of pictures on rented cloud graphics cards, then delete the machines.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/pictures.py <jobs.json> [--cards 5] [--dry-run]
 
@@ -30,7 +30,7 @@ import capacity  # noqa: E402
 import ledger  # noqa: E402
 import picture  # noqa: E402
 import place  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 from paths import PICTURES  # noqa: E402
 
 CARDS = 5
@@ -75,15 +75,15 @@ def expected_minutes(count, cards):
     return SETUP_MINUTES + count / cards * SECONDS_A_PICTURE / 60
 
 
-def price(jobs, cards, project):
+def price(jobs, cards, account):
     """Print the estimate and refuse what passes the owner's limits; the offers, and the minutes the
     machines may run."""
-    found = batch.offers(list(capacity.types_for("pictures")))
+    found = batch.offers(list(capacity.classes_for("pictures")))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = expected_minutes(len(jobs), cards)
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
+    spent = batch.month_spent(account)
     batch.say(f"{len(jobs)} pictures on {cards} cards: about {minutes:.0f} min, "
               f"€{ledger.cost(minutes, dearest) * cards:.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest * cards, spent)
@@ -92,11 +92,11 @@ def price(jobs, cards, project):
     return found, ledger.minutes_allowed(dearest * cards, spent)
 
 
-def rent_machines(run, project, found, cards):
+def rent_machines(run, account, found, cards):
     """Claim up to `cards` machines side by side, each from the cheapest offer that gives one that answers
     (batch.claim); the machines that answered."""
     with concurrent.futures.ThreadPoolExecutor(cards) as claims:
-        claimed = list(claims.map(lambda number: batch.claim(run, project, found, number), range(1, cards + 1)))
+        claimed = list(claims.map(lambda number: batch.claim(run, account, found, number), range(1, cards + 1)))
     return [machine for machine in claimed if machine]
 
 
@@ -170,13 +170,13 @@ def main():
     jobs = jobs_to_make(options.list)
     if not jobs:
         raise SystemExit("every picture in the list is already made")
-    project = scaleway.project_id()
-    batch.sweep(project)
+    account = cloud.account()
+    batch.sweep(account)
     cards = min(options.cards, len(jobs))
-    found, allowed_minutes = price(jobs, cards, project)
+    found, allowed_minutes = price(jobs, cards, account)
     if options.dry_run:
         return
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     started = time.time()
     folder = batch.BATCHES / time.strftime(f"pictures-%Y%m%d-%H%M%S-{os.getpid()}")
@@ -184,7 +184,7 @@ def main():
     run = Run(folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = rent_machines(run, project, found, cards)
+        machines = rent_machines(run, account, found, cards)
         threads = [threading.Thread(target=draw_share, args=(run, machine, jobs[index::len(machines)]))
                    for index, machine in enumerate(machines)]
         for thread in threads:

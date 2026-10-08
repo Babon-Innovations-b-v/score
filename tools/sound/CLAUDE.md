@@ -27,7 +27,7 @@ The picker and the loudness rule:
 - **Chosen without the owner** (`picker/choose.py`): its CLAP match to its prompt less its faults. A take with no
   prompt score (a recording) ranks under any generated one.
 - **Every credit names where it came from**: a generated take's model, prompt and seed; a recording's page, author
-  and CC0, read off its own page. The Freesound API key, when made, is the Scaleway secret `freesound-api-key`.
+  and CC0, read off its own page. The Freesound API key, when made, is the secret `freesound-api-key` (`secret_store.py`).
 - **A source is one class** (`picker/sources.py`: `name`, `search(need, count)`, `similar(candidate, count)`); a new
   one is added there and to `finders_for` in `picker.py`. MOSS and the recording before are the default.
 - Pages build outside the repo (`~/.cache/farm-factory/sound-picker/pages/` by default) and are published as an
