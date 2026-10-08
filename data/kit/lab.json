@@ -3,11 +3,12 @@
 	"frame": "the room's own: its middle on its floor, x east, z south, y up",
 	"counts": {
 		"lab_wall_lower_plain": 24,
-		"lab_wall_upper_plain": 24,
+		"lab_wall_upper_plain": 20,
 		"lab_wall_skirting": 22,
 		"lab_wall_cornice": 20,
-		"lab_ring_floor_plate": 66,
-		"lab_pit_wall_panel": 10,
+		"lab_wall_upper_pipes": 2,
+		"lab_wall_upper_cables": 2,
+		"lab_ring_floor_plate": 30,
 		"lab_hatch_frame": 2,
 		"lab_hatch_leaf": 2,
 		"lab_hatch_wheel": 2,
@@ -16,30 +17,50 @@
 		"lab_roof_face_panel": 148,
 		"lab_door_strip_lamp": 2,
 		"lab_door_control_box": 2,
-		"lab_pipe_straight": 6,
-		"lab_pipe_valve": 2,
+		"lab_intercom_panel": 1,
+		"lab_grab_bar": 1,
+		"lab_pipe_straight": 16,
+		"lab_pipe_valve": 4,
+		"lab_cable_drop": 5,
+		"lab_cable_bundle": 4,
+		"lab_conduit_box": 5,
+		"lab_small_readout": 4,
 		"lab_desk": 2,
 		"lab_desk_chair": 2,
 		"lab_sample_store": 1,
 		"lab_glovebox_cabinet": 1,
-		"lab_gauge_panel": 1,
-		"lab_junction_box": 1,
-		"lab_fire_extinguisher": 1,
-		"lab_task_lamp": 2,
+		"lab_gauge_panel": 2,
+		"lab_switch_panel": 1,
+		"lab_junction_box": 3,
+		"lab_hose_loop": 2,
+		"lab_wall_monitor": 4,
+		"lab_fire_extinguisher": 2,
+		"lab_task_lamp": 3,
 		"lab_ceiling_lamp": 2,
 		"lab_tread_mat": 2,
-		"lab_pipe_bracket": 12,
+		"lab_pipe_bracket": 28,
 		"lab_microscope": 2,
 		"lab_desk_monitor": 2,
 		"lab_instrument_unit": 2,
 		"lab_desk_keyboard": 2,
-		"lab_sample_tray": 2
+		"lab_desk_mouse": 2,
+		"lab_desk_keypad": 2,
+		"lab_sample_jar": 2,
+		"lab_sample_tray": 2,
+		"lab_sample_scanner": 1,
+		"lab_hanging_glove": 2
 	},
 	"kinds": {
 		"lab_wall_lower_plain": {
 			"group": "hangs"
 		},
 		"lab_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"lab_wall_upper_pipes": {
+			"group": "hangs"
+		},
+		"lab_wall_upper_cables": {
 			"group": "hangs"
 		},
 		"lab_wall_skirting": {
@@ -54,7 +75,6 @@
 		"lab_roof_face_panel": {
 			"group": "floors"
 		},
-		"lab_pit_wall_panel": {},
 		"lab_hatch_frame": {
 			"group": "hangs"
 		},
@@ -81,6 +101,12 @@
 		"lab_door_control_box": {
 			"group": "hangs"
 		},
+		"lab_intercom_panel": {
+			"group": "hangs"
+		},
+		"lab_grab_bar": {
+			"group": "hangs"
+		},
 		"lab_tread_mat": {},
 		"lab_pipe_straight": {
 			"group": "hangs"
@@ -91,19 +117,51 @@
 		"lab_pipe_bracket": {
 			"group": "hangs"
 		},
-		"lab_desk": {},
+		"lab_cable_drop": {
+			"group": "hangs"
+		},
+		"lab_cable_bundle": {
+			"group": "hangs"
+		},
+		"lab_conduit_box": {
+			"group": "hangs"
+		},
+		"lab_small_readout": {
+			"group": "hangs"
+		},
+		"lab_desk": {
+			"solid": true
+		},
 		"lab_desk_chair": {},
-		"lab_sample_store": {},
-		"lab_glovebox_cabinet": {},
+		"lab_sample_store": {
+			"solid": true
+		},
+		"lab_glovebox_cabinet": {
+			"solid": true
+		},
 		"lab_microscope": {},
 		"lab_desk_monitor": {},
 		"lab_instrument_unit": {},
 		"lab_desk_keyboard": {},
+		"lab_desk_mouse": {},
+		"lab_desk_keypad": {},
+		"lab_sample_jar": {},
 		"lab_sample_tray": {},
+		"lab_sample_scanner": {},
+		"lab_hanging_glove": {},
 		"lab_gauge_panel": {
 			"group": "hangs"
 		},
+		"lab_switch_panel": {
+			"group": "hangs"
+		},
 		"lab_junction_box": {
+			"group": "hangs"
+		},
+		"lab_hose_loop": {
+			"group": "hangs"
+		},
+		"lab_wall_monitor": {
 			"group": "hangs"
 		},
 		"lab_fire_extinguisher": {
@@ -147,7 +205,7 @@
 			"glows": false,
 			"route": "code"
 		},
-		"wall_upper_plain_2": {
+		"wall_upper_pipes_1": {
 			"glows": false,
 			"route": "code"
 		},
@@ -163,11 +221,15 @@
 			"glows": false,
 			"route": "code"
 		},
-		"wall_upper_plain_3": {
+		"wall_upper_plain_2": {
 			"glows": false,
 			"route": "code"
 		},
 		"wall_skirting_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_cables_1": {
 			"glows": false,
 			"route": "code"
 		},
@@ -192,46 +254,6 @@
 			"route": "code"
 		},
 		"ring_floor_plate_6": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_7": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_8": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_9": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_10": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_11": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_12": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_13": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_14": {
-			"glows": false,
-			"route": "code"
-		},
-		"ring_floor_plate_15": {
-			"glows": false,
-			"route": "code"
-		},
-		"pit_wall_panel_1": {
 			"glows": false,
 			"route": "code"
 		},
@@ -321,6 +343,14 @@
 		"door_control_box_1_glow": {
 			"glows": true
 		},
+		"intercom_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"grab_bar_1": {
+			"glows": false,
+			"route": "code"
+		},
 		"pipe_straight_1": {
 			"glows": false,
 			"route": "code"
@@ -333,9 +363,44 @@
 			"glows": false,
 			"route": "code"
 		},
+		"pipe_straight_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_7": {
+			"glows": false,
+			"route": "code"
+		},
 		"pipe_valve_1": {
 			"glows": false,
 			"route": "code"
+		},
+		"cable_drop_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cable_bundle_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"conduit_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1_glow": {
+			"glows": true
 		},
 		"desk_1": {
 			"glows": false,
@@ -357,9 +422,25 @@
 			"glows": false,
 			"route": "model"
 		},
+		"switch_panel_1": {
+			"glows": false,
+			"route": "model"
+		},
 		"junction_box_1": {
 			"glows": false,
 			"route": "model"
+		},
+		"hose_loop_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"wall_monitor_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"wall_monitor_1_screen_1": {
+			"glows": true,
+			"picture": "screen_status"
 		},
 		"fire_extinguisher_1": {
 			"glows": false,
@@ -401,7 +482,27 @@
 			"glows": false,
 			"route": "model"
 		},
+		"desk_mouse_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"desk_keypad_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"sample_jar_1": {
+			"glows": false,
+			"route": "model"
+		},
 		"sample_tray_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"sample_scanner_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"hanging_glove_1": {
 			"glows": false,
 			"route": "model"
 		}
@@ -918,9 +1019,9 @@
 			"model": "wall_lower_plain_2"
 		},
 		{
-			"kind": "lab_wall_upper_plain",
+			"kind": "lab_wall_upper_pipes",
 			"at": [
-				2.97,
+				2.9445,
 				1.1,
 				0.7
 			],
@@ -942,10 +1043,10 @@
 			"size": [
 				1.44,
 				1.7,
-				0.06
+				0.111
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_2"
+			"model": "wall_upper_pipes_1"
 		},
 		{
 			"kind": "lab_wall_lower_plain",
@@ -978,9 +1079,9 @@
 			"model": "wall_lower_plain_2"
 		},
 		{
-			"kind": "lab_wall_upper_plain",
+			"kind": "lab_wall_upper_pipes",
 			"at": [
-				2.97,
+				2.9445,
 				1.1,
 				-0.7
 			],
@@ -1002,10 +1103,10 @@
 			"size": [
 				1.44,
 				1.7,
-				0.06
+				0.111
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_2"
+			"model": "wall_upper_pipes_1"
 		},
 		{
 			"kind": "lab_wall_skirting",
@@ -1605,7 +1706,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_3"
+			"model": "wall_upper_plain_2"
 		},
 		{
 			"kind": "lab_wall_skirting",
@@ -1695,7 +1796,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_3"
+			"model": "wall_upper_plain_2"
 		},
 		{
 			"kind": "lab_wall_skirting",
@@ -2268,9 +2369,9 @@
 			"model": "wall_lower_plain_2"
 		},
 		{
-			"kind": "lab_wall_upper_plain",
+			"kind": "lab_wall_upper_cables",
 			"at": [
-				-2.97,
+				-2.9465,
 				1.1,
 				-0.7
 			],
@@ -2292,10 +2393,10 @@
 			"size": [
 				1.44,
 				1.7,
-				0.06
+				0.107
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_2"
+			"model": "wall_upper_cables_1"
 		},
 		{
 			"kind": "lab_wall_lower_plain",
@@ -2328,9 +2429,9 @@
 			"model": "wall_lower_plain_2"
 		},
 		{
-			"kind": "lab_wall_upper_plain",
+			"kind": "lab_wall_upper_cables",
 			"at": [
-				-2.97,
+				-2.9465,
 				1.1,
 				0.7
 			],
@@ -2352,10 +2453,10 @@
 			"size": [
 				1.44,
 				1.7,
-				0.06
+				0.107
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_2"
+			"model": "wall_upper_cables_1"
 		},
 		{
 			"kind": "lab_wall_skirting",
@@ -2955,7 +3056,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_3"
+			"model": "wall_upper_plain_2"
 		},
 		{
 			"kind": "lab_wall_skirting",
@@ -3045,7 +3146,7 @@
 				0.06
 			],
 			"layer": 1,
-			"model": "wall_upper_plain_3"
+			"model": "wall_upper_plain_2"
 		},
 		{
 			"kind": "lab_wall_skirting",
@@ -4068,1422 +4169,6 @@
 			"layer": 1,
 			"taper": 0.0,
 			"model": "ring_floor_plate_6"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.5,
-				0.4,
-				-1.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				1.4,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_7"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.5,
-				0.4,
-				0.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				1.4,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_7"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.5,
-				0.4,
-				-1.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_8"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.4937,
-				0.4,
-				-1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9875,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_9"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.4746,
-				0.4,
-				-2.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9492,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_10"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.4416,
-				0.4,
-				-2.2
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.8832,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_11"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.3928,
-				0.4,
-				-2.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.7856,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_12"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.3245,
-				0.4,
-				-2.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.649,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_13"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.2292,
-				0.4,
-				-2.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.4583,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_14"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.0873,
-				0.4,
-				-3.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.1746,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_15"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.5,
-				0.4,
-				1.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_8"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.4937,
-				0.4,
-				1.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9875,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_9"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.4746,
-				0.4,
-				1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9492,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_10"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.4416,
-				0.4,
-				2.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.8832,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_11"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.3928,
-				0.4,
-				2.2
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.7856,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_12"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.3245,
-				0.4,
-				2.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.649,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_13"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.2292,
-				0.4,
-				2.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.4583,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_14"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				2.0873,
-				0.4,
-				2.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.1746,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_15"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				1.98,
-				0.0,
-				-2.3066
-			],
-			"x": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				1.98,
-				0.0,
-				-1.1533
-			],
-			"x": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				1.98,
-				0.0,
-				0.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				1.98,
-				0.0,
-				1.1533
-			],
-			"x": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				1.98,
-				0.0,
-				2.3066
-			],
-			"x": [
-				0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.5,
-				0.4,
-				-1.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				1.4,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_7"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.5,
-				0.4,
-				0.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				1.4,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_7"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.5,
-				0.4,
-				-1.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_8"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.4937,
-				0.4,
-				-1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9875,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_9"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.4746,
-				0.4,
-				-2.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9492,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_10"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.4416,
-				0.4,
-				-2.2
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.8832,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_11"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.3928,
-				0.4,
-				-2.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.7856,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_12"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.3245,
-				0.4,
-				-2.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.649,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_13"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.2292,
-				0.4,
-				-2.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.4583,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_14"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.0873,
-				0.4,
-				-3.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.1746,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_15"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.5,
-				0.4,
-				1.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.0,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_8"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.4937,
-				0.4,
-				1.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9875,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_9"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.4746,
-				0.4,
-				1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.9492,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_10"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.4416,
-				0.4,
-				2.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.8832,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_11"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.3928,
-				0.4,
-				2.2
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.7856,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_12"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.3245,
-				0.4,
-				2.4
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.649,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_13"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.2292,
-				0.4,
-				2.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.4583,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_14"
-		},
-		{
-			"kind": "lab_ring_floor_plate",
-			"at": [
-				-2.0873,
-				0.4,
-				2.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				0.1746,
-				0.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_15"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				-1.98,
-				0.0,
-				-2.3066
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				-1.98,
-				0.0,
-				-1.1533
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				-1.98,
-				0.0,
-				0.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				-1.98,
-				0.0,
-				1.1533
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
-		},
-		{
-			"kind": "lab_pit_wall_panel",
-			"at": [
-				-1.98,
-				0.0,
-				2.3066
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				1.1533,
-				0.42,
-				0.04
-			],
-			"layer": 1,
-			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "lab_hatch_frame",
@@ -10565,7 +9250,7 @@
 			"kind": "lab_door_control_box",
 			"at": [
 				-1.6831,
-				1.2,
+				1.05,
 				-2.8183
 			],
 			"x": [
@@ -10595,7 +9280,7 @@
 			"kind": "lab_door_control_box",
 			"at": [
 				-1.6202,
-				1.456,
+				1.306,
 				-2.7737
 			],
 			"x": [
@@ -10626,7 +9311,7 @@
 			"kind": "lab_door_control_box",
 			"at": [
 				-1.6811,
-				1.2,
+				1.1,
 				2.8187
 			],
 			"x": [
@@ -10656,7 +9341,7 @@
 			"kind": "lab_door_control_box",
 			"at": [
 				-1.7222,
-				1.456,
+				1.356,
 				2.7534
 			],
 			"x": [
@@ -10684,9 +9369,69 @@
 			"part": "glow"
 		},
 		{
+			"kind": "lab_intercom_panel",
+			"at": [
+				1.6884,
+				1.0,
+				-2.8498
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.25,
+				0.4,
+				0.062
+			],
+			"layer": 1,
+			"model": "intercom_panel_1"
+		},
+		{
+			"kind": "lab_grab_bar",
+			"at": [
+				1.6827,
+				1.0,
+				2.8214
+			],
+			"x": [
+				0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				0.98079
+			],
+			"size": [
+				0.13,
+				0.7,
+				0.12
+			],
+			"layer": 1,
+			"model": "grab_bar_1"
+		},
+		{
 			"kind": "lab_pipe_straight",
 			"at": [
-				2.86,
+				2.8,
 				2.15,
 				0.425
 			],
@@ -10716,7 +9461,7 @@
 		{
 			"kind": "lab_pipe_straight",
 			"at": [
-				2.86,
+				2.8,
 				2.15,
 				-1.125
 			],
@@ -10746,9 +9491,9 @@
 		{
 			"kind": "lab_pipe_straight",
 			"at": [
-				2.86,
+				2.8,
 				2.4,
-				0.0
+				1.025
 			],
 			"x": [
 				0.0,
@@ -10766,7 +9511,7 @@
 				0.0
 			],
 			"size": [
-				2.8,
+				0.75,
 				0.08,
 				0.08
 			],
@@ -10776,9 +9521,39 @@
 		{
 			"kind": "lab_pipe_straight",
 			"at": [
-				-2.86,
-				2.15,
+				2.8,
+				2.4,
+				-0.525
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
 				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.75,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.82,
+				2.15,
+				-0.475
 			],
 			"x": [
 				0.0,
@@ -10796,17 +9571,47 @@
 				0.0
 			],
 			"size": [
-				2.8,
+				1.85,
 				0.08,
 				0.08
 			],
 			"layer": 1,
-			"model": "pipe_straight_3"
+			"model": "pipe_straight_5"
 		},
 		{
 			"kind": "lab_pipe_straight",
 			"at": [
-				-2.86,
+				-2.82,
+				2.15,
+				1.075
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.65,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_6"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.82,
 				2.4,
 				-1.125
 			],
@@ -10836,7 +9641,7 @@
 		{
 			"kind": "lab_pipe_straight",
 			"at": [
-				-2.86,
+				-2.82,
 				2.4,
 				0.425
 			],
@@ -10862,11 +9667,251 @@
 			],
 			"layer": 1,
 			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				2.8018,
+				2.5,
+				-1.6788
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				2.5884,
+				2.5,
+				-2.1941
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				2.1941,
+				2.5,
+				-2.5884
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				1.6788,
+				2.5,
+				-2.8018
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-1.6788,
+				2.5,
+				-2.8018
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.1941,
+				2.5,
+				-2.5884
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.5884,
+				2.5,
+				-2.1941
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "lab_pipe_straight",
+			"at": [
+				-2.8018,
+				2.5,
+				-1.6788
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.62,
+				0.08,
+				0.08
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
 		},
 		{
 			"kind": "lab_pipe_valve",
 			"at": [
-				2.84,
+				2.78,
 				2.04,
 				-0.7
 			],
@@ -10896,7 +9941,37 @@
 		{
 			"kind": "lab_pipe_valve",
 			"at": [
-				-2.84,
+				2.78,
+				2.29,
+				0.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "lab_pipe_valve",
+			"at": [
+				-2.8,
 				2.29,
 				-0.7
 			],
@@ -10924,11 +9999,705 @@
 			"model": "pipe_valve_1"
 		},
 		{
+			"kind": "lab_pipe_valve",
+			"at": [
+				-2.8,
+				2.04,
+				0.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "lab_cable_drop",
+			"at": [
+				-2.86,
+				1.15,
+				-0.85
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "lab_cable_drop",
+			"at": [
+				-2.6216,
+				1.2,
+				2.2163
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "lab_cable_drop",
+			"at": [
+				-2.88,
+				0.2,
+				-1.4905
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "lab_cable_drop",
+			"at": [
+				2.88,
+				0.2,
+				-1.4905
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "lab_cable_drop",
+			"at": [
+				2.6216,
+				1.2,
+				2.2163
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.15,
+				1.2,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "lab_cable_bundle",
+			"at": [
+				2.2163,
+				0.14,
+				2.6216
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "lab_cable_bundle",
+			"at": [
+				2.6216,
+				0.14,
+				2.2163
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "lab_cable_bundle",
+			"at": [
+				-2.6216,
+				0.14,
+				2.2163
+			],
+			"x": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.6,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "lab_cable_bundle",
+			"at": [
+				-2.2163,
+				0.14,
+				2.6216
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.6,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "lab_conduit_box",
+			"at": [
+				-2.892,
+				0.305,
+				-1.0125
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "lab_conduit_box",
+			"at": [
+				2.243,
+				1.405,
+				2.5941
+			],
+			"x": [
+				0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "lab_conduit_box",
+			"at": [
+				2.892,
+				0.305,
+				1.0625
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "lab_conduit_box",
+			"at": [
+				-2.6358,
+				1.005,
+				-2.1806
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "lab_conduit_box",
+			"at": [
+				2.5941,
+				1.005,
+				-2.243
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				2.85,
+				1.45,
+				-0.95
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				2.834,
+				1.537,
+				-0.98
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				-2.2218,
+				1.4,
+				2.63
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				-2.188,
+				1.487,
+				2.6334
+			],
+			"x": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				0.83147
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				-2.63,
+				1.3,
+				-2.2218
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				-2.6334,
+				1.387,
+				-2.188
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				2.8508,
+				1.2,
+				-1.6886
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "lab_small_readout",
+			"at": [
+				2.8293,
+				1.287,
+				-1.7149
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
 			"kind": "lab_desk",
 			"at": [
-				-1.4999,
+				-1.85,
 				-0.001,
-				-1.5001
+				-1.9501
 			],
 			"x": [
 				-1.0,
@@ -10946,9 +10715,9 @@
 				-1.0
 			],
 			"size": [
-				1.4024,
+				1.4025,
 				0.762,
-				0.7524
+				0.7525
 			],
 			"layer": 1,
 			"model": "desk_1"
@@ -10956,9 +10725,9 @@
 		{
 			"kind": "lab_desk",
 			"at": [
-				1.5001,
+				1.85,
 				-0.001,
-				-1.5001
+				-1.9501
 			],
 			"x": [
 				-1.0,
@@ -10976,9 +10745,9 @@
 				-1.0
 			],
 			"size": [
-				1.4024,
+				1.4025,
 				0.762,
-				0.7524
+				0.7525
 			],
 			"layer": 1,
 			"model": "desk_1"
@@ -10986,9 +10755,9 @@
 		{
 			"kind": "lab_desk_chair",
 			"at": [
-				-1.5006,
-				-0.0018,
-				-0.7492
+				-1.8506,
+				-0.002,
+				-1.1498
 			],
 			"x": [
 				1.0,
@@ -11006,9 +10775,9 @@
 				1.0
 			],
 			"size": [
-				0.6538,
-				0.9045,
-				0.6218
+				0.6536,
+				0.905,
+				0.6224
 			],
 			"layer": 1,
 			"model": "desk_chair_1"
@@ -11016,9 +10785,9 @@
 		{
 			"kind": "lab_desk_chair",
 			"at": [
-				1.4994,
-				-0.0018,
-				-0.7492
+				1.8494,
+				-0.002,
+				-1.1498
 			],
 			"x": [
 				1.0,
@@ -11036,9 +10805,9 @@
 				1.0
 			],
 			"size": [
-				0.6538,
-				0.9045,
-				0.6218
+				0.6536,
+				0.905,
+				0.6224
 			],
 			"layer": 1,
 			"model": "desk_chair_1"
@@ -11046,8 +10815,8 @@
 		{
 			"kind": "lab_sample_store",
 			"at": [
-				-2.6199,
-				0.4181,
+				-2.58,
+				-0.0019,
 				0.0
 			],
 			"x": [
@@ -11066,9 +10835,9 @@
 				0.0
 			],
 			"size": [
-				1.2033,
+				1.2034,
 				1.004,
-				0.7033
+				0.7034
 			],
 			"layer": 1,
 			"model": "sample_store_1"
@@ -11076,9 +10845,9 @@
 		{
 			"kind": "lab_glovebox_cabinet",
 			"at": [
-				2.5899,
-				0.4188,
-				0.0007
+				2.5398,
+				-0.0011,
+				0.3008
 			],
 			"x": [
 				-0.0,
@@ -11096,8 +10865,8 @@
 				-0.0
 			],
 			"size": [
-				1.1503,
-				1.1528,
+				1.1502,
+				1.1524,
 				0.7831
 			],
 			"layer": 1,
@@ -11106,14 +10875,14 @@
 		{
 			"kind": "lab_gauge_panel",
 			"at": [
-				2.8385,
-				1.7501,
-				0.7521
+				-1.6727,
+				1.5502,
+				-2.7811
 			],
 			"x": [
+				-0.98079,
 				0.0,
-				0.0,
-				-1.0
+				0.19509
 			],
 			"y": [
 				0.0,
@@ -11121,12 +10890,12 @@
 				0.0
 			],
 			"z": [
-				1.0,
+				-0.19509,
 				-0.0,
-				0.0
+				-0.98079
 			],
 			"size": [
-				0.7524,
+				0.7526,
 				0.4332,
 				0.2031
 			],
@@ -11134,10 +10903,70 @@
 			"model": "gauge_panel_1"
 		},
 		{
+			"kind": "lab_gauge_panel",
+			"at": [
+				2.7804,
+				1.6002,
+				1.6765
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.7526,
+				0.4332,
+				0.2031
+			],
+			"layer": 1,
+			"model": "gauge_panel_1"
+		},
+		{
+			"kind": "lab_switch_panel",
+			"at": [
+				-2.7773,
+				1.45,
+				-1.6739
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.2597,
+				0.4502,
+				0.2102
+			],
+			"layer": 1,
+			"model": "switch_panel_1"
+		},
+		{
 			"kind": "lab_junction_box",
 			"at": [
-				-2.84,
-				1.5971,
+				-2.8001,
+				1.5471,
 				0.85
 			],
 			"x": [
@@ -11156,19 +10985,79 @@
 				0.0
 			],
 			"size": [
-				0.2496,
-				0.4069,
-				0.1998
+				0.2497,
+				0.4071,
+				0.2
 			],
 			"layer": 1,
 			"model": "junction_box_1"
 		},
 		{
-			"kind": "lab_fire_extinguisher",
+			"kind": "lab_junction_box",
 			"at": [
-				-2.8415,
-				0.5463,
-				-1.0485
+				2.5719,
+				1.4971,
+				2.1829
+			],
+			"x": [
+				0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				0.55557
+			],
+			"size": [
+				0.2497,
+				0.4071,
+				0.2
+			],
+			"layer": 1,
+			"model": "junction_box_1"
+		},
+		{
+			"kind": "lab_junction_box",
+			"at": [
+				2.7801,
+				1.5971,
+				1.2
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.2497,
+				0.4071,
+				0.2
+			],
+			"layer": 1,
+			"model": "junction_box_1"
+		},
+		{
+			"kind": "lab_hose_loop",
+			"at": [
+				-2.8593,
+				1.5503,
+				-0.3
 			],
 			"x": [
 				0.0,
@@ -11186,24 +11075,24 @@
 				0.0
 			],
 			"size": [
-				0.2842,
-				0.5568,
-				0.204
+				0.3567,
+				0.4991,
+				0.0853
 			],
 			"layer": 1,
-			"model": "fire_extinguisher_1"
+			"model": "hose_loop_1"
 		},
 		{
-			"kind": "lab_task_lamp",
+			"kind": "lab_hose_loop",
 			"at": [
-				2.0709,
-				1.9499,
-				-2.4037
+				2.8393,
+				1.5003,
+				-0.2
 			],
 			"x": [
-				-0.83147,
 				0.0,
-				-0.55557
+				0.0,
+				-1.0
 			],
 			"y": [
 				0.0,
@@ -11211,24 +11100,24 @@
 				0.0
 			],
 			"z": [
-				0.55557,
+				1.0,
 				-0.0,
-				-0.83147
+				0.0
 			],
 			"size": [
-				0.1672,
-				0.2802,
-				0.6033
+				0.3567,
+				0.4991,
+				0.0853
 			],
 			"layer": 1,
-			"model": "task_lamp_1"
+			"model": "hose_loop_1"
 		},
 		{
-			"kind": "lab_task_lamp",
+			"kind": "lab_wall_monitor",
 			"at": [
-				-2.0705,
-				1.9499,
-				-2.4039
+				-2.1138,
+				1.4963,
+				-2.4654
 			],
 			"x": [
 				-0.83147,
@@ -11246,19 +11135,233 @@
 				-0.83147
 			],
 			"size": [
-				0.1672,
-				0.2802,
-				0.6033
+				0.3252,
+				0.3076,
+				0.454
 			],
 			"layer": 1,
-			"model": "task_lamp_1"
+			"model": "wall_monitor_1"
 		},
 		{
-			"kind": "lab_ceiling_lamp",
+			"kind": "lab_wall_monitor",
 			"at": [
-				-1.0003,
-				3.5793,
-				0.2998
+				-1.9833,
+				1.57,
+				-2.2729
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.22,
+				0.17,
+				0.012
+			],
+			"layer": 1,
+			"model": "wall_monitor_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "lab_wall_monitor",
+			"at": [
+				2.4654,
+				1.4963,
+				-2.1138
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.3252,
+				0.3076,
+				0.454
+			],
+			"layer": 1,
+			"model": "wall_monitor_1"
+		},
+		{
+			"kind": "lab_wall_monitor",
+			"at": [
+				2.2729,
+				1.57,
+				-1.9833
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.22,
+				0.17,
+				0.012
+			],
+			"layer": 1,
+			"model": "wall_monitor_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "lab_wall_monitor",
+			"at": [
+				2.1112,
+				1.4963,
+				-2.4671
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.3252,
+				0.3076,
+				0.454
+			],
+			"layer": 1,
+			"model": "wall_monitor_1"
+		},
+		{
+			"kind": "lab_wall_monitor",
+			"at": [
+				1.9833,
+				1.57,
+				-2.2729
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.22,
+				0.17,
+				0.012
+			],
+			"layer": 1,
+			"model": "wall_monitor_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "lab_wall_monitor",
+			"at": [
+				1.6486,
+				1.4963,
+				-2.6581
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.3252,
+				0.3076,
+				0.454
+			],
+			"layer": 1,
+			"model": "wall_monitor_1"
+		},
+		{
+			"kind": "lab_wall_monitor",
+			"at": [
+				1.6048,
+				1.57,
+				-2.4297
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.22,
+				0.17,
+				0.012
+			],
+			"layer": 1,
+			"model": "wall_monitor_1_screen_1",
+			"part": "screen"
+		},
+		{
+			"kind": "lab_fire_extinguisher",
+			"at": [
+				-2.8414,
+				0.4463,
+				1.0515
 			],
 			"x": [
 				0.0,
@@ -11276,9 +11379,159 @@
 				0.0
 			],
 			"size": [
-				0.6077,
+				0.2841,
+				0.5566,
+				0.204
+			],
+			"layer": 1,
+			"model": "fire_extinguisher_1"
+		},
+		{
+			"kind": "lab_fire_extinguisher",
+			"at": [
+				2.7838,
+				0.4463,
+				1.6737
+			],
+			"x": [
+				0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				0.19509
+			],
+			"size": [
+				0.2841,
+				0.5566,
+				0.204
+			],
+			"layer": 1,
+			"model": "fire_extinguisher_1"
+		},
+		{
+			"kind": "lab_task_lamp",
+			"at": [
+				-2.4037,
+				1.9502,
+				-2.0708
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.1674,
+				0.2799,
+				0.6033
+			],
+			"layer": 1,
+			"model": "task_lamp_1"
+		},
+		{
+			"kind": "lab_task_lamp",
+			"at": [
+				2.584,
+				1.9502,
+				-1.6353
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.1674,
+				0.2799,
+				0.6033
+			],
+			"layer": 1,
+			"model": "task_lamp_1"
+		},
+		{
+			"kind": "lab_task_lamp",
+			"at": [
+				-2.5979,
+				2.0002,
+				-1.2502
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.1674,
+				0.2799,
+				0.6033
+			],
+			"layer": 1,
+			"model": "task_lamp_1"
+		},
+		{
+			"kind": "lab_ceiling_lamp",
+			"at": [
+				-1.0002,
+				3.5793,
+				0.2997
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.6075,
 				0.2009,
-				0.2665
+				0.2662
 			],
 			"layer": 1,
 			"model": "ceiling_lamp_1"
@@ -11286,9 +11539,9 @@
 		{
 			"kind": "lab_ceiling_lamp",
 			"at": [
-				1.0003,
+				1.0002,
 				3.5793,
-				0.3002
+				0.3003
 			],
 			"x": [
 				-0.0,
@@ -11306,9 +11559,9 @@
 				-0.0
 			],
 			"size": [
-				0.6077,
+				0.6075,
 				0.2009,
-				0.2665
+				0.2662
 			],
 			"layer": 1,
 			"model": "ceiling_lamp_1"
@@ -11378,7 +11631,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				2.877,
+				2.817,
 				2.13,
 				1.15
 			],
@@ -11408,7 +11661,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				2.877,
+				2.817,
 				2.13,
 				0.0
 			],
@@ -11438,7 +11691,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				2.877,
+				2.817,
 				2.13,
 				-1.15
 			],
@@ -11468,7 +11721,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				2.877,
+				2.817,
 				2.38,
 				1.15
 			],
@@ -11498,7 +11751,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				2.877,
+				2.817,
 				2.38,
 				0.0
 			],
@@ -11528,7 +11781,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				2.877,
+				2.817,
 				2.38,
 				-1.15
 			],
@@ -11558,7 +11811,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				-2.877,
+				-2.837,
 				2.13,
 				-1.15
 			],
@@ -11588,7 +11841,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				-2.877,
+				-2.837,
 				2.13,
 				0.0
 			],
@@ -11618,7 +11871,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				-2.877,
+				-2.837,
 				2.13,
 				1.15
 			],
@@ -11648,7 +11901,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				-2.877,
+				-2.837,
 				2.38,
 				-1.15
 			],
@@ -11678,7 +11931,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				-2.877,
+				-2.837,
 				2.38,
 				0.0
 			],
@@ -11708,7 +11961,7 @@
 		{
 			"kind": "lab_pipe_bracket",
 			"at": [
-				-2.877,
+				-2.837,
 				2.38,
 				1.15
 			],
@@ -11726,6 +11979,486 @@
 				-1.0,
 				-0.0,
 				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.8302,
+				2.48,
+				-1.6232
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.8068,
+				2.48,
+				-1.7409
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				-0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.6359,
+				2.48,
+				-2.1537
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.5692,
+				2.48,
+				-2.2535
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				-0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.2535,
+				2.48,
+				-2.5692
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				2.1537,
+				2.48,
+				-2.6359
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				-0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				1.7409,
+				2.48,
+				-2.8068
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				1.6232,
+				2.48,
+				-2.8302
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				-0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-1.6232,
+				2.48,
+				-2.8302
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-1.7409,
+				2.48,
+				-2.8068
+			],
+			"x": [
+				-0.98079,
+				0.0,
+				0.19509
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.19509,
+				-0.0,
+				-0.98079
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.1537,
+				2.48,
+				-2.6359
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.2535,
+				2.48,
+				-2.5692
+			],
+			"x": [
+				-0.83147,
+				0.0,
+				0.55557
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55557,
+				-0.0,
+				-0.83147
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.5692,
+				2.48,
+				-2.2535
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.6359,
+				2.48,
+				-2.1537
+			],
+			"x": [
+				-0.55557,
+				0.0,
+				0.83147
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83147,
+				-0.0,
+				-0.55557
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.8068,
+				2.48,
+				-1.7409
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "lab_pipe_bracket",
+			"at": [
+				-2.8302,
+				2.48,
+				-1.6232
+			],
+			"x": [
+				-0.19509,
+				0.0,
+				0.98079
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.98079,
+				-0.0,
+				-0.19509
 			],
 			"size": [
 				0.12,
@@ -11738,9 +12471,9 @@
 		{
 			"kind": "lab_microscope",
 			"at": [
-				-1.9793,
-				0.7576,
-				-1.5807
+				-2.33,
+				0.7578,
+				-2.0304
 			],
 			"x": [
 				-1.0,
@@ -11758,9 +12491,9 @@
 				-1.0
 			],
 			"size": [
-				0.3469,
-				0.6218,
-				0.3955
+				0.3467,
+				0.6215,
+				0.3951
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
@@ -11769,9 +12502,9 @@
 		{
 			"kind": "lab_desk_monitor",
 			"at": [
-				-1.4993,
-				0.756,
-				-1.67
+				-1.8489,
+				0.7559,
+				-2.12
 			],
 			"x": [
 				-1.0,
@@ -11789,9 +12522,9 @@
 				-1.0
 			],
 			"size": [
-				0.3671,
-				0.3679,
-				0.3386
+				0.3664,
+				0.368,
+				0.3384
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
@@ -11800,9 +12533,9 @@
 		{
 			"kind": "lab_desk_monitor",
 			"at": [
-				-1.5,
+				-1.85,
 				0.885,
-				-1.4967
+				-1.9465
 			],
 			"x": [
 				-1.0,
@@ -11832,9 +12565,9 @@
 		{
 			"kind": "lab_instrument_unit",
 			"at": [
-				-1.0598,
-				0.7599,
-				-1.5798
+				-1.4099,
+				0.7596,
+				-2.03
 			],
 			"x": [
 				-1.0,
@@ -11852,9 +12585,9 @@
 				-1.0
 			],
 			"size": [
-				0.5072,
-				0.4237,
-				0.4868
+				0.5076,
+				0.4241,
+				0.4872
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
@@ -11863,9 +12596,9 @@
 		{
 			"kind": "lab_desk_keyboard",
 			"at": [
-				-1.5001,
-				0.7562,
-				-1.2899
+				-1.85,
+				0.7567,
+				-1.7398
 			],
 			"x": [
 				-1.0,
@@ -11883,20 +12616,20 @@
 				-1.0
 			],
 			"size": [
-				0.4486,
-				0.0584,
-				0.2076
+				0.4483,
+				0.0579,
+				0.208
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
 			"model": "desk_keyboard_1"
 		},
 		{
-			"kind": "lab_microscope",
+			"kind": "lab_desk_mouse",
 			"at": [
-				1.0207,
-				0.7576,
-				-1.5807
+				-1.55,
+				0.7552,
+				-1.7101
 			],
 			"x": [
 				-1.0,
@@ -11914,9 +12647,102 @@
 				-1.0
 			],
 			"size": [
-				0.3469,
-				0.6218,
-				0.3955
+				0.0695,
+				0.0395,
+				0.1193
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_mouse_1"
+		},
+		{
+			"kind": "lab_desk_keypad",
+			"at": [
+				-2.27,
+				0.7556,
+				-1.7
+			],
+			"x": [
+				-0.99027,
+				0.0,
+				-0.13917
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.13917,
+				-0.0,
+				-0.99027
+			],
+			"size": [
+				0.1789,
+				0.0587,
+				0.2091
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_keypad_1"
+		},
+		{
+			"kind": "lab_sample_jar",
+			"at": [
+				-2.1001,
+				0.7554,
+				-1.9204
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.1191,
+				0.1688,
+				0.1183
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "sample_jar_1"
+		},
+		{
+			"kind": "lab_microscope",
+			"at": [
+				1.37,
+				0.7578,
+				-2.0304
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.3467,
+				0.6215,
+				0.3951
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
@@ -11925,9 +12751,9 @@
 		{
 			"kind": "lab_desk_monitor",
 			"at": [
-				1.5007,
-				0.756,
-				-1.67
+				1.8511,
+				0.7559,
+				-2.12
 			],
 			"x": [
 				-1.0,
@@ -11945,9 +12771,9 @@
 				-1.0
 			],
 			"size": [
-				0.3671,
-				0.3679,
-				0.3386
+				0.3664,
+				0.368,
+				0.3384
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
@@ -11956,9 +12782,9 @@
 		{
 			"kind": "lab_desk_monitor",
 			"at": [
-				1.5,
+				1.85,
 				0.885,
-				-1.4967
+				-1.9465
 			],
 			"x": [
 				-1.0,
@@ -11988,9 +12814,9 @@
 		{
 			"kind": "lab_instrument_unit",
 			"at": [
-				1.9402,
-				0.7599,
-				-1.5798
+				2.2901,
+				0.7596,
+				-2.03
 			],
 			"x": [
 				-1.0,
@@ -12008,9 +12834,9 @@
 				-1.0
 			],
 			"size": [
-				0.5072,
-				0.4237,
-				0.4868
+				0.5076,
+				0.4241,
+				0.4872
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
@@ -12019,9 +12845,9 @@
 		{
 			"kind": "lab_desk_keyboard",
 			"at": [
-				1.4999,
-				0.7562,
-				-1.2899
+				1.85,
+				0.7567,
+				-1.7398
 			],
 			"x": [
 				-1.0,
@@ -12039,20 +12865,113 @@
 				-1.0
 			],
 			"size": [
-				0.4486,
-				0.0584,
-				0.2076
+				0.4483,
+				0.0579,
+				0.208
 			],
 			"layer": 1,
 			"child_of": "lab_desk",
 			"model": "desk_keyboard_1"
+		},
+		{
+			"kind": "lab_desk_mouse",
+			"at": [
+				2.15,
+				0.7552,
+				-1.7101
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.0695,
+				0.0395,
+				0.1193
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_mouse_1"
+		},
+		{
+			"kind": "lab_desk_keypad",
+			"at": [
+				1.43,
+				0.7556,
+				-1.7
+			],
+			"x": [
+				-0.99027,
+				0.0,
+				-0.13917
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.13917,
+				-0.0,
+				-0.99027
+			],
+			"size": [
+				0.1789,
+				0.0587,
+				0.2091
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "desk_keypad_1"
+		},
+		{
+			"kind": "lab_sample_jar",
+			"at": [
+				1.5999,
+				0.7554,
+				-1.9204
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.1191,
+				0.1688,
+				0.1183
+			],
+			"layer": 1,
+			"child_of": "lab_desk",
+			"model": "sample_jar_1"
 		},
 		{
 			"kind": "lab_sample_tray",
 			"at": [
-				-2.6204,
-				1.4164,
-				0.2902
+				-2.5803,
+				0.9964,
+				0.2898
 			],
 			"x": [
 				0.0,
@@ -12070,9 +12989,9 @@
 				0.0
 			],
 			"size": [
-				0.4517,
-				0.0781,
-				0.3237
+				0.4522,
+				0.0785,
+				0.3233
 			],
 			"layer": 1,
 			"child_of": "lab_sample_store",
@@ -12081,9 +13000,9 @@
 		{
 			"kind": "lab_sample_tray",
 			"at": [
-				-2.6403,
-				1.4164,
-				-0.2897
+				-2.4103,
+				0.9964,
+				-0.2902
 			],
 			"x": [
 				0.06976,
@@ -12101,13 +13020,106 @@
 				0.06976
 			],
 			"size": [
-				0.4517,
-				0.0781,
-				0.3237
+				0.4522,
+				0.0785,
+				0.3233
 			],
 			"layer": 1,
 			"child_of": "lab_sample_store",
 			"model": "sample_tray_1"
+		},
+		{
+			"kind": "lab_sample_scanner",
+			"at": [
+				-2.7489,
+				0.9956,
+				-0.2899
+			],
+			"x": [
+				-0.10453,
+				-0.0,
+				0.99452
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99452,
+				0.0,
+				-0.10453
+			],
+			"size": [
+				0.2886,
+				0.0786,
+				0.2863
+			],
+			"layer": 1,
+			"child_of": "lab_sample_store",
+			"model": "sample_scanner_1"
+		},
+		{
+			"kind": "lab_hanging_glove",
+			"at": [
+				2.6601,
+				0.2963,
+				0.9003
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.1783,
+				0.2877,
+				0.0872
+			],
+			"layer": 1,
+			"child_of": "lab_glovebox_cabinet",
+			"model": "hanging_glove_1"
+		},
+		{
+			"kind": "lab_hanging_glove",
+			"at": [
+				2.4001,
+				0.3163,
+				0.9003
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.1783,
+				0.2877,
+				0.0872
+			],
+			"layer": 1,
+			"child_of": "lab_glovebox_cabinet",
+			"model": "hanging_glove_1"
 		}
 	]
 }
