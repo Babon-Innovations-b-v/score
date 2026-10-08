@@ -93,7 +93,7 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
                      "approved": "", "migrated": "",
                      "room": {"shell": "", "light": "place", "backdrop": "", "wall_fill": []}, "rows": rows}
         for wanted, change in (("no inventory", None), ("not approved", {}), (None, {"approved": "2026-10-05"}),
-                               ("no place", {"approved": "2026-10-05", "place": "garage"})):
+                               ("no place", {"approved": "2026-10-05", "place": "no_such_place"})):
             if change is not None:
                 path.write_text(json.dumps(dict(inventory, **change)))
             try:
