@@ -6833,6 +6833,12 @@ EARTH_ROOMS = ("earth_flat", "earth_stairwell")
 for earth_room in EARTH_ROOMS:
     BUILDERS.update(importlib.import_module(earth_room).BUILDERS)
 
+# The Earth places' plain pieces and fittings (world 1, 2026-10-07), in a module of their own; pieces_earth reads this
+# module's helpers, which are all defined by here.
+import pieces_earth  # noqa: E402
+
+BUILDERS.update(pieces_earth.BUILDERS)
+
 
 def build(kind, size, laid, name):
     """One code-built piece of `kind` at `size`, as one object whose material slots name library materials; which of

@@ -130,7 +130,7 @@ def judged(found, room):
 
 def sweep(place, folder, layout):
     """Every made model the room lays (its pieces, its furniture and their children), judged; the outliers flagged."""
-    room = palette(place)
+    room = palette(layout.get("place", place))  # a kit room in a place of another name (the street in prologue_street)
     report = {}
     for name, about in layout["models"].items():
         path = folder / f"{name}.gltf"

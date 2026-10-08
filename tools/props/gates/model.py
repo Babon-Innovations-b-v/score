@@ -13,7 +13,8 @@ placed, the same way for a generated model and a code-built one.
                  the 5th percentile of how far each goes before leaving the mesh
 
 A kind fails at a spread over 0.2 or a thinnest wall under 3 mm; a failing kind is remade or routed to code, never
-stretched and never placed while flagged.
+stretched and never placed while flagged. A kind of leaves (data/library/details.json `leaves`: a palm's fronds, world
+1's square, 2026-10-07) is held to its spread only: a frond is thinner than any wall, and nothing is walked into there.
 """
 import argparse
 import json
@@ -29,6 +30,7 @@ sys.path.insert(0, str(HERE.parent / "library"))
 import room  # noqa: E402
 import sorter  # noqa: E402
 
+DETAILS = HERE.parents[2] / "data/library/details.json"
 SPREAD_LIMIT = 0.2
 THINNEST_LIMIT = 0.003
 SAMPLES = 300
@@ -82,8 +84,13 @@ def check(kind, mesh, laid):
     found = {"class": shape, "faces": int(len(mesh.faces)), "watertight": bool(mesh.is_watertight),
              "pieces": len(parts), "biggest_share": round(float(areas[0] / sum(areas)), 3),
              "spread": round(spread(mesh.extents, laid), 3), "thinnest": round(thinnest(mesh, laid), 4)}
-    found["pass"] = found["spread"] <= SPREAD_LIMIT and found["thinnest"] >= THINNEST_LIMIT
+    found["pass"] = found["spread"] <= SPREAD_LIMIT and (found["thinnest"] >= THINNEST_LIMIT or leaves(kind))
     return found
+
+
+def leaves(kind):
+    """Whether a kind is leaves (details.json `leaves`), held to its spread alone."""
+    return bool(json.loads(DETAILS.read_text()).get(kind, {}).get("leaves", False))
 
 
 def main():
