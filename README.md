@@ -83,6 +83,23 @@ PartCrafter parts for all 12 (EUR 0.72), labels here, one bake of 16 models in 2
 model gate passed all 16, and the package (16 objects, 22 copies, 0.36 M triangles, 218 MB) passed its check with
 every copy where the game 2099's own layout puts it. EUR 2.48 in all, about two hours, most of it waiting for cards.
 
+### A place's characters
+
+A place's people are part of its stage. Its cast (`data/characters/<place>.json`) says who is there, how many, where,
+doing what and why: named people at a spot, groups mixed from the character kit by seed along a band, and a crowd of
+thousands of one cheap body. `tools/characters/cast.py` writes them into the stage as skinned UsdSkel characters, each
+playing its clip from its own start, in a layer of their own (`layers/characters.usda`, between the creator's edit
+layer and the framework's base); the crowd is one PointInstancer with a prototype per clip, phase and palette. The
+bodies are the files `tools/characters/people/run.sh` builds (SOMA-X bodies shaped by SAM 3D Body, Kimodo clips from
+sentences, GarmentCode clothes; `tools/characters/skel_usd.py` converts each).
+
+```bash
+$py tools/characters/cast.py square --stage ~/.farm-factory-props/work/usd/square   # after tools/usd/export.py
+```
+
+The review page then has a Characters section: why each entry is there, each character close up, each group and the
+crowd from where they are seen, and short moving shots, rendered from the stage like the scene.
+
 ## Cloud capacity
 
 Every model step runs on machines rented from a cloud provider through one interface

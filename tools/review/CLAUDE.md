@@ -23,3 +23,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   counts its code ones; a room with a roof (draw layer 2) is drawn from inside by its own lamps, with a cutaway from
   above. A room of a place of another name (the prologue's street, place `prologue_street`) reads its place from its
   inventory.
+- **Characters** (`characters.py`): a place with a cast (`data/characters/<place>.json`) gets a Characters section,
+  why each entry is there, each character close (from the first clear eye round its front), each group and the crowd
+  wide, and short moving shots, all drawn from the stage at set moments of its time (a view's `frame`); the scene's
+  walk is drawn at consecutive moments too, so its people move.

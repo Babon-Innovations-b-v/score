@@ -253,6 +253,19 @@ def walk_video(folder, out):
     strip.save(out / "walk-strip.jpg", quality=85)
 
 
+def stage_rate(stage):
+    """The stage's time codes a second (the root's; 24 when it names none, as USD reads it)."""
+    from pxr import Sdf
+    layer = Sdf.Layer.FindOrOpen(str(stage))
+    return layer.timeCodesPerSecond if layer.HasTimeCodesPerSecond() else 24.0
+
+
+def timed(walk, stage):
+    """The walk's frames at consecutive moments of the stage's time, WALK_RATE a second, so its characters move."""
+    rate = stage_rate(stage)
+    return [dict(view, frame=round(number * rate / WALK_RATE)) for number, view in enumerate(walk)]
+
+
 def scene_shots(place, stages, out, plain=False, room=None, kit=False):
     """Every stage drawn from the same fixed cameras (set from the newest stage), and the newest one walked round, in
     their materials on their ground (`plain`: in one grey, a debug view). `stages` is {label: stage.usda}, the newest
@@ -268,6 +281,7 @@ def scene_shots(place, stages, out, plain=False, room=None, kit=False):
         if kit:
             views += [view for view in room_views(low, high) if view["name"] != "cutaway"]
         walk, lights = on_the_ground(stages[newest], walk_views(low, high)), []
+    walk = timed(walk, stages[newest])
     for label, stage in stages.items():
         render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain, lights)
     render_stage(stages[newest], walk, WALK_SIZE, out / "scene" / "walk", plain, lights)

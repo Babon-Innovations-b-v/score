@@ -1,0 +1,10 @@
+{
+ "place": "street",
+ "from": "the game 2099's EarthSite (game/prologue/earth_site/earth_site.gd _staff_the_launch), launch day, in EarthSite's own frame as the street's kit",
+ "people": [
+  {"name": "driver", "character": "driver", "doing": "waiting", "at": [8.2, 0.0, 5.2], "facing_to": [6.8, 0.0, 5.2],
+   "why": "the driver waiting by the state car for the player"},
+  {"name": "guard", "character": "guard", "doing": "standing", "at": [6.5, 0.0, -2.6], "facing_to": [9.0, 0.0, -2.6],
+   "why": "the guard at the block's street door on launch day"}
+ ]
+}

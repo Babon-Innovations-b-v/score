@@ -8,6 +8,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   on every export. The edit layer (`layers/edit.usda`) is the creator's: made empty once, never written by the
   framework again. Edits survive only because objects keep their names (`<row>_<n>`, the layout's order); never
   rename an object or reorder how names are given without a migration of every edit layer.
+- **A third layer for characters.** A place with a cast has `layers/characters.usda` (`../characters/cast.py`)
+  between the edit layer and the base; `write_root` keeps it there when it exists. It is the characters stage's, never
+  written here.
 - **Converted, not referenced.** glTF geometry becomes UsdGeomMesh with UsdPreviewSurface materials and PNG maps:
   usd-core and Blender read no glTF inside USD. Parts are GeomSubsets named after their library surface.
   The parts come from `data/parts` (`../props/library/stored_parts.py`: a stored sample of each labelled take, by

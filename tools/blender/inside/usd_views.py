@@ -12,7 +12,12 @@ report.json with what came in: objects, materials, each object's score:* propert
 Blender's own USD library composed them. A view with `"look_only": true` (a walkthrough's frame) gets its look alone.
 `"plain": true` draws every object in one plain grey instead of its materials: a debug view of shape alone.
 `"lights": [{"at", "energy", "radius"}]` adds point lights (a room's lamps, watts); a view with `"hide_layers": [2]`
-leaves out every object whose `score:layer` is one of them (a room's roof, for a cutaway look in).
+leaves out every object whose `score:layer` is one of them (a room's roof, for a cutaway look in). A view with
+`"frame": <n>` is drawn at that time code of the stage, so its characters (tools/characters/cast.py) stand in that
+moment of their clips; a walkthrough's frames give consecutive ones, so they move. A view with `"eyes": [...]` in place
+of one eye is seen from the first of them with a clear line to its aim (a character's views, where a wall may stand
+in front of somebody). Objects the stage makes invisible
+(the body parts a character does not wear) stay out of every picture.
 """
 import json
 import math
@@ -229,6 +234,21 @@ def camera(scene, view):
     return item
 
 
+def clear_eye(scene, view):
+    """The view's first eye from which nothing stands between it and the aim (from 0.6 m out of the aim, clear of the
+    character there); the last if none is clear."""
+    eyes = view.get("eyes") or [view["eye"]]
+    aim = stage_point(view["aim"])
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    for eye in eyes:
+        towards = stage_point(eye) - aim
+        hit = scene.ray_cast(depsgraph, aim + towards.normalized() * 0.6, towards.normalized(),
+                             distance=towards.length - 0.6)[0]
+        if not hit:
+            return eye
+    return eyes[-1]
+
+
 def render(scene, path, transparent):
     scene.render.film_transparent = transparent
     scene.render.filepath = str(path)
@@ -267,6 +287,7 @@ def main():
     scene = empty_scene()
     objects = import_stage(stage)
     (out / "report.json").write_text(json.dumps(import_report(stage, objects), indent=1))
+    objects = [item for item in objects if not item.hide_render]  # what the stage makes invisible stays so
     renderer(scene, views["size"])
     black_sky(scene)
     sun(scene, "sun", SUN_STRENGTH, SUN_ELEVATION, SUN_HEADING)
@@ -281,6 +302,9 @@ def main():
     lamps(scene, views.get("lights", []))
     layers = {item.name: layer_of(item) for item in objects}
     for view in views["views"]:
+        scene.frame_set(int(view.get("frame", scene.frame_current)))
+        if "eyes" in view:
+            view = dict(view, eye=clear_eye(scene, view))
         camera(scene, view)
         plane.hide_render = False
         hidden = [item for item in objects if layers[item.name] in view.get("hide_layers", [])]

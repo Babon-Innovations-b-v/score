@@ -542,11 +542,14 @@ def ensure_edit(out):
 
 
 def write_root(place, out):
-    """The stage's own file: the edit layer over the base, metres, y up, the place as its default prim."""
+    """The stage's own file: the edit layer over the characters (when the place has them) over the base, metres, y up,
+    the place as its default prim."""
     path = out / f"{place}.usda"
     layer = Sdf.Layer.FindOrOpen(str(path)) or Sdf.Layer.CreateNew(str(path))
     layer.Clear()
     layer.subLayerPaths.append("./layers/edit.usda")
+    if (out / "layers/characters.usda").exists():  # the place's characters (tools/characters/cast.py)
+        layer.subLayerPaths.append("./layers/characters.usda")
     layer.subLayerPaths.append("./layers/base.usda")
     layer.defaultPrim = place
     layer.pseudoRoot.SetInfo("upAxis", UsdGeom.Tokens.y)
