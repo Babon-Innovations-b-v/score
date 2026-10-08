@@ -47,6 +47,9 @@ KINDS = {
     "closeups": SINGLE_CARD,
     "unlit": SINGLE_CARD,
     "pictures": SINGLE_CARD,
+    # A 20B picture model (Qwen-Image-Edit, pictures.MODELS): 58 GB of weights, held whole on an 80 GB card and
+    # moved on and off a 48 GB one part by part; one card of a two-card machine is used.
+    "pictures-20b": ("gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
     "moss-sound": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
 }
 # Kinds that take their offers in an order of their own. Pixal3D: the 80 GB cards first, which run ten takes at once
@@ -55,6 +58,8 @@ KINDS = {
 KIND_ORDER = {
     "pixal": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb", "gpu-24gb", "gpu-24gb-x2"),
     "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
+    # A 20B picture model is held whole only on 80 GB; a 48 GB card moves it on and off part by part, far slower.
+    "pictures-20b": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
 }
 # Classes a kind takes only after LATE_MINUTES with nothing else to be had: the cards without ray-tracing cores, for
 # the bakes.

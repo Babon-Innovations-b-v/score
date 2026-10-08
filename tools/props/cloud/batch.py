@@ -313,26 +313,28 @@ def boot(machine):
     return machine["host"]
 
 
-def claim(run, account, offers, number, kind=None):
-    """One machine that answers, for a job of `kind`; None when none does. The kind's late classes
-    (capacity.late_for) are taken only after capacity.LATE_MINUTES in which no other offer gave a machine, the
-    others asked again each minute meanwhile."""
+def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB):
+    """One machine that answers, for a job of `kind`, with a root disk of `disk_gb`; None when none does. The
+    kind's late classes (capacity.late_for) are taken only after capacity.LATE_MINUTES in which no other offer gave a
+    machine, the others asked again each minute meanwhile."""
     late = capacity.late_for(kind)
     first = [offer for offer in offers if offer.machine_class not in late]
     began = time.time()
-    machine = claim_from(run, account, first, number, kind)
+    machine = claim_from(run, account, first, number, kind, disk_gb)
     while machine is None and len(first) < len(offers) and time.time() - began < capacity.LATE_MINUTES * 60:
         say(f"no {', '.join(sorted({offer.machine_class for offer in first}))} machine yet; asking again in a minute "
             f"before taking {', '.join(late)}")
         time.sleep(60)
-        machine = claim_from(run, account, first, number, kind)
+        machine = claim_from(run, account, first, number, kind, disk_gb)
     if machine is None and len(first) < len(offers):
-        machine = claim_from(run, account, [offer for offer in offers if offer.machine_class in late], number, kind)
+        machine = claim_from(run, account, [offer for offer in offers if offer.machine_class in late], number, kind,
+                             disk_gb)
     return machine
 
 
-def claim_from(run, account, offers, number, kind):
-    """One machine that answers, from the first of `offers` that gives one; None when none does. An offer refused,
+def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
+    """One machine that answers, with a root disk of `disk_gb`, from the first of `offers` that gives one; None when
+    none does. An offer refused,
     out of stock or whose machine does not answer within START_MINUTES is left for the next, the machine deleted
     and its row kept on `run.attempts` for the ledger. The kind's order and the zone with fewest of the run's
     machines decide the next offer (capacity.next_offer), so machines claimed side by side spread over the zones."""
@@ -340,7 +342,7 @@ def claim_from(run, account, offers, number, kind):
     while remaining:
         offer = capacity.next_offer(remaining, run.machines, kind)
         remaining.remove(offer)
-        machine = rent(run, account, offer, number)
+        machine = rent(run, account, offer, number, disk_gb)
         if machine is None:
             continue
         run.machines.append(machine)
@@ -528,8 +530,9 @@ def queue(fleet, models):
         fleet.queueing = False
 
 
-def rent(fleet, account, offer, number):
-    """Rent one machine from `offer` with its watchdog; its record, or None when refused."""
+def rent(fleet, account, offer, number, disk_gb=DISK_GB):
+    """Rent one machine from `offer` with its watchdog and a root disk of `disk_gb`; its record, or None when
+    refused."""
     machine_type, zone = offer.type, offer.zone
     spent = month_spent(account)
     if spent >= ledger.MONTH_EUROS:
@@ -538,7 +541,7 @@ def rent(fleet, account, offer, number):
     name = f"{fleet.folder.name}-{number}"
     tags = [f"pid={os.getpid()}", f"host={socket.gethostname()}",
             f"deadline={fleet.deadline + WATCHDOG_GRACE_MINUTES * 60:.0f}"]
-    server_id, refused = cloud.create(account, offer, name, tags, DISK_GB)
+    server_id, refused = cloud.create(account, offer, name, tags, disk_gb)
     if server_id is None:
         why = refused.splitlines()[-1] if refused else "?"
         say(f"{machine_type} in {zone} refused: {why}")
