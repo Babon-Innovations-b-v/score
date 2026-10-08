@@ -48,8 +48,9 @@ def test_the_picture_batch_skips_rows_already_drawn():
     (out / "qwen").mkdir()
     Image.new("RGB", (8, 8)).save(out / "qwen/cabinet.png")
     assert stage.picture_jobs([row], out) == []
-    assert stage.judge_questions([row], out, "qwen")[0]["images"] == [str(out / "crops/cabinet.jpg"),
-                                                                     str(out / "qwen/cabinet.png")]
+    questions = stage.judge_questions([row], out, "qwen")
+    assert [question["name"] for question in questions] == [f"cabinet~{seed}" for seed in stage.check.SEEDS]
+    assert questions[0]["images"] == [str(out / "crops/cabinet.jpg"), str(out / "qwen/cabinet.png")]
 
 
 def test_a_batch_takes_a_card_for_every_sixty_close_ups():
@@ -58,24 +59,24 @@ def test_a_batch_takes_a_card_for_every_sixty_close_ups():
 
 def test_a_row_takes_the_first_picture_that_passed_and_records_its_cost():
     row, out = a_place()
-    for take in ("qwen", "pro", "pro-retake"):
+    for take in ("qwen", "pro", "pro-room"):
         (out / take).mkdir(parents=True)
         Image.new("RGB", (8, 8)).save(out / take / "cabinet.png")
     by_qwen = stage.accepted(row, out, {"qwen": []}, 0.12)
     assert by_qwen["accepted"] == "qwen-edit" and by_qwen["pro_dollars"] == 0 and by_qwen["euros"] == 0.12
-    by_retake = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"], "pro-retake": []}, 0.2)
-    assert by_retake["accepted"] == "nano-banana-pro" and by_retake["take"] == "pro-retake"
-    assert by_retake["pro_dollars"] == 2 * stage.pro.DOLLARS_A_PICTURE
+    by_room = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"], "pro-room": []}, 0.2)
+    assert by_room["accepted"] == "nano-banana-pro" and by_room["take"] == "pro-room"
+    assert by_room["pro_dollars"] == 2 * stage.pro.DOLLARS_A_PICTURE
     unresolved = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"],
-                                           "pro-retake": ["judge: fail"]}, 0.2)
+                                           "pro-room": ["judge: fail"]}, 0.2)
     assert unresolved["accepted"] is None and unresolved["picture"] is None
-    totals = stage.summary([by_qwen, by_retake, unresolved], {"qwen": {"euros": 1.0}, "judge-qwen": {"euros": 0.5}})
+    totals = stage.summary([by_qwen, by_room, unresolved], {"qwen": {"euros": 1.0}, "judge-qwen": {"euros": 0.5}})
     assert totals["by_qwen"] == 1 and totals["by_pro"] == 1 and totals["for_review"] == 1
     assert totals["pro_pictures"] == 4 and totals["cloud_euros_per_accepted"] == 0.75
 
 
-def test_pro_s_retake_leaves_the_room_out():
-    assert "Image 2" in stage.PRO_TAKES["pro"] and "Image 2" not in stage.PRO_TAKES["pro-retake"]
+def test_pro_s_first_take_leaves_the_room_out():
+    assert "Image 2" not in stage.PRO_TAKES["pro"] and "Image 2" in stage.PRO_TAKES["pro-room"]
     body = stage.pro.request_body("words", Image.new("RGB", (8, 8)))
     assert len(body["contents"][0]["parts"]) == 2
 

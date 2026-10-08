@@ -63,7 +63,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **Close-ups: Qwen-Image-Edit first, Nano Banana Pro for the failures** (owner, 2026-10-08): the close-up stage
   (`../closeup/stage.py`) draws every close-up with `pictures.py --model qwen-edit` (Qwen-Image-Edit-2511, 20B, an
   80 GB card, each card of a machine its own slice, about 58 s a picture), the shape check judges each with
-  `judge.py` (Qwen3.8-27B in FP8 through vLLM, one 48 or 80 GB card; vLLM's DeepGEMM and FlashInfer sampler are
+  `judge.py` (Qwen3.8-27B in FP8 through vLLM, three sampled answers a picture and the majority decides, an 80 GB card
+  first, a 48 GB one at a third of the pace; vLLM's DeepGEMM and FlashInfer sampler are
   off because the GPU image has no CUDA toolkit), and Pro draws only what fails. `--model klein` stays the
   default for other pictures.
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its

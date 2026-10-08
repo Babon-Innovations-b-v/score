@@ -78,6 +78,16 @@ def test_the_judge_passes_only_a_clean_yes():
     assert check.judged_faults(None) == ["the judge gave no answer"]
 
 
+def test_most_of_the_judge_s_answers_decide():
+    good = {"one_object": True, "clean": True, "whole": True, "same_object": True, "proportions": True,
+            "missing_parts": [], "added_parts": [], "shape_score": 8, "verdict": "pass"}
+    bad = dict(good, verdict="fail")
+    assert check.voted_faults([good, good, bad]) == []
+    assert check.voted_faults([good, bad, None]) == ["judge: fail", "judge: 1 of 3 answers passed"]
+    assert check.faults({"border_clean": 1.0, "fill": 0.7, "one_piece": 1.0, "proportion_error": 0.1},
+                        [good, bad, good]) == []
+
+
 def test_the_question_names_the_object_and_its_size():
     text = check.question("a steel cabinet", (1.2, 0.7, 1.0))
     assert "a steel cabinet" in text and "1.20 m wide, 0.70 m deep and 1.00 m tall" in text

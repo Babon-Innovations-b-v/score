@@ -62,6 +62,8 @@ KIND_ORDER = {
     "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
     # A 20B picture model is held whole only on 80 GB; a 48 GB card moves it on and off part by part, far slower.
     "pictures-20b": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
+    # The judge on an L40S answered at about a third of an H100's pace (102 questions in 45 min, 2026-10-08).
+    "judge": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
 }
 # Classes a kind takes only after LATE_MINUTES with nothing else to be had: the cards without ray-tracing cores, for
 # the bakes.
