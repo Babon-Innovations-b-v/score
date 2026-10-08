@@ -275,7 +275,8 @@
  ],
  "game_only": [
   "the tenements' roofs (parapets, tanks, stair huts, aerials)",
-  "the car, its driver and the guard",
+  "the car (its driver and the guard are in the scene as people)",
+  "the street lamps' glowing heads",
   "the lit windows' night glow",
   "the stars",
   "the ink outline pass"

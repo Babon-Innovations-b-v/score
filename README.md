@@ -184,7 +184,7 @@ and gameplay objects to the ground, water, backdrop, lights and sky) is exported
 <the game's checkout>`, and its page is drawn from the record's own cameras (the player's spots; a room from inside at
 standing height and from a cutaway above) by the stage's own lights. `--game-shots <folder>` lays each view beside the
 game's own shot from about the same place, with both pictures' mean brightness, and the page says what of the game's
-place the scene carries and what it does not ("complete vs game").
+place the scene carries, its people included, and what is still missing against the game's shots ("scene vs game").
 
 Open `index.html` in the out folder in a browser, or publish the folder as it is: it needs no server. A run folder is
 what `tools/props/library/place_route.py` works in; `tools/review/records.py` lists what is read from each folder.
