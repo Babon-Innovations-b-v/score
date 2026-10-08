@@ -141,6 +141,20 @@ def keep_beating(folder, host, stop):
             batch.say(f"{folder.name}: a heartbeat failed ({error.returncode}); trying again in a minute")
 
 
+def draw_on_card(folder, host, model, card, cards):
+    """Draw the `card`th of `cards` slices of the machine's share on that card; waits until it is done."""
+    with (folder / f"draw-{card}.log").open("w") as log:
+        batch.remote(folder, host, f"CUDA_VISIBLE_DEVICES={card} /root/venv/bin/python /root/pics/picture_worker.py "
+                     f"/root/pics/jobs.json {MODELS[model]['pipeline']} {MODELS[model]['whole_gb']} {card} {cards}",
+                     check=True, stdout=log, stderr=subprocess.STDOUT)
+
+
+def draw_on_cards(folder, host, model, cards):
+    """Draw the machine's share with one worker on each of its cards, side by side; waits for all of them."""
+    with concurrent.futures.ThreadPoolExecutor(cards) as workers:
+        list(workers.map(lambda card: draw_on_card(folder, host, model, card, cards), range(cards)))
+
+
 def draw_share(run, machine, share, model):
     """Run one machine from boot to delete: set it up, draw its share, bring the pictures back."""
     folder = machine["folder"]
@@ -151,10 +165,7 @@ def draw_share(run, machine, share, model):
         threading.Thread(target=keep_beating, args=(folder, host, stop), daemon=True).start()
         set_up(folder, host, share, model)
         batch.say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
-        with (folder / "draw.log").open("w") as log:
-            batch.remote(folder, host, "/root/venv/bin/python /root/pics/picture_worker.py /root/pics/jobs.json "
-                         f"{MODELS[model]['pipeline']} {MODELS[model]['whole_gb']}", check=True, stdout=log,
-                         stderr=subprocess.STDOUT)
+        draw_on_cards(folder, host, model, max(1, machine.get("cards") or 1))
         batch.copy(folder, [f"root@{host}:/root/pics/out/"], folder / "out")
         for made in (folder / "out").glob("*.png"):
             shutil.copy2(made, PICTURES / made.name)
@@ -167,7 +178,7 @@ def draw_share(run, machine, share, model):
 
 
 def record(run, machines, jobs, started, kind="pictures"):
-    """Write the run to the ledger and say what it made and cost."""
+    """Write the run to the ledger and say what it made and cost; the ledger entry."""
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
              "batch": run.folder.name, "kind": kind, **ledger.machines_record(machines, run.attempts, started),
              "pictures": len(jobs), "wall_minutes": (time.time() - started) / 60}
@@ -175,36 +186,31 @@ def record(run, machines, jobs, started, kind="pictures"):
     ledger.record(entry)
     batch.say(f"{sum(row.get('made', 0) for row in rows)} of {len(jobs)} pictures in "
               f"{entry['wall_minutes']:.0f} min on {len(rows)} machines, €{entry['euros']:.2f}")
+    return entry
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("list")
-    parser.add_argument("--cards", type=int, default=CARDS)
-    parser.add_argument("--model", choices=tuple(MODELS), default="klein", help="the picture model (MODELS)")
-    parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
-    options = parser.parse_args()
-    jobs = jobs_to_make(options.list, options.model)
+def draw_list(path, model="klein", cards=CARDS, dry_run=False):
+    """Draw the list's pictures not yet made with `model` on up to `cards` rented machines, into WORK/pictures; the
+    run's ledger entry, or None when nothing was rented."""
+    jobs = jobs_to_make(path, model)
     if not jobs:
-        raise SystemExit("every picture in the list is already made")
+        batch.say("every picture in the list is already made")
+        return None
     account = cloud.account()
     batch.sweep(account)
-    cards = min(options.cards, len(jobs))
-    found, allowed_minutes = price(jobs, cards, account, options.model)
-    if options.dry_run:
-        return
+    cards = min(cards, len(jobs))
+    found, allowed_minutes = price(jobs, cards, account, model)
+    if dry_run:
+        return None
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     started = time.time()
     folder = batch.BATCHES / time.strftime(f"pictures-%Y%m%d-%H%M%S-{os.getpid()}")
     folder.mkdir(parents=True)
     run = Run(folder, started + allowed_minutes * 60)
-    machines = []
     try:
-        machines = rent_machines(run, account, found, cards, MODELS[options.model]["kind"],
-                                 MODELS[options.model]["disk_gb"])
-        threads = [threading.Thread(target=draw_share,
-                                    args=(run, machine, jobs[index::len(machines)], options.model))
+        machines = rent_machines(run, account, found, cards, MODELS[model]["kind"], MODELS[model]["disk_gb"])
+        threads = [threading.Thread(target=draw_share, args=(run, machine, jobs[index::len(machines)], model))
                    for index, machine in enumerate(machines)]
         for thread in threads:
             thread.start()
@@ -213,7 +219,18 @@ def main():
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
-        record(run, run.machines, jobs, started, MODELS[options.model]["kind"])
+        entry = record(run, run.machines, jobs, started, MODELS[model]["kind"])
+    return entry
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("list")
+    parser.add_argument("--cards", type=int, default=CARDS, help="machines to rent at most")
+    parser.add_argument("--model", choices=tuple(MODELS), default="klein", help="the picture model (MODELS)")
+    parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
+    options = parser.parse_args()
+    draw_list(options.list, options.model, options.cards, options.dry_run)
 
 
 if __name__ == "__main__":

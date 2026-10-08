@@ -60,10 +60,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   and WSL crashed the same day: no bake runs on the PC. A whole hub slice (28 pieces), the swatch sheet and three
   habitat pieces took 7 minutes, €0.09. When no card is in stock, `--processor` takes a 32-core processor machine
   (Cycles on its cores, about three times slower; the classes are tried in turn as their stock moves).
-- **Close-ups stay on Nano Banana Pro until the owner decides** (2026-10-08, job openpics): `pictures.py --model`
-  draws a close-up's crop and wording with an open model on a card instead, `klein` (FLUX.2 klein 4B, the default,
-  an L4, about 9 s a picture) or `qwen-edit` (Qwen-Image-Edit-2511, 20B, an 80 GB card, about 60 s). On the lab's ten
-  close-ups klein drew 4 good and 4 usable, Qwen 4 good and 2 usable; both garble printed words.
+- **Close-ups: Qwen-Image-Edit first, Nano Banana Pro for the failures** (owner, 2026-10-08): the close-up stage
+  (`../closeup/stage.py`) draws every close-up with `pictures.py --model qwen-edit` (Qwen-Image-Edit-2511, 20B, an
+  80 GB card, each card of a machine its own slice, about 58 s a picture), the shape check judges each with
+  `judge.py` (Qwen3.8-27B in FP8 through vLLM, one 48 or 80 GB card; vLLM's DeepGEMM and FlashInfer sampler are
+  off because the GPU image has no CUDA toolkit), and Pro draws only what fails. `--model klein` stays the
+  default for other pictures.
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its
   non-commercial background remover patched out and never fetched; the parts only say where a model's part
   boundaries are (`../library/labels.py --parts`).
