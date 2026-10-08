@@ -48,10 +48,10 @@ SMALLEST_FACES = 5000
 WALL_SHARE = 150
 # Pieces that passed at make_chunky's own 5 mm and whose sheets would read as slabs thicker (a solar blanket on a mast).
 THIN_WALLED = ("solar_mast", "solar_mast_dead", "comms_mast")
-# The PLAIN kinds the code rows are built as, and how each lies: tilt 90 lays a piece's front up (a cable or a plate
-# on the ground).
+# The builders the code rows are built as, and how each lies: tilt 90 lays a piece's front up (a cable or a plate
+# on the ground). The camp grounds' mast and cable lengths are their own code builders, standing as built.
 CODE_KINDS = {"walkway_tube": ("pipe_straight", 0.0), "cable_run": ("cable_bundle", 90.0),
-              "apron": ("pit_floor_plate", 90.0)}
+              "apron": ("pit_floor_plate", 90.0), "mast": ("mast", 0.0), "ground_cable": ("ground_cable", 0.0)}
 # Generated pieces are baked over this many machines' jobs, largest first, round robin.
 CHUNKY_SETS = 2
 MEMORY_CAP = ["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=16G"]
@@ -189,10 +189,16 @@ def chunky_jobs(planned, made, work, wear, dirt, specs):
     return found
 
 
+def styled_as(place):
+    """The place whose style, wear and library surfaces a place's pieces take: its inventory's `place` (the camp
+    grounds are painted as the expedition camp), else its own name."""
+    return json.loads((INVENTORIES / f"{place}.json").read_text()).get("place") or place
+
+
 def jobs(planned, work, place):
     """The cloud bake jobs, each written to <work>/job-<name>.json."""
-    wear, dirt = library.wear_of(place)
-    specs = library.by_library(place)
+    wear, dirt = library.wear_of(styled_as(place))
+    specs = library.by_library(styled_as(place))
     made = work / "made"
     found = code_jobs(planned, made, place, wear, dirt, specs)
     found.update(chunky_jobs(planned, made, work, wear, dirt, specs))
