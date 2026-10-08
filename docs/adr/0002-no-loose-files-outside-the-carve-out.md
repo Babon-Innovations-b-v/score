@@ -40,6 +40,8 @@ breaks the tool. It is not for files that are merely conventional.
 - `LICENSE`
 - `docs/bible.md`
 
+Amended 2026-10-08: `vendor/` is exempt wholesale, as in the game 2099 (its ADR-0002, the owner's call there): it holds third-party code kept exactly as released, each tool pinned to one upstream commit with its own licence, and reshaping it would break the upgrade path. It came with the framework's move from 2099 (JoeyKardolus/2099#129): `image-to-3dlab` (Apache-2.0), `infinigen` and `infinigen2` (BSD-3-Clause, with Blender-derived GPL files that run only inside Blender on a rented machine, never linked into this repo's code), `procfunc` (BSD-3-Clause). Our own code never goes in `vendor/`.
+
 The list is append-only by ADR amendment: a new entry is an edit to this file and to root
 `CLAUDE.md`, which keeps its own copy so a session reads the rule without opening the ADR. The two
 copies are checked against each other by `python3 docs/adr/tools/check_index.py`, so they cannot

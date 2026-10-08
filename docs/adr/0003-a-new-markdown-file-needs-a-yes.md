@@ -24,6 +24,8 @@ end: nobody can hold the set in their head, so nobody consults it.
 that loads a directory's rules, so a new code directory without one is a gap rather than a
 document, and asking about each one is friction with nobody on the other end.
 
+Amended 2026-10-08: `vendor/` is exempt too: third-party code comes with its own docs, kept as released (ADR-0002's amendment of the same day).
+
 `.claude/hooks/md_guard.py` blocks the creation routes (the `Write` tool, a shell redirect, `tee`,
 `touch`, and `cp` with a markdown destination). A rename is not a creation and stays allowed. The
 guard fails open on anything it cannot parse: it must never wedge a legitimate call.
