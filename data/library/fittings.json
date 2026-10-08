@@ -2751,7 +2751,7 @@
 			"built": {
 				"bracket": 0.945,
 				"end": 0.898,
-				"rail": 0.426
+				"rail": 0.37
 			},
 			"prints_off": []
 		},
@@ -2784,7 +2784,7 @@
 			"built": {
 				"base": 0.606,
 				"cage": 0.883,
-				"globe": 0.981
+				"globe": 0.943
 			},
 			"prints_off": []
 		},

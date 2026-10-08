@@ -365,7 +365,8 @@ def conduits(room, west, east, far):
         found.append(piece(room, "pipe_straight", (face, level + 2.75, (FRONT_DOOR_Z + far) / 2), EAST,
                            (FRONT_DOOR_Z - far - 0.3, CONDUIT, CONDUIT), up=UP, near=True))
     lane_wall = (STAIR_LANE_A[1], STAIR_LANE_B[0])
-    run_far, run_door = far + LANDING_DEPTH, FRONT_DOOR_Z + 0.4
+    # The middle wall's own length, between the landings (a run past it hung over the door end's landing).
+    run_far, run_door = far + LANDING_DEPTH, STAIRWELL_GROUND[1] + STAIRWELL_GROUND[3] - LANDING_DEPTH
     # Along lane B's face of the middle wall under each ceiling (lane A's face and the west wall carry the flights'
     # rails, which a run would cross).
     for level in (0.0, 3.0, 6.0, 9.0):
