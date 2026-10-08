@@ -3,17 +3,17 @@
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Room checks}, about two seconds a room on the laid-out meshes: rays leaving through walls and roof (leak), pieces in front of a real opening, roof and wall gear more than 3 cm off its surface or turned more than 5 degrees from it, and the piece, triangle and lamp budget.
+  \textbf{Room checks} take about two seconds per room and run on the laid-out meshes. They cast rays to find light leaking out through walls and roof, find pieces placed in front of a real opening, find roof and wall fittings more than 3 cm off their surface or turned more than 5 degrees from it, and count pieces, triangles and lamps against the room's budget.
 \item
-  \textbf{Door check:} every door stands in a wall or partition that fully separates its two sides, read as a walk on a grid.
+  \textbf{Door check:} every door must stand in a wall or partition that fully separates its two sides. The check tests this by walking a grid from one side to the other.
 \item
-  \textbf{Concept-density check:} the concept is cut into crops; every visible element has an inventory row or a written reason; after the build the place is shot from the concept's camera beside the concept.
+  \textbf{Concept-density check:} the concept picture is cut into crops, and every visible element must have an inventory row or a written reason for leaving it out. After the build, the place is rendered from the concept's camera and shown beside the concept.
 \item
-  \textbf{Parts check:} each close-up part at least 10 percent visible from in front in the code build, and no label over a part.
+  \textbf{Parts check:} in the code build, every part shown in the close-up picture must be at least 10 percent visible from the front, and no label may cover a part.
 \item
-  \textbf{Model check:} closed solids with walls of at least 3 mm; a generated box fails when a side tilts more than 2 degrees or warps; a solid step that grows its box more than 3 percent past the model stops itself.
+  \textbf{Model check:} every model must be a closed solid with walls at least 3 mm thick. A generated box fails if one of its sides tilts more than 2 degrees or is warped. The step that makes a generated model solid stops itself if the model's bounding box grows more than 3 percent.
 \item
-  \textbf{Palette sweep and storage budget:} every model's colours against the place's library palette; 250 MB on disk and 640 MB of textures on the GPU per room.
+  \textbf{Palette sweep and storage budget:} the colours of every model are compared with the place's library palette, and each room may use at most 250 MB on disk and 640 MB of textures on the graphics card.
 \item
-  \textbf{Scene and made-only checks} in the engine: what floats, sinks or overlaps, and any visible mesh the route did not make, which can never be waived.
+  \textbf{Scene check and made-only check:} in the engine, these checks find anything that floats, sinks or overlaps, and any visible mesh that the route did not make. A made-only finding can never be waived.
 \end{itemize}

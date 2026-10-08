@@ -1,6 +1,6 @@
 \section{Models and licences}\label{models-and-licences}
 
-Every model must allow commercial use of its output (Table E1); candidates were dropped on this rule, among them NVIDIA's Lyra 2.0 (weights for internal research only) and Hunyuan3D 2.1 (its licence does not apply in the European Union). Licences were read for their commercial-use clauses. Four of these models read pictures through Meta's DINO family, each through its own copy; what passes between them is pictures, masks, depths and meshes, never one model's inner features.
+Every model in the route must allow commercial use of its output (Table E1). Candidate models were dropped under this rule; among them were NVIDIA's Lyra 2.0, whose weights are licensed for internal research only, and Hunyuan3D 2.1, whose licence does not apply in the European Union. We read each licence for its clauses on commercial use. Four of the models read pictures through Meta's DINO family of models, each through its own copy. What passes from one model to the next is always pictures, masks, depth maps or meshes, never one model's internal features.
 
 \textbf{Table E1.} Models in the route.
 
@@ -34,4 +34,4 @@ Kimodo \citep{rempe2026kimodo}, SAM 3D Body \citep{yang2026sam3dbody} & motion f
 \end{longtable}
 }
 
-Picture-to-3D, parts, surface bakes, sound, checks and assembly are automatic. Coding agents (Claude Code \citep{claudecode}) write the plans, inventories and every code builder; in the hub's final round 86 of its 98 models were code. Hand steps remained: some generated objects turned to face the right way by eye, a few labels placed by hand before a rule replaced that. Concepts and verdicts are the creator's picks.
+The picture-to-3D step, the part splitting, the surface bakes, the sound generation, all checks and the assembly run automatically. Coding agents (Claude Code \citep{claudecode}) write the plans, the inventories and every code builder; in the hub's final round, 86 of its 98 models were built in code. Some steps were still done by hand: some generated objects were turned to face the right way by eye, and a few labels were placed by hand before a rule took over that job. The concepts and the verdicts are the creator's own choices.
