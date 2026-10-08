@@ -419,8 +419,7 @@ def laid_object(stage, path, piece, row, asset, sound, ground=None):
         xform.AddTransformOp().Set(Gf.Matrix4d(np.asarray(piece["matrix"]).T.tolist()))
     else:
         stand_on(xform, piece["at"], ground)
-        xform.AddRotateYOp().Set(-float(piece.get("facing", 0.0)))
-        xform.AddRotateXOp().Set(float(piece.get("tilt", 0.0)))
+        turn_in_seat(xform, piece)
         xform.AddScaleOp().Set(Gf.Vec3f(float(piece.get("scale", 1.0))))
     values = {"score:kind": piece["kind"], "score:row": piece["row"], "score:model": piece["model"],
               "score:name": row.get("name", ""), "score:anchor": row.get("anchor", "")}
@@ -431,8 +430,23 @@ def laid_object(stage, path, piece, row, asset, sound, ground=None):
     for name, value in values.items():
         xform.GetPrim().CreateAttribute(name, Sdf.ValueTypeNames.String).Set(value)
     xform.GetPrim().CreateAttribute("score:size", Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(*piece["size"]))
+    xform.GetPrim().CreateAttribute("score:fixed", Sdf.ValueTypeNames.Bool).Set(bool(row.get("fixed", False)))
+    if piece.get("unrested"):  # tools/usd/settle.py: physics would re-pose it to rest
+        xform.GetPrim().CreateAttribute("score:unrested", Sdf.ValueTypeNames.String).Set(piece["unrested"])
     if "at" in piece:
         xform.GetPrim().CreateAttribute("score:lift", Sdf.ValueTypeNames.Float).Set(float(piece["at"][1]))
+
+
+def turn_in_seat(xform, piece):
+    """A piece's turn on its own seat: its `rotation` (a unit quaternion [x, y, z, w], x across, y up, z along, as
+    tools/usd/settle.py writes it) when it has one, else turned about up by `facing` and tipped about its own across
+    by `tilt`, as the game lays it."""
+    if "rotation" in piece:
+        x, y, z, w = (float(value) for value in piece["rotation"])
+        xform.AddOrientOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
+        return
+    xform.AddRotateYOp().Set(-float(piece.get("facing", 0.0)))
+    xform.AddRotateXOp().Set(float(piece.get("tilt", 0.0)))
 
 
 def stand_on(xform, at, ground):

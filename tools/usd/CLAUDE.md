@@ -27,7 +27,16 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   transform where the parent's composite (`data/library/composites.json`) puts it, so moving the parent moves it.
 - **Parts by the run's records.** `--work` reads the take `plan-route.json` names; `--parts` takes each model's newest
   take of any name (`-r1`, `-s1`). Never guess a take name.
-- `resting.py` is the scene check (floating, tipping, sunk; hung rows exempt by their inventory `anchor`); its
-  `--settle` is the ground snap, writing the settled lifts into the layout (inventory and kit), never into a stage.
+- `resting.py` is the scene check (floating, tipping, sunk below its contact points; hung rows exempt by their
+  inventory `anchor`, fixed rows not judged for tipping). Never put a fault right by lowering a piece: settle it.
+- `settle.py` is the physics settle: loose rows dropped in headless Blender (`../blender/inside/settle_stage.py`) on
+  the stage's ground with their own triangles (cut down), `"fixed": true` rows static, and the rest pose written into the layout
+  (inventory spot and kit piece: `x`, `z`, the lift `y` and a `rotation` quaternion [x, y, z, w] in the piece's own
+  seat frame, which replaces `facing` and `tilt`). Settling only corrects: a piece that would turn more than 15° or
+  drift more than 30 cm keeps its laid pose and is marked `unrested` (the check fails it as "would not rest as laid"),
+  because the concept's composition is the owner's; put its layout right instead. Loose pieces collide with the
+  ground and the static pieces only (convex hulls over hollows rested on debris). `--cloud` runs it on a rented
+  machine. `ground.py level <place>` levels a place's yard in the plan.
 - `export_test.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
-  test itself; `resting_test.py` checks the resting check and the planned ground the same way.
+  test itself; `resting_test.py` the resting check and the planned ground; `settle_test.py` the settle's write-back
+  (a pose round-trips through the layout and the export) and the levelled yard, without Blender.

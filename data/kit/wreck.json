@@ -17,10 +17,11 @@
 			],
 			"at": [
 				0.0,
-				-0.96,
+				-0.3,
 				-7.35
 			],
-			"facing": 90.0
+			"facing": 90.0,
+			"unrested": "turns 90 degrees and drifts 472 cm to rest"
 		},
 		{
 			"prop": "wreck_forward_section",
@@ -34,10 +35,11 @@
 			],
 			"at": [
 				0.9,
-				-0.42,
+				-0.25,
 				1.9
 			],
-			"facing": 115.0
+			"facing": 115.0,
+			"unrested": "turns 81 degrees and drifts 333 cm to rest"
 		},
 		{
 			"prop": "wreck_work_lamp",
@@ -50,11 +52,17 @@
 				0.286
 			],
 			"at": [
-				0.4,
-				0.0,
-				-1.5
+				0.3999,
+				0.0063,
+				-1.5014
 			],
-			"facing": 60.0
+			"facing": 60.66,
+			"rotation": [
+				-0.032172,
+				-0.504785,
+				-0.013761,
+				0.862536
+			]
 		},
 		{
 			"prop": "wreck_hull_panel",
@@ -67,12 +75,18 @@
 				1.369
 			],
 			"at": [
-				-6.0,
-				0.0,
-				2.0
+				-5.9985,
+				0.0115,
+				1.9988
 			],
-			"facing": 30.0,
-			"scale": 1.0
+			"facing": 29.43,
+			"scale": 1.0,
+			"rotation": [
+				0.042409,
+				-0.254593,
+				-0.013768,
+				0.96602
+			]
 		},
 		{
 			"prop": "wreck_hull_panel",
@@ -85,12 +99,18 @@
 				1.369
 			],
 			"at": [
-				5.5,
-				0.0,
-				6.0
+				5.4993,
+				0.0108,
+				5.9994
 			],
-			"facing": 200.0,
-			"scale": 0.86
+			"facing": 199.81,
+			"scale": 0.86,
+			"rotation": [
+				-0.002247,
+				0.983601,
+				-0.053147,
+				0.172333
+			]
 		},
 		{
 			"prop": "wreck_hull_panel",
@@ -104,11 +124,17 @@
 			],
 			"at": [
 				6.5,
-				0.0,
+				0.0104,
 				-0.5
 			],
-			"facing": 110.0,
-			"scale": 0.72
+			"facing": 108.48,
+			"scale": 0.72,
+			"rotation": [
+				-0.018602,
+				0.811161,
+				-0.023298,
+				-0.584062
+			]
 		},
 		{
 			"prop": "wreck_small_panel",
@@ -122,11 +148,12 @@
 			],
 			"at": [
 				4.0,
-				-0.01,
+				0.0,
 				-9.5
 			],
 			"facing": 75.0,
-			"scale": 1.0
+			"scale": 1.0,
+			"unrested": "turns 40 degrees and drifts 15 cm to rest"
 		},
 		{
 			"prop": "wreck_small_panel",
@@ -144,7 +171,8 @@
 				-2.0
 			],
 			"facing": 300.0,
-			"scale": 0.85
+			"scale": 0.85,
+			"unrested": "turns 29 degrees and drifts 9 cm to rest"
 		},
 		{
 			"prop": "wreck_pressure_sphere",
@@ -161,7 +189,8 @@
 				-0.1,
 				5.5
 			],
-			"facing": 0.0
+			"facing": 0.0,
+			"unrested": "turns 61 degrees and drifts 190 cm to rest"
 		},
 		{
 			"prop": "wreck_pressure_sphere",
@@ -178,7 +207,8 @@
 				-0.1,
 				7.0
 			],
-			"facing": 140.0
+			"facing": 140.0,
+			"unrested": "turns 104 degrees and drifts 400 cm to rest"
 		},
 		{
 			"prop": "wreck_foil_blanket",
@@ -191,11 +221,17 @@
 				1.025
 			],
 			"at": [
-				-5.0,
-				0.0,
-				-4.5
+				-5.0003,
+				0.0013,
+				-4.4971
 			],
-			"facing": 20.0
+			"facing": 18.89,
+			"rotation": [
+				0.007685,
+				-0.164133,
+				-0.016757,
+				0.986266
+			]
 		},
 		{
 			"prop": "wreck_access_cover",
@@ -208,11 +244,17 @@
 				0.9
 			],
 			"at": [
-				-4.5,
-				0.0,
-				8.5
+				-4.5001,
+				0.0108,
+				8.4989
 			],
-			"facing": 0.0
+			"facing": 0.13,
+			"rotation": [
+				-0.017367,
+				-0.001031,
+				-0.005809,
+				0.999832
+			]
 		},
 		{
 			"prop": "wreck_leg_strut",
@@ -226,10 +268,11 @@
 			],
 			"at": [
 				-7.0,
-				-0.03,
+				0.0,
 				-7.9
 			],
-			"facing": 65.0
+			"facing": 65.0,
+			"unrested": "turns 18 degrees and drifts 9 cm to rest"
 		},
 		{
 			"prop": "wreck_leg_foot",
@@ -242,11 +285,17 @@
 				1.224
 			],
 			"at": [
-				-5.5,
-				-0.15,
-				-9.7
+				-5.4865,
+				-0.1085,
+				-9.7198
 			],
-			"facing": 140.0
+			"facing": 140.71,
+			"rotation": [
+				-0.060682,
+				0.938652,
+				0.043893,
+				-0.336636
+			]
 		},
 		{
 			"prop": "wreck_ring_frame",
@@ -259,11 +308,17 @@
 				0.238
 			],
 			"at": [
-				2.0,
-				0.0,
-				9.0
+				2.0133,
+				0.0053,
+				9.0042
 			],
-			"facing": 10.0
+			"facing": 12.12,
+			"rotation": [
+				0.012017,
+				-0.105656,
+				-0.009326,
+				0.994286
+			]
 		},
 		{
 			"prop": "wreck_tank_dome",
@@ -276,11 +331,17 @@
 				1.4
 			],
 			"at": [
-				6.0,
-				-0.05,
-				8.8
+				6.0025,
+				0.0106,
+				8.7945
 			],
-			"facing": 0.0
+			"facing": 2.77,
+			"rotation": [
+				-0.002705,
+				-0.023673,
+				-0.082836,
+				0.996278
+			]
 		},
 		{
 			"prop": "wreck_fragment",
@@ -293,12 +354,18 @@
 				0.284
 			],
 			"at": [
-				5.0,
-				0.0,
-				3.0
+				4.9993,
+				0.0069,
+				2.9993
 			],
-			"facing": 10.0,
-			"scale": 1.0
+			"facing": 9.98,
+			"scale": 1.0,
+			"rotation": [
+				-0.002099,
+				-0.086935,
+				-0.009789,
+				0.996164
+			]
 		},
 		{
 			"prop": "wreck_fragment",
@@ -312,11 +379,17 @@
 			],
 			"at": [
 				-6.0,
-				0.0,
-				8.8
+				0.0068,
+				8.7997
 			],
-			"facing": 130.0,
-			"scale": 1.2
+			"facing": 129.91,
+			"scale": 1.2,
+			"rotation": [
+				-0.000531,
+				0.905954,
+				-0.006757,
+				-0.423321
+			]
 		},
 		{
 			"prop": "wreck_fragment",
@@ -329,12 +402,18 @@
 				0.284
 			],
 			"at": [
-				9.0,
-				0.0,
-				-3.5
+				9.0039,
+				0.007,
+				-3.5027
 			],
-			"facing": 250.0,
-			"scale": 1.0
+			"facing": 250.69,
+			"scale": 1.0,
+			"rotation": [
+				0.009642,
+				0.815132,
+				-0.028988,
+				0.578469
+			]
 		},
 		{
 			"prop": "wreck_cable_run_2p6",

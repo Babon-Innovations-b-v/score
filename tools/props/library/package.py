@@ -80,6 +80,9 @@ def instance(planned, piece):
     facing, tilt, scale = float(spot.get("facing", 0.0)), float(entry.get("tilt", 0.0)), float(spot.get("scale", 1.0))
     matrix = np.eye(4)
     matrix[:3, :3] = turned(facing, tilt, scale)
+    if "rotation" in spot:  # a settled piece's turn on its own seat, a quaternion [x, y, z, w] (tools/usd/settle.py)
+        from scipy.spatial.transform import Rotation
+        matrix[:3, :3] = Rotation.from_quat(spot["rotation"]).as_matrix() * scale
     matrix[:3, 3] = standing_at(entry, spot)
     return {"object": piece["model"], "row": piece["row"], "at": [round(float(value), 4) for value in matrix[:3, 3]],
             "facing": facing, "tilt": tilt, "scale": scale,

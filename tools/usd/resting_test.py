@@ -1,6 +1,6 @@
 """Check the resting check, and the ground objects are stood on, on places made here: a box on the ground rests, one
-lifted floats, one pushed into the ground deeper than laid is sunk, a plank held up at one end tips and says how far
-it settles, a hung object is not checked, and a box laid on a sloping planned ground stands on it.
+lifted floats, one laid into the ground is sunk however its layout lifted it, a plank held up at one end tips, a hung
+object is not checked, and a box laid on a sloping planned ground stands on it.
 
 Run: .venv/bin/python tools/usd/resting_test.py   (make tests runs it with the framework's environment)
 """
@@ -12,7 +12,7 @@ import tempfile
 import numpy as np
 import trimesh
 from PIL import Image
-from pxr import Gf, Usd
+from pxr import Usd
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -62,12 +62,8 @@ def floating_sunk_and_hung_are_told_apart():
         path = laid_place(folder, [("crate", "box", (0, 0, 0)), ("crate", "box", (3, 0.2, 0)),
                                    ("crate", "box", (6, -0.2, 0)), ("lamp", "box", (9, 1.5, 0))],
                           [("crate", "floor"), ("lamp", "wall")])
-        stage = Usd.Stage.Open(str(path))
-        stage.SetEditTarget(Usd.EditTarget(stage.GetLayerStack()[2]))
-        stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_1").GetAttribute("xformOp:translate").Set(Gf.Vec3d(0, -0.2, 0))
-        stage.GetLayerStack()[2].Save()
         found = results(path)
-        expected = {"crate_1": "sunk", "crate_2": "floats", "crate_3": "rests", "lamp_1": "hung"}
+        expected = {"crate_1": "rests", "crate_2": "floats", "crate_3": "sunk", "lamp_1": "hung"}
         return [f"{name} reads '{found[name]['result']}', not '{word}...'" for name, word in expected.items()
                 if not found[name]["result"].startswith(word)]
 
@@ -79,8 +75,8 @@ def a_plank_held_at_one_end_tips():
         found = results(laid_place(folder, [("plank", "plank", (0, 0, 0))], [("plank", "floor")]))["plank_1"]
         if not found["result"].startswith("tips"):
             return [f"the plank on one leg reads '{found['result']}'"]
-        if not 0.38 <= found["settles"] <= 0.45:
-            return [f"the plank settles {found['settles']} m lower, not the 0.42 m to its plank's underside"]
+        if not 0.8 <= found["outside"] <= 1.0:
+            return [f"the plank's weight is {found['outside']} m outside its leg, not about 0.9 m"]
         return []
 
 

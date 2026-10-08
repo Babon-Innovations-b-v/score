@@ -47,7 +47,19 @@ ROOF_LAYER = 2
 LAMP_WATTS = 60.0
 
 
-def blender(script, *arguments):
+# Where the Blender work runs: None for this PC's Blender (one at a time, the machine's lock), else the capability
+# classes of a rented machine (tools/props/cloud/blender_cloud.py), set by page.py --cloud.
+CLOUD = None
+CLOUD_CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb")
+
+
+def blender(script, *arguments, inputs=(), outputs=()):
+    """Run a Blender script here, or on a rented card when CLOUD is set (its inputs sent, its outputs brought back)."""
+    if CLOUD:
+        sys.path.insert(0, str(REPO / "tools/props/cloud"))
+        import blender_cloud
+        blender_cloud.run_elsewhere(script, arguments, inputs, outputs, CLOUD, "review page", minutes=20)
+        return
     command = [sys.executable, str(SESSION), "batch", str(script), "--", *map(str, arguments)]
     if subprocess.run(command, stdout=subprocess.DEVNULL).returncode != 0:
         raise RuntimeError(f"the Blender batch {script.name} failed; run it by hand to see its output: {command}")
@@ -83,7 +95,10 @@ def model_shots(names, runs, colours, out):
         return {}
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "shots.json").write_text(json.dumps({"size": list(MODEL_SIZE), "groups": groups}, indent=1))
-    blender(MODEL_SHOTS, folder / "shots.json", folder)
+    sources = {pathlib.Path(entry["path"]).parent for group in groups for member in group["members"]
+               for entry in member["files"]}
+    blender(MODEL_SHOTS, folder / "shots.json", folder, inputs=[folder / "shots.json", *sorted(sources)],
+            outputs=[folder])
     return json.loads((folder / "shots-report.json").read_text())
 
 
@@ -219,7 +234,8 @@ def render_stage(stage, views, size, folder, plain=False, lights=()):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views, "plain": plain,
                                                    "lights": list(lights)}, indent=1))
-    blender(SCENE_VIEWS, stage, folder / "views.json", folder)
+    blender(SCENE_VIEWS, stage, folder / "views.json", folder,
+            inputs=[pathlib.Path(stage).parent, folder / "views.json"], outputs=[folder])
 
 
 def walk_video(folder, out):
