@@ -15,7 +15,7 @@
 		"hangar_hatch_window": 2,
 		"hangar_roof_face_panel": 64,
 		"hangar_wall_corner_post": 12,
-		"hangar_lattice_ring_rib": 3,
+		"hangar_lattice_ring_rib": 4,
 		"hangar_wall_cage_lamp": 14,
 		"hangar_door_control_box": 3,
 		"hangar_pipe_straight": 11,
@@ -46016,8 +46016,38 @@
 			"kind": "hangar_lattice_ring_rib",
 			"at": [
 				0.0,
-				10.04,
-				-18.0
+				10.1,
+				-18.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				25.18,
+				0.32,
+				0.48
+			],
+			"layer": 2,
+			"model": "lattice_ring_rib_2"
+		},
+		{
+			"kind": "hangar_lattice_ring_rib",
+			"at": [
+				0.0,
+				10.1,
+				-17.4
 			],
 			"x": [
 				1.0,
@@ -48702,14 +48732,14 @@
 		{
 			"kind": "hangar_crane_trolley",
 			"at": [
-				3.9995,
-				8.7974,
-				-18.0
+				4.0,
+				9.7174,
+				-18.0005
 			],
 			"x": [
-				1.0,
+				0.0,
 				-0.0,
-				0.0
+				1.0
 			],
 			"y": [
 				0.0,
@@ -48717,9 +48747,9 @@
 				0.0
 			],
 			"z": [
+				-1.0,
 				-0.0,
-				-0.0,
-				1.0
+				0.0
 			],
 			"size": [
 				1.399,
