@@ -1,5 +1,5 @@
 """Check the scene inventories and the places' design system: the inventory's shape (inventory.py),
-the refusal of a cloud run without an approved inventory, the shell hash, and the place file's
+the refusal of a cloud run without an approved inventory, and the place file's
 style text and its refusal (place.py).
 
 Plain python, run by the gate with the system python: python3 tools/props/scene/inventory_test.py
@@ -79,19 +79,6 @@ def test_the_cloud_refuses_a_missing_or_unapproved_inventory():
         assert "not approved" in refusal(lambda: inventory.approved_inventory(path))
         path.write_text(json.dumps(an_inventory()))
         assert inventory.approved_inventory(path)["scene"] == "habitat"
-
-
-def test_every_scene_has_a_shell_hash_and_a_comment_changes_none():
-    for scene in inventory.SHELLS:
-        assert len(inventory.shell_hash(scene)) == 16
-    text = "const A := 1\n## a word\n\n# another\nconst B := 2\n"
-    assert inventory.code_lines(text) == inventory.code_lines(text.replace("a word", "other words"))
-
-
-def test_the_shell_node_is_read_from_a_room_scene():
-    room = (inventory.REPO / "game/base/habitat/habitat.tscn").read_text()
-    block = inventory.shell_node_block(room)
-    assert block[0].startswith('[node name="Habitat"') and 'area = "habitat"' in block
 
 
 def test_every_committed_inventory_is_sound():

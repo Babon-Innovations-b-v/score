@@ -35,3 +35,4 @@ tmp/
 
 # Claude's memory: private working notes, never pushed (this repository is public)
 .claude/memory/
+.venv/

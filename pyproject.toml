@@ -1,0 +1,29 @@
+[project]
+name = "score"
+version = "0.1.0"
+description = "SCORE: a framework that compiles a creator's picks into a complete, owned, editable world."
+license = "MIT"
+requires-python = ">=3.11,<3.13"
+# The plain-Python side that runs on the coordinating machine: plans, labels, checks, the scene package. Models,
+# bakes and renders run on rented cloud machines with their own setup scripts (tools/props/cloud/*_setup.sh).
+dependencies = [
+    "numpy>=2.4",
+    "scipy>=1.17",
+    "trimesh>=5.1",
+    "pillow>=12.3",
+    "rtree>=1.4",
+    "embreex>=4.4",
+    "xatlas>=0.0.11",
+    "networkx>=3.6",
+    "scikit-image>=0.26",
+    "fast-simplification>=0.2",
+    "matplotlib>=3.11",
+    "fonttools>=4.65",
+    "requests>=2.34",
+]
+
+[dependency-groups]
+dev = ["pytest>=9"]
+
+[tool.uv]
+package = false

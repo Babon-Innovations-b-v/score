@@ -32,7 +32,7 @@ from PIL import Image  # noqa: E402
 from card import claimed  # noqa: E402
 from local_models import refuse_here  # noqa: E402
 from cutsize import size_of  # noqa: E402
-from target import folder  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 WEIGHTS = os.environ.get("SAM3_WEIGHTS", "facebook/sam3")
 # How sure SAM 3 must be of an instance, and of each pixel in it.

@@ -19,7 +19,7 @@ import numpy as np  # noqa: E402
 
 import glb_file  # noqa: E402
 from pixal import OUT  # noqa: E402
-from target import folder  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 # Where the picture's camera stands in a finished (not yet stood up) model's frame: -z. Measured
 # 2026-10-02 by laying each model's outline seen from each side over its picture: from -z the

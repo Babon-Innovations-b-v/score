@@ -21,7 +21,7 @@ from PIL import Image  # noqa: E402
 
 import picture  # noqa: E402
 from card import claimed  # noqa: E402
-from paths import WORK  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 # Wide and large, both sides a multiple of 16. At 1344 x 768 most objects were cut out too small
 # to build from (cutsize.py); 2048 x 1152 still draws one sensible room, in 22 s and 8.4 GB on
@@ -38,13 +38,6 @@ SHOTS = {
                 "natural 35 mm lens, the ground in front and the black sky above, sharp focus "
                 "everywhere, no text overlay"),
 }
-
-
-def folder(scene):
-    """Where everything made for one scene lands."""
-    path = WORK / "scene" / scene
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 def wording(sentence, shot):

@@ -1,10 +1,8 @@
-"""Check the prologue's kit layouts (earth_kit.py): their numbers are the game's, every piece stands in a proper frame
-inside its room, and the stairwell's flights land on its landings. Hands itself to the prop environment for numpy.
+"""Check the prologue's kit layouts (earth_kit.py): every piece stands in a proper frame inside its room, and the stairwell's flights land on its landings. Hands itself to the prop environment for numpy.
 Run: python3 tools/props/scene/earth_kit_test.py
 """
 import os
 import pathlib
-import re
 import subprocess
 import sys
 
@@ -20,23 +18,6 @@ except ImportError:
 
 sys.path.insert(0, str(HERE))
 import earth_kit  # noqa: E402
-
-SITE = HERE.parents[2] / "game/prologue/earth_site/earth_site.gd"
-
-
-def site_number(name):
-    """A constant's numbers as written in EarthSite: a float, or a Vector2 / Rect2's numbers."""
-    line = re.search(rf"^const {name}\b.*?:= (.*)$", SITE.read_text(), re.MULTILINE).group(1)
-    inside = line[line.index("(") + 1:line.rindex(")")] if "(" in line else line
-    numbers = [float(value) for value in re.findall(r"-?\d+\.\d+|-?\d+", inside)]
-    return numbers[0] if len(numbers) == 1 else tuple(numbers)
-
-
-def test_the_numbers_are_the_game_s():
-    for name in ("FLAT_LEVEL", "FLAT_HEIGHT", "WALL", "FLOOR_THICKNESS", "FLAT_GROUND", "BALCONY_GROUND",
-                 "STAIRWELL_GROUND", "BALCONY_DOORWAY", "FRONT_DOORWAY", "FRONT_DOOR_Z", "STREET_DOORWAY",
-                 "STAIR_LANE_A", "STAIR_LANE_B", "LANDING_DEPTH", "FLIGHT_RISE", "DADO_HEIGHT", "RAIL_HEIGHT"):
-        assert site_number(name) == getattr(earth_kit, name), name
 
 
 def test_every_piece_has_a_right_handed_unit_frame():

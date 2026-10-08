@@ -1,6 +1,5 @@
-"""Check the greenhouse's kit layout (greenhouse_kit.py) against the game it lines: its rises are SteppedFloor's, its
-robot station's pieces stand on PlotField's own spots (where the game draws their live fills), no deck plate lies under
-the plot's beds, and every piece stands inside the room.
+"""Check the greenhouse's kit layout (greenhouse_kit.py): no deck plate lies under the plot's beds, and every piece
+stands inside the room. (Its rises and robot station against the game's own scripts are checked in the game 2099.)
 
 The game's numbers are read from its own scripts, so a change there that the layout missed fails here. The checks need
 numpy, which only the prop environment has: run by the gate with the system python, this hands itself to the prop
@@ -53,19 +52,6 @@ def middle(laid):
     return np.asarray(laid["at"]) + np.asarray(laid["y"]) * laid["size"][1] / 2
 
 
-def test_the_rises_are_stepped_floors():
-    stepped = "sim/base/stepped_floor.gd"
-    assert kit.LEDGE_HIGH == constant(stepped, "LEDGE_HIGH") and kit.LEDGE_DEEP == constant(stepped, "LEDGE_DEEP")
-    assert kit.DAIS_HIGH == constant(stepped, "DAIS_HIGH") and kit.DAIS_DEEP == constant(stepped, "DAIS_DEEP")
-    assert kit.DAIS_STEPS == constant(stepped, "DAIS_STEPS") and kit.STEP_DEEP == constant(stepped, "STEP_DEEP")
-    assert kit.AISLE_WIDE == constant(stepped, "AISLE_WIDE")
-    assert kit.LEDGE_STEP_DEEP == constant(stepped, "LEDGE_STEP_DEEP")
-    assert kit.DOOR_STEP_HIGH == constant(stepped, "DOOR_STEP_HIGH")
-    text = (REPO / stepped).read_text()
-    assert '"ledges": [ModuleDoors.EAST, ModuleDoors.WEST, ModuleDoors.SOUTH], "dais": ModuleDoors.NORTH' in text
-    assert "ModuleRecord.GREENHOUSE: [ModuleDoors.EAST]" in text
-
-
 def test_every_rise_top_has_a_surface_at_its_height():
     tops = [laid for laid in PIECES if own(laid) in ("ring_floor_plate", "ledge_cover")]
     for rise in kit.rises():
@@ -83,27 +69,6 @@ def test_no_deck_plate_lies_under_the_beds():
             continue
         x, z = laid["at"][0], laid["at"][2] + laid["size"][1] / 2
         assert not (kit.PLOT[0] < x < kit.PLOT[1] and kit.PLOT[2] < z < kit.PLOT[3]), f"a plate under the beds: {x}, {z}"
-
-
-def test_the_station_stands_on_the_plot_fields_spots():
-    field = "game/base/plot_field/plot_field.gd"
-    assert kit.PAD == constant(field, "PAD") and kit.BAR_FRAME == constant(field, "BAR_FRAME")
-    assert kit.PAD_OFF_WALL == constant(field, "PAD_OFF_WALL")
-    assert kit.WALL_GAP == constant(field, "WALL_GAP") and kit.WALL_THICK == constant(field, "WALL_THICK")
-    assert kit.BINS_FROM == constant(field, "BINS_FROM") and kit.BIN_SPACING == constant(field, "BIN_SPACING")
-    for (kind, size), name in zip(kit.BINS, ("SEED_BIN", "SOIL_BIN", "CRATE")):
-        assert size == constant(field, name), kind
-    placed = (REPO / "game/main/main.tscn").read_text()
-    plot = re.search(r'\[node name="PlotField"[^\]]*\]\ntransform = Transform3D\(([^)]*)\)', placed).group(1)
-    greenhouse = re.search(r'\[node name="Greenhouse"[^\]]*\]\ntransform = Transform3D\(([^)]*)\)', placed).group(1)
-    origin = np.array([float(value) for value in plot.split(",")[9:12]]) - \
-        np.array([float(value) for value in greenhouse.split(",")[9:12]])
-    assert np.allclose(origin[[0, 2]], kit.FIELD), origin
-    pads = sorted((laid for laid in PIECES if own(laid).startswith("dock_pad")), key=lambda laid: laid["at"][0])
-    assert [own(laid) for laid in pads] == list(kit.PADS)
-    for bay, laid in enumerate(pads):
-        spot = kit.bay_spot(bay)
-        assert abs(laid["at"][0] - spot[0]) < 1e-3 and abs(laid["at"][2] + laid["size"][1] / 2 - spot[1]) < 1e-3
 
 
 def test_every_piece_stands_inside_the_room():

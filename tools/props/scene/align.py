@@ -21,7 +21,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from target import folder  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 # Marble's axes into the game's: y down to up, z ahead (north) to z south.
 FLIP = np.diag([1.0, -1.0, -1.0])
