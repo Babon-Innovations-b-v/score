@@ -51,8 +51,6 @@ KINDS = {
     # moved on and off a 48 GB one part by part; one card of a two-card machine is used.
     "pictures-20b": ("gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
     "moss-sound": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
-    # Any headless Blender script (blender_cloud.py): physics on processor machines, renders on a card.
-    "blender": ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb", "gpu-24gb", "gpu-48gb", "gpu-80gb"),
 }
 # Kinds that take their offers in an order of their own. Pixal3D: the 80 GB cards first, which run ten takes at once
 # (18 takes an hour against an L4's 6, measured 2026-10-08). Library bakes (Cycles): the cards with ray-tracing
