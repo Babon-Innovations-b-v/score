@@ -65,11 +65,42 @@ is tied to one card or one zone.
 The machines keep their safety: each deletes itself when the runner's heartbeat goes quiet or
 the batch's time limit passes, and every run deletes its machines when it ends.
 
+## The scene as OpenUSD
+
+A place is exported as one OpenUSD stage, the framework's canonical scene: its objects with their
+kind, transform in metres, collision, the library surface of each part and its sounds. The stage
+composes two layers. The base layer is generated and rewritten on every export; the edit layer above
+it is the creator's and is never written by the framework, so an edit survives a regeneration.
+
+```bash
+make env       # the framework's environment in .venv, usd-core included
+.venv/bin/python tools/usd/export.py wreck --models <the place's made .gltf folder> \
+    --parts <the route's labelled parts folder> --out ~/.farm-factory-props/work/usd/wreck
+```
+
+This writes `wreck.usda` (open this one), `layers/base.usda`, `layers/edit.usda` and `assets/` (one
+`.usdc` per model with PNG maps). `--parts` is optional; without it a model keeps its baked look but
+its parts carry no library surface. Make edits in `layers/edit.usda`, by hand, with usd-core, or in
+any USD editor with that layer as its edit target. Mass and friction are not written yet.
+
+To load it in Blender, use File > Import > Universal Scene Description and pick `wreck.usda`, or
+render it from fixed cameras without a window:
+
+```bash
+python3 tools/blender/session.py batch tools/blender/inside/usd_views.py -- <stage.usda> <views.json> <out folder>
+.venv/bin/python tools/usd/views.py wreck <stage.usda> --shots <the game's shots> --out <folder>
+```
+
+`views.py` renders the wreck from the game's own bench cameras and compares the result with the game's
+shots. A game engine adapter is next (#2).
+
 ## Licence
 
 MIT, see [`LICENSE`](LICENSE). The IEEE citation style in `paper/source/ieee.csl` is from the
-Citation Style Language project under CC BY-SA 3.0. Every model the framework uses must allow
-commercial use of what it makes; the paper lists each one with its licence.
+Citation Style Language project under CC BY-SA 3.0. The scene export uses usd-core (Pixar's OpenUSD)
+under the Tomorrow Open Source Technology License 1.0, which is Apache 2.0 with a different trademark
+clause. Every model the framework uses must allow commercial use of what it makes; the paper lists
+each one with its licence.
 
 ## Working in this repo
 
