@@ -223,7 +223,30 @@ def plan(layout, takes, inventory=None):
                       if entry["route"] == "model" and own_name(entry["kind"]) not in takes})
     if missing:
         raise SystemExit(f"generated kinds with no labelled parts (labels.py): {', '.join(missing)}")
+    patchy_paint = painted_badly(takes, {own_name(entry["kind"]) for entry in models.values() if entry["route"] == "model"})
+    if patchy_paint:
+        raise SystemExit("generated kinds whose paint is patchy (patchy.py; label them by parts, labels.py): " +
+                         "; ".join(f"{kind}: {', '.join(faults)}" for kind, faults in sorted(patchy_paint.items())))
     return {"models": models, "pieces": pieces}
+
+
+def painted_badly(takes, kinds):
+    """The generated kinds whose labelled model fails the patchiness check (patchy.py), with its faults: the check
+    labels.py wrote into labels.json, or, for a folder labelled before it (job paint, 2026-10-08), run here. A patchy
+    model is never baked: black blotches through a seat's paint were the owner's finding on 2026-10-08."""
+    found = {}
+    for kind in sorted(kinds):
+        folder = pathlib.Path(takes[kind])
+        report_path = folder / "labels.json"
+        report = json.loads(report_path.read_text()) if report_path.exists() else {}
+        score = report.get("patchy")
+        if score is None:
+            import patchy
+            mesh, labels, _, parts = patchy.labelled_parts(folder)
+            score = patchy.score(mesh, labels, parts)
+        if not score["pass"]:
+            found[kind] = score["faults"]
+    return found
 
 
 def jobs(planned, takes, work, place):

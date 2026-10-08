@@ -196,7 +196,8 @@ def make_piece(entry, job, out):
     decals_off = [decal["variant"] for decal in decals if decal["surface"] is None]
     decals = [decal for decal in decals if decal["surface"] is not None]
     with_decals(whole, decals)
-    atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True)
+    atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True,
+                        backs_hidden=False)
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
                     max(entry["size"]) * REACH_SHARE, entry.get("foot"))
     atlas.finish()

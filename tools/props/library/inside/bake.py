@@ -85,14 +85,14 @@ def shrink_hidden(item):
     mesh.free()
 
 
-def visible_area(items, sharp=()):
-    return sum(visible_area_of(item, sharp) for item in items)
+def visible_area(items, sharp=(), backs_hidden=True):
+    return sum(visible_area_of(item, sharp, backs_hidden) for item in items)
 
 
-def visible_area_of(item, sharp=()):
+def visible_area_of(item, sharp=(), backs_hidden=True):
     """The area of the faces the room sees, a sharp part's at its larger share (the hidden set found once: per face it
     made a 40k-face generated piece take 12 minutes, 2026-10-06)."""
-    hidden = hidden_faces(item)
+    hidden = hidden_faces(item) if backs_hidden else set()
     sharp_slots = sharp_slots_of(item, sharp)
     return sum(face.area * (SHARP_SCALE ** 2 if face.material_index in sharp_slots else 1.0)
                for face in item.data.polygons if face.index not in hidden)
@@ -120,8 +120,9 @@ def sharpen(item, sharp):
     mesh.free()
 
 
-def packed_together(items, side, sharp=()):
-    """Every piece's islands at one texel density, packed into the one square."""
+def packed_together(items, side, sharp=(), backs_hidden=True):
+    """Every piece's islands at one texel density, packed into the one square; with `backs_hidden`, the faces facing
+    the kit's back shrunk (shrink_hidden)."""
     bpy.ops.object.select_all(action="DESELECT")
     for item in items:
         item.select_set(True)
@@ -132,7 +133,8 @@ def packed_together(items, side, sharp=()):
     bpy.ops.uv.average_islands_scale()
     bpy.ops.object.mode_set(mode="OBJECT")
     for item in items:
-        shrink_hidden(item)
+        if backs_hidden:
+            shrink_hidden(item)
         sharpen(item, sharp)
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
@@ -186,16 +188,19 @@ CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 class Atlas:
     """One shared picture set for a list of pieces: their UVs packed together at one texel density."""
 
-    def __init__(self, name, items, density, specs=None, one_piece=False):
+    def __init__(self, name, items, density, specs=None, one_piece=False, backs_hidden=True):
         """`one_piece`: the set is a single generated piece, which cannot be split: past the cap it takes the density
         that fits and says so (`self.capped`, which make_chunky reports); a shared set too, up to CAP_SLACK past the cap;
-        further past, it stops."""
+        further past, it stops. `backs_hidden`: the faces facing the kit's back are shrunk (shrink_hidden); a generated
+        piece passes False: shrunk face by face, its small remeshed triangles fell under a texel and baked black, and a
+        chair, a desk or a lander shows its back (job paint, 2026-10-08: every generated piece's back was 35 to 100%
+        black)."""
         self.name = name
         sharp = {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES} \
             if density >= SHARP_FROM else set()
         for item in items:
             unwrap(item)
-        area = visible_area(items, sharp)
+        area = visible_area(items, sharp, backs_hidden)
         wanted = math.sqrt(area / UV_FILL) * density
         self.capped = None
         if wanted > LARGEST and (one_piece or wanted <= LARGEST * CAP_SLACK):
@@ -209,7 +214,7 @@ class Atlas:
                              f"the {LARGEST} cap (density {density * LARGEST / wanted:.0f}); split the job "
                              "(route.py splits shared sets by their pieces' boxes)")
         self.side = int(max(SMALLEST, 2 ** math.ceil(math.log2(wanted))))
-        packed_together(items, self.side, sharp)
+        packed_together(items, self.side, sharp, backs_hidden)
         half = max(SMALLEST // 2, self.side // 2)
         self.pictures = {channel: new_picture(f"{name}_{channel}", half, colour) for channel, colour in CHANNELS}
         self.pictures["normal"] = new_picture(f"{name}_normal", self.side, False)

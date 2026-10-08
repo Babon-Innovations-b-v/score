@@ -58,8 +58,13 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   every other kind goes to the prop pipeline. A box's proportions never decide it. `route.py fittings <work>` writes a
   build's result back; `route.py layout` stops on a code build that failed. `library_test.py` fails on a builder
   that is neither plain nor a listed fitting, and on any model the hub lays that was not made on its kind's route.
-  `labels.py` gives a generated model's faces library variants from its clean picture, or per part from a
-  splitter's parts (`../cloud/parts.py`).
+  `labels.py` paints a generated model by its parts (job paint, 2026-10-08, the owner: "shouldn't the painting be
+  done by parts?"): PartCrafter's split (`../cloud/parts.py`) laid on the welded Pixal3D model, every face one part,
+  every part ONE material from the kind's allowed list (`details.json` `materials`) by its lit colour; never per
+  face. A split that does not register is reported and painted whole. `patchy.py` measures patchy paint (stray
+  islands, mixed faces, soft seams; on a baked model also unbaked black) and `route.py plan` refuses patchy labels.
+- **A generated piece's back is baked at full density** (`bake.Atlas(backs_hidden=False)` from make_chunky): shrunk
+  face by face its remeshed triangles fell under a texel and baked black (every generated piece's back, 2026-10-08).
 - **One wear for the room, from a cause:** a place's wear level (`place.json`), the bevel test on edges, and kick
   wear (`recipes.kick_mask`) within 32 cm over the floor a piece stands on (`foot`, route.py). `sweep.py` checks a
   room's made models against its own library palette.
@@ -78,4 +83,5 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   splits a set by its boxes' seen area before the bake.
 - `tune.py`: relief stays within the ink look's bounds (>= 1 cm, <= 0.6 mm high); matched freely, it crinkles every
   paint into photo grain.
-- Checks: `library_test.py` (system python), `straight_test.py` (hands itself to the prop environment).
+- Checks: `library_test.py` (system python), `straight_test.py` and `paint_test.py` (hand themselves to the prop
+  environment).
