@@ -1,0 +1,7 @@
+\section{Evaluation}\label{evaluation}
+
+\textbf{Benchmark.} SCORE has not been compared with any other system. The intended evaluation is LEGO-Bench \citep{li2026lego}, which scores scenes rebuilt from pictures in Blender. It has not been run: its code is not released yet, and SCORE first needs the scene export and Blender adapter described in Section 3.1, which are being built.
+
+\textbf{Style coherence.} Whether a room keeps one style is judged here only by the creator's eye on pages and in play. A measured test (colour distance to the palette per input class, lightness spread, ink density) has been proposed for the game but not built, so no coherence number is reported.
+
+\textbf{Breadth.} One world of one kind is not evidence that the framework generalises. Three more worlds are planned to test that: a stylised underwater world, a physically accurate simulation world for robots, which needs masses, friction and joints the route does not yet produce, and a third-person fantasy world. Scales that are computed rather than modelled, such as orbits, would enter as open solvers wrapped as stages, starting with REBOUND \citep{rein2012rebound}; none is wrapped yet.

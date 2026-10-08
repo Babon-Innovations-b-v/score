@@ -21,7 +21,8 @@ python3 build/build.py --check  # exit 1 when a committed output is stale (also 
 ## Rules for the draft
 
 - **Every number is read from a file**, named in an HTML comment beside it. No number from memory.
-- **Not measured, not checked: mark it** `[what is missing]{.todo}`. It prints red in the PDF.
+- **Gaps stay visible where they belong.** Work not done is said plainly in the section it belongs to (method, results, evaluation): what goes there and why it cannot be filled yet, in a sentence or two. Never a result-shaped placeholder. `[text]{.todo}` (prints red) is only for a number still being checked, and does not reach a shared draft.
+- **Compact:** about 6 to 8 pages plus references for arXiv cs.CV, few figures.
 - **A change to the draft is rebuilt and committed in the same commit** as the PDF and LaTeX.
 - **The world step** (World Labs Marble in our runs) is one optional step of the method. Never
   compare it with another model or judge it on its own (World Labs ToS §2.8(d)); results are

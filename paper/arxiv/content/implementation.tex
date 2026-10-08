@@ -1,12 +1,8 @@
 \section{Implementation}\label{implementation}
 
-\textbf{Code and compute.} World 1 was built inside the game's own repository, 2099, as Python tools for the route (sorter, plan, layout, bake, install, checks), Godot-side checks, and cloud runners for Scaleway machines with NVIDIA L4 cards. The route's code moves to the SCORE repository next; \textcolor{red}{[TODO: this paper’s repository does not hold it yet]}. Blender 5.0.1 runs headless in the cloud for every bake \citep{blender}. The engine is Godot \citep{godot}; the frame-time bench runs on an RTX 5080, and cloud benches on L4 cards are converted with a measured ratio of 3.47.
+The route runs as Python tools (planning, routing, baking, install, checks), engine-side checks in Godot, and runners for rented NVIDIA L4 machines with headless Blender 5.0.1 \citep{blender}. It currently lives inside the game's repository; moving it into the framework repository, engine-agnostic, is the next step, so the route cannot yet be run from this repository on its own. The work was done by Claude Code agent sessions \citep{claudecode} directed by one person; up to twelve ran at once during the world build. Table 1 lists the models used; licences were read for their commercial-use clauses only, and this is not legal advice.
 
-\textbf{Coding agents.} The work was done by Claude Code agent sessions \citep{claudecode} directed by one person, the owner. During the world-1 build up to twelve agents ran at once, about one per place, coordinated by one overseeing session.
-
-\textbf{Models and their licences.} Every model in the route must allow commercial use of what it makes. Table 2 lists the models world 1 used and the licence each was used under; licences were read for the clauses that decide commercial use, not in full, and this is not legal advice.
-
-\textbf{Table 2.} Models and services in the route, with licences as read by the build sessions.
+\textbf{Table 1.} Models and services in the route.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -25,30 +21,14 @@ Licence or terms
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Nano Banana Pro (Gemini 3 Pro Image) \citep{nanobananapro} & concepts, close-ups, ground skins & paid API; \textcolor{red}{[TODO: Gemini API terms on output ownership to be quoted]} \\
-Pixal3D \citep{li2026pixal3d}, via image-to-3dlab \citep{imageto3dlab} & picture-to-3D shape & MIT code and weights; bundled DINOv3 encoder \citep{simeoni2025dinov3} under the DINOv3 Licence \\
-PartCrafter \citep{lin2025partcrafter} & part boundaries for painting & MIT code and weights; its non-commercial background remover patched out \\
-Depth Anything V2 Small \citep{yang2024dav2} & fine relief on planned ground & Apache-2.0 (the Base and Large sizes are non-commercial and not used) \\
-ProcFunc and Infinigen shaders \citep{raistrick2026procfunc, raistrick2023infinigen} & surface library & BSD-3-Clause \\
-MOSS-SoundEffect v2.0 \citep{moss2026} & sound & Apache-2.0 code and weights \\
-LAION CLAP, larger\_clap\_general \citep{wu2022clap} & choosing sound takes & Apache-2.0 \\
-World Labs Marble \citep{marble_terms} & optional world step only & paid; outputs owned by paid users (§3.3); attribution on request (§3.7) \\
-Claude Code \citep{claudecode} & coding agents & paid subscription \\
+Nano Banana Pro \citep{nanobananapro} & concepts, close-ups, ground skins & paid API \\
+Pixal3D \citep{li2026pixal3d} & picture-to-3D shape & MIT; DINOv3 encoder \citep{simeoni2025dinov3} under its own licence \\
+PartCrafter \citep{lin2025partcrafter} & part boundaries & MIT \\
+Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
+ProcFunc, Infinigen shaders & surface library & BSD-3-Clause \\
+MOSS-SoundEffect v2.0 \citep{moss2026}, CLAP \citep{wu2022clap} & sound & Apache-2.0 \\
+World Labs Marble \citep{marble_terms} & optional world step only & paid; outputs owned by paid users \\
 \end{longtable}
 }
 
-Earlier rounds of the game's props also used FLUX.2 klein 4B (Apache-2.0) \citep{flux2klein}, and the game's people use Kimodo \citep{rempe2026kimodo} and SAM 3D Body \citep{yang2026sam3dbody}; neither is part of the world-1 route. Two candidates were ruled out on licence: NVIDIA's Lyra 2.0, whose weights are for internal research only, and Hunyuan3D 2.1, whose licence does not apply in the European Union.
-
-\textbf{What was automatic, what an agent wrote, what was a hand fix, what was a pick.} We separate these because a reader cannot judge the route otherwise.
-
-\begin{itemize}
-\tightlist
-\item
-  \emph{Automatic:} the picture-to-3D models, part splitting, the solid step, surface bakes, sound generation and take choice, all checks, install and the engine's tests.
-\item
-  \emph{Written by a coding agent:} every code builder. In the central room's final round, 86 of its 98 models were built in code, and a Claude agent wrote a builder for each kind by looking at its close-up. Across world 1, 865 of the 971 models in the scaling table were built in code. This is the framework's design (``agents build''), but it is a large part of why the rooms look clean, and it is not a picture-to-3D result.
-\item
-  \emph{Hand fixes:} some generated objects (a lamp, a headset, a microscope, a radio) were turned to face the right way by eye; in round five a few labels were placed by hand before a rule replaced that; agents fixed the faults the checks found, and a few were judged by eye from shots.
-\item
-  \emph{Human picks:} the owner's blind picks, his verdicts on each round, his rulings that changed the route, and the concept picks. Many concept picks in world 1 were the coordinating agent's, marked on their pages for the owner to change.
-\end{itemize}
+\textbf{What was automatic and what was not.} Picture-to-3D, part splitting, surface bakes, sound, all checks and install were automatic. Every code builder was written by a coding agent from a close-up; in the central room's final round 86 of its 98 models were code. Some generated objects were turned to face the right way by eye, a few labels were placed by hand before a rule replaced that, and agents fixed the faults the checks found. Concepts and verdicts were the creator's picks, except where an agent's interim concept pick is marked as such.
