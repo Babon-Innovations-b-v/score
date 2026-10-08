@@ -944,7 +944,7 @@
 			"thing": "prop:hangar_parts_rack"
 		},
 		{
-			"id": "crate",
+			"id": "parts_crate",
 			"name": "a heavy reinforced shipping crate for a ship part, steel corners, stencilled lid",
 			"kind": "generate",
 			"anchor": "floor",
@@ -991,7 +991,7 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_crate"
+			"thing": "prop:hangar_parts_crate"
 		},
 		{
 			"id": "access_stair",
@@ -1106,8 +1106,8 @@
 			"thing": "prop:hangar_keyboard"
 		},
 		{
-			"id": "work_desk",
-			"name": "a small steel work desk with a drawer pedestal and a lamp",
+			"id": "monitor_desk",
+			"name": "a steel desk with three monitors, a keyboard, a control strip and a drawer pedestal",
 			"kind": "generate",
 			"anchor": "floor",
 			"size": [
@@ -1135,7 +1135,7 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_work_desk"
+			"thing": "prop:hangar_monitor_desk"
 		},
 		{
 			"id": "parts_shelving",
@@ -1262,7 +1262,7 @@
 			"thing": "prop:hangar_bay_panel"
 		},
 		{
-			"id": "beacon",
+			"id": "bracket_beacon",
 			"name": "a rotating amber warning beacon on a wall bracket",
 			"kind": "generate",
 			"anchor": "wall",
@@ -1326,7 +1326,7 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_beacon"
+			"thing": "prop:hangar_bracket_beacon"
 		},
 		{
 			"id": "floodlight",

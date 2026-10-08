@@ -1185,7 +1185,7 @@
 			"thing": "prop:garage_control_cabinet"
 		},
 		{
-			"id": "charge_post",
+			"id": "rover_charger",
 			"name": "a rover charge post: a blue steel pillar with a small screen, a coiled charging cable and its plug in a holster",
 			"kind": "generate",
 			"anchor": "floor",
@@ -1214,7 +1214,7 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_charge_post"
+			"thing": "prop:garage_rover_charger"
 		},
 		{
 			"id": "parts_trolley",
@@ -1318,7 +1318,7 @@
 			"thing": "prop:garage_bay_panel"
 		},
 		{
-			"id": "beacon",
+			"id": "bracket_beacon",
 			"name": "a red warning lamp in a steel housing on a wall bracket, rotating",
 			"kind": "generate",
 			"anchor": "wall",
@@ -1370,7 +1370,7 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_beacon"
+			"thing": "prop:garage_bracket_beacon"
 		},
 		{
 			"id": "ceiling_lamp",
