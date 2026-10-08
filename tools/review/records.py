@@ -138,7 +138,7 @@ def run(folder):
     """One run of the route over the place: what each of its stages wrote, None where a stage has not run."""
     if folder is None:
         return None
-    made = folder / "made"
+    made = (folder / "made").resolve()  # a run folder may link its made models from the route's work folder
     plan = json_or_none(folder / "plan.json") or {}
     # A kit room's run (route.py) writes its route's plan as plan.json, its models and pieces; an outdoor place's
     # (place_route.py) writes plan-route.json, and plan.json is the dimensioned plan's elements.
