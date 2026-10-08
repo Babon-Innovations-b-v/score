@@ -1,0 +1,222 @@
+"""Run headless Blender scripts on a rented cloud machine: send their input files, run each, bring their outputs back,
+delete the machine. The generic Blender job (2026-10-08, BLENDER IN THE CLOUD): the local Blender lock lets one
+Blender run on the owner's PC at a time, so renders, settling and review pages run here, many machines at once.
+
+    ~/.farm-factory-props/env/bin/python tools/props/cloud/blender_cloud.py <job.json> [<job.json> ...] \
+        --who "<session>" [--classes cpu-32c-128gb[,...]] [--dry-run]
+
+A tool on this PC calls `run_elsewhere` (tools/usd/settle.py --cloud, tools/review/page.py --cloud). A job:
+    {"script": "tools/blender/inside/settle_stage.py",   a Blender script in this repo
+     "args": ["/abs/stage.usda", "/abs/job.json", "/abs/out.json"],   what follows its `--`
+     "inputs": ["/abs/folder", "/abs/file"],   files and folders it reads (sent as they are)
+     "outputs": ["/abs/out.json", "/abs/folder"],   files and folders it writes (brought back)
+     "minutes": 5}   about how long it runs on the machine
+
+Every input and output keeps its absolute path under /root/fs on the machine, and every argument that is one of
+those paths, or lies inside one, is moved there, so a script needs no change to run up there. The script's own
+folder and tools/blender/inside go up with it. The jobs of one call run one after another on one machine; run several
+calls side by side for several machines. Classes: a processor machine for physics (settling: cpu-32c-128gb first,
+the default), a card for renders (`--classes gpu-24gb`, Cycles on the card; on a processor machine Cycles renders on
+its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). Blender is 5.0.1 from
+blender.org, set up by library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
+are batch.py's.
+"""
+import argparse
+import json
+import os
+import pathlib
+import shlex
+import subprocess
+import sys
+import threading
+import time
+
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+
+import batch  # noqa: E402
+import ledger  # noqa: E402
+from paths import REPO  # noqa: E402
+from provider import cloud  # noqa: E402
+
+REMOTE = pathlib.PurePosixPath("/root/lib")
+FILES = pathlib.PurePosixPath("/root/fs")
+SETUP_MINUTES = 8
+KIND = "blender"
+# Settling and other physics: the processor machines, tried in turn as their stock moves.
+DEFAULT_CLASSES = ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb")
+ALWAYS_SHIPPED = ("tools/blender/inside",)
+
+
+def remote_path(path):
+    """Where a local absolute path lies on the machine."""
+    return FILES / str(pathlib.Path(path).resolve()).lstrip("/")
+
+
+def moved_argument(argument, paths):
+    """An argument moved to the machine when it is one of the job's paths or lies inside one; else as it is."""
+    for path in paths:
+        local = pathlib.Path(path).resolve()
+        try:
+            inside = pathlib.Path(argument).resolve().relative_to(local)
+        except (ValueError, OSError):
+            continue
+        return str(remote_path(local) / inside) if str(inside) != "." else str(remote_path(local))
+    return argument
+
+
+def run_line(job, card):
+    """The command that runs a job's script on the machine, its arguments moved there."""
+    paths = [*job.get("inputs", ()), *job.get("outputs", ())]
+    arguments = [moved_argument(argument, paths) for argument in job.get("args", ())]
+    blender = ["/root/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
+               str(REMOTE / "repo" / job["script"]), "--", *arguments]
+    engine = "FARM_CYCLES_GPU=1" if card else "FARM_CYCLES_CPU=1"
+    return f"cd /root && env {engine} PROPS_HOME=/root/props {shlex.join(blender)}"
+
+
+def shipped(jobs):
+    """The repo folders the jobs' scripts need: tools/blender/inside and each script's own folder."""
+    return sorted({*ALWAYS_SHIPPED, *(str(pathlib.PurePosixPath(job["script"]).parent) for job in jobs)})
+
+
+def price(jobs, account, classes):
+    """Print the estimate and refuse what passes the owner's limits; the offers and the minutes allowed."""
+    found = [offer for offer in batch.offers(list(classes)) if offer.stock_word != "shortage"]
+    if not found:
+        raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend")
+    minutes = SETUP_MINUTES + sum(float(job.get("minutes", 10)) for job in jobs)
+    dearest = max(offer[0] for offer in found)
+    spent = batch.month_spent(account)
+    batch.say(f"{len(jobs)} Blender jobs on one machine: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
+              f"€{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest, spent)
+    if refused:
+        raise SystemExit(f"refused: {refused}")
+    return found, ledger.minutes_allowed(dearest, spent)
+
+
+def send(log_folder, host, local):
+    """One input (file or folder) to its place on the machine."""
+    local = pathlib.Path(local).resolve()
+    place = remote_path(local)
+    batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(place.parent))}", check=True)
+    batch.copy(log_folder, [local], f"root@{host}:{place.parent}/")
+
+
+def bring_back(log_folder, host, local):
+    """One output (file or folder) from the machine to its own place here; a missing one is said, not raised."""
+    local = pathlib.Path(local).resolve()
+    local.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        batch.copy(log_folder, [f"root@{host}:{remote_path(local)}"], f"{local.parent}/")
+    except subprocess.CalledProcessError:
+        batch.say(f"the machine wrote no {local}")
+
+
+def set_up(log_folder, host, jobs):
+    for folder in shipped(jobs):
+        parent = (REMOTE / "repo" / folder).parent
+        batch.remote(log_folder, host, f"mkdir -p {parent}", check=True)
+        batch.copy(log_folder, [REPO / folder], f"root@{host}:{parent}/", "--exclude", "__pycache__")
+    batch.copy(log_folder, [HERE / "library_setup.sh"], f"root@{host}:{REMOTE}/")
+    with (log_folder / "setup.log").open("w") as log:
+        batch.remote(log_folder, host, f"bash {REMOTE}/library_setup.sh", check=True, stdout=log,
+                     stderr=subprocess.STDOUT)
+
+
+def run_job(log_folder, host, number, job, card):
+    """One job: its inputs up, its output folders made, the script run, its outputs back (also when it fails)."""
+    for local in job.get("inputs", ()):
+        send(log_folder, host, local)
+    for local in job.get("outputs", ()):
+        batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(remote_path(local).parent))}", check=True)
+    began = time.time()
+    try:
+        with (log_folder / f"job{number}.log").open("w") as log:
+            batch.remote(log_folder, host, run_line(job, card), check=True, stdout=log, stderr=subprocess.STDOUT)
+    finally:
+        for local in job.get("outputs", ()):
+            bring_back(log_folder, host, local)
+        batch.say(f"Blender job {number} ({job['script']}): {(time.time() - began) / 60:.1f} min")
+    return round(time.time() - began, 1)
+
+
+def work_on(run, machine, jobs):
+    """One machine from boot to delete: Blender up, every job run, every output back."""
+    import pictures
+    log_folder = machine["folder"]
+    stop = threading.Event()
+    try:
+        host = machine["host"]
+        batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
+        set_up(log_folder, host, jobs)
+        batch.say(f"{log_folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
+        card = machine.get("class", "").startswith("gpu")
+        for number, job in enumerate(jobs):
+            machine.setdefault("unit_seconds", []).append(run_job(log_folder, host, number, job, card))
+    finally:
+        stop.set()
+        batch.delete_machine(machine)
+
+
+CLOUD_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
+
+
+def run_elsewhere(script, arguments, inputs, outputs, classes, who, minutes=10):
+    """For a tool on this PC: run one Blender script on a rented machine (a call of this file), its outputs back
+    where they belong; raises when the run fails."""
+    folder = batch.BATCHES / "requests"
+    folder.mkdir(parents=True, exist_ok=True)
+    job_path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}-{threading.get_ident()}.json"
+    job_path.write_text(json.dumps({"script": str(pathlib.Path(script).resolve().relative_to(REPO)),
+                                    "args": [str(argument) for argument in arguments],
+                                    "inputs": [str(path) for path in inputs], "outputs": [str(path) for path in outputs],
+                                    "minutes": minutes}, indent=1))
+    command = [str(CLOUD_PYTHON), str(HERE / "blender_cloud.py"), str(job_path), "--who", who,
+               "--classes", ",".join(classes)]
+    if subprocess.run(command).returncode != 0:
+        raise RuntimeError(f"the cloud Blender run failed: {shlex.join(command)}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("jobs", nargs="+", type=pathlib.Path)
+    parser.add_argument("--who", required=True, help="the session asking")
+    parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
+    parser.add_argument("--classes", help="capability classes in the order to try, comma separated")
+    options = parser.parse_args()
+    jobs = [json.loads(path.read_text()) for path in options.jobs]
+    classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
+    account = cloud.account()
+    batch.sweep(account)
+    found, allowed_minutes = price(jobs, account, classes)
+    if options.dry_run:
+        return
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
+    batch.stop_on_signals()
+    import pictures
+    started = time.time()
+    run_folder = batch.BATCHES / (time.strftime("blender-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
+    run_folder.mkdir(parents=True)
+    run = pictures.Run(run_folder, started + allowed_minutes * 60)
+    try:
+        machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
+        if not machines:
+            raise SystemExit("no machine could be rented")
+        work_on(run, machines[0], jobs)
+    finally:
+        for machine in run.machines:
+            batch.delete_machine(machine)
+        entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
+                 "kind": KIND, "who": options.who, "jobs": [job["script"] for job in jobs],
+                 **ledger.machines_record(run.machines, run.attempts, started),
+                 "wall_minutes": (time.time() - started) / 60}
+        ledger.record(entry)
+        (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
+        batch.say(f"blender: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f}")
+
+
+if __name__ == "__main__":
+    main()
