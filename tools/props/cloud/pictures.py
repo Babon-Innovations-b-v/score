@@ -92,11 +92,12 @@ def price(jobs, cards, account):
     return found, ledger.minutes_allowed(dearest * cards, spent)
 
 
-def rent_machines(run, account, found, cards):
-    """Claim up to `cards` machines side by side, each from the cheapest offer that gives one that answers
-    (batch.claim); the machines that answered."""
+def rent_machines(run, account, found, cards, kind=None):
+    """Claim up to `cards` machines side by side for jobs of `kind`, each from the first offer that gives one that
+    answers (batch.claim); the machines that answered."""
     with concurrent.futures.ThreadPoolExecutor(cards) as claims:
-        claimed = list(claims.map(lambda number: batch.claim(run, account, found, number), range(1, cards + 1)))
+        claimed = list(claims.map(lambda number: batch.claim(run, account, found, number, kind),
+                                  range(1, cards + 1)))
     return [machine for machine in claimed if machine]
 
 

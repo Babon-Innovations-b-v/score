@@ -57,6 +57,34 @@ def test_a_run_takes_the_best_stocked_then_fastest_card_and_spreads_over_zones()
     assert capacity.next_offer([], []) is None
 
 
+def test_each_kind_takes_cards_in_its_own_order():
+    offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a"),
+              offer(L40S, 2, "gpu-48gb", "zone-a")]
+    assert capacity.next_offer(offers, [], "pixal").machine_class == "gpu-80gb"
+    assert capacity.next_offer(offers, [], "library").machine_class == "gpu-24gb"
+    assert capacity.next_offer(offers[1:], [], "library").machine_class == "gpu-48gb"
+    assert capacity.next_offer(offers, [], "parts").machine_class == "gpu-24gb"
+    assert "gpu-80gb" in capacity.late_for("library") and not capacity.late_for("pixal")
+
+
+def test_a_bake_takes_a_card_without_ray_tracing_cores_only_after_the_wait():
+    taken = []
+
+    def claim_from(run, account, offers, number, kind):
+        taken.append(sorted({item.machine_class for item in offers}))
+        return None if "gpu-80gb" not in taken[-1] else "machine"
+    kept_claim, kept_sleep, kept_minutes = batch.claim_from, batch.time.sleep, capacity.LATE_MINUTES
+    batch.claim_from, batch.time.sleep, capacity.LATE_MINUTES = claim_from, lambda seconds: None, 0
+    try:
+        offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a")]
+        assert batch.claim(None, None, offers, 1, "library") == "machine"
+        assert taken == [["gpu-24gb"], ["gpu-80gb"]]
+        taken.clear()
+        assert batch.claim(None, None, offers, 1, "pixal") == "machine" and taken == [["gpu-24gb", "gpu-80gb"]]
+    finally:
+        batch.claim_from, batch.time.sleep, capacity.LATE_MINUTES = kept_claim, kept_sleep, kept_minutes
+
+
 def test_a_big_card_runs_several_jobs_at_once():
     assert capacity.runs_at_once("pixal", "gpu-24gb") == 3
     assert capacity.runs_at_once("pixal", "gpu-48gb") == 6
