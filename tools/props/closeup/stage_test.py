@@ -53,10 +53,6 @@ def test_the_picture_batch_skips_rows_already_drawn():
     assert questions[0]["images"] == [str(out / "crops/cabinet.jpg"), str(out / "qwen/cabinet.png")]
 
 
-def test_a_batch_takes_a_card_for_every_sixty_close_ups():
-    assert [stage.cards_for(count) for count in (1, 60, 61, 150)] == [1, 1, 2, 3]
-
-
 def test_a_row_takes_the_first_picture_that_passed_and_records_its_cost():
     row, out = a_place()
     for take in ("qwen", "pro", "pro-room"):

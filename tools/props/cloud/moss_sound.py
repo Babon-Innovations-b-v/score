@@ -1,5 +1,5 @@
-"""Generate a picking page's sound takes with MOSS-SoundEffect v2.0 on one rented cloud card, bring them back, and
-delete the machine (job soundtool, 2026-10-06: the owner heard the trial and found it "sounds good", where the CC0
+"""Generate a picking page's sound takes with MOSS-SoundEffect v2.0 on rented cloud cards, bring them back, and
+delete the machines (job soundtool, 2026-10-06: the owner heard the trial and found it "sounds good", where the CC0
 recordings were "pretty bad").
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/moss_sound.py <page> --who "<session>" [--dry-run]
@@ -9,14 +9,14 @@ gets each prompt at `seeds` seeds (its `seconds` long). The takes land in the pi
 (`~/.cache/farm-factory/sound-picker/moss/<page>/`) with `manifest.json` naming each file's sound, prompt, seed and
 model, which is its credit; the picker's MOSS source offers them, levelled by the loudness rule like every take.
 MOSS-SoundEffect v2.0 is Apache-2.0, code and weights, both pinned below. Measured on the trial: about 6.3 s a clip
-on an H100 whatever its length, 15.6 GB of card memory, so an L4 (24 GB) fits.
+on an H100 whatever its length, 15.6 GB of card memory, so an L4 (24 GB) fits. A long page is cut into shares over
+as many cards as make it in about the setup's time (spread.py), each share's scores joined into scores.json here.
 """
 import argparse
 import json
 import pathlib
 import subprocess
 import sys
-import threading
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import REPO  # noqa: E402
 
@@ -56,53 +57,67 @@ def jobs_for(page, sounds_path=SOUNDS):
 
 
 def price(jobs, account):
-    """The offers and the minutes allowed; refused when over the owner's limits or this tool's budget."""
+    """The offers, the machines and the minutes allowed; refused when over the owner's limits or this tool's
+    budget."""
     found = batch.offers(list(capacity.classes_for("moss-sound")))
     if not found:
         raise SystemExit("no card is sold in the zones used")
-    minutes = SETUP_MINUTES + len(jobs) * MINUTES_A_CLIP
+    count = capacity.machines_for(len(jobs), MINUTES_A_CLIP, SETUP_MINUTES, capacity.slots_for("moss-sound"))
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
-    euros = ledger.cost(minutes, dearest)
-    batch.say(f"{len(jobs)} MOSS takes on one card: about {minutes:.0f} min, at most €{euros:.2f}; "
-              f"€{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
+    # Each card more pays one more setup: fewer cards while the spread would pass this tool's budget.
+    while True:
+        minutes = capacity.spread_minutes(len(jobs), MINUTES_A_CLIP, SETUP_MINUTES, count)
+        euros = ledger.cost(minutes, dearest) * count
+        if euros <= BUDGET_EUROS or count == 1:
+            break
+        count -= 1
+    batch.say(f"{len(jobs)} MOSS takes on {count} card{'s' if count > 1 else ''}: about {minutes:.0f} min, at most "
+              f"€{euros:.2f}; €{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest * count, spent)
     if refused:
         raise SystemExit(f"refused: {refused}")
     if euros > BUDGET_EUROS:
         raise SystemExit(f"refused: €{euros:.2f} is over this run's €{BUDGET_EUROS:.2f}")
-    budget_minutes = BUDGET_EUROS / dearest * 60
-    return found, min(ledger.minutes_allowed(dearest, spent), budget_minutes)
+    budget_minutes = BUDGET_EUROS / (dearest * count)
+    return found, count, min(ledger.minutes_allowed(dearest * count, spent), budget_minutes)
 
 
-def work_on(run, machine, jobs, out):
-    """One machine from boot to delete: MOSS up, every take made, the takes back."""
-    import pictures
-    log_folder = machine["folder"]
-    stop = threading.Event()
+def set_up(machine):
+    """MOSS onto one machine."""
+    log_folder, host = machine["folder"], machine["host"]
+    batch.remote(log_folder, host, f"mkdir -p {REMOTE}/out", check=True)
+    batch.copy(log_folder, [HERE / "moss_setup.sh", HERE / "moss_generate.py"], f"root@{host}:{REMOTE}/")
+    with (log_folder / "setup.log").open("w") as log:
+        batch.remote(log_folder, host, f"env MOSS_SHA={MOSS_SHA} MOSS_MODEL_REVISION={MOSS_MODEL_REVISION} "
+                     f"bash {REMOTE}/moss_setup.sh", check=True, stdout=log, stderr=subprocess.STDOUT)
+
+
+def make_share(machine, share, card, out):
+    """One share of the takes on one card, the takes back into `out`. A generator that fails raises
+    spread.JobFailed (what it made still comes back)."""
+    number, jobs = share
+    log_folder, host = machine["folder"], machine["host"]
+    (log_folder / f"jobs-{number}.json").write_text(json.dumps(jobs))
+    batch.copy(log_folder, [log_folder / f"jobs-{number}.json"], f"root@{host}:{REMOTE}/")
     try:
-        host = machine["host"]
-        batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
-        batch.remote(log_folder, host, f"mkdir -p {REMOTE}/out", check=True)
-        (log_folder / "jobs.json").write_text(json.dumps(jobs))
-        batch.copy(log_folder, [HERE / "moss_setup.sh", HERE / "moss_generate.py", log_folder / "jobs.json"],
-                   f"root@{host}:{REMOTE}/")
-        with (log_folder / "setup.log").open("w") as log:
-            batch.remote(log_folder, host, f"env MOSS_SHA={MOSS_SHA} MOSS_MODEL_REVISION={MOSS_MODEL_REVISION} "
-                         f"bash {REMOTE}/moss_setup.sh", check=True, stdout=log, stderr=subprocess.STDOUT)
-        batch.say(f"{log_folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
-        try:
-            with (log_folder / "generate.log").open("w") as log:
-                batch.remote(log_folder, host, f"cd {REMOTE} && TORCHDYNAMO_DISABLE=1 PYTHONUNBUFFERED=1 "
-                             "/root/venv/bin/python moss_generate.py", check=True, stdout=log,
-                             stderr=subprocess.STDOUT)
-        finally:
-            out.mkdir(parents=True, exist_ok=True)
-            batch.copy(log_folder, [f"root@{host}:{REMOTE}/out/"], f"{out}/")
+        with (log_folder / f"generate-{number}.log").open("w") as log:
+            done = batch.remote(log_folder, host, f"cd {REMOTE} && CUDA_VISIBLE_DEVICES={card} TORCHDYNAMO_DISABLE=1 "
+                                f"PYTHONUNBUFFERED=1 /root/venv/bin/python moss_generate.py {REMOTE}/jobs-{number}.json "
+                                f"{number}", stdout=log, stderr=subprocess.STDOUT)
     finally:
-        stop.set()
-        batch.delete_machine(machine)
+        out.mkdir(parents=True, exist_ok=True)
+        batch.copy(log_folder, [f"root@{host}:{REMOTE}/out/"], f"{out}/")
+    spread.raise_for(done.returncode, f"share {number} ({log_folder / f'generate-{number}.log'})")
+
+
+def join_scores(out):
+    """Every share's CLAP scores in out/scores.json, where the picker reads them."""
+    scores = {}
+    for path in sorted(out.glob("scores-*.json")):
+        scores.update(json.loads(path.read_text()))
+    if scores:
+        (out / "scores.json").write_text(json.dumps(scores, indent=1))
 
 
 def write_manifest(out, jobs):
@@ -135,7 +150,7 @@ def main():
         raise SystemExit(f"no sound on the '{options.page}' page has prompts in data/sound/sounds.json")
     account = cloud.account()
     batch.sweep(account)
-    found, allowed_minutes = price(jobs, account)
+    found, count, allowed_minutes = price(jobs, account)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -146,16 +161,19 @@ def main():
     run_folder.mkdir(parents=True)
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
     out = OUT / options.page
-    machines, made = [], []
+    made = []
     try:
-        machines = pictures.rent_machines(run, account, found, 1)
-        if not machines:
+        parts = min(len(jobs), count * capacity.slots_for("moss-sound"))
+        shares = spread.Shares([(number, jobs[number::parts]) for number in range(parts)], deadline=run.deadline)
+        spread.on_machines(run, account, found, count, "moss-sound", shares, set_up,
+                           lambda machine, share, card: make_share(machine, share, card, out))
+        if not run.machines:
             raise SystemExit("no card could be rented")
-        work_on(run, machines[0], jobs, out)
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
         if out.exists():
+            join_scores(out)
             made = write_manifest(out, jobs)
         entry = record(run, run.machines, started, out, made)
         (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))

@@ -6,6 +6,7 @@ The backend is chosen by SCORE_CLOUD (default `scaleway`, the backend the framew
 
     NAME                                   its name, as in SCORE_CLOUD
     CLASSES                                {capability class: (its machine types, tried in this order)}
+    QUOTAS                                 {capability class: machines the account may hold at once}, where known
     account()                              the account it rents in, checked to be the configured one
     offers(classes)                        every Offer for those classes, in every region it rents from
     price(machine_type, zone)              (euros a minute, the minutes it is billed by)

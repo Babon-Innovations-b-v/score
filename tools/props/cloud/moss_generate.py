@@ -1,6 +1,7 @@
-"""On the rented card: every job in /root/sfx/jobs.json through MOSS-SoundEffect v2.0, one WAV each, timed; then
-every take scored for how well it matches its prompt with LAION's CLAP (laion/larger_clap_general, Apache-2.0), the
-cosine of the take's and the prompt's embeddings, into out/scores.json. The picker reads the score as one part of
+"""On the rented card: every job in /root/sfx/jobs.json (or the share named, `moss_generate.py <jobs.json> <tag>`, when
+a page is spread over machines) through MOSS-SoundEffect v2.0, one WAV each, timed; then every take scored for how
+well it matches its prompt with LAION's CLAP (laion/larger_clap_general, Apache-2.0), the cosine of the take's and
+the prompt's embeddings, into out/scores.json (out/scores-<tag>.json for a share; moss_sound.py joins them). The picker reads the score as one part of
 choosing a sound's take; the rest (clipping, silence, length, a loop's join) it measures itself.
 
 A job is {"file", "prompt", "seconds", "seed"}; the settings are the ones the owner heard on the trial (2026-10-06):
@@ -77,14 +78,15 @@ def score(jobs):
 
 
 def main():
-    jobs = json.load(open(JOBS))
+    jobs = json.load(open(sys.argv[1] if len(sys.argv) > 1 else JOBS))
+    tag = f"-{sys.argv[2]}" if len(sys.argv) > 2 else ""
     timings = generate(jobs)
-    json.dump(timings, open(f"{OUT}/timings.json", "w"), indent=1)
+    json.dump(timings, open(f"{OUT}/timings{tag}.json", "w"), indent=1)
     began = time.time()
     scores = score(jobs)
-    json.dump(scores, open(f"{OUT}/scores.json", "w"), indent=1)
+    json.dump(scores, open(f"{OUT}/scores{tag}.json", "w"), indent=1)
     timings["score_seconds"] = round(time.time() - began, 1)
-    json.dump(timings, open(f"{OUT}/timings.json", "w"), indent=1)
+    json.dump(timings, open(f"{OUT}/timings{tag}.json", "w"), indent=1)
 
 
 if __name__ == "__main__":

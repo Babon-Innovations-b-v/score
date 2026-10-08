@@ -39,6 +39,10 @@ CLASSES = {
     "cpu-16c-64gb": ("POP2-16C-64G",),
     "cpu-16c-128gb": ("POP2-HM-16C-128G",),
 }
+# How many machines of a class the project may hold at once, where Scaleway granted a quota (2026-10-08: H100-1-80G 20,
+# L4-1-24G 50, L40S-1-48G 10, across fr-par-1, fr-par-2 and pl-waw-2). Stock is still the real limit; a class not
+# listed has the provider's default quota, and a rent past any quota is refused and the next offer taken.
+QUOTAS = {"gpu-80gb": 20, "gpu-24gb": 50, "gpu-48gb": 10}
 # Minutes in each unit Scaleway's price list prices a machine by: the cards by the minute, the
 # processor machines (POP2) by the hour (2026-10-05).
 PER_UNIT_MINUTES = {"minute": 1, "hour": 60}
