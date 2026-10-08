@@ -43,8 +43,72 @@ H100, 80 GB & the same bake & 1 & 0.6 min & 7.5 min (bake 360 s) & €0.38 & \\
 \end{longtable}
 }
 
+Since 8 October, every kind of batch is spread over many machines at once: each machine is set up once and takes the next job from one queue as it finishes one, and a batch rents enough machines that each works about as long as its setup takes. Table G2 compares the same batches on one machine and spread. A spread batch ended 1.2 to 2.7 times sooner and cost 4 to 63 percent more, because every added machine spends part of its time setting up.
+
+\textbf{Table G2.} The same batches on one machine and spread over several, 8 October 2026.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Batch
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Machines
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Time
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cost
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+On one machine
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Blender, 6 jobs & 3 L4 & 7.0 min & €0.28 & 14.3 min, €0.20 \\
+Library bake, 22 jobs & 4 L4 & 10 min & €0.43 & 27 min, €0.35 \\
+Pictures (FLUX.2 klein), 120 & 3 L4 & 5 min & €0.20 & 10 min, €0.14 \\
+Pictures without light, 32 & 2 L4 & 4 min & €0.10 & 6 min, €0.08 \\
+PartCrafter, 12 runs & 2 L4 & 19.3 min & €0.49 & 35.2 min, €0.47 \\
+Shape-check judge, 184 questions & 2 H100 & 16 min & €1.48 & 19 min, €0.91 \\
+Qwen-Image-Edit, 16 close-ups & 3 H100 & 11 min & €1.53 & 26 min, €1.24 \\
+\end{longtable}
+}
+
+Table G3 sums the cloud ledger, in which every runner records each machine it rents, by type of machine, from the first batch on 29 September to the end of 8 October 2026. It holds the game 2099's own test and benchmark machines as well as the framework's batches, and the machines of the earliest batches, worth €34.69, were recorded without their type.
+
+\textbf{Table G3.} Rented machines by type, 29 September to 8 October 2026.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+Machine & Rentals & Machine time & Cost \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+L4, 24 GB & 793 & 331.1 h & €266.19 \\
+H100 PCIe, 80 GB & 29 & 7.4 h & €21.69 \\
+two H100 SXM, 80 GB each & 14 & 1.5 h & €11.03 \\
+32-core processor, 128 GB & 26 & 5.4 h & €9.85 \\
+two L4, 24 GB each & 3 & 3.4 h & €5.38 \\
+16-core processor, 64 GB & 13 & 2.3 h & €4.81 \\
+32-core processor, 64 GB & 5 & 0.9 h & €4.26 \\
+L40S, 48 GB & 6 & 2.7 h & €4.07 \\
+P100, 16 GB & 2 & 0.1 h & €2.44 \\
+16-core processor, 128 GB & 2 & 1.6 h & €1.36 \\
+type not recorded & & & €34.69 \\
+total & & & €366.76 \\
+\end{longtable}
+}
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: cost tables.} These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds; the figures per place so far are lower bounds taken from the build logs.
+\textbf{Gap: cost tables.} These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds and on the bill; the figures per place so far (Appendix B) are lower bounds taken from the build logs.
 
 \end{minipage}}\end{center}

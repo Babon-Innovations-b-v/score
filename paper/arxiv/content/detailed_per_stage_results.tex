@@ -1,7 +1,58 @@
 \section{Detailed per-stage results}\label{detailed-per-stage-results}
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+Table B1 gives the records of world 1's 17 places as the build logs and the cloud ledger hold them. They are records, not yet results: the creator has not reviewed world 1 since its first room, and worlds 2 to 4 have not been started. The cloud costs are lower bounds. The ledger attributes a batch to a place by the work folders and take names in it; review renders (€24.24), the shape-check judge (€22.81), the game's shared test machines (€32.63), settling (€4.43), the open picture models (€10.27) and the repainting and spreading work (€8.44) could not be attributed to one place. No time or cost is recorded for each stage of a place separately, only for each batch, so the table gives none. The resting check is the one on each place's review page of 8 October, before the night's complete stages were exported; it counts every piece it fails, including many deck plates that it finds sunk by 4 cm, which have not been judged as real faults or not.
 
-\textbf{Gap.} For every place, this appendix will give the wall-clock time, the cost, the number of models built in code and generated, and every fault caught before or found after spending, by stage and by check. Records already exist for 21 place runs of world 1, but they are not results until that world is finished and reviewed; worlds 2 to 4 have not been started.
+\textbf{Table B1.} World 1, per place. Models are those built in code and those generated. Cloud is the ledger's rented machine time attributed to the place, in euros; pictures are the picture model's calls in dollars, from the build logs. Faults are those the checks caught before money was spent and those found after.
 
-\end{minipage}}\end{center}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Place
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Rows
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Pieces
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Models, code / generated
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cloud
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Pictures
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Faults before / after
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Resting
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Hub & 74 & 460 & 88 / 12 & €3.65 & \$1.07 & not counted & 405 of 460 \\
+Lab & 47 & 412 & 54 / 22 & €8.36 & \$4.15 & 13 / 12 & 373 of 412 \\
+Greenhouse & 59 & 1,248 & 146 / 3 & €3.07 & \$2.13 & 7 / 3 & 1,154 of 1,248 \\
+Workshop & 54 & 814 & 97 / 8 & €2.18 & \$3.35 & 3 / 9 & 671 of 814 \\
+Airlock & 33 & 330 & 73 / 1 & €2.53 & \$0.13 & 1 / 5 & 296 of 330 \\
+Walkway tube & 13 & 39 & 23 / 0 & €0.81 & \$0 & 0 / 2 & 38 of 39 \\
+Habitat & 53 & 637 & 100 / 2 & €5.70 & \$1.34 & 1 / 4 & 543 of 637 \\
+Garage & 41 & 602 & 75 / 19 & €4.29 & \$8.71 with the hangar & 3 / not counted, with the hangar & 493 of 602 \\
+Hangar & 37 & 1,686 & 61 / 13 & €4.22 & with the garage & with the garage & 865 of 1,686 \\
+Wreck & 14 & 22 & 3 / 13 & €4.88 & \$2.68 & 2 / 1 & 22 of 22 \\
+Old station & 17 & 28 & 10 / 14 & €4.93 & \$3.22 & 5 / 2 & 29 of 29 \\
+Mars camp & 33 & 218 & 51 / 5 & €3.47 & \$1.21 & 4 / 8 & 127 of 218 \\
+Launch view & 4 & 67 & 4 / 1 & €0.33 & \$0.40 & 1 / 2 & 8 of 67 \\
+Square & 40 & 4,135 & 74 / 2 & €1.64 & \$1.07 & 3 / 4 & 3,712 of 4,135 \\
+Street & 33 & 1,198 & 45 / 2 & €0.98 & \$1.74 & 7 / 6 & 1,179 of 1,198 \\
+Stairwell & 21 & 118 & 42 / 1 & €1.23 & \$2.41 with the flat & 2 / 6 & 117 of 118 \\
+Flat & 38 & 52 & 35 / 9 & €2.44 & with the stairwell & 5 / 6 & 50 of 52 \\
+World 1 & 611 & 12,066 & 981 / 127 & €54.71 & & & 10,082 of 12,066 \\
+\end{longtable}
+}

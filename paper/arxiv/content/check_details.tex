@@ -16,4 +16,10 @@
   \textbf{Palette sweep and storage budget:} the colours of every model are compared with the place's library palette, and each room may use at most 250 MB on disk and 640 MB of textures on the graphics card.
 \item
   \textbf{Scene check and made-only check:} in the engine, these checks find anything that floats, sinks or overlaps, and any visible mesh that the framework did not make. A made-only finding can never be waived.
+\item
+  \textbf{Close-up shape check:} the picture must have a plain border all round, one object filling a sensible share of the frame, and an outline within a set proportion of the inventory row's box; the judge's seven questions must pass by a majority of three sampled answers. A close-up passes only when both halves pass.
+\item
+  \textbf{Settling and resting check:} on the OpenUSD stage, loose objects are dropped with their own triangles onto the ground and the fixed objects. An object that would turn more than 15 degrees or drift more than 30 cm keeps its laid pose and is marked as not resting; small debris, with no side over 1.4 m, may turn freely and drift up to 1 m. The resting check then fails anything floating, tipping, sunk below its contact points, lying inside another piece or marked as not resting. Hung objects are exempt by their inventory anchor, and fixed objects are not judged for tipping.
+\item
+  \textbf{Brightness check:} each view of a place's stage on its review page is shown beside the game's shot from the same spot, and a view whose mean brightness is under half the game's fails.
 \end{itemize}
