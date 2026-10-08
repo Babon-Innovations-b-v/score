@@ -857,6 +857,16 @@
 				"sign_lit": {
 					"recipe": "glowing",
 					"token": "sign-lit"
+				},
+				"moon_face": {
+					"recipe": "glowing",
+					"token": "moonlight",
+					"said": "the Moon's disc in the prologue's night sky, drawn unlit as the game draws it (night_dome)"
+				},
+				"earth_face": {
+					"recipe": "glowing",
+					"token": "earth-ocean",
+					"said": "the Earth's disc in the Moon's sky, its ocean colour (ink_earth)"
 				}
 			}
 		},
@@ -2126,6 +2136,28 @@
 					"bump": 0.0002,
 					"bump_size": 0.01,
 					"said": "the plot's young crop green (PlotField's crop ink)"
+				}
+			}
+		},
+		"water": {
+			"is": "Open water seen from the shore at night: dark, glossy, mirroring what stands round it (the harbour of the game 2099's launch view)",
+			"surface": "glass",
+			"variants": {
+				"harbour_water": {
+					"recipe": "glass",
+					"token": "harbour",
+					"roughness": 0.04
+				}
+			}
+		},
+		"moon_surface": {
+			"is": "The Moon's ground: grey regolith with no shine (the game 2099's regolith_ground)",
+			"surface": "stone",
+			"variants": {
+				"moon_regolith": {
+					"recipe": "rubber",
+					"token": "regolith",
+					"roughness": 1.0
 				}
 			}
 		}

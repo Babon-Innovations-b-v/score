@@ -1,0 +1,195 @@
+{
+ "place": "stairwell",
+ "about": "The stairwell as the game draws it beyond its kit: the seven landing lights, the block over it, the night sky. Frame: EarthSite's own (y up from the street).",
+ "floor": [
+  [
+   3.2,
+   -6.0
+  ],
+  [
+   6.0,
+   -1.0
+  ]
+ ],
+ "ceiling": 11.8,
+ "inside": true,
+ "structure": [
+  {
+   "name": "block_over",
+   "builder": "box",
+   "centre": [
+    1.5,
+    18.0,
+    -3.5
+   ],
+   "size": [
+    9.4,
+    12.0,
+    5.4
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:674-692 _build_the_building (FLAT_WALL)"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    5.3,
+    11.15,
+    -1.6
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.92,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:152-166 landing light"
+  },
+  {
+   "type": "omni",
+   "at": [
+    5.3,
+    8.15,
+    -1.6
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.92,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:152-166 landing light"
+  },
+  {
+   "type": "omni",
+   "at": [
+    5.3,
+    5.15,
+    -1.6
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.92,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:152-166 landing light"
+  },
+  {
+   "type": "omni",
+   "at": [
+    5.3,
+    2.15,
+    -1.6
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.92,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:152-166 landing light"
+  },
+  {
+   "type": "omni",
+   "at": [
+    4.6,
+    9.65,
+    -5.4
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.92,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:152-166 landing light"
+  },
+  {
+   "type": "omni",
+   "at": [
+    4.6,
+    6.65,
+    -5.4
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.92,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:152-166 landing light"
+  },
+  {
+   "type": "omni",
+   "at": [
+    4.6,
+    3.65,
+    -5.4
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.92,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:152-166 landing light"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.05
+  },
+  "exposure": 0.85,
+  "from": "sky.gd:89 NIGHT_AMBIENT 0.05, EARTHSHINE colour, exposure 0.85; night.gd",
+  "inside": true
+ },
+ "views": [
+  {
+   "name": "stairs-top",
+   "eye": [
+    3.9,
+    10.62,
+    -1.8
+   ],
+   "aim": [
+    3.9,
+    8.5,
+    -5.0
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-stairs-top.png"
+  },
+  {
+   "name": "stairs-half",
+   "eye": [
+    4.6,
+    9.12,
+    -5.2
+   ],
+   "aim": [
+    5.3,
+    7.0,
+    -2.0
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-stairs-half.png"
+  },
+  {
+   "name": "stairs",
+   "eye": [
+    5.3,
+    1.62,
+    -1.5
+   ],
+   "aim": [
+    5.3,
+    2.4,
+    -5.5
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-stairs.png"
+  }
+ ],
+ "game_only": [
+  "the street door's canopy lamp spilling in at the foot",
+  "the ink outline pass"
+ ]
+}

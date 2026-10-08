@@ -44,3 +44,19 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `export_test.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
   test itself; `resting_test.py` the resting check and the planned ground; `settle_test.py` the settle's write-back
   (a pose round-trips through the layout and the export) and the levelled yard, without Blender.
+- **The scene record** (`data/scene/<place>.json`, read by `scene.py`) is what the game drew in its own code and no kit
+  piece covers: room shells and the building round a room, stairs and stepped floors, the gameplay objects it places
+  from code (a world's own model file, `glb_asset.py`), the ground past the place and Mars's or the Moon's ball, the
+  water, the far backdrop, other places seen from this one (their own stages referenced), every light (UsdLux, the
+  game's numbers kept as `score:game:*`), the sky and the exposure, and the cameras the place is judged from with the
+  game's shot from each. Its geometry comes only from the code builders in `builders.py` (plain numbers in, meshes
+  painted with library surfaces out); add a builder there, never a mesh in a record. Every entry says where in the game
+  its numbers came from (`from`), and what the game draws that the record does not carry is listed in `game_only`.
+- **Light units.** The stage's lights are in Blender's USD reader's units (a sphere light's watts its intensity times
+  pi, a distant light's strength its intensity times 4), from the game's energies by `scene.SUN_PER_ENERGY` and
+  `OMNI_PER_ENERGY`; change those, never a record's energies, when the brightness check against the game's shots says
+  the scene is too dark or too bright.
+- `export.py --world <the game's checkout>` resolves the files a record names; a walkway tube's kit is laid along the
+  record's `tube_length` as the game's TubeKit lays it. `scene_test.py` checks the builders, the lights' units and
+  turns, the kit lamps, the tube's laying and every real record.
+

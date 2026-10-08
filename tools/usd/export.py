@@ -70,6 +70,7 @@ import glb_file  # noqa: E402
 import ground as grounds  # noqa: E402
 import library  # noqa: E402
 import package  # noqa: E402
+import scene as scene_record  # noqa: E402
 import stored_parts  # noqa: E402
 
 KITS = REPO / "data/kit"
@@ -222,9 +223,10 @@ def png_maps(maps, textures):
     return found
 
 
-def baked_material(stage, path, maps, surface):
+def baked_material(stage, path, maps, surface, glows=False):
     """A material drawn with the model's baked maps (UsdPreviewSurface), named for the library surface it paints;
-    its surface's name, family and sounds ride on it."""
+    its surface's name, family and sounds ride on it. A glowing part (a lamp's lens, a screen: `glows`) gives off its
+    own baked colour as light too."""
     material = UsdShade.Material.Define(stage, path)
     shader = UsdShade.Shader.Define(stage, f"{path}/surface")
     shader.CreateIdAttr("UsdPreviewSurface")
@@ -241,6 +243,9 @@ def baked_material(stage, path, maps, surface):
         if role == "base_color":
             shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
                 texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
+            if glows:
+                shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+                    texture.GetOutput("rgb"))
         elif role == "metal_roughness":  # glTF packs roughness in green and metal in blue
             shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
                 texture.CreateOutput("g", Sdf.ValueTypeNames.Float))
@@ -316,7 +321,8 @@ def part_subsets(stage, mesh, surfaces, maps, variants, sounds):
         faces = np.nonzero(surfaces == variant)[0].astype(np.int32)
         subset = UsdGeom.Subset.CreateGeomSubset(mesh, variant, UsdGeom.Tokens.face, Vt.IntArray.FromNumpy(faces),
                                                  UsdShade.Tokens.materialBind)
-        material = baked_material(stage, model_path.AppendPath(f"Looks/{variant}"), maps, variant)
+        glows = variants.get(variant, {}).get("family") in ("light", "screen") or model_path.name.endswith("_glow")
+        material = baked_material(stage, model_path.AppendPath(f"Looks/{variant}"), maps, variant, glows)
         UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(material)
         surface_attributes(subset.GetPrim(), variant, variants, sounds)
     UsdGeom.Subset.SetFamilyType(mesh, UsdShade.Tokens.materialBind, UsdGeom.Tokens.partition)
@@ -341,7 +347,8 @@ def write_asset(model, models, parts, take, turn, size, out, variants, sounds):
     labelled = labelled_take(parts, model, take)
     largest = None
     if labelled is None:
-        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(baked_material(stage, f"/{model}/Looks/baked", maps, None))
+        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(
+            baked_material(stage, f"/{model}/Looks/baked", maps, None, glows=model.endswith("_glow")))
     else:
         points, names = part_points(labelled, turn, size)
         largest = part_subsets(stage, mesh, face_surfaces(geometry, points, names), maps, variants, sounds)
@@ -351,16 +358,42 @@ def write_asset(model, models, parts, take, turn, size, out, variants, sounds):
 
 # --- the place's layers -------------------------------------------------------------------------------------------
 
-def kit_room_pieces(kit, models):
+def tube_spots(laid, length, bay):
+    """Where a walkway tube's piece stands along a straight way `length` metres long, as the game's TubeKit lays it:
+    a bay piece on every bay (or every `every`-th, the middle one of each run), each bay stretched along to fill the
+    way; an end piece at the way's start and again at its end turned round. Each spot a 4 x 4 in the tube's frame
+    (x across, y up, z along)."""
+    count = max(1, round(length / bay))
+    stretch = length / (count * bay)
+    spots = []
+    if laid.get("tube_part", "bay") == "bay":
+        every = int(laid.get("every", 1))
+        for index in range(count):
+            if index % every == every // 2:
+                spot = np.diag([1.0, 1.0, stretch, 1.0])
+                spot[2, 3] = length * index / count
+                spots.append(spot)
+        return spots
+    turned = np.diag([-1.0, 1.0, -1.0, 1.0])
+    turned[2, 3] = length
+    return [np.eye(4), turned]
+
+
+def kit_room_pieces(kit, models, tube_length=None):
     """A kit room's pieces as objects: each its kind's own name as its row, and its transform (`matrix`, the game's,
-    package.kit_matrix) from its model's box; the layout's other fields as they are."""
+    package.kit_matrix) from its model's box; the layout's other fields as they are. A walkway tube's kit (its layout
+    has a `bay`) is laid along a way `tube_length` long (tube_spots), as the game lays it between two rooms."""
     room = kit.get("room", "")
     found = []
     for laid in kit["pieces"]:
         matrix, _ = package.kit_matrix(laid, *package.model_box(pathlib.Path(models) / f"{laid['model']}.gltf"))
         own = laid["kind"].removeprefix(f"{room}_")
         # A glowing part (a lamp's lens, a screen) is an object of its own, named apart from its host's.
-        found.append(dict(laid, row=f"{own}_{laid['part']}" if "part" in laid else own, matrix=matrix.tolist()))
+        row = f"{own}_{laid['part']}" if "part" in laid else own
+        spots = tube_spots(laid, tube_length, float(kit["bay"])) if "bay" in kit and tube_length else [np.eye(4)]
+        found += [dict(laid, row=row, matrix=(spot @ matrix).tolist(), **({"spot": spot.tolist()} if len(spots) > 1 or
+                                                                                "bay" in kit else {}))
+                  for spot in spots]
     return found
 
 
@@ -404,6 +437,8 @@ def library_materials(stage, place, root):
         shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*spec["colour"]))
         shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(spec.get("roughness", 0.5)))
         shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(spec.get("metal", 0.0)))
+        if spec["family"] == "light":  # a lit window, a lamp's lens: it gives off its colour
+            shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*spec["colour"]))
         material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
         for key in ("recipe", "token", "family"):
             material.GetPrim().CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(str(spec[key]))
@@ -463,9 +498,10 @@ def stand_on(xform, at, ground):
 
 def ground_mesh(stage, path, ground, pieces, out):
     """The place's ground round its pieces: a drawn mesh of the planned heights, coloured with the plan's skin (cut
-    to the patch, as PNG under assets/textures), and a static collider."""
+    to the patch, as PNG under assets/textures), and a static collider; its box (across, along) back."""
     spots = np.array([[piece["at"][0], piece["at"][2]] for piece in pieces])
     points, triangles, skin_at = ground.mesh(spots.min(axis=0), spots.max(axis=0))
+    near = (points[:, [0, 2]].min(axis=0), points[:, [0, 2]].max(axis=0))
     picture = Image.open(ground.skin).convert("RGB")
     wide, tall = picture.size
     low = np.floor(skin_at.min(axis=0) * [wide, tall]).astype(int).clip(0, [wide - 1, tall - 1])
@@ -488,20 +524,30 @@ def ground_mesh(stage, path, ground, pieces, out):
     shader = UsdShade.Shader(stage.GetPrimAtPath(f"{path}_look/surface"))
     shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(1.0)  # regolith has no shine
     UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
+    return near
 
 
 def lamp(stage, path, entry, ground=None):
-    """A lamp of the layout: a small sphere light where it hangs, its strength and reach as the game reads them."""
+    """A lamp of the layout: a small sphere light where it hangs, as the game lights it (its lamp: energy
+    scene.LAMP_ENERGY times its strength, the lamp colour, its reach as range), in the stage's light units."""
     light = UsdLux.SphereLight.Define(stage, path)
     stand_on(light, entry["at"], ground)
-    light.CreateRadiusAttr(0.05)
+    light.CreateRadiusAttr(scene_record.LAMP_RADIUS)
+    energy = scene_record.LAMP_ENERGY * float(entry.get("strength", 1.0))
+    light.CreateIntensityAttr(scene_record.OMNI_PER_ENERGY * energy / scene_record.SPHERE_WATTS_PER_INTENSITY)
+    light.CreateColorAttr(Gf.Vec3f(*scene_record.colour(scene_record.LAMP_COLOUR)))
     light.GetPrim().CreateAttribute("score:strength", Sdf.ValueTypeNames.Float).Set(float(entry.get("strength", 1.0)))
     light.GetPrim().CreateAttribute("score:range", Sdf.ValueTypeNames.Float).Set(float(entry.get("range", 6.0)))
+    scene_record.game_values(light.GetPrim(), {"energy": energy, "range": float(entry.get("range", 6.0)),
+                                              "attenuation": scene_record.LAMP_ATTENUATION, "shadows": True,
+                                              "from": "MadePlace lamp, game/base/lamp/lamp.gd"})
 
 
-def write_base(place, kit, inventory, assets, out, children, ground=None):
+def write_base(place, kit, inventory, assets, out, children, ground=None, scene=None, world=None):
     """The generated layer, rewritten whole: the place's root, its library surfaces, its objects (each child under
-    the object it stands on, named as objects are, so moving the parent moves it) and its lamps."""
+    the object it stands on, named as objects are, so moving the parent moves it), its lamps, and what its scene record
+    holds (tools/usd/scene.py: the structure, ground, water, backdrop, gameplay objects, lights and sky the game drew in
+    its own code)."""
     path = out / "layers/base.usda"
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.FindOrOpen(str(path)) or Sdf.Layer.CreateNew(str(path))
@@ -526,8 +572,11 @@ def write_base(place, kit, inventory, assets, out, children, ground=None):
         UsdGeom.Scope.Define(stage, f"/{place}/Lamps")
     for number, entry in enumerate(kit.get("lamps", []), start=1):
         lamp(stage, f"/{place}/Lamps/lamp_{number}", entry, ground)
+    near = None
     if ground is not None:
-        ground_mesh(stage, f"/{place}/Ground", ground, kit["pieces"], out)
+        near = ground_mesh(stage, f"/{place}/Ground", ground, kit["pieces"], out)
+    if scene is not None:
+        scene_record.write(stage, place, scene, out, world, kit, kit["pieces"], ground, near)
     layer.Save()
 
 
@@ -560,17 +609,18 @@ def write_root(place, out):
 
 # --- the way in ---------------------------------------------------------------------------------------------------
 
-def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None):
+def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None, world=None):
     """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
     `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read; without
     `parts`, the place's stored takes (data/parts). `ground` is the place's tools/usd/ground.Ground; without one the
-    place is flat."""
+    place is flat. `world` is the folder of the world's own assets (the game's tree) its scene record names files in."""
     out = pathlib.Path(out)
     if parts is None:
         parts = stored_parts.takes_of(place)
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
+    scene = scene_record.record(place)
     if kit["pieces"] and "x" in kit["pieces"][0]:
-        kit = dict(kit, pieces=kit_room_pieces(kit, models))
+        kit = dict(kit, pieces=kit_room_pieces(kit, models, (scene or {}).get("tube_length")))
     if inventory_path is None:  # a room of a place of another name keeps its inventory under the place's (the flat)
         inventory_path = next((path for path in (INVENTORIES / f"{place}.json", INVENTORIES / f"{kit.get('place')}.json")
                                if path.exists()), INVENTORIES / f"{place}.json")
@@ -588,7 +638,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         turn = details.get(piece["kind"], {}).get("turn", [1, 0, 0, 0, 1, 0, 0, 0, 1])
         largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds)
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
-    write_base(place, kit, inventory, assets, out, children, ground)
+    write_base(place, kit, inventory, assets, out, children, ground, scene, world)
     ensure_edit(out)
     return write_root(place, out)
 
@@ -602,11 +652,14 @@ def main():
     found.add_argument("--work", type=pathlib.Path, help="the route run's work folder: its parts and recorded take")
     found.add_argument("--parts", type=pathlib.Path, help="a folder of labelled takes, each model's newest read")
     parser.add_argument("--flat", action="store_true", help="lay the place on flat ground even if it has a ground")
+    parser.add_argument("--world", type=pathlib.Path, help="the world's own asset folder (the game's checkout) that "
+                        "the place's scene record names models and pictures in")
     arguments = parser.parse_args()
     parts, take = run_parts(arguments.work) if arguments.work else (arguments.parts, None)
     kit = json.loads((KITS / f"{arguments.place}.json").read_text())
     laid_on = None if arguments.flat else grounds.place_ground(arguments.place, kit.get("on_seat", [0.0, 0.0]))
-    print(export(arguments.place, arguments.models, arguments.out, parts, take=take, ground=laid_on))
+    print(export(arguments.place, arguments.models, arguments.out, parts, take=take, ground=laid_on,
+                 world=arguments.world))
 
 
 if __name__ == "__main__":

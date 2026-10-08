@@ -1,0 +1,493 @@
+{
+ "place": "square",
+ "about": "The square below the balcony as the game draws it beyond its kit: the harbour, the far ground, the shore's skyline, the launch view (its own stage), the square's lamps, the floodlights from the towers, the stage lamp, the moonlight and the night sky. Frame: EarthSite's own.",
+ "ground": [
+  {
+   "name": "far_ground",
+   "builder": "disc",
+   "radius": 320.0,
+   "height": -0.08,
+   "surface": "concrete_dark",
+   "segments": 96,
+   "from": "earth_site.gd:942-949 (far disc, earth_far_ground)"
+  }
+ ],
+ "water": [
+  {
+   "name": "harbour",
+   "builder": "grid",
+   "low": [
+    -320.0,
+    -320.0
+   ],
+   "high": [
+    -110.0,
+    320.0
+   ],
+   "height": -0.01,
+   "surface": "harbour_water",
+   "step": 10.0,
+   "from": "game/prologue/earth_site/earth_site.gd:303-304 SEA_GROUND (x -320..-110, z -320..320, y -0.02), sea.tres"
+  }
+ ],
+ "backdrop": [
+  {
+   "name": "shore_1",
+   "picture": "game/prologue/earth_site/shore/shore_1.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 148.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_2",
+   "picture": "game/prologue/earth_site/shore/shore_2.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 208.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_3",
+   "picture": "game/prologue/earth_site/shore/shore_3.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 268.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_4",
+   "picture": "game/prologue/earth_site/shore/shore_4.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 328.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  }
+ ],
+ "structure": [
+  {
+   "name": "moon",
+   "builder": "sphere",
+   "centre": [
+    -279.13,
+    121.12,
+    -59.3
+   ],
+   "radius": 11.9,
+   "surface": "moon_face",
+   "from": "night.gd:16-17,178-183 (4.4 degrees across, 23 up)"
+  }
+ ],
+ "places": [
+  {
+   "name": "launch",
+   "stage": "launch",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "EarthSite"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    -73.0,
+    5.5,
+    -61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -73.0,
+    5.5,
+    61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -59.0,
+    5.5,
+    -61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -59.0,
+    5.5,
+    61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -45.0,
+    5.5,
+    -61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -45.0,
+    5.5,
+    61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -31.0,
+    5.5,
+    -61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -31.0,
+    5.5,
+    61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -17.0,
+    5.5,
+    -61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -17.0,
+    5.5,
+    61.37
+   ],
+   "colour": "#ffd29a",
+   "energy": 4.0,
+   "range": 18.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "night.gd:267-277 square lamps"
+  },
+  {
+   "type": "spot",
+   "at": [
+    -54.0,
+    19.6,
+    -42.0
+   ],
+   "aim": [
+    -22.675,
+    0.0,
+    -18.9
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "night.gd:300-326 tower floodlight"
+  },
+  {
+   "type": "spot",
+   "at": [
+    -54.0,
+    19.6,
+    38.0
+   ],
+   "aim": [
+    -22.675,
+    0.0,
+    13.1
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "night.gd:300-326 tower floodlight"
+  },
+  {
+   "type": "spot",
+   "at": [
+    -68.0,
+    19.6,
+    -30.0
+   ],
+   "aim": [
+    -22.675,
+    0.0,
+    -14.1
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "night.gd:300-326 tower floodlight"
+  },
+  {
+   "type": "spot",
+   "at": [
+    -68.0,
+    19.6,
+    24.0
+   ],
+   "aim": [
+    -22.675,
+    0.0,
+    7.5
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "night.gd:300-326 tower floodlight"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -42.65,
+    5.89,
+    -3.7
+   ],
+   "colour": "#ffd29a",
+   "energy": 18.0,
+   "range": 12.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "earth_site.gd:1291-1298 stage lamp (strength 1.5)"
+  },
+  {
+   "type": "sun",
+   "name": "moonlight",
+   "toward": [
+    0.90042,
+    -0.39071,
+    0.1913
+   ],
+   "colour": "#e6ebf2",
+   "energy": 0.08,
+   "shadows": true,
+   "from": "night.gd:255-264 (0.08 at full Moon)"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.05
+  },
+  "exposure": 0.85,
+  "from": "sky.gd:89 NIGHT_AMBIENT 0.05, EARTHSHINE colour, exposure 0.85; night.gd"
+ },
+ "views": [
+  {
+   "name": "balcony-podium",
+   "eye": [
+    -4.6,
+    10.6,
+    -3.5
+   ],
+   "aim": [
+    -45.5,
+    4.9,
+    -3.5
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/balcony-podium.png"
+  },
+  {
+   "name": "balcony-left",
+   "eye": [
+    -4.6,
+    10.6,
+    -3.5
+   ],
+   "aim": [
+    -40.0,
+    3.0,
+    -50.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/balcony-left.png"
+  },
+  {
+   "name": "balcony-right",
+   "eye": [
+    -4.6,
+    10.6,
+    -3.5
+   ],
+   "aim": [
+    -40.0,
+    3.0,
+    45.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/balcony-right.png"
+  },
+  {
+   "name": "balcony-down",
+   "eye": [
+    -4.6,
+    10.6,
+    -3.5
+   ],
+   "aim": [
+    -14.0,
+    0.0,
+    -3.5
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/balcony-down.png"
+  },
+  {
+   "name": "square-stage-near",
+   "eye": [
+    -30.0,
+    4.0,
+    -3.5
+   ],
+   "aim": [
+    -50.0,
+    5.0,
+    -3.5
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/square-stage-near.png"
+  },
+  {
+   "name": "square-flags-near",
+   "eye": [
+    -20.0,
+    3.0,
+    -25.0
+   ],
+   "aim": [
+    -35.0,
+    4.0,
+    -40.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/square-flags-near.png"
+  },
+  {
+   "name": "square-tower-near",
+   "eye": [
+    -40.0,
+    6.0,
+    -30.0
+   ],
+   "aim": [
+    -54.0,
+    14.0,
+    -42.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/square-tower-near.png"
+  },
+  {
+   "name": "promenade-near",
+   "eye": [
+    -95.0,
+    2.0,
+    0.0
+   ],
+   "aim": [
+    -110.0,
+    1.0,
+    -30.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/promenade-near.png"
+  }
+ ],
+ "game_only": [
+  "the crowd (10,000 people on the first trip) and the leader",
+  "the banners' and neon signs' words",
+  "the haze ring and the water's mirror",
+  "the stars",
+  "the ink outline pass"
+ ]
+}

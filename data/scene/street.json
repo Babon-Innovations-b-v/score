@@ -1,0 +1,283 @@
+{
+ "place": "street",
+ "about": "The street outside the block as the game draws it beyond its kit: the street lamps, the door's canopy lamp, the barber's open-shop glow, the moonlight, the far ground, the shore's skyline and the night sky. Frame: EarthSite's own.",
+ "ground": [
+  {
+   "name": "far_ground",
+   "builder": "disc",
+   "radius": 320.0,
+   "height": -0.08,
+   "surface": "concrete_dark",
+   "segments": 96,
+   "from": "earth_site.gd:942-949 (far disc, earth_far_ground)"
+  }
+ ],
+ "backdrop": [
+  {
+   "name": "shore_1",
+   "picture": "game/prologue/earth_site/shore/shore_1.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 148.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_2",
+   "picture": "game/prologue/earth_site/shore/shore_2.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 208.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_3",
+   "picture": "game/prologue/earth_site/shore/shore_3.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 268.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_4",
+   "picture": "game/prologue/earth_site/shore/shore_4.png",
+   "radius": 300.0,
+   "low": -0.02,
+   "high": 83.98,
+   "from": 328.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  }
+ ],
+ "structure": [
+  {
+   "name": "moon",
+   "builder": "sphere",
+   "centre": [
+    -279.13,
+    121.12,
+    -59.3
+   ],
+   "radius": 11.9,
+   "surface": "moon_face",
+   "from": "night.gd:16-17,178-183 (4.4 degrees across, 23 up)"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    7.2,
+    5.0,
+    -5.0
+   ],
+   "colour": "#ffd29a",
+   "energy": 12.0,
+   "range": 12.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "earth_site.tscn StreetLamps (strength 1, first trip)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    7.2,
+    5.0,
+    3.0
+   ],
+   "colour": "#ffd29a",
+   "energy": 12.0,
+   "range": 12.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "earth_site.tscn StreetLamps (strength 1, first trip)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    7.2,
+    5.0,
+    10.0
+   ],
+   "colour": "#ffd29a",
+   "energy": 12.0,
+   "range": 12.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "earth_site.tscn StreetLamps (strength 1, first trip)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    6.65,
+    2.53,
+    -1.6
+   ],
+   "colour": "#ffd29a",
+   "energy": 3.6,
+   "range": 6.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "street_fittings.gd:226-236 canopy lamp"
+  },
+  {
+   "type": "omni",
+   "at": [
+    13.6,
+    2.4,
+    2.5
+   ],
+   "colour": "#ffc47e",
+   "energy": 0.8,
+   "range": 5.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "street_fittings.gd:266-272 barber's glow"
+  },
+  {
+   "type": "sun",
+   "name": "moonlight",
+   "toward": [
+    0.90042,
+    -0.39071,
+    0.1913
+   ],
+   "colour": "#e6ebf2",
+   "energy": 0.08,
+   "shadows": true,
+   "from": "night.gd:255-264 (0.08 at full Moon)"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.05
+  },
+  "exposure": 0.85,
+  "from": "sky.gd:89 NIGHT_AMBIENT 0.05, EARTHSHINE colour, exposure 0.85; night.gd"
+ },
+ "views": [
+  {
+   "name": "street-door",
+   "eye": [
+    6.8,
+    1.6,
+    -1.6
+   ],
+   "aim": [
+    10.0,
+    1.0,
+    4.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/street-door.png"
+  },
+  {
+   "name": "street-north",
+   "eye": [
+    10.0,
+    1.6,
+    10.5
+   ],
+   "aim": [
+    10.0,
+    2.0,
+    -8.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/street-north.png"
+  },
+  {
+   "name": "street-south",
+   "eye": [
+    10.0,
+    1.6,
+    -7.0
+   ],
+   "aim": [
+    10.0,
+    2.0,
+    12.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/street-south.png"
+  },
+  {
+   "name": "street-across",
+   "eye": [
+    7.4,
+    1.6,
+    0.5
+   ],
+   "aim": [
+    14.2,
+    2.6,
+    2.5
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/street-across.png"
+  },
+  {
+   "name": "street-own",
+   "eye": [
+    13.0,
+    1.6,
+    4.0
+   ],
+   "aim": [
+    6.2,
+    3.0,
+    2.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/street-own.png"
+  },
+  {
+   "name": "shops-close",
+   "eye": [
+    11.0,
+    1.6,
+    -4.0
+   ],
+   "aim": [
+    14.2,
+    2.4,
+    -4.0
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/shops-close.png"
+  },
+  {
+   "name": "door-canopy",
+   "eye": [
+    9.0,
+    1.6,
+    -1.6
+   ],
+   "aim": [
+    6.2,
+    2.5,
+    -1.6
+   ],
+   "fov": 70,
+   "game": "place-ssl/shots/now/door-canopy.png"
+  }
+ ],
+ "game_only": [
+  "the tenements' roofs (parapets, tanks, stair huts, aerials)",
+  "the car, its driver and the guard",
+  "the lit windows' night glow",
+  "the stars",
+  "the ink outline pass"
+ ]
+}

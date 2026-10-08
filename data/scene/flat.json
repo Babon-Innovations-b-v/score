@@ -1,0 +1,283 @@
+{
+ "place": "flat",
+ "about": "The player's flat as the game draws it beyond its kit: the whitewashed block round it, its two lamps, the moonlight, the night sky, and out of the balcony door the square and the launch view (their own stages), the harbour, the far ground and the shore's skyline. Frame: EarthSite's, 9 m down (the flat's floor at 0).",
+ "floor": [
+  [
+   -4.8,
+   -6.0
+  ],
+  [
+   3.0,
+   -1.0
+  ]
+ ],
+ "ceiling": 3.0,
+ "inside": true,
+ "structure": [
+  {
+   "name": "block_under",
+   "builder": "box",
+   "centre": [
+    0.0,
+    -4.51,
+    -3.5
+   ],
+   "size": [
+    6.4,
+    8.98,
+    5.4
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:674-692 _build_the_building (FLAT_WALL)"
+  },
+  {
+   "name": "block_over",
+   "builder": "box",
+   "centre": [
+    1.5,
+    9.0,
+    -3.5
+   ],
+   "size": [
+    9.4,
+    12.0,
+    5.4
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:674-692 _build_the_building (FLAT_WALL)"
+  },
+  {
+   "name": "moon",
+   "builder": "sphere",
+   "centre": [
+    -279.13,
+    112.12,
+    -59.3
+   ],
+   "radius": 11.9,
+   "surface": "moon_face",
+   "from": "night.gd:16-17,178-183 (4.4 degrees across, 23 up)"
+  }
+ ],
+ "ground": [
+  {
+   "name": "far_ground",
+   "builder": "disc",
+   "radius": 320.0,
+   "height": -9.08,
+   "surface": "concrete_dark",
+   "segments": 96,
+   "from": "earth_site.gd:942-949 (far disc, earth_far_ground)"
+  }
+ ],
+ "water": [
+  {
+   "name": "harbour",
+   "builder": "grid",
+   "low": [
+    -320.0,
+    -320.0
+   ],
+   "high": [
+    -110.0,
+    320.0
+   ],
+   "height": -9.01,
+   "surface": "harbour_water",
+   "step": 10.0,
+   "from": "game/prologue/earth_site/earth_site.gd:303-304 SEA_GROUND (x -320..-110, z -320..320, y -0.02), sea.tres"
+  }
+ ],
+ "backdrop": [
+  {
+   "name": "shore_1",
+   "picture": "game/prologue/earth_site/shore/shore_1.png",
+   "radius": 300.0,
+   "low": -9.02,
+   "high": 74.98,
+   "from": 148.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_2",
+   "picture": "game/prologue/earth_site/shore/shore_2.png",
+   "radius": 300.0,
+   "low": -9.02,
+   "high": 74.98,
+   "from": 208.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_3",
+   "picture": "game/prologue/earth_site/shore/shore_3.png",
+   "radius": 300.0,
+   "low": -9.02,
+   "high": 74.98,
+   "from": 268.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  },
+  {
+   "name": "shore_4",
+   "picture": "game/prologue/earth_site/shore/shore_4.png",
+   "radius": 300.0,
+   "low": -9.02,
+   "high": 74.98,
+   "from": 328.0,
+   "span": 64.0,
+   "segments": 24,
+   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
+  }
+ ],
+ "places": [
+  {
+   "name": "square",
+   "stage": "square",
+   "at": [
+    0.0,
+    -9.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "EarthSite"
+  },
+  {
+   "name": "launch",
+   "stage": "launch",
+   "at": [
+    0.0,
+    -9.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "EarthSite"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    1.6,
+    2.6,
+    -3.5
+   ],
+   "colour": "#ffd29a",
+   "energy": 0.96,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "earth_site.tscn FlatLamp (strength 0.08)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    0.75,
+    0.85,
+    -5.79
+   ],
+   "colour": "#ffd29a",
+   "energy": 1.44,
+   "range": 4.5,
+   "attenuation": 2.2,
+   "shadows": false,
+   "from": "earth_site.gd:812-821 bedside lamp"
+  },
+  {
+   "type": "sun",
+   "name": "moonlight",
+   "toward": [
+    0.90042,
+    -0.39071,
+    0.1913
+   ],
+   "colour": "#e6ebf2",
+   "energy": 0.08,
+   "shadows": true,
+   "from": "night.gd:255-264 (0.08 at full Moon)"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.05
+  },
+  "exposure": 0.85,
+  "from": "sky.gd:89 NIGHT_AMBIENT 0.05, EARTHSHINE colour, exposure 0.85; night.gd",
+  "inside": true
+ },
+ "views": [
+  {
+   "name": "room",
+   "eye": [
+    0.4,
+    1.62,
+    -3.0
+   ],
+   "aim": [
+    0.4,
+    1.6,
+    -5.99
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-room.png"
+  },
+  {
+   "name": "room-from-the-door",
+   "eye": [
+    2.6,
+    1.62,
+    -1.6
+   ],
+   "aim": [
+    -2.5,
+    1.2,
+    -4.5
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-room-from-the-door.png"
+  },
+  {
+   "name": "room-from-the-balcony-door",
+   "eye": [
+    -2.6,
+    1.62,
+    -3.5
+   ],
+   "aim": [
+    2.5,
+    1.2,
+    -3.5
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-room-from-the-balcony-door.png"
+  },
+  {
+   "name": "balcony",
+   "eye": [
+    -4.0,
+    1.62,
+    -3.5
+   ],
+   "aim": [
+    -45.65,
+    -3.11,
+    -3.7
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-balcony.png"
+  }
+ ],
+ "game_only": [
+  "the balcony door slid open (the kit has it shut)",
+  "the crowd and the leader on the square",
+  "the stars",
+  "the haze ring and the water's mirror",
+  "the ink outline pass"
+ ]
+}

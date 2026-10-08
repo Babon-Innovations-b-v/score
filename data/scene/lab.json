@@ -1,0 +1,261 @@
+{
+ "place": "lab",
+ "about": "The lab (round two, flat floor) as the game draws it beyond its kit: the shell's backing, the room fill and the indoor sky. Frame: the room's middle on its floor, x east, z south.",
+ "floor": [
+  [
+   -3.0,
+   -3.0
+  ],
+  [
+   3.0,
+   3.0
+  ]
+ ],
+ "ceiling": 3.8,
+ "inside": true,
+ "structure": [
+  {
+   "name": "shell_walls",
+   "builder": "room_walls",
+   "wide": 6.3,
+   "deep": 6.3,
+   "corner": 1.75,
+   "high": 2.8,
+   "surface": "roof_steel_paint",
+   "doors": [
+    {
+     "side": "north",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "south",
+     "wide": 2.2,
+     "tall": 2.6
+    }
+   ],
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_deck",
+   "builder": "room_deck",
+   "wide": 6.3,
+   "deep": 6.3,
+   "corner": 1.75,
+   "height": -0.042,
+   "surface": "roof_steel_paint",
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_roof",
+   "builder": "dome_roof",
+   "wide": 6.3,
+   "deep": 6.3,
+   "corner": 1.75,
+   "eave": 2.8,
+   "rise": 1.1,
+   "run": 1.2,
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    2.24,
+    0.0
+   ],
+   "colour": "#a8bcd8",
+   "energy": 0.08,
+   "range": 5.08,
+   "attenuation": 0.4,
+   "shadows": false,
+   "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.1
+  },
+  "exposure": 0.85,
+  "inside": true,
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+ },
+ "views": [
+  {
+   "name": "south-door-in",
+   "eye": [
+    0.0,
+    1.6,
+    2.4
+   ],
+   "aim": [
+    0.0,
+    1.2,
+    -3.0
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/south-door-in.png"
+  },
+  {
+   "name": "north-door",
+   "eye": [
+    0.0,
+    1.6,
+    -2.0
+   ],
+   "aim": [
+    0.0,
+    1.2,
+    3.0
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/north-door.png"
+  },
+  {
+   "name": "west-desk",
+   "eye": [
+    -0.9,
+    1.6,
+    -0.3
+   ],
+   "aim": [
+    -1.85,
+    0.9,
+    -2.1
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/west-desk.png"
+  },
+  {
+   "name": "east-desk",
+   "eye": [
+    0.9,
+    1.6,
+    -0.3
+   ],
+   "aim": [
+    1.85,
+    0.9,
+    -2.1
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/east-desk.png"
+  },
+  {
+   "name": "desk-close",
+   "eye": [
+    -1.7,
+    1.5,
+    -0.9
+   ],
+   "aim": [
+    -1.8,
+    0.85,
+    -2.1
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/desk-close.png"
+  },
+  {
+   "name": "microscope",
+   "eye": [
+    1.5,
+    1.45,
+    -1.1
+   ],
+   "aim": [
+    1.37,
+    1.05,
+    -2.03
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/microscope.png"
+  },
+  {
+   "name": "glovebox",
+   "eye": [
+    0.9,
+    1.6,
+    0.8
+   ],
+   "aim": [
+    2.6,
+    1.0,
+    0.3
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/glovebox.png"
+  },
+  {
+   "name": "sample-store",
+   "eye": [
+    -1.0,
+    1.6,
+    0.6
+   ],
+   "aim": [
+    -2.6,
+    1.0,
+    0.0
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/sample-store.png"
+  },
+  {
+   "name": "gas-lines",
+   "eye": [
+    0.4,
+    1.6,
+    -0.2
+   ],
+   "aim": [
+    3.0,
+    2.0,
+    0.4
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/gas-lines.png"
+  },
+  {
+   "name": "up-dome",
+   "eye": [
+    0.0,
+    1.6,
+    1.8
+   ],
+   "aim": [
+    0.0,
+    3.8,
+    0.0
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/up-dome.png"
+  },
+  {
+   "name": "corner-wide",
+   "eye": [
+    -1.9,
+    1.6,
+    2.1
+   ],
+   "aim": [
+    2.0,
+    1.0,
+    -2.0
+   ],
+   "fov": 75,
+   "game": "place-lab/shots/now/corner-wide.png"
+  }
+ ],
+ "game_only": [
+  "the haze",
+  "the ink outline pass",
+  "the label readouts over the desks"
+ ]
+}

@@ -1,0 +1,210 @@
+{
+ "place": "airlock",
+ "about": "The airlock as the game draws it beyond its kit: the shell's backing, the outer door leaf shut (the inner one is sunk open with air in the chamber), the hanging suit, the room fill and the indoor sky. Frame: the Airlock node's own, its middle on the floor.",
+ "floor": [
+  [
+   -2.0,
+   -2.5
+  ],
+  [
+   2.0,
+   2.5
+  ]
+ ],
+ "ceiling": 3.4,
+ "inside": true,
+ "structure": [
+  {
+   "name": "shell_walls",
+   "builder": "room_walls",
+   "wide": 4.3,
+   "deep": 5.3,
+   "corner": 0.75,
+   "high": 2.8,
+   "surface": "roof_steel_paint",
+   "doors": [
+    {
+     "side": "north",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "south",
+     "wide": 2.2,
+     "tall": 2.6
+    }
+   ],
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_deck",
+   "builder": "room_deck",
+   "wide": 4.3,
+   "deep": 5.3,
+   "corner": 0.75,
+   "height": -0.042,
+   "surface": "roof_steel_paint",
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_roof",
+   "builder": "dome_roof",
+   "wide": 4.3,
+   "deep": 5.3,
+   "corner": 0.75,
+   "eave": 2.8,
+   "rise": 0.7,
+   "run": 1.1,
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  }
+ ],
+ "objects": [
+  {
+   "name": "outer_door",
+   "model": "game/base/models/airlock_kit/door_leaf_1.gltf",
+   "at": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "yaw": 0.0,
+   "from": "airlock.tscn:76-81 (shut while the chamber holds air)"
+  },
+  {
+   "name": "hanging_suit",
+   "model": "game/base/models/hanging_suit/hanging_suit.glb",
+   "at": [
+    1.51,
+    0.09,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "airlock.tscn:65-70"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    2.24,
+    0.0
+   ],
+   "colour": "#a8bcd8",
+   "energy": 0.08,
+   "range": 4.25,
+   "attenuation": 0.4,
+   "shadows": false,
+   "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.1
+  },
+  "exposure": 0.85,
+  "inside": true,
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+ },
+ "views": [
+  {
+   "name": "inner-door",
+   "eye": [
+    0.0,
+    1.6,
+    1.4
+   ],
+   "aim": [
+    0.0,
+    1.3,
+    -2.5
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/airlock-after/inner-door.png"
+  },
+  {
+   "name": "outer-door",
+   "eye": [
+    0.0,
+    1.6,
+    -1.4
+   ],
+   "aim": [
+    0.0,
+    1.0,
+    2.5
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/airlock-after/outer-door.png"
+  },
+  {
+   "name": "suit-alcove",
+   "eye": [
+    -1.0,
+    1.6,
+    0.3
+   ],
+   "aim": [
+    2.0,
+    1.2,
+    0.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/airlock-after/suit-alcove.png"
+  },
+  {
+   "name": "bench-pipes",
+   "eye": [
+    1.0,
+    1.6,
+    0.4
+   ],
+   "aim": [
+    -2.0,
+    1.0,
+    0.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/airlock-after/bench-pipes.png"
+  },
+  {
+   "name": "fan-panel",
+   "eye": [
+    -0.6,
+    1.6,
+    0.0
+   ],
+   "aim": [
+    2.0,
+    1.0,
+    1.5
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/airlock-after/fan-panel.png"
+  },
+  {
+   "name": "up-roof",
+   "eye": [
+    0.0,
+    1.5,
+    0.6
+   ],
+   "aim": [
+    0.0,
+    3.4,
+    -0.6
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/airlock-after/up-roof.png"
+  }
+ ],
+ "game_only": [
+  "the hub seen through the open inner doorway",
+  "the haze",
+  "the ink outline pass"
+ ]
+}
