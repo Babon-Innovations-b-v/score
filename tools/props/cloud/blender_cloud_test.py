@@ -1,6 +1,6 @@
-"""Check the generic cloud Blender job without renting anything: a job's paths and arguments land under /root/fs on
-the machine, an argument outside them is left alone, the script's folder goes up with tools/blender/inside, and a card
-machine runs Cycles on the card.
+"""Check the generic cloud Blender job without renting anything: a job's arguments reach the script as they are (its
+files lie at the same paths up there), the script runs from the machine's copy of the repo, its folder goes up with
+tools/blender/inside, and a card machine runs Cycles on the card, a processor machine on its cores.
 
 Run: .venv/bin/python tools/props/cloud/blender_cloud_test.py   (make tests runs it)
 """
@@ -21,7 +21,7 @@ def paths_move_to_the_machine():
                "args": [str(folder / "stage/place.usda"), str(folder / "out.json"), "--fast", "12"]}
         words = shlex.split(blender_cloud.run_line(job, card=False))
         arguments = words[words.index("--") + 1:]
-        expected = [f"/root/fs{folder}/stage/place.usda", f"/root/fs{folder}/out.json", "--fast", "12"]
+        expected = [f"{folder}/stage/place.usda", f"{folder}/out.json", "--fast", "12"]
         problems = []
         if arguments != expected:
             problems.append(f"the arguments up there are {arguments}, not {expected}")
