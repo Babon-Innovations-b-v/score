@@ -80,7 +80,12 @@
 		{
 			"id": "wall_lower_plain",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "plain lower wall panel, bolted, worn",
 			"kind": "code",
 			"anchor": "wall",
@@ -98,7 +103,12 @@
 		{
 			"id": "wall_upper_plain",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
 			"anchor": "wall",
@@ -116,7 +126,12 @@
 		{
 			"id": "wall_lower_patched",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "a lower wall panel patched with a riveted plate over old damage",
 			"kind": "code",
 			"anchor": "wall",
@@ -134,7 +149,12 @@
 		{
 			"id": "wall_upper_cables",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "an upper wall panel with bundled cables in clips running across it",
 			"kind": "code",
 			"anchor": "wall",
@@ -152,7 +172,12 @@
 		{
 			"id": "wall_upper_pipes",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "an upper wall panel with three pipes running across it on brackets",
 			"kind": "code",
 			"anchor": "wall",
@@ -170,7 +195,12 @@
 		{
 			"id": "wall_skirting",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "rubber skirting at the wall's foot",
 			"kind": "code",
 			"anchor": "wall",
@@ -188,7 +218,12 @@
 		{
 			"id": "wall_cornice",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "cornice along the wall's top",
 			"kind": "code",
 			"anchor": "wall",
@@ -206,7 +241,12 @@
 		{
 			"id": "ring_floor_plate",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "deck plate, bolted, scuffed",
 			"kind": "code",
 			"anchor": "floor",
@@ -224,7 +264,12 @@
 		{
 			"id": "roof_face_panel",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "dome plate, ribbed",
 			"kind": "code",
 			"anchor": "ceiling",
@@ -242,7 +287,12 @@
 		{
 			"id": "hatch_frame",
 			"view": "v1",
-			"box": [],
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
 			"name": "the heavy steel frame round a round-cornered pressure hatch opening, bolted, cut top corners",
 			"kind": "code",
 			"anchor": "wall",
@@ -260,7 +310,12 @@
 		{
 			"id": "hatch_leaf",
 			"view": "v1",
-			"box": [],
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
 			"name": "a thick steel pressure hatch door leaf with rounded corners and a round window",
 			"kind": "code",
 			"anchor": "wall",
@@ -278,7 +333,12 @@
 		{
 			"id": "hatch_wheel",
 			"view": "v1",
-			"box": [],
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
 			"name": "a steel locking hand wheel with four spokes on a hub, for a pressure hatch",
 			"kind": "code",
 			"anchor": "wall",
@@ -296,7 +356,12 @@
 		{
 			"id": "hatch_hinge",
 			"view": "v1",
-			"box": [],
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
 			"name": "a heavy steel door hinge knuckle with a pin",
 			"kind": "code",
 			"anchor": "wall",
@@ -314,7 +379,12 @@
 		{
 			"id": "hatch_window",
 			"view": "v1",
-			"box": [],
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
 			"name": "a small round thick glass porthole window with a bolted ring, set in a door",
 			"kind": "code",
 			"anchor": "wall",
@@ -332,7 +402,12 @@
 		{
 			"id": "pipe_bracket",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "a steel wall bracket clamping a pipe",
 			"kind": "code",
 			"anchor": "wall",
@@ -350,7 +425,12 @@
 		{
 			"id": "pipe_straight",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "a straight steel pipe section with flanges at both ends",
 			"kind": "code",
 			"anchor": "wall",
@@ -469,7 +549,12 @@
 		{
 			"id": "pipe_valve",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "an inline pipe valve with a red hand wheel",
 			"kind": "code",
 			"anchor": "wall",
@@ -513,7 +598,12 @@
 		{
 			"id": "door_strip_lamp",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "a strip lamp in a steel housing with a frosted lens, over a door",
 			"kind": "code",
 			"anchor": "wall",
@@ -566,7 +656,12 @@
 		{
 			"id": "door_control_box",
 			"view": "v1",
-			"box": [],
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
 			"name": "a steel door control box with a keypad, a status light and a label",
 			"kind": "code",
 			"anchor": "wall",
@@ -605,7 +700,12 @@
 		{
 			"id": "tread_mat",
 			"view": "v1",
-			"box": [],
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
 			"name": "a tread-plate mat in front of a hatch, worn in the middle",
 			"kind": "code",
 			"anchor": "floor",
@@ -645,7 +745,12 @@
 		{
 			"id": "intercom_panel",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "a wall intercom panel with a speaker grille and a call button",
 			"kind": "code",
 			"anchor": "wall",
@@ -669,7 +774,12 @@
 		{
 			"id": "conduit_box",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
 			"name": "a small steel conduit junction box with cable glands",
 			"kind": "code",
 			"anchor": "wall",
@@ -718,7 +828,12 @@
 		{
 			"id": "small_readout",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
 			"name": "a small square wall readout screen with buttons beside it",
 			"kind": "code",
 			"anchor": "wall",
@@ -752,7 +867,12 @@
 		{
 			"id": "robot_bench",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1130,
+				550,
+				1650,
+				950
+			],
 			"name": "robot assembly bench: steel base with drawer banks, a gooseneck ring lamp over the turning table, clamps for two screen arms",
 			"kind": "code",
 			"anchor": "floor",
@@ -779,7 +899,12 @@
 		{
 			"id": "tool_bench",
 			"view": "v1",
-			"box": [],
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
 			"name": "heavy hand-tool bench, timber top on a steel frame, drawer unit",
 			"kind": "code",
 			"anchor": "floor",
@@ -805,7 +930,12 @@
 		{
 			"id": "toolboard",
 			"view": "v1",
-			"box": [],
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
 			"name": "tool board with its hand tools",
 			"kind": "code",
 			"anchor": "wall",
@@ -829,7 +959,12 @@
 		{
 			"id": "rack",
 			"view": "v1",
-			"box": [],
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
 			"name": "single steel locker (the plan painted lockers where the list said equipment racks)",
 			"kind": "code",
 			"anchor": "floor",
@@ -855,7 +990,12 @@
 		{
 			"id": "waste_bin",
 			"view": "v1",
-			"box": [],
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
 			"name": "a small steel waste bin with a pedal lid",
 			"kind": "code",
 			"anchor": "floor",
@@ -886,7 +1026,12 @@
 		{
 			"id": "spares_crate",
 			"view": "v1",
-			"box": [],
+			"box": [
+				865,
+				165,
+				1100,
+				475
+			],
 			"name": "spares crate",
 			"kind": "code",
 			"anchor": "on:spares_shelves",
@@ -913,7 +1058,12 @@
 		{
 			"id": "work_stool",
 			"view": "v1",
-			"box": [],
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
 			"name": "steel shop stool with a padded seat",
 			"kind": "code",
 			"anchor": "floor",
@@ -945,7 +1095,12 @@
 		{
 			"id": "elec_bench",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			],
 			"name": "electronics bench: anti-static mat, shelf riser with a power strip, drawer pedestal",
 			"kind": "code",
 			"anchor": "floor",
@@ -971,7 +1126,12 @@
 		{
 			"id": "parts_drawers",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1525,
+				180,
+				1690,
+				425
+			],
 			"name": "steel parts cabinet: forty small bin drawers on a two-door cupboard",
 			"kind": "code",
 			"anchor": "floor",
@@ -997,7 +1157,12 @@
 		{
 			"id": "spares_shelves",
 			"view": "v1",
-			"box": [],
+			"box": [
+				865,
+				165,
+				1100,
+				475
+			],
 			"name": "steel shelving of spares crates and boxes",
 			"kind": "code",
 			"anchor": "floor",
@@ -1023,7 +1188,12 @@
 		{
 			"id": "low_cabinet",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
 			"name": "low steel wall cabinet run with four doors",
 			"kind": "code",
 			"anchor": "floor",
@@ -1049,7 +1219,12 @@
 		{
 			"id": "status_display",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
 			"name": "one single large wall display screen in a heavy steel frame, glowing readouts, the whole screen in view",
 			"kind": "code",
 			"anchor": "wall",
@@ -1073,7 +1248,12 @@
 		{
 			"id": "floor_socket",
 			"view": "v1",
-			"box": [],
+			"box": [
+				520,
+				690,
+				1100,
+				1020
+			],
 			"name": "flush floor service socket with a checker-plate lid",
 			"kind": "code",
 			"anchor": "floor",
@@ -1212,7 +1392,12 @@
 		{
 			"id": "bay_mark",
 			"view": "v1",
-			"box": [],
+			"box": [
+				520,
+				690,
+				1100,
+				1020
+			],
 			"name": "painted outline of a machine bay on the deck, two L's a bay",
 			"kind": "code",
 			"anchor": "floor",
@@ -1279,7 +1464,12 @@
 		{
 			"id": "pendant_lamp",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "industrial pendant work lamp hung from the dome",
 			"kind": "code",
 			"anchor": "ceiling",
@@ -1333,7 +1523,12 @@
 		{
 			"id": "wall_cage_lamp",
 			"view": "v1",
-			"box": [],
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
 			"name": "a small caged bulkhead lamp on a wall",
 			"kind": "code",
 			"anchor": "wall",
@@ -1377,7 +1572,12 @@
 		{
 			"id": "equipment_bench",
 			"view": "v1",
-			"box": [],
+			"box": [
+				1045,
+				1070,
+				1390,
+				1360
+			],
 			"name": "equipment maker's workbench: cabinet base, steel top, back panel with a copper bus bar and switched sockets",
 			"kind": "code",
 			"anchor": "floor",
@@ -1408,7 +1608,14 @@
 			"parent": "robot_bench",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1130,
+				550,
+				1650,
+				950
+			]
 		},
 		{
 			"id": "keyboard",
@@ -1425,7 +1632,14 @@
 			"parent": "robot_bench",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1130,
+				550,
+				1650,
+				950
+			]
 		},
 		{
 			"id": "vise",
@@ -1442,7 +1656,14 @@
 			"parent": "tool_bench",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
 		},
 		{
 			"id": "desklamp",
@@ -1460,7 +1681,14 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces"
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
 		},
 		{
 			"id": "wrench",
@@ -1478,7 +1706,14 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces"
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
 		},
 		{
 			"id": "hammer",
@@ -1496,7 +1731,14 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces"
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
 		},
 		{
 			"id": "pump_pliers",
@@ -1514,7 +1756,14 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces"
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
 		},
 		{
 			"id": "pliers",
@@ -1532,7 +1781,14 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces"
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
 		},
 		{
 			"id": "screwdriver",
@@ -1549,7 +1805,14 @@
 			"parent": "toolboard",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
 		},
 		{
 			"id": "monitor",
@@ -1566,7 +1829,14 @@
 			"parent": "elec_bench",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
 		},
 		{
 			"id": "oscilloscope",
@@ -1583,7 +1853,14 @@
 			"parent": "elec_bench",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
 		},
 		{
 			"id": "bench_meter",
@@ -1600,7 +1877,14 @@
 			"parent": "elec_bench",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
 		},
 		{
 			"id": "soldering_station",
@@ -1617,7 +1901,14 @@
 			"parent": "elec_bench",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
 		},
 		{
 			"id": "spares_box",
@@ -1634,7 +1925,14 @@
 			"parent": "spares_shelves",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				865,
+				165,
+				1100,
+				475
+			]
 		}
 	]
 }

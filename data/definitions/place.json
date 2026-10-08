@@ -1628,10 +1628,6 @@
 				"token": "alarm",
 				"library": "warning_paint"
 			},
-			"hazard_paint": {
-				"token": "hazard",
-				"library": "hazard_paint"
-			},
 			"bare_steel": {
 				"token": "steel",
 				"library": "bare_steel"
