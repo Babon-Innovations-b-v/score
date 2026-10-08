@@ -1,25 +1,79 @@
 \section{Methods}\label{methods}
 
-A world in SCORE is generated once, offline, in cloud batches, from the creator's picks for each place: references, a concept picture and a style. One world spans the scales its story needs (the game world of 2099 holds rooms, the ground of the Moon and the ground of Mars); scales far from those, such as galaxies or cells, make worlds of their own with their own solvers. The output is one canonical scene, an OpenUSD stage \citep{openusd} with glTF geometry \citep{gltf2}, in which every object carries its kind, place in metres, collision, the surface of each part, its sound, and tags for what a person can do with it, such as door, seat or airlock. Engines and simulators load it through thin adapters. The framework writes a generated base layer; the creator's own changes live in edit layers above it.
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The stages on one place, the central hub of the game 2099. (a) The concept, drawn by a picture model from the creator's reference pictures and chosen by the creator. (b) The dimensioned plan in metres, with walkways and standing spots. (c) An excerpt of the scene inventory, which has 74 rows. (d) Close-up pictures of two objects. (e) One surface from the shared library of rule-based surfaces at three wear settings. (f) The assembled room in the game engine.}]{figures/fig-overview.jpg}
+\caption{The stages on one place, the central hub of the game 2099. (a) The concept, drawn by a picture model from the creator's reference pictures and chosen by the creator. (b) The dimensioned plan in metres, with walkways and standing spots. (c) An excerpt of the scene inventory, which has 74 rows. (d) Close-up pictures of two objects. (e) One surface from the shared library of rule-based surfaces at three wear settings. (f) The assembled room in the game engine.}
+\end{figure}
 
-Between picks and scene, coding agents and open models work through a fixed sequence of stages: a dimensioned plan in metres, an inventory with a row for every object, one clean close-up picture per object, a shape for each object, its surfaces, its sounds, and assembly. Each stage's output is kept. The creator can therefore trace a weak result to the stage that caused it (a bad close-up, a bad 3D shape, a bad surface), rerun or hand-fix that stage alone, and regenerate everything downstream; the regeneration replaces the base layer and keeps every edit.
+Figure 1 shows the stages on one place. The creator chooses a concept (a), and a coding agent turns it into a dimensioned plan (b) and a scene inventory (c). A picture model draws a close-up of every object in the inventory (d). Each object is then built in code or generated in 3D, its parts are painted from the shared library of rule-based surfaces (e), and the place is assembled in an engine (f). The output of every stage is kept, so the creator can trace a weak result to the stage that caused it, rerun or fix that stage, and regenerate the stages after it while keeping their own edits. The sections below describe each stage with an example.
 
-Every stage that costs money is preceded by deterministic checks on real geometry rather than an agent's judgement, because a fault costs nothing in the plan, cents at a picture, tens of cents and an hour at a 3D model, and an evening of the creator's time once a place is built. The plan is checked for leaks, blocked openings, pieces off their surface and doors that do not separate their two sides; the inventory against every element of the concept; each model for being closed, thick enough and straight; the surfaces against the place's palette and budget; and the assembled scene for anything floating or sinking and any visible mesh the route did not make (Appendix D). A failure sends the work back one stage.
+\subsection{Inventory as a partition of the concept}\label{inventory-as-a-partition-of-the-concept}
 
-The shape stage decides, per kind of object, between a code builder written by a coding agent and a generated model. Picture-to-3D models build chunky solids well and flat panels, thin beams and openings badly; code builders are exact and straight but show only the parts the agent wrote. The \textbf{parts check} settles it: a kind is built in code only when its build shows every part its close-up shows, and is otherwise generated from the close-up with Pixal3D \citep{li2026pixal3d} and made solid. Composites are split in the inventory, one model per real-world object, so a console is a desk carrying its monitors and keyboards rather than one fused mesh.
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The inventory of the lab on the Moon base, built from its concept. Left: the concept, cut into twelve tiles. Right: examples of how each visible element maps to an inventory row, or is dropped with a written reason. Of the 47 elements in this concept, 40 were mapped to inventory rows and 7 were dropped with a written reason.}]{figures/fig-partition.jpg}
+\caption{The inventory of the lab on the Moon base, built from its concept. Left: the concept, cut into twelve tiles. Right: examples of how each visible element maps to an inventory row, or is dropped with a written reason. Of the 47 elements in this concept, 40 were mapped to inventory rows and 7 were dropped with a written reason.}
+\end{figure}
 
-Shapes carry no surface of their own. Every part takes one surface from a shared library of ProcFunc functions \citep{raistrick2026procfunc} built on Infinigen's shaders \citep{raistrick2023infinigen}, coloured from the place's palette, with wear, dirt and seed as settings and one wear setting per room, applied from causes such as edges and foot traffic; parts of a generated model come from PartCrafter \citep{lin2025partcrafter}, and its picture only chooses which library surface each part takes. Sound follows the same pattern: surfaces carry their footsteps and impacts, rooms their echo and objects their own sound, generated by MOSS-SoundEffect \citep{moss2026} and chosen against its prompt by CLAP \citep{wu2022clap} (Appendix F). Both libraries grow with each world and are reused in the next.
+The inventory decides what exists in a place. A coding agent cuts the concept into tiles and lists every visible element, and each element either becomes a row (with its kind, anchor, size and count) or is dropped with a written reason (Figure 2). Nothing is made or placed that is not a row. After the build, the place is rendered from the concept's own camera and compared with the concept; a place that is clearly sparser than its concept fails this concept-density check.
 
-The creator's review comes last. SCORE supplies the tools for it: pages with each stage's outputs side by side, before and after shots from the same cameras, in-engine walkthroughs, and every check's result; how the creator judges with them is the creator's own.
+\subsection{Code or generation: the parts check}\label{code-or-generation-the-parts-check}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The parts check decides how each object is built. Top: the close-up picture of four objects. Bottom: the object as built. The notice board and the tall locker are built in code, because their code builds show every part of their close-ups. The microscope and the desk chair are generated with Pixal3D, because no code build shows all of their parts.}]{figures/fig-parts-check.jpg}
+\caption{The parts check decides how each object is built. Top: the close-up picture of four objects. Bottom: the object as built. The notice board and the tall locker are built in code, because their code builds show every part of their close-ups. The microscope and the desk chair are generated with Pixal3D, because no code build shows all of their parts.}
+\end{figure}
+
+Picture-to-3D models build chunky solids well, but flat panels, thin beams and openings badly, while code builders are exact and straight but show only the parts that the coding agent wrote. For each kind of object, the parts check renders a code build from the front and compares it with the close-up picture: if every part of the close-up is visible in the build, the kind is built in code, and otherwise it is generated from the close-up with Pixal3D \citep{li2026pixal3d} and made solid (Figure 3). Composite objects are split in the inventory, so that every real-world object becomes one model: a console, for example, becomes a desk carrying separate monitors and keyboards.
+
+\subsection{Shape and surface apart}\label{shape-and-surface-apart}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={(a) Three surfaces from the shared library of rule-based surfaces (painted panel, bare steel and deck plate) at wear settings 0, 0.4 and 0.8. (b) The hub's tool board when each generated piece kept the colours of its own picture (left), and after every surface came from the library and each tool became its own model (right). Both shots use the same camera and the same build of the game.}]{figures/fig-surfaces.jpg}
+\caption{(a) Three surfaces from the shared library of rule-based surfaces (painted panel, bare steel and deck plate) at wear settings 0, 0.4 and 0.8. (b) The hub's tool board when each generated piece kept the colours of its own picture (left), and after every surface came from the library and each tool became its own model (right). Both shots use the same camera and the same build of the game.}
+\end{figure}
+
+Models and code builders give shape only. Every part of every object takes one surface from a shared library of rule-based surfaces, written as ProcFunc functions \citep{raistrick2026procfunc} that are built on Infinigen's shaders \citep{raistrick2023infinigen} and take their colours from the place's palette (Figure 4a). A room has one wear setting, and wear is applied where it has a cause, such as edges and the places where feet pass. On a generated model, PartCrafter \citep{lin2025partcrafter} splits the shape into parts, and the model's picture only chooses which library surface each part takes. Figure 4b shows why: when each piece kept the colours of its own picture, every piece brought its own rust and stains, and the room looked inconsistent. Sound is attached in the same way, to surfaces, rooms and objects, and is generated by MOSS-SoundEffect \citep{moss2026} (Appendix F).
+
+\subsection{Terrain}\label{terrain}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The stages for large outdoor places, on the ground around the Moon base. (a) The dimensioned plan with the base's flat areas and paths. (b) A diorama picture drawn over the plan. (c) The heights that follow the diorama, shown shaded. (d) The skin painted over the plan. (e) The result in the engine, seen from a crater rim.}]{figures/fig-terrain.jpg}
+\caption{The stages for large outdoor places, on the ground around the Moon base. (a) The dimensioned plan with the base's flat areas and paths. (b) A diorama picture drawn over the plan. (c) The heights that follow the diorama, shown shaded. (d) The skin painted over the plan. (e) The result in the engine, seen from a crater rim.}
+\end{figure}
+
+Large outdoor places follow the same pattern (Figure 5). A dimensioned plan places the flat areas and paths the place needs (a), a diorama picture drawn over the plan sets the landforms (b), and the heights follow the picture (c). A skin is painted over the plan, with fine relief from monocular depth \citep{yang2024dav2} (d), rocks are single generated models, and everything is built on the world's own curved ground (e).
+
+\subsection{Checks before spending}\label{checks-before-spending}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={A fault caught by the placement check. (a) In the first build of the hub, a conduit box covered the porthole. (b) In the current framework, the placement check found the box in front of the opening and moved it 0.5 m along the wall before anything was spent.}]{figures/fig-checks.jpg}
+\caption{A fault caught by the placement check. (a) In the first build of the hub, a conduit box covered the porthole. (b) In the current framework, the placement check found the box in front of the opening and moved it 0.5 m along the wall before anything was spent.}
+\end{figure}
+
+Deterministic checks run before every stage that costs money. They test real geometry rather than relying on an agent's judgement, because a fault costs nothing to fix in the plan but an evening of the creator's time once the place is built. The checks look for light leaking out of the room, pieces in front of openings or off their surface, doors that do not separate their two sides, models that are open, too thin or leaning, and surfaces off the palette (Appendix D). Figure 6 shows one fault the placement check caught. A failed check sends the work back one stage.
+
+\subsection{The canonical scene}\label{the-canonical-scene}
+
+Every place is exported as one OpenUSD stage \citep{openusd} in which each object carries its kind, its transform in metres, its collision, the library surface of each part and that surface's sounds, with the generated base layer under an edit layer that belongs to the creator, so that an edit survives when the base is generated again (Figure 7).
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The wreck, one outdoor place of the game 2099, as an OpenUSD stage. (a) The place in the game, from one of its fixed cameras. (b) The stage loaded in Blender and rendered from the same camera. (c) Blender's object outlines drawn over the game's picture. (d) The same camera after an edit in the edit layer, made here by a script, that moved the round cover and gave the capsule's painted hull another library surface, and after the base layer was generated again.}]{figures/fig-usd.jpg}
+\caption{The wreck, one outdoor place of the game 2099, as an OpenUSD stage. (a) The place in the game, from one of its fixed cameras. (b) The stage loaded in Blender and rendered from the same camera. (c) Blender's object outlines drawn over the game's picture. (d) The same camera after an edit in the edit layer, made here by a script, that moved the round cover and gave the capsule's painted hull another library surface, and after the base layer was generated again.}
+\end{figure}
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: Figure 2, the framework.} The stages with their kept outputs, the scene's base and edit layers, and the engine adapters. To be drawn with the scene export, which is being built in the framework repository.
+\textbf{Gap: the scene in a game engine.} The same stage loaded in a game engine, with its collision and surfaces, and the mass and friction of each object written into it. It waits on the game engine adapter and on the framework recording mass and friction.
 
 \end{minipage}}\end{center}
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+\subsection{Review tools}\label{review-tools}
 
-\textbf{Gap: Figure 3, one place through the stages.} One place from concept to finished world, with each stage's output and the checks that fired on it. Waits on a place built and accepted on the final route.
-
-\end{minipage}}\end{center}
+Each place ends with the creator's review. The review tools that SCORE supplies are pages that show each stage's output side by side, before-and-after shots from the same cameras, walkthroughs inside the engine, and the result of every check. An optional world step can turn the concept into a whole room that can be walked through, so that walls and objects the concept does not show can be seen; nothing it produces is shipped.

@@ -5,6 +5,7 @@ project, and it is never changed from here, so leaving either out would rent a m
 wrong account.
 """
 import base64
+import functools
 import json
 import os
 import subprocess
@@ -52,18 +53,29 @@ def secret(name):
     return base64.b64decode(version["data"]).decode().strip()
 
 
-def euros_per_minute(machine_type, zone):
-    """What one minute of `machine_type` costs in `zone`, from Scaleway's price list."""
+@functools.lru_cache(maxsize=None)
+def price_list(zone):
+    """Scaleway's price list of machines in `zone`, read once a run."""
+    return tuple(scw("product-catalog", "product", "list", "product-types.0=instance", f"zone={zone}"))
+
+
+def price(machine_type, zone):
+    """What `machine_type` costs in `zone`: (euros a minute, the minutes Scaleway bills it by), from its price list.
+    The cards are billed by the minute, the processor machines (POP2) and RENDER-S by the started hour."""
     sku = f"/instance/server/{machine_type.lower().replace('-', '_')}/{zone}"
-    products = scw("product-catalog", "product", "list", "product-types.0=instance", f"zone={zone}")
-    for product in products:
+    for product in price_list(zone):
         if product["sku"] == sku:
             unit = product["unit_of_measure"]["unit"]
             if unit not in PER_UNIT_MINUTES:
                 raise SystemExit(f"{sku} is priced per {unit}; the caps know minutes and hours")
-            price = product["price"]["retail_price"]
-            return (price["units"] + price["nanos"] / 1e9) / PER_UNIT_MINUTES[unit]
+            listed = product["price"]["retail_price"]
+            return (listed["units"] + listed["nanos"] / 1e9) / PER_UNIT_MINUTES[unit], PER_UNIT_MINUTES[unit]
     raise SystemExit(f"no price for {machine_type} in {zone}")
+
+
+def euros_per_minute(machine_type, zone):
+    """What one minute of `machine_type` costs in `zone`, from Scaleway's price list."""
+    return price(machine_type, zone)[0]
 
 
 def stock(machine_type, zone):

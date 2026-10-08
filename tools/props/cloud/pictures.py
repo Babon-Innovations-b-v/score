@@ -11,6 +11,7 @@ its share, and the pictures come back into WORK/pictures. A picture already ther
 Renting, the owner's limits and deleting are batch.py's.
 """
 import argparse
+import concurrent.futures
 import json
 import os
 import pathlib
@@ -25,6 +26,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "scene"))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import ledger  # noqa: E402
 import picture  # noqa: E402
 import place  # noqa: E402
@@ -39,11 +41,14 @@ SECONDS_A_PICTURE = 4
 
 
 class Run:
-    """What `batch.rent` needs of a run: its folder and when every machine must be gone."""
+    """What `batch.claim` needs of a run: its folder, when every machine must be gone, its machines, and the
+    starts that failed on the way."""
 
     def __init__(self, folder, deadline):
         self.folder = folder
         self.deadline = deadline
+        self.machines = []
+        self.attempts = []
 
 
 def jobs_to_make(path):
@@ -73,12 +78,12 @@ def expected_minutes(count, cards):
 def price(jobs, cards, project):
     """Print the estimate and refuse what passes the owner's limits; the offers, and the minutes the
     machines may run."""
-    found = batch.offers(list(batch.TYPES[:1]))
+    found = batch.offers(list(capacity.types_for("pictures")))
     if not found:
-        raise SystemExit("no L4 card is sold in the zones used")
+        raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = expected_minutes(len(jobs), cards)
     dearest = max(offer[0] for offer in found)
-    spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+    spent = batch.month_spent(project)
     batch.say(f"{len(jobs)} pictures on {cards} cards: about {minutes:.0f} min, "
               f"€{ledger.cost(minutes, dearest) * cards:.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest * cards, spent)
@@ -88,18 +93,11 @@ def price(jobs, cards, project):
 
 
 def rent_machines(run, project, found, cards):
-    """Rent up to `cards` machines, cheapest offer first; the machines rented."""
-    machines, remaining = [], list(found)
-    for number in range(1, cards + 1):
-        machine = None
-        while machine is None and remaining:
-            machine = batch.rent(run, project, remaining[0], number)
-            if machine is None:
-                remaining.pop(0)
-        if machine is None:
-            break
-        machines.append(machine)
-    return machines
+    """Claim up to `cards` machines side by side, each from the cheapest offer that gives one that answers
+    (batch.claim); the machines that answered."""
+    with concurrent.futures.ThreadPoolExecutor(cards) as claims:
+        claimed = list(claims.map(lambda number: batch.claim(run, project, found, number), range(1, cards + 1)))
+    return [machine for machine in claimed if machine]
 
 
 def set_up(folder, host, share):
@@ -133,7 +131,7 @@ def draw_share(run, machine, share):
     folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=keep_beating, args=(folder, host, stop), daemon=True).start()
         set_up(folder, host, share)
@@ -152,19 +150,14 @@ def draw_share(run, machine, share):
         batch.delete_machine(machine)
 
 
-def record(run, machines, jobs, started):
+def record(run, machines, jobs, started, kind="pictures"):
     """Write the run to the ledger and say what it made and cost."""
-    rows = [{"type": machine["type"], "zone": machine["zone"],
-             "minutes": (machine["deleted"] - machine["created"]) / 60,
-             "euros": ledger.cost((machine["deleted"] - machine["created"]) / 60, machine["price"]),
-             "made": machine.get("made", 0)} for machine in machines]
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
-             "batch": run.folder.name, "kind": "pictures", "machines": rows, "pictures": len(jobs),
-             "euros": sum(row["euros"] for row in rows),
-             "machine_minutes": sum(row["minutes"] for row in rows),
-             "wall_minutes": (time.time() - started) / 60}
+             "batch": run.folder.name, "kind": kind, **ledger.machines_record(machines, run.attempts, started),
+             "pictures": len(jobs), "wall_minutes": (time.time() - started) / 60}
+    rows = entry["machines"]
     ledger.record(entry)
-    batch.say(f"{sum(row['made'] for row in rows)} of {len(jobs)} pictures in "
+    batch.say(f"{sum(row.get('made', 0) for row in rows)} of {len(jobs)} pictures in "
               f"{entry['wall_minutes']:.0f} min on {len(rows)} machines, €{entry['euros']:.2f}")
 
 
@@ -199,9 +192,9 @@ def main():
         for thread in threads:
             thread.join()
     finally:
-        for machine in machines:
+        for machine in run.machines:
             batch.delete_machine(machine)
-        record(run, machines, jobs, started)
+        record(run, run.machines, jobs, started)
 
 
 if __name__ == "__main__":

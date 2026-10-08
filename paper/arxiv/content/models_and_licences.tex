@@ -1,8 +1,8 @@
 \section{Models and licences}\label{models-and-licences}
 
-Every model must allow commercial use of its output (Table E1). Licences were read for their commercial-use clauses.
+Every model in the framework must allow commercial use of its output (Table E1). Candidate models were dropped under this rule; among them were NVIDIA's Lyra 2.0, whose weights are licensed for internal research only, and Hunyuan3D 2.1, whose licence does not apply in the European Union. We read each licence for its clauses on commercial use. Four of the models read pictures through Meta's DINO family of models, each through its own copy. What passes from one model to the next is always pictures, masks, depth maps or meshes, never one model's internal features.
 
-\textbf{Table E1.} Models in the route.
+\textbf{Table E1.} Models in the framework.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -28,7 +28,30 @@ Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
 World Labs Marble \citep{marble_terms} & optional world step & paid; outputs owned by paid users \\
+FLUX.2 klein 4B \citep{flux2klein} & earlier prop pictures & Apache-2.0 \\
+MoGe-2 \citep{wang2025moge2}, SAM 3 \citep{carion2025sam3} & measuring and finding objects in pictures & MIT; SAM Licence \\
+Kimodo \citep{rempe2026kimodo}, SAM 3D Body \citep{yang2026sam3dbody} & motion from sentences; body shape from a picture & Apache-2.0 code, NVIDIA Open Model License; SAM Licence \\
 \end{longtable}
 }
 
-Picture-to-3D, parts, surface bakes, sound, checks and assembly are automatic. Coding agents (Claude Code \citep{claudecode}) write the plans, inventories and every code builder; in the hub's final round 86 of its 98 models were code. Hand steps remained: some generated objects turned to face the right way by eye, a few labels placed by hand before a rule replaced that. Concepts and verdicts are the creator's picks.
+On our tier, Nano Banana Pro allows 250 pictures a day and 20 a minute; the cheaper Nano Banana (gemini-2.5-flash-image) allows 2,000 a day and 500 a minute. We tested whether the cheaper model could draw the close-ups instead, on the same 10 lab objects with the same prompts and inputs (Table E2). It refused the standard prompt for 6 of the 10 objects and drew those only from the crop alone, and its pictures were about one megapixel with the object small in the frame. Close-ups therefore stay on Nano Banana Pro.
+
+\textbf{Table E2.} Ten lab close-ups drawn by Nano Banana instead of Nano Banana Pro.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Result & Objects \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+good & 2 \\
+usable & 3 \\
+marginal & 1 \\
+wrong shape (microscope, chair, sample tray) & 3 \\
+refused (glovebox) & 1 \\
+\end{longtable}
+}
+
+The picture-to-3D step, the part splitting, the surface bakes, the sound generation, all checks and the assembly run automatically. Coding agents (Claude Code \citep{claudecode}) write the plans, the inventories and every code builder; in the hub's final round, 86 of its 98 models were built in code. Some steps were still done by hand: some generated objects were turned to face the right way by eye, and a few labels were placed by hand before a rule took over that job. The concepts and the verdicts are the creator's own choices.

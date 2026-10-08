@@ -65,7 +65,7 @@ def price(jobs, machine_type, project, hold, at_once):
         raise SystemExit(f"no {machine_type} is in stock in {', '.join(scaleway.ZONES)}")
     minutes = estimate(jobs, hold, at_once)
     dearest = max(offer[0] for offer in found)
-    spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+    spent = batch.month_spent(project)
     batch.say(f"{len(jobs)} Infinigen jobs on one {machine_type}: about {minutes:.0f} min, "
               f"€{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
@@ -152,7 +152,7 @@ def work_on(run, machine, jobs, holding, at_once):
     folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
         (run.folder / "host").write_text(host)
@@ -175,12 +175,9 @@ def work_on(run, machine, jobs, holding, at_once):
 
 
 def record(run, machine, jobs, ended):
-    minutes = (machine["deleted"] - machine["created"]) / 60 if machine.get("deleted") else 0
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(run.started)), "batch": run.folder.name,
              "kind": "infinigen", "jobs": {job.name: ended.get(job.name) for job in jobs},
-             "machines": [{"type": machine["type"], "zone": machine["zone"], "minutes": minutes,
-                           "euros": ledger.cost(minutes, machine["price"])}],
-             "euros": ledger.cost(minutes, machine["price"]), "machine_minutes": minutes,
+             **ledger.machines_record([machine], run.attempts, run.started),
              "wall_minutes": (time.time() - run.started) / 60}
     ledger.record(entry)
     batch.say(f"infinigen: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f}")
@@ -213,16 +210,14 @@ def main():
     batch.say(f"run folder {run.folder} ({options.who})")
     machine, ended = None, {}
     try:
-        for offer in found:
-            machine = batch.rent(run, project, offer, 1)
-            if machine:
-                break
+        machine = batch.claim(run, project, found, 1)
         if machine is None:
             raise SystemExit(f"no {options.type} could be rented")
         ended = work_on(run, machine, jobs, options.hold, options.at_once)
     finally:
+        for rented in run.machines:
+            batch.delete_machine(rented)
         if machine:
-            batch.delete_machine(machine)
             record(run, machine, jobs, ended)
 
 

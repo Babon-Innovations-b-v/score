@@ -1,9 +1,9 @@
 \section{Cost and infrastructure}\label{cost-and-infrastructure}
 
-Every heavy step runs on rented machines deleted after each batch: NVIDIA L4 cards for picture-to-3D, parts and bakes, processor machines when cards are out of stock. The engine's tests, shots and frame-time bench also run on rented machines; a full test run took 542 s there against 596 s locally, and L4 frame times convert to the local RTX 5080 by a measured factor of 3.47. Pictures cost about \$0.134 each at the resolution used. The binding limit in practice was the picture model's shared daily quota of 250 pictures, not compute.
+Every heavy step runs on rented machines that are deleted after each batch: NVIDIA L4 graphics cards for picture-to-3D, part splitting and baking, and processor-only machines when no cards are in stock. The engine's tests, its screenshots and its frame-time benchmark also run on rented machines. A full test run took 542 s there, against 596 s on the local computer, and frame times measured on an L4 card are converted to the local RTX 5080 by a measured factor of 3.47. A picture costs about \$0.134 at the resolution we use. The picture model's limits on speed are described under Limitations.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: cost tables.} Cost per batch kind and per world, reconciled with the cloud bill. Waits on the worlds; the per-place figures so far are floors from the build logs.
+\textbf{Gap: cost tables.} These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds; the figures per place so far are lower bounds taken from the build logs.
 
 \end{minipage}}\end{center}
