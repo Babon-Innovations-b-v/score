@@ -490,9 +490,11 @@ def resting_rows(label, judged):
     for found in judged:
         if found.get("passed") is not False:
             continue
-        gap = "" if found["gap"] is None else f"{found['gap'] * 100:.1f}"
+        # A hung object is not judged for floating or sinking, only for lying inside another: no gap, no depth.
+        gap = "" if found.get("gap") is None else f"{found['gap'] * 100:.1f}"
+        depth = "" if found.get("depth") is None else f"{found['depth'] * 100:.1f}"
         rows.append(f"<tr><td>{escaped(label)}</td><td>{escaped(found['object'])}</td><td class=\"num\">{gap}</td>"
-                    f"<td class=\"num\">{found['depth'] * 100:.1f}</td><td>{verdict(False)}</td>"
+                    f"<td class=\"num\">{depth}</td><td>{verdict(False)}</td>"
                     f"<td>{escaped(found['result'])}</td></tr>")
     return rows
 
