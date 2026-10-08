@@ -80,7 +80,17 @@
 				12.0,
 				5.08
 			],
-			"children": []
+			"children": [
+				{
+					"model": "mast_cabinet_1",
+					"at": [
+						0.0,
+						0.0,
+						0.0
+					],
+					"turn": 0.0
+				}
+			]
 		},
 		"mast_1_glow": {
 			"glows": true,
@@ -96,6 +106,27 @@
 				0.05
 			],
 			"children": []
+		},
+		"drift_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "campgrounds_drift",
+			"size": [
+				1.3,
+				0.3,
+				1.333
+			],
+			"children": []
+		},
+		"mast_cabinet_1": {
+			"glows": false,
+			"route": "model",
+			"child_of": "mast_1",
+			"size": [
+				0.978,
+				1.2,
+				0.941
+			]
 		}
 	},
 	"pieces": []

@@ -2643,5 +2643,23 @@
 				"turn": 0.0
 			}
 		]
+	},
+	"campgrounds_mast": {
+		"children": [
+			{
+				"kind": "campgrounds_mast_cabinet",
+				"at": [
+					0.0,
+					0.0,
+					0.0
+				],
+				"size": [
+					0.978,
+					1.2,
+					0.941
+				],
+				"turn": 0.0
+			}
+		]
 	}
 }

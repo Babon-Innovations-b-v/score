@@ -106,7 +106,7 @@
 				0.87,
 				0.155
 			],
-			"count": 3,
+			"count": 4,
 			"thing": "prop:campgrounds_cargo_pallet",
 			"parent": "",
 			"made": "made by the route",
@@ -136,6 +136,14 @@
 					"facing": 90.0,
 					"level": "ground",
 					"fit": "seat across/along"
+				},
+				{
+					"x": -15.0,
+					"y": 0.0,
+					"z": -4.6,
+					"facing": 90.0,
+					"level": "ground",
+					"fit": "seat across/along"
 				}
 			]
 		},
@@ -156,7 +164,7 @@
 				0.674,
 				0.914
 			],
-			"count": 2,
+			"count": 3,
 			"thing": "prop:campgrounds_cargo_case_open",
 			"parent": "",
 			"made": "made by the route",
@@ -173,6 +181,14 @@
 				},
 				{
 					"x": -16.4,
+					"y": 0.0,
+					"z": -4.6,
+					"facing": 90.0,
+					"level": "ground",
+					"fit": "seat across/along"
+				},
+				{
+					"x": -15.0,
 					"y": 0.0,
 					"z": -4.6,
 					"facing": 90.0,
@@ -198,7 +214,7 @@
 				0.817,
 				0.676
 			],
-			"count": 2,
+			"count": 5,
 			"thing": "prop:campgrounds_cargo_case",
 			"parent": "",
 			"made": "made by the route",
@@ -218,6 +234,30 @@
 					"y": 0.0,
 					"z": 13.6,
 					"facing": 200.0,
+					"level": "ground",
+					"fit": "seat across/along"
+				},
+				{
+					"x": -19.3,
+					"y": 0.0,
+					"z": 3.6,
+					"facing": 40.0,
+					"level": "ground",
+					"fit": "seat across/along"
+				},
+				{
+					"x": -4.3,
+					"y": 0.0,
+					"z": 10.3,
+					"facing": 15.0,
+					"level": "ground",
+					"fit": "seat across/along"
+				},
+				{
+					"x": -3.5,
+					"y": 0.0,
+					"z": 11.2,
+					"facing": 80.0,
 					"level": "ground",
 					"fit": "seat across/along"
 				}
@@ -284,7 +324,7 @@
 				{
 					"x": -21.0,
 					"y": 0.0,
-					"z": 2.0,
+					"z": 1.0,
 					"facing": 70.0,
 					"level": "ground",
 					"fit": "seat across/along"
@@ -339,8 +379,8 @@
 			"kind": "generate",
 			"anchor": "on:mast",
 			"size": [
-				1.4,
-				1.4,
+				0.978,
+				0.941,
 				1.2
 			],
 			"count": 1,
@@ -394,6 +434,74 @@
 				}
 			],
 			"keep": "laid along the runs in expedition_camp.gd CABLE_RUNS"
+		},
+		{
+			"id": "power_unit",
+			"view": "v1",
+			"box": [
+				1010,
+				900,
+				1100,
+				1010
+			],
+			"name": "small ground power unit between the lander's legs",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.7,
+				0.8
+			],
+			"count": 1,
+			"thing": "prop:campgrounds_power_unit",
+			"parent": "",
+			"made": "made by the route",
+			"why_code": "mars-build 2026-10-07: the camp grounds from the picked concept (outside K05), one model per real-world object",
+			"prop": "campgrounds_power_unit",
+			"at": [
+				{
+					"x": -15.4,
+					"y": 0.0,
+					"z": -9.6,
+					"facing": 30.0,
+					"level": "ground",
+					"fit": "seat across/along"
+				}
+			]
+		},
+		{
+			"id": "cable_coil",
+			"view": "v1",
+			"box": [
+				2150,
+				890,
+				2280,
+				980
+			],
+			"name": "coil of heavy power cable lying on the ground",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				1.2,
+				0.15
+			],
+			"count": 1,
+			"thing": "prop:campgrounds_cable_coil",
+			"parent": "",
+			"made": "made by the route",
+			"why_code": "mars-build 2026-10-07: the camp grounds from the picked concept (outside K05), one model per real-world object",
+			"prop": "campgrounds_cable_coil",
+			"at": [
+				{
+					"x": 15.0,
+					"y": 0.0,
+					"z": 5.0,
+					"facing": 0.0,
+					"level": "ground",
+					"fit": "seat across/along"
+				}
+			]
 		},
 		{
 			"id": "cairn",
@@ -477,8 +585,8 @@
 			"anchor": "floor",
 			"size": [
 				1.3,
-				1.5,
-				0.6
+				1.333,
+				0.3
 			],
 			"count": 1,
 			"thing": "prop:campgrounds_drift",
