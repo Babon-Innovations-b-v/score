@@ -46,11 +46,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 0.0,
-     "z": -7.35,
-     "y": -0.3,
-     "facing": 90,
-     "unrested": "turns 90 degrees and drifts 472 cm to rest"
+     "x": -3.31,
+     "z": -7.4786,
+     "y": 3.3302,
+     "facing": 87.33,
+     "rotation": [
+      0.516265,
+      0.516178,
+      0.458609,
+      -0.506664
+     ]
     }
    ],
    "why": "E1"
@@ -77,11 +82,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 0.9,
-     "z": 1.9,
-     "y": -0.25,
-     "facing": 115,
-     "unrested": "turns 81 degrees and drifts 333 cm to rest"
+     "x": 0.8221,
+     "z": 1.7031,
+     "y": -0.1968,
+     "facing": 119.0,
+     "rotation": [
+      -0.080633,
+      0.827848,
+      0.205407,
+      -0.515727
+     ]
     }
    ],
    "why": "E2"
@@ -108,15 +118,15 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 0.3999,
-     "z": -1.5014,
-     "y": 0.0063,
-     "facing": 60.66,
+     "x": 0.4003,
+     "z": -1.1001,
+     "y": 0.0062,
+     "facing": 60.56,
      "rotation": [
-      -0.032172,
-      -0.504785,
-      -0.013761,
-      0.862536
+      -0.032011,
+      -0.504035,
+      -0.013882,
+      0.862978
      ]
     }
    ],
@@ -144,42 +154,42 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -5.9985,
-     "z": 1.9988,
+     "x": -5.9961,
+     "z": 1.9962,
      "y": 0.0115,
-     "facing": 29.43,
+     "facing": 28.83,
      "scale": 1.0,
      "rotation": [
-      0.042409,
-      -0.254593,
-      -0.013768,
-      0.96602
+      0.042448,
+      -0.249598,
+      -0.013958,
+      0.967318
      ]
     },
     {
-     "x": 5.4993,
-     "z": 5.9994,
+     "x": 5.4989,
+     "z": 6.0008,
      "y": 0.0108,
-     "facing": 199.81,
+     "facing": 199.2,
      "scale": 0.86,
      "rotation": [
-      -0.002247,
-      0.983601,
-      -0.053147,
-      0.172333
+      -0.00239,
+      0.984501,
+      -0.053101,
+      0.167128
      ]
     },
     {
-     "x": 6.5,
-     "z": -0.5,
+     "x": 6.5001,
+     "z": -0.4989,
      "y": 0.0104,
-     "facing": 108.48,
+     "facing": 107.58,
      "scale": 0.72,
      "rotation": [
-      -0.018602,
-      0.811161,
-      -0.023298,
-      -0.584062
+      -0.018705,
+      0.80656,
+      -0.022704,
+      -0.59042
      ]
     }
    ],
@@ -207,20 +217,30 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 4.0,
-     "z": -9.5,
-     "y": 0.0,
-     "facing": 75,
+     "x": 3.9853,
+     "z": -9.4964,
+     "y": 0.0249,
+     "facing": 87.75,
      "scale": 1.0,
-     "unrested": "turns 40 degrees and drifts 15 cm to rest"
+     "rotation": [
+      -0.163681,
+      -0.629429,
+      0.297443,
+      0.698967
+     ]
     },
     {
-     "x": -8.0,
-     "z": -2.0,
-     "y": 0.0,
-     "facing": 300,
+     "x": -8.0005,
+     "z": -2.0064,
+     "y": 0.0029,
+     "facing": 304.57,
      "scale": 0.85,
-     "unrested": "turns 29 degrees and drifts 9 cm to rest"
+     "rotation": [
+      0.172975,
+      0.46588,
+      0.176842,
+      0.849566
+     ]
     }
    ],
    "why": "E7"
@@ -247,18 +267,28 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -9.0,
-     "z": 5.5,
-     "y": -0.1,
-     "facing": 0,
-     "unrested": "turns 61 degrees and drifts 190 cm to rest"
+     "x": -8.9954,
+     "z": 5.4993,
+     "y": 0.0165,
+     "facing": 1.53,
+     "rotation": [
+      0.03888,
+      -0.013008,
+      0.009643,
+      0.999113
+     ]
     },
     {
-     "x": 8.0,
-     "z": 7.0,
-     "y": -0.1,
-     "facing": 140,
-     "unrested": "turns 104 degrees and drifts 400 cm to rest"
+     "x": 8.0146,
+     "z": 6.988,
+     "y": 0.0949,
+     "facing": 135.75,
+     "rotation": [
+      0.324937,
+      0.892135,
+      0.033764,
+      -0.312042
+     ]
     }
    ],
    "why": "E8"
@@ -285,15 +315,15 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -5.0003,
-     "z": -4.4971,
+     "x": -4.9993,
+     "z": -4.4981,
      "y": 0.0013,
-     "facing": 18.89,
+     "facing": 17.08,
      "rotation": [
-      0.007685,
-      -0.164133,
-      -0.016757,
-      0.986266
+      0.007972,
+      -0.148587,
+      -0.016916,
+      0.988723
      ]
     }
    ],
@@ -321,15 +351,15 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -4.5001,
-     "z": 8.4989,
+     "x": -4.501,
+     "z": 8.4968,
      "y": 0.0108,
-     "facing": 0.13,
+     "facing": 0.16,
      "rotation": [
-      -0.017367,
-      -0.001031,
-      -0.005809,
-      0.999832
+      -0.01734,
+      -0.001263,
+      -0.005904,
+      0.999831
      ]
     }
    ],
@@ -357,11 +387,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -7.0,
-     "z": -7.9,
-     "y": 0.0,
-     "facing": 65,
-     "unrested": "turns 18 degrees and drifts 9 cm to rest"
+     "x": -7.0172,
+     "z": -7.9193,
+     "y": -0.0376,
+     "facing": 68.29,
+     "rotation": [
+      0.055294,
+      -0.549832,
+      -0.145942,
+      0.820566
+     ]
     }
    ],
    "why": "E11, split in two (the game's 1.4 m piece limit)"
@@ -388,15 +423,15 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -5.4865,
-     "z": -9.7198,
-     "y": -0.1085,
-     "facing": 140.71,
+     "x": -5.4875,
+     "z": -9.7421,
+     "y": -0.1086,
+     "facing": 140.95,
      "rotation": [
-      -0.060682,
-      0.938652,
-      0.043893,
-      -0.336636
+      -0.060655,
+      0.939363,
+      0.043366,
+      -0.334719
      ]
     }
    ],
@@ -424,15 +459,15 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 2.0133,
-     "z": 9.0042,
+     "x": 2.0234,
+     "z": 9.018,
      "y": 0.0053,
      "facing": 12.12,
      "rotation": [
-      0.012017,
-      -0.105656,
-      -0.009326,
-      0.994286
+      0.01191,
+      -0.105679,
+      -0.009369,
+      0.994285
      ]
     }
    ],
@@ -460,15 +495,15 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 6.0025,
-     "z": 8.7945,
-     "y": 0.0106,
-     "facing": 2.77,
+     "x": 6.011,
+     "z": 8.7887,
+     "y": 0.0107,
+     "facing": 8.48,
      "rotation": [
-      -0.002705,
-      -0.023673,
-      -0.082836,
-      0.996278
+      0.000695,
+      -0.073236,
+      -0.081918,
+      0.993944
      ]
     }
    ],
@@ -496,42 +531,42 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 4.9993,
-     "z": 2.9993,
+     "x": 4.9999,
+     "z": 3.0002,
      "y": 0.0069,
-     "facing": 9.98,
+     "facing": 9.89,
      "scale": 1.0,
      "rotation": [
-      -0.002099,
-      -0.086935,
-      -0.009789,
-      0.996164
+      -0.002126,
+      -0.086135,
+      -0.009809,
+      0.996233
      ]
     },
     {
-     "x": -6.0,
-     "z": 8.7997,
+     "x": -6.0064,
+     "z": 8.8192,
      "y": 0.0068,
-     "facing": 129.91,
+     "facing": 129.19,
      "scale": 1.2,
      "rotation": [
-      -0.000531,
-      0.905954,
-      -0.006757,
-      -0.423321
+      -0.00052,
+      0.903274,
+      -0.006718,
+      -0.42901
      ]
     },
     {
-     "x": 9.0039,
-     "z": -3.5027,
+     "x": 9.0078,
+     "z": -3.5143,
      "y": 0.007,
-     "facing": 250.69,
+     "facing": 250.89,
      "scale": 1.0,
      "rotation": [
-      0.009642,
-      0.815132,
-      -0.028988,
-      0.578469
+      0.009668,
+      0.81416,
+      -0.02891,
+      0.579839
      ]
     }
    ],
@@ -583,5 +618,6 @@
    "why": "E3, E13 (cable_bundle laid on its back)",
    "fixed": true
   }
- ]
+ ],
+ "layout_decision": "2026-10-08, coordinator's layout decision (owner may change): follow concept C2, the rocket lying broken in two on the ground. The aft section is re-laid on its side by eye from C2 (rolled 90 degrees about its length, then its settled pose, 6 degrees off) and both sections are settled within 15 degrees and 30 cm; the forward section rests in a 2.5 m wide dent 30 cm deep where it struck, the two pressure spheres in shallow dents (data/ground/moon.json, dents); small debris (no side over 1.4 m) settles freely, any turn and up to 1 m; the work lamp moved 40 cm off the cables it stood in."
 }

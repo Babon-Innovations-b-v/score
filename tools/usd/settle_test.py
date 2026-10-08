@@ -1,6 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
-again, stands exactly where it rested; one that would turn 40 degrees to rest keeps its laid pose and is marked; a
+again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
+marked, while 1 m debris may turn so; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -82,21 +83,50 @@ def a_big_turn_is_marked_not_made():
         rolled = np.eye(4)
         rolled[:3, :3] = Rotation.from_euler("x", 40, degrees=True).as_matrix()
         rolled[:3, 3] = before[:3, 3] - rolled[:3, :3] @ before[:3, 3]
-        inventory = {"rows": [{"id": "crate", "anchor": "floor", "at": [{"x": 4, "z": 2, "y": 0, "facing": 0}]}]}
-        (folder / "inventory.json").write_text(json.dumps(inventory))
-        settle.write_layout({"crate_1": {"before": before, "after": rolled @ before, "middle": [0, 0.5, 0]}}, None,
-                            folder / "inventory.json", folder / "kit.json")
-        piece = json.loads((folder / "kit.json").read_text())["pieces"][0]
+        laid_kit = json.loads((folder / "kit.json").read_text())
         problems = []
-        if piece["at"] != [4, 0, 2] or "rotation" in piece:
-            problems.append(f"a 40 degree roll was written into the layout: {piece}")
-        if "turns 40 degrees" not in piece.get("unrested", ""):
-            problems.append(f"the piece that would roll is not marked: {piece}")
+        for size, marked in ((3.0, True), (1.0, False)):  # a 3 m piece keeps its pose; 1 m debris may turn freely
+            laid_kit["pieces"][0]["size"] = [size, 1.0, 1.0]
+            (folder / "kit.json").write_text(json.dumps(laid_kit))
+            inventory = {"rows": [{"id": "crate", "anchor": "floor", "at": [{"x": 4, "z": 2, "y": 0, "facing": 0}]}]}
+            (folder / "inventory.json").write_text(json.dumps(inventory))
+            settle.write_layout({"crate_1": {"before": before, "after": rolled @ before, "middle": [0, 0.5, 0]}},
+                                None, folder / "inventory.json", folder / "kit.json")
+            piece = json.loads((folder / "kit.json").read_text())["pieces"][0]
+            if marked and (piece["at"] != [4, 0, 2] or "rotation" in piece or "turns 40" not in piece["unrested"]):
+                problems.append(f"a 40 degree roll of a 3 m piece was not refused and marked: {piece}")
+            if not marked and ("rotation" not in piece or "unrested" in piece):
+                problems.append(f"a 40 degree roll of 1 m debris was not written: {piece}")
+        return problems
+
+
+def a_dent_is_a_shallow_bowl():
+    with tempfile.TemporaryDirectory() as temporary:
+        sloped = resting_test.sloping_ground(pathlib.Path(temporary))
+        before = sloped.heights.copy()
+        after = ground.dented(sloped, before, 2.0, 1.0, 0.6, 0.08)
+        change = after - before
+        problems = []
+        middle = sloped.direction(sloped.frame, sloped.frame[1], 2.0, 1.0)
+        sloped.heights = before
+        was = sloped.plan_height(middle)[0][0]
+        sloped.heights = after
+        now = sloped.plan_height(middle)[0][0]
+        if not 0.05 < was - now <= 0.08:
+            problems.append(f"the dent's middle is {(was - now) * 100:.1f} cm deep, not about 8")
+        if change.max() > 0 or change.min() < -0.0801:
+            problems.append("the dent raised the ground or went deeper than asked")
+        far = sloped.direction(sloped.frame, sloped.frame[1], 6.0, 1.0)
+        sloped.heights = before
+        far_before = sloped.plan_height(far)[0][0]
+        sloped.heights = after
+        if abs(sloped.plan_height(far)[0][0] - far_before) > 1e-9:
+            problems.append("the ground 4 m from the dent moved")
         return problems
 
 
 CHECKS = (a_settled_pose_round_trips_through_the_layout, a_big_turn_is_marked_not_made,
-          a_levelled_yard_is_flat_and_eases_out)
+          a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl)
 
 
 if __name__ == "__main__":
