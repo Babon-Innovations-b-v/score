@@ -228,6 +228,8 @@ def split(source, first, second):
     """A labelled take cut in two across its longest side (a take longer than one piece may be, the torn leg): every
     material's .ply cut by its faces' middles at the middle of that side, into two labelled folders."""
     import trimesh
+    if source.resolve() in (first.resolve(), second.resolve()):
+        raise SystemExit("split writes two new folders; neither may be the labelled take it reads")
     meshes = {path.stem: trimesh.load(path, force="mesh", process=False) for path in sorted(source.glob("*.ply"))}
     every = np.vstack([mesh.vertices for mesh in meshes.values()])
     axis = int(np.argmax(every.max(0) - every.min(0)))
