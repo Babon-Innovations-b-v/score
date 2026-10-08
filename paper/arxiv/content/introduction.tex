@@ -1,9 +1,17 @@
 \section{Introduction}\label{introduction}
 
-A creator who wants a world for a game, a film or a robot to train in needs it complete and owned. Complete means every door, floor, object, light and sound exists and works when the player looks anywhere. Owned means the creator decides what the world is, can change any part later without starting over, and holds the rights to all of it.
+A creator who wants a world for a game, a film or a robot to train in needs it complete and owned. Complete means every door, floor, object, light and sound exists and works wherever the player looks. Owned means the creator decides what the world is, can change any part later without starting over, and holds the rights to all of it.
 
-World models make the first impression of a world cheap but give neither. Genie 3 renders a world a person can move through in real time, with a constrained range of actions and a few minutes of continuous interaction among its stated limits \citep{genie3, bruce2024genie}. One-shot 3D world generators return ``static monolithic assets with limited editability and physical interaction'' \citep{hu2026worldact}.
+World models make the first impression of a world cheap, but give neither. Genie 3 renders a world a person can move through in real time, with a constrained range of actions and minutes of interaction among its stated limits \citep{genie3, bruce2024genie}. One-shot 3D world generators return ``static monolithic assets with limited editability and physical interaction'' \citep{hu2026worldact}.
 
-SCORE takes the opposite approach. It builds everything in full, offline, so the world cannot break and can be used today in the engines and tools the creator already has. The creator writes the score; coding agents and open tools play it. The creator decides at a few fixed points (references, concept, style, review). Between them, every stage hands on explicit data or code that an agent can read and a deterministic check can test before money is spent, and the agents do the joining work a technical artist would otherwise do.
+SCORE builds the whole world, offline, and ships it as files. The creator writes the score, and coding agents and open tools play it: the creator decides at a few fixed points, and between them every stage hands on explicit data or code that an agent can read and a deterministic check can test before money is spent. Our contributions:
 
-Our contributions are: SCORE as a world compiler, with its stages, canonical scene and checks (Section 3); the rules that keep generated worlds coherent and editable, chiefly the parts check, one model per object and a shared surface library (Sections 3.3 and 3.4); and four worlds of different kinds built with it, with time, cost and the faults caught before spending at every stage (Section 5).
+\begin{itemize}
+\tightlist
+\item
+  \textbf{SCORE as a world compiler:} staged, cached compilation from a creator's picks into one canonical scene with generated base layers and the creator's edit layers (Section 3).
+\item
+  \textbf{Four mechanisms} that keep compiled worlds coherent and cheap to get right (Section 4).
+\item
+  \textbf{Evidence across four worlds of different kinds}, with time, cost and faults caught before spending at every stage, and an evaluation on a shared benchmark (Sections 5 and 6).
+\end{itemize}

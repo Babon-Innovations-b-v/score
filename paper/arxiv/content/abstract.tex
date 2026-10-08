@@ -1,15 +1,16 @@
 \begin{abstract}
 World models and one-shot 3D generators produce a convincing place from
-a sentence or a picture, but not a world a creator can build on: their
-output is a stream of frames or one fused scene, without separate
-objects, collision or clear rights. SCORE treats world creation as
-offline compilation. The creator picks references, a concept and a
-style; coding agents and open models compile those picks in cloud
-batches, through stages with explicit and checkable outputs, into a
-canonical OpenUSD scene that engines and simulators load. Every object
-is its own model, every surface comes from one shared rule-based
-library, sound is generated per surface, room and object, cheap
-deterministic checks run before every paid step, and every model in the
-route allows commercial use of its output. The creator's edits live in
-their own layers and survive regeneration.
+a sentence or a picture, but not a world a creator can build on: a
+stream of frames, or one fused scene without separate objects, collision
+or clear rights. SCORE compiles worlds instead. A creator picks
+references, a concept and a style; coding agents and open models compile
+those picks offline, through stages with explicit and checkable outputs,
+into one canonical scene that engines and simulators load and that keeps
+the creator's edits across regeneration. Four mechanisms make the output
+coherent and cheap to get right: deterministic checks before every paid
+step, a parts check that decides between code and generation with one
+model per real-world object, a shared rule-based surface library that
+keeps shape and surface apart, and review tools that put every stage's
+output in front of the creator, who decides at a few fixed points. We
+apply the same route to four worlds of different kinds.
 \end{abstract}
