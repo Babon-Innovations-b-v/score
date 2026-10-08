@@ -237,17 +237,20 @@ def walk_video(folder, out):
     strip.save(out / "walk-strip.jpg", quality=85)
 
 
-def scene_shots(place, stages, out, plain=False, room=None):
+def scene_shots(place, stages, out, plain=False, room=None, kit=False):
     """Every stage drawn from the same fixed cameras (set from the newest stage), and the newest one walked round, in
     their materials on their ground (`plain`: in one grey, a debug view). `stages` is {label: stage.usda}, the newest
-    last; `room` is a kit room's layout, drawn from inside by its lamps. The views' names per stage, and the newest
-    stage's import report as Blender read it."""
+    last; `room` is a kit room's layout, drawn from inside by its lamps; `kit` a kit laid outdoors (a street between
+    two blocks), drawn from round it and also from inside its extent along it. The views' names per stage, and the
+    newest stage's import report as Blender read it."""
     low, high = stage_extent(list(stages.values())[-1])
     newest = list(stages)[-1]
     if room is not None:
         views, walk, lights = room_views(low, high), room_walk(low, high), room_lights(room)
     else:
         views = game_views(place, stages[newest]) + on_the_ground(stages[newest], fixed_views(low, high))
+        if kit:
+            views += [view for view in room_views(low, high) if view["name"] != "cutaway"]
         walk, lights = on_the_ground(stages[newest], walk_views(low, high)), []
     for label, stage in stages.items():
         render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain, lights)

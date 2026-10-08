@@ -482,7 +482,8 @@ def render_all(options, runs, out):
     # A kit room with a roof (draw layer 2) is drawn from inside; a kit laid outdoors (the prologue's street) from round it.
     room = layout if layout and any(piece.get("layer") == renders.ROOF_LAYER for piece in layout.get("pieces", [])) \
         else None
-    scene = renders.scene_shots(options.place, stages, out, options.plain, room) if stages else None
+    outdoor_kit = room is None and bool(layout and layout.get("pieces") and "x" in layout["pieces"][0])
+    scene = renders.scene_shots(options.place, stages, out, options.plain, room, outdoor_kit) if stages else None
     (out / "renders.json").write_text(json.dumps({"shots": shots, "scene": scene}, indent=1))
     return shots, scene
 
