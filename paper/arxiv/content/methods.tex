@@ -60,9 +60,17 @@ Deterministic checks run before every stage that costs money. They test real geo
 
 \subsection{The canonical scene}\label{the-canonical-scene}
 
+Every place is exported as one OpenUSD stage \citep{openusd} in which each object carries its kind, its transform in metres, its collision, the library surface of each part and that surface's sounds, with the generated base layer under an edit layer that belongs to the creator, so that an edit survives when the base is generated again (Figure 7).
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The wreck, one outdoor place of the game 2099, as an OpenUSD stage. (a) The place in the game, from one of its fixed cameras. (b) The stage loaded in Blender and rendered from the same camera. (c) Blender's object outlines drawn over the game's picture. (d) The same camera after an edit in the edit layer, made here by a script, that moved the round cover and gave the capsule's painted hull another library surface, and after the base layer was generated again.}]{figures/fig-usd.jpg}
+\caption{The wreck, one outdoor place of the game 2099, as an OpenUSD stage. (a) The place in the game, from one of its fixed cameras. (b) The stage loaded in Blender and rendered from the same camera. (c) Blender's object outlines drawn over the game's picture. (d) The same camera after an edit in the edit layer, made here by a script, that moved the round cover and gave the capsule's painted hull another library surface, and after the base layer was generated again.}
+\end{figure}
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: figure of the scene with its layers.} This figure will show one place as an OpenUSD stage \citep{openusd} with glTF geometry \citep{gltf2}, in which every object carries its real collision, mass and material, with the framework's generated base layer, a creator's edit layer above it, and the same scene loaded in two engines. It waits until the scene export, its layers and a second engine adapter are built in the framework repository; the case study so far used glTF models and a JSON layout loaded in Godot.
+\textbf{Gap: the scene in a game engine.} The same stage loaded in a game engine, with its collision and surfaces, and the mass and friction of each object written into it. It waits on the game engine adapter and on the framework recording mass and friction.
 
 \end{minipage}}\end{center}
 

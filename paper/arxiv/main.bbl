@@ -1,4 +1,4 @@
-\begin{thebibliography}{36}
+\begin{thebibliography}{35}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -201,11 +201,6 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
 {Pixar Animation Studios} and {Alliance for OpenUSD}.
 \newblock {OpenUSD}: Universal scene description, 2026.
 \newblock URL \url{https://openusd.org/}.
-
-\bibitem[{The Khronos Group}(2021)]{gltf2}
-{The Khronos Group}.
-\newblock {glTF} 2.0 specification, 2021.
-\newblock URL \url{https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html}.
 
 \bibitem[Rein and Liu(2012)]{rein2012rebound}
 Hanno Rein and Shang-Fei Liu.

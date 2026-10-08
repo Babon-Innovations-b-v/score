@@ -90,8 +90,14 @@ Deterministic checks run before every stage that costs money. They test real geo
 
 ## The canonical scene
 
+Every place is exported as one OpenUSD stage [@openusd] in which each object carries its kind, its transform in metres, its collision, the library surface of each part and that surface's sounds, with the generated base layer under an edit layer that belongs to the creator, so that an edit survives when the base is generated again (Figure 7).
+
+![The wreck, one outdoor place of the game 2099, as an OpenUSD stage. (a) The place in the game, from one of its fixed cameras. (b) The stage loaded in Blender and rendered from the same camera. (c) Blender's object outlines drawn over the game's picture. (d) The same camera after an edit in the edit layer, made here by a script, that moved the round cover and gave the capsule's painted hull another library surface, and after the base layer was generated again.](figures/fig-usd.jpg){width=100%}
+
+<!-- Wreck stage: tools/usd/export.py on data/kit/wreck.json; renders by tools/usd/views.py (Blender 5.0.1, headless); the edit survival is checked by tools/usd/export_test.py. -->
+
 ::: gap
-**Gap: figure of the scene with its layers.** This figure will show one place as an OpenUSD stage [@openusd] with glTF geometry [@gltf2], in which every object carries its real collision, mass and material, with the framework's generated base layer, a creator's edit layer above it, and the same scene loaded in two engines. It waits until the scene export, its layers and a second engine adapter are built in the framework repository; the case study so far used glTF models and a JSON layout loaded in Godot.
+**Gap: the scene in a game engine.** The same stage loaded in a game engine, with its collision and surfaces, and the mass and friction of each object written into it. It waits on the game engine adapter and on the framework recording mass and friction.
 :::
 
 ## Review tools
@@ -140,7 +146,7 @@ We build four worlds with the same stages: the game world of 2099 (a Moon base a
 # Future work
 
 - Build the three further worlds: a stylised underwater world, a simulation world for robots, and a third-person fantasy world.
-- Finish the OpenUSD export with its edit layers, and add engine adapters beyond Godot, starting with Blender.
+- Add a game engine adapter for the OpenUSD scene, and write each object's mass and friction into it.
 - Make assets interactable, which robotics in particular needs.
 - Replace the closed picture model for close-ups: an open picture model, run in our own cloud batches, is being tested for this stage.
 - Wrap open solvers as stages for worlds at other scales, starting with orbital dynamics through REBOUND [@rein2012rebound].
