@@ -1,0 +1,300 @@
+{
+	"room": "garage",
+	"frame": "the leaf's own: its middle on its foot (a roof leaf: its middle), x across, front -z into the room",
+	"doorways": [],
+	"place": "garage",
+	"counts": {
+		"gdoor_wall_upper_plain": 6,
+		"gdoor_lattice_ring_rib": 3
+	},
+	"kinds": {
+		"gdoor_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"gdoor_lattice_ring_rib": {
+			"group": "hangs"
+		}
+	},
+	"models": {
+		"wall_upper_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"lattice_ring_rib_1": {
+			"glows": false,
+			"route": "code"
+		}
+	},
+	"pieces": [
+		{
+			"kind": "gdoor_wall_upper_plain",
+			"at": [
+				-0.625,
+				0.0,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.29,
+				1.3333,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "gdoor_wall_upper_plain",
+			"at": [
+				-0.625,
+				1.3333,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.29,
+				1.3333,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "gdoor_wall_upper_plain",
+			"at": [
+				-0.625,
+				2.6667,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.29,
+				1.3333,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "gdoor_wall_upper_plain",
+			"at": [
+				0.625,
+				0.0,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.29,
+				1.3333,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "gdoor_wall_upper_plain",
+			"at": [
+				0.625,
+				1.3333,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.29,
+				1.3333,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "gdoor_wall_upper_plain",
+			"at": [
+				0.625,
+				2.6667,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.29,
+				1.3333,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "gdoor_lattice_ring_rib",
+			"at": [
+				0.0,
+				0.0,
+				-0.18
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.5,
+				0.2,
+				0.3
+			],
+			"layer": 1,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "gdoor_lattice_ring_rib",
+			"at": [
+				0.0,
+				1.9,
+				-0.18
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.5,
+				0.2,
+				0.3
+			],
+			"layer": 1,
+			"model": "lattice_ring_rib_1"
+		},
+		{
+			"kind": "gdoor_lattice_ring_rib",
+			"at": [
+				0.0,
+				3.8,
+				-0.18
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.5,
+				0.2,
+				0.3
+			],
+			"layer": 1,
+			"model": "lattice_ring_rib_1"
+		}
+	]
+}

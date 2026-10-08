@@ -3482,7 +3482,8 @@
 		],
 		"materials": [
 			"enamel_blue"
-		]
+		],
+		"wall": 0.012
 	},
 	"garage_chain_hoist": {
 		"screens": [],
@@ -3519,7 +3520,8 @@
 		"materials": [
 			"painted_panel",
 			"wood_board"
-		]
+		],
+		"wall": 0.012
 	},
 	"garage_task_lamp": {
 		"screens": [],
@@ -3745,7 +3747,8 @@
 			"galvanized_steel",
 			"enamel_blue",
 			"wood_board"
-		]
+		],
+		"wall": 0.012
 	},
 	"garage_parts_trolley": {
 		"screens": [],
@@ -3785,7 +3788,8 @@
 			"galvanized_steel",
 			"rubber",
 			"wood_board"
-		]
+		],
+		"wall": 0.012
 	},
 	"garage_tyre_shelving": {
 		"screens": [],
@@ -3842,7 +3846,8 @@
 		"materials": [
 			"galvanized_steel",
 			"rubber"
-		]
+		],
+		"wall": 0.012
 	},
 	"hangar_ship_bench": {
 		"screens": [],
@@ -3862,7 +3867,8 @@
 			"painted_panel",
 			"screen",
 			"plastic_grey"
-		]
+		],
+		"wall": 0.012
 	},
 	"hangar_control_desk": {
 		"screens": [],
@@ -3938,7 +3944,8 @@
 		"materials": [
 			"galvanized_steel",
 			"wood_board"
-		]
+		],
+		"wall": 0.012
 	},
 	"hangar_parts_shelving": {
 		"screens": [],
@@ -3957,7 +3964,8 @@
 		"materials": [
 			"galvanized_steel",
 			"wood_board"
-		]
+		],
+		"wall": 0.012
 	},
 	"hangar_monitor_desk": {
 		"screens": [],
