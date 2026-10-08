@@ -327,11 +327,11 @@ def game_beside(scene, out, games, pictures):
 
 
 def complete_line(place, scene, judged, passed):
-    """The place's 'complete vs game' line: what of what the game draws the scene carries, what it does not, and how
-    many views are as bright as the game's."""
+    """The place's 'scene vs game' line: what of what the game draws the scene carries (its people too, from its cast),
+    what is still missing against the game's shots, and how many views are as bright as the game's."""
     record = scene_record.record(place)
     if record is None:
-        return "<p><b>Complete vs game:</b> no scene record yet: only the made pieces are in the scene.</p>"
+        return "<p><b>Scene vs game:</b> no scene record yet: only the made pieces are in the scene.</p>"
     carried = [f"{word} ({len(record.get(key, []))})" for key, word in
                (("structure", "structure built in code"), ("ground", "ground"), ("water", "water"),
                 ("objects", "gameplay objects"), ("backdrop", "backdrop arcs"), ("places", "other places seen from it"),
@@ -342,11 +342,19 @@ def complete_line(place, scene, judged, passed):
         carried.append("the game's sky, ambient light and exposure")
     if record.get("kit_lights", True):
         carried.append("the kit's lamps as lights")
+    cast = HERE.parents[1] / "data/characters" / f"{place}.json"
+    if cast.exists():
+        people = json.loads(cast.read_text())
+        count = len(people.get("people", [])) + sum(int(group.get("count", 0)) for group in people.get("groups", []))
+        crowd = int(people.get("crowd", {}).get("count", 0)) if people.get("crowd") else 0
+        if count or crowd:
+            carried.append(f"its people ({count}" + (f", and a crowd of {crowd}" if crowd else "") + ")")
     missing_now = record.get("game_only", [])
     light = (f"{passed} of {judged} views at least {DARK_SHARE:.0%} as bright as the game's shot" if judged else
              "no game shot to compare brightness with")
-    return (f"<p><b>Complete vs game:</b> the scene carries {escaped(', '.join(carried))}. "
-            f"Not carried: {escaped('; '.join(missing_now)) if missing_now else 'nothing the game draws there'}. "
+    return (f"<p><b>Scene vs game:</b> the scene carries {escaped(', '.join(carried))}. "
+            f"Still missing against the game's shots: "
+            f"{escaped('; '.join(missing_now)) if missing_now else 'nothing found yet'}. "
             f"Brightness: {escaped(light)}.</p>")
 
 

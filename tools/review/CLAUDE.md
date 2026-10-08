@@ -31,6 +31,6 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   spots; a room from inside at standing height and a cutaway from above, never from outside a closed room), lit by the
   stage's own lights and sky (no added sun; `"fill"` in views.json adds the weak fill as an option), with no grey plane
   under a room. `--game-shots <folder>` lays each view beside the game's shot it names, with both pictures' mean
-  brightness: a scene view under half the game's is caught. The "complete vs game" line says what the record carries
+  brightness: a scene view under half the game's is caught. The "scene vs game" line says what the record and the cast carry
   and what it lists as game only.
 
