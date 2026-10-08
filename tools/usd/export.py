@@ -186,7 +186,10 @@ def face_surfaces(geometry, points, names):
 
 def sound_of(variant, variants, sounds):
     """A library surface's sounds: the surface it sounds like (its own, else its family's) and that surface's
-    footstep, impact, scrape and absorption."""
+    footstep, impact, scrape and absorption; None for a part named after a place's own material that is no library
+    surface (the hub's older `brushed_steel`), whose sound is not known."""
+    if variant not in variants:
+        return None
     surface = variants[variant].get("surface") or library.theme_library()["families"][variants[variant]["family"]]["surface"]
     entry = sounds["surfaces"].get(surface, sounds["fallback"])
     return dict(entry, surface=surface)
@@ -244,6 +247,9 @@ def baked_material(stage, path, maps, surface):
 def surface_attributes(prim, variant, variants, sounds):
     """The library surface a part is, with its family and its sounds, as score:* attributes on the part."""
     sound = sound_of(variant, variants, sounds)
+    if sound is None:
+        prim.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(variant)
+        return
     values = {"score:surface": variant, "score:family": variants[variant]["family"],
               "score:sound:surface": sound["surface"], "score:sound:footstep": sound["footstep"],
               "score:sound:impact": sound["impact"], "score:sound:scrape": sound["scrape"]}
@@ -532,7 +538,10 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
     if kit["pieces"] and "x" in kit["pieces"][0]:
         kit = dict(kit, pieces=kit_room_pieces(kit, models))
-    inventory = json.loads(pathlib.Path(inventory_path or INVENTORIES / f"{place}.json").read_text())
+    if inventory_path is None:  # a room of a place of another name keeps its inventory under the place's (the flat)
+        inventory_path = next((path for path in (INVENTORIES / f"{place}.json", INVENTORIES / f"{kit.get('place')}.json")
+                               if path.exists()), INVENTORIES / f"{place}.json")
+    inventory = json.loads(pathlib.Path(inventory_path).read_text())
     children = child_pieces(place, kit, inventory, json.loads(COMPOSITES.read_text()))
     details = json.loads(DETAILS.read_text())
     variants = library.variants(library.theme_library())
