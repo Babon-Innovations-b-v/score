@@ -16,26 +16,31 @@
 		"workshop_hatch_window": 3,
 		"workshop_hatch_hinge": 8,
 		"workshop_roof_face_panel": 313,
-		"workshop_pipe_straight": 6,
-		"workshop_pipe_valve": 2,
-		"workshop_door_strip_lamp": 4,
+		"workshop_pipe_straight": 15,
+		"workshop_pipe_valve": 5,
+		"workshop_door_strip_lamp": 5,
 		"workshop_door_control_box": 4,
 		"workshop_intercom_panel": 1,
+		"workshop_conduit_box": 6,
+		"workshop_small_readout": 3,
 		"workshop_robot_bench": 1,
 		"workshop_tool_bench": 1,
 		"workshop_toolboard": 1,
+		"workshop_rack": 1,
+		"workshop_waste_bin": 2,
+		"workshop_spares_crate": 6,
 		"workshop_work_stool": 2,
 		"workshop_elec_bench": 1,
 		"workshop_parts_drawers": 1,
 		"workshop_spares_shelves": 1,
 		"workshop_low_cabinet": 1,
 		"workshop_status_display": 1,
-		"workshop_floor_socket": 4,
-		"workshop_bay_mark": 16,
+		"workshop_floor_socket": 20,
+		"workshop_bay_mark": 8,
 		"workshop_pendant_lamp": 5,
-		"workshop_wall_cage_lamp": 5,
+		"workshop_wall_cage_lamp": 4,
 		"workshop_tread_mat": 4,
-		"workshop_pipe_bracket": 16,
+		"workshop_pipe_bracket": 36,
 		"workshop_arm_monitor": 2,
 		"workshop_keyboard": 2,
 		"workshop_vise": 1,
@@ -49,7 +54,6 @@
 		"workshop_oscilloscope": 1,
 		"workshop_bench_meter": 1,
 		"workshop_soldering_station": 1,
-		"workshop_spares_crate": 5,
 		"workshop_spares_box": 4
 	},
 	"kinds": {
@@ -119,9 +123,18 @@
 		"workshop_intercom_panel": {
 			"group": "hangs"
 		},
+		"workshop_conduit_box": {
+			"group": "hangs"
+		},
+		"workshop_small_readout": {
+			"group": "hangs"
+		},
 		"workshop_robot_bench": {},
 		"workshop_tool_bench": {},
 		"workshop_toolboard": {},
+		"workshop_rack": {},
+		"workshop_waste_bin": {},
+		"workshop_spares_crate": {},
 		"workshop_work_stool": {},
 		"workshop_elec_bench": {},
 		"workshop_parts_drawers": {},
@@ -161,7 +174,6 @@
 		"workshop_oscilloscope": {},
 		"workshop_bench_meter": {},
 		"workshop_soldering_station": {},
-		"workshop_spares_crate": {},
 		"workshop_spares_box": {}
 	},
 	"models": {
@@ -393,6 +405,30 @@
 			"glows": false,
 			"route": "code"
 		},
+		"pipe_straight_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_8": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_9": {
+			"glows": false,
+			"route": "code"
+		},
 		"pipe_valve_1": {
 			"glows": false,
 			"route": "code"
@@ -415,6 +451,17 @@
 			"glows": false,
 			"route": "code"
 		},
+		"conduit_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1_glow": {
+			"glows": true
+		},
 		"robot_bench_1": {
 			"glows": false,
 			"route": "code"
@@ -427,6 +474,18 @@
 			"route": "code"
 		},
 		"toolboard_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"rack_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"waste_bin_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"spares_crate_1": {
 			"glows": false,
 			"route": "code"
 		},
@@ -565,10 +624,6 @@
 		},
 		"soldering_station_1_glow": {
 			"glows": true
-		},
-		"spares_crate_1": {
-			"glows": false,
-			"route": "code"
 		},
 		"spares_box_1": {
 			"glows": false,
@@ -9138,6 +9193,7 @@
 				0.12
 			],
 			"layer": 1,
+			"door": "north",
 			"model": "hatch_leaf_1"
 		},
 		{
@@ -9168,6 +9224,7 @@
 				0.08
 			],
 			"layer": 1,
+			"door": "north",
 			"model": "hatch_wheel_1"
 		},
 		{
@@ -9198,6 +9255,7 @@
 				0.06
 			],
 			"layer": 1,
+			"door": "north",
 			"model": "hatch_window_1"
 		},
 		{
@@ -9318,6 +9376,7 @@
 				0.12
 			],
 			"layer": 1,
+			"door": "south",
 			"model": "hatch_leaf_1"
 		},
 		{
@@ -9348,6 +9407,7 @@
 				0.08
 			],
 			"layer": 1,
+			"door": "south",
 			"model": "hatch_wheel_1"
 		},
 		{
@@ -9378,6 +9438,7 @@
 				0.06
 			],
 			"layer": 1,
+			"door": "south",
 			"model": "hatch_window_1"
 		},
 		{
@@ -9498,6 +9559,7 @@
 				0.12
 			],
 			"layer": 1,
+			"door": "east",
 			"model": "hatch_leaf_1"
 		},
 		{
@@ -9528,6 +9590,7 @@
 				0.08
 			],
 			"layer": 1,
+			"door": "east",
 			"model": "hatch_wheel_1"
 		},
 		{
@@ -9558,6 +9621,7 @@
 				0.06
 			],
 			"layer": 1,
+			"door": "east",
 			"model": "hatch_window_1"
 		},
 		{
@@ -19594,6 +19658,276 @@
 			"model": "pipe_straight_2"
 		},
 		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				7.86,
+				2.5,
+				2.75
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.9,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				7.86,
+				2.5,
+				-1.675
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.75,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				7.86,
+				2.5,
+				-3.275
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.85,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_5"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				-7.8,
+				2.5,
+				-3.475
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.45,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_6"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				-7.8,
+				2.5,
+				-1.875
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.15,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_7"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				-7.8,
+				2.5,
+				2.75
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.9,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				-3.25,
+				2.5,
+				6.86
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				3.5,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				1.975,
+				2.5,
+				6.86
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.95,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_8"
+		},
+		{
+			"kind": "workshop_pipe_straight",
+			"at": [
+				3.875,
+				2.5,
+				6.86
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				2.25,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"model": "pipe_straight_9"
+		},
+		{
 			"kind": "workshop_pipe_valve",
 			"at": [
 				2.4,
@@ -19644,6 +19978,96 @@
 				-0.0,
 				-0.0,
 				-1.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "workshop_pipe_valve",
+			"at": [
+				7.84,
+				2.4,
+				-2.2
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "workshop_pipe_valve",
+			"at": [
+				-7.78,
+				2.4,
+				-2.6
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"layer": 1,
+			"model": "pipe_valve_1"
+		},
+		{
+			"kind": "workshop_pipe_valve",
+			"at": [
+				2.6,
+				2.4,
+				6.84
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
 			],
 			"size": [
 				0.3,
@@ -19887,6 +20311,67 @@
 				-1.0,
 				-0.0,
 				0.0
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "workshop_door_strip_lamp",
+			"at": [
+				-3.6,
+				2.0,
+				6.888
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.104
+			],
+			"layer": 1,
+			"model": "door_strip_lamp_1"
+		},
+		{
+			"kind": "workshop_door_strip_lamp",
+			"at": [
+				-3.6,
+				2.01,
+				6.846
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
 			],
 			"size": [
 				1.06,
@@ -20172,6 +20657,369 @@
 			"model": "intercom_panel_1"
 		},
 		{
+			"kind": "workshop_conduit_box",
+			"at": [
+				-2.0375,
+				1.605,
+				-6.852
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "workshop_conduit_box",
+			"at": [
+				4.9625,
+				1.505,
+				-6.852
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "workshop_conduit_box",
+			"at": [
+				7.892,
+				1.605,
+				-1.9375
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "workshop_conduit_box",
+			"at": [
+				1.9375,
+				1.605,
+				6.892
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "workshop_conduit_box",
+			"at": [
+				-4.9625,
+				1.505,
+				6.892
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "workshop_conduit_box",
+			"at": [
+				-7.832,
+				1.605,
+				-1.8625
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "workshop_small_readout",
+			"at": [
+				1.75,
+				1.45,
+				-6.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "workshop_small_readout",
+			"at": [
+				1.72,
+				1.537,
+				-6.854
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "workshop_small_readout",
+			"at": [
+				7.91,
+				1.85,
+				-4.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "workshop_small_readout",
+			"at": [
+				7.894,
+				1.937,
+				-4.18
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "workshop_small_readout",
+			"at": [
+				-7.85,
+				1.3,
+				-4.25
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "workshop_small_readout",
+			"at": [
+				-7.834,
+				1.387,
+				-4.22
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
 			"kind": "workshop_robot_bench",
 			"at": [
 				0.0,
@@ -20455,6 +21303,126 @@
 			"model": "toolboard_1"
 		},
 		{
+			"kind": "workshop_rack",
+			"at": [
+				-5.0,
+				0.0,
+				6.602
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.6,
+				1.9,
+				0.636
+			],
+			"layer": 1,
+			"model": "rack_1"
+		},
+		{
+			"kind": "workshop_waste_bin",
+			"at": [
+				-2.45,
+				0.0,
+				6.7355
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.438,
+				0.381
+			],
+			"layer": 1,
+			"model": "waste_bin_1"
+		},
+		{
+			"kind": "workshop_waste_bin",
+			"at": [
+				7.7355,
+				0.0,
+				4.35
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.3,
+				0.438,
+				0.381
+			],
+			"layer": 1,
+			"model": "waste_bin_1"
+		},
+		{
+			"kind": "workshop_spares_crate",
+			"at": [
+				1.6,
+				0.0,
+				0.25
+			],
+			"x": [
+				-0.17365,
+				0.0,
+				-0.98481
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.98481,
+				-0.0,
+				-0.17365
+			],
+			"size": [
+				0.5,
+				0.26,
+				0.364
+			],
+			"layer": 1,
+			"model": "spares_crate_1"
+		},
+		{
 			"kind": "workshop_work_stool",
 			"at": [
 				-3.2,
@@ -20698,6 +21666,126 @@
 		{
 			"kind": "workshop_floor_socket",
 			"at": [
+				-5.55,
+				0.0,
+				-4.55
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				-5.55,
+				0.0,
+				-2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				-2.45,
+				0.0,
+				-4.55
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				-2.45,
+				0.0,
+				-2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
 				-4.0,
 				0.0,
 				-2.3
@@ -20728,9 +21816,249 @@
 		{
 			"kind": "workshop_floor_socket",
 			"at": [
+				2.45,
+				0.0,
+				-4.55
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				2.45,
+				0.0,
+				-2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				5.55,
+				0.0,
+				-4.55
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				5.55,
+				0.0,
+				-2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
 				4.0,
 				0.0,
 				-2.3
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				-5.55,
+				0.0,
+				2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				-5.55,
+				0.0,
+				4.55
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				-2.45,
+				0.0,
+				2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				-2.45,
+				0.0,
+				4.55
 			],
 			"x": [
 				1.0,
@@ -20788,6 +22116,126 @@
 		{
 			"kind": "workshop_floor_socket",
 			"at": [
+				2.45,
+				0.0,
+				2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				2.45,
+				0.0,
+				4.55
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				5.55,
+				0.0,
+				2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
+				5.55,
+				0.0,
+				4.55
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.4,
+				0.024,
+				0.3
+			],
+			"layer": 1,
+			"model": "floor_socket_1"
+		},
+		{
+			"kind": "workshop_floor_socket",
+			"at": [
 				4.0,
 				0.0,
 				2.3
@@ -20818,69 +22266,9 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				-5.75,
+				-4.0,
 				0.0,
-				-4.75
-			],
-			"x": [
-				-0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				-5.75,
-				0.0,
-				-2.25
-			],
-			"x": [
-				-1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.0,
-				-0.0,
-				-1.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				-2.25,
-				0.0,
-				-4.75
+				-3.5
 			],
 			"x": [
 				1.0,
@@ -20898,9 +22286,9 @@
 				1.0
 			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -20908,69 +22296,9 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				-2.25,
+				-4.0,
 				0.0,
-				-2.25
-			],
-			"x": [
-				0.0,
-				-0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				0.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				2.25,
-				0.0,
-				-4.75
-			],
-			"x": [
-				-0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				2.25,
-				0.0,
-				-2.25
+				-3.5
 			],
 			"x": [
 				-1.0,
@@ -20988,9 +22316,9 @@
 				-1.0
 			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -20998,9 +22326,9 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				5.75,
+				4.0,
 				0.0,
-				-4.75
+				-3.5
 			],
 			"x": [
 				1.0,
@@ -21018,9 +22346,9 @@
 				1.0
 			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -21028,69 +22356,9 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				5.75,
+				4.0,
 				0.0,
-				-2.25
-			],
-			"x": [
-				0.0,
-				-0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				0.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				-5.75,
-				0.0,
-				2.25
-			],
-			"x": [
-				-0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				-5.75,
-				0.0,
-				4.75
+				-3.5
 			],
 			"x": [
 				-1.0,
@@ -21108,9 +22376,9 @@
 				-1.0
 			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -21118,9 +22386,9 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				-2.25,
+				-4.0,
 				0.0,
-				2.25
+				3.5
 			],
 			"x": [
 				1.0,
@@ -21138,9 +22406,9 @@
 				1.0
 			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -21148,69 +22416,9 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				-2.25,
+				-4.0,
 				0.0,
-				4.75
-			],
-			"x": [
-				0.0,
-				-0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				0.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				2.25,
-				0.0,
-				2.25
-			],
-			"x": [
-				-0.0,
-				0.0,
-				-1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				0.5,
-				0.004,
-				0.5
-			],
-			"layer": 1,
-			"model": "bay_mark_1"
-		},
-		{
-			"kind": "workshop_bay_mark",
-			"at": [
-				2.25,
-				0.0,
-				4.75
+				3.5
 			],
 			"x": [
 				-1.0,
@@ -21228,9 +22436,9 @@
 				-1.0
 			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -21238,9 +22446,9 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				5.75,
+				4.0,
 				0.0,
-				2.25
+				3.5
 			],
 			"x": [
 				1.0,
@@ -21258,9 +22466,9 @@
 				1.0
 			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -21268,29 +22476,29 @@
 		{
 			"kind": "workshop_bay_mark",
 			"at": [
-				5.75,
+				4.0,
 				0.0,
-				4.75
+				3.5
 			],
 			"x": [
-				0.0,
-				-0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
 				-1.0,
-				-0.0,
+				0.0,
 				0.0
 			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
 			"size": [
-				0.5,
+				4.0,
 				0.004,
-				0.5
+				3.0
 			],
 			"layer": 1,
 			"model": "bay_mark_1"
@@ -21598,67 +22806,6 @@
 			],
 			"layer": 1,
 			"model": "pendant_lamp_1_glow",
-			"part": "glow"
-		},
-		{
-			"kind": "workshop_wall_cage_lamp",
-			"at": [
-				-3.6,
-				2.15,
-				6.879
-			],
-			"x": [
-				1.0,
-				-0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.0,
-				-0.0,
-				1.0
-			],
-			"size": [
-				0.18,
-				0.245,
-				0.122
-			],
-			"layer": 1,
-			"model": "wall_cage_lamp_1"
-		},
-		{
-			"kind": "workshop_wall_cage_lamp",
-			"at": [
-				-3.6,
-				2.166,
-				6.875
-			],
-			"x": [
-				1.0,
-				-0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.0,
-				-0.0,
-				1.0
-			],
-			"size": [
-				0.088,
-				0.219,
-				0.088
-			],
-			"layer": 1,
-			"model": "wall_cage_lamp_1_glow",
 			"part": "glow"
 		},
 		{
@@ -22500,6 +23647,606 @@
 				-0.0,
 				-0.0,
 				-1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				7.877,
+				2.49,
+				3.95
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				7.877,
+				2.49,
+				2.75
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				7.877,
+				2.49,
+				1.55
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				7.877,
+				2.49,
+				-1.55
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				7.877,
+				2.49,
+				-2.75
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				7.877,
+				2.49,
+				-3.95
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-7.817,
+				2.49,
+				-3.95
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-7.817,
+				2.49,
+				-2.75
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-7.817,
+				2.49,
+				-1.55
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-7.817,
+				2.49,
+				1.55
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-7.817,
+				2.49,
+				2.75
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-7.817,
+				2.49,
+				3.95
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-4.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-3.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-2.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				-1.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				1.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				2.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				3.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "workshop_pipe_bracket",
+			"at": [
+				4.75,
+				2.49,
+				6.877
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
 			],
 			"size": [
 				0.12,
