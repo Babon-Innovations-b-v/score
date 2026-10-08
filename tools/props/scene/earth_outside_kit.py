@@ -341,7 +341,7 @@ def shop_gear(room, face, open_shops):
     found = []
     for along, wide in face.bays():
         found.append(face.on(room, "facade_pipe", along, GAS_PIPE_HIGH, (wide, GAS_PIPE[0], GAS_PIPE[1]),
-                             proud=PLATE_DEEP + BAND[1]))
+                             proud=PLATE_DEEP))
         found.append(face.on(room, "meter_box", along + SHOP_OPENING[0] / 2 + 0.3, face.ground + 1.1, METER,
                              proud=PLATE_DEEP))
         if any(abs(face.along_of(at) - along) < wide / 2 for at in open_shops):
@@ -835,8 +835,11 @@ MAST = (3.0, 75.0, 3.0)
 MAST_IN = 6.0
 PAD_LIGHT = (2.6, 12.0, 1.2)
 FERRY = (6.0, 7.0, 32.0)
-# Where the ferries are on the water and which way each is heading (degrees about up from +x).
-FERRIES = (((-170.0, 0.0, 35.0), 15.0), ((-215.0, 0.0, -125.0), 170.0), ((-240.0, 0.0, 95.0), 200.0))
+# Where the ferries are on the water, their keels FERRY_DRAUGHT under it, and which way each is heading (degrees about
+# up from +x).
+FERRY_DRAUGHT = 0.6
+FERRIES = (((-170.0, -FERRY_DRAUGHT, 35.0), 15.0), ((-215.0, -FERRY_DRAUGHT, -125.0), 170.0),
+           ((-240.0, -FERRY_DRAUGHT, 95.0), 200.0))
 
 
 def launch(numbers):
