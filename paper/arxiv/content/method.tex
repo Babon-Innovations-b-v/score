@@ -1,48 +1,58 @@
 \section{Method}\label{method}
 
-\subsection{Stages}\label{stages}
+\subsection{A world compiler}\label{a-world-compiler}
 
-SCORE compiles a world once, offline, in batches; nothing is generated while it is played. Each stage's output is explicit and inspectable:
+SCORE compiles a world once, offline, in batches; nothing is generated while it is played, and each scale of a world (a room, a planet's ground, an orbit) is its own kind of world. Table 1 lists the stages. Each stage's output is explicit, cached and checked before the next paid stage starts.
 
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\tightlist
-\item
-  \textbf{Concept.} A picture model draws concepts from the creator's references; the creator picks one.
-\item
-  \textbf{Dimensioned plan.} A coding agent turns the concept into a plan in metres: shell, doorways, walkways, floor levels.
-\item
-  \textbf{Inventory.} Every object becomes a row with kind, anchor, size and count; composites become a parent row with children (Section 3.3).
-\item
-  \textbf{Close-ups.} One clean, front-on picture per object.
-\item
-  \textbf{Shape.} Each kind is either built by a code builder that an agent writes, or made by the prop pipeline: Pixal3D \citep{li2026pixal3d} in a cloud batch, closed into a solid, triangles set by size.
-\item
-  \textbf{Surfaces.} Every part takes one surface from the shared library (Section 3.4), baked in the cloud.
-\item
-  \textbf{Sound.} Generated per surface, room and object (Section 3.4).
-\item
-  \textbf{Assembly and review.} The scene is assembled for the engine, shot from fixed cameras and reviewed by the creator, who keeps it or sends it back one stage.
-\end{enumerate}
+\textbf{Table 1.} Stages, their outputs and the checks that gate the next stage.
 
-A compiler needs one intermediate form all stages agree on. In the case study that form is glTF 2.0 models \citep{gltf2} plus one JSON layout per place, read by a Godot adapter \citep{godot}. The intended canonical form is an OpenUSD stage \citep{openusd} with a generated base layer the compiler may rewrite and edit layers that hold the creator's changes, so edits survive regeneration, loaded by thin adapters for other engines and simulators. That scene format is not used yet: the case study ran inside one game on one engine, and the export with its layer split and a second adapter (Blender first) is being built in the framework repository.
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Stage
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Output
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Check before the next stage
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Concept & picked concept picture & creator's pick \\
+Plan & dimensioned plan in metres & room and door checks \\
+Inventory & every object as a row; children on parents & concept-density check \\
+Close-ups & one clean picture per object & one object per picture \\
+Shape & code builder or picture-to-3D model per kind & parts check, model check \\
+Surfaces & baked maps from the shared library & palette sweep, storage budget \\
+Sound & sound per surface, room and object & loudness and fault checks \\
+Assembly & the OpenUSD scene and engine builds & scene check, made-only check \\
+Review & shots from fixed cameras & creator's keep or send-back \\
+\end{longtable}
+}
+
+\textbf{The canonical scene.} All stages write one OpenUSD stage \citep{openusd} with glTF geometry \citep{gltf2}. Every object carries its name, kind, place in metres, collision, the library surface of each part, its sound, and tags for what a person can do with it (door, seat, terminal, airlock). The compiler owns a generated base layer and may rewrite it; the creator's changes live in edit layers above it, so a regeneration replaces the base and keeps the edits. Engines and simulators (Godot, Blender, Unreal, robotics simulators) load the same stage through thin adapters.
 
 \subsection{Checks before spending}\label{checks-before-spending}
 
-A fault costs nothing in the plan, cents at the picture, about €0.18 and 75 minutes at the 3D model, and an evening of the creator's time once a room is built and played. Each paid stage is therefore preceded by cheap deterministic checks on real geometry, and a failure sends work back one stage. Room checks cast rays for light leaks, pieces blocking openings and pieces off their surface (about two seconds a room); a door check requires every door to fully separate its two sides; a concept-density check requires every element of the concept to have an inventory row or a written reason; a model check requires closed solids with walls of at least 3 mm and fails generated boxes that tilt more than 2 degrees; a palette sweep and a storage budget (250 MB on disk, 640 MB on the GPU per room) follow; after install, a scene check finds what floats or sinks and fails on any visible mesh the route did not make.
+A fault costs nothing in the plan, cents at the picture, about €0.18 and 75 minutes at the 3D model, and an evening of the creator's time once a room is built and played. Each paid stage is therefore gated by deterministic checks on real geometry, never by an agent's judgement, and a failure sends work back one stage. Room checks cast rays for leaks through walls and roof, pieces blocking openings and pieces off their surface, in about two seconds a room. A door check requires every door to separate its two sides. A concept-density check requires every element of the concept to have an inventory row or a written reason. A model check requires closed solids with walls of at least 3 mm and fails generated boxes that lean more than 2 degrees. A palette sweep and a storage budget per room follow, and after assembly a scene check finds what floats or sinks and fails on any visible mesh the route did not make.
 
 \subsection{Code or pipeline, one model per object}\label{code-or-pipeline-one-model-per-object}
 
-Picture-to-3D models handle chunky solids well and flat panels, thin beams and openings badly; in the case study they made panels about as deep as they were wide and beams 3 to 10 times too thick. Agent-written code builders are exact and light but show only the parts the agent thought to write. The routing rule that held is a check, the \textbf{parts check}: a kind is built in code only when its code build shows every part its clean close-up shows (each at least 10 percent visible, no label over a part); otherwise it goes through the prop pipeline. Composites are split before generation, one model per real-world object: a tool board is a code-built board carrying 26 separately made tools, a console its monitors and keyboards.
+Picture-to-3D models build chunky solids well and flat panels, thin beams and openings badly; agent-written code builders are exact, light and straight, but show only the parts the agent wrote. SCORE routes each object kind by the \textbf{parts check}: a kind is built in code only when its code build shows every part its clean close-up shows, each at least 10 percent visible and none under a label. Every other kind goes through the prop pipeline: Pixal3D \citep{li2026pixal3d} in a cloud batch, closed into a solid, triangles set by size. Composites are split before generation, one model per real-world object: a tool board is a board carrying its tools, a console its monitors and keyboards, each made on its own.
 
 \subsection{Surfaces and sound}\label{surfaces-and-sound}
 
-Models and code give shape only. Every part takes one surface from a shared library of ProcFunc functions \citep{raistrick2026procfunc} built on Infinigen's shaders \citep{raistrick2023infinigen}, coloured from the place's palette tokens, with wear, dirt and seed as named settings; a room has one wear setting, applied from causes such as edges and foot traffic. On a generated model, PartCrafter parts \citep{lin2025partcrafter} laid onto the shape decide which surface each part takes. Labels go on as a few decals. The library held 71 variants in 12 families from 14 recipes after its second round. Which surface a whole part takes is still chosen by votes of its faces' picture colours, and shading in the picture can flip faces between surfaces; assigning one surface per part, with the picture only choosing which, is being built and was not in place for the case study. Sound is compiled the same way: each surface carries its footsteps and impacts, each room its echo, each inventory row its own sound, all generated in one batch by MOSS-SoundEffect v2.0 \citep{moss2026}, chosen by CLAP prompt match \citep{wu2022clap} less measured faults, and levelled under a -3 dBTP true peak.
+Models and code give shape only. Every part takes one surface from a shared library of ProcFunc functions \citep{raistrick2026procfunc} on Infinigen's shaders \citep{raistrick2023infinigen}, coloured from the place's palette, with wear, dirt and seed as named settings. A room has one wear setting, applied from causes: edges, foot traffic, drips. Parts of a generated model come from PartCrafter \citep{lin2025partcrafter}, and each part takes one surface, chosen from its picture. Labels are a few decals on clear flat spots. Sound is compiled the same way: each surface carries its footsteps and impacts, each room its echo from its size and surfaces, each object its own sound, generated in one batch by MOSS-SoundEffect \citep{moss2026}, chosen by CLAP prompt match \citep{wu2022clap} less measured faults, and levelled under a -3 dBTP true peak. The libraries of surfaces and sounds grow with each world and are reused in the next.
 
 \subsection{Cloud batches and human picks}\label{cloud-batches-and-human-picks}
 
-Every heavy step runs in a rented cloud batch that is deleted afterwards, records its cost, and stops itself if its output grows past its expected size. The creator's picks happen at fixed points; where two routes compete the pick is blind, both drawn the same way and labelled X and Y at random.
+Every heavy step runs in a rented cloud machine that is deleted afterwards, records its cost per batch, and stops itself when its output grows past its expected size. The creator picks at fixed points only. Where two routes compete the pick is blind: both drawn the same way, labelled X and Y at random.
 
 \subsection{The optional world step}\label{the-optional-world-step}
 
-A concept shows one view. An optional world step can turn it into a walkable whole-room reference from which every object and every wall can be seen (World Labs Marble in our runs). Its output is never shipped. The case study below was built without it. Whether it makes fuller rooms is not yet known: the comparison of the route with and without the step, as an ablation of the method, has not been run, because the game work was paused the day the first internal run began.
+A concept shows one view. An optional world step turns it into a walkable whole-room reference, so close-ups can show every object from every side and the walls the concept does not show can be filled in its style. World Labs Marble served this step in our runs; its output is never shipped, and anything derived from it is credited ``Generated using World Labs''.

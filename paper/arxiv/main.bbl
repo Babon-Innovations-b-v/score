@@ -1,4 +1,4 @@
-\begin{thebibliography}{37}
+\begin{thebibliography}{29}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -24,22 +24,6 @@ Jichen Hu, Jiawei Guo, Jiazhong Cen, Chen Yang, Sikuang Li, and Wei Shen.
 \newblock {WorldAct}: Activating monolithic {3D} worlds into interactive-ready
   object-centric scenes.
 \newblock \emph{arXiv preprint arXiv:2605.15843}, 2026.
-
-\bibitem[Duan et~al.(2025)Duan, Yu, Chen, Fei-Fei, and Wu]{duan2025worldscore}
-Haoyi Duan, Hong-Xing Yu, Sirui Chen, Li~Fei-Fei, and Jiajun Wu.
-\newblock {WorldScore}: A unified evaluation benchmark for world generation.
-\newblock \emph{arXiv preprint arXiv:2504.00983}, 2025.
-
-\bibitem[Poole et~al.(2022)Poole, Jain, Barron, and
-  Mildenhall]{poole2022dreamfusion}
-Ben Poole, Ajay Jain, Jonathan~T. Barron, and Ben Mildenhall.
-\newblock {DreamFusion}: Text-to-{3D} using {2D} diffusion.
-\newblock \emph{arXiv preprint arXiv:2209.14988}, 2022.
-
-\bibitem[Kumar et~al.(2024)Kumar, Zhuang, Agarwal, et~al.]{kumar2024score}
-Aviral Kumar, Vincent Zhuang, Rishabh Agarwal, et~al.
-\newblock Training language models to self-correct via reinforcement learning.
-\newblock \emph{arXiv preprint arXiv:2409.12917}, 2024.
 
 \bibitem[Wang et~al.(2025)Wang, Jung, Monnier, Sohn, et~al.]{wang2025worldgen}
 Dilin Wang, Hyunyoung Jung, Tom Monnier, Kihyuk Sohn, et~al.
@@ -85,20 +69,6 @@ Lei Yin, Wentao Cheng, Zhida Qin, Tianyu Huang, et~al.
   multi-agent systems.
 \newblock \emph{arXiv preprint arXiv:2603.07106}, 2026.
 
-\bibitem[Sautter et~al.(2025)Sautter, Dihlmann, and Lensch]{sautter2025regen}
-Tobias Sautter, Jan-Niklas Dihlmann, and Hendrik P.~A. Lensch.
-\newblock {3D-RE-GEN}: {3D} reconstruction of indoor scenes with a generative
-  framework.
-\newblock \emph{arXiv preprint arXiv:2512.17459}, 2025.
-
-\bibitem[Kim et~al.(2026)Kim, Lan, Chen, Nguyen, Pan, and
-  Pan]{kim2026sceneconductor}
-Jeonghwan Kim, Yushi Lan, Yongwei Chen, Hieu~Trung Nguyen, Chuanyu Pan, and
-  Xingang Pan.
-\newblock {SceneConductor}: {3D} scene generation from a single image with
-  multi-agent orchestration.
-\newblock \emph{arXiv preprint arXiv:2606.08402}, 2026.
-
 \bibitem[Li et~al.(2026{\natexlab{b}})Li, Shi, Dong, Zhang, Xu, Lee, Chang,
   Xiang, Pan, and Jiang]{li2026lego}
 Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
@@ -133,23 +103,6 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
   generation in {Python}.
 \newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
 
-\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
-  Fragkiadaki]{lin2025partcrafter}
-Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
-  Katerina Fragkiadaki.
-\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
-  latent diffusion transformers.
-\newblock In \emph{Advances in Neural Information Processing Systems
-  (NeurIPS)}, 2025.
-\newblock arXiv:2506.05573.
-
-\bibitem[Tsui et~al.(2026)Tsui, Tuan, Ma, Ugrinovic, Shiratori, and
-  Kitani]{tsui2026point2part}
-Hao-Tang Tsui, Yu-Rou Tuan, Xiaoxuan Ma, Nicol{\'a}s Ugrinovic, Takaaki
-  Shiratori, and Kris Kitani.
-\newblock {Point2Part}: Unified {3D} partitioning from point prompts.
-\newblock \emph{arXiv preprint arXiv:2609.38180}, 2026.
-
 \bibitem[Wu et~al.(2026)Wu, Lou, Liu, Du, Guo, and Guo]{wu2026production}
 Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
 \newblock From visual synthesis to interactive worlds: Toward production-ready
@@ -170,6 +123,16 @@ Biwen Lei, Yang Li, Xinhai Liu, et~al.
   asset generation.
 \newblock \emph{arXiv preprint arXiv:2509.12815}, 2025.
 
+\bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
+{Pixar Animation Studios} and {Alliance for OpenUSD}.
+\newblock {OpenUSD}: Universal scene description, 2026.
+\newblock URL \url{https://openusd.org/}.
+
+\bibitem[{The Khronos Group}(2021)]{gltf2}
+{The Khronos Group}.
+\newblock {glTF} 2.0 specification, 2021.
+\newblock URL \url{https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html}.
+
 \bibitem[Li et~al.(2026{\natexlab{c}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
   Hu]{li2026pixal3d}
 Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
@@ -177,21 +140,15 @@ Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
 \newblock {Pixal3D}: Pixel-aligned {3D} generation from images.
 \newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{c}}.
 
-\bibitem[{The Khronos Group}(2021)]{gltf2}
-{The Khronos Group}.
-\newblock {glTF} 2.0 specification, 2021.
-\newblock URL \url{https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html}.
-
-\bibitem[{Godot Engine contributors}(2026)]{godot}
-{Godot Engine contributors}.
-\newblock {Godot Engine}, 2026.
-\newblock URL \url{https://godotengine.org/}.
-\newblock MIT licence.
-
-\bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
-{Pixar Animation Studios} and {Alliance for OpenUSD}.
-\newblock {OpenUSD}: Universal scene description, 2026.
-\newblock URL \url{https://openusd.org/}.
+\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
+  Fragkiadaki]{lin2025partcrafter}
+Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
+  Katerina Fragkiadaki.
+\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
+  latent diffusion transformers.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+\newblock arXiv:2506.05573.
 
 \bibitem[{OpenMOSS-Team}(2026)]{moss2026}
 {OpenMOSS-Team}.
@@ -224,12 +181,6 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
   2026.
 \newblock URL \url{https://ai.google.dev/}.
 \newblock Paid service. Vendor material.
-
-\bibitem[Sim{\'e}oni et~al.(2025)Sim{\'e}oni, Vo, Seitzer,
-  et~al.]{simeoni2025dinov3}
-Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
-\newblock {DINOv3}.
-\newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
 
 \bibitem[Yang et~al.(2024{\natexlab{b}})Yang, Kang, Huang,
   et~al.]{yang2024dav2}

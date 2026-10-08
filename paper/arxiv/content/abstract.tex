@@ -1,22 +1,15 @@
 \begin{abstract}
-World models and one-shot 3D generators can produce a convincing place
-from a sentence or a picture, but their output is hard to build on: a
-stream of frames, or one fused scene without separate objects, collision
-or clear rights. We present SCORE, a framework that treats world
-creation as offline compilation. A creator picks references, a concept
-and a style; coding agents and open models then compile those picks, in
-cloud batches, through stages with explicit and checkable outputs: a
-dimensioned plan, an inventory of objects, one model per real-world
-object, surfaces from a shared rule-based library, generated sound, and
-a scene a game engine loads. Cheap deterministic checks run before every
-paid step, and every model in the route allows commercial use of its
-output. We report a first case study, the game world of the game 2099.
-Its central room was rebuilt in six rounds; the creator preferred the
-new route in both blind comparisons and accepted the sixth round. The
-rest of the world was then built on the same route, at a recorded cost
-of €46.67 of rented GPU time and \$40.72 of picture-model calls, and
-showed clear weaknesses: most models were written as code by agents, and
-rooms came out sparser than their concepts. This is a system description
-with a single case study and no comparison yet; benchmark evaluation is
-planned.
+World models and one-shot 3D generators produce a convincing place from
+a sentence or a picture, but not a world a creator can build on: their
+output is a stream of frames or one fused scene, without separate
+objects, collision or clear rights. SCORE treats world creation as
+offline compilation. The creator picks references, a concept and a
+style; coding agents and open models compile those picks in cloud
+batches, through stages with explicit and checkable outputs, into a
+canonical OpenUSD scene that engines and simulators load. Every object
+is its own model, every surface comes from one shared rule-based
+library, sound is generated per surface, room and object, cheap
+deterministic checks run before every paid step, and every model in the
+route allows commercial use of its output. The creator's edits live in
+their own layers and survive regeneration.
 \end{abstract}

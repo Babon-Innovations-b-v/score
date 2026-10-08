@@ -1,8 +1,8 @@
 \section{Implementation}\label{implementation}
 
-The route runs as Python tools (planning, routing, baking, install, checks), engine-side checks in Godot, and runners for rented NVIDIA L4 machines with headless Blender 5.0.1 \citep{blender}. It currently lives inside the game's repository; moving it into the framework repository, engine-agnostic, is the next step, so the route cannot yet be run from this repository on its own. The work was done by Claude Code agent sessions \citep{claudecode} directed by one person; up to twelve ran at once during the world build. Table 1 lists the models used; licences were read for their commercial-use clauses only, and this is not legal advice.
+SCORE runs as Python tools for planning, routing, baking, assembly and checks, with headless Blender \citep{blender} and rented NVIDIA L4 machines for every heavy step. Claude Code agents \citep{claudecode} write the plans, inventories and code builders under one creator's direction. Table 2 lists the models; each allows commercial use of its output.
 
-\textbf{Table 1.} Models and services in the route.
+\textbf{Table 2.} Models in the route.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -11,24 +11,24 @@ The route runs as Python tools (planning, routing, baking, install, checks), eng
   >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
-Model or service
+Model
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Used for
+Role
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Licence or terms
+Licence
 \end{minipage} \\
 \midrule\noalign{}
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Nano Banana Pro \citep{nanobananapro} & concepts, close-ups, ground skins & paid API \\
-Pixal3D \citep{li2026pixal3d} & picture-to-3D shape & MIT; DINOv3 encoder \citep{simeoni2025dinov3} under its own licence \\
-PartCrafter \citep{lin2025partcrafter} & part boundaries & MIT \\
+Nano Banana Pro \citep{nanobananapro} & concepts, close-ups & paid API \\
+Pixal3D \citep{li2026pixal3d} & picture to 3D & MIT; DINOv3 licence for its encoder \\
+PartCrafter \citep{lin2025partcrafter} & parts & MIT \\
 Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
-ProcFunc, Infinigen shaders & surface library & BSD-3-Clause \\
-MOSS-SoundEffect v2.0 \citep{moss2026}, CLAP \citep{wu2022clap} & sound & Apache-2.0 \\
-World Labs Marble \citep{marble_terms} & optional world step only & paid; outputs owned by paid users \\
+ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
+MOSS-SoundEffect, CLAP & sound & Apache-2.0 \\
+World Labs Marble \citep{marble_terms} & optional world step & paid; outputs owned by paid users \\
 \end{longtable}
 }
 
-\textbf{What was automatic and what was not.} Picture-to-3D, part splitting, surface bakes, sound, all checks and install were automatic. Every code builder was written by a coding agent from a close-up; in the central room's final round 86 of its 98 models were code. Some generated objects were turned to face the right way by eye, a few labels were placed by hand before a rule replaced that, and agents fixed the faults the checks found. Concepts and verdicts were the creator's picks, except where an agent's interim concept pick is marked as such.
+\textbf{Lessons from development.} The rules above came out of six rounds on one room, the central hub of the game 2099, each answering the creator's verdict on the last. Three findings shaped the method. Deterministic checks catch what agents miss: the first round's room checks cut light leaking through walls and roof from 1.53 percent of 5,817 rays to zero, but only walking the loaded room showed 26 old models still in it, which became the made-only check. Keeping each picture's own colours made every piece bring its own wear, so the creator judged the room messy; surfaces now come only from the library. And generated composites melted their parts together and generated boxes leaned (one locker by 13 degrees), which led to one model per object and the straightness check. The creator preferred the new route in both blind comparisons and accepted the sixth round.
