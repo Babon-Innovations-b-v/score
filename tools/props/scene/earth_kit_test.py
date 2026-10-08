@@ -1,6 +1,7 @@
 """Check the prologue's kit layouts (earth_kit.py): every piece stands in a proper frame inside its room, and the stairwell's flights land on its landings. Hands itself to the prop environment for numpy.
 Run: python3 tools/props/scene/earth_kit_test.py
 """
+import json
 import os
 import pathlib
 import subprocess
@@ -51,6 +52,28 @@ def test_the_doorways_are_cut_where_the_game_has_its_doors():
     assert np.isclose(x1 - x0, earth_kit.FRONT_DOORWAY[0]) and np.isclose(y1 - y0, earth_kit.FRONT_DOORWAY[1])
     middle = np.array(east["at"]) + np.array(east["x"]) * (x0 + x1) / 2
     assert np.isclose(middle[2], earth_kit.FRONT_DOOR_Z)
+
+
+def laid_box(laid):
+    """A laid piece's box in the place's frame (low, high corners)."""
+    axes = np.array([laid["x"], laid["y"], laid["z"]]).T
+    corners = np.array([np.asarray(laid["at"]) + axes @ (np.asarray(laid["size"]) * [across, up, deep])
+                        for across in (-0.5, 0.5) for up in (0.0, 1.0) for deep in (-0.5, 0.5)])
+    return corners.min(axis=0), corners.max(axis=0)
+
+
+def test_the_open_street_gate_stands_clear_of_the_street_s_pieces():
+    """The installed layouts: the open gate on the pavement's top, inside no piece of the street kit (in the game's
+    scene check it once stood 9 cm inside a shop's render plate and read as sunk, 2026-10-08)."""
+    kits = HERE.parents[2] / "data/kit"
+    gate = next(laid for laid in json.loads((kits / "stairwell.json").read_text())["pieces"]
+                if laid["kind"] == "stairwell_street_gate")
+    low, high = laid_box(gate)
+    assert np.isclose(low[1], earth_kit.STREET_PAVED_TOP), low
+    for laid in json.loads((kits / "street.json").read_text())["pieces"]:
+        other_low, other_high = laid_box(laid)
+        inside = np.minimum(high, other_high) - np.maximum(low, other_low)
+        assert not np.all(inside > 0.005), (laid["kind"], inside)
 
 
 def main():
