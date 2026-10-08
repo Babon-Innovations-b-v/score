@@ -445,7 +445,9 @@ def node(point, way, under):
     into = frame_under(under, way)
     into /= np.linalg.norm(into)
     z = -into
-    across = np.cross(np.array([0.0, 1.0, 0.0]), z) if abs(z[1]) < 0.99 else np.array([1.0, 0.0, 0.0])
+    # Near the dome's top z is nearly up: across is then east, squared to z (left as east, the plate's frame was up
+    # to 8% off square there).
+    across = np.cross(np.array([0.0, 1.0, 0.0]), z) if abs(z[1]) < 0.99 else np.array([1.0, 0.0, 0.0]) - z * z[0]
     across /= np.linalg.norm(across)
     y = np.cross(z, across)
     origin = point + into * (RIB_UNDER + RIB[1] + NODE[2] / 2) - y * NODE[1] / 2
@@ -506,8 +508,9 @@ def bar_spots():
 
 
 def lengthwise(kind, x, z0, z1, foot, size, layer=room_kit.ROOF_LAYER):
-    """A piece built along its x laid north-south from z0 to z1, its foot at `foot`, its front west."""
-    axes = (np.array([0.0, 0.0, 1.0]), np.array([0.0, 1.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+    """A piece built along its x laid north-south from z0 to z1, its foot at `foot`, its front west (its x runs north,
+    so the frame is right-handed: a mirrored frame draws its faces inside out)."""
+    axes = (np.array([0.0, 0.0, -1.0]), np.array([0.0, 1.0, 0.0]), np.array([1.0, 0.0, 0.0]))
     return piece(ROOM, kind, np.array([x, foot, (z0 + z1) / 2]), axes, (z1 - z0, size[1], size[2]), layer)
 
 
