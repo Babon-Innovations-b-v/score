@@ -66,7 +66,7 @@ def price(jobs, project, processor, types):
         raise SystemExit(f"no {'processor machine' if processor else 'card that holds a bake'} is sold in the zones used")
     minutes = SETUP_MINUTES + sum(card_minutes(job) for job in jobs) * (PROCESSOR_SLOWER if processor else 1)
     dearest = max(offer[0] for offer in found)
-    spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+    spent = batch.month_spent(project)
     batch.say(f"{len(jobs)} library jobs on one card: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
               f"€{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)

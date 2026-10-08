@@ -200,7 +200,7 @@ def price(plan, project):
         raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = SETUP_MINUTES + sum(STEP_MINUTES[step] for step, _ in steps(plan))
     dearest = max(offer[0] for offer in found)
-    spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+    spent = batch.month_spent(project)
     batch.say(f"{plan['room']}: {', '.join(step for step, _ in steps(plan))} on one card, about "
               f"{minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
