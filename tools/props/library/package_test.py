@@ -102,6 +102,62 @@ def test_a_run_with_a_failed_model_is_not_packaged():
             raise AssertionError("a failed model was packaged")
 
 
+def a_kit_run(folder):
+    """A finished kit room run: one plate model (its box off its origin, as a baked model's is) laid twice, once turned
+    a quarter about up."""
+    made = folder / "work" / "made"
+    made.mkdir(parents=True)
+    box = trimesh.creation.box(extents=(2.0, 1.0, 0.1))
+    box.apply_translation((0.3, 0.5, 0.0))
+    box.visual = trimesh.visual.TextureVisuals(uv=np.zeros((len(box.vertices), 2)),
+                                               material=trimesh.visual.material.SimpleMaterial())
+    files = box.export(file_type="gltf")
+    gltf = json.loads(files.pop("model.gltf"))
+    for index, buffer in enumerate(gltf["buffers"]):
+        (made / f"plate_1_{index}.bin").write_bytes(files[buffer["uri"]])
+        buffer["uri"] = f"plate_1_{index}.bin"
+    (made / "plate_1.gltf").write_text(json.dumps(gltf))
+    pieces = [{"kind": "bay_plate", "model": "plate_1", "at": [1.0, 0.0, 2.0], "x": [1, 0, 0], "y": [0, 1, 0],
+               "z": [0, 0, 1], "size": [2.0, 1.0, 0.1], "layer": 1},
+              {"kind": "bay_plate", "model": "plate_1", "at": [0.0, 0.0, 0.0], "x": [0, 0, -1], "y": [0, 1, 0],
+               "z": [1, 0, 0], "size": [2.0, 1.0, 0.1], "layer": 1}]
+    work = folder / "work"
+    (work / "layout.json").write_text(json.dumps({"room": "bay", "frame": "the room's own", "counts": {"bay_plate": 2},
+                                                  "kinds": {}, "models": {"plate_1": {"route": "code"}},
+                                                  "pieces": pieces}))
+    (work / "plan.json").write_text(json.dumps({"models": {"plate_1": {"route": "code"}}}))
+    (work / "checks.json").write_text(json.dumps({"plate_1": {"pass": True}}))
+    return work
+
+
+def test_a_kit_piece_stands_its_model_s_foot_on_its_origin_in_its_frame():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        out = folder / "out"
+        scene = package.write_kit("bay", a_kit_run(folder), out)
+        assert package.problems(out) == [], package.problems(out)
+        turned_copy = np.array(scene["instances"][1]["matrix"]).reshape(4, 4).T
+        foot = turned_copy @ np.array([0.3, 0.0, 0.0, 1.0])
+        end = turned_copy @ np.array([1.3, 0.0, 0.0, 1.0])
+        assert np.allclose(foot[:3], [0.0, 0.0, 0.0]) and np.allclose(end[:3], [0.0, 0.0, -1.0]), (foot, end)
+        assert scene["instances"][0]["row"] == "plate" and scene["instances"][0]["stretch"] == [1.0, 1.0, 1.0]
+
+
+def test_a_stretched_kit_piece_and_a_wrong_count_of_a_kind_are_refused():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        work = a_kit_run(folder)
+        layout = json.loads((work / "layout.json").read_text())
+        layout["pieces"][0]["size"] = [2.4, 1.0, 0.1]
+        layout["counts"]["bay_plate"] = 3
+        (work / "layout.json").write_text(json.dumps(layout))
+        out = folder / "out"
+        package.write_kit("bay", work, out)
+        found = package.problems(out)
+        assert any("stretched" in line for line in found), found
+        assert any("kind bay_plate" in line for line in found), found
+
+
 def test_a_turn_is_read_as_its_yaw():
     for yaw in (0.0, 90.0, 115.0, 270.0):
         angle = math.radians(yaw)
