@@ -1,11 +1,9 @@
 """Check the loudness rule (loudness.py): a blasting take comes out under the ceiling and at its target, a silent
-one is dropped, the limits match the game's own test, and every game sound file's measure is current.
+one is dropped. (That the limits match the game's own test, and its files' measures, is checked in the game 2099.)
 
 Plain python and ffmpeg, run by the gate: python3 tools/sound/loudness/loudness_test.py
 """
-import json
 import pathlib
-import re
 import subprocess
 import sys
 import tempfile
@@ -13,7 +11,6 @@ import tempfile
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import loudness  # noqa: E402
 
-GAME_RULE = loudness.GAME_SOUND / "loudness" / "sound_loudness.gd"
 
 
 def synthetic(path, source, seconds):
@@ -51,20 +48,6 @@ def check_every_target_is_under_the_limit():
         assert target <= loudness.LIMIT_LUFS, category
 
 
-def check_the_game_holds_the_same_limits():
-    text = GAME_RULE.read_text()
-    ceiling = float(re.search(r"CEILING_DBTP := (-?[\d.]+)", text).group(1))
-    limit = float(re.search(r"LIMIT_LUFS := (-?[\d.]+)", text).group(1))
-    assert ceiling == loudness.CEILING_DBTP and limit == loudness.LIMIT_LUFS, (ceiling, limit)
-
-
-def check_every_game_sound_is_measured_as_it_is():
-    measured = json.loads(loudness.MANIFEST.read_text())
-    for res_path, path in loudness.game_files().items():
-        assert res_path in measured, f"{res_path}: not measured; run bash tools/sound/run.sh loudness"
-        assert measured[res_path]["sha256"] == loudness.sha256_of(path), f"{res_path}: changed since measured"
-
-
 def check_the_summary_is_read():
     shown = "Summary:\n\n  Integrated loudness:\n    I:         -23.4 LUFS\n  True peak:\n    Peak:       -4.2 dBFS\n"
     assert loudness.summary_of(shown) == {"lufs": -23.4, "true_peak": -4.2}
@@ -73,8 +56,6 @@ def check_the_summary_is_read():
 def main():
     check_the_summary_is_read()
     check_every_target_is_under_the_limit()
-    check_the_game_holds_the_same_limits()
-    check_every_game_sound_is_measured_as_it_is()
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         check_a_full_scale_blast_is_brought_under_the_ceiling(folder)

@@ -1,5 +1,5 @@
 """Draw the library's printed pictures: screen content, labels, keypad prints and stencils (data/library/pictures),
-from the `pictures` of data/library/materials.json. English in Barlow Condensed Bold (game/ui/fonts, SIL OFL), the
+from the `pictures` of data/library/materials.json. English in Barlow Condensed Bold (data/fonts, SIL OFL), the
 game's own display face: every label and screen on the base reads in English (the owner, 2026-10-06, after the hub's
 in-game test). Colours from palette tokens only.
 
@@ -18,7 +18,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import library  # noqa: E402
 
-FONT = library.REPO / "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf"
+FONT = library.REPO / "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf"
 # The margin a line keeps from its box's sides, in pixels.
 MARGIN = 36
 SIZES = {"status": (1024, 640), "readout": (1024, 512), "label": (1024, 256), "keypad": (512, 640),
@@ -209,7 +209,7 @@ def note(spec, size):
 
 
 # Earth's print (the prologue build, 2026-10-07): every word on Earth is Mandarin (the bible's sign system), set in the
-# game's own Chinese faces, cut to GB2312 (game/ui/fonts, SIL OFL).
+# game's own Chinese faces, cut to GB2312 (data/fonts, SIL OFL).
 HANZI_FONTS = {"sans": "noto_sans_sc/NotoSansSC-Bold.ttf", "black": "noto_sans_sc/NotoSansSC-Black.ttf",
                "serif": "noto_serif_sc/NotoSerifSC-Bold.ttf", "qingke": "zcool_qingke_huangyou/ZCOOLQingKeHuangYou-Regular.ttf"}
 HANZI_SIZES = {"banner": (2048, 512), "couplet": (256, 1536), "poster": (768, 1024), "square": (512, 512),
@@ -217,7 +217,7 @@ HANZI_SIZES = {"banner": (2048, 512), "couplet": (256, 1536), "poster": (768, 10
 
 
 def hanzi_font(spec, size):
-    return ImageFont.truetype(str(library.REPO / "game/ui/fonts" / HANZI_FONTS[spec.get("font", "sans")]), size)
+    return ImageFont.truetype(str(library.REPO / "data/fonts" / HANZI_FONTS[spec.get("font", "sans")]), size)
 
 
 def hanzi_line(draw, box, text, spec, fill, size):
