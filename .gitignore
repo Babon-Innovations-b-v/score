@@ -9,6 +9,11 @@ node_modules/
 dist/
 build/
 out/
+# The paper's build tooling and its committed outputs are source, not build output:
+# paper/build/ holds the build script and its check, paper/out/ the PDF and the stamp
+# that `make check` compares against.
+!paper/build/
+!paper/out/
 target/
 .gradle/
 
