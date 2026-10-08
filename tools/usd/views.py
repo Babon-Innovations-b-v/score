@@ -7,7 +7,8 @@ The views are the game's bench views of the place (2099's tools/perf/place.gd, `
 `wreck home`): an eye and an aim in the base seat's flat numbers, each laid on the 220 m Moon over the ground there,
 1.7 m up, with a 73.74 degree lens across the picture. They are turned here into the place's own frame (the
 wreck's seat, as Wreck.seat() turns it: 55 m from the base's middle on the bearing (-30, 100), its along towards
-the base). The Moon's hills are not in the stage, so the ground is taken as level with the place's middle.
+the base), on the level ball; the review page lifts them by the planned ground's hills when the stage has its
+ground (tools/review/renders.py).
 
 Agreement is measured where both pictures show the sky: above the stage's level ground in Blender's picture, an
 object pixel is one Blender draws an object on, and in the game's shot one brighter than the black sky. Per view

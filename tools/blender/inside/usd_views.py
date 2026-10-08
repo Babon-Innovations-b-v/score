@@ -2,12 +2,15 @@
 
     python3 tools/blender/session.py batch tools/blender/inside/usd_views.py -- <stage.usda> <views.json> <out folder>
 
-views.json: {"size": [wide, tall], "views": [{"name", "eye", "aim", "up", "fov"}]}, points in the stage's own frame
-(metres, y up), `fov` the angle across the picture in degrees. Per view it writes <name>-look.png (the place on a
-plain grey ground under a low sun, black sky), <name>-mask.png (the place's objects alone on a transparent
-background: the alpha is where they are), <name>-ground.png (the ground alone, the same way), and report.json with what came in: objects, materials, each object's
-score:* properties, and the stage's layers as Blender's own USD library composed them. A view with `"look_only": true`
-(a walkthrough's frame) gets its look alone.
+views.json: {"size": [wide, tall], "views": [{"name", "eye", "aim", "up", "fov"}], "plain": false}, points in the
+stage's own frame (metres, y up), `fov` the angle across the picture in degrees. Per view it writes <name>-look.png
+(the place in its baked materials on its own ground, the stage's `Ground` when it has one and a plain grey plane at
+y = 0 when it has none, under a low sun with a weak fill from the other side and a little sky light, so a side away
+from the sun is dark but never black; the sky itself is black), <name>-mask.png (the place's objects alone on a
+transparent background: the alpha is where they are), <name>-ground.png (the ground alone, the same way), and
+report.json with what came in: objects, materials, each object's score:* properties, and the stage's layers as
+Blender's own USD library composed them. A view with `"look_only": true` (a walkthrough's frame) gets its look alone.
+`"plain": true` draws every object in one plain grey instead of its materials: a debug view of shape alone.
 """
 import json
 import math
@@ -22,6 +25,12 @@ GROUND_COLOUR = (0.16, 0.15, 0.14, 1.0)
 SUN_ELEVATION = 20.0
 SUN_HEADING = 45.0
 SUN_STRENGTH = 4.0
+# The fill: a weak second sun from the other side, low, as earthshine and the ground's own bounce light the game's
+# shadow sides, and the sky's light everywhere (the game's ambient 0.2).
+FILL_STRENGTH = 0.5
+FILL_ELEVATION = 25.0
+SKY_LIGHT = 0.04
+PLAIN_COLOUR = (0.6, 0.6, 0.6, 1.0)
 SAMPLES = 16
 # The stage's y-up frame onto Blender's z-up: (x, y, z) -> (x, -z, y), as Blender's importer turns a y-up stage.
 Y_UP_TO_Z_UP = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))
@@ -95,20 +104,49 @@ def ground(scene):
     return plane
 
 
-def sun(scene):
-    data = bpy.data.lights.new("sun", type="SUN")
-    data.energy = SUN_STRENGTH
-    light = bpy.data.objects.new("sun", data)
-    light.rotation_euler = (math.radians(90 - SUN_ELEVATION), 0.0, math.radians(SUN_HEADING))
+def sun(scene, name, strength, elevation, heading):
+    data = bpy.data.lights.new(name, type="SUN")
+    data.energy = strength
+    light = bpy.data.objects.new(name, data)
+    light.rotation_euler = (math.radians(90 - elevation), 0.0, math.radians(heading))
     scene.collection.objects.link(light)
 
 
 def black_sky(scene):
+    """A black sky that still lights the place a little (the game's ambient light), seen black by the camera."""
     world = bpy.data.worlds.new("sky")
     world.use_nodes = True
-    background = next(node for node in world.node_tree.nodes if node.type == "BACKGROUND")
-    background.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    nodes, links = world.node_tree.nodes, world.node_tree.links
+    background = next(node for node in nodes if node.type == "BACKGROUND")
+    background.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    background.inputs["Strength"].default_value = SKY_LIGHT
+    seen = nodes.new("ShaderNodeBackground")
+    seen.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    path = nodes.new("ShaderNodeLightPath")
+    mix = nodes.new("ShaderNodeMixShader")
+    output = next(node for node in nodes if node.type == "OUTPUT_WORLD")
+    links.new(path.outputs["Is Camera Ray"], mix.inputs["Fac"])
+    links.new(background.outputs["Background"], mix.inputs[1])
+    links.new(seen.outputs["Background"], mix.inputs[2])
+    links.new(mix.outputs["Shader"], output.inputs["Surface"])
     scene.world = world
+
+
+def plain(objects):
+    """Every object drawn in one plain grey: the debug view of shape alone."""
+    material = bpy.data.materials.new("plain")
+    material.use_nodes = True
+    next(node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED").inputs[
+        "Base Color"].default_value = PLAIN_COLOUR
+    for item in objects:
+        if item.type == "MESH":
+            item.data.materials.clear()
+            item.data.materials.append(material)
+
+
+def stage_ground(objects):
+    """The stage's own ground (its `Ground` prim), as Blender brought it in, or None."""
+    return next((item for item in objects if item.type == "MESH" and item.name.split(".")[0] == "Ground"), None)
 
 
 def renderer(scene, size):
@@ -124,7 +162,12 @@ def renderer(scene, size):
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
-    scene.view_settings.view_transform = "Standard"
+    for transform in ("AgX", "Filmic", "Standard"):  # the film's tone curve, as the game's tonemap; the first known
+        try:
+            scene.view_settings.view_transform = transform
+            break
+        except TypeError:
+            continue
 
 
 def stage_point(values):
@@ -166,8 +209,15 @@ def main():
     (out / "report.json").write_text(json.dumps(import_report(stage, objects), indent=1))
     renderer(scene, views["size"])
     black_sky(scene)
-    sun(scene)
-    plane = ground(scene)
+    sun(scene, "sun", SUN_STRENGTH, SUN_ELEVATION, SUN_HEADING)
+    sun(scene, "fill", FILL_STRENGTH, FILL_ELEVATION, SUN_HEADING + 180.0)
+    plane = stage_ground(objects)
+    if plane is None:
+        plane = ground(scene)
+    else:
+        objects = [item for item in objects if item is not plane]
+    if views.get("plain"):
+        plain(objects)
     for view in views["views"]:
         camera(scene, view)
         plane.hide_render = False

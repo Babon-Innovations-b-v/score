@@ -9,7 +9,10 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
 - **Read, never write, the records.** The page is built only from files the stages already wrote; a stage that wrote
   nothing reads as "Not recorded", never as a stand-in. Add a stage by reading its file in `records.py`, not by making
   a stage write something for the page.
-- **The scene comes from the OpenUSD stage** (`../usd/export.py`), never from a game engine. Blender only through
+- **The scene comes from the OpenUSD stage** (`../usd/export.py`), never from a game engine: in its baked materials,
+  on the stage's own ground, lit by a low sun with a weak fill and a little sky light so no side is black. `--plain`
+  (one grey, no materials) is a debug view only, never the page's default. The checks include the resting check
+  (`../usd/resting.py`) on every stage. Blender only through
   `../blender/session.py batch` (no window, the machine's lock, the memory floor).
 - **Same cameras for a rerun.** A model's takes share one camera set from all of them; every stage of a place is drawn
   from cameras set from the newest stage. Keep it so, or before and after stop being comparable.

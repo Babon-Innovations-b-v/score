@@ -151,7 +151,10 @@ stages ran (the concept and the creator's references, the dimensioned plan, the 
 close-ups, each made model with its route, its labelled parts and its baked look, the library surfaces, and the
 assembled scene), before and after from the same cameras where a stage was rerun, and every check's result with what
 it caught. It is a static folder built from the files the stages already wrote; the scene is rendered from the
-place's OpenUSD stage by Blender with no window, from fixed cameras and along a short walk round the place.
+place's OpenUSD stage by Blender with no window, in its baked materials on the place's own ground, from fixed cameras
+and along a short walk round the place. Its checks include the resting check (`tools/usd/resting.py`): every object
+looked at straight down on the stage's ground, failing when it floats, tips (its weight outside what it touches) or is
+sunk deeper than it was laid.
 
 ```bash
 .venv/bin/python tools/review/page.py wreck --run <the run's work folder> --out ~/.farm-factory-props/work/review/wreck \
@@ -161,8 +164,14 @@ place's OpenUSD stage by Blender with no window, from fixed cameras and along a 
 
 Open `index.html` in the out folder in a browser, or publish the folder as it is: it needs no server. A run folder is
 what `tools/props/library/place_route.py` works in; `tools/review/records.py` lists what is read from each folder.
-Rendering takes a few minutes on the processor (the wreck: about six); `--no-render` rebuilds the page from the
-renders already in the out folder. Needs `ffmpeg` for the walk's video.
+Rendering takes a few minutes on the processor (the wreck: about eight); `--no-render` rebuilds the page from the
+renders already in the out folder, and `--plain` draws the scene in one grey as a debug view. Needs `ffmpeg` for the
+walk's video.
+
+The stage comes from `tools/usd/export.py <place> --models <run>/made --work <run> --out <folder>`; a place outside
+with a record in `data/ground/` stands on the planned ground as the game stands it. When the resting check finds an
+object that tips, `tools/usd/resting.py <stage> --settle` lowers it in the place's layout by as far as it settles;
+export again and the check passes.
 
 ## Licence
 
