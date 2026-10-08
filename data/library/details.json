@@ -3507,9 +3507,7 @@
 			0.0
 		],
 		"materials": [
-			"enamel_blue",
-			"bare_steel",
-			"rubber"
+			"enamel_blue"
 		]
 	},
 	"garage_chain_hoist": {
@@ -3527,9 +3525,7 @@
 			0.0
 		],
 		"materials": [
-			"machine_orange",
-			"cable_black",
-			"bare_steel"
+			"machine_orange"
 		]
 	},
 	"garage_workbench": {
@@ -3548,8 +3544,7 @@
 		],
 		"materials": [
 			"painted_panel",
-			"wood_board",
-			"bare_steel"
+			"wood_board"
 		]
 	},
 	"garage_task_lamp": {
@@ -3605,8 +3600,7 @@
 			0.0
 		],
 		"materials": [
-			"warning_paint",
-			"bare_steel"
+			"warning_paint"
 		]
 	},
 	"garage_rover_charger": {
@@ -3624,9 +3618,7 @@
 			0.0
 		],
 		"materials": [
-			"enamel_blue",
-			"cable_black",
-			"screen"
+			"enamel_blue"
 		]
 	},
 	"garage_control_cabinet": {
@@ -3645,8 +3637,7 @@
 		],
 		"materials": [
 			"painted_panel",
-			"screen",
-			"plastic_grey"
+			"screen"
 		]
 	},
 	"garage_junction_box": {
@@ -3665,7 +3656,6 @@
 		],
 		"materials": [
 			"painted_panel",
-			"bare_steel",
 			"led_green"
 		]
 	},
@@ -3685,8 +3675,240 @@
 		],
 		"materials": [
 			"bare_steel",
-			"cast_steel",
 			"warning_paint"
+		]
+	},
+	"garage_bay_panel": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"dark_panel",
+			"plastic_grey"
+		]
+	},
+	"garage_bracket_beacon": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"led_red",
+			"cast_steel"
+		]
+	},
+	"garage_breaker_panel": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"warning_paint"
+		]
+	},
+	"garage_ceiling_lamp": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"materials": [
+			"cast_steel",
+			"glass"
+		]
+	},
+	"garage_fluid_shelves": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"galvanized_steel",
+			"enamel_blue",
+			"wood_board"
+		]
+	},
+	"garage_parts_trolley": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"bare_steel",
+			"warning_paint",
+			"rubber"
+		]
+	},
+	"garage_spares_shelf": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"galvanized_steel",
+			"rubber",
+			"wood_board"
+		]
+	},
+	"garage_tyre_shelving": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"galvanized_steel",
+			"rubber",
+			"wood_board"
+		]
+	},
+	"garage_wheel_stand": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"materials": [
+			"rubber",
+			"galvanized_steel"
+		]
+	},
+	"hangar_access_stair": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"galvanized_steel",
+			"rubber"
+		]
+	},
+	"hangar_ship_bench": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"screen",
+			"plastic_grey"
+		]
+	},
+	"hangar_control_desk": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"dark_panel"
 		]
 	}
 }
