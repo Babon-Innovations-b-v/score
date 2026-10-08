@@ -6,9 +6,11 @@ turned to it, and stays inside its host face.
 
     roof gear   kinds named ceiling_*: the host is the roof face under the piece's foot; the foot (y 0) must lie on
                 the face's underside, the piece's height (y) must point straight into the room, and its whole foot
-                must stay inside that face
-    wall gear   pieces hung on a wall (group `hangs`, standing upright, out past the walkway): the back must sit on
-                the wall within its lining's depth, face straight out of it, and stay inside the wall's width
+                must stay inside that face; in a rounded room the host is the laid roof plate the piece hangs from,
+                by its foot or, standing up to the roof, by its head
+    wall gear   pieces hung on a wall (group `hangs`, standing upright, within WALL_REACH of their wall): the back
+                must sit on the wall within its lining's depth, face straight out of it, and stay inside the wall's
+                width; the walls are the room's own (shell.py)
 
 The envelope test cannot see a tray laid the wrong way inside the room; this can (the hub kit's trays lay radially
 at the corners, sticking out across the lattice).
@@ -23,12 +25,18 @@ import numpy as np
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import room  # noqa: E402
+import shell  # noqa: E402
 from room import hub_kit  # noqa: E402
 
 FLUSH = 0.03
 TURN_DEGREES = 5.0
 LINING_DEEPEST = 0.3  # the deepest lining (0.12) and a pipe bracket (0.15) stand gear this far off
-WALKWAY_OUT = 3.9
+# How far in from its wall's face a hung piece's origin may stand and still be judged as hung on it: the hub's walkway
+# ends 3.9 m out, 0.6 m in from its walls.
+WALL_REACH = 0.6
+# How far past a roof plate's edge a point still lies under it: the plates lap, and a dome's corner steps meet at a
+# slant.
+PLATE_EDGE = 0.03
 # Hung pieces whose host is not one wall: a door's own parts, and the posts standing in a corner between two walls.
 NOT_ON_ONE_WALL = ("hatch_", "airlock_", "door_strip", "grab_bar", "corner_post")
 
@@ -80,41 +88,98 @@ def roof_faults(laid):
     return found
 
 
-def wall_faults(laid):
-    """What is wrong with a wall-hung piece's seat."""
-    bearing = facet_of(laid["at"])
-    normal, _ = hub_kit.bearing_vectors(bearing)
+def wall_faults(laid, wall):
+    """What is wrong with a wall-hung piece's seat on its wall (shell.walls)."""
     back = np.array(laid["at"]) + np.array(laid["z"]) * laid["size"][2] / 2
     found = []
-    depth = hub_kit.APOTHEM - float(back @ normal)
+    depth = float((wall["middle"] - back) @ wall["normal"])
     if not -FLUSH <= depth <= LINING_DEEPEST:
         found.append(f"back {depth:.2f} m off the wall")
-    turn = math.degrees(math.acos(min(1.0, abs(float(np.array(laid["z"]) @ normal)))))
+    turn = math.degrees(math.acos(min(1.0, abs(float(np.array(laid["z"]) @ wall["normal"])))))
     if turn > TURN_DEGREES:
         found.append(f"turned {turn:.0f} degrees from the wall")
-    if not all(inside_face(corner, bearing) for corner in corners(laid, 0.5)):
+    reach = wall["half"] + wall["over"]
+    if not all(abs(float((corner - wall["middle"]) @ wall["along"])) <= reach for corner in corners(laid, 0.5)):
         found.append("reaches past its wall")
     return found
 
 
-def is_wall_gear(laid, about):
-    """A piece hung on a wall: group `hangs`, standing upright, out past the walkway, on the ring's floor; a door's
-    own parts (frames lining the opening, leaves and hinges swung open) and corner posts have hosts of their own."""
-    reach = math.hypot(laid["at"][0], laid["at"][2])
+def plate_face(plate):
+    """A roof plate's face into the room: (a point on it, its normal into the room)."""
+    return np.array(plate["at"]) - np.array(plate["z"]) * plate["size"][2] / 2, -np.array(plate["z"])
+
+
+def over_plate(point, plate):
+    """Whether a point, seen square to a roof plate, lies over it: within its height and its width at that height (a
+    plate is laid as a trapezoid, `taper` its head's width over its foot's)."""
+    face, _ = plate_face(plate)
+    offset = np.asarray(point) - face
+    wide, tall, _ = plate["size"]
+    along = float(offset @ np.array(plate["y"]))
+    if not -PLATE_EDGE <= along <= tall + PLATE_EDGE:
+        return False
+    share = min(max(along / tall, 0.0), 1.0)
+    half = wide / 2 * (1 + (plate.get("taper", 1.0) - 1) * share)
+    return abs(float(offset @ np.array(plate["x"]))) <= half + PLATE_EDGE
+
+
+def plate_over(point, plates):
+    """The roof plate a point hangs from: the nearest of those it lies square under; None when it lies under none."""
+    under = [plate for plate in plates if over_plate(point, plate)]
+    if not under:
+        return None
+    return min(under, key=lambda plate: abs(float((np.asarray(point) - plate_face(plate)[0]) @ plate_face(plate)[1])))
+
+
+def plate_faults(laid, plates):
+    """What is wrong with a roof-hung piece's seat in a rounded room: its host is the roof plate its foot hangs from
+    (shell.roof_plates), as roof_faults judges the hub's roof face. The piece hangs by the end of its height that
+    faces the roof: its foot when its height points down into the room (the hub's way), its head when it points up
+    (room_kit lays a roof row standing, its head at the roof)."""
+    foot = np.array(laid["at"])
+    if laid["y"][1] > 0:
+        foot = foot + np.array(laid["y"]) * laid["size"][1]
+    host = plate_over(foot, plates)
+    if host is None:
+        return ["hangs under no roof plate"]
+    point, into_room = plate_face(host)
+    found = []
+    gap = abs(float((foot - point) @ into_room))
+    if gap > FLUSH:
+        found.append(f"foot {gap:.2f} m off the roof plate")
+    turn = math.degrees(math.acos(min(1.0, abs(float(np.array(laid["y"]) @ into_room)))))
+    if turn > TURN_DEGREES:
+        found.append(f"turned {turn:.0f} degrees from the roof plate")
+    if not all(plate_over(corner, plates) for corner in corners(laid, 0.0)):
+        found.append("reaches past the roof's plates")
+    return found
+
+
+def is_wall_gear(laid, about, wall):
+    """A piece hung on a wall: group `hangs`, standing upright, out past the walkway (within WALL_REACH of its wall's
+    face), on the floor's level; a door's own parts (frames lining the opening, leaves and hinges swung open) and
+    corner posts have hosts of their own."""
+    reach = float((wall["middle"] - np.array(laid["at"])) @ wall["normal"])
     own_host = any(word in laid["kind"] for word in NOT_ON_ONE_WALL)
-    return about.get("group") == "hangs" and abs(laid["y"][1]) > 0.99 and reach > WALKWAY_OUT and \
+    return about.get("group") == "hangs" and abs(laid["y"][1]) > 0.99 and reach < WALL_REACH and \
         laid["at"][1] >= 0.0 and laid.get("layer", 1) == 1 and not own_host
 
 
 def faults(layout):
-    """Every hung piece off its surface: (index, kind, findings)."""
+    """Every hung piece off its surface: (index, kind, findings). A glowing part split from a piece (`part`: a
+    screen's content, a lamp's lens) sits on its host's front and is judged with its host."""
+    walls = shell.walls(layout)
+    plates = shell.roof_plates(layout)
     found = []
     for index, laid in enumerate(layout["pieces"]):
+        if "part" in laid:
+            continue
         about = layout["kinds"].get(laid["kind"], {})
+        wall = shell.wall_of(walls, laid["at"])
         if "ceiling_" in laid["kind"]:
-            problems = roof_faults(laid)
-        elif is_wall_gear(laid, about):
-            problems = wall_faults(laid)
+            problems = roof_faults(laid) if shell.is_hub(layout) else plate_faults(laid, plates)
+        elif is_wall_gear(laid, about, wall):
+            problems = wall_faults(laid, wall)
         else:
             continue
         if problems:
