@@ -1,23 +1,23 @@
 \begin{abstract}
 World models and one-shot 3D generators can produce a convincing place
-from a sentence or a picture, but they do not produce a world that a
-creator can build on. A world model produces a stream of frames, and a
-3D generator usually produces one fused scene without separate objects
-or physical properties, and without clear rights for the person who made
-it. SCORE is a world generation framework that joins many open vision
-foundation models, procedural tools and coding agents into one route,
-which leads from a creator's choices to a complete world that runs in
-the creator's own game engine. In that world every object is its own
-model with real collision, mass and material, every surface comes from
-one shared library of rule-based materials, and sound is generated for
-every surface, room and object. Every model in the route allows
-commercial use of what it produces. The work runs offline, in batches on
-rented cloud machines, through a sequence of stages whose outputs are
-all kept. When a result falls short, the creator can therefore trace it
-to the stage that caused it, rerun or fix that stage, and regenerate the
-rest of the world without losing their own edits. Deterministic checks
-run before every step that costs money. The creator decides the look,
-the concept and the style of each place, and reviews the result with
-tools that the framework supplies. We describe the framework and apply
-it to four worlds of different kinds.
+from a sentence or a picture, but not a world that a creator can build
+on: a world model produces a stream of frames, and a 3D generator
+usually produces one fused scene without separate objects or physical
+properties. SCORE is a world generation framework that joins open vision
+foundation models, procedural tools and coding agents into one route
+from a creator's choices to a complete world that runs in the creator's
+own engine. The creator chooses the look, the concept and the style of
+each place, and stays the author of the world, holding full commercial
+rights, because every model in the route allows commercial use of its
+output. Between those choices, the route works offline, in batches on
+rented cloud machines, through fixed stages. Every real-world object
+becomes one model with real collision, mass and material; every surface
+comes from a shared library of rule-based surfaces; and sound is
+generated for every surface, room and object. Deterministic checks run
+before every stage that costs money. The output of every stage is kept,
+so the creator can trace a weak result to the stage that caused it,
+rerun or fix that stage, and regenerate the stages after it while
+keeping their own edits; review tools that the framework supplies show
+each stage's output. We describe the framework and apply it to four
+worlds of different kinds.
 \end{abstract}
