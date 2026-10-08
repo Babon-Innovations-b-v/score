@@ -1,0 +1,368 @@
+{
+	"ORIGIN": [
+		0.0,
+		-600.0,
+		0.0
+	],
+	"PULL_MARGIN": 2.0,
+	"WALL": 0.2,
+	"FLOOR_THICKNESS": 0.04,
+	"FLAT_LEVEL": 9.0,
+	"FLAT_GROUND": [
+		-3.0,
+		-6.0,
+		6.0,
+		5.0
+	],
+	"FLAT_HEIGHT": 2.8,
+	"BALCONY_GROUND": [
+		-5.2,
+		-5.5,
+		2.2,
+		4.0
+	],
+	"STAIRWELL_GROUND": [
+		3.0,
+		-6.0,
+		3.0,
+		5.0
+	],
+	"STREET_GROUND": [
+		6.0,
+		-8.0,
+		8.0,
+		20.0
+	],
+	"BALCONY_DOORWAY": [
+		1.4,
+		2.2
+	],
+	"BALCONY_DOOR_THICKNESS": 0.06,
+	"BALCONY_DOOR_SECONDS": 1.2,
+	"FRONT_DOORWAY": [
+		1.0,
+		2.2
+	],
+	"FRONT_DOOR_Z": -1.6,
+	"STREET_DOORWAY": [
+		1.0,
+		2.2
+	],
+	"STAIR_LANE_A": [
+		3.2,
+		4.55
+	],
+	"STAIR_LANE_B": [
+		4.65,
+		6.0
+	],
+	"LANDING_DEPTH": 1.2,
+	"FLIGHT_RISE": 1.5,
+	"RISERS": 9.0,
+	"STEP_THICKNESS": 0.25,
+	"RAIL_HEIGHT": 1.1,
+	"FLOOR_LAMP_STRENGTH": 0.12,
+	"FLOOR_LAMP_REACH": 4.5,
+	"DADO_HEIGHT": 1.2,
+	"BUILDING_TOP": 24.0,
+	"ACROSS_THE_ROAD": [
+		14.2,
+		-8.2,
+		12.0,
+		20.4
+	],
+	"ACROSS_THE_ROAD_TOP": 20.0,
+	"OWN_BLOCKS_AT": [
+		[
+			1.45,
+			0.0,
+			-24.1
+		],
+		[
+			1.45,
+			0.0,
+			17.1
+		]
+	],
+	"OWN_BLOCK_SIZE": [
+		9.7,
+		24.0,
+		35.69
+	],
+	"ACROSS_BLOCK_AT": [
+		25.2,
+		0.0,
+		2.0
+	],
+	"BLOCK_SIZE": [
+		21.895,
+		24.0,
+		35.69
+	],
+	"BLOCK_SEED": 103.0,
+	"STREET_FENCE_HEIGHT": 4.0,
+	"PAVEMENT_NEAR": [
+		6.2,
+		8.0
+	],
+	"PAVEMENT_FAR": [
+		12.4,
+		14.2
+	],
+	"PAVEMENT_HIGH": 0.12,
+	"SQUARE_LAMP_HEAD": 6.0,
+	"TOWER_HEAD": 19.6,
+	"CAR_AT": [
+		10.0,
+		0.0,
+		4.0
+	],
+	"BIG_STAGE_GROUND": [
+		-53.6,
+		-13.25,
+		11.1,
+		19.5
+	],
+	"BIG_STAGE_DECK": 3.3,
+	"BACKDROP": [
+		0.6,
+		14.4
+	],
+	"LEADER_ON_THE_STAGE": [
+		-0.15,
+		0.94,
+		-0.2
+	],
+	"LECTERN_OUT": 0.6,
+	"STAGE_LAMP_OUT": 3.0,
+	"STAGE_LAMP_RANGE": 12.0,
+	"STAGE_LAMP_STRENGTH": 1.5,
+	"HEAD_HEIGHT": 1.65,
+	"CROWD_SPREAD": [
+		-42.0,
+		-56.0,
+		38.4,
+		112.0
+	],
+	"CROWD_BY_TRIP": [
+		10000.0,
+		6000.0,
+		3000.0,
+		1000.0,
+		200.0
+	],
+	"SQUARE_TIERS": [
+		[
+			-38.0,
+			0.0,
+			-40.0,
+			23.0,
+			0.8,
+			74.0
+		],
+		[
+			-36.0,
+			0.0,
+			-33.0,
+			15.0,
+			1.6,
+			60.0
+		],
+		[
+			-34.0,
+			0.0,
+			-26.0,
+			7.0,
+			2.4,
+			46.0
+		]
+	],
+	"TIER_TREAD": 0.9,
+	"TIER_HALF_STEP": 0.4,
+	"FRONT_ROW": 24.0,
+	"FRONT_ROW_BAND": [
+		-13.0,
+		-16.0,
+		8.0,
+		26.0
+	],
+	"FRONT_ROW_SEED": 5000.0,
+	"FRONT_ROW_DETAIL": 60.0,
+	"LEADER_DETAIL": 80.0,
+	"DRIVER_AT": [
+		8.2,
+		0.0,
+		5.2
+	],
+	"DRIVER_FACING": [
+		6.8,
+		0.0,
+		5.2
+	],
+	"GUARD_FACING": [
+		9.0,
+		0.0,
+		-2.6
+	],
+	"SIGN_AT": [
+		[
+			-53.25,
+			10.0,
+			-3.5
+		],
+		[
+			-53.6,
+			5.1,
+			-17.0
+		],
+		[
+			-53.6,
+			5.1,
+			10.0
+		]
+	],
+	"SIGN_FONT_SIZE": 200.0,
+	"ROCKET_AT": [
+		-270.0,
+		0.0,
+		-60.0
+	],
+	"LAMP_EVERY": 14.0,
+	"LAMP_OFF_THE_PAVING": 2.0,
+	"FLOODLIGHT_TOWERS": [
+		[
+			-54.0,
+			0.0,
+			-42.0
+		],
+		[
+			-54.0,
+			0.0,
+			38.0
+		],
+		[
+			-68.0,
+			0.0,
+			-30.0
+		],
+		[
+			-68.0,
+			0.0,
+			24.0
+		]
+	],
+	"SKY_RADIUS": 320.0,
+	"SKY_SIDES": 32.0,
+	"SKY_RINGS": 16.0,
+	"GROUND_DROP": 0.08,
+	"SQUARE_GROUND": [
+		-80.0,
+		-60.0,
+		74.0,
+		120.0
+	],
+	"HARBOUR_EDGE": -110.0,
+	"LAUNCH_PAD": [
+		-297.0,
+		-103.0,
+		58.0,
+		80.0
+	],
+	"NEON_SIGNS_AT": [
+		[
+			-4.6,
+			8.0,
+			11.5
+		],
+		[
+			-4.6,
+			8.0,
+			-18.5
+		]
+	],
+	"BAY_LEVELS": [
+		3.0,
+		6.0,
+		12.0,
+		15.0,
+		18.0,
+		21.0
+	],
+	"BAY_WINDOW": [
+		1.4,
+		2.0
+	],
+	"BAY_SHUTTER": [
+		3.6,
+		2.6
+	],
+	"DRAINPIPE_THICKNESS": 0.12,
+	"DRAINPIPE_Z": -0.95,
+	"SHORE_RADIUS": 300.0,
+	"SHORE_HEIGHT": 84.0,
+	"SHORE_SIDES": 96.0,
+	"ROAD_WIDTH": 12.0,
+	"ROAD_OFF_THE_PAVING": 4.0,
+	"BALCONY_SPOT": [
+		-4.0,
+		9.0,
+		-3.5
+	],
+	"ROOM_SPOT": [
+		0.4,
+		9.0,
+		-3.0
+	],
+	"STAIRS_FOOT_SPOT": [
+		5.3,
+		0.0,
+		-1.5
+	],
+	"STAIRS_FOOT_LOOK": [
+		5.3,
+		2.4,
+		-5.5
+	],
+	"STREET_SPOT": [
+		6.8,
+		0.0,
+		-1.6
+	],
+	"FRONT_DOOR_SPOT_SIZE": [
+		0.9,
+		2.4,
+		1.2
+	],
+	"BALCONY_DOOR_SPOT_SIZE": [
+		0.6,
+		2.4,
+		1.8
+	],
+	"DIMMEST_LAMP": 1.2,
+	"DIMS_BY": 0.5,
+	"PODIUM_AT": [
+		-45.5,
+		3.3,
+		-3.5
+	],
+	"BLOCK_A": [
+		-64.0,
+		0.0,
+		-90.0
+	],
+	"BLOCK_B": [
+		-24.0,
+		0.0,
+		-90.0
+	],
+	"BLOCK_C": [
+		-64.0,
+		0.0,
+		90.0
+	],
+	"BLOCK_D": [
+		-24.0,
+		0.0,
+		90.0
+	]
+}

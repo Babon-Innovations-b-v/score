@@ -3,10 +3,12 @@ in time the square and the launch view, each a kit room the robust route makes (
 HubKit draws, the hub's way (hub_kit.py): code only lays out, every visible piece is a made model.
 
     python3 tools/props/scene/earth_outside_kit.py street <out.json>     # writes the laid-out place, prints its counts
+    python3 tools/props/scene/earth_outside_kit.py numbers <earth_site.gd>  # the game's numbers into SITE_NUMBERS
 
 Frame: EarthSite's own metres (x across the block, the street at +x, the square at -x; z along the street, +z
-towards the capsule; y up from the street). The numbers are read from earth_site.gd itself
-(`constants`), so a wall moved there moves its pieces here.
+towards the capsule; y up from the street). The numbers are the game 2099's own, read from its earth_site.gd
+(`constants`) into data/definitions/earth_site.json by `numbers`, so a wall moved there moves its pieces here once
+they are read again.
 
 Every piece is written as the hub's are: its kind (`<room>_<name>`), where its origin stands (the middle of its foot),
 its frame's three axes (x, y, z: its front looks along -z) and the size it is laid at. HubKit fits each made model
@@ -27,7 +29,8 @@ import sys
 import numpy as np
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-SITE = REPO / "game/prologue/earth_site/earth_site.gd"
+# EarthSite's numbers as last read from the game's script (`numbers`).
+SITE_NUMBERS = REPO / "data/definitions/earth_site.json"
 UP = np.array([0.0, 1.0, 0.0])
 
 # A storey of the blocks (Tenement.STOREY) and how wide a bay is meant to be along a face (Tenement.BAY).
@@ -163,7 +166,7 @@ def constants(path):
     return found
 
 
-def square_blocks_at(path=SITE):
+def square_blocks_at(path):
     """EarthSite.BLOCKS: each tenement down the square's sides, where it stands and how it is turned (+1 for a
     quarter turn, -1 for a quarter turn back)."""
     text = pathlib.Path(path).read_text()
@@ -172,12 +175,17 @@ def square_blocks_at(path=SITE):
             for at, minus in re.findall(r"\[(Vector3\([^)]*\)),\s*(-?)PI / 2\.0", listed)]
 
 
-def site():
-    """EarthSite's numbers, with the square's blocks under their letters."""
-    found = constants(SITE)
-    for letter, (at, _) in zip("ABCD", square_blocks_at()):
+def read_site(script):
+    """EarthSite's numbers from its script, with the square's blocks under their letters."""
+    found = constants(script)
+    for letter, (at, _) in zip("ABCD", square_blocks_at(script)):
         found[f"BLOCK_{letter}"] = at
     return found
+
+
+def site():
+    """EarthSite's numbers as last read from the game (SITE_NUMBERS)."""
+    return json.loads(SITE_NUMBERS.read_text())
 
 
 # --- laying a piece ------------------------------------------------------------------------------------------------
@@ -904,6 +912,10 @@ def layout_of(room):
 
 
 def main():
+    if len(sys.argv) == 3 and sys.argv[1] == "numbers":
+        SITE_NUMBERS.write_text(json.dumps(read_site(sys.argv[2]), indent="\t") + "\n")
+        print("wrote", SITE_NUMBERS)
+        return
     if len(sys.argv) != 3 or sys.argv[1] not in PLACES:
         raise SystemExit(__doc__)
     layout = layout_of(sys.argv[1])
