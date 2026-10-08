@@ -15,14 +15,21 @@ zone running dry costs it one machine. The month's spend stays under `ledger.MON
 
 Memory per kind decides which classes may run it. Pixal3D was measured: three runs at once peak at 10.6 GB on one
 card (2026-09-29), so every card of 24 GB or more holds it. Every other kind was set up and measured on a 24 GB card
-and has not been measured below that, so it may run on any single card of at least 24 GB. Machines with two cards
-only pay off where the runner spreads work over cards, which only the Pixal3D fleet does.
+and has not been measured below that, so it may run on any single card of at least 24 GB. A machine with two cards
+runs a share on each card.
+
+Every kind spreads a batch over many machines at once (`spread.py`, 2026-10-08, once the provider granted quotas
+for 20 H100, 50 L4 and 10 L40S machines): `machines_for` sizes the fleet so each machine works about as long as its
+setup takes (one machine for a small batch), and `next_offer` holds a run to its caps (`max_machines` a class,
+`run_cap` in all; SCORE_MAX_MACHINES overrides the backend's quotas).
 
 A big card runs several jobs of a kind at once where its memory allows (`runs_at_once`): Pixal3D runs three at once
 on 24 GB (measured 2026-09-29), so a card runs three for every 24 GB it has.
 """
 import argparse
 import collections
+import math
+import os
 import pathlib
 import statistics
 import sys
@@ -69,6 +76,10 @@ KIND_ORDER = {
 # the bakes.
 LATE = {"library": ("gpu-80gb", "gpu-80gb-x2")}
 LATE_MINUTES = 5
+# How many machines a run may hold: of a class, the backend's quota (provider QUOTAS) else OTHER_MACHINES; of every
+# class together, RUN_MACHINES. SCORE_MAX_MACHINES overrides any of them, e.g. "gpu-80gb=20,gpu-24gb=50,all=30".
+OTHER_MACHINES = 5
+RUN_MACHINES = 20
 # A ledger entry written before entries named their kind was a Pixal3D batch.
 OLD_KIND = "pixal"
 
@@ -86,6 +97,52 @@ def runs_at_once(kind, machine_class):
     if kind not in RUNS_PER_24GB:
         return 1
     return max(1, RUNS_PER_24GB[kind] * provider.card_gb(machine_class) // 24)
+
+
+def caps():
+    """The machine caps: the backend's quotas by class, then SCORE_MAX_MACHINES's `class=N` pairs over them, with
+    `all` for a whole run."""
+    found = dict(getattr(provider.cloud, "QUOTAS", {}), all=RUN_MACHINES)
+    for pair in filter(None, os.environ.get("SCORE_MAX_MACHINES", "").replace(" ", "").split(",")):
+        name, _, number = pair.partition("=")
+        if not number.isdigit():
+            raise SystemExit(f"SCORE_MAX_MACHINES: '{pair}' is not <class>=<machines>")
+        found[name] = int(number)
+    return found
+
+
+def max_machines(machine_class):
+    """The most machines of `machine_class` one run holds at once."""
+    return caps().get(machine_class, OTHER_MACHINES)
+
+
+def run_cap():
+    """The most machines one run holds at once, whatever their class."""
+    return caps()["all"]
+
+
+def slots_for(kind, classes=None):
+    """Jobs of `kind` one machine of the first class it takes (of `classes`, else its own) runs at once: runs_at_once
+    on each of its cards."""
+    best = min(classes or classes_for(kind), key=lambda machine_class: speed_rank(machine_class, kind))
+    return runs_at_once(kind, best) * max(1, provider.cards(best))
+
+
+def machines_for(units, unit_minutes, setup_minutes, slots=1):
+    """How many machines a batch of `units` jobs of about `unit_minutes` each is spread over, when a machine runs
+    `slots` at once: enough that each works about as long as its setup takes, or one job's time when a job is longer,
+    so the batch ends in about the setup and one job's time without renting machines that would spend most of their
+    time setting up. One for a small batch; never more than there are jobs to share, nor than run_cap."""
+    if units <= 0:
+        return 1
+    span = max(setup_minutes, unit_minutes)
+    wanted = math.ceil(units * unit_minutes / (slots * span))
+    return max(1, min(wanted, math.ceil(units / slots), run_cap()))
+
+
+def spread_minutes(units, unit_minutes, setup_minutes, machines, slots=1):
+    """How long a batch spread over `machines` keeps them: the setup, then each slot's share of the jobs."""
+    return setup_minutes + math.ceil(units / (machines * slots)) * unit_minutes
 
 
 def order_for(kind):
@@ -107,10 +164,15 @@ def speed_rank(machine_class, kind=None):
 def next_offer(offers, rented, kind=None):
     """The offer the next machine of a run is rented from: the best stocked first, then the kind's order of classes
     (order_for) and the backend's own order within a class, then the zone holding fewest of the run's machines, then
-    the cheapest. `offers` are provider.Offer; `rented` the run's machines so far."""
-    if not offers:
+    the cheapest; None when there is none, or the run holds its cap of machines (run_cap, max_machines for a class).
+    `offers` are provider.Offer; `rented` the run's machines so far, and those being rented (each its class and
+    zone)."""
+    live = [machine for machine in rented if not machine.get("deleted")]
+    held = collections.Counter(machine.get("class") for machine in live)
+    offers = [offer for offer in offers if held[offer.machine_class] < max_machines(offer.machine_class)]
+    if not offers or len(live) >= run_cap():
         return None
-    in_zone = collections.Counter(machine["zone"] for machine in rented if not machine.get("deleted"))
+    in_zone = collections.Counter(machine["zone"] for machine in live)
     return min(offers, key=lambda offer: (offer.stock, speed_rank(offer.machine_class, kind), offer.order,
                                           in_zone[offer.zone], offer.per_card))
 

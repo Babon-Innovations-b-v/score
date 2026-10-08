@@ -11,8 +11,8 @@ the out folder and is skipped when they are there, so a run that stops is run ag
 
 1. crops/<id>.jpg: the row's box in the concept with a fifth of margin, at least 512 pixels long.
 2. qwen/<id>.png: every close-up from Qwen-Image-Edit-2511 in one batch (../cloud/pictures.py --model qwen-edit),
-   the crop and the whole concept as references, on as few 80 GB cards as keep the batch near an hour, each card of
-   a machine drawing its own slice.
+   the crop and the whole concept as references, spread over as many 80 GB cards as draw it in about one setup's
+   time (../cloud/spread.py), each card taking the next share as it finishes one.
 3. qwen/judge/<id>.txt: the judge's answer for each (../cloud/judge.py), and the shape check (check.py) on top.
 4. pro/<id>.png, then pro-room/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), judged and
    checked the same way: first from the crop alone (CROP_ONLY), then, for what still fails, with the whole concept
@@ -25,7 +25,6 @@ Printed words on a close-up do not matter: labels and print are put on the model
 """
 import argparse
 import json
-import math
 import pathlib
 import shutil
 import sys
@@ -65,8 +64,6 @@ CROP_ONLY = ("Make one clean product picture of a single object for a 3D model m
 # Pro's takes in order, each judged before the next: its folder under the out folder and its wording. The room
 # reference is the second take, for an object the crop alone does not make clear.
 PRO_TAKES = {"pro": CROP_ONLY, "pro-room": WORDING}
-# A batch is sized so each card draws about this many close-ups (about an hour at 56 s each), spreading its start-up.
-PER_CARD = 60
 MARGIN = 0.2
 SHORTEST_CROP = 512
 
@@ -112,11 +109,6 @@ def picture_jobs(rows, out):
             for row in rows if not (out / "qwen" / f"{row['id']}.png").exists()]
 
 
-def cards_for(count):
-    """How many cards a batch of `count` close-ups is spread over."""
-    return max(1, math.ceil(count / PER_CARD))
-
-
 def draw_with_qwen(rows, out, dry_run=False):
     """Step 2: every row's Qwen close-up into out/qwen/; the batch's ledger entry, or None when nothing was rented."""
     import pictures
@@ -128,7 +120,7 @@ def draw_with_qwen(rows, out, dry_run=False):
         return None
     listing = out / "qwen" / "jobs.json"
     listing.write_text(json.dumps(jobs, indent=1))
-    entry = pictures.draw_list(listing, "qwen-edit", cards_for(len(jobs)), dry_run)
+    entry = pictures.draw_list(listing, "qwen-edit", dry_run=dry_run)
     for job in jobs:
         drawn = PICTURES / f"{job['name']}.png"
         if drawn.exists():
