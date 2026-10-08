@@ -1,0 +1,12 @@
+FONTLOG for NotoSerifSC-Bold.ttf
+
+A modified version of Noto Serif SC (Google), used under the SIL Open Font License 1.1 in OFL.txt
+beside it.
+
+NotoSerifSC-Bold.ttf (2026-10-04): the variable Noto Serif SC from the Google Fonts repository
+(ofl/notoserifsc/NotoSerifSC[wght].ttf, sha256
+050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9), instanced at weight 700 with
+fontTools.varLib.instancer (names updated), then cut with fontTools.subset to the 7,445 GB2312
+characters, ASCII, the CJK symbols and punctuation (U+3000 to U+303F), the full-width forms (U+FF00
+to U+FFEF) and · — … ‘ ’ “ ” × №, every layout feature and name kept, hinting dropped. It draws
+the Song-style lettering of the enamel plaques (game/art/signs/).

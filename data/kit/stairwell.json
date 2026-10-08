@@ -1,0 +1,4052 @@
+{
+	"room": "stairwell",
+	"place": "prologue_stairwell",
+	"origin": [
+		0.0,
+		0.0,
+		0.0
+	],
+	"frame": "the Earth block's: x across, z along the street, y up from the room's own floor",
+	"counts": {
+		"stairwell_plaster_wall": 25,
+		"stairwell_plaster_ceiling": 1,
+		"stairwell_landing": 7,
+		"stairwell_stair_flight": 6,
+		"stairwell_stair_rail": 6,
+		"stairwell_balcony_rail": 1,
+		"stairwell_timber_door_frame": 2,
+		"stairwell_timber_door_leaf": 2,
+		"stairwell_security_gate": 2,
+		"stairwell_wall_print": 17,
+		"stairwell_cage_bulkhead": 7,
+		"stairwell_meter_cabinet": 3,
+		"stairwell_letterboxes": 1,
+		"stairwell_lobby_notice": 1,
+		"stairwell_exit_sign": 1,
+		"stairwell_street_gate": 1,
+		"stairwell_extinguisher": 2,
+		"stairwell_cable_drop": 1,
+		"stairwell_fire_hose_cabinet": 2,
+		"stairwell_wiring_box": 7,
+		"stairwell_pipe_straight": 15
+	},
+	"kinds": {
+		"stairwell_plaster_wall": {
+			"group": "hangs"
+		},
+		"stairwell_plaster_ceiling": {
+			"group": "hangs"
+		},
+		"stairwell_landing": {
+			"group": "floors"
+		},
+		"stairwell_stair_flight": {
+			"group": "floors"
+		},
+		"stairwell_stair_rail": {
+			"group": "hangs"
+		},
+		"stairwell_balcony_rail": {
+			"group": "hangs"
+		},
+		"stairwell_timber_door_frame": {
+			"group": "hangs"
+		},
+		"stairwell_timber_door_leaf": {
+			"group": "hangs"
+		},
+		"stairwell_security_gate": {
+			"group": "hangs"
+		},
+		"stairwell_wall_print": {
+			"group": "hangs"
+		},
+		"stairwell_cage_bulkhead": {
+			"group": "hangs"
+		},
+		"stairwell_meter_cabinet": {
+			"group": "hangs"
+		},
+		"stairwell_letterboxes": {
+			"group": "hangs"
+		},
+		"stairwell_lobby_notice": {
+			"group": "hangs"
+		},
+		"stairwell_exit_sign": {
+			"group": "hangs"
+		},
+		"stairwell_street_gate": {
+			"group": "hangs"
+		},
+		"stairwell_extinguisher": {
+			"group": "hangs",
+			"solid": true
+		},
+		"stairwell_cable_drop": {
+			"group": "hangs"
+		},
+		"stairwell_fire_hose_cabinet": {
+			"group": "hangs"
+		},
+		"stairwell_wiring_box": {
+			"group": "hangs"
+		},
+		"stairwell_pipe_straight": {
+			"group": "hangs"
+		}
+	},
+	"models": {
+		"plaster_wall_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_8": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_9": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_wall_10": {
+			"glows": false,
+			"route": "code"
+		},
+		"plaster_ceiling_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"landing_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"landing_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"stair_flight_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"stair_rail_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"balcony_rail_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"timber_door_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"timber_door_leaf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"security_gate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"cage_bulkhead_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cage_bulkhead_1_glow": {
+			"glows": true
+		},
+		"meter_cabinet_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"letterboxes_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"lobby_notice_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"exit_sign_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"exit_sign_1_glow": {
+			"glows": true
+		},
+		"street_gate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_8": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_print_9": {
+			"glows": false,
+			"route": "code"
+		},
+		"extinguisher_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"cable_drop_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"fire_hose_cabinet_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wiring_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_5": {
+			"glows": false,
+			"route": "code"
+		}
+	},
+	"pieces": [
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				3.215,
+				0.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_1"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				5.985,
+				0.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [
+				[
+					-2.4,
+					0.0,
+					-1.4,
+					2.2
+				]
+			],
+			"near": true,
+			"model": "plaster_wall_2"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				0.0,
+				-1.015
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_3"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				3.215,
+				3.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_1"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				5.985,
+				3.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_1"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				3.0,
+				-1.015
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_3"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				3.215,
+				6.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_1"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				5.985,
+				6.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_1"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				6.0,
+				-1.015
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_3"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				3.215,
+				9.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				2.8,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [
+				[
+					1.4,
+					0.0,
+					2.4,
+					2.2
+				]
+			],
+			"near": true,
+			"model": "plaster_wall_4"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				5.985,
+				9.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				5.0,
+				2.8,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_5"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				9.0,
+				-1.015
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				2.8,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_6"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				0.0,
+				-5.985
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				1.5,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_7"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				1.5,
+				-5.985
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_3"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				4.5,
+				-5.985
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_3"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				7.5,
+				-5.985
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_3"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.6,
+				10.5,
+				-5.985
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				1.3,
+				0.03
+			],
+			"layer": 1,
+			"dado": 0.6,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_8"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.535,
+				0.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_9"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.665,
+				0.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_9"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.535,
+				3.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_9"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.665,
+				3.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_9"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.535,
+				6.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_9"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.665,
+				6.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				3.0,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_9"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.535,
+				9.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				2.8,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_10"
+		},
+		{
+			"kind": "stairwell_plaster_wall",
+			"at": [
+				4.665,
+				9.0,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				2.8,
+				0.03
+			],
+			"layer": 1,
+			"dado": 1.2,
+			"openings": [],
+			"near": true,
+			"model": "plaster_wall_10"
+		},
+		{
+			"kind": "stairwell_plaster_ceiling",
+			"at": [
+				4.6,
+				11.815,
+				-6.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				2.8,
+				5.0,
+				0.03
+			],
+			"layer": 1,
+			"model": "plaster_ceiling_1"
+		},
+		{
+			"kind": "stairwell_landing",
+			"at": [
+				4.6,
+				-0.23,
+				-3.502
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				0.25,
+				5.004
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "landing_1"
+		},
+		{
+			"kind": "stairwell_landing",
+			"at": [
+				4.6,
+				2.77,
+				-1.602
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				0.25,
+				1.204
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "landing_2"
+		},
+		{
+			"kind": "stairwell_landing",
+			"at": [
+				4.6,
+				5.77,
+				-1.602
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				0.25,
+				1.204
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "landing_2"
+		},
+		{
+			"kind": "stairwell_landing",
+			"at": [
+				4.6,
+				8.77,
+				-1.602
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				2.8,
+				0.25,
+				1.204
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "landing_2"
+		},
+		{
+			"kind": "stairwell_landing",
+			"at": [
+				4.6,
+				1.27,
+				-5.398
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				0.25,
+				1.204
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "landing_2"
+		},
+		{
+			"kind": "stairwell_landing",
+			"at": [
+				4.6,
+				4.27,
+				-5.398
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				0.25,
+				1.204
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "landing_2"
+		},
+		{
+			"kind": "stairwell_landing",
+			"at": [
+				4.6,
+				7.27,
+				-5.398
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				2.8,
+				0.25,
+				1.204
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "landing_2"
+		},
+		{
+			"kind": "stairwell_stair_flight",
+			"at": [
+				3.875,
+				7.52,
+				-3.502
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.35,
+				1.3333,
+				2.604
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "stair_flight_1"
+		},
+		{
+			"kind": "stairwell_stair_rail",
+			"at": [
+				3.24,
+				8.4855,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				1.3689,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.9,
+			"model": "stair_rail_1"
+		},
+		{
+			"kind": "stairwell_stair_flight",
+			"at": [
+				5.325,
+				6.02,
+				-3.498
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.35,
+				1.3333,
+				2.604
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "stair_flight_1"
+		},
+		{
+			"kind": "stairwell_stair_rail",
+			"at": [
+				5.96,
+				6.9855,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				1.3689,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.9,
+			"model": "stair_rail_1"
+		},
+		{
+			"kind": "stairwell_stair_flight",
+			"at": [
+				3.875,
+				4.52,
+				-3.502
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.35,
+				1.3333,
+				2.604
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "stair_flight_1"
+		},
+		{
+			"kind": "stairwell_stair_rail",
+			"at": [
+				3.24,
+				5.4855,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				1.3689,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.9,
+			"model": "stair_rail_1"
+		},
+		{
+			"kind": "stairwell_stair_flight",
+			"at": [
+				5.325,
+				3.02,
+				-3.498
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.35,
+				1.3333,
+				2.604
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "stair_flight_1"
+		},
+		{
+			"kind": "stairwell_stair_rail",
+			"at": [
+				5.96,
+				3.9855,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				1.3689,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.9,
+			"model": "stair_rail_1"
+		},
+		{
+			"kind": "stairwell_stair_flight",
+			"at": [
+				3.875,
+				1.52,
+				-3.502
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.35,
+				1.3333,
+				2.604
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "stair_flight_1"
+		},
+		{
+			"kind": "stairwell_stair_rail",
+			"at": [
+				3.24,
+				2.4855,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				1.3689,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.9,
+			"model": "stair_rail_1"
+		},
+		{
+			"kind": "stairwell_stair_flight",
+			"at": [
+				5.325,
+				0.02,
+				-3.498
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				1.35,
+				1.3333,
+				2.604
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "stair_flight_1"
+		},
+		{
+			"kind": "stairwell_stair_rail",
+			"at": [
+				5.96,
+				0.9855,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				1.3689,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.9,
+			"model": "stair_rail_1"
+		},
+		{
+			"kind": "stairwell_balcony_rail",
+			"at": [
+				5.325,
+				9.02,
+				-2.15
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.35,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "balcony_rail_1"
+		},
+		{
+			"kind": "stairwell_timber_door_frame",
+			"at": [
+				3.11,
+				6.02,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.14,
+				2.28,
+				0.24
+			],
+			"layer": 1,
+			"near": true,
+			"model": "timber_door_frame_1"
+		},
+		{
+			"kind": "stairwell_timber_door_leaf",
+			"at": [
+				3.239,
+				6.02,
+				-1.5974
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.9452,
+				2.17,
+				0.083
+			],
+			"layer": 1,
+			"near": true,
+			"model": "timber_door_leaf_1"
+		},
+		{
+			"kind": "stairwell_security_gate",
+			"at": [
+				3.321,
+				6.02,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.95,
+				2.1,
+				0.102
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "security_gate_1"
+		},
+		{
+			"kind": "stairwell_timber_door_frame",
+			"at": [
+				3.11,
+				3.02,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.14,
+				2.28,
+				0.24
+			],
+			"layer": 1,
+			"near": true,
+			"model": "timber_door_frame_1"
+		},
+		{
+			"kind": "stairwell_timber_door_leaf",
+			"at": [
+				3.239,
+				3.02,
+				-1.5974
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.9452,
+				2.17,
+				0.083
+			],
+			"layer": 1,
+			"near": true,
+			"model": "timber_door_leaf_1"
+		},
+		{
+			"kind": "stairwell_security_gate",
+			"at": [
+				3.321,
+				3.02,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.95,
+				2.1,
+				0.102
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "security_gate_1"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.236,
+				9.45,
+				-2.28
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.2,
+				1.5,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_left",
+			"near": true,
+			"model": "wall_print_1"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.35,
+				9.45,
+				-1.036
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.2,
+				1.5,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_right",
+			"near": true,
+			"model": "wall_print_2"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.236,
+				11.33,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.8,
+				0.22,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_top",
+			"near": true,
+			"model": "wall_print_3"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.236,
+				6.45,
+				-2.28
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.2,
+				1.5,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_left",
+			"near": true,
+			"model": "wall_print_1"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.35,
+				6.45,
+				-1.036
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.2,
+				1.5,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_right",
+			"near": true,
+			"model": "wall_print_2"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.236,
+				8.33,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.8,
+				0.22,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_top",
+			"near": true,
+			"model": "wall_print_3"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.236,
+				3.45,
+				-2.28
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.2,
+				1.5,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_left",
+			"near": true,
+			"model": "wall_print_1"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.35,
+				3.45,
+				-1.036
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.2,
+				1.5,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_right",
+			"near": true,
+			"model": "wall_print_2"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.236,
+				5.33,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.8,
+				0.22,
+				0.007
+			],
+			"layer": 1,
+			"print": "couplet_top",
+			"near": true,
+			"model": "wall_print_3"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				4.9,
+				10.55,
+				-1.0365
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.5,
+				0.19,
+				0.007
+			],
+			"layer": 1,
+			"print": "floor_3",
+			"near": true,
+			"model": "wall_print_4"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				4.9,
+				7.55,
+				-1.0365
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.5,
+				0.19,
+				0.007
+			],
+			"layer": 1,
+			"print": "floor_2",
+			"near": true,
+			"model": "wall_print_5"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				4.9,
+				4.55,
+				-1.0365
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.5,
+				0.19,
+				0.007
+			],
+			"layer": 1,
+			"print": "floor_1",
+			"near": true,
+			"model": "wall_print_6"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				4.9,
+				1.55,
+				-1.0365
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.5,
+				0.19,
+				0.007
+			],
+			"layer": 1,
+			"print": "floor_g",
+			"near": true,
+			"model": "wall_print_7"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				11.255,
+				-1.0759
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				0.19,
+				0.1519
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				11.275,
+				-1.097
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.15,
+				0.15,
+				0.094
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				4.6,
+				9.755,
+				-5.9241
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.19,
+				0.19,
+				0.1519
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				4.6,
+				9.775,
+				-5.903
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.15,
+				0.15,
+				0.094
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				8.255,
+				-1.0759
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				0.19,
+				0.1519
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				8.275,
+				-1.097
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.15,
+				0.15,
+				0.094
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				4.6,
+				6.755,
+				-5.9241
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.19,
+				0.19,
+				0.1519
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				4.6,
+				6.775,
+				-5.903
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.15,
+				0.15,
+				0.094
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				5.255,
+				-1.0759
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				0.19,
+				0.1519
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				5.275,
+				-1.097
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.15,
+				0.15,
+				0.094
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				4.6,
+				3.755,
+				-5.9241
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.19,
+				0.19,
+				0.1519
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				4.6,
+				3.775,
+				-5.903
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.15,
+				0.15,
+				0.094
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				2.255,
+				-1.0759
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				0.19,
+				0.1519
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1"
+		},
+		{
+			"kind": "stairwell_cage_bulkhead",
+			"at": [
+				5.3,
+				2.275,
+				-1.097
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.15,
+				0.15,
+				0.094
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cage_bulkhead_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_meter_cabinet",
+			"at": [
+				5.9115,
+				10.2,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.5,
+				0.7,
+				0.177
+			],
+			"layer": 1,
+			"near": true,
+			"model": "meter_cabinet_1"
+		},
+		{
+			"kind": "stairwell_meter_cabinet",
+			"at": [
+				5.9115,
+				7.2,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.5,
+				0.7,
+				0.177
+			],
+			"layer": 1,
+			"near": true,
+			"model": "meter_cabinet_1"
+		},
+		{
+			"kind": "stairwell_meter_cabinet",
+			"at": [
+				5.9115,
+				4.2,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.5,
+				0.7,
+				0.177
+			],
+			"layer": 1,
+			"near": true,
+			"model": "meter_cabinet_1"
+		},
+		{
+			"kind": "stairwell_letterboxes",
+			"at": [
+				3.95,
+				0.95,
+				-1.1115
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.8,
+				0.75,
+				0.223
+			],
+			"layer": 1,
+			"near": true,
+			"model": "letterboxes_1"
+		},
+		{
+			"kind": "stairwell_lobby_notice",
+			"at": [
+				3.225,
+				1.2,
+				-4.2
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.9,
+				0.7,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "lobby_notice_1"
+		},
+		{
+			"kind": "stairwell_exit_sign",
+			"at": [
+				5.96,
+				2.3,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.36,
+				0.14,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"model": "exit_sign_1"
+		},
+		{
+			"kind": "stairwell_exit_sign",
+			"at": [
+				5.926,
+				2.316,
+				-1.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.328,
+				0.108,
+				0.004
+			],
+			"layer": 1,
+			"near": true,
+			"model": "exit_sign_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "stairwell_street_gate",
+			"at": [
+				6.2513,
+				0.02,
+				-0.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.0,
+				2.2,
+				0.0927
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "street_gate_1"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.95,
+				8.5,
+				-5.964
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.75,
+				1.05,
+				0.007
+			],
+			"layer": 1,
+			"print": "poster_moon_flight",
+			"near": true,
+			"model": "wall_print_8"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				3.95,
+				5.5,
+				-5.964
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.75,
+				1.05,
+				0.007
+			],
+			"layer": 1,
+			"print": "notice_residents",
+			"near": true,
+			"model": "wall_print_9"
+		},
+		{
+			"kind": "stairwell_extinguisher",
+			"at": [
+				5.7509,
+				6.0164,
+				-1.1502
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.2943,
+				0.6073,
+				0.1888
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "extinguisher_1"
+		},
+		{
+			"kind": "stairwell_extinguisher",
+			"at": [
+				5.7509,
+				3.0164,
+				-1.1502
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.2943,
+				0.6073,
+				0.1888
+			],
+			"layer": 1,
+			"near": true,
+			"foot": 0.0,
+			"model": "extinguisher_1"
+		},
+		{
+			"kind": "stairwell_cable_drop",
+			"at": [
+				5.94,
+				0.02,
+				-1.12
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.15,
+				11.7,
+				0.08
+			],
+			"layer": 1,
+			"near": true,
+			"model": "cable_drop_1"
+		},
+		{
+			"kind": "stairwell_fire_hose_cabinet",
+			"at": [
+				5.4,
+				8.25,
+				-5.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.45,
+				0.7,
+				0.2
+			],
+			"layer": 1,
+			"near": true,
+			"model": "fire_hose_cabinet_1"
+		},
+		{
+			"kind": "stairwell_fire_hose_cabinet",
+			"at": [
+				5.4,
+				2.25,
+				-5.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.45,
+				0.7,
+				0.2
+			],
+			"layer": 1,
+			"near": true,
+			"model": "fire_hose_cabinet_1"
+		},
+		{
+			"kind": "stairwell_wiring_box",
+			"at": [
+				5.9305,
+				10.55,
+				-2.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.18,
+				0.22,
+				0.079
+			],
+			"layer": 1,
+			"near": true,
+			"model": "wiring_box_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				5.945,
+				11.335,
+				-1.525
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.83,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				5.945,
+				11.75,
+				-3.8
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				4.1,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "stairwell_wiring_box",
+			"at": [
+				5.9305,
+				7.55,
+				-2.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.18,
+				0.22,
+				0.079
+			],
+			"layer": 1,
+			"near": true,
+			"model": "wiring_box_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				5.945,
+				8.335,
+				-1.525
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.83,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				5.945,
+				8.75,
+				-3.8
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				4.1,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "stairwell_wiring_box",
+			"at": [
+				5.9305,
+				4.55,
+				-2.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.18,
+				0.22,
+				0.079
+			],
+			"layer": 1,
+			"near": true,
+			"model": "wiring_box_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				5.945,
+				5.335,
+				-1.525
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.83,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				5.945,
+				5.75,
+				-3.8
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				4.1,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				2.72,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				5.72,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				8.72,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				11.72,
+				-3.5
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				2.4,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_3"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				2.17,
+				-2.775
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.1,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "stairwell_wiring_box",
+			"at": [
+				4.7195,
+				1.4,
+				-2.75
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.18,
+				0.22,
+				0.079
+			],
+			"layer": 1,
+			"near": true,
+			"model": "wiring_box_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				5.17,
+				-2.775
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.1,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "stairwell_wiring_box",
+			"at": [
+				4.7195,
+				4.4,
+				-2.75
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.18,
+				0.22,
+				0.079
+			],
+			"layer": 1,
+			"near": true,
+			"model": "wiring_box_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				8.17,
+				-2.775
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.1,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "stairwell_wiring_box",
+			"at": [
+				4.7195,
+				7.4,
+				-2.75
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.18,
+				0.22,
+				0.079
+			],
+			"layer": 1,
+			"near": true,
+			"model": "wiring_box_1"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				4.705,
+				11.17,
+				-2.775
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				1.1,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_4"
+		},
+		{
+			"kind": "stairwell_wiring_box",
+			"at": [
+				4.7195,
+				10.4,
+				-2.75
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.18,
+				0.22,
+				0.079
+			],
+			"layer": 1,
+			"near": true,
+			"model": "wiring_box_1"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				4.686,
+				7.3,
+				-3.27
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.75,
+				1.05,
+				0.007
+			],
+			"layer": 1,
+			"print": "poster_moon_flight",
+			"near": true,
+			"model": "wall_print_8"
+		},
+		{
+			"kind": "stairwell_wall_print",
+			"at": [
+				4.514,
+				4.0,
+				-4.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.75,
+				1.05,
+				0.007
+			],
+			"layer": 1,
+			"print": "notice_residents",
+			"near": true,
+			"model": "wall_print_9"
+		},
+		{
+			"kind": "stairwell_pipe_straight",
+			"at": [
+				3.255,
+				5.85,
+				-5.915
+			],
+			"x": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				11.7,
+				0.05,
+				0.05
+			],
+			"layer": 1,
+			"near": true,
+			"model": "pipe_straight_5"
+		}
+	]
+}

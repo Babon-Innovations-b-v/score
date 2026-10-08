@@ -1,0 +1,1442 @@
+{
+	"room": "tube",
+	"frame": "a bay's or an end's: x across the tube to the right, y up from the deck, z along it",
+	"bay": 1.3,
+	"counts": {
+		"tube_ring_floor_plate": 1,
+		"tube_hull_plate": 7,
+		"tube_pipe_straight": 8,
+		"tube_rail_bracket": 2,
+		"tube_pipe_bracket": 6,
+		"tube_cable_bundle": 2,
+		"tube_hoop": 2,
+		"tube_crown_strip_lamp": 1,
+		"tube_hull_patch": 2,
+		"tube_small_readout": 1,
+		"tube_sign_plate": 3,
+		"tube_conduit_box": 1,
+		"tube_end_mat": 1
+	},
+	"kinds": {
+		"tube_ring_floor_plate": {
+			"group": "floors"
+		},
+		"tube_end_mat": {
+			"group": "floors"
+		},
+		"tube_crown_strip_lamp": {
+			"group": "hangs",
+			"light": {
+				"strength": 0.15,
+				"reach": 3.5,
+				"high": 0.5
+			}
+		},
+		"tube_hull_plate": {},
+		"tube_hoop": {},
+		"tube_pipe_straight": {
+			"group": "hangs"
+		},
+		"tube_cable_bundle": {
+			"group": "hangs"
+		},
+		"tube_hull_patch": {
+			"group": "hangs"
+		},
+		"tube_sign_plate": {
+			"group": "hangs"
+		},
+		"tube_pipe_bracket": {
+			"group": "hangs"
+		},
+		"tube_rail_bracket": {
+			"group": "hangs"
+		},
+		"tube_small_readout": {
+			"group": "hangs"
+		},
+		"tube_conduit_box": {
+			"group": "hangs"
+		}
+	},
+	"models": {
+		"ring_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_plate_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_plate_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_plate_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"rail_bracket_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_plate_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_plate_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_plate_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_straight_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"pipe_bracket_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"cable_bundle_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hoop_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"crown_strip_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"crown_strip_lamp_1_glow": {
+			"glows": true
+		},
+		"hull_patch_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hull_patch_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"small_readout_1_glow": {
+			"glows": true
+		},
+		"sign_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"conduit_box_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"hoop_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"sign_plate_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"end_mat_1": {
+			"glows": false,
+			"route": "code"
+		}
+	},
+	"pieces": [
+		{
+			"kind": "tube_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.3238,
+				1.3,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"tube_part": "bay",
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "tube_hull_plate",
+			"at": [
+				0.0,
+				2.3475,
+				0.65
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.8541,
+				0.3325,
+				1.3
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.04,
+				-36.0,
+				36.0
+			],
+			"tube_part": "bay",
+			"model": "hull_plate_1"
+		},
+		{
+			"kind": "tube_hull_plate",
+			"at": [
+				-1.3188,
+				0.0154,
+				0.65
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3976,
+				0.659,
+				1.3
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.04,
+				-106.0,
+				-133.43253655778977
+			],
+			"tube_part": "bay",
+			"model": "hull_plate_2"
+		},
+		{
+			"kind": "tube_hull_plate",
+			"at": [
+				-0.9486,
+				2.2507,
+				0.65
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.1306,
+				0.1259,
+				1.3
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.08,
+				-36.0,
+				-40.0
+			],
+			"tube_part": "bay",
+			"material": "dark_panel",
+			"model": "hull_plate_3"
+		},
+		{
+			"kind": "tube_hull_plate",
+			"at": [
+				-1.4938,
+				0.6656,
+				0.65
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.1016,
+				0.1217,
+				1.3
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.08,
+				-102.0,
+				-106.0
+			],
+			"tube_part": "bay",
+			"material": "dark_panel",
+			"model": "hull_plate_4"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				-1.3683,
+				0.6503,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.29237,
+				0.9563,
+				0.0
+			],
+			"z": [
+				-0.9563,
+				-0.29237,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.06,
+				0.06
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "tube_rail_bracket",
+			"at": [
+				-1.3998,
+				0.6354,
+				0.08
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.29237,
+				0.9563,
+				0.0
+			],
+			"z": [
+				-0.9563,
+				-0.29237,
+				0.0
+			],
+			"size": [
+				0.04,
+				0.07,
+				0.131
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "rail_bracket_1"
+		},
+		{
+			"kind": "tube_hull_plate",
+			"at": [
+				1.3188,
+				0.0154,
+				0.65
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3976,
+				0.659,
+				1.3
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.04,
+				106.0,
+				133.43253655778977
+			],
+			"tube_part": "bay",
+			"model": "hull_plate_5"
+		},
+		{
+			"kind": "tube_hull_plate",
+			"at": [
+				0.9486,
+				2.2507,
+				0.65
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.1306,
+				0.1259,
+				1.3
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.08,
+				36.0,
+				40.0
+			],
+			"tube_part": "bay",
+			"material": "dark_panel",
+			"model": "hull_plate_6"
+		},
+		{
+			"kind": "tube_hull_plate",
+			"at": [
+				1.4938,
+				0.6656,
+				0.65
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.1016,
+				0.1217,
+				1.3
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.08,
+				102.0,
+				106.0
+			],
+			"tube_part": "bay",
+			"material": "dark_panel",
+			"model": "hull_plate_7"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				1.3683,
+				0.6503,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.29237,
+				0.9563,
+				0.0
+			],
+			"z": [
+				0.9563,
+				-0.29237,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.06,
+				0.06
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "tube_rail_bracket",
+			"at": [
+				1.3998,
+				0.6354,
+				0.08
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.29237,
+				0.9563,
+				0.0
+			],
+			"z": [
+				0.9563,
+				-0.29237,
+				0.0
+			],
+			"size": [
+				0.04,
+				0.07,
+				0.131
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "rail_bracket_1"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				-1.1579,
+				0.2093,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.58219,
+				0.81305,
+				0.0
+			],
+			"z": [
+				-0.81305,
+				-0.58219,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "tube_pipe_bracket",
+			"at": [
+				-1.1659,
+				0.1913,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.58219,
+				0.81305,
+				0.0
+			],
+			"z": [
+				-0.81305,
+				-0.58219,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				-1.2573,
+				0.3561,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.47945,
+				0.87757,
+				0.0
+			],
+			"z": [
+				-0.87757,
+				-0.47945,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "tube_pipe_bracket",
+			"at": [
+				-1.2674,
+				0.3392,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.47945,
+				0.87757,
+				0.0
+			],
+			"z": [
+				-0.87757,
+				-0.47945,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				-1.3336,
+				0.5037,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.37671,
+				0.92633,
+				0.0
+			],
+			"z": [
+				-0.92633,
+				-0.37671,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "tube_pipe_bracket",
+			"at": [
+				-1.3455,
+				0.488,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				-0.37671,
+				0.92633,
+				0.0
+			],
+			"z": [
+				-0.92633,
+				-0.37671,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				0.3525,
+				2.5177,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.97815,
+				0.20791,
+				0.0
+			],
+			"z": [
+				0.20791,
+				0.97815,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "tube_pipe_bracket",
+			"at": [
+				0.3658,
+				2.5323,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.97815,
+				0.20791,
+				0.0
+			],
+			"z": [
+				0.20791,
+				0.97815,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				0.5107,
+				2.4687,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.94832,
+				0.3173,
+				0.0
+			],
+			"z": [
+				0.3173,
+				0.94832,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "tube_pipe_bracket",
+			"at": [
+				0.5256,
+				2.4816,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.94832,
+				0.3173,
+				0.0
+			],
+			"z": [
+				0.3173,
+				0.94832,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "tube_pipe_straight",
+			"at": [
+				0.6623,
+				2.4021,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.90631,
+				0.42262,
+				0.0
+			],
+			"z": [
+				0.42262,
+				0.90631,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.1,
+				0.1
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_straight_2"
+		},
+		{
+			"kind": "tube_pipe_bracket",
+			"at": [
+				0.6786,
+				2.4132,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.90631,
+				0.42262,
+				0.0
+			],
+			"z": [
+				0.42262,
+				0.90631,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.12,
+				0.126
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "pipe_bracket_1"
+		},
+		{
+			"kind": "tube_cable_bundle",
+			"at": [
+				0.824,
+				2.3548,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				-0.85717,
+				0.51504,
+				0.0
+			],
+			"z": [
+				0.51504,
+				0.85717,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "tube_cable_bundle",
+			"at": [
+				-0.8673,
+				2.3253,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.83867,
+				0.54464,
+				-0.0
+			],
+			"z": [
+				-0.54464,
+				0.83867,
+				0.0
+			],
+			"size": [
+				1.3,
+				0.12,
+				0.08
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "cable_bundle_1"
+		},
+		{
+			"kind": "tube_hoop",
+			"at": [
+				0.0,
+				0.0356,
+				0.045
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				3.1586,
+				2.6444,
+				0.09
+			],
+			"layer": 1,
+			"arc": [
+				1.58,
+				0.12,
+				-132.43253655778977,
+				132.43253655778977
+			],
+			"tube_part": "bay",
+			"model": "hoop_1"
+		},
+		{
+			"kind": "tube_crown_strip_lamp",
+			"at": [
+				-0.06,
+				2.588,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.104
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "crown_strip_lamp_1"
+		},
+		{
+			"kind": "tube_crown_strip_lamp",
+			"at": [
+				-0.03,
+				2.548,
+				0.575
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.89,
+				0.06,
+				0.004
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"model": "crown_strip_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "tube_hull_patch",
+			"at": [
+				-0.6757,
+				2.5014,
+				0.65
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.96593,
+				0.25882,
+				-0.0
+			],
+			"z": [
+				-0.25882,
+				0.96593,
+				0.0
+			],
+			"size": [
+				0.78,
+				0.58,
+				0.023
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"every": 3,
+			"model": "hull_patch_1"
+		},
+		{
+			"kind": "tube_hull_patch",
+			"at": [
+				1.2369,
+				0.1705,
+				0.45
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.46947,
+				0.88295,
+				0.0
+			],
+			"z": [
+				0.88295,
+				-0.46947,
+				0.0
+			],
+			"size": [
+				0.58,
+				0.48,
+				0.023
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"every": 3,
+			"model": "hull_patch_2"
+		},
+		{
+			"kind": "tube_small_readout",
+			"at": [
+				-0.7514,
+				2.4157,
+				0.3
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.90631,
+				0.42262,
+				-0.0
+			],
+			"z": [
+				-0.42262,
+				0.90631,
+				0.0
+			],
+			"size": [
+				0.3,
+				0.25,
+				0.06
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"every": 6,
+			"model": "small_readout_1"
+		},
+		{
+			"kind": "tube_small_readout",
+			"at": [
+				-0.6658,
+				2.438,
+				0.33
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.90631,
+				0.42262,
+				-0.0
+			],
+			"z": [
+				-0.42262,
+				0.90631,
+				0.0
+			],
+			"size": [
+				0.15,
+				0.101,
+				0.004
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"every": 6,
+			"model": "small_readout_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "tube_sign_plate",
+			"at": [
+				-0.6913,
+				2.4641,
+				0.68
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.90631,
+				0.42262,
+				-0.0
+			],
+			"z": [
+				-0.42262,
+				0.90631,
+				0.0
+			],
+			"size": [
+				0.24,
+				0.1,
+				0.023
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"every": 6,
+			"label": "label_cable_run",
+			"model": "sign_plate_1"
+		},
+		{
+			"kind": "tube_conduit_box",
+			"at": [
+				-0.7166,
+				2.412,
+				1.0375
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.90631,
+				0.42262,
+				-0.0
+			],
+			"z": [
+				-0.42262,
+				0.90631,
+				0.0
+			],
+			"size": [
+				0.195,
+				0.195,
+				0.096
+			],
+			"layer": 1,
+			"tube_part": "bay",
+			"every": 6,
+			"model": "conduit_box_1"
+		},
+		{
+			"kind": "tube_hoop",
+			"at": [
+				0.0,
+				-0.0017,
+				0.262
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				3.2391,
+				2.7218,
+				0.16
+			],
+			"layer": 1,
+			"arc": [
+				1.62,
+				0.2,
+				-132.93253655778977,
+				132.93253655778977
+			],
+			"tube_part": "end",
+			"material": "painted_panel",
+			"model": "hoop_2"
+		},
+		{
+			"kind": "tube_sign_plate",
+			"at": [
+				-0.4298,
+				2.4258,
+				0.3535
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.4,
+				0.16,
+				0.023
+			],
+			"layer": 1,
+			"tube_part": "end",
+			"model": "sign_plate_2"
+		},
+		{
+			"kind": "tube_sign_plate",
+			"at": [
+				0.4298,
+				2.4258,
+				0.3535
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"size": [
+				0.4,
+				0.16,
+				0.023
+			],
+			"layer": 1,
+			"tube_part": "end",
+			"model": "sign_plate_2"
+		},
+		{
+			"kind": "tube_end_mat",
+			"at": [
+				0.0,
+				0.012,
+				0.412
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				-0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.0,
+				0.5,
+				0.024
+			],
+			"layer": 1,
+			"tube_part": "end",
+			"model": "end_mat_1"
+		}
+	]
+}

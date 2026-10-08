@@ -1,0 +1,8931 @@
+{
+	"room": "camp",
+	"place": "expedition_camp",
+	"frame": "the CampHabitat node's own: deck at nought, a dome's degrees from +x towards +z",
+	"counts": {
+		"camp_dome_opening_frame": 3,
+		"camp_dome_ceiling_gore": 30,
+		"camp_dome_deck_wedge": 30,
+		"camp_dome_window_panel": 20,
+		"camp_dome_rib": 24,
+		"camp_dome_wall_panel": 7,
+		"camp_dome_roof_cap": 2,
+		"camp_shell_gore_open": 3,
+		"camp_shell_gore_window": 20,
+		"camp_foot_ring": 27,
+		"camp_shell_gore": 7,
+		"camp_ring_lamp": 6,
+		"camp_wall_net": 6,
+		"camp_passage_lining": 1,
+		"camp_passage_hull": 1,
+		"camp_partition": 1,
+		"camp_rod_lamp": 6,
+		"camp_floor_cable": 10
+	},
+	"kinds": {
+		"camp_dome_wall_panel": {
+			"group": "hangs"
+		},
+		"camp_dome_window_panel": {
+			"group": "hangs"
+		},
+		"camp_dome_rib": {
+			"group": "hangs"
+		},
+		"camp_dome_ceiling_gore": {
+			"group": "hangs"
+		},
+		"camp_dome_roof_cap": {
+			"group": "hangs"
+		},
+		"camp_dome_deck_wedge": {
+			"group": "floors"
+		},
+		"camp_dome_opening_frame": {
+			"group": "hangs"
+		},
+		"camp_passage_lining": {
+			"group": "floors"
+		},
+		"camp_partition": {
+			"group": "hangs"
+		},
+		"camp_rod_lamp": {
+			"group": "hangs"
+		},
+		"camp_shell_gore": {
+			"group": "hangs"
+		},
+		"camp_shell_gore_window": {
+			"group": "hangs"
+		},
+		"camp_shell_gore_open": {
+			"group": "hangs"
+		},
+		"camp_foot_ring": {
+			"group": "hangs"
+		},
+		"camp_passage_hull": {
+			"group": "hangs"
+		},
+		"camp_ring_lamp": {
+			"group": "hangs"
+		},
+		"camp_wall_net": {
+			"group": "hangs"
+		}
+	},
+	"models": {
+		"dome_opening_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_ceiling_gore_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_deck_wedge_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_window_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_ceiling_gore_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_deck_wedge_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_rib_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_wall_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_wall_panel_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_ceiling_gore_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_deck_wedge_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_window_panel_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_roof_cap_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_roof_cap_1_glow": {
+			"glows": true
+		},
+		"shell_gore_open_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"shell_gore_window_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"foot_ring_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"shell_gore_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"shell_gore_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"foot_ring_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"shell_gore_window_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_lamp_1_glow": {
+			"glows": true
+		},
+		"wall_net_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_ceiling_gore_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_deck_wedge_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_wall_panel_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_ceiling_gore_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_deck_wedge_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_window_panel_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_roof_cap_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"dome_roof_cap_2_glow": {
+			"glows": true
+		},
+		"shell_gore_open_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"shell_gore_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"foot_ring_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"shell_gore_window_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"passage_lining_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"passage_hull_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"partition_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"rod_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"rod_lamp_1_glow": {
+			"glows": true
+		},
+		"rod_lamp_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"rod_lamp_2_glow": {
+			"glows": true
+		},
+		"rod_lamp_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"rod_lamp_3_glow": {
+			"glows": true
+		},
+		"rod_lamp_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"rod_lamp_4_glow": {
+			"glows": true
+		},
+		"floor_cable_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"galley_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "camp_galley",
+			"size": [
+				1.348,
+				1.9,
+				1.215
+			],
+			"children": []
+		},
+		"cold_store_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "camp_cold_store",
+			"size": [
+				0.97,
+				1.02,
+				1.071
+			],
+			"children": []
+		},
+		"pedestal_table_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "camp_pedestal_table",
+			"size": [
+				1.15,
+				0.87,
+				0.8
+			],
+			"children": []
+		},
+		"comms_desk_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "camp_comms_desk",
+			"size": [
+				1.59,
+				0.74,
+				0.736
+			],
+			"children": [
+				{
+					"model": "monitor_1",
+					"at": [
+						0.5,
+						0.74,
+						0.2
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "monitor_1",
+					"at": [
+						-0.02,
+						0.74,
+						0.2
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "radio_1",
+					"at": [
+						-0.56,
+						0.74,
+						0.18
+					],
+					"turn": 0.0
+				}
+			]
+		},
+		"stores_rack_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "camp_stores_rack",
+			"size": [
+				1.8,
+				1.9,
+				0.5
+			],
+			"children": [
+				{
+					"model": "case_1",
+					"at": [
+						-0.56,
+						0.12,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						0.0,
+						0.12,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						0.56,
+						0.12,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						-0.56,
+						0.6,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						0.0,
+						0.6,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						0.56,
+						0.6,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						-0.3,
+						1.08,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						0.3,
+						1.08,
+						0.0
+					],
+					"turn": 0.0
+				}
+			]
+		},
+		"hygiene_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "camp_hygiene",
+			"size": [
+				1.2,
+				2.2,
+				1.1
+			],
+			"children": []
+		},
+		"crate_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "camp_crate",
+			"size": [
+				1.0,
+				0.55,
+				0.55
+			],
+			"children": []
+		},
+		"crate_small_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "camp_crate_small",
+			"size": [
+				0.6,
+				0.45,
+				0.45
+			],
+			"children": []
+		},
+		"bunk_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "camp_bunk",
+			"size": [
+				2.0,
+				0.6,
+				0.9
+			],
+			"children": []
+		},
+		"lockers_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "camp_lockers",
+			"size": [
+				1.5,
+				1.9,
+				0.5
+			],
+			"children": []
+		},
+		"growth_chamber_1": {
+			"glows": false,
+			"route": "model",
+			"prop": "camp_growth_chamber",
+			"size": [
+				1.3,
+				1.1,
+				0.8
+			],
+			"children": []
+		},
+		"sample_shelf_1": {
+			"glows": false,
+			"route": "code",
+			"prop": "camp_sample_shelf",
+			"size": [
+				1.44,
+				1.9,
+				0.5
+			],
+			"children": [
+				{
+					"model": "case_1",
+					"at": [
+						-0.36,
+						0.15,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						0.36,
+						0.15,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						-0.36,
+						1.11,
+						0.0
+					],
+					"turn": 0.0
+				},
+				{
+					"model": "case_1",
+					"at": [
+						0.36,
+						1.11,
+						0.0
+					],
+					"turn": 0.0
+				}
+			]
+		},
+		"monitor_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "comms_desk_1",
+			"size": [
+				0.5,
+				0.385,
+				0.17
+			]
+		},
+		"monitor_1_glow": {
+			"glows": true,
+			"part_of": "monitor_1"
+		},
+		"radio_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "comms_desk_1",
+			"size": [
+				0.4,
+				0.26,
+				0.24
+			]
+		},
+		"case_1": {
+			"glows": false,
+			"route": "code",
+			"child_of": "stores_rack_1",
+			"size": [
+				0.45,
+				0.42,
+				0.35
+			]
+		}
+	},
+	"pieces": [
+		{
+			"kind": "camp_dome_opening_frame",
+			"at": [
+				5.2603,
+				-0.3,
+				-10.3423
+			],
+			"x": [
+				-0.64945,
+				0.0,
+				-0.76041
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.76041,
+				0.0,
+				-0.64945
+			],
+			"size": [
+				2.6,
+				3.7,
+				0.2
+			],
+			"layer": 1,
+			"arc": {
+				"opening": [
+					2.4,
+					2.6
+				]
+			},
+			"model": "dome_opening_frame_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				4.1901,
+				3.3434,
+				-9.3857
+			],
+			"x": [
+				-0.64945,
+				0.0,
+				-0.76041
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.76041,
+				0.0,
+				-0.64945
+			],
+			"size": [
+				2.471,
+				2.0944,
+				3.1087
+			],
+			"layer": 1,
+			"arc": {
+				"half": 13.8865,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.8539,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_1"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5407,
+				-0.018,
+				-7.1655
+			],
+			"x": [
+				-0.64945,
+				-0.0,
+				-0.76041
+			],
+			"y": [
+				0.76041,
+				0.0,
+				-0.64945
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.4384,
+				4.9293,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 13.8865,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_1"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				6.313,
+				-0.05,
+				-8.5115
+			],
+			"x": [
+				-0.27164,
+				0.0,
+				-0.9624
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.9624,
+				0.0,
+				-0.27164
+			],
+			"size": [
+				1.8827,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				4.8893,
+				3.3434,
+				-8.0752
+			],
+			"x": [
+				-0.27164,
+				0.0,
+				-0.9624
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.9624,
+				0.0,
+				-0.27164
+			],
+			"size": [
+				1.9538,
+				2.0944,
+				3.0827
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.9106,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_2"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5412,
+				-0.018,
+				-7.1646
+			],
+			"x": [
+				-0.27164,
+				-0.0,
+				-0.9624
+			],
+			"y": [
+				0.9624,
+				0.0,
+				-0.27164
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9128,
+				4.9869,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_2"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				6.4729,
+				-0.05,
+				-6.6505
+			],
+			"x": [
+				0.10352,
+				0.0,
+				-0.99463
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99463,
+				0.0,
+				0.10352
+			],
+			"size": [
+				1.8827,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_1"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				6.5177,
+				0.0,
+				-7.5916
+			],
+			"x": [
+				-0.08559,
+				0.0,
+				-0.99633
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99633,
+				0.0,
+				-0.08559
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				4.9888,
+				3.3434,
+				-6.7717
+			],
+			"x": [
+				0.10352,
+				0.0,
+				-0.99463
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99463,
+				0.0,
+				0.10352
+			],
+			"size": [
+				1.9538,
+				2.0944,
+				3.0827
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.9106,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_2"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5413,
+				-0.018,
+				-7.1638
+			],
+			"x": [
+				0.10352,
+				0.0,
+				-0.99463
+			],
+			"y": [
+				0.99463,
+				0.0,
+				0.10352
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9128,
+				4.9869,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_2"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				5.9333,
+				-0.05,
+				-4.8623
+			],
+			"x": [
+				0.464,
+				0.0,
+				-0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.88584,
+				0.0,
+				0.464
+			],
+			"size": [
+				1.8827,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_1"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				6.3229,
+				0.0,
+				-5.7203
+			],
+			"x": [
+				0.28893,
+				0.0,
+				-0.95735
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.95735,
+				0.0,
+				0.28893
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				4.5992,
+				3.3434,
+				-5.5238
+			],
+			"x": [
+				0.464,
+				0.0,
+				-0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.88584,
+				0.0,
+				0.464
+			],
+			"size": [
+				1.9538,
+				2.0944,
+				3.0827
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.9106,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_2"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.541,
+				-0.018,
+				-7.1629
+			],
+			"x": [
+				0.464,
+				0.0,
+				-0.88584
+			],
+			"y": [
+				0.88584,
+				0.0,
+				0.464
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9128,
+				4.9869,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_2"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				4.7706,
+				-0.05,
+				-3.4005
+			],
+			"x": [
+				0.75869,
+				0.0,
+				-0.65145
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.65145,
+				0.0,
+				0.75869
+			],
+			"size": [
+				1.8827,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_1"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				5.4499,
+				0.0,
+				-4.0535
+			],
+			"x": [
+				0.62248,
+				0.0,
+				-0.78264
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.78264,
+				0.0,
+				0.62248
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				3.7756,
+				3.3434,
+				-4.5084
+			],
+			"x": [
+				0.75869,
+				0.0,
+				-0.65145
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.65145,
+				0.0,
+				0.75869
+			],
+			"size": [
+				1.9538,
+				2.0944,
+				3.0827
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.9106,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_2"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5405,
+				-0.018,
+				-7.1623
+			],
+			"x": [
+				0.75869,
+				0.0,
+				-0.65145
+			],
+			"y": [
+				0.65145,
+				0.0,
+				0.75869
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9128,
+				4.9869,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_2"
+		},
+		{
+			"kind": "camp_dome_wall_panel",
+			"at": [
+				3.1367,
+				-0.05,
+				-2.51
+			],
+			"x": [
+				0.94582,
+				0.0,
+				-0.3247
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.3247,
+				0.0,
+				0.94582
+			],
+			"size": [
+				1.8827,
+				3.45,
+				0.14
+			],
+			"layer": 1,
+			"model": "dome_wall_panel_1"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				4.0223,
+				0.0,
+				-2.8277
+			],
+			"x": [
+				0.86777,
+				0.0,
+				-0.49696
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.49696,
+				0.0,
+				0.86777
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				2.6351,
+				3.3434,
+				-3.8695
+			],
+			"x": [
+				0.94582,
+				0.0,
+				-0.3247
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.3247,
+				0.0,
+				0.94582
+			],
+			"size": [
+				1.9538,
+				2.0944,
+				3.0827
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.9106,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_2"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5397,
+				-0.018,
+				-7.1618
+			],
+			"x": [
+				0.94582,
+				0.0,
+				-0.3247
+			],
+			"y": [
+				0.3247,
+				0.0,
+				0.94582
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9128,
+				4.9869,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_2"
+		},
+		{
+			"kind": "camp_dome_opening_frame",
+			"at": [
+				1.0453,
+				-0.3,
+				-2.2951
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"size": [
+				2.6,
+				3.7,
+				0.2
+			],
+			"layer": 1,
+			"arc": {
+				"opening": [
+					2.4,
+					2.6
+				]
+			},
+			"model": "dome_opening_frame_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				1.1579,
+				3.3434,
+				-3.7261
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"size": [
+				2.471,
+				2.0944,
+				3.1087
+			],
+			"layer": 1,
+			"arc": {
+				"half": 13.8865,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.8539,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_1"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5388,
+				-0.018,
+				-7.1617
+			],
+			"x": [
+				0.9949,
+				0.0,
+				0.1009
+			],
+			"y": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.4384,
+				4.9293,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 13.8865,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_1"
+		},
+		{
+			"kind": "camp_dome_wall_panel",
+			"at": [
+				-0.9628,
+				-0.05,
+				-2.9275
+			],
+			"x": [
+				0.86107,
+				-0.0,
+				0.50848
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.50848,
+				0.0,
+				0.86107
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.14
+			],
+			"layer": 1,
+			"model": "dome_wall_panel_2"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-0.2549,
+				3.3434,
+				-4.1914
+			],
+			"x": [
+				0.86107,
+				-0.0,
+				0.50848
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.50848,
+				0.0,
+				0.86107
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5378,
+				-0.018,
+				-7.162
+			],
+			"x": [
+				0.86107,
+				0.0,
+				0.50848
+			],
+			"y": [
+				-0.50848,
+				0.0,
+				0.86107
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-2.3873,
+				-0.05,
+				-4.133
+			],
+			"x": [
+				0.61107,
+				-0.0,
+				0.79158
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.79158,
+				0.0,
+				0.61107
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-1.7687,
+				0.0,
+				-3.4184
+			],
+			"x": [
+				0.74956,
+				-0.0,
+				0.66194
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.66194,
+				0.0,
+				0.74956
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-1.2294,
+				3.3434,
+				-5.0687
+			],
+			"x": [
+				0.61107,
+				-0.0,
+				0.79158
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.79158,
+				0.0,
+				0.61107
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5372,
+				-0.018,
+				-7.1626
+			],
+			"x": [
+				0.61107,
+				0.0,
+				0.79158
+			],
+			"y": [
+				-0.79158,
+				0.0,
+				0.61107
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-3.2314,
+				-0.05,
+				-5.8055
+			],
+			"x": [
+				0.27389,
+				-0.0,
+				0.96176
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.96176,
+				0.0,
+				0.27389
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-2.922,
+				0.0,
+				-4.9125
+			],
+			"x": [
+				0.45059,
+				-0.0,
+				0.89273
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.89273,
+				0.0,
+				0.45059
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-1.8091,
+				3.3434,
+				-6.2449
+			],
+			"x": [
+				0.27389,
+				-0.0,
+				0.96176
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.96176,
+				0.0,
+				0.27389
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5368,
+				-0.018,
+				-7.1634
+			],
+			"x": [
+				0.27389,
+				0.0,
+				0.96176
+			],
+			"y": [
+				-0.96176,
+				0.0,
+				0.27389
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-3.3949,
+				-0.05,
+				-7.6717
+			],
+			"x": [
+				-0.10235,
+				0.0,
+				0.99475
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99475,
+				0.0,
+				-0.10235
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-3.4389,
+				0.0,
+				-6.7276
+			],
+			"x": [
+				0.08734,
+				-0.0,
+				0.99618
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99618,
+				0.0,
+				0.08734
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-1.9111,
+				3.3434,
+				-7.5523
+			],
+			"x": [
+				-0.10235,
+				0.0,
+				0.99475
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99475,
+				0.0,
+				-0.10235
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5367,
+				-0.018,
+				-7.1642
+			],
+			"x": [
+				-0.10235,
+				0.0,
+				0.99475
+			],
+			"y": [
+				-0.99475,
+				0.0,
+				-0.10235
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-2.8548,
+				-0.05,
+				-9.4654
+			],
+			"x": [
+				-0.464,
+				0.0,
+				0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.88584,
+				0.0,
+				-0.464
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-3.2457,
+				0.0,
+				-8.6049
+			],
+			"x": [
+				-0.28836,
+				0.0,
+				0.95752
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.95752,
+				0.0,
+				-0.28836
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-1.5211,
+				3.3434,
+				-8.8041
+			],
+			"x": [
+				-0.464,
+				0.0,
+				0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.88584,
+				0.0,
+				-0.464
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.537,
+				-0.018,
+				-7.1651
+			],
+			"x": [
+				-0.464,
+				0.0,
+				0.88584
+			],
+			"y": [
+				-0.88584,
+				0.0,
+				-0.464
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-1.6878,
+				-0.05,
+				-10.9309
+			],
+			"x": [
+				-0.75945,
+				0.0,
+				0.65056
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.65056,
+				0.0,
+				-0.75945
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-2.3701,
+				0.0,
+				-10.2768
+			],
+			"x": [
+				-0.62293,
+				0.0,
+				0.78227
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.78227,
+				0.0,
+				-0.62293
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-0.6945,
+				3.3434,
+				-9.8221
+			],
+			"x": [
+				-0.75945,
+				0.0,
+				0.65056
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.65056,
+				0.0,
+				-0.75945
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5375,
+				-0.018,
+				-7.1657
+			],
+			"x": [
+				-0.75945,
+				0.0,
+				0.65056
+			],
+			"y": [
+				-0.65056,
+				0.0,
+				-0.75945
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_wall_panel",
+			"at": [
+				-0.0476,
+				-0.05,
+				-11.8212
+			],
+			"x": [
+				-0.94657,
+				0.0,
+				0.32248
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.32248,
+				0.0,
+				-0.94657
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.14
+			],
+			"layer": 1,
+			"model": "dome_wall_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-0.9367,
+				0.0,
+				-11.5046
+			],
+			"x": [
+				-0.86864,
+				0.0,
+				0.49544
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.49544,
+				0.0,
+				-0.86864
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				0.4507,
+				3.3434,
+				-10.461
+			],
+			"x": [
+				-0.94657,
+				0.0,
+				0.32248
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.32248,
+				0.0,
+				-0.94657
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5383,
+				-0.018,
+				-7.1662
+			],
+			"x": [
+				-0.94657,
+				0.0,
+				0.32248
+			],
+			"y": [
+				-0.32248,
+				0.0,
+				-0.94657
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				1.7949,
+				-0.05,
+				-12.1174
+			],
+			"x": [
+				-0.99867,
+				0.0,
+				-0.05159
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.05159,
+				0.0,
+				-0.99867
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				0.8498,
+				0.0,
+				-12.1132
+			],
+			"x": [
+				-0.99044,
+				0.0,
+				0.13793
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.13793,
+				0.0,
+				-0.99044
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				1.7511,
+				3.3434,
+				-10.6294
+			],
+			"x": [
+				-0.99867,
+				0.0,
+				-0.05159
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.05159,
+				0.0,
+				-0.99867
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.5391,
+				-0.018,
+				-7.1663
+			],
+			"x": [
+				-0.99867,
+				-0.0,
+				-0.05159
+			],
+			"y": [
+				0.05159,
+				0.0,
+				-0.99867
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				3.6138,
+				-0.05,
+				-11.6692
+			],
+			"x": [
+				-0.9083,
+				0.0,
+				-0.41831
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.41831,
+				0.0,
+				-0.9083
+			],
+			"size": [
+				1.8884,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_2"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				2.7346,
+				0.0,
+				-12.0159
+			],
+			"x": [
+				-0.97096,
+				0.0,
+				-0.23926
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.23926,
+				0.0,
+				-0.97096
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				3.0213,
+				3.3434,
+				-10.3036
+			],
+			"x": [
+				-0.9083,
+				0.0,
+				-0.41831
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.41831,
+				0.0,
+				-0.9083
+			],
+			"size": [
+				1.9596,
+				2.0944,
+				3.0829
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"rings": [
+					[
+						5.0,
+						3.4
+					],
+					[
+						4.8978,
+						3.9176
+					],
+					[
+						4.5981,
+						4.4
+					],
+					[
+						4.1213,
+						4.8142
+					],
+					[
+						3.5,
+						5.1321
+					],
+					[
+						2.7765,
+						5.3319
+					],
+					[
+						2.0,
+						5.4
+					]
+				],
+				"origin_radius": 4.91,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_3"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				1.54,
+				-0.018,
+				-7.1661
+			],
+			"x": [
+				-0.9083,
+				-0.0,
+				-0.41831
+			],
+			"y": [
+				0.41831,
+				0.0,
+				-0.9083
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.9187,
+				4.9863,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"reach": 5.08
+			},
+			"model": "dome_deck_wedge_3"
+		},
+		{
+			"kind": "camp_dome_roof_cap",
+			"at": [
+				1.539,
+				5.395,
+				-5.164
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				4.0,
+				4.0,
+				0.11
+			],
+			"layer": 1,
+			"model": "dome_roof_cap_1"
+		},
+		{
+			"kind": "camp_dome_roof_cap",
+			"at": [
+				1.539,
+				5.3825,
+				-6.564
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.2,
+				0.035
+			],
+			"layer": 1,
+			"model": "dome_roof_cap_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_shell_gore_open",
+			"at": [
+				3.6231,
+				3.0,
+				-8.9439
+			],
+			"x": [
+				0.64945,
+				-0.0,
+				0.76041
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.76041,
+				-0.0,
+				0.64945
+			],
+			"size": [
+				2.6218,
+				3.1,
+				5.4426
+			],
+			"layer": 1,
+			"arc": {
+				"half": 13.8865,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.2907,
+				"origin_height": -0.7,
+				"from": 3.0
+			},
+			"model": "shell_gore_open_1"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				4.1855,
+				-0.7,
+				-7.9109
+			],
+			"x": [
+				0.27164,
+				-0.0,
+				0.9624
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.9624,
+				-0.0,
+				0.27164
+			],
+			"size": [
+				2.0567,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_1"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				7.2077,
+				-1.062,
+				-8.7639
+			],
+			"x": [
+				0.27164,
+				-0.0,
+				0.9624
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.9624,
+				-0.0,
+				0.27164
+			],
+			"size": [
+				2.4583,
+				1.224,
+				1.2732
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_1"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				4.2741,
+				-0.7,
+				-6.8793
+			],
+			"x": [
+				-0.10352,
+				0.0,
+				0.99463
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99463,
+				-0.0,
+				-0.10352
+			],
+			"size": [
+				2.0567,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_1"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				7.3976,
+				-1.062,
+				-6.5542
+			],
+			"x": [
+				-0.10352,
+				0.0,
+				0.99463
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99463,
+				-0.0,
+				-0.10352
+			],
+			"size": [
+				2.4583,
+				1.224,
+				1.2732
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_1"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				3.9749,
+				-0.7,
+				-5.888
+			],
+			"x": [
+				-0.464,
+				0.0,
+				0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.88584,
+				-0.0,
+				-0.464
+			],
+			"size": [
+				2.0567,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_1"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				6.7568,
+				-1.062,
+				-4.4309
+			],
+			"x": [
+				-0.464,
+				0.0,
+				0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.88584,
+				-0.0,
+				-0.464
+			],
+			"size": [
+				2.4583,
+				1.224,
+				1.2732
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_1"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				3.3304,
+				-0.7,
+				-5.0777
+			],
+			"x": [
+				-0.75869,
+				0.0,
+				0.65145
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.65145,
+				-0.0,
+				-0.75869
+			],
+			"size": [
+				2.0567,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_1"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				5.3761,
+				-1.062,
+				-2.6952
+			],
+			"x": [
+				-0.75869,
+				0.0,
+				0.65145
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.65145,
+				-0.0,
+				-0.75869
+			],
+			"size": [
+				2.4583,
+				1.224,
+				1.2732
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_1"
+		},
+		{
+			"kind": "camp_shell_gore",
+			"at": [
+				2.429,
+				-0.7,
+				-4.5717
+			],
+			"x": [
+				-0.94582,
+				0.0,
+				0.3247
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.3247,
+				-0.0,
+				-0.94582
+			],
+			"size": [
+				2.0567,
+				6.8,
+				5.4424
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_1"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				3.4516,
+				-1.062,
+				-1.593
+			],
+			"x": [
+				-0.94582,
+				0.0,
+				0.3247
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.3247,
+				-0.0,
+				-0.94582
+			],
+			"size": [
+				2.4583,
+				1.224,
+				1.2732
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8518,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3525,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_1"
+		},
+		{
+			"kind": "camp_shell_gore_open",
+			"at": [
+				1.2625,
+				3.0,
+				-4.4373
+			],
+			"x": [
+				-0.9949,
+				0.0,
+				-0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.1009,
+				-0.0,
+				-0.9949
+			],
+			"size": [
+				2.6218,
+				3.1,
+				5.4426
+			],
+			"layer": 1,
+			"arc": {
+				"half": 13.8865,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.2907,
+				"origin_height": -0.7,
+				"from": 3.0
+			},
+			"model": "shell_gore_open_1"
+		},
+		{
+			"kind": "camp_shell_gore",
+			"at": [
+				0.1453,
+				-0.7,
+				-4.8039
+			],
+			"x": [
+				-0.86107,
+				0.0,
+				-0.50848
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.50848,
+				-0.0,
+				-0.86107
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4424
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-1.4566,
+				-1.062,
+				-2.0913
+			],
+			"x": [
+				-0.86107,
+				0.0,
+				-0.50848
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.50848,
+				-0.0,
+				-0.86107
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-0.6377,
+				-0.7,
+				-5.4837
+			],
+			"x": [
+				-0.61107,
+				0.0,
+				-0.79158
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.79158,
+				-0.0,
+				-0.61107
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-3.1243,
+				-1.062,
+				-3.5641
+			],
+			"x": [
+				-0.61107,
+				0.0,
+				-0.79158
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.79158,
+				-0.0,
+				-0.61107
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-1.1057,
+				-0.7,
+				-6.4109
+			],
+			"x": [
+				-0.27389,
+				0.0,
+				-0.96176
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.96176,
+				-0.0,
+				-0.27389
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-4.1269,
+				-1.062,
+				-5.5505
+			],
+			"x": [
+				-0.27389,
+				0.0,
+				-0.96176
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.96176,
+				-0.0,
+				-0.27389
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-1.1964,
+				-0.7,
+				-7.4455
+			],
+			"x": [
+				0.10235,
+				0.0,
+				-0.99475
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99475,
+				-0.0,
+				0.10235
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-4.3212,
+				-1.062,
+				-7.767
+			],
+			"x": [
+				0.10235,
+				0.0,
+				-0.99475
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99475,
+				-0.0,
+				0.10235
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-0.8969,
+				-0.7,
+				-8.4399
+			],
+			"x": [
+				0.464,
+				0.0,
+				-0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.88584,
+				-0.0,
+				0.464
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-3.6796,
+				-1.062,
+				-9.8975
+			],
+			"x": [
+				0.464,
+				0.0,
+				-0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.88584,
+				-0.0,
+				0.464
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-0.25,
+				-0.7,
+				-9.2525
+			],
+			"x": [
+				0.75945,
+				0.0,
+				-0.65056
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.65056,
+				-0.0,
+				0.75945
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-2.2936,
+				-1.062,
+				-11.6381
+			],
+			"x": [
+				0.75945,
+				0.0,
+				-0.65056
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.65056,
+				-0.0,
+				0.75945
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore",
+			"at": [
+				0.6551,
+				-0.7,
+				-9.7584
+			],
+			"x": [
+				0.94657,
+				0.0,
+				-0.32248
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.32248,
+				-0.0,
+				0.94657
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4424
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-0.3608,
+				-1.062,
+				-12.7404
+			],
+			"x": [
+				0.94657,
+				0.0,
+				-0.32248
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.32248,
+				-0.0,
+				0.94657
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				1.6809,
+				-0.7,
+				-9.9102
+			],
+			"x": [
+				0.99867,
+				-0.0,
+				0.05159
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.05159,
+				-0.0,
+				0.99867
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				1.8429,
+				-1.062,
+				-13.0473
+			],
+			"x": [
+				0.99867,
+				-0.0,
+				0.05159
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.05159,
+				-0.0,
+				0.99867
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				2.6893,
+				-0.7,
+				-9.6617
+			],
+			"x": [
+				0.9083,
+				-0.0,
+				0.41831
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.41831,
+				-0.0,
+				0.9083
+			],
+			"size": [
+				2.0629,
+				6.8,
+				5.4604
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_2"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				4.0034,
+				-1.062,
+				-12.515
+			],
+			"x": [
+				0.9083,
+				-0.0,
+				0.41831
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.41831,
+				-0.0,
+				0.9083
+			],
+			"size": [
+				2.5106,
+				1.224,
+				1.2763
+			],
+			"layer": 1,
+			"arc": {
+				"half": 10.8853,
+				"out": 5.45,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 5.3519,
+				"origin_height": -0.7,
+				"middle": 6.0,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_2"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				3.9206,
+				5.1342,
+				-5.439
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.7,
+				0.7,
+				0.14
+			],
+			"layer": 1,
+			"model": "ring_lamp_1"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				3.9206,
+				5.0517,
+				-5.454
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.67,
+				0.67,
+				0.025
+			],
+			"layer": 1,
+			"model": "ring_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				-0.8426,
+				5.1342,
+				-5.439
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.7,
+				0.7,
+				0.14
+			],
+			"layer": 1,
+			"model": "ring_lamp_1"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				-0.8426,
+				5.0517,
+				-5.454
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.67,
+				0.67,
+				0.025
+			],
+			"layer": 1,
+			"model": "ring_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				1.539,
+				5.1342,
+				-9.564
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.7,
+				0.7,
+				0.14
+			],
+			"layer": 1,
+			"model": "ring_lamp_1"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				1.539,
+				5.0517,
+				-9.579
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.67,
+				0.67,
+				0.025
+			],
+			"layer": 1,
+			"model": "ring_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_wall_net",
+			"at": [
+				3.113,
+				2.05,
+				-2.579
+			],
+			"x": [
+				0.94582,
+				0.0,
+				-0.3247
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.3247,
+				0.0,
+				0.94582
+			],
+			"size": [
+				1.2,
+				0.8,
+				0.126
+			],
+			"layer": 1,
+			"model": "wall_net_1"
+		},
+		{
+			"kind": "camp_wall_net",
+			"at": [
+				-0.9256,
+				2.05,
+				-2.9904
+			],
+			"x": [
+				0.86107,
+				-0.0,
+				0.50848
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.50848,
+				0.0,
+				0.86107
+			],
+			"size": [
+				1.2,
+				0.8,
+				0.126
+			],
+			"layer": 1,
+			"model": "wall_net_1"
+		},
+		{
+			"kind": "camp_dome_opening_frame",
+			"at": [
+				0.9336,
+				-0.3,
+				-1.1947
+			],
+			"x": [
+				-0.9949,
+				0.0,
+				-0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.1009,
+				0.0,
+				-0.9949
+			],
+			"size": [
+				2.6,
+				3.7,
+				0.2
+			],
+			"layer": 1,
+			"arc": {
+				"opening": [
+					2.4,
+					2.6
+				]
+			},
+			"model": "dome_opening_frame_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				0.837,
+				3.3434,
+				0.0744
+			],
+			"x": [
+				-0.9949,
+				0.0,
+				-0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.1009,
+				0.0,
+				-0.9949
+			],
+			"size": [
+				2.4708,
+				2.0944,
+				2.8173
+			],
+			"layer": 1,
+			"arc": {
+				"half": 15.466,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.337,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_4"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4922,
+				-0.018,
+				3.1578
+			],
+			"x": [
+				-0.9949,
+				-0.0,
+				-0.1009
+			],
+			"y": [
+				0.1009,
+				0.0,
+				-0.9949
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.4427,
+				4.4119,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 15.466,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_4"
+		},
+		{
+			"kind": "camp_dome_wall_panel",
+			"at": [
+				2.9473,
+				-0.05,
+				-0.492
+			],
+			"x": [
+				-0.82988,
+				0.0,
+				-0.55794
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55794,
+				0.0,
+				-0.82988
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.14
+			],
+			"layer": 1,
+			"model": "dome_wall_panel_3"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				2.258,
+				3.3434,
+				0.5917
+			],
+			"x": [
+				-0.82988,
+				0.0,
+				-0.55794
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55794,
+				0.0,
+				-0.82988
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4933,
+				-0.018,
+				3.1581
+			],
+			"x": [
+				-0.82988,
+				-0.0,
+				-0.55794
+			],
+			"y": [
+				0.55794,
+				0.0,
+				-0.82988
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_wall_panel",
+			"at": [
+				4.273,
+				-0.05,
+				0.9084
+			],
+			"x": [
+				-0.51165,
+				0.0,
+				-0.85919
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.85919,
+				0.0,
+				-0.51165
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.14
+			],
+			"layer": 1,
+			"model": "dome_wall_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				3.7578,
+				0.0,
+				0.0685
+			],
+			"x": [
+				-0.68747,
+				0.0,
+				-0.72621
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.72621,
+				0.0,
+				-0.68747
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				3.1866,
+				3.3434,
+				1.5933
+			],
+			"x": [
+				-0.51165,
+				0.0,
+				-0.85919
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.85919,
+				0.0,
+				-0.51165
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.494,
+				-0.018,
+				3.1588
+			],
+			"x": [
+				-0.51165,
+				-0.0,
+				-0.85919
+			],
+			"y": [
+				0.85919,
+				0.0,
+				-0.51165
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				4.9125,
+				-0.05,
+				2.7374
+			],
+			"x": [
+				-0.09517,
+				0.0,
+				-0.99546
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99546,
+				0.0,
+				-0.09517
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				4.766,
+				0.0,
+				1.7616
+			],
+			"x": [
+				-0.31096,
+				0.0,
+				-0.95042
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.95042,
+				0.0,
+				-0.31096
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				3.5977,
+				3.3434,
+				2.8959
+			],
+			"x": [
+				-0.09517,
+				0.0,
+				-0.99546
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99546,
+				0.0,
+				-0.09517
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4943,
+				-0.018,
+				3.1598
+			],
+			"x": [
+				-0.09517,
+				-0.0,
+				-0.99546
+			],
+			"y": [
+				0.99546,
+				0.0,
+				-0.09517
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				4.6687,
+				-0.05,
+				4.668
+			],
+			"x": [
+				0.33959,
+				0.0,
+				-0.94057
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.94057,
+				0.0,
+				0.33959
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				4.9536,
+				0.0,
+				3.7233
+			],
+			"x": [
+				0.12526,
+				0.0,
+				-0.99212
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99212,
+				0.0,
+				0.12526
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				3.4124,
+				3.3434,
+				4.2491
+			],
+			"x": [
+				0.33959,
+				0.0,
+				-0.94057
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.94057,
+				0.0,
+				0.33959
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4942,
+				-0.018,
+				3.1608
+			],
+			"x": [
+				0.33959,
+				0.0,
+				-0.94057
+			],
+			"y": [
+				0.94057,
+				0.0,
+				0.33959
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				3.623,
+				-0.05,
+				6.3091
+			],
+			"x": [
+				0.70914,
+				0.0,
+				-0.70507
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.70507,
+				0.0,
+				0.70914
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				4.2844,
+				0.0,
+				5.5768
+			],
+			"x": [
+				0.53742,
+				0.0,
+				-0.84331
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.84331,
+				0.0,
+				0.53742
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				2.6664,
+				3.3434,
+				5.3933
+			],
+			"x": [
+				0.70914,
+				0.0,
+				-0.70507
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.70507,
+				0.0,
+				0.70914
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4936,
+				-0.018,
+				3.1616
+			],
+			"x": [
+				0.70914,
+				0.0,
+				-0.70507
+			],
+			"y": [
+				0.70507,
+				0.0,
+				0.70914
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				1.9759,
+				-0.05,
+				7.3453
+			],
+			"x": [
+				0.94251,
+				0.0,
+				-0.33417
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.33417,
+				0.0,
+				0.94251
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				2.8869,
+				0.0,
+				6.9663
+			],
+			"x": [
+				0.84639,
+				0.0,
+				-0.53256
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.53256,
+				0.0,
+				0.84639
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				1.5027,
+				3.3434,
+				6.1085
+			],
+			"x": [
+				0.94251,
+				0.0,
+				-0.33417
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.33417,
+				0.0,
+				0.94251
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4928,
+				-0.018,
+				3.1622
+			],
+			"x": [
+				0.94251,
+				0.0,
+				-0.33417
+			],
+			"y": [
+				0.33417,
+				0.0,
+				0.94251
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_wall_panel",
+			"at": [
+				0.048,
+				-0.05,
+				7.5382
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.14
+			],
+			"layer": 1,
+			"model": "dome_wall_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				1.0295,
+				0.0,
+				7.6247
+			],
+			"x": [
+				0.99283,
+				0.0,
+				-0.11954
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.11954,
+				0.0,
+				0.99283
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				0.1451,
+				3.3434,
+				6.2576
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4918,
+				-0.018,
+				3.1623
+			],
+			"x": [
+				0.9949,
+				0.0,
+				0.1009
+			],
+			"y": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-1.802,
+				-0.05,
+				6.9622
+			],
+			"x": [
+				0.85623,
+				-0.0,
+				0.51659
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.51659,
+				0.0,
+				0.85623
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-0.931,
+				0.0,
+				7.426
+			],
+			"x": [
+				0.94862,
+				-0.0,
+				0.31643
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.31643,
+				0.0,
+				0.94862
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-1.1461,
+				3.3434,
+				5.8118
+			],
+			"x": [
+				0.85623,
+				-0.0,
+				0.51659
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.51659,
+				0.0,
+				0.85623
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4908,
+				-0.018,
+				3.162
+			],
+			"x": [
+				0.85623,
+				0.0,
+				0.51659
+			],
+			"y": [
+				-0.51659,
+				0.0,
+				0.85623
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-3.2075,
+				-0.05,
+				5.6164
+			],
+			"x": [
+				0.55315,
+				-0.0,
+				0.83308
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83308,
+				0.0,
+				0.55315
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-2.6183,
+				0.0,
+				6.4079
+			],
+			"x": [
+				0.72224,
+				-0.0,
+				0.69164
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.69164,
+				0.0,
+				0.72224
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-2.1226,
+				3.3434,
+				4.8569
+			],
+			"x": [
+				0.55315,
+				-0.0,
+				0.83308
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.83308,
+				0.0,
+				0.55315
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4901,
+				-0.018,
+				3.1613
+			],
+			"x": [
+				0.55315,
+				0.0,
+				0.83308
+			],
+			"y": [
+				-0.83308,
+				0.0,
+				0.55315
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-3.9025,
+				-0.05,
+				3.7988
+			],
+			"x": [
+				0.14385,
+				-0.0,
+				0.9896
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.9896,
+				0.0,
+				0.14385
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-3.7084,
+				0.0,
+				4.7662
+			],
+			"x": [
+				0.35718,
+				-0.0,
+				0.93404
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.93404,
+				0.0,
+				0.35718
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-2.5971,
+				3.3434,
+				3.5761
+			],
+			"x": [
+				0.14385,
+				-0.0,
+				0.9896
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.9896,
+				0.0,
+				0.14385
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4897,
+				-0.018,
+				3.1603
+			],
+			"x": [
+				0.14385,
+				0.0,
+				0.9896
+			],
+			"y": [
+				-0.9896,
+				0.0,
+				0.14385
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-3.7537,
+				-0.05,
+				1.8585
+			],
+			"x": [
+				-0.29308,
+				0.0,
+				0.95609
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.95609,
+				0.0,
+				-0.29308
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-3.9918,
+				0.0,
+				2.8161
+			],
+			"x": [
+				-0.07648,
+				0.0,
+				0.99707
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99707,
+				0.0,
+				-0.07648
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-2.4784,
+				3.3434,
+				2.2153
+			],
+			"x": [
+				-0.29308,
+				0.0,
+				0.95609
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.95609,
+				0.0,
+				-0.29308
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4898,
+				-0.018,
+				3.1593
+			],
+			"x": [
+				-0.29308,
+				0.0,
+				0.95609
+			],
+			"y": [
+				-0.95609,
+				0.0,
+				-0.29308
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_window_panel",
+			"at": [
+				-2.7895,
+				-0.05,
+				0.1682
+			],
+			"x": [
+				-0.67373,
+				0.0,
+				0.73898
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.73898,
+				0.0,
+				-0.67373
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.22
+			],
+			"layer": 1,
+			"model": "dome_window_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-3.4143,
+				0.0,
+				0.932
+			],
+			"x": [
+				-0.49544,
+				0.0,
+				0.86864
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.86864,
+				0.0,
+				-0.49544
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-1.7892,
+				3.3434,
+				1.036
+			],
+			"x": [
+				-0.67373,
+				0.0,
+				0.73898
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.73898,
+				0.0,
+				-0.67373
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4903,
+				-0.018,
+				3.1585
+			],
+			"x": [
+				-0.67373,
+				0.0,
+				0.73898
+			],
+			"y": [
+				-0.73898,
+				0.0,
+				-0.67373
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_wall_panel",
+			"at": [
+				-1.1801,
+				-0.05,
+				-0.9106
+			],
+			"x": [
+				-0.925,
+				0.0,
+				0.37997
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.37997,
+				0.0,
+				-0.925
+			],
+			"size": [
+				1.9719,
+				3.45,
+				0.14
+			],
+			"layer": 1,
+			"model": "dome_wall_panel_3"
+		},
+		{
+			"kind": "camp_dome_rib",
+			"at": [
+				-2.0866,
+				0.0,
+				-0.5242
+			],
+			"x": [
+				-0.81927,
+				0.0,
+				0.57341
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.57341,
+				0.0,
+				-0.81927
+			],
+			"size": [
+				0.14,
+				3.4,
+				0.126
+			],
+			"layer": 1,
+			"model": "dome_rib_1"
+		},
+		{
+			"kind": "camp_dome_ceiling_gore",
+			"at": [
+				-0.6621,
+				3.3434,
+				0.2645
+			],
+			"x": [
+				-0.925,
+				0.0,
+				0.37997
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.37997,
+				0.0,
+				-0.925
+			],
+			"size": [
+				2.043,
+				2.0944,
+				2.7928
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"rings": [
+					[
+						4.5,
+						3.4
+					],
+					[
+						4.408,
+						3.9176
+					],
+					[
+						4.1383,
+						4.4
+					],
+					[
+						3.7092,
+						4.8142
+					],
+					[
+						3.15,
+						5.1321
+					],
+					[
+						2.4988,
+						5.3319
+					],
+					[
+						1.8,
+						5.4
+					]
+				],
+				"origin_radius": 4.3907,
+				"origin_height": 3.4
+			},
+			"model": "dome_ceiling_gore_5"
+		},
+		{
+			"kind": "camp_dome_deck_wedge",
+			"at": [
+				0.4911,
+				-0.018,
+				3.1579
+			],
+			"x": [
+				-0.925,
+				0.0,
+				0.37997
+			],
+			"y": [
+				-0.37997,
+				0.0,
+				-0.925
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				2.007,
+				4.4664,
+				0.044
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"reach": 4.58
+			},
+			"model": "dome_deck_wedge_5"
+		},
+		{
+			"kind": "camp_dome_roof_cap",
+			"at": [
+				0.492,
+				5.395,
+				4.96
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				3.6,
+				3.6,
+				0.11
+			],
+			"layer": 1,
+			"model": "dome_roof_cap_2"
+		},
+		{
+			"kind": "camp_dome_roof_cap",
+			"at": [
+				0.492,
+				5.3825,
+				3.76
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.2,
+				0.035
+			],
+			"layer": 1,
+			"model": "dome_roof_cap_2_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_shell_gore_open",
+			"at": [
+				0.7433,
+				3.0,
+				0.6821
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				-0.0,
+				0.9949
+			],
+			"size": [
+				2.6464,
+				3.1,
+				4.9427
+			],
+			"layer": 1,
+			"arc": {
+				"half": 15.466,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.7708,
+				"origin_height": -0.7,
+				"from": 3.0
+			},
+			"model": "shell_gore_open_2"
+		},
+		{
+			"kind": "camp_shell_gore",
+			"at": [
+				1.8817,
+				-0.7,
+				1.0929
+			],
+			"x": [
+				0.82988,
+				-0.0,
+				0.55794
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55794,
+				-0.0,
+				0.82988
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9425
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				3.4903,
+				-1.062,
+				-1.2997
+			],
+			"x": [
+				0.82988,
+				-0.0,
+				0.55794
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.55794,
+				-0.0,
+				0.82988
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore",
+			"at": [
+				2.6321,
+				-0.7,
+				1.8856
+			],
+			"x": [
+				0.51165,
+				-0.0,
+				0.85919
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.85919,
+				-0.0,
+				0.51165
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9425
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				5.1092,
+				-1.062,
+				0.4105
+			],
+			"x": [
+				0.51165,
+				-0.0,
+				0.85919
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.85919,
+				-0.0,
+				0.51165
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				2.9804,
+				-0.7,
+				2.9221
+			],
+			"x": [
+				0.09517,
+				-0.0,
+				0.99546
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99546,
+				-0.0,
+				0.09517
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				5.8415,
+				-1.062,
+				2.6486
+			],
+			"x": [
+				0.09517,
+				-0.0,
+				0.99546
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99546,
+				-0.0,
+				0.09517
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				2.8432,
+				-0.7,
+				4.0089
+			],
+			"x": [
+				-0.33959,
+				0.0,
+				0.94057
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.94057,
+				-0.0,
+				-0.33959
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				5.5465,
+				-1.062,
+				4.9849
+			],
+			"x": [
+				-0.33959,
+				0.0,
+				0.94057
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.94057,
+				-0.0,
+				-0.33959
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				2.2545,
+				-0.7,
+				4.9326
+			],
+			"x": [
+				-0.70914,
+				0.0,
+				0.70507
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.70507,
+				-0.0,
+				-0.70914
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				4.281,
+				-1.062,
+				6.9708
+			],
+			"x": [
+				-0.70914,
+				0.0,
+				0.70507
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.70507,
+				-0.0,
+				-0.70914
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				1.3274,
+				-0.7,
+				5.5161
+			],
+			"x": [
+				-0.94251,
+				0.0,
+				0.33417
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.33417,
+				-0.0,
+				-0.94251
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				2.2878,
+				-1.062,
+				8.225
+			],
+			"x": [
+				-0.94251,
+				0.0,
+				0.33417
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.33417,
+				-0.0,
+				-0.94251
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore",
+			"at": [
+				0.2407,
+				-0.7,
+				5.6381
+			],
+			"x": [
+				-0.9949,
+				0.0,
+				-0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.1009,
+				-0.0,
+				-0.9949
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9425
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-0.0502,
+				-1.062,
+				8.5065
+			],
+			"x": [
+				-0.9949,
+				0.0,
+				-0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.1009,
+				-0.0,
+				-0.9949
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-0.7994,
+				-0.7,
+				5.3004
+			],
+			"x": [
+				-0.85623,
+				0.0,
+				-0.51659
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.51659,
+				-0.0,
+				-0.85623
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-2.2841,
+				-1.062,
+				7.7613
+			],
+			"x": [
+				-0.85623,
+				0.0,
+				-0.51659
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.51659,
+				-0.0,
+				-0.85623
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-1.5906,
+				-0.7,
+				4.5428
+			],
+			"x": [
+				-0.55315,
+				0.0,
+				-0.83308
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83308,
+				-0.0,
+				-0.55315
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-3.9849,
+				-1.062,
+				6.1326
+			],
+			"x": [
+				-0.55315,
+				0.0,
+				-0.83308
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.83308,
+				-0.0,
+				-0.55315
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-1.9818,
+				-0.7,
+				3.5195
+			],
+			"x": [
+				-0.14385,
+				0.0,
+				-0.9896
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.9896,
+				-0.0,
+				-0.14385
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-4.826,
+				-1.062,
+				3.933
+			],
+			"x": [
+				-0.14385,
+				0.0,
+				-0.9896
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.9896,
+				-0.0,
+				-0.14385
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-1.898,
+				-0.7,
+				2.4274
+			],
+			"x": [
+				0.29308,
+				0.0,
+				-0.95609
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.95609,
+				-0.0,
+				0.29308
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-4.6459,
+				-1.062,
+				1.585
+			],
+			"x": [
+				0.29308,
+				0.0,
+				-0.95609
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.95609,
+				-0.0,
+				0.29308
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore_window",
+			"at": [
+				-1.3553,
+				-0.7,
+				1.4759
+			],
+			"x": [
+				0.67373,
+				0.0,
+				-0.73898
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.73898,
+				-0.0,
+				0.67373
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9605
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_window_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-3.4792,
+				-1.062,
+				-0.4605
+			],
+			"x": [
+				0.67373,
+				0.0,
+				-0.73898
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.73898,
+				-0.0,
+				0.67373
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_shell_gore",
+			"at": [
+				-0.4544,
+				-0.7,
+				0.856
+			],
+			"x": [
+				0.925,
+				0.0,
+				-0.37997
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.37997,
+				-0.0,
+				0.925
+			],
+			"size": [
+				2.1744,
+				6.8,
+				4.9425
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7
+			},
+			"model": "shell_gore_3"
+		},
+		{
+			"kind": "camp_foot_ring",
+			"at": [
+				-1.5499,
+				-1.062,
+				-1.8108
+			],
+			"x": [
+				0.925,
+				0.0,
+				-0.37997
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.37997,
+				-0.0,
+				0.925
+			],
+			"size": [
+				2.4863,
+				1.224,
+				1.2853
+			],
+			"layer": 1,
+			"arc": {
+				"half": 12.6565,
+				"out": 4.95,
+				"foot": -0.7,
+				"shoulder": 3.5,
+				"rise": 2.6,
+				"origin_radius": 4.8297,
+				"origin_height": -0.7,
+				"middle": 5.5,
+				"high": -0.45,
+				"thick": 0.6
+			},
+			"model": "foot_ring_3"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				2.6354,
+				5.1342,
+				4.7475
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.7,
+				0.7,
+				0.14
+			],
+			"layer": 1,
+			"model": "ring_lamp_1"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				2.6354,
+				5.0517,
+				4.7325
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.67,
+				0.67,
+				0.025
+			],
+			"layer": 1,
+			"model": "ring_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				-1.6514,
+				5.1342,
+				4.7475
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.7,
+				0.7,
+				0.14
+			],
+			"layer": 1,
+			"model": "ring_lamp_1"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				-1.6514,
+				5.0517,
+				4.7325
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.67,
+				0.67,
+				0.025
+			],
+			"layer": 1,
+			"model": "ring_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				0.492,
+				5.1342,
+				1.035
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.7,
+				0.7,
+				0.14
+			],
+			"layer": 1,
+			"model": "ring_lamp_1"
+		},
+		{
+			"kind": "camp_ring_lamp",
+			"at": [
+				0.492,
+				5.0517,
+				1.02
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				0.67,
+				0.67,
+				0.025
+			],
+			"layer": 1,
+			"model": "ring_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_wall_net",
+			"at": [
+				2.9065,
+				2.05,
+				-0.4314
+			],
+			"x": [
+				-0.82988,
+				0.0,
+				-0.55794
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.55794,
+				0.0,
+				-0.82988
+			],
+			"size": [
+				1.2,
+				0.8,
+				0.126
+			],
+			"layer": 1,
+			"model": "wall_net_1"
+		},
+		{
+			"kind": "camp_wall_net",
+			"at": [
+				4.2103,
+				2.05,
+				0.9457
+			],
+			"x": [
+				-0.51165,
+				0.0,
+				-0.85919
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.85919,
+				0.0,
+				-0.51165
+			],
+			"size": [
+				1.2,
+				0.8,
+				0.126
+			],
+			"layer": 1,
+			"model": "wall_net_1"
+		},
+		{
+			"kind": "camp_wall_net",
+			"at": [
+				0.0554,
+				2.05,
+				7.4656
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"size": [
+				1.2,
+				0.8,
+				0.126
+			],
+			"layer": 1,
+			"model": "wall_net_1"
+		},
+		{
+			"kind": "camp_wall_net",
+			"at": [
+				-1.1524,
+				2.05,
+				-0.8431
+			],
+			"x": [
+				-0.925,
+				0.0,
+				0.37997
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.37997,
+				0.0,
+				-0.925
+			],
+			"size": [
+				1.2,
+				0.8,
+				0.126
+			],
+			"layer": 1,
+			"model": "wall_net_1"
+		},
+		{
+			"kind": "camp_passage_lining",
+			"at": [
+				0.9895,
+				-0.05,
+				-1.7449
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"size": [
+				2.56,
+				2.73,
+				1.186
+			],
+			"layer": 1,
+			"arc": {
+				"length": 1.186,
+				"wide": 2.4,
+				"tall": 2.6
+			},
+			"model": "passage_lining_1"
+		},
+		{
+			"kind": "camp_passage_hull",
+			"at": [
+				0.9895,
+				-0.7,
+				-1.7449
+			],
+			"x": [
+				0.9949,
+				-0.0,
+				0.1009
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.1009,
+				0.0,
+				0.9949
+			],
+			"size": [
+				3.104,
+				3.652,
+				1.186
+			],
+			"layer": 1,
+			"arc": {
+				"length": 1.186,
+				"half_wide": 1.5,
+				"top": 2.9,
+				"foot": -0.7
+			},
+			"model": "passage_hull_1"
+		},
+		{
+			"kind": "camp_partition",
+			"at": [
+				0.6227,
+				-0.01,
+				4.2455
+			],
+			"x": [
+				-0.99283,
+				0.0,
+				0.11954
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.11954,
+				0.0,
+				-0.99283
+			],
+			"size": [
+				8.7303,
+				3.07,
+				0.2
+			],
+			"layer": 1,
+			"arc": {
+				"length": 8.7303,
+				"tall": 3.0,
+				"thick": 0.12,
+				"door_at": 2.2,
+				"door": [
+					1.2,
+					2.3
+				]
+			},
+			"model": "partition_1"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				-1.1981,
+				2.86,
+				-5.7086
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.36,
+				2.38,
+				0.36
+			],
+			"layer": 1,
+			"model": "rod_lamp_1"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				-1.1981,
+				2.84,
+				-5.7086
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "rod_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				2.9944,
+				2.86,
+				-4.4269
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.36,
+				2.38,
+				0.36
+			],
+			"layer": 1,
+			"model": "rod_lamp_1"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				2.9944,
+				2.84,
+				-4.4269
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "rod_lamp_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				2.3769,
+				2.86,
+				-9.4662
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.36,
+				2.5,
+				0.36
+			],
+			"layer": 1,
+			"model": "rod_lamp_2"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				2.3769,
+				2.84,
+				-9.4662
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "rod_lamp_2_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				-1.1139,
+				2.86,
+				1.3765
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.36,
+				2.48,
+				0.36
+			],
+			"layer": 1,
+			"model": "rod_lamp_3"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				-1.1139,
+				2.84,
+				1.3765
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "rod_lamp_3_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				1.9696,
+				2.86,
+				1.2688
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.36,
+				2.48,
+				0.36
+			],
+			"layer": 1,
+			"model": "rod_lamp_3"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				1.9696,
+				2.84,
+				1.2688
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "rod_lamp_3_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				-0.228,
+				2.86,
+				5.76
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.36,
+				2.41,
+				0.36
+			],
+			"layer": 1,
+			"model": "rod_lamp_4"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				-0.228,
+				2.84,
+				5.76
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "rod_lamp_4_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				3.6098,
+				0.0,
+				-6.0967
+			],
+			"x": [
+				-0.682,
+				0.0,
+				-0.73135
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.73135,
+				0.0,
+				-0.682
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				-0.7897,
+				0.0,
+				-7.5617
+			],
+			"x": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.25882,
+				-0.0,
+				0.96593
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				4.0398,
+				0.0,
+				-7.1576
+			],
+			"x": [
+				-0.76604,
+				0.0,
+				-0.64279
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.64279,
+				0.0,
+				-0.76604
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				0.0156,
+				0.0,
+				-5.4207
+			],
+			"x": [
+				0.41469,
+				0.0,
+				-0.90996
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.90996,
+				-0.0,
+				0.41469
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				1.8616,
+				0.0,
+				-9.5651
+			],
+			"x": [
+				-0.64279,
+				0.0,
+				0.76604
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.76604,
+				0.0,
+				-0.64279
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				-1.3191,
+				0.0,
+				3.0101
+			],
+			"x": [
+				0.9205,
+				0.0,
+				0.39073
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.39073,
+				0.0,
+				0.9205
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				-0.0536,
+				0.0,
+				1.2971
+			],
+			"x": [
+				0.78801,
+				0.0,
+				0.61566
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.61566,
+				0.0,
+				0.78801
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				1.0666,
+				0.0,
+				1.3823
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				0.70711
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.70711,
+				0.0,
+				-0.70711
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				-0.5647,
+				0.0,
+				4.8835
+			],
+			"x": [
+				0.96593,
+				0.0,
+				-0.25882
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.25882,
+				-0.0,
+				0.96593
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_floor_cable",
+			"at": [
+				2.5174,
+				0.0,
+				3.2176
+			],
+			"x": [
+				-0.74314,
+				0.0,
+				0.66913
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.66913,
+				0.0,
+				-0.74314
+			],
+			"size": [
+				3.0517,
+				0.05,
+				0.1838
+			],
+			"layer": 1,
+			"model": "floor_cable_1"
+		}
+	]
+}

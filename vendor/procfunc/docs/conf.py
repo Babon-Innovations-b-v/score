@@ -1,0 +1,510 @@
+import importlib
+import inspect
+import os
+import re
+import sys
+from pathlib import Path
+
+from docutils import nodes as _docnodes
+from sphinx import addnodes as _addnodes
+from sphinx.util.nodes import make_refnode as _make_refnode
+
+import procfunc
+from procfunc.transpiler.main import TRANSPILE_TRANSFORM_REFS
+
+project = "procfunc"
+author = "Princeton Vision & Learning Lab"
+release = procfunc.__version__
+
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinxarg.ext",
+]
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "bpy": ("https://docs.blender.org/api/4.2", None),
+}
+
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+    "show-inheritance": True,
+    "member-order": "bysource",
+    "special-members": True,
+}
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "all"
+autodoc_class_signature = "separated"
+autodoc_preserve_defaults = True
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+
+exclude_patterns = ["_build"]
+
+html_theme = "sphinx_rtd_theme"
+html_title = f"procfunc {release}"
+
+linkcheck_timeout = 15
+linkcheck_retries = 2
+linkcheck_workers = 8
+linkcheck_anchors = True
+linkcheck_ignore: list[str] = []
+
+
+# Every entry becomes one long page. We enumerate the module's public names
+# (``__all__`` if defined, otherwise everything not starting with ``_``) and
+# emit an ``automodule`` block per submodule. Adding or removing a name from
+# the package's ``__init__.py`` controls what shows up here on the next build.
+DOC_PACKAGES = {
+    "top_level": ("procfunc", "procfunc"),
+    "compute_graph": ("procfunc.compute_graph", "pf.compute_graph"),
+    "nodes": ("procfunc.nodes", "pf.nodes"),
+    "ops": ("procfunc.ops", "pf.ops"),
+    "tracer": ("procfunc.tracer", "pf.tracer"),
+    "transforms": ("procfunc.transforms", "pf.transforms"),
+    "transpiler": ("procfunc.transpiler", "pf.transpiler"),
+    "codegen": ("procfunc.codegen", "pf.codegen"),
+    "types": ("procfunc.types", "pf.types"),
+}
+
+# Command-line entry points rendered with sphinx-argparse on a dedicated
+# ``cli`` page. Each entry is ``(script name, parser module, parser factory)``
+# and the named function must return a configured ``argparse.ArgumentParser``.
+CLI_SCRIPTS: list[tuple[str, str, str]] = [
+    ("procfunc", "procfunc.cli", "get_parser"),
+]
+CLI_PAGE_SLUG = "cli"
+CLI_PAGE_TITLE = "Command-line interface"
+
+_BLENDER_DOCS = "https://docs.blender.org/api/current"
+
+# Blender/mathutils names re-exported from ``procfunc`` for convenience. They
+# are kept importable (e.g. ``pf.Vector``) but deliberately excluded from the
+# top-level page's autodoc; this table links out to Blender's own docs instead.
+# Values are ``(canonical dotted name, URL)`` — the dotted name is rendered as
+# the alias-of text on the top-level page.
+BLENDER_REEXPORT_URLS: dict[str, tuple[str, str]] = {
+    "Vector": ("mathutils.Vector", f"{_BLENDER_DOCS}/mathutils.html#mathutils.Vector"),
+    "Color": ("mathutils.Color", f"{_BLENDER_DOCS}/mathutils.html#mathutils.Color"),
+    "Euler": ("mathutils.Euler", f"{_BLENDER_DOCS}/mathutils.html#mathutils.Euler"),
+    "Quaternion": (
+        "mathutils.Quaternion",
+        f"{_BLENDER_DOCS}/mathutils.html#mathutils.Quaternion",
+    ),
+    "Matrix": ("mathutils.Matrix", f"{_BLENDER_DOCS}/mathutils.html#mathutils.Matrix"),
+    "BVHTree": (
+        "mathutils.bvhtree.BVHTree",
+        f"{_BLENDER_DOCS}/mathutils.bvhtree.html#mathutils.bvhtree.BVHTree",
+    ),
+    "NodeGroup": ("bpy.types.NodeGroup", f"{_BLENDER_DOCS}/bpy.types.NodeGroup.html"),
+    "Scene": ("bpy.types.Scene", f"{_BLENDER_DOCS}/bpy.types.Scene.html"),
+    "ViewLayer": ("bpy.types.ViewLayer", f"{_BLENDER_DOCS}/bpy.types.ViewLayer.html"),
+}
+
+
+def _public_names(mod) -> list[str]:
+    names = getattr(mod, "__all__", None)
+    if names is None:
+        names = [n for n in dir(mod) if not n.startswith("_")]
+    return list(names)
+
+
+def _doc_slug_for(modname: str) -> str | None:
+    for slug, (name, _title) in DOC_PACKAGES.items():
+        if name == modname:
+            return slug
+    return None
+
+
+def _numpy_canonical(cls) -> str:
+    """Dotted numpy path for ``cls``, dropping private submodule segments.
+
+    e.g. ``numpy.random._generator.Generator`` → ``numpy.random.Generator``.
+    """
+    mod_parts = [p for p in cls.__module__.split(".") if not p.startswith("_")]
+    return ".".join(mod_parts + [cls.__qualname__])
+
+
+def _alias_entry(n: str, obj, role: str) -> str:
+    """Format one bullet line for a re-exported name on the top-level page."""
+    if n in BLENDER_REEXPORT_URLS:
+        alias, url = BLENDER_REEXPORT_URLS[n]
+        return f"* ``pf.{n}`` — alias of `{alias} <{url}>`_"
+    canonical = getattr(obj, "__module__", "") or ""
+    if canonical.startswith("procfunc"):
+        parts = canonical.split(".")
+        subpkg = ".".join(parts[:2]) if len(parts) >= 2 else canonical
+        return f"* :{role}:`pf.{n} <{subpkg}.{n}>`"
+    if canonical.startswith("numpy") and inspect.isclass(obj):
+        target = _numpy_canonical(obj)
+        return f"* ``pf.{n}`` — alias of :class:`{target}`"
+    if canonical:
+        return f"* ``pf.{n}`` — alias of ``{canonical}.{n}``"
+    return f"* ``pf.{n}``"
+
+
+_PACKAGE_TEMPLATE = """\
+{title}
+{title_underline}
+
+.. automodule:: {modname}
+   :members:
+   :imported-members:
+   :undoc-members:
+{submodule_sections}
+"""
+
+
+def _emit_cli_page(out_dir: Path) -> None:
+    """Write a dedicated ``cli.rst`` page rendering each CLI script with sphinx-argparse."""
+    blocks = [CLI_PAGE_TITLE, "=" * len(CLI_PAGE_TITLE), ""]
+    for script, parser_module, parser_func in CLI_SCRIPTS:
+        blocks.append(f"``{script}``")
+        blocks.append("-" * (len(script) + 4))
+        blocks.append("")
+        blocks.append(".. argparse::")
+        blocks.append(f"   :module: {parser_module}")
+        blocks.append(f"   :func: {parser_func}")
+        blocks.append(f"   :prog: {script}")
+        blocks.append("")
+
+    blocks.append("``--transforms`` choices")
+    blocks.append("~~~~~~~~~~~~~~~~~~~~~~~~")
+    blocks.append("")
+    blocks.append(
+        "Each ``--transforms`` choice wraps a function from :mod:`procfunc.transforms`:"
+    )
+    blocks.append("")
+    for name, target in TRANSPILE_TRANSFORM_REFS.items():
+        blocks.append(f"* ``{name}`` — :func:`{target}`")
+    blocks.append("")
+    (out_dir / f"{CLI_PAGE_SLUG}.rst").write_text("\n".join(blocks))
+
+
+_TOPLEVEL_TEMPLATE = """\
+{title}
+{title_underline}
+
+Subpackages
+-----------
+
+The following submodules are accessible as attributes of ``procfunc``
+(e.g. ``pf.nodes``, ``pf.tracer``):
+
+{subpackage_list}
+
+Types
+-----
+
+The following types are importable directly from ``procfunc``.
+Internal types link to their canonical subpage; Blender/numpy
+aliases link to upstream docs.
+
+{type_list}
+
+Functions
+---------
+
+The following functions are importable directly from ``procfunc``.
+
+{func_list}
+"""
+
+
+def _emit_top_level_page(
+    slug: str, modname: str, title: str, mod, out_dir: Path
+) -> None:
+    submodules: list[str] = []
+    for n in _public_names(mod):
+        try:
+            attr = getattr(mod, n)
+        except AttributeError:
+            continue
+        if inspect.ismodule(attr) and attr.__name__.startswith(modname + "."):
+            submodules.append(attr.__name__)
+
+    type_entries: list[tuple[str, object]] = []
+    func_entries: list[tuple[str, object]] = []
+    for n in dir(mod):
+        if n.startswith("_"):
+            continue
+        try:
+            attr = getattr(mod, n)
+        except AttributeError:
+            continue
+        if inspect.ismodule(attr):
+            continue
+        if inspect.isclass(attr):
+            type_entries.append((n, attr))
+        elif callable(attr):
+            func_entries.append((n, attr))
+    type_entries.sort(key=lambda x: x[0].lower())
+    func_entries.sort(key=lambda x: x[0].lower())
+
+    subpackage_lines = []
+    for sub in submodules:
+        short = sub[len(modname) + 1 :]
+        target_slug = _doc_slug_for(sub)
+        if target_slug is not None:
+            subpackage_lines.append(f"* ``pf.{short}`` — :doc:`{target_slug}`")
+        else:
+            subpackage_lines.append(f"* ``pf.{short}`` — :mod:`{sub}`")
+
+    rst = _TOPLEVEL_TEMPLATE.format(
+        title=title,
+        title_underline="=" * len(title),
+        modname=modname,
+        subpackage_list="\n".join(subpackage_lines),
+        type_list="\n".join(_alias_entry(n, obj, "class") for n, obj in type_entries),
+        func_list="\n".join(_alias_entry(n, obj, "func") for n, obj in func_entries),
+    )
+    (out_dir / f"{slug}.rst").write_text(rst)
+
+
+def _emit_package_page(slug: str, modname: str, title: str, out_dir: Path) -> None:
+    mod = importlib.import_module(modname)
+    if modname == "procfunc":
+        _emit_top_level_page(slug, modname, title, mod, out_dir)
+        return
+
+    # Only submodules explicitly listed in __all__ get their own subsection;
+    # everything else is documented under the package's :imported-members:
+    # block at the package's public path.
+    all_names = getattr(mod, "__all__", None) or []
+    category_submodules: list[str] = []
+    for n in all_names:
+        attr = getattr(mod, n, None)
+        if inspect.ismodule(attr) and attr.__name__.startswith(modname + "."):
+            category_submodules.append(attr.__name__)
+
+    short_prefix = modname.replace("procfunc", "pf")
+    submodule_sections = ""
+    if category_submodules:
+        blocks = []
+        for sub in category_submodules:
+            short = sub.split(".")[-1]
+            header = f"``{short_prefix}.{short}``"
+            blocks.append(
+                f"{header}\n{'-' * len(header)}\n\n"
+                f".. automodule:: {sub}\n"
+                f"   :members:\n   :undoc-members:\n"
+            )
+        submodule_sections = "\n" + "\n".join(blocks)
+
+    rst = _PACKAGE_TEMPLATE.format(
+        title=title,
+        title_underline="=" * len(title),
+        modname=modname,
+        submodule_sections=submodule_sections,
+    )
+    (out_dir / f"{slug}.rst").write_text(rst)
+
+
+def _generate(app, config):  # noqa: ARG001
+    out_dir = Path(app.srcdir)
+    for slug, (modname, title) in DOC_PACKAGES.items():
+        _emit_package_page(slug, modname, title, out_dir)
+    _emit_cli_page(out_dir)
+
+
+def _clean_exit(app, exception):
+    # bpy segfaults on interpreter teardown (see commit 10c0540); exit cleanly
+    # once the build has successfully produced its output.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0 if exception is None else 1)
+
+
+def _blender_docs_url(target: str) -> str | None:
+    """Return a URL on docs.blender.org for a dotted Blender API target.
+
+    Handles the references autodoc emits for signatures and docstrings, e.g.
+    ``bpy.types.Object``, ``bpy.types.Object.name``, ``mathutils.Vector``,
+    ``mathutils.bvhtree.BVHTree``. Returns None for anything we don't
+    recognise so Sphinx can report it as a real missing reference.
+    """
+    if target.startswith("bpy.types."):
+        tail = target[len("bpy.types.") :]
+        cls, _, attr = tail.partition(".")
+        anchor = f"#bpy.types.{cls}.{attr}" if attr else ""
+        return f"{_BLENDER_DOCS}/bpy.types.{cls}.html{anchor}"
+    if target.startswith("bpy.ops."):
+        tail = target[len("bpy.ops.") :]
+        cat, _, _ = tail.partition(".")
+        return f"{_BLENDER_DOCS}/bpy.ops.{cat}.html#{target}"
+    if target in ("bpy.data", "bpy.context", "bpy.app", "bpy.path", "bpy.utils"):
+        return f"{_BLENDER_DOCS}/{target}.html"
+    if target.startswith("bpy."):
+        head = target.split(".", 2)[1]
+        return f"{_BLENDER_DOCS}/bpy.{head}.html#{target}"
+    if target.startswith("mathutils.bvhtree."):
+        return f"{_BLENDER_DOCS}/mathutils.bvhtree.html#{target}"
+    if target.startswith("mathutils.kdtree."):
+        return f"{_BLENDER_DOCS}/mathutils.kdtree.html#{target}"
+    if target.startswith("mathutils.geometry."):
+        return f"{_BLENDER_DOCS}/mathutils.geometry.html#{target}"
+    if target.startswith("mathutils.noise."):
+        return f"{_BLENDER_DOCS}/mathutils.noise.html#{target}"
+    if target.startswith("mathutils."):
+        return f"{_BLENDER_DOCS}/mathutils.html#{target}"
+    return None
+
+
+_NUMPY_DOCS = "https://numpy.org/doc/stable/reference"
+
+
+def _numpy_docs_url(target: str) -> str | None:
+    """Return a URL on numpy.org for a dotted numpy API target."""
+    if not target.startswith("numpy."):
+        return None
+    if target == "numpy.random.Generator" or target.startswith(
+        "numpy.random.Generator."
+    ):
+        tail = target[len("numpy.random.Generator") :]
+        return f"{_NUMPY_DOCS}/random/generator.html#numpy.random.Generator{tail}"
+    return f"{_NUMPY_DOCS}/generated/{target}.html"
+
+
+_DOC_PACKAGE_MODULES = frozenset(name for name, _ in DOC_PACKAGES.values())
+
+
+def _resolve_internal_inner_xref(app, env, node, contnode, target):
+    """Redirect inner-module xrefs to the package-level re-export path.
+
+    e.g. ``procfunc.compute_graph.node.Node`` → ``procfunc.compute_graph.Node``.
+    Returns None if no candidate exists in the py domain inventory.
+    """
+    parts = target.split(".")
+    if len(parts) < 4 or parts[0] != "procfunc":
+        return None
+    pkg = f"procfunc.{parts[1]}"
+    if pkg not in _DOC_PACKAGE_MODULES:
+        return None
+    candidate = f"{pkg}.{parts[-1]}"
+    domain = env.get_domain("py")
+    obj = domain.objects.get(candidate)
+    if obj is None:
+        return None
+    fromdocname = node.get("refdoc", env.docname)
+    return _make_refnode(
+        app.builder, fromdocname, obj.docname, obj.node_id, contnode, candidate
+    )
+
+
+def _resolve_external_xref(app, env, node, contnode):
+    target = node.get("reftarget", "")
+    url = _blender_docs_url(target) or _numpy_docs_url(target)
+    if url is None:
+        return _resolve_internal_inner_xref(app, env, node, contnode, target)
+    ref = _docnodes.reference("", "", internal=False, refuri=url, reftitle=target)
+    ref.append(contnode)
+    return ref
+
+
+_DUNDER_KEEP = frozenset({"__init__"})
+
+_DUNDER_SKIP_ALWAYS = frozenset(
+    {
+        "__annotations__",
+        "__dict__",
+        "__weakref__",
+        "__module__",
+        "__doc__",
+        "__slots__",
+        "__subclasshook__",
+        "__init_subclass__",
+        "__class_getitem__",
+        "__dataclass_fields__",
+        "__dataclass_params__",
+        "__match_args__",
+        "__orig_bases__",
+        "__parameters__",
+        "__post_init__",
+    }
+)
+
+
+def _skip_private(app, what, name, obj, skip, options):  # noqa: ARG001
+    if skip:
+        return skip
+    if name.startswith("_") and not (name.startswith("__") and name.endswith("__")):
+        return True
+    is_dunder = name.startswith("__") and name.endswith("__")
+    if is_dunder and name not in _DUNDER_KEEP:
+        return True
+    return None
+
+
+_OBJECT_DUNDERS = frozenset(
+    n for n in dir(object) if n.startswith("__") and n.endswith("__")
+)
+
+
+def _append_dunder_summary(app, what, name, obj, options, lines):  # noqa: ARG001
+    if what != "class" or not inspect.isclass(obj):
+        return
+    dunders = sorted(
+        n
+        for n in dir(obj)
+        if n.startswith("__")
+        and n.endswith("__")
+        and n not in _DUNDER_KEEP
+        and n not in _DUNDER_SKIP_ALWAYS
+        and n not in _OBJECT_DUNDERS
+        and callable(getattr(obj, n, None))
+    )
+    if not dunders:
+        return
+    summary = ", ".join(f"``{d}``" for d in dunders)
+    lines.append("")
+    lines.append(f"**Supported special methods:** {summary}")
+    lines.append("")
+
+
+_FIELD_ALIAS_RE = re.compile(r"^Alias for field number \d+$")
+
+
+def _strip_namedtuple_boilerplate(app, what, name, obj, options, lines):  # noqa: ARG001
+    """Drop the auto-generated docstrings ``NamedTuple`` synthesises.
+
+    Field descriptors get ``Alias for field number N`` and the class itself
+    gets a ``Name(field, ...)`` signature line — both pure noise beside the
+    field name and type annotation autodoc already renders.
+    """
+    if what == "attribute" and lines and _FIELD_ALIAS_RE.match(lines[0]):
+        lines.clear()
+        return
+    if what == "class" and inspect.isclass(obj) and issubclass(obj, tuple):
+        fields = getattr(obj, "_fields", None)
+        if fields is None:
+            return
+        signature = f"{obj.__name__}({', '.join(fields)})"
+        if lines and lines[0] == signature:
+            lines.clear()
+
+
+def _move_dunder_summaries(app, doctree, docname):  # noqa: ARG001
+    for para in list(doctree.findall(_docnodes.paragraph)):
+        if not para.astext().startswith("Supported special methods:"):
+            continue
+        parent = para.parent
+        if not isinstance(parent, _addnodes.desc_content):
+            continue
+        parent.remove(para)
+        parent.append(para)
+
+
+def setup(app):
+    app.connect("config-inited", _generate)
+    app.connect("missing-reference", _resolve_external_xref)
+    app.connect("autodoc-skip-member", _skip_private)
+    app.connect("autodoc-process-docstring", _strip_namedtuple_boilerplate)
+    app.connect("autodoc-process-docstring", _append_dunder_summary)
+    app.connect("doctree-resolved", _move_dunder_summaries)
+    app.connect("build-finished", _clean_exit)
+    return {"parallel_read_safe": True}

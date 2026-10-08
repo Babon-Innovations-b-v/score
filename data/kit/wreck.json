@@ -1,0 +1,446 @@
+{
+	"place": "wreck",
+	"on_seat": [
+		0.0,
+		0.0
+	],
+	"pieces": [
+		{
+			"prop": "wreck_aft_section",
+			"kind": "wreck_aft_section",
+			"model": "aft_section",
+			"row": "aft_section",
+			"size": [
+				10.3,
+				6.945,
+				8.091
+			],
+			"at": [
+				0.0,
+				-0.3,
+				-7.35
+			],
+			"facing": 90.0
+		},
+		{
+			"prop": "wreck_forward_section",
+			"kind": "wreck_forward_section",
+			"model": "forward_section",
+			"row": "forward_section",
+			"size": [
+				4.714,
+				5.5,
+				5.446
+			],
+			"at": [
+				0.9,
+				-0.25,
+				1.9
+			],
+			"facing": 115.0
+		},
+		{
+			"prop": "wreck_work_lamp",
+			"kind": "wreck_work_lamp",
+			"model": "work_lamp",
+			"row": "work_lamp",
+			"size": [
+				0.211,
+				0.35,
+				0.286
+			],
+			"at": [
+				0.4,
+				0.0,
+				-1.5
+			],
+			"facing": 60.0
+		},
+		{
+			"prop": "wreck_hull_panel",
+			"kind": "wreck_hull_panel",
+			"model": "hull_panel",
+			"row": "hull_panel",
+			"size": [
+				1.4,
+				0.652,
+				1.369
+			],
+			"at": [
+				-6.0,
+				0.0,
+				2.0
+			],
+			"facing": 30.0,
+			"scale": 1.0
+		},
+		{
+			"prop": "wreck_hull_panel",
+			"kind": "wreck_hull_panel",
+			"model": "hull_panel",
+			"row": "hull_panel",
+			"size": [
+				1.4,
+				0.652,
+				1.369
+			],
+			"at": [
+				5.5,
+				0.0,
+				6.0
+			],
+			"facing": 200.0,
+			"scale": 0.86
+		},
+		{
+			"prop": "wreck_hull_panel",
+			"kind": "wreck_hull_panel",
+			"model": "hull_panel",
+			"row": "hull_panel",
+			"size": [
+				1.4,
+				0.652,
+				1.369
+			],
+			"at": [
+				6.5,
+				0.0,
+				-0.5
+			],
+			"facing": 110.0,
+			"scale": 0.72
+		},
+		{
+			"prop": "wreck_small_panel",
+			"kind": "wreck_small_panel",
+			"model": "small_panel",
+			"row": "small_panel",
+			"size": [
+				0.61,
+				0.466,
+				0.7
+			],
+			"at": [
+				4.0,
+				0.0,
+				-9.5
+			],
+			"facing": 75.0,
+			"scale": 1.0
+		},
+		{
+			"prop": "wreck_small_panel",
+			"kind": "wreck_small_panel",
+			"model": "small_panel",
+			"row": "small_panel",
+			"size": [
+				0.61,
+				0.466,
+				0.7
+			],
+			"at": [
+				-8.0,
+				0.0,
+				-2.0
+			],
+			"facing": 300.0,
+			"scale": 0.85
+		},
+		{
+			"prop": "wreck_pressure_sphere",
+			"kind": "wreck_pressure_sphere",
+			"model": "pressure_sphere",
+			"row": "pressure_sphere",
+			"size": [
+				0.711,
+				0.715,
+				0.9
+			],
+			"at": [
+				-9.0,
+				-0.1,
+				5.5
+			],
+			"facing": 0.0
+		},
+		{
+			"prop": "wreck_pressure_sphere",
+			"kind": "wreck_pressure_sphere",
+			"model": "pressure_sphere",
+			"row": "pressure_sphere",
+			"size": [
+				0.711,
+				0.715,
+				0.9
+			],
+			"at": [
+				8.0,
+				-0.1,
+				7.0
+			],
+			"facing": 140.0
+		},
+		{
+			"prop": "wreck_foil_blanket",
+			"kind": "wreck_foil_blanket",
+			"model": "foil_blanket",
+			"row": "foil_blanket",
+			"size": [
+				1.4,
+				0.18,
+				1.025
+			],
+			"at": [
+				-5.0,
+				0.0,
+				-4.5
+			],
+			"facing": 20.0
+		},
+		{
+			"prop": "wreck_access_cover",
+			"kind": "wreck_access_cover",
+			"model": "access_cover",
+			"row": "access_cover",
+			"size": [
+				0.898,
+				0.296,
+				0.9
+			],
+			"at": [
+				-4.5,
+				0.0,
+				8.5
+			],
+			"facing": 0.0
+		},
+		{
+			"prop": "wreck_leg_strut",
+			"kind": "wreck_leg_strut",
+			"model": "leg_strut",
+			"row": "leg_strut",
+			"size": [
+				1.003,
+				0.614,
+				1.35
+			],
+			"at": [
+				-7.0,
+				0.0,
+				-7.9
+			],
+			"facing": 65.0
+		},
+		{
+			"prop": "wreck_leg_foot",
+			"kind": "wreck_leg_foot",
+			"model": "leg_foot",
+			"row": "leg_foot",
+			"size": [
+				1.3,
+				0.487,
+				1.224
+			],
+			"at": [
+				-5.5,
+				0.0,
+				-9.7
+			],
+			"facing": 140.0
+		},
+		{
+			"prop": "wreck_ring_frame",
+			"kind": "wreck_ring_frame",
+			"model": "ring_frame",
+			"row": "ring_frame",
+			"size": [
+				1.3,
+				0.69,
+				0.238
+			],
+			"at": [
+				2.0,
+				0.0,
+				9.0
+			],
+			"facing": 10.0
+		},
+		{
+			"prop": "wreck_tank_dome",
+			"kind": "wreck_tank_dome",
+			"model": "tank_dome",
+			"row": "tank_dome",
+			"size": [
+				1.322,
+				0.665,
+				1.4
+			],
+			"at": [
+				6.0,
+				-0.05,
+				8.8
+			],
+			"facing": 0.0
+		},
+		{
+			"prop": "wreck_fragment",
+			"kind": "wreck_fragment",
+			"model": "fragment",
+			"row": "fragment",
+			"size": [
+				0.4,
+				0.188,
+				0.284
+			],
+			"at": [
+				5.0,
+				0.0,
+				3.0
+			],
+			"facing": 10.0,
+			"scale": 1.0
+		},
+		{
+			"prop": "wreck_fragment",
+			"kind": "wreck_fragment",
+			"model": "fragment",
+			"row": "fragment",
+			"size": [
+				0.4,
+				0.188,
+				0.284
+			],
+			"at": [
+				-6.0,
+				0.0,
+				8.8
+			],
+			"facing": 130.0,
+			"scale": 1.2
+		},
+		{
+			"prop": "wreck_fragment",
+			"kind": "wreck_fragment",
+			"model": "fragment",
+			"row": "fragment",
+			"size": [
+				0.4,
+				0.188,
+				0.284
+			],
+			"at": [
+				9.0,
+				0.0,
+				-3.5
+			],
+			"facing": 250.0,
+			"scale": 1.0
+		},
+		{
+			"prop": "wreck_cable_run_2p6",
+			"kind": "wreck_cable_bundle",
+			"model": "cable_run_2p6",
+			"row": "cable_run",
+			"size": [
+				2.6,
+				0.12,
+				0.06
+			],
+			"at": [
+				-0.5,
+				0.03,
+				-1.66
+			],
+			"facing": 0.0,
+			"tilt": 90.0
+		},
+		{
+			"prop": "wreck_cable_run_2p4",
+			"kind": "wreck_cable_bundle",
+			"model": "cable_run_2p4",
+			"row": "cable_run",
+			"size": [
+				2.4,
+				0.12,
+				0.06
+			],
+			"at": [
+				0.9084,
+				0.03,
+				-1.4594
+			],
+			"facing": 8.0,
+			"tilt": 90.0
+		},
+		{
+			"prop": "wreck_cable_run_1p4",
+			"kind": "wreck_cable_bundle",
+			"model": "cable_run_1p4",
+			"row": "cable_run",
+			"size": [
+				1.4,
+				0.12,
+				0.06
+			],
+			"at": [
+				-4.3656,
+				0.03,
+				-9.8491
+			],
+			"facing": 35.0,
+			"tilt": 90.0
+		}
+	],
+	"lamps": [],
+	"children": [],
+	"models": {
+		"aft_section": {
+			"route": "model"
+		},
+		"forward_section": {
+			"route": "model"
+		},
+		"work_lamp": {
+			"route": "model"
+		},
+		"hull_panel": {
+			"route": "model"
+		},
+		"small_panel": {
+			"route": "model"
+		},
+		"pressure_sphere": {
+			"route": "model"
+		},
+		"foil_blanket": {
+			"route": "model"
+		},
+		"access_cover": {
+			"route": "model"
+		},
+		"leg_strut": {
+			"route": "model"
+		},
+		"leg_foot": {
+			"route": "model"
+		},
+		"ring_frame": {
+			"route": "model"
+		},
+		"tank_dome": {
+			"route": "model"
+		},
+		"fragment": {
+			"route": "model"
+		},
+		"cable_run_2p6": {
+			"route": "code"
+		},
+		"cable_run_2p4": {
+			"route": "code"
+		},
+		"cable_run_1p4": {
+			"route": "code"
+		}
+	}
+}

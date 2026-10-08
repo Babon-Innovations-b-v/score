@@ -1,0 +1,1938 @@
+{
+	"scene": "workshop",
+	"place": "workshop",
+	"plan": {
+		"world": "",
+		"seed": 0,
+		"concept": "concepts-world1/workshop/concepts/K10.png",
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/workshop/concepts/K10.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the coordinator's pick for the owner (round two at 16 x 14 m: K10, runner-up K17; the owner's rule: build every place of world 1 without stopping, he reviews at the end); plan: the concept K10",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": [],
+		"layout": {
+			"inside": [
+				16.0,
+				14.0
+			],
+			"corner": 2.6,
+			"wall": 2.8,
+			"rise": 1.4,
+			"run": 1.6,
+			"doors": {
+				"north": "hatch",
+				"south": "hatch",
+				"east": "hatch",
+				"west": "hatch"
+			},
+			"open": [
+				"west"
+			],
+			"features": {
+				"north": {
+					"upper": "wall_upper_cables"
+				},
+				"south": {
+					"lower": "wall_lower_patched"
+				},
+				"west": {
+					"upper": "wall_upper_pipes"
+				}
+			},
+			"bays": {
+				"nw": [
+					-6.0,
+					-5.0,
+					4.0,
+					3.0
+				],
+				"ne": [
+					2.0,
+					-5.0,
+					4.0,
+					3.0
+				],
+				"sw": [
+					-6.0,
+					2.0,
+					4.0,
+					3.0
+				],
+				"se": [
+					2.0,
+					2.0,
+					4.0,
+					3.0
+				]
+			}
+		}
+	},
+	"rows": [
+		{
+			"id": "wall_lower_plain",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "plain lower wall panel, bolted, worn",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:workshop_wall_lower_plain",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_upper_plain",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "plain upper wall panel, bolted",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.7
+			],
+			"count": 1,
+			"thing": "prop:workshop_wall_upper_plain",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_lower_patched",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "a lower wall panel patched with a riveted plate over old damage",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:workshop_wall_lower_patched",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_upper_cables",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "an upper wall panel with bundled cables in clips running across it",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				1.7
+			],
+			"count": 1,
+			"thing": "prop:workshop_wall_upper_cables",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_upper_pipes",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "an upper wall panel with three pipes running across it on brackets",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.12,
+				1.7
+			],
+			"count": 1,
+			"thing": "prop:workshop_wall_upper_pipes",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_skirting",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "rubber skirting at the wall's foot",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:workshop_wall_skirting",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "wall_cornice",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "cornice along the wall's top",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.16,
+				0.18
+			],
+			"count": 1,
+			"thing": "prop:workshop_wall_cornice",
+			"made": "kit piece",
+			"group": "kit: wall",
+			"at": []
+		},
+		{
+			"id": "ring_floor_plate",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "deck plate, bolted, scuffed",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.04,
+				1.2
+			],
+			"count": 1,
+			"thing": "prop:workshop_ring_floor_plate",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": []
+		},
+		{
+			"id": "roof_face_panel",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "dome plate, ribbed",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				1.2,
+				0.05,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:workshop_roof_face_panel",
+			"made": "kit piece",
+			"group": "kit: ceiling",
+			"at": []
+		},
+		{
+			"id": "hatch_frame",
+			"view": "v1",
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
+			"name": "the heavy steel frame round a round-cornered pressure hatch opening, bolted, cut top corners",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.3,
+				2.693
+			],
+			"count": 1,
+			"thing": "prop:workshop_hatch_frame",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_leaf",
+			"view": "v1",
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
+			"name": "a thick steel pressure hatch door leaf with rounded corners and a round window",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.26,
+				0.12,
+				2.66
+			],
+			"count": 1,
+			"thing": "prop:workshop_hatch_leaf",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_wheel",
+			"view": "v1",
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
+			"name": "a steel locking hand wheel with four spokes on a hub, for a pressure hatch",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.08,
+				0.5
+			],
+			"count": 1,
+			"thing": "prop:workshop_hatch_wheel",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_hinge",
+			"view": "v1",
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
+			"name": "a heavy steel door hinge knuckle with a pin",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:workshop_hatch_hinge",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "hatch_window",
+			"view": "v1",
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
+			"name": "a small round thick glass porthole window with a bolted ring, set in a door",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.06,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:workshop_hatch_window",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": []
+		},
+		{
+			"id": "pipe_bracket",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "a steel wall bracket clamping a pipe",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.1
+			],
+			"count": 1,
+			"thing": "prop:workshop_pipe_bracket",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": []
+		},
+		{
+			"id": "pipe_straight",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "a straight steel pipe section with flanges at both ends",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.1,
+				0.1
+			],
+			"count": 10,
+			"thing": "prop:workshop_pipe_straight",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "north",
+					"across": -3.25,
+					"bottom": 2.3,
+					"size": [
+						3.5,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "north",
+					"across": -3.25,
+					"bottom": 2.46,
+					"size": [
+						3.5,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "north",
+					"across": 3.25,
+					"bottom": 2.3,
+					"size": [
+						3.5,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "north",
+					"across": 3.25,
+					"bottom": 2.46,
+					"size": [
+						3.5,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": -2.75,
+					"bottom": 2.5,
+					"size": [
+						2.9,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "east",
+					"across": 2.75,
+					"bottom": 2.5,
+					"size": [
+						2.9,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": -2.75,
+					"bottom": 2.5,
+					"size": [
+						2.9,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 2.75,
+					"bottom": 2.5,
+					"size": [
+						2.9,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "south",
+					"across": -3.25,
+					"bottom": 2.5,
+					"size": [
+						3.5,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "south",
+					"across": 3.25,
+					"bottom": 2.5,
+					"size": [
+						3.5,
+						0.1,
+						0.1
+					]
+				}
+			]
+		},
+		{
+			"id": "pipe_valve",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "an inline pipe valve with a red hand wheel",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.2,
+				0.3
+			],
+			"count": 5,
+			"thing": "prop:workshop_pipe_valve",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "north",
+					"across": -2.4,
+					"bottom": 2.2
+				},
+				{
+					"wall": "north",
+					"across": 4.1,
+					"bottom": 2.36
+				},
+				{
+					"wall": "east",
+					"across": 2.2,
+					"bottom": 2.4
+				},
+				{
+					"wall": "west",
+					"across": -2.6,
+					"bottom": 2.4
+				},
+				{
+					"wall": "south",
+					"across": 2.6,
+					"bottom": 2.4
+				}
+			]
+		},
+		{
+			"id": "door_strip_lamp",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "a strip lamp in a steel housing with a frosted lens, over a door",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.1,
+				0.08
+			],
+			"count": 5,
+			"thing": "prop:workshop_door_strip_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [
+				{
+					"wall": "north",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.1
+				},
+				{
+					"wall": "south",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.1
+				},
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.1
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 2.68,
+					"out": 0.1
+				},
+				{
+					"wall": "south",
+					"across": -3.6,
+					"bottom": 2.0
+				}
+			],
+			"light": {
+				"strength": 0.2,
+				"reach": 5.0,
+				"high": 0.5
+			}
+		},
+		{
+			"id": "door_control_box",
+			"view": "v1",
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
+			"name": "a steel door control box with a keypad, a status light and a label",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.26,
+				0.12,
+				0.36
+			],
+			"count": 4,
+			"thing": "prop:workshop_door_control_box",
+			"made": "kit piece",
+			"group": "kit: door",
+			"at": [
+				{
+					"wall": "north",
+					"across": 1.55,
+					"bottom": 1.2
+				},
+				{
+					"wall": "south",
+					"across": 1.55,
+					"bottom": 1.2
+				},
+				{
+					"wall": "east",
+					"across": 1.55,
+					"bottom": 1.2
+				},
+				{
+					"wall": "west",
+					"across": 1.55,
+					"bottom": 1.2
+				}
+			]
+		},
+		{
+			"id": "tread_mat",
+			"view": "v1",
+			"box": [
+				605,
+				880,
+				965,
+				1375
+			],
+			"name": "a tread-plate mat in front of a hatch, worn in the middle",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.02,
+				0.9
+			],
+			"count": 4,
+			"thing": "prop:workshop_tread_mat",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": [
+				{
+					"x": 0.0,
+					"z": -6.45,
+					"facing": 180
+				},
+				{
+					"x": 0.0,
+					"z": 6.45,
+					"facing": 0
+				},
+				{
+					"x": 7.45,
+					"z": 0.0,
+					"facing": 270
+				},
+				{
+					"x": -7.45,
+					"z": 0.0,
+					"facing": 90
+				}
+			],
+			"lies": "floor"
+		},
+		{
+			"id": "intercom_panel",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "a wall intercom panel with a speaker grille and a call button",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.25,
+				0.06,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:workshop_intercom_panel",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "south",
+					"across": -1.75,
+					"bottom": 1.25
+				}
+			]
+		},
+		{
+			"id": "conduit_box",
+			"view": "v1",
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
+			"name": "a small steel conduit junction box with cable glands",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.1,
+				0.2
+			],
+			"count": 6,
+			"thing": "prop:workshop_conduit_box",
+			"made": "kit piece",
+			"group": "kit: pipe",
+			"at": [
+				{
+					"wall": "north",
+					"across": 2.0,
+					"bottom": 1.6
+				},
+				{
+					"wall": "north",
+					"across": -5.0,
+					"bottom": 0.8
+				},
+				{
+					"wall": "east",
+					"across": 1.9,
+					"bottom": 1.6
+				},
+				{
+					"wall": "south",
+					"across": 1.9,
+					"bottom": 1.6
+				},
+				{
+					"wall": "south",
+					"across": -5.0,
+					"bottom": 1.5
+				},
+				{
+					"wall": "west",
+					"across": -1.9,
+					"bottom": 0.8
+				}
+			]
+		},
+		{
+			"id": "small_readout",
+			"view": "v1",
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
+			"name": "a small square wall readout screen with buttons beside it",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.06,
+				0.25
+			],
+			"count": 3,
+			"thing": "prop:workshop_small_readout",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "north",
+					"across": -1.75,
+					"bottom": 1.45
+				},
+				{
+					"wall": "east",
+					"across": 4.15,
+					"bottom": 1.85
+				},
+				{
+					"wall": "west",
+					"across": -4.25,
+					"bottom": 1.3
+				}
+			]
+		},
+		{
+			"id": "robot_bench",
+			"view": "v1",
+			"box": [
+				1130,
+				550,
+				1650,
+				950
+			],
+			"name": "robot assembly bench: steel base with drawer banks, a gooseneck ring lamp over the turning table, clamps for two screen arms",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.4,
+				1.12,
+				1.342
+			],
+			"count": 1,
+			"thing": "prop:workshop_robot_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 0.0,
+					"z": 0.0,
+					"facing": 180
+				}
+			],
+			"solid": false,
+			"why": "the game's Bench (bench.tscn) keeps the collision, the turning table and the parts tray"
+		},
+		{
+			"id": "tool_bench",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
+			"name": "heavy hand-tool bench, timber top on a steel frame, drawer unit",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				0.7,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:workshop_tool_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -3.6,
+					"y": 0.0,
+					"z": 6.570000000000001,
+					"facing": 0
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "toolboard",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
+			"name": "tool board with its hand tools",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.08,
+				0.8
+			],
+			"count": 1,
+			"thing": "prop:workshop_toolboard",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"wall": "south",
+					"across": -3.6,
+					"bottom": 1.08
+				}
+			]
+		},
+		{
+			"id": "rack",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
+			"name": "single steel locker (the plan painted lockers where the list said equipment racks)",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.6,
+				0.6,
+				1.9
+			],
+			"count": 1,
+			"thing": "prop:workshop_rack",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -5.0,
+					"y": 0.0,
+					"z": 6.620000000000001,
+					"facing": 0
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "waste_bin",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
+			"name": "a small steel waste bin with a pedal lid",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.3,
+				0.3,
+				0.45
+			],
+			"count": 2,
+			"thing": "prop:workshop_waste_bin",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -2.45,
+					"y": 0.0,
+					"z": 6.7700000000000005,
+					"facing": 0
+				},
+				{
+					"x": 7.7700000000000005,
+					"y": 0.0,
+					"z": 4.35,
+					"facing": 270
+				}
+			]
+		},
+		{
+			"id": "spares_crate",
+			"view": "v1",
+			"box": [
+				865,
+				165,
+				1100,
+				475
+			],
+			"name": "spares crate",
+			"kind": "code",
+			"anchor": "on:spares_shelves",
+			"size": [
+				0.5,
+				0.36,
+				0.26
+			],
+			"count": 5,
+			"thing": "prop:workshop_spares_crate",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 1.6,
+					"y": 0.0,
+					"z": 0.25,
+					"facing": 260
+				}
+			],
+			"parent": "spares_shelves",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+		},
+		{
+			"id": "work_stool",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			],
+			"name": "steel shop stool with a padded seat",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.4,
+				0.4,
+				0.65
+			],
+			"count": 2,
+			"thing": "prop:workshop_work_stool",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -3.2,
+					"y": 0.0,
+					"z": 5.75,
+					"facing": 180
+				},
+				{
+					"x": 6.75,
+					"y": 0.0,
+					"z": 3.4,
+					"facing": 90
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "elec_bench",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			],
+			"name": "electronics bench: anti-static mat, shelf riser with a power strip, drawer pedestal",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				0.7,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:workshop_elec_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 7.570000000000001,
+					"y": 0.0,
+					"z": 3.2,
+					"facing": 270
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "parts_drawers",
+			"view": "v1",
+			"box": [
+				1525,
+				180,
+				1690,
+				425
+			],
+			"name": "steel parts cabinet: forty small bin drawers on a two-door cupboard",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.5,
+				1.7
+			],
+			"count": 1,
+			"thing": "prop:workshop_parts_drawers",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 7.670000000000001,
+					"y": 0.0,
+					"z": -3.4,
+					"facing": 270
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "spares_shelves",
+			"view": "v1",
+			"box": [
+				865,
+				165,
+				1100,
+				475
+			],
+			"name": "steel shelving of spares crates and boxes",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				0.6,
+				1.9
+			],
+			"count": 1,
+			"thing": "prop:workshop_spares_shelves",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": -7.620000000000001,
+					"y": 0.0,
+					"z": -3.3,
+					"facing": 90
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "low_cabinet",
+			"view": "v1",
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
+			"name": "low steel wall cabinet run with four doors",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				0.5,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:workshop_low_cabinet",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"at": [
+				{
+					"x": 3.2,
+					"y": 0.0,
+					"z": -6.670000000000001,
+					"facing": 180
+				}
+			],
+			"solid": true
+		},
+		{
+			"id": "status_display",
+			"view": "v1",
+			"box": [
+				1990,
+				345,
+				2340,
+				630
+			],
+			"name": "one single large wall display screen in a heavy steel frame, glowing readouts, the whole screen in view",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.0,
+				0.1,
+				1.0
+			],
+			"count": 1,
+			"thing": "prop:workshop_status_display",
+			"made": "kit piece",
+			"group": "kit: screen",
+			"at": [
+				{
+					"wall": "north",
+					"across": -3.2,
+					"bottom": 1.25
+				}
+			]
+		},
+		{
+			"id": "floor_socket",
+			"view": "v1",
+			"box": [
+				520,
+				690,
+				1100,
+				1020
+			],
+			"name": "flush floor service socket with a checker-plate lid",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.4,
+				0.3,
+				0.02
+			],
+			"count": 20,
+			"thing": "prop:workshop_floor_socket",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": [
+				{
+					"x": -5.55,
+					"y": 0.0,
+					"z": -4.55,
+					"facing": 0
+				},
+				{
+					"x": -5.55,
+					"y": 0.0,
+					"z": -2.45,
+					"facing": 0
+				},
+				{
+					"x": -2.45,
+					"y": 0.0,
+					"z": -4.55,
+					"facing": 0
+				},
+				{
+					"x": -2.45,
+					"y": 0.0,
+					"z": -2.45,
+					"facing": 0
+				},
+				{
+					"x": -4.0,
+					"y": 0.0,
+					"z": -2.3,
+					"facing": 0
+				},
+				{
+					"x": 2.45,
+					"y": 0.0,
+					"z": -4.55,
+					"facing": 0
+				},
+				{
+					"x": 2.45,
+					"y": 0.0,
+					"z": -2.45,
+					"facing": 0
+				},
+				{
+					"x": 5.55,
+					"y": 0.0,
+					"z": -4.55,
+					"facing": 0
+				},
+				{
+					"x": 5.55,
+					"y": 0.0,
+					"z": -2.45,
+					"facing": 0
+				},
+				{
+					"x": 4.0,
+					"y": 0.0,
+					"z": -2.3,
+					"facing": 0
+				},
+				{
+					"x": -5.55,
+					"y": 0.0,
+					"z": 2.45,
+					"facing": 0
+				},
+				{
+					"x": -5.55,
+					"y": 0.0,
+					"z": 4.55,
+					"facing": 0
+				},
+				{
+					"x": -2.45,
+					"y": 0.0,
+					"z": 2.45,
+					"facing": 0
+				},
+				{
+					"x": -2.45,
+					"y": 0.0,
+					"z": 4.55,
+					"facing": 0
+				},
+				{
+					"x": -4.0,
+					"y": 0.0,
+					"z": 2.3,
+					"facing": 0
+				},
+				{
+					"x": 2.45,
+					"y": 0.0,
+					"z": 2.45,
+					"facing": 0
+				},
+				{
+					"x": 2.45,
+					"y": 0.0,
+					"z": 4.55,
+					"facing": 0
+				},
+				{
+					"x": 5.55,
+					"y": 0.0,
+					"z": 2.45,
+					"facing": 0
+				},
+				{
+					"x": 5.55,
+					"y": 0.0,
+					"z": 4.55,
+					"facing": 0
+				},
+				{
+					"x": 4.0,
+					"y": 0.0,
+					"z": 2.3,
+					"facing": 0
+				}
+			]
+		},
+		{
+			"id": "bay_mark",
+			"view": "v1",
+			"box": [
+				520,
+				690,
+				1100,
+				1020
+			],
+			"name": "painted outline of a machine bay on the deck, two L's a bay",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				4.0,
+				3.0,
+				0.004
+			],
+			"count": 8,
+			"thing": "prop:workshop_bay_mark",
+			"made": "kit piece",
+			"group": "kit: floor",
+			"at": [
+				{
+					"x": -4.0,
+					"y": 0.0,
+					"z": -3.5,
+					"facing": 0
+				},
+				{
+					"x": -4.0,
+					"y": 0.0,
+					"z": -3.5,
+					"facing": 180
+				},
+				{
+					"x": 4.0,
+					"y": 0.0,
+					"z": -3.5,
+					"facing": 0
+				},
+				{
+					"x": 4.0,
+					"y": 0.0,
+					"z": -3.5,
+					"facing": 180
+				},
+				{
+					"x": -4.0,
+					"y": 0.0,
+					"z": 3.5,
+					"facing": 0
+				},
+				{
+					"x": -4.0,
+					"y": 0.0,
+					"z": 3.5,
+					"facing": 180
+				},
+				{
+					"x": 4.0,
+					"y": 0.0,
+					"z": 3.5,
+					"facing": 0
+				},
+				{
+					"x": 4.0,
+					"y": 0.0,
+					"z": 3.5,
+					"facing": 180
+				}
+			]
+		},
+		{
+			"id": "pendant_lamp",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "industrial pendant work lamp hung from the dome",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.5,
+				0.5,
+				1.1
+			],
+			"count": 5,
+			"thing": "prop:workshop_pendant_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [
+				{
+					"x": -4.0,
+					"y": 3.0300000000000007,
+					"z": -3.5,
+					"facing": 0
+				},
+				{
+					"x": 4.0,
+					"y": 3.0300000000000007,
+					"z": -3.5,
+					"facing": 0
+				},
+				{
+					"x": -4.0,
+					"y": 3.0300000000000007,
+					"z": 3.5,
+					"facing": 0
+				},
+				{
+					"x": 4.0,
+					"y": 3.0300000000000007,
+					"z": 3.5,
+					"facing": 0
+				},
+				{
+					"x": 0.0,
+					"y": 3.0300000000000007,
+					"z": 0.0,
+					"facing": 0
+				}
+			],
+			"light": {
+				"strength": 0.55,
+				"reach": 7.0,
+				"high": 0.05
+			}
+		},
+		{
+			"id": "wall_cage_lamp",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"name": "a small caged bulkhead lamp on a wall",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.18,
+				0.12,
+				0.25
+			],
+			"count": 4,
+			"thing": "prop:workshop_wall_cage_lamp",
+			"made": "kit piece",
+			"group": "kit: light",
+			"at": [
+				{
+					"wall": "east",
+					"across": -3.2,
+					"bottom": 2.15
+				},
+				{
+					"wall": "east",
+					"across": 3.4,
+					"bottom": 2.15
+				},
+				{
+					"wall": "west",
+					"across": -3.3,
+					"bottom": 2.2
+				},
+				{
+					"wall": "north",
+					"across": -3.2,
+					"bottom": 2.45
+				}
+			],
+			"light": {
+				"strength": 0.25,
+				"reach": 4.5,
+				"high": 0.1
+			}
+		},
+		{
+			"id": "equipment_bench",
+			"view": "v1",
+			"box": [
+				1045,
+				1070,
+				1390,
+				1360
+			],
+			"name": "equipment maker's workbench: cabinet base, steel top, back panel with a copper bus bar and switched sockets",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.8,
+				0.7,
+				1.4
+			],
+			"count": 1,
+			"thing": "prop:workshop_equipment_bench",
+			"made": "made by the route",
+			"group": "kit: furniture",
+			"at": [],
+			"why": "placed by the game's EquipmentBench node (shown only once built), not by the kit"
+		},
+		{
+			"id": "arm_monitor",
+			"name": "arm monitor",
+			"kind": "code",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.5,
+				0.45,
+				0.75
+			],
+			"count": 2,
+			"thing": "prop:workshop_arm_monitor",
+			"parent": "robot_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1130,
+				550,
+				1650,
+				950
+			]
+		},
+		{
+			"id": "keyboard",
+			"name": "keyboard",
+			"kind": "code",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.46,
+				0.17,
+				0.035
+			],
+			"count": 2,
+			"thing": "prop:workshop_keyboard",
+			"parent": "robot_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1130,
+				550,
+				1650,
+				950
+			]
+		},
+		{
+			"id": "vise",
+			"name": "vise",
+			"kind": "code",
+			"anchor": "on:tool_bench",
+			"size": [
+				0.22,
+				0.32,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:workshop_vise",
+			"parent": "tool_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
+		},
+		{
+			"id": "desklamp",
+			"name": "desklamp",
+			"kind": "generate",
+			"anchor": "on:tool_bench",
+			"size": [
+				0.3,
+				0.22,
+				0.52
+			],
+			"count": 2,
+			"thing": "prop:workshop_desklamp",
+			"parent": "tool_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
+		},
+		{
+			"id": "wrench",
+			"name": "wrench",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.039,
+				0.012,
+				0.23
+			],
+			"count": 11,
+			"thing": "prop:workshop_wrench",
+			"parent": "toolboard",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
+		},
+		{
+			"id": "hammer",
+			"name": "hammer",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.12,
+				0.03,
+				0.3
+			],
+			"count": 3,
+			"thing": "prop:workshop_hammer",
+			"parent": "toolboard",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
+		},
+		{
+			"id": "pump_pliers",
+			"name": "pump pliers",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.07,
+				0.02,
+				0.25
+			],
+			"count": 1,
+			"thing": "prop:workshop_pump_pliers",
+			"parent": "toolboard",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
+		},
+		{
+			"id": "pliers",
+			"name": "pliers",
+			"kind": "generate",
+			"anchor": "on:toolboard",
+			"size": [
+				0.07,
+				0.02,
+				0.2
+			],
+			"count": 6,
+			"thing": "prop:workshop_pliers",
+			"parent": "toolboard",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
+		},
+		{
+			"id": "screwdriver",
+			"name": "screwdriver",
+			"kind": "code",
+			"anchor": "on:toolboard",
+			"size": [
+				0.031,
+				0.03,
+				0.22
+			],
+			"count": 5,
+			"thing": "prop:workshop_screwdriver",
+			"parent": "toolboard",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				275,
+				410,
+				690,
+				840
+			]
+		},
+		{
+			"id": "monitor",
+			"name": "monitor",
+			"kind": "code",
+			"anchor": "on:elec_bench",
+			"size": [
+				0.5,
+				0.17,
+				0.385
+			],
+			"count": 1,
+			"thing": "prop:workshop_monitor",
+			"parent": "elec_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
+		},
+		{
+			"id": "oscilloscope",
+			"name": "oscilloscope",
+			"kind": "code",
+			"anchor": "on:elec_bench",
+			"size": [
+				0.36,
+				0.3,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:workshop_oscilloscope",
+			"parent": "elec_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
+		},
+		{
+			"id": "bench_meter",
+			"name": "bench meter",
+			"kind": "code",
+			"anchor": "on:elec_bench",
+			"size": [
+				0.24,
+				0.26,
+				0.11
+			],
+			"count": 1,
+			"thing": "prop:workshop_bench_meter",
+			"parent": "elec_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
+		},
+		{
+			"id": "soldering_station",
+			"name": "soldering station",
+			"kind": "code",
+			"anchor": "on:elec_bench",
+			"size": [
+				0.28,
+				0.22,
+				0.14
+			],
+			"count": 1,
+			"thing": "prop:workshop_soldering_station",
+			"parent": "elec_bench",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				1665,
+				1070,
+				2010,
+				1375
+			]
+		},
+		{
+			"id": "spares_box",
+			"name": "spares box",
+			"kind": "code",
+			"anchor": "on:spares_shelves",
+			"size": [
+				0.4,
+				0.3,
+				0.22
+			],
+			"count": 4,
+			"thing": "prop:workshop_spares_box",
+			"parent": "spares_shelves",
+			"made": "kit piece",
+			"group": "kit: furniture",
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"view": "v1",
+			"box": [
+				865,
+				165,
+				1100,
+				475
+			]
+		}
+	]
+}

@@ -1,0 +1,1244 @@
+{
+	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (game/sound/catalogue/) merges each entry over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in the game in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. A name with no file plays nothing until the owner picks one (tools/sound/picker/)",
+	"sounds": {
+		"habitat": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "the hub and the habitat's room tone: air handling, a far fan, the base breathing",
+				"prompts": [
+					"Quiet interior room tone of a sealed space station module: a steady soft hiss of air handling, a distant low ventilation fan drone and a faint electrical hum, constant and even, no voices and no events.",
+					"Calm ambience inside a steel research habitat on the Moon: the low rumble of life-support machinery behind metal walls and gentle moving air, very steady, nothing sudden."
+				],
+				"seeds": 2,
+				"seconds": 15,
+				"loop": true,
+				"search": [
+					"room tone air conditioning hum",
+					"spaceship interior ambience",
+					"server room ambience"
+				],
+				"chosen": {
+					"take": "moss:habitat__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/habitat.wav",
+			"volume_db": -21.4
+		},
+		"footstep_steel_plate": {
+			"file": [
+				"res://game/sound/recordings/footsteps/footsteps_metal_1.ogg",
+				"res://game/sound/recordings/footsteps/footsteps_metal_2.ogg",
+				"res://game/sound/recordings/footsteps/footsteps_metal_3.ogg",
+				"res://game/sound/recordings/footsteps/footsteps_metal_4.ogg",
+				"res://game/sound/recordings/footsteps/footsteps_metal_5.ogg",
+				"res://game/sound/recordings/footsteps/footsteps_metal_6.ogg",
+				"res://game/sound/recordings/footsteps/footsteps_metal_7.ogg",
+				"res://game/sound/recordings/footsteps/footsteps_metal_8.ogg"
+			],
+			"volume_db": -22.0,
+			"pick": {
+				"page": "game",
+				"category": "steps",
+				"where": "boots on the hub's deck plates, the pit's floor and the access hatches",
+				"prompts": [
+					"Footsteps of one person in heavy work boots walking slowly at a steady pace across thick steel deck plates in a metal room: each step a clear, separate, solid metallic thud with a short ring, short pauses between steps, nothing else.",
+					"One person walking on the steel floor of a ship's engine room in hard-soled boots: an even rhythm of distinct metallic footsteps, no other sounds."
+				],
+				"seeds": 2,
+				"seconds": 8,
+				"level": -55.0,
+				"search": [
+					"footsteps metal floor",
+					"footsteps steel plate boots",
+					"footsteps ship deck"
+				],
+				"before": "footsteps_metal",
+				"chosen": {
+					"take": "game:footstep_steel_plate",
+					"by": "owner"
+				}
+			}
+		},
+		"footstep_grating": {
+			"file": [
+				"res://game/sound/generated/footsteps/footstep_grating_1.ogg",
+				"res://game/sound/generated/footsteps/footstep_grating_2.ogg",
+				"res://game/sound/generated/footsteps/footstep_grating_3.ogg",
+				"res://game/sound/generated/footsteps/footstep_grating_4.ogg",
+				"res://game/sound/generated/footsteps/footstep_grating_5.ogg",
+				"res://game/sound/generated/footsteps/footstep_grating_6.ogg",
+				"res://game/sound/generated/footsteps/footstep_grating_7.ogg",
+				"res://game/sound/generated/footsteps/footstep_grating_8.ogg"
+			],
+			"volume_db": -35.0,
+			"pick": {
+				"page": "game",
+				"category": "steps",
+				"where": "boots on the floor gratings round the hub's ring",
+				"prompts": [
+					"Footsteps of one person in boots walking steadily over a steel bar grating catwalk: each step rattles the metal grate with a light clank and buzz, clear gaps between steps, nothing else.",
+					"Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace."
+				],
+				"seeds": 2,
+				"seconds": 8,
+				"level": -55.0,
+				"search": [
+					"footsteps metal grate",
+					"footsteps grating catwalk",
+					"footsteps metal mesh"
+				],
+				"chosen": {
+					"take": "moss:footstep_grating__p2__s2",
+					"by": "scoring"
+				}
+			}
+		},
+		"footstep_rubber": {
+			"file": [
+				"res://game/sound/generated/footsteps/footstep_rubber_1.ogg",
+				"res://game/sound/generated/footsteps/footstep_rubber_2.ogg",
+				"res://game/sound/generated/footsteps/footstep_rubber_3.ogg",
+				"res://game/sound/generated/footsteps/footstep_rubber_4.ogg",
+				"res://game/sound/generated/footsteps/footstep_rubber_5.ogg",
+				"res://game/sound/generated/footsteps/footstep_rubber_6.ogg",
+				"res://game/sound/generated/footsteps/footstep_rubber_7.ogg",
+				"res://game/sound/generated/footsteps/footstep_rubber_8.ogg"
+			],
+			"volume_db": -35.3,
+			"pick": {
+				"page": "game",
+				"category": "steps",
+				"where": "boots on the rubber mats before the hatches and the cable covers",
+				"prompts": [
+					"Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.",
+					"Quiet footsteps on a rubber floor indoors: soft padded thuds, one person walking at an even pace."
+				],
+				"seeds": 2,
+				"seconds": 8,
+				"level": -55.0,
+				"search": [
+					"footsteps rubber mat",
+					"footsteps rubber floor",
+					"footsteps gym floor"
+				],
+				"chosen": {
+					"take": "moss:footstep_rubber__p1__s1",
+					"by": "scoring"
+				}
+			}
+		},
+		"impact_steel_plate": {
+			"file": "res://game/sound/generated/doors/impact_steel_plate.ogg",
+			"volume_db": -23.0,
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a thing dropped on a steel deck plate",
+				"prompts": [
+					"A heavy metal tool dropped onto a thick steel floor plate: one loud solid metallic clang with a short ring, in a metal room."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:impact_steel_plate__p1__s3",
+					"by": "scoring"
+				}
+			}
+		},
+		"impact_grating": {
+			"file": "res://game/sound/generated/doors/impact_grating.ogg",
+			"volume_db": -22.8,
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a thing dropped on a floor grating",
+				"prompts": [
+					"A metal box dropped onto a steel grating floor: a rattling clank of the grate and a short metallic buzz."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:impact_grating__p1__s3",
+					"by": "scoring"
+				}
+			}
+		},
+		"impact_rubber": {
+			"file": "res://game/sound/generated/doors/impact_rubber.ogg",
+			"volume_db": -22.2,
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a thing dropped on a rubber mat",
+				"prompts": [
+					"A heavy object dropped onto a thick rubber mat: one dull muffled thud, short."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:impact_rubber__p1__s3",
+					"by": "scoring"
+				}
+			}
+		},
+		"scrape_steel_plate": {
+			"file": "res://game/sound/generated/doors/scrape_steel_plate.ogg",
+			"volume_db": -22.7,
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a thing dragged over a steel deck",
+				"prompts": [
+					"A heavy metal crate dragged across a steel floor: a harsh grinding metallic scrape, about two seconds."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:scrape_steel_plate__p1__s1",
+					"by": "scoring"
+				}
+			}
+		},
+		"scrape_grating": {
+			"file": "res://game/sound/generated/doors/scrape_grating.ogg",
+			"volume_db": -22.7,
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a thing dragged over a floor grating",
+				"prompts": [
+					"A metal case dragged over a steel bar grating: a rattling, juddering metallic scrape, about two seconds."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:scrape_grating__p1__s1",
+					"by": "scoring"
+				}
+			}
+		},
+		"scrape_rubber": {
+			"file": "res://game/sound/generated/doors/scrape_rubber.ogg",
+			"volume_db": -23.0,
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a thing dragged over a rubber mat",
+				"prompts": [
+					"A box pushed across a rubber floor mat: a soft rubbery squeaking drag, about two seconds."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:scrape_rubber__p1__s4",
+					"by": "scoring"
+				}
+			}
+		},
+		"door_slide_open": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a door of the base opening, the airlock's doors too",
+				"prompts": [
+					"A heavy sci-fi pressure door slides open: a short hiss of air as the seal breaks, a hydraulic whine, the metal door rolling smoothly into the wall and stopping with a soft clunk.",
+					"An automatic metal door in a space station opens with a pneumatic hiss and a motorised slide, ending in a solid thud."
+				],
+				"seeds": 2,
+				"seconds": 6,
+				"search": [
+					"sci-fi door open",
+					"pneumatic door open",
+					"hydraulic hatch open"
+				],
+				"chosen": {
+					"take": "game:door_slide_open",
+					"by": "owner"
+				}
+			}
+		},
+		"door_slide_close": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a door of the base shutting, the airlock's doors too",
+				"prompts": [
+					"A heavy sci-fi pressure door slides shut: a motorised metal slide ending in a deep solid clunk as it seals, then a short hiss.",
+					"An automatic metal door in a space station closes with a hydraulic whine and a heavy metallic thud."
+				],
+				"seeds": 2,
+				"seconds": 6,
+				"search": [
+					"sci-fi door close",
+					"pneumatic door close",
+					"heavy metal door close"
+				],
+				"chosen": {
+					"take": "game:door_slide_close",
+					"by": "owner"
+				}
+			}
+		},
+		"airlock_hatch_seal_clunk": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the airlock's hatch sealing shut after it slides",
+				"prompts": [
+					"Heavy steel hatch locking bolts engaging: a deep mechanical clunk and a solid metallic latch in a small metal room, short and final.",
+					"A vault door locked shut: a heavy metal clank and the dull thud of a pressure seal closing, short."
+				],
+				"seeds": 2,
+				"seconds": 5,
+				"search": [
+					"heavy hatch lock clunk",
+					"metal door latch heavy",
+					"vault door close"
+				],
+				"chosen": {
+					"take": "moss:airlock_hatch_seal_clunk__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/airlock_hatch_seal_clunk.ogg",
+			"volume_db": -18.4
+		},
+		"console_hum": {
+			"file": "res://game/sound/generated/machines/console_hum.wav",
+			"loops": true,
+			"volume_db": -28.0,
+			"reach": 6.0,
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the operations console in the pit: its screens and fans",
+				"prompts": [
+					"Steady hum of a computer console with several screens: soft cooling fans whirring and a faint high electronic whine, constant and unchanging, no clicks.",
+					"Constant drone of a server rack in a quiet room: even fan noise and a low electrical hum, steady."
+				],
+				"seeds": 2,
+				"seconds": 15,
+				"level": -52.0,
+				"loop": true,
+				"search": [
+					"computer hum fan",
+					"electronics hum loop",
+					"server fan hum"
+				],
+				"chosen": {
+					"take": "moss:console_hum__p2__s2",
+					"by": "scoring"
+				}
+			}
+		},
+		"glovebox_hum": {
+			"file": "res://game/sound/generated/machines/glovebox_hum.wav",
+			"loops": true,
+			"volume_db": -30.0,
+			"reach": 5.0,
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the lab bench's glovebox: its pump and filter running",
+				"prompts": [
+					"Steady low whir of a small laboratory air pump and filter fan running, constant and soft, no changes.",
+					"Constant hum of a lab fume hood extractor fan: smooth airflow and a low motor drone, steady."
+				],
+				"seeds": 2,
+				"seconds": 15,
+				"level": -54.0,
+				"loop": true,
+				"search": [
+					"lab equipment hum",
+					"air purifier hum",
+					"aquarium air pump",
+					"small fan hum loop",
+					"fume hood fan"
+				],
+				"chosen": {
+					"take": "moss:glovebox_hum__p1__s1",
+					"by": "scoring"
+				}
+			}
+		},
+		"lamp_buzz": {
+			"file": "res://game/sound/generated/machines/lamp_buzz.wav",
+			"loops": true,
+			"volume_db": -36.0,
+			"reach": 3.0,
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the lamps: over each door, on the walls and the floods in the roof",
+				"prompts": [
+					"Constant electrical buzz of fluorescent tube lights in a quiet room: a steady low mains hum with a thin high buzz, no flicker clicks.",
+					"Steady soft buzzing of an industrial ceiling lamp's ballast: a continuous low electric hum."
+				],
+				"seeds": 2,
+				"seconds": 15,
+				"level": -60.0,
+				"loop": true,
+				"search": [
+					"fluorescent light buzz",
+					"lamp hum buzz",
+					"electrical buzz light"
+				],
+				"chosen": {
+					"take": "moss:lamp_buzz__p2__s2",
+					"by": "scoring"
+				}
+			}
+		},
+		"junction_hum": {
+			"file": "res://game/sound/generated/machines/junction_hum.wav",
+			"loops": true,
+			"volume_db": -34.0,
+			"reach": 3.0,
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the junction boxes on the pit's wall, the machines' power",
+				"prompts": [
+					"Steady deep electrical hum of a power transformer inside a metal junction box: a constant low mains drone with a faint buzz.",
+					"Constant low mains hum from electrical equipment in a machine room, smooth and unchanging."
+				],
+				"seeds": 2,
+				"seconds": 15,
+				"level": -58.0,
+				"loop": true,
+				"search": [
+					"transformer hum",
+					"electrical hum 50hz",
+					"power box hum"
+				],
+				"chosen": {
+					"take": "moss:junction_hum__p2__s2",
+					"by": "scoring"
+				}
+			}
+		},
+		"vent_air": {
+			"file": "res://game/sound/generated/machines/vent_air.wav",
+			"loops": true,
+			"volume_db": -32.0,
+			"reach": 4.0,
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "air moving through the vents and the ducts under the roof",
+				"prompts": [
+					"Steady air flowing out of a ventilation duct behind a metal grille: a constant soft whoosh with a faint fan rumble.",
+					"Constant airflow through a large metal air duct: an even rushing air noise, no changes."
+				],
+				"seeds": 2,
+				"seconds": 15,
+				"level": -56.0,
+				"loop": true,
+				"search": [
+					"air vent loop",
+					"ventilation duct air",
+					"air conditioning vent"
+				],
+				"chosen": {
+					"take": "moss:vent_air__p1__s2",
+					"by": "scoring"
+				}
+			}
+		},
+		"base_hum": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "under every room of the base: the deep hum of its power and life support, unbroken through the doors",
+				"prompts": [
+					"A very low, steady electrical and mechanical hum of a large building's power plant heard through steel floors, deep and constant, no other sounds."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:base_hum__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/base_hum.wav",
+			"volume_db": -20.6
+		},
+		"greenhouse": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "the greenhouse on the Moon: grow lights, water pumps, fans over the plant beds",
+				"prompts": [
+					"Ambience of an enclosed hydroponic greenhouse: soft trickling water in pipes, the gentle whir of small circulation fans and a faint hum of grow lights, calm and constant."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:greenhouse__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/greenhouse.wav",
+			"volume_db": -32.3
+		},
+		"garage": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "the garage where the rover is kept (not built yet)",
+				"prompts": [
+					"Room tone of a large empty metal vehicle garage: a low airy hum, faint ventilation and the slight ring of a big steel space, constant."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:garage__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/garage.wav",
+			"volume_db": -18.9
+		},
+		"workshop": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "the workshop where robots are built at the bench",
+				"prompts": [
+					"Room tone of a small industrial workshop with machines idling: a low compressor hum, a faint electrical buzz and quiet air ventilation, constant, no tool hits."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:workshop__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/workshop.wav",
+			"volume_db": -19.9
+		},
+		"link_tube": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "the glass link tubes between modules",
+				"prompts": [
+					"Ambience inside a narrow enclosed walkway tube: a soft hollow airflow whoosh and a faint distant machine hum, airy and constant."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:link_tube__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/link_tube.wav",
+			"volume_db": -19.1
+		},
+		"ship_inside": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "inside the ship's cabin in flight",
+				"prompts": [
+					"Interior of a small spacecraft cabin in flight: a steady low engine drone through the hull, cabin fans and a faint electronic hum, constant."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:ship_inside__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/ship_inside.wav",
+			"volume_db": -17.9
+		},
+		"mars_wind": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "outside on Mars: the thin wind heard through the suit",
+				"prompts": [
+					"Thin, distant wind on a cold barren desert plain, heard muffled from inside a helmet: a soft steady low whoosh with gentle gusts."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:mars_wind__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/mars_wind.wav",
+			"volume_db": -25.7
+		},
+		"mars_dust_storm_wind": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "a dust storm over Mars",
+				"prompts": [
+					"A howling dust storm heard muffled from inside a spacesuit helmet: strong steady roaring wind with fine sand hissing against glass."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:mars_dust_storm_wind__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/mars_dust_storm_wind.wav",
+			"volume_db": -13.0
+		},
+		"earth_flat": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "the small flat in a Chinese city on Earth, in the prologue",
+				"prompts": [
+					"Room tone of a small apartment high in a big Asian city at night: a distant city traffic rumble through the window, a refrigerator hum, quiet and calm."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:earth_flat__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/earth_flat.wav",
+			"volume_db": -22.9
+		},
+		"prologue_crowd": {
+			"pick": {
+				"page": "game",
+				"category": "room",
+				"where": "the crowd in the square under the balcony in the prologue",
+				"prompts": [
+					"A large crowd gathered in a city square at night heard from a balcony above: a steady murmur of thousands of people, distant and even, no clear words."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:prologue_crowd__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/places/prologue_crowd.wav",
+			"volume_db": -15.7
+		},
+		"suit_breathing_calm": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the player's own breathing inside the helmet, at rest",
+				"prompts": [
+					"Slow calm breathing of one person heard from inside a closed space helmet, steady in and out breaths through the nose, close and intimate, no other sounds."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "game:suit_breathing_calm",
+					"by": "owner"
+				}
+			}
+		},
+		"suit_breathing_fast": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the player's breathing inside the helmet, out of breath",
+				"prompts": [
+					"Fast heavy breathing of one out-of-breath person inside a closed space helmet, quick steady panting, close, no other sounds."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "game:suit_breathing_fast",
+					"by": "owner"
+				}
+			}
+		},
+		"suit_fans": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the spacesuit's air fans, in the helmet",
+				"prompts": [
+					"The steady whir of small air circulation fans inside a spacesuit helmet, a soft constant airflow hiss close to the ears."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true,
+				"chosen": {
+					"take": "moss:suit_fans__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/suit_fans.wav",
+			"volume_db": -30.9
+		},
+		"radio_click_in": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the radio keying on in the helmet",
+				"prompts": [
+					"A short crisp click of a two-way radio push-to-talk button pressed, with a tiny burst of static, very short."
+				],
+				"seeds": 4,
+				"seconds": 2,
+				"chosen": {
+					"take": "moss:radio_click_in__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/radio_click_in.ogg",
+			"volume_db": -19.7
+		},
+		"radio_click_out": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the radio keying off in the helmet",
+				"prompts": [
+					"A short crisp click of a two-way radio push-to-talk button released, with a short tail of static, very short."
+				],
+				"seeds": 4,
+				"seconds": 2,
+				"chosen": {
+					"take": "moss:radio_click_out__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/radio_click_out.ogg",
+			"volume_db": -20.2
+		},
+		"radio_beep": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the radio's beep before a call",
+				"prompts": [
+					"A single short clean electronic radio beep, a soft two-tone chirp of a headset, very short."
+				],
+				"seeds": 4,
+				"seconds": 2,
+				"chosen": {
+					"take": "moss:radio_beep__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/radio_beep.ogg",
+			"volume_db": -20.2
+		},
+		"radio_squelch": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the radio's squelch as a call ends",
+				"prompts": [
+					"A short burst of radio squelch static, a crackling hiss that cuts off abruptly, from a walkie-talkie."
+				],
+				"seeds": 4,
+				"seconds": 2,
+				"chosen": {
+					"take": "moss:radio_squelch__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/radio_squelch.ogg",
+			"volume_db": -20.9
+		},
+		"cockpit_switch": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a switch on the launch capsule's console flipped by the player's gloved hand",
+				"prompts": [
+					"A solid toggle switch flipped on an aircraft cockpit panel: one firm mechanical click, very short."
+				],
+				"seeds": 4,
+				"seconds": 2,
+				"chosen": {
+					"take": "moss:cockpit_switch__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/cockpit_switch.ogg",
+			"volume_db": -9.3
+		},
+		"desk_locked": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a locked desk or console refusing the player",
+				"prompts": [
+					"A short dry plastic click of a locked button that does not give, a dull refusal tap, very short."
+				],
+				"seeds": 4,
+				"seconds": 2,
+				"chosen": {
+					"take": "moss:desk_locked__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/desk_locked.ogg",
+			"volume_db": -16.2
+		},
+		"geiger_ticks": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the suit's radiation counter ticking in a storm",
+				"prompts": [
+					"A geiger counter ticking: irregular sharp clicks at a steady moderate rate, close, no other sounds."
+				],
+				"seeds": 4,
+				"seconds": 10,
+				"loop": true,
+				"chosen": {
+					"take": "moss:geiger_ticks__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/geiger_ticks.wav",
+			"volume_db": -13.0
+		},
+		"hatch_open": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the ship's hatch opening",
+				"prompts": [
+					"A spacecraft hatch unlatched and swung open: a heavy metal latch release clunk, a short air hiss and a hinge creak."
+				],
+				"seeds": 4,
+				"seconds": 4,
+				"chosen": {
+					"take": "moss:hatch_open__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/hatch_open.ogg",
+			"volume_db": -20.0
+		},
+		"airlock_pump_down": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the airlock's pump emptying the chamber of air",
+				"prompts": [
+					"A powerful vacuum pump running steadily in a small metal chamber: a constant deep motor drone with a rushing air suction, steady."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "moss:airlock_pump_down__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/airlock_pump_down.wav",
+			"volume_db": -20.6
+		},
+		"airlock_air_hiss": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "air rushing out of or into the airlock chamber",
+				"prompts": [
+					"Strong pressurised air venting from a sealed metal chamber: a loud rushing hiss that slowly tapers off."
+				],
+				"seeds": 4,
+				"seconds": 6,
+				"chosen": {
+					"take": "moss:airlock_air_hiss__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/airlock_air_hiss.ogg",
+			"volume_db": -15.3
+		},
+		"airlock_pressure_equalise": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the airlock's pressure evening out before the inner door opens",
+				"prompts": [
+					"Air pressure equalising in a sealed airlock: a rising hiss of air flowing in that settles with a soft pop and a valve click."
+				],
+				"seeds": 4,
+				"seconds": 5,
+				"chosen": {
+					"take": "moss:airlock_pressure_equalise__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/airlock_pressure_equalise.ogg",
+			"volume_db": -12.6
+		},
+		"lift_start": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the landing pad's cargo lift starting to move",
+				"prompts": [
+					"A heavy industrial freight lift starting: a motor whir spinning up with a mechanical clunk of the brake releasing."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:lift_start__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/lift_start.ogg",
+			"volume_db": -19.3
+		},
+		"lift_travel": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the cargo lift moving",
+				"prompts": [
+					"A heavy industrial freight platform lift moving steadily: a constant electric motor drone with a soft rattle of chains and rails."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "moss:lift_travel__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/lift_travel.wav",
+			"volume_db": -18.2
+		},
+		"lift_stop": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the cargo lift stopping",
+				"prompts": [
+					"A heavy industrial freight lift stopping: the motor winding down and a solid mechanical clunk of the brake."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:lift_stop__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/lift_stop.ogg",
+			"volume_db": -26.1
+		},
+		"footsteps_metal": {
+			"pick": {
+				"page": "game",
+				"category": "steps",
+				"where": "boots on the base's deck where no surface says otherwise",
+				"prompts": [
+					"Footsteps of one person in heavy boots walking at a steady pace on a metal floor inside a building: clear separate metallic steps with short pauses between them, nothing else."
+				],
+				"seeds": 4,
+				"seconds": 8,
+				"chosen": {
+					"take": "game:footsteps_metal",
+					"by": "owner"
+				}
+			}
+		},
+		"footsteps_boots_gravel": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the player's boots on the Moon's or Mars' ground, felt through the suit",
+				"prompts": [
+					"Slow footsteps of heavy boots crunching on loose gravel and dust, muffled and dull as if heard through a thick suit, an even walking rhythm."
+				],
+				"seeds": 4,
+				"seconds": 10,
+				"loop": true,
+				"chosen": {
+					"take": "moss:footsteps_boots_gravel__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/footsteps_boots_gravel.wav",
+			"volume_db": -17.0
+		},
+		"bench_tool": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the tools at the workshop bench while a robot is built",
+				"prompts": [
+					"A small electric screwdriver and a cordless drill working on a metal robot part at a workbench: short whirring bursts and light metal clinks, steady work."
+				],
+				"seeds": 4,
+				"seconds": 10,
+				"loop": true,
+				"chosen": {
+					"take": "moss:bench_tool__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/bench_tool.wav",
+			"volume_db": -19.7
+		},
+		"digger": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "a robot digging regolith outside",
+				"prompts": [
+					"A small digging machine scraping and scooping gravel: a steady motor grind with rocks and grit pouring, constant work."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "moss:digger__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/digger.wav",
+			"volume_db": -20.3
+		},
+		"robot_planting": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a greenhouse robot planting a seedling in a bed",
+				"prompts": [
+					"A small robot arm pushing a seedling into soft soil: a short servo whir and a soft scoop of earth, short."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:robot_planting__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/robot_planting.ogg",
+			"volume_db": -23.9
+		},
+		"robot_servo": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "a robot moving its arms and wheels",
+				"prompts": [
+					"Small electric servo motors of a robot moving: steady soft mechanical whirring rising and falling, constant."
+				],
+				"seeds": 4,
+				"seconds": 10,
+				"loop": true,
+				"chosen": {
+					"take": "moss:robot_servo__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/robot_servo.wav",
+			"volume_db": -21.0
+		},
+		"drone_hover": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the thruster drone hovering",
+				"prompts": [
+					"A small rocket-powered drone hovering: a steady soft hissing thrust of gas jets with a light electric whine, constant."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "moss:drone_hover__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/drone_hover.wav",
+			"volume_db": -27.3
+		},
+		"drone_thrust_burst": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the drone's thrusters burning hard",
+				"prompts": [
+					"A small rocket thruster firing steadily: a strong roaring hiss of gas exhaust, constant, no ignition pop."
+				],
+				"seeds": 4,
+				"seconds": 10,
+				"loop": true,
+				"chosen": {
+					"take": "moss:drone_thrust_burst__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/drone_thrust_burst.wav",
+			"volume_db": -23.8
+		},
+		"rover_motor": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the rover's electric motors driving",
+				"prompts": [
+					"An electric off-road vehicle driving at a steady speed: a smooth high electric motor whine with a low gear hum, constant."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "moss:rover_motor__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/rover_motor.wav",
+			"volume_db": -22.6
+		},
+		"rover_wheels_gravel": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "the rover's wheels over the ground",
+				"prompts": [
+					"Big rubber wheels rolling steadily over loose gravel and rocks: a constant crunching and popping of stones, no engine."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "moss:rover_wheels_gravel__p1__s4",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/rover_wheels_gravel.wav",
+			"volume_db": -18.4
+		},
+		"rocket_launch": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a supply rocket lifting off from the pad, felt through the ground",
+				"prompts": [
+					"A large rocket lifting off a few kilometres away: a deep thunderous roar with crackling low rumble that builds, holds and slowly fades as it climbs."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"chosen": {
+					"take": "moss:rocket_launch__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/rocket_launch.ogg",
+			"volume_db": -10.9
+		},
+		"rocket_hull_roar": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the launch heard from inside the capsule, through the hull",
+				"prompts": [
+					"A rocket launch heard from inside the crew capsule: an overwhelming deep rumbling roar muffled by the hull, violent crackling vibration that builds and holds."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"chosen": {
+					"take": "moss:rocket_hull_roar__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/rocket_hull_roar.ogg",
+			"volume_db": -8.4
+		},
+		"rocket_landing_rumble": {
+			"pick": {
+				"page": "game",
+				"category": "loop",
+				"where": "a rocket coming down on its engines",
+				"prompts": [
+					"A rocket engine firing steadily during a slow descent: a constant deep roaring rumble with crackle, no start and no end."
+				],
+				"seeds": 4,
+				"seconds": 12,
+				"loop": true,
+				"chosen": {
+					"take": "moss:rocket_landing_rumble__p1__s2",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/machines/rocket_landing_rumble.wav",
+			"volume_db": -9.2
+		},
+		"rocket_touchdown": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "a rocket touching down on the pad",
+				"prompts": [
+					"A huge heavy machine landing hard on a concrete pad: a deep booming thud with metal creaking and the engine roar cutting off."
+				],
+				"seeds": 4,
+				"seconds": 4,
+				"chosen": {
+					"take": "moss:rocket_touchdown__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/rocket_touchdown.ogg",
+			"volume_db": -7.6
+		},
+		"ground_thud": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the drone landing hard, felt through the ground",
+				"prompts": [
+					"A heavy metal object landing hard on packed dirt: one deep dull ground thud, short."
+				],
+				"seeds": 4,
+				"seconds": 3,
+				"chosen": {
+					"take": "moss:ground_thud__p1__s3",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/ground_thud.ogg",
+			"volume_db": -16.0
+		},
+		"landing_thud": {
+			"pick": {
+				"page": "game",
+				"category": "shot",
+				"where": "the player landing from a fall, felt through the boots",
+				"prompts": [
+					"A person in a heavy suit landing on their feet after a jump onto hard ground: one soft dull thud, short."
+				],
+				"seeds": 4,
+				"seconds": 2,
+				"chosen": {
+					"take": "moss:landing_thud__p1__s1",
+					"by": "scoring"
+				}
+			},
+			"file": "res://game/sound/generated/doors/landing_thud.ogg",
+			"volume_db": -25.8
+		}
+	}
+}

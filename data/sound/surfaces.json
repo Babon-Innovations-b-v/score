@@ -1,0 +1,71 @@
+{
+	"is": "how each surface sounds: what a boot on it, a thing dropped on it and a thing dragged over it play (names in sounds.json or the catalogue), and how much of a sound it soaks up (absorbs: the share of sound energy taken at about 1 kHz, Sabine's coefficient), which a room's echo is worked out from (game/sound/echo/). A material library family names its surface in data/library/materials.json (its `surface`), a variant only when it sounds unlike its family; a room kit's piece kind names the surface it is, for the boots on its floors and the room's echo. A kit kind not named is 'steel_plate', the base's own",
+	"fallback": {
+		"footstep": "footsteps_metal",
+		"impact": "",
+		"scrape": ""
+	},
+	"surfaces": {
+		"steel_plate": {
+			"footstep": "footstep_steel_plate",
+			"impact": "impact_steel_plate",
+			"scrape": "scrape_steel_plate",
+			"absorbs": 0.04
+		},
+		"steel_grating": {
+			"footstep": "footstep_grating",
+			"impact": "impact_grating",
+			"scrape": "scrape_grating",
+			"absorbs": 0.12
+		},
+		"rubber": {
+			"footstep": "footstep_rubber",
+			"impact": "impact_rubber",
+			"scrape": "scrape_rubber",
+			"absorbs": 0.08
+		},
+		"padding": {
+			"footstep": "footstep_rubber",
+			"impact": "impact_rubber",
+			"scrape": "scrape_rubber",
+			"absorbs": 0.5
+		},
+		"glass": {
+			"footstep": "footstep_steel_plate",
+			"impact": "impact_steel_plate",
+			"scrape": "scrape_steel_plate",
+			"absorbs": 0.03
+		},
+		"plaster": {
+			"footstep": "footstep_steel_plate",
+			"impact": "impact_rubber",
+			"scrape": "scrape_rubber",
+			"absorbs": 0.02,
+			"note": "Earth (the prologue build, 2026-10-07): the base's rubber and plate sounds stand in until Earth's own are made"
+		},
+		"stone": {
+			"footstep": "footstep_rubber",
+			"impact": "impact_steel_plate",
+			"scrape": "scrape_steel_plate",
+			"absorbs": 0.02,
+			"note": "Earth (the prologue build, 2026-10-07): the base's rubber and plate sounds stand in until Earth's own are made"
+		},
+		"asphalt": {
+			"footstep": "footstep_rubber",
+			"impact": "impact_rubber",
+			"scrape": "scrape_rubber",
+			"absorbs": 0.03,
+			"note": "Earth (the prologue build, 2026-10-07): the base's rubber and plate sounds stand in until Earth's own are made"
+		}
+	},
+	"kit": {
+		"hub_floor_grating": "steel_grating",
+		"hub_tread_mat": "rubber",
+		"hub_ceiling_cable_tray": "steel_grating",
+		"hub_hatch_window": "glass",
+		"hub_porthole_panel": "glass",
+		"hub_status_display": "glass",
+		"hub_wall_screen_cluster": "glass",
+		"hub_notice_board": "padding"
+	}
+}

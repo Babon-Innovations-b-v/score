@@ -1,0 +1,889 @@
+import collections.abc
+
+import bpy
+import numpy as np
+import pytest
+
+import procfunc as pf
+from conftest import realize as _realize
+
+
+def _linked_from(socket: bpy.types.NodeSocket) -> bpy.types.NodeSocket:
+    assert len(socket.links) == 1
+    return socket.links[0].from_socket
+
+
+def test_to_material_basic():
+    """Test to_material with a simple principled BSDF shader."""
+    # Create a simple material shader
+    bsdf = pf.nodes.shader.principled_bsdf(
+        base_color=(0.8, 0.2, 0.1, 1.0), metallic=0.0, roughness=0.5
+    )
+
+    # Convert to material
+    material = pf.Material(surface=bsdf)
+
+    # Verify material was created
+    assert material.item().use_nodes is True
+    assert material.item().name in bpy.data.materials
+
+    nodes = material.item().node_tree.nodes
+    assert "Material Output" in nodes
+    assert any(node.bl_idname == "ShaderNodeBsdfPrincipled" for node in nodes)
+    assert not any(node.bl_idname == "ShaderNodeGroup" for node in nodes)
+
+
+def test_to_material_with_texture():
+    coord = pf.nodes.shader.coord()
+    noise = pf.nodes.texture.noise(
+        vector=coord.generated, scale=5.0, detail=2.0, roughness=0.5
+    )
+    bsdf = pf.nodes.shader.principled_bsdf(base_color=noise.color, roughness=noise.fac)
+    tree = pf.Material(surface=bsdf).item().node_tree
+
+    output = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeOutputMaterial")
+    bsdf_node = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled")
+    noise_node = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeTexNoise")
+    coord_node = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeTexCoord")
+    assert _linked_from(output.inputs["Surface"]).node == bsdf_node
+    assert _linked_from(bsdf_node.inputs["Base Color"]) == noise_node.outputs["Color"]
+    assert _linked_from(bsdf_node.inputs["Roughness"]) == noise_node.outputs["Fac"]
+    assert _linked_from(noise_node.inputs["Vector"]) == coord_node.outputs["Generated"]
+
+
+def test_to_environment_basic():
+    """Test to_environment with a simple background shader."""
+    # Create a simple environment shader
+    background = pf.nodes.shader.background(color=(0.05, 0.1, 0.3, 1.0), strength=1.0)
+
+    # Convert to environment
+    world = pf.nodes.to_environment(surface=background)
+
+    # Verify world was created/modified
+    assert world is not None
+    assert world.item().use_nodes is True
+    assert bpy.context.scene.world == world.item()
+
+    # Verify node tree structure
+    nodes = world.item().node_tree.nodes
+    assert len(nodes) > 0
+    # Should have a ShaderNodeGroup instance and ShaderNodeOutputWorld
+    assert any(node.type == "GROUP" for node in nodes)
+    assert any(node.type == "OUTPUT_WORLD" for node in nodes)
+
+
+def test_to_environment_with_sky():
+    sky = pf.nodes.texture.sky_texture_nishita(sun_elevation=0.5, sun_rotation=0.0)
+    background = pf.nodes.shader.background(color=sky, strength=1.0)
+    tree = pf.nodes.to_environment(surface=background).item().node_tree
+
+    output = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeOutputWorld")
+    group = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeGroup")
+    group_output = next(
+        n for n in group.node_tree.nodes if n.bl_idname == "NodeGroupOutput"
+    )
+    background_node = next(
+        n for n in group.node_tree.nodes if n.bl_idname == "ShaderNodeBackground"
+    )
+    sky_node = next(
+        n for n in group.node_tree.nodes if n.bl_idname == "ShaderNodeTexSky"
+    )
+    assert _linked_from(output.inputs["Surface"]) == group.outputs["surface"]
+    assert _linked_from(group_output.inputs["surface"]).node == background_node
+    assert _linked_from(background_node.inputs["Color"]) == sky_node.outputs["Color"]
+
+
+def test_to_compositor_basic():
+    """Test to_compositor with simple compositor nodes."""
+    # Create simple compositor setup
+    render_layers = pf.nodes.compositor.render_layers()
+
+    # Add some color correction
+    bright_contrast = pf.nodes.compositor.bright_contrast(
+        image=render_layers.image, bright=0.1, contrast=0.1
+    )
+
+    composite = pf.nodes.compositor.composite(image=bright_contrast)
+
+    # Convert to compositor
+    pf.nodes.to_compositor(results={"image": composite})
+
+    # Verify compositor was set up
+    assert bpy.context.scene.use_nodes is True
+    assert bpy.context.scene.node_tree is not None
+
+    # Verify nodes exist
+    nodes = bpy.context.scene.node_tree.nodes
+    assert len(nodes) > 0
+
+
+def test_material_with_displacement():
+    noise = pf.nodes.texture.noise(vector=(0.0, 0.0, 0.0), scale=2.0)
+    bsdf = pf.nodes.shader.principled_bsdf(base_color=(0.8, 0.8, 0.8, 1.0))
+    displacement = pf.nodes.shader.displacement(
+        height=noise.fac, midlevel=0.5, scale=0.1
+    )
+    tree = pf.Material(surface=bsdf, displacement=displacement).item().node_tree
+
+    output = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeOutputMaterial")
+    bsdf_node = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled")
+    displacement_node = next(
+        n for n in tree.nodes if n.bl_idname == "ShaderNodeDisplacement"
+    )
+    noise_node = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeTexNoise")
+    assert _linked_from(output.inputs["Surface"]).node == bsdf_node
+    assert _linked_from(output.inputs["Displacement"]).node == displacement_node
+    assert _linked_from(displacement_node.inputs["Height"]) == noise_node.outputs["Fac"]
+
+
+def test_material_constant_zero_displacement_dropped():
+    bsdf = pf.nodes.shader.principled_bsdf(base_color=(0.8, 0.2, 0.2, 1.0))
+    zero = pf.nodes.math.constant((0.0, 0.0, 0.0))
+    material = pf.Material(surface=bsdf, displacement=zero, volume=None)
+
+    tree = material.item().node_tree
+    out = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeOutputMaterial")
+    assert out.inputs["Surface"].is_linked
+    assert not out.inputs["Displacement"].is_linked
+
+
+def test_material_rejects_raw_constant_outputs():
+    bsdf = pf.nodes.shader.principled_bsdf(base_color=(0.8, 0.2, 0.2, 1.0))
+    material = pf.Material(surface=bsdf, displacement=(0.0, 0.0, 0.0), volume=None)
+    with pytest.raises(TypeError, match="displacement"):
+        material.item()
+
+
+def test_material_with_volume():
+    bsdf = pf.nodes.shader.principled_bsdf(base_color=(0.8, 0.8, 0.8, 1.0))
+    volume = pf.nodes.shader.volume_principled(color=(1.0, 1.0, 1.0, 1.0), density=0.1)
+    tree = pf.Material(surface=bsdf, volume=volume).item().node_tree
+
+    output = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeOutputMaterial")
+    bsdf_node = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled")
+    volume_node = next(
+        n for n in tree.nodes if n.bl_idname == "ShaderNodeVolumePrincipled"
+    )
+    assert _linked_from(output.inputs["Surface"]).node == bsdf_node
+    assert _linked_from(output.inputs["Volume"]).node == volume_node
+
+
+def test_environment_with_volume():
+    background = pf.nodes.shader.background(color=(0.1, 0.2, 0.4, 1.0), strength=1.0)
+    volume = pf.nodes.shader.volume_principled(color=(0.8, 0.9, 1.0, 1.0), density=0.01)
+    tree = pf.nodes.to_environment(surface=background, volume=volume).item().node_tree
+
+    output = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeOutputWorld")
+    group = next(n for n in tree.nodes if n.bl_idname == "ShaderNodeGroup")
+    group_output = next(
+        n for n in group.node_tree.nodes if n.bl_idname == "NodeGroupOutput"
+    )
+    background_node = next(
+        n for n in group.node_tree.nodes if n.bl_idname == "ShaderNodeBackground"
+    )
+    volume_node = next(
+        n for n in group.node_tree.nodes if n.bl_idname == "ShaderNodeVolumePrincipled"
+    )
+    assert _linked_from(output.inputs["Surface"]) == group.outputs["surface"]
+    assert _linked_from(output.inputs["Volume"]) == group.outputs["volume"]
+    assert _linked_from(group_output.inputs["surface"]).node == background_node
+    assert _linked_from(group_output.inputs["volume"]).node == volume_node
+
+
+def test_scene_bound_compositor_repeat_execution():
+    """Scene-bound graphs (Render Layers) build on the scene's compositing tree,
+    replacing its contents; a second execution in the same session must rebuild
+    from a clean tree rather than crash or accumulate nodes."""
+
+    def fn():
+        rl = pf.nodes.compositor.render_layers()
+        return pf.nodes.compositor.bright_contrast(
+            image=rl.image, bright=0.1, contrast=0.1
+        )
+
+    node_counts = []
+    iface_counts = []
+    for _ in range(2):
+        graph = pf.nodes.function_to_compute_graph(fn)
+        ng = pf.nodes.as_nodegroup(graph, pf.nodes.NodeGroupType.COMPOSITOR)
+        assert ng == bpy.context.scene.node_tree
+        node_counts.append(len(ng.nodes))
+        iface_counts.append(len(ng.interface.items_tree))
+
+    assert node_counts[0] == node_counts[1]
+    assert iface_counts[0] == iface_counts[1]
+
+
+def test_mix_rgb_default_clamp_factor_is_noop_in_texture():
+    """TextureNodeMixRGB unconditionally clamps its factor, so dropping the
+    default clamp_factor=True is silent."""
+
+    def fn():
+        return pf.nodes.color.mix_rgb(factor=0.5, a=(1, 0, 0, 1), b=(0, 1, 0, 1))
+
+    ng = _realize(fn, pf.nodes.NodeGroupType.TEXTURE)
+    assert any(n.bl_idname == "TextureNodeMixRGB" for n in ng.nodes)
+
+
+def test_mix_rgb_clamp_factor_false_raises_in_texture():
+    """clamp_factor=False cannot be honored by TextureNodeMixRGB (it always
+    clamps); it must raise rather than silently change semantics."""
+
+    def fn():
+        return pf.nodes.color.mix_rgb(
+            factor=0.5, a=(1, 0, 0, 1), b=(0, 1, 0, 1), clamp_factor=False
+        )
+
+    with pytest.raises(ValueError, match="clamp_factor"):
+        _realize(fn, pf.nodes.NodeGroupType.TEXTURE)
+
+
+def test_vector_compare_raises_outside_geometry():
+    """A compare with wired vector operands must raise in non-geometry trees,
+    not silently lower to a scalar Math node via implicit conversion."""
+
+    def fn():
+        c = pf.nodes.shader.coord()
+        return pf.nodes.func.equal(c.object, c.generated)
+
+    with pytest.raises(ValueError, match="not.*supported|FLOAT_VECTOR"):
+        _realize(fn, pf.nodes.NodeGroupType.SHADER)
+
+
+def test_float_compare_lowers_in_shader():
+    def fn():
+        return pf.nodes.func.equal(0.5, 0.5)
+
+    ng = _realize(fn, pf.nodes.NodeGroupType.SHADER)
+    assert any(n.bl_idname == "ShaderNodeMath" for n in ng.nodes)
+
+
+def test_to_mesh_object_with_attributes_default():
+    obj, attrs = pf.nodes.to_mesh_object_with_attributes(pf.nodes.geo.mesh_cube().mesh)
+    assert obj.item().type == "MESH"
+    assert attrs == {}
+
+
+def test_to_mesh_object_with_attributes():
+    obj, attrs = pf.nodes.to_mesh_object_with_attributes(
+        pf.nodes.geo.mesh_cube().mesh, attributes={"myval": 0.5}
+    )
+    assert obj.item().type == "MESH"
+    assert set(attrs) == {"myval"}
+
+
+def test_vector_curve_default_fac_is_noop_in_compositor():
+    """CompositorNodeCurveVec has no Fac socket; the default fac=1.0 matches
+    its always-fully-applied behavior so it drops silently."""
+
+    def fn():
+        return pf.nodes.math.vector_curve(vector=(0.5, 0.5, 0.5))
+
+    ng = _realize(fn, pf.nodes.NodeGroupType.COMPOSITOR)
+    assert any(n.bl_idname == "CompositorNodeCurveVec" for n in ng.nodes)
+
+
+def test_vector_curve_nondefault_fac_raises_in_compositor():
+    """fac != 1.0 cannot be honored by CompositorNodeCurveVec (it always
+    applies the curve fully); it must raise rather than silently change
+    semantics."""
+
+    def fn():
+        return pf.nodes.math.vector_curve(vector=(0.5, 0.5, 0.5), fac=0.5)
+
+    with pytest.raises(ValueError, match="Fac"):
+        _realize(fn, pf.nodes.NodeGroupType.COMPOSITOR)
+
+
+@pytest.mark.parametrize("handle_type", ["AUTO_CLAMPED", "VECTOR"])
+def test_float_curve_handles_and_unclipped_realize(
+    handle_type: pf.nodes.HandleType,
+) -> None:
+    curve = np.array([[0.0, 0.0], [0.5, 1.0], [1.0, 0.0]])
+
+    def fn():
+        return pf.nodes.math.float_curve(
+            factor=1.0,
+            value=0.5,
+            curve=curve,
+            handle_type=handle_type,
+            use_clip=False,
+        )
+
+    ng = _realize(fn, pf.nodes.NodeGroupType.SHADER)
+    node = next(n for n in ng.nodes if n.bl_idname == "ShaderNodeFloatCurve")
+    assert node.mapping.use_clip is False
+    assert [point.handle_type for point in node.mapping.curves[0].points] == [
+        handle_type
+    ] * 3
+
+
+def test_float_curve_handle_types_apply_to_default_curve() -> None:
+    def fn() -> pf.ProcNode:
+        return pf.nodes.math.float_curve(
+            factor=1.0,
+            value=0.5,
+            handle_types=["VECTOR", "AUTO"],
+        )
+
+    ng = _realize(fn, pf.nodes.NodeGroupType.SHADER)
+    node = next(n for n in ng.nodes if n.bl_idname == "ShaderNodeFloatCurve")
+    actual = [point.handle_type for point in node.mapping.curves[0].points]
+    assert actual == ["VECTOR", "AUTO"]
+
+
+def test_float_curve_rejects_broadcast_and_per_point_handles() -> None:
+    def fn() -> pf.ProcNode:
+        return pf.nodes.math.float_curve(
+            factor=1.0,
+            value=0.5,
+            handle_type="VECTOR",
+            handle_types=["VECTOR", "AUTO"],
+        )
+
+    with pytest.raises(ValueError, match="handle_types.*handle_type"):
+        _realize(fn, pf.nodes.NodeGroupType.SHADER)
+
+
+def _vector_curve_with_handles(
+    handle_types: list[list[pf.nodes.HandleType]],
+) -> pf.ProcNode:
+    return pf.nodes.math.vector_curve(vector=(0.5, 0.5, 0.5), handle_types=handle_types)
+
+
+def _shader_rgb_curve_with_handles(
+    handle_types: list[list[pf.nodes.HandleType]],
+) -> pf.ProcNode:
+    return pf.nodes.color.rgb_curve(
+        fac=1.0, color=(0.5, 0.5, 0.5, 1.0), handle_types=handle_types
+    )
+
+
+def _compositor_rgb_curve_with_handles(
+    handle_types: list[list[pf.nodes.HandleType]],
+) -> pf.ProcNode:
+    return pf.nodes.compositor.rgb_curve(
+        fac=1.0, image=(0.5, 0.5, 0.5, 1.0), handle_types=handle_types
+    )
+
+
+@pytest.mark.parametrize(
+    ("make_curve", "group_type", "bl_idname", "curve_count"),
+    [
+        (
+            _vector_curve_with_handles,
+            pf.nodes.NodeGroupType.SHADER,
+            "ShaderNodeVectorCurve",
+            3,
+        ),
+        (
+            _shader_rgb_curve_with_handles,
+            pf.nodes.NodeGroupType.SHADER,
+            "ShaderNodeRGBCurve",
+            4,
+        ),
+        (
+            _compositor_rgb_curve_with_handles,
+            pf.nodes.NodeGroupType.COMPOSITOR,
+            "CompositorNodeCurveRGB",
+            4,
+        ),
+    ],
+)
+def test_curve_handle_types_apply_to_default_curves(
+    make_curve: collections.abc.Callable[
+        [list[list[pf.nodes.HandleType]]], pf.ProcNode
+    ],
+    group_type: pf.nodes.NodeGroupType,
+    bl_idname: str,
+    curve_count: int,
+) -> None:
+    expected = [["VECTOR", "AUTO"]]
+    expected += [["AUTO", "AUTO"] for _ in range(curve_count - 1)]
+
+    def fn() -> pf.ProcNode:
+        return make_curve(expected)
+
+    ng = _realize(fn, group_type)
+    node = next(n for n in ng.nodes if n.bl_idname == bl_idname)
+    actual = [
+        [point.handle_type for point in curve.points] for curve in node.mapping.curves
+    ]
+    assert actual == expected
+
+
+def test_multiple_outputs_compositor():
+    """Test compositor with multiple output nodes."""
+    render_layers = pf.nodes.compositor.render_layers()
+
+    # Create multiple outputs
+    composite = pf.nodes.compositor.composite(image=render_layers.image)
+
+    viewer = pf.nodes.compositor.viewer(image=render_layers.image)
+
+    # Convert to compositor with multiple outputs
+    pf.nodes.to_compositor(results={"image": composite, "viewer": viewer})
+
+    assert bpy.context.scene.use_nodes is True
+    nodes = bpy.context.scene.node_tree.nodes
+    assert len(nodes) >= 2  # At least render layers and one output
+
+
+def test_complex_shader_network():
+    """Test complex shader network with multiple node types."""
+    # Create a complex shader with multiple textures and mixing
+    coord = pf.nodes.shader.coord()
+    mapping = pf.nodes.shader.mapping(vector=coord.generated, scale=(2.0, 2.0, 2.0))
+
+    noise1 = pf.nodes.texture.noise(vector=mapping, scale=5.0)
+
+    noise2 = pf.nodes.texture.noise(vector=mapping, scale=10.0, roughness=0.3)
+
+    mix_color = pf.nodes.color.mix_rgb(factor=0.5, a=noise1.color, b=noise2.color)
+
+    bsdf = pf.nodes.shader.principled_bsdf(
+        base_color=mix_color, roughness=noise1.fac, metallic=0.0
+    )
+
+    material = pf.Material(surface=bsdf)
+
+    assert material.item().use_nodes is True
+
+
+def test_mix_shader_inputs_required():
+    """mix_shader/add_shader inputs are required: omitting one raises TypeError;
+    passing explicit None deliberately disconnects it."""
+    bsdf = pf.nodes.shader.principled_bsdf(base_color=(0.8, 0.2, 0.1, 1.0))
+
+    with pytest.raises(TypeError):
+        pf.nodes.shader.mix_shader(factor=0.5, b=bsdf)
+    with pytest.raises(TypeError):
+        pf.nodes.shader.add_shader(a=bsdf)
+
+    mixed = pf.nodes.shader.mix_shader(factor=0.5, a=None, b=bsdf)
+    added = pf.nodes.shader.add_shader(a=None, b=mixed)
+    material = pf.Material(surface=added)
+
+    nodes = material.item().node_tree.nodes
+    mix = next(n for n in nodes if n.bl_idname == "ShaderNodeMixShader")
+    add = next(n for n in nodes if n.bl_idname == "ShaderNodeAddShader")
+    assert not mix.inputs[1].is_linked and mix.inputs[2].is_linked
+    assert not add.inputs[0].is_linked and add.inputs[1].is_linked
+
+
+@pf.nodes.node_function
+def _bound_box_none_geometry() -> pf.ProcNode:
+    return pf.nodes.geo.bound_box(geometry=None).bounding_box
+
+
+def test_primary_node_inputs_required():
+    """Primary geometry/compare inputs are required: omitting one raises TypeError;
+    passing explicit None deliberately disconnects it where None is a valid wiring."""
+    cube = pf.nodes.geo.mesh_cube(size=(1, 1, 1)).mesh
+
+    with pytest.raises(TypeError):
+        pf.nodes.geo.bound_box()
+    with pytest.raises(TypeError):
+        pf.nodes.func.less_than(a=1)
+    with pytest.raises(TypeError):
+        pf.nodes.geo.set_material(geometry=cube)
+
+    ng = _realize(_bound_box_none_geometry, pf.nodes.NodeGroupType.GEOMETRY)
+    bb = next(n for n in ng.nodes if n.bl_idname == "GeometryNodeBoundBox")
+    assert not bb.inputs["Geometry"].is_linked
+
+    rgb = pf.nodes.shader.shader_to_rgb(shader=None)
+    material = pf.Material(
+        surface=pf.nodes.shader.principled_bsdf(base_color=rgb.color)
+    )
+    assert material.item().use_nodes is True
+
+
+@pf.nodes.node_function
+def _translate_for_test(
+    geo: pf.ProcNode[pf.MeshObject], offset: pf.ProcNode[pf.Vector] = (0, 0, 1)
+) -> pf.ProcNode:
+    return pf.nodes.geo.set_position(geo, offset=offset)
+
+
+def test_node_function_meshobject_geometry_input():
+    """MeshObject passed to a node_function geometry param should implicitly go through object_info,
+    not collection_info."""
+
+    cube = pf.ops.primitives.mesh_cube(size=1.0)
+    result = pf.nodes.to_mesh_object(_translate_for_test(cube))
+
+    assert result is not None
+    assert result.item().type == "MESH"
+
+
+def test_object_info_accepts_curve_object():
+    """object_info should accept any Object subclass (e.g. CurveObject), not only MeshObject.
+
+    Regression test: assign_default_value previously only auto-unwrapped MeshObject,
+    causing CurveObject to be passed as a wrapper to NodeSocketObject.default_value
+    and raising "expected a Object type, not CurveObject"."""
+
+    curve = pf.nodes.to_curve_object(
+        geometry=pf.nodes.geo.curve_circle(radius=1.0, resolution=8)
+    )
+    assert isinstance(curve, pf.CurveObject)
+
+    geo = pf.nodes.geo.object_info(curve).geometry
+    result = pf.nodes.to_curve_object(geometry=geo)
+
+    assert result is not None
+    assert result.item().type == "CURVE"
+
+
+def test_set_material_unwraps_material_wrapper():
+    """assign_default_value should unwrap a pf.Material via .item() when assigning
+    to a NodeSocketMaterial, so that bpy receives a bpy.types.Material."""
+
+    bsdf = pf.nodes.shader.principled_bsdf(
+        base_color=(0.1, 0.5, 0.8, 1.0), roughness=0.4
+    )
+    material = pf.Material(surface=bsdf)
+    assert isinstance(material, pf.Material)
+
+    cube = pf.nodes.geo.mesh_cube(size=(1, 1, 1)).mesh
+    cube_with_mat = pf.nodes.geo.set_material(geometry=cube, material=material)
+    obj = pf.nodes.to_mesh_object(geometry=cube_with_mat)
+
+    assert obj is not None
+    assert obj.item().type == "MESH"
+
+
+def test_collection_info_unwraps_collection_wrapper():
+    """assign_default_value should unwrap a pf.Collection via .item() when assigning
+    to a NodeSocketCollection, so that bpy receives a bpy.types.Collection."""
+
+    cube_obj = pf.nodes.to_mesh_object(pf.nodes.geo.mesh_cube(size=(1, 1, 1)).mesh)
+    col = pf.Collection([cube_obj], name="test_unwrap_collection")
+    assert isinstance(col, pf.Collection)
+
+    instances = pf.nodes.geo.collection_info(collection=col)
+    realized = pf.nodes.geo.realize_instances(instances)
+    result = pf.nodes.to_mesh_object(geometry=realized)
+
+    assert result is not None
+    assert result.item().type == "MESH"
+
+
+def test_image_texture_unwraps_image_wrapper():
+    """geo.image_texture should unwrap a pf.Image via .item() when assigning to a
+    NodeSocketImage, so that bpy receives a bpy.types.Image."""
+
+    raw = bpy.data.images.new("test_unwrap_image", width=4, height=4)
+    img = pf.Image(raw)
+    assert isinstance(img, pf.Image)
+
+    tex = pf.nodes.geo.image_texture(image=img, vector=pf.nodes.geo.input_position())
+    cube = pf.nodes.geo.set_position(
+        geometry=pf.nodes.geo.mesh_cube(size=(1, 1, 1)).mesh, offset=tex.color
+    )
+    obj = pf.nodes.to_mesh_object(geometry=cube)
+
+    assert obj is not None
+    assert obj.item().type == "MESH"
+
+
+@pytest.mark.parametrize("kind", ["image", "environment"])
+@pytest.mark.parametrize("with_datablock", [False, True])
+def test_image_user_settings_survive_datablock_assignment(
+    kind: str, with_datablock: bool
+) -> None:
+    raw = bpy.data.images.new("test_image_user", 2, 2)
+    image = pf.Image(raw) if with_datablock else None
+    value = getattr(pf.nodes.texture, kind)(
+        vector=None,
+        image=image,
+        frame_current=4,
+        frame_duration=42,
+        frame_offset=7,
+        frame_start=2,
+        tile=3,
+        use_auto_refresh=True,
+        use_cyclic=True,
+    )
+    if kind == "image":
+        value = value.color
+    ng = _realize(lambda: value, pf.nodes.NodeGroupType.SHADER)
+    tex = next(n for n in ng.nodes if n.bl_idname == f"ShaderNodeTex{kind.title()}")
+
+    assert tex.image == (raw if with_datablock else None)
+    assert tex.image_user.frame_current == 4
+    assert tex.image_user.frame_duration == 42
+    assert tex.image_user.frame_offset == 7
+    assert tex.image_user.frame_start == 2
+    assert tex.image_user.tile == 3
+    assert tex.image_user.use_auto_refresh
+    assert tex.image_user.use_cyclic
+
+
+def test_to_object_basic():
+    cube = pf.nodes.geo.mesh_cube(size=(2, 2, 2))
+    obj = pf.nodes.to_mesh_object(geometry=cube.mesh)
+
+    assert obj is not None
+    assert obj.item().type == "MESH"
+    assert obj.item().name in bpy.data.objects
+
+    assert np.abs(np.array(obj.item().dimensions) - 2).max() < 1e-6
+
+
+def test_to_object_curve_as_mesh():
+    curve = pf.nodes.geo.curve_circle(radius=1.0, resolution=10)
+    curve = pf.nodes.to_curve_object(geometry=curve)
+
+    assert curve is not None
+    assert curve.item().type == "CURVE"
+    assert len(curve.item().data.splines[0].points) == 10
+
+
+def test_to_objects_multi():
+    """Test to_object with multiple output nodes."""
+    cube1 = pf.nodes.geo.mesh_cube(size=(2, 2, 2))
+    cube2 = pf.nodes.geo.mesh_cube(size=(1, 1, 1))
+
+    objs = pf.nodes.to_objects_multi(
+        geometries={"cube1": cube1.mesh, "cube2": cube2.mesh}
+    )
+    assert np.abs(np.array(objs["cube1"].item().dimensions) - 2).max() < 1e-6
+    assert np.abs(np.array(objs["cube2"].item().dimensions) - 1).max() < 1e-6
+
+
+def test_to_aliases():
+    """Test to_aliases with instanced geometry."""
+    # Create actual objects for instancing
+    cube_geo = pf.nodes.geo.mesh_cube(size=(1, 1, 1))
+    cube_obj = pf.nodes.to_mesh_object(cube_geo.mesh)
+
+    cylinder_geo = pf.nodes.geo.mesh_cylinder(radius=0.5, depth=1.0)
+    cylinder_obj = pf.nodes.to_mesh_object(cylinder_geo.mesh)
+
+    # Create a collection with these objects
+    col = pf.types.Collection([cube_obj, cylinder_obj], name="instance_collection")
+
+    # Now use collection_info to get instances
+    collection_info = pf.nodes.geo.collection_info(
+        collection=col, separate_children=True, reset_children=True
+    )
+
+    points = pf.nodes.geo.mesh_line(
+        start_location=(0, 0, 0),
+        offset=(2, 0, 0),
+        count=4,
+    )
+
+    idx = pf.nodes.geo.input_index()
+    instance_idx = pf.nodes.math.modulo(idx, 2)
+
+    instances = pf.nodes.geo.instance_on_points(
+        points=points,
+        instance=collection_info,
+        pick_instance=True,
+        instance_index=instance_idx,
+    )
+
+    aliases = pf.nodes.to_aliases(geometry=instances)
+
+    assert len(aliases) == 4
+
+    # Check all objects are valid meshes
+    for alias in aliases:
+        obj = alias.item()
+        assert obj.type == "MESH"
+        assert obj.name in bpy.data.objects
+
+    # Check positions - should be at x=0,2,4,6
+    positions_x = sorted([a.item().location.x for a in aliases])
+    expected_positions = [0.0, 2.0, 4.0, 6.0]
+    for actual, expected in zip(positions_x, expected_positions):
+        assert np.abs(actual - expected) < 0.01
+
+    # Check that we have exactly 2 unique mesh datas (cube and cylinder)
+    unique_meshes = {a.item().data for a in aliases}
+    assert len(unique_meshes) == 2
+
+    # Check that each unique mesh has exactly 2 instances
+    for mesh in unique_meshes:
+        instances_of_this_mesh = [a for a in aliases if a.item().data == mesh]
+        assert len(instances_of_this_mesh) == 2
+
+
+"""
+def test_func_as_nodegroup():
+    def func(
+        x: pf.MeshObject, offset: pf.Vector = (0, 0, 0), offset_scale: float = 1.0
+    ):
+        geo = pf.nodes.geo.object_info(x)
+        geo = pf.nodes.geo.extrude_mesh(geo, offset_scale=offset_scale)
+        geo = pf.nodes.geo.transform(geo, translation=offset)
+        out = pf.nodes.output(geometry=geo)
+        return out
+
+    nodefunc = pf.nodes.nodegroup.from_function(func, pf.nodes.NodeGroupType.GEOMETRY)
+    nodegroup = pf.nodes.as_nodegroup(nodefunc(), pf.nodes.NodeGroupType.GEOMETRY)
+    items = [x for x in nodegroup.interface.items_tree.values() if x.in_out == "INPUT"]
+
+    assert len(items) == 3
+
+    assert items[0].socket_type == pf.nodes.SocketType.OBJECT.value
+    assert items[1].socket_type == pf.nodes.SocketType.VECTOR.value
+    assert items[2].socket_type == pf.nodes.SocketType.FLOAT.value
+"""
+
+
+@pf.nodes.node_function
+def _random_value_4tuple(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    rv = pf.nodes.func.random_value(min=(0, 0, 0, 0), max=(1, 1, 1, 1))
+    return pf.nodes.geo.set_position(geo, offset=rv)
+
+
+@pf.nodes.node_function
+def _random_value_3tuple(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    rv = pf.nodes.func.random_value(min=(0, 0, 0), max=(1, 1, 1))
+    return pf.nodes.geo.set_position(geo, offset=rv)
+
+
+@pf.nodes.node_function
+def _mix_4tuple(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    mixed = pf.nodes.math.mix(a=(0, 0, 0, 0), b=(1, 1, 1, 1), factor=0.5)
+    return pf.nodes.geo.set_position(geo, offset=mixed)
+
+
+def _node_data_types(node_fn, bl_idname: str) -> list[str]:
+    ng = _realize(node_fn, pf.nodes.NodeGroupType.GEOMETRY)
+    return [n.data_type for n in ng.nodes if n.bl_idname == bl_idname]
+
+
+def test_random_value_4tuple_rejected():
+    """RandomValue has no color/4-component data type; a plain 4-tuple must raise
+    rather than silently truncate to a 3-component FLOAT_VECTOR."""
+    with pytest.raises(ValueError, match="length-4"):
+        _node_data_types(_random_value_4tuple, "FunctionNodeRandomValue")
+
+
+def test_random_value_3tuple_resolves_to_float_vector():
+    assert _node_data_types(_random_value_3tuple, "FunctionNodeRandomValue") == [
+        "FLOAT_VECTOR"
+    ]
+
+
+def test_mix_4tuple_resolves_to_rgba():
+    """Mix does support color, so a 4-tuple resolves to RGBA there."""
+    assert _node_data_types(_mix_4tuple, "ShaderNodeMix") == ["RGBA"]
+
+
+@pf.nodes.node_function
+def _set_handles_both(curve: pf.ProcNode[pf.CurveObject]) -> pf.ProcNode:
+    return pf.nodes.geo.curve_set_handles(curve)
+
+
+@pf.nodes.node_function
+def _set_handles_left_only(curve: pf.ProcNode[pf.CurveObject]) -> pf.ProcNode:
+    return pf.nodes.geo.curve_set_handles(curve, mode={"LEFT"})
+
+
+def _curve_set_handles_modes(node_fn) -> list[set]:
+    ng = _realize(node_fn, pf.nodes.NodeGroupType.GEOMETRY)
+    return [n.mode for n in ng.nodes if n.bl_idname == "GeometryNodeCurveSetHandles"]
+
+
+def test_curve_set_handles_mode_default_is_both():
+    """mode is a flag set defaulting to both handles, matching Blender."""
+    assert _curve_set_handles_modes(_set_handles_both) == [{"LEFT", "RIGHT"}]
+
+
+def test_curve_set_handles_mode_single_member_set():
+    """A single-member set is accepted by the construct path (string would be
+    rejected by Blender's enum-flag property)."""
+    assert _curve_set_handles_modes(_set_handles_left_only) == [{"LEFT"}]
+
+
+# --- strict-None policy: None is only allowed for sockets with no default_value ---
+
+
+def _realize_geo(node_fn):
+    return _realize(node_fn, pf.nodes.NodeGroupType.GEOMETRY)
+
+
+@pf.nodes.node_function
+def _none_into_float_socket(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    # ADD enables Value sockets 0 and 1; passing None to the second value socket
+    # (an enabled VALUE socket) must be rejected.
+    val = pf.nodes.math.add(1.0, None)
+    return pf.nodes.geo.set_position(geo, offset=(val, val, val))
+
+
+def test_none_for_float_socket_raises():
+    with pytest.raises(ValueError, match="received None"):
+        _realize_geo(_none_into_float_socket)
+
+
+@pf.nodes.node_function
+def _none_geometry_input(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    # join_geometry's Geometry is a Geometry socket; a None entry is allowed
+    # (leaves that multi-input slot disconnected).
+    return pf.nodes.geo.join_geometry([geo, None])
+
+
+def test_none_for_geometry_socket_ok():
+    ng = _realize_geo(_none_geometry_input)
+    assert any(n.bl_idname == "GeometryNodeJoinGeometry" for n in ng.nodes)
+
+
+@pf.nodes.node_function
+def _true_selection(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    # Selection's all-true behavior is spelled with an explicit True.
+    return pf.nodes.geo.set_position(geo, selection=True, offset=(0, 0, 1))
+
+
+def test_true_for_boolean_selection_socket_ok():
+    ng = _realize_geo(_true_selection)
+    assert any(n.bl_idname == "GeometryNodeSetPosition" for n in ng.nodes)
+
+
+@pf.nodes.node_function
+def _none_selection(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    return pf.nodes.geo.set_position(geo, selection=None, offset=(0, 0, 1))
+
+
+def test_none_for_boolean_selection_socket_omitted():
+    ng = _realize_geo(_none_selection)
+    node = next(n for n in ng.nodes if n.bl_idname == "GeometryNodeSetPosition")
+    assert not node.inputs["Selection"].is_linked
+
+
+@pf.nodes.node_function
+def _scale_elements_center_none(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    return pf.nodes.geo.scale_elements(geometry=geo, scale=2.0, center=None)
+
+
+def test_hide_value_center_none_omitted():
+    ng = _realize_geo(_scale_elements_center_none)
+    node = next(n for n in ng.nodes if n.bl_idname == "GeometryNodeScaleElements")
+    assert not node.inputs["Center"].is_linked
+
+
+@pf.nodes.node_function
+def _mesh_to_points_position_none(geo: pf.ProcNode[pf.MeshObject]) -> pf.ProcNode:
+    return pf.nodes.geo.mesh_to_points(mesh=geo, position=None)
+
+
+def test_hide_value_position_none_omitted():
+    ng = _realize_geo(_mesh_to_points_position_none)
+    node = next(n for n in ng.nodes if n.bl_idname == "GeometryNodeMeshToPoints")
+    assert not node.inputs["Position"].is_linked
+
+
+@pf.nodes.node_function
+def _checker_vector_none() -> pf.ProcNode:
+    return pf.nodes.texture.checker(vector=None).color
+
+
+def test_hide_value_texture_vector_none_omitted():
+    ng = _realize(_checker_vector_none, pf.nodes.NodeGroupType.SHADER)
+    node = next(n for n in ng.nodes if n.bl_idname == "ShaderNodeTexChecker")
+    assert not node.inputs["Vector"].is_linked

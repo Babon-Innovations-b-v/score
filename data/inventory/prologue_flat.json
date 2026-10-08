@@ -1,0 +1,784 @@
+{
+	"scene": "prologue_flat",
+	"place": "prologue_flat",
+	"plan": {
+		"world": "",
+		"seed": 7,
+		"views": [
+			{
+				"id": "v1",
+				"picture": "TMP/concepts-world1/flat/concepts/K06.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the owner's world-1 scale-up: build every place without stopping for review between places, after the concept picks (coordinator's, concepts-world1); the owner reviews the built world at the end",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": []
+	},
+	"rows": [
+		{
+			"id": "plaster_wall",
+			"view": "v1",
+			"box": [
+				0,
+				300,
+				2752,
+				1200
+			],
+			"name": "whitewashed plaster wall with a green gloss lower band",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				6.0,
+				0.03,
+				2.8
+			],
+			"count": 4,
+			"thing": "prop:flat_plaster_wall"
+		},
+		{
+			"id": "plaster_ceiling",
+			"view": "v1",
+			"box": [
+				700,
+				0,
+				2000,
+				300
+			],
+			"name": "whitewashed ceiling",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				6.0,
+				5.0,
+				0.03
+			],
+			"count": 1,
+			"thing": "prop:flat_plaster_ceiling"
+		},
+		{
+			"id": "floorboards",
+			"view": "v1",
+			"box": [
+				500,
+				1050,
+				2300,
+				1536
+			],
+			"name": "painted floorboards, worn",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				6.0,
+				5.0,
+				0.03
+			],
+			"count": 1,
+			"thing": "prop:flat_floorboards"
+		},
+		{
+			"id": "render_wall",
+			"view": "v1",
+			"box": [
+				1050,
+				380,
+				1650,
+				1080
+			],
+			"name": "the flat's outside wall over the balcony",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				5.4,
+				0.03,
+				3.0
+			],
+			"count": 1,
+			"thing": "prop:flat_render_wall"
+		},
+		{
+			"id": "balcony_slab",
+			"view": "v1",
+			"box": [
+				1060,
+				1000,
+				1500,
+				1080
+			],
+			"name": "balcony slab",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.4,
+				4.4,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:flat_balcony_slab"
+		},
+		{
+			"id": "balcony_rail",
+			"view": "v1",
+			"box": [
+				1070,
+				780,
+				1500,
+				1050
+			],
+			"name": "painted steel balcony railing",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				4.4,
+				0.06,
+				1.1
+			],
+			"count": 3,
+			"thing": "prop:flat_balcony_rail"
+		},
+		{
+			"id": "balcony_door_frame",
+			"view": "v1",
+			"box": [
+				1050,
+				380,
+				1650,
+				1080
+			],
+			"name": "glazed balcony door frame",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.54,
+				0.08,
+				2.62
+			],
+			"count": 1,
+			"thing": "prop:flat_balcony_door_frame"
+		},
+		{
+			"id": "sliding_glass_leaf",
+			"view": "v1",
+			"box": [
+				1350,
+				380,
+				1650,
+				1080
+			],
+			"name": "sliding glass balcony door",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.44,
+				0.04,
+				2.2
+			],
+			"count": 1,
+			"thing": "prop:flat_sliding_glass_leaf"
+		},
+		{
+			"id": "timber_door_frame",
+			"view": "v1",
+			"box": [
+				0,
+				300,
+				200,
+				1300
+			],
+			"name": "front door frame",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.14,
+				0.24,
+				2.28
+			],
+			"count": 1,
+			"thing": "prop:flat_timber_door_frame"
+		},
+		{
+			"id": "timber_door_leaf",
+			"view": "v1",
+			"box": [
+				0,
+				300,
+				200,
+				1300
+			],
+			"name": "front door, open",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.94,
+				0.045,
+				2.17
+			],
+			"count": 1,
+			"thing": "prop:flat_timber_door_leaf"
+		},
+		{
+			"id": "wardrobe",
+			"view": "v1",
+			"box": [
+				750,
+				450,
+				1030,
+				1110
+			],
+			"name": "varnished timber wardrobe",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.55,
+				1.9
+			],
+			"count": 1,
+			"thing": "prop:flat_wardrobe"
+		},
+		{
+			"id": "table",
+			"view": "v1",
+			"box": [
+				1600,
+				920,
+				2100,
+				1300
+			],
+			"name": "varnished timber table",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.7,
+				0.76
+			],
+			"count": 1,
+			"thing": "prop:flat_table"
+		},
+		{
+			"id": "timber_chair",
+			"view": "v1",
+			"box": [
+				1480,
+				880,
+				1700,
+				1300
+			],
+			"name": "timber chair",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.42,
+				0.45,
+				0.9
+			],
+			"count": 2,
+			"thing": "prop:flat_timber_chair"
+		},
+		{
+			"id": "tv_cabinet",
+			"view": "v1",
+			"box": [
+				1450,
+				920,
+				1700,
+				1100
+			],
+			"name": "low timber cabinet under the television",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.0,
+				0.42,
+				0.5
+			],
+			"count": 1,
+			"thing": "prop:flat_tv_cabinet"
+		},
+		{
+			"id": "crt_tv",
+			"view": "v1",
+			"box": [
+				1480,
+				720,
+				1760,
+				950
+			],
+			"name": "old television set",
+			"kind": "generate",
+			"anchor": "on:tv_cabinet",
+			"size": [
+				0.52,
+				0.42,
+				0.42
+			],
+			"count": 1,
+			"thing": "prop:flat_crt_tv"
+		},
+		{
+			"id": "kitchen_counter",
+			"view": "v1",
+			"box": [
+				2000,
+				680,
+				2752,
+				1536
+			],
+			"name": "tiled kitchen counter with sink and splashback",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.9,
+				0.6,
+				1.45
+			],
+			"count": 1,
+			"thing": "prop:flat_kitchen_counter"
+		},
+		{
+			"id": "gas_stove",
+			"view": "v1",
+			"box": [
+				2020,
+				1000,
+				2400,
+				1150
+			],
+			"name": "two-ring gas stove",
+			"kind": "generate",
+			"anchor": "on:kitchen_counter",
+			"size": [
+				0.62,
+				0.36,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:flat_gas_stove"
+		},
+		{
+			"id": "kettle",
+			"view": "v1",
+			"box": [
+				2220,
+				870,
+				2420,
+				1060
+			],
+			"name": "aluminium kettle",
+			"kind": "generate",
+			"anchor": "on:gas_stove",
+			"size": [
+				0.24,
+				0.2,
+				0.24
+			],
+			"count": 1,
+			"thing": "prop:flat_kettle"
+		},
+		{
+			"id": "thermos",
+			"view": "v1",
+			"box": [
+				2580,
+				880,
+				2700,
+				1150
+			],
+			"name": "green thermos flask",
+			"kind": "generate",
+			"anchor": "on:kitchen_counter",
+			"size": [
+				0.13,
+				0.13,
+				0.36
+			],
+			"count": 2,
+			"thing": "prop:flat_thermos"
+		},
+		{
+			"id": "bowl_stack",
+			"view": "v1",
+			"box": [
+				2450,
+				1000,
+				2600,
+				1150
+			],
+			"name": "stack of rice bowls",
+			"kind": "generate",
+			"anchor": "on:wall_shelf",
+			"size": [
+				0.15,
+				0.15,
+				0.13
+			],
+			"count": 2,
+			"thing": "prop:flat_bowl_stack"
+		},
+		{
+			"id": "sauce_bottle",
+			"view": "v1",
+			"box": [
+				2250,
+				460,
+				2500,
+				650
+			],
+			"name": "soy sauce bottle",
+			"kind": "generate",
+			"anchor": "on:wall_shelf",
+			"size": [
+				0.07,
+				0.07,
+				0.27
+			],
+			"count": 3,
+			"thing": "prop:flat_sauce_bottle"
+		},
+		{
+			"id": "wall_shelf",
+			"view": "v1",
+			"box": [
+				2140,
+				600,
+				2752,
+				690
+			],
+			"name": "timber wall shelf over the kitchen",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.22,
+				0.25
+			],
+			"count": 1,
+			"thing": "prop:flat_wall_shelf"
+		},
+		{
+			"id": "washbasin_stand",
+			"view": "v1",
+			"box": [
+				0,
+				1080,
+				500,
+				1536
+			],
+			"name": "timber washbasin stand",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.45,
+				0.45,
+				0.82
+			],
+			"count": 1,
+			"thing": "prop:flat_washbasin_stand"
+		},
+		{
+			"id": "enamel_basin",
+			"view": "v1",
+			"box": [
+				80,
+				1050,
+				470,
+				1200
+			],
+			"name": "enamel wash basin",
+			"kind": "generate",
+			"anchor": "on:washbasin_stand",
+			"size": [
+				0.42,
+				0.42,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:flat_enamel_basin"
+		},
+		{
+			"id": "bedside_table",
+			"view": "v1",
+			"box": [
+				700,
+				960,
+				920,
+				1110
+			],
+			"name": "timber bedside table",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.4,
+				0.36,
+				0.58
+			],
+			"count": 1,
+			"thing": "prop:flat_bedside_table"
+		},
+		{
+			"id": "bedside_lamp",
+			"view": "v1",
+			"box": [
+				760,
+				840,
+				860,
+				960
+			],
+			"name": "bedside lamp with a pleated shade",
+			"kind": "generate",
+			"anchor": "on:bedside_table",
+			"size": [
+				0.24,
+				0.24,
+				0.4
+			],
+			"count": 1,
+			"thing": "prop:flat_bedside_lamp"
+		},
+		{
+			"id": "bed_frame",
+			"view": "v1",
+			"box": [
+				400,
+				1000,
+				1030,
+				1536
+			],
+			"name": "painted steel single bed frame",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.95,
+				0.95,
+				0.9
+			],
+			"count": 1,
+			"thing": "prop:flat_bed_frame"
+		},
+		{
+			"id": "mattress",
+			"view": "v1",
+			"box": [
+				430,
+				1040,
+				1000,
+				1280
+			],
+			"name": "thin cotton mattress",
+			"kind": "code",
+			"anchor": "on:bed_frame",
+			"size": [
+				1.9,
+				0.9,
+				0.14
+			],
+			"count": 1,
+			"thing": "prop:flat_mattress"
+		},
+		{
+			"id": "quilt",
+			"view": "v1",
+			"box": [
+				430,
+				1040,
+				770,
+				1210
+			],
+			"name": "folded red cotton quilt",
+			"kind": "generate",
+			"anchor": "on:mattress",
+			"size": [
+				0.9,
+				0.55,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:flat_quilt"
+		},
+		{
+			"id": "pillow",
+			"view": "v1",
+			"box": [
+				700,
+				1010,
+				940,
+				1080
+			],
+			"name": "white cotton pillow",
+			"kind": "generate",
+			"anchor": "on:mattress",
+			"size": [
+				0.55,
+				0.35,
+				0.12
+			],
+			"count": 1,
+			"thing": "prop:flat_pillow"
+		},
+		{
+			"id": "ceiling_fan",
+			"view": "v1",
+			"box": [
+				1050,
+				0,
+				1630,
+				260
+			],
+			"name": "white ceiling fan",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				1.2,
+				1.2,
+				0.55
+			],
+			"count": 1,
+			"thing": "prop:flat_ceiling_fan"
+		},
+		{
+			"id": "tube_light",
+			"view": "v1",
+			"box": [
+				1700,
+				0,
+				1920,
+				240
+			],
+			"name": "fluorescent tube light, off",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				1.25,
+				0.12,
+				0.09
+			],
+			"count": 1,
+			"thing": "prop:flat_tube_light"
+		},
+		{
+			"id": "wall_print",
+			"view": "v1",
+			"box": [
+				80,
+				330,
+				620,
+				810
+			],
+			"name": "family photo, calendar and red poster",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.34,
+				0.004,
+				0.5
+			],
+			"count": 3,
+			"thing": "prop:flat_wall_print"
+		},
+		{
+			"id": "storage_box",
+			"view": "v1",
+			"box": [
+				793,
+				455,
+				1007,
+				524
+			],
+			"name": "grey metal trunk on the wardrobe",
+			"kind": "code",
+			"anchor": "on:wardrobe",
+			"size": [
+				0.45,
+				0.38,
+				0.24
+			],
+			"count": 1,
+			"thing": "prop:flat_storage_box"
+		},
+		{
+			"id": "tea_tin",
+			"view": "v1",
+			"box": [
+				2194,
+				593,
+				2346,
+				649
+			],
+			"name": "tea tins on the wall shelf",
+			"kind": "code",
+			"anchor": "on:wall_shelf",
+			"size": [
+				0.09,
+				0.09,
+				0.13
+			],
+			"count": 2,
+			"thing": "prop:flat_tea_tin"
+		},
+		{
+			"id": "hanging_towel",
+			"view": "v1",
+			"box": [
+				2125,
+				621,
+				2208,
+				883
+			],
+			"name": "towel hung under the shelf",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.28,
+				0.04,
+				0.55
+			],
+			"count": 1,
+			"thing": "prop:flat_hanging_towel"
+		},
+		{
+			"id": "cooking_pot",
+			"view": "v1",
+			"box": [
+				2070,
+				1214,
+				2208,
+				1325
+			],
+			"name": "aluminium cooking pot on the stove",
+			"kind": "code",
+			"anchor": "on:gas_stove",
+			"size": [
+				0.32,
+				0.28,
+				0.17
+			],
+			"count": 1,
+			"thing": "prop:flat_cooking_pot"
+		},
+		{
+			"id": "plate",
+			"view": "v1",
+			"box": [
+				1748,
+				936,
+				1872,
+				984
+			],
+			"name": "plate on the table",
+			"kind": "code",
+			"anchor": "on:table",
+			"size": [
+				0.22,
+				0.22,
+				0.025
+			],
+			"count": 1,
+			"thing": "prop:flat_plate"
+		}
+	]
+}
