@@ -180,6 +180,19 @@ def test_a_take_is_split_in_two_across_its_longest_side():
         shutil.rmtree(source)
 
 
+def test_a_report_no_current_job_names_is_not_read():
+    with tempfile.TemporaryDirectory() as temporary:
+        work = pathlib.Path(temporary)
+        (work / "made").mkdir()
+        (work / "job-kit-shell_1.json").write_text(json.dumps({"report": "report-shell_1.json"}))
+        (work / "made/report-shell_1.json").write_text(json.dumps({"pieces": {"ring_3": {"bounds": [[-1.3], [1.3]]}}}))
+        (work / "made/report-shell_3.json").write_text(json.dumps({"pieces": {"ring_3": {"bounds": [[-1.2], [1.2]]}}}))
+        assert package.made_reports(work) == {"ring_3": {"bounds": [[-1.3], [1.3]]}}
+        for job in work.glob("job-*.json"):
+            job.unlink()
+        assert set(package.made_reports(work)) == {"ring_3"}, "with no jobs, every report is read"
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:

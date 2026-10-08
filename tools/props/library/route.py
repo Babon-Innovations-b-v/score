@@ -39,6 +39,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "gates"))
 import library  # noqa: E402
 import names  # noqa: E402
+import package  # noqa: E402
 import sorter  # noqa: E402
 import stored  # noqa: E402
 
@@ -800,7 +801,7 @@ def main():
         layout = json.loads(pathlib.Path(sys.argv[2]).read_text())
         work = pathlib.Path(sys.argv[3])
         planned = json.loads((work / "plan.json").read_text())
-        reports = [json.loads(path.read_text()) for path in sorted((work / "made").glob("report*.json"))]
+        reports = [package.made_reports(work)]
         checks_path = work / "checks.json"
         checks = json.loads(checks_path.read_text()) if checks_path.exists() else {}
         found, held_back = game_layout(layout, planned, reports, checks)
@@ -811,7 +812,7 @@ def main():
         models, kinds = install(work, sys.argv[3])
         print(models, "models installed;", kinds, "kinds' scenes pointed at them")
     elif step == "fittings":
-        reports = [json.loads(path.read_text()) for path in sorted((pathlib.Path(sys.argv[2]) / "made").glob("report*.json"))]
+        reports = [{"pieces": package.made_reports(pathlib.Path(sys.argv[2]))}]
         for kind, missing in sorted(record_fittings(reports).items()):
             print(kind, "code" if not missing else f"pipeline: missing {', '.join(missing)}")
     elif step == "precheck":

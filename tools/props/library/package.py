@@ -90,9 +90,16 @@ def instance(planned, piece):
 
 
 def made_reports(work):
-    """What the bake said of each model it made (triangles, bounds), by model."""
+    """What the bake said of each model it made (triangles, bounds), by model: only the reports of the work folder's
+    current jobs (`job-*.json` names each one's report), when it has any. A report an earlier plan's job left in
+    made/ names models by the same names at their old sizes, and read with the rest it overrode the newer bounds (the
+    camp's foot rings, laid 7% narrower than their models, 2026-10-09)."""
+    jobs = sorted(pathlib.Path(work).glob("job-*.json"))
+    current = {json.loads(path.read_text()).get("report") for path in jobs}
     found = {}
-    for path in sorted((work / "made").glob("report*.json")):
+    for path in sorted((pathlib.Path(work) / "made").glob("report*.json")):
+        if jobs and path.name not in current:
+            continue
         data = json.loads(path.read_text())
         found.update(data.get("pieces", data))
     return found
