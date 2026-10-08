@@ -22,6 +22,13 @@ moved, a part given another surface keeps it. An object standing on another (the
 on a parts rack) is a child prim of that object, `<object>/<row>_<n>`, with its transform on the parent as the
 parent's composite places it, so a parent moved in the edit layer carries it along.
 
+A kit room (a room the route lays as a kit of pieces, each piece in a frame of its own: `x`, `y`, `z` in its layout,
+written by tools/props/library/route.py) is exported the same way: each piece is an object named after its kind's own
+name (`<own name>_<n>`), its transform the game's (its model's box fitted to the piece's laid size on the middle of its
+foot, tools/props/library/package.kit_matrix) as one matrix op. Its models are best read from its scene package's
+objects (package.py --kit), which holds the screens and lamps the route writes rather than bakes; with --work, the
+labelled parts are the ones its bake jobs (job-chunky*.json) name for each model.
+
 Each object carries its kind (`score:kind`), its inventory row and name, its transform in metres (translate, turn
 about up by the facing, tilt, scale, as the game lays it), its collision (a convex hull round the model, a guide
 mesh with UsdPhysics' collision API, as the game's prop scene has it; no rigid body, so it is static), and its
@@ -53,6 +60,7 @@ sys.path.insert(0, str(REPO / "tools/props"))
 sys.path.insert(0, str(REPO / "tools/props/library"))
 import glb_file  # noqa: E402
 import library  # noqa: E402
+import package  # noqa: E402
 
 KITS = REPO / "data/kit"
 INVENTORIES = REPO / "data/inventory"
@@ -120,6 +128,9 @@ def labelled_take(parts, model, take=None):
     rerun); None when the model has none."""
     if parts is None:
         return None
+    if isinstance(parts, dict):  # a kit room's run: each model's labelled folder as its bake job names it
+        found = parts.get(model)
+        return found if found is not None and found.is_dir() else None
     if take is not None:
         found = pathlib.Path(parts) / f"{model}-{take}"
         return found if found.is_dir() else None
@@ -130,9 +141,17 @@ def labelled_take(parts, model, take=None):
 
 def run_parts(work):
     """Where a route run's labelled parts are and which take it made, from its own records: <work>/parts and the
-    take plan-route.json names (None when the run did not record one)."""
-    planned = json.loads((pathlib.Path(work) / "plan-route.json").read_text())
-    return pathlib.Path(work) / "parts", planned.get("take")
+    take plan-route.json names (None when the run did not record one); a kit room's run (route.py, no plan-route.json)
+    gives each model's labelled folder as its bake jobs name it, and no take."""
+    work = pathlib.Path(work)
+    if not (work / "plan-route.json").exists():
+        named = {}
+        for job in sorted(work.glob("job-chunky*.json")):
+            named.update({entry["name"]: pathlib.Path(entry["parts"])
+                          for entry in json.loads(job.read_text())["chunky"]})
+        return named, None
+    planned = json.loads((work / "plan-route.json").read_text())
+    return work / "parts", planned.get("take")
 
 
 def part_points(take, turn, size):
@@ -306,6 +325,19 @@ def write_asset(model, models, parts, take, turn, size, out, variants, sounds):
 
 # --- the place's layers -------------------------------------------------------------------------------------------
 
+def kit_room_pieces(kit, models):
+    """A kit room's pieces as objects: each its kind's own name as its row, and its transform (`matrix`, the game's,
+    package.kit_matrix) from its model's box; the layout's other fields as they are."""
+    room = kit.get("room", "")
+    found = []
+    for laid in kit["pieces"]:
+        matrix, _ = package.kit_matrix(laid, *package.model_box(pathlib.Path(models) / f"{laid['model']}.gltf"))
+        own = laid["kind"].removeprefix(f"{room}_")
+        # A glowing part (a lamp's lens, a screen) is an object of its own, named apart from its host's.
+        found.append(dict(laid, row=f"{own}_{laid['part']}" if "part" in laid else own, matrix=matrix.tolist()))
+    return found
+
+
 def object_names(pieces):
     """Each piece's object name, `<row>_<n>`: the n-th piece of its inventory row in the layout's order, so a name
     means the same object in every export."""
@@ -356,10 +388,13 @@ def laid_object(stage, path, piece, row, asset, sound):
     name and sound."""
     xform = UsdGeom.Xform.Define(stage, path)
     xform.GetPrim().GetReferences().AddReference(asset)
-    xform.AddTranslateOp().Set(Gf.Vec3d(*piece["at"]))
-    xform.AddRotateYOp().Set(-float(piece.get("facing", 0.0)))
-    xform.AddRotateXOp().Set(float(piece.get("tilt", 0.0)))
-    xform.AddScaleOp().Set(Gf.Vec3f(float(piece.get("scale", 1.0))))
+    if "matrix" in piece:  # a kit room's piece: its frame as one transform (USD's matrices are row by row, transposed)
+        xform.AddTransformOp().Set(Gf.Matrix4d(np.asarray(piece["matrix"]).T.tolist()))
+    else:
+        xform.AddTranslateOp().Set(Gf.Vec3d(*piece["at"]))
+        xform.AddRotateYOp().Set(-float(piece.get("facing", 0.0)))
+        xform.AddRotateXOp().Set(float(piece.get("tilt", 0.0)))
+        xform.AddScaleOp().Set(Gf.Vec3f(float(piece.get("scale", 1.0))))
     values = {"score:kind": piece["kind"], "score:row": piece["row"], "score:model": piece["model"],
               "score:name": row.get("name", ""), "score:anchor": row.get("anchor", "")}
     if sound is not None:
@@ -391,7 +426,7 @@ def write_base(place, kit, inventory, assets, out, children):
     Usd.ModelAPI(root).SetKind(Kind.Tokens.assembly)
     Usd.ModelAPI(UsdGeom.Xform.Define(stage, f"/{place}/Objects")).SetKind(Kind.Tokens.group)
     UsdGeom.Scope.Define(stage, f"/{place}/Library")
-    library_materials(stage, place, f"/{place}")
+    library_materials(stage, kit.get("place", place), f"/{place}")  # a room in a place of another name
     rows = {row["id"]: row for row in inventory["rows"]}
     for name, piece in zip(object_names(kit["pieces"]), kit["pieces"]):
         model = piece["model"]
@@ -439,6 +474,8 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read."""
     out = pathlib.Path(out)
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
+    if kit["pieces"] and "x" in kit["pieces"][0]:
+        kit = dict(kit, pieces=kit_room_pieces(kit, models))
     inventory = json.loads(pathlib.Path(inventory_path or INVENTORIES / f"{place}.json").read_text())
     children = child_pieces(place, kit, inventory, json.loads(COMPOSITES.read_text()))
     details = json.loads(DETAILS.read_text())

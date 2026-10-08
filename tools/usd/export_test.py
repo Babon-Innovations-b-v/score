@@ -1,6 +1,7 @@
 """Check the place's OpenUSD stage on a place made here of two boxes: a creator's edit in the edit layer (an object
 moved, a part given another library surface) survives a regenerated base; parts become subsets by surface; the
-stage is in metres with y up and every object has a static collider.
+stage is in metres with y up and every object has a static collider; a kit room's pieces stand in their own frames
+as the game lays them, a glowing part named apart from its host, its parts read from its bake job.
 
 Run: .venv/bin/python tools/usd/export_test.py   (make tests runs it with the framework's environment)
 """
@@ -237,9 +238,47 @@ def the_parts_are_found_where_the_run_recorded_them():
         return problems
 
 
+def a_kit_room_s_pieces_stand_in_their_frames():
+    """Two pieces of a kit room, one turned a quarter about up and stretched to its laid size: each object's box is its
+    laid box; the lamp's lens (a `part`) is an object of its own; the parts come from the model the bake job names."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        made_place(folder)
+        work = folder / "work"
+        work.mkdir()
+        (work / "job-chunky.json").write_text(json.dumps({"chunky": [{"name": "box", "parts": str(folder / "parts/box-r1")}]}))
+        piece = {"kind": "bay_box", "model": "box", "size": [1.0, 1.0, 1.0], "layer": 1}
+        pieces = [dict(piece, at=[0.0, 0.0, 0.0], x=[1, 0, 0], y=[0, 1, 0], z=[0, 0, 1]),
+                  dict(piece, at=[3.0, 0.0, 0.0], x=[0, 0, -1], y=[0, 1, 0], z=[1, 0, 0], size=[1.02, 2.0, 1.0]),
+                  dict(piece, at=[3.0, 2.0, 0.0], x=[1, 0, 0], y=[0, 1, 0], z=[0, 0, 1], size=[0.2, 0.1, 0.2],
+                       part="glow")]
+        (folder / "kit.json").write_text(json.dumps({"room": "bay", "place": PLACE, "pieces": pieces}))
+        (folder / "inventory.json").write_text(json.dumps({"rows": [{"id": "box", "name": "a crate"}]}))
+        parts, take = export.run_parts(work)
+        path = export.export(PLACE, folder / "models", folder / "stage", parts=parts, kit_path=folder / "kit.json",
+                             inventory_path=folder / "inventory.json", take=take)
+        stage = Usd.Stage.Open(str(path))
+        cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+        problems = []
+        wanted = {"box_1": ((-0.5, 0.0, -0.5), (0.5, 1.0, 0.5)), "box_2": ((2.5, 0.0, -0.51), (3.5, 2.0, 0.51)),
+                  "box_glow_1": ((2.9, 2.0, -0.1), (3.1, 2.1, 0.1))}
+        for name, (low, high) in wanted.items():
+            prim = stage.GetPrimAtPath(f"/{PLACE}/Objects/{name}")
+            if not prim:
+                problems.append(f"no object {name}")
+                continue
+            box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+            if not (np.allclose(box.GetMin(), low, atol=1e-4) and np.allclose(box.GetMax(), high, atol=1e-4)):
+                problems.append(f"{name} spans {box.GetMin()} to {box.GetMax()}, laid {low} to {high}")
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Objects/box_1/geo"))
+        if not {subset.GetPrim().GetName() for subset in UsdGeom.Subset.GetAllGeomSubsets(mesh)} >= {TOP, BOTTOM}:
+            problems.append("the parts the bake job names were not read")
+        return problems
+
+
 CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface,
           the_stage_is_in_metres_with_static_colliders, a_child_moves_with_the_object_it_stands_on,
-          the_parts_are_found_where_the_run_recorded_them)
+          the_parts_are_found_where_the_run_recorded_them, a_kit_room_s_pieces_stand_in_their_frames)
 
 
 if __name__ == "__main__":
