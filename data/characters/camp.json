@@ -1,0 +1,13 @@
+{
+ "place": "camp",
+ "from": "the game 2099's ExpeditionCamp (game/world/mars/expedition_camp/expedition_camp.gd _out_in_the_dust, _still, LAYOUT out_in_the_dust (-13, 10), OONA_BESIDE (1.1, 0, 0.25); game/people/person/person.gd Pose LYING and SITTING, Outfit SPACE_SUIT wears the suit alone), checked 2026-10-09: the spot on the camp seat set down on Mars's planned ground (data/ground/mars.json, tools/usd/ground.py) and turned into the camp stage's frame, the CampHabitat node's own",
+ "note": "The game shows these two only on one way the story can go: Bram lost in the storm lies out in the dust with his sample case, and from the end Oona sits beside him. On the other way he lies under the cairn and Oona sits by the boot rock; that one is not cast. The game sets them down turned to the ground's slope there (about 4 degrees); a cast turns only about up, so they stand level. Bram's drift and sample case are the grounds' things (campgrounds), not cast here.",
+ "people": [
+  {"name": "bram", "character": "bram", "doing": "lying", "held": true, "worn": ["suit"],
+   "at": [15.9963, -1.1703, 3.3801], "facing_to": [15.2139, -1.1703, 4.001],
+   "why": "Bram lost in the storm, lying still in his American space suit half under the dust at the camp's edge (the game's out_in_the_dust spot, his front along the seat's -along as the game sets him down)"},
+  {"name": "oona", "character": "oona", "doing": "sitting", "held": true, "worn": ["suit"],
+   "at": [15.5116, -1.1193, 2.3628], "facing_to": [15.9963, -1.1193, 3.3801],
+   "why": "Oona at the end, sitting still in her suit beside Bram and facing him (the game's OONA_BESIDE)"}
+ ]
+}
