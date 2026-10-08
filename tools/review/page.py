@@ -522,7 +522,9 @@ def build(options):
                                                  (("before", options.before_stage), ("now", options.stage)) if stage}),
     ]
     sources = facts([(label, escaped(run["folder"])) for label, run in runs.items() if run])
-    page = (TEMPLATE.read_text().replace("{{TITLE}}", escaped(f"{style['name'].removeprefix('the ').title()} review"))
+    # Each word capitalised by its first letter only: str.title() wrote "Player'S Flat".
+    title = " ".join(word[:1].upper() + word[1:] for word in style["name"].removeprefix("the ").split())
+    page = (TEMPLATE.read_text().replace("{{TITLE}}", escaped(f"{title} review"))
             .replace("{{PLACE}}", escaped(style["name"])).replace("{{SOURCES}}", sources)
             .replace("{{SECTIONS}}", "\n".join(sections)))
     (out / "index.html").write_text(page)
