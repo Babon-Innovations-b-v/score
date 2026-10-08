@@ -204,12 +204,14 @@ def test_layer(folder):
                          "facing_to": [1.0, 0.0, -5.0], "why": "keeps the door"},
                         {"name": "walker", "character": "tester", "doing": "walking", "at": [0.0, 0.0, 0.0],
                          "path": [[0.0, 0.0, 0.0], [0.0, 0.0, -4.0]], "pace": 2.0, "facing_to": [0, 0, -1],
-                         "why": "walks by"}],
+                         "why": "walks by"},
+                        {"name": "sleeper", "character": "tester", "doing": "walking", "at": [3.0, 0.0, 0.0],
+                         "facing_to": [3.0, 0.0, -1.0], "held": True, "why": "lies still"}],
              "groups": [{"name": "row", "character": "kit", "outfit": "plain", "count": 3, "seed": 40,
                          "band": [0.0, 0.0, 2.0, 6.0], "doing": ["walking"], "phase_step": 0.5,
                          "facing_to": [0, 0, -9], "why": "a row"}]}
     placed = cast.write_layer("yard", found, stage_folder, folder / "bodies")
-    assert placed == {"characters": 5, "crowd": 0, "layer": str(stage_folder / cast.LAYER)}
+    assert placed == {"characters": 6, "crowd": 0, "layer": str(stage_folder / cast.LAYER)}
     assert list(Sdf.Layer.FindOrOpen(str(stage_folder / "yard.usda")).subLayerPaths) == [
         "./layers/edit.usda", "./layers/characters.usda", "./layers/base.usda"]
     stage = Usd.Stage.Open(str(stage_folder / "yard.usda"))
@@ -223,6 +225,13 @@ def test_layer(folder):
     walker = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Characters/walker"))
     end = walker.ComputeLocalToWorldTransform(60).ExtractTranslation()
     assert Gf.IsClose(end, Gf.Vec3d(0, 0, -4), 1e-6), end
+    # A held character plays a pose of its own: the clip's joints at its start, with no time samples.
+    sleeper = "/yard/Characters/sleeper"
+    source = stage.GetPrimAtPath(f"{sleeper}/Turned/Skeleton").GetRelationship("skel:animationSource")
+    assert source.GetTargets() == [Sdf.Path(f"{sleeper}/Held")]
+    pose = UsdSkel.Animation(stage.GetPrimAtPath(f"{sleeper}/Held")).GetRotationsAttr()
+    clip = UsdSkel.Animation(stage.GetPrimAtPath(f"{sleeper}/Animations/walking")).GetRotationsAttr()
+    assert pose.GetTimeSamples() == [] and list(pose.Get(30)) == list(clip.Get(0))
     # The row's second member starts half way into its clip: its reference is offset back by that much.
     member = stage.GetPrimAtPath("/yard/Characters/row_1")
     offset = member.GetPrimStack()[0].referenceList.prependedItems[0].layerOffset.offset

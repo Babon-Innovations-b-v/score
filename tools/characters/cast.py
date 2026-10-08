@@ -11,7 +11,8 @@ layer and the framework's base (tools/usd/export.py), and each character's asset
 A cast has three kinds of entry, and nothing is placed that is not one of them:
 
 - `people`: one named character each, at a spot (`at`, metres in the place's own frame), turned to face a point
-  (`facing_to`), doing one clip (`doing`), optionally walking a `path` of points at `pace` metres a second.
+  (`facing_to`), doing one clip (`doing`), optionally walking a `path` of points at `pace` metres a second, or
+  `held` still at the clip's start (a body that does not breathe: the game pauses its clip there).
 - `groups`: a few to a few dozen characters mixed from the kit (a build, a face, a hairstyle and an outfit from one
   seed each), spread along a `band` from a seed, each playing one of the group's clips, out of step by `phase_step`.
 - `crowd`: many copies of one cheap body (the kit's `far` body, 1,220 triangles) as one UsdGeom.PointInstancer: a
@@ -36,7 +37,7 @@ import pathlib
 import random
 import sys
 
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, Vt
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdSkel, Vt
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -168,7 +169,7 @@ def characters_of(cast):
         found.append({"name": person["name"], "character": person["character"], "at": person["at"],
                       "turn": facing_degrees(person["at"], person["facing_to"]), "doing": person["doing"],
                       "start": person.get("start", 0.0), "worn": person.get("worn"), "path": person.get("path"),
-                      "pace": person.get("pace", WALK_PACE)})
+                      "pace": person.get("pace", WALK_PACE), "held": person.get("held", False)})
     for group in cast.get("groups", []):
         for number, at in enumerate(band_places(group)):
             mix = kit_mix(group["seed"] + number)
@@ -176,7 +177,8 @@ def characters_of(cast):
                           "turn": facing_degrees(at, group["facing_to"]),
                           "doing": group["doing"][number % len(group["doing"])],
                           "start": (number * group.get("phase_step", 0.0)) % 1.0,
-                          "worn": mix["worn"][group.get("outfit", "plain")], "path": None, "pace": WALK_PACE})
+                          "worn": mix["worn"][group.get("outfit", "plain")], "path": None, "pace": WALK_PACE,
+                          "held": False})
     return found
 
 
@@ -222,6 +224,21 @@ def playing(stage, path, clip, clips):
         raise ValueError(f"{path}: no clip {clip!r} in its body (has {sorted(clips)})")
     skeleton = stage.OverridePrim(f"{path}/Turned/Skeleton")
     skeleton.CreateRelationship("skel:animationSource").SetTargets([Sdf.Path(f"{path}/Animations/{clip}")])
+
+
+def held_still(stage, path, asset, clip, start_seconds):
+    """The character's Skeleton set to a pose of its own: its clip's joints at `start_seconds` in, with no time
+    samples, so it does not move (a SkelAnimation written into the characters layer beside it)."""
+    body = Usd.Stage.Open(str(asset))
+    source = UsdSkel.Animation(body.GetPrimAtPath(f"/Character/Animations/{clip}"))
+    time = start_seconds * skel_usd.RATE
+    pose = UsdSkel.Animation.Define(stage, f"{path}/Held")
+    pose.CreateJointsAttr(source.GetJointsAttr().Get())
+    pose.CreateRotationsAttr(source.GetRotationsAttr().Get(time))
+    pose.CreateTranslationsAttr(source.GetTranslationsAttr().Get(time))
+    pose.CreateScalesAttr(source.GetScalesAttr().Get(time))
+    skeleton = stage.OverridePrim(f"{path}/Turned/Skeleton")
+    skeleton.CreateRelationship("skel:animationSource").SetTargets([pose.GetPath()])
 
 
 def placed(prim, at, turn, tall=1.0):
@@ -337,6 +354,8 @@ def write_layer(place, cast, out, bodies=BODIES):
             placed(prim, single["at"], single["turn"])
         dressed(stage, prim_path, parts, single["worn"] or skel_usd.DEFAULT_WORN)
         playing(stage, prim_path, single["doing"], clips)
+        if single["held"]:
+            held_still(stage, prim_path, asset, single["doing"], start)
         prim.SetCustomDataByKey("score:character", single["character"])
     crowd_count = 0
     if cast.get("crowd"):
