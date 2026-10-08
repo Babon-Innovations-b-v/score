@@ -12,6 +12,8 @@ Both ways measure the same thing on a mesh whose faces each name one material:
   the check before any bake: `route.py plan` refuses a generated kind whose labels fail it.
 - `baked`: a baked game model, each face named by the material its baked colour lies nearest (every colour the
   material bakes to: its token, worn to bare metal and dirtied, as sweep.py's palette), sampled at four points a face.
+  An island of faces the material round it explains (their colours within WORN_REACH of that material's colours,
+  wear and dirt included) is that material: a worn edge is wear on one material, not a second one (worn_as_around).
 
 The numbers, every share of the model's area:
 - `stray`: area in islands of one material (faces of it joined across shared edges) each under STRAY_ISLAND of the
@@ -23,6 +25,16 @@ The numbers, every share of the model's area:
   a flat seat along its light and shade; paint by part follows the part's edges.
 - `unbaked` (baked only): area left black by the bake (no ray reached it).
 A model fails on stray > STRAY_LIMIT or mixed > MIXED_LIMIT or soft_seams > SOFT_LIMIT, or unbaked > UNBAKED_LIMIT.
+
+One material cannot be patchy, so a model painted all one material passes all of that; `stripped` is the check
+against it (the owner, 2026-10-08: the repaint left models "just stripped of paint", the lander without its gold foil
+and yellow, "the rest just got one colour for the entire thing"). It holds the clean close-up's main colours (the
+STRIPPED_COLOURS clusters of the seen faces' picture colours, each over MAIN_SHARE of them, lightness weighed down
+as shade) against what the faces under each are painted with: a main colour is lost when its faces' material bakes
+to no colour within LOST_REACH of it but does hold another main colour, two of the picture's colours collapsed into
+one material (a main colour no allowed material reaches is the place's own palette, not a stripped model). A model
+fails when its lost main colours cover over LOST_LIMIT of what the camera sees. labels.py runs it on every labelling
+(labels.json `stripped`); a model must pass both checks.
 """
 import argparse
 import json
@@ -46,6 +58,23 @@ SOFT_LIMIT = 6.0
 # colour is that black); a model fails past UNBAKED_LIMIT of its area so (every generated piece's back, 2026-10-08).
 UNBAKED_LEVEL = 12
 UNBAKED_LIMIT = 0.01
+# Baked: an island of one material whose faces' colours lie, WORN_SHARE of them, within WORN_REACH (Lab distance) of
+# the colours of the material it borders most is that material, over WORN_ROUNDS rounds. Worn painted edges show the
+# bare metal under them, which the nearest-colour reading called bare steel: the scorched tank dome, labelled one
+# material, read 31% stray and the gas bottle 15% (job repaint, 2026-10-08).
+WORN_REACH = 10.0
+WORN_SHARE = 0.8
+WORN_ROUNDS = 3
+# Stripped: the close-up's main colours, and how far (Lab, lightness weighed by STRIPPED_WEIGHTS) a material's baked
+# colours may lie from one before it is lost.
+STRIPPED_COLOURS = 6
+MAIN_SHARE = 0.06
+STRIPPED_WEIGHTS = np.array([0.15, 1.0, 1.0])
+LOST_REACH = 14.0
+# A main colour darker than DARK_LIGHTNESS is mostly shade (a white hull's shadowed side): it is held by its hue and
+# chroma alone.
+DARK_LIGHTNESS = 30.0
+LOST_LIMIT = 0.08
 # A labelled raw model is large (up to a million faces); its vertices are welded at this many decimals.
 WELD_DIGITS = 6
 
@@ -197,7 +226,27 @@ def baked_model(path, place, names):
     distances = np.stack([np.min(np.linalg.norm(colours[:, None, :] - palette[None], axis=2), axis=1)
                           for palette in palettes], axis=1)
     mesh = trimesh.Trimesh(geometry.vertices, geometry.faces, process=True)
-    return mesh, distances.argmin(1), unbaked
+    return mesh, worn_as_around(mesh, distances), unbaked
+
+
+def worn_as_around(mesh, distances):
+    """Each face's material: the nearest by colour, except that an island of one material (faces joined across
+    edges) takes the material it borders most when that material explains WORN_SHARE of its faces' colours within
+    WORN_REACH (WORN_ROUNDS rounds): a worn strip along an edge is the wear of the paint round it."""
+    pairs = mesh.face_adjacency
+    labels = distances.argmin(1)
+    for _ in range(WORN_ROUNDS):
+        island = islands(labels, pairs)
+        across = island[pairs[:, 0]] != island[pairs[:, 1]]
+        borders = np.zeros((island.max() + 1, distances.shape[1]))
+        for this, that in ((pairs[across, 0], pairs[across, 1]), (pairs[across, 1], pairs[across, 0])):
+            np.add.at(borders, (island[this], labels[that]), 1)
+        around = borders.argmax(1)
+        explained = distances[np.arange(len(labels)), around[island]] <= WORN_REACH
+        share = np.bincount(island, weights=explained) / np.bincount(island)
+        worn = (borders.sum(1) > 0) & (share >= WORN_SHARE)
+        labels = np.where(worn[island], around[island], labels)
+    return labels
 
 
 def with_unbaked(found, mesh, unbaked):
@@ -208,6 +257,48 @@ def with_unbaked(found, mesh, unbaked):
         found["faults"].append(f"unbaked {share:.3f} > {UNBAKED_LIMIT}")
         found["pass"] = False
     return found
+
+
+def colour_clusters(colours):
+    """The picture colours' STRIPPED_COLOURS clusters (k-means, seeded, on the weighed axes): each colour's cluster
+    and the clusters' centres (Lab)."""
+    from scipy.cluster.vq import kmeans2
+    scale = np.sqrt(STRIPPED_WEIGHTS)
+    centres, cluster = kmeans2(colours * scale, min(STRIPPED_COLOURS, len(colours)), seed=0, minit="++")
+    return cluster, centres / scale
+
+
+def stripped(colours, painted, palettes, names):
+    """The stripped check (module docstring) on a labelled raw model: each face's picture colour (Lab, NaN where
+    unseen), its material (an index into `palettes` and `names`) and every colour each material bakes to (Lab, as a
+    picture shows it)."""
+    seen = ~np.isnan(colours[:, 0])
+    if seen.sum() < STRIPPED_COLOURS:
+        return {"main_colours": 0, "materials_seen": 0, "lost": [], "lost_share": 0.0, "pass": True}
+    cluster, centres = colour_clusters(colours[seen])
+    shares = np.bincount(cluster, minlength=len(centres)) / len(cluster)
+    main = np.nonzero(shares >= MAIN_SHARE)[0]
+    material = {index: int(np.bincount(painted[seen][cluster == index]).argmax()) for index in main}
+    reach = {index: colour_reach(palettes[material[index]], centres[index]) for index in main}
+    lost = []
+    for index in main:
+        # Lost: painted with a material that holds another main colour, not this one (two colours collapsed into
+        # one material). A main colour no allowed material reaches is the place's palette, not a stripped model.
+        held_elsewhere = any(material[other] == material[index] and reach[other] <= LOST_REACH
+                             for other in main if other != index)
+        if reach[index] > LOST_REACH and held_elsewhere:
+            lost.append({"share": round(float(shares[index]), 3), "colour": np.round(centres[index], 1).tolist(),
+                         "painted": names[material[index]], "reach": round(reach[index], 1)})
+    used = np.bincount(painted[seen], minlength=len(palettes)) / seen.sum()
+    lost_share = round(min(1.0, sum(entry["share"] for entry in lost)), 3)
+    return {"main_colours": int(len(main)), "materials_seen": int((used >= MAIN_SHARE).sum()), "lost": lost,
+            "lost_share": lost_share, "pass": lost_share <= LOST_LIMIT}
+
+
+def colour_reach(palette, colour):
+    """How near a material's baked colours come to a picture colour (weighed; a dark colour by hue and chroma)."""
+    weights = STRIPPED_WEIGHTS * ([0.0, 1.0, 1.0] if colour[0] < DARK_LIGHTNESS else 1.0)
+    return float(np.sqrt((((palette - colour) ** 2) * weights).sum(1)).min())
 
 
 def main():

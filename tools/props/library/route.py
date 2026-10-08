@@ -233,7 +233,8 @@ def plan(layout, takes, inventory=None):
         raise SystemExit(f"generated kinds with no labelled parts (labels.py): {', '.join(missing)}")
     patchy_paint = painted_badly(takes, {own_name(entry["kind"]) for entry in models.values() if entry["route"] == "model"})
     if patchy_paint:
-        raise SystemExit("generated kinds whose paint is patchy (patchy.py; label them by parts, labels.py): " +
+        raise SystemExit("generated kinds whose paint is patchy or stripped (patchy.py; label them by parts, "
+                         "labels.py): " +
                          "; ".join(f"{kind}: {', '.join(faults)}" for kind, faults in sorted(patchy_paint.items())))
     return {"models": models, "pieces": pieces}
 
@@ -241,7 +242,9 @@ def plan(layout, takes, inventory=None):
 def painted_badly(takes, kinds):
     """The generated kinds whose labelled model fails the patchiness check (patchy.py), with its faults: the check
     labels.py wrote into labels.json, or, for a folder labelled before it (job paint, 2026-10-08), run here. A patchy
-    model is never baked: black blotches through a seat's paint were the owner's finding on 2026-10-08."""
+    model is never baked: black blotches through a seat's paint were the owner's finding on 2026-10-08. Nor is a
+    stripped one (patchy.stripped, where labels.json has it): one material passes the patchiness check by losing the
+    close-up's colours (the owner, the same day)."""
     found = {}
     for kind in sorted(kinds):
         folder = pathlib.Path(takes[kind])
@@ -252,8 +255,12 @@ def painted_badly(takes, kinds):
             import patchy
             mesh, labels, _, parts = patchy.labelled_parts(folder)
             score = patchy.score(mesh, labels, parts)
-        if not score["pass"]:
-            found[kind] = score["faults"]
+        faults = [] if score["pass"] else list(score["faults"])
+        stripped = report.get("stripped")
+        if stripped is not None and not stripped["pass"]:  # one material cannot be patchy: both checks must pass
+            faults.append(f"stripped: {stripped['lost_share']:.0%} of the close-up's main colours lost")
+        if faults:
+            found[kind] = faults
     return found
 
 

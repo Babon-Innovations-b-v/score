@@ -33,6 +33,7 @@
 	"hub_chair": {
 		"materials": [
 			"vinyl_seat",
+			"vinyl_brown",
 			"pipe_steel",
 			"bare_steel",
 			"rubber"
@@ -3333,6 +3334,7 @@
 	"greenhouse_chair": {
 		"materials": [
 			"vinyl_seat",
+			"vinyl_brown",
 			"pipe_steel",
 			"bare_steel",
 			"rubber"
