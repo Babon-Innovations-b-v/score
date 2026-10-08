@@ -3693,8 +3693,7 @@
 			0.0
 		],
 		"materials": [
-			"dark_panel",
-			"plastic_grey"
+			"dark_panel"
 		]
 	},
 	"garage_bracket_beacon": {
@@ -3849,8 +3848,7 @@
 			-1.0
 		],
 		"materials": [
-			"rubber",
-			"galvanized_steel"
+			"rubber"
 		]
 	},
 	"hangar_access_stair": {
@@ -4040,8 +4038,7 @@
 			0.0
 		],
 		"materials": [
-			"dark_panel",
-			"plastic_grey"
+			"dark_panel"
 		]
 	},
 	"hangar_bracket_beacon": {
@@ -4078,8 +4075,7 @@
 			0.0
 		],
 		"materials": [
-			"cast_steel",
-			"floodlight_lens"
+			"cast_steel"
 		]
 	},
 	"hangar_pressure_gauge": {
