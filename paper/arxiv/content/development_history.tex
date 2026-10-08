@@ -1,10 +1,10 @@
 \section{Development history}\label{development-history}
 
-The route grew out of building the game 2099 between late September and early October 2026, with one owner directing coding agents. In its first form it joined four parts: rooms laid out in code, a scene plan from a world model that painted depth panoramas of those rooms, props from a picture-to-3D pipeline, and coding agents that fitted each room to its plan. Eight places were fitted out to their plans in a single day. The owner found that their layouts were close to the plans, but that their styles were mixed, with models from earlier rounds and with objects that the plans never showed. The cause lay in the workflow: every pass added things to a room, and no pass checked what had been placed against the plan. This led to the inventory as a strict list, with nothing made or placed outside it, and to deciding the look before any money is spent. The structure of each room then came from concept cutaways drawn from the owner's own reference pictures; for the hub he picked one cutaway out of twenty. Scale moved into a dimensioned plan drawn before the concept, after the first cutaway came out at doll's-house scale: about 13 m across, judged by the people drawn in it, against the 8 to 9 m that had been asked for.
+The framework grew out of building the game 2099 between late September and early October 2026, with one owner directing coding agents. In its first form it joined four parts: rooms laid out in code, a scene plan from a world model that painted depth panoramas of those rooms, props from a picture-to-3D pipeline, and coding agents that fitted each room to its plan. Eight places were fitted out to their plans in a single day. The owner found that their layouts were close to the plans, but that their styles were mixed, with models from earlier rounds and with objects that the plans never showed. The cause lay in the workflow: every pass added things to a room, and no pass checked what had been placed against the plan. This led to the inventory as a strict list, with nothing made or placed outside it, and to deciding the look before any money is spent. The structure of each room then came from concept cutaways drawn from the owner's own reference pictures; for the hub he picked one cutaway out of twenty. Scale moved into a dimensioned plan drawn before the concept, after the first cutaway came out at doll's-house scale: about 13 m across, judged by the people drawn in it, against the 8 to 9 m that had been asked for.
 
 \subsection{The hub in six rounds}\label{the-hub-in-six-rounds}
 
-The mechanisms of Section 2 then came out of six rounds of work on one room, the central hub of the game 2099, on 6 and 7 October 2026. Each round answered the creator's verdict on the round before (Table C1). In the first two rounds, the creator chose between the old and the new route by comparing them side by side from the same cameras.
+The mechanisms of Section 2 then came out of six rounds of work on one room, the central hub of the game 2099, on 6 and 7 October 2026. Each round answered the creator's verdict on the round before (Table C1). In the first two rounds, the creator chose between the old and the new method by comparing them side by side from the same cameras.
 
 \textbf{Table C1.} The hub's six rounds. Cost is given as rented GPU time in euros and picture-model calls in dollars. Frame time is the mean frame time on an RTX 5080, in the night scene, at 1600×900.
 
@@ -31,9 +31,9 @@ Frame time
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-1, two walls, A/B & surface library, routing by shape, room checks & chose the new route (``Y looks much cleaner'') & €0.88 & 7.81 ms vs 7.53 \\
-2, two walls, A/B & 71-variant library, shared texture sets, roof check & chose the new route again & €1.70 & 8.05 ms vs 8.24 \\
-3, whole room & route end to end, 74 models & old models were still loaded; labels and floor fittings were wrong & €1.67 & 6.78 ms (old 9.22) \\
+1, two walls, A/B & surface library, routing by shape, room checks & chose the new method (``Y looks much cleaner'') & €0.88 & 7.81 ms vs 7.53 \\
+2, two walls, A/B & 71-variant library, shared texture sets, roof check & chose the new method again & €1.70 & 8.05 ms vs 8.24 \\
+3, whole room & all stages end to end, 74 models & old models were still loaded; labels and floor fittings were wrong & €1.67 & 6.78 ms (old 9.22) \\
 4, whole room & detail through the pipeline, picture colours kept & ``pretty much all of this became messy'' & €8.50, \$5.09 & 9.6 ms \\
 5, eight pieces, A/B & shape only from the pipeline, library surfaces, parts check & new method preferred for the door, notice board and porthole; three pieces still wrong & €0.21 & not run \\
 6, whole room & round 5 everywhere, one model per object, straightness check & ``this looks amazing, I have no negative feedback'' & €3.48, \$1.07 & 5.6 ms \\
