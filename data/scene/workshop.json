@@ -70,6 +70,30 @@
    "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
   }
  ],
+ "places": [
+  {
+   "name": "east_tube",
+   "stage": "tube",
+   "at": [
+    -12.35,
+    0.0,
+    0.0
+   ],
+   "yaw": 90.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "hub",
+   "stage": "hub",
+   "at": [
+    -17.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 180.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  }
+ ],
  "lights": [
   {
    "type": "omni",
@@ -266,7 +290,6 @@
  "game_only": [
   "the first robot on the robot bench and its turntable (built from parts in code)",
   "the parts tray's tiles and parts",
-  "the east tube seen through the open west doorway",
   "the haze"
  ]
 }
