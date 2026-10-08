@@ -14,7 +14,8 @@ The room's numbers are its inventory's `room.layout`, as room_kit.py reads them,
   long along, centred on the floor); its leaves are the game's moving node too. A domed room (the garage) keeps
   room_kit's dome.
 - `posts`: how far apart the posts standing up the walls are (the hangar's walls are framed), and `rails`: the bridge
-  crane's two rails along the long walls, at a height (`high`).
+  crane's two rails along the long walls, at a height (`high`), with its bridge of two girders on them where it is
+  `parked` (along), `gauge` metres apart, the trolley's row standing on them.
 
 Frame and pieces as room_kit.py's: the room's middle on its floor, x east, z south, y up; every piece a kind of the
 inventory (`<room>_<id>`), its origin, axes and laid size. The route (tools/props/library/route.py) makes the models.
@@ -247,7 +248,8 @@ def posts(room, layout, kinds):
 
 def rails(room, layout, kinds):
     """The bridge crane's two rails along the long walls (east and west) at their height, standing off the posts, and
-    the crane's bridge across the room between them where the inventory parks it (`rails.parked`, along)."""
+    the crane's bridge across the room between them where the inventory parks it (`rails.parked`, along): two girders
+    lying on the rails' tops, `rails.gauge` metres apart middle to middle, for the trolley's wheels to run on."""
     spec = layout.get("rails")
     if not spec:
         return []
@@ -260,10 +262,13 @@ def rails(room, layout, kinds):
         x = sign * (half[0] - standoff)
         found.append(bar(room, "lattice_ring_rib", (x, spec["high"], -(half[1] - reach)), (x, spec["high"], half[1] - reach),
                          (rib[1], rib[2]), room_kit.ROOF_LAYER))
-    along = spec.get("parked", 0.0)
     span = half[0] - standoff
-    found.append(bar(room, "lattice_ring_rib", (-span, spec["high"] + rib[1], along), (span, spec["high"] + rib[1], along),
-                     (rib[1] * 1.6, rib[2] * 1.6), room_kit.ROOF_LAYER))
+    girder = (rib[1] * 1.6, rib[2] * 1.6)
+    middle = spec["high"] + rib[1] / 2 + girder[0] / 2
+    for sign in (-1, 1):
+        along = spec.get("parked", 0.0) + sign * spec["gauge"] / 2
+        found.append(bar(room, "lattice_ring_rib", (-span, middle, along), (span, middle, along), girder,
+                         room_kit.ROOF_LAYER))
     return found
 
 

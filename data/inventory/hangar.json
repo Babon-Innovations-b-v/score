@@ -43,7 +43,8 @@
 			"posts": 6.0,
 			"rails": {
 				"high": 10.0,
-				"parked": -18.0
+				"parked": -18.0,
+				"gauge": 1.2
 			},
 			"doors": {
 				"south": "hatch",
@@ -1421,9 +1422,9 @@
 			"at": [
 				{
 					"x": 4.0,
-					"y": 8.8,
+					"y": 9.72,
 					"z": -18.0,
-					"facing": 0
+					"facing": 90
 				}
 			],
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/crane_trolley.png",
