@@ -2,7 +2,7 @@
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/batch.py <list.txt> --who "<session>"
         --inventory data/inventory/<scene>.json [data/inventory/<scene>.json ...]
-        [--minutes 60] [--per-card N] [--max-cards 20] [--types L4-1-24G,L4-2-24G]
+        [--minutes 60] [--per-card N] [--max-cards 20] [--types L4-1-24G,L40S-1-48G]
         [--no-finish] [--dry-run]
 
 The list has one model a line, `<name> <picture> [pixal.py options]`, e.g.
@@ -16,7 +16,9 @@ a prefix (`habitat-locker`) or before a take (`locker-b`).
 The cut-out and the raw Pixal3D step run in the cloud (#55): no model runs on this PC (owner,
 2026-10-03; local_models.py). The pictures go up as they are, each machine cuts its own out with
 the same BiRefNet-lite as the lab, and as many cards are rented as it takes to finish in about --minutes, across the
-zones and machine types that have stock, cheapest per card first. Each machine takes new work only
+zones and machine types that hold Pixal3D (capacity.py), cheapest per card first and spread over the zones. A
+machine that does not answer within START_MINUTES is deleted and another rented from the next offer. Each machine
+takes new work only
 when it has room, so a slow or late machine never holds up the rest, and one that fails hands its
 unfinished jobs back. Every model comes back into WORK/pixal/ as if made here, with the camera
 folder its finish paints from (<name>.svviews), and is finished here with `pixal.py --finish-only`
@@ -50,6 +52,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "scene"))
 
+import capacity  # noqa: E402
 import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
 import pixal  # noqa: E402
@@ -57,10 +60,6 @@ import place  # noqa: E402
 import scaleway  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 
-# How many cards each machine type has. Only L4 cards are measured so far; the rest are named so
-# a measuring run can ask for them with --types.
-CARDS = {"L4-1-24G": 1, "L4-2-24G": 2, "L40S-1-48G": 1, "H100-1-80G": 1, "H100-SXM-2-80G": 2}
-TYPES = ("L4-1-24G", "L4-2-24G")
 # Pixal3D runs at once on one card, measured on an L4 (2026-09-29): 3 at once made about 19 models an
 # hour at a 10.6 GB peak; 6 made about 20 at 17 to 20 GB and one run died, so the card is already full at 3.
 PER_CARD = 3
@@ -83,7 +82,9 @@ SETUP_MINUTES = 5.0
 MODEL_MINUTES = 5.0
 # How often each machine is looked at, its results brought back and its queue topped up.
 POLL_SECONDS = 15
-BOOT_MINUTES = 10
+# A machine that has not answered over ssh this long after its order is given back and the next offer tried (L4s
+# answered in about 2 min, 2026-09-29; on 2026-10-08 machines in pl-waw-2 never started at all).
+START_MINUTES = 5
 # How long after an order the runner asks the machine to start, to learn whether the zone has a card.
 START_CHECK_SECONDS = 5
 # A booted machine that still refuses the key this long never will (measured 2026-09-29: up and
@@ -193,7 +194,7 @@ def offers(types):
             if stock is None:
                 continue
             price = scaleway.euros_per_minute(machine_type, zone)
-            found.append((price / CARDS[machine_type], STOCK_ORDER.get(stock, 3), machine_type,
+            found.append((price / capacity.cards(machine_type), STOCK_ORDER.get(stock, 3), machine_type,
                           zone, price))
             say(f"{machine_type} in {zone}: {stock}, €{price * 60:.2f} an hour (Scaleway's price list)")
     return sorted(found)
@@ -285,7 +286,7 @@ def copy(folder, sources, destination, *extra):
 
 def wait_for_machine(folder, server_id, zone):
     """The machine's address once it answers over ssh."""
-    give_up = time.time() + BOOT_MINUTES * 60
+    give_up = time.time() + START_MINUTES * 60
     host, first_refused = None, None
     while time.time() < give_up:
         refused = scaleway.start_if_stopped(server_id, zone)
@@ -301,8 +302,40 @@ def wait_for_machine(folder, server_id, zone):
                 if time.time() - first_refused > REFUSED_MINUTES * 60:
                     raise PermissionError(f"the machine at {host} refuses the runner's ssh key")
         time.sleep(10)
-    raise TimeoutError(f"the machine did not answer within {BOOT_MINUTES} min "
+    raise TimeoutError(f"the machine did not answer within {START_MINUTES} min "
                        f"({'at ' + host if host else 'it never got an address'})")
+
+
+def boot(machine):
+    """Wait for a rented machine to answer; its address, kept on the machine with the time it answered."""
+    machine["host"] = wait_for_machine(machine["folder"], machine["id"], machine["zone"])
+    machine["ready"] = time.time()
+    return machine["host"]
+
+
+def claim(run, project, offers, number):
+    """One machine that answers, from the first offer that gives one; None when none does. An offer refused,
+    out of stock or whose machine does not answer within START_MINUTES is left for the next, the machine deleted
+    and its row kept on `run.attempts` for the ledger. Among offers as cheap, the zone with fewest of the run's
+    machines comes first, so machines claimed side by side spread over the zones."""
+    remaining = list(offers)
+    while remaining:
+        offer = capacity.next_offer(remaining, run.machines)
+        remaining.remove(offer)
+        machine = rent(run, project, offer, number)
+        if machine is None:
+            continue
+        run.machines.append(machine)
+        try:
+            boot(machine)
+            return machine
+        except (TimeoutError, PermissionError) as error:
+            say(f"{machine['folder'].name}: {machine['type']} in {machine['zone']} did not start ({error}); "
+                "trying the next offer")
+            delete_machine(machine)
+            run.machines.remove(machine)
+            run.attempts.append(ledger.machine_row(machine))
+    return None
 
 
 def arm_self_delete(folder, host, deadline):
@@ -372,6 +405,8 @@ class Fleet:
 
     def __init__(self, models, folder, per_card, deadline, who, finish):
         self.models = {options.name: options for options in models}
+        self.project, self.offers, self.attempts = None, [], []
+        self.renting = threading.Lock()
         self.folder = folder
         self.per_card = per_card
         self.deadline = deadline
@@ -482,10 +517,12 @@ def rent(fleet, project, offer, number):
     tags = [f"pid={os.getpid()}", f"host={socket.gethostname()}",
             f"deadline={fleet.deadline + WATCHDOG_GRACE_MINUTES * 60:.0f}"]
     # A type with no card (a POP2 processor machine, for Infinigen) boots plain Ubuntu.
-    image = scaleway.IMAGE if machine_type in CARDS else scaleway.CPU_IMAGE
+    image = scaleway.IMAGE if capacity.cards(machine_type) else scaleway.CPU_IMAGE
     server_id, refused = scaleway.create(project, machine_type, zone, name, tags, DISK_GB, image)
     if server_id is None:
-        say(f"{machine_type} in {zone} refused: {refused.splitlines()[-1] if refused else '?'}")
+        why = refused.splitlines()[-1] if refused else "?"
+        say(f"{machine_type} in {zone} refused: {why}")
+        fleet.attempts.append(refused_row(machine_type, zone, why))
         return None
     # A zone out of cards still takes the order and leaves the machine stopped; its start then
     # says so. Give that machine back at once, so the fleet moves on to the next zone instead of
@@ -494,33 +531,52 @@ def rent(fleet, project, offer, number):
     refused = scaleway.start_if_stopped(server_id, zone)
     if refused and "out of stock" in refused.lower():
         scaleway.delete(server_id, zone)
-        say(f"{machine_type} in {zone} is out of stock; trying the next zone")
+        say(f"{machine_type} in {zone} is out of stock; trying the next offer")
+        fleet.attempts.append(refused_row(machine_type, zone, "out of stock"))
         return None
     folder = fleet.folder / name
     folder.mkdir(parents=True)
-    machine = {"id": server_id, "zone": zone, "type": machine_type, "cards": CARDS.get(machine_type, 0),
-               "price": price, "created": time.time(), "folder": folder, "deleted": None,
-               "generating_began": None, "status": {}}
+    machine = {"id": server_id, "zone": zone, "type": machine_type, "cards": capacity.cards(machine_type),
+               "price": price, "unit_minutes": scaleway.price(machine_type, zone)[1], "created": time.time(),
+               "folder": folder, "deleted": None, "ready": None, "generating_began": None, "status": {}}
     machine["watchdog"] = start_watchdog(server_id, zone,
                                          fleet.deadline + WATCHDOG_GRACE_MINUTES * 60, folder)
     say(f"rented {machine_type} in {zone} ({name})")
     return machine
 
 
-def rent_fleet(fleet, project, found, cards):
-    """Rent machines until `cards` cards are running or no offer has any left; the machines."""
-    rented, number, remaining = [], 1, list(found)
-    while sum(machine["cards"] for machine in rented) < cards and remaining and not fleet.stop.is_set():
-        machine = rent(fleet, project, remaining[0], number)
-        if machine is None:
-            remaining.pop(0)
-            continue
-        number += 1
-        rented.append(machine)
-        with fleet.lock:
-            fleet.machines.append(machine)
-        threading.Thread(target=tend, args=(fleet, machine), daemon=True).start()
-    return rented
+def refused_row(machine_type, zone, why):
+    """The ledger's row for an offer that gave no machine: nothing ran and nothing was billed."""
+    return {"type": machine_type, "zone": zone, "cards": capacity.cards(machine_type), "started": False,
+            "why": why, "minutes": 0.0, "euros": 0.0}
+
+
+def rent_fleet(fleet, cards):
+    """Rent machines until `cards` more cards are running or no offer has any left, each from
+    capacity.next_offer (cheapest card first, spread over the zones); an offer that gives no machine is dropped."""
+    with fleet.renting:
+        added = 0
+        while added < cards and fleet.offers and not fleet.stop.is_set():
+            offer = capacity.next_offer(fleet.offers, fleet.machines)
+            machine = rent(fleet, fleet.project, offer, len(fleet.machines) + 1)
+            if machine is None:
+                fleet.offers.remove(offer)
+                continue
+            added += machine["cards"]
+            with fleet.lock:
+                fleet.machines.append(machine)
+            threading.Thread(target=tend, args=(fleet, machine), daemon=True).start()
+        return added
+
+
+def replace(fleet, machine):
+    """Rent another machine for one that never answered, from any offer but its type in its zone."""
+    with fleet.renting:
+        fleet.offers = [offer for offer in fleet.offers if (offer[2], offer[3]) != (machine["type"], machine["zone"])]
+    if fleet.no_more_work() or fleet.stop.is_set():
+        return
+    added = rent_fleet(fleet, machine["cards"])
+    say(f"{machine['folder'].name} did not start; {added} card{'s' if added != 1 else ''} rented in its place")
 
 
 def tend(fleet, machine):
@@ -528,7 +584,12 @@ def tend(fleet, machine):
     back as they finish, give back what it never finished, and delete it."""
     folder, sent, finished = machine["folder"], {}, set()
     try:
-        host = wait_for_machine(folder, machine["id"], machine["zone"])
+        try:
+            host = boot(machine)
+        except (TimeoutError, PermissionError) as error:
+            say(f"{folder.name}: {machine['type']} in {machine['zone']} did not start ({error})")
+            replace(fleet, machine)
+            return
         arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
         prepare(folder, host, fleet.per_card)
         machine["generating_began"] = time.time()
@@ -615,22 +676,20 @@ def stop_on_signals():
 # The record.
 
 def ledger_entry(fleet, models, started):
-    """The ledger's record of one batch: each machine's time and cost, and the card minutes."""
-    machines, card_minutes = [], 0.0
+    """The ledger's record of one batch: each machine's time, cost and seconds a model, and the card minutes."""
+    card_minutes = 0.0
     for machine in fleet.machines:
         ended = machine["deleted"] or time.time()
-        minutes = (ended - machine["created"]) / 60
         if machine["generating_began"]:
             card_minutes += (ended - machine["generating_began"]) / 60 * machine["cards"]
-        machines.append({"type": machine["type"], "zone": machine["zone"], "minutes": minutes,
-                         "euros": ledger.cost(minutes, machine["price"]),
-                         "peak_gb": machine["status"].get("peak_gb")})
+        jobs = machine["status"].get("jobs", {}).values()
+        machine["peak_gb"] = machine["status"].get("peak_gb")
+        machine["unit_seconds"] = [job["seconds"] for job in jobs if job.get("state") == "done" and job.get("seconds")]
     job_seconds = {name: job.get("seconds") for machine in fleet.machines
                    for name, job in machine["status"].get("jobs", {}).items()}
     return {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
-            "batch": fleet.folder.name, "per_card": fleet.per_card, "machines": machines,
-            "machine_minutes": sum(machine["minutes"] for machine in machines),
-            "euros": sum(machine["euros"] for machine in machines), "models": len(models),
+            "batch": fleet.folder.name, "kind": "pixal", "per_card": fleet.per_card,
+            **ledger.machines_record(fleet.machines, fleet.attempts, started), "models": len(models),
             "models_done": len(fleet.done), "card_minutes": card_minutes,
             "wall_minutes": (time.time() - started) / 60, "job_seconds": job_seconds}
 
@@ -648,6 +707,19 @@ def report(entry):
 
 # The run.
 
+def affordable(found, minutes, cards, spent):
+    """The offers a batch may take: the limits are checked as if every card were the dearest offered, so the
+    dearest types are left out, one price at a time, while that alone breaks a limit the cheaper ones keep."""
+    cheapest = min(offer[0] for offer in found)
+    while (ledger.refusal(minutes, max(offer[0] for offer in found) * cards, spent)
+           and not ledger.refusal(minutes, cheapest * cards, spent)):
+        dearest = max(offer[0] for offer in found)
+        say(f"leaving out {', '.join(sorted({offer[2] for offer in found if offer[0] == dearest}))}: "
+            f"{cards} of them would pass the limits")
+        found = [offer for offer in found if offer[0] < dearest]
+    return found
+
+
 def plan(models, options, project):
     """Price the batch and check the limits; the offers, cards and deadline minutes."""
     found = offers(options.types.split(","))
@@ -657,8 +729,9 @@ def plan(models, options, project):
     cards = min(options.max_cards,
                 cards_needed(len(models), options.per_card, options.minutes, per_model))
     minutes = expected_minutes(len(models), cards, options.per_card, per_model)
-    dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+    found = affordable(found, minutes, cards, spent)
+    dearest = max(offer[0] for offer in found)
     say(f"{len(models)} models, {options.per_card} a card, {per_model:.2f} card minutes a model: "
         f"{cards} cards for about {minutes:.0f} min, €{ledger.cost(minutes, dearest) * cards:.2f} "
         f"at most; €{spent:.2f} spent this month")
@@ -678,9 +751,9 @@ def run(models, options, project, found, cards, allowed_minutes):
     say(f"every machine deleted by {time.strftime('%H:%M', time.localtime(fleet.deadline))} at the latest")
     try:
         queue(fleet, models)
-        rented = rent_fleet(fleet, project, found, cards)
-        say(f"{sum(machine['cards'] for machine in rented)} of {cards} cards rented")
-        while any(not machine["deleted"] for machine in rented):
+        fleet.project, fleet.offers = project, list(found)
+        say(f"{rent_fleet(fleet, cards)} of {cards} cards rented")
+        while any(not machine["deleted"] for machine in list(fleet.machines)):
             time.sleep(5)
     finally:
         fleet.stop.set()
@@ -706,11 +779,12 @@ def main():
     parser.add_argument("--minutes", type=float, default=TARGET_MINUTES, help="aim to finish in this long")
     parser.add_argument("--per-card", type=int, default=PER_CARD)
     parser.add_argument("--max-cards", type=int, default=MAX_CARDS)
-    parser.add_argument("--types", default=",".join(TYPES), help="machine types to rent, comma separated")
+    parser.add_argument("--types", default=",".join(capacity.types_for("pixal")),
+                        help="machine types to rent, comma separated (default: every type that holds Pixal3D)")
     parser.add_argument("--no-finish", action="store_true", help="bring back raw models only")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     options = parser.parse_args()
-    unknown = set(options.types.split(",")) - set(CARDS)
+    unknown = set(options.types.split(",")) - set(capacity.CARDS)
     if unknown:
         raise SystemExit(f"unknown machine types: {', '.join(sorted(unknown))}")
 

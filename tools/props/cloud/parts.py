@@ -24,6 +24,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import ledger  # noqa: E402
 import scaleway  # noqa: E402
 
@@ -36,9 +37,9 @@ MINUTES_A_RUN = 2
 
 def price(runs, project):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = batch.offers(list(batch.TYPES[:1]))
+    found = batch.offers(list(capacity.types_for("parts")))
     if not found:
-        raise SystemExit("no L4 card is sold in the zones used")
+        raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = SETUP_MINUTES + runs * MINUTES_A_RUN
     dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
@@ -65,7 +66,7 @@ def work_on(run, machine, folder, counts):
     log_folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(log_folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
         batch.remote(log_folder, host, f"mkdir -p {REMOTE}/in {REMOTE}/out {REMOTE}/repo/tools/props/cloud", check=True)
@@ -97,16 +98,13 @@ def work_on(run, machine, folder, counts):
 
 
 def record(run, machines, folder, started, runs):
-    rows = [{"type": machine["type"], "zone": machine["zone"],
-             "minutes": (machine["deleted"] - machine["created"]) / 60,
-             "euros": ledger.cost((machine["deleted"] - machine["created"]) / 60, machine["price"])}
-            for machine in machines]
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run.folder.name,
-             "kind": "parts", "folder": str(folder), "runs": runs, "machines": rows,
-             "euros": sum(row["euros"] for row in rows), "machine_minutes": sum(row["minutes"] for row in rows),
+             "kind": "parts", "folder": str(folder), "runs": runs,
+             **ledger.machines_record(machines, run.attempts, started),
              "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
-    batch.say(f"parts: {entry['wall_minutes']:.0f} min on {len(rows)} machine, €{entry['euros']:.2f}")
+    batch.say(f"parts: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machine, "
+              f"€{entry['euros']:.2f}")
     return entry
 
 
@@ -138,9 +136,9 @@ def main():
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], options.folder, counts)
     finally:
-        for machine in machines:
+        for machine in run.machines:
             batch.delete_machine(machine)
-        entry = record(run, machines, options.folder, started, runs)
+        entry = record(run, run.machines, options.folder, started, runs)
         (options.folder / "cloud.json").write_text(json.dumps(entry, indent=1))
 
 

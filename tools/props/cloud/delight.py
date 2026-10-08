@@ -22,6 +22,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import ledger  # noqa: E402
 import scaleway  # noqa: E402
 from paths import WORK  # noqa: E402
@@ -51,9 +52,9 @@ def expected_minutes(count):
 def price(count, project):
     """Print the estimate and refuse what passes the owner's limits; the offers, and the minutes
     the machine may run."""
-    found = batch.offers(list(batch.TYPES[:1]))
+    found = batch.offers(list(capacity.types_for("unlit")))
     if not found:
-        raise SystemExit("no L4 card is sold in the zones used")
+        raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = expected_minutes(count)
     dearest = max(offer[0] for offer in found)
     spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
@@ -81,7 +82,7 @@ def work(run, machine, wanted):
     folder = machine["folder"]
     stop = threading.Event()
     try:
-        host = batch.wait_for_machine(folder, machine["id"], machine["zone"])
+        host = machine["host"]
         batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
         set_up(folder, host, wanted)
@@ -125,9 +126,9 @@ def main():
         if machines:
             work(run, machines[0], wanted)
     finally:
-        for machine in machines:
+        for machine in run.machines:
             batch.delete_machine(machine)
-        pictures.record(run, machines, wanted, started)
+        pictures.record(run, run.machines, wanted, started, kind="unlit")
 
 
 if __name__ == "__main__":
