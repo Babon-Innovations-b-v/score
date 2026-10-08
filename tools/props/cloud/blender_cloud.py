@@ -21,8 +21,10 @@ deletes the machine when the tool closes the queue or after IDLE_MINUTES with no
 
 Every input and output lies at the same absolute path on the machine as here, so a script, its arguments and the paths
 inside its input files (a review page's shots.json names the model files) need no change to run up there. The script's own
-folder and tools/blender/inside go up with it. The jobs of one call run one after another on one machine; run several
-calls side by side for several machines. Classes: a processor machine for physics (settling: cpu-32c-128gb first,
+folder and tools/blender/inside go up with it. The jobs of one call are spread over as many machines as finish them
+in about the setup and the longest job (spread.py, capacity.machines_for): one machine for a short list, one a job for
+a long one, each set up once and taking the next job as it ends one.
+Classes: a processor machine for physics (settling: cpu-32c-128gb first,
 the default), a card for renders (`--classes gpu-24gb`, Cycles on the card; on a processor machine Cycles renders on
 its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). Blender is 5.0.1 from
 blender.org, set up by library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
@@ -42,7 +44,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
+import capacity  # noqa: E402
 import ledger  # noqa: E402
+import spread  # noqa: E402
 from paths import REPO  # noqa: E402
 from provider import cloud  # noqa: E402
 
@@ -71,20 +75,28 @@ def shipped(jobs):
     return sorted({*ALWAYS_SHIPPED, *(str(pathlib.PurePosixPath(job["script"]).parent) for job in jobs)})
 
 
+def plan(jobs):
+    """How many machines the jobs are spread over (capacity.machines_for), and how long they keep them."""
+    minutes = [float(job.get("minutes", 10)) for job in jobs]
+    count = capacity.machines_for(len(jobs), sum(minutes) / len(minutes), SETUP_MINUTES)
+    return count, SETUP_MINUTES + max(max(minutes), sum(minutes) / count)
+
+
 def price(jobs, account, classes):
-    """Print the estimate and refuse what passes the owner's limits; the offers and the minutes allowed."""
+    """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the minutes
+    allowed."""
     found = [offer for offer in batch.offers(list(classes)) if offer.stock_word != "shortage"]
     if not found:
         raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend")
-    minutes = SETUP_MINUTES + sum(float(job.get("minutes", 10)) for job in jobs)
+    count, minutes = plan(jobs)
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} Blender jobs on one machine: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
-              f"€{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
+    batch.say(f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}: about {minutes:.0f} min, "
+              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest * count, spent)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, count, ledger.minutes_allowed(dearest * count, spent)
 
 
 def send(log_folder, host, local):
@@ -174,23 +186,24 @@ def serve(run, machine, queue, idle_minutes):
         batch.delete_machine(machine)
 
 
-def work_on(run, machine, jobs):
-    """One machine from boot to delete: Blender up, every job run, every output back."""
-    import pictures
-    log_folder = machine["folder"]
-    stop = threading.Event()
+def one_job(machine, share, card):
+    """One of a spread run's jobs on a machine: a script that fails raises spread.JobFailed, a machine that stops
+    answering a ConnectionError."""
+    number, job = share
+    log_folder, host = machine["folder"], machine["host"]
     try:
-        host = machine["host"]
-        batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
-        set_up(log_folder, host, jobs)
-        batch.say(f"{log_folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
-        card = machine.get("class", "").startswith("gpu")
-        for number, job in enumerate(jobs):
-            machine.setdefault("unit_seconds", []).append(run_job(log_folder, host, number, job, card))
-    finally:
-        stop.set()
-        batch.delete_machine(machine)
+        machine.setdefault("unit_seconds", []).append(run_job(log_folder, host, number, job, card is not None))
+    except subprocess.CalledProcessError as failed:
+        spread.raise_for(failed.returncode, f"job {number} ({job['script']}, {log_folder / f'job{number}.log'})")
+
+
+def run_spread(run, account, found, count, jobs):
+    """Spread the jobs over `count` machines, each set up once and taking the next job as it ends one; the numbers
+    of the jobs that failed or never ran."""
+    shares = spread.Shares(enumerate(jobs), deadline=run.deadline)
+    spread.on_machines(run, account, found, count, KIND, shares,
+                       lambda machine: set_up(machine["folder"], machine["host"], jobs), one_job)
+    return sorted(number for number, _ in [*shares.failed, *shares.waiting])
 
 
 CLOUD_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
@@ -263,7 +276,7 @@ def main():
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
     account = cloud.account()
     batch.sweep(account)
-    found, allowed_minutes = price(jobs, account, classes)
+    found, count, allowed_minutes = price(jobs, account, classes)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -273,16 +286,18 @@ def main():
     run_folder = batch.BATCHES / (time.strftime("blender-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
     run_folder.mkdir(parents=True)
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
+    left = []
     try:
-        machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
-        if not machines:
-            if options.serve:
-                (options.serve / "failed").write_text("no machine could be rented")
-            raise SystemExit("no machine could be rented")
         if options.serve:
+            machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
+            if not machines:
+                (options.serve / "failed").write_text("no machine could be rented")
+                raise SystemExit("no machine could be rented")
             serve(run, machines[0], options.serve, IDLE_MINUTES)
         else:
-            work_on(run, machines[0], jobs)
+            left = run_spread(run, account, found, count, jobs)
+            if not run.machines:
+                raise SystemExit("no machine could be rented")
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
@@ -292,7 +307,10 @@ def main():
                  "wall_minutes": (time.time() - started) / 60}
         ledger.record(entry)
         (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
-        batch.say(f"blender: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f}")
+        batch.say(f"blender: {len(jobs)} jobs in {entry['wall_minutes']:.1f} min on {len(entry['machines'])} machines, "
+                  f"€{entry['euros']:.2f}")
+    if left:
+        raise SystemExit(f"Blender jobs {', '.join(map(str, left))} failed or never ran (logs under {run_folder})")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Run Infinigen jobs on one rented cloud processor machine, bring their outputs back, delete the machine.
+"""Run Infinigen jobs on rented cloud processor machines, bring their outputs back, delete the machines.
 Nothing Infinigen runs on this PC (it ran here once beside a gate and a Blender, and WSL died, 2026-10-05).
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/infinigen.py <job folder> [...] --who "<session>" \
@@ -6,8 +6,9 @@ Nothing Infinigen runs on this PC (it ran here once beside a gate and a Blender,
 
 Each job folder holds spec.json, written by tools/props/infinigen/steer.py, and the arrays it names. Up there every
 job runs side by side as `patch.py <spec.json> <out>` under Infinigen's own Python (infinigen_setup.sh builds it from
-vendor/infinigen), and its out/ folder comes back into the job folder with its run.log as it finishes. --hold keeps
-the machine after the jobs, for hands-on work over ssh, until the run folder holds a file named `release` (never
+vendor/infinigen), and its out/ folder comes back into the job folder with its run.log as it finishes. Many jobs are
+spread over as many machines as run them in about the setup and the longest job (spread.py), --at-once on each, each
+machine starting the next job as one ends. --hold keeps one machine after the jobs, for hands-on work over ssh, until the run folder holds a file named `release` (never
 past the batch's time limit). The owner's limits, the watchdog, the self-delete, the sweep and the delete are
 batch.py's, as for every machine.
 """
@@ -24,7 +25,9 @@ sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
 import ledger  # noqa: E402
+import capacity  # noqa: E402
 import pictures  # noqa: E402
+import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import REPO  # noqa: E402
 
@@ -45,26 +48,40 @@ def offers(machine_class):
     return sorted(found, key=lambda offer: (offer.stock, offer.per_card))
 
 
-def estimate(jobs, hold, at_once):
-    """Minutes the run is expected to take: the setup, then the jobs `at_once` side by side."""
-    minutes = [json.loads((job / "spec.json").read_text()).get("minutes", JOB_MINUTES) for job in jobs]
-    return SETUP_MINUTES + max(max(minutes, default=0), sum(minutes) / at_once) + (60 if hold else 0)
+def job_minutes(job):
+    return json.loads((job / "spec.json").read_text()).get("minutes", JOB_MINUTES)
+
+
+def machines_for(jobs, hold, at_once):
+    """How many machines the jobs are spread over: one when held for hands-on work."""
+    if hold or not jobs:
+        return 1
+    minutes = [job_minutes(job) for job in jobs]
+    return capacity.machines_for(len(jobs), sum(minutes) / len(minutes), SETUP_MINUTES, at_once)
+
+
+def estimate(jobs, hold, at_once, machines=1):
+    """Minutes the run is expected to take: the setup, then the jobs `at_once` side by side on each machine."""
+    minutes = [job_minutes(job) for job in jobs]
+    return SETUP_MINUTES + max(max(minutes, default=0), sum(minutes) / (at_once * machines)) + (60 if hold else 0)
 
 
 def price(jobs, machine_class, account, hold, at_once):
-    """Print the estimate and refuse what passes the owner's limits; the offers and the allowed minutes."""
+    """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the allowed
+    minutes."""
     found = offers(machine_class)
     if not found:
         raise SystemExit(f"no {machine_class} machine is in stock with the {cloud.NAME} backend")
-    minutes = estimate(jobs, hold, at_once)
+    count = machines_for(jobs, hold, at_once)
+    minutes = estimate(jobs, hold, at_once, count)
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} Infinigen jobs on one {machine_class} machine: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
+    batch.say(f"{len(jobs)} Infinigen jobs on {count} {machine_class} machine{'s' if count > 1 else ''}: about "
+              f"{minutes:.0f} min, €{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest * count, spent)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, count, ledger.minutes_allowed(dearest * count, spent)
 
 
 def set_up(folder, host):
@@ -110,6 +127,20 @@ def exit_code(folder, host, job):
     answer = batch.remote(folder, host, f"cat {REMOTE}/jobs/{job.name}/exit 2>/dev/null", capture_output=True,
                           text=True)
     return int(answer.stdout) if answer.stdout.strip().lstrip("-").isdigit() else None
+
+
+def run_one(run, machine, job, ended):
+    """One job on a machine of a spread run, from start to its out folder back; a job that fails raises
+    spread.JobFailed."""
+    folder, host = machine["folder"], machine["host"]
+    start_job(folder, host, job)
+    while (code := exit_code(folder, host, job)) is None and time.time() < run.deadline:
+        time.sleep(POLL_SECONDS)
+    (job / "out").mkdir(exist_ok=True)
+    bring_back(folder, host, job)
+    ended[job.name] = code
+    batch.say(f"{job.name} ended with {code} on {folder.name} after {(time.time() - run.started) / 60:.0f} min")
+    spread.raise_for(code if code is not None else 1, job.name)
 
 
 def run_jobs(run, folder, host, jobs, at_once):
@@ -167,10 +198,10 @@ def work_on(run, machine, jobs, holding, at_once):
         batch.delete_machine(machine)
 
 
-def record(run, machine, jobs, ended):
+def record(run, jobs, ended):
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(run.started)), "batch": run.folder.name,
              "kind": "infinigen", "jobs": {job.name: ended.get(job.name) for job in jobs},
-             **ledger.machines_record([machine], run.attempts, run.started),
+             **ledger.machines_record(run.machines, run.attempts, run.started),
              "wall_minutes": (time.time() - run.started) / 60}
     ledger.record(entry)
     batch.say(f"infinigen: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f}")
@@ -192,7 +223,7 @@ def main():
             raise SystemExit(f"{job} holds no spec.json")
     account = cloud.account()
     batch.sweep(account)
-    found, allowed_minutes = price(jobs, options.machine_class, account, options.hold, options.at_once)
+    found, count, allowed_minutes = price(jobs, options.machine_class, account, options.hold, options.at_once)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -201,17 +232,23 @@ def main():
     run.started = time.time()
     run.folder.mkdir(parents=True)
     batch.say(f"run folder {run.folder} ({options.who})")
-    machine, ended = None, {}
+    ended = {}
     try:
-        machine = batch.claim(run, account, found, 1)
-        if machine is None:
-            raise SystemExit(f"no {options.machine_class} machine could be rented")
-        ended = work_on(run, machine, jobs, options.hold, options.at_once)
+        if options.hold:
+            machine = batch.claim(run, account, found, 1)
+            if machine is None:
+                raise SystemExit(f"no {options.machine_class} machine could be rented")
+            ended = work_on(run, machine, jobs, options.hold, options.at_once)
+        else:
+            spread.on_machines(run, account, found, count, None, spread.Shares(jobs, deadline=run.deadline),
+                               lambda machine: set_up(machine["folder"], machine["host"]),
+                               lambda machine, job, card: run_one(run, machine, job, ended),
+                               at_once=options.at_once)
     finally:
         for rented in run.machines:
             batch.delete_machine(rented)
-        if machine:
-            record(run, machine, jobs, ended)
+        if run.machines or run.attempts:
+            record(run, jobs, ended)
 
 
 if __name__ == "__main__":

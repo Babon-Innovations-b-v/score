@@ -1,0 +1,1979 @@
+{
+ "place": "greenhouse",
+ "about": "The greenhouse as the game draws it beyond its kit: the shell's backing walls and deck (its dome is the kit's frame under nearly clear glass), the home plot's starting beds and low wall, the two grow lights, the sun through the glass, the room fill and the sky. Frame: the room's middle on its floor.",
+ "floor": [
+  [
+   -8.0,
+   -9.0
+  ],
+  [
+   8.0,
+   9.0
+  ]
+ ],
+ "ceiling": 6.2,
+ "inside": true,
+ "structure": [
+  {
+   "name": "shell_walls",
+   "builder": "room_walls",
+   "wide": 16.3,
+   "deep": 18.3,
+   "corner": 1.3499999999999999,
+   "high": 2.8,
+   "surface": "roof_steel_paint",
+   "doors": [
+    {
+     "side": "north",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "south",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "east",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "west",
+     "wide": 2.2,
+     "tall": 2.6
+    }
+   ],
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_deck",
+   "builder": "room_deck",
+   "wide": 16.3,
+   "deep": 18.3,
+   "corner": 1.3499999999999999,
+   "height": -0.042,
+   "surface": "roof_steel_paint",
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "bed_0_0",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.03,
+    4.7
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_0_0_0",
+   "builder": "box",
+   "centre": [
+    -5.87,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_0_17",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_0_34",
+   "builder": "box",
+   "centre": [
+    -5.53,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_0_1",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.03,
+    4.1000000000000005
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_0_1_0",
+   "builder": "box",
+   "centre": [
+    -5.87,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_1_17",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_1_34",
+   "builder": "box",
+   "centre": [
+    -5.53,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_0_2",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.03,
+    3.5
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_0_2_0",
+   "builder": "box",
+   "centre": [
+    -5.87,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_2_17",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_2_34",
+   "builder": "box",
+   "centre": [
+    -5.53,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_0_3",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.03,
+    2.9000000000000004
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_0_3_0",
+   "builder": "box",
+   "centre": [
+    -5.87,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_3_17",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_3_34",
+   "builder": "box",
+   "centre": [
+    -5.53,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_0_4",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.03,
+    2.3000000000000003
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_0_4_0",
+   "builder": "box",
+   "centre": [
+    -5.87,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_4_17",
+   "builder": "box",
+   "centre": [
+    -5.7,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_0_4_34",
+   "builder": "box",
+   "centre": [
+    -5.53,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_1_0",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.03,
+    4.7
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_1_0_0",
+   "builder": "box",
+   "centre": [
+    -5.2700000000000005,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_0_17",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_0_34",
+   "builder": "box",
+   "centre": [
+    -4.930000000000001,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_1_1",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.03,
+    4.1000000000000005
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_1_1_0",
+   "builder": "box",
+   "centre": [
+    -5.2700000000000005,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_1_17",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_1_34",
+   "builder": "box",
+   "centre": [
+    -4.930000000000001,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_1_2",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.03,
+    3.5
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_1_2_0",
+   "builder": "box",
+   "centre": [
+    -5.2700000000000005,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_2_17",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_2_34",
+   "builder": "box",
+   "centre": [
+    -4.930000000000001,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_1_3",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.03,
+    2.9000000000000004
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_1_3_0",
+   "builder": "box",
+   "centre": [
+    -5.2700000000000005,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_3_17",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_3_34",
+   "builder": "box",
+   "centre": [
+    -4.930000000000001,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_1_4",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.03,
+    2.3000000000000003
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_1_4_0",
+   "builder": "box",
+   "centre": [
+    -5.2700000000000005,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_4_17",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_1_4_34",
+   "builder": "box",
+   "centre": [
+    -4.930000000000001,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_2_0",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.03,
+    4.7
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_2_0_0",
+   "builder": "box",
+   "centre": [
+    -4.67,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_0_17",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_0_34",
+   "builder": "box",
+   "centre": [
+    -4.33,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_2_1",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.03,
+    4.1000000000000005
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_2_1_0",
+   "builder": "box",
+   "centre": [
+    -4.67,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_1_17",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_1_34",
+   "builder": "box",
+   "centre": [
+    -4.33,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_2_2",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.03,
+    3.5
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_2_2_0",
+   "builder": "box",
+   "centre": [
+    -4.67,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_2_17",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_2_34",
+   "builder": "box",
+   "centre": [
+    -4.33,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_2_3",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.03,
+    2.9000000000000004
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_2_3_0",
+   "builder": "box",
+   "centre": [
+    -4.67,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_3_17",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_3_34",
+   "builder": "box",
+   "centre": [
+    -4.33,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_2_4",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.03,
+    2.3000000000000003
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_2_4_0",
+   "builder": "box",
+   "centre": [
+    -4.67,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_4_17",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_2_4_34",
+   "builder": "box",
+   "centre": [
+    -4.33,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_3_0",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.03,
+    4.7
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_3_0_0",
+   "builder": "box",
+   "centre": [
+    -4.07,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_0_17",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_0_34",
+   "builder": "box",
+   "centre": [
+    -3.7300000000000004,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_3_1",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.03,
+    4.1000000000000005
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_3_1_0",
+   "builder": "box",
+   "centre": [
+    -4.07,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_1_17",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_1_34",
+   "builder": "box",
+   "centre": [
+    -3.7300000000000004,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_3_2",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.03,
+    3.5
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_3_2_0",
+   "builder": "box",
+   "centre": [
+    -4.07,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_2_17",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_2_34",
+   "builder": "box",
+   "centre": [
+    -3.7300000000000004,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_3_3",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.03,
+    2.9000000000000004
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_3_3_0",
+   "builder": "box",
+   "centre": [
+    -4.07,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_3_17",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_3_34",
+   "builder": "box",
+   "centre": [
+    -3.7300000000000004,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_3_4",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.03,
+    2.3000000000000003
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_3_4_0",
+   "builder": "box",
+   "centre": [
+    -4.07,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_4_17",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_3_4_34",
+   "builder": "box",
+   "centre": [
+    -3.7300000000000004,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_4_0",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.03,
+    4.7
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_4_0_0",
+   "builder": "box",
+   "centre": [
+    -3.47,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_0_17",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_0_34",
+   "builder": "box",
+   "centre": [
+    -3.1300000000000003,
+    0.075,
+    4.7
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_4_1",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.03,
+    4.1000000000000005
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_4_1_0",
+   "builder": "box",
+   "centre": [
+    -3.47,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_1_17",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_1_34",
+   "builder": "box",
+   "centre": [
+    -3.1300000000000003,
+    0.075,
+    4.1000000000000005
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_4_2",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.03,
+    3.5
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_4_2_0",
+   "builder": "box",
+   "centre": [
+    -3.47,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_2_17",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_2_34",
+   "builder": "box",
+   "centre": [
+    -3.1300000000000003,
+    0.075,
+    3.5
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_4_3",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.03,
+    2.9000000000000004
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_4_3_0",
+   "builder": "box",
+   "centre": [
+    -3.47,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_3_17",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_3_34",
+   "builder": "box",
+   "centre": [
+    -3.1300000000000003,
+    0.075,
+    2.9000000000000004
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "bed_4_4",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.03,
+    2.3000000000000003
+   ],
+   "size": [
+    0.6,
+    0.06,
+    0.6
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:26,84"
+  },
+  {
+   "name": "ridge_4_4_0",
+   "builder": "box",
+   "centre": [
+    -3.47,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_4_17",
+   "builder": "box",
+   "centre": [
+    -3.3000000000000003,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "ridge_4_4_34",
+   "builder": "box",
+   "centre": [
+    -3.1300000000000003,
+    0.075,
+    2.3000000000000003
+   ],
+   "size": [
+    0.14,
+    0.03,
+    0.56
+   ],
+   "surface": "potting_soil",
+   "from": "plot_shapes.gd:90-95"
+  },
+  {
+   "name": "plot_wall_0",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.08,
+    1.75
+   ],
+   "size": [
+    3.56,
+    0.16,
+    0.06
+   ],
+   "surface": "painted_panel",
+   "from": "plot_field.gd:100-102,638-659"
+  },
+  {
+   "name": "plot_wall_1",
+   "builder": "box",
+   "centre": [
+    -6.25,
+    0.08,
+    3.5
+   ],
+   "size": [
+    0.06,
+    0.16,
+    3.56
+   ],
+   "surface": "painted_panel",
+   "from": "plot_field.gd:100-102,638-659"
+  },
+  {
+   "name": "plot_wall_2",
+   "builder": "box",
+   "centre": [
+    -2.75,
+    0.08,
+    3.5
+   ],
+   "size": [
+    0.06,
+    0.16,
+    3.56
+   ],
+   "surface": "painted_panel",
+   "from": "plot_field.gd:100-102,638-659"
+  },
+  {
+   "name": "plot_wall_3",
+   "builder": "box",
+   "centre": [
+    -5.1000000000000005,
+    0.08,
+    5.25
+   ],
+   "size": [
+    0.4,
+    0.16,
+    0.06
+   ],
+   "surface": "painted_panel",
+   "from": "plot_field.gd:100-102,638-659"
+  },
+  {
+   "name": "plot_wall_4",
+   "builder": "box",
+   "centre": [
+    -3.9000000000000004,
+    0.08,
+    5.25
+   ],
+   "size": [
+    0.4,
+    0.16,
+    0.06
+   ],
+   "surface": "painted_panel",
+   "from": "plot_field.gd:100-102,638-659"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    3.0,
+    -4.0
+   ],
+   "colour": "#d64fd0",
+   "energy": 3.5,
+   "range": 11.0,
+   "attenuation": 1.0,
+   "shadows": true,
+   "from": "greenhouse.tscn:20-33 GrowLightNorth"
+  },
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    3.0,
+    2.0
+   ],
+   "colour": "#d64fd0",
+   "energy": 3.5,
+   "range": 11.0,
+   "attenuation": 1.0,
+   "shadows": true,
+   "from": "greenhouse.tscn:20-33 GrowLightSouth"
+  },
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    2.24,
+    0.0
+   ],
+   "colour": "#a8bcd8",
+   "energy": 0.08,
+   "range": 12.36,
+   "attenuation": 0.4,
+   "shadows": false,
+   "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  },
+  {
+   "type": "sun",
+   "toward": [
+    -0.87979,
+    -0.32164,
+    0.35002
+   ],
+   "colour": "#fff5e6",
+   "energy": 1.25,
+   "shadows": true,
+   "from": "sky.tscn:36-40, sky.gd:87 (energy 1.25 in full sun); its way set to match the game's shots"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.1
+  },
+  "exposure": 0.85,
+  "inside": true,
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+ },
+ "views": [
+  {
+   "name": "east-door-in",
+   "eye": [
+    6.6,
+    1.6,
+    0.0
+   ],
+   "aim": [
+    0.0,
+    1.2,
+    -2.0
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/east-door-in.png"
+  },
+  {
+   "name": "south-aisle-north",
+   "eye": [
+    0.0,
+    1.6,
+    7.2
+   ],
+   "aim": [
+    0.0,
+    1.4,
+    -7.0
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/south-aisle-north.png"
+  },
+  {
+   "name": "station",
+   "eye": [
+    -1.0,
+    1.6,
+    7.6
+   ],
+   "aim": [
+    -4.4,
+    0.4,
+    5.8
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/station.png"
+  },
+  {
+   "name": "west-dais-tank",
+   "eye": [
+    -1.6,
+    2.5,
+    -7.6
+   ],
+   "aim": [
+    -5.0,
+    1.8,
+    -8.4
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/west-dais-tank.png"
+  },
+  {
+   "name": "east-dais-console",
+   "eye": [
+    1.6,
+    2.5,
+    -7.4
+   ],
+   "aim": [
+    4.5,
+    1.8,
+    -8.6
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/east-dais-console.png"
+  },
+  {
+   "name": "seedling-racks",
+   "eye": [
+    5.4,
+    1.6,
+    -4.4
+   ],
+   "aim": [
+    7.6,
+    1.3,
+    -4.4
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/seedling-racks.png"
+  },
+  {
+   "name": "west-ledge",
+   "eye": [
+    -5.2,
+    1.6,
+    -4.0
+   ],
+   "aim": [
+    -7.6,
+    0.8,
+    -5.0
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/west-ledge.png"
+  },
+  {
+   "name": "under-gantry",
+   "eye": [
+    -3.0,
+    1.6,
+    -0.5
+   ],
+   "aim": [
+    -1.5,
+    3.3,
+    -3.0
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/under-gantry.png"
+  },
+  {
+   "name": "up-dome",
+   "eye": [
+    0.0,
+    1.6,
+    2.0
+   ],
+   "aim": [
+    0.0,
+    6.0,
+    -2.0
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/up-dome.png"
+  },
+  {
+   "name": "south-west-corner",
+   "eye": [
+    -4.0,
+    1.6,
+    6.6
+   ],
+   "aim": [
+    -7.6,
+    0.6,
+    8.6
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/south-west-corner.png"
+  },
+  {
+   "name": "wide-from-dais",
+   "eye": [
+    4.2,
+    2.5,
+    -7.3
+   ],
+   "aim": [
+    -2.0,
+    0.4,
+    3.0
+   ],
+   "fov": 75,
+   "game": "place-greenhouse/shots/final/wide-from-dais.png"
+  }
+ ],
+ "game_only": [
+  "the glass over the dome's frame (almost clear)",
+  "the tarps over the later field stages",
+  "the Moon's ground and sky seen through the glass",
+  "the haze"
+ ]
+}

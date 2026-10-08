@@ -337,15 +337,33 @@ def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
     none does. An offer refused,
     out of stock or whose machine does not answer within START_MINUTES is left for the next, the machine deleted
     and its row kept on `run.attempts` for the ledger. The kind's order and the zone with fewest of the run's
-    machines decide the next offer (capacity.next_offer), so machines claimed side by side spread over the zones."""
+    machines decide the next offer (capacity.next_offer), so machines claimed side by side spread over the zones: the
+    offer is chosen under the run's `choosing` lock and counted in its `pending` until the machine is on its list, and
+    an offer that gave no machine is in the run's `dropped` for every claim after."""
     remaining = list(offers)
+    lock, pending = getattr(run, "choosing", None) or contextlib.nullcontext(), getattr(run, "pending", [])
+    dropped = getattr(run, "dropped", set())
     while remaining:
-        offer = capacity.next_offer(remaining, run.machines, kind)
+        with lock:
+            remaining = [offer for offer in remaining if (offer.type, offer.zone) not in dropped]
+            offer = capacity.next_offer(remaining, run.machines + pending, kind)
+            if offer is None:
+                return None
+            reserved = {"zone": offer.zone, "class": offer.machine_class}
+            pending.append(reserved)
         remaining.remove(offer)
-        machine = rent(run, account, offer, number, disk_gb)
+        machine = None
+        try:
+            machine = rent(run, account, offer, number, disk_gb)
+        finally:
+            with lock:
+                pending.remove(reserved)
+                if machine is None:
+                    dropped.add((offer.type, offer.zone))
+                else:
+                    run.machines.append(machine)
         if machine is None:
             continue
-        run.machines.append(machine)
         try:
             boot(machine)
             return machine
@@ -588,6 +606,8 @@ def rent_fleet(fleet, cards):
         added = 0
         while added < cards and fleet.offers and not fleet.stop.is_set():
             offer = capacity.next_offer(fleet.offers, fleet.machines, "pixal")
+            if offer is None:  # every class at its cap (capacity.max_machines, run_cap)
+                break
             machine = rent(fleet, fleet.account, offer, len(fleet.machines) + 1)
             if machine is None:
                 fleet.offers.remove(offer)

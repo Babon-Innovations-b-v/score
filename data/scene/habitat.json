@@ -1,0 +1,230 @@
+{
+ "place": "habitat",
+ "about": "The crew habitat as the game draws it beyond its kit (every piece of furniture is a kit piece): the shell's backing, the room fill and the indoor sky. Frame: the CrewHabitat node's own.",
+ "floor": [
+  [
+   -6.0,
+   -5.0
+  ],
+  [
+   6.0,
+   5.0
+  ]
+ ],
+ "ceiling": 4.7,
+ "inside": true,
+ "structure": [
+  {
+   "name": "shell_walls",
+   "builder": "room_walls",
+   "wide": 12.3,
+   "deep": 10.3,
+   "corner": 2.15,
+   "high": 2.8,
+   "surface": "roof_steel_paint",
+   "doors": [
+    {
+     "side": "north",
+     "wide": 2.2,
+     "tall": 2.6
+    },
+    {
+     "side": "south",
+     "wide": 2.2,
+     "tall": 2.6
+    }
+   ],
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_deck",
+   "builder": "room_deck",
+   "wide": 12.3,
+   "deep": 10.3,
+   "corner": 2.15,
+   "height": -0.042,
+   "surface": "roof_steel_paint",
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_roof",
+   "builder": "dome_roof",
+   "wide": 12.3,
+   "deep": 10.3,
+   "corner": 2.15,
+   "eave": 2.8,
+   "rise": 1.9000000000000001,
+   "run": 2.0,
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    2.24,
+    0.0
+   ],
+   "colour": "#a8bcd8",
+   "energy": 0.08,
+   "range": 8.3,
+   "attenuation": 0.4,
+   "shadows": false,
+   "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.1
+  },
+  "exposure": 0.85,
+  "inside": true,
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+ },
+ "views": [
+  {
+   "name": "south-door-across",
+   "eye": [
+    0.0,
+    1.6,
+    3.6
+   ],
+   "aim": [
+    0.0,
+    1.2,
+    -5.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/south-door-across.png"
+  },
+  {
+   "name": "north-door-across",
+   "eye": [
+    0.0,
+    1.6,
+    -3.4
+   ],
+   "aim": [
+    0.0,
+    1.2,
+    5.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/north-door-across.png"
+  },
+  {
+   "name": "pods",
+   "eye": [
+    0.0,
+    1.6,
+    -1.6
+   ],
+   "aim": [
+    -2.55,
+    0.9,
+    -4.5
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/pods.png"
+  },
+  {
+   "name": "lockers-food",
+   "eye": [
+    -3.2,
+    1.6,
+    0.0
+   ],
+   "aim": [
+    -6.0,
+    1.1,
+    0.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/lockers-food.png"
+  },
+  {
+   "name": "galley",
+   "eye": [
+    -2.5,
+    1.6,
+    2.6
+   ],
+   "aim": [
+    -2.5,
+    0.9,
+    5.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/galley.png"
+  },
+  {
+   "name": "mess",
+   "eye": [
+    0.6,
+    1.6,
+    0.4
+   ],
+   "aim": [
+    -2.4,
+    0.6,
+    2.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/mess.png"
+  },
+  {
+   "name": "hygiene",
+   "eye": [
+    2.4,
+    1.6,
+    -1.4
+   ],
+   "aim": [
+    5.4,
+    1.2,
+    -2.1
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/hygiene.png"
+  },
+  {
+   "name": "couch-medcab",
+   "eye": [
+    2.2,
+    1.6,
+    1.6
+   ],
+   "aim": [
+    5.0,
+    0.8,
+    3.6
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/couch-medcab.png"
+  },
+  {
+   "name": "up-dome",
+   "eye": [
+    0.0,
+    1.6,
+    2.6
+   ],
+   "aim": [
+    0.0,
+    4.4,
+    0.0
+   ],
+   "fov": 70,
+   "game": "modules-r6/shots/habitat-after/up-dome.png"
+  }
+ ],
+ "game_only": [
+  "the haze",
+  "the ink outline pass"
+ ]
+}

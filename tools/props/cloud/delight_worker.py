@@ -1,13 +1,15 @@
 """Runs on a rented machine: an unlit paint copy of every picture, with Marigold-IID appearance.
 
-    /root/venv/bin/python delight_worker.py
+    /root/venv/bin/python delight_worker.py [<folder of pictures>]
 
-Every picture in /root/unlit/in/ gets its albedo, the colour of the paint with the light taken out,
+Every picture in the folder (/root/unlit/in/ by default; a share's own folder when a list is spread over machines)
+gets its albedo, the colour of the paint with the light taken out,
 written to /root/unlit/out/<stem>.png at the picture's own size and aligned with it pixel for pixel;
 its roughness and metal go beside it as <stem>-roughness.png and <stem>-metal.png, for looking at.
 A line "<stem> <seconds>" is printed as each lands.
 """
 import pathlib
+import sys
 import time
 
 import diffusers
@@ -28,7 +30,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     pipeline = diffusers.MarigoldIntrinsicsPipeline.from_pretrained(
         MODEL, variant="fp16", torch_dtype=torch.float16).to("cuda")
-    for path in sorted(IN.glob("*.png")):
+    for path in sorted(pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else IN).glob("*.png")):
         start = time.time()
         picture = Image.open(path).convert("RGB")
         result = pipeline(picture, ensemble_size=ENSEMBLE, processing_resolution=RESOLUTION,

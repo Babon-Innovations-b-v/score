@@ -1,14 +1,16 @@
-"""Render and cut a world's item close-ups on one rented cloud card (scene/closeups.py plans them here, the card
-does scene/closeups_gpu.py), then bring the pictures back and delete the machine.
+"""Render and cut a world's item close-ups on rented cloud cards (scene/closeups.py plans them here, the cards
+do scene/closeups_gpu.py), then bring the pictures back and delete the machines.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/closeups_cloud.py <closeups folder> --splats <splats.ply> \
         --who "<session>" [--matte <pictures folder>] [--dry-run]
 
 The closeups folder holds cameras.json (closeups.py); the pictures land beside it in renders/. --matte also cuts every
-picture in a folder out with image-to-3dlab's own remover on the same machine (the object maker's input, made clean
+picture in a folder out with image-to-3dlab's own remover on one of the machines (the object maker's input, made clean
 by a picture model first), each coming back beside it as <name>__matted.png. No model is made: the
 close-ups are page A's review material and the object maker's input, so this needs no approved inventory, but the
-owner's limits, the self-delete, the watchdog and the delete are batch.py's, as for every machine.
+owner's limits, the self-delete, the watchdog and the delete are batch.py's, as for every machine. Many cameras are
+cut into shares over as many cards as render them in about the setup's time (spread.py), each card rendering and
+cutting the next share as it finishes one.
 """
 import argparse
 import json
@@ -17,7 +19,6 @@ import pathlib
 import shlex
 import subprocess
 import sys
-import threading
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -26,6 +27,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from local_models import ALLOW  # noqa: E402
 from paths import REPO  # noqa: E402
@@ -40,19 +42,20 @@ SECONDS_A_MATTE = 3
 
 
 def price(cameras, account, mattes=0):
-    """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
+    """Print the estimate and refuse what passes the owner's limits; the offers, the machines and allowed minutes."""
     found = batch.offers(list(capacity.classes_for("closeups")))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
-    minutes = SETUP_MINUTES + (cameras * SECONDS_A_CAMERA + mattes * SECONDS_A_MATTE) / 60
+    count = capacity.machines_for(cameras, SECONDS_A_CAMERA / 60, SETUP_MINUTES, capacity.slots_for("closeups"))
+    minutes = capacity.spread_minutes(cameras, SECONDS_A_CAMERA / 60, SETUP_MINUTES, count) + mattes * SECONDS_A_MATTE / 60
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
-    batch.say(f"{cameras} close-ups on one card: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
-              f"€{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
+    batch.say(f"{cameras} close-ups on {count} card{'s' if count > 1 else ''}: about {minutes:.0f} min, "
+              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest * count, spent)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, count, ledger.minutes_allowed(dearest * count, spent)
 
 
 def step_line(python, arguments):
@@ -60,47 +63,61 @@ def step_line(python, arguments):
     return f"cd {REMOTE}/repo && env {environment} {python} {shlex.join(arguments)}"
 
 
-def work_on(run, machine, folder, splats, pictures_folder=None):
-    """One machine from boot to delete: set it up, render and cut, bring the pictures back."""
-    import pictures
-    log_folder = machine["folder"]
-    stop = threading.Event()
+def set_up(machine, splats, pictures_folder=None):
+    """The scripts, the splats, the lab's remover and the models onto one machine."""
+    log_folder, host = machine["folder"], machine["host"]
+    batch.remote(log_folder, host, f"mkdir -p {REMOTE}/repo/tools {REMOTE}/out", check=True)
+    batch.copy(log_folder, [REPO / "tools" / "props"], f"root@{host}:{REMOTE}/repo/tools/", "--exclude", "__pycache__")
+    batch.copy(log_folder, [splats], f"root@{host}:{REMOTE}/")
+    batch.remote(log_folder, host, f"mkdir -p {REMOTE}/lab {REMOTE}/pictures", check=True)
+    batch.copy(log_folder, [batch.LAB / "image_to_3dlab"], f"root@{host}:{REMOTE}/lab/", "--exclude", "__pycache__")
+    with (log_folder / "setup.log").open("w") as log:
+        batch.remote(log_folder, host, f"env SAM3_WEIGHTS={shlex.quote(SAM3_WEIGHTS)} bash "
+                     f"{REMOTE}/repo/tools/props/cloud/closeups_setup.sh", check=True, stdout=log, stderr=subprocess.STDOUT)
+
+
+def run_step(machine, name, python, arguments, card):
+    """One step on a card of the machine; a step that fails raises spread.JobFailed."""
+    log_folder, host = machine["folder"], machine["host"]
+    batch.say(f"close-ups on {log_folder.name}: {name}")
+    with (log_folder / f"{name}.log").open("w") as log:
+        done = batch.remote(log_folder, host, f"CUDA_VISIBLE_DEVICES={card} " + step_line(python, arguments),
+                            stdout=log, stderr=subprocess.STDOUT)
+    spread.raise_for(done.returncode, f"{name} ({log_folder / f'{name}.log'})")
+
+
+def do_share(machine, share, card, folder, splats, pictures_folder):
+    """One share: a set of cameras rendered and cut, or the folder of pictures matted; what it made comes back."""
+    log_folder, host = machine["folder"], machine["host"]
+    gpu = "tools/props/scene/closeups_gpu.py"
     try:
-        host = machine["host"]
-        batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
-        batch.remote(log_folder, host, f"mkdir -p {REMOTE}/repo/tools {REMOTE}/out", check=True)
-        batch.copy(log_folder, [REPO / "tools" / "props"], f"root@{host}:{REMOTE}/repo/tools/", "--exclude", "__pycache__")
-        batch.copy(log_folder, [splats, folder / "cameras.json"], f"root@{host}:{REMOTE}/")
-        batch.remote(log_folder, host, f"mkdir -p {REMOTE}/lab {REMOTE}/pictures", check=True)
-        batch.copy(log_folder, [batch.LAB / "image_to_3dlab"], f"root@{host}:{REMOTE}/lab/", "--exclude", "__pycache__")
-        if pictures_folder:
+        if share[0] == "matte":
             batch.copy(log_folder, sorted(pathlib.Path(pictures_folder).glob("*.png")), f"root@{host}:{REMOTE}/pictures/")
-        with (log_folder / "setup.log").open("w") as log:
-            batch.remote(log_folder, host, f"env SAM3_WEIGHTS={shlex.quote(SAM3_WEIGHTS)} bash "
-                         f"{REMOTE}/repo/tools/props/cloud/closeups_setup.sh", check=True, stdout=log, stderr=subprocess.STDOUT)
-        batch.say(f"{log_folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
-        gpu = "tools/props/scene/closeups_gpu.py"
-        steps = [("render", "/root/venv/bin/python", [gpu, "render", f"{REMOTE}/{pathlib.Path(splats).name}",
-                                                     f"{REMOTE}/cameras.json", f"{REMOTE}/out"]),
-                 ("segment", "/root/venv2/bin/python", [gpu, "segment", f"{REMOTE}/cameras.json", f"{REMOTE}/out"])]
-        if pictures_folder:
-            steps.append(("matte", "/root/venv2/bin/python", [gpu, "matte", f"{REMOTE}/pictures"]))
-        try:
-            for name, python, arguments in steps:
-                batch.say(f"close-ups: {name}")
-                with (log_folder / f"{name}.log").open("w") as log:
-                    batch.remote(log_folder, host, step_line(python, arguments), check=True, stdout=log,
-                                 stderr=subprocess.STDOUT)
-        finally:
-            (folder / "renders").mkdir(exist_ok=True)
-            batch.copy(log_folder, [f"root@{host}:{REMOTE}/out/"], f"{folder / 'renders'}/", "--exclude", "*.npy")
-            if pictures_folder:
-                batch.copy(log_folder, [f"root@{host}:{REMOTE}/pictures/"], f"{pictures_folder}/", "--include",
-                           "*__matted.png", "--exclude", "*")
+            run_step(machine, "matte", "/root/venv2/bin/python", [gpu, "matte", f"{REMOTE}/pictures"], card)
+            return
+        _, number, plan = share
+        cameras = f"{REMOTE}/cameras-{number}.json"
+        (log_folder / f"cameras-{number}.json").write_text(json.dumps(plan))
+        batch.copy(log_folder, [log_folder / f"cameras-{number}.json"], f"root@{host}:{cameras}")
+        run_step(machine, f"render-{number}", "/root/venv/bin/python",
+                 [gpu, "render", f"{REMOTE}/{pathlib.Path(splats).name}", cameras, f"{REMOTE}/out"], card)
+        run_step(machine, f"segment-{number}", "/root/venv2/bin/python", [gpu, "segment", cameras, f"{REMOTE}/out"],
+                 card)
     finally:
-        stop.set()
-        batch.delete_machine(machine)
+        (folder / "renders").mkdir(exist_ok=True)
+        batch.copy(log_folder, [f"root@{host}:{REMOTE}/out/"], f"{folder / 'renders'}/", "--exclude", "*.npy")
+        if share[0] == "matte":
+            batch.copy(log_folder, [f"root@{host}:{REMOTE}/pictures/"], f"{pictures_folder}/", "--include",
+                       "*__matted.png", "--exclude", "*")
+
+
+def shares_of(plan, machines, pictures_folder):
+    """The cameras cut into a share for each machine, each a copy of the plan holding its cameras, and the matting as
+    a share of its own."""
+    cameras = plan["cameras"]
+    parts = max(1, min(len(cameras), machines))
+    shares = [("cameras", number, dict(plan, cameras=cameras[number::parts])) for number in range(parts)]
+    return shares + ([("matte",)] if pictures_folder else [])
 
 
 def record(run, machines, folder, started, cameras):
@@ -109,7 +126,7 @@ def record(run, machines, folder, started, cameras):
              **ledger.machines_record(machines, run.attempts, started),
              "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
-    batch.say(f"close-ups: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machine, "
+    batch.say(f"close-ups: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machines, "
               f"€{entry['euros']:.2f}")
     return entry
 
@@ -126,7 +143,7 @@ def main():
     account = cloud.account()
     batch.sweep(account)
     mattes = len(list(options.matte.glob("*.png"))) if options.matte else 0
-    found, allowed_minutes = price(cameras, account, mattes)
+    found, count, allowed_minutes = price(cameras, account, mattes)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -136,12 +153,15 @@ def main():
     run_folder = batch.BATCHES / time.strftime("closeups-%Y%m%d-%H%M%S")
     run_folder.mkdir(parents=True)
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
-    machines = []
+    plan = json.loads((options.folder / "cameras.json").read_text())
+    shares = spread.Shares(shares_of(plan, count, options.matte), deadline=run.deadline)
     try:
-        machines = pictures.rent_machines(run, account, found, 1)
-        if not machines:
+        spread.on_machines(run, account, found, count, "closeups", shares,
+                           lambda machine: set_up(machine, options.splats, options.matte),
+                           lambda machine, share, card: do_share(machine, share, card, options.folder, options.splats,
+                                                                 options.matte))
+        if not run.machines:
             raise SystemExit("no card could be rented")
-        work_on(run, machines[0], options.folder, options.splats, options.matte)
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)

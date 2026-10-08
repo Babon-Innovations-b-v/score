@@ -1,0 +1,292 @@
+{
+ "place": "hangar",
+ "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 22 x 40 m opening and the two roof leaves shut over it (plain slabs here: their own kit, hdoor, is not laid into the stage yet), the bare ship frame on its pad, the room fill and the indoor sky. Frame: the room's middle on its floor.",
+ "floor": [
+  [
+   -13.0,
+   -23.0
+  ],
+  [
+   13.0,
+   23.0
+  ]
+ ],
+ "ceiling": 13.5,
+ "inside": true,
+ "structure": [
+  {
+   "name": "shell_walls",
+   "builder": "room_walls",
+   "wide": 26.3,
+   "deep": 46.3,
+   "corner": 4.15,
+   "high": 13.0,
+   "surface": "roof_steel_paint",
+   "doors": [
+    {
+     "side": "south",
+     "wide": 2.2,
+     "tall": 2.6
+    }
+   ],
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "shell_deck",
+   "builder": "room_deck",
+   "wide": 26.3,
+   "deep": 46.3,
+   "corner": 4.15,
+   "height": -0.042,
+   "surface": "roof_steel_paint",
+   "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "roof_slab_west",
+   "builder": "box",
+   "centre": [
+    -12.0,
+    13.125,
+    0.0
+   ],
+   "size": [
+    2.3,
+    0.25,
+    46.3
+   ],
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "module_shell.gd:774, module_doors.gd:67"
+  },
+  {
+   "name": "roof_slab_east",
+   "builder": "box",
+   "centre": [
+    12.0,
+    13.125,
+    0.0
+   ],
+   "size": [
+    2.3,
+    0.25,
+    46.3
+   ],
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "module_shell.gd:774, module_doors.gd:67"
+  },
+  {
+   "name": "roof_slab_north",
+   "builder": "box",
+   "centre": [
+    0.0,
+    13.125,
+    -21.6
+   ],
+   "size": [
+    22.0,
+    0.25,
+    3.2
+   ],
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "module_shell.gd:774, module_doors.gd:67"
+  },
+  {
+   "name": "roof_slab_south",
+   "builder": "box",
+   "centre": [
+    0.0,
+    13.125,
+    21.6
+   ],
+   "size": [
+    22.0,
+    0.25,
+    3.2
+   ],
+   "surface": "roof_steel_paint",
+   "layer": 2,
+   "from": "module_shell.gd:774, module_doors.gd:67"
+  },
+  {
+   "name": "roof_leaf_west",
+   "builder": "box",
+   "centre": [
+    -5.5,
+    13.4,
+    0.0
+   ],
+   "size": [
+    11.3,
+    0.3,
+    40.6
+   ],
+   "surface": "painted_panel",
+   "layer": 2,
+   "from": "bay_room.gd:128-137 (shut)"
+  },
+  {
+   "name": "roof_leaf_east",
+   "builder": "box",
+   "centre": [
+    5.5,
+    13.4,
+    0.0
+   ],
+   "size": [
+    11.3,
+    0.3,
+    40.6
+   ],
+   "surface": "painted_panel",
+   "layer": 2,
+   "from": "bay_room.gd:128-137 (shut)"
+  },
+  {
+   "name": "ship_body",
+   "builder": "lathe",
+   "profile": [
+    [
+     0.8,
+     5.8,
+     1.6,
+     1.6
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.5,
+    8.9
+   ],
+   "surface": "hull_white_gloss",
+   "from": "game/craft/ship/ship.tscn (body r 1.6 h 5 at 3.3; on its legs 0.5)"
+  },
+  {
+   "name": "ship_nose",
+   "builder": "lathe",
+   "profile": [
+    [
+     5.8,
+     7.8,
+     1.6,
+     0.0
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.5,
+    8.9
+   ],
+   "surface": "painted_panel",
+   "from": "ship.tscn nose cone"
+  },
+  {
+   "name": "ship_band",
+   "builder": "lathe",
+   "profile": [
+    [
+     1.05,
+     1.35,
+     1.62,
+     1.62
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.5,
+    8.9
+   ],
+   "surface": "hazard_paint",
+   "from": "ship.tscn band"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    10.4,
+    0.0
+   ],
+   "colour": "#a8bcd8",
+   "energy": 0.08,
+   "range": 29.44,
+   "attenuation": 0.4,
+   "shadows": false,
+   "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.1
+  },
+  "exposure": 0.85,
+  "inside": true,
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+ },
+ "views": [
+  {
+   "name": "from-south-door",
+   "eye": [
+    0.0,
+    1.6,
+    21.0
+   ],
+   "aim": [
+    0.0,
+    3.0,
+    0.0
+   ],
+   "fov": 80
+  },
+  {
+   "name": "ship",
+   "eye": [
+    6.0,
+    1.6,
+    16.0
+   ],
+   "aim": [
+    0.0,
+    3.5,
+    8.9
+   ],
+   "fov": 80
+  },
+  {
+   "name": "across",
+   "eye": [
+    -10.0,
+    1.6,
+    -15.0
+   ],
+   "aim": [
+    8.0,
+    4.0,
+    15.0
+   ],
+   "fov": 80
+  },
+  {
+   "name": "up-roof",
+   "eye": [
+    0.0,
+    1.6,
+    0.0
+   ],
+   "aim": [
+    0.0,
+    13.0,
+    -6.0
+   ],
+   "fov": 80
+  }
+ ],
+ "game_only": [
+  "no game shot exists (the hangar is on an unpushed branch of the game)",
+  "the roof leaves' own made pieces (the hdoor kit)"
+ ]
+}

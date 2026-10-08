@@ -44,6 +44,16 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `START_MINUTES`, and spreads a run's machines over the zones. A big card runs as many jobs at once
   as `capacity.runs_at_once` says (measured kinds only). A new runner does the same and
   records its machines with `ledger.machines_record`, so `capacity.py report` can compare cards.
+- **Every kind spreads a batch over many machines** (`spread.py`, 2026-10-08, after the provider granted quotas
+  for 20 H100, 50 L4 and 10 L40S machines; stock is still the real limit): `capacity.machines_for` rents enough
+  that each machine works about as long as its setup takes (or one job, when a job is longer), so a small batch
+  keeps one machine and a big one ends in about the setup and one job's time; machines are claimed side by side
+  (each claim reserves its zone while it rents, an offer that gave nothing is dropped for the run), each takes the
+  next share from one queue as it finishes one, a share whose machine failed goes to another once, and a job whose
+  own command failed (`spread.JobFailed`) is recorded, not retried. Caps: `max_machines` a class (the backend's
+  `QUOTAS`, else 5) and `run_cap` in all (20); `SCORE_MAX_MACHINES="gpu-80gb=20,all=30"` overrides. A new
+  runner gives `spread.on_machines` a set-up and a per-share function. `scene.py` stays on one card: its steps
+  feed each other.
 - **The cut-out and the raw Pixal3D step run up there;** the raw model comes back with its camera
   folder (`<name>.svviews`), and finishing stays here with `pixal.py --finish-only` (no model).
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
@@ -52,7 +62,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   names a repo script, its arguments, its input and output paths (at the same absolute paths up there, so neither
   the script nor the paths inside its input files change) and its minutes; a tool calls `blender_cloud.run_elsewhere`. Physics
   (settling) on a 32-core processor machine by default, renders on a card (`--classes gpu-24gb,...`, Cycles on the card
-  via FARM_CYCLES_GPU). One call is one machine; run calls side by side for many. A tool with a
+  via FARM_CYCLES_GPU). A call's jobs are spread over machines like any batch (spread.py). A tool with a
   chain of jobs (a review page's renders) holds one machine for all of them (`blender_cloud.Machine`, --serve on a queue
   folder), deleted when the tool closes the queue or after 10 idle minutes; never rent one per step. The PC's own Blender (one at a time,
   the machine lock) is for checks of seconds only.
