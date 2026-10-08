@@ -63,9 +63,12 @@ DISTANT_PREFIX = "far_"
 CAMP_SOFT = 256
 REACH_HIGH = 1.8
 PIT_DEEP = 0.9  # hub_kit.PIT_DEEP: the pit's floor under the walkway
+# Earth's outdoor places (world 1, 2026-10-07): the street's ground and its ground floor within a stride or two of the
+# player at FAR, the facades over it, three storeys and more up a narrow street, at FACADE.
+FACADE = 256
 SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR,
                "fittings": NEAR, "distant": DISTANT, "camp_shell": CAMP_SOFT, "camp_high": CAMP_SOFT, "camp_floor": FAR,
-               "camp_walls": FAR, "plaster": FAR}
+               "camp_walls": FAR, "plaster": FAR, "street_level": FAR, "facade": FACADE}
 # The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
 # shared set is planned to fill, leaving room for packing, print drawn sharp and the faces a box's estimate misses (both
 # sides of an open box's thin walls: planned at 0.7, a floor set came out 1% past the cap, 2026-10-07).
@@ -85,6 +88,11 @@ SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share
 ATLASES = (("distant", (DISTANT_PREFIX,)),
            # Earth's big plain plaster, board and stair surfaces (the prologue build): broad and flat, half the density.
            ("plaster", ("plaster_", "render_wall", "floorboards", "landing", "stair_flight")),
+           ("street_level", ("ground_", "kerb_", "render_lower", "render_shop", "shop_", "tea_front", "neon_sign",
+                             "door_canopy", "notice_case", "poster_stand", "street_lamp", "meter_box", "vent_louvre",
+                             "barber_pole", "menu_board", "road_line", "end_wall", "end_fence")),  # Earth, by the walk
+           ("facade", ("render_upper", "window_dark", "window_lit", "ac_unit", "window_cage", "facade_band",
+                       "drainpipe", "balcony_", "window_awning", "drying_rack", "facade_pipe")),  # Earth, over it
            ("fittings", ("hatch_", "porthole_panel", "wall_lower_vent", "notice_board")),  # method B's room fittings
            ("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
@@ -135,7 +143,7 @@ SHOWN = ("taper", "treads", "openings", "arc", "material", "print", "frame", "da
 
 def shows(kind, laid):
     """What a piece shows that its model is made with, beyond its size."""
-    found = {key: laid[key] for key in SHOWN if key in laid}
+    found = {key: laid[key] for key in SHOWN + ("label",) if key in laid}
     found.update(laid.get("shows", {}))  # a kit room's composite parent or child: what its build shows (room_kit.py)
     if kind == "hub_hatch_wall_surround":
         found["label"] = DOOR_LABELS[bearing_of(laid) % 360]
@@ -547,7 +555,8 @@ def game_layout(layout, planned, reports, checks):
     for found in pieces:
         if "part" not in found:
             counts[found["kind"]] = counts.get(found["kind"], 0) + 1
-    kinds = {kind: {key: value for key, value in about.items() if key in ("group", "light", "solid", "outside")}
+    kinds = {kind: {key: value for key, value in about.items() if key in ("group", "light", "solid", "outside",
+                                                                          "night_glow")}
              for kind, about in layout["kinds"].items() if kind in counts}
     room = {key: value for key, value in layout.items() if key not in ("pieces", "counts", "kinds")}
     return dict(room, counts=counts, kinds=kinds, models=models, pieces=pieces), held_back

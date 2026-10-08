@@ -118,7 +118,8 @@ def test_no_generated_piece_keeps_its_picture_s_colours():
     assert '"picture"' not in jobs and "picture.obj" not in jobs
 
 
-EARTH_MODULES = ("earth_flat", "earth_stairwell")
+# Earth's builder modules beside pieces.py: the flat and stairwell, and the outdoor places (world 1).
+EARTH_MODULES = ("earth_flat", "earth_stairwell", "pieces_earth")
 
 
 def builder_texts():

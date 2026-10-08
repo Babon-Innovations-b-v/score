@@ -23,7 +23,7 @@ FONT = library.REPO / "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf"
 MARGIN = 36
 SIZES = {"status": (1024, 640), "readout": (1024, 512), "label": (1024, 256), "keypad": (512, 640),
          "stencil": (512, 256), "notice": (1024, 768), "lens": (256, 32), "sheet": (768, 1024),
-         "plan": (1024, 704), "note": (512, 512)}
+         "plan": (1024, 704), "note": (512, 512), "stripes": (256, 1024)}
 
 
 def srgb(token):
@@ -301,9 +301,23 @@ def calendar(spec, size):
     return picture
 
 
+def stripes(spec, size):
+    """A barber's pole's sleeve: slanting stripes of ink and a second colour on clear ground (the plate's white),
+    wound round it (the street's density pass, 2026-10-08)."""
+    picture = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    width, height = size
+    band = width // 3
+    for index, start in enumerate(range(-height, width + height, band * 2)):
+        colour = srgb(spec["ink"] if index % 2 == 0 else spec["second"])
+        draw.polygon([(start, height), (start + band, height), (start + band + height, 0), (start + height, 0)],
+                     fill=colour)
+    return picture
+
+
 STYLES = {"status": status, "notice": notice, "readout": readout, "label": label, "keypad": keypad, "stencil": stencil,
           "lens": lens, "sheet": sheet, "plan": plan, "note": note, "hanzi": hanzi, "hanzi_sheets": hanzi_sheets,
-          "calendar": calendar}
+          "calendar": calendar, "stripes": stripes}
 
 
 def main():
