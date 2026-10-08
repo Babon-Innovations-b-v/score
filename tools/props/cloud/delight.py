@@ -1,4 +1,4 @@
-"""Make an unlit paint copy of pictures on one rented cloud card, then delete the machine.
+"""Make an unlit paint copy of pictures on rented cloud cards, then delete the machines.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/delight.py <picture.png>... [--dry-run]
 
@@ -8,14 +8,14 @@ v1-1 (prs-eth, CreativeML Open RAIL++-M, commercial use allowed) takes the light
 paint alone, aligned with the picture pixel for pixel. Each copy comes back as
 WORK/unlit/<stem>.png, with its roughness and metal beside it; `clean_finish.unlit_views` then
 puts one into a model's camera folder, so Pixal3D still builds from the shaded picture and only
-the paint comes from the unlit one. Renting, the owner's limits and deleting are batch.py's.
+the paint comes from the unlit one. A long list is cut into shares over as many cards as make it in about the
+setup's time (spread.py). Renting, the owner's limits and deleting are batch.py's.
 """
 import argparse
 import os
 import pathlib
 import subprocess
 import sys
-import threading
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -24,6 +24,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import WORK  # noqa: E402
 
@@ -45,59 +46,60 @@ def to_make(paths):
     return wanted
 
 
-def expected_minutes(count):
-    return SETUP_MINUTES + count * SECONDS_A_PICTURE / 60
+def machines_for(count):
+    """How many cards a list of `count` pictures is spread over."""
+    return capacity.machines_for(count, SECONDS_A_PICTURE / 60, SETUP_MINUTES, capacity.slots_for("unlit"))
+
+
+def expected_minutes(count, machines=1):
+    return capacity.spread_minutes(count, SECONDS_A_PICTURE / 60, SETUP_MINUTES, machines)
 
 
 def price(count, account):
-    """Print the estimate and refuse what passes the owner's limits; the offers, and the minutes
-    the machine may run."""
+    """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the minutes
+    they may run."""
     found = batch.offers(list(capacity.classes_for("unlit")))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
-    minutes = expected_minutes(count)
+    machines = machines_for(count)
+    minutes = expected_minutes(count, machines)
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
-    batch.say(f"{count} unlit copies on one card: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
+    batch.say(f"{count} unlit copies on {machines} card{'s' if machines > 1 else ''}: about {minutes:.0f} min, "
+              f"€{ledger.cost(minutes, dearest) * machines:.2f}; €{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest * machines, spent)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, machines, ledger.minutes_allowed(dearest * machines, spent)
 
 
-def set_up(folder, host, wanted):
-    """Put the pictures and the scripts on the machine, and install the model."""
-    batch.remote(folder, host, "mkdir -p /root/unlit/in /root/unlit/out", check=True)
-    batch.copy(folder, wanted, f"root@{host}:/root/unlit/in/")
+def set_up(machine):
+    """The model and the scripts onto one machine."""
+    folder, host = machine["folder"], machine["host"]
+    batch.remote(folder, host, "mkdir -p /root/unlit/out", check=True)
     batch.copy(folder, [HERE / "delight_worker.py", HERE / "delight_setup.sh"], f"root@{host}:/root/unlit/")
     with (folder / "setup.log").open("w") as log:
         batch.remote(folder, host, "bash /root/unlit/delight_setup.sh", check=True, stdout=log,
                      stderr=subprocess.STDOUT)
 
 
-def work(run, machine, wanted):
-    """Run the machine from boot to delete: set it up, make the copies, bring them back."""
-    import pictures  # loads the picture model's libraries, so only once a machine is rented
-    folder = machine["folder"]
-    stop = threading.Event()
+def make_share(machine, share, card):
+    """One share of the pictures on one card: up into a folder of its own, every copy made, the copies back. A worker
+    that fails raises spread.JobFailed (what it made still comes back)."""
+    number, wanted = share
+    folder, host = machine["folder"], machine["host"]
+    batch.remote(folder, host, f"mkdir -p /root/unlit/in-{number}", check=True)
+    batch.copy(folder, wanted, f"root@{host}:/root/unlit/in-{number}/")
     try:
-        host = machine["host"]
-        batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
-        set_up(folder, host, wanted)
-        batch.say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
-        with (folder / "unlit.log").open("w") as log:
-            batch.remote(folder, host, "/root/venv/bin/python /root/unlit/delight_worker.py",
-                         check=True, stdout=log, stderr=subprocess.STDOUT)
+        with (folder / f"unlit-{number}.log").open("w") as log:
+            done = batch.remote(folder, host, f"CUDA_VISIBLE_DEVICES={card} /root/venv/bin/python "
+                                f"/root/unlit/delight_worker.py /root/unlit/in-{number}", stdout=log,
+                                stderr=subprocess.STDOUT)
+    finally:
         UNLIT.mkdir(parents=True, exist_ok=True)
         batch.copy(folder, [f"root@{host}:/root/unlit/out/"], UNLIT)
-        machine["made"] = sum((UNLIT / path.name).exists() for path in wanted)
-    except Exception as error:  # noqa: BLE001 - the machine is deleted below whatever failed
-        batch.say(f"{folder.name} failed: {error}")
-    finally:
-        stop.set()
-        batch.delete_machine(machine)
+    machine["made"] = machine.get("made", 0) + sum((UNLIT / path.name).exists() for path in wanted)
+    spread.raise_for(done.returncode, f"share {number} ({folder / f'unlit-{number}.log'})")
 
 
 def main():
@@ -110,7 +112,7 @@ def main():
         raise SystemExit(f"every picture already has its unlit copy in {UNLIT}")
     account = cloud.account()
     batch.sweep(account)
-    found, allowed_minutes = price(len(wanted), account)
+    found, machines, allowed_minutes = price(len(wanted), account)
     if options.dry_run:
         return
     import pictures  # loads the picture model's libraries, so only once something will be rented
@@ -120,11 +122,10 @@ def main():
     folder = batch.BATCHES / time.strftime(f"unlit-%Y%m%d-%H%M%S-{os.getpid()}")
     folder.mkdir(parents=True)
     run = pictures.Run(folder, started + allowed_minutes * 60)
-    machines = []
+    parts = min(len(wanted), machines * capacity.slots_for("unlit"))
+    shares = spread.Shares([(number, wanted[number::parts]) for number in range(parts)], deadline=run.deadline)
     try:
-        machines = pictures.rent_machines(run, account, found, 1)
-        if machines:
-            work(run, machines[0], wanted)
+        spread.on_machines(run, account, found, machines, "unlit", shares, set_up, make_share)
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)

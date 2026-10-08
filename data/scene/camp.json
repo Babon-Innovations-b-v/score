@@ -1,0 +1,241 @@
+{
+ "place": "camp",
+ "about": "The expedition camp's habitat on Mars as the game draws it beyond its kit: Mars's planned ground out to the plan's edge and the ball under it, the six dome lamps, the mast's beacon, the sun and the sky. Frame: the CampHabitat node's own (0.55 m over the ground under the camp seat, turned -130.5 degrees).",
+ "planned_ground": {
+  "reach": 130.0,
+  "step": 2.0,
+  "ball": "mars_regolith"
+ },
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    -1.198,
+    2.78,
+    -5.709
+   ],
+   "colour": "#ffd29a",
+   "energy": 5.4,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "camp_rooms.gd:91-105,290-304 (strength 0.45)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    2.994,
+    2.78,
+    -4.427
+   ],
+   "colour": "#ffd29a",
+   "energy": 5.4,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "camp_rooms.gd:91-105,290-304 (strength 0.45)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    2.377,
+    2.78,
+    -9.466
+   ],
+   "colour": "#ffd29a",
+   "energy": 5.4,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "camp_rooms.gd:91-105,290-304 (strength 0.45)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -1.114,
+    2.78,
+    1.376
+   ],
+   "colour": "#ffd29a",
+   "energy": 5.4,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "camp_rooms.gd:91-105,290-304 (strength 0.45)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    1.97,
+    2.78,
+    1.269
+   ],
+   "colour": "#ffd29a",
+   "energy": 5.4,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "camp_rooms.gd:91-105,290-304 (strength 0.45)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -0.228,
+    2.78,
+    5.76
+   ],
+   "colour": "#ffd29a",
+   "energy": 5.4,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "camp_rooms.gd:91-105,290-304 (strength 0.45)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    -14.09,
+    10.85,
+    -1.11
+   ],
+   "colour": "#ffffff",
+   "energy": 3.0,
+   "range": 40.0,
+   "attenuation": 1.0,
+   "shadows": false,
+   "from": "camp_mast.gd:26-140 beacon (mast at camp seat (10, -10), light 11.4 m up)"
+  },
+  {
+   "type": "sun",
+   "toward": [
+    0.08979,
+    -0.66846,
+    0.7383
+   ],
+   "colour": "#fff5e6",
+   "energy": 1.25,
+   "shadows": true,
+   "from": "sky.gd:87 (1.25, 35-50 degrees up and going down in the camp's shots); its way set to match them"
+  }
+ ],
+ "environment": {
+  "background": "#8a5a32",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.22
+  },
+  "exposure": 1.05,
+  "from": "sky.gd:345, mars.gd:31-36 (the butterscotch sky is a fog volume of MARS_HAZE #d9a066; its seen colour here is the haze darkened as the shots show it)"
+ },
+ "floor": [
+  [
+   -5.0,
+   -12.0
+  ],
+  [
+   6.0,
+   8.0
+  ]
+ ],
+ "ceiling": 6.0,
+ "views": [
+  {
+   "name": "door_from_doorway",
+   "eye": [
+    4.6025,
+    1.6,
+    -9.7805
+   ],
+   "aim": [
+    0.4368,
+    1.2,
+    -6.2391
+   ],
+   "fov": 75,
+   "game": "mars-build/habitat/shots/now/door_from_doorway.jpg"
+  },
+  {
+   "name": "door_galley",
+   "eye": [
+    3.3376,
+    1.6,
+    -7.164
+   ],
+   "aim": [
+    -2.4178,
+    1.1,
+    -7.164
+   ],
+   "fov": 75,
+   "game": "mars-build/habitat/shots/now/door_galley.jpg"
+  },
+  {
+   "name": "far_bunks",
+   "eye": [
+    1.086,
+    1.6,
+    4.7921
+   ],
+   "aim": [
+    -1.5379,
+    0.6,
+    5.5791
+   ],
+   "fov": 75,
+   "game": "mars-build/habitat/shots/now/far_bunks.jpg"
+  },
+  {
+   "name": "passage",
+   "eye": [
+    1.2482,
+    1.6,
+    -4.301
+   ],
+   "aim": [
+    0.492,
+    1.4,
+    3.16
+   ],
+   "fov": 75,
+   "game": "mars-build/habitat/shots/now/passage.jpg"
+  },
+  {
+   "name": "outside_front",
+   "eye": [
+    4.4559,
+    2.4,
+    -22.3187
+   ],
+   "aim": [
+    0.056,
+    2.2,
+    -5.898
+   ],
+   "fov": 75,
+   "game": "mars-build/habitat/shots/now/outside_front.jpg"
+  },
+  {
+   "name": "outside_far",
+   "eye": [
+    -15.1644,
+    2.0,
+    15.56
+   ],
+   "aim": [
+    -1.308,
+    2.6,
+    7.56
+   ],
+   "fov": 75,
+   "game": "mars-build/habitat/shots/now/outside_far.jpg"
+  }
+ ],
+ "game_only": [
+  "the camp's airlock and its link tube",
+  "the grounds' things (lander, crane, cargo, reactor, cases, cables, boot rock, cairn: the campgrounds place, not laid yet)",
+  "the haze that colours the sky (a fog volume) and the wind's dust",
+  "the mast's light beam",
+  "the planned rocks",
+  "the ink outline pass"
+ ]
+}

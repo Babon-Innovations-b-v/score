@@ -1,13 +1,15 @@
 """Make a whole list of pictures on rented cloud graphics cards, then delete the machines.
 
-    ~/.farm-factory-props/env/bin/python tools/props/cloud/pictures.py <jobs.json> [--cards 5] [--model klein] [--dry-run]
+    ~/.farm-factory-props/env/bin/python tools/props/cloud/pictures.py <jobs.json> [--cards N] [--model klein] [--dry-run]
 
 The list is picture.py's own (--list): a JSON array of {"name", "sentence", "seed", "form", "refs"},
 and "place" to word a scene's object in its place's style text (place.json).
 Every job is worded here by picture.wording, at picture.py's steps and guidance, so a picture made
-up there is the one the owner's card would make. The list is split evenly over --cards machines; each
-installs the picture model from Hugging Face, holds it on its card whole when the card is big enough
-and draws its share, and the pictures come back into WORK/pictures. A picture already there is skipped.
+up there is the one the owner's card would make. The list is cut into a share for each card of as many machines as
+draw it in about the setup's time (spread.py, capacity.machines_for; --cards caps them); each machine installs the
+picture model from Hugging Face once, holds it on its card whole when the card is big enough, and takes the next
+share as it finishes one, so a share whose machine never came is drawn by another. The pictures come back into
+WORK/pictures. A picture already there is skipped.
 --model picks the picture model (MODELS): FLUX.2 klein 4B by default, or Qwen-Image-Edit-2511, the
 open image-edit model that came closest to Nano Banana Pro on the lab's ten close-ups after klein
 (job openpics, 2026-10-08). Renting, the owner's limits and deleting are batch.py's.
@@ -32,10 +34,10 @@ import capacity  # noqa: E402
 import ledger  # noqa: E402
 import picture  # noqa: E402
 import place  # noqa: E402
+import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import PICTURES  # noqa: E402
 
-CARDS = 5
 # The picture models a list can be drawn with, each open with commercial use allowed (Apache-2.0: code,
 # weights and text encoder): its Hugging Face repository, its diffusers pipeline, the job kind that
 # names the cards it runs on (capacity.py), the root disk its weights need, the card memory it is held
@@ -62,6 +64,10 @@ class Run:
         self.deadline = deadline
         self.machines = []
         self.attempts = []
+        # Machines claimed side by side choose their offers one at a time, each counting those being rented.
+        self.choosing = threading.Lock()
+        self.pending = []
+        self.dropped = set()
 
 
 def jobs_to_make(path, model="klein"):
@@ -84,25 +90,34 @@ def jobs_to_make(path, model="klein"):
     return jobs
 
 
-def expected_minutes(count, cards, model="klein"):
-    return MODELS[model]["setup_minutes"] + count / cards * MODELS[model]["seconds"] / 60
+def machines_for(count, model="klein", most=None):
+    """How many machines a list of `count` pictures is drawn on (capacity.machines_for), at most `most`."""
+    kind = MODELS[model]["kind"]
+    planned = capacity.machines_for(count, MODELS[model]["seconds"] / 60, MODELS[model]["setup_minutes"],
+                                    capacity.slots_for(kind))
+    return min(planned, most) if most else planned
 
 
-def price(jobs, cards, account, model="klein"):
+def expected_minutes(count, machines, model="klein"):
+    return capacity.spread_minutes(count, MODELS[model]["seconds"] / 60, MODELS[model]["setup_minutes"], machines,
+                                   capacity.slots_for(MODELS[model]["kind"]))
+
+
+def price(jobs, machines, account, model="klein"):
     """Print the estimate and refuse what passes the owner's limits; the offers, and the minutes the
     machines may run."""
     found = batch.offers(list(capacity.classes_for(MODELS[model]["kind"])))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
-    minutes = expected_minutes(len(jobs), cards, model)
+    minutes = expected_minutes(len(jobs), machines, model)
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} pictures on {cards} cards: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * cards:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * cards, spent)
+    batch.say(f"{len(jobs)} pictures on {machines} machine{'s' if machines > 1 else ''}: about {minutes:.0f} min, "
+              f"€{ledger.cost(minutes, dearest) * machines:.2f}; €{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest * machines, spent)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest * cards, spent)
+    return found, ledger.minutes_allowed(dearest * machines, spent)
 
 
 def rent_machines(run, account, found, cards, kind=None, disk_gb=batch.DISK_GB):
@@ -114,16 +129,11 @@ def rent_machines(run, account, found, cards, kind=None, disk_gb=batch.DISK_GB):
     return [machine for machine in claimed if machine]
 
 
-def set_up(folder, host, share, model):
-    """Put the share, its reference photos and the scripts on the machine, and install the model."""
+def set_up(machine, model):
+    """The picture model and its worker onto one machine."""
+    folder, host = machine["folder"], machine["host"]
     batch.remote(folder, host, "mkdir -p /root/pics/refs /root/pics/out", check=True)
-    refs = sorted({ref for job in share for ref in job["refs"]})
-    if refs:
-        batch.copy(folder, refs, f"root@{host}:/root/pics/refs/")
-    up = [dict(job, refs=[pathlib.Path(ref).name for ref in job["refs"]]) for job in share]
-    (folder / "jobs.json").write_text(json.dumps(up))
-    batch.copy(folder, [folder / "jobs.json", HERE / "picture_worker.py", HERE / "picture_setup.sh"],
-               f"root@{host}:/root/pics/")
+    batch.copy(folder, [HERE / "picture_worker.py", HERE / "picture_setup.sh"], f"root@{host}:/root/pics/")
     with (folder / "setup.log").open("w") as log:
         batch.remote(folder, host, f"bash /root/pics/picture_setup.sh {MODELS[model]['repository']}",
                      check=True, stdout=log,
@@ -141,40 +151,37 @@ def keep_beating(folder, host, stop):
             batch.say(f"{folder.name}: a heartbeat failed ({error.returncode}); trying again in a minute")
 
 
-def draw_on_card(folder, host, model, card, cards):
-    """Draw the `card`th of `cards` slices of the machine's share on that card; waits until it is done."""
-    with (folder / f"draw-{card}.log").open("w") as log:
-        batch.remote(folder, host, f"CUDA_VISIBLE_DEVICES={card} /root/venv/bin/python /root/pics/picture_worker.py "
-                     f"/root/pics/jobs.json {MODELS[model]['pipeline']} {MODELS[model]['whole_gb']} {card} {cards}",
-                     check=True, stdout=log, stderr=subprocess.STDOUT)
-
-
-def draw_on_cards(folder, host, model, cards):
-    """Draw the machine's share with one worker on each of its cards, side by side; waits for all of them."""
-    with concurrent.futures.ThreadPoolExecutor(cards) as workers:
-        list(workers.map(lambda card: draw_on_card(folder, host, model, card, cards), range(cards)))
-
-
-def draw_share(run, machine, share, model):
-    """Run one machine from boot to delete: set it up, draw its share, bring the pictures back."""
-    folder = machine["folder"]
-    stop = threading.Event()
+def draw_share(machine, share, card, model):
+    """Draw one share on one card of a machine: its reference photos and list up, the worker run, its pictures back
+    into WORK/pictures. A worker that fails raises spread.JobFailed (what it drew still comes back)."""
+    number, jobs = share
+    folder, host = machine["folder"], machine["host"]
+    refs = sorted({ref for job in jobs for ref in job["refs"]})
+    if refs:
+        batch.copy(folder, refs, f"root@{host}:/root/pics/refs/")
+    listing = folder / f"jobs-{number}.json"
+    listing.write_text(json.dumps([dict(job, refs=[pathlib.Path(ref).name for ref in job["refs"]]) for job in jobs]))
+    batch.copy(folder, [listing], f"root@{host}:/root/pics/")
     try:
-        host = machine["host"]
-        batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=keep_beating, args=(folder, host, stop), daemon=True).start()
-        set_up(folder, host, share, model)
-        batch.say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
-        draw_on_cards(folder, host, model, max(1, machine.get("cards") or 1))
+        with (folder / f"draw-{number}.log").open("w") as log:
+            done = batch.remote(folder, host, f"CUDA_VISIBLE_DEVICES={card} /root/venv/bin/python "
+                                f"/root/pics/picture_worker.py /root/pics/{listing.name} {MODELS[model]['pipeline']} "
+                                f"{MODELS[model]['whole_gb']}", stdout=log, stderr=subprocess.STDOUT)
+    finally:
         batch.copy(folder, [f"root@{host}:/root/pics/out/"], folder / "out")
         for made in (folder / "out").glob("*.png"):
             shutil.copy2(made, PICTURES / made.name)
         machine["made"] = len(list((folder / "out").glob("*.png")))
-    except Exception as error:  # noqa: BLE001 - one machine failing must not stop the others
-        batch.say(f"{folder.name} failed: {error}")
-    finally:
-        stop.set()
-        batch.delete_machine(machine)
+    seconds = [float(line.split()[-1]) for line in (folder / f"draw-{number}.log").read_text().splitlines()
+               if len(line.split()) == 2 and line.split()[0] in {job["name"] for job in jobs}]
+    machine.setdefault("unit_seconds", []).extend(seconds)
+    spread.raise_for(done.returncode, f"share {number} ({folder / f'draw-{number}.log'})")
+
+
+def shares_of(jobs, machines, model):
+    """The list cut into a share for each card the machines are planned to hold, in turn so each share is alike."""
+    count = min(len(jobs), machines * capacity.slots_for(MODELS[model]["kind"]))
+    return [(number, jobs[number::count]) for number in range(count)]
 
 
 def record(run, machines, jobs, started, kind="pictures"):
@@ -189,17 +196,17 @@ def record(run, machines, jobs, started, kind="pictures"):
     return entry
 
 
-def draw_list(path, model="klein", cards=CARDS, dry_run=False):
-    """Draw the list's pictures not yet made with `model` on up to `cards` rented machines, into WORK/pictures; the
-    run's ledger entry, or None when nothing was rented."""
+def draw_list(path, model="klein", cards=None, dry_run=False):
+    """Draw the list's pictures not yet made with `model`, spread over rented machines (at most `cards`), into
+    WORK/pictures; the run's ledger entry, or None when nothing was rented."""
     jobs = jobs_to_make(path, model)
     if not jobs:
         batch.say("every picture in the list is already made")
         return None
     account = cloud.account()
     batch.sweep(account)
-    cards = min(cards, len(jobs))
-    found, allowed_minutes = price(jobs, cards, account, model)
+    machines = machines_for(len(jobs), model, cards)
+    found, allowed_minutes = price(jobs, machines, account, model)
     if dry_run:
         return None
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -208,14 +215,12 @@ def draw_list(path, model="klein", cards=CARDS, dry_run=False):
     folder = batch.BATCHES / time.strftime(f"pictures-%Y%m%d-%H%M%S-{os.getpid()}")
     folder.mkdir(parents=True)
     run = Run(folder, started + allowed_minutes * 60)
+    shares = spread.Shares(shares_of(jobs, machines, model), deadline=run.deadline)
     try:
-        machines = rent_machines(run, account, found, cards, MODELS[model]["kind"], MODELS[model]["disk_gb"])
-        threads = [threading.Thread(target=draw_share, args=(run, machine, jobs[index::len(machines)], model))
-                   for index, machine in enumerate(machines)]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
+        spread.on_machines(run, account, found, machines, MODELS[model]["kind"], shares,
+                           lambda machine: set_up(machine, model),
+                           lambda machine, share, card: draw_share(machine, share, card, model),
+                           MODELS[model]["disk_gb"])
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
@@ -226,7 +231,8 @@ def draw_list(path, model="klein", cards=CARDS, dry_run=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("list")
-    parser.add_argument("--cards", type=int, default=CARDS, help="machines to rent at most")
+    parser.add_argument("--cards", type=int, help="machines to rent at most (default: as many as draw the list in "
+                        "about the setup's time, capacity.machines_for)")
     parser.add_argument("--model", choices=tuple(MODELS), default="klein", help="the picture model (MODELS)")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     options = parser.parse_args()

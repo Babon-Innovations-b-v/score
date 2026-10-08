@@ -18,7 +18,33 @@
     0.84711296,
     -0.335829949
    ],
-   "heading": 2.884127461
+   "heading": 2.884127461,
+   "dents": {
+    "pressure_sphere_1": {
+     "at": [
+      -8.996,
+      5.4978
+     ],
+     "radius": 0.81,
+     "depth": 0.08
+    },
+    "pressure_sphere_2": {
+     "at": [
+      8.0129,
+      6.9894
+     ],
+     "radius": 0.81,
+     "depth": 0.08
+    },
+    "forward_section_1": {
+     "at": [
+      0.9,
+      1.9
+     ],
+     "radius": 2.5,
+     "depth": 0.3
+    }
+   }
   },
   "old_station": {
    "out": [

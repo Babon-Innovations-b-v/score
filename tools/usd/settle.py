@@ -13,7 +13,7 @@ Where it rests is written back to the place's layout, data/inventory/<place>.jso
 turn in its own seat's frame as a unit quaternion `rotation` [x, y, z, w] (x across, y up, z along), which replaces
 `facing` and `tilt` (`facing` is kept as the rotation's heading for readers that know only a heading; `tilt` is
 dropped). Settling only corrects a laid pose: an object that would turn more than TURN_MOST or whose middle would drift
-more than DRIFT_MOST to come to rest keeps its laid pose and is marked `"unrested"` in its spot and piece (what it
+more than DRIFT_MOST to come to rest (small debris: any turn, DEBRIS_DRIFT) keeps its laid pose and is marked `"unrested"` in its spot and piece (what it
 would do), which the resting check fails as "would not rest as laid"; the layout is put right instead (a support piece,
 a laid pose that rests, or a bed in the ground under it). Export the stage again after, and
 run the resting check (tools/usd/resting.py).
@@ -47,6 +47,10 @@ STILL = 0.05
 # drifts further (metres) to come to rest keeps its laid pose and is marked (the concept's composition is the owner's).
 TURN_MOST = 15.0
 DRIFT_MOST = 0.3
+# Small debris (no side longer than DEBRIS_SIZE metres: a panel, a strut, a sphere) may turn freely and drift up to
+# DEBRIS_DRIFT metres: where a thrown piece fell is not part of the composition (coordinator, 2026-10-08).
+DEBRIS_SIZE = 1.4
+DEBRIS_DRIFT = 1.0
 LOOSE_ANCHORS = {"floor", "ground", ""}
 
 
@@ -162,7 +166,8 @@ def write_layout(settled, ground, inventory_path, kit_path):
         index = int(number) - 1
         turned, drift = correction(found)
         said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
-        if turned > TURN_MOST or drift > DRIFT_MOST:
+        debris = max(pieces[row][index]["size"]) <= DEBRIS_SIZE
+        if (not debris and turned > TURN_MOST) or drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
             spots[row][index]["unrested"] = pieces[row][index]["unrested"] = said
             moved[name] = f"would not rest as laid: {said}"
             continue

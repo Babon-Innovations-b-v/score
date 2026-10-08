@@ -1,0 +1,475 @@
+{
+ "place": "hub",
+ "about": "The hub (C12) as the game draws it beyond its kit: the shell's dark backing, the furniture the game places from code (the workstation's console and its screens, the chair, the lab bench, the comms desk, the tool board, the lockers), the room fill and the indoor sky. Frame: the Habitat node's own (x east, z south, y up from the ring floor).",
+ "floor": [
+  [
+   -4.5,
+   -4.5
+  ],
+  [
+   4.5,
+   4.5
+  ]
+ ],
+ "ceiling": 4.8,
+ "inside": true,
+ "structure": [
+  {
+   "name": "shell_walls",
+   "builder": "walls",
+   "sides": 12,
+   "apothem": 4.6,
+   "low": -0.02,
+   "high": 3.1,
+   "surface": "roof_steel_paint",
+   "rotation": 15.0,
+   "openings": [
+    [
+     0,
+     2.2,
+     2.6
+    ],
+    [
+     90,
+     2.2,
+     2.6
+    ],
+    [
+     180,
+     2.2,
+     2.6
+    ],
+    [
+     270,
+     2.2,
+     2.6
+    ],
+    [
+     330,
+     2.2,
+     2.6
+    ]
+   ],
+   "from": "ModuleShell faceted walls (module_shell.gd:129-141, 1300-1313)"
+  },
+  {
+   "name": "shell_roof",
+   "builder": "pyramid_roof",
+   "sides": 12,
+   "apothem": 4.75,
+   "eave": 3.1,
+   "rise": 1.85,
+   "surface": "roof_steel_paint",
+   "rotation": 15.0,
+   "layer": 2,
+   "from": "ModuleShell pyramid roof (RISE 1.7)"
+  },
+  {
+   "name": "shell_deck",
+   "builder": "annulus",
+   "sides": 12,
+   "inner": 2.42,
+   "outer": 4.75,
+   "height": -0.025,
+   "surface": "roof_steel_paint",
+   "rotation": 15.0,
+   "from": "ModuleShell deck cut round the pit (module_shell.gd:649-685)"
+  }
+ ],
+ "objects": [
+  {
+   "name": "console",
+   "model": "game/base/models/hub_kit/console_1.gltf",
+   "at": [
+    -0.6058,
+    -0.9,
+    1.5165
+   ],
+   "yaw": -21.8,
+   "children": [
+    {
+     "model": "game/base/models/hub_kit/monitor_1.gltf",
+     "at": [
+      0.0,
+      0.76,
+      0.207
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/hub_kit/monitor_1.gltf",
+     "at": [
+      0.496,
+      0.76,
+      0.158
+     ],
+     "yaw": 12.0
+    },
+    {
+     "model": "game/base/models/hub_kit/monitor_1.gltf",
+     "at": [
+      -0.515,
+      0.76,
+      0.194
+     ],
+     "yaw": -12.0
+    },
+    {
+     "model": "game/base/models/hub_kit/monitor_2.gltf",
+     "at": [
+      1.0,
+      0.76,
+      0.1
+     ],
+     "yaw": 24.0
+    },
+    {
+     "model": "game/base/models/hub_kit/monitor_3.gltf",
+     "at": [
+      -1.0,
+      0.76,
+      0.1
+     ],
+     "yaw": -24.0
+    },
+    {
+     "model": "game/base/models/hub_kit/keyboard_1.gltf",
+     "at": [
+      0.25,
+      0.76,
+      -0.12
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/hub_kit/keyboard_1.gltf",
+     "at": [
+      -0.25,
+      0.76,
+      -0.12
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/hub_kit/monitor_2_glow.gltf",
+     "at": [
+      1.0,
+      0.76,
+      0.1
+     ],
+     "yaw": 24.0
+    },
+    {
+     "model": "game/base/models/hub_kit/monitor_3_glow.gltf",
+     "at": [
+      -1.0,
+      0.76,
+      0.1
+     ],
+     "yaw": -24.0
+    }
+   ],
+   "from": "main.tscn:123-124 Workstation, workstation.tscn:15, hub_console.tscn"
+  },
+  {
+   "name": "screen_feed",
+   "model": "game/base/models/hub_kit/console_screen_1.gltf",
+   "at": [
+    -0.6752,
+    0.085,
+    1.6901
+   ],
+   "yaw": -21.8,
+   "from": "workstation.tscn:18-25"
+  },
+  {
+   "name": "screen_left",
+   "model": "game/base/models/hub_kit/console_screen_1.gltf",
+   "at": [
+    -0.2002,
+    0.095,
+    1.8273
+   ],
+   "yaw": -9.8,
+   "from": "workstation.tscn:18-25"
+  },
+  {
+   "name": "screen_right",
+   "model": "game/base/models/hub_kit/console_screen_1.gltf",
+   "at": [
+    -1.1449,
+    0.085,
+    1.4883
+   ],
+   "yaw": -33.8,
+   "from": "workstation.tscn:18-25"
+  },
+  {
+   "name": "chair",
+   "model": "game/base/models/hub_kit/chair_1.gltf",
+   "at": [
+    -0.291,
+    -0.9,
+    0.728
+   ],
+   "yaw": 158.2,
+   "from": "layout.json operations_chair"
+  },
+  {
+   "name": "lab_bench",
+   "model": "game/base/models/hub_kit/labbench_1.gltf",
+   "at": [
+    3.529,
+    0.0,
+    2.028
+   ],
+   "yaw": 240.0,
+   "children": [
+    {
+     "model": "game/base/models/hub_kit/glovebox_1.gltf",
+     "at": [
+      -0.5,
+      0.85,
+      -0.014
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/hub_kit/microscope_1.gltf",
+     "at": [
+      0.6,
+      0.85,
+      0.0
+     ],
+     "yaw": -20.0
+    }
+   ],
+   "from": "main.tscn:126-127 LabDesk (yaw 60, its model turned 180, lab_desk.tscn)"
+  },
+  {
+   "name": "comms_desk",
+   "model": "game/base/models/hub_kit/comms_1.gltf",
+   "at": [
+    -3.506,
+    0.0,
+    -2.107
+   ],
+   "yaw": -120.0,
+   "children": [
+    {
+     "model": "game/base/models/hub_kit/radio_1.gltf",
+     "at": [
+      0.21,
+      0.76,
+      0.12
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/hub_kit/radio_1.gltf",
+     "at": [
+      -0.26,
+      0.76,
+      0.12
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/hub_kit/telephone_1.gltf",
+     "at": [
+      0.58,
+      0.76,
+      -0.05
+     ],
+     "yaw": -15.0
+    },
+    {
+     "model": "game/base/models/hub_kit/desklamp_1.gltf",
+     "at": [
+      -0.6,
+      0.76,
+      0.15
+     ],
+     "yaw": 20.0
+    },
+    {
+     "model": "game/base/models/hub_kit/headset_1.gltf",
+     "at": [
+      -0.825,
+      0.38,
+      0.0
+     ],
+     "yaw": 90.0
+    }
+   ],
+   "from": "layout.json comms_desk"
+  },
+  {
+   "name": "tool_board",
+   "model": "game/base/models/hub_kit/toolboard_1.gltf",
+   "at": [
+    2.371,
+    0.783,
+    -3.665
+   ],
+   "yaw": 150.0,
+   "from": "layout.json tool_panel"
+  },
+  {
+   "name": "tall_locker",
+   "model": "game/base/models/hub_kit/talllocker_1.gltf",
+   "at": [
+    2.325,
+    0.0,
+    3.42
+   ],
+   "yaw": 30.0,
+   "from": "habitat.tscn:14-15"
+  },
+  {
+   "name": "rack_1",
+   "model": "game/base/models/hub_kit/rack_1.gltf",
+   "at": [
+    -3.166,
+    0.0,
+    2.677
+   ],
+   "yaw": -60.0,
+   "from": "habitat.tscn:19-25"
+  },
+  {
+   "name": "rack_2",
+   "model": "game/base/models/hub_kit/rack_1.gltf",
+   "at": [
+    -3.516,
+    0.0,
+    2.07
+   ],
+   "yaw": -60.0,
+   "from": "habitat.tscn:19-25"
+  }
+ ],
+ "lights": [
+  {
+   "type": "omni",
+   "at": [
+    0.0,
+    2.48,
+    0.0
+   ],
+   "colour": "#a8bcd8",
+   "energy": 0.08,
+   "range": 7.72,
+   "attenuation": 0.4,
+   "shadows": false,
+   "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.1
+  },
+  "exposure": 0.85,
+  "inside": true,
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+ },
+ "views": [
+  {
+   "name": "wide-north",
+   "eye": [
+    0.0,
+    2.2,
+    3.9
+   ],
+   "aim": [
+    0.0,
+    0.6,
+    -2.0
+   ],
+   "fov": 75,
+   "game": "robust-exp/r6/shots/now/wide-north.png"
+  },
+  {
+   "name": "wide-east",
+   "eye": [
+    -3.9,
+    2.2,
+    0.0
+   ],
+   "aim": [
+    2.0,
+    0.6,
+    -0.0
+   ],
+   "fov": 75,
+   "game": "robust-exp/r6/shots/now/wide-east.png"
+  },
+  {
+   "name": "wide-south",
+   "eye": [
+    0.0,
+    2.2,
+    -3.9
+   ],
+   "aim": [
+    0.0,
+    0.6,
+    2.0
+   ],
+   "fov": 75,
+   "game": "robust-exp/r6/shots/now/wide-south.png"
+  },
+  {
+   "name": "wide-west",
+   "eye": [
+    3.9,
+    2.2,
+    -0.0
+   ],
+   "aim": [
+    -2.0,
+    0.6,
+    0.0
+   ],
+   "fov": 75,
+   "game": "robust-exp/r6/shots/now/wide-west.png"
+  },
+  {
+   "name": "up-roof",
+   "eye": [
+    -2.9944,
+    1.6,
+    -0.8023
+   ],
+   "aim": [
+    -3.4773,
+    4.1,
+    -0.9317
+   ],
+   "fov": 75,
+   "game": "robust-exp/r6/shots/now/up-roof.png"
+  },
+  {
+   "name": "standing-south-door",
+   "eye": [
+    0.0,
+    1.6,
+    3.6
+   ],
+   "aim": [
+    0.0,
+    0.2,
+    -2.0
+   ],
+   "fov": 80
+  }
+ ],
+ "game_only": [
+  "the tool board's 26 tools",
+  "the crew member standing in the room",
+  "what the open doorways show (the tubes and the airlock)",
+  "the ink outline pass and the haze"
+ ]
+}

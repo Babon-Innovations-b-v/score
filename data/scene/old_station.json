@@ -1,0 +1,163 @@
+{
+ "place": "old_station",
+ "about": "The old station as the game draws it beyond its made pieces: the planned ground out to the plan's edge and the ball under it, the base to the east (each module's own stage), the Earth, the sun and earthshine and the sky. Frame: the base seat, the layout offset by its on_seat.",
+ "planned_ground": {
+  "reach": 130.0,
+  "step": 2.0,
+  "ball": "moon_regolith"
+ },
+ "structure": [
+  {
+   "name": "earth",
+   "builder": "sphere",
+   "centre": [
+    -399.23,
+    599.4,
+    -831.47
+   ],
+   "radius": 220.0,
+   "surface": "earth_face",
+   "from": "game/world/earth (radius 220 at 1302 m: about 20 degrees across), Orbits/LunarCycle"
+  }
+ ],
+ "places": [
+  {
+   "name": "hub",
+   "stage": "hub",
+   "at": [
+    61.6,
+    -9.2,
+    -9.7
+   ],
+   "yaw": 180.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "greenhouse",
+   "stage": "greenhouse",
+   "at": [
+    45.4,
+    -5.0,
+    -6.6
+   ],
+   "yaw": 0.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "airlock",
+   "stage": "airlock",
+   "at": [
+    66.0,
+    -10.4,
+    -4.3
+   ],
+   "yaw": 30.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  }
+ ],
+ "lights": [
+  {
+   "type": "sun",
+   "toward": [
+    -0.87979,
+    -0.32164,
+    0.35002
+   ],
+   "colour": "#fff5e6",
+   "energy": 1.25,
+   "shadows": true,
+   "from": "sky.tscn:36-40, sky.gd:87 (energy 1.25 in full sun); its way set to match the game's shots' shadows"
+  },
+  {
+   "type": "sun",
+   "name": "earthshine",
+   "toward": [
+    0.36294,
+    -0.54491,
+    0.75588
+   ],
+   "colour": "#9fb8e6",
+   "energy": 0.0967,
+   "shadows": false,
+   "from": "sky.gd:60,352-358 (0.22 x (1 - sun.earth) / 2, from the Earth)"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.22
+  },
+  "exposure": 1.05,
+  "from": "sky.gd:345 (ambient lerp(0.05, 0.22, sun) in full sun), lighting.json exposure 1.05 sunlit"
+ },
+ "views": [
+  {
+   "name": "station-approach",
+   "eye": [
+    18.99,
+    0.76,
+    -6.64
+   ],
+   "aim": [
+    0.0,
+    2.5,
+    0.0
+   ],
+   "fov": 73.74,
+   "game": "playtest3/place-outside/shots2/station approach.png"
+  },
+  {
+   "name": "station-ladder",
+   "eye": [
+    8.7,
+    1.01,
+    3.3
+   ],
+   "aim": [
+    0.0,
+    2.5,
+    0.0
+   ],
+   "fov": 73.74,
+   "game": "playtest3/place-outside/shots2/station ladder.png"
+  },
+  {
+   "name": "station-south",
+   "eye": [
+    5.76,
+    0.49,
+    15.61
+   ],
+   "aim": [
+    0.0,
+    2.5,
+    0.0
+   ],
+   "fov": 73.74,
+   "game": "playtest3/place-outside/shots2/station south.png"
+  },
+  {
+   "name": "station-above",
+   "eye": [
+    21.33,
+    20.12,
+    13.38
+   ],
+   "aim": [
+    0.0,
+    2.5,
+    0.0
+   ],
+   "fov": 73.74,
+   "game": "playtest3/place-outside/shots2/station above.png"
+  }
+ ],
+ "game_only": [
+  "the workshop, the tubes, the landing pad and the solar field of the base",
+  "the planned rocks",
+  "the ground shader's pebbles, pits and stipple",
+  "the stars",
+  "the ink outline pass"
+ ]
+}

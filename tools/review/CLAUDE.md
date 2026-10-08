@@ -27,3 +27,10 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   why each entry is there, each character close (from the first clear eye round its front), each group and the crowd
   wide, and short moving shots, all drawn from the stage at set moments of its time (a view's `frame`); the scene's
   walk is drawn at consecutive moments too, so its people move.
+- **A place with a scene record** (`data/scene/<place>.json`) is drawn from the record's own cameras (the player's
+  spots; a room from inside at standing height and a cutaway from above, never from outside a closed room), lit by the
+  stage's own lights and sky (no added sun; `"fill"` in views.json adds the weak fill as an option), with no grey plane
+  under a room. `--game-shots <folder>` lays each view beside the game's shot it names, with both pictures' mean
+  brightness: a scene view under half the game's is caught. The "complete vs game" line says what the record carries
+  and what it lists as game only.
+

@@ -1,0 +1,173 @@
+{
+ "place": "wreck",
+ "about": "The wreck as the game draws it beyond its made pieces: the planned ground out to the plan's edge and the ball under it, the base on the horizon (each module's own stage where the game stands it), the Earth in the sky, the sun and earthshine, the break light and the sky. Frame: the wreck's own seat.",
+ "planned_ground": {
+  "reach": 130.0,
+  "step": 2.0,
+  "ball": "moon_regolith"
+ },
+ "structure": [
+  {
+   "name": "earth",
+   "builder": "sphere",
+   "centre": [
+    637.76,
+    300.19,
+    844.48
+   ],
+   "radius": 220.0,
+   "surface": "earth_face",
+   "from": "game/world/earth (radius 220 at 1302 m: about 20 degrees across), Orbits/LunarCycle"
+  }
+ ],
+ "places": [
+  {
+   "name": "hub",
+   "stage": "hub",
+   "at": [
+    0.0,
+    -6.98,
+    54.39
+   ],
+   "yaw": 14.75,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "greenhouse",
+   "stage": "greenhouse",
+   "at": [
+    16.2,
+    -6.4,
+    49.5
+   ],
+   "yaw": -165.25,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "workshop",
+   "stage": "workshop",
+   "at": [
+    -16.2,
+    -8.8,
+    59.0
+   ],
+   "yaw": -165.25,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "airlock",
+   "stage": "airlock",
+   "at": [
+    -5.2,
+    -5.9,
+    49.6
+   ],
+   "yaw": -135.25,
+   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  }
+ ],
+ "lights": [
+  {
+   "type": "sun",
+   "toward": [
+    0.75742,
+    -0.3219,
+    -0.56806
+   ],
+   "colour": "#fff5e6",
+   "energy": 1.25,
+   "shadows": true,
+   "from": "sky.tscn:36-40, sky.gd:87 (energy 1.25 in full sun); its way set to match the game's shots' shadows"
+  },
+  {
+   "type": "sun",
+   "name": "earthshine",
+   "toward": [
+    -0.57978,
+    -0.2729,
+    -0.76771
+   ],
+   "colour": "#9fb8e6",
+   "energy": 0.1007,
+   "shadows": false,
+   "from": "sky.gd:60,352-358 (0.22 x (1 - sun.earth) / 2, from the Earth)"
+  },
+  {
+   "type": "omni",
+   "at": [
+    0.4,
+    0.064,
+    -1.5
+   ],
+   "colour": "#ffd29a",
+   "energy": 12.0,
+   "range": 9.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "from": "wreck.tscn BreakLight, wreck.gd:91-92,178-179"
+  }
+ ],
+ "environment": {
+  "background": "#030409",
+  "ambient": {
+   "colour": "#9fb8e6",
+   "energy": 0.22
+  },
+  "exposure": 1.05,
+  "from": "sky.gd:345 (ambient lerp(0.05, 0.22, sun) in full sun), lighting.json exposure 1.05 sunlit"
+ },
+ "views": [
+  {
+   "name": "wreck-wake",
+   "eye": [
+    5.83,
+    0.89,
+    -4.53
+   ],
+   "aim": [
+    -5.23,
+    -4.34,
+    49.98
+   ],
+   "fov": 73.74,
+   "game": "playtest3/place-outside/shots2/wreck wake.png"
+  },
+  {
+   "name": "wreck-side",
+   "eye": [
+    12.0,
+    0.57,
+    -1.32
+   ],
+   "aim": [
+    0.02,
+    0.53,
+    -1.76
+   ],
+   "fov": 73.74,
+   "game": "playtest3/place-outside/shots2/wreck side.png"
+  },
+  {
+   "name": "wreck-home",
+   "eye": [
+    -3.41,
+    1.01,
+    12.79
+   ],
+   "aim": [
+    -0.04,
+    0.76,
+    0.02
+   ],
+   "fov": 73.74,
+   "game": "playtest3/place-outside/shots2/wreck home.png"
+  }
+ ],
+ "game_only": [
+  "the walkway tubes, the landing pad, its supply rocket and the solar field round the base",
+  "the ground shader's pebbles, pits and stipple, and the scorch decal",
+  "the stars",
+  "the planned rocks",
+  "the ink outline pass"
+ ]
+}

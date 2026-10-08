@@ -34,11 +34,14 @@ import characters  # noqa: E402
 import records  # noqa: E402
 import renders  # noqa: E402
 import resting  # noqa: E402  (tools/usd, on the path renders puts it)
+import scene as scene_record  # noqa: E402  (tools/usd)
 from model import SPREAD_LIMIT, THINNEST_LIMIT  # noqa: E402
 from sweep import ON_PALETTE  # noqa: E402
 
 TEMPLATE = HERE / "page.html"
 LARGEST_SIDE = 1400
+# A scene view darker than this share of the game's own shot's mean brightness fails the brightness check.
+DARK_SHARE = 0.5
 
 
 def escaped(value):
@@ -288,17 +291,83 @@ def srgb(linear):
     return linear * 12.92 if linear <= 0.0031308 else 1.055 * linear ** (1 / 2.4) - 0.055
 
 
-def scene_section(scene, out):
+def mean_brightness(path):
+    """A picture's mean brightness, 0 to 1 (its grey's mean)."""
+    picture = Image.open(path).convert("L")
+    picture.thumbnail((320, 320))
+    return sum(value * count for value, count in enumerate(picture.histogram())) / (255.0 * picture.width *
+                                                                                 picture.height)
+
+
+def game_beside(scene, out, games, pictures):
+    """Each view beside the game's own shot from about the same place, with both pictures' mean brightness: a render
+    far darker than the game's shot (under DARK_SHARE of its brightness) fails. The tiles and (views judged, views
+    passed)."""
+    tiles, judged, passed = [], 0, 0
+    for view, game in scene.get("games", {}).items():
+        render = out / "scene/now" / f"{view}-look.png"
+        shot = pathlib.Path(games) / game if games else None
+        if not render.exists():
+            continue
+        if shot is None or not shot.exists():
+            tiles.append(figure(f"scene/now/{view}-look.png", escaped(f"{view}: the game's shot is not recorded")))
+            continue
+        ours, theirs = mean_brightness(render), mean_brightness(shot)
+        judged += 1
+        bright = ours >= DARK_SHARE * theirs
+        passed += bright
+        game_file = pictures.add(shot, f"game-{view}")
+        caption = escaped(f"{view}: scene {ours:.2f}, game {theirs:.2f} mean brightness, "
+                          f"{'bright enough' if bright else 'far darker than the game'}")
+        tiles.append(f'<figure class="pair"><div class="two"><div><img loading="lazy" '
+                     f'src="{escaped(f"scene/now/{view}-look.png")}" alt="scene"><span class="tag">scene</span></div>'
+                     f'<div><img loading="lazy" src="{escaped(game_file)}" alt="game"><span class="tag">game</span>'
+                     f'</div></div><figcaption>{verdict(bright)} {caption}</figcaption></figure>')
+    return tiles, judged, passed
+
+
+def complete_line(place, scene, judged, passed):
+    """The place's 'complete vs game' line: what of what the game draws the scene carries, what it does not, and how
+    many views are as bright as the game's."""
+    record = scene_record.record(place)
+    if record is None:
+        return "<p><b>Complete vs game:</b> no scene record yet: only the made pieces are in the scene.</p>"
+    carried = [f"{word} ({len(record.get(key, []))})" for key, word in
+               (("structure", "structure built in code"), ("ground", "ground"), ("water", "water"),
+                ("objects", "gameplay objects"), ("backdrop", "backdrop arcs"), ("places", "other places seen from it"),
+                ("lights", "lights of its own")) if record.get(key)]
+    if record.get("planned_ground"):
+        carried.append("the planned ground out to the horizon")
+    if record.get("environment"):
+        carried.append("the game's sky, ambient light and exposure")
+    if record.get("kit_lights", True):
+        carried.append("the kit's lamps as lights")
+    missing_now = record.get("game_only", [])
+    light = (f"{passed} of {judged} views at least {DARK_SHARE:.0%} as bright as the game's shot" if judged else
+             "no game shot to compare brightness with")
+    return (f"<p><b>Complete vs game:</b> the scene carries {escaped(', '.join(carried))}. "
+            f"Not carried: {escaped('; '.join(missing_now)) if missing_now else 'nothing the game draws there'}. "
+            f"Brightness: {escaped(light)}.</p>")
+
+
+def scene_section(scene, out, place=None, games=None, pictures=None):
     if scene is None:
         return section("scene", "The assembled scene", missing("no OpenUSD stage given"))
     labels = [path.name for path in sorted((out / "scene").iterdir()) if path.is_dir() and path.name != "walk"]
+    beside, judged, passed = game_beside(scene, out, games, pictures) if pictures is not None else ([], 0, 0)
+    complete = complete_line(place, scene, judged, passed) if place else ""
     tiles = []
     for view in scene["views"]:
         paths = [f"scene/{label}/{view}-look.png" for label in labels if (out / "scene" / label / f"{view}-look.png")
                  .exists()]
         tiles.append(pair(paths[0], paths[-1], escaped(view)) if len(paths) > 1 else figure(paths[-1], escaped(view)))
     report = scene["report"]
-    lit = (f"inside the room in its baked materials, lit by its own {scene.get('lamps', 0)} lamps where the game hangs "
+    lit = ("in its baked materials with everything the game draws in its own code that its scene record carries "
+           "(structure, ground, water, backdrop, gameplay objects), lit by the stage's own lights and sky as the game "
+           "sets them, from the player's own spots" + (" and from a cutaway above with the roof left out"
+                                                         if "cutaway" in scene["views"] else "")
+           if scene.get("recorded") else
+           f"inside the room in its baked materials, lit by its own {scene.get('lamps', 0)} lamps where the game hangs "
            "their lights, from each wall across the room and from high in a corner with the roof left out"
            if scene.get("room") else
            "the place in its baked materials on its own ground (the planned Moon ground round it, in the plan's skin, "
@@ -310,6 +379,7 @@ def scene_section(scene, out):
             + "<h3>A walk round it</h3><video src=\"scene/walk.mp4\" controls loop muted playsinline "
               "poster=\"scene/walk-strip.jpg\"></video>"
             + figure("scene/walk-strip.jpg", "the walk, every tenth frame")
+            + (f'<h3>Beside the game</h3>{complete}<div class="grid pairs">{"".join(beside)}</div>' if complete else "")
             + f'<h3>Fixed cameras</h3><div class="grid {"pairs" if len(labels) > 1 else "wide"}">{"".join(tiles)}</div>')
     return section("scene", "The assembled scene", body)
 
@@ -494,6 +564,8 @@ def arguments():
     parser.add_argument("--out", type=pathlib.Path, required=True)
     for name in ("before", "concept", "references", "stage", "before-stage", "agreement"):
         parser.add_argument(f"--{name}", type=pathlib.Path)
+    parser.add_argument("--game-shots", type=pathlib.Path, help="the folder the scene record's views name the game's "
+                        "own shots in, laid beside the scene's")
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("--plain", action="store_true")
     parser.add_argument("--cloud", action="store_true", help="render on rented cards, not this PC's Blender")
@@ -515,7 +587,8 @@ def render_all(options, runs, out):
     room = layout if layout and any(piece.get("layer") == renders.ROOF_LAYER for piece in layout.get("pieces", [])) \
         else None
     outdoor_kit = room is None and bool(layout and layout.get("pieces") and "x" in layout["pieces"][0])
-    scene = renders.scene_shots(options.place, stages, out, options.plain, room, outdoor_kit) if stages else None
+    scene = renders.scene_shots(options.place, stages, out, options.plain, room, outdoor_kit,
+                                scene_record.record(options.place)) if stages else None
     cast = characters.shots(options.place, options.stage, out) if options.stage else None
     (out / "renders.json").write_text(json.dumps({"shots": shots, "scene": scene, "characters": cast}, indent=1))
     return shots, scene, cast
@@ -551,7 +624,7 @@ def build(options):
         closeups_section(runs, pictures),
         models_section(runs, shots, out, closeups),
         surfaces_section(options.place, runs),
-        scene_section(scene, out),
+        scene_section(scene, out, options.place, getattr(options, "game_shots", None), pictures),
         characters_section(cast),
         checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in
                                                  (("before", options.before_stage), ("now", options.stage)) if stage}),

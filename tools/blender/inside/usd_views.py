@@ -270,9 +270,11 @@ def lamps(scene, lights):
 def layer_of(item):
     """An imported object's kit layer: its own `score:layer` or the nearest parent's, None without one."""
     while item is not None:
-        for key, value in item.items():
-            if key.endswith("layer") and "score" in key:
-                return int(value)
+        # A mesh prim's own attributes (a built structure piece's) come in on its mesh data, an Xform's on the object.
+        for holder in (item, item.data) if item.data is not None else (item,):
+            for key, value in holder.items():
+                if key.endswith("layer") and "score" in key:
+                    return int(value)
         item = item.parent
     return None
 
@@ -280,6 +282,97 @@ def layer_of(item):
 def set_hidden(objects, hidden):
     for item in objects:
         item.hide_render = hidden
+
+
+def stage_lights(stage):
+    """The stage's own lights and sky (UsdLux, tools/usd/scene.py), read with the pxr library inside Blender:
+    ([{type, matrix, colour, intensity, radius, angle, softness, shadows}], environment or None)."""
+    from pxr import Usd, UsdGeom, UsdLux
+    opened = Usd.Stage.Open(str(stage))
+    cache = UsdGeom.XformCache()
+    found, environment = [], None
+    own_sky = opened.GetDefaultPrim().GetPath().AppendChild("Environment")
+    for prim in opened.Traverse():
+        if prim.IsA(UsdLux.DomeLight):
+            if prim.GetPath() != own_sky:
+                continue
+            dome = UsdLux.DomeLight(prim)
+            attribute = prim.GetAttribute
+            environment = {
+                "ambient": [value * dome.GetIntensityAttr().Get() for value in dome.GetColorAttr().Get()],
+                "background": list(attribute("score:background").Get() or (0.0, 0.0, 0.0)),
+                "exposure": float(attribute("score:exposure").Get() or 1.0),
+                "ground_plane": bool(attribute("score:ground_plane").Get())}
+            continue
+        if not (prim.IsA(UsdLux.SphereLight) or prim.IsA(UsdLux.DistantLight)):
+            continue
+        light = UsdLux.SphereLight(prim) if prim.IsA(UsdLux.SphereLight) else UsdLux.DistantLight(prim)
+        entry = {"type": "sphere" if prim.IsA(UsdLux.SphereLight) else "distant",
+                 "matrix": [list(row) for row in cache.GetLocalToWorldTransform(prim)],
+                 "colour": list(light.GetColorAttr().Get() or (1.0, 1.0, 1.0)),
+                 "intensity": float(light.GetIntensityAttr().Get() or 0.0),
+                 "shadows": bool(prim.GetAttribute("score:game:shadows").Get()) if prim.HasAttribute(
+                     "score:game:shadows") else True}
+        if entry["type"] == "sphere":
+            entry["radius"] = float(light.GetRadiusAttr().Get() or 0.05)
+            shaping = UsdLux.ShapingAPI(prim)
+            if prim.HasAPI(UsdLux.ShapingAPI):
+                entry["angle"] = float(shaping.GetShapingConeAngleAttr().Get())
+                entry["softness"] = float(shaping.GetShapingConeSoftnessAttr().Get() or 0.0)
+        else:
+            entry["size"] = float(light.GetAngleAttr().Get() or 0.5)
+        found.append(entry)
+    return found, environment
+
+
+def place_light(scene, number, entry):
+    """One stage light in Blender, as Blender's own USD reader turns UsdLux intensities into its units (a sphere
+    light's watts its intensity times pi, a distant light's strength its intensity times 4), its shadows as the game
+    casts them."""
+    usd = Matrix(entry["matrix"]).transposed()  # USD's matrices are row by row with the translation in the last row
+    turn = Y_UP_TO_Z_UP.to_4x4()
+    world = turn @ usd @ turn.inverted()
+    if entry["type"] == "distant":
+        data = bpy.data.lights.new(f"stage_light_{number}", type="SUN")
+        data.energy = entry["intensity"] * 4.0
+        data.angle = math.radians(entry["size"])
+    elif "angle" in entry:
+        data = bpy.data.lights.new(f"stage_light_{number}", type="SPOT")
+        data.energy = entry["intensity"] * math.pi
+        data.spot_size = math.radians(2.0 * entry["angle"])
+        data.spot_blend = min(1.0, entry.get("softness", 0.0))
+        data.shadow_soft_size = entry["radius"]
+    else:
+        data = bpy.data.lights.new(f"stage_light_{number}", type="POINT")
+        data.energy = entry["intensity"] * math.pi
+        data.shadow_soft_size = entry["radius"]
+    data.color = entry["colour"][:3]
+    data.use_shadow = entry["shadows"]
+    item = bpy.data.objects.new(f"stage_light_{number}", data)
+    item.matrix_world = world
+    scene.collection.objects.link(item)
+
+
+def stage_sky(scene, environment):
+    """The stage's sky: the ambient light from every side (its dome), the background the camera sees, the exposure
+    (the game's multiplier as stops)."""
+    world = bpy.data.worlds.new("stage_sky")
+    world.use_nodes = True
+    nodes, links = world.node_tree.nodes, world.node_tree.links
+    background = next(node for node in nodes if node.type == "BACKGROUND")
+    background.inputs["Color"].default_value = (*environment["ambient"][:3], 1.0)
+    background.inputs["Strength"].default_value = 1.0
+    seen = nodes.new("ShaderNodeBackground")
+    seen.inputs["Color"].default_value = (*environment["background"][:3], 1.0)
+    path = nodes.new("ShaderNodeLightPath")
+    mix = nodes.new("ShaderNodeMixShader")
+    output = next(node for node in nodes if node.type == "OUTPUT_WORLD")
+    links.new(path.outputs["Is Camera Ray"], mix.inputs["Fac"])
+    links.new(background.outputs["Background"], mix.inputs[1])
+    links.new(seen.outputs["Background"], mix.inputs[2])
+    links.new(mix.outputs["Shader"], output.inputs["Surface"])
+    scene.world = world
+    scene.view_settings.exposure = math.log2(max(environment["exposure"], 1e-3))
 
 
 def main():
@@ -290,14 +383,26 @@ def main():
     (out / "report.json").write_text(json.dumps(import_report(stage, objects), indent=1))
     objects = [item for item in objects if not item.hide_render]  # what the stage makes invisible stays so
     renderer(scene, views["size"])
-    black_sky(scene)
-    sun(scene, "sun", SUN_STRENGTH, SUN_ELEVATION, SUN_HEADING)
-    sun(scene, "fill", FILL_STRENGTH, FILL_ELEVATION, SUN_HEADING + 180.0)
-    plane = stage_ground(objects)
-    if plane is None:
-        plane = ground(scene)
+    lights, environment = stage_lights(stage)
+    for number, entry in enumerate(lights):
+        place_light(scene, number, entry)
+    if environment is not None:
+        stage_sky(scene, environment)
     else:
+        black_sky(scene)
+    # A stage with no lights of its own (one exported before its scene record) gets the fixed sun and fill; a weak
+    # fill is an option for one that has them (views' "fill").
+    if not lights:
+        sun(scene, "sun", SUN_STRENGTH, SUN_ELEVATION, SUN_HEADING)
+    if not lights or views.get("fill"):
+        sun(scene, "fill", FILL_STRENGTH, FILL_ELEVATION, SUN_HEADING + 180.0)
+    plane = stage_ground(objects)
+    if plane is None and (environment is None or environment["ground_plane"]):
+        plane = ground(scene)
+    elif plane is not None:
         objects = [item for item in objects if item is not plane]
+    if plane is None:  # a room: its own floor is its ground; the masks are drawn with nothing to hide
+        plane = bpy.data.objects.new("no_ground", None)
     if views.get("plain"):
         plain(objects)
     lamps(scene, views.get("lights", []))

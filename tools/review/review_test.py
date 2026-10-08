@@ -113,8 +113,31 @@ def the_cameras_stand_outside_looking_in():
     return problems
 
 
+def a_room_is_seen_from_inside():
+    """Every room's scene record puts its cameras inside its floor (never outside a closed room), its walk at
+    standing height inside it, and its cutaway over it with the roof left out."""
+    import scene
+    problems = []
+    for path in sorted(scene.SCENES.glob("*.json")):
+        record = scene.record(path.stem)
+        if not record.get("inside"):
+            continue
+        low, high = np.array(record["floor"][0]), np.array(record["floor"][1])
+        for view in renders.record_views(record):
+            eye = np.array(view["eye"])[[0, 2]]
+            if not (np.all(eye >= low - 0.5) and np.all(eye <= high + 0.5)):
+                problems.append(f"{path.stem}: {view['name']} stands outside the room")
+        cut = renders.cutaway(record)
+        if cut["hide_layers"] != [renders.ROOF_LAYER] or cut["eye"][1] <= record.get("ceiling", 3.0):
+            problems.append(f"{path.stem}: the cutaway is not over the room with its roof left out")
+        walk = renders.record_walk(record)
+        if any(frame["eye"][1] != renders.STANDING for frame in walk):
+            problems.append(f"{path.stem}: the walk is not at standing height")
+    return problems
+
+
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
-          the_cameras_stand_outside_looking_in)
+          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside)
 
 
 if __name__ == "__main__":
