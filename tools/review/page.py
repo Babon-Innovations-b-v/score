@@ -318,6 +318,10 @@ def scene_section(scene, out):
 def gate_rows(label, checks):
     rows = []
     for model, found in sorted(checks.items()):
+        if found.get("missing"):  # a screen the route writes at install, not made by the bake: nothing to gate
+            rows.append(f"<tr><td>{escaped(label)}</td><td>{escaped(model)}</td><td colspan=\"5\">written by the "
+                        "route, not baked</td><td>not checked</td><td></td></tr>")
+            continue
         thin = found["thinnest"] < THINNEST_LIMIT
         spread = found["spread"] > SPREAD_LIMIT
         straight = found.get("straight")
