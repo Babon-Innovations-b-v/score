@@ -1,0 +1,360 @@
+\begin{thebibliography}{53}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Parker-Holder and Fruchter(2025)]{genie3}
+Jack Parker-Holder and Shlomi Fruchter.
+\newblock {Genie 3: A new frontier for world models}.
+\newblock Google DeepMind blog, August 2025.
+\newblock URL
+  \url{https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/}.
+\newblock Vendor material.
+
+\bibitem[Bruce et~al.(2024)Bruce, Dennis, Edwards, Parker-Holder,
+  et~al.]{bruce2024genie}
+Jake Bruce, Michael Dennis, Ashley Edwards, Jack Parker-Holder, et~al.
+\newblock {Genie}: Generative interactive environments.
+\newblock \emph{arXiv preprint arXiv:2402.15391}, 2024.
+
+\bibitem[Li et~al.(2026{\natexlab{a}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
+  Hu]{li2026pixal3d}
+Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
+  Ying Shan, and Shi-Min Hu.
+\newblock {Pixal3D}: Pixel-aligned {3D} generation from images.
+\newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{a}}.
+
+\bibitem[Xiang et~al.(2024)]{xiang2024trellis}
+Jianfeng Xiang et~al.
+\newblock Structured {3D} latents for scalable and versatile {3D} generation.
+\newblock \emph{arXiv preprint arXiv:2412.01506}, 2024.
+
+\bibitem[Hu et~al.(2026)Hu, Guo, Cen, Yang, Li, and Shen]{hu2026worldact}
+Jichen Hu, Jiawei Guo, Jiazhong Cen, Chen Yang, Sikuang Li, and Wei Shen.
+\newblock {WorldAct}: Activating monolithic {3D} worlds into interactive-ready
+  object-centric scenes.
+\newblock \emph{arXiv preprint arXiv:2605.15843}, 2026.
+
+\bibitem[Duan et~al.(2025)Duan, Yu, Chen, Fei-Fei, and Wu]{duan2025worldscore}
+Haoyi Duan, Hong-Xing Yu, Sirui Chen, Li~Fei-Fei, and Jiajun Wu.
+\newblock {WorldScore}: A unified evaluation benchmark for world generation.
+\newblock \emph{arXiv preprint arXiv:2504.00983}, 2025.
+
+\bibitem[Poole et~al.(2022)Poole, Jain, Barron, and
+  Mildenhall]{poole2022dreamfusion}
+Ben Poole, Ajay Jain, Jonathan~T. Barron, and Ben Mildenhall.
+\newblock {DreamFusion}: Text-to-{3D} using {2D} diffusion.
+\newblock \emph{arXiv preprint arXiv:2209.14988}, 2022.
+
+\bibitem[Kumar et~al.(2024)Kumar, Zhuang, Agarwal, et~al.]{kumar2024score}
+Aviral Kumar, Vincent Zhuang, Rishabh Agarwal, et~al.
+\newblock Training language models to self-correct via reinforcement learning.
+\newblock \emph{arXiv preprint arXiv:2409.12917}, 2024.
+
+\bibitem[Wang et~al.(2025)Wang, Jung, Monnier, Sohn, et~al.]{wang2025worldgen}
+Dilin Wang, Hyunyoung Jung, Tom Monnier, Kihyuk Sohn, et~al.
+\newblock {WorldGen}: From text to traversable and interactive {3D} worlds.
+\newblock \emph{arXiv preprint arXiv:2511.16825}, 2025.
+
+\bibitem[{Tencent Hunyuan}(2026)]{hyworld2}
+{Tencent Hunyuan}.
+\newblock {HY-World} 2.0.
+\newblock GitHub repository, 2026.
+\newblock URL \url{https://github.com/Tencent-Hunyuan/HY-World-2.0}.
+\newblock Tencent HY-World 2.0 Community License; not applicable in the EU, UK
+  and South Korea.
+
+\bibitem[Niu et~al.(2026)Niu, He, Yu, Fu, et~al.]{niu2026worldsculpt}
+Muyao Niu, Jixuan He, Ruihan Yu, Lian Fu, et~al.
+\newblock {WorldSculpt}: Generating compositional worlds from grounded videos.
+\newblock \emph{arXiv preprint arXiv:2609.05416}, 2026.
+
+\bibitem[{World Labs}(2026{\natexlab{a}})]{marble_docs}
+{World Labs}.
+\newblock {Marble and World {API} documentation}, 2026{\natexlab{a}}.
+\newblock URL \url{https://docs.worldlabs.ai/}.
+\newblock Accessed 2026-10-02. Vendor material.
+
+\bibitem[Yang et~al.(2024{\natexlab{a}})Yang, Sun, Weihs, VanderBilt, Herrasti,
+  Han, Wu, Haber, et~al.]{yang2024holodeck}
+Yue Yang, Fan-Yun Sun, Luca Weihs, Eli VanderBilt, Alvaro Herrasti, Winson Han,
+  Jiajun Wu, Nick Haber, et~al.
+\newblock Holodeck: Language guided generation of {3D} embodied {AI}
+  environments.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition (CVPR)}, 2024{\natexlab{a}}.
+\newblock arXiv:2312.09067.
+
+\bibitem[Feng et~al.(2023)Feng, Zhu, Fu, Jampani, Akula, He, Basu, Wang, and
+  Wang]{feng2023layoutgpt}
+Weixi Feng, Wanrong Zhu, Tsu-jui Fu, Varun Jampani, Arjun Akula, Xuehai He,
+  Sugato Basu, Xin~Eric Wang, and William~Yang Wang.
+\newblock {LayoutGPT}: Compositional visual planning and generation with large
+  language models.
+\newblock \emph{arXiv preprint arXiv:2305.15393}, 2023.
+
+\bibitem[Hu et~al.(2024)Hu, Iscen, Jain, Kipf, et~al.]{hu2024scenecraft}
+Ziniu Hu, Ahmet Iscen, Aashi Jain, Thomas Kipf, et~al.
+\newblock {SceneCraft}: An {LLM} agent for synthesizing {3D} scene as {Blender}
+  code.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, 2024.
+\newblock arXiv:2403.01248.
+
+\bibitem[Li et~al.(2026{\natexlab{b}})Li, Liao, and Zhu]{li2026rcwm}
+Zhiqi Li, Yuxuan Liao, and Bo~Zhu.
+\newblock Recursive code world models: Building complex worlds through
+  recursive scene programs.
+\newblock \emph{arXiv preprint arXiv:2609.11499}, 2026{\natexlab{b}}.
+
+\bibitem[Guo et~al.(2026)Guo, Li, Li, and Huang]{guo2026worldclaw}
+Chunchao Guo, Jinpeng Li, Yang Li, and Zilong Huang.
+\newblock {WorldClaw}: Agentic {3D} open-world generation at scale.
+\newblock \emph{arXiv preprint arXiv:2608.05248}, 2026.
+
+\bibitem[Yin et~al.(2026)Yin, Cheng, Qin, Huang, et~al.]{yin2026autoue}
+Lei Yin, Wentao Cheng, Zhida Qin, Tianyu Huang, et~al.
+\newblock {AutoUE}: Automated generation of {3D} games in {Unreal Engine} via
+  multi-agent systems.
+\newblock \emph{arXiv preprint arXiv:2603.07106}, 2026.
+
+\bibitem[Sautter et~al.(2025)Sautter, Dihlmann, and Lensch]{sautter2025regen}
+Tobias Sautter, Jan-Niklas Dihlmann, and Hendrik P.~A. Lensch.
+\newblock {3D-RE-GEN}: {3D} reconstruction of indoor scenes with a generative
+  framework.
+\newblock \emph{arXiv preprint arXiv:2512.17459}, 2025.
+
+\bibitem[Kim et~al.(2026)Kim, Lan, Chen, Nguyen, Pan, and
+  Pan]{kim2026sceneconductor}
+Jeonghwan Kim, Yushi Lan, Yongwei Chen, Hieu~Trung Nguyen, Chuanyu Pan, and
+  Xingang Pan.
+\newblock {SceneConductor}: {3D} scene generation from a single image with
+  multi-agent orchestration.
+\newblock \emph{arXiv preprint arXiv:2606.08402}, 2026.
+
+\bibitem[Li et~al.(2026{\natexlab{c}})Li, Shi, Dong, Zhang, Xu, Lee, Chang,
+  Xiang, Pan, and Jiang]{li2026lego}
+Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
+  Shuaichen Chang, Yi~Xiang, Lin Pan, and Jiarong Jiang.
+\newblock {LEGO-Anything}: Coding agents for {3D} scene reconstruction.
+\newblock \emph{arXiv preprint arXiv:2609.36380}, 2026{\natexlab{c}}.
+
+\bibitem[Raistrick et~al.(2023)Raistrick, Lipson, Ma, Mei, Wang, Zuo, Kayan,
+  Wen, Han, Wang, Newell, Law, Goyal, Yang, and Deng]{raistrick2023infinigen}
+Alexander Raistrick, Lahav Lipson, Zeyu Ma, Lingjie Mei, Mingzhe Wang, Yiming
+  Zuo, Karhan Kayan, Hongyu Wen, Beining Han, Yihan Wang, Alejandro Newell, Hei
+  Law, Ankit Goyal, Kaiyu Yang, and Jia Deng.
+\newblock Infinite photorealistic worlds using procedural generation.
+\newblock \emph{arXiv preprint arXiv:2306.09310}, 2023.
+
+\bibitem[Raistrick et~al.(2024)Raistrick, Mei, Kayan, Yan, Zuo, Han, Wen,
+  Parakh, Alexandropoulos, Lipson, Ma, and Deng]{raistrick2024indoors}
+Alexander Raistrick, Lingjie Mei, Karhan Kayan, David Yan, Yiming Zuo, Beining
+  Han, Hongyu Wen, Meenal Parakh, Stamatis Alexandropoulos, Lahav Lipson, Zeyu
+  Ma, and Jia Deng.
+\newblock {Infinigen Indoors}: Photorealistic indoor scenes using procedural
+  generation.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition (CVPR)}, 2024.
+\newblock arXiv:2406.11824.
+
+\bibitem[Joshi et~al.(2025)Joshi, Han, Nugent, et~al.]{joshi2025articulated}
+Abhishek Joshi, Beining Han, Jack Nugent, et~al.
+\newblock Procedural generation of articulated simulation-ready assets.
+\newblock \emph{arXiv preprint arXiv:2505.10755}, 2025.
+
+\bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
+  Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
+Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
+  Parakh, Hongyu Wen, Dylan Li, Yiming Zuo, Erich Liang, and Jia Deng.
+\newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
+  generation in {Python}.
+\newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
+
+\bibitem[Vecchio et~al.(2023)Vecchio, Sortino, Palazzo, and
+  Spampinato]{vecchio2023matfuse}
+Giuseppe Vecchio, Renato Sortino, Simone Palazzo, and Concetto Spampinato.
+\newblock {MatFuse}: Controllable material generation with diffusion models.
+\newblock \emph{arXiv preprint arXiv:2308.11408}, 2023.
+
+\bibitem[Olsen(2015)]{olsen2015trim}
+Morten Olsen.
+\newblock {The Ultimate Trim: Texturing Techniques of {Sunset Overdrive}}.
+\newblock GDC 2015, GDC Vault, 2015.
+\newblock URL
+  \url{https://gdcvault.com/play/1022324/The-Ultimate-Trim-Texturing-Techniques}.
+
+\bibitem[Burgess(2013)]{burgess2013skyrim}
+Joel Burgess.
+\newblock {Skyrim's Modular Approach to Level Design}.
+\newblock Game Developer, 2013.
+\newblock URL
+  \url{https://www.gamedeveloper.com/design/skyrim-s-modular-approach-to-level-design}.
+
+\bibitem[ldb(2026)]{ldb_modular}
+{Modular kit design}.
+\newblock The Level Design Book, 2026.
+\newblock URL
+  \url{https://book.leveldesignbook.com/process/blockout/metrics/modular}.
+\newblock Accessed 2026-10-06.
+
+\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
+  Fragkiadaki]{lin2025partcrafter}
+Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
+  Katerina Fragkiadaki.
+\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
+  latent diffusion transformers.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+\newblock arXiv:2506.05573.
+
+\bibitem[Yang et~al.(2025{\natexlab{a}})Yang, Zhou, Guo, Zou, Huang, Liu, Xu,
+  Liang, Cao, and Liu]{yang2025omnipart}
+Yunhan Yang, Yufan Zhou, Yuan-Chen Guo, Zi-Xin Zou, Yukun Huang, Ying-Tian Liu,
+  Hao Xu, Ding Liang, Yan-Pei Cao, and Xihui Liu.
+\newblock {OmniPart}: Part-aware {3D} generation with semantic decoupling and
+  structural cohesion.
+\newblock \emph{arXiv preprint arXiv:2507.06165}, 2025{\natexlab{a}}.
+
+\bibitem[Yang et~al.(2025{\natexlab{b}})Yang, Guo, Huang, Zou, Yu, Li, Cao, and
+  Liu]{yang2025holopart}
+Yunhan Yang, Yuan-Chen Guo, Yukun Huang, Zi-Xin Zou, Zhipeng Yu, Yangguang Li,
+  Yan-Pei Cao, and Xihui Liu.
+\newblock {HoloPart}: Generative {3D} part amodal segmentation.
+\newblock \emph{arXiv preprint arXiv:2504.07943}, 2025{\natexlab{b}}.
+
+\bibitem[Yang et~al.(2024{\natexlab{b}})Yang, Huang, Guo, Lu, Wu, Lam, Cao, and
+  Liu]{yang2024sampart3d}
+Yunhan Yang, Yukun Huang, Yuan-Chen Guo, Liangjun Lu, Xiaoyang Wu, Edmund~Y.
+  Lam, Yan-Pei Cao, and Xihui Liu.
+\newblock {SAMPart3D}: Segment any part in {3D} objects.
+\newblock \emph{arXiv preprint arXiv:2411.07184}, 2024{\natexlab{b}}.
+
+\bibitem[Tsui et~al.(2026)Tsui, Tuan, Ma, Ugrinovic, Shiratori, and
+  Kitani]{tsui2026point2part}
+Hao-Tang Tsui, Yu-Rou Tuan, Xiaoxuan Ma, Nicol{\'a}s Ugrinovic, Takaaki
+  Shiratori, and Kris Kitani.
+\newblock {Point2Part}: Unified {3D} partitioning from point prompts.
+\newblock \emph{arXiv preprint arXiv:2609.38180}, 2026.
+
+\bibitem[Wu et~al.(2026)Wu, Lou, Liu, Du, Guo, and Guo]{wu2026production}
+Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
+\newblock From visual synthesis to interactive worlds: Toward production-ready
+  {3D} asset generation.
+\newblock \emph{arXiv preprint arXiv:2604.23629}, 2026.
+
+\bibitem[Yang et~al.(2026{\natexlab{a}})Yang, Zhai, Lu, Yin, Zhang, Xiao, Long,
+  and Navab]{yang2026flowscene}
+Zhifei Yang, Guangyao Zhai, Keyang Lu, YuYang Yin, Chao Zhang, Zhen Xiao, Jieyi
+  Long, and Nassir Navab.
+\newblock {FlowScene}: Style-consistent indoor scene generation with multimodal
+  graph rectified flow.
+\newblock \emph{arXiv preprint arXiv:2603.19598}, 2026{\natexlab{a}}.
+
+\bibitem[Lei et~al.(2025)Lei, Li, Liu, et~al.]{lei2025hunyuanstudio}
+Biwen Lei, Yang Li, Xinhai Liu, et~al.
+\newblock {Hunyuan3D Studio}: End-to-end {AI} pipeline for game-ready {3D}
+  asset generation.
+\newblock \emph{arXiv preprint arXiv:2509.12815}, 2025.
+
+\bibitem[{The Khronos Group}(2021)]{gltf2}
+{The Khronos Group}.
+\newblock {glTF} 2.0 specification, 2021.
+\newblock URL \url{https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html}.
+
+\bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
+{Pixar Animation Studios} and {Alliance for OpenUSD}.
+\newblock {OpenUSD}: Universal scene description, 2026.
+\newblock URL \url{https://openusd.org/}.
+
+\bibitem[{Godot Engine contributors}(2026)]{godot}
+{Godot Engine contributors}.
+\newblock {Godot Engine}, 2026.
+\newblock URL \url{https://godotengine.org/}.
+\newblock MIT licence.
+
+\bibitem[{OpenMOSS-Team}(2026)]{moss2026}
+{OpenMOSS-Team}.
+\newblock {MOSS-SoundEffect} v2.0.
+\newblock Hugging Face, 2026.
+\newblock URL \url{https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0}.
+\newblock Apache-2.0.
+
+\bibitem[Wu et~al.(2022)Wu, Chen, Zhang, et~al.]{wu2022clap}
+Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
+\newblock Large-scale contrastive language-audio pretraining with feature
+  fusion and keyword-to-caption augmentation.
+\newblock \emph{arXiv preprint arXiv:2211.06687}, 2022.
+
+\bibitem[{Blender Foundation}(2026)]{blender}
+{Blender Foundation}.
+\newblock {Blender}, 2026.
+\newblock URL \url{https://www.blender.org/}.
+\newblock Version 5.0.1 used here. GPL.
+
+\bibitem[{Anthropic}(2026)]{claudecode}
+{Anthropic}.
+\newblock {Claude Code}, 2026.
+\newblock URL \url{https://www.anthropic.com/claude-code}.
+\newblock Paid subscription. Vendor material.
+
+\bibitem[{Google}(2026)]{nanobananapro}
+{Google}.
+\newblock {Gemini 3 Pro Image (``Nano Banana Pro'') through the Gemini {API}},
+  2026.
+\newblock URL \url{https://ai.google.dev/}.
+\newblock Paid service. Vendor material.
+
+\bibitem[Bingeljell(2026)]{imageto3dlab}
+Bingeljell.
+\newblock {Image to {3D} Lab (image-to-3dlab)}.
+\newblock GitHub repository, 2026.
+\newblock URL \url{https://github.com/Bingeljell/image-to-3dlab}.
+\newblock Apache-2.0.
+
+\bibitem[Sim{\'e}oni et~al.(2025)Sim{\'e}oni, Vo, Seitzer,
+  et~al.]{simeoni2025dinov3}
+Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
+\newblock {DINOv3}.
+\newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
+
+\bibitem[Yang et~al.(2024{\natexlab{c}})Yang, Kang, Huang,
+  et~al.]{yang2024dav2}
+Lihe Yang, Bingyi Kang, Zilong Huang, et~al.
+\newblock {Depth Anything V2}.
+\newblock \emph{arXiv preprint arXiv:2406.09414}, 2024{\natexlab{c}}.
+
+\bibitem[{World Labs}(2026{\natexlab{b}})]{marble_terms}
+{World Labs}.
+\newblock {Terms of Service}, 2026{\natexlab{b}}.
+\newblock URL \url{https://docs.worldlabs.ai/terms-of-service}.
+\newblock Last updated 21 January 2026; accessed 2026-10-08. Vendor material.
+
+\bibitem[{Black Forest Labs}(2026)]{flux2klein}
+{Black Forest Labs}.
+\newblock {FLUX.2 [klein] 4B} model card.
+\newblock Hugging Face, 2026.
+\newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
+\newblock Apache-2.0. Vendor material.
+
+\bibitem[Rempe et~al.(2026)Rempe, Petrovich, Yuan, Zhang, Peng,
+  et~al.]{rempe2026kimodo}
+Davis Rempe, Mathis Petrovich, Ye~Yuan, Haotian Zhang, Xue~Bin Peng, et~al.
+\newblock {Kimodo}: Scaling controllable human motion generation.
+\newblock \emph{arXiv preprint arXiv:2603.15546}, 2026.
+
+\bibitem[Yang et~al.(2026{\natexlab{b}})Yang, Kukreja, Pinkus, others, and
+  Kitani]{yang2026sam3dbody}
+Xitong Yang, Devansh Kukreja, Don Pinkus, others, and Kris Kitani.
+\newblock {SAM 3D Body}: Robust full-body human mesh recovery.
+\newblock \emph{arXiv preprint arXiv:2602.15989}, 2026{\natexlab{b}}.
+
+\bibitem[Rein and Liu(2012)]{rein2012rebound}
+Hanno Rein and Shang-Fei Liu.
+\newblock {REBOUND}: An open-source multi-purpose {N}-body code for collisional
+  dynamics.
+\newblock \emph{Astronomy \& Astrophysics}, 537:\penalty0 A128, 2012.
+\newblock arXiv:1110.4876.
+
+\end{thebibliography}

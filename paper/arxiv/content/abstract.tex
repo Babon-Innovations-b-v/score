@@ -1,0 +1,29 @@
+\begin{abstract}
+World models and one-shot 3D generators can now produce a convincing
+place from a sentence or a picture, but what they produce is hard to
+build on: a stream of frames, or one fused scene with no separate
+objects, collision, logic or rights a creator can rely on. We describe
+SCORE, a framework that treats world creation as offline compilation.
+The creator picks references, concepts and a style; coding agents and
+open models then turn those picks into a fixed, editable world through a
+sequence of stages with explicit, checkable outputs: a dimensioned plan,
+an inventory of objects, one generated or code-built model per
+real-world object, surfaces from a shared rule-based library with one
+wear setting per room, generated sound, and a scene an engine loads.
+Cheap checks run before every paid step, and every model in the route is
+one whose licence allows commercial use. We report the first world built
+this way, the game world of 2099: a Moon base, its surroundings, a Mars
+expedition camp and a prologue on Earth. The base's central room took
+six rounds; the owner picked the new route in both blind comparisons and
+signed off the sixth round, which also cut the room's mean frame time
+from 9.6 ms in the fourth round to 5.6 ms on an RTX 5080. Across 21
+recorded place runs of the whole world, the per-place records count 971
+models, 865 of them built in code by coding agents and 106 through a
+picture-to-3D pipeline, for a recorded floor of €46.67 of rented GPU
+time and \$40.72 of picture-model calls. The same record shows where the
+route is weak: code builders give clean but sparse rooms, picture-colour
+painting produces patchy surfaces, built rooms read sparser than their
+concepts, and daily quotas, not compute, set the pace. Nothing here is
+compared with another system yet; evaluation on LEGO-Bench is future
+work.
+\end{abstract}

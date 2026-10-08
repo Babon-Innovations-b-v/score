@@ -1,0 +1,9 @@
+\section{Future work}\label{future-work}
+
+\textbf{The framework as its own code.} Move the route out of the game into this repository, engine-agnostic, with the canonical scene, its edit layers and adapters for Godot and Blender.
+
+\textbf{More worlds.} World 1 is one kind of world. The next three are chosen to differ from it and from each other: a stylised underwater world, a physically accurate simulation world for humanoid or custom robots, which needs masses, friction and joints and an export a robotics simulator loads, and a third-person fantasy world.
+
+\textbf{Solvers as plugins.} Some scales of a world are not modelled but computed. A planet's orbit, a cell's chemistry or a vehicle's dynamics belong to established open solvers; SCORE would wrap them as stages with the same strict interfaces, licence permitting, starting with REBOUND for orbital dynamics \citep{rein2012rebound}.
+
+\textbf{Evaluation.} Run the framework on LEGO-Bench, LEGO-Anything's benchmark of 208 images from 104 scenes \citep{li2026lego} \textcolor{red}{[TODO: figures read through a summarising fetch; recheck against the paper]}, once its release allows, and measure the route with and without its optional world step as an ablation of the method.
