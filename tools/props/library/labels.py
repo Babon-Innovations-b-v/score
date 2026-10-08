@@ -39,6 +39,7 @@ import trimesh
 from PIL import Image
 from scipy import sparse
 from scipy.ndimage import median_filter
+from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -72,6 +73,8 @@ CREASE_DEGREES = 25.0
 REGION_DEGREES = 15.0
 REGION_LEAST = 0.002
 REGION_CLEAR = 0.7
+# A splitter part holding at least this share of an unclear smooth region is merged with the others holding it.
+MERGE_SHARE = 0.2
 # An island of one part (its faces joined across shared edges) under this share of the model's area joins its
 # neighbours' part: patchy.py's stray island, so a part never leaves a blotch (a separate piece keeps its own).
 PART_CRUMB = patchy.STRAY_ISLAND
@@ -226,6 +229,12 @@ def smoothed_parts(scores, neighbours):
     return current.argmax(1)
 
 
+def smooth_regions(mesh):
+    """Each face's smooth region: faces joined across folds under REGION_DEGREES."""
+    pairs = mesh.face_adjacency
+    return patchy.components(len(mesh.faces), pairs[np.degrees(mesh.face_adjacency_angles) < REGION_DEGREES])
+
+
 def by_regions(mesh, scores, smoothed):
     """The model's smooth regions (faces joined across folds under REGION_DEGREES) of at least REGION_LEAST of its
     area each take, whole, the part their faces' scores favour most by area; the rest keep the smoothed vote. A part
@@ -233,8 +242,7 @@ def by_regions(mesh, scores, smoothed):
     of the model is one surface of one part (a seat's top, a door's face). A region whose favourite part holds under
     REGION_CLEAR of its votes runs over a part edge the model rounds off (the hab lander's whole hull was one region)
     and keeps the smoothed vote too."""
-    pairs = mesh.face_adjacency
-    region = patchy.components(len(mesh.faces), pairs[np.degrees(mesh.face_adjacency_angles) < REGION_DEGREES])
+    region = smooth_regions(mesh)
     area = np.bincount(region, weights=mesh.area_faces)
     totals = np.zeros((len(area), scores.shape[1]))
     np.add.at(totals, region, scores * mesh.area_faces[:, None])
@@ -266,19 +274,57 @@ def without_crumbs(mesh, part_of):
     return part_of
 
 
-def parts_on_model(folder, mesh):
-    """Every face's part from a splitter's parts laid onto the model, and the registration report."""
+def split_on_model(folder, mesh, finished, to_finished):
+    """A splitter's part points laid on the raw model: fitted two ways onto the finished model (`finished`, its
+    points), which stands upright as the splitter's model does, then carried back to the raw model by the inverse of
+    `to_finished`. The raw model leans by the picture's elevation, so no quarter turn starts near it, and a one-way
+    fit there shrank a desk's split to 0.6 of its size (job repaint, 2026-10-08). (points, owner, gap on the raw)."""
     points, owner = part_points(folder)
-    matrix, gap = register.aligned(points, mesh.sample(SAMPLED, seed=0), tries=REGISTER_TRIES)
+    matrix, _ = register.aligned(points, finished, tries=REGISTER_TRIES, two_way=True)
+    matrix = np.linalg.inv(to_finished) @ matrix
     moved = points @ matrix[:3, :3].T + matrix[:3, 3]
+    gap = float(np.median(cKDTree(mesh.sample(SAMPLED, seed=0)).query(moved)[0]))
+    return moved, owner, gap
+
+
+def merged_parts(mesh, scores):
+    """Each splitter part's group: parts that share a smooth region of the model no part clearly holds (each holding
+    at least MERGE_SHARE of its votes) are one group. A splitter asked for eight parts cuts one smooth surface into
+    several (an access cover's flat face into five); that surface is one part of the model."""
+    region = smooth_regions(mesh)
+    area = np.bincount(region, weights=mesh.area_faces)
+    totals = np.zeros((len(area), scores.shape[1]))
+    np.add.at(totals, region, scores * mesh.area_faces[:, None])
+    shares = totals / np.maximum(totals.sum(1, keepdims=True), 1e-12)
+    unclear = (area >= REGION_LEAST * mesh.area) & (shares.max(1) < REGION_CLEAR)
+    held = shares[unclear] >= MERGE_SHARE
+    links = sparse.csr_matrix(held.T.astype(float) @ held.astype(float)) + sparse.eye(scores.shape[1])
+    return connected_components(links, directed=False)[1]
+
+
+def part_faces(mesh, moved, owner):
+    """Every face's part from part points laid on the model, and the share of the model parts clearly hold."""
     count = int(owner.max()) + 1
     scores = nearest_parts(mesh, moved, owner, count)
     part_of, clear = by_regions(mesh, scores, smoothed_parts(scores, neighbour_matrix(mesh)))
     part_of = without_crumbs(mesh, part_of)
     _, part_of = np.unique(part_of, return_inverse=True)  # parts that won no face are gone
-    report = dict(registration(mesh, moved, gap), splitter_parts=count, clear=round(clear, 3))
+    return part_of.reshape(-1), clear, scores
+
+
+def parts_on_model(folder, mesh, finished, to_finished):
+    """Every face's part from a splitter's parts laid onto the model, and the registration report. A split whose parts
+    do not clearly hold CLEAR_LEAST of the model is tried again with the parts that share its unclear surfaces merged
+    (merged_parts) before it is reported as not registered."""
+    moved, owner, gap = split_on_model(folder, mesh, finished, to_finished)
+    part_of, clear, scores = part_faces(mesh, moved, owner)
+    report = dict(registration(mesh, moved, gap), splitter_parts=int(owner.max()) + 1, clear=round(clear, 3))
+    if clear < CLEAR_LEAST:
+        group = merged_parts(mesh, scores)
+        part_of, clear, _ = part_faces(mesh, moved, group[owner])
+        report.update(merged_to=int(group.max()) + 1, clear=round(clear, 3))
     report["registered"] = bool(report["registered"] and clear >= CLEAR_LEAST)
-    return part_of.reshape(-1), report
+    return part_of, report
 
 
 def anchors_of(materials):
@@ -428,8 +474,11 @@ def main():
     colours = face_colours(mesh, arguments.take)
     report = {"take": arguments.take, "kind": arguments.kind, "allowed": list(materials),
               "seen_share": round(float((~np.isnan(colours[:, 0])).mean()), 3)}
+    final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
+    matrix, gap = onto_finished(mesh.sample(SAMPLED, seed=1), final.sample(SAMPLED, seed=2),
+                                finish_turn(arguments.take))
     if arguments.parts:
-        part_of, report["registration"] = parts_on_model(arguments.parts, mesh)
+        part_of, report["registration"] = parts_on_model(arguments.parts, mesh, final.sample(SAMPLED, seed=3), matrix)
         report.update(way="parts", parts_folder=str(arguments.parts))
         if not report["registration"]["registered"]:  # reported, and painted whole rather than in blotches
             part_of = np.zeros(len(mesh.faces), dtype=int)
@@ -440,9 +489,6 @@ def main():
     chosen, about, names = paint_parts(mesh, colours, part_of, materials)
     order = sorted({names[index] for index in chosen})
     labels = np.array([order.index(names[index]) for index in chosen])[part_of]
-    final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
-    matrix, gap = onto_finished(mesh.sample(SAMPLED, seed=1), final.sample(SAMPLED, seed=2),
-                                finish_turn(arguments.take))
     report["upright_gap"] = round(gap, 4)
     mesh.apply_transform(matrix)
     report["shares"], inside = write_parts(mesh, labels, order, part_of, final.bounds, arguments.out)

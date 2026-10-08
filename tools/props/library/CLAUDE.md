@@ -68,6 +68,12 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   every part ONE material from the kind's allowed list (`details.json` `materials`) by its lit colour; never per
   face. A split that does not register is reported and painted whole. `patchy.py` measures patchy paint (stray
   islands, mixed faces, soft seams; on a baked model also unbaked black) and `route.py plan` refuses patchy labels.
+- **A labelled take is stored in the repository** (`stored_parts.py`, job repaint 2026-10-08): labels.py writes the full
+  labels (35 MB a take, the bake's input) under the work folder and a 40,000-point sample of them into
+  `data/parts/<take>.npz`; `data/parts/models.json` says which take each place's made model was painted from. The
+  OpenUSD export reads only these. A take relabelled is stored again; keep `models.json` in step when a model's take
+  changes. Every sample labels.py draws is seeded (trimesh ignores numpy's global seed), so a take labels the same way
+  every run.
 - **A generated piece's back is baked at full density** (`bake.Atlas(backs_hidden=False)` from make_chunky): shrunk
   face by face its remeshed triangles fell under a texel and baked black (every generated piece's back, 2026-10-08).
 - **One wear for the room, from a cause:** a place's wear level (`place.json`), the bevel test on edges, and kick
