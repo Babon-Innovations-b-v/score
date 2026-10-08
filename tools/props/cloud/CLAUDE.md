@@ -52,7 +52,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   names a repo script, its arguments, its input and output paths (at the same absolute paths up there, so neither
   the script nor the paths inside its input files change) and its minutes; a tool calls `blender_cloud.run_elsewhere`. Physics
   (settling) on a 32-core processor machine by default, renders on a card (`--classes gpu-24gb,...`, Cycles on the card
-  via FARM_CYCLES_GPU). One call is one machine; run calls side by side for many. The PC's own Blender (one at a time,
+  via FARM_CYCLES_GPU). One call is one machine; run calls side by side for many. A tool with a
+  chain of jobs (a review page's renders) holds one machine for all of them (`blender_cloud.Machine`, --serve on a queue
+  folder), deleted when the tool closes the queue or after 10 idle minutes; never rent one per step. The PC's own Blender (one at a time,
   the machine lock) is for checks of seconds only.
 - **The material library bakes on a card** (`library_bake.py`, `library_setup.sh`; job robust-exp, 2026-10-06):
   Blender 5.0.1 from blender.org, Cycles on OptiX, ProcFunc and infinigen2 from the repo's vendored copies; jobs are
