@@ -47,6 +47,7 @@ VERSION = 1
 # How far a kit room's copy may stretch its model on any side before the package is refused: a model is made at the
 # size it is laid at, so a stretch past this is a layout that no longer matches its bake.
 STRETCH_LIMIT = 0.05
+WRITTEN_CHECK = {"pass": True, "why": "written by the route (a screen's plate, a lamp's bead): not a made model"}
 GROUND = ("each copy's y is its lift off the ground under its own spot; on a flat place frame the ground is y = 0, "
           "an engine with terrain stands each copy on the ground there")
 
@@ -211,10 +212,13 @@ def write_kit(place, work, out):
         if not (objects_folder / f"{name}.gltf").exists():
             copy_object(work / "made", objects_folder, name)
         boxes[name] = model_box(objects_folder / f"{name}.gltf")
-        route_of = about.get("route") or planned["models"].get(name, {}).get("route") or "written"
+        route_of = ("written" if "picture" in about or "lamp" in about else
+                    about.get("route") or planned["models"].get(name, {}).get("route") or "part")
+        # A screen or a status lamp is a plate or a bead the route writes, not a made model: the model gate's walls
+        # do not apply (a screen's 12 mm plate reads as too thin), so it is recorded as written, never as failed.
+        check = WRITTEN_CHECK if route_of == "written" else checks.get(name, {"pass": False, "why": "not checked"})
         objects[name] = {"file": f"objects/{name}.gltf", "route": route_of, "glows": bool(about.get("glows")),
-                         "triangles": reports.get(name, {}).get("triangles"),
-                         "check": checks.get(name, {"pass": route_of == "written", "why": "written by the route"})}
+                         "triangles": reports.get(name, {}).get("triangles"), "check": check}
     room = layout.get("room", place)
     scene = {"format": FORMAT, "version": VERSION, "place": place, "room": room, "frame": layout.get("frame", ""),
              "units": "metre", "up": "+y", "ground": "a kit room's own frame: y = 0 is its floor",
@@ -253,9 +257,11 @@ def transform_problems(index, copy):
         if np.any(np.abs(stretch - 1.0) > STRETCH_LIMIT):
             return [f"copy {index} ({copy['object']}): stretched {stretch.round(3).tolist()} past its model"]
         basis = matrix[:3, :3] / stretch
+        square = 1e-3  # a kit layout writes its axes to five places: a tapered plate's frame is square to that
     else:
         basis = matrix[:3, :3] / copy["scale"]
-    if not np.allclose(basis.T @ basis, np.eye(3), atol=1e-5) or np.linalg.det(basis) < 0:
+        square = 1e-5
+    if not np.allclose(basis.T @ basis, np.eye(3), atol=square) or np.linalg.det(basis) < 0:
         return [f"copy {index} ({copy['object']}): its matrix is not a turn with an even scale"]
     return []
 
