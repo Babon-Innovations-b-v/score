@@ -48,8 +48,9 @@
     {
      "x": 0.0,
      "z": -7.35,
-     "y": -0.96,
-     "facing": 90
+     "y": -0.3,
+     "facing": 90,
+     "unrested": "turns 90 degrees and drifts 472 cm to rest"
     }
    ],
    "why": "E1"
@@ -78,8 +79,9 @@
     {
      "x": 0.9,
      "z": 1.9,
-     "y": -0.42,
-     "facing": 115
+     "y": -0.25,
+     "facing": 115,
+     "unrested": "turns 81 degrees and drifts 333 cm to rest"
     }
    ],
    "why": "E2"
@@ -106,10 +108,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 0.4,
-     "z": -1.5,
-     "y": 0.0,
-     "facing": 60
+     "x": 0.3999,
+     "z": -1.5014,
+     "y": 0.0063,
+     "facing": 60.66,
+     "rotation": [
+      -0.032172,
+      -0.504785,
+      -0.013761,
+      0.862536
+     ]
     }
    ],
    "why": "E4"
@@ -136,25 +144,43 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -6.0,
-     "z": 2.0,
-     "y": 0.0,
-     "facing": 30,
-     "scale": 1.0
+     "x": -5.9985,
+     "z": 1.9988,
+     "y": 0.0115,
+     "facing": 29.43,
+     "scale": 1.0,
+     "rotation": [
+      0.042409,
+      -0.254593,
+      -0.013768,
+      0.96602
+     ]
     },
     {
-     "x": 5.5,
-     "z": 6.0,
-     "y": 0.0,
-     "facing": 200,
-     "scale": 0.86
+     "x": 5.4993,
+     "z": 5.9994,
+     "y": 0.0108,
+     "facing": 199.81,
+     "scale": 0.86,
+     "rotation": [
+      -0.002247,
+      0.983601,
+      -0.053147,
+      0.172333
+     ]
     },
     {
      "x": 6.5,
      "z": -0.5,
-     "y": 0.0,
-     "facing": 110,
-     "scale": 0.72
+     "y": 0.0104,
+     "facing": 108.48,
+     "scale": 0.72,
+     "rotation": [
+      -0.018602,
+      0.811161,
+      -0.023298,
+      -0.584062
+     ]
     }
    ],
    "why": "E6"
@@ -183,16 +209,18 @@
     {
      "x": 4.0,
      "z": -9.5,
-     "y": -0.01,
+     "y": 0.0,
      "facing": 75,
-     "scale": 1.0
+     "scale": 1.0,
+     "unrested": "turns 40 degrees and drifts 15 cm to rest"
     },
     {
      "x": -8.0,
      "z": -2.0,
      "y": 0.0,
      "facing": 300,
-     "scale": 0.85
+     "scale": 0.85,
+     "unrested": "turns 29 degrees and drifts 9 cm to rest"
     }
    ],
    "why": "E7"
@@ -222,13 +250,15 @@
      "x": -9.0,
      "z": 5.5,
      "y": -0.1,
-     "facing": 0
+     "facing": 0,
+     "unrested": "turns 61 degrees and drifts 190 cm to rest"
     },
     {
      "x": 8.0,
      "z": 7.0,
      "y": -0.1,
-     "facing": 140
+     "facing": 140,
+     "unrested": "turns 104 degrees and drifts 400 cm to rest"
     }
    ],
    "why": "E8"
@@ -255,10 +285,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -5.0,
-     "z": -4.5,
-     "y": 0.0,
-     "facing": 20
+     "x": -5.0003,
+     "z": -4.4971,
+     "y": 0.0013,
+     "facing": 18.89,
+     "rotation": [
+      0.007685,
+      -0.164133,
+      -0.016757,
+      0.986266
+     ]
     }
    ],
    "why": "E9"
@@ -285,10 +321,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -4.5,
-     "z": 8.5,
-     "y": 0.0,
-     "facing": 0
+     "x": -4.5001,
+     "z": 8.4989,
+     "y": 0.0108,
+     "facing": 0.13,
+     "rotation": [
+      -0.017367,
+      -0.001031,
+      -0.005809,
+      0.999832
+     ]
     }
    ],
    "why": "E10"
@@ -317,8 +359,9 @@
     {
      "x": -7.0,
      "z": -7.9,
-     "y": -0.03,
-     "facing": 65
+     "y": 0.0,
+     "facing": 65,
+     "unrested": "turns 18 degrees and drifts 9 cm to rest"
     }
    ],
    "why": "E11, split in two (the game's 1.4 m piece limit)"
@@ -345,10 +388,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": -5.5,
-     "z": -9.7,
-     "y": -0.15,
-     "facing": 140
+     "x": -5.4865,
+     "z": -9.7198,
+     "y": -0.1085,
+     "facing": 140.71,
+     "rotation": [
+      -0.060682,
+      0.938652,
+      0.043893,
+      -0.336636
+     ]
     }
    ],
    "why": "E11, split in two (the game's 1.4 m piece limit)"
@@ -375,10 +424,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 2.0,
-     "z": 9.0,
-     "y": 0.0,
-     "facing": 10
+     "x": 2.0133,
+     "z": 9.0042,
+     "y": 0.0053,
+     "facing": 12.12,
+     "rotation": [
+      0.012017,
+      -0.105656,
+      -0.009326,
+      0.994286
+     ]
     }
    ],
    "why": "E12 (code had no plain arc; pipeline)"
@@ -405,10 +460,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 6.0,
-     "z": 8.8,
-     "y": -0.05,
-     "facing": 0
+     "x": 6.0025,
+     "z": 8.7945,
+     "y": 0.0106,
+     "facing": 2.77,
+     "rotation": [
+      -0.002705,
+      -0.023673,
+      -0.082836,
+      0.996278
+     ]
     }
    ],
    "why": "E14"
@@ -435,25 +496,43 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 5.0,
-     "z": 3.0,
-     "y": 0.0,
-     "facing": 10,
-     "scale": 1.0
+     "x": 4.9993,
+     "z": 2.9993,
+     "y": 0.0069,
+     "facing": 9.98,
+     "scale": 1.0,
+     "rotation": [
+      -0.002099,
+      -0.086935,
+      -0.009789,
+      0.996164
+     ]
     },
     {
      "x": -6.0,
-     "z": 8.8,
-     "y": 0.0,
-     "facing": 130,
-     "scale": 1.2
+     "z": 8.7997,
+     "y": 0.0068,
+     "facing": 129.91,
+     "scale": 1.2,
+     "rotation": [
+      -0.000531,
+      0.905954,
+      -0.006757,
+      -0.423321
+     ]
     },
     {
-     "x": 9.0,
-     "z": -3.5,
-     "y": 0.0,
-     "facing": 250,
-     "scale": 1.0
+     "x": 9.0039,
+     "z": -3.5027,
+     "y": 0.007,
+     "facing": 250.69,
+     "scale": 1.0,
+     "rotation": [
+      0.009642,
+      0.815132,
+      -0.028988,
+      0.578469
+     ]
     }
    ],
    "why": "E15"
@@ -501,7 +580,8 @@
      "length": 1.4
     }
    ],
-   "why": "E3, E13 (cable_bundle laid on its back)"
+   "why": "E3, E13 (cable_bundle laid on its back)",
+   "fixed": true
   }
  ]
 }

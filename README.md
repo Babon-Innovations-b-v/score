@@ -154,7 +154,7 @@ it caught. It is a static folder built from the files the stages already wrote; 
 place's OpenUSD stage by Blender with no window, in its baked materials on the place's own ground, from fixed cameras
 and along a short walk round the place. Its checks include the resting check (`tools/usd/resting.py`): every object
 looked at straight down on the stage's ground, failing when it floats, tips (its weight outside what it touches) or is
-sunk deeper than it was laid.
+sunk into the ground below its own contact points.
 
 ```bash
 .venv/bin/python tools/review/page.py wreck --run <the run's work folder> --out ~/.farm-factory-props/work/review/wreck \
@@ -169,9 +169,14 @@ renders already in the out folder, and `--plain` draws the scene in one grey as 
 walk's video.
 
 The stage comes from `tools/usd/export.py <place> --models <run>/made --work <run> --out <folder>`; a place outside
-with a record in `data/ground/` stands on the planned ground as the game stands it. When the resting check finds an
-object that tips, `tools/usd/resting.py <stage> --settle` lowers it in the place's layout by as far as it settles;
-export again and the check passes.
+with a record in `data/ground/` stands on the planned ground as the game stands it (`tools/usd/ground.py level
+<place>` holds the ground under a place's pieces at one height, its yard). When the resting check finds loose objects
+that float, tip or are sunk, `tools/usd/settle.py <stage>` drops them in headless Blender onto the real ground with
+their own triangles (buildings and other rows marked `"fixed": true` stay static) and writes where each came to rest
+into the place's layout, with its turn as a `rotation`, as long as that is a small correction (at most 15° and
+30 cm); a piece that would move more keeps its laid pose and is marked for its layout to be put right. Export again
+and check. `--cloud` on settle.py and page.py runs the Blender work on rented machines
+(`tools/props/cloud/blender_cloud.py`).
 
 ## Licence
 

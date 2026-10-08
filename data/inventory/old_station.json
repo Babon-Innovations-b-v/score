@@ -55,7 +55,8 @@
      "facing": 90
     }
    ],
-   "why": "The caretaker's home: the one module still heated and lit. C4's middle module."
+   "why": "The caretaker's home: the one module still heated and lit. C4's middle module.",
+   "fixed": true
   },
   {
    "id": "first_module",
@@ -85,7 +86,8 @@
      "facing": 90
     }
    ],
-   "why": "The 2030s first module, holed and stripped for spares: C4's torn module."
+   "why": "The 2030s first module, holed and stripped for spares: C4's torn module.",
+   "fixed": true
   },
   {
    "id": "lab_module",
@@ -115,7 +117,8 @@
      "facing": 90
     }
    ],
-   "why": "Closed to save power over the long emergency: C4's white module."
+   "why": "Closed to save power over the long emergency: C4's white module.",
+   "fixed": true
   },
   {
    "id": "rover",
@@ -145,7 +148,8 @@
      "facing": 270
     }
    ],
-   "why": "His way to the ice, the reactor and the other base; his lifeboat."
+   "why": "His way to the ice, the reactor and the other base; his lifeboat.",
+   "fixed": true
   },
   {
    "id": "solar_mast",
@@ -175,7 +179,8 @@
      "facing": 90
     }
    ],
-   "why": "The sun skims the horizon at the pole, so the array stands tall and turns."
+   "why": "The sun skims the horizon at the pole, so the array stands tall and turns.",
+   "fixed": true
   },
   {
    "id": "solar_mast_dead",
@@ -205,7 +210,8 @@
      "facing": 90
     }
    ],
-   "why": "The second array, its drive failed, left standing."
+   "why": "The second array, its drive failed, left standing.",
+   "fixed": true
   },
   {
    "id": "comms_mast",
@@ -235,7 +241,8 @@
      "facing": 90
     }
    ],
-   "why": "The caretaker's one voice: a dish on Earth, a whip for surface radio."
+   "why": "The caretaker's one voice: a dish on Earth, a whip for surface radio.",
+   "fixed": true
   },
   {
    "id": "radiator",
@@ -265,7 +272,8 @@
      "facing": 90
     }
    ],
-   "why": "Dumps the lived-in module's heat; flat to the sky, never sees the sun."
+   "why": "Dumps the lived-in module's heat; flat to the sky, never sees the sun.",
+   "fixed": true
   },
   {
    "id": "power_unit",
@@ -295,7 +303,8 @@
      "facing": 90
     }
    ],
-   "why": "Takes the solar mast and the reactor line, feeds the module through the night."
+   "why": "Takes the solar mast and the reactor line, feeds the module through the night.",
+   "fixed": true
   },
   {
    "id": "parts_rack",
@@ -325,7 +334,8 @@
      "facing": 90
     }
    ],
-   "why": "His repair stock, by the way in."
+   "why": "His repair stock, by the way in.",
+   "fixed": true
   },
   {
    "id": "bag_pile",
@@ -349,34 +359,64 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 0.0,
-     "z": 3.8,
-     "y": 0.0,
-     "facing": 90
+     "x": 0.0003,
+     "z": 3.8009,
+     "y": -0.0092,
+     "facing": 90.11,
+     "rotation": [
+      0.00563,
+      0.707672,
+      -0.01285,
+      -0.706401
+     ]
     },
     {
-     "x": 0.0,
-     "z": -3.8,
-     "y": 0.0,
-     "facing": 90
+     "x": -0.001,
+     "z": -3.7992,
+     "y": -0.0092,
+     "facing": 90.39,
+     "rotation": [
+      0.005823,
+      0.709378,
+      -0.012975,
+      -0.704685
+     ]
     },
     {
-     "x": -3.35,
-     "z": 0.0,
-     "y": 0.0,
-     "facing": 0
+     "x": -3.3492,
+     "z": -0.0002,
+     "y": -0.0092,
+     "facing": 0.22,
+     "rotation": [
+      0.005091,
+      -0.001885,
+      0.013277,
+      0.999897
+     ]
     },
     {
-     "x": 3.0,
-     "z": 6.0,
-     "y": 0.0,
-     "facing": 30
+     "x": 3.0008,
+     "z": 6.0009,
+     "y": -0.0091,
+     "facing": 30.06,
+     "rotation": [
+      0.001573,
+      -0.259242,
+      0.014228,
+      0.965706
+     ]
     },
     {
-     "x": -3.2,
-     "z": -2.6,
-     "y": 0.0,
-     "facing": 70
+     "x": -3.2001,
+     "z": -2.5995,
+     "y": -0.0091,
+     "facing": 70.24,
+     "rotation": [
+      -0.003457,
+      -0.57521,
+      0.013921,
+      0.81788
+     ]
     }
    ],
    "why": "Bags under each walkway tube, holding it, and spare piles."
@@ -403,10 +443,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 8.0,
-     "z": 2.2,
-     "y": 0.0,
-     "facing": 90
+     "x": 7.987,
+     "z": 2.259,
+     "y": -0.1576,
+     "facing": 87.04,
+     "rotation": [
+      0.07982,
+      -0.678815,
+      0.116017,
+      0.720679
+     ]
     }
    ],
    "why": "Filled bags ready to patch the cover."
@@ -433,10 +479,16 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 8.3,
-     "z": 7.0,
-     "y": 0.0,
-     "facing": 90
+     "x": 8.4619,
+     "z": 6.9309,
+     "y": 0.2553,
+     "facing": 111.09,
+     "rotation": [
+      0.420851,
+      0.552987,
+      0.611665,
+      -0.378096
+     ]
     }
    ],
    "why": "A wheel taken off for spares, by the rack."
@@ -463,28 +515,29 @@
    "made": "made by the route",
    "at": [
     {
-     "x": 0.0,
-     "z": 3.8,
-     "y": 1.1,
+     "x": -0.151,
+     "z": 3.663,
+     "y": 1.008,
      "length": 3.6,
      "facing": 90.0
     },
     {
-     "x": 0.0,
-     "z": -3.8,
-     "y": 1.1,
+     "x": -0.009,
+     "z": -3.549,
+     "y": 1.158,
      "length": 3.6,
      "facing": -90.0
     },
     {
-     "x": -3.35,
-     "z": 0.0,
-     "y": 1.1,
+     "x": -3.467,
+     "z": -0.029,
+     "y": 0.934,
      "length": 2.7,
      "facing": 180.0
     }
    ],
-   "why": "Joins the modules (pipe_straight)."
+   "why": "Joins the modules (pipe_straight).",
+   "fixed": true
   },
   {
    "id": "apron",
@@ -514,7 +567,8 @@
      "facing": 90
     }
    ],
-   "why": "Where suits are brushed before the hatch; the path arrives here (pit_floor_plate laid flat)."
+   "why": "Where suits are brushed before the hatch; the path arrives here (pit_floor_plate laid flat).",
+   "fixed": true
   },
   {
    "id": "cable_run",
@@ -587,7 +641,8 @@
      "facing": 124.0
     }
    ],
-   "why": "Between the masts, the power unit and the modules (cable_bundle laid on its back)."
+   "why": "Between the masts, the power unit and the modules (cable_bundle laid on its back).",
+   "fixed": true
   },
   {
    "id": "gas_bottle",

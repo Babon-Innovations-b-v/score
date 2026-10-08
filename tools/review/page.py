@@ -10,6 +10,7 @@ is.
         [--agreement <tools/usd/views.py's out folder>]
         [--no-render]                               # reuse the Blender renders already in <out>
         [--plain]                                   # debug: the scene in one plain grey instead of its materials
+        [--cloud]                                   # render on rented cards (tools/props/cloud/blender_cloud.py)
 
 What each folder holds is in records.py. The pictures no stage drew (each model and its parts, the assembled scene from
 fixed cameras and a walk round it) are rendered by headless Blender (renders.py); the scene comes from the place's
@@ -407,8 +408,9 @@ def resting_block(stages):
     rows = [row for label, judged in stages.items() for row in resting_rows(label, judged)]
     return (f"<p>Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): "
             f"one floating over what is under it, one whose weight stands outside what it touches (it tips, one end "
-            f"in the air), or one sunk deeper than it was laid, each by more than {resting.TOLERANCE * 100:.0f} cm, "
-            f"fails; a hung object is not checked. {'; '.join(counts)}.</p>"
+            f"in the air), or one sunk into the ground below its own contact points, each by more than "
+            f"{resting.TOLERANCE * 100:.0f} cm, fails; a hung object is not checked, and a fixed one (a building, a "
+            f"mast) is not judged for tipping. {'; '.join(counts)}.</p>"
             + table(["stage", "object", "gap, cm", "depth, cm", "result", "caught"], rows, "Every object rests."))
 
 
@@ -465,6 +467,7 @@ def arguments():
         parser.add_argument(f"--{name}", type=pathlib.Path)
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("--plain", action="store_true")
+    parser.add_argument("--cloud", action="store_true", help="render on rented cards, not this PC's Blender")
     return parser.parse_args()
 
 
@@ -474,6 +477,8 @@ def render_all(options, runs, out):
     kit_run = any(run.get("kit") for run in runs.values() if run)
     names = list(shown_models(planned, kit_run)) if planned else []
     stages = {label: stage for label, stage in (("before", options.before_stage), ("now", options.stage)) if stage}
+    if getattr(options, "cloud", False):
+        renders.CLOUD = renders.CLOUD_CLASSES
     if options.no_render:
         found = json.loads((out / "renders.json").read_text())
         return found["shots"], found["scene"]
