@@ -42,7 +42,8 @@ import sys
 REPO = pathlib.Path(__file__).resolve().parents[3]
 INVENTORIES = REPO / "data/inventory"
 ROW_KINDS = ("generate", "code", "mechanic")
-ANCHORS = ("floor", "wall", "ceiling")
+# `roof`: on a module's roof, outside its shell (the airlock's beacon, modules round).
+ANCHORS = ("floor", "wall", "ceiling", "roof")
 ROW_FIELDS = ("id", "view", "box", "name", "kind", "anchor", "size", "count", "thing")
 ROOM_FIELDS = ("shell", "light", "backdrop", "wall_fill")
 # A comment line in a script or a scene, which never changes a shell.
@@ -125,7 +126,7 @@ def row_problems(scene, row, views, ids):
         found.append(f"{name}: its kind '{row['kind']}' is not one of {', '.join(ROW_KINDS)}")
     anchor = row["anchor"]
     if anchor not in ANCHORS and not (anchor.startswith("on:") and anchor[3:] in ids):
-        found.append(f"{name}: its anchor '{anchor}' is not floor, wall, ceiling or on:<a row's id>")
+        found.append(f"{name}: its anchor '{anchor}' is not floor, wall, ceiling, roof or on:<a row's id>")
     if not (isinstance(row["size"], list) and len(row["size"]) == 3 and all(side > 0 for side in row["size"])):
         found.append(f"{name}: its size is not three lengths in metres")
     if not (isinstance(row["count"], int) and row["count"] > 0):

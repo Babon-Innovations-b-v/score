@@ -606,14 +606,17 @@ def notice_board(size, laid):
                         "wood_board", "board"),
              shapes.box((-wide / 2, 0.0, back - 0.004), (wide / 2, tall, back), "painted_panel", "back")]
     board = front + 0.016
+    # Laid out on the hub's 0.8 x 0.6 board; a smaller board takes them scaled to it (the airlock's caution board).
+    across, up = min(1.0, wide / 0.8), min(1.0, tall / 0.6)
     sheets = (("sheet_eva", 0.235, 0.395, 0.19, 0.25, 1.2), ("sheet_roster", 0.0, 0.40, 0.19, 0.25, -0.8),
               ("sheet_log", -0.235, 0.39, 0.19, 0.25, 0.6), ("sheet_plan", 0.13, 0.155, 0.27, 0.18, -0.5))
     for variant, x, y, sheet_wide, sheet_tall, turn in sheets:
+        x, y, sheet_wide, sheet_tall = x * across, y * up, sheet_wide * across, sheet_tall * up
         parts.append(label(x, y, sheet_wide, sheet_tall, board, variant, turn, 0.004, "sheet"))
         parts.append(shapes.cylinder((x, y + sheet_tall / 2 - 0.02, board - 0.003),
                                      (x, y + sheet_tall / 2 - 0.02, board - 0.011), 0.007, "anodized_red", 12, "pin"))
     for variant, x, y, turn in (("note_filter", -0.12, 0.16, 3.0), ("note_link", -0.26, 0.15, -2.5)):
-        parts.append(label(x, y, 0.09, 0.09, board, variant, turn, 0.004, "note"))
+        parts.append(label(x * across, y * up, 0.09 * across, 0.09 * up, board, variant, turn, 0.004, "note"))
     return parts
 
 
@@ -2129,7 +2132,7 @@ def sleep_pod(size, laid):
         parts.append(rounded_ring((low_x - 0.004, bottom - 0.004), (high_x + 0.004, top + 0.004), 0.092, 0.012,
                                   front + 0.002, front + 0.05, "anodized_gold", "seal"))
         inner_back = back - 0.04
-        parts.append(shapes.bevelled(shapes.box((low_x + 0.03, bottom, front + 0.06),
+        parts.append(shapes.bevelled(shapes.box((low_x + 0.03, bottom - 0.005, front + 0.06),
                                                 (high_x - 0.03, bottom + HAB_A_MATTRESS, inner_back - 0.01),
                                                 "quilted_beige", "mattress"), 0.02))
         parts += wall_screen_part(high_x - 0.2, bottom + 0.37, 0.2, 0.15, inner_back, "screen", name="screen")
@@ -2169,10 +2172,10 @@ def sleep_pod(size, laid):
     parts.append(label(middle, 1.62, 0.16, 0.045, front - 0.008, "label_berth_1"))
     band_low, band_high = HAB_A_POD_STRIPE
     for x_low, x_high in ((col_high, wide / 2), (-wide / 2, col_low)):
-        parts.append(shapes.box((x_low, band_low, front - 0.003), (x_high, band_high, front), "enamel_blue", "stripe"))
+        parts.append(shapes.box((x_low, band_low, front - 0.005), (x_high, band_high, front), "enamel_blue", "stripe"))
     for side in (-1, 1):
         x = side * wide / 2
-        parts.append(shapes.box((min(x, x + side * 0.003), band_low, front), (max(x, x + side * 0.003), band_high,
+        parts.append(shapes.box((min(x, x + side * 0.005), band_low, front), (max(x, x + side * 0.005), band_high,
                                                                                back), "enamel_blue", "stripe"))
     parts.append(label(high_x - 0.2, 1.675, 0.26, 0.06, front, "label_sleep_pod"))
     return parts
@@ -2265,7 +2268,7 @@ def food_tin(size, laid):
     parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front), (wide / 2, body_top, deep / 2), "plastic_white",
                                         "body"), 0.016),
              shapes.bevelled(shapes.cylinder((0.0, body_top - 0.004, 0.0), (0.0, tall, 0.0), min(wide, deep) * 0.47,
-                                             "anodized_blue", 32, "lid"), 0.004)]
+                                             "enamel_blue", 32, "lid"), 0.004)]
     parts.append(label(0.0, body_top * 0.5, wide * 0.8, body_top * 0.48, front, "label_food_storage"))
     return parts
 
@@ -2293,9 +2296,9 @@ def med_box(size, laid):
     parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front), (wide / 2, tall, deep / 2), "plastic_white", "box"),
                              0.003)]
     for low, high in ((tall * 0.82, tall - 0.004), (0.004, tall * 0.1)):
-        parts.append(shapes.box((-wide / 2 - 0.002, low, front - 0.002), (wide / 2 + 0.002, high, deep / 2 + 0.002),
+        parts.append(shapes.box((-wide / 2 - 0.004, low, front - 0.004), (wide / 2 + 0.004, high, deep / 2 + 0.004),
                                 "enamel_blue", "band"))
-    parts.append(label(0.0, tall * 0.46, wide * 0.8, tall * 0.4, front - 0.002, "label_medical_supplies"))
+    parts.append(label(0.0, tall * 0.46, wide * 0.8, tall * 0.4, front, "label_medical_supplies"))
     return parts
 
 
@@ -2312,7 +2315,7 @@ def med_bottle(size, laid):
                              "glass_tinted", 20, "bottle"),
              shapes.bevelled(shapes.cylinder((0.0, tall * 0.86, 0.0), (0.0, tall, 0.0), radius * 0.55, "plastic_white",
                                              20, "cap"), 0.002),
-             shapes.cylinder((0.0, shoulder * 0.25, 0.0), (0.0, shoulder * 0.8, 0.0), radius + 0.0015, "canvas_beige",
+             shapes.cylinder((0.0, shoulder * 0.25, 0.0), (0.0, shoulder * 0.8, 0.0), radius + 0.004, "canvas_beige",
                              24, "band")]
     return parts
 
@@ -2903,7 +2906,7 @@ def lock_tube_ring(outer, inner, depth_from, depth_to, material, name):
 def lock_tube_stripes(band, surface, thick=0.004):
     """Black hazard stripes over a yellow band (a convex (x, y) outline) standing on a face at depth `surface`: the
     band's yellow plate, and diagonal black stripes clipped to it, one stripe width apart."""
-    parts = [shapes.prism(band, surface - thick, surface + 0.002, "hazard_paint", "stripe")]
+    parts = [shapes.prism(band, surface - thick, surface, "hazard_paint", "stripe")]
     sums = [x + y for x, y in band]
     start = math.floor(min(sums) / (2 * LOCK_TUBE_STRIPE)) * 2 * LOCK_TUBE_STRIPE
     reach = 4.0
@@ -3244,7 +3247,7 @@ def fan_unit(size, laid):
                                       "dark_panel", 48, "cutter"))
     parts.append(shapes.bevelled(plate, 0.003))
     shroud_z = front + 0.06
-    shapes.cut(parts[0], shapes.cylinder((middle_x, middle_y, front), (middle_x, middle_y, shroud_z + 0.003), radius,
+    shapes.cut(parts[0], shapes.cylinder((middle_x, middle_y, front), (middle_x, middle_y, shroud_z + 0.006), radius,
                                          "hammertone_grey", 48, "cutter"))
     parts.append(shapes.cylinder((middle_x, middle_y, shroud_z), (middle_x, middle_y, shroud_z + 0.006), radius,
                                  "anodized_black", 48, "shroud"))
@@ -3261,12 +3264,13 @@ def fan_unit(size, laid):
     grille_z = front - 0.006
     for share in (0.25, 0.42, 0.59, 0.76, 0.93):
         ring_radius = radius * share
-        parts.append(shapes.ring((middle_x, middle_y, grille_z - 0.002), (middle_x, middle_y, grille_z + 0.002),
+        parts.append(shapes.ring((middle_x, middle_y, grille_z - 0.004), (middle_x, middle_y, grille_z),
                                  ring_radius + 0.0025, ring_radius - 0.0025, "bare_steel", 40, "grille"))
     for at in range(8):
         angle = 2 * math.pi * at / 8
-        parts.append(shapes.cylinder((middle_x, middle_y, grille_z), (middle_x + radius * math.cos(angle),
-                                                                     middle_y + radius * math.sin(angle), grille_z),
+        parts.append(shapes.cylinder((middle_x, middle_y, grille_z + 0.0025), (middle_x + radius * math.cos(angle),
+                                                                              middle_y + radius * math.sin(angle),
+                                                                              grille_z + 0.0025),
                                      0.0025, "bare_steel", 8, "grille"))
     parts.append(shapes.cylinder((middle_x, middle_y, grille_z + 0.002), (middle_x, middle_y, grille_z - 0.004), 0.04,
                                  "bare_steel", 24, "grille"))
@@ -3282,7 +3286,7 @@ def fan_unit(size, laid):
     louvre_wide, louvre_tall = min(0.24, deep * 0.55), 0.16
     side_plate = shapes.box((-louvre_wide / 2 - 0.02, 0.08, -0.012), (louvre_wide / 2 + 0.02, 0.08 + louvre_tall + 0.04,
                                                                        0.0), "hammertone_grey", "louvre_frame")
-    side = furn_louvres(side_plate, 0.0, 0.1 + louvre_tall / 2, louvre_wide, louvre_tall, -0.012, 0.0, 6,
+    side = furn_louvres(side_plate, 0.0, 0.1 + louvre_tall / 2, louvre_wide, louvre_tall, -0.012, 0.0, 4,
                         "hammertone_grey", back_thick=0.006)
     louvre_parts = [shapes.bevelled(side_plate, 0.002)] + side
     furn_spun(louvre_parts, (0.0, 0.0), 90.0)
@@ -3322,7 +3326,7 @@ def hull_patch(size, laid):
                                         "galvanized_dull", "plate"), 0.003)]
     inner = rounded_outline((-wide / 2 + 0.11, 0.1), (wide / 2 - 0.11, tall - 0.1), 0.03)
     bead = rounded_outline((-wide / 2 + 0.125, 0.115), (wide / 2 - 0.125, tall - 0.115), 0.02)
-    parts.append(shapes.bevelled(lock_tube_ring(inner, bead, plate_face - 0.007, plate_face + 0.002, "cast_steel",
+    parts.append(shapes.bevelled(lock_tube_ring(inner, bead, plate_face - 0.007, plate_face, "cast_steel",
                                                 "weld"), 0.0025))
     for x, y, along in ((-wide / 2 + 0.02, tall * 0.75, False), (wide / 2 - 0.02, tall * 0.3, False),
                         (wide * 0.25, tall - 0.02, True), (-wide * 0.2, 0.02, True)):
@@ -3330,8 +3334,8 @@ def hull_patch(size, laid):
             low, high = (x - 0.025, y - 0.06), (x + 0.025, y + 0.06)
         else:
             low, high = (x - 0.06, y - 0.025), (x + 0.06, y + 0.025)
-        parts.append(shapes.bevelled(shapes.box((*low, plate_face - 0.004), (*high, back), "plastic_grey", "tape"),
-                                     0.0015))
+        parts.append(shapes.bevelled(shapes.box((*low, plate_face - 0.004), (*high, plate_face), "plastic_grey",
+                                                "tape"), 0.0015))
     return parts
 
 
@@ -5364,6 +5368,332 @@ def pendant_lamp(size, laid):
                                                  "dark_panel", 24, "canopy"), 0.003))
     parts.append(shapes.bevelled(shapes.cylinder((0.0, canopy_low, 0.0), (0.0, tall, 0.0), 0.085, "dark_panel", 40,
                                                  "canopy"), 0.004))
+def beacon(size, laid):
+    """The airlock's warning beacon on its roof, as its concept shows it (modules round): a round flange bolted to the
+    roof, a grey body with a connector box on its front, a dark rim and the amber dome over the lamp, glowing."""
+    wide, tall, deep = size
+    radius = min(wide, deep) / 2
+    flange_top, body_top, rim_top = tall * 0.08, tall * 0.42, tall * 0.5
+    parts = [shapes.bevelled(shapes.cylinder((0.0, 0.0, 0.0), (0.0, flange_top, 0.0), radius, "dark_panel", 40,
+                                             "flange"), 0.004),
+             shapes.bevelled(shapes.cylinder((0.0, flange_top, 0.0), (0.0, body_top, 0.0), radius * 0.74, "bare_steel",
+                                             36, "body"), 0.004),
+             shapes.bevelled(shapes.cylinder((0.0, body_top, 0.0), (0.0, rim_top, 0.0), radius * 0.76, "warning_paint",
+                                             36, "rim"), 0.003),
+             shapes.bevelled(shapes.cylinder((0.0, rim_top, 0.0), (0.0, tall, 0.0), radius * 0.66, "led_amber", 36,
+                                             "dome"), 0.03),
+             shapes.bevelled(shapes.box((-0.025, flange_top + 0.02, -radius * 0.74 - 0.012),
+                                        (0.025, flange_top + 0.07, -radius * 0.74 + 0.01), "anodized_black", "socket"),
+                             0.002)]
+    for at in range(6):
+        angle = 2 * math.pi * (at + 0.5) / 6
+        x, z = radius * 0.87 * math.cos(angle), radius * 0.87 * math.sin(angle)
+        parts.append(shapes.cylinder((x, flange_top, z), (x, flange_top + 0.008, z), 0.008, "bare_steel", 12, "bolt"))
+    return parts
+
+
+# ---- Modules round, concept density (owner, 2026-10-08): the habitat's smaller elements its picked concept K03 shows
+# beyond the furniture, built in code with library surfaces as method B's parts check allows, each its own model: a
+# storage case and a tool case on the tops, a supply cart, gas cylinders by the galley, the painted floor marking before
+# each sleep pod and the slippers on it, a coiled cable hung on the wall, and the tea towels on the galley counter.
+# Helpers are prefixed `hab_dense_`. Seen from in front, the kit's +x is the viewer's left.
+
+HAB_DENSE_CART_SHELVES = (0.18, 0.78)  # the supply cart's shelf tops over its foot (its children stand on them)
+
+
+def hab_dense_case(size, material, label_variant, handle):
+    """A hard case: a body, a lid a little proud of it with a seam between, a latch either side on its front, a label
+    on its front, and a carry handle on its lid when `handle`."""
+    wide, tall, deep = size
+    grip = min(0.03, tall * 0.15) if handle else 0.0  # the handle's height over the lid, kept within a low case
+    front = -deep / 2
+    seam = tall * 0.68
+    parts = [shapes.bevelled(shapes.box((-wide / 2 + 0.004, 0.0, front + 0.004), (wide / 2 - 0.004, seam, deep / 2 - 0.004),
+                                        material, "body"), 0.012),
+             shapes.bevelled(shapes.box((-wide / 2, seam + 0.004, front), (wide / 2, tall - grip,
+                                                                           deep / 2), material, "lid"), 0.012)]
+    for x in (-wide * 0.36, wide * 0.36):
+        parts.append(shapes.bevelled(shapes.box((x - 0.018, seam - 0.035, front - 0.006), (x + 0.018, seam + 0.025, front),
+                                                "bare_steel", "latch"), 0.002))
+    parts.append(label(0.0, seam * 0.5, wide * 0.38, seam * 0.32, front + 0.004, label_variant))
+    if handle:
+        top = tall - grip
+        for x in (-wide * 0.22, wide * 0.22):
+            parts.append(shapes.box((x - 0.012, top - 0.004, -0.012), (x + 0.012, tall, 0.012), "dark_panel", "handle"))
+        parts.append(shapes.bevelled(shapes.box((-wide * 0.22 - 0.012, tall - 0.012, -0.012),
+                                                (wide * 0.22 + 0.012, tall, 0.012), "dark_panel", "handle"), 0.003))
+    return parts
+
+
+def storage_case(size, laid):
+    """A grey storage case, as its concept crop shows it on a sleep pod's and the food shelf's top: a body and a lid with
+    a seam, a latch either side and a label on its front."""
+    return hab_dense_case(size, "hammertone_grey", "label_storage", False)
+
+
+def tool_case(size, laid):
+    """A blue tool case, as its concept crop shows it on the locker bank: a body and a lid, latches, a label on its
+    front and a carry handle across its lid."""
+    return hab_dense_case(size, "enamel_blue", "label_tools", True)
+
+
+def supply_cart(size, laid):
+    """A two-shelf supply cart, as its concept crop shows it by the lockers: four steel posts, two shelves with a lip
+    round each, a push handle across its back and a caster under each post; what stands on it is children."""
+    wide, tall, deep = size
+    caster = 0.07
+    parts = []
+    for x in (-wide / 2 + 0.02, wide / 2 - 0.02):
+        for z in (-deep / 2 + 0.02, deep / 2 - 0.02):
+            parts.append(shapes.box((x - 0.012, caster, z - 0.012), (x + 0.012, tall - 0.06, z + 0.012), "bare_steel",
+                                    "post"))
+            parts.append(shapes.cylinder((x - 0.016, caster * 0.5, z), (x + 0.016, caster * 0.5, z), caster * 0.5,
+                                         "rubber", 16, "caster"))
+            parts.append(shapes.box((x - 0.016, caster - 0.006, z - 0.016), (x + 0.016, caster + 0.006, z + 0.016),
+                                    "bare_steel", "caster"))
+    for top in HAB_DENSE_CART_SHELVES:
+        parts.append(shapes.bevelled(shapes.box((-wide / 2 + 0.008, top - 0.012, -deep / 2 + 0.008),
+                                                (wide / 2 - 0.008, top, deep / 2 - 0.008), "galvanized_steel", "shelf"),
+                                     0.002))
+        for z in (-deep / 2 + 0.008, deep / 2 - 0.008):
+            parts.append(shapes.box((-wide / 2 + 0.008, top, z - 0.004), (wide / 2 - 0.008, top + 0.03, z + 0.004),
+                                    "bare_steel", "lip"))
+    parts.append(shapes.cylinder((-wide / 2 + 0.02, tall - 0.03, deep / 2 - 0.02), (wide / 2 - 0.02, tall - 0.03,
+                                                                                   deep / 2 - 0.02), 0.014,
+                                 "bare_steel", 16, "handle"))
+    for x in (-wide / 2 + 0.02, wide / 2 - 0.02):
+        parts.append(shapes.box((x - 0.012, tall - 0.06, deep / 2 - 0.032), (x + 0.012, tall - 0.03, deep / 2 - 0.008),
+                                "bare_steel", "handle"))
+    return parts
+
+
+def gas_cylinder(size, laid):
+    """A gas cylinder by the galley, as its concept crop shows it: a dark body with a rounded shoulder, a foot ring, a
+    guard collar round its valve and the valve on top."""
+    wide, tall, deep = size
+    radius = min(wide, deep) / 2
+    shoulder = tall * 0.78
+    parts = [shapes.bevelled(shapes.cylinder((0.0, 0.03, 0.0), (0.0, shoulder, 0.0), radius, "dark_panel", 32, "body"),
+                             0.01),
+             shapes.bevelled(shapes.cylinder((0.0, shoulder, 0.0), (0.0, shoulder + tall * 0.08, 0.0), radius * 0.78,
+                                             "dark_panel", 32, "shoulder"), 0.015),
+             shapes.cylinder((0.0, 0.0, 0.0), (0.0, 0.03, 0.0), radius * 0.92, "dark_panel", 32, "foot"),
+             shapes.ring((0.0, shoulder + tall * 0.08, 0.0), (0.0, tall - 0.08, 0.0), radius * 0.62, radius * 0.5,
+                         "bare_steel", 32, "collar")]
+    # The valve stands up out of the collar, its outlet and its hand wheel above the collar's rim.
+    parts.append(shapes.cylinder((0.0, shoulder + tall * 0.08, 0.0), (0.0, tall - 0.012, 0.0), radius * 0.16,
+                                 "bare_steel", 16, "valve"))
+    parts.append(shapes.cylinder((0.0, tall - 0.05, 0.0), (0.0, tall - 0.05, -radius * 0.7), radius * 0.09,
+                                 "bare_steel", 12, "valve"))
+    parts.append(shapes.cylinder((0.0, tall - 0.012, 0.0), (0.0, tall, 0.0), radius * 0.3, "anodized_black", 20,
+                                 "valve"))
+    return parts
+
+
+def floor_marking(size, laid):
+    """The painted marking on the deck before a sleep pod, as its concept crop shows it: a deck plate set into the floor
+    with a white line round a rounded rectangle on it, flush with the deck (front up)."""
+    wide, long, deep = size
+    top, bottom = -deep / 2, deep / 2
+    parts = [shapes.box((-wide / 2, 0.0, top + 0.004), (wide / 2, long, bottom), "deck", "plate")]
+    # The paint stands on the plate's face, 4 mm (a thinner line reads as a wall under 3 mm in the model check).
+    parts.append(rounded_ring((-wide / 2 + 0.04, 0.04), (wide / 2 - 0.04, long - 0.04), 0.12, 0.045, top, top + 0.004,
+                              "enamel_white", "line"))
+    return parts
+
+
+def slippers(size, laid):
+    """A pair of slippers on the deck before a sleep pod, as its concept crop shows them: two low rounded soles with a
+    padded upper over each toe."""
+    wide, tall, deep = size
+    parts = []
+    for x in (-wide / 4, wide / 4):
+        sole = rounded_outline((x - wide * 0.2, -deep / 2), (x + wide * 0.2, deep / 2), wide * 0.12)
+        parts.append(shapes.bevelled(furn_prism(sole, "y", 0.0, tall * 0.35, "rubber", "slipper"), 0.006))
+        upper = rounded_outline((x - wide * 0.18, -deep / 2 + 0.01), (x + wide * 0.18, deep * 0.1), wide * 0.1)
+        parts.append(shapes.bevelled(furn_prism(upper, "y", tall * 0.35, tall, "quilted_grey", "slipper"), 0.012))
+    return parts
+
+
+def cable_coil(size, laid):
+    """A coil of cable hung on the wall beside a sleep pod, as its concept crop shows it: a steel hook bolted to the
+    wall and three loose loops of black cable hanging from it."""
+    wide, tall, deep = size
+    back = deep / 2
+    hook_y = tall - 0.04
+    parts = [shapes.bevelled(shapes.box((-0.03, hook_y - 0.04, back - 0.008), (0.03, hook_y + 0.03, back), "bare_steel",
+                                        "hook"), 0.002),
+             shapes.box((-0.008, hook_y - 0.008, back - 0.07), (0.008, hook_y + 0.008, back - 0.008), "bare_steel",
+                        "hook")]
+    radius = min(wide, tall) / 2 - 0.03
+    middle_y = hook_y - radius
+    for index, (shift, depth) in enumerate(((-0.025, back - 0.055), (0.0, back - 0.04), (0.025, back - 0.025))):
+        parts.append(floor_bent_tube((shift, middle_y - index * 0.012, depth), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0),
+                                     radius - index * 0.01, 0.009, 0.0, 359.0, "cable_black", "coil", steps=40,
+                                     sides=10))
+    return parts
+
+
+def tea_towel(size, laid):
+    """A tea towel hung over the galley counter's front, as its concept crop shows it: a folded cloth hanging down with a
+    fold over at its top."""
+    wide, tall, deep = size
+    front = -deep / 2
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front + deep * 0.4), (wide / 2, tall, deep / 2), "quilted_grey",
+                                        "cloth"), 0.006),
+             shapes.bevelled(shapes.box((-wide / 2 - 0.004, tall * 0.78, front), (wide / 2 + 0.004, tall,
+                                                                                  front + deep * 0.4),
+                                        "quilted_grey", "cloth"), 0.006)]
+    return parts
+
+
+# ---- Modules round, concept density (2026-10-08): the airlock's wall gear its picked concept K02 shows beyond its
+# furniture: the console over the suit-up bench, the gauge panel, a louvred vent grille, a coiled hose on its hook and
+# the tool case on the bench (a child of the bench). Close-ups are crops of the concept (pics/<kind>-crop.png). Helpers
+# are prefixed `lock_dense_`. Seen from in front, the kit's +x is the viewer's left.
+
+
+def lock_dense_gauge(x, y, radius, face, name="gauge"):
+    """A round analog gauge on a face at depth `face`: a dark rim, a pale dial standing in it and a needle across it."""
+    return [shapes.bevelled(shapes.cylinder((x, y, face), (x, y, face - 0.012), radius, "anodized_black", 28, name),
+                            0.002),
+            shapes.cylinder((x, y, face - 0.012), (x, y, face - 0.016), radius * 0.82, "enamel_white", 28, name),
+            shapes.box((x - 0.002, y - 0.002, face - 0.02), (x + 0.002, y + radius * 0.7, face - 0.016),
+                       "anodized_black", "needle")]
+
+
+def lock_console(size, laid):
+    """The airlock's cycle console over the suit-up bench, as its concept crop shows it: a steel housing, two small
+    monitors on its top, a large status screen with a readout plate and a small screen beside it, a row of five
+    gauges, a keypad, round buttons and a red stop button."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    body_top = tall * 0.72
+    face = front + 0.03
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, face), (wide / 2, body_top, back), "painted_panel",
+                                        "housing"), 0.006)]
+    # The two monitors standing on its top, their backs against the wall.
+    monitor_tall = tall - body_top - 0.02
+    for x in (wide * 0.22, -wide * 0.22):
+        parts.append(shapes.bevelled(shapes.box((x - wide * 0.18, body_top + 0.02, front + 0.06),
+                                                (x + wide * 0.18, tall, back), "dark_panel", "monitor"), 0.004))
+        parts += wall_screen_part(x, body_top + 0.02 + monitor_tall / 2, wide * 0.3, monitor_tall * 0.72,
+                                  front + 0.06, "screen", name="screen")
+        parts.append(shapes.box((x - 0.04, body_top, front + 0.08), (x + 0.04, body_top + 0.02, back), "dark_panel",
+                                "monitor"))
+    # The main screen and, beside it, a readout plate over a small screen.
+    parts += wall_screen_part(wide * 0.16, body_top * 0.72, wide * 0.5, body_top * 0.34, face, "screen", name="screen")
+    parts.append(label(-wide * 0.28, body_top * 0.83, wide * 0.3, body_top * 0.12, face, "label_cycle",
+                       name="readout"))
+    parts += wall_screen_part(-wide * 0.28, body_top * 0.63, wide * 0.18, body_top * 0.16, face, "screen_amber",
+                              name="screen")
+    for at in range(5):
+        parts += lock_dense_gauge(wide * (0.36 - 0.18 * at), body_top * 0.4, min(0.045, wide * 0.07), face)
+    parts.append(label(wide * 0.16, body_top * 0.16, wide * 0.42, body_top * 0.16, face, "keypad_print",
+                       name="keypad"))
+    for at in range(3):
+        parts.append(shapes.bevelled(shapes.cylinder((-wide * 0.12, body_top * (0.1 + 0.08 * at), face),
+                                                     (-wide * 0.12, body_top * (0.1 + 0.08 * at), face - 0.012),
+                                                     0.014, "anodized_red", 16, "button"), 0.002))
+    parts.append(shapes.bevelled(shapes.cylinder((-wide * 0.32, body_top * 0.15, face), (-wide * 0.32, body_top * 0.15,
+                                                                                      face - 0.02), 0.03,
+                                                 "anodized_red", 24, "estop"), 0.004))
+    return parts
+
+
+def lock_gauge_panel(size, laid):
+    """A gauge panel on the airlock's wall, as its concept crop shows it: a steel plate, two large analog meters, a
+    column of toggle switches, two red buttons and a label strip."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    face = front + 0.02
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, face), (wide / 2, tall, back), "painted_panel", "plate"),
+                             0.004)]
+    for x, radius in ((wide * 0.32, tall * 0.18), (wide * 0.02, tall * 0.2)):
+        parts.append(shapes.bevelled(shapes.box((x - radius - 0.012, tall * 0.48, face - 0.006),
+                                                (x + radius + 0.012, tall * 0.48 + 2 * radius + 0.024, face),
+                                                "anodized_black", "meter"), 0.002))
+        parts.append(shapes.box((x - radius, tall * 0.48 + 0.012, face - 0.01), (x + radius, tall * 0.48 + 2 * radius
+                                                                                 + 0.012, face - 0.006),
+                                "enamel_white", "meter"))
+        parts.append(shapes.box((x - 0.002, tall * 0.48 + 0.02, face - 0.014), (x + 0.002, tall * 0.48 + 1.6 * radius,
+                                                                               face - 0.01), "anodized_black",
+                                "needle"))
+    for at in range(3):
+        y = tall * (0.75 - 0.22 * at)
+        parts.append(shapes.box((-wide * 0.34 - 0.012, y - 0.012, face - 0.006), (-wide * 0.34 + 0.012, y + 0.012,
+                                                                                 face), "bare_steel", "switch"))
+        parts.append(shapes.cylinder((-wide * 0.34, y, face - 0.006), (-wide * 0.34, y + 0.02, face - 0.03), 0.004,
+                                     "bare_steel", 8, "switch"))
+    for x in (wide * 0.3, wide * 0.15):
+        parts.append(shapes.bevelled(shapes.cylinder((x, tall * 0.22, face), (x, tall * 0.22, face - 0.014), 0.018,
+                                                     "anodized_red", 16, "button"), 0.002))
+    parts.append(label(-wide * 0.05, tall * 0.2, wide * 0.24, tall * 0.1, face, "label_meter"))
+    return parts
+
+
+def vent_grille(size, laid):
+    """A louvred vent grille on a wall, as its concept crop shows it: a rounded steel frame bolted at its corners
+    round slanted louvres over a dark back."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    frame = shapes.prism(rounded_outline((-wide / 2, 0.0), (wide / 2, tall), 0.02), front + 0.012, back,
+                         "painted_panel", "frame")
+    parts = furn_louvres(frame, 0.0, tall / 2, wide - 0.06, tall - 0.06, front + 0.012, back, 6, "painted_panel",
+                         back_thick=0.006)
+    parts.insert(0, shapes.bevelled(frame, 0.003))
+    parts += [screw(x, y, front + 0.012) for x in (-wide / 2 + 0.015, wide / 2 - 0.015) for y in (0.015, tall - 0.015)]
+    return parts
+
+
+def hose_coil(size, laid):
+    """A coiled air hose hung on a wall hook, as its concept crop shows it: a bolted hook plate and the hose in loops
+    hanging from it."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    parts = [shapes.bevelled(shapes.box((-0.04, tall - 0.1, back - 0.008), (0.04, tall, back), "bare_steel", "hook"),
+                             0.002),
+             shapes.bevelled(shapes.box((-0.02, tall - 0.07, back - 0.06), (0.02, tall - 0.045, back - 0.008),
+                                        "bare_steel", "hook"), 0.002)]
+    loops = 4
+    radius = min(wide, tall) / 2 - 0.02
+    for at in range(loops):
+        z = back - 0.03 - at * (deep - 0.04) / loops
+        middle_y = tall - 0.06 - radius * (1.0 - 0.06 * at)
+        parts.append(shapes.ring((0.0, middle_y, z - 0.007), (0.0, middle_y, z + 0.007), radius * (1.0 - 0.05 * at),
+                                 radius * (1.0 - 0.05 * at) - 0.016, "rubber", 32, "coil"))
+    return parts
+
+
+# ---- Modules round, concept density (2026-10-08): the walkway tube's handrail bracket, read off the concept K12's
+# crop (pics/rail_bracket-crop.png): a foot plate bolted to the hull, a bent round arm out from it and a cradle ring
+# round the rail. The rail itself is a plain pipe run (pipe_straight); the bracket never carries it.
+
+
+def rail_bracket(size, laid):
+    """A handrail bracket on a tube's hull, as its concept crop shows it: a foot plate bolted to the hull at its back,
+    a round arm bent out from it toward the room and a cradle ring round the rail, whose axis stands RAIL_OFF (the
+    box's depth less the ring's reach) in front of the foot."""
+    wide, tall, deep = size
+    back = deep / 2
+    rail = 0.023  # the rail's radius: pipe_straight's min(tall, deep) * 0.38 at 0.06
+    ring_out = rail + 0.008
+    axis_y, axis_z = tall / 2, -deep / 2 + ring_out
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, back - 0.008), (wide / 2, tall, back), "dark_panel", "foot"),
+                             0.002)]
+    parts += bolts_along([(0.0, 0.012), (0.0, tall - 0.012)], back - 0.008)
+    # The arm leaves the foot low and bends up under the rail: a flat bar out from the foot, then a bar rising from its
+    # end to the ring, standing on it face to face, so no two parts cross inside each other (a crossing reads as a
+    # wall under a millimetre in the model check).
+    half = 0.007
+    low_y = 0.014
+    bend_z = axis_z
+    parts.append(shapes.bevelled(shapes.box((-half, low_y - half, bend_z - half), (half, low_y + half, back - 0.008),
+                                            "bare_steel", "arm"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((-half, low_y + half, bend_z - half),
+                                            (half, axis_y - ring_out, bend_z + half), "bare_steel", "arm"), 0.002))
+    parts.append(shapes.bevelled(shapes.ring((-0.012, axis_y, axis_z), (0.012, axis_y, axis_z), ring_out, rail + 0.001,
+                                             "bare_steel", 32, "cradle"), 0.002))
     return parts
 
 
@@ -6491,6 +6821,7 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     # method B's fittings (hub round five)
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_window", "hatch_hinge", "hatch_wall_surround", "porthole_panel",
     "wall_lower_vent", "notice_board", "water_tank", "dosing_unit", "humidifier", "control_console", "work_desk", "seedling_shelf", "dock_pad_one", "dock_pad_two", "dock_pad_three", "charge_post", "seed_bin", "soil_bin", "crop_crate", "grow_light_bar", "grow_light_glow", "rig_rail", "rig_hanger", "irrigation_boom", "ledge_cover", "robot_bench", "arm_monitor", "equipment_bench", "low_cabinet", "floor_socket", "bay_mark", "tool_bench", "vise", "work_stool", "spares_shelves", "spares_crate", "spares_box", "elec_bench", "oscilloscope", "bench_meter", "soldering_station", "parts_drawers", "pendant_lamp", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
+    "wall_lower_vent", "notice_board", "rail_bracket", "lock_console", "lock_gauge_panel", "vent_grille", "hose_coil", "tool_case", "storage_case", "tool_case", "supply_cart", "gas_cylinder", "floor_marking", "slippers", "cable_coil", "tea_towel", "beacon", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
     # the expedition camp's grounds (mars-build)
     "mast", "ground_cable",
     # the expedition camp habitat's

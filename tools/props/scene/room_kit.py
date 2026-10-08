@@ -596,6 +596,8 @@ def kinds_table(room, inventory):
             about["group"] = "hangs"
         if row.get("solid"):
             about["solid"] = True
+        if row.get("anchor") == "roof":  # stands on the roof, outside the shell (the airlock's beacon)
+            about["outside"] = True
         table[f"{room}_{row['id']}"] = about
     return table
 

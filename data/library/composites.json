@@ -781,6 +781,20 @@
 					0.32
 				],
 				"turn": 0.0
+			},
+			{
+				"kind": "habitat_storage_case",
+				"at": [
+					0.55,
+					1.75,
+					0.05
+				],
+				"size": [
+					0.5,
+					0.26,
+					0.36
+				],
+				"turn": 0.0
 			}
 		]
 	},
@@ -1177,6 +1191,34 @@
 					0.14
 				],
 				"turn": 0.0
+			},
+			{
+				"kind": "habitat_storage_case",
+				"at": [
+					-0.4,
+					2.0,
+					0.0
+				],
+				"size": [
+					0.5,
+					0.24,
+					0.34
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_ration_box",
+				"at": [
+					0.35,
+					2.0,
+					0.0
+				],
+				"size": [
+					0.22,
+					0.1,
+					0.15
+				],
+				"turn": 0.0
 			}
 		]
 	},
@@ -1409,6 +1451,34 @@
 					0.17
 				],
 				"turn": 15.0
+			},
+			{
+				"kind": "habitat_tea_towel",
+				"at": [
+					-0.55,
+					0.5,
+					-0.34
+				],
+				"size": [
+					0.2,
+					0.38,
+					0.03
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_tea_towel",
+				"at": [
+					-0.8,
+					0.5,
+					-0.34
+				],
+				"size": [
+					0.2,
+					0.38,
+					0.03
+				],
+				"turn": 0.0
 			}
 		]
 	},
@@ -2783,6 +2853,144 @@
 					0.4
 				],
 				"turn": 0.0
+			}
+		]
+	},
+	"habitat_locker_bank": {
+		"children": [
+			{
+				"kind": "habitat_tool_case",
+				"at": [
+					0.42,
+					2.0,
+					0.0
+				],
+				"size": [
+					0.42,
+					0.22,
+					0.3
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_food_tin",
+				"at": [
+					-0.18,
+					2.0,
+					0.02
+				],
+				"size": [
+					0.13,
+					0.17,
+					0.13
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_food_tin",
+				"at": [
+					-0.42,
+					2.0,
+					-0.04
+				],
+				"size": [
+					0.13,
+					0.17,
+					0.13
+				],
+				"turn": 0.0
+			}
+		]
+	},
+	"habitat_supply_cart": {
+		"children": [
+			{
+				"kind": "habitat_food_jug",
+				"at": [
+					0.2,
+					0.78,
+					0.0
+				],
+				"size": [
+					0.18,
+					0.26,
+					0.14
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_med_bottle",
+				"at": [
+					-0.02,
+					0.78,
+					0.08
+				],
+				"size": [
+					0.06,
+					0.14,
+					0.06
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_med_bottle",
+				"at": [
+					-0.1,
+					0.78,
+					-0.06
+				],
+				"size": [
+					0.06,
+					0.14,
+					0.06
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_food_tin",
+				"at": [
+					-0.25,
+					0.78,
+					0.04
+				],
+				"size": [
+					0.13,
+					0.17,
+					0.13
+				],
+				"turn": 0.0
+			},
+			{
+				"kind": "habitat_tool_case",
+				"at": [
+					0.0,
+					0.18,
+					0.0
+				],
+				"size": [
+					0.42,
+					0.22,
+					0.3
+				],
+				"turn": 0.0
+			}
+		]
+	},
+	"airlock_suit_bench": {
+		"children": [
+			{
+				"kind": "airlock_tool_case",
+				"at": [
+					0.42,
+					0.51,
+					0.02
+				],
+				"size": [
+					0.3,
+					0.08,
+					0.18
+				],
+				"turn": 8.0
 			}
 		]
 	}

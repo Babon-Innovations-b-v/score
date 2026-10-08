@@ -158,12 +158,12 @@
 				"pin"
 			],
 			"built": {
-				"back": 0.051,
-				"board": 0.409,
-				"frame": 0.714,
+				"back": 0.077,
+				"board": 0.333,
+				"frame": 0.708,
 				"note": 1.0,
 				"pin": 0.95,
-				"sheet": 1.0
+				"sheet": 0.994
 			},
 			"prints_off": []
 		},
@@ -179,10 +179,10 @@
 			],
 			"built": {
 				"bolt": 1.0,
-				"face": 0.7,
-				"patch": 1.0,
+				"face": 0.65,
+				"patch": 0.975,
 				"rivet": 1.0,
-				"slab": 0.326,
+				"slab": 0.302,
 				"stencil": 1.0
 			},
 			"prints_off": []
@@ -309,11 +309,11 @@
 			],
 			"built": {
 				"bezel": 0.873,
-				"button": 1.0,
-				"handle": 0.599,
-				"housing": 0.644,
-				"label": 1.0,
-				"monitor": 1.0,
+				"button": 0.87,
+				"handle": 0.556,
+				"housing": 0.543,
+				"label": 0.933,
+				"monitor": 0.955,
 				"screen": 0.907,
 				"status_screen": 0.884
 			},
@@ -981,7 +981,28 @@
 				"switch",
 				"stripe",
 				"label"
-			]
+			],
+			"built": {
+				"bezel": 0.751,
+				"control_panel": 0.951,
+				"display": 0.818,
+				"keypad": 1.0,
+				"label": 1.0,
+				"mattress": 0.416,
+				"reading_lamp": 0.709,
+				"reading_lamp_lens": 0.978,
+				"rim": 0.99,
+				"screen": 0.884,
+				"screen_unit": 0.433,
+				"seal": 0.384,
+				"shell": 0.806,
+				"strip_lamp": 0.309,
+				"strip_lamp_lens": 0.553,
+				"stripe": 0.671,
+				"switch": 1.0,
+				"vent": 0.471
+			},
+			"prints_off": []
 		},
 		"pillow": {
 			"closeup": "modules-r6/pics/pillow.png",
@@ -1004,7 +1025,21 @@
 				"hasp",
 				"label",
 				"sticker"
-			]
+			],
+			"built": {
+				"carcass": 0.347,
+				"door": 0.931,
+				"handle": 1.0,
+				"hasp": 1.0,
+				"hinge": 0.736,
+				"label": 1.0,
+				"louvre": 0.974,
+				"louvre_back": 0.884,
+				"plinth": 0.56,
+				"standoff": 0.676,
+				"sticker": 1.0
+			},
+			"prints_off": []
 		},
 		"food_shelf": {
 			"closeup": "modules1/closeups/habitat/food_shelf.png",
@@ -1015,7 +1050,17 @@
 				"shelf",
 				"lip",
 				"plinth"
-			]
+			],
+			"built": {
+				"back": 0.707,
+				"divider": 0.803,
+				"lip": 0.96,
+				"plinth": 0.493,
+				"shelf": 0.763,
+				"side": 0.882,
+				"top": 0.974
+			},
+			"prints_off": []
 		},
 		"food_jug": {
 			"closeup": "modules-r6/pics/food_jug.png",
@@ -1024,7 +1069,14 @@
 				"handle",
 				"cap",
 				"label"
-			]
+			],
+			"built": {
+				"body": 0.836,
+				"cap": 0.672,
+				"handle": 0.621,
+				"label": 1.0
+			},
+			"prints_off": []
 		},
 		"food_tin": {
 			"closeup": "modules-r6/pics/food_tin.png",
@@ -1032,7 +1084,13 @@
 				"body",
 				"lid",
 				"label"
-			]
+			],
+			"built": {
+				"body": 0.757,
+				"label": 1.0,
+				"lid": 0.635
+			},
+			"prints_off": []
 		},
 		"ration_box": {
 			"closeup": "modules-r6/pics/ration_box.png",
@@ -1040,7 +1098,13 @@
 				"box",
 				"lid",
 				"label"
-			]
+			],
+			"built": {
+				"box": 0.721,
+				"label": 1.0,
+				"lid": 0.603
+			},
+			"prints_off": []
 		},
 		"med_cabinet": {
 			"closeup": "modules1/closeups/habitat/med_cabinet.png",
@@ -1052,7 +1116,19 @@
 				"handle",
 				"label",
 				"note"
-			]
+			],
+			"built": {
+				"carcass": 0.379,
+				"door": 0.988,
+				"glass": 0.897,
+				"glass_door": 0.891,
+				"handle": 1.0,
+				"label": 1.0,
+				"note": 1.0,
+				"shelf": 0.0,
+				"standoff": 0.676
+			},
+			"prints_off": []
 		},
 		"med_box": {
 			"closeup": "modules-r6/pics/med_box.png",
@@ -1060,7 +1136,13 @@
 				"box",
 				"band",
 				"label"
-			]
+			],
+			"built": {
+				"band": 0.287,
+				"box": 0.746,
+				"label": 1.0
+			},
+			"prints_off": []
 		},
 		"med_bottle": {
 			"closeup": "modules-r6/pics/med_bottle.png",
@@ -1068,7 +1150,13 @@
 				"bottle",
 				"cap",
 				"band"
-			]
+			],
+			"built": {
+				"band": 0.524,
+				"bottle": 0.452,
+				"cap": 0.733
+			},
+			"prints_off": []
 		},
 		"hygiene_cubicle": {
 			"closeup": "modules1/closeups/habitat/hygiene_cubicle.png",
@@ -1094,7 +1182,35 @@
 				"label",
 				"note",
 				"sheet"
-			]
+			],
+			"built": {
+				"bezel": 0.906,
+				"door": 0.488,
+				"grab_rail": 0.716,
+				"handle": 0.774,
+				"keypad": 1.0,
+				"keypad_screen": 0.739,
+				"keypad_unit": 0.808,
+				"label": 0.64,
+				"lamp": 0.677,
+				"lamp_lens": 0.513,
+				"mirror": 0.977,
+				"note": 0.94,
+				"panel": 0.574,
+				"post": 0.574,
+				"rim": 0.616,
+				"seam": 0.556,
+				"sheet": 1.0,
+				"shelf": 0.467,
+				"sill": 0.962,
+				"sink": 0.319,
+				"stripe": 0.522,
+				"tap": 0.576,
+				"track": 1.0,
+				"trap": 0.23,
+				"tray": 0.579
+			},
+			"prints_off": []
 		},
 		"galley_counter": {
 			"closeup": "modules1/closeups/habitat/galley_counter.png",
@@ -1117,7 +1233,28 @@
 				"burner",
 				"induction_plate",
 				"splashback"
-			]
+			],
+			"built": {
+				"burner": 0.478,
+				"carcass": 0.198,
+				"door": 0.952,
+				"drain": 0.493,
+				"drawer": 1.0,
+				"handle": 1.0,
+				"hinge": 0.867,
+				"hob": 0.359,
+				"induction_plate": 0.525,
+				"label": 1.0,
+				"latch": 0.957,
+				"plinth": 0.587,
+				"sink": 0.464,
+				"splashback": 0.89,
+				"standoff": 0.534,
+				"tap": 0.839,
+				"tap_handle": 0.767,
+				"top": 0.514
+			},
+			"prints_off": []
 		},
 		"mess_table": {
 			"closeup": "modules1/closeups/habitat/mess_table.png",
@@ -1127,7 +1264,15 @@
 				"leg",
 				"foot",
 				"label"
-			]
+			],
+			"built": {
+				"edge": 0.602,
+				"foot": 0.688,
+				"label": 1.0,
+				"leg": 0.942,
+				"top": 0.962
+			},
+			"prints_off": []
 		},
 		"stool": {
 			"closeup": "modules1/closeups/habitat/stool.png",
@@ -1139,7 +1284,17 @@
 				"base",
 				"foot_ring",
 				"stay"
-			]
+			],
+			"built": {
+				"base": 0.494,
+				"collar": 0.388,
+				"column": 0.709,
+				"cushion": 0.538,
+				"foot_ring": 0.862,
+				"seat_pan": 0.542,
+				"stay": 0.866
+			},
+			"prints_off": []
 		},
 		"exam_couch": {
 			"closeup": "modules1/closeups/habitat/exam_couch.png",
@@ -1152,7 +1307,18 @@
 				"back_pad",
 				"back_strut",
 				"label"
-			]
+			],
+			"built": {
+				"back_pad": 0.919,
+				"back_strut": 0.915,
+				"foot": 0.722,
+				"frame": 0.695,
+				"label": 1.0,
+				"leg": 0.949,
+				"pad": 0.792,
+				"stretcher": 0.673
+			},
+			"prints_off": []
 		},
 		"light_ring": {
 			"closeup": "modules1/closeups/habitat/light_ring.png",
@@ -1164,7 +1330,18 @@
 				"lens",
 				"shackle",
 				"rod"
-			]
+			],
+			"built": {
+				"bead": 0.585,
+				"bolt": 0.62,
+				"canopy": 1.0,
+				"lens": 0.783,
+				"ring": 0.923,
+				"rod": 0.894,
+				"shackle": 0.504,
+				"socket": 0.444
+			},
+			"prints_off": []
 		},
 		"pot": {
 			"closeup": "modules-r6/pics/pot.png",
@@ -1173,14 +1350,26 @@
 				"rim",
 				"handle",
 				"handle_plate"
-			]
+			],
+			"built": {
+				"body": 0.619,
+				"handle": 0.868,
+				"handle_plate": 0.454,
+				"rim": 0.661
+			},
+			"prints_off": []
 		},
 		"couch_pillow": {
 			"closeup": "modules-r6/pics/couch_pillow.png",
 			"parts": [
 				"pillow",
 				"seam"
-			]
+			],
+			"built": {
+				"pillow": 0.947,
+				"seam": 0.1
+			},
+			"prints_off": []
 		},
 		"door_frame": {
 			"closeup": "modules1/closeups/airlock/door_frame.png",
@@ -1196,7 +1385,7 @@
 				"flange": 0.5,
 				"frame": 0.758,
 				"lip": 1.0,
-				"stripe": 0.924,
+				"stripe": 0.928,
 				"architrave": 1.0,
 				"head": 0.692,
 				"jamb": 0.816
@@ -1328,7 +1517,7 @@
 			"built": {
 				"bezel": 0.764,
 				"button": 1.0,
-				"cable": 0.745,
+				"cable": 0.759,
 				"estop": 0.942,
 				"gauge": 0.703,
 				"gland": 0.656,
@@ -1365,18 +1554,18 @@
 				"louvre_frame"
 			],
 			"built": {
-				"blade": 0.919,
-				"case": 0.767,
-				"grille": 0.846,
-				"hub": 0.418,
+				"blade": 0.924,
+				"case": 0.787,
+				"grille": 0.835,
+				"hub": 0.4,
 				"label": 1.0,
-				"louvre": 0.515,
-				"louvre_back": 0.231,
-				"louvre_frame": 0.616,
-				"plate": 1.0,
+				"louvre": 0.551,
+				"louvre_back": 0.321,
+				"louvre_frame": 0.603,
+				"plate": 0.977,
 				"screw": 1.0,
 				"sheet": 1.0,
-				"shroud": 0.479,
+				"shroud": 0.453,
 				"sticker": 1.0
 			},
 			"prints_off": []
@@ -1389,7 +1578,15 @@
 				"tab",
 				"screw",
 				"label"
-			]
+			],
+			"built": {
+				"housing": 0.875,
+				"label": 1.0,
+				"lens": 0.86,
+				"screw": 0.949,
+				"tab": 0.885
+			},
+			"prints_off": []
 		},
 		"hull_patch": {
 			"closeup": "modules1/closeups/tube/hull_patch.png",
@@ -1397,7 +1594,13 @@
 				"plate",
 				"weld",
 				"tape"
-			]
+			],
+			"built": {
+				"plate": 0.867,
+				"tape": 1.0,
+				"weld": 1.0
+			},
+			"prints_off": []
 		},
 		"sign_plate": {
 			"closeup": "modules1/closeups/tube/sign_plate.png",
@@ -1405,7 +1608,13 @@
 				"plate",
 				"label",
 				"bolt"
-			]
+			],
+			"built": {
+				"bolt": 1.0,
+				"label": 1.0,
+				"plate": 0.636
+			},
+			"prints_off": []
 		},
 		"end_mat": {
 			"closeup": "modules1/closeups/tube/end_mat.png",
@@ -1414,7 +1623,14 @@
 				"base",
 				"bar",
 				"stencil"
-			]
+			],
+			"built": {
+				"bar": 0.996,
+				"base": 0.846,
+				"frame": 0.873,
+				"stencil": 1.0
+			},
+			"prints_off": []
 		},
 		"mast": {
 			"closeup": "mars-build/grounds/pics/sources/mast.png",
@@ -3583,6 +3799,231 @@
 				"post": 0.805,
 				"rail": 0.604,
 				"shelf": 0.833
+			},
+			"prints_off": []
+		},
+		"beacon": {
+			"closeup": "modules-r6/pics/beacon-crop.png",
+			"parts": [
+				"flange",
+				"body",
+				"rim",
+				"dome",
+				"socket",
+				"bolt"
+			],
+			"built": {
+				"body": 0.449,
+				"bolt": 0.526,
+				"dome": 0.862,
+				"flange": 0.622,
+				"rim": 0.301,
+				"socket": 0.823
+			},
+			"prints_off": []
+		},
+		"storage_case": {
+			"closeup": "modules-r6/pics/storage_case-crop.png",
+			"parts": [
+				"body",
+				"lid",
+				"latch",
+				"label"
+			],
+			"built": {
+				"body": 0.691,
+				"label": 1.0,
+				"latch": 1.0,
+				"lid": 0.644
+			},
+			"prints_off": []
+		},
+		"tool_case": {
+			"closeup": "modules-r6/pics/tool_case-crop.png",
+			"parts": [
+				"body",
+				"lid",
+				"latch",
+				"label",
+				"handle"
+			],
+			"built": {
+				"body": 0.712,
+				"handle": 0.594,
+				"label": 1.0,
+				"latch": 1.0,
+				"lid": 0.532
+			},
+			"prints_off": []
+		},
+		"supply_cart": {
+			"closeup": "modules-r6/pics/supply_cart-crop.png",
+			"parts": [
+				"post",
+				"shelf",
+				"lip",
+				"handle",
+				"caster"
+			],
+			"built": {
+				"caster": 0.679,
+				"handle": 0.531,
+				"lip": 0.724,
+				"post": 0.875,
+				"shelf": 0.891
+			},
+			"prints_off": []
+		},
+		"gas_cylinder": {
+			"closeup": "modules-r6/pics/gas_cylinder-crop.png",
+			"parts": [
+				"body",
+				"shoulder",
+				"foot",
+				"collar",
+				"valve"
+			],
+			"built": {
+				"body": 0.692,
+				"collar": 0.242,
+				"foot": 0.573,
+				"shoulder": 0.406,
+				"valve": 0.782
+			},
+			"prints_off": []
+		},
+		"floor_marking": {
+			"closeup": "modules-r6/pics/floor_marking-crop.png",
+			"parts": [
+				"plate",
+				"line"
+			],
+			"built": {
+				"line": 1.0,
+				"plate": 0.902
+			},
+			"prints_off": []
+		},
+		"slippers": {
+			"closeup": "modules-r6/pics/floor_marking-crop.png",
+			"parts": [
+				"slipper"
+			],
+			"built": {
+				"slipper": 0.723
+			},
+			"prints_off": []
+		},
+		"cable_coil": {
+			"closeup": "modules-r6/pics/cable_coil-crop.png",
+			"parts": [
+				"hook",
+				"coil"
+			],
+			"built": {
+				"coil": 0.839,
+				"hook": 0.645
+			},
+			"prints_off": []
+		},
+		"tea_towel": {
+			"closeup": "modules-r6/pics/tea_towel-crop.png",
+			"parts": [
+				"cloth"
+			],
+			"built": {
+				"cloth": 0.86
+			},
+			"prints_off": []
+		},
+		"lock_console": {
+			"closeup": "modules-r6/pics/lock_console-crop.png",
+			"parts": [
+				"housing",
+				"monitor",
+				"screen",
+				"readout",
+				"gauge",
+				"needle",
+				"keypad",
+				"button",
+				"estop"
+			],
+			"built": {
+				"bezel": 0.889,
+				"button": 1.0,
+				"estop": 1.0,
+				"gauge": 0.769,
+				"housing": 0.804,
+				"keypad": 1.0,
+				"monitor": 0.449,
+				"needle": 1.0,
+				"readout": 1.0,
+				"screen": 0.9
+			},
+			"prints_off": []
+		},
+		"lock_gauge_panel": {
+			"closeup": "modules-r6/pics/lock_gauge_panel-crop.png",
+			"parts": [
+				"plate",
+				"meter",
+				"needle",
+				"switch",
+				"button",
+				"label"
+			],
+			"built": {
+				"button": 1.0,
+				"label": 1.0,
+				"meter": 0.602,
+				"needle": 1.0,
+				"plate": 0.945,
+				"switch": 1.0
+			},
+			"prints_off": []
+		},
+		"vent_grille": {
+			"closeup": "modules-r6/pics/vent_grille-crop.png",
+			"parts": [
+				"frame",
+				"louvre",
+				"louvre_back",
+				"screw"
+			],
+			"built": {
+				"frame": 0.556,
+				"louvre": 0.972,
+				"louvre_back": 0.767,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"hose_coil": {
+			"closeup": "modules-r6/pics/hose_coil-crop.png",
+			"parts": [
+				"hook",
+				"coil"
+			],
+			"built": {
+				"coil": 0.783,
+				"hook": 0.667
+			},
+			"prints_off": []
+		},
+		"rail_bracket": {
+			"closeup": "modules-r6/pics/rail_bracket-crop.png",
+			"parts": [
+				"foot",
+				"bolt",
+				"arm",
+				"cradle"
+			],
+			"built": {
+				"arm": 0.272,
+				"bolt": 0.881,
+				"cradle": 0.868,
+				"foot": 0.812
 			},
 			"prints_off": []
 		}

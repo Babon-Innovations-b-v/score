@@ -13,6 +13,7 @@ comes back to where it says. The owner's limits, the self-delete, the watchdog a
 """
 import argparse
 import json
+import os
 import pathlib
 import shlex
 import subprocess
@@ -177,7 +178,9 @@ def main():
     batch.stop_on_signals()
     import pictures
     started = time.time()
-    run_folder = batch.BATCHES / time.strftime("library-%Y%m%d-%H%M%S")
+    # The process number too: two bakes started in the same second (one a room, at once) took one folder and the
+    # second stopped (modules round, 2026-10-08).
+    run_folder = batch.BATCHES / (time.strftime("library-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
     run_folder.mkdir(parents=True)
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
     machines = []

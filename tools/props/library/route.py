@@ -6,6 +6,7 @@ way end to end, as the route would run for a new room).
     $python tools/props/library/route.py layout <kit layout> <work>     # the game's layout over the made models
     $python tools/props/library/route.py install <work> <room>          # the made models into the game
     $python tools/props/library/route.py fittings <work>                # method B's check: the fittings' parts seen
+    $python tools/props/library/route.py precheck <work>                # the model check on the code models, pre-bake
 
 `plan` sorts every kind of the room's kit layout (tools/props/scene/hub_kit.py writes it: where every piece stands,
 as its kind) by sorter.py and makes one model per kind and size (and per what a piece of it shows: a door's label,
@@ -128,7 +129,7 @@ def bearing_of(laid):
 
 # What a laid piece shows that its code-built model is made with (a print's picture and frame, a plaster wall's dado
 # band, a rail's rise: the prologue build).
-SHOWN = ("taper", "treads", "openings", "arc", "material", "print", "frame", "dado", "rises_to")
+SHOWN = ("taper", "treads", "openings", "arc", "material", "print", "frame", "dado", "rises_to", "label")
 
 
 def shows(kind, laid):
@@ -252,7 +253,8 @@ def jobs(planned, takes, work, place):
         chunky.append({"name": name, "parts": str(takes[own_name(entry["kind"])]),
                        "base": own["turn"], "size": entry["size"], "screens": own.get("screens", []),
                        "cuts": own.get("cuts", []), "density": density_of(entry),
-                       "decals": own.get("decals", []), "foot": entry.get("foot"), "faces": faces_for(entry["size"])})
+                       "decals": own.get("decals", []), "foot": entry.get("foot"), "faces": faces_for(entry["size"]),
+                       "regions": own.get("regions", [])})
         if "wall" in own:  # a piece of thin rails and hooks closed thicker, so its solid copy keeps a 3 mm wall
             chunky[-1]["wall"] = own["wall"]
     if chunky:
@@ -385,8 +387,12 @@ def screen_piece(host, screen, model):
     """A generated piece's screen as a glowing part of its own on the host's front, at the depth the bake found."""
     wide, tall = screen["size"]
     deep = 0.012
-    low = [screen["at"][0] - wide / 2, screen["at"][1] - tall / 2, screen["surface"] - deep]
-    high = [screen["at"][0] + wide / 2, screen["at"][1] + tall / 2, screen["surface"]]
+    if screen.get("facing") == "down":  # a hanging lamp's lens: under the piece, `at` its (x, z), `size` wide by long
+        low = [screen["at"][0] - wide / 2, screen["surface"] - deep, screen["at"][1] - tall / 2]
+        high = [screen["at"][0] + wide / 2, screen["surface"], screen["at"][1] + tall / 2]
+    else:
+        low = [screen["at"][0] - wide / 2, screen["at"][1] - tall / 2, screen["surface"] - deep]
+        high = [screen["at"][0] + wide / 2, screen["at"][1] + tall / 2, screen["surface"]]
     found = placed_at(host, low, high)
     found.update(model=model, part="screen")
     found.pop("scored", None)
@@ -517,7 +523,7 @@ def game_layout(layout, planned, reports, checks):
     for found in pieces:
         if "part" not in found:
             counts[found["kind"]] = counts.get(found["kind"], 0) + 1
-    kinds = {kind: {key: value for key, value in about.items() if key in ("group", "light", "solid")}
+    kinds = {kind: {key: value for key, value in about.items() if key in ("group", "light", "solid", "outside")}
              for kind, about in layout["kinds"].items() if kind in counts}
     room = {key: value for key, value in layout.items() if key not in ("pieces", "counts", "kinds")}
     return dict(room, counts=counts, kinds=kinds, models=models, pieces=pieces), held_back
@@ -702,6 +708,32 @@ def record_fittings(reports, path=sorter.FITTINGS):
     return {kind: sorter.missing_parts(data["fittings"][kind]) for kind in built}
 
 
+def precheck(work):
+    """The model check (gates/model.py: thinnest wall, proportions) on every code model of a plan, built here as
+    geometry alone (inside/build_only.py, headless Blender, no bake), before anything is paid for (modules round,
+    2026-10-07: five builds failed on walls under 3 mm only after their bake, a band laid 2 mm proud of what it wraps
+    or a stripe sunk into its plate). {model: its thinnest wall} for each under the limit."""
+    import subprocess
+    import tempfile
+
+    import trimesh
+    import model as model_check
+    with tempfile.TemporaryDirectory() as folder:
+        subprocess.run(["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=16G", "python3",
+                        str(REPO / "tools/blender/session.py"), "batch", str(HERE / "inside/build_only.py"), "--",
+                        str(REPO), str(work / "plan.json"), folder], check=True, capture_output=True)
+        planned = json.loads((work / "plan.json").read_text())["models"]
+        failed = {}
+        for path in sorted(pathlib.Path(folder).glob("*.glb")):
+            mesh = trimesh.load(path, force="mesh")
+            # Judged at its own built size: the layout lays a code model at its own box (a bracket's clamp past its
+            # plate), so only the walls are in question here, never its proportions.
+            thinnest = model_check.thinnest(mesh, mesh.extents)
+            if thinnest < model_check.THINNEST_LIMIT:
+                failed[path.stem] = round(thinnest, 4)
+    return failed
+
+
 def main():
     if len(sys.argv) < 3:
         raise SystemExit(__doc__)
@@ -739,6 +771,11 @@ def main():
         reports = [json.loads(path.read_text()) for path in sorted((pathlib.Path(sys.argv[2]) / "made").glob("report*.json"))]
         for kind, missing in sorted(record_fittings(reports).items()):
             print(kind, "code" if not missing else f"pipeline: missing {', '.join(missing)}")
+    elif step == "precheck":
+        failed = precheck(pathlib.Path(sys.argv[2]))
+        print("code models failing the model check before the bake:", failed or "none")
+        if failed:
+            raise SystemExit(1)
     elif step == "imports":
         print(picture_imports(sys.argv[2]), "picture imports set to BC7")
     else:

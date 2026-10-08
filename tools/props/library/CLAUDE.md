@@ -67,6 +67,10 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   one).
 - **A piece of thin rails and open shelves may close thicker** (`details.json` `wall`, `make_chunky.solid_copy`): the
   solid step's 5 mm left berths, shelves and an alcove's rails under the model check's 3 mm (modules batch one).
+- **The model check before the bake** (`route.py precheck <work>`, modules round): every code model of a plan is built
+  here as geometry alone (`inside/build_only.py`, headless Blender, no bake, no render) and given the model check;
+  run it after `plan` and before any bake (five builds failed on 2 mm walls only after their bake: a band laid 2 mm
+  proud of what it wraps reads as a 2 mm wall, so a band, tape or stripe stands 4 mm proud or sits on its face).
 - **Pipe runs** (step 0 of the modules round, 2026-10-07): a wall pipe run's axis stands `pieces.PIPE_AXIS` (8 cm) off
   the wall, its bracket and valve on the wall behind it; the layout cuts a straight pipe at every inline valve
   (`hub_kit.split_at_fittings`), never through it.

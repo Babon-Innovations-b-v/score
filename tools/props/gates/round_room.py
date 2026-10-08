@@ -188,14 +188,19 @@ def main():
     kit = json.loads(options.layout.read_text())
     pieces = room.placed(kit, unit_box if options.boxes else room.models_in(*options.models))
     solid_kinds = {kind for kind, about in kit["kinds"].items() if about.get("solid")}
-    solids = [(index, kind, mesh) for index, kind, mesh in pieces if kind in solid_kinds]
+    # What stands on the roof outside (the airlock's beacon) is not judged against the skin.
+    outside = {kind for kind, about in kit["kinds"].items() if about.get("outside")}
+    # A solid piece's glowing part (its screen, its lamp's lens) is its own, never a second piece crowding it.
+    solids = [(index, kind, mesh) for index, kind, mesh in pieces
+              if kind in solid_kinds and "part" not in kit["pieces"][index]]
     outer = skin(layout)
     # A doorway the game shuts with a node of its own, or an open one a tube joins (the workshop's west, to the
     # corridor): a ray through it leaves into the next room, not out through a gap.
     shut_by_game = [name for name, kind in layout["doors"].items() if kind != "hatch" or name in layout.get("open", [])]
     report = {"room": options.room, "pieces": len(pieces), "of": len(kit["pieces"]),
               "leaks": leaks(layout, pieces, outer, shut_by_game, [mesh for _, _, mesh in solids]),
-              "envelope": envelope(pieces, outer), "doorways": in_doorways(layout, pieces, layout["doors"]),
+              "envelope": envelope([piece for piece in pieces if piece[1] not in outside], outer),
+              "doorways": in_doorways(layout, pieces, layout["doors"]),
               "crowding": crowding(solids)}
     text = json.dumps(report, indent=1)
     if options.report:

@@ -21,6 +21,10 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   grid at walking height over the wall-like pieces, every door and every listed doorway (`doorways`) shut: no path
   from one side of a door to the other. A screen without a door is not judged. Run on the kit layout before any
   spend; a door with a way round fails the place.
+- `density.py` (the owner, 2026-10-08, on the lab: "lost a massive amount of detail"): the inventory's
+  `concept_elements` list every element the picked concept shows, crop by crop, each a row (or a part of one) or
+  dropped with a reason; the kit layout must lay each row as often as the concept shows it. Run before any spend; the
+  built room is then drawn from the concept's own camera beside the concept on the place's page.
 - trimesh with embree (`embreex`, `rtree` in the prop environment); a whole room takes about 2 s. Every run goes
   under `systemd-run --user --scope -q -p MemoryMax=16G`.
 - Checks: `gates_test.py` (hands itself to the prop environment).

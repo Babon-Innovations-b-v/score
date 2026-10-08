@@ -91,6 +91,26 @@ def into_kit_frame(whole, base, size):
     whole.data.update()
 
 
+def regioned(whole, regions):
+    """The full model's faces inside each region's box given its region's library variant (details.json `regions`:
+    [{"box": [x0, y0, z0, x1, y1, z1] in the kit frame at the laid size, "variant"}], later ones over earlier ones):
+    what labelling by the picture's colour cannot tell apart (the lab, 2026-10-08: a chair's grey vinyl seat read as
+    its cast steel frame, a glovebox's window as its painted panel)."""
+    for region in regions:
+        low, high = region["box"][:3], region["box"][3:]
+        names = [slot.name for slot in whole.data.materials]
+        if region["variant"] not in names:
+            whole.data.materials.append(shapes.slot(region["variant"]))
+            names.append(region["variant"])
+        index = names.index(region["variant"])
+        for face in whole.data.polygons:
+            middle = face.center
+            kit = (middle.x, middle.z, -middle.y)
+            if all(low[axis] <= kit[axis] <= high[axis] for axis in range(3)):
+                face.material_index = index
+    whole.data.update()
+
+
 def solid_copy(whole, faces, name, size, wall=WALL):
     """A closed, solid copy of the full model with about `faces` triangles: thickened, rebuilt on a voxel grid,
     cut down."""
@@ -135,6 +155,15 @@ def surface_at(tree, x, y, size, footprint=(0.0, 0.0)):
     return min(found)
 
 
+def surface_under(tree, x, z, size):
+    """How high the model's underside is at (x, z) in the kit frame: a ray from under its foot straight up; None when
+    the model is not over that point. Where a lens facing down is laid (a hanging lamp's, the lab 2026-10-08: lamps
+    whose lens faces the floor did not glow, a screen is only ever laid on a piece's front)."""
+    start = shapes.to_blender((x, -0.05, z))
+    hit = tree.ray_cast(start, shapes.to_blender((0.0, 1.0, 0.0)), size[1] + 0.1)[0]
+    return None if hit is None else hit.z
+
+
 def opened(item, cuts, size):
     """The piece's openings cut through it: boxes and circles in the kit frame (x across, y up), through its depth."""
     deep = max(size) * 2
@@ -153,12 +182,14 @@ def make_piece(entry, job, out):
     began = time.time()
     whole = full_model(entry["parts"], entry["name"])
     into_kit_frame(whole, entry["base"], entry["size"])
+    regioned(whole, entry.get("regions", []))
     low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"], entry.get("wall", WALL))
     opened(low, entry.get("cuts", []), entry["size"])
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
     tree = BVHTree.FromObject(low, bpy.context.evaluated_depsgraph_get())
-    screens = [dict(screen, surface=surface_at(tree, *screen["at"], entry["size"], screen["size"]))
+    screens = [dict(screen, surface=surface_under(tree, *screen["at"], entry["size"]) if screen.get("facing") == "down"
+                    else surface_at(tree, *screen["at"], entry["size"], screen["size"]))
                for screen in entry.get("screens", [])]
     screens = [screen for screen in screens if screen["surface"] is not None]
     decals = [clear_spot(tree, decal, entry["size"]) for decal in entry.get("decals", [])]
@@ -181,14 +212,24 @@ def make_piece(entry, job, out):
 # tool. Its footprint is probed on a 4 x 4 grid; the face under it may step in or out at most FLAT_UNDER (a generated
 # surface's own noise), and when it does not, the nearest clear spot within SHIFTS of where it was asked is taken.
 FLAT_UNDER = 0.003
-SHIFTS = [(0.0, 0.0)] + [(across * step, up * step) for step in (0.02, 0.04, 0.07, 0.1)
-                         for across, up in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1))]
+# The spots tried, nearest first: every point of a SHIFT_STEP grid within SHIFT_REACH of where the decal was asked (the
+# lab, 2026-10-08: eight ways at four distances missed flat spots a 1 cm scan of the same model found, and labels were
+# dropped).
+SHIFT_STEP = 0.01
+SHIFT_REACH = 0.15
+SHIFTS = sorted(((across * SHIFT_STEP, up * SHIFT_STEP)
+                 for across in range(-round(SHIFT_REACH / SHIFT_STEP), round(SHIFT_REACH / SHIFT_STEP) + 1)
+                 for up in range(-round(SHIFT_REACH / SHIFT_STEP), round(SHIFT_REACH / SHIFT_STEP) + 1)
+                 if math.hypot(across, up) * SHIFT_STEP <= SHIFT_REACH + 1e-9), key=lambda shift: math.hypot(*shift))
 
 
 def clear_spot(tree, decal, size):
-    """The decal at the nearest clear flat spot (its `at` and `surface`), or with `surface` None when there is none."""
+    """The decal at the nearest clear flat spot (its `at` and `surface`), or with `surface` None when there is none:
+    its footprint wholly on the piece's front, within the piece's width and height."""
     (x, y), (wide, tall) = decal["at"], decal["size"]
     for shift_x, shift_y in SHIFTS:
+        if abs(x + shift_x) + wide / 2 > size[0] / 2 or not tall / 2 <= y + shift_y <= size[1] - tall / 2:
+            continue
         depths = []
         for across in (-0.4, -0.13, 0.13, 0.4):
             for up in (-0.4, -0.13, 0.13, 0.4):

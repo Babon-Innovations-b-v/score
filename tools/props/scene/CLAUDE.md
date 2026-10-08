@@ -32,7 +32,8 @@ serve: skill `make-scene`, bible "How a scene is designed".
   a look-pick take is worded by hand (`marble.py --look --text`). `inventory.py` is the shape of
   a scene inventory and the shell hash; `placed.py` reads what every layer places in a scene
   today (layout, the room's scene, main.tscn's game nodes, the machines, the kit's wall fill, the
-  opening's constants, an outdoor place's made layout `data/kit/<place>.json`: the old station, the wreck); `match.py` holds migrated scenes to their inventory and prints the rest
+  opening's constants, an outdoor place's made layout `data/kit/<place>.json`: the old station, the wreck; a walkway
+  tube's kit layout, `kit_layout`); `match.py` holds migrated scenes to their inventory and prints the rest
   as a to-do list (`python3 tools/props/scene/match.py`). `cloud/scene.py` and `cloud/batch.py`
   refuse to run without an approved inventory and its place's style text.
 - `depth_pano.tscn --pano-ship` takes the ship's rooms instead (`ShipCabin.ROOMS`, #70), with the
