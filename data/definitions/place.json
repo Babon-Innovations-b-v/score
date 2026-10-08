@@ -1602,7 +1602,8 @@
 			"level": "worked",
 			"dirt": 0.4,
 			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
-		}
+		},
+		"game_only": "Kept in the game 2099: the lab's flat floor in the sim (SteppedFloor LAB) and the desk spots, the workstation's live screens, room shots."
 	},
 	"workshop": {
 		"name": "the workshop",
@@ -2104,7 +2105,8 @@
 		"light": {
 			"recorded": "2026-10-07, as the game has it: three street lamps (earth_site.tscn StreetLamps, dimmed each trip), the lamp under the street door's canopy and the light out of the open barber's (street_fittings.gd); the night's moonlight (night.gd)",
 			"read_by": "game/prologue/earth_site/earth_site.tscn, game/prologue/street_fittings/street_fittings.gd"
-		}
+		},
+		"game_only": "Kept in the game 2099: EarthSite's drawing of the kit, the night lights (EarthNight night_glow), the stairwell door's lamp and light, the barber's light, the state car and people; the washing on the drying racks waits for a close-up."
 	},
 	"prologue_square": {
 		"name": "the square below the balcony",
@@ -2270,7 +2272,8 @@
 		"light": {
 			"recorded": "2026-10-07, as the game has it (night.gd): a lamp at the head of every square lamp, the floodlight towers thrown on the square, the lamp on the leader, the moonlight",
 			"read_by": "game/prologue/earth_site/night/night.gd"
-		}
+		},
+		"game_only": "Kept in the game 2099: EarthSite's drawing of the kit and the night lights, the crowd and the stage event."
 	},
 	"prologue_launch": {
 		"name": "the launch view across the harbour",
@@ -2386,7 +2389,8 @@
 		"light": {
 			"recorded": "2026-10-07, as the game has it (night.gd): the rocket floodlit on its pad and its streak on the harbour, the moonlight",
 			"read_by": "game/prologue/earth_site/night/night.gd"
-		}
+		},
+		"game_only": "Kept in the game 2099: the rocket (the code-built LaunchRocket), the harbour water and the launch sequence."
 	},
 	"garage": {
 		"name": "the garage",
@@ -2578,7 +2582,8 @@
 			"dirt": 0.5,
 			"cause": "moon dust carried in on the rover's tyres every trip, oil and grease round the lift and the bench",
 			"picked": "2026-10-07, the coordinator, from its causes (owner may change)"
-		}
+		},
+		"game_only": "Kept in the game 2099 (JoeyKardolus/2099#130, not on the framework): the bay room and its big door's moving leaves (BayDomain air cycle: seal, pump down, open, and back), the sealing doors and air switches, the tubes to the greenhouse, the landed module record and old-save migration; rover customising has no gameplay yet."
 	},
 	"hangar": {
 		"name": "the hangar",
@@ -2770,6 +2775,7 @@
 			"dirt": 0.45,
 			"cause": "moon dust settling through the open roof on every launch and landing, scuffs from crates and the stair's wheels",
 			"picked": "2026-10-07, the coordinator, from its causes (owner may change)"
-		}
+		},
+		"game_only": "Kept in the game 2099 (JoeyKardolus/2099#130): the roof door's moving leaves and the bay's air cycle, the ship pad, ship bench and fuel point as game nodes (take-off refused under a shut roof), the ship itself; the crane trolley hangs with no bridge beam yet."
 	}
 }
