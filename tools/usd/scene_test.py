@@ -82,7 +82,7 @@ def check_lights_and_structure(folder):
     shine = UsdGeom.Xformable(spot).ComputeLocalToWorldTransform(Usd.TimeCode.Default()).TransformDir((0, 0, -1))
     expected = np.array([0.0, -2.0, -5.0]) / math.sqrt(29.0)
     assert np.allclose(np.asarray(shine) / np.linalg.norm(shine), expected, atol=1e-5), shine
-    sun = UsdLux.DistantLight(stage.GetPrimAtPath(f"/{PLACE}/Lights/light_3"))
+    sun = UsdLux.DistantLight(stage.GetPrimAtPath(f"/{PLACE}/Lights/sun_1"))
     strength = sun.GetIntensityAttr().Get() * scene.DISTANT_STRENGTH_PER_INTENSITY
     assert math.isclose(strength, scene.SUN_PER_ENERGY * 1.25, rel_tol=1e-6)
     down = UsdGeom.Xformable(sun).ComputeLocalToWorldTransform(Usd.TimeCode.Default()).TransformDir((0, 0, -1))

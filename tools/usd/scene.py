@@ -194,9 +194,13 @@ def write_places(stage, place, entries):
         xform.AddRotateYOp().Set(float(entry.get("yaw", 0.0)))
         for key, value in (("score:kind", "place"), ("score:place", entry["stage"]), ("score:from", entry.get("from", ""))):
             xform.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
-        # What this place draws itself (its ground, water, backdrop and sky) is left out of the one it shows.
+        # What this place draws itself (its ground, water, backdrop, sky and sun) is left out of the one it shows.
         for shared in ("Ground", "Terrain", "Water", "Backdrop", "Environment", "Places"):
             stage.OverridePrim(f"/{place}/Places/{entry['name']}/{shared}").SetActive(False)
+        shown = (record(entry["stage"]) or {}).get("lights", [])
+        for name, light in zip(light_names(shown), shown):
+            if light["type"] == "sun":
+                stage.OverridePrim(f"/{place}/Places/{entry['name']}/Lights/{name}").SetActive(False)
 
 
 def backdrop_material(stage, path, picture_file):
@@ -330,12 +334,21 @@ def kit_lights(kit, pieces):
     return found
 
 
+def light_names(entries):
+    """Each light's prim name: its own, else `sun_<n>` for the n-th sun or moon and `light_<n>` for the rest."""
+    names, suns = [], 0
+    for number, entry in enumerate(entries, start=1):
+        suns += entry["type"] == "sun"
+        names.append(entry.get("name") or (f"sun_{suns}" if entry["type"] == "sun" else f"light_{number}"))
+    return names
+
+
 def write_lights(stage, place, entries):
     if not entries:
         return
     UsdGeom.Scope.Define(stage, f"/{place}/Lights")
-    for number, entry in enumerate(entries, start=1):
-        write_light(stage, f"/{place}/Lights/{entry.get('name', f'light_{number}')}", entry)
+    for name, entry in zip(light_names(entries), entries):
+        write_light(stage, f"/{place}/Lights/{name}", entry)
 
 
 def write_environment(stage, place, environment):
