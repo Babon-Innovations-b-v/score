@@ -32,7 +32,7 @@ def _card_lock():
     job's card work (2026-09-30). So the prop chain's `paths.py` stands in while `card.py` loads,
     and the claim's path is checked.
     """
-    props = pathlib.Path(__file__).resolve().parents[1] / "props"
+    props = pathlib.Path(__file__).resolve().parents[2] / "props"
     crew_paths = sys.modules.get("paths")
     props_paths = _module_at("props_paths", props / "paths.py")
     sys.modules["paths"] = props_paths
