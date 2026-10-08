@@ -105,6 +105,43 @@ def test_every_part_takes_one_material_by_its_lit_colour():
     assert [names[index] for index in chosen] == ["steel", "seat"], [names[index] for index in chosen]
 
 
+def test_a_part_the_judge_named_takes_that_material():
+    """The judge's pick wins over the colour: a grey part named vinyl is vinyl."""
+    mesh = seat()
+    grey = labels.lab(np.array([0.55, 0.55, 0.55]))
+    colours = np.tile(grey, (len(mesh.faces), 1))
+    materials = {"vinyl": {"colour": [0.02, 0.03, 0.12]}, "steel": {"colour": [0.3, 0.3, 0.3]}}
+    part_of = np.zeros(len(mesh.faces), dtype=int)
+    chosen, about, names = labels.paint_parts(mesh, colours, part_of, materials)
+    assert names[chosen[0]] == "steel"
+    chosen, about, names = labels.paint_parts(mesh, colours, part_of, materials, {0: ("vinyl", "seat cushion")})
+    assert names[chosen[0]] == "vinyl" and about[0]["judged"] == "seat cushion"
+
+
+def test_a_lost_main_colour_is_stripped():
+    """Half the close-up gold, half white: painted all white it is stripped; gold where gold, it passes."""
+    mesh = seat()
+    gold, white = np.array([60.0, 5.0, 40.0]), np.array([78.0, 0.0, 1.0])
+    half = mesh.triangles_center[:, 0] < 0
+    colours = np.where(half[:, None], gold, white)
+    palettes = [white[None], gold[None]]
+    one = patchy.stripped(colours, np.zeros(len(mesh.faces), dtype=int), palettes, ["white", "gold"])
+    two = patchy.stripped(colours, half.astype(int), palettes, ["white", "gold"])
+    assert not one["pass"] and one["lost"][0]["painted"] == "white", one
+    assert two["pass"] and two["materials_seen"] == 2, two
+
+
+def test_a_worn_edge_is_wear_not_a_second_material():
+    """Faces whose colour the material round them explains (a worn edge showing bare metal) are that material."""
+    mesh = seat()
+    distances = np.zeros((len(mesh.faces), 2))
+    distances[:, 1] = 30.0
+    edge = (np.abs(mesh.triangles_center[:, 0]) > 0.235) & (np.abs(mesh.face_normals[:, 0]) < 0.5)  # a strip along
+    # the top's and bottom's edges
+    distances[edge] = [6.0, 2.0]  # nearer the second material, yet within the first's reach
+    assert (patchy.worn_as_around(mesh, distances) == 0).all()
+
+
 def test_the_route_refuses_patchy_labels():
     with tempfile.TemporaryDirectory() as folder:
         clean, patchy_folder = pathlib.Path(folder) / "clean", pathlib.Path(folder) / "patchy"

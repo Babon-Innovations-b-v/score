@@ -68,6 +68,14 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   every part ONE material from the kind's allowed list (`details.json` `materials`) by its lit colour; never per
   face. A split that does not register is reported and painted whole. `patchy.py` measures patchy paint (stray
   islands, mixed faces, soft seams; on a baked model also unbaked black) and `route.py plan` refuses patchy labels.
+- **A part's material is what the part is** (job repaint, 2026-10-08): `labels.py --ask` writes each seen part
+  outlined on the clean close-up with the object's name and the kind's allowed list (`part_judge.py`), the open judge
+  (`../cloud/judge.py`, Qwen3.8-27B) answers, `--answers` paints by it; colour picks only where the judge gave no usable
+  answer, and for finishes within a part (foil wraps, bands: `with_finishes`). The raw model faces the picture's camera
+  turned half round (`labels.VIEW_TURN`); without it every colour came from the model's back.
+- **Two checks, both must pass** (`route.py plan`): patchiness, and `patchy.stripped` (the close-up's main colours
+  collapsed into one material), because one material can never be patchy. On a baked model a worn edge counts as wear
+  of the material round it (`worn_as_around`).
 - **A labelled take is stored in the repository** (`stored_parts.py`, job repaint 2026-10-08): labels.py writes the full
   labels (35 MB a take, the bake's input) under the work folder and a 40,000-point sample of them into
   `data/parts/<take>.npz`; `data/parts/models.json` says which take each place's made model was painted from. The

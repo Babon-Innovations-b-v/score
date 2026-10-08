@@ -554,6 +554,11 @@
 					"token": "cabin-seat",
 					"roughness": 0.6
 				},
+				"vinyl_brown": {
+					"recipe": "rubber",
+					"token": "soil-wet",
+					"roughness": 0.5
+				},
 				"vinyl_orange": {
 					"recipe": "rubber",
 					"token": "ship-padding",

@@ -47,6 +47,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 import glb_file  # noqa: E402
 import library  # noqa: E402
+import part_judge  # noqa: E402
 import patchy  # noqa: E402
 import register  # noqa: E402
 import stored_parts  # noqa: E402
@@ -81,6 +82,11 @@ PART_CRUMB = patchy.STRAY_ISLAND
 # A material's lightness as a clean studio picture shows it (anchors_of).
 PHOTO_FLOOR = 25.0
 PHOTO_SPAN = 0.6
+# A finish within a part (gold foil wrapped on a hull, a yellow band): a seen face whose colour lies FINISH_MARGIN
+# nearer another allowed material than its part's takes that material; the result is smoothed over the surface
+# (smoothed_parts) and its islands under PART_CRUMB join their neighbours. One material per part stripped the old
+# station's lander of its gold foil and yellow paint (the owner, 2026-10-08).
+FINISH_MARGIN = 8.0
 # A part's colour: the median of the lighter LIT_SHARE of its seen faces; under SEEN_LEAST seen faces it borrows.
 LIT_SHARE = 0.3
 SEEN_LEAST = 30
@@ -103,6 +109,11 @@ BODY_LEAST = 0.005
 REGISTER_TRIES = 6
 # A finished model's face counts as seen by the picture's camera when a seen raw face lies within this.
 SEEN_REACH = 0.01
+# The raw Pixal3D model as the picture's camera (its .svviews transforms.json) sees it: turned half round about its
+# up axis. Without the turn the camera looked at the model's back, mirrored: the projected model covered 33 to 74% of
+# the picture's object (intersection over union) and every part's colour came from the wrong side; with it 92 to 98%
+# (five takes, job repaint 2026-10-08).
+VIEW_TURN = np.diag([-1.0, 1.0, -1.0])
 # How far a turned finished model's box may miss its final model's and still be the finish's turn (metres).
 FINISH_MISS = 0.01
 
@@ -122,9 +133,10 @@ def srgb(linear):
 
 
 def seen_faces(mesh, camera, shape):
-    """Which faces the picture's camera sees, and the pixel each lands on (a depth test on face middles)."""
+    """Which faces the picture's camera sees, and the pixel each lands on (a depth test on face middles). The raw
+    model faces the picture's camera turned half round about its up axis (VIEW_TURN)."""
     height, width = shape
-    middles = mesh.triangles_center
+    middles = mesh.triangles_center @ VIEW_TURN.T
     focal = 1 / np.tan(camera["camera_angle_x"] / 2)
     distance = -camera["frames"][0]["transform_matrix"][1][3]
     depth = distance - middles[:, 2]
@@ -133,17 +145,24 @@ def seen_faces(mesh, camera, shape):
     pixel = row * width + column
     nearest = np.full(height * width, np.inf)
     np.minimum.at(nearest, pixel, depth)
-    facing = (mesh.face_normals @ np.array([0.0, 0.0, 1.0])) > 0.05
+    facing = (mesh.face_normals @ VIEW_TURN.T @ np.array([0.0, 0.0, 1.0])) > 0.05
     return (depth <= nearest[pixel] + DEPTH_SLACK) & facing, row, column
 
 
-def face_colours(mesh, take):
-    """Each seen face's colour in the picture, in Lab (NaN where the camera does not see it)."""
+def picture_view(mesh, take):
+    """The take's clean picture and where the raw model's faces land in it: (picture, seen, row, column), seen being
+    the faces the camera sees on the object's pixels."""
     views = PIXAL / f"{take}.svviews"
-    rgba = np.asarray(Image.open(views / "input.png").convert("RGBA"), dtype=np.float64) / 255
-    colours = lab(median_filter(rgba[..., :3], size=(5, 5, 1)))
+    picture = Image.open(views / "input.png").convert("RGBA")
+    rgba = np.asarray(picture, dtype=np.float64) / 255
     seen, row, column = seen_faces(mesh, json.loads((views / "transforms.json").read_text()), rgba.shape[:2])
-    seen &= rgba[row, column, 3] > 0.5
+    return picture, seen & (rgba[row, column, 3] > 0.5), row, column
+
+
+def face_colours(mesh, view):
+    """Each seen face's colour in the picture (picture_view), in Lab (NaN where the camera does not see it)."""
+    picture, seen, row, column = view
+    colours = lab(median_filter(np.asarray(picture, dtype=np.float64)[..., :3] / 255, size=(5, 5, 1)))
     found = np.full((len(mesh.faces), 3), np.nan)
     found[seen] = colours[row[seen], column[seen]]
     return found
@@ -359,10 +378,12 @@ def borders(mesh, part_of, count):
     return found + found.T
 
 
-def paint_parts(mesh, colours, part_of, materials):
-    """One library material per part: the allowed material nearest the part's colour (part_colour); a part with
-    under SEEN_LEAST seen faces takes the material of the seen part it borders most. Per part its material's index,
-    seen faces and colour; the material names."""
+def paint_parts(mesh, colours, part_of, materials, judged=None):
+    """One library material per part: the one the judge named for it (`judged`, part_judge.judged), else the allowed
+    material nearest the part's colour (part_colour); a part with under SEEN_LEAST seen faces takes the material of
+    the seen part it borders most. Per part its material's index, seen faces, colour and what the judge called it;
+    the material names."""
+    judged = judged or {}
     names, anchors = anchors_of(materials)
     seen = ~np.isnan(colours[:, 0])
     count = int(part_of.max()) + 1
@@ -375,6 +396,10 @@ def paint_parts(mesh, colours, part_of, materials):
             chosen[part] = int(np.argmin([weighted(colour, anchor) for anchor in anchors]))
         about.append({"seen_faces": int(members.sum()),
                       "colour": None if colour is None else [round(float(value), 1) for value in colour]})
+        if colour is not None and part in judged:
+            chosen[part] = names.index(judged[part][0])
+            about[part].update(judged=judged[part][1], by_colour=names[int(np.argmin(
+                [weighted(colour, anchor) for anchor in anchors]))])
     if (chosen < 0).all():  # the camera saw no part well: the whole model's colour for all
         chosen[:] = int(np.argmin([weighted(part_colour(colours[seen]), anchor) for anchor in anchors]))
     shared = borders(mesh, part_of, count)
@@ -385,6 +410,32 @@ def paint_parts(mesh, colours, part_of, materials):
     for part in range(count):
         about[part]["material"] = names[chosen[part]]
     return chosen, about, names
+
+
+def with_finishes(mesh, colours, part_paint, anchors):
+    """Each face's material (an index into the anchors): its part's (`part_paint`), or a finish where the picture's
+    colour shows one clearly (FINISH_MARGIN), smoothed and without crumbs."""
+    seen = ~np.isnan(colours[:, 0])
+    distances = np.stack([weighted(colours[seen], anchor) for anchor in anchors], axis=1)
+    own = distances[np.arange(seen.sum()), part_paint[seen]]
+    nearest = distances.argmin(1)
+    voted = np.where(distances.min(1) + FINISH_MARGIN < own, nearest, part_paint[seen])
+    scores = np.zeros((len(mesh.faces), len(anchors)))
+    scores[np.nonzero(seen)[0], voted] = 1.0
+    scores[np.nonzero(~seen)[0], part_paint[~seen]] = 0.5  # unseen faces lean to their part's material
+    painted = smoothed_parts(scores, neighbour_matrix(mesh))
+    return without_crumbs(mesh, painted)
+
+
+def photo_palettes(place, names):
+    """Every colour each material bakes to (patchy.material_colours), its lightness drawn into a studio picture's
+    range as anchors_of does, so a picture's colours can be held against it."""
+    found = []
+    for palette in patchy.material_colours(place, names):
+        palette = palette.copy()
+        palette[:, 0] = PHOTO_FLOOR + PHOTO_SPAN * palette[:, 0]
+        found.append(palette)
+    return found
 
 
 def allowed_materials(place, kind, without):
@@ -461,6 +512,10 @@ def main():
     parser.add_argument("--kind", help="the kind (its details.json `materials` are the ones allowed)")
     parser.add_argument("--without", default="", help="library materials this piece has none of, by comma (a "
                         "locker's paper notes read as a lamp lens, 2026-10-07)")
+    parser.add_argument("--object", help="what the object is, in words (the judge's question)")
+    parser.add_argument("--ask", type=pathlib.Path, help="write each seen part's outlined picture and question here "
+                        "(part_judge.py), for ../cloud/judge.py")
+    parser.add_argument("--answers", type=pathlib.Path, help="the judge's answers: each part takes the material named")
     arguments = parser.parse_args()
     arguments.out.mkdir(parents=True, exist_ok=True)
     for old in list(arguments.out.glob("*.ply")) + list(arguments.out.glob("parts/*.ply")):
@@ -471,7 +526,8 @@ def main():
     # one): the same take labels the same way every run; unseeded, the torn ship's aft section registered on one
     # run and not the next (2026-10-08)
     mesh = welded(trimesh.load(PIXAL / f"{arguments.take}.glb", force="mesh", process=False))
-    colours = face_colours(mesh, arguments.take)
+    view = picture_view(mesh, arguments.take)
+    colours = face_colours(mesh, view)
     report = {"take": arguments.take, "kind": arguments.kind, "allowed": list(materials),
               "seen_share": round(float((~np.isnan(colours[:, 0])).mean()), 3)}
     final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
@@ -486,9 +542,19 @@ def main():
     else:
         part_of = np.zeros(len(mesh.faces), dtype=int)
         report.update(way="whole")
-    chosen, about, names = paint_parts(mesh, colours, part_of, materials)
-    order = sorted({names[index] for index in chosen})
-    labels = np.array([order.index(names[index]) for index in chosen])[part_of]
+    count = int(part_of.max()) + 1
+    if arguments.ask:
+        seen_parts = [part for part in range(count) if ((part_of == part) & view[1]).sum() >= SEEN_LEAST]
+        pixels = part_judge.part_pixels(part_of, view[1], view[2], view[3], np.asarray(view[0]).shape[:2])
+        report["asked"] = part_judge.write_questions(arguments.ask, arguments.take, view[0], pixels, seen_parts,
+                                                     arguments.object or arguments.kind, list(materials))
+    judged = part_judge.judged(arguments.answers, arguments.take, count, list(materials)) if arguments.answers else {}
+    report["judged_parts"] = len(judged)
+    chosen, about, names = paint_parts(mesh, colours, part_of, materials, judged)
+    painted = with_finishes(mesh, colours, chosen[part_of], anchors_of(materials)[1])
+    report["stripped"] = patchy.stripped(colours, painted, photo_palettes(arguments.place, names), names)
+    order = sorted({names[index] for index in np.unique(painted)})
+    labels = np.array([order.index(name) if name in order else -1 for name in names])[painted]
     report["upright_gap"] = round(gap, 4)
     mesh.apply_transform(matrix)
     report["shares"], inside = write_parts(mesh, labels, order, part_of, final.bounds, arguments.out)

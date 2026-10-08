@@ -620,6 +620,10 @@
 			"vinyl_seat": {
 				"token": "cabin-seat",
 				"library": "vinyl_seat"
+			},
+			"vinyl_brown": {
+				"token": "soil-wet",
+				"library": "vinyl_brown"
 			}
 		},
 		"light": {
@@ -1899,6 +1903,10 @@
 			"vinyl_seat": {
 				"token": "cabin-seat",
 				"library": "vinyl_seat"
+			},
+			"vinyl_brown": {
+				"token": "soil-wet",
+				"library": "vinyl_brown"
 			},
 			"potting_soil": {
 				"token": "soil",

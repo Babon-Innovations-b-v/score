@@ -38,6 +38,10 @@ import shapes  # noqa: E402
 BAKE_SAMPLES = 16
 # How far the bake looks from the cut-down copy for the full model's surface, as a share of the piece's size.
 REACH_SHARE = 0.03
+# The cage reaches at least twice the inward thickening (WALL): on a small piece 3% of its side fell short of the
+# thickened copy's inner faces, and the bowl stack (15 cm) baked 36% of its area black, its bowls' insides
+# (job repaint, 2026-10-08).
+REACH_LEAST = 0.01
 # How far a decal plate stands in front of the solid copy's face: the bake's rays meet it before the face.
 DECAL_PROUD = 0.002
 # The solid copy: every surface thickened inward by WALL, then the whole rebuilt as one closed surface on a voxel grid
@@ -199,7 +203,7 @@ def make_piece(entry, job, out):
     atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True,
                         backs_hidden=False)
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
-                    max(entry["size"]) * REACH_SHARE, entry.get("foot"))
+                    max(max(entry["size"]) * REACH_SHARE, REACH_LEAST), entry.get("foot"))
     atlas.finish()
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,
