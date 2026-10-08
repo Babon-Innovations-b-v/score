@@ -16,7 +16,8 @@ leaves out every object whose `score:layer` is one of them (a room's roof, for a
 `"frame": <n>` is drawn at that time code of the stage, so its characters (tools/characters/cast.py) stand in that
 moment of their clips; a walkthrough's frames give consecutive ones, so they move. A view with `"eyes": [...]` in place
 of one eye is seen from the first of them with a clear line to its aim (a character's views, where a wall may stand
-in front of somebody). Objects the stage makes invisible
+in front of somebody). A view with `"hide_crowds": true` leaves out every instancer (a crowd, tools/characters/cast.py), so
+one of a group standing among thousands is seen close. Objects the stage makes invisible
 (the body parts a character does not wear) stay out of every picture.
 """
 import json
@@ -303,6 +304,9 @@ def main():
     layers = {item.name: layer_of(item) for item in objects}
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))
+        crowds = [item for item in objects if item.type == "POINTCLOUD"] if view.get("hide_crowds") else []
+        for item in crowds:
+            item.hide_render = item.hide_viewport = True
         if "eyes" in view:
             view = dict(view, eye=clear_eye(scene, view))
         camera(scene, view)
@@ -311,6 +315,8 @@ def main():
         set_hidden(hidden, True)
         render(scene, out / f"{view['name']}-look.png", transparent=False)
         set_hidden(hidden, False)
+        for item in crowds:
+            item.hide_render = item.hide_viewport = False
         if view.get("look_only"):
             continue
         plane.hide_render = True

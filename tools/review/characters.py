@@ -4,7 +4,7 @@ stage with its characters layer (tools/characters/cast.py). Who is where is read
 (`data/characters/<place>.json`), the record the layer was written from.
 
 A character's close view is taken from the first of a ring of eyes round its front with a clear line to it (a wall
-may stand in front of somebody); a group is seen from in front of its band; a crowd from the cast's own `views`
+may stand in front of somebody), with any crowd left out so one of a group standing in it is seen; a group is seen from in front of its band; a crowd from the cast's own `views`
 (the balcony over the square) and from what it faces. The moving shots are consecutive frames of the stage's time,
 so every character plays its clip and starts where the cast started it.
 """
@@ -60,7 +60,7 @@ def close_view(single, frame):
     eyes = [ahead(at, single["turn"], CLOSE_DISTANCE, turn) for turn in RING]
     eyes = [[eye[0], at[1] + EYE_HEIGHT, eye[2]] for eye in eyes]
     return {"name": f"close-{single['name']}", "eye": eyes[0], "eyes": eyes, "aim": [at[0], at[1] + AIM_HEIGHT, at[2]],
-            "up": [0, 1, 0], "fov": CLOSE_FOV, "frame": frame, "look_only": True}
+            "up": [0, 1, 0], "fov": CLOSE_FOV, "frame": frame, "look_only": True, "hide_crowds": True}
 
 
 def group_view(group, frame):
