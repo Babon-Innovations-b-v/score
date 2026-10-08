@@ -136,8 +136,17 @@ def a_room_is_seen_from_inside():
     return problems
 
 
+def an_overlap_reads_in_the_resting_table():
+    """An object caught only for lying inside another (a hung one: no gap, no depth) reads as its overlap."""
+    rows = page.resting_rows("now", [{"object": "lamp_1", "passed": False, "result": "hung, not checked; overlaps "
+                                      "cable_1 by 4 cm"}])
+    if len(rows) != 1 or "overlaps cable_1 by 4 cm" not in rows[0]:
+        return ["a hung object's overlap does not read in the resting table"]
+    return []
+
+
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
-          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside)
+          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, an_overlap_reads_in_the_resting_table)
 
 
 if __name__ == "__main__":
