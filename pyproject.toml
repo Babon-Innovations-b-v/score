@@ -20,6 +20,7 @@ dependencies = [
     "matplotlib>=3.11",
     "fonttools>=4.65",
     "requests>=2.34",
+    "usd-core>=25.5",
 ]
 
 [dependency-groups]

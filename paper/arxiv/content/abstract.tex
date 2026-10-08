@@ -1,20 +1,19 @@
 \begin{abstract}
-World models and one-shot 3D generators produce a convincing place from
-a sentence or a picture, but not a world a creator can build on: a
-stream of frames, or one fused scene without separate objects, collision
-or clear rights. SCORE is a world generation framework that builds the
-whole world instead. A creator picks references, a concept and a style;
-coding agents and open models turn those picks, offline and in batches,
-through stages with explicit and checkable outputs, into one canonical
-scene that engines and simulators load and that keeps the creator's
-edits across regeneration. Because every stage's output is kept, the
-work is retraceable: the creator can see which stage limited a result,
-rerun or fix just that stage, and regenerate from there. Four mechanisms
-make the output coherent and cheap to get right: deterministic checks
-before every paid step, a parts check that decides between code and
-generation with one model per real-world object, a shared rule-based
-surface library that keeps shape and surface apart, and review tools
-that put every stage's output in front of the creator, who decides at a
-few fixed points. We apply the same route to four worlds of different
-kinds.
+Games, films and robot training need 3D worlds that are complete,
+editable and owned by the people who make them. World models and
+one-shot 3D generators can produce a convincing place from a sentence or
+a picture, but they give frames that no engine can open, or one fused
+scene without separate objects or clear rights. Studios have always
+built worlds in stages, from concept art and layout to modelling,
+surfacing, sound and review. We present SCORE, a world generation
+framework that keeps these stages and automates large parts of them with
+open vision foundation models, procedural tools and coding agents, while
+the creator chooses and reviews. Because every stage's output is kept,
+the creator can rerun or fix any single stage, and because every model
+allows commercial use, the creator holds full commercial rights. We
+demonstrate SCORE on the game world of 2099 and plan three further
+worlds of different kinds. Open models, working in checkable stages, can
+build worlds that a creator owns and keeps editing. Code and paper are
+available at https://github.com/Babon-Innovations-b-v/score (MIT
+license).
 \end{abstract}

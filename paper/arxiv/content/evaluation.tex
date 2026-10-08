@@ -2,18 +2,24 @@
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: LEGO-Bench.} Scores on LEGO-Bench \citep{li2026lego}, the benchmark of scenes rebuilt from pictures. Waits on the benchmark's code release and on SCORE's scene export with its Blender adapter.
+\textbf{Gap: LEGO-Bench.} This section will report SCORE's scores on LEGO-Bench \citep{li2026lego}, a benchmark of scenes rebuilt from pictures. It waits until the benchmark's code is released and until SCORE's scene export and its Blender adapter are built.
 
 \end{minipage}}\end{center}
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: ablations.} The route with and without the optional world step (a walkable whole-room reference made from the concept), and with checks before spending switched off, on the same places: concept coverage, density of the built room, cost, faults after spending, and the creator's review. Waits on the route running from the framework repository.
+\textbf{Gap: ablations.} This section will compare the framework with and without the optional world step, and with the checks before spending switched off, on the same places. It will measure how much of the concept is covered, how dense the built place is, the cost, the faults found after spending, and the creator's review. It waits until every stage runs from the framework repository.
 
 \end{minipage}}\end{center}
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: style coherence.} A measure of whether a place keeps one style, from rendered frames (colour distance to the palette per kind of source, lightness spread, ink density), validated against the creator's reviews. Designed, not built.
+\textbf{Gap: style coherence.} This section will measure whether a place keeps one style, using rendered frames: the colour distance to the palette for each kind of source, the spread of lightness, and the density of ink lines, validated against the creator's reviews. The measure is designed but not yet built.
+
+\end{minipage}}\end{center}
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: robots in the simulation world.} This section will show a rigged robot loaded together with the simulation world in a robotics simulator, with masses, friction and joints written into the scene, and with motion from the framework's motion models. It waits on world 3.
 
 \end{minipage}}\end{center}

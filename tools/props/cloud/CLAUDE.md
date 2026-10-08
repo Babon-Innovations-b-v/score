@@ -17,7 +17,7 @@ Entry: `batch.py`; its docstring says how to call it.
   is another company's project; never change it, and never rent from it.
 - **No keys or account ids in the repo.** The project is found by its name, `farm-factory`; the
   runner's ssh key and ledger live under `~/.farm-factory-props/cloud/`.
-- **The limits are the owner's:** 4 h and €60 a batch, €700 a month (`ledger.py`). A batch that
+- **The limits are the owner's:** 4 h and €60 a batch, and the month's ceiling `SCORE_MONTH_EUROS` (€1,500 by default, 2026-10-08), checked before every rent (`ledger.py`, `batch.rent`). A batch that
   would pass one is refused before anything is rented; raising one is the owner's call.
 - **The machine is always deleted:** at the end, on an error or a signal, by the watchdog at the
   time limit, and by the next run's sweep. Anything new that rents goes through `rent`, which starts its watchdog.
@@ -31,6 +31,14 @@ Entry: `batch.py`; its docstring says how to call it.
   production. Loose addresses and disks are swept only while no batch runs.
 - **Spread over zones:** a zone out of cards takes the order and leaves the machine stopped, so
   `rent` starts it at once and gives it back on "out of stock", and the fleet moves on.
+- **No job is tied to one card or zone** (2026-10-08, after a day of L4s out of stock in pl-waw-2):
+  each runner takes its offers from `capacity.py`'s list for its job kind (every type whose card
+  holds the job), and gets its machine through `batch.claim` (a fleet through `rent_fleet`), which
+  takes the best stocked offer in `SPEED_ORDER` (price barely matters: owner, 2026-10-08), drops an
+  offer that is refused, out of stock for a minute or whose machine does not answer within
+  `START_MINUTES`, and spreads a run's machines over the zones. A big card runs as many jobs at once
+  as `capacity.runs_at_once` says (measured kinds only). A new runner does the same and
+  records its machines with `ledger.machines_record`, so `capacity.py report` can compare cards.
 - **The cut-out and the raw Pixal3D step run up there;** the raw model comes back with its camera
   folder (`<name>.svviews`), and finishing stays here with `pixal.py --finish-only` (no model).
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
