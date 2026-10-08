@@ -1,4 +1,4 @@
-\begin{thebibliography}{29}
+\begin{thebibliography}{38}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -15,6 +15,13 @@ Yue Yang, Fan-Yun Sun, Luca Weihs, Eli VanderBilt, Alvaro Herrasti, Winson Han,
   and Pattern Recognition (CVPR)}, 2024{\natexlab{a}}.
 \newblock arXiv:2312.09067.
 
+\bibitem[Arg{\"u}ello(2026)]{gdc2026survey}
+Diego Arg{\"u}ello.
+\newblock {36 percent of game workers use generative {AI}, but half think it's
+  bad for the industry}.
+\newblock Game Developer, February 2026.
+\newblock Reporting GDC's 2026 State of the Game Industry survey.
+
 \bibitem[Bruce et~al.(2024)Bruce, Dennis, Edwards, Parker-Holder,
   et~al.]{bruce2024genie}
 Jake Bruce, Michael Dennis, Ashley Edwards, Jack Parker-Holder, et~al.
@@ -29,10 +36,19 @@ Jack Parker-Holder and Shlomi Fruchter.
   \url{https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/}.
 \newblock Vendor material.
 
-\bibitem[Wang et~al.(2025)Wang, Jung, Monnier, Sohn, et~al.]{wang2025worldgen}
+\bibitem[Wang et~al.(2025{\natexlab{a}})Wang, Jung, Monnier, Sohn,
+  et~al.]{wang2025worldgen}
 Dilin Wang, Hyunyoung Jung, Tom Monnier, Kihyuk Sohn, et~al.
 \newblock {WorldGen}: From text to traversable and interactive {3D} worlds.
-\newblock \emph{arXiv preprint arXiv:2511.16825}, 2025.
+\newblock \emph{arXiv preprint arXiv:2511.16825}, 2025{\natexlab{a}}.
+
+\bibitem[{Tencent Hunyuan}(2026)]{hyworld2}
+{Tencent Hunyuan}.
+\newblock {HY-World} 2.0.
+\newblock GitHub repository, 2026.
+\newblock URL \url{https://github.com/Tencent-Hunyuan/HY-World-2.0}.
+\newblock Tencent HY-World 2.0 Community License; not applicable in the EU, UK
+  and South Korea.
 
 \bibitem[Hu et~al.(2026)Hu, Guo, Cen, Yang, Li, and Shen]{hu2026worldact}
 Jichen Hu, Jiawei Guo, Jiazhong Cen, Chen Yang, Sikuang Li, and Wei Shen.
@@ -95,19 +111,77 @@ Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
 \newblock {LEGO-Anything}: Coding agents for {3D} scene reconstruction.
 \newblock \emph{arXiv preprint arXiv:2609.36380}, 2026{\natexlab{b}}.
 
+\bibitem[Oquab et~al.(2023)Oquab, Darcet, Moutakanni, et~al.]{oquab2023dinov2}
+Maxime Oquab, Timoth{\'e}e Darcet, Th{\'e}o Moutakanni, et~al.
+\newblock {DINOv2}: Learning robust visual features without supervision.
+\newblock \emph{arXiv preprint arXiv:2304.07193}, 2023.
+
+\bibitem[Li et~al.(2026{\natexlab{c}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
+  Hu]{li2026pixal3d}
+Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
+  Ying Shan, and Shi-Min Hu.
+\newblock {Pixal3D}: Pixel-aligned {3D} generation from images.
+\newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{c}}.
+
+\bibitem[Carion et~al.(2025)]{carion2025sam3}
+Nicolas Carion et~al.
+\newblock {SAM 3}: {Segment Anything} with concepts.
+\newblock \emph{arXiv preprint arXiv:2511.16719}, 2025.
+
+\bibitem[Wang et~al.(2025{\natexlab{b}})]{wang2025moge2}
+Ruicheng Wang et~al.
+\newblock {MoGe-2}: Accurate monocular geometry with metric scale and sharp
+  details.
+\newblock \emph{arXiv preprint arXiv:2507.02546}, 2025{\natexlab{b}}.
+
+\bibitem[Yang et~al.(2024{\natexlab{b}})Yang, Kang, Huang,
+  et~al.]{yang2024dav2}
+Lihe Yang, Bingyi Kang, Zilong Huang, et~al.
+\newblock {Depth Anything V2}.
+\newblock \emph{arXiv preprint arXiv:2406.09414}, 2024{\natexlab{b}}.
+
+\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
+  Fragkiadaki]{lin2025partcrafter}
+Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
+  Katerina Fragkiadaki.
+\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
+  latent diffusion transformers.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+\newblock arXiv:2506.05573.
+
+\bibitem[Yang et~al.(2026{\natexlab{a}})Yang, Kukreja, Pinkus, others, and
+  Kitani]{yang2026sam3dbody}
+Xitong Yang, Devansh Kukreja, Don Pinkus, others, and Kris Kitani.
+\newblock {SAM 3D Body}: Robust full-body human mesh recovery.
+\newblock \emph{arXiv preprint arXiv:2602.15989}, 2026{\natexlab{a}}.
+
+\bibitem[Rempe et~al.(2026)Rempe, Petrovich, Yuan, Zhang, Peng,
+  et~al.]{rempe2026kimodo}
+Davis Rempe, Mathis Petrovich, Ye~Yuan, Haotian Zhang, Xue~Bin Peng, et~al.
+\newblock {Kimodo}: Scaling controllable human motion generation.
+\newblock \emph{arXiv preprint arXiv:2603.15546}, 2026.
+
+\bibitem[{OpenMOSS-Team}(2026)]{moss2026}
+{OpenMOSS-Team}.
+\newblock {MOSS-SoundEffect} v2.0.
+\newblock Hugging Face, 2026.
+\newblock URL \url{https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0}.
+\newblock Apache-2.0.
+
 \bibitem[Wu et~al.(2026)Wu, Lou, Liu, Du, Guo, and Guo]{wu2026production}
 Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
 \newblock From visual synthesis to interactive worlds: Toward production-ready
   {3D} asset generation.
 \newblock \emph{arXiv preprint arXiv:2604.23629}, 2026.
 
-\bibitem[Yang et~al.(2026)Yang, Zhai, Lu, Yin, Zhang, Xiao, Long, and
-  Navab]{yang2026flowscene}
+\bibitem[Yang et~al.(2026{\natexlab{b}})Yang, Zhai, Lu, Yin, Zhang, Xiao, Long,
+  and Navab]{yang2026flowscene}
 Zhifei Yang, Guangyao Zhai, Keyang Lu, YuYang Yin, Chao Zhang, Zhen Xiao, Jieyi
   Long, and Nassir Navab.
 \newblock {FlowScene}: Style-consistent indoor scene generation with multimodal
   graph rectified flow.
-\newblock \emph{arXiv preprint arXiv:2603.19598}, 2026.
+\newblock \emph{arXiv preprint arXiv:2603.19598}, 2026{\natexlab{b}}.
 
 \bibitem[Lei et~al.(2025)Lei, Li, Liu, et~al.]{lei2025hunyuanstudio}
 Biwen Lei, Yang Li, Xinhai Liu, et~al.
@@ -125,13 +199,6 @@ Biwen Lei, Yang Li, Xinhai Liu, et~al.
 \newblock {glTF} 2.0 specification, 2021.
 \newblock URL \url{https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html}.
 
-\bibitem[Li et~al.(2026{\natexlab{c}})Li, Zhao, Chen, Hu, Guo, Zhang, Shan, and
-  Hu]{li2026pixal3d}
-Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
-  Ying Shan, and Shi-Min Hu.
-\newblock {Pixal3D}: Pixel-aligned {3D} generation from images.
-\newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{c}}.
-
 \bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
   Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
 Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
@@ -140,28 +207,17 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
   generation in {Python}.
 \newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
 
-\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
-  Fragkiadaki]{lin2025partcrafter}
-Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
-  Katerina Fragkiadaki.
-\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
-  latent diffusion transformers.
-\newblock In \emph{Advances in Neural Information Processing Systems
-  (NeurIPS)}, 2025.
-\newblock arXiv:2506.05573.
-
-\bibitem[{OpenMOSS-Team}(2026)]{moss2026}
-{OpenMOSS-Team}.
-\newblock {MOSS-SoundEffect} v2.0.
-\newblock Hugging Face, 2026.
-\newblock URL \url{https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0}.
-\newblock Apache-2.0.
-
 \bibitem[Wu et~al.(2022)Wu, Chen, Zhang, et~al.]{wu2022clap}
 Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
 \newblock Large-scale contrastive language-audio pretraining with feature
   fusion and keyword-to-caption augmentation.
 \newblock \emph{arXiv preprint arXiv:2211.06687}, 2022.
+
+\bibitem[Becker et~al.(2025)Becker, Rush, Barnes, and Rein]{becker2025metr}
+Joel Becker, Nate Rush, Elizabeth Barnes, and David Rein.
+\newblock Measuring the impact of early-2025 {AI} on experienced open-source
+  developer productivity.
+\newblock \emph{arXiv preprint arXiv:2507.09089}, 2025.
 
 \bibitem[Rein and Liu(2012)]{rein2012rebound}
 Hanno Rein and Shang-Fei Liu.
@@ -183,17 +239,18 @@ Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
 \newblock {DINOv3}.
 \newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
 
-\bibitem[Yang et~al.(2024{\natexlab{b}})Yang, Kang, Huang,
-  et~al.]{yang2024dav2}
-Lihe Yang, Bingyi Kang, Zilong Huang, et~al.
-\newblock {Depth Anything V2}.
-\newblock \emph{arXiv preprint arXiv:2406.09414}, 2024{\natexlab{b}}.
-
 \bibitem[{World Labs}(2026)]{marble_terms}
 {World Labs}.
 \newblock {Terms of Service}, 2026.
 \newblock URL \url{https://docs.worldlabs.ai/terms-of-service}.
 \newblock Last updated 21 January 2026; accessed 2026-10-08. Vendor material.
+
+\bibitem[{Black Forest Labs}(2026)]{flux2klein}
+{Black Forest Labs}.
+\newblock {FLUX.2 [klein] 4B} model card.
+\newblock Hugging Face, 2026.
+\newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
+\newblock Apache-2.0. Vendor material.
 
 \bibitem[{Anthropic}(2026)]{claudecode}
 {Anthropic}.
