@@ -1,14 +1,16 @@
 """Make a whole list of pictures on rented cloud graphics cards, then delete the machines.
 
-    ~/.farm-factory-props/env/bin/python tools/props/cloud/pictures.py <jobs.json> [--cards 5] [--dry-run]
+    ~/.farm-factory-props/env/bin/python tools/props/cloud/pictures.py <jobs.json> [--cards 5] [--model klein] [--dry-run]
 
 The list is picture.py's own (--list): a JSON array of {"name", "sentence", "seed", "form", "refs"},
 and "place" to word a scene's object in its place's style text (place.json).
 Every job is worded here by picture.wording, at picture.py's steps and guidance, so a picture made
 up there is the one the owner's card would make. The list is split evenly over --cards machines; each
-installs the picture model from Hugging Face, holds it on its card whole (no offloading) and draws
-its share, and the pictures come back into WORK/pictures. A picture already there is skipped.
-Renting, the owner's limits and deleting are batch.py's.
+installs the picture model from Hugging Face, holds it on its card whole when the card is big enough
+and draws its share, and the pictures come back into WORK/pictures. A picture already there is skipped.
+--model picks the picture model (MODELS): FLUX.2 klein 4B by default, or Qwen-Image-Edit-2511, the
+open image-edit model that came closest to Nano Banana Pro on the lab's ten close-ups after klein
+(job openpics, 2026-10-08). Renting, the owner's limits and deleting are batch.py's.
 """
 import argparse
 import concurrent.futures
@@ -34,10 +36,21 @@ from provider import cloud  # noqa: E402
 from paths import PICTURES  # noqa: E402
 
 CARDS = 5
-# First guesses for the estimate, until a run is measured: setup (a Python, then 15 GB of weights)
-# and a picture drawn with the model held whole on an L4.
-SETUP_MINUTES = 8
-SECONDS_A_PICTURE = 4
+# The picture models a list can be drawn with, each open with commercial use allowed (Apache-2.0: code,
+# weights and text encoder): its Hugging Face repository, its diffusers pipeline, the job kind that
+# names the cards it runs on (capacity.py), the root disk its weights need, the card memory it is held
+# whole in (a smaller card moves it on and off part by part), its own steps and settings, and the
+# estimate's setup minutes and seconds a picture. The seconds were measured with two reference pictures
+# on 2026-10-08: klein about 9 s on an L4, Qwen-Image-Edit 56 s on an H100 SXM and 82 s on a PCIe H100.
+MODELS = {
+    "klein": {"repository": "black-forest-labs/FLUX.2-klein-4B", "pipeline": "Flux2KleinPipeline",
+              "kind": "pictures", "disk_gb": batch.DISK_GB, "whole_gb": 20, "steps": picture.STEPS,
+              "call": {"guidance_scale": picture.GUIDANCE}, "setup_minutes": 8, "seconds": 9},
+    "qwen-edit": {"repository": "Qwen/Qwen-Image-Edit-2511", "pipeline": "QwenImageEditPlusPipeline",
+                  "kind": "pictures-20b", "disk_gb": 150, "whole_gb": 70, "steps": 40,
+                  "call": {"true_cfg_scale": 4.0, "guidance_scale": 1.0, "negative_prompt": " "},
+                  "setup_minutes": 10, "seconds": 82},
+}
 
 
 class Run:
@@ -51,8 +64,8 @@ class Run:
         self.attempts = []
 
 
-def jobs_to_make(path):
-    """The list's pictures not yet made, each worded as picture.py would word it."""
+def jobs_to_make(path, model="klein"):
+    """The list's pictures not yet made, each worded as picture.py would word it, with `model`'s settings."""
     jobs = []
     for job in json.loads(pathlib.Path(path).read_text()):
         if (PICTURES / f"{job['name']}.png").exists():
@@ -65,23 +78,23 @@ def jobs_to_make(path):
             wording = f"{wording}, in the look of this place: {place.style_text(job['place'])}"
         jobs.append({"name": job["name"],
                      "wording": wording,
-                     "seed": job.get("seed", 7), "steps": picture.STEPS, "guidance": picture.GUIDANCE,
+                     "seed": job.get("seed", 7), "steps": MODELS[model]["steps"], "call": MODELS[model]["call"],
                      "refs": [str(ref) for ref in job.get("refs", [])],
                      **{side: job[side] for side in ("width", "height") if side in job}})
     return jobs
 
 
-def expected_minutes(count, cards):
-    return SETUP_MINUTES + count / cards * SECONDS_A_PICTURE / 60
+def expected_minutes(count, cards, model="klein"):
+    return MODELS[model]["setup_minutes"] + count / cards * MODELS[model]["seconds"] / 60
 
 
-def price(jobs, cards, account):
+def price(jobs, cards, account, model="klein"):
     """Print the estimate and refuse what passes the owner's limits; the offers, and the minutes the
     machines may run."""
-    found = batch.offers(list(capacity.classes_for("pictures")))
+    found = batch.offers(list(capacity.classes_for(MODELS[model]["kind"])))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
-    minutes = expected_minutes(len(jobs), cards)
+    minutes = expected_minutes(len(jobs), cards, model)
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
     batch.say(f"{len(jobs)} pictures on {cards} cards: about {minutes:.0f} min, "
@@ -92,16 +105,16 @@ def price(jobs, cards, account):
     return found, ledger.minutes_allowed(dearest * cards, spent)
 
 
-def rent_machines(run, account, found, cards, kind=None):
-    """Claim up to `cards` machines side by side for jobs of `kind`, each from the first offer that gives one that
-    answers (batch.claim); the machines that answered."""
+def rent_machines(run, account, found, cards, kind=None, disk_gb=batch.DISK_GB):
+    """Claim up to `cards` machines side by side for jobs of `kind`, each with a root disk of `disk_gb`, from the
+    first offer that gives one that answers (batch.claim); the machines that answered."""
     with concurrent.futures.ThreadPoolExecutor(cards) as claims:
-        claimed = list(claims.map(lambda number: batch.claim(run, account, found, number, kind),
+        claimed = list(claims.map(lambda number: batch.claim(run, account, found, number, kind, disk_gb),
                                   range(1, cards + 1)))
     return [machine for machine in claimed if machine]
 
 
-def set_up(folder, host, share):
+def set_up(folder, host, share, model):
     """Put the share, its reference photos and the scripts on the machine, and install the model."""
     batch.remote(folder, host, "mkdir -p /root/pics/refs /root/pics/out", check=True)
     refs = sorted({ref for job in share for ref in job["refs"]})
@@ -112,7 +125,8 @@ def set_up(folder, host, share):
     batch.copy(folder, [folder / "jobs.json", HERE / "picture_worker.py", HERE / "picture_setup.sh"],
                f"root@{host}:/root/pics/")
     with (folder / "setup.log").open("w") as log:
-        batch.remote(folder, host, "bash /root/pics/picture_setup.sh", check=True, stdout=log,
+        batch.remote(folder, host, f"bash /root/pics/picture_setup.sh {MODELS[model]['repository']}",
+                     check=True, stdout=log,
                      stderr=subprocess.STDOUT)
 
 
@@ -127,7 +141,7 @@ def keep_beating(folder, host, stop):
             batch.say(f"{folder.name}: a heartbeat failed ({error.returncode}); trying again in a minute")
 
 
-def draw_share(run, machine, share):
+def draw_share(run, machine, share, model):
     """Run one machine from boot to delete: set it up, draw its share, bring the pictures back."""
     folder = machine["folder"]
     stop = threading.Event()
@@ -135,11 +149,12 @@ def draw_share(run, machine, share):
         host = machine["host"]
         batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=keep_beating, args=(folder, host, stop), daemon=True).start()
-        set_up(folder, host, share)
+        set_up(folder, host, share, model)
         batch.say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
         with (folder / "draw.log").open("w") as log:
-            batch.remote(folder, host, "/root/venv/bin/python /root/pics/picture_worker.py "
-                         "/root/pics/jobs.json", check=True, stdout=log, stderr=subprocess.STDOUT)
+            batch.remote(folder, host, "/root/venv/bin/python /root/pics/picture_worker.py /root/pics/jobs.json "
+                         f"{MODELS[model]['pipeline']} {MODELS[model]['whole_gb']}", check=True, stdout=log,
+                         stderr=subprocess.STDOUT)
         batch.copy(folder, [f"root@{host}:/root/pics/out/"], folder / "out")
         for made in (folder / "out").glob("*.png"):
             shutil.copy2(made, PICTURES / made.name)
@@ -166,15 +181,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("list")
     parser.add_argument("--cards", type=int, default=CARDS)
+    parser.add_argument("--model", choices=tuple(MODELS), default="klein", help="the picture model (MODELS)")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     options = parser.parse_args()
-    jobs = jobs_to_make(options.list)
+    jobs = jobs_to_make(options.list, options.model)
     if not jobs:
         raise SystemExit("every picture in the list is already made")
     account = cloud.account()
     batch.sweep(account)
     cards = min(options.cards, len(jobs))
-    found, allowed_minutes = price(jobs, cards, account)
+    found, allowed_minutes = price(jobs, cards, account, options.model)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -185,8 +201,10 @@ def main():
     run = Run(folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = rent_machines(run, account, found, cards)
-        threads = [threading.Thread(target=draw_share, args=(run, machine, jobs[index::len(machines)]))
+        machines = rent_machines(run, account, found, cards, MODELS[options.model]["kind"],
+                                 MODELS[options.model]["disk_gb"])
+        threads = [threading.Thread(target=draw_share,
+                                    args=(run, machine, jobs[index::len(machines)], options.model))
                    for index, machine in enumerate(machines)]
         for thread in threads:
             thread.start()
@@ -195,7 +213,7 @@ def main():
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
-        record(run, run.machines, jobs, started)
+        record(run, run.machines, jobs, started, MODELS[options.model]["kind"])
 
 
 if __name__ == "__main__":

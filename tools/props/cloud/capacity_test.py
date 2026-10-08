@@ -70,7 +70,7 @@ def test_each_kind_takes_cards_in_its_own_order():
 def test_a_bake_takes_a_card_without_ray_tracing_cores_only_after_the_wait():
     taken = []
 
-    def claim_from(run, account, offers, number, kind):
+    def claim_from(run, account, offers, number, kind, disk_gb=batch.DISK_GB):
         taken.append(sorted({item.machine_class for item in offers}))
         return None if "gpu-80gb" not in taken[-1] else "machine"
     kept_claim, kept_sleep, kept_minutes = batch.claim_from, batch.time.sleep, capacity.LATE_MINUTES
