@@ -31,6 +31,12 @@ Entry: `batch.py`; its docstring says how to call it.
   production. Loose addresses and disks are swept only while no batch runs.
 - **Spread over zones:** a zone out of cards takes the order and leaves the machine stopped, so
   `rent` starts it at once and gives it back on "out of stock", and the fleet moves on.
+- **No job is tied to one card or zone** (2026-10-08, after a day of L4s out of stock in pl-waw-2):
+  each runner takes its offers from `capacity.py`'s list for its job kind (every type whose card
+  holds the job), and gets its machine through `batch.claim` (a fleet through `rent_fleet`), which
+  drops an offer that is refused, out of stock or whose machine does not answer within
+  `START_MINUTES`, and spreads a run's machines over the zones. A new runner does the same and
+  records its machines with `ledger.machines_record`, so `capacity.py report` can compare cards.
 - **The cut-out and the raw Pixal3D step run up there;** the raw model comes back with its camera
   folder (`<name>.svviews`), and finishing stays here with `pixal.py --finish-only` (no model).
   Moving finishing up needs a measured byte-for-byte match with the same Blender and scripts first.
