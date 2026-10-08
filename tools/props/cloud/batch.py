@@ -2,7 +2,7 @@
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/batch.py <list.txt> --who "<session>"
         --inventory data/inventory/<scene>.json [data/inventory/<scene>.json ...]
-        [--minutes 60] [--per-card N] [--max-cards 20] [--types L4-1-24G,L40S-1-48G]
+        [--minutes 60] [--per-card N] [--max-cards 20] [--types L4-1-24G,H100-1-80G]
         [--no-finish] [--dry-run]
 
 The list has one model a line, `<name> <picture> [pixal.py options]`, e.g.
@@ -26,7 +26,7 @@ folder its finish paints from (<name>.svviews), and is finished here with `pixal
 every model, one or a hundred.
 
 Before anything is rented, the prices are read from Scaleway and printed, and a batch that would
-pass four hours, €60, or the month's €700 is refused (ledger.py). Every machine is deleted whatever
+pass four hours, €60, or the month's ceiling (ledger.MONTH_EUROS) is refused (ledger.py). Every machine is deleted whatever
 happens: when its work is done, on an error, on Ctrl-C, by a watchdog process at the time limit if
 this one is gone, and by the next run's sweep.
 """
@@ -63,6 +63,8 @@ from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 # Pixal3D runs at once on one card, measured on an L4 (2026-09-29): 3 at once made about 19 models an
 # hour at a 10.6 GB peak; 6 made about 20 at 17 to 20 GB and one run died, so the card is already full at 3.
 PER_CARD = 3
+# Seconds a stopped machine may answer "out of stock" before its offer is given up for the next one.
+OUT_OF_STOCK_SECONDS = 60
 MAX_CARDS = 20
 TARGET_MINUTES = 60
 STOCK_ORDER = {"available": 0, "scarce": 1, "shortage": 2}
@@ -287,11 +289,15 @@ def copy(folder, sources, destination, *extra):
 def wait_for_machine(folder, server_id, zone):
     """The machine's address once it answers over ssh."""
     give_up = time.time() + START_MINUTES * 60
-    host, first_refused = None, None
+    host, first_refused, out_of_stock = None, None, None
     while time.time() < give_up:
         refused = scaleway.start_if_stopped(server_id, zone)
         if refused:
             say(f"{folder.name} is stopped and would not start yet: {refused}")
+            if "out of stock" in refused.lower():
+                out_of_stock = out_of_stock or time.time()
+                if time.time() - out_of_stock > OUT_OF_STOCK_SECONDS:
+                    raise TimeoutError(f"out of stock for {OUT_OF_STOCK_SECONDS} s")
         host = host or scaleway.address(server_id, zone)
         if host:
             answer = remote(folder, host, "true", capture_output=True, text=True)
@@ -513,6 +519,10 @@ def queue(fleet, models):
 def rent(fleet, project, offer, number):
     """Rent one machine from `offer` with its watchdog; its record, or None when refused."""
     _, _, machine_type, zone, price = offer
+    spent = month_spent(project)
+    if spent >= ledger.MONTH_EUROS:
+        say(f"€{spent:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling: nothing more is rented")
+        return None
     name = f"{fleet.folder.name}-{number}"
     tags = [f"pid={os.getpid()}", f"host={socket.gethostname()}",
             f"deadline={fleet.deadline + WATCHDOG_GRACE_MINUTES * 60:.0f}"]
@@ -543,6 +553,11 @@ def rent(fleet, project, offer, number):
                                          fleet.deadline + WATCHDOG_GRACE_MINUTES * 60, folder)
     say(f"rented {machine_type} in {zone} ({name})")
     return machine
+
+
+def month_spent(project):
+    """What the month has cost so far: Scaleway's bill or the ledger's sum, whichever is higher (the bill lags)."""
+    return max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
 
 
 def refused_row(machine_type, zone, why):
@@ -591,10 +606,12 @@ def tend(fleet, machine):
             replace(fleet, machine)
             return
         arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
-        prepare(folder, host, fleet.per_card)
+        machine["per_card"] = fleet.per_card or capacity.runs_at_once("pixal", machine["type"])
+        prepare(folder, host, machine["per_card"])
         machine["generating_began"] = time.time()
-        say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
-        room = machine["cards"] * (fleet.per_card + 1)
+        say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min, "
+            f"{machine['per_card']} runs a card")
+        room = machine["cards"] * (machine["per_card"] + 1)
         closed = False
         while not fleet.stop.is_set() and time.time() < fleet.deadline:
             while len(sent) - len(finished) < room:
@@ -688,7 +705,8 @@ def ledger_entry(fleet, models, started):
     job_seconds = {name: job.get("seconds") for machine in fleet.machines
                    for name, job in machine["status"].get("jobs", {}).items()}
     return {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
-            "batch": fleet.folder.name, "kind": "pixal", "per_card": fleet.per_card,
+            "batch": fleet.folder.name, "kind": "pixal",
+            "per_card": {machine["folder"].name: machine.get("per_card") for machine in fleet.machines},
             **ledger.machines_record(fleet.machines, fleet.attempts, started), "models": len(models),
             "models_done": len(fleet.done), "card_minutes": card_minutes,
             "wall_minutes": (time.time() - started) / 60, "job_seconds": job_seconds}
@@ -727,12 +745,13 @@ def plan(models, options, project):
         raise SystemExit("none of those machine types is sold in the zones used")
     per_model = card_minutes_per_model()
     cards = min(options.max_cards,
-                cards_needed(len(models), options.per_card, options.minutes, per_model))
-    minutes = expected_minutes(len(models), cards, options.per_card, per_model)
-    spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+                cards_needed(len(models), options.per_card or PER_CARD, options.minutes, per_model))
+    minutes = expected_minutes(len(models), cards, options.per_card or PER_CARD, per_model)
+    spent = month_spent(project)
     found = affordable(found, minutes, cards, spent)
     dearest = max(offer[0] for offer in found)
-    say(f"{len(models)} models, {options.per_card} a card, {per_model:.2f} card minutes a model: "
+    say(f"{len(models)} models, {options.per_card or 'as many as fit'} a card, "
+        f"{per_model:.2f} card minutes a model: "
         f"{cards} cards for about {minutes:.0f} min, €{ledger.cost(minutes, dearest) * cards:.2f} "
         f"at most; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest * cards, spent)
@@ -777,7 +796,8 @@ def main():
     parser.add_argument("--inventory", required=True, type=pathlib.Path, nargs="+",
                         help="the scenes' approved inventories, data/inventory/<scene>.json")
     parser.add_argument("--minutes", type=float, default=TARGET_MINUTES, help="aim to finish in this long")
-    parser.add_argument("--per-card", type=int, default=PER_CARD)
+    parser.add_argument("--per-card", type=int, help="runs at once on a card (default: as many as its memory "
+                        "holds, capacity.runs_at_once)")
     parser.add_argument("--max-cards", type=int, default=MAX_CARDS)
     parser.add_argument("--types", default=",".join(capacity.types_for("pixal")),
                         help="machine types to rent, comma separated (default: every type that holds Pixal3D)")

@@ -35,25 +35,31 @@ stale. There is no CI: checks run locally.
 ## Cloud capacity
 
 Every model step runs on graphics cards rented from Scaleway (`tools/props/cloud/`). Stock is the
-bottleneck: on 2026-10-08 the L4 cards in pl-waw-2 were out of stock most of the day. So no job
-is tied to one card or one zone.
+bottleneck: on 2026-10-08 the L4 cards in pl-waw-2 were out of stock most of the day. Scaleway's
+credits cover far more than a world costs, so a job takes whatever card is in stock, in the order
+that waits least, and is never tied to one card or one zone.
 
 - **Which cards a job may use** is set per job kind in `KINDS` in
   `tools/props/cloud/capacity.py`. A kind lists every machine type whose card has the memory for it.
-  Pixal3D (three runs at once peak at 10.6 GB) may use any card of 24 GB or more, including the
-  two-card machines, because its fleet spreads work over cards. Every other kind was measured on
-  an L4 (24 GB), so it may use the single-card L4, L40S and H100 machines. To add a card type, add
-  it to `CARDS` (cards and memory per card) and to the kinds it can hold.
+  Pixal3D may use any card of 24 GB or more, including the two-card machines, because its fleet
+  spreads work over cards. Every other kind was measured on an L4 (24 GB), so it may use the
+  single-card L4, L40S and H100 machines. To add a card type, add it to `CARDS` (cards and memory
+  per card), to `SPEED_ORDER`, and to the kinds it can hold. The 16 GB P100 (RENDER-S) is not used:
+  the GPU image's driver does not see its card.
 - **Which zones** are listed in `ZONES` in `tools/props/cloud/scaleway.py`: fr-par-1, fr-par-2 and
   pl-waw-2, the zones that rent cards.
-- **Order and fallback.** Offers are taken cheapest card first. Among equally cheap offers, the
-  zone with the fewest of the run's machines comes first, then the best stocked, so a big batch
-  spreads over the zones. An offer that is refused, is out of stock, or gives a machine that does
-  not answer within `START_MINUTES` (5, in `batch.py`) is dropped and the next one tried. In a
-  Pixal3D fleet, a machine that never answers is replaced from the remaining offers.
-- **Limits.** The owner's limits in `ledger.py` (4 h and EUR 60 a batch, EUR 700 a month) are checked
-  as if every card were the dearest offered. A large batch therefore leaves out the dearest card
-  types when they alone would break a limit.
+- **Order and fallback.** Offers are taken best stocked first, then in `SPEED_ORDER` (L4, L40S,
+  H100, H100-SXM, two-card H100, two-card L4), then the zone with the fewest of the run's machines,
+  so a big batch spreads over the zones. An offer that is refused, says "out of stock" for a
+  minute, or gives a machine that does not answer within `START_MINUTES` (5, in `batch.py`) is
+  dropped and the next one tried. In a Pixal3D fleet, a machine that never answers is replaced
+  from the remaining offers.
+- **Several jobs on one big card.** A card runs as many Pixal3D jobs at once as its memory holds:
+  three for every 24 GB (`RUNS_PER_24GB`), so an H100 runs ten. `batch.py --per-card` overrides it.
+  Other kinds run one job at a time until their memory per job is measured.
+- **Limits.** The month's ceiling is `SCORE_MONTH_EUROS` (EUR 1,500 by default). It is checked
+  against the ledger and Scaleway's bill before every machine is rented, and nothing more is rented
+  once it is reached. A batch is also held to 4 h and EUR 60 (`ledger.py`).
 - **Forcing a type** for a measuring run: `batch.py --types` and `library_bake.py --types`.
 - **The record.** Every run writes one row per machine to the ledger
   (`~/.farm-factory-props/cloud/ledger.jsonl`). A row holds the job kind, card type, zone, wait

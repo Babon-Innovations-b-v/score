@@ -65,7 +65,7 @@ def price(jobs, machine_type, project, hold, at_once):
         raise SystemExit(f"no {machine_type} is in stock in {', '.join(scaleway.ZONES)}")
     minutes = estimate(jobs, hold, at_once)
     dearest = max(offer[0] for offer in found)
-    spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+    spent = batch.month_spent(project)
     batch.say(f"{len(jobs)} Infinigen jobs on one {machine_type}: about {minutes:.0f} min, "
               f"€{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)

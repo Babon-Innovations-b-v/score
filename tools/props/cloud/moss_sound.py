@@ -62,7 +62,7 @@ def price(jobs, project):
         raise SystemExit("no card is sold in the zones used")
     minutes = SETUP_MINUTES + len(jobs) * MINUTES_A_CLIP
     dearest = max(offer[0] for offer in found)
-    spent = max(scaleway.month_spend(project), ledger.month_total(ledger.this_month(), ledger.entries()))
+    spent = batch.month_spent(project)
     euros = ledger.cost(minutes, dearest)
     batch.say(f"{len(jobs)} MOSS takes on one card: about {minutes:.0f} min, at most €{euros:.2f}; "
               f"€{spent:.2f} spent this month")

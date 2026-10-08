@@ -5,17 +5,23 @@ and took per card type.
     python3 tools/props/cloud/capacity.py offers <kind>                 # where that kind can be rented right now
 
 All day on 2026-10-08 the batches waited because the L4 cards in pl-waw-2 were out of stock and machines failed to
-start; the owner agreed to use other zones and card types. So every kind lists every Scaleway type whose card holds
-it, cheapest card first, and `batch.claim` walks that list across the three zones that rent cards: a zone that
-refuses the order, says "out of stock", or gives a machine that does not answer within `batch.START_MINUTES` is left
-for the next offer. A fleet spreads over the zones (`next_offer`), so one zone running dry costs it one machine.
+start. The owner's rule the same day: Scaleway's credits cover about EUR 3,000 a month and a world costs tens of
+euros, so the card's price barely matters; take whatever is in stock, in the order that waits least, and never wait
+minutes for an L4 when a bigger card is free. So every kind lists every Scaleway type whose card holds it, and
+`batch.claim` walks them best stocked first, then in SPEED_ORDER, across the three zones that rent cards: a zone that
+refuses the order, says "out of stock" for a minute, or gives a machine that does not answer within
+`batch.START_MINUTES` is left for the next offer. A fleet spreads over the zones (`next_offer`), so one zone running
+dry costs it one machine. The month's spend stays under `ledger.MONTH_EUROS`, checked before every rent.
 
 Memory per kind decides which cards may run it. Pixal3D was measured: three runs at once peak at 10.6 GB on one card
 (2026-09-29), so every card of 24 GB or more holds it. Every other kind was set up and measured on an L4 (24 GB) and
 has not been measured below that, so it may run on any single card of at least 24 GB: the L40S (48 GB) and the H100
 (80 GB) hold all of it. Machines with two cards only pay off where the runner spreads work over cards, which only
-the Pixal3D fleet does. RENDER-S (a 16 GB Tesla P100, sold by the hour) is listed for nothing until a run on it is
-measured.
+the Pixal3D fleet does. RENDER-S (a 16 GB Tesla P100) is not used: the GPU image's NVIDIA driver does not see its
+card (2026-10-08, `nvidia-smi` failed on both machines rented).
+
+A big card runs several jobs of a kind at once where its memory allows (`runs_at_once`): Pixal3D runs three at once
+on an L4's 24 GB (measured 2026-09-29), so a card runs three for every 24 GB it has.
 """
 import argparse
 import collections
@@ -29,7 +35,11 @@ import ledger  # noqa: E402
 
 # Each machine type's cards and the memory of one card in GB (Scaleway's server-type list, 2026-10-08).
 CARDS = {"L4-1-24G": (1, 24), "L4-2-24G": (2, 24), "L40S-1-48G": (1, 48), "H100-1-80G": (1, 80),
-         "H100-2-80G": (2, 80), "H100-SXM-2-80G": (2, 80), "RENDER-S": (1, 16)}
+         "H100-2-80G": (2, 80), "H100-SXM-2-80G": (2, 80)}
+# The order offers are tried in among those as well stocked: the one that waits least first (owner, 2026-10-08).
+SPEED_ORDER = ("L4-1-24G", "L40S-1-48G", "H100-1-80G", "H100-SXM-2-80G", "H100-2-80G", "L4-2-24G")
+# Jobs of a kind one card runs at once for each 24 GB it has, where that was measured: Pixal3D, three on an L4.
+RUNS_PER_24GB = {"pixal": 3}
 SINGLE_CARD = ("L4-1-24G", "L40S-1-48G", "H100-1-80G")
 # The types each kind may run on. Order does not matter: offers are sorted by price per card.
 KINDS = {
@@ -58,14 +68,28 @@ def types_for(kind):
     return KINDS[kind]
 
 
+def runs_at_once(kind, machine_type):
+    """How many jobs of `kind` one card of `machine_type` runs at once: RUNS_PER_24GB for each 24 GB it has where
+    that was measured, else one."""
+    if kind not in RUNS_PER_24GB:
+        return 1
+    return max(1, RUNS_PER_24GB[kind] * CARDS[machine_type][1] // 24)
+
+
+def speed_rank(machine_type):
+    """Where a type stands in SPEED_ORDER; types not in it (processor machines) after every card."""
+    return SPEED_ORDER.index(machine_type) if machine_type in SPEED_ORDER else len(SPEED_ORDER)
+
+
 def next_offer(offers, rented):
-    """The offer the next machine of a fleet is rented from: the cheapest card first, and among offers as cheap,
-    the zone holding fewest of the fleet's machines, then the best stocked. `offers` are batch.offers' tuples
-    (euros a card a minute, stock rank, type, zone, euros a minute); `rented` the fleet's machines so far."""
+    """The offer the next machine of a run is rented from: the best stocked first, then the type that waits least
+    (SPEED_ORDER), then the zone holding fewest of the run's machines, then the cheapest. `offers` are
+    batch.offers' tuples (euros a card a minute, stock rank, type, zone, euros a minute); `rented` the run's
+    machines so far."""
     if not offers:
         return None
     in_zone = collections.Counter(machine["zone"] for machine in rented if not machine.get("deleted"))
-    return min(offers, key=lambda offer: (round(offer[0], 6), in_zone[offer[3]], offer[1]))
+    return min(offers, key=lambda offer: (offer[1], speed_rank(offer[2]), in_zone[offer[3]], offer[0]))
 
 
 # The report.

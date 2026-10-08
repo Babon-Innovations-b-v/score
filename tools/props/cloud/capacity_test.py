@@ -28,18 +28,27 @@ def test_every_kind_names_known_types():
         raise AssertionError("an unknown kind was given types")
 
 
-def test_a_fleet_takes_the_cheapest_card_and_spreads_over_zones():
-    offers = [offer(L4, 1, "L4-1-24G", "pl-waw-2"), offer(L4, 2, "L4-1-24G", "fr-par-2"),
-              offer(L4, 2, "L4-2-24G", "fr-par-1"), offer(H100, 0, "H100-1-80G", "fr-par-2")]
-    assert capacity.next_offer(offers, [])[3] == "pl-waw-2"
-    rented = [{"zone": "pl-waw-2"}]
-    assert capacity.next_offer(offers, rented)[3] == "fr-par-2"
-    rented.append({"zone": "fr-par-2"})
-    assert capacity.next_offer(offers, rented)[3] == "fr-par-1"
-    rented.append({"zone": "fr-par-1"})
-    assert capacity.next_offer(offers, rented)[2] != "H100-1-80G"
-    assert capacity.next_offer(offers, [{"zone": "pl-waw-2", "deleted": 1.0}])[3] == "pl-waw-2"
+def test_a_run_takes_the_best_stocked_then_fastest_card_and_spreads_over_zones():
+    offers = [offer(L4, 2, "L4-1-24G", "pl-waw-2"), offer(L4, 2, "L4-1-24G", "fr-par-2"),
+              offer(L4, 2, "L4-1-24G", "fr-par-1"), offer(H100, 2, "H100-1-80G", "fr-par-2")]
+    assert capacity.next_offer(offers, [])[2] == "L4-1-24G"
+    rented = [{"zone": "fr-par-1"}]
+    assert capacity.next_offer(offers, rented)[3] != "fr-par-1"
+    rented += [{"zone": "fr-par-2"}, {"zone": "pl-waw-2"}]
+    assert capacity.next_offer(offers, rented)[2] == "L4-1-24G"
+    # A bigger card in stock goes before an L4 that is short.
+    assert capacity.next_offer(offers + [offer(H100, 0, "H100-1-80G", "pl-waw-2")], [])[2] == "H100-1-80G"
+    assert capacity.next_offer([offer(H100, 2, "H100-1-80G", "fr-par-2"), offer(L40S, 2, "L40S-1-48G", "fr-par-2")],
+                               [])[2] == "L40S-1-48G"
     assert capacity.next_offer([], []) is None
+
+
+def test_a_big_card_runs_several_jobs_at_once():
+    assert capacity.runs_at_once("pixal", "L4-1-24G") == 3
+    assert capacity.runs_at_once("pixal", "L40S-1-48G") == 6
+    assert capacity.runs_at_once("pixal", "H100-1-80G") == 10
+    assert capacity.runs_at_once("parts", "H100-1-80G") == 1
+    assert "RENDER-S" not in capacity.CARDS
 
 
 def test_hourly_machines_are_billed_by_the_started_hour():
