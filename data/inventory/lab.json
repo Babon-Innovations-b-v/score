@@ -12,7 +12,7 @@
    }
   ]
  },
- "approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K06, runner-up K02",
+ "approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K06, runner-up K02; round two 2026-10-08: every element of K06 (the owner: 'lost a massive amount of detail')",
  "migrated": "",
  "room": {
   "shell": "",
@@ -33,10 +33,13 @@
     "south": "hatch"
    },
    "open": [],
-   "features": {},
-   "ledges": {
-    "east": 0.42,
-    "west": 0.42
+   "features": {
+    "east": {
+     "upper": "wall_upper_pipes"
+    },
+    "west": {
+     "upper": "wall_upper_cables"
+    }
    }
   }
  },
@@ -83,6 +86,52 @@
    ],
    "count": 1,
    "thing": "prop:lab_wall_upper_plain",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": []
+  },
+  {
+   "id": "wall_upper_pipes",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "upper wall panel with three pipes on brackets running across it (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.12,
+    1.7
+   ],
+   "count": 1,
+   "thing": "prop:lab_wall_upper_pipes",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": []
+  },
+  {
+   "id": "wall_upper_cables",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "upper wall panel with bundled cables in clips running across it (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.1,
+    1.7
+   ],
+   "count": 1,
+   "thing": "prop:lab_wall_upper_cables",
    "made": "kit piece",
    "group": "kit: wall",
    "at": []
@@ -177,29 +226,6 @@
    "thing": "prop:lab_roof_face_panel",
    "made": "kit piece",
    "group": "kit: ceiling",
-   "at": []
-  },
-  {
-   "id": "pit_wall_panel",
-   "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
-   "name": "the riser plate of a side ledge, bolted",
-   "kind": "code",
-   "anchor": "floor",
-   "size": [
-    1.0,
-    0.04,
-    0.42
-   ],
-   "count": 1,
-   "thing": "prop:lab_pit_wall_panel",
-   "made": "kit piece",
-   "group": "kit: floor",
    "at": []
   },
   {
@@ -418,12 +444,70 @@
     {
      "wall": "corner10",
      "across": 0.0,
-     "bottom": 1.2
+     "bottom": 1.05
     },
     {
      "wall": "corner18",
      "across": 0.0,
-     "bottom": 1.2
+     "bottom": 1.1
+    }
+   ]
+  },
+  {
+   "id": "intercom_panel",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a wall call box with a speaker grille and a call button (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.25,
+    0.06,
+    0.4
+   ],
+   "count": 1,
+   "thing": "prop:lab_intercom_panel",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [
+    {
+     "wall": "corner8",
+     "across": 0.0,
+     "bottom": 1.0
+    }
+   ]
+  },
+  {
+   "id": "grab_bar",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a U-shaped steel grab rail on two brackets by hatch S (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.14,
+    0.12,
+    0.7
+   ],
+   "count": 1,
+   "thing": "prop:lab_grab_bar",
+   "made": "kit piece",
+   "group": "kit: door",
+   "at": [
+    {
+     "wall": "corner0",
+     "across": 0.0,
+     "bottom": 1.0
     }
    ]
   },
@@ -479,7 +563,7 @@
     0.08,
     0.08
    ],
-   "count": 4,
+   "count": 12,
    "thing": "prop:lab_pipe_straight",
    "made": "kit piece",
    "group": "kit: pipe",
@@ -523,6 +607,86 @@
       0.08,
       0.08
      ]
+    },
+    {
+     "wall": "corner5",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "corner6",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "corner7",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "corner8",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "corner10",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "corner11",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "corner12",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
+    },
+    {
+     "wall": "corner13",
+     "across": 0.0,
+     "bottom": 2.5,
+     "size": [
+      0.62,
+      0.08,
+      0.08
+     ]
     }
    ]
   },
@@ -543,7 +707,7 @@
     0.2,
     0.3
    ],
-   "count": 2,
+   "count": 4,
    "thing": "prop:lab_pipe_valve",
    "made": "kit piece",
    "group": "kit: pipe",
@@ -554,9 +718,19 @@
      "bottom": 2.04
     },
     {
+     "wall": "east",
+     "across": -0.5,
+     "bottom": 2.29
+    },
+    {
      "wall": "west",
      "across": -0.7,
      "bottom": 2.29
+    },
+    {
+     "wall": "west",
+     "across": 0.6,
+     "bottom": 2.04
     }
    ]
   },
@@ -584,6 +758,192 @@
    "at": []
   },
   {
+   "id": "cable_drop",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a vertical run of cables dropping from the top of the wall into a box (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.15,
+    0.08,
+    1.2
+   ],
+   "count": 5,
+   "thing": "prop:lab_cable_drop",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": [
+    {
+     "wall": "west",
+     "across": -0.85,
+     "bottom": 1.15
+    },
+    {
+     "wall": "corner16",
+     "across": 0.0,
+     "bottom": 1.2
+    },
+    {
+     "wall": "corner13",
+     "across": 0.2,
+     "bottom": 0.2
+    },
+    {
+     "wall": "corner5",
+     "across": -0.2,
+     "bottom": 0.2
+    },
+    {
+     "wall": "corner2",
+     "across": 0.0,
+     "bottom": 1.2
+    }
+   ]
+  },
+  {
+   "id": "cable_bundle",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a bundle of black and grey cables in clips along the foot of the wall (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.6,
+    0.08,
+    0.12
+   ],
+   "count": 4,
+   "thing": "prop:lab_cable_bundle",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": [
+    {
+     "wall": "corner1",
+     "across": 0.0,
+     "bottom": 0.14
+    },
+    {
+     "wall": "corner2",
+     "across": 0.0,
+     "bottom": 0.14
+    },
+    {
+     "wall": "corner16",
+     "across": 0.0,
+     "bottom": 0.14
+    },
+    {
+     "wall": "corner17",
+     "across": 0.0,
+     "bottom": 0.14
+    }
+   ]
+  },
+  {
+   "id": "conduit_box",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a small steel conduit box with cable glands (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.2,
+    0.1,
+    0.2
+   ],
+   "count": 5,
+   "thing": "prop:lab_conduit_box",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": [
+    {
+     "wall": "west",
+     "across": -1.05,
+     "bottom": 0.3
+    },
+    {
+     "wall": "corner1",
+     "across": 0.0,
+     "bottom": 1.4
+    },
+    {
+     "wall": "east",
+     "across": -1.1,
+     "bottom": 0.3
+    },
+    {
+     "wall": "corner12",
+     "across": 0.0,
+     "bottom": 1.0
+    },
+    {
+     "wall": "corner6",
+     "across": 0.0,
+     "bottom": 1.0
+    }
+   ]
+  },
+  {
+   "id": "small_readout",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a small wall readout screen with buttons beside it (the hub's)",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.3,
+    0.06,
+    0.25
+   ],
+   "count": 4,
+   "thing": "prop:lab_small_readout",
+   "made": "kit piece",
+   "group": "kit: screen",
+   "at": [
+    {
+     "wall": "east",
+     "across": 0.95,
+     "bottom": 1.45
+    },
+    {
+     "wall": "corner17",
+     "across": 0.0,
+     "bottom": 1.4
+    },
+    {
+     "wall": "corner12",
+     "across": 0.0,
+     "bottom": 1.3
+    },
+    {
+     "wall": "corner5",
+     "across": 0.0,
+     "bottom": 1.2
+    }
+   ]
+  },
+  {
    "id": "desk",
    "view": "v1",
    "box": [
@@ -606,15 +966,15 @@
    "group": "kit: furniture",
    "at": [
     {
-     "x": -1.5,
+     "x": -1.85,
      "y": 0.0,
-     "z": -1.5,
+     "z": -1.95,
      "facing": 180
     },
     {
-     "x": 1.5,
+     "x": 1.85,
      "y": 0.0,
-     "z": -1.5,
+     "z": -1.95,
      "facing": 180
     }
    ],
@@ -644,15 +1004,15 @@
    "group": "kit: furniture",
    "at": [
     {
-     "x": -1.5,
+     "x": -1.85,
      "y": 0.0,
-     "z": -0.75,
+     "z": -1.15,
      "facing": 0
     },
     {
-     "x": 1.5,
+     "x": 1.85,
      "y": 0.0,
-     "z": -0.75,
+     "z": -1.15,
      "facing": 0
     }
    ],
@@ -681,8 +1041,8 @@
    "group": "kit: furniture",
    "at": [
     {
-     "x": -2.62,
-     "y": 0.42,
+     "x": -2.58,
+     "y": 0.0,
      "z": 0.0,
      "facing": 90
     }
@@ -713,9 +1073,9 @@
    "group": "kit: furniture",
    "at": [
     {
-     "x": 2.59,
-     "y": 0.42,
-     "z": 0.0,
+     "x": 2.54,
+     "y": 0.0,
+     "z": 0.3,
      "facing": 270
     }
    ],
@@ -823,6 +1183,81 @@
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_keyboard.png"
   },
   {
+   "id": "desk_mouse",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "computer mouse",
+   "kind": "generate",
+   "anchor": "on:desk",
+   "size": [
+    0.06,
+    0.11,
+    0.03
+   ],
+   "count": 1,
+   "thing": "prop:lab_desk_mouse",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "desk",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_mouse.png"
+  },
+  {
+   "id": "desk_keypad",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "beige keypad unit with a small readout",
+   "kind": "generate",
+   "anchor": "on:desk",
+   "size": [
+    0.17,
+    0.2,
+    0.05
+   ],
+   "count": 1,
+   "thing": "prop:lab_desk_keypad",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "desk",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_keypad.png"
+  },
+  {
+   "id": "sample_jar",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "steel sample jar with a lid and a label",
+   "kind": "generate",
+   "anchor": "on:desk",
+   "size": [
+    0.11,
+    0.11,
+    0.16
+   ],
+   "count": 1,
+   "thing": "prop:lab_sample_jar",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "desk",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_jar.png"
+  },
+  {
    "id": "sample_tray",
    "view": "v1",
    "box": [
@@ -848,6 +1283,56 @@
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_tray.png"
   },
   {
+   "id": "sample_scanner",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "handheld sample scanner with a keypad and a small screen",
+   "kind": "generate",
+   "anchor": "on:sample_store",
+   "size": [
+    0.28,
+    0.28,
+    0.07
+   ],
+   "count": 1,
+   "thing": "prop:lab_sample_scanner",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "sample_store",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_scanner.png"
+  },
+  {
+   "id": "hanging_glove",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "a worn work glove hanging from a hook",
+   "kind": "generate",
+   "anchor": "on:glovebox_cabinet",
+   "size": [
+    0.17,
+    0.08,
+    0.28
+   ],
+   "count": 1,
+   "thing": "prop:lab_hanging_glove",
+   "made": "kit piece",
+   "group": "kit: furniture",
+   "at": [],
+   "parent": "glovebox_cabinet",
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/hanging_glove.png"
+  },
+  {
    "id": "gauge_panel",
    "view": "v1",
    "box": [
@@ -864,18 +1349,53 @@
     0.2,
     0.43
    ],
-   "count": 1,
+   "count": 2,
    "thing": "prop:lab_gauge_panel",
    "made": "kit piece",
    "group": "kit: wall",
    "at": [
     {
-     "wall": "east",
-     "across": -0.75,
-     "bottom": 1.75
+     "wall": "corner10",
+     "across": 0.0,
+     "bottom": 1.55
+    },
+    {
+     "wall": "corner3",
+     "across": 0.0,
+     "bottom": 1.6
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/gauge_panel.png"
+  },
+  {
+   "id": "switch_panel",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "wall control box with indicator lights and toggle switches",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.26,
+    0.21,
+    0.45
+   ],
+   "count": 1,
+   "thing": "prop:lab_switch_panel",
+   "made": "kit piece",
+   "group": "kit: wall",
+   "at": [
+    {
+     "wall": "corner13",
+     "across": 0.0,
+     "bottom": 1.45
+    }
+   ],
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/switch_panel.png"
   },
   {
    "id": "junction_box",
@@ -894,7 +1414,7 @@
     0.2,
     0.4
    ],
-   "count": 1,
+   "count": 3,
    "thing": "prop:lab_junction_box",
    "made": "kit piece",
    "group": "kit: wall",
@@ -902,10 +1422,100 @@
     {
      "wall": "west",
      "across": 0.85,
+     "bottom": 1.55
+    },
+    {
+     "wall": "corner2",
+     "across": 0.0,
+     "bottom": 1.5
+    },
+    {
+     "wall": "east",
+     "across": -1.2,
      "bottom": 1.6
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/junction_box.png"
+  },
+  {
+   "id": "hose_loop",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "copper and red hoses looping between two wall fittings",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.35,
+    0.08,
+    0.5
+   ],
+   "count": 2,
+   "thing": "prop:lab_hose_loop",
+   "made": "kit piece",
+   "group": "kit: pipe",
+   "at": [
+    {
+     "wall": "west",
+     "across": -0.3,
+     "bottom": 1.55
+    },
+    {
+     "wall": "east",
+     "across": 0.2,
+     "bottom": 1.5
+    }
+   ],
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/hose_loop.png"
+  },
+  {
+   "id": "wall_monitor",
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    2752,
+    1536
+   ],
+   "name": "monitor on a wall bracket, green screen of readouts",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.32,
+    0.45,
+    0.3
+   ],
+   "count": 4,
+   "thing": "prop:lab_wall_monitor",
+   "made": "kit piece",
+   "group": "kit: screen",
+   "at": [
+    {
+     "wall": "corner11",
+     "across": 0.0,
+     "bottom": 1.5
+    },
+    {
+     "wall": "corner6",
+     "across": 0.0,
+     "bottom": 1.5
+    },
+    {
+     "wall": "corner7",
+     "across": 0.0,
+     "bottom": 1.5
+    },
+    {
+     "wall": "corner8",
+     "across": 0.0,
+     "bottom": 1.5
+    }
+   ],
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/wall_monitor.png"
   },
   {
    "id": "fire_extinguisher",
@@ -924,15 +1534,20 @@
     0.2,
     0.55
    ],
-   "count": 1,
+   "count": 2,
    "thing": "prop:lab_fire_extinguisher",
    "made": "kit piece",
    "group": "kit: wall",
    "at": [
     {
      "wall": "west",
-     "across": -1.05,
-     "bottom": 0.55
+     "across": 1.05,
+     "bottom": 0.45
+    },
+    {
+     "wall": "corner3",
+     "across": 0.0,
+     "bottom": 0.45
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/fire_extinguisher.png"
@@ -954,20 +1569,25 @@
     0.6,
     0.28
    ],
-   "count": 2,
+   "count": 3,
    "thing": "prop:lab_task_lamp",
    "made": "kit piece",
    "group": "kit: light",
    "at": [
     {
-     "wall": "corner7",
+     "wall": "corner12",
      "across": 0.0,
      "bottom": 1.95
     },
     {
-     "wall": "corner11",
+     "wall": "corner5",
      "across": 0.0,
      "bottom": 1.95
+    },
+    {
+     "wall": "west",
+     "across": -1.25,
+     "bottom": 2.0
     }
    ],
    "light": {

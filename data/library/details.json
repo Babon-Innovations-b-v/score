@@ -2461,20 +2461,7 @@
 			"bare_steel",
 			"lamp_lens"
 		],
-		"screens": [
-			{
-				"at": [
-					0.0,
-					-0.22
-				],
-				"size": [
-					0.09,
-					0.09
-				],
-				"variant": "lamp_strip",
-				"facing": "down"
-			}
-		],
+		"screens": [],
 		"cuts": [],
 		"turn": [
 			1.0,
@@ -2495,20 +2482,7 @@
 			"cast_steel",
 			"lamp_lens"
 		],
-		"screens": [
-			{
-				"at": [
-					0.0,
-					0.0
-				],
-				"size": [
-					0.5,
-					0.18
-				],
-				"variant": "lamp_strip",
-				"facing": "down"
-			}
-		],
+		"screens": [],
 		"cuts": [],
 		"turn": [
 			0.0,
@@ -4095,6 +4069,166 @@
 		"materials": [
 			"bare_steel",
 			"warning_paint"
+		]
+	},
+	"lab_wall_monitor": {
+		"screens": [
+			{
+				"at": [
+					0.0,
+					0.155
+				],
+				"size": [
+					0.22,
+					0.17
+				],
+				"variant": "screen"
+			}
+		],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"painted_panel"
+		]
+	},
+	"lab_switch_panel": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"bare_steel"
+		]
+	},
+	"lab_hose_loop": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"pipe_steel",
+			"rubber"
+		]
+	},
+	"lab_desk_mouse": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"plastic_grey"
+		]
+	},
+	"lab_desk_keypad": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"plastic_grey"
+		]
+	},
+	"lab_sample_jar": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"glass",
+			"bare_steel"
+		]
+	},
+	"lab_sample_scanner": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"screen"
+		]
+	},
+	"lab_hanging_glove": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"rubber"
 		]
 	}
 }
