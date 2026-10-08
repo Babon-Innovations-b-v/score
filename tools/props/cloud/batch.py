@@ -558,7 +558,7 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
         fleet.attempts.append(refused_row(offer, "out of stock"))
         return None
     folder = fleet.folder / name
-    folder.mkdir(parents=True)
+    folder.mkdir(parents=True, exist_ok=True)  # a claim retried under the same number after a machine that never started
     machine = {"id": server_id, "zone": zone, "type": machine_type, "class": offer.machine_class,
                "cards": provider.cards(offer.machine_class), "price": offer.price,
                "unit_minutes": cloud.price(machine_type, zone)[1], "created": time.time(),
