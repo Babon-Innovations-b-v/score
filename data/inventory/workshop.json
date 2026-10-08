@@ -765,8 +765,8 @@
 			"group": "kit: screen",
 			"at": [
 				{
-					"wall": "west",
-					"across": 1.9,
+					"wall": "south",
+					"across": -1.75,
 					"bottom": 1.25
 				}
 			]
@@ -801,7 +801,7 @@
 				{
 					"wall": "north",
 					"across": -5.0,
-					"bottom": 1.5
+					"bottom": 0.8
 				},
 				{
 					"wall": "east",
@@ -821,7 +821,7 @@
 				{
 					"wall": "west",
 					"across": -1.9,
-					"bottom": 1.6
+					"bottom": 0.8
 				}
 			]
 		},
