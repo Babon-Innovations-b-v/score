@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-SCORE: a framework that compiles a creator's picks into a complete, owned, editable world (coding agents and open models in cloud batches, checks before every paid step), and its paper. Public repository, MIT. Owner: `@JoeyKardolus`.
+SCORE: a world generation framework that turns a creator's picks into a complete, owned, editable world (coding agents and open models in cloud batches, checks before every paid step), and its paper. Public repository, MIT. Owner: `@JoeyKardolus`.
 
 ## Persona
 

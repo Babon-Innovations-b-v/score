@@ -5,7 +5,7 @@
 SCORE turns a creator's picks (references, a concept, a style) into a complete world a game engine
 or simulator loads: every object its own model, rooms with collision, surfaces from one shared
 library, sound for every surface and object, and nothing in it the creator does not own. It works
-like an offline compiler. Coding agents and open models do the work in cloud batches, cheap checks
+offline: coding agents and open models do the work in cloud batches, cheap checks
 run before every paid step, and the creator decides at a few fixed points.
 
 The creator writes the score; coding agents and open tools play it.

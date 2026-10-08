@@ -1,0 +1,13 @@
+\section{The SCORE framework}\label{the-score-framework}
+
+SCORE's input is the creator's picks: references, a concept picture and a style for each place. Its output is a world an engine loads. Between them lie stages whose outputs can be inspected, cached and checked. A world is generated once, offline, in cloud batches; nothing is generated while the world is played, and each scale of a world (a room, a planet's ground, an orbit) is its own kind of world rather than one continuous zoom.
+
+The stages are concept, dimensioned plan, inventory, close-ups, shape, surfaces, sound, assembly and review. Each writes an explicit output: a plan in metres, an inventory row for every object with its parent, one clean picture per object, one model per object, baked surfaces, sounds. Each output is cached, so changing one pick reruns only the stages downstream of it.
+
+All stages write one canonical scene: an OpenUSD stage \citep{openusd} with glTF geometry \citep{gltf2}. Every object carries its kind, place in metres, collision, the library surface of each part, its sound, and tags for what a person can do with it, such as door, seat, terminal or airlock. The framework owns a generated base layer and may rewrite it; the creator's changes live in edit layers above it, so regenerating replaces the base and keeps every edit. Engines and simulators load the same stage through thin adapters.
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: Figure 2, the framework.} The stages with their cached outputs, the scene's base and edit layers, and the engine adapters. To be drawn with the scene export, which is being built in the framework repository.
+
+\end{minipage}}\end{center}
