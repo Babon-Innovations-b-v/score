@@ -137,6 +137,26 @@ AWS is the likely next backend: EC2 instance types per class (for example `g6.xl
 `g6e.xlarge` for `gpu-48gb`, `p5` for `gpu-80gb`), regions as zones, Secrets Manager for `secret()`, and
 instance metadata plus a narrowly scoped role for the self-delete.
 
+## Reviewing a place
+
+The review page shows one place the way the creator checks it: every stage's output side by side in the order the
+stages ran (the concept and the creator's references, the dimensioned plan, the inventory boxed on the concept, the
+close-ups, each made model with its route, its labelled parts and its baked look, the library surfaces, and the
+assembled scene), before and after from the same cameras where a stage was rerun, and every check's result with what
+it caught. It is a static folder built from the files the stages already wrote; the scene is rendered from the
+place's OpenUSD stage by Blender with no window, from fixed cameras and along a short walk round the place.
+
+```bash
+.venv/bin/python tools/review/page.py wreck --run <the run's work folder> --out ~/.farm-factory-props/work/review/wreck \
+    [--before <an earlier run's work folder>] [--concept <the concept folder>] [--references <the reference pictures>] \
+    [--stage <wreck.usda>] [--before-stage <the earlier run's wreck.usda>] [--agreement <tools/usd/views.py's folder>]
+```
+
+Open `index.html` in the out folder in a browser, or publish the folder as it is: it needs no server. A run folder is
+what `tools/props/library/place_route.py` works in; `tools/review/records.py` lists what is read from each folder.
+Rendering takes a few minutes on the processor (the wreck: about six); `--no-render` rebuilds the page from the
+renders already in the out folder. Needs `ffmpeg` for the walk's video.
+
 ## Licence
 
 MIT, see [`LICENSE`](LICENSE). The IEEE citation style in `paper/source/ieee.csl` is from the

@@ -6,7 +6,8 @@ views.json: {"size": [wide, tall], "views": [{"name", "eye", "aim", "up", "fov"}
 (metres, y up), `fov` the angle across the picture in degrees. Per view it writes <name>-look.png (the place on a
 plain grey ground under a low sun, black sky), <name>-mask.png (the place's objects alone on a transparent
 background: the alpha is where they are), <name>-ground.png (the ground alone, the same way), and report.json with what came in: objects, materials, each object's
-score:* properties, and the stage's layers as Blender's own USD library composed them.
+score:* properties, and the stage's layers as Blender's own USD library composed them. A view with `"look_only": true`
+(a walkthrough's frame) gets its look alone.
 """
 import json
 import math
@@ -171,6 +172,8 @@ def main():
         camera(scene, view)
         plane.hide_render = False
         render(scene, out / f"{view['name']}-look.png", transparent=False)
+        if view.get("look_only"):
+            continue
         plane.hide_render = True
         render(scene, out / f"{view['name']}-mask.png", transparent=True)
         plane.hide_render = False
