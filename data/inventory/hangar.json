@@ -1,0 +1,1440 @@
+{
+	"scene": "hangar",
+	"place": "hangar",
+	"plan": {
+		"world": "",
+		"seed": 0,
+		"concept": "place-gh/hangar/concepts/K01.png",
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/hangar/concepts/K01.png"
+			}
+		]
+	},
+	"approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K01",
+	"migrated": "",
+	"room": {
+		"shell": "",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": [],
+		"layout": {
+			"inside": [
+				26.0,
+				46.0
+			],
+			"corner": 4.0,
+			"wall": 13.0,
+			"rise": 0.0,
+			"run": 0.0,
+			"roof": "flat",
+			"opening": [
+				22.0,
+				40.0
+			],
+			"bands": [
+				1.1,
+				4.0,
+				7.0,
+				10.0,
+				13.0
+			],
+			"posts": 6.0,
+			"rails": {
+				"high": 10.0,
+				"parked": -18.0
+			},
+			"doors": {
+				"south": "hatch",
+				"east": "hatch",
+				"west": "hatch"
+			},
+			"open": [
+				"south"
+			],
+			"features": {},
+			"leaf": {
+				"size": [
+					11.3,
+					40.6
+				],
+				"lies": "roof",
+				"kit": "hdoor"
+			}
+		}
+	},
+	"rows": [
+		{
+			"id": "wall_lower_plain",
+			"name": "a worn bolted steel wall panel, lower band",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				1.1
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_wall_lower_plain"
+		},
+		{
+			"id": "wall_upper_plain",
+			"name": "a worn bolted steel wall panel, upper bands",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				2.0
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_wall_upper_plain"
+		},
+		{
+			"id": "wall_skirting",
+			"name": "a scuffed steel skirting band along the wall's foot",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.06,
+				0.12
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_wall_skirting"
+		},
+		{
+			"id": "wall_cornice",
+			"name": "a steel cornice band along the wall's top",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.16,
+				0.18
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_wall_cornice"
+		},
+		{
+			"id": "wall_corner_post",
+			"name": "a square steel post with bolts standing up the wall (and the big door's frame)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.2,
+				0.2,
+				3.0
+			],
+			"count": 1,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_wall_corner_post"
+		},
+		{
+			"id": "ring_floor_plate",
+			"name": "a heavy steel deck plate, diamond tread, bolted",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				0.04,
+				1.2
+			],
+			"count": 1,
+			"group": "kit: floor",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_ring_floor_plate"
+		},
+		{
+			"id": "roof_face_panel",
+			"name": "a ribbed steel roof plate",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.4,
+				0.05,
+				2.4
+			],
+			"count": 1,
+			"group": "kit: ceiling",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_roof_face_panel"
+		},
+		{
+			"id": "lattice_ring_rib",
+			"name": "a straight steel I-beam: crane rail, roof and door-leaf rib",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				2.4,
+				0.3,
+				0.2
+			],
+			"count": 1,
+			"group": "kit: ceiling",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_lattice_ring_rib"
+		},
+		{
+			"id": "hatch_frame",
+			"name": "the heavy steel frame round a tube hatch opening, bolted (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.4,
+				0.3,
+				2.693
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_hatch_frame"
+		},
+		{
+			"id": "hatch_leaf",
+			"name": "a thick steel pressure hatch door leaf (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				2.26,
+				0.12,
+				2.66
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_hatch_leaf"
+		},
+		{
+			"id": "hatch_wheel",
+			"name": "a steel locking hand wheel (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.5,
+				0.08,
+				0.5
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_hatch_wheel"
+		},
+		{
+			"id": "hatch_hinge",
+			"name": "a heavy steel door hinge (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.4
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_hatch_hinge"
+		},
+		{
+			"id": "hatch_window",
+			"name": "a small round window in a hatch leaf (the hub's door kit)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.4,
+				0.06,
+				0.4
+			],
+			"count": 1,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [],
+			"parts": [
+				"hatch_frame",
+				"hatch_leaf",
+				"hatch_wheel",
+				"hatch_hinge",
+				"hatch_window"
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_hatch_window"
+		},
+		{
+			"id": "pipe_bracket",
+			"name": "a steel wall bracket clamping a pipe (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.12,
+				0.15,
+				0.1
+			],
+			"count": 1,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_pipe_bracket"
+		},
+		{
+			"id": "wall_cage_lamp",
+			"name": "a caged bulkhead lamp on the wall (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.18,
+				0.12,
+				0.25
+			],
+			"count": 14,
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "south",
+					"across": 0.0,
+					"bottom": 3.0
+				},
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 3.0
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 3.0
+				},
+				{
+					"wall": "east",
+					"across": -12.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "east",
+					"across": -6.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "east",
+					"across": 6.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "east",
+					"across": 12.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "west",
+					"across": -12.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "west",
+					"across": -6.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "west",
+					"across": 6.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "west",
+					"across": 12.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "north",
+					"across": -6.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "north",
+					"across": 0.0,
+					"bottom": 3.6
+				},
+				{
+					"wall": "north",
+					"across": 6.0,
+					"bottom": 3.6
+				}
+			],
+			"light": {
+				"strength": 0.5,
+				"range": 6.0
+			},
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_wall_cage_lamp"
+		},
+		{
+			"id": "door_control_box",
+			"name": "a steel door control box with a keypad and a red and green status light (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.26,
+				0.12,
+				0.36
+			],
+			"count": 3,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "south",
+					"across": 1.55,
+					"bottom": 1.25
+				},
+				{
+					"wall": "east",
+					"across": 1.55,
+					"bottom": 1.25
+				},
+				{
+					"wall": "west",
+					"across": 1.55,
+					"bottom": 1.25
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_door_control_box"
+		},
+		{
+			"id": "tread_mat",
+			"name": "a tread-plate mat before a hatch (the hub's)",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				0.02,
+				0.9
+			],
+			"count": 3,
+			"group": "kit: floor",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"z": 22.45,
+					"facing": 0
+				},
+				{
+					"x": -12.45,
+					"z": 0.0,
+					"facing": 90
+				},
+				{
+					"x": 12.45,
+					"z": 0.0,
+					"facing": 270
+				}
+			],
+			"lies": "floor",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_tread_mat"
+		},
+		{
+			"id": "pipe_straight",
+			"name": "a propellant line with flanges",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.1,
+				0.1
+			],
+			"count": 6,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 3.2,
+					"size": [
+						36.0,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 0.0,
+					"bottom": 3.55,
+					"size": [
+						36.0,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": -10.0,
+					"bottom": 1.0,
+					"size": [
+						15.0,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": -10.0,
+					"bottom": 1.6,
+					"size": [
+						15.0,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 10.0,
+					"bottom": 1.0,
+					"size": [
+						15.0,
+						0.1,
+						0.1
+					]
+				},
+				{
+					"wall": "west",
+					"across": 10.0,
+					"bottom": 1.6,
+					"size": [
+						15.0,
+						0.1,
+						0.1
+					]
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_pipe_straight"
+		},
+		{
+			"id": "pipe_valve",
+			"name": "an inline valve with a red hand wheel (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.3,
+				0.2,
+				0.3
+			],
+			"count": 5,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "west",
+					"across": -5.7,
+					"bottom": 3.1
+				},
+				{
+					"wall": "west",
+					"across": -6.0,
+					"bottom": 0.9
+				},
+				{
+					"wall": "west",
+					"across": -13.0,
+					"bottom": 1.5
+				},
+				{
+					"wall": "west",
+					"across": 6.0,
+					"bottom": 0.9
+				},
+				{
+					"wall": "west",
+					"across": 13.0,
+					"bottom": 1.5
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_pipe_valve"
+		},
+		{
+			"id": "cable_bundle",
+			"name": "a bundle of cables held by clips (the hub's)",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.0,
+				0.08,
+				0.12
+			],
+			"count": 1,
+			"group": "kit: pipe",
+			"made": "kit piece",
+			"at": [
+				{
+					"wall": "east",
+					"across": 0.0,
+					"bottom": 4.2,
+					"size": [
+						36.0,
+						0.08,
+						0.12
+					]
+				}
+			],
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_cable_bundle"
+		},
+		{
+			"id": "machine_bay_plate",
+			"name": "the ship's pad: a heavy steel deck plate with tie-down points and a painted ring, set into the floor under the ship's legs",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				7.2,
+				7.2,
+				0.05
+			],
+			"count": 1,
+			"group": "kit: floor",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"z": 8.9,
+					"facing": 0
+				}
+			],
+			"lies": "floor",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_machine_bay_plate"
+		},
+		{
+			"id": "ship_bench",
+			"name": "the ship bench: a long heavy steel workbench with a screen and keyboard on an arm, clamps and a parts fixture on its top",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				3.0,
+				1.2,
+				1.4
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 10.5,
+					"y": 0.0,
+					"z": 3.5,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/ship_bench.png",
+			"solid": true,
+			"thing": "node:ShipBench",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"keep": "game object (ShipBench), kept whatever its score"
+		},
+		{
+			"id": "fuel_pump",
+			"name": "the fuel point: a squat propellant and air pump cabinet with gauges, two hose couplings and a small screen",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				1.0,
+				1.6
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -11.3,
+					"y": 0.0,
+					"z": 6.0,
+					"facing": 90
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/fuel_pump.png",
+			"solid": true,
+			"thing": "node:FuelPoint",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"keep": "game object (FuelPoint), kept whatever its score"
+		},
+		{
+			"id": "hose_reel",
+			"name": "a big hose reel on a steel stand with a thick black hose wound on it (the hub kit's)",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.7,
+				1.1
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -12.3,
+					"y": 0.0,
+					"z": 8.0,
+					"facing": 90
+				}
+			],
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_hose_reel"
+		},
+		{
+			"id": "parts_rack",
+			"name": "a tall heavy steel pallet rack, three levels, holding crates and big ship parts wrapped in film",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.4,
+				1.0,
+				3.0
+			],
+			"count": 4,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 12.44,
+					"y": 0.0,
+					"z": -16.0,
+					"facing": 270
+				},
+				{
+					"x": 12.44,
+					"y": 0.0,
+					"z": -13.4,
+					"facing": 270
+				},
+				{
+					"x": 12.44,
+					"y": 0.0,
+					"z": -10.8,
+					"facing": 270
+				},
+				{
+					"x": 12.44,
+					"y": 0.0,
+					"z": -8.2,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/parts_rack.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_parts_rack"
+		},
+		{
+			"id": "crate",
+			"name": "a heavy reinforced shipping crate for a ship part, steel corners, stencilled lid",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.2,
+				1.2,
+				1.0
+			],
+			"count": 4,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 8.0,
+					"y": 0.0,
+					"z": -14.0,
+					"facing": 0
+				},
+				{
+					"x": 9.4,
+					"y": 0.0,
+					"z": -14.2,
+					"facing": 10
+				},
+				{
+					"x": 8.2,
+					"y": 0.0,
+					"z": -12.6,
+					"facing": 355
+				},
+				{
+					"x": 8.1,
+					"y": 1.0,
+					"z": -14.0,
+					"facing": 5
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/crate.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_crate"
+		},
+		{
+			"id": "access_stair",
+			"name": "a mobile aircraft access stair: steel steps with handrails up to a small railed platform, on four castors",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				4.4,
+				3.6
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 8.0,
+					"y": 0.0,
+					"z": -2.8,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/access_stair.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_access_stair"
+		},
+		{
+			"id": "control_desk",
+			"name": "a long steel control desk for the hall's air and roof door, a sloped panel of switches and lit buttons",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				4.0,
+				1.0,
+				0.8
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 5.0,
+					"y": 0.0,
+					"z": 21.84,
+					"facing": 0
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/control_desk.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_control_desk"
+		},
+		{
+			"id": "monitor",
+			"name": "an industrial monitor on a short stand (the hub's console monitor)",
+			"kind": "code",
+			"anchor": "on:control_desk",
+			"size": [
+				0.55,
+				0.25,
+				0.45
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [],
+			"parent": "control_desk",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_monitor"
+		},
+		{
+			"id": "keyboard",
+			"name": "a grey industrial keyboard (the hub's console keyboard)",
+			"kind": "code",
+			"anchor": "on:control_desk",
+			"size": [
+				0.46,
+				0.04,
+				0.17
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [],
+			"parent": "control_desk",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_keyboard"
+		},
+		{
+			"id": "work_desk",
+			"name": "a small steel work desk with a drawer pedestal and a lamp",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.6,
+				0.7,
+				0.76
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -6.0,
+					"y": 0.0,
+					"z": -22.59,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/work_desk.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_work_desk"
+		},
+		{
+			"id": "parts_shelving",
+			"name": "a steel shelving unit of four shelves with labelled cardboard boxes and parts bins",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				1.8,
+				0.6,
+				2.0
+			],
+			"count": 2,
+			"group": "kit: furniture",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -2.4,
+					"y": 0.0,
+					"z": -22.64,
+					"facing": 180
+				},
+				{
+					"x": 0.0,
+					"y": 0.0,
+					"z": -22.64,
+					"facing": 180
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/parts_shelving.png",
+			"solid": true,
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_parts_shelving"
+		},
+		{
+			"id": "pressure_gauge",
+			"name": "a round pressure gauge on a short pipe stub with a valve, on a wall plate",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.25,
+				0.12,
+				0.35
+			],
+			"count": 3,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -1.55,
+					"y": 1.6,
+					"z": 22.880000000000003,
+					"facing": 0
+				},
+				{
+					"x": 12.879999999999999,
+					"y": 1.6,
+					"z": 1.55,
+					"facing": 270
+				},
+				{
+					"x": -12.879999999999999,
+					"y": 1.6,
+					"z": -1.55,
+					"facing": 90
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/pressure_gauge.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_pressure_gauge"
+		},
+		{
+			"id": "bay_panel",
+			"name": "a wall control panel for pumping the hall's air out and in: a pressure gauge, a small screen, three big lit push buttons and a key switch, in a steel box",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.9,
+				0.12,
+				0.8
+			],
+			"count": 3,
+			"group": "kit: wall",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -12.879999999999999,
+					"y": 0.95,
+					"z": -4.0,
+					"facing": 90
+				},
+				{
+					"x": 12.879999999999999,
+					"y": 0.95,
+					"z": -4.0,
+					"facing": 270
+				},
+				{
+					"x": 5.0,
+					"y": 1.05,
+					"z": 22.880000000000003,
+					"facing": 0
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/bay_panel.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_bay_panel"
+		},
+		{
+			"id": "beacon",
+			"name": "a rotating amber warning beacon on a wall bracket",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.22,
+				0.2,
+				0.3
+			],
+			"count": 7,
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 0.0,
+					"y": 2.95,
+					"z": 22.84,
+					"facing": 0
+				},
+				{
+					"x": -12.84,
+					"y": 2.95,
+					"z": 0.0,
+					"facing": 90
+				},
+				{
+					"x": 12.84,
+					"y": 2.95,
+					"z": 0.0,
+					"facing": 270
+				},
+				{
+					"x": -12.84,
+					"y": 12.3,
+					"z": -18.0,
+					"facing": 90
+				},
+				{
+					"x": -12.84,
+					"y": 12.3,
+					"z": 18.0,
+					"facing": 90
+				},
+				{
+					"x": 12.84,
+					"y": 12.3,
+					"z": -18.0,
+					"facing": 270
+				},
+				{
+					"x": 12.84,
+					"y": 12.3,
+					"z": 18.0,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/beacon.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_beacon"
+		},
+		{
+			"id": "floodlight",
+			"name": "a big rectangular floodlight on a wall bracket, tilted down",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.8,
+				0.5,
+				0.6
+			],
+			"count": 8,
+			"group": "kit: light",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -12.69,
+					"y": 9.0,
+					"z": -18.0,
+					"facing": 90
+				},
+				{
+					"x": -12.69,
+					"y": 9.0,
+					"z": -9.0,
+					"facing": 90
+				},
+				{
+					"x": -12.69,
+					"y": 9.0,
+					"z": 9.0,
+					"facing": 90
+				},
+				{
+					"x": -12.69,
+					"y": 9.0,
+					"z": 18.0,
+					"facing": 90
+				},
+				{
+					"x": 12.69,
+					"y": 9.0,
+					"z": -18.0,
+					"facing": 270
+				},
+				{
+					"x": 12.69,
+					"y": 9.0,
+					"z": -9.0,
+					"facing": 270
+				},
+				{
+					"x": 12.69,
+					"y": 9.0,
+					"z": 9.0,
+					"facing": 270
+				},
+				{
+					"x": 12.69,
+					"y": 9.0,
+					"z": 18.0,
+					"facing": 270
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/floodlight.png",
+			"light": {
+				"strength": 2.5,
+				"range": 26.0
+			},
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_floodlight"
+		},
+		{
+			"id": "crane_trolley",
+			"name": "a bridge crane's trolley with its hoist drum and a hook block hanging under it",
+			"kind": "generate",
+			"anchor": "ceiling",
+			"size": [
+				1.4,
+				1.2,
+				1.2
+			],
+			"count": 1,
+			"group": "kit: ceiling",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": 4.0,
+					"y": 8.8,
+					"z": -18.0,
+					"facing": 0
+				}
+			],
+			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/crane_trolley.png",
+			"view": "v1",
+			"box": [
+				0,
+				0,
+				2752,
+				1536
+			],
+			"thing": "prop:hangar_crane_trolley"
+		}
+	]
+}
