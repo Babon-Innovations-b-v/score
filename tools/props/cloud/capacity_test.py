@@ -8,47 +8,75 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import provider  # noqa: E402
+import secret_store  # noqa: E402
 
 L4, L40S, H100 = 0.013125, 0.024498, 0.047775
 
 
-def offer(per_card, stock, machine_type, zone):
-    return (per_card, stock, machine_type, zone, per_card * capacity.cards(machine_type))
+def offer(per_card, stock, machine_class, zone, order=0):
+    return provider.Offer(per_card, stock, f"{machine_class}-type{order}", zone,
+                          per_card * max(1, provider.cards(machine_class)), machine_class, order, "")
 
 
-def test_every_kind_names_known_types():
-    for kind, types in capacity.KINDS.items():
-        assert types and set(types) <= set(capacity.CARDS), kind
-    assert capacity.cards("POP2-32C-128G") == 0
+def test_every_kind_names_capability_classes():
+    for kind, classes in capacity.KINDS.items():
+        assert classes and all(provider.cards(machine_class) for machine_class in classes), kind
+    assert provider.cards("cpu-32c-128gb") == 0 and provider.cards("gpu-80gb-x2") == 2
+    assert provider.card_gb("gpu-48gb") == 48
+    for wrong in ("L4-1-24G", "gpu"):
+        try:
+            provider.cards(wrong)
+        except SystemExit as refused:
+            assert "capability class" in str(refused)
+        else:
+            raise AssertionError(f"{wrong} was taken for a capability class")
     try:
-        capacity.types_for("nothing")
+        capacity.classes_for("nothing")
     except SystemExit as refused:
-        assert "no machine types" in str(refused)
+        assert "no capability classes" in str(refused)
     else:
-        raise AssertionError("an unknown kind was given types")
+        raise AssertionError("an unknown kind was given classes")
 
 
 def test_a_run_takes_the_best_stocked_then_fastest_card_and_spreads_over_zones():
-    offers = [offer(L4, 2, "L4-1-24G", "pl-waw-2"), offer(L4, 2, "L4-1-24G", "fr-par-2"),
-              offer(L4, 2, "L4-1-24G", "fr-par-1"), offer(H100, 2, "H100-1-80G", "fr-par-2")]
-    assert capacity.next_offer(offers, [])[2] == "L4-1-24G"
-    rented = [{"zone": "fr-par-1"}]
-    assert capacity.next_offer(offers, rented)[3] != "fr-par-1"
-    rented += [{"zone": "fr-par-2"}, {"zone": "pl-waw-2"}]
-    assert capacity.next_offer(offers, rented)[2] == "L4-1-24G"
-    # A bigger card in stock goes before an L4 that is short.
-    assert capacity.next_offer(offers + [offer(H100, 0, "H100-1-80G", "pl-waw-2")], [])[2] == "H100-1-80G"
-    assert capacity.next_offer([offer(H100, 2, "H100-1-80G", "fr-par-2"), offer(L40S, 2, "L40S-1-48G", "fr-par-2")],
-                               [])[2] == "L40S-1-48G"
+    offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(L4, 2, "gpu-24gb", "zone-b"),
+              offer(L4, 2, "gpu-24gb", "zone-c"), offer(H100, 2, "gpu-80gb", "zone-b")]
+    assert capacity.next_offer(offers, []).machine_class == "gpu-24gb"
+    rented = [{"zone": "zone-c"}]
+    assert capacity.next_offer(offers, rented).zone != "zone-c"
+    rented += [{"zone": "zone-a"}, {"zone": "zone-b"}]
+    assert capacity.next_offer(offers, rented).machine_class == "gpu-24gb"
+    # A bigger card in stock goes before a 24 GB card that is short.
+    assert capacity.next_offer(offers + [offer(H100, 0, "gpu-80gb", "zone-a")], []).machine_class == "gpu-80gb"
+    assert capacity.next_offer([offer(H100, 2, "gpu-80gb", "zone-b"), offer(L40S, 2, "gpu-48gb", "zone-b")],
+                               []).machine_class == "gpu-48gb"
+    # Within a class, the backend's own order.
+    assert capacity.next_offer([offer(H100, 2, "gpu-80gb-x2", "zone-a", 1), offer(H100, 2, "gpu-80gb-x2", "zone-b", 0)],
+                               []).order == 0
     assert capacity.next_offer([], []) is None
 
 
 def test_a_big_card_runs_several_jobs_at_once():
-    assert capacity.runs_at_once("pixal", "L4-1-24G") == 3
-    assert capacity.runs_at_once("pixal", "L40S-1-48G") == 6
-    assert capacity.runs_at_once("pixal", "H100-1-80G") == 10
-    assert capacity.runs_at_once("parts", "H100-1-80G") == 1
-    assert "RENDER-S" not in capacity.CARDS
+    assert capacity.runs_at_once("pixal", "gpu-24gb") == 3
+    assert capacity.runs_at_once("pixal", "gpu-48gb") == 6
+    assert capacity.runs_at_once("pixal", "gpu-80gb") == 10
+    assert capacity.runs_at_once("parts", "gpu-80gb") == 1
+
+
+def test_every_backend_class_is_a_capability_class():
+    for machine_class in provider.cloud.CLASSES:
+        provider.cards(machine_class)
+
+
+def test_a_secret_comes_from_the_environment_first():
+    import os
+    os.environ["SCORE_SECRET_SOME_API_KEY"] = "from-the-environment"
+    try:
+        assert secret_store.environment_name("some-api-key") == "SCORE_SECRET_SOME_API_KEY"
+        assert secret_store.secret("some-api-key") == "from-the-environment"
+    finally:
+        del os.environ["SCORE_SECRET_SOME_API_KEY"]
 
 
 def test_hourly_machines_are_billed_by_the_started_hour():
@@ -64,7 +92,7 @@ def test_a_machine_row_says_how_long_it_waited_and_worked():
     assert row["minutes"] == 12.5 and row["euros"] == 13 * L40S and row["unit_seconds"] == [200.0, 210.0]
     silent = ledger.machine_row(dict(machine, ready=None, deleted=1300.0))
     assert not silent["started"] and silent["start_wait_minutes"] == 5.0 and silent["work_minutes"] == 0.0
-    record = ledger.machines_record([machine], [silent, batch.refused_row("L4-1-24G", "pl-waw-2", "out of stock")],
+    record = ledger.machines_record([machine], [silent, batch.refused_row(offer(L4, 2, "gpu-24gb", "zone-a"), "out of stock")],
                                     started=900.0)
     assert len(record["attempts"]) == 2 and record["start_wait_minutes"] == 250 / 60
     assert record["euros"] == row["euros"] + silent["euros"]
@@ -89,9 +117,9 @@ def test_the_report_groups_by_kind_and_card():
 
 
 def test_a_batch_leaves_out_cards_the_limits_cannot_hold():
-    found = [offer(L4, 1, "L4-1-24G", "pl-waw-2"), offer(H100, 2, "H100-1-80G", "fr-par-2")]
+    found = [offer(L4, 1, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-b")]
     kept = batch.affordable(found, minutes=180, cards=20, spent=0)
-    assert [item[2] for item in kept] == ["L4-1-24G"]
+    assert [item.machine_class for item in kept] == ["gpu-24gb"]
     assert batch.affordable(found, minutes=30, cards=2, spent=0) == found
 
 

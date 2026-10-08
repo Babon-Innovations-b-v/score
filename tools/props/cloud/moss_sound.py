@@ -1,4 +1,4 @@
-"""Generate a picking page's sound takes with MOSS-SoundEffect v2.0 on one rented Scaleway card, bring them back, and
+"""Generate a picking page's sound takes with MOSS-SoundEffect v2.0 on one rented cloud card, bring them back, and
 delete the machine (job soundtool, 2026-10-06: the owner heard the trial and found it "sounds good", where the CC0
 recordings were "pretty bad").
 
@@ -25,7 +25,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 from paths import REPO  # noqa: E402
 
 MOSS_SHA = "934d6826b084c46a0d033402174d5f8ac4ed2519"
@@ -55,14 +55,14 @@ def jobs_for(page, sounds_path=SOUNDS):
     return jobs
 
 
-def price(jobs, project):
+def price(jobs, account):
     """The offers and the minutes allowed; refused when over the owner's limits or this tool's budget."""
-    found = batch.offers(list(capacity.types_for("moss-sound")))
+    found = batch.offers(list(capacity.classes_for("moss-sound")))
     if not found:
         raise SystemExit("no card is sold in the zones used")
     minutes = SETUP_MINUTES + len(jobs) * MINUTES_A_CLIP
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
+    spent = batch.month_spent(account)
     euros = ledger.cost(minutes, dearest)
     batch.say(f"{len(jobs)} MOSS takes on one card: about {minutes:.0f} min, at most €{euros:.2f}; "
               f"€{spent:.2f} spent this month")
@@ -133,12 +133,12 @@ def main():
     jobs = jobs_for(options.page)
     if not jobs:
         raise SystemExit(f"no sound on the '{options.page}' page has prompts in data/sound/sounds.json")
-    project = scaleway.project_id()
-    batch.sweep(project)
-    found, allowed_minutes = price(jobs, project)
+    account = cloud.account()
+    batch.sweep(account)
+    found, allowed_minutes = price(jobs, account)
     if options.dry_run:
         return
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     import pictures
     started = time.time()
@@ -148,7 +148,7 @@ def main():
     out = OUT / options.page
     machines, made = [], []
     try:
-        machines = pictures.rent_machines(run, project, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1)
         if not machines:
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], jobs, out)

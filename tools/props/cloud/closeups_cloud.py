@@ -1,4 +1,4 @@
-"""Render and cut a world's item close-ups on one rented Scaleway card (scene/closeups.py plans them here, the card
+"""Render and cut a world's item close-ups on one rented cloud card (scene/closeups.py plans them here, the card
 does scene/closeups_gpu.py), then bring the pictures back and delete the machine.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/closeups_cloud.py <closeups folder> --splats <splats.ply> \
@@ -26,7 +26,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 from local_models import ALLOW  # noqa: E402
 from paths import REPO  # noqa: E402
 
@@ -39,14 +39,14 @@ SECONDS_A_CAMERA = 12
 SECONDS_A_MATTE = 3
 
 
-def price(cameras, project, mattes=0):
+def price(cameras, account, mattes=0):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = batch.offers(list(capacity.types_for("closeups")))
+    found = batch.offers(list(capacity.classes_for("closeups")))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = SETUP_MINUTES + (cameras * SECONDS_A_CAMERA + mattes * SECONDS_A_MATTE) / 60
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
+    spent = batch.month_spent(account)
     batch.say(f"{cameras} close-ups on one card: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
               f"€{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
@@ -123,13 +123,13 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     options = parser.parse_args()
     cameras = len(json.loads((options.folder / "cameras.json").read_text())["cameras"])
-    project = scaleway.project_id()
-    batch.sweep(project)
+    account = cloud.account()
+    batch.sweep(account)
     mattes = len(list(options.matte.glob("*.png"))) if options.matte else 0
-    found, allowed_minutes = price(cameras, project, mattes)
+    found, allowed_minutes = price(cameras, account, mattes)
     if options.dry_run:
         return
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     import pictures
     started = time.time()
@@ -138,7 +138,7 @@ def main():
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = pictures.rent_machines(run, project, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1)
         if not machines:
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], options.folder, options.splats, options.matte)
