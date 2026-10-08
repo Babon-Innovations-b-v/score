@@ -29,7 +29,8 @@ same masks on Marble's room instead of MoGe-2's.
 
 The world is a reference for where things stand and how big the room is, never a model to ship:
 the shipped models stay our own Pixal3D ones. The API key is read at run time from
-the farm-factory project's Scaleway secret worldlabs-api-key and never printed or written anywhere.
+the secret worldlabs-api-key (secret_store.py: an environment variable or the cloud backend's store) and never
+printed or written anywhere.
 """
 import argparse
 import base64
@@ -44,7 +45,7 @@ import urllib.request
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import place  # noqa: E402
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "cloud"))
-import scaleway  # noqa: E402
+import secret_store  # noqa: E402
 from paths import scene_folder as folder  # noqa: E402
 
 API = "https://api.worldlabs.ai/marble/v1"
@@ -70,8 +71,8 @@ DEPTH_SHRINK = 2
 
 @functools.cache
 def key():
-    """The World API key, fetched from Secret Manager once per run."""
-    return scaleway.secret(KEY_SECRET)
+    """The World API key, fetched from the secret store once per run (secret_store.py)."""
+    return secret_store.secret(KEY_SECRET)
 
 
 def call(method, path, body=None):

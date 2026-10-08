@@ -1,4 +1,4 @@
-"""Run a scene's model steps on one rented Scaleway card, bring the room's folder back, then build
+"""Run a scene's model steps on one rented cloud card, bring the room's folder back, then build
 its objects as one batch.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/scene.py <plan.json> --who "<session>" [--dry-run]
@@ -50,7 +50,7 @@ import capacity  # noqa: E402
 import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
 import place  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 from local_models import ALLOW  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
 
@@ -193,14 +193,14 @@ def command(step):
 
 # The machine.
 
-def price(plan, project):
+def price(plan, account):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = batch.offers(list(capacity.types_for("scene")))
+    found = batch.offers(list(capacity.classes_for("scene")))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = SETUP_MINUTES + sum(STEP_MINUTES[step] for step, _ in steps(plan))
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
+    spent = batch.month_spent(account)
     batch.say(f"{plan['room']}: {', '.join(step for step, _ in steps(plan))} on one card, about "
               f"{minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
@@ -291,12 +291,12 @@ def main():
     plan = json.loads(options.plan.read_text())
     for step, arguments in steps(plan):
         print(f"{step}: {shlex.join(arguments)}")
-    project = scaleway.project_id()
-    batch.sweep(project)
-    found, allowed_minutes = price(plan, project)
+    account = cloud.account()
+    batch.sweep(account)
+    found, allowed_minutes = price(plan, account)
     if options.dry_run:
         return
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     import pictures  # its picture module loads torch, which the gate's plain python lacks
     started = time.time()
@@ -305,7 +305,7 @@ def main():
     run = pictures.Run(folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = pictures.rent_machines(run, project, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1)
         if not machines:
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], plan)

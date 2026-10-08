@@ -1,4 +1,4 @@
-"""Make an unlit paint copy of pictures on one rented Scaleway card, then delete the machine.
+"""Make an unlit paint copy of pictures on one rented cloud card, then delete the machine.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/delight.py <picture.png>... [--dry-run]
 
@@ -24,7 +24,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 from paths import WORK  # noqa: E402
 
 UNLIT = WORK / "unlit"
@@ -49,15 +49,15 @@ def expected_minutes(count):
     return SETUP_MINUTES + count * SECONDS_A_PICTURE / 60
 
 
-def price(count, project):
+def price(count, account):
     """Print the estimate and refuse what passes the owner's limits; the offers, and the minutes
     the machine may run."""
-    found = batch.offers(list(capacity.types_for("unlit")))
+    found = batch.offers(list(capacity.classes_for("unlit")))
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = expected_minutes(count)
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
+    spent = batch.month_spent(account)
     batch.say(f"{count} unlit copies on one card: about {minutes:.0f} min, "
               f"€{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
@@ -108,13 +108,13 @@ def main():
     wanted = to_make(options.pictures)
     if not wanted:
         raise SystemExit(f"every picture already has its unlit copy in {UNLIT}")
-    project = scaleway.project_id()
-    batch.sweep(project)
-    found, allowed_minutes = price(len(wanted), project)
+    account = cloud.account()
+    batch.sweep(account)
+    found, allowed_minutes = price(len(wanted), account)
     if options.dry_run:
         return
     import pictures  # loads the picture model's libraries, so only once something will be rented
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     started = time.time()
     folder = batch.BATCHES / time.strftime(f"unlit-%Y%m%d-%H%M%S-{os.getpid()}")
@@ -122,7 +122,7 @@ def main():
     run = pictures.Run(folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = pictures.rent_machines(run, project, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1)
         if machines:
             work(run, machines[0], wanted)
     finally:

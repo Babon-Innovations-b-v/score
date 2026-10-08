@@ -1,9 +1,9 @@
-"""Bake the material library onto kit pieces, and render its swatches, on one rented Scaleway card; bring the
+"""Bake the material library onto kit pieces, and render its swatches, on one rented cloud card; bring the
 results back; delete the machine (job robust-exp, 2026-10-06: after a local bake took every core and WSL crashed, the
 coordinator moved every Blender bake to the cloud).
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/library_bake.py <job.json> [<job.json> ...] \
-        --who "<session>" [--types L40S-1-48G] [--dry-run]
+        --who "<session>" [--classes gpu-48gb] [--dry-run]
 
 Each job is one of tools/props/library/inside/'s: it names its `script` (make_kit.py, make_chunky.py, show.py or
 swatch.py) and its `out` folder; a make_chunky job's pieces name their `parts` folders (labels.py). Up there Blender
@@ -27,13 +27,13 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
-import scaleway  # noqa: E402
+from provider import cloud  # noqa: E402
 from paths import REPO  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/lib")
 SETUP_MINUTES = 10
 # Processor machines tried in turn when no card is in stock (their stock moves by the minute, 2026-10-06).
-PROCESSORS = ("POP2-32C-128G", "POP2-HC-32C-64G", "POP2-HM-32C-256G", "POP2-16C-64G")
+PROCESSORS = ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb")
 # Card minutes each thing a job holds takes, measured on an L4 (2026-10-06): a swatch variant at three wears and two
 # views, a code-built piece, a generated piece cut down and detailed, a row of pictured pieces. A processor machine
 # took about three times as long.
@@ -48,25 +48,25 @@ def card_minutes(job):
     return sum(len(job.get(key, ())) * minutes for key, minutes in MINUTES_EACH.items())
 
 
-def machine_offers(processor, types):
-    """Where the job can run: any card that holds a bake (capacity.py) or the `types` asked for, or (with
+def machine_offers(processor, classes):
+    """Where the job can run: any card that holds a bake (capacity.py) or the `classes` asked for, or (with
     --processor, when no card is in stock) a 32-core processor machine, where Cycles bakes on the processor at
     about a third of a card's speed."""
     if processor:
         import infinigen
 
         return [offer for machine in PROCESSORS for offer in infinigen.offers(machine)]
-    return batch.offers(types or list(capacity.types_for("library")))
+    return batch.offers(classes or list(capacity.classes_for("library")))
 
 
-def price(jobs, project, processor, types):
+def price(jobs, account, processor, classes):
     """Print the estimate and refuse what passes the owner's limits; the offers and allowed minutes."""
-    found = machine_offers(processor, types)
+    found = machine_offers(processor, classes)
     if not found:
-        raise SystemExit(f"no {'processor machine' if processor else 'card that holds a bake'} is sold in the zones used")
+        raise SystemExit(f"no {'processor machine' if processor else 'card that holds a bake'} is sold by the {cloud.NAME} backend")
     minutes = SETUP_MINUTES + sum(card_minutes(job) for job in jobs) * (PROCESSOR_SLOWER if processor else 1)
     dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(project)
+    spent = batch.month_spent(account)
     batch.say(f"{len(jobs)} library jobs on one card: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
               f"€{spent:.2f} spent this month")
     refused = ledger.refusal(minutes, dearest, spent)
@@ -167,15 +167,15 @@ def main():
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     parser.add_argument("--processor", action="store_true", help="a processor machine, when no card is in stock")
-    parser.add_argument("--types", help="only these machine types, comma separated (a measuring run)")
+    parser.add_argument("--classes", help="only these capability classes, comma separated (a measuring run)")
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs]
-    project = scaleway.project_id()
-    batch.sweep(project)
-    found, allowed_minutes = price(jobs, project, options.processor, options.types and options.types.split(","))
+    account = cloud.account()
+    batch.sweep(account)
+    found, allowed_minutes = price(jobs, account, options.processor, options.classes and options.classes.split(","))
     if options.dry_run:
         return
-    scaleway.allow_key(project, "farm-factory-batch", batch.ssh_key())
+    cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
     import pictures
     started = time.time()
@@ -186,7 +186,7 @@ def main():
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
     machines = []
     try:
-        machines = pictures.rent_machines(run, project, found, 1)
+        machines = pictures.rent_machines(run, account, found, 1)
         if not machines:
             raise SystemExit("no card could be rented")
         work_on(run, machines[0], jobs, options.processor)
