@@ -27,7 +27,7 @@ from PIL import Image  # noqa: E402
 from card import claimed  # noqa: E402
 from local_models import refuse_here  # noqa: E402
 from paths import HOME  # noqa: E402
-from target import folder  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 SOURCE = pathlib.Path(os.environ.get("MOGE_SOURCE", HOME / "moge"))
 HELPERS = pathlib.Path(os.environ.get("UTILS3D_SOURCE", HOME / "utils3d-moge"))

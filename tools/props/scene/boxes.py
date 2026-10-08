@@ -28,7 +28,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import numpy as np  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from target import folder  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 # Floor plane fitting: how many tries, and how near a point must be to count as on the plane.
 TRIES = 400

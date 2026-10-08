@@ -36,7 +36,7 @@ import picture  # noqa: E402
 import place  # noqa: E402
 from card import claimed  # noqa: E402
 from cutsize import ROUTES, route, size_of  # noqa: E402
-from target import folder  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 # The reference square a cut-out is set on, and the side the object's picture is drawn at (round
 # three draws 1536; --side changes it).

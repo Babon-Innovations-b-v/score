@@ -45,7 +45,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import place  # noqa: E402
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "cloud"))
 import scaleway  # noqa: E402
-from target import folder  # noqa: E402
+from paths import scene_folder as folder  # noqa: E402
 
 API = "https://api.worldlabs.ai/marble/v1"
 KEY_SECRET = "worldlabs-api-key"

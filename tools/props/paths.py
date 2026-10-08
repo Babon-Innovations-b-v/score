@@ -11,7 +11,10 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 
 # Overridable so a second box, or a test, can point somewhere else.
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
-VENV_PYTHON = HOME / "env" / "bin" / "python"
+# The plain-Python side's interpreter: PROPS_PYTHON, else this repo's own environment (`make env`, pyproject.toml),
+# else the older per-box prop environment under HOME.
+VENV_PYTHON = pathlib.Path(os.environ.get("PROPS_PYTHON") or next(
+    (path for path in (REPO / ".venv/bin/python", HOME / "env/bin/python") if path.exists()), REPO / ".venv/bin/python"))
 PICTURE_MODEL = HOME / "flux2-klein"
 # The locked route's runtime (#55): a checkout of the vendored image-to-3dlab with its own Python
 # and the Pixal3D build, and the Blender its finishing step drives. See workflow/bootstrap.
@@ -28,3 +31,10 @@ PAGES = WORK / "pages"
 def make_directories():
     for path in (PICTURES, PAGES):
         path.mkdir(parents=True, exist_ok=True)
+
+
+def scene_folder(scene):
+    """Where everything made for one scene lands (WORK/scene/<scene>), made if it is not there."""
+    path = WORK / "scene" / scene
+    path.mkdir(parents=True, exist_ok=True)
+    return path
