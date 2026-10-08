@@ -27,7 +27,6 @@ import json
 import math
 import pathlib
 import shutil
-import sys
 
 import numpy as np
 
