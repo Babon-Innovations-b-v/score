@@ -41,7 +41,7 @@ This paper makes three contributions:
 
 # The SCORE framework
 
-SCORE's input is the creator's picks: references, a concept picture and a style for each place. Its output is a world an engine loads. Between them lie stages whose outputs can be inspected, cached and checked. A world is generated once, offline, in cloud batches; nothing is generated while the world is played, and each scale of a world (a room, a planet's ground, an orbit) is its own kind of world rather than one continuous zoom.
+SCORE's input is the creator's picks: references, a concept picture and a style for each place. Its output is a world an engine loads. Between them lie stages whose outputs can be inspected, cached and checked. A world is generated once, offline, in cloud batches; nothing is generated while the world is played, and one world spans the scales its story needs: the game world of 2099 holds rooms, the ground of the Moon and the ground of Mars. Scales far from those, such as galaxies or cells, make worlds of their own, each with its own solvers.
 
 The stages are concept, dimensioned plan, inventory, close-ups, shape, surfaces, sound, assembly and review. Each writes an explicit output: a plan in metres, an inventory row for every object with its parent, one clean picture per object, one model per object, baked surfaces, sounds. Each output is cached, so changing one pick reruns only the stages downstream of it.
 
@@ -105,7 +105,7 @@ We build four worlds with the same route: the game world of 2099 (a Moon base, i
 
 # Limitations and outlook
 
-Code builders are clean but need an agent to write one per kind of object, which does not scale as well as generation. A concept shows one side of a place, so built places come out sparser than their concepts; the concept-density check catches this but does not fix it, and the optional world step is meant to. Daily quotas on picture models, not compute cost, set the pace of a build. Next, the simulation world needs masses, friction and joints written into the scene for robots, and scales that are computed rather than modelled enter as open solvers wrapped as stages, starting with REBOUND for orbits [@rein2012rebound].
+Code builders are clean but need an agent to write one per kind of object, which does not scale as well as generation. A concept shows one side of a place, so built places come out sparser than their concepts; the concept-density check catches this but does not fix it, and the optional world step is meant to. Daily quotas on picture models, not compute cost, set the pace of a build. Next, the simulation world needs masses, friction and joints written into the scene for robots, and worlds at scales far from the human one, from galaxies to cells, need open solvers wrapped as stages of their own, with orbital dynamics through REBOUND [@rein2012rebound] as the first.
 
 <!-- Code builders and sparse rooms: issue JoeyKardolus/2099#130 (lab, greenhouse, 2026-10-07/08); session record 2026-10-08T09:27Z. Quotas: #130 comment 2026-10-08T09:18. -->
 

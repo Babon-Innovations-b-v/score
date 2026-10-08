@@ -1,6 +1,6 @@
 \section{The SCORE framework}\label{the-score-framework}
 
-SCORE's input is the creator's picks: references, a concept picture and a style for each place. Its output is a world an engine loads. Between them lie stages whose outputs can be inspected, cached and checked. A world is generated once, offline, in cloud batches; nothing is generated while the world is played, and each scale of a world (a room, a planet's ground, an orbit) is its own kind of world rather than one continuous zoom.
+SCORE's input is the creator's picks: references, a concept picture and a style for each place. Its output is a world an engine loads. Between them lie stages whose outputs can be inspected, cached and checked. A world is generated once, offline, in cloud batches; nothing is generated while the world is played, and one world spans the scales its story needs: the game world of 2099 holds rooms, the ground of the Moon and the ground of Mars. Scales far from those, such as galaxies or cells, make worlds of their own, each with its own solvers.
 
 The stages are concept, dimensioned plan, inventory, close-ups, shape, surfaces, sound, assembly and review. Each writes an explicit output: a plan in metres, an inventory row for every object with its parent, one clean picture per object, one model per object, baked surfaces, sounds. Each output is cached, so changing one pick reruns only the stages downstream of it.
 
