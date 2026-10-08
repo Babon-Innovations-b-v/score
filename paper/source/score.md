@@ -104,6 +104,12 @@ Every place is exported as one OpenUSD stage [@openusd] in which each object car
 
 Each place ends with the creator's review. The review tools that SCORE supplies are pages that show each stage's output side by side, before-and-after shots from the same cameras, walkthroughs inside the engine, and the result of every check. An optional world step can turn the concept into a whole room that can be walked through, so that walls and objects the concept does not show can be seen; nothing it produces is shipped.
 
+For the wreck, the review page is a static folder built only from the files the stages wrote, with the assembled scene rendered by Blender from the place's OpenUSD stage from fixed cameras and along a walk round it (Figure 8).
+
+![The wreck's review page, from two runs of the route over the same place. (a) One model: its close-up, its labelled parts (one colour per library surface) and its baked model, each from the first run and the rerun, drawn from the same camera. (b) The assembled scene from one fixed camera, before and after the rerun. (c) The parts check for each take, with what it caught in the rerun: the split of seven takes did not register against their pictures, so each was painted whole.](figures/fig-review.jpg){width=100%}
+
+<!-- Page: tools/review/page.py wreck, runs place-outside/work/wreck (before) and ~/.farm-factory-props/work/place/wreck-score1 (now); "seven takes": the labels.json files in wreck-score1/parts, registration.registered false in 7 of them. -->
+
 # Results across worlds
 
 We build four worlds with the same stages: the game world of 2099 (a Moon base and its surroundings, a camp on Mars, and a prologue on Earth), a stylised underwater world, a simulation world for robots, and a third-person fantasy world.
