@@ -3416,5 +3416,31 @@
 		],
 		"screens": [],
 		"cuts": []
+	},
+	"street_water_barrier_red": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"street_water_barrier_white": {
+		"turn": [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+		"screens": [],
+		"cuts": []
+	},
+	"square_far_palm": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": [],
+		"leaves": true
+	},
+	"square_far_flag_pole": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
+	},
+	"launch_far_ferry": {
+		"turn": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+		"screens": [],
+		"cuts": []
 	}
 }

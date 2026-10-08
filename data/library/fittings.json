@@ -4026,6 +4026,648 @@
 				"foot": 0.812
 			},
 			"prints_off": []
+		},
+		"window_dark": {
+			"closeup": "place-ssl/pics/window.png",
+			"parts": [
+				"sill",
+				"frame",
+				"transom",
+				"casement",
+				"glass",
+				"handle"
+			],
+			"built": {
+				"casement": 0.711,
+				"frame": 0.525,
+				"glass": 0.924,
+				"handle": 1.0,
+				"sill": 0.706,
+				"transom": 0.206
+			},
+			"prints_off": []
+		},
+		"window_lit": {
+			"closeup": "place-ssl/pics/window.png",
+			"parts": [
+				"sill",
+				"frame",
+				"transom",
+				"casement",
+				"glass",
+				"handle"
+			],
+			"built": {
+				"casement": 0.727,
+				"frame": 0.525,
+				"glass": 0.924,
+				"handle": 1.0,
+				"sill": 0.706,
+				"transom": 0.206
+			},
+			"prints_off": []
+		},
+		"ac_unit": {
+			"closeup": "place-ssl/pics/ac_unit.png",
+			"parts": [
+				"casing",
+				"fan",
+				"fan_grille",
+				"louvre",
+				"bracket",
+				"pipe"
+			],
+			"built": {
+				"bracket": 0.721,
+				"casing": 0.82,
+				"fan": 0.875,
+				"fan_grille": 0.907,
+				"louvre": 1.0,
+				"pipe": 0.622
+			},
+			"prints_off": []
+		},
+		"window_cage": {
+			"closeup": "place-ssl/pics/window_cage.png",
+			"parts": [
+				"frame",
+				"bars",
+				"sides",
+				"top",
+				"shelf",
+				"brackets"
+			],
+			"built": {
+				"bars": 1.0,
+				"brackets": 0.835,
+				"frame": 0.911,
+				"shelf": 0.899,
+				"sides": 0.513,
+				"top": 0.821
+			},
+			"prints_off": []
+		},
+		"shop_shutter": {
+			"closeup": "place-ssl/pics/shop_shutter.png",
+			"parts": [
+				"roll_box",
+				"guide",
+				"curtain",
+				"bottom_bar",
+				"handle",
+				"padlock"
+			],
+			"built": {
+				"bottom_bar": 0.818,
+				"curtain": 0.775,
+				"guide": 0.738,
+				"handle": 0.839,
+				"padlock": 0.974,
+				"roll_box": 1.0
+			},
+			"prints_off": []
+		},
+		"tea_front": {
+			"closeup": "place-ssl/pics/tea_front.png",
+			"parts": [
+				"frame",
+				"riser",
+				"glass",
+				"door",
+				"handle",
+				"step"
+			],
+			"built": {
+				"door": 0.567,
+				"frame": 0.56,
+				"glass": 0.933,
+				"handle": 0.73,
+				"riser": 0.764,
+				"step": 0.819
+			},
+			"prints_off": []
+		},
+		"shop_open": {
+			"closeup": "place-ssl/pics/tea_front.png",
+			"parts": [
+				"frame",
+				"riser",
+				"glass",
+				"door",
+				"handle",
+				"step"
+			],
+			"built": {
+				"door": 0.617,
+				"frame": 0.56,
+				"glass": 0.933,
+				"handle": 0.73,
+				"riser": 0.764,
+				"step": 0.819
+			},
+			"prints_off": []
+		},
+		"shop_sign": {
+			"closeup": "place-ssl/pics/shop_sign.png",
+			"parts": [
+				"board",
+				"frame",
+				"label",
+				"arm",
+				"lamp_shade"
+			],
+			"built": {
+				"arm": 0.759,
+				"board": 0.111,
+				"frame": 0.623,
+				"label": 1.0,
+				"lamp_shade": 0.739
+			},
+			"prints_off": []
+		},
+		"neon_sign": {
+			"closeup": "place-ssl/pics/neon_sign.png",
+			"parts": [
+				"box",
+				"frame",
+				"neon",
+				"label",
+				"hanger"
+			],
+			"built": {
+				"box": 0.375,
+				"frame": 0.719,
+				"hanger": 0.9,
+				"label": 1.0,
+				"neon": 0.987
+			},
+			"prints_off": []
+		},
+		"door_canopy": {
+			"closeup": "place-ssl/pics/door_canopy.png",
+			"parts": [
+				"slab",
+				"drip",
+				"bracket",
+				"lamp"
+			],
+			"built": {
+				"bracket": 0.59,
+				"drip": 0.726,
+				"lamp": 0.423,
+				"slab": 0.91
+			},
+			"prints_off": []
+		},
+		"street_lamp": {
+			"closeup": "place-ssl/pics/street_lamp.png",
+			"parts": [
+				"base_plate",
+				"pole",
+				"door",
+				"arm",
+				"lamp_head",
+				"lens"
+			],
+			"built": {
+				"arm": 0.52,
+				"base_plate": 0.745,
+				"door": 0.958,
+				"lamp_head": 0.657,
+				"lens": 0.579,
+				"pole": 0.888
+			},
+			"prints_off": []
+		},
+		"notice_case": {
+			"closeup": "place-ssl/pics/notice_case.png",
+			"parts": [
+				"posts",
+				"case",
+				"board",
+				"sheet",
+				"roof"
+			],
+			"built": {
+				"board": 0.256,
+				"case": 0.633,
+				"posts": 0.911,
+				"roof": 0.732,
+				"sheet": 0.513
+			},
+			"prints_off": []
+		},
+		"poster_stand": {
+			"closeup": "place-ssl/pics/poster_stand.png",
+			"parts": [
+				"frame",
+				"poster",
+				"leg",
+				"brace",
+				"hinge"
+			],
+			"built": {
+				"brace": 0.848,
+				"frame": 0.933,
+				"hinge": 0.729,
+				"leg": 0.976,
+				"poster": 0.949
+			},
+			"prints_off": []
+		},
+		"far_stage": {
+			"closeup": "place-ssl/pics/stage.png",
+			"parts": [
+				"deck",
+				"frame",
+				"skirt",
+				"steps"
+			],
+			"built": {
+				"deck": 0.551,
+				"frame": 0.397,
+				"skirt": 0.853,
+				"steps": 0.465
+			},
+			"prints_off": []
+		},
+		"far_backdrop": {
+			"closeup": "place-ssl/pics/stage.png",
+			"parts": [
+				"wall",
+				"frame",
+				"curtain",
+				"label"
+			],
+			"built": {
+				"curtain": 0.704,
+				"frame": 0.6,
+				"label": 1.0,
+				"wall": 0.488
+			},
+			"prints_off": []
+		},
+		"far_podium": {
+			"closeup": "place-ssl/pics/stage.png",
+			"parts": [
+				"top",
+				"drape"
+			],
+			"built": {
+				"drape": 0.712,
+				"top": 0.526
+			},
+			"prints_off": []
+		},
+		"far_lectern": {
+			"closeup": "place-ssl/pics/stage.png",
+			"parts": [
+				"column",
+				"foot",
+				"top",
+				"emblem"
+			],
+			"built": {
+				"column": 0.787,
+				"emblem": 1.0,
+				"foot": 0.821,
+				"top": 0.8
+			},
+			"prints_off": []
+		},
+		"far_banner": {
+			"closeup": "place-ssl/pics/stage.png",
+			"parts": [
+				"pole",
+				"arm",
+				"cloth",
+				"label"
+			],
+			"built": {
+				"arm": 0.968,
+				"cloth": 0.293,
+				"label": 1.0,
+				"pole": 0.904
+			},
+			"prints_off": []
+		},
+		"far_floodlight_tower": {
+			"closeup": "place-ssl/pics/floodlight_tower.png",
+			"parts": [
+				"legs",
+				"braces",
+				"platform",
+				"frame",
+				"floodlight",
+				"lens",
+				"ladder"
+			],
+			"built": {
+				"braces": 0.685,
+				"floodlight": 0.645,
+				"frame": 0.535,
+				"ladder": 0.484,
+				"legs": 0.968,
+				"lens": 1.0,
+				"platform": 0.584
+			},
+			"prints_off": []
+		},
+		"far_square_lamp": {
+			"closeup": "place-ssl/pics/square_lamp.png",
+			"parts": [
+				"base",
+				"post",
+				"arm",
+				"head",
+				"lens"
+			],
+			"built": {
+				"arm": 0.484,
+				"base": 0.982,
+				"head": 0.754,
+				"lens": 0.566,
+				"post": 0.868
+			},
+			"prints_off": []
+		},
+		"far_lantern": {
+			"closeup": "place-ssl/pics/lantern.png",
+			"parts": [
+				"body",
+				"cap",
+				"hook",
+				"tassel"
+			],
+			"built": {
+				"body": 0.2,
+				"cap": 0.464,
+				"hook": 0.722,
+				"tassel": 0.839
+			},
+			"prints_off": []
+		},
+		"far_neon_column": {
+			"closeup": "place-ssl/pics/neon_sign.png",
+			"parts": [
+				"board",
+				"frame",
+				"neon",
+				"label",
+				"arm"
+			],
+			"built": {
+				"arm": 0.806,
+				"board": 0.283,
+				"frame": 0.233,
+				"label": 1.0,
+				"neon": 0.425
+			},
+			"prints_off": []
+		},
+		"far_lightning_mast": {
+			"closeup": "place-ssl/pics/lightning_mast.png",
+			"parts": [
+				"legs",
+				"braces",
+				"spike",
+				"lamps"
+			],
+			"built": {
+				"braces": 0.708,
+				"lamps": 1.0,
+				"legs": 0.981,
+				"spike": 1.0
+			},
+			"prints_off": []
+		},
+		"far_pad_floodlight": {
+			"closeup": "place-ssl/pics/pad_floodlight.png",
+			"parts": [
+				"legs",
+				"braces",
+				"frame",
+				"floodlight",
+				"lens"
+			],
+			"built": {
+				"braces": 0.742,
+				"floodlight": 0.549,
+				"frame": 0.667,
+				"legs": 0.991,
+				"lens": 1.0
+			},
+			"prints_off": []
+		},
+		"far_window_dark": {
+			"closeup": "place-ssl/pics/window.png",
+			"parts": [
+				"sill",
+				"frame",
+				"transom",
+				"casement",
+				"glass",
+				"handle"
+			],
+			"built": {
+				"casement": 0.727,
+				"frame": 0.525,
+				"glass": 0.924,
+				"handle": 1.0,
+				"sill": 0.706,
+				"transom": 0.206
+			},
+			"prints_off": []
+		},
+		"far_window_lit": {
+			"closeup": "place-ssl/pics/window.png",
+			"parts": [
+				"sill",
+				"frame",
+				"transom",
+				"casement",
+				"glass",
+				"handle"
+			],
+			"built": {
+				"casement": 0.727,
+				"frame": 0.525,
+				"glass": 0.924,
+				"handle": 1.0,
+				"sill": 0.706,
+				"transom": 0.206
+			},
+			"prints_off": []
+		},
+		"far_ac_unit": {
+			"closeup": "place-ssl/pics/ac_unit.png",
+			"parts": [
+				"casing",
+				"fan",
+				"fan_grille",
+				"louvre",
+				"bracket",
+				"pipe"
+			],
+			"built": {
+				"bracket": 0.721,
+				"casing": 0.82,
+				"fan": 0.829,
+				"fan_grille": 0.91,
+				"louvre": 1.0,
+				"pipe": 0.622
+			},
+			"prints_off": []
+		},
+		"far_window_cage": {
+			"closeup": "place-ssl/pics/window_cage.png",
+			"parts": [
+				"frame",
+				"bars",
+				"sides",
+				"top",
+				"shelf",
+				"brackets"
+			],
+			"built": {
+				"bars": 1.0,
+				"brackets": 0.835,
+				"frame": 0.911,
+				"shelf": 0.899,
+				"sides": 0.513,
+				"top": 0.821
+			},
+			"prints_off": []
+		},
+		"far_shop_shutter": {
+			"closeup": "place-ssl/pics/shop_shutter.png",
+			"parts": [
+				"roll_box",
+				"guide",
+				"curtain",
+				"bottom_bar",
+				"handle",
+				"padlock"
+			],
+			"built": {
+				"bottom_bar": 0.836,
+				"curtain": 0.775,
+				"guide": 0.738,
+				"handle": 0.839,
+				"padlock": 0.974,
+				"roll_box": 1.0
+			},
+			"prints_off": []
+		},
+		"far_shop_sign": {
+			"closeup": "place-ssl/pics/shop_sign.png",
+			"parts": [
+				"board",
+				"frame",
+				"label",
+				"arm",
+				"lamp_shade"
+			],
+			"built": {
+				"arm": 0.759,
+				"board": 0.111,
+				"frame": 0.623,
+				"label": 1.0,
+				"lamp_shade": 0.739
+			},
+			"prints_off": []
+		},
+		"window_awning": {
+			"closeup": "place-ssl/pics/window_awning.png",
+			"parts": [
+				"panel",
+				"rib",
+				"bracket"
+			],
+			"built": {
+				"bracket": 1.0,
+				"panel": 0.804,
+				"rib": 1.0
+			},
+			"prints_off": []
+		},
+		"drying_rack": {
+			"closeup": "place-ssl/pics/drying_rack.png",
+			"parts": [
+				"arm",
+				"bracket",
+				"pole"
+			],
+			"built": {
+				"arm": 0.897,
+				"bracket": 0.922,
+				"pole": 0.984
+			},
+			"prints_off": []
+		},
+		"vent_louvre": {
+			"closeup": "place-ssl/pics/vent_louvre.png",
+			"parts": [
+				"frame",
+				"louvre"
+			],
+			"built": {
+				"frame": 0.906,
+				"louvre": 0.952
+			},
+			"prints_off": []
+		},
+		"meter_box": {
+			"closeup": "place-ssl/pics/meter_box.png",
+			"parts": [
+				"case",
+				"door",
+				"latch",
+				"conduit"
+			],
+			"built": {
+				"case": 0.632,
+				"conduit": 0.952,
+				"door": 0.977,
+				"latch": 1.0
+			},
+			"prints_off": []
+		},
+		"barber_pole": {
+			"closeup": "place-ssl/pics/barber_pole.png",
+			"parts": [
+				"glass",
+				"base",
+				"cap",
+				"bracket",
+				"stripes"
+			],
+			"built": {
+				"base": 0.803,
+				"bracket": 0.289,
+				"cap": 0.775,
+				"glass": 0.644,
+				"stripes": 1.0
+			},
+			"prints_off": []
+		},
+		"menu_board": {
+			"closeup": "place-ssl/pics/menu_board.png",
+			"parts": [
+				"frame",
+				"poster",
+				"leg",
+				"brace",
+				"hinge"
+			],
+			"built": {
+				"brace": 0.835,
+				"frame": 0.949,
+				"hinge": 0.729,
+				"leg": 0.968,
+				"poster": 0.949
+			},
+			"prints_off": []
 		}
 	}
 }

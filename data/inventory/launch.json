@@ -1,0 +1,117 @@
+{
+	"scene": "launch",
+	"place": "prologue_launch",
+	"plan": {
+		"world": "",
+		"seed": 7,
+		"views": [
+			{
+				"id": "v1",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/launch/concepts/K01.png"
+			},
+			{
+				"id": "v2",
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/launch/concepts/K04.png"
+			}
+		],
+		"concept": "concepts-world1/launch: the coordinator's pick (owner may change)"
+	},
+	"approved": "2026-10-07, the owner's world 1 scale-up: every place built without stopping for review, the owner reviews everything at the end; rows from the coordinator's concept pick",
+	"migrated": "",
+	"room": {
+		"shell": "41b5e6454cb89ef9",
+		"light": "place",
+		"backdrop": "",
+		"wall_fill": []
+	},
+	"rows": [
+		{
+			"id": "far_pad",
+			"view": "v1",
+			"box": [
+				1500,
+				950,
+				2000,
+				1050
+			],
+			"name": "the launch pad's concrete apron",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				10.0,
+				10.0,
+				3.2
+			],
+			"count": 1,
+			"thing": "kit:launch_far_pad",
+			"group": "kit: floor",
+			"close_up": "place-ssl/pics/pad.png"
+		},
+		{
+			"id": "far_lightning_mast",
+			"view": "v1",
+			"box": [
+				1580,
+				330,
+				1750,
+				990
+			],
+			"name": "lightning mast",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.0,
+				3.0,
+				75.0
+			],
+			"count": 1,
+			"thing": "kit:launch_far_lightning_mast",
+			"group": "kit: light",
+			"close_up": "place-ssl/pics/lightning_mast.png"
+		},
+		{
+			"id": "far_pad_floodlight",
+			"view": "v1",
+			"box": [
+				1780,
+				660,
+				1880,
+				850
+			],
+			"name": "pad floodlight",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				2.6,
+				1.2,
+				12.0
+			],
+			"count": 1,
+			"thing": "kit:launch_far_pad_floodlight",
+			"group": "kit: light",
+			"close_up": "place-ssl/pics/pad_floodlight.png"
+		},
+		{
+			"id": "far_ferry",
+			"view": "v1",
+			"box": [
+				300,
+				850,
+				660,
+				990
+			],
+			"name": "harbour ferry",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				6.0,
+				32.0,
+				7.0
+			],
+			"count": 1,
+			"thing": "kit:launch_far_ferry",
+			"group": "kit: street",
+			"close_up": "place-ssl/pics/ferry.png"
+		}
+	]
+}
