@@ -1,39 +1,9 @@
-\begin{thebibliography}{30}
+\begin{thebibliography}{29}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
-
-\bibitem[Parker-Holder and Fruchter(2025)]{genie3}
-Jack Parker-Holder and Shlomi Fruchter.
-\newblock {Genie 3: A new frontier for world models}.
-\newblock Google DeepMind blog, August 2025.
-\newblock URL
-  \url{https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/}.
-\newblock Vendor material.
-
-\bibitem[Bruce et~al.(2024)Bruce, Dennis, Edwards, Parker-Holder,
-  et~al.]{bruce2024genie}
-Jake Bruce, Michael Dennis, Ashley Edwards, Jack Parker-Holder, et~al.
-\newblock {Genie}: Generative interactive environments.
-\newblock \emph{arXiv preprint arXiv:2402.15391}, 2024.
-
-\bibitem[Hu et~al.(2026)Hu, Guo, Cen, Yang, Li, and Shen]{hu2026worldact}
-Jichen Hu, Jiawei Guo, Jiazhong Cen, Chen Yang, Sikuang Li, and Wei Shen.
-\newblock {WorldAct}: Activating monolithic {3D} worlds into interactive-ready
-  object-centric scenes.
-\newblock \emph{arXiv preprint arXiv:2605.15843}, 2026.
-
-\bibitem[Wang et~al.(2025)Wang, Jung, Monnier, Sohn, et~al.]{wang2025worldgen}
-Dilin Wang, Hyunyoung Jung, Tom Monnier, Kihyuk Sohn, et~al.
-\newblock {WorldGen}: From text to traversable and interactive {3D} worlds.
-\newblock \emph{arXiv preprint arXiv:2511.16825}, 2025.
-
-\bibitem[Niu et~al.(2026)Niu, He, Yu, Fu, et~al.]{niu2026worldsculpt}
-Muyao Niu, Jixuan He, Ruihan Yu, Lian Fu, et~al.
-\newblock {WorldSculpt}: Generating compositional worlds from grounded videos.
-\newblock \emph{arXiv preprint arXiv:2609.05416}, 2026.
 
 \bibitem[Yang et~al.(2024{\natexlab{a}})Yang, Sun, Weihs, VanderBilt, Herrasti,
   Han, Wu, Haber, et~al.]{yang2024holodeck}
@@ -44,6 +14,55 @@ Yue Yang, Fan-Yun Sun, Luca Weihs, Eli VanderBilt, Alvaro Herrasti, Winson Han,
 \newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
   and Pattern Recognition (CVPR)}, 2024{\natexlab{a}}.
 \newblock arXiv:2312.09067.
+
+\bibitem[Bruce et~al.(2024)Bruce, Dennis, Edwards, Parker-Holder,
+  et~al.]{bruce2024genie}
+Jake Bruce, Michael Dennis, Ashley Edwards, Jack Parker-Holder, et~al.
+\newblock {Genie}: Generative interactive environments.
+\newblock \emph{arXiv preprint arXiv:2402.15391}, 2024.
+
+\bibitem[Parker-Holder and Fruchter(2025)]{genie3}
+Jack Parker-Holder and Shlomi Fruchter.
+\newblock {Genie 3: A new frontier for world models}.
+\newblock Google DeepMind blog, August 2025.
+\newblock URL
+  \url{https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/}.
+\newblock Vendor material.
+
+\bibitem[Wang et~al.(2025)Wang, Jung, Monnier, Sohn, et~al.]{wang2025worldgen}
+Dilin Wang, Hyunyoung Jung, Tom Monnier, Kihyuk Sohn, et~al.
+\newblock {WorldGen}: From text to traversable and interactive {3D} worlds.
+\newblock \emph{arXiv preprint arXiv:2511.16825}, 2025.
+
+\bibitem[Hu et~al.(2026)Hu, Guo, Cen, Yang, Li, and Shen]{hu2026worldact}
+Jichen Hu, Jiawei Guo, Jiazhong Cen, Chen Yang, Sikuang Li, and Wei Shen.
+\newblock {WorldAct}: Activating monolithic {3D} worlds into interactive-ready
+  object-centric scenes.
+\newblock \emph{arXiv preprint arXiv:2605.15843}, 2026.
+
+\bibitem[Niu et~al.(2026)Niu, He, Yu, Fu, et~al.]{niu2026worldsculpt}
+Muyao Niu, Jixuan He, Ruihan Yu, Lian Fu, et~al.
+\newblock {WorldSculpt}: Generating compositional worlds from grounded videos.
+\newblock \emph{arXiv preprint arXiv:2609.05416}, 2026.
+
+\bibitem[Raistrick et~al.(2023)Raistrick, Lipson, Ma, Mei, Wang, Zuo, Kayan,
+  Wen, Han, Wang, Newell, Law, Goyal, Yang, and Deng]{raistrick2023infinigen}
+Alexander Raistrick, Lahav Lipson, Zeyu Ma, Lingjie Mei, Mingzhe Wang, Yiming
+  Zuo, Karhan Kayan, Hongyu Wen, Beining Han, Yihan Wang, Alejandro Newell, Hei
+  Law, Ankit Goyal, Kaiyu Yang, and Jia Deng.
+\newblock Infinite photorealistic worlds using procedural generation.
+\newblock \emph{arXiv preprint arXiv:2306.09310}, 2023.
+
+\bibitem[Raistrick et~al.(2024)Raistrick, Mei, Kayan, Yan, Zuo, Han, Wen,
+  Parakh, Alexandropoulos, Lipson, Ma, and Deng]{raistrick2024indoors}
+Alexander Raistrick, Lingjie Mei, Karhan Kayan, David Yan, Yiming Zuo, Beining
+  Han, Hongyu Wen, Meenal Parakh, Stamatis Alexandropoulos, Lahav Lipson, Zeyu
+  Ma, and Jia Deng.
+\newblock {Infinigen Indoors}: Photorealistic indoor scenes using procedural
+  generation.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition (CVPR)}, 2024.
+\newblock arXiv:2406.11824.
 
 \bibitem[Hu et~al.(2024)Hu, Iscen, Jain, Kipf, et~al.]{hu2024scenecraft}
 Ziniu Hu, Ahmet Iscen, Aashi Jain, Thomas Kipf, et~al.
@@ -75,50 +94,6 @@ Xirui Li, Peng Shi, Mingwen Dong, Sheng Zhang, Zhuoyan Xu, Dongkyu Lee,
   Shuaichen Chang, Yi~Xiang, Lin Pan, and Jiarong Jiang.
 \newblock {LEGO-Anything}: Coding agents for {3D} scene reconstruction.
 \newblock \emph{arXiv preprint arXiv:2609.36380}, 2026{\natexlab{b}}.
-
-\bibitem[Raistrick et~al.(2023)Raistrick, Lipson, Ma, Mei, Wang, Zuo, Kayan,
-  Wen, Han, Wang, Newell, Law, Goyal, Yang, and Deng]{raistrick2023infinigen}
-Alexander Raistrick, Lahav Lipson, Zeyu Ma, Lingjie Mei, Mingzhe Wang, Yiming
-  Zuo, Karhan Kayan, Hongyu Wen, Beining Han, Yihan Wang, Alejandro Newell, Hei
-  Law, Ankit Goyal, Kaiyu Yang, and Jia Deng.
-\newblock Infinite photorealistic worlds using procedural generation.
-\newblock \emph{arXiv preprint arXiv:2306.09310}, 2023.
-
-\bibitem[Raistrick et~al.(2024)Raistrick, Mei, Kayan, Yan, Zuo, Han, Wen,
-  Parakh, Alexandropoulos, Lipson, Ma, and Deng]{raistrick2024indoors}
-Alexander Raistrick, Lingjie Mei, Karhan Kayan, David Yan, Yiming Zuo, Beining
-  Han, Hongyu Wen, Meenal Parakh, Stamatis Alexandropoulos, Lahav Lipson, Zeyu
-  Ma, and Jia Deng.
-\newblock {Infinigen Indoors}: Photorealistic indoor scenes using procedural
-  generation.
-\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
-  and Pattern Recognition (CVPR)}, 2024.
-\newblock arXiv:2406.11824.
-
-\bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
-  Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
-Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
-  Parakh, Hongyu Wen, Dylan Li, Yiming Zuo, Erich Liang, and Jia Deng.
-\newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
-  generation in {Python}.
-\newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
-
-\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
-  Fragkiadaki]{lin2025partcrafter}
-Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
-  Katerina Fragkiadaki.
-\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
-  latent diffusion transformers.
-\newblock In \emph{Advances in Neural Information Processing Systems
-  (NeurIPS)}, 2025.
-\newblock arXiv:2506.05573.
-
-\bibitem[Tsui et~al.(2026)Tsui, Tuan, Ma, Ugrinovic, Shiratori, and
-  Kitani]{tsui2026point2part}
-Hao-Tang Tsui, Yu-Rou Tuan, Xiaoxuan Ma, Nicol{\'a}s Ugrinovic, Takaaki
-  Shiratori, and Kris Kitani.
-\newblock {Point2Part}: Unified {3D} partitioning from point prompts.
-\newblock \emph{arXiv preprint arXiv:2609.38180}, 2026.
 
 \bibitem[Wu et~al.(2026)Wu, Lou, Liu, Du, Guo, and Guo]{wu2026production}
 Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
@@ -156,6 +131,24 @@ Dong-Yang Li, Wang Zhao, Yuxin Chen, Wenbo Hu, Meng-Hao Guo, Fang-Lue Zhang,
   Ying Shan, and Shi-Min Hu.
 \newblock {Pixal3D}: Pixel-aligned {3D} generation from images.
 \newblock \emph{arXiv preprint arXiv:2605.10922}, 2026{\natexlab{c}}.
+
+\bibitem[Raistrick et~al.(2026)Raistrick, Kayan, Nugent, Yan, Mei, Parakh, Wen,
+  Li, Zuo, Liang, and Deng]{raistrick2026procfunc}
+Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
+  Parakh, Hongyu Wen, Dylan Li, Yiming Zuo, Erich Liang, and Jia Deng.
+\newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
+  generation in {Python}.
+\newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
+
+\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
+  Fragkiadaki]{lin2025partcrafter}
+Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
+  Katerina Fragkiadaki.
+\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
+  latent diffusion transformers.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+\newblock arXiv:2506.05573.
 
 \bibitem[{OpenMOSS-Team}(2026)]{moss2026}
 {OpenMOSS-Team}.
