@@ -1992,7 +1992,7 @@
 			],
 			"built": {
 				"band": 1.0,
-				"quilt": 0.881,
+				"quilt": 0.884,
 				"skirting": 1.0
 			},
 			"prints_off": []
@@ -2008,9 +2008,9 @@
 			],
 			"built": {
 				"band": 0.894,
-				"frame": 0.708,
+				"frame": 0.714,
 				"glass": 0.457,
-				"quilt": 0.659,
+				"quilt": 0.667,
 				"skirting": 1.0
 			},
 			"prints_off": []
@@ -2034,8 +2034,8 @@
 				"rib"
 			],
 			"built": {
-				"quilt": 0.912,
-				"rib": 0.924
+				"quilt": 0.911,
+				"rib": 0.969
 			},
 			"prints_off": []
 		},
@@ -2066,7 +2066,7 @@
 			],
 			"built": {
 				"bolt": 1.0,
-				"plate": 0.791,
+				"plate": 0.721,
 				"tread": 1.0
 			},
 			"prints_off": []
@@ -2096,7 +2096,7 @@
 			],
 			"built": {
 				"deck": 0.96,
-				"quilt": 0.957,
+				"quilt": 0.95,
 				"skirting": 0.513
 			},
 			"prints_off": []
@@ -2112,8 +2112,8 @@
 			"built": {
 				"cap": 0.612,
 				"frame": 0.652,
-				"panel": 0.802,
-				"skirting": 0.592
+				"panel": 0.816,
+				"skirting": 0.603
 			},
 			"prints_off": []
 		},
@@ -2124,8 +2124,8 @@
 				"strap"
 			],
 			"built": {
-				"fabric": 0.78,
-				"strap": 0.897
+				"fabric": 0.75,
+				"strap": 0.932
 			},
 			"prints_off": []
 		},
@@ -2138,10 +2138,10 @@
 				"glass"
 			],
 			"built": {
-				"fabric": 0.691,
-				"frame": 0.846,
+				"fabric": 0.704,
+				"frame": 0.837,
 				"glass": 0.927,
-				"strap": 0.897
+				"strap": 0.932
 			},
 			"prints_off": []
 		},
@@ -2152,8 +2152,8 @@
 				"strap"
 			],
 			"built": {
-				"fabric": 0.712,
-				"strap": 0.823
+				"fabric": 0.776,
+				"strap": 0.88
 			},
 			"prints_off": []
 		},
@@ -2164,8 +2164,8 @@
 				"strap"
 			],
 			"built": {
-				"pad": 0.939,
-				"strap": 0.403
+				"pad": 0.917,
+				"strap": 0.397
 			},
 			"prints_off": []
 		},
@@ -2176,7 +2176,7 @@
 				"strap"
 			],
 			"built": {
-				"fabric": 0.897,
+				"fabric": 0.906,
 				"strap": 0.542
 			},
 			"prints_off": []

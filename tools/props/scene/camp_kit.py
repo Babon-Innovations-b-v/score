@@ -31,9 +31,9 @@ PLACE = "expedition_camp"
 OPENING_WIDE = 2.4
 OPENING_TALL = 2.6
 DOORWAY = -40.5
-DOOR_DOME = {"name": "door", "middle": (0.056, -5.898), "radius": 6.95, "other": (-1.308, 7.56), "doorway": DOORWAY,
+DOOR_DOME = {"name": "door", "middle": (1.539, -7.164), "radius": 5.0, "other": (0.492, 3.16), "doorway": DOORWAY,
              "windows": [(-16.0, 50.0), (124.0, 213.0), (-131.0, -122.0), (-100.0, -64.0)]}
-FAR_DOME = {"name": "far", "middle": (-1.308, 7.56), "radius": 5.7, "other": (0.056, -5.898),
+FAR_DOME = {"name": "far", "middle": (0.492, 3.16), "radius": 4.5, "other": (1.539, -7.164),
             "windows": [(-30.0, -15.0), (-8.0, 68.0), (70.0, 94.0), (100.0, 226.0)]}
 DOMES = {"door": DOOR_DOME, "far": FAR_DOME}
 SHELL_OUT = 0.45
@@ -55,23 +55,23 @@ SKIN = 0.08
 RIB_WIDE = 0.14
 RIB_IN = 0.06
 # camp_rooms.gd
-PARTITION_PANELS = (4, 12)
+PARTITION_PANELS = (3, 9)
 PARTITION_TALL = 3.0
 PARTITION_THICK = 0.12
 PARTITION_DOOR_AT = 2.2
 PARTITION_DOOR = (1.2, 2.3)
-LAMPS = [("door", "polar", (152.0, 4.3)), ("door", "polar", (62.0, 4.3)), ("door", "polar", (-70.0, 3.4)),
-         ("far", "polar", (228.0, 3.0)), ("far", "polar", (-52.0, 3.0)), ("far", "at", (-1.4, 3.3))]
+LAMPS = [("door", "polar", (152.0, 3.1)), ("door", "polar", (62.0, 3.1)), ("door", "polar", (-70.0, 2.45)),
+         ("far", "polar", (228.0, 2.4)), ("far", "polar", (-52.0, 2.4)), ("far", "at", (-0.72, 2.6))]
 LAMP_HEIGHT = 2.9
 LAMP_WIDE = 0.36
 LAMP_HOUSING = 0.12
 
 # The cables over the deck: (dome, degrees round it the run starts at, how far it turns off the way to the middle),
 # each CABLE_LONG long, starting CABLE_FROM_WALL in from the lining, lying on the deck.
-CABLE_RUNS = [(DOOR_DOME, 60.9, 12.0), (DOOR_DOME, 180.0, -15.0), (DOOR_DOME, 20.0, 25.0),
-              (DOOR_DOME, 125.0, -10.0), (DOOR_DOME, 290.0, 20.0),
-              (FAR_DOME, 200.0, 10.0), (FAR_DOME, 234.0, -20.0), (FAR_DOME, 300.0, 15.0), (FAR_DOME, 130.0, 25.0),
-              (FAR_DOME, 340.0, -25.0)]
+CABLE_RUNS = [(DOOR_DOME, 35.0, 12.0), (DOOR_DOME, 180.0, -15.0), (DOOR_DOME, 15.0, 25.0),
+              (DOOR_DOME, 124.5, -10.0), (DOOR_DOME, 290.0, 20.0),
+              (FAR_DOME, 193.0, 10.0), (FAR_DOME, 238.0, -20.0), (FAR_DOME, 300.0, 15.0), (FAR_DOME, 140.0, 25.0),
+              (FAR_DOME, 343.0, -25.0)]
 # The ceiling ring lamps and the wall nets (the density pass): how many lamps a dome, how far out as a share of its
 # radius, how far under the ceiling, how wide; a net's size and how high its foot stands, and the wall degrees a net
 # keeps off (the hygiene cubicle stands 2.2 m tall there).

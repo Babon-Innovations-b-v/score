@@ -41,7 +41,7 @@
 				0.1,
 				3.4
 			],
-			"count": 30,
+			"count": 7,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -63,7 +63,7 @@
 				0.14,
 				3.4
 			],
-			"count": 9,
+			"count": 20,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -85,7 +85,7 @@
 				0.12,
 				3.4
 			],
-			"count": 34,
+			"count": 24,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -107,7 +107,7 @@
 				4.0,
 				2.0
 			],
-			"count": 40,
+			"count": 30,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -151,7 +151,7 @@
 				7.0,
 				0.04
 			],
-			"count": 40,
+			"count": 30,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -261,7 +261,7 @@
 				0.1,
 				6.8
 			],
-			"count": 30,
+			"count": 7,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -283,7 +283,7 @@
 				0.2,
 				6.8
 			],
-			"count": 9,
+			"count": 20,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -327,7 +327,7 @@
 				1.2,
 				1.2
 			],
-			"count": 36,
+			"count": 27,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -600,7 +600,7 @@
 				0.12,
 				0.8
 			],
-			"count": 11,
+			"count": 6,
 			"thing": "fittings:camp_kit",
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08"
@@ -644,7 +644,7 @@
 				0.55,
 				0.55
 			],
-			"count": 7,
+			"count": 6,
 			"thing": "prop:camp_crate",
 			"made": "made by the route",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
