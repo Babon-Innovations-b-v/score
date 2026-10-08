@@ -3910,5 +3910,195 @@
 			"painted_panel",
 			"dark_panel"
 		]
+	},
+	"hangar_parts_crate": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"wood_board",
+			"bare_steel"
+		]
+	},
+	"hangar_fuel_pump": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"rubber"
+		]
+	},
+	"hangar_parts_rack": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"galvanized_steel",
+			"wood_board"
+		]
+	},
+	"hangar_parts_shelving": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"galvanized_steel",
+			"wood_board"
+		]
+	},
+	"hangar_monitor_desk": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"screen",
+			"dark_panel"
+		]
+	},
+	"hangar_crane_trolley": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			-0.5,
+			0.866025,
+			0.0,
+			0.866025,
+			0.5,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"machine_orange"
+		]
+	},
+	"hangar_bay_panel": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"dark_panel",
+			"plastic_grey"
+		]
+	},
+	"hangar_bracket_beacon": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			-1.0
+		],
+		"materials": [
+			"led_amber",
+			"cast_steel"
+		]
+	},
+	"hangar_floodlight": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"cast_steel",
+			"floodlight_lens"
+		]
+	},
+	"hangar_pressure_gauge": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"materials": [
+			"bare_steel",
+			"warning_paint"
+		]
 	}
 }
