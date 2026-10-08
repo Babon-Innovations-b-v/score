@@ -1971,10 +1971,15 @@
 				"lens"
 			],
 			"built": {
-				"housing": 0.644,
-				"lens": 0.526,
-				"rod": 1.0,
-				"rose": 0.924
+				"cable": 0.812,
+				"canopy": 0.738,
+				"clip": 0.734,
+				"collar": 0.667,
+				"lens": 0.456,
+				"neck": 0.507,
+				"rim": 0.712,
+				"rod": 0.92,
+				"shade": 0.414
 			},
 			"prints_off": []
 		},
