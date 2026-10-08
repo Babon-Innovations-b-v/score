@@ -537,6 +537,8 @@ def build(options):
         renders.CLOUD = None
     else:
         shots, scene, cast = render_all(options, runs, out)
+    if cast is not None:
+        cast = dict(cast, **characters.words(options.place))
     copy_agreement(options.agreement, out)
     style = records.place_style(options.place)
     concept = records.concept(options.concept)

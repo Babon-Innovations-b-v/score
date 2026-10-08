@@ -131,6 +131,13 @@ def casting_reasons(found):
     return [{"name": entry["name"], "why": entry.get("why", "")} for entry in entries]
 
 
+def words(place):
+    """What the page says of the cast, read from it now (why each entry is there, the note when nobody is), so a
+    reworded cast needs no new renders."""
+    found = cast_of(place) or {}
+    return {"why": casting_reasons(found), "note": found.get("note", "")}
+
+
 def shots(place, stage, out):
     """The characters' pictures and moving shots under <out>/characters; what the page shows of them, or None."""
     planned = plan(place, stage)
