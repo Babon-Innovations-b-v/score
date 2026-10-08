@@ -369,6 +369,19 @@ def write_environment(stage, place, environment):
     prim.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(environment.get("from", ""))
 
 
+def ground_skin(ground, picture):
+    """The ground's skin as drawn: as it is, or for a shade map painted in one colour (Mars's ground, its record's
+    `tint`) every pixel's shade carried onto that colour, so the skin's mean is the tint; the picture back."""
+    if getattr(ground, "tint", None) is None:
+        return picture
+    from PIL import Image
+    pixels = np.asarray(picture.convert("RGB"), dtype=np.float64) / 255.0
+    linear = np.where(pixels <= 0.04045, pixels / 12.92, ((pixels + 0.055) / 1.055) ** 2.4)
+    tinted = np.clip(linear / max(float(linear.mean()), 1e-4) * np.asarray(colour(ground.tint)), 0.0, 1.0)
+    srgb = np.where(tinted <= 0.0031308, tinted * 12.92, 1.055 * tinted ** (1 / 2.4) - 0.055)
+    return Image.fromarray((srgb * 255.0 + 0.5).astype(np.uint8))
+
+
 def far_ground(stage, place, ground, entry, out, near):
     """The planned ground past the near patch (the export's /<place>/Ground, `near` its box across and along): the
     plan's square out to `reach` metres round the place, `step` metres apart, in the plan's skin; and, under it, the
@@ -382,7 +395,8 @@ def far_ground(stage, place, ground, entry, out, near):
     textures.mkdir(parents=True, exist_ok=True)
     skin = textures / f"ground_far_{pathlib.Path(ground.skin).stem}.jpg"
     if not skin.exists():
-        skin.write_bytes(pathlib.Path(ground.skin).read_bytes())
+        from PIL import Image
+        ground_skin(ground, Image.open(ground.skin)).convert("RGB").save(skin, quality=90)
     built = builders.mesh(points, triangles[keep], np.column_stack([skin_at[:, 0], 1.0 - skin_at[:, 1]]), None)
     prim = mesh_prim(stage, f"/{place}/Terrain/far", built)
     material = UsdShade.Material.Define(stage, f"/{place}/Terrain/far_look")

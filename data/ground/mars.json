@@ -1,5 +1,5 @@
 {
- "about": "Mars's planned ground round the first expedition's camp in the game 2099 (its game/world/ground/mars_plan.json and mars_plan_heights.png, Ground.PLAN_* and Worlds.RADIUS): the same square, sixteen-bit encoding and ball radius as the Moon's plan, laid on the camp seat (FirstExpedition.CAMP_FACING_OUT, heading 0). The camp's kit (data/kit/camp.json) is the habitat's own frame: the habitat stands 0.55 m over the ground under the seat's middle (ExpeditionCamp.HABITAT_FLOOR_RISE_M), turned -130.5 degrees about up (rad(-40.5) - pi/2), so its entry has that heading and a `lift`; the grounds' (campgrounds) is the camp seat itself.",
+ "about": "Mars's planned ground round the first expedition's camp in the game 2099 (its game/world/ground/mars_plan.json and mars_plan_heights.png, Ground.PLAN_* and Worlds.RADIUS): the same square, sixteen-bit encoding and ball radius as the Moon's plan, laid on the camp seat (FirstExpedition.CAMP_FACING_OUT, heading 0). The camp's kit (data/kit/camp.json) is the habitat's own frame: the habitat stands 0.55 m over the ground under the seat's middle (ExpeditionCamp.HABITAT_FLOOR_RISE_M), turned -130.5 degrees about up (rad(-40.5) - pi/2), so its entry has that heading and a `lift`; the grounds' (campgrounds) is the camp seat itself. The skin is a shade map: the game paints Mars's ground its MARS_DUST colour (#b4583a, mars_ground.tres) shaded by it, so the stage tints the skin to that colour (`tint`).",
  "heights": "mars_plan_heights.png",
  "skin": "mars_plan_skin.jpg",
  "side": 260.0,
@@ -29,5 +29,6 @@
    ],
    "heading": 0.0
   }
- }
+ },
+ "tint": "#b4583a"
 }

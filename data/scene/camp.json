@@ -1,11 +1,515 @@
 {
  "place": "camp",
- "about": "The expedition camp's habitat on Mars as the game draws it beyond its kit: Mars's planned ground out to the plan's edge and the ball under it, the six dome lamps, the mast's beacon, the sun and the sky. Frame: the CampHabitat node's own (0.55 m over the ground under the camp seat, turned -130.5 degrees).",
+ "about": "The expedition camp's habitat on Mars as the game draws it beyond its kit: Mars's planned ground out to the plan's edge and the ball under it, the furniture CampRooms stands in the domes, the six dome lamps, the mast's beacon, the sun and the sky. Frame: the CampHabitat node's own (0.55 m over the ground under the camp seat, turned -130.5 degrees).",
  "planned_ground": {
   "reach": 130.0,
   "step": 2.0,
   "ball": "mars_regolith"
  },
+ "objects": [
+  {
+   "name": "GalleyCounter",
+   "model": "game/base/models/camp_kit/galley_1.gltf",
+   "at": [
+    -2.6303,
+    0.0,
+    -7.3096
+   ],
+   "yaw": 268.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "ColdStore",
+   "model": "game/base/models/camp_kit/cold_store_1.gltf",
+   "at": [
+    -2.4258,
+    0.0,
+    -5.6421
+   ],
+   "yaw": 291.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "MessTable",
+   "model": "game/base/models/camp_kit/pedestal_table_1.gltf",
+   "at": [
+    -0.3663,
+    0.0,
+    -6.064
+   ],
+   "yaw": 300.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CommsDesk",
+   "model": "game/base/models/camp_kit/comms_desk_1.gltf",
+   "at": [
+    5.153,
+    0.0,
+    -4.6335
+   ],
+   "yaw": 55.0,
+   "children": [
+    {
+     "model": "game/base/models/camp_kit/monitor_1.gltf",
+     "at": [
+      0.5,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/monitor_1.gltf",
+     "at": [
+      -0.02,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/radio_1.gltf",
+     "at": [
+      -0.56,
+      0.74,
+      0.18
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/monitor_1_glow.gltf",
+     "at": [
+      0.5,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/monitor_1_glow.gltf",
+     "at": [
+      -0.02,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    }
+   ],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "StoresRack",
+   "model": "game/base/models/camp_kit/stores_rack_1.gltf",
+   "at": [
+    -1.0279,
+    0.0,
+    -3.4292
+   ],
+   "yaw": 325.5,
+   "children": [
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      -0.56,
+      0.12,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      0.0,
+      0.12,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      0.56,
+      0.12,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      -0.56,
+      0.6,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      0.0,
+      0.6,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      0.56,
+      0.6,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      -0.3,
+      1.08,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      0.3,
+      1.08,
+      0.0
+     ],
+     "yaw": 0.0
+    }
+   ],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "Hygiene",
+   "model": "game/base/models/camp_kit/hygiene_1.gltf",
+   "at": [
+    -0.2495,
+    0.0,
+    -10.9994
+   ],
+   "yaw": 205.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "Bunk",
+   "model": "game/base/models/camp_kit/bunk_1.gltf",
+   "at": [
+    -1.408,
+    0.0,
+    5.68
+   ],
+   "yaw": 270.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "OonaBunk",
+   "model": "game/base/models/camp_kit/bunk_1.gltf",
+   "at": [
+    -0.228,
+    0.0,
+    5.78
+   ],
+   "yaw": 270.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "BramBunk",
+   "model": "game/base/models/camp_kit/bunk_1.gltf",
+   "at": [
+    0.942,
+    0.0,
+    5.88
+   ],
+   "yaw": 270.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "Lockers",
+   "model": "game/base/models/camp_kit/lockers_1.gltf",
+   "at": [
+    -2.6513,
+    0.0,
+    5.7054
+   ],
+   "yaw": 309.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "GrowthChamber",
+   "model": "game/base/models/camp_kit/growth_chamber_1.gltf",
+   "at": [
+    -1.5719,
+    0.0,
+    -0.1429
+   ],
+   "yaw": 212.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "SampleShelf",
+   "model": "game/base/models/camp_kit/sample_shelf_1.gltf",
+   "at": [
+    3.6353,
+    0.0,
+    0.6146
+   ],
+   "yaw": 129.0,
+   "children": [
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      -0.36,
+      0.15,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      0.36,
+      0.15,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      -0.36,
+      1.11,
+      0.0
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/case_1.gltf",
+     "at": [
+      0.36,
+      1.11,
+      0.0
+     ],
+     "yaw": 0.0
+    }
+   ],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheWindow",
+   "model": "game/base/models/camp_kit/crate_1.gltf",
+   "at": [
+    6.0287,
+    0.0,
+    -6.7712
+   ],
+   "yaw": 85.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheDesk",
+   "model": "game/base/models/camp_kit/crate_small_1.gltf",
+   "at": [
+    3.9538,
+    0.0,
+    -3.2996
+   ],
+   "yaw": 32.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheGalley",
+   "model": "game/base/models/camp_kit/crate_1.gltf",
+   "at": [
+    -2.6397,
+    0.0,
+    -8.8523
+   ],
+   "yaw": 248.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheHygiene",
+   "model": "game/base/models/camp_kit/crate_small_1.gltf",
+   "at": [
+    -1.9517,
+    0.0,
+    -10.0931
+   ],
+   "yaw": 230.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "TerminalDesk",
+   "model": "game/base/models/camp_kit/comms_desk_1.gltf",
+   "at": [
+    -3.3321,
+    0.0,
+    2.2771
+   ],
+   "yaw": 257.0,
+   "children": [
+    {
+     "model": "game/base/models/camp_kit/monitor_1.gltf",
+     "at": [
+      0.5,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/monitor_1.gltf",
+     "at": [
+      -0.02,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/radio_1.gltf",
+     "at": [
+      -0.56,
+      0.74,
+      0.18
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/monitor_1_glow.gltf",
+     "at": [
+      0.5,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    },
+    {
+     "model": "game/base/models/camp_kit/monitor_1_glow.gltf",
+     "at": [
+      -0.02,
+      0.74,
+      0.2
+     ],
+     "yaw": 0.0
+    }
+   ],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheChamber",
+   "model": "game/base/models/camp_kit/crate_1.gltf",
+   "at": [
+    -2.8405,
+    0.0,
+    0.9122
+   ],
+   "yaw": 236.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheShelf",
+   "model": "game/base/models/camp_kit/crate_1.gltf",
+   "at": [
+    4.336,
+    0.0,
+    1.9848
+   ],
+   "yaw": 107.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateStack",
+   "model": "game/base/models/camp_kit/crate_1.gltf",
+   "at": [
+    -2.0839,
+    0.0,
+    -4.4832
+   ],
+   "yaw": 306.5,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateUnderTheWindow",
+   "model": "game/base/models/camp_kit/crate_small_1.gltf",
+   "at": [
+    3.0975,
+    0.0,
+    -11.446
+   ],
+   "yaw": 160.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheWay",
+   "model": "game/base/models/camp_kit/crate_small_1.gltf",
+   "at": [
+    2.5268,
+    0.0,
+    -0.3644
+   ],
+   "yaw": 150.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "CrateByTheBunks",
+   "model": "game/base/models/camp_kit/crate_1.gltf",
+   "at": [
+    3.7847,
+    0.0,
+    5.4656
+   ],
+   "yaw": 55.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "SefasBedside",
+   "model": "game/base/models/camp_kit/crate_small_1.gltf",
+   "at": [
+    1.792,
+    0.0,
+    6.56
+   ],
+   "yaw": 180.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "OonasBedside",
+   "model": "game/base/models/camp_kit/crate_small_1.gltf",
+   "at": [
+    3.1079,
+    0.0,
+    6.2775
+   ],
+   "yaw": 40.0,
+   "children": [],
+   "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  }
+ ],
  "lights": [
   {
    "type": "omni",

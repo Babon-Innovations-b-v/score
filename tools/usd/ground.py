@@ -70,6 +70,8 @@ class Ground:
         pixels = np.asarray(Image.open(folder / record["heights"]).convert("RGB")).astype(np.float64)
         self.heights = (pixels[..., 0] * 256 + pixels[..., 1]) / 65535.0 * self.span - self.low
         self.skin = folder / record["skin"]
+        # A shade map painted in one colour (Mars's ground): the skin is tinted to it in the stage.
+        self.tint = record.get("tint")
         self.plan = seat_frame(record["plan_out"], 0.0)
         seat_out, self.heading = np.asarray(entry["out"], dtype=float), float(entry["heading"])
         seat = seat_frame(seat_out, self.heading)
