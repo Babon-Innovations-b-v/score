@@ -154,6 +154,31 @@ def parts_become_subsets_by_surface():
         return problems
 
 
+def stored_takes_paint_like_their_labels():
+    """A take stored in the repository (stored_parts.py: a sample of the labels, 16-bit points) gives the same parts
+    as the labelled folder it was stored from."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        made_place(folder)
+        stored = folder / "stored"
+        export.stored_parts.write(folder / "parts/box-r1", "box-r1", stored)
+        (stored / export.stored_parts.INDEX).write_text(json.dumps({PLACE: {"box": "box-r1"}}))
+        place_files(folder, (2.0, 0.0, 0.0))
+        path = export.export(PLACE, folder / "models", folder / "stage", parts=export.stored_parts.takes_of(PLACE, stored),
+                             kit_path=folder / "kit.json", inventory_path=folder / "inventory.json")
+        mesh = UsdGeom.Mesh(Usd.Stage.Open(str(path)).GetPrimAtPath(f"/{PLACE}/Objects/box_1/geo"))
+        points = np.asarray(mesh.GetPointsAttr().Get())
+        triangles = np.asarray(mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+        heights = points[triangles].mean(axis=1)[:, 1]
+        subsets = {subset.GetPrim().GetName(): np.asarray(subset.GetIndicesAttr().Get())
+                   for subset in UsdGeom.Subset.GetAllGeomSubsets(mesh)}
+        if set(subsets) != {TOP, BOTTOM}:
+            return [f"the stored box's parts are {sorted(subsets)}, not {[BOTTOM, TOP]}"]
+        if not (heights[subsets[TOP]] > 0.5).all() or not (heights[subsets[BOTTOM]] < 0.5).all():
+            return ["a face of the stored box was given the surface of the other half"]
+        return []
+
+
 def the_stage_is_in_metres_with_static_colliders():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
@@ -278,7 +303,7 @@ def a_kit_room_s_pieces_stand_in_their_frames():
         return problems
 
 
-CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface,
+CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface, stored_takes_paint_like_their_labels,
           the_stage_is_in_metres_with_static_colliders, a_child_moves_with_the_object_it_stands_on,
           the_parts_are_found_where_the_run_recorded_them, a_kit_room_s_pieces_stand_in_their_frames)
 
