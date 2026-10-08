@@ -78,6 +78,11 @@ $py tools/props/library/place_route.py check wreck $W
 $py tools/props/library/package.py wreck $W $W/package
 ```
 
+Measured on 2026-10-08, from the recorded close-ups: 12 Pixal3D models in 51 min on cloud cards (EUR 1.43),
+PartCrafter parts for all 12 (EUR 0.72), labels here, one bake of 16 models in 24 min on one L4 (EUR 0.33); the
+model gate passed all 16, and the package (16 objects, 22 copies, 0.36 M triangles, 218 MB) passed its check with
+every copy where the game 2099's own layout puts it. EUR 2.48 in all, about two hours, most of it waiting for cards.
+
 ## Cloud capacity
 
 Every model step runs on machines rented from a cloud provider through one interface
