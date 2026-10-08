@@ -1,6 +1,6 @@
 """Check the sound picker's parts that need no network or card: reading Freesound's page, matching names, cutting
-steps, joining loops, scoring and choosing takes, MOSS's takes as a source, every sound the game needs briefed, and
-a chosen take or a swap going into the game with its credit and a safe level.
+steps, joining loops, scoring and choosing takes, MOSS's takes as a source, and a swap back to a recording. (Reading
+the game's catalogue and a pick going into the game are checked in the game 2099.)
 
 Plain python and ffmpeg, run by the gate: python3 tools/sound/picker/picker_test.py
 """
@@ -8,7 +8,6 @@ import array
 import json
 import math
 import pathlib
-import shutil
 import sys
 import tempfile
 
@@ -96,15 +95,6 @@ def check_the_data_names_every_layer():
     assert "footstep_grating" in named["surface"] and "lamp_buzz" in named["thing"], named
 
 
-def check_every_sound_the_game_needs_is_briefed():
-    assert needs.unbriefed() == {"surface": [], "thing": [], "catalogue": []}, needs.unbriefed()
-    wanted = {need["name"]: need for need in needs.needs_for("game")}
-    for name in ("habitat", "footstep_steel_plate", "console_hum", "lamp_buzz", "rocket_launch", "door_slide_open"):
-        assert name in wanted, name
-    for name in needs.MADE_ONLY:
-        assert name not in wanted, name
-
-
 def check_a_clean_steady_loop_has_no_faults():
     hum = tone(12.0, level=0.3, frequency=110.0)
     assert choose.faults(hum, hum, "loop", 12.0, 0) == {}
@@ -148,44 +138,10 @@ def check_moss_takes_come_with_their_prompt_seed_and_score(folder):
     assert sources.Moss("game").search({"name": "vent_air"}, 8) == []
 
 
-def check_the_catalogue_script_is_read_for_what_plays_now():
-    written = needs.written_files()
-    assert written["habitat"] == ["res://game/sound/recordings/places/habitat.ogg"], written.get("habitat")
-    assert len(written["footsteps_metal"]) == 8 and written["footsteps_metal"][0].endswith("footsteps_metal_1.ogg")
-
-
 def check_picks_read_from_the_store_or_a_map():
     documents = [{"id": "lamp_buzz", "data": {"take": "freesound:1", "more": ""}}, {"id": "vent_air", "data": {"take": ""}}]
     assert applying.picks_from(documents) == {"lamp_buzz": "freesound:1"}
     assert applying.picks_from({"lamp_buzz": {"take": "freesound:2"}}) == {"lamp_buzz": "freesound:2"}
-
-
-def check_a_pick_goes_into_the_game_with_its_credit_and_level(folder):
-    repo = folder / "repo"
-    page_folder = folder / "page"
-    take_folder = page_folder / "takes" / "lamp_buzz" / "freesound_1"
-    take_folder.mkdir(parents=True)
-    shutil.copyfile(needs.REPO / "game/sound/made/base_hum.wav", take_folder / "take.ogg")
-    take = {"key": "moss:1", "source": "moss", "author": "Farm Factory, generated", "licence": sources.Moss.LICENCE,
-            "page": "https://huggingface.co/x", "prompt": "a buzz", "seed": 3,
-            "files": ["takes/lamp_buzz/freesound_1/take.ogg"],
-            "measures": {"takes/lamp_buzz/freesound_1/take.ogg": {"lufs": -24.0, "true_peak": -6.0}}}
-    record = {"needs": [{"name": "lamp_buzz", "category": "loop", "takes": [take]}]}
-    (page_folder / "candidates.json").write_text(json.dumps(record))
-    sounds_path, licences_path = folder / "sounds.json", folder / "licences.json"
-    sounds_path.write_text(json.dumps({"sounds": {"lamp_buzz": {"file": [], "pick": {"level": -60.0}}}}))
-    licences_path.write_text("[]")
-    changed = applying.apply(page_folder, {"lamp_buzz": "moss:1"}, sounds_path, licences_path, repo)
-    assert changed == ["lamp_buzz"]
-    entry = json.loads(sounds_path.read_text())["sounds"]["lamp_buzz"]
-    assert entry["file"] == "res://game/sound/generated/machines/lamp_buzz.ogg"
-    assert entry["volume_db"] == -36.0, entry
-    assert (repo / "game/sound/generated/machines/lamp_buzz.ogg").exists()
-    listed = json.loads(licences_path.read_text())
-    assert listed == [{"file": entry["file"], "source": "https://huggingface.co/x; prompt: a buzz; seed 3",
-                       "author": "Farm Factory, generated", "licence": sources.Moss.LICENCE}], listed
-    applying.apply(page_folder, {"lamp_buzz": "moss:1"}, sounds_path, licences_path, repo)
-    assert len(json.loads(licences_path.read_text())) == 1, "a second apply replaces, never adds"
 
 
 def check_a_swap_back_to_the_recording_before_takes_the_data_off(folder):
@@ -202,24 +158,6 @@ def check_a_swap_back_to_the_recording_before_takes_the_data_off(folder):
         "pick": {"chosen": {"take": "game:habitat", "by": "owner"}}}
 
 
-def check_a_layer_sound_swapped_back_plays_the_recording_its_brief_names(folder):
-    page_folder = folder / "page_steps"
-    page_folder.mkdir()
-    before = needs.written_files()["footsteps_metal"]
-    record = {"needs": [{"name": "footstep_steel_plate", "category": "steps", "before": "footsteps_metal",
-                         "before_files": before, "chosen": "moss:a", "takes": [{"key": "moss:a", "source": "moss"}]}]}
-    (page_folder / "candidates.json").write_text(json.dumps(record))
-    picks = applying.chosen_with_swaps(record, {"footstep_steel_plate": "game:footstep_steel_plate"})
-    assert picks == {"footstep_steel_plate": "game:footstep_steel_plate"}, picks
-    sounds_path, licences_path = folder / "sounds_steps.json", folder / "licences_steps.json"
-    sounds_path.write_text(json.dumps({"sounds": {"footstep_steel_plate": {"file": "res://x.ogg", "volume_db": -30.0}}}))
-    licences_path.write_text("[]")
-    applying.apply(page_folder, picks, sounds_path, licences_path, folder, swapped={"footstep_steel_plate"})
-    entry = json.loads(sounds_path.read_text())["sounds"]["footstep_steel_plate"]
-    assert entry["file"] == before and entry["volume_db"] == applying.written_volume("footsteps_metal"), entry
-    assert entry["pick"]["chosen"]["by"] == "owner"
-
-
 def check_a_page_slug_is_a_plain_folder_name():
     assert page.slug("kenney:impact-sounds/footstep_concrete_000.ogg") == "kenney_impact-sounds_footstep_concrete_000_ogg"
 
@@ -231,22 +169,18 @@ def main():
     check_a_loop_joins_itself_without_a_jump()
     check_silence_is_trimmed_off_both_ends()
     check_the_data_names_every_layer()
-    check_every_sound_the_game_needs_is_briefed()
     check_a_clean_steady_loop_has_no_faults()
     check_a_clipped_short_take_is_marked_down()
     check_a_loop_with_a_clank_in_it_is_unsteady()
     check_the_best_score_is_chosen_and_a_recording_ranks_under_a_generated_take()
     check_a_swap_wins_over_the_chosen_take_only_when_it_is_one_of_its_takes()
-    check_the_catalogue_script_is_read_for_what_plays_now()
     check_picks_read_from_the_store_or_a_map()
     check_a_page_slug_is_a_plain_folder_name()
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         check_a_whole_take_is_made_safe(folder)
         check_a_levelled_loop_file_still_joins_itself(folder)
-        check_a_pick_goes_into_the_game_with_its_credit_and_level(folder)
         check_a_swap_back_to_the_recording_before_takes_the_data_off(folder)
-        check_a_layer_sound_swapped_back_plays_the_recording_its_brief_names(folder)
         check_moss_takes_come_with_their_prompt_seed_and_score(folder)
     print("picker: all checks passed")
 
