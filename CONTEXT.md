@@ -43,7 +43,7 @@ The core depth/seam vocabulary used by `improve-codebase-architecture`, `tdd`, `
 Carried over from the framework's first user, the game 2099 (its `CONTEXT.md`, 2026-10-02 to 10-08), where these words were sharpened with the owner.
 
 - **SCORE** — the framework, and the paper's name: "SCORE: A Framework for Synthesizing Complete, Owned, Responsive Environments". The creator writes the score; coding agents and open tools play it. Written in capitals. Not WorldScore (a benchmark), not score distillation in text-to-3D, not DeepMind's SCoRe. _Avoid_: Score, the score framework, HAVFM.
-- **world compiler** — SCORE's model of itself: the creator's picks compiled offline, in cloud batches, through stages with explicit, checkable outputs into a fixed world an engine loads; nothing is generated while the world is played. _Avoid_: world model (that is a model that renders frames), generator, pipeline (alone).
+- **framework** — SCORE as a whole: the stages, checks, libraries and review tools that turn a creator's picks, offline and in cloud batches, into a fixed, owned, editable world an engine loads; nothing is generated while the world is played. _Avoid_: world compiler, world model (a model that renders frames), pipeline (alone).
 - **route** — the sequence of stages one place is built through, with its rules and checks. _Avoid_: workflow (alone), recipe.
 - **place** — one part of a world with a look of its own (a room, the ground round a base), built by one run of the route. _Avoid_: level, location, area, zone.
 - **concept** — a picture of a place drawn from the creator's references and picked by the creator; it sets the place's structure and look and is never shipped. _Avoid_: key art, mockup, target (alone).

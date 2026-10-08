@@ -4,7 +4,7 @@ author:
   - "J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands"
 date: "Working draft, 8 October 2026"
 abstract: |
-  World models and one-shot 3D generators produce a convincing place from a sentence or a picture, but not a world a creator can build on: a stream of frames, or one fused scene without separate objects, collision or clear rights. SCORE compiles worlds instead. A creator picks references, a concept and a style; coding agents and open models compile those picks offline, through stages with explicit and checkable outputs, into one canonical scene that engines and simulators load and that keeps the creator's edits across regeneration. Four mechanisms make the output coherent and cheap to get right: deterministic checks before every paid step, a parts check that decides between code and generation with one model per real-world object, a shared rule-based surface library that keeps shape and surface apart, and review tools that put every stage's output in front of the creator, who decides at a few fixed points. We apply the same route to four worlds of different kinds.
+  World models and one-shot 3D generators produce a convincing place from a sentence or a picture, but not a world a creator can build on: a stream of frames, or one fused scene without separate objects, collision or clear rights. SCORE is a world generation framework that builds the whole world instead. A creator picks references, a concept and a style; coding agents and open models turn those picks, offline and in batches, through stages with explicit and checkable outputs, into one canonical scene that engines and simulators load and that keeps the creator's edits across regeneration. Four mechanisms make the output coherent and cheap to get right: deterministic checks before every paid step, a parts check that decides between code and generation with one model per real-world object, a shared rule-based surface library that keeps shape and surface apart, and review tools that put every stage's output in front of the creator, who decides at a few fixed points. We apply the same route to four worlds of different kinds.
 ---
 
 <!--
@@ -31,28 +31,28 @@ World models make the first impression of a world cheap, but give neither. Genie
 
 SCORE builds the whole world, offline, and ships it as files. The creator writes the score, and coding agents and open tools play it: the creator decides at a few fixed points, and between them every stage hands on explicit data or code that an agent can read and a deterministic check can test before money is spent. Our contributions:
 
-- **SCORE as a world compiler:** staged, cached compilation from a creator's picks into one canonical scene with generated base layers and the creator's edit layers (Section 3).
-- **Four mechanisms** that keep compiled worlds coherent and cheap to get right (Section 4).
+- **The SCORE framework:** staged, cached generation from a creator's picks into one canonical scene with a generated base layer and the creator's edit layers (Section 3).
+- **Four mechanisms** that keep generated worlds coherent and cheap to get right (Section 4).
 - **Evidence across four worlds of different kinds**, with time, cost and faults caught before spending at every stage, and an evaluation on a shared benchmark (Sections 5 and 6).
 
 # Related work
 
-**World models and world generators.** Genie learns an interactive environment from video [@bruce2024genie]; WorldGen generates traversable worlds from text [@wang2025worldgen]; WorldAct and WorldSculpt recover separate objects from generated worlds or video [@hu2026worldact; @niu2026worldsculpt]. They generate the world itself; SCORE uses a world generator at most as an optional reference step and ships only compiled scenes.
+**World models and world generators.** Genie learns an interactive environment from video [@bruce2024genie]; WorldGen generates traversable worlds from text [@wang2025worldgen]; WorldAct and WorldSculpt recover separate objects from generated worlds or video [@hu2026worldact; @niu2026worldsculpt]. They generate the world itself; SCORE uses a world generator at most as an optional reference step and ships only the scenes its stages build.
 
 **Agents that build scenes.** Holodeck solves language-model layout constraints over retrieved objects [@yang2024holodeck]; SceneCraft and recursive code world models write scenes as programs [@hu2024scenecraft; @li2026rcwm]; WorldClaw and AutoUE assemble open worlds and game code with agents [@guo2026worldclaw; @yin2026autoue]. LEGO-Anything finds that coding agents start scenes weakly, regress while editing and judge geometry unreliably, and answers with tools rather than training [@li2026lego]. SCORE applies that stance to worlds that do not exist yet, built to a person's picks rather than rebuilt from a photograph.
 
 **Procedural generation, parts and style.** Infinigen and Infinigen Indoors generate worlds and rooms from rules, with materials as their own generators [@raistrick2023infinigen; @raistrick2024indoors]; ProcFunc gives them an interface language models write well [@raistrick2026procfunc]. PartCrafter and Point2Part split shapes into parts [@lin2025partcrafter; @tsui2026point2part]. Style across generated assets remains open [@wu2026production; @yang2026flowscene]; Hunyuan3D Studio fixes it at the picture [@lei2025hunyuanstudio]. SCORE takes surface out of the generated models entirely.
 
-# SCORE as a world compiler
+# The SCORE framework
 
-A compiler turns a source a person wrote into an output a machine runs, through stages whose intermediate forms can be inspected, cached and checked. In SCORE the source is the creator's picks: references, a concept picture and a style for each place. The output is a world an engine loads. Compilation happens once, offline, in cloud batches; nothing is generated while the world is played, and each scale of a world (a room, a planet's ground, an orbit) is its own kind of world rather than one continuous zoom.
+SCORE's input is the creator's picks: references, a concept picture and a style for each place. Its output is a world an engine loads. Between them lie stages whose outputs can be inspected, cached and checked. A world is generated once, offline, in cloud batches; nothing is generated while the world is played, and each scale of a world (a room, a planet's ground, an orbit) is its own kind of world rather than one continuous zoom.
 
-The stages are concept, dimensioned plan, inventory, close-ups, shape, surfaces, sound, assembly and review. Each writes an explicit output: a plan in metres, an inventory row for every object with its parent, one clean picture per object, one model per object, baked surfaces, sounds. Each output is cached, so changing one pick recompiles only the stages downstream of it.
+The stages are concept, dimensioned plan, inventory, close-ups, shape, surfaces, sound, assembly and review. Each writes an explicit output: a plan in metres, an inventory row for every object with its parent, one clean picture per object, one model per object, baked surfaces, sounds. Each output is cached, so changing one pick reruns only the stages downstream of it.
 
-All stages write one canonical scene: an OpenUSD stage [@openusd] with glTF geometry [@gltf2]. Every object carries its kind, place in metres, collision, the library surface of each part, its sound, and tags for what a person can do with it, such as door, seat, terminal or airlock. The compiler owns a generated base layer and may rewrite it; the creator's changes live in edit layers above it, so recompiling replaces the base and keeps every edit. Engines and simulators load the same stage through thin adapters.
+All stages write one canonical scene: an OpenUSD stage [@openusd] with glTF geometry [@gltf2]. Every object carries its kind, place in metres, collision, the library surface of each part, its sound, and tags for what a person can do with it, such as door, seat, terminal or airlock. The framework owns a generated base layer and may rewrite it; the creator's changes live in edit layers above it, so regenerating replaces the base and keeps every edit. Engines and simulators load the same stage through thin adapters.
 
 ::: gap
-**Gap: Figure 2, the compiler.** The stages with their cached outputs, the scene's base and edit layers, and the engine adapters. To be drawn with the scene export, which is being built in the framework repository.
+**Gap: Figure 2, the framework.** The stages with their cached outputs, the scene's base and edit layers, and the engine adapters. To be drawn with the scene export, which is being built in the framework repository.
 :::
 
 # Key mechanisms
@@ -69,7 +69,7 @@ Picture-to-3D models build chunky solids well and flat panels, thin beams and op
 
 ## Shape and surface apart
 
-Models and code give shape only. Every part takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc] built on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette, with wear, dirt and seed as named settings. A room has one wear setting, applied from causes such as edges and foot traffic, so every piece in it agrees on what worn steel looks like. Parts of a generated model come from PartCrafter [@lin2025partcrafter]; each part takes one library surface, and the picture only chooses which. Sound is compiled the same way: surfaces carry their footsteps and impacts, rooms their echo, objects their own sound, generated in one batch by MOSS-SoundEffect [@moss2026] and chosen against its prompt by CLAP [@wu2022clap] (Appendix F). The surface and sound libraries grow with each world and are reused in the next.
+Models and code give shape only. Every part takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc] built on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette, with wear, dirt and seed as named settings. A room has one wear setting, applied from causes such as edges and foot traffic, so every piece in it agrees on what worn steel looks like. Parts of a generated model come from PartCrafter [@lin2025partcrafter]; each part takes one library surface, and the picture only chooses which. Sound is made the same way: surfaces carry their footsteps and impacts, rooms their echo, objects their own sound, generated in one batch by MOSS-SoundEffect [@moss2026] and chosen against its prompt by CLAP [@wu2022clap] (Appendix F). The surface and sound libraries grow with each world and are reused in the next.
 
 ## Review tools for the creator
 
@@ -107,7 +107,7 @@ We build four worlds with the same route: the game world of 2099 (a Moon base, i
 
 # Limitations and outlook
 
-Code builders are clean but need an agent to write one per kind of object, which does not scale as well as generation. A concept shows one side of a place, so built places come out sparser than their concepts; the concept-density check catches this but does not fix it, and the optional world step is meant to. Daily quotas on picture models, not compute cost, set the pace of a build. Next, the simulation world needs masses, friction and joints compiled into the scene for robots, and scales that are computed rather than modelled enter as open solvers wrapped as stages, starting with REBOUND for orbits [@rein2012rebound].
+Code builders are clean but need an agent to write one per kind of object, which does not scale as well as generation. A concept shows one side of a place, so built places come out sparser than their concepts; the concept-density check catches this but does not fix it, and the optional world step is meant to. Daily quotas on picture models, not compute cost, set the pace of a build. Next, the simulation world needs masses, friction and joints written into the scene for robots, and scales that are computed rather than modelled enter as open solvers wrapped as stages, starting with REBOUND for orbits [@rein2012rebound].
 
 <!-- Code builders and sparse rooms: issue JoeyKardolus/2099#130 (lab, greenhouse, 2026-10-07/08); session record 2026-10-08T09:27Z. Quotas: #130 comment 2026-10-08T09:18. -->
 
