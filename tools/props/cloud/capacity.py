@@ -38,10 +38,10 @@ SPEED_ORDER = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2", "gpu-24gb-x2")
 # Jobs of a kind one card runs at once for each 24 GB it has, where that was measured: Pixal3D, three on 24 GB.
 RUNS_PER_24GB = {"pixal": 3}
 SINGLE_CARD = ("gpu-24gb", "gpu-48gb", "gpu-80gb")
-# The classes each kind may run on. Order does not matter: offers are taken in SPEED_ORDER.
+# The classes each kind may run on. Order does not matter: offers are taken in the kind's order (order_for).
 KINDS = {
     "pixal": ("gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-24gb-x2", "gpu-80gb-x2"),
-    "library": SINGLE_CARD,
+    "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
     "parts": SINGLE_CARD,
     "scene": SINGLE_CARD,
     "closeups": SINGLE_CARD,
@@ -49,6 +49,17 @@ KINDS = {
     "pictures": SINGLE_CARD,
     "moss-sound": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
 }
+# Kinds that take their offers in an order of their own. Pixal3D: the 80 GB cards first, which run ten takes at once
+# (18 takes an hour against an L4's 6, measured 2026-10-08). Library bakes (Cycles): the cards with ray-tracing
+# cores first; an H100 has none and baked the same job 2.6 times slower than an L4 (138 s against 360 s).
+KIND_ORDER = {
+    "pixal": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb", "gpu-24gb", "gpu-24gb-x2"),
+    "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
+}
+# Classes a kind takes only after LATE_MINUTES with nothing else to be had: the cards without ray-tracing cores, for
+# the bakes.
+LATE = {"library": ("gpu-80gb", "gpu-80gb-x2")}
+LATE_MINUTES = 5
 # A ledger entry written before entries named their kind was a Pixal3D batch.
 OLD_KIND = "pixal"
 
@@ -68,19 +79,30 @@ def runs_at_once(kind, machine_class):
     return max(1, RUNS_PER_24GB[kind] * provider.card_gb(machine_class) // 24)
 
 
-def speed_rank(machine_class):
-    """Where a class stands in SPEED_ORDER; classes not in it (processor machines) after every card."""
-    return SPEED_ORDER.index(machine_class) if machine_class in SPEED_ORDER else len(SPEED_ORDER)
+def order_for(kind):
+    """The order a kind takes capability classes in: its own (KIND_ORDER), else SPEED_ORDER."""
+    return KIND_ORDER.get(kind, SPEED_ORDER)
 
 
-def next_offer(offers, rented):
-    """The offer the next machine of a run is rented from: the best stocked first, then the class that waits least
-    (SPEED_ORDER) and the backend's own order within it, then the zone holding fewest of the run's machines, then
+def late_for(kind):
+    """The classes a kind takes only after LATE_MINUTES with nothing else to be had."""
+    return LATE.get(kind, ())
+
+
+def speed_rank(machine_class, kind=None):
+    """Where a class stands in the kind's order; classes not in it (processor machines) after every card."""
+    order = order_for(kind)
+    return order.index(machine_class) if machine_class in order else len(order)
+
+
+def next_offer(offers, rented, kind=None):
+    """The offer the next machine of a run is rented from: the best stocked first, then the kind's order of classes
+    (order_for) and the backend's own order within a class, then the zone holding fewest of the run's machines, then
     the cheapest. `offers` are provider.Offer; `rented` the run's machines so far."""
     if not offers:
         return None
     in_zone = collections.Counter(machine["zone"] for machine in rented if not machine.get("deleted"))
-    return min(offers, key=lambda offer: (offer.stock, speed_rank(offer.machine_class), offer.order,
+    return min(offers, key=lambda offer: (offer.stock, speed_rank(offer.machine_class, kind), offer.order,
                                           in_zone[offer.zone], offer.per_card))
 
 

@@ -270,9 +270,23 @@ Light adds up, so it is planned as layers. For each kind of module, the bounce l
 
 # Cost and infrastructure
 
-Every heavy step runs on rented machines that are deleted after each batch: NVIDIA L4 graphics cards for picture-to-3D, part splitting and baking, and processor-only machines when no cards are in stock. The engine's tests, its screenshots and its frame-time benchmark also run on rented machines. A full test run took 542 s there, against 596 s on the local computer, and frame times measured on an L4 card are converted to the local RTX 5080 by a measured factor of 3.47. A picture costs about $0.134 at the resolution we use. The picture model's limits on speed are described under Limitations.
+Every heavy step runs on rented machines that are deleted after each batch: NVIDIA graphics cards for picture-to-3D, part splitting and baking, and processor-only machines when no cards are in stock. The engine's tests, its screenshots and its frame-time benchmark also run on rented machines. A full test run took 542 s there, against 596 s on the local computer, and frame times measured on an L4 card are converted to the local RTX 5080 by a measured factor of 3.47. A picture costs about $0.134 at the resolution we use. The picture model's limits on speed are described under Limitations.
 
 <!-- 542 vs 596 s, 3.47: #130 comments 2026-10-07T21:57 and 23:02. $0.134: 2099 paper README "What it cost". 250 a day: #130 comment 2026-10-08T03:31. -->
+
+A batch asks for a class of machine, such as one card with 24 GB, and takes whatever the provider has in stock across three zones and three card types, because on 8 October the cheapest type was out of stock in one zone for most of the day. Table G1 compares the same jobs on two card types. An H100 runs ten Pixal3D takes at once in 31 GB of its 80 GB, and makes nearly three times as many models an hour as an L4. It has no ray-tracing cores, so it bakes 2.6 times slower than an L4. Pixal3D therefore takes 80 GB cards first, and a bake takes an H100 only when no other card has been free for five minutes. The L40S was out of stock on both attempts, and the provider's P100 machines started but their driver did not see the card.
+
+**Table G1.** The same jobs on two card types, 8 October 2026. Wait is the time from the order until the machine answers; machine time is the whole rental, setup included.
+
+| Card | Job | At once | Wait | Machine time | Cost | Per take |
+|---|---|---|---|---|---|---|
+| L4, 24 GB | Pixal3D, 3 close-ups | 3 | 0.4 min | 28.0 min | €0.38 | €0.13, 6.4 an hour |
+| H100, 80 GB | Pixal3D, the same 3 | 3 | 0.6 min | 13.9 min | €0.67 | €0.22, 12.9 an hour |
+| H100, 80 GB | Pixal3D, 10 close-ups | 10 | 0.6 min | 33.1 min | €1.62 | €0.16, 18.1 an hour |
+| L4, 24 GB | bake: 60 surfaces at 3 wear levels | 1 | 0.4 min | 3.8 min (bake 138 s) | €0.05 | |
+| H100, 80 GB | the same bake | 1 | 0.6 min | 7.5 min (bake 360 s) | €0.38 | |
+
+<!-- Out of stock most of the day: handoff cloudgame.txt (2026-10-08) and batch logs of that day. Table and paragraph: the cloud ledger rows of batches library-20261008-134330, library-20261008-134449, batch-20261008-134244, batch-20261008-134426 and batch-20261008-141143 (start_wait_minutes, minutes, euros, unit_seconds, peak_gb), summarised in the capacity job's progress log tmp/playtest3/progress-capacity.txt (14:45 table). Close-ups: the wreck's work_lamp, pressure_sphere, ring_frame (3) and ten of its close-ups (10). L40S out of stock: ledger attempts 13:44 and 14:12. P100: setup.log of batch-20261008-134506 ("NVIDIA-SMI has failed"). -->
 
 ::: gap
 **Gap: cost tables.** These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds; the figures per place so far are lower bounds taken from the build logs.
