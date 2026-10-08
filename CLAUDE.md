@@ -67,7 +67,9 @@ Per-area overlays: `<area>/CLAUDE.md` auto-loads when files in its directory are
 
 Nothing is deployed. A push to `main` publishes the source, the paper's PDF and its arXiv tree; nothing runs from it. No GitHub Actions.
 
-**Public from the first commit.** Nothing from babon or Movalytics (business files, data, people, clients), no secrets, keys or cloud account and project ids, ever: not in code, docs, the paper, its comments, or `.claude/memory`.
+**Public from the first commit.** Nothing from babon or Movalytics (business files, data, people, clients), no secrets, keys or cloud account and project ids, ever: not in code, docs, the paper or its comments.
+
+**Claude's memory stays private.** `.claude/memory/` is git-ignored: this repository is public and memory is private working notes, so it is never committed or pushed. Anything a later session must know goes into the bible, `CONTEXT.md` or an issue.
 
 ## Autonomy boundaries
 

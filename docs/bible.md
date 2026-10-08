@@ -132,8 +132,10 @@ step to catch anything you skipped.
 file. A commit that needs "and" in its subject line is two commits.
 
 **Memory.** Claude's memory folder is linked into `.claude/memory` by
-`.claude/scripts/bootstrap.sh`, and the `Stop` hook commits and pushes it. Memory therefore
-survives a wiped machine, and is readable by anyone with the repo. Nothing secret goes in it.
+`.claude/scripts/bootstrap.sh`, and that folder is git-ignored: this repository is public, and
+memory is private working notes. The `Stop` hook's memory commit finds nothing to commit. Memory
+therefore does not survive a wiped machine; anything load-bearing goes into the bible, the
+glossary or an issue instead.
 
 ## workflow/module-standard
 
@@ -168,15 +170,15 @@ Getting a fresh machine, or a wiped one, back to working.
    issues and the board go through `gh`; without it, `to-prd`, `triage`, `close` and `my-issues`
    cannot run.
 2. `bash .claude/scripts/bootstrap.sh`. It links `~/.claude/projects/<encoded-repo-path>/memory` to
-   the repo's tracked `.claude/memory`, so memory rides along with git, and reports anything else
+   the repo's git-ignored `.claude/memory` (private, never pushed), and reports anything else
    that is missing. It is safe to re-run; every step skips what is already done.
 3. `python3 .claude/scripts/setup-github.py --board` on a fresh repo only. Labels and the board are
    GitHub-side state and are not copied by "Use this template", so a repo spawned from the template
    starts without them.
 
-**What survives a wipe:** everything in git, memory included. **What does not:** `gh` auth, any
-local toolchain, and anything a session left uncommitted. That asymmetry is the reason the memory
-folder is tracked.
+**What survives a wipe:** everything in git. **What does not:** Claude's memory (git-ignored,
+because the repository is public), `gh` auth, any local toolchain, and anything a session left
+uncommitted.
 
 ## Identifiers
 
