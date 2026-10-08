@@ -508,7 +508,7 @@ def ground_mesh(stage, path, ground, pieces, out):
     high = np.ceil(skin_at.max(axis=0) * [wide, tall]).astype(int).clip(1, [wide, tall])
     textures = out / "assets/textures"
     textures.mkdir(parents=True, exist_ok=True)
-    picture.crop((*low, *high)).save(textures / "ground_skin.png")
+    scene_record.ground_skin(ground, picture.crop((*low, *high))).save(textures / "ground_skin.png")
     inside = (skin_at * [wide, tall] - low) / (high - low)
     mesh = UsdGeom.Mesh.Define(stage, path)
     mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points.astype(np.float32)))
@@ -523,6 +523,7 @@ def ground_mesh(stage, path, ground, pieces, out):
     material = baked_material(stage, f"{path}_look", {"base_color": "../assets/textures/ground_skin.png"}, None)
     shader = UsdShade.Shader(stage.GetPrimAtPath(f"{path}_look/surface"))
     shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(1.0)  # regolith has no shine
+
     UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
     return near
 
@@ -609,16 +610,17 @@ def write_root(place, out):
 
 # --- the way in ---------------------------------------------------------------------------------------------------
 
-def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None, world=None):
+def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None, world=None,
+           scene=None):
     """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
     `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read; without
     `parts`, the place's stored takes (data/parts). `ground` is the place's tools/usd/ground.Ground; without one the
-    place is flat. `world` is the folder of the world's own assets (the game's tree) its scene record names files in."""
+    place is flat. `scene` is the place's scene record (tools/usd/scene.py; None writes only its made pieces) and
+    `world` the folder of the world's own assets (the game's tree) it names files in."""
     out = pathlib.Path(out)
     if parts is None:
         parts = stored_parts.takes_of(place)
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
-    scene = scene_record.record(place)
     if kit["pieces"] and "x" in kit["pieces"][0]:
         kit = dict(kit, pieces=kit_room_pieces(kit, models, (scene or {}).get("tube_length")))
     if inventory_path is None:  # a room of a place of another name keeps its inventory under the place's (the flat)
@@ -659,7 +661,7 @@ def main():
     kit = json.loads((KITS / f"{arguments.place}.json").read_text())
     laid_on = None if arguments.flat else grounds.place_ground(arguments.place, kit.get("on_seat", [0.0, 0.0]))
     print(export(arguments.place, arguments.models, arguments.out, parts, take=take, ground=laid_on,
-                 world=arguments.world))
+                 world=arguments.world, scene=scene_record.record(arguments.place)))
 
 
 if __name__ == "__main__":
