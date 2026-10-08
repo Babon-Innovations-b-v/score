@@ -11,6 +11,8 @@ transparent background: the alpha is where they are), <name>-ground.png (the gro
 report.json with what came in: objects, materials, each object's score:* properties, and the stage's layers as
 Blender's own USD library composed them. A view with `"look_only": true` (a walkthrough's frame) gets its look alone.
 `"plain": true` draws every object in one plain grey instead of its materials: a debug view of shape alone.
+`"lights": [{"at", "energy", "radius"}]` adds point lights (a room's lamps, watts); a view with `"hide_layers": [2]`
+leaves out every object whose `score:layer` is one of them (a room's roof, for a cutaway look in).
 """
 import json
 import math
@@ -196,6 +198,27 @@ def render(scene, path, transparent):
     bpy.ops.render.render(write_still=True)
 
 
+def lamps(scene, lights):
+    """Point lights where a room's lamps hang."""
+    for number, light in enumerate(lights):
+        data = bpy.data.lights.new(f"lamp_{number}", type="POINT")
+        data.energy = float(light["energy"])
+        data.shadow_soft_size = float(light.get("radius", 0.1))
+        item = bpy.data.objects.new(f"lamp_{number}", data)
+        item.location = stage_point(light["at"])
+        scene.collection.objects.link(item)
+
+
+def layer_of(item):
+    """An imported object's kit layer: its own `score:layer` or the nearest parent's, None without one."""
+    while item is not None:
+        for key, value in item.items():
+            if key.endswith("layer") and "score" in key:
+                return int(value)
+        item = item.parent
+    return None
+
+
 def set_hidden(objects, hidden):
     for item in objects:
         item.hide_render = hidden
@@ -218,10 +241,15 @@ def main():
         objects = [item for item in objects if item is not plane]
     if views.get("plain"):
         plain(objects)
+    lamps(scene, views.get("lights", []))
+    layers = {item.name: layer_of(item) for item in objects}
     for view in views["views"]:
         camera(scene, view)
         plane.hide_render = False
+        hidden = [item for item in objects if layers[item.name] in view.get("hide_layers", [])]
+        set_hidden(hidden, True)
         render(scene, out / f"{view['name']}-look.png", transparent=False)
+        set_hidden(hidden, False)
         if view.get("look_only"):
             continue
         plane.hide_render = True

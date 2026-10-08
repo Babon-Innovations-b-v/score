@@ -34,9 +34,19 @@ def json_or_none(path):
     return json.loads(path.read_text()) if path and path.exists() else None
 
 
+def place_key(place):
+    """The place.json entry a place is under: its own name, or a room's place as its inventory names it (the
+    prologue's street is a room of the place `prologue_street`)."""
+    places = json.loads(PLACES.read_text())
+    if place in places:
+        return place
+    found = json_or_none(INVENTORIES / f"{place}.json") or {}
+    return found.get("place", place)
+
+
 def place_style(place):
     """The place's name and its style text, as the concept step left them in place.json."""
-    entry = json.loads(PLACES.read_text())[place]
+    entry = json.loads(PLACES.read_text())[place_key(place)]
     return {"name": entry.get("name", place), "style": entry["style"]["text"], "from": entry["style"].get("from", ""),
             "picked": entry["style"].get("picked", "")}
 
@@ -104,6 +114,20 @@ def latest_takes(parts):
     return found
 
 
+def kit_takes(folder):
+    """A kit room's run (route.py): each generated model's labelled take where its bake job (job-chunky*.json) read
+    it, by model name."""
+    found = {}
+    for job in sorted(folder.glob("job-chunky*.json")):
+        for entry in json.loads(job.read_text()).get("chunky", []):
+            take = pathlib.Path(entry["parts"])
+            if (take / "labels.json").exists():
+                found[entry["name"]] = {"take": take.name.rpartition("-")[2], "folder": take,
+                                        "labels": json.loads((take / "labels.json").read_text()),
+                                        "surfaces": sorted(take.glob("*.ply"))}
+    return found
+
+
 def bake_reports(made):
     """Every bake report in made/, oldest first: which models each bake wrote, so a rebake shows as a second entry."""
     return [{"name": path.stem.removeprefix("report-"), "models": json.loads(path.read_text())}
@@ -115,12 +139,18 @@ def run(folder):
     if folder is None:
         return None
     made = folder / "made"
+    plan = json_or_none(folder / "plan.json") or {}
+    # A kit room's run (route.py) writes its route's plan as plan.json, its models and pieces; an outdoor place's
+    # (place_route.py) writes plan-route.json, and plan.json is the dimensioned plan's elements.
+    kit_run = "models" in plan and not (folder / "plan-route.json").exists()
+    takes = kit_takes(folder) if kit_run else latest_takes(folder / "parts") if (folder / "parts").exists() else {}
     return {
         "folder": folder,
-        "plan": json_or_none(folder / "plan.json"),
+        "kit": kit_run,
+        "plan": None if kit_run else plan or None,
         "closeups": closeups(folder),
-        "takes": latest_takes(folder / "parts") if (folder / "parts").exists() else {},
-        "planned": json_or_none(folder / "plan-route.json"),
+        "takes": takes,
+        "planned": plan if kit_run else json_or_none(folder / "plan-route.json"),
         "models": {path.stem: path for path in sorted(made.glob("*.gltf"))} if made.exists() else {},
         "bakes": bake_reports(made) if made.exists() else [],
         "checks": json_or_none(folder / "checks.json"),
@@ -130,4 +160,4 @@ def run(folder):
 
 def surfaces(place):
     """Every library surface as the place paints it: family, recipe, token and colour (linear RGB)."""
-    return library.by_library(place)
+    return library.by_library(place_key(place))
