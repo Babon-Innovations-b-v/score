@@ -14,9 +14,9 @@ the out folder and is skipped when they are there, so a run that stops is run ag
    the crop and the whole concept as references, on as few 80 GB cards as keep the batch near an hour, each card of
    a machine drawing its own slice.
 3. qwen/judge/<id>.txt: the judge's answer for each (../cloud/judge.py), and the shape check (check.py) on top.
-4. pro/<id>.png, then pro-retake/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), judged and
-   checked the same way; a first Pro take that fails is drawn again from the crop alone (RETAKE). Skipped with
-   --no-pro.
+4. pro/<id>.png, then pro-room/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), judged and
+   checked the same way: first from the crop alone (CROP_ONLY), then, for what still fails, with the whole concept
+   as its second reference (WORDING). Skipped with --no-pro.
 5. closeups.json: per row the accepted picture and the model that made it (none when every take failed: those are
    left for the creator to look at), every take's faults and the row's cost; the batches' ledger entries and the
    totals.
@@ -51,18 +51,20 @@ WORDING = ("Make one clean product picture of a single object for a 3D model mak
            "concept picture of its room: take its shape, parts, layout, colours, wear, labels, stickers and taped "
            "notes from it, drawn crisp and complete. Image 2 is the whole room, for its materials, paint and wear "
            "only: never draw the room.")
-# Pro's second take, for a picture whose first failed the check: the crop alone, the object named exactly and the room
-# named as what to leave out, since given the whole room Pro sometimes draws it behind the object or as a miniature
-# (the lab, 2026-10-08; the retake wording of job place-lab).
-RETAKE = ("Make one clean product picture of a single object for a 3D model maker. ONLY this object, alone, floating on "
-          "a plain, even, light grey studio background that fills the whole frame: no room, no walls, no floor, no "
-          "ground, no shadow pool, no other objects, no people, no dimension lines or captions. Seen from three "
-          "quarters, a little from above, the whole object with a wide margin round it, soft even studio light, sharp "
-          "fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m deep and {tall:.2f} m tall; keep "
-          "those proportions exactly. Image 1 shows this object among other things: take its shape, parts, materials, "
-          "paint, wear and colours from it and ignore everything around it.")
-# Pro's takes in order, each judged before the next: its folder under the out folder and its wording.
-PRO_TAKES = {"pro": WORDING, "pro-retake": RETAKE}
+# Pro's first take: the crop alone, the object named exactly and the room named as what to leave out. Given the whole
+# room, Pro drew it behind the object, as a miniature or with dimension lines on 7 of the lab's 14 (2026-10-08), and a
+# model's surfaces come from the surface library, never from the picture, so the room adds little (the coordinator,
+# 2026-10-08; the retake wording of job place-lab).
+CROP_ONLY = ("Make one clean product picture of a single object for a 3D model maker. ONLY this object, alone, floating on "
+             "a plain, even, light grey studio background that fills the whole frame: no room, no walls, no floor, no "
+             "ground, no shadow pool, no other objects, no people, no dimension lines or captions. Seen from three "
+             "quarters, a little from above, the whole object with a wide margin round it, soft even studio light, sharp "
+             "fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m deep and {tall:.2f} m tall; keep "
+             "those proportions exactly. Image 1 shows this object among other things: take its shape, parts, materials, "
+             "paint, wear and colours from it and ignore everything around it.")
+# Pro's takes in order, each judged before the next: its folder under the out folder and its wording. The room
+# reference is the second take, for an object the crop alone does not make clear.
+PRO_TAKES = {"pro": CROP_ONLY, "pro-room": WORDING}
 # A batch is sized so each card draws about this many close-ups (about an hour at 56 s each), spreading its start-up.
 PER_CARD = 60
 MARGIN = 0.2
@@ -135,10 +137,10 @@ def draw_with_qwen(rows, out, dry_run=False):
 
 
 def judge_questions(rows, out, take):
-    """The judge's list: one question for each row's picture of `take`, beside its crop."""
-    return [{"name": row["id"], "text": check.question(row["words"], row["size"]),
+    """The judge's list: each row's picture of `take` beside its crop, asked once with each of check.SEEDS."""
+    return [{"name": f"{row['id']}~{seed}", "seed": seed, "text": check.question(row["words"], row["size"]),
              "images": [str(out / "crops" / f"{row['id']}.jpg"), str(out / take / f"{row['id']}.png")]}
-            for row in rows if (out / take / f"{row['id']}.png").exists()]
+            for row in rows if (out / take / f"{row['id']}.png").exists() for seed in check.SEEDS]
 
 
 def judge(rows, out, take, dry_run=False):
@@ -158,9 +160,9 @@ def checked(row, out, take):
     picture = out / take / f"{row['id']}.png"
     if not picture.exists():
         return [f"no {take} picture"]
-    answer = out / take / "judge" / f"{row['id']}.txt"
+    replies = [out / take / "judge" / f"{row['id']}~{seed}.txt" for seed in check.SEEDS]
     return check.faults(check.measure(picture, row["size"]),
-                        check.answer_of(answer.read_text()) if answer.exists() else None)
+                        [check.answer_of(reply.read_text()) if reply.exists() else None for reply in replies])
 
 
 def draw_with_pro(rows, out, failed, take):
@@ -226,11 +228,11 @@ def summary(records, entries):
 
 def row_euros(row, out, entries):
     """The cloud's euros for one row: its share of the Qwen batch and of every judge batch that judged one of its
-    pictures."""
+    pictures (one answer for each seed)."""
     euros = share(entries.get("qwen"), len(list((out / "qwen").glob("*.png"))))
     for take in ("qwen", *PRO_TAKES):
-        if (out / take / "judge" / f"{row['id']}.txt").exists():
-            euros += share(entries.get(f"judge-{take}"), len(list((out / take / "judge").glob("*.txt"))))
+        if (out / take / "judge" / f"{row['id']}~{check.SEEDS[0]}.txt").exists():
+            euros += share(entries.get(f"judge-{take}"), len(list((out / take / "judge").glob("*.txt")))) * len(check.SEEDS)
     return euros
 
 

@@ -5,7 +5,7 @@ border (a room, a floor or a cut-off object breaks it), the object filling a sen
 object rather than several, and its outline's proportions against the inventory row's box. The judge is a
 vision-language model on a rented card (../cloud/judge.py, Qwen3.8-27B in FP8, Apache-2.0) that sees the concept's
 crop beside the close-up and answers set questions: one object, a clean background, the whole object, the same
-object as in the crop, parts missing or added, proportions. A close-up passes only when both halves pass.
+object as in the crop, parts missing or added, proportions. Each question is asked with three seeds and the majority decides. A close-up passes only when both halves pass.
 
 The rule was tuned on the 40 close-ups of the open-model check (job openpics, 2026-10-08, four models on the
 lab's ten objects, each scored by hand): a pass of a picture scored wrong costs a bad 3D model, a fail of a good
@@ -58,6 +58,9 @@ PROPORTION_LIMIT = 0.5     # |ln(seen height:width / expected)| at most this
 # The view the close-ups are drawn from: turned about 35 degrees, a little from above (the close-up wording).
 TURN_DEGREES = 35.0
 LOOK_DOWN_DEGREES = 15.0
+# The judge is asked each question with these seeds, and a close-up passes its half when most answers pass: one
+# answer alone gave a different verdict for the same picture between runs (the lab desk, 2026-10-08).
+SEEDS = (7, 8, 9)
 # The judge's limits: the shape score a pass needs, and the judge's own questions that must all be yes.
 SCORE_MIN = 7
 MUST_BE_TRUE = ("one_object", "clean", "whole", "same_object", "proportions")
@@ -162,6 +165,16 @@ def judged_faults(answer):
     return faults
 
 
-def faults(measures, answer):
-    """Every fault the check finds in a close-up; it passes when there are none."""
-    return measured_faults(measures) + judged_faults(answer)
+def voted_faults(answers):
+    """The judge's faults on a close-up asked several times: none when most of the answers pass it, else the faults of
+    the first answer that failed it and how many passed."""
+    failing = [found for found in (judged_faults(answer) for answer in answers) if found]
+    if len(failing) * 2 < len(answers):
+        return []
+    return failing[0] + [f"judge: {len(answers) - len(failing)} of {len(answers)} answers passed"]
+
+
+def faults(measures, answers):
+    """Every fault the check finds in a close-up, from its measurements and the judge's answers; it passes when there
+    are none."""
+    return measured_faults(measures) + voted_faults(answers)
