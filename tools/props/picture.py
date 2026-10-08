@@ -18,8 +18,6 @@ import json
 import pathlib
 import sys
 
-import torch
-from diffusers import Flux2KleinPipeline
 from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -90,6 +88,10 @@ def load():
     refuse_here("the picture model (FLUX.2 klein)",
                 "tools/props/cloud/pictures.py <jobs.json> for prop pictures, "
                 "tools/props/cloud/scene.py <plan.json> for a scene's targets and redraws")
+    # The model stack is imported only where a model loads, so the plain-Python side (the cloud runners that read
+    # this file's wording) needs no torch.
+    import torch
+    from diffusers import Flux2KleinPipeline
     pipeline = Flux2KleinPipeline.from_pretrained(PICTURE_MODEL, torch_dtype=torch.bfloat16)
     pipeline.enable_model_cpu_offload()
     return pipeline
@@ -102,6 +104,7 @@ def wording(sentence, form=FORM):
 
 def draw(pipeline, sentence, name, seed, steps, form=FORM, refs=()):
     """One picture from a loaded model, saved under PICTURES; the path to it."""
+    import torch
     references = [Image.open(ref).convert("RGB") for ref in refs]
     image = pipeline(
         image=references or None,
