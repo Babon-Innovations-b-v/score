@@ -133,10 +133,9 @@ We build four worlds with the same route: the game world of 2099 (a Moon base an
 - **One creator, one world so far.** Every verdict on the results is one creator's, and only the first world has been built.
 - **Code builders do not scale well.** They give clean objects, but a coding agent has to write one for every kind of object.
 - **Places come out sparser than their concepts.** The concept-density check catches this but does not fix it.
-- **One stage depends on a closed, paid picture model.** The concepts and close-ups are drawn by Nano Banana Pro. On our tier it allows about 250 pictures a day and 20 a minute, and these limits, not the cost of computing, set the pace of world 1. The model can change or be retired, which limits how well a build can be reproduced, and it leaves a public framework depending on a closed service for one key stage. The cheaper Nano Banana did not replace it: on 10 close-ups of the lab it gave 2 good pictures, 3 usable, 1 marginal and 3 with the wrong shape, refused 1 outright, and refused the standard prompt for 6 of the 10.
+- **One stage depends on a closed, paid picture model.** Nano Banana Pro, a closed and paid service, draws the concepts and close-ups; its daily limits set the pace of world 1, and it can change or be retired, which limits reproducibility and leaves a public framework depending on a closed service for one stage. A cheaper model of the same family did not replace it (Appendix E).
 - **Objects are physical but not interactive.** Seats, terminals and other usable objects do not work in the output.
 
-<!-- Tier limits and the 10-pair check: /home/dupe/.claude/jobs/3326150f/tmp/briefs/score-common.txt, lines PICTURE MODELS and CLOSE-UP CHECK RESULT (2026-10-08); check page https://claude.ai/artifact/J3cbncinKkyPJuNhwk47uH (private). -->
 
 # Future work
 
@@ -234,6 +233,20 @@ Every model in the route must allow commercial use of its output (Table E1). Can
 | FLUX.2 klein 4B [@flux2klein] | earlier prop pictures | Apache-2.0 |
 | MoGe-2 [@wang2025moge2], SAM 3 [@carion2025sam3] | measuring and finding objects in pictures | MIT; SAM Licence |
 | Kimodo [@rempe2026kimodo], SAM 3D Body [@yang2026sam3dbody] | motion from sentences; body shape from a picture | Apache-2.0 code, NVIDIA Open Model License; SAM Licence |
+
+On our tier, Nano Banana Pro allows 250 pictures a day and 20 a minute; the cheaper Nano Banana (gemini-2.5-flash-image) allows 2,000 a day and 500 a minute. We tested whether the cheaper model could draw the close-ups instead, on the same 10 lab objects with the same prompts and inputs (Table E2). It refused the standard prompt for 6 of the 10 objects and drew those only from the crop alone, and its pictures were about one megapixel with the object small in the frame. Close-ups therefore stay on Nano Banana Pro.
+
+**Table E2.** Ten lab close-ups drawn by Nano Banana instead of Nano Banana Pro.
+
+| Result | Objects |
+|---|---|
+| good | 2 |
+| usable | 3 |
+| marginal | 1 |
+| wrong shape (microscope, chair, sample tray) | 3 |
+| refused (glovebox) | 1 |
+
+<!-- Tier limits and the 10-pair check: /home/dupe/.claude/jobs/3326150f/tmp/briefs/score-common.txt, lines PICTURE MODELS and CLOSE-UP CHECK RESULT (2026-10-08); check page https://claude.ai/artifact/J3cbncinKkyPJuNhwk47uH (private). -->
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound generation, all checks and the assembly run automatically. Coding agents (Claude Code [@claudecode]) write the plans, the inventories and every code builder; in the hub's final round, 86 of its 98 models were built in code. Some steps were still done by hand: some generated objects were turned to face the right way by eye, and a few labels were placed by hand before a rule took over that job. The concepts and the verdicts are the creator's own choices.
 
