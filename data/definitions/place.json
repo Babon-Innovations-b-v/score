@@ -1801,5 +1801,159 @@
 			"dirt": 0.4,
 			"picked": "not yet: shown at three levels on the robust-exp page; the owner picks"
 		}
+	},
+	"greenhouse": {
+		"name": "the greenhouse",
+		"scenes": [
+			"greenhouse"
+		],
+		"style": {
+			"version": 1,
+			"text": "The base's grow module under a glass dome on ribs: the hub's lived-in industrial working station (worn bolted panels, exposed pipes and valves, work lamps) lining its walls up to the dome, and a working farm under it: the home plot's beds inside a low curb, a grow-light gantry hung over them, the water tank and the dosing unit, a control console and a desk on the north dais, seedling racks on the ledges, the robot station's bays and bins by the plot. Lit by the magenta grow lights over the beds and the work lamps, the Moon and the black sky through the glass.",
+			"from": "the hub's theme (signed off 2026-10-07) and the greenhouse's concept K09 (concepts-world1/greenhouse)",
+			"picked": "2026-10-07: the coordinator's pick K09 for the owner (world 1 scale-up), on the hub's signed-off theme"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"steel",
+				"roof-steel",
+				"deck",
+				"hull-trim",
+				"rubber",
+				"cabin-panel",
+				"screen-teal",
+				"screen-amber",
+				"lamp",
+				"room-fill",
+				"glass",
+				"grow-light",
+				"bay-one",
+				"bay-two",
+				"bay-three",
+				"soil",
+				"crop-green"
+			],
+			"accents": [
+				"hazard",
+				"alarm",
+				"board-wood",
+				"cabin-seat"
+			],
+			"accents_are": "the airlock's hazard border, small red valve wheels and status lights, the tool board's timber and the chairs' seat covers"
+		},
+		"materials": {
+			"painted_panel": {
+				"token": "hull-trim",
+				"library": "painted_panel"
+			},
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"hazard_paint": {
+				"token": "hazard",
+				"library": "hazard_paint"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"pipe_steel": {
+				"token": "roof-steel",
+				"library": "pipe_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"screen": {
+				"token": "glass",
+				"library": "screen"
+			},
+			"lamp_lens": {
+				"token": "lamp",
+				"library": "lamp_lens"
+			},
+			"wood_board": {
+				"token": "board-wood",
+				"library": "wood_board"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			},
+			"potting_soil": {
+				"token": "soil",
+				"library": "potting_soil"
+			},
+			"seedling_leaf": {
+				"token": "crop-green",
+				"library": "seedling_leaf"
+			},
+			"tray_plastic": {
+				"token": "rubber",
+				"library": "rubber"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-07: grow lights over the beds (Lamp, the greenhouse's timer) and work lamps",
+			"read_by": "the greenhouse scene's Lamp nodes and the kit's lamps"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/hub-directions/industrial-2.jpg",
+					"said": "lived-in industrial: pipes, valves, gauges"
+				},
+				{
+					"picture": "WORK/references/hub-directions/hc17-project-hail-mary.jpg",
+					"said": "dense screens and readouts at the work places"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "one colour washing over the whole room"
+				},
+				{
+					"picture": "",
+					"said": "screens on every surface with no structure showing"
+				},
+				{
+					"picture": "",
+					"said": "loose clutter that blocks a walkway or a standing spot"
+				},
+				{
+					"picture": "",
+					"said": "hazard stripes on tube hatches, stairs, rails or floors"
+				},
+				{
+					"picture": "",
+					"said": "warm retro lounge, raw sintered stone or clinical white outside medical and hygiene modules"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.4,
+			"picked": "the hub's (signed off with the hub, 2026-10-07)"
+		}
 	}
 }

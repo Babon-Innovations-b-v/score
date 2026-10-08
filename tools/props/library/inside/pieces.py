@@ -5367,6 +5367,1122 @@ def pendant_lamp(size, laid):
     return parts
 
 
+# ---- Greenhouse place job (2026-10-07), block gh_rig: the grow-light gantry over the plot (the light bars and their
+# lit lens, the frame rails, the wire rope hangers), the irrigation boom and the service ledge's lid, built in code with
+# library surfaces as method B's parts check allows, each as its clean close-up shows it. The lit lens is a kind of its
+# own so the game can dim it; the bar's recess is left empty for it. Helpers are prefixed `gh_rig_`.
+
+GH_RIG_BAR_BODY = 0.07  # the light bar's housing height under its fins
+GH_RIG_LENS = (2.9, 0.03, 0.22)  # the lit lens plate (grow_light_glow's size): the bar's recess is cut to it
+GH_RIG_BOOM_PIPE = 0.03  # the irrigation pipe's radius
+GH_RIG_ROPE = 0.005  # the hanger's wire rope radius (10 mm thick)
+
+
+def gh_rig_bolt_up(x, y, z, material="bare_steel"):
+    """A bolt head standing up out of a level face at height `y`."""
+    return shapes.cylinder((x, y, z), (x, y + 0.007, z), BOLT, material, 6, "bolt")
+
+
+def gh_rig_hex(start, end, radius, material, name):
+    """A hex nut or body between two kit points."""
+    return shapes.bevelled(shapes.cylinder(start, end, radius, material, 6, name), 0.001)
+
+
+def gh_rig_collar(x, inner_y, inner_z, outer_y, outer_z, wide, material, name):
+    """A square collar `wide` along x round a box section: its outside from `outer_y` (low, high) and `outer_z`, its
+    hole the inside's (a clamp block round the rail, an end cap's rim)."""
+    collar = shapes.box((x - wide / 2, outer_y[0], outer_z[0]), (x + wide / 2, outer_y[1], outer_z[1]), material, name)
+    furn_cut_box(collar, (x - wide, inner_y[0], inner_z[0]), (x + wide, inner_y[1], inner_z[1]))
+    return shapes.bevelled(collar, 0.002)
+
+
+def gh_rig_eye_bolt(x, z, low):
+    """A lifting eye bolt screwed into a level face at height `low`: its collar and the eye standing over it (where the
+    gantry rail's clamp takes the bar)."""
+    return [shapes.cylinder((x, low, z), (x, low + 0.008, z), 0.009, "bare_steel", 6, "lug"),
+            floor_bent_tube((x, low + 0.019, z), (1, 0, 0), (0, 1, 0), 0.0075, 0.0035, 0.0, 360.0, "bare_steel", "lug",
+                            steps=20, sides=8)]
+
+
+def grow_light_bar(size, laid):
+    """An LED grow-light bar's housing, its length along x, as its close-up shows it: an aluminium body with a long
+    shallow recess along its underside for the lit lens (grow_light_glow, a kind of its own, so the recess is left
+    empty), round cooling fins along its top, a painted end box at each end (the long one at +x carries the cable
+    gland and its cable), a lifting eye on each box for the gantry rail's clamp, screws, and labels."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    body_z = (front + 0.02, back - 0.02)
+    long_box, short_box = (wide / 2 - 0.27, wide / 2 - 0.04), (-wide / 2, -wide / 2 + 0.1)
+    box_top = GH_RIG_BAR_BODY + 0.02
+    lens_wide, lens_tall, lens_deep = GH_RIG_LENS
+    recess = ((-lens_wide / 2, -0.01, -lens_deep / 2), (lens_wide / 2, lens_tall, lens_deep / 2))
+    body = shapes.box((short_box[1] - 0.01, 0.0, body_z[0]), (long_box[0] + 0.01, GH_RIG_BAR_BODY, body_z[1]),
+                      "anodized_natural", "housing")
+    box_front = front + 0.004  # the end boxes' faces: their screws and label stand on them, inside the laid box
+    boxes = [shapes.box((x0, 0.0, box_front), (x1, box_top, back - 0.004), "enamel_white", "end_box")
+             for x0, x1 in (long_box, short_box)]
+    parts = []
+    for part in [body] + boxes:
+        furn_cut_box(part, *recess)
+        parts.append(shapes.bevelled(part, 0.003))
+    fin_ends = (short_box[1], long_box[0])
+    for at in range(8):
+        z = body_z[0] + 0.02 + (body_z[1] - body_z[0] - 0.04) * at / 7
+        parts.append(shapes.cylinder((fin_ends[0], GH_RIG_BAR_BODY + 0.0075, z), (fin_ends[1], GH_RIG_BAR_BODY + 0.0075, z),
+                                     0.0075, "anodized_black", 12, "fin"))
+    for x0, x1 in (long_box, short_box):
+        middle = (x0 + x1) / 2
+        parts += gh_rig_eye_bolt(middle, 0.0, box_top)
+        parts += [shapes.cylinder((x, y, box_front), (x, y, front), 0.0055, "bare_steel", 10, "screw")
+                  for x in (x0 + 0.018, x1 - 0.018) for y in (0.018, box_top - 0.018)]
+    parts += [shapes.cylinder((x, GH_RIG_BAR_BODY / 2, body_z[0]), (x, GH_RIG_BAR_BODY / 2, body_z[0] - 0.004), 0.0055,
+                              "bare_steel", 10, "screw") for x in (fin_ends[0] + 0.03, fin_ends[1] - 0.03)]
+    # The cable gland out of the long box's end, and the cable bending down out of it.
+    gland_y = box_top * 0.55
+    end = long_box[1]
+    parts.append(gh_rig_hex((end, gland_y, 0.0), (end + 0.01, gland_y, 0.0), 0.02, "bare_steel", "gland"))
+    parts.append(shapes.bevelled(shapes.cylinder((end + 0.01, gland_y, 0.0), (end + 0.02, gland_y, 0.0), 0.014,
+                                                 "bare_steel", 16, "gland"), 0.002))
+    bend = end + 0.02
+    parts.append(floor_bent_tube((bend, gland_y - 0.012, 0.0), (0, 1, 0), (1, 0, 0), 0.012, 0.0075, 0.0, 90.0,
+                                 "cable_black", "cable", steps=8, sides=10))
+    parts.append(shapes.cylinder((bend + 0.012, gland_y - 0.012, 0.0), (bend + 0.012, 0.008, 0.0), 0.0075,
+                                 "cable_black", 10, "cable"))
+    parts.append(label(0.0, GH_RIG_BAR_BODY / 2 + 0.008, 0.2, 0.03, body_z[0], "label_grow_light"))
+    parts.append(label((long_box[0] + long_box[1]) / 2, box_top / 2, 0.11, 0.04, box_front, "label_high_voltage"))
+    return parts
+
+
+def grow_light_glow(size, laid):
+    """The grow-light bar's lit lens alone, the plate that sits in the bar's recess: one glowing strip (the game dims
+    it on its own)."""
+    wide, tall, deep = size
+    return [shapes.content_plate((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), "lamp_strip", "lens")]
+
+
+def gh_rig_clip(x, beam_low, cable_y, cable_z):
+    """A cable clip under the rail: a strap down from the rail's underside round the cable, bolted up into the rail."""
+    return [shapes.bevelled(shapes.box((x - 0.012, cable_y - 0.013, cable_z - 0.014),
+                                       (x + 0.012, beam_low, cable_z + 0.014), "galvanized_steel", "clip"), 0.002),
+            shapes.cylinder((x, beam_low - 0.004, cable_z - 0.014), (x, beam_low - 0.004, cable_z - 0.02), 0.006,
+                            "bare_steel", 6, "bolt")]
+
+
+def rig_rail(size, laid):
+    """One frame rail of the grow-light gantry, its length along x, as its close-up shows it: a box-section steel
+    beam, open at its ends, with a slot along its top; bolted clamp blocks round it in pairs at its quarters (where the
+    light bars hang under it), two bolts up out of each; a cable run along under it in clips; a HIGH VOLTAGE warning,
+    a CHECK CABLES WEEKLY note and a load plate on its front."""
+    wide, tall, deep = size
+    clamp_wall = 0.016
+    beam_y = (0.04, tall - clamp_wall - 0.007)
+    beam_z = (-deep / 2 + clamp_wall, deep / 2 - clamp_wall)
+    beam = shapes.box((-wide / 2, beam_y[0], beam_z[0]), (wide / 2, beam_y[1], beam_z[1]), "dark_panel", "beam")
+    wall = 0.006
+    furn_cut_box(beam, (-wide, beam_y[0] + wall, beam_z[0] + wall), (wide, beam_y[1] - wall, beam_z[1] - wall))
+    furn_cut_box(beam, (-wide, beam_y[1] - wall - 0.01, -0.011), (wide, beam_y[1] + 0.01, 0.011))
+    parts = [shapes.bevelled(beam, 0.0015)]
+    clamp_y = (beam_y[0] - clamp_wall, beam_y[1] + clamp_wall)
+    clamp_z = (-deep / 2, deep / 2)
+    for station in (-wide / 4, 0.0, wide / 4):
+        for x in (station - 0.036, station + 0.036):
+            parts.append(gh_rig_collar(x, (beam_y[0] - 0.0005, beam_y[1] + 0.0005),
+                                       (beam_z[0] - 0.0005, beam_z[1] + 0.0005), clamp_y, clamp_z, 0.07,
+                                       "cast_iron_dark", "clamp"))
+            parts += [gh_rig_bolt_up(x, clamp_y[1], z) for z in (-0.042, 0.042)]
+    # The cable run under the rail, clipped between the clamp stations.
+    cable_y, cable_z = 0.017, -0.01
+    parts.append(shapes.cylinder((-wide / 2 + 0.01, cable_y, cable_z), (wide / 2 - 0.01, cable_y, cable_z), 0.008,
+                                 "cable_grey", 12, "cable"))
+    for x in (-wide * 3 / 8, -wide / 8, wide / 8, wide * 3 / 8):
+        parts += gh_rig_clip(x, beam_y[0], cable_y, cable_z)
+    middle = (beam_y[0] + beam_y[1]) / 2
+    parts.append(label(wide / 8, middle, 0.16, 0.07, beam_z[0], "label_high_voltage"))
+    parts.append(label(wide * 3 / 8 + 0.05, middle, 0.08, 0.07, beam_z[0], "note_check_cables",
+                       name="note"))
+    parts.append(label(-wide / 8, middle, 0.14, 0.05, beam_z[0], "label_rail_load"))
+    return parts
+
+
+def gh_rig_hinge(x, y, wide, face, edge_y):
+    """A butt hinge at the lid's back edge (at height `edge_y`) on a face at depth `face`: a leaf screwed on the face
+    and its knuckle along x at the edge."""
+    leaf_low = edge_y - 0.036
+    return [shapes.bevelled(shapes.box((x - wide / 2, leaf_low, face - 0.004), (x + wide / 2, edge_y, face),
+                                       "bare_steel", "hinge"), 0.001),
+            shapes.cylinder((x - wide / 2, edge_y, face - 0.002), (x + wide / 2, edge_y, face - 0.002), 0.006,
+                            "bare_steel", 16, "hinge"),
+            shapes.cylinder((x - 0.02, leaf_low + 0.018, face - 0.004), (x - 0.02, leaf_low + 0.018, face - 0.0065),
+                            0.006, "bare_steel", 10, "screw"),
+            shapes.cylinder((x + 0.02, leaf_low + 0.018, face - 0.004), (x + 0.02, leaf_low + 0.018, face - 0.0065),
+                            0.006, "bare_steel", 10, "screw")]
+
+
+def ledge_cover(size, laid):
+    """A service ledge's steel lid, a floor-lying piece built standing (its top face at -z; x its width, y its length
+    along the ledge, z its thickness), as its close-up shows it: a base plate under a slightly smaller lid plate with a
+    raised top panel; a long bar handle in a recess along its front half; two hinges along its back edge (+y); hex
+    bolts at the lid plate's corners; its SERVICE LEDGE COVER label, a taped note and an inspection sticker."""
+    wide, tall, deep = size
+    top, under = -deep / 2, deep / 2
+    base = shapes.box((-wide / 2, 0.0, under - 0.022), (wide / 2, tall, under), "galvanized_dull", "base_plate")
+    plate_face = top + 0.008
+    lid = shapes.box((-wide / 2 + 0.01, 0.01, plate_face), (wide / 2 - 0.01, tall - 0.01, under - 0.022),
+                     "galvanized_dull", "lid")
+    face = top + 0.004  # the top panel's face: the prints stand on it, flush with the laid box's top
+    panel = shapes.box((-wide / 2 + 0.05, 0.05, face), (wide / 2 - 0.05, tall - 0.05, plate_face), "galvanized_dull",
+                       "panel")
+    # The handle's recess: a long pocket through the panel into the lid, its bar across it at the face.
+    handle_y, handle_long = 0.2, min(0.62, wide - 0.4)
+    pocket = ((-handle_long / 2 - 0.03, handle_y - 0.035), (handle_long / 2 + 0.03, handle_y + 0.035))
+    for part in (panel, lid):
+        furn_cut_box(part, (*pocket[0], top - 0.01), (*pocket[1], top + 0.03))
+    parts = [shapes.bevelled(base, 0.003), shapes.bevelled(lid, 0.003), shapes.bevelled(panel, 0.002)]
+    parts.append(shapes.box((pocket[0][0], pocket[0][1], top + 0.026), (pocket[1][0], pocket[1][1], top + 0.03),
+                            "anodized_black", "recess"))
+    bar_z = top + 0.011
+    parts.append(shapes.cylinder((-handle_long / 2 - 0.004, handle_y, bar_z), (handle_long / 2 + 0.004, handle_y, bar_z),
+                                 0.009, "brushed_steel_fine", 16, "handle"))
+    for x in (-handle_long / 2, handle_long / 2):
+        parts.append(shapes.cylinder((x, handle_y, top + 0.026), (x, handle_y, bar_z), 0.009, "brushed_steel_fine", 16,
+                                     "handle"))
+    for x in (-wide * 0.3, wide * 0.3):
+        parts += gh_rig_hinge(x, tall - 0.01, 0.1, plate_face, tall - 0.012)
+    parts += bolts_along([(x, y) for x in (-wide / 2 + 0.03, wide / 2 - 0.03) for y in (0.03, tall - 0.03)],
+                         plate_face)
+    parts.append(label(wide * 0.18, tall * 0.62, 0.36, 0.12, face, "label_ledge_cover"))
+    parts.append(label(-wide * 0.22, tall * 0.7, 0.2, 0.07, face, "note_ledge_cover", name="note"))
+    parts.append(label(wide / 2 - 0.15, 0.13, 0.12, 0.06, face, "label_inspection", name="sticker"))
+    return parts
+
+
+def gh_rig_eye(middle_y, facing):
+    """A hanger's end clamp, its eye at height `middle_y` opening away from the rope (`facing` +1 up, -1 down): a
+    steel eye loop, its pin across the neck, the neck block down to the ferrule, and the crimped ferrule on the rope."""
+    neck = middle_y - facing * 0.024
+    parts = [floor_bent_tube((0.0, middle_y, 0.0), (1, 0, 0), (0, 1, 0), 0.02, 0.0065, 0.0, 360.0, "bare_steel",
+                             "eye", steps=28, sides=10),
+             shapes.bevelled(shapes.box((-0.011, min(neck, neck - facing * 0.02), -0.008),
+                                        (0.011, max(neck, neck - facing * 0.02), 0.008), "bare_steel", "eye"),
+                             0.002),
+             shapes.cylinder((0.0, neck - facing * 0.008, -0.013), (0.0, neck - facing * 0.008, 0.013), 0.0045,
+                             "bare_steel", 10, "pin")]
+    ferrule_from = neck - facing * 0.02
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, ferrule_from, 0.0), (0.0, ferrule_from - facing * 0.045, 0.0),
+                                                 0.0105, "brushed_steel_fine", 16, "ferrule"), 0.0015))
+    return parts + gh_rig_rope_clip(ferrule_from - facing * 0.075)
+
+
+def gh_rig_rope_clip(middle_y):
+    """A wire rope clip on the rope at height `middle_y`, as the hanger's close-up shows one by each end: its saddle
+    block round the rope and the U-bolt's two threaded legs out of its front, a hex nut on each."""
+    parts = [shapes.bevelled(shapes.box((-0.026, middle_y - 0.013, -0.012), (0.026, middle_y + 0.013, 0.014),
+                                        "cast_steel", "rope_clip"), 0.003)]
+    for x in (-0.016, 0.016):
+        parts.append(shapes.cylinder((x, middle_y, -0.012), (x, middle_y, -0.03), 0.004, "galvanized_steel", 10,
+                                     "rope_clip"))
+        parts.append(gh_rig_hex((x, middle_y, -0.018), (x, middle_y, -0.026), 0.0075, "bare_steel", "nut"))
+    return parts
+
+
+def gh_rig_turnbuckle(low):
+    """The hanger's turnbuckle, a fixed 0.2 m from height `low`: a sleeve at each end, the open body between them (two
+    side bars on end bosses) and the two threaded ends meeting in it."""
+    parts = []
+    for start, end in ((low, low + 0.06), (low + 0.14, low + 0.2)):
+        parts.append(shapes.bevelled(shapes.cylinder((0.0, start, 0.0), (0.0, end, 0.0), 0.0095, "bare_steel", 16,
+                                                     "turnbuckle"), 0.0015))
+    for start in (low + 0.06, low + 0.13):
+        parts.append(shapes.bevelled(shapes.cylinder((0.0, start, 0.0), (0.0, start + 0.01, 0.0), 0.013, "bare_steel",
+                                                     6, "turnbuckle"), 0.0015))
+    for side in (-1, 1):
+        parts.append(shapes.bevelled(shapes.box((side * 0.017 - 0.0045, low + 0.062, -0.007),
+                                                (side * 0.017 + 0.0045, low + 0.138, 0.007), "bare_steel",
+                                                "turnbuckle"), 0.0015))
+    parts.append(shapes.cylinder((0.0, low + 0.07, 0.0), (0.0, low + 0.097, 0.0), 0.0065, "galvanized_steel", 12,
+                                 "thread"))
+    parts.append(shapes.cylinder((0.0, low + 0.103, 0.0), (0.0, low + 0.13, 0.0), 0.0065, "galvanized_steel", 12,
+                                 "thread"))
+    return parts
+
+
+def rig_hanger(size, laid):
+    """A wire rope hanger of the grow-light gantry, upright, at the length the layout lays it, as its close-up shows
+    it: an end at each end (an eye with its pin, its neck, a crimped ferrule on the rope and a wire rope clip), a turnbuckle near
+    its foot (its own fixed size, never stretched) and the wire rope (10 mm) between them."""
+    wide, tall, deep = size
+    parts = gh_rig_eye(tall - 0.0265, 1) + gh_rig_eye(0.0265, -1)
+    buckle_low = 0.16
+    parts += gh_rig_turnbuckle(buckle_low)
+    top_ferrule = tall - 0.0265 - 0.044 - 0.045
+    for start, end in ((0.0265 + 0.044 + 0.045, buckle_low), (buckle_low + 0.2, top_ferrule)):
+        parts.append(shapes.cylinder((0.0, start, 0.0), (0.0, end, 0.0), GH_RIG_ROPE, "cable_grey", 10, "rope"))
+    return parts
+
+
+def irrigation_boom(size, laid):
+    """An irrigation boom over the plot, its length along x, as its close-up shows it: a grey pipe open at its ends
+    behind a flange each, split saddle clamps round it every 0.6 m (two plates and a side bolt each), a drip emitter
+    hanging under each clamp (a stem and a black dripper), and small rating labels on the pipe."""
+    wide, tall, deep = size
+    radius = GH_RIG_BOOM_PIPE - 0.004
+    pipe_y = tall - 0.046
+    clamp_radius = 0.043
+    parts = [shapes.ring((-wide / 2 + 0.012, pipe_y, 0.0), (wide / 2 - 0.012, pipe_y, 0.0), radius, radius - 0.005,
+                         "painted_panel", 32, "pipe")]
+    for side in (-1, 1):
+        flange = shapes.ring((side * (wide / 2 - 0.014), pipe_y, 0.0), (side * wide / 2, pipe_y, 0.0), 0.04,
+                             radius - 0.005, "painted_panel", 32, "flange")
+        parts.append(shapes.bevelled(flange, 0.002))
+    for at in range(5):
+        x = (at - 2) * 0.6
+        for half in (-1, 1):
+            plate = shapes.cylinder((x + half * 0.002, pipe_y, 0.0), (x + half * 0.016, pipe_y, 0.0), clamp_radius,
+                                    "enamel_white", 6, "saddle")
+            parts.append(shapes.bevelled(plate, 0.003))
+        bolt_y = pipe_y - clamp_radius * 0.6
+        parts.append(gh_rig_hex((x, bolt_y, -clamp_radius * 0.75), (x, bolt_y, -deep / 2), 0.009, "bare_steel", "bolt"))
+        stem_top = pipe_y - clamp_radius * 0.85
+        parts.append(shapes.cylinder((x, stem_top, 0.0), (x, 0.022, 0.0), 0.0055, "galvanized_dull", 10, "emitter"))
+        parts.append(gh_rig_hex((x, 0.022, 0.0), (x, 0.008, 0.0), 0.0095, "plastic_grey", "emitter"))
+        parts.append(shapes.cylinder((x, 0.008, 0.0), (x, 0.0, 0.0), 0.0045, "rubber", 10, "emitter"))
+    for x in (0.3, -0.9):
+        parts.append(label(x, pipe_y, 0.07, 0.014, -radius, "label_boom"))
+    return parts
+
+
+# ---- Greenhouse place (2026-10-07), block gh_station: the robot station's hardware, built in code with library
+# surfaces as method B's parts check allows, each as its clean close-up shows it: the three docking pads (one per bay,
+# each with its bay's coloured stripe), the charge post beside each pad, and the seed bin, soil bin and crop crate.
+# The game (plot_field.gd) draws live fills inside these pieces, so each leaves their room exactly: a hollow channel
+# in the charge post with a slot window at its front for the charge bar (0.06 x 0.56 x 0.08, rising from 0.03 m), and
+# each bin a cavity (wide - 0.08) x (deep - 0.08) from 0.04 m up to its open top, its walls and floor 0.04 m thick,
+# every rim, handle and label outside. Helpers are prefixed `gh_station_`.
+
+GH_STATION_WALL = 0.04  # plot_field.gd BIN_WALL: a bin's walls and floor
+# The charge post's channel round the charge bar (plot_field.gd BAR, centred in the post): a little roomier than the
+# bar's 0.06 x 0.08, from just under its foot (0.03) to over its full height (0.59).
+GH_STATION_CHANNEL = (0.077, 0.097)
+GH_STATION_CHANNEL_FROM = 0.025
+GH_STATION_CHANNEL_TO = 0.625
+GH_STATION_POST_TOP = 0.64  # the post body's top, closing the channel
+GH_STATION_SLOT = (0.05, 0.06, 0.575)  # the post's slot window: its width, its foot and its head
+# The docking pad: its plate's face (the kit front, up once laid), the hazard border's width.
+GH_STATION_PAD_FACE = -0.004
+GH_STATION_PAD_RIM = 0.04
+GH_STATION_STRIPE = (0.9, 0.08)  # plot_field.gd STRIPE: across x, along y, ending 0.04 in from the back edge
+
+
+def gh_station_dock_pad(size, stripe_paint):
+    """A robot's docking pad lying in the floor, its face up (built standing, the face toward -z, y along the floor),
+    as its close-up shows it: a steel plate with rounded corners, a raised hazard-painted border round its edge, two
+    low guide rails along it, the charging contact plate bolted at its middle with its slot, and the bay's coloured
+    stripe across its back edge."""
+    wide, long, deep = size
+    face, bottom = GH_STATION_PAD_FACE, deep / 2
+    paint = face - 0.004
+    corner = 0.06
+    parts = [shapes.bevelled(shapes.prism(rounded_outline((-wide / 2, 0.0), (wide / 2, long), corner), face, bottom,
+                                          "galvanized_steel", "plate"), 0.002)]
+    parts.append(shapes.bevelled(rounded_ring((-wide / 2, 0.0), (wide / 2, long), corner, GH_STATION_PAD_RIM,
+                                              face - 0.008, bottom, "hazard_paint", "hazard_border"), 0.002))
+    stripe_back = long - GH_STATION_PAD_RIM
+    parts.append(shapes.box((-GH_STATION_STRIPE[0] / 2, stripe_back - GH_STATION_STRIPE[1], paint),
+                            (GH_STATION_STRIPE[0] / 2, stripe_back, face), stripe_paint, "bay_stripe"))
+    rail_top = -deep / 2
+    for x in (-0.39, 0.39):
+        parts.append(shapes.bevelled(shapes.box((x - 0.016, 0.07, rail_top), (x + 0.016, stripe_back - 0.1, face),
+                                                "bare_steel", "guide_rail"), 0.003))
+    plate_middle, half = long * 0.5, 0.08
+    contact = shapes.box((-half, plate_middle - half, face - 0.008), (half, plate_middle + half, face), "bare_steel",
+                         "contact_plate")
+    furn_cut_box(contact, (-0.045, plate_middle - 0.012, face - 0.02), (0.045, plate_middle - 0.004, face - 0.004))
+    parts.append(shapes.bevelled(contact, 0.0015))
+    parts += bolts_along([(x, y) for x in (-half + 0.022, half - 0.022) for y in (plate_middle - half + 0.022,
+                                                                                    plate_middle + half - 0.022)],
+                         face - 0.008)
+    return parts
+
+
+def dock_pad_one(size, laid):
+    """Bay one's docking pad, as its close-up shows it (gh_station_dock_pad), its stripe in bay one's colour."""
+    return gh_station_dock_pad(size, "bay_one_paint")
+
+
+def dock_pad_two(size, laid):
+    """Bay two's docking pad, as its close-up shows it (gh_station_dock_pad), its stripe in bay two's colour."""
+    return gh_station_dock_pad(size, "bay_two_paint")
+
+
+def dock_pad_three(size, laid):
+    """Bay three's docking pad, as its close-up shows it (gh_station_dock_pad), its stripe in bay three's colour."""
+    return gh_station_dock_pad(size, "bay_three_paint")
+
+
+def gh_station_dome(middle_y, radius, material, name):
+    """The upper half of a ball standing on a level circle at height `middle_y` (the charge post's lamp cap)."""
+    built = bmesh.new()
+    bmesh.ops.create_uvsphere(built, u_segments=32, v_segments=16, radius=radius)
+    bmesh.ops.delete(built, geom=[vertex for vertex in built.verts if vertex.co.z < -0.0001], context="VERTS")
+    bmesh.ops.contextual_create(built, geom=[edge for edge in built.edges if edge.is_boundary])
+    bmesh.ops.translate(built, verts=built.verts, vec=shapes.to_blender((0.0, middle_y, 0.0)))
+    data = bpy.data.meshes.new(name)
+    built.to_mesh(data)
+    built.free()
+    return shapes.mesh_object(name, data, material)
+
+
+def charge_post(size, laid):
+    """A slim charging post beside a docking pad, as its close-up shows it: a chamfered body on a foot, hollow round
+    the game's charge bar (centred, rising from 0.03 m), a slot window down its front in a black frame so the bar
+    shows, a CHARGE label beside it and a small indicator over it; on top a collar, the green status lamp ring and a
+    domed cap; the charging cable hanging in loops from a hook on its side, its PLUG-labelled plug on the loops."""
+    wide, tall, deep = size
+    channel_wide, channel_deep = GH_STATION_CHANNEL
+    chamfer = 0.02
+    plan = [(wide / 2 - chamfer, -deep / 2), (wide / 2, -deep / 2 + chamfer), (wide / 2, deep / 2 - chamfer),
+            (wide / 2 - chamfer, deep / 2), (-wide / 2 + chamfer, deep / 2), (-wide / 2, deep / 2 - chamfer),
+            (-wide / 2, -deep / 2 + chamfer), (-wide / 2 + chamfer, -deep / 2)]
+    parts = [shapes.bevelled(furn_prism(plan, "y", 0.0, GH_STATION_CHANNEL_FROM, "dark_panel", "foot"), 0.002)]
+    inset = [(x * 0.94, z * 0.94) for x, z in plan]
+    body = furn_prism(inset, "y", GH_STATION_CHANNEL_FROM, GH_STATION_POST_TOP, "hull_white_old", "body")
+    furn_cut_box(body, (-channel_wide / 2, GH_STATION_CHANNEL_FROM - 0.01, -channel_deep / 2),
+                 (channel_wide / 2, GH_STATION_CHANNEL_TO, channel_deep / 2))
+    front = -deep / 2 * 0.94
+    slot_wide, slot_low, slot_high = GH_STATION_SLOT
+    furn_cut_box(body, (-slot_wide / 2, slot_low, front - 0.01), (slot_wide / 2, slot_high, -channel_deep / 2 + 0.001))
+    parts.append(shapes.bevelled(body, 0.003))
+    parts.append(shapes.bevelled(rounded_ring((-slot_wide / 2 - 0.007, slot_low - 0.007),
+                                              (slot_wide / 2 + 0.007, slot_high + 0.007), 0.03, 0.009, front - 0.004,
+                                              front + 0.001, "anodized_black", "window_frame"), 0.001))
+    parts.append(label(-0.04, (slot_low + slot_high) / 2, 0.14, 0.014, front, "label_charge", turn=90.0))
+    parts.append(shapes.box((-0.006, slot_high + 0.018, front - 0.004), (0.006, slot_high + 0.026, front + 0.001),
+                            "led_green", "indicator"))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, GH_STATION_POST_TOP, 0.0), (0.0, GH_STATION_POST_TOP + 0.014, 0.0),
+                                                 0.06, "hull_white_old", 32, "collar"), 0.002))
+    parts.append(shapes.cylinder((0.0, GH_STATION_POST_TOP + 0.014, 0.0), (0.0, GH_STATION_POST_TOP + 0.024, 0.0), 0.052,
+                                 "led_green", 32, "status_lamp"))
+    parts.append(gh_station_dome(GH_STATION_POST_TOP + 0.024, tall - GH_STATION_POST_TOP - 0.024, "plastic_white", "cap"))
+    parts += gh_station_cable_loops(-wide / 2 * 0.94, 0.5)
+    return parts
+
+
+def gh_station_cable_loops(side, high):
+    """The charging cable on the post's -x side: a square hook boss with its tab, the cable hanging from it in two long
+    loops lying along the side, and the plug clipped on the loops' front with its PLUG label."""
+    out = side - 0.032
+    parts = [shapes.bevelled(shapes.box((side - 0.014, high - 0.022, -0.022), (side + 0.001, high + 0.022, 0.022),
+                                        "hull_white_old", "hook"), 0.002),
+             shapes.bevelled(shapes.box((out, high - 0.008, -0.012), (side - 0.014, high + 0.008, 0.012), "bare_steel",
+                                        "hook"), 0.0015)]
+    radius, stretch = 0.062, 2.0
+    for loop, x in enumerate((out + 0.006, out - 0.008)):
+        middle = (x, high - radius * stretch, -0.004 + loop * 0.008)
+        tube = floor_bent_tube(middle, (0, 0, 1), (0, 1, 0), radius, 0.0065, 0.0, 360.0, "cable_black", "cable",
+                               steps=36, sides=10)
+        centre = shapes.to_blender(middle)
+        tube.data.transform(Matrix.Translation(centre) @ Matrix.Diagonal((1.0, 1.0, stretch, 1.0))
+                            @ Matrix.Translation(-centre))
+        parts.append(tube)
+    plug_high = high - radius * stretch - 0.01
+    plug_front = -radius - 0.03
+    parts.append(shapes.bevelled(shapes.box((out - 0.02, plug_high - 0.04, plug_front),
+                                            (out + 0.02, plug_high + 0.04, plug_front + 0.04), "hull_white_old",
+                                            "plug"), 0.004))
+    parts.append(label(out, plug_high, 0.05, 0.026, plug_front, "label_plug", turn=90.0))
+    return parts
+
+
+def gh_station_bin_shell(size, material):
+    """An open bin's floor and four solid walls, each exactly GH_STATION_WALL thick, round the game's load box."""
+    wide, tall, deep = size
+    wall = GH_STATION_WALL
+    parts = [shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, wall, deep / 2), material, "floor")]
+    for low, high in (((-wide / 2, wall, -deep / 2), (wide / 2, tall, -deep / 2 + wall)),
+                      ((-wide / 2, wall, deep / 2 - wall), (wide / 2, tall, deep / 2)),
+                      ((-wide / 2, wall, -deep / 2 + wall), (-wide / 2 + wall, tall, deep / 2 - wall)),
+                      ((wide / 2 - wall, wall, -deep / 2 + wall), (wide / 2, tall, deep / 2 - wall))):
+        parts.append(shapes.box(low, high, material, "wall"))
+    return parts
+
+
+def gh_station_band(size, low, high, out, material, name):
+    """A band round a bin's outside between two heights, `out` proud of its walls (a rim, a pressed bead): four bars
+    meeting at the corners, the load box inside untouched."""
+    wide, tall, deep = size
+    half_x, half_z = wide / 2 + out, deep / 2 + out
+    return [shapes.bevelled(shapes.box(corner_low, corner_high, material, name), min(0.003, out / 3))
+            for corner_low, corner_high in (((-half_x, low, -half_z), (half_x, high, -deep / 2)),
+                                            ((-half_x, low, deep / 2), (half_x, high, half_z)),
+                                            ((-half_x, low, -deep / 2), (-wide / 2, high, deep / 2)),
+                                            ((wide / 2, low, -deep / 2), (half_x, high, deep / 2)))]
+
+
+def gh_station_pocket_handles(size, walls, high):
+    """A pressed pocket handle in each end wall (+x and -x) of a bin, as the seed bin's close-up shows them: a pocket
+    0.02 m into the 0.04 m wall (the cavity untouched) and a steel frame round it."""
+    wide, tall, deep = size
+    half_wide, half_tall = 0.07, 0.03
+    for wall in walls:
+        for side in (-1, 1):
+            x_low, x_high = sorted((side * (wide / 2 - 0.02), side * (wide / 2 + 0.01)))
+            furn_cut_box(wall, (x_low, high - half_tall, -half_wide), (x_high, high + half_tall, half_wide))
+    parts = []
+    for degrees in (90.0, -90.0):
+        frame = rounded_ring((-half_wide - 0.012, high - half_tall - 0.012), (half_wide + 0.012, high + half_tall + 0.012),
+                             0.012, 0.014, -wide / 2 - 0.006, -wide / 2, "bare_steel", "handle")
+        parts += furn_spun([shapes.bevelled(frame, 0.0015)], (0.0, 0.0), degrees)
+    return parts
+
+
+def seed_bin(size, laid):
+    """The seed bin, as its close-up shows it: a tall open galvanized bin (walls and floor 0.04 m, the seed load inside
+    is the game's), a lipped rim round its top, a pressed bead round it under the rim, a pocket handle in each end and
+    a SEED label on its front."""
+    wide, tall, deep = size
+    shell = gh_station_bin_shell(size, "galvanized_steel")
+    ends = [part for part in shell[3:]]
+    parts = gh_station_pocket_handles(size, ends, tall - 0.1)
+    parts = [shapes.bevelled(part, 0.002) for part in shell] + parts
+    parts += gh_station_band(size, tall - 0.018, tall, 0.012, "galvanized_steel", "rim")
+    parts += gh_station_band(size, tall - 0.165, tall - 0.145, 0.006, "galvanized_steel", "bead")
+    parts.append(label(-wide / 2 + 0.11, tall - 0.24, 0.13, 0.055, -deep / 2, "label_seed"))
+    return parts
+
+
+def soil_bin(size, laid):
+    """The soil bin, as its close-up shows it: a low open steel tub (walls and floor 0.04 m), a rolled rim round its
+    top, a wire bar handle on each end standing off it on two eyes, and a SOIL label on its front."""
+    wide, tall, deep = size
+    parts = [shapes.bevelled(part, 0.003) for part in gh_station_bin_shell(size, "brushed_steel_fine")]
+    parts += gh_station_band(size, tall - 0.022, tall, 0.012, "brushed_steel_fine", "rim")
+    high = tall - 0.1
+    for side in (-1, 1):
+        face = side * wide / 2
+        out = face + side * 0.03
+        for z in (-0.06, 0.06):
+            parts.append(shapes.box((min(face, face + side * 0.012), high + 0.01, z - 0.012),
+                                    (max(face, face + side * 0.012), high + 0.04, z + 0.012), "bare_steel",
+                                    "handle_eye"))
+            parts.append(shapes.cylinder((face, high + 0.025, z), (out, high + 0.025, z), 0.0055, "bare_steel", 10,
+                                         "handle"))
+            parts.append(shapes.cylinder((out, high + 0.025, z), (out, high - 0.035, z), 0.0055, "bare_steel", 10,
+                                         "handle"))
+        parts.append(shapes.cylinder((out, high - 0.035, -0.06), (out, high - 0.035, 0.06), 0.0055, "bare_steel", 10,
+                                     "handle"))
+    parts.append(label(wide * 0.12, tall * 0.55, 0.12, 0.05, -deep / 2, "label_soil"))
+    return parts
+
+
+
+
+def gh_station_crate_sides(size, low, high, inner, outer, material, name):
+    """One band round the crop crate's four sides between two heights, between depths `inner` (into the walls from
+    their outside, at most the wall) and `outer` (proud of them), each side running between the corner posts."""
+    wide, tall, deep = size
+    span_x, span_z = wide / 2 - GH_STATION_WALL, deep / 2 - GH_STATION_WALL
+    found = []
+    for side in (-1, 1):
+        z_low, z_high = sorted((side * (deep / 2 - inner), side * (deep / 2 + outer)))
+        found.append(shapes.box((-span_x, low, z_low), (span_x, high, z_high), material, name))
+        x_low, x_high = sorted((side * (wide / 2 - inner), side * (wide / 2 + outer)))
+        found.append(shapes.box((x_low, low, -span_z), (x_high, high, span_z), material, name))
+    return found
+
+
+def crop_crate(size, laid):
+    """The crop crate, as its close-up shows it: four slatted sides (boards 0.04 m deep at most with gaps between, the
+    crop load inside is the game's) in a white frame: a bottom rail notched between its corner feet, a top rail with
+    a round bar along it, a square corner post at each corner with bolts down it, a floor, and a CROPS plate bolted
+    across the front boards."""
+    wide, tall, deep = size
+    wall = GH_STATION_WALL
+    rail_low, rail_top = 0.1, tall - 0.06
+    floor = shapes.box((-wide / 2 + wall, 0.0, -deep / 2 + wall), (wide / 2 - wall, wall, deep / 2 - wall),
+                       "galvanized_dull", "floor")
+    parts = [floor]
+    bottom = gh_station_crate_sides(size, 0.0, rail_low, wall, 0.015, "hull_white_old", "bottom_rail")
+    for part in bottom:
+        furn_cut_box(part, (-wide / 2 + 0.16, -0.01, -deep), (wide / 2 - 0.16, 0.03, deep))
+        furn_cut_box(part, (-wide, -0.01, -deep / 2 + 0.16), (wide, 0.03, deep / 2 - 0.16))
+    parts += [shapes.bevelled(part, 0.004) for part in bottom]
+    parts += [shapes.bevelled(part, 0.004)
+              for part in gh_station_crate_sides(size, rail_top, tall, wall, 0.015, "hull_white_old", "top_rail")]
+    boards, gap = 4, (rail_top - rail_low - 4 * 0.06) / 3
+    for board in range(boards):
+        low = rail_low + board * (0.06 + gap)
+        parts += [shapes.bevelled(part, 0.004)
+                  for part in gh_station_crate_sides(size, low, low + 0.06, wall, -0.006, "galvanized_dull", "slat")]
+    bar_y = rail_top + 0.03
+    for side in (-1, 1):
+        z = side * (deep / 2 + 0.022)
+        parts.append(shapes.cylinder((-wide / 2 + 0.06, bar_y, z), (wide / 2 - 0.06, bar_y, z), 0.008, "hull_white_old",
+                                     14, "top_bar"))
+        x = side * (wide / 2 + 0.022)
+        parts.append(shapes.cylinder((x, bar_y, -deep / 2 + 0.06), (x, bar_y, deep / 2 - 0.06), 0.008, "hull_white_old",
+                                     14, "top_bar"))
+    for x_side in (-1, 1):
+        for z_side in (-1, 1):
+            x_low, x_high = sorted((x_side * (wide / 2 - wall), x_side * (wide / 2 + 0.024)))
+            z_low, z_high = sorted((z_side * (deep / 2 - wall), z_side * (deep / 2 + 0.024)))
+            parts.append(shapes.bevelled(shapes.box((x_low, 0.0, z_low), (x_high, tall, z_high), "hull_white_old",
+                                                    "corner_post"), 0.005))
+            if z_side < 0:
+                middle = (x_low + x_high) / 2
+                parts += bolts_along([(middle, y) for y in (0.05, tall / 2, tall - 0.05)], z_low)
+    plate_x, plate_y = -wide * 0.18, (rail_low + rail_top) / 2
+    plate_front = -deep / 2 - 0.004
+    parts.append(shapes.bevelled(shapes.box((plate_x - 0.12, plate_y - 0.07, plate_front),
+                                            (plate_x + 0.12, plate_y + 0.07, -deep / 2 + 0.006), "anodized_gold",
+                                            "label_plate"), 0.002))
+    parts += bolts_along([(plate_x + side * 0.1, plate_y + up * 0.05) for side in (-1, 1) for up in (-1, 1)],
+                         plate_front)
+    parts.append(label(plate_x, plate_y, 0.16, 0.07, plate_front, "label_crops"))
+    return parts
+
+
+# ---- Greenhouse place job (2026-10-07), block gh_equip: the greenhouse's water tank, dosing unit, humidifier, grow
+# control console, work desk and seedling shelf, built in code with library surfaces as method B's parts check allows,
+# each as its clean close-up shows it. A holder never carries loose objects: the console's keyboard, the desk's lamp
+# and the shelf's seedling trays are children of their own, placed on purpose (composites). Helpers are prefixed
+# `gh_equip_`.
+
+# The control console's desk: its flat top's height and depth, and the sloped switch panel rising behind it to the
+# upright screen panel (its front face at z 0).
+GH_EQUIP_DESK_TOP = 0.86
+GH_EQUIP_DESK_BACK = -0.18
+GH_EQUIP_SLOPE_TOP = 1.02
+
+
+def gh_equip_slope_spot(share):
+    """A point (z, y) `share` of the way up the console's sloped switch panel, from the desk's back edge."""
+    return (GH_EQUIP_DESK_BACK + (0.0 - GH_EQUIP_DESK_BACK) * share,
+            GH_EQUIP_DESK_TOP + (GH_EQUIP_SLOPE_TOP - GH_EQUIP_DESK_TOP) * share)
+
+
+def gh_equip_slope_angle():
+    """The console's sloped panel's tilt from level, in degrees."""
+    return math.degrees(math.atan2(GH_EQUIP_SLOPE_TOP - GH_EQUIP_DESK_TOP, 0.0 - GH_EQUIP_DESK_BACK))
+
+
+def gh_equip_on_slope(part, spot):
+    """A part built standing level on the point `spot` (z, y) laid onto the console's sloped panel there."""
+    return tilted(part, (spot[1], spot[0]), -gh_equip_slope_angle())
+
+
+def gh_equip_slope_normal():
+    """The console's sloped panel's outward normal as a kit vector (up and toward the front)."""
+    angle = math.radians(gh_equip_slope_angle())
+    return Vector((0.0, math.cos(angle), -math.sin(angle)))
+
+
+def gh_equip_pump(x, y, front):
+    """One peristaltic dosing pump on a face at depth `front`: a square mounting plate, the round rotor cover with
+    its hub, and the two tubes running down out of its foot."""
+    parts = [shapes.bevelled(shapes.box((x - 0.075, y - 0.075, front - 0.02), (x + 0.075, y + 0.075, front),
+                                        "enamel_white", "pump"), 0.006),
+             shapes.bevelled(shapes.cylinder((x, y, front - 0.02), (x, y, front - 0.055), 0.058, "enamel_white", 32,
+                                             "pump"), 0.006),
+             shapes.bevelled(shapes.cylinder((x, y, front - 0.055), (x, y, front - 0.07), 0.018, "bare_steel", 16,
+                                             "rotor"), 0.002)]
+    for side in (-1, 1):
+        parts.append(shapes.cylinder((x + side * 0.03, y - 0.06, front - 0.035), (x + side * 0.03, y - 0.15,
+                                                                                 front - 0.035), 0.009, "rubber_grey",
+                                     12, "tube"))
+    return parts
+
+
+def dosing_unit(size, laid):
+    """The nutrient dosing cabinet, as its close-up shows it: a cream enamel cabinet in two bodies on a dark plinth,
+    a hinged lid on top, a drip tray along the front at the pumps' feet; three dosing pumps (A, B, C) with their tubes
+    and labels; above them dials, a toggle switch, a small dose-meter screen with its label, a button panel with
+    lamps; a gauge and a button under MAIN UNIT; tubing looped out of glands on its sides; and the HYDROPONIC
+    NUTRIENT SUPPLY label on the lower body."""
+    wide, tall, deep = size
+    half = wide / 2 - 0.12  # the hoses loop out beside the cabinet, inside the laid width
+    front, back = -deep / 2 + 0.1, deep / 2
+    upper_front = front + 0.04
+    parts = [shapes.box((-half + 0.02, 0.0, front + 0.03), (half - 0.02, 0.03, back - 0.02), "dark_panel", "plinth"),
+             shapes.bevelled(shapes.box((-half, 0.03, front), (half, 0.62, back), "enamel_white", "cabinet"), 0.01),
+             shapes.bevelled(shapes.box((-half + 0.02, 0.62, upper_front), (half - 0.02, tall - 0.04, back),
+                                        "enamel_white", "cabinet"), 0.01)]
+    # The lid on top and its hinge along the back.
+    parts.append(shapes.bevelled(shapes.box((-half + 0.12, tall - 0.04, upper_front + 0.05),
+                                            (half - 0.12, tall - 0.01, back - 0.05), "enamel_white", "lid"), 0.012))
+    parts.append(shapes.cylinder((-half + 0.16, tall - 0.025, back - 0.04), (half - 0.16, tall - 0.025, back - 0.04),
+                                 0.012, "bare_steel", 12, "hinge"))
+    # The drip tray across the front at the pumps' feet: a floor and a lip.
+    parts.append(shapes.bevelled(shapes.box((-half + 0.04, 0.6, front - 0.1), (half - 0.04, 0.615, upper_front),
+                                            "enamel_white", "drip_tray"), 0.003))
+    parts.append(shapes.bevelled(shapes.box((-half + 0.04, 0.615, front - 0.1), (half - 0.04, 0.67, front - 0.085),
+                                            "enamel_white", "drip_tray"), 0.003))
+    # The three pumps (A at the viewer's left, +x) and their labels.
+    pump_y = 0.8
+    for pump_x, variant in ((0.32, "label_pump_a"), (0.06, "label_pump_b"), (-0.2, "label_pump_c")):
+        parts += gh_equip_pump(pump_x, pump_y, upper_front)
+        parts.append(label(pump_x, pump_y + 0.13, 0.15, 0.045, upper_front, variant))
+    # The upper controls: three dials and a toggle switch, the dose-meter screen, the button panel with its lamps.
+    for dial_x, dial_y in ((0.36, 1.13), (0.26, 1.13), (0.26, 1.03)):
+        parts.append(shapes.bevelled(shapes.cylinder((dial_x, dial_y, upper_front), (dial_x, dial_y,
+                                                                                     upper_front - 0.025),
+                                                     0.022, "rubber", 20, "dial"), 0.002))
+    parts.append(shapes.box((0.355, 1.0, upper_front - 0.006), (0.385, 1.06, upper_front), "bare_steel", "switch"))
+    parts.append(shapes.cylinder((0.37, 1.03, upper_front - 0.006), (0.37, 1.05, upper_front - 0.03), 0.004,
+                                 "bare_steel", 8, "switch"))
+    parts += wall_screen_part(0.06, 1.1, 0.2, 0.15, upper_front, "screen", 0.016)
+    parts.append(label(0.06, 0.99, 0.18, 0.045, upper_front, "label_dose_meter"))
+    parts.append(shapes.bevelled(shapes.box((-0.14, 1.03, upper_front - 0.008), (-0.06, 1.17, upper_front),
+                                            "plastic_white", "button_panel"), 0.002))
+    for at, variant in enumerate(("led_green", "led_amber", "led_red")):
+        parts.append(shapes.cylinder((-0.12, 1.14 - at * 0.035, upper_front - 0.008),
+                                     (-0.12, 1.14 - at * 0.035, upper_front - 0.014), 0.007, variant, 12, "lamp"))
+        parts.append(wall_button(-0.085, 1.14 - at * 0.035, 0.022, 0.018, upper_front - 0.008, "dark_panel"))
+    # MAIN UNIT: its label, a round gauge and a square button under it.
+    parts.append(label(-0.4, 1.0, 0.14, 0.07, upper_front, "label_main_unit"))
+    parts.append(shapes.bevelled(shapes.cylinder((-0.4, 0.86, upper_front), (-0.4, 0.86, upper_front - 0.02), 0.048,
+                                                 "bare_steel", 32, "gauge"), 0.003))
+    parts.append(shapes.cylinder((-0.4, 0.86, upper_front - 0.02), (-0.4, 0.86, upper_front - 0.026), 0.038,
+                                 "glass_frosted", 32, "gauge"))
+    parts.append(shapes.bevelled(shapes.box((-0.44, 0.69, upper_front - 0.03), (-0.36, 0.77, upper_front),
+                                            "dark_panel", "button"), 0.004))
+    # The lower body's label.
+    parts.append(label(0.08, 0.36, 0.34, 0.16, front, "label_nutrient_supply"))
+    # The glands on the viewer's left side (+x) and the tubing looped out of them.
+    for gland_y in (0.34, 0.22):
+        parts.append(shapes.bevelled(shapes.cylinder((half, gland_y, front + 0.12), (half + 0.03, gland_y,
+                                                                                     front + 0.12),
+                                                     0.035, "rubber_grey", 20, "gland"), 0.003))
+    for loop_x, loop_y in ((half + 0.05, 0.28), (half + 0.09, 0.25)):
+        parts.append(floor_bent_tube((loop_x, loop_y, front + 0.2), (0, 0, 1), (0, 1, 0), 0.09, 0.011, 160.0, 520.0,
+                                     "rubber_grey", "hose", steps=28, sides=10))
+    # Tubing out of the viewer's right side (-x), drooping in an arc down the side.
+    parts.append(shapes.bevelled(shapes.cylinder((-half, 0.95, 0.05), (-half - 0.03, 0.95, 0.05), 0.03,
+                                                 "rubber_grey", 20, "gland"), 0.003))
+    for offset in (0.0, 0.03):
+        parts.append(floor_bent_tube((-half - 0.02, 0.85, 0.035 + offset), (0, 1, 0), (-1, 0, 0), 0.1, 0.01, 0.0,
+                                     180.0, "rubber_grey", "hose", steps=16, sides=10))
+        parts.append(shapes.cylinder((-half - 0.02, 0.75, 0.035 + offset), (-half - 0.02, 0.02, 0.035 + offset), 0.01,
+                                     "rubber_grey", 10, "hose"))
+    return parts
+
+
+def humidifier(size, laid):
+    """The ultrasonic grow humidifier, as its close-up shows it: a lower water tank on feet with a band round its top,
+    the open housing over it holding the blue water tank, a cap plate on top with a raised collar and the round fan
+    grille (rings and spokes over the dark fan, four screws), a clamp over the housing's side, a mist nozzle and a
+    flanged water pipe inlet on the viewer's right side, the status panel (a green lamp, a readout and three buttons)
+    and the HUMIDIFIER label on the front, and a tab at the front foot. No mist is drawn."""
+    wide, tall, deep = size
+    half_wide, half_deep = wide / 2 - 0.05, deep / 2 - 0.03
+    parts = []
+    for x in (-half_wide + 0.04, half_wide - 0.04):
+        for z in (-half_deep + 0.04, half_deep - 0.04):
+            parts.append(shapes.box((x - 0.03, 0.0, z - 0.03), (x + 0.03, 0.03, z + 0.03), "rubber", "foot"))
+    parts.append(shapes.bevelled(shapes.box((-half_wide, 0.03, -half_deep), (half_wide, 0.45, half_deep),
+                                            "enamel_white", "base"), 0.006))
+    parts.append(shapes.bevelled(shapes.box((-half_wide - 0.02, 0.43, -half_deep - 0.02), (half_wide + 0.02, 0.48,
+                                                                                          half_deep + 0.02),
+                                            "enamel_white", "band"), 0.004))
+    housing_front = -half_deep + 0.01
+    housing = shapes.box((-half_wide + 0.01, 0.48, housing_front), (half_wide - 0.01, 0.7, half_deep - 0.01),
+                         "enamel_white", "housing")
+    furn_cut_box(housing, (-half_wide + 0.03, 0.56, housing_front + 0.02), (half_wide - 0.03, 0.72, half_deep - 0.03))
+    parts.append(shapes.bevelled(housing, 0.003))
+    parts.append(shapes.bevelled(shapes.box((-half_wide + 0.04, 0.56, housing_front + 0.03),
+                                            (half_wide - 0.04, 0.86, half_deep - 0.04), "enamel_blue", "tank"), 0.008))
+    # The cap plate on the tank, its raised collar, the fan under the grille, the grille's rings and spokes, screws.
+    cap_top = 0.9
+    parts.append(shapes.bevelled(shapes.box((-half_wide - 0.01, 0.86, -half_deep - 0.01), (half_wide + 0.01, cap_top,
+                                                                                          half_deep + 0.01),
+                                            "enamel_white", "cap"), 0.008))
+    parts.append(shapes.bevelled(shapes.box((-half_wide + 0.05, cap_top, -half_deep + 0.03),
+                                            (half_wide - 0.05, cap_top + 0.02, half_deep - 0.03), "enamel_white",
+                                            "collar"), 0.008))
+    fan_y = cap_top + 0.02
+    grille_radius = min(half_wide, half_deep) - 0.07
+    parts.append(shapes.cylinder((0.0, cap_top, 0.0), (0.0, fan_y + 0.004, 0.0), grille_radius + 0.01,
+                                 "anodized_black", 32, "fan"))
+    for at in range(5):
+        outer = grille_radius - at * (grille_radius - 0.03) / 4
+        parts.append(shapes.ring((0.0, fan_y + 0.004, 0.0), (0.0, fan_y + 0.01, 0.0), outer, outer - 0.006,
+                                 "bare_steel", 32, "grille"))
+    for at in range(2):
+        angle = math.pi * at / 2
+        reach = Vector((math.cos(angle), 0.0, math.sin(angle))) * grille_radius
+        parts.append(shapes.cylinder(tuple(Vector((0.0, fan_y + 0.007, 0.0)) - reach),
+                                     tuple(Vector((0.0, fan_y + 0.007, 0.0)) + reach), 0.003, "bare_steel", 8,
+                                     "grille"))
+    parts.append(shapes.cylinder((0.0, fan_y + 0.004, 0.0), (0.0, fan_y + 0.012, 0.0), 0.025, "bare_steel", 16,
+                                 "grille"))
+    for x in (-grille_radius, grille_radius):
+        for z in (-grille_radius, grille_radius):
+            parts.append(shapes.cylinder((x * 0.8, fan_y, z * 0.8), (x * 0.8, fan_y + 0.006, z * 0.8), 0.007,
+                                         "bare_steel", 10, "screw"))
+    # The viewer's right side (-x): the clamp over the housing's edge, the mist nozzle, the flanged pipe inlet.
+    side = -half_wide + 0.01
+    parts.append(shapes.bevelled(shapes.box((side - 0.012, 0.6, -0.07), (side + 0.025, 0.75, -0.035),
+                                            "bare_steel", "clamp"), 0.003))
+    parts.append(shapes.cylinder((side, 0.62, 0.06), (side - 0.03, 0.62, 0.06), 0.024, "bare_steel", 20, "nozzle"))
+    parts.append(shapes.cylinder((side - 0.03, 0.62, 0.06), (side - 0.055, 0.62, 0.06), 0.015, "bare_steel", 20,
+                                 "nozzle"))
+    parts += floor_flange((-half_wide - 0.006, 0.24, 0.0), (-1.0, 0.0, 0.0), 0.085, "bare_steel", 8)
+    parts.append(shapes.bevelled(shapes.ring((-half_wide - 0.012, 0.24, 0.0), (-wide / 2, 0.24, 0.0), 0.055, 0.045,
+                                             "pipe_steel", 32, "inlet"), 0.002))
+    # The front: the status panel (green lamp, readout, buttons), the label, the tab at the foot.
+    front = housing_front
+    parts.append(shapes.bevelled(shapes.box((-0.25, 0.52, front - 0.008), (-0.05, 0.63, front), "bare_steel",
+                                            "panel"), 0.002))
+    parts.append(shapes.cylinder((-0.075, 0.58, front - 0.008), (-0.075, 0.58, front - 0.02), 0.014, "led_green", 16,
+                                 "lamp"))
+    parts += wall_screen_part(-0.17, 0.59, 0.11, 0.055, front - 0.008, "screen_amber", 0.01, "readout")
+    for at in range(3):
+        parts.append(wall_button(-0.205 + at * 0.035, 0.54, 0.025, 0.014, front - 0.008))
+    parts.append(label(0.12, 0.6, 0.24, 0.06, front, "label_humidifier"))
+    parts.append(shapes.bevelled(shapes.box((0.04, 0.03, -half_deep - 0.015), (0.12, 0.13, -half_deep),
+                                            "enamel_white", "tab"), 0.003))
+    return parts
+
+
+def control_console(size, laid):
+    """The built-in grow control console, as its close-up shows it: two side posts on foot plates with conduits up
+    their fronts, a recessed kick panel with a vent over a plinth, a flat desk with a front fascia and its caution
+    label (its keyboard spot left clear for the keyboard, a child of its own), switches, buttons, a lever and a big
+    dial on the desk, a sloped switch panel of sliders, buttons and dials behind it, and the upright panel above with
+    a bank of six glowing screens, a status lamp block, a vent, two taped sheets and the GROW CONTROL sign."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    post = 0.12
+    inner = wide / 2 - post
+    parts = []
+    for side in (-1, 1):
+        low_x, high_x = sorted((side * inner, side * wide / 2))
+        profile = [(front + 0.04, 0.06), (back, 0.06), (back, tall), (0.0, tall), (0.0, 0.95), (front + 0.04, 0.45)]
+        parts.append(shapes.bevelled(furn_prism(profile, "x", low_x, high_x, "hammertone_grey", "post"), EDGE))
+        parts.append(shapes.bevelled(shapes.box((low_x, 0.0, front), (high_x, 0.06, back), "dark_panel", "foot"),
+                                     0.004))
+        # The conduit up the post's front: along its sloped edge, then straight up its upright front.
+        middle_x = side * (inner + post / 2)
+        out = Vector((0.0, 0.0 - (front + 0.04), -0.5)).normalized()  # off the sloped edge, front-and-up
+        start = Vector((middle_x, 0.45, front + 0.04)) + out * 0.024
+        bend = Vector((middle_x, 0.95, 0.0)) + out * 0.024
+        parts.append(shapes.cylinder(tuple(start), tuple(bend), 0.018, "pipe_steel", 16, "conduit"))
+        parts.append(shapes.cylinder(tuple(bend), (middle_x, tall - 0.04, bend.z), 0.018, "pipe_steel", 16, "conduit"))
+        parts.append(shapes.cylinder((middle_x, 0.06, start.z), tuple(start), 0.018, "pipe_steel", 16,
+                                     "conduit"))
+    # The plinth and the recessed kick panel with its vent.
+    parts.append(shapes.box((-inner, 0.0, 0.05), (inner, 0.08, back - 0.02), "dark_panel", "plinth"))
+    kick = shapes.box((-inner, 0.08, 0.1), (inner, GH_EQUIP_DESK_TOP - 0.12, back), "hammertone_grey", "kick_panel")
+    vents = furn_louvres(kick, 0.62, 0.62, 0.16, 0.1, 0.1, 0.135, 4, "dark_panel", "vent")
+    parts += [kick] + vents
+    # The desk: its flat top and the fascia along its front with the caution label.
+    desk = GH_EQUIP_DESK_TOP
+    parts.append(shapes.bevelled(shapes.box((-inner, desk - 0.04, front + 0.004), (inner, desk, GH_EQUIP_DESK_BACK + 0.01),
+                                            "hammertone_grey", "desk"), 0.006))
+    parts.append(shapes.bevelled(shapes.box((-inner, desk - 0.14, front + 0.004), (inner, desk - 0.04, front + 0.03),
+                                            "hammertone_grey", "fascia"), 0.004))
+    parts.append(label(-0.25, desk - 0.09, 0.2, 0.05, front + 0.004, "label_caution_voltage"))
+    # On the desk, clear of the keyboard's spot: a button pad (viewer's left), toggles, buttons, a lever, a dial.
+    pad_z = -0.29
+    for at in range(3):
+        parts.append(shapes.bevelled(shapes.box((0.74 + at * 0.07 - 0.022, desk, pad_z - 0.022),
+                                                (0.74 + at * 0.07 + 0.022, desk + 0.015, pad_z + 0.022),
+                                                "dark_panel", "button"), 0.002))
+    for switch_x in (-0.05, -0.12):
+        parts.append(shapes.box((switch_x - 0.025, desk, pad_z - 0.04), (switch_x + 0.025, desk + 0.008,
+                                                                         pad_z + 0.04), "bare_steel", "switch"))
+        parts.append(shapes.cylinder((switch_x, desk + 0.008, pad_z), (switch_x, desk + 0.06, pad_z - 0.02), 0.006,
+                                     "bare_steel", 10, "switch"))
+    for at, variant in enumerate(("anodized_red", "dark_panel", "anodized_red")):
+        parts.append(shapes.bevelled(shapes.box((-0.24 - at * 0.08 - 0.025, desk, pad_z - 0.025),
+                                                (-0.24 - at * 0.08 + 0.025, desk + 0.018, pad_z + 0.025), variant,
+                                                "button"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((-0.52, desk, pad_z - 0.05), (-0.44, desk + 0.03, pad_z + 0.05),
+                                            "dark_panel", "lever"), 0.003))
+    parts.append(shapes.bevelled(shapes.box((-0.5, desk + 0.03, pad_z - 0.015), (-0.46, desk + 0.09, pad_z + 0.015),
+                                            "anodized_black", "lever"), 0.004))
+    parts.append(shapes.bevelled(shapes.cylinder((-0.75, desk, pad_z), (-0.75, desk + 0.045, pad_z), 0.05,
+                                                 "bare_steel", 32, "dial"), 0.004))
+    # The sloped switch panel: sliders in slots, rows of buttons, round dials, all standing off its face.
+    slope_outline = [(GH_EQUIP_DESK_BACK, desk - 0.04), (0.06, desk - 0.04), (0.06, GH_EQUIP_SLOPE_TOP),
+                     (0.0, GH_EQUIP_SLOPE_TOP), (GH_EQUIP_DESK_BACK, desk)]
+    parts.append(shapes.bevelled(furn_prism(slope_outline, "x", -inner, inner, "hammertone_grey", "slope"), 0.003))
+    normal = gh_equip_slope_normal()
+    low_spot, high_spot = gh_equip_slope_spot(0.3), gh_equip_slope_spot(0.62)
+    for slider_x in (0.2, 0.12, 0.04, -0.62, -0.7, -0.78, -0.86):
+        parts.append(gh_equip_on_slope(shapes.box((slider_x - 0.012, high_spot[1], high_spot[0] - 0.06),
+                                                  (slider_x + 0.012, high_spot[1] + 0.006, high_spot[0] + 0.06),
+                                                  "anodized_black", "slider_slot"), high_spot))
+        parts.append(gh_equip_on_slope(shapes.bevelled(shapes.box((slider_x - 0.02, high_spot[1] + 0.006,
+                                                                   high_spot[0] - 0.015),
+                                                                  (slider_x + 0.02, high_spot[1] + 0.04,
+                                                                   high_spot[0] + 0.015), "bare_steel", "slider"),
+                                                       0.003), high_spot))
+    for at in range(8):
+        button_x = 0.78 - at * 0.05
+        variant = ("anodized_red", "led_green", "led_amber", "plastic_white")[at % 4]
+        parts.append(gh_equip_on_slope(shapes.bevelled(shapes.box((button_x - 0.018, low_spot[1],
+                                                                   low_spot[0] - 0.015),
+                                                                  (button_x + 0.018, low_spot[1] + 0.014,
+                                                                   low_spot[0] + 0.015), variant, "button"), 0.002),
+                                       low_spot))
+    for dial_x, spot in ((-0.2, high_spot), (-0.32, high_spot), (-0.26, low_spot)):
+        foot = Vector((dial_x, spot[1], spot[0]))
+        parts.append(shapes.bevelled(shapes.cylinder(tuple(foot), tuple(foot + normal * 0.03), 0.028, "rubber", 24,
+                                                     "dial"), 0.003))
+    # The upright panel: six screens (two rows of three), the status lamp block, a vent, two sheets and the sign.
+    panel = shapes.box((-inner, GH_EQUIP_SLOPE_TOP, 0.0), (inner, tall - 0.02, back), "hammertone_grey",
+                       "back_panel")
+    vents = furn_louvres(panel, -0.62, 1.16, 0.22, 0.12, 0.0, 0.05, 5, "dark_panel", "vent")
+    parts += [panel] + vents
+    for row_y in (1.43, 1.19):
+        for screen_x, variant in ((0.3, "screen"), (0.0, "screen"), (-0.3, "screen")):
+            parts += wall_screen_part(screen_x, row_y, 0.26, 0.2, 0.0, variant, 0.02)
+    parts.append(shapes.bevelled(shapes.box((0.6, 1.33, -0.01), (0.86, 1.53, 0.0), "anodized_black", "lamp_block"),
+                                 0.002))
+    for row in range(3):
+        for column in range(5):
+            parts.append(shapes.box((0.62 + column * 0.048, 1.36 + row * 0.055, -0.016),
+                                    (0.655 + column * 0.048, 1.385 + row * 0.055, -0.01),
+                                    ("led_green", "led_amber", "led_red")[row], "lamp"))
+    parts += wall_screen_part(0.73, 1.17, 0.22, 0.16, 0.0, "screen_amber", 0.018, "readout")
+    parts.append(label(-0.73, 1.53, 0.26, 0.06, 0.0, "label_grow_control"))
+    parts.append(label(-0.78, 1.38, 0.13, 0.17, 0.0, "sheet_log", thick=0.004, name="sheet"))
+    parts.append(label(-0.62, 1.37, 0.13, 0.17, 0.0, "sheet_plan", thick=0.004, name="sheet"))
+    return parts
+
+
+def work_desk(size, laid):
+    """The steel writing desk, as its close-up shows it: a flat top with rounded edges, a three-drawer pedestal on
+    short legs under the viewer's left end (a pull-out slide over the drawers, bar pulls, STATION LOG, DATA ENTRY,
+    SPARE PARTS and CAUTION HOT SURFACE labels), two square legs with rubber feet and a side stretcher at the other
+    end, an apron along the front and a modesty panel at the back. The lamp's spot (the back corner over the legs)
+    is left clear: the lamp is a child of its own."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    top_low = tall - 0.035
+    parts = [shapes.bevelled(shapes.box((-wide / 2, top_low, front), (wide / 2, tall, back), "galvanized_dull",
+                                        "top"), 0.012)]
+    # The pedestal under the viewer's left end (+x), on four short legs.
+    ped_right, ped_left = wide / 2 - 0.46, wide / 2 - 0.02
+    body = front + 0.055
+    parts.append(shapes.bevelled(shapes.box((ped_right, 0.1, body), (ped_left, top_low, back - 0.03),
+                                            "galvanized_dull", "pedestal"), EDGE))
+    for x in (ped_right + 0.04, ped_left - 0.04):
+        for z in (body + 0.04, back - 0.07):
+            parts.append(shapes.box((x - 0.02, 0.0, z - 0.02), (x + 0.02, 0.1, z + 0.02), "galvanized_dull",
+                                    "pedestal_leg"))
+    parts.append(shapes.bevelled(shapes.box((ped_right + 0.02, top_low - 0.035, front + 0.035),
+                                            (ped_left - 0.02, top_low - 0.012, body), "galvanized_dull", "slide"),
+                                 0.002))
+    drawer_spans = ((0.52, top_low - 0.045), (0.32, 0.505), (0.12, 0.305))
+    labels = (("label_station_log", None), ("label_data_entry", "label_caution_hot"), ("label_spare_parts", None))
+    middle_x = (ped_right + ped_left) / 2
+    for (low, high), (first, second) in zip(drawer_spans, labels):
+        parts.append(shapes.bevelled(shapes.box((ped_right + 0.015, low, front + 0.04), (ped_left - 0.015, high, body),
+                                                "galvanized_dull", "drawer"), 0.003))
+        parts += furn_pull(middle_x, (low + high) / 2 - 0.025, 0.14, front + 0.04, upright=False)
+        parts.append(label(middle_x + 0.09, high - 0.035, 0.17, 0.04, front + 0.04, first))
+        if second is not None:
+            parts.append(label(middle_x - 0.11, high - 0.035, 0.13, 0.05, front + 0.04, second))
+    # The legs at the other end, their feet and the side stretcher between them.
+    leg_x = -wide / 2 + 0.05
+    for z in (front + 0.05, back - 0.05):
+        parts.append(shapes.bevelled(shapes.box((leg_x - 0.022, 0.015, z - 0.022), (leg_x + 0.022, top_low, z + 0.022),
+                                                "galvanized_dull", "leg"), 0.003))
+        parts.append(shapes.box((leg_x - 0.024, 0.0, z - 0.024), (leg_x + 0.024, 0.015, z + 0.024), "rubber", "foot"))
+    parts.append(shapes.bevelled(shapes.box((leg_x - 0.015, 0.2, front + 0.072), (leg_x + 0.015, 0.235, back - 0.072),
+                                            "galvanized_dull", "stretcher"), 0.002))
+    # The apron along the front between the pedestal and the legs, the modesty panel at the back.
+    parts.append(shapes.bevelled(shapes.box((leg_x + 0.022, top_low - 0.07, front + 0.03), (ped_right, top_low,
+                                                                                            front + 0.05),
+                                            "galvanized_dull", "apron"), 0.002))
+    parts.append(shapes.bevelled(shapes.box((leg_x + 0.022, 0.32, back - 0.08), (ped_right, top_low - 0.07,
+                                                                                 back - 0.06),
+                                            "galvanized_dull", "modesty"), 0.002))
+    return parts
+
+
+GH_EQUIP_STAND = 0.55  # the water tank's stand: its top, where the tank's foot sits
+# The seedling shelf's three shelves: their top faces over the foot, where the seedling trays (children) stand.
+GH_EQUIP_SHELVES = (0.42, 1.04, 1.66)
+
+
+def gh_equip_brace(start, end, across, middle_depth, material, name):
+    """A square-tube diagonal brace in a face of the water tank's stand, from (u, y) `start` to `end` in that face:
+    on a front or back face (`across` 'x', u = x, its depth middle on z) or a side face (`across` 'z', u = z, its
+    depth middle on x)."""
+    (start_u, start_y), (end_u, end_y) = start, end
+    length = math.hypot(end_u - start_u, end_y - start_y)
+    middle_u, middle_y = (start_u + end_u) / 2, (start_y + end_y) / 2
+    degrees = math.degrees(math.atan2(end_y - start_y, end_u - start_u))
+    if across == "x":
+        bar = shapes.box((middle_u - length / 2, middle_y - 0.02, middle_depth - 0.015),
+                         (middle_u + length / 2, middle_y + 0.02, middle_depth + 0.015), material, name)
+        return turned(bar, (middle_u, middle_y), degrees)
+    bar = shapes.box((middle_depth - 0.015, middle_y - 0.02, middle_u - length / 2),
+                     (middle_depth + 0.015, middle_y + 0.02, middle_u + length / 2), material, name)
+    return tilted(bar, (middle_y, middle_u), -degrees)
+
+
+def gh_equip_stand(half, top, material):
+    """The water tank's welded steel stand: four square corner posts, top and bottom rails round all four faces,
+    crossed braces in each face, and bolt heads at the front's joints."""
+    post = 0.06
+    parts = []
+    for x in (-half + post / 2, half - post / 2):
+        for z in (-half + post / 2, half - post / 2):
+            parts.append(shapes.bevelled(shapes.box((x - post / 2, 0.0, z - post / 2), (x + post / 2, top,
+                                                                                        z + post / 2),
+                                                    material, "post"), 0.004))
+    rail = 0.05
+    inner = half - post
+    for low_y in (0.0, top - rail):
+        for sign in (-1, 1):
+            middle = sign * (half - 0.025)
+            parts.append(shapes.bevelled(shapes.box((-inner, low_y, middle - 0.025), (inner, low_y + rail,
+                                                                                      middle + 0.025),
+                                                    material, "rail"), 0.003))
+            parts.append(shapes.bevelled(shapes.box((middle - 0.025, low_y, -inner), (middle + 0.025, low_y + rail,
+                                                                                      inner),
+                                                    material, "rail"), 0.003))
+    low, high = (-inner, rail), (inner, top - rail)
+    for sign in (-1, 1):
+        middle = sign * (half - 0.025)
+        for across in ("x", "z"):
+            parts.append(gh_equip_brace(low, high, across, middle, material, "brace"))
+            parts.append(gh_equip_brace((low[0], high[1]), (high[0], low[1]), across, middle, material, "brace"))
+    for x in (-half + post / 2, half - post / 2):
+        for y in (rail / 2, top - rail / 2):
+            parts.append(bolt(x, y, -half, "cast_iron_dark"))
+    return parts
+
+
+def water_tank(size, laid):
+    """The water tank, as its close-up shows it: a square moulded plastic tank with rounded edges, raised ribs round
+    it and up its faces, a round lid hatch on top (a collar, the screwed cover and its boss), a level sight tube up
+    its front between two fittings beside a scale, the WATER label and a POTABLE WATER sticker; on a welded steel
+    stand (posts, rails, crossed braces, bolts), the outlet pipe dropping from the tank's foot and out through the
+    stand's front to a valve with a red lever."""
+    wide, tall, deep = size
+    half = min(wide, deep) / 2
+    stand = GH_EQUIP_STAND
+    parts = gh_equip_stand(half - 0.007, stand, "enamel_white")  # its bolt heads inside the laid box
+    tank_half = half - 0.05
+    top = tall - 0.08
+    parts.append(shapes.bevelled(shapes.box((-tank_half, stand, -tank_half), (tank_half, top, tank_half),
+                                            "plastic_white", "tank"), 0.05))
+    for rib_y in (stand + 0.17, top - 0.2):
+        parts.append(shapes.bevelled(shapes.box((-tank_half - 0.015, rib_y - 0.025, -tank_half - 0.015),
+                                                (tank_half + 0.015, rib_y + 0.025, tank_half + 0.015),
+                                                "plastic_white", "rib"), 0.012))
+    for offset in (-0.42, 0.42):
+        for sign in (-1, 1):
+            parts.append(shapes.bevelled(shapes.box((offset - 0.03, stand + 0.06, sign * tank_half - 0.012),
+                                                    (offset + 0.03, top - 0.06, sign * tank_half + 0.012),
+                                                    "plastic_white", "rib"), 0.008))
+            parts.append(shapes.bevelled(shapes.box((sign * tank_half - 0.012, stand + 0.06, offset - 0.03),
+                                                    (sign * tank_half + 0.012, top - 0.06, offset + 0.03),
+                                                    "plastic_white", "rib"), 0.008))
+    # The lid hatch on top: its collar, the cover, the boss and four screws.
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, top - 0.01, 0.0), (0.0, top + 0.03, 0.0), 0.3,
+                                                 "plastic_white", 32, "hatch"), 0.008))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, top + 0.03, 0.0), (0.0, top + 0.055, 0.0), 0.26,
+                                                 "plastic_white", 32, "lid"), 0.006))
+    parts.append(shapes.bevelled(shapes.cylinder((0.0, top + 0.055, 0.0), (0.0, tall, 0.0), 0.1, "plastic_white", 32,
+                                                 "lid"), 0.006))
+    for at in range(4):
+        angle = math.pi / 4 + math.pi * at / 2
+        x, z = 0.22 * math.cos(angle), 0.22 * math.sin(angle)
+        parts.append(shapes.cylinder((x, top + 0.055, z), (x, top + 0.062, z), 0.012, "bare_steel", 12, "screw"))
+    # The level sight tube up the front at the viewer's left, between its two fittings, its scale beside it.
+    front = -tank_half
+    tube_x, tube_z = tank_half - 0.2, front - 0.03
+    parts.append(shapes.cylinder((tube_x, stand + 0.1, tube_z), (tube_x, top - 0.12, tube_z), 0.014, "glass", 16,
+                                 "sight_tube"))
+    for fitting_y in (stand + 0.07, top - 0.1):
+        parts.append(shapes.bevelled(shapes.cylinder((tube_x, fitting_y - 0.035, tube_z),
+                                                     (tube_x, fitting_y + 0.035, tube_z), 0.02, "plastic_white", 16,
+                                                     "fitting"), 0.004))
+        parts.append(shapes.cylinder((tube_x, fitting_y, front + 0.01), (tube_x, fitting_y, tube_z), 0.014,
+                                     "plastic_white", 12, "fitting"))
+    parts.append(shapes.box((tube_x - 0.035, stand + 0.12, front - 0.006), (tube_x - 0.02, top - 0.14, front),
+                            "plastic_grey", "scale"))
+    parts.append(label(-0.12, stand + 0.09, 0.24, 0.07, front, "label_water"))
+    parts.append(label(-0.58, top - 0.36, 0.16, 0.12, front, "label_potable"))
+    # The outlet: down out of the tank's foot, forward through the stand's front, a valve with its red lever.
+    pipe_y, pipe_x, riser_z = stand - 0.16, 0.38, -0.35
+    parts.append(shapes.cylinder((pipe_x, stand, riser_z), (pipe_x, pipe_y, riser_z), 0.035, "plastic_grey", 24,
+                                 "pipe"))
+    parts.append(wall_sphere((pipe_x, pipe_y, riser_z), 0.035, "plastic_grey", "pipe"))
+    parts.append(shapes.cylinder((pipe_x, pipe_y, riser_z), (pipe_x, pipe_y, -half + 0.01), 0.035, "plastic_grey", 24,
+                                 "pipe"))
+    valve_z = -half + 0.14
+    parts.append(shapes.bevelled(shapes.cylinder((pipe_x, pipe_y, valve_z - 0.06), (pipe_x, pipe_y, valve_z + 0.06),
+                                                 0.055, "plastic_grey", 24, "valve"), 0.006))
+    parts.append(shapes.bevelled(shapes.ring((pipe_x, pipe_y, -half + 0.03), (pipe_x, pipe_y, -half), 0.045, 0.026,
+                                             "plastic_grey", 24, "pipe"), 0.003))
+    parts.append(shapes.cylinder((pipe_x, pipe_y + 0.05, valve_z), (pipe_x, pipe_y + 0.08, valve_z), 0.012,
+                                 "bare_steel", 12, "valve"))
+    parts.append(shapes.bevelled(shapes.box((pipe_x - 0.015, pipe_y + 0.08, valve_z - 0.12),
+                                            (pipe_x + 0.015, pipe_y + 0.1, valve_z + 0.015), "anodized_red", "lever"),
+                                 0.004))
+    return parts
+
+
+def seedling_shelf(size, laid):
+    """The open steel seedling rack, as its close-up shows it: four round-tube posts with caps and feet, three shelves
+    (a plate in a frame of tube rails, clamps where the rails meet the posts), a long LED grow-light tube clipped
+    under each shelf's front (a glowing lens between two end caps), and the power cable from the lamps down the
+    viewer's left back post to the floor. The shelves are left empty: the seedling trays are children of their own."""
+    wide, tall, deep = size
+    post_x, post_z = wide / 2 - 0.02, deep / 2 - 0.02
+    radius = 0.018
+    parts = []
+    for x in (-post_x, post_x):
+        for z in (-post_z, post_z):
+            parts.append(shapes.cylinder((x, 0.02, z), (x, tall - 0.02, z), radius, "galvanized_steel", 16, "post"))
+            parts.append(shapes.bevelled(shapes.cylinder((x, tall - 0.02, z), (x, tall, z), radius + 0.002,
+                                                         "galvanized_steel", 16, "cap"), 0.003))
+            parts.append(shapes.cylinder((x, 0.0, z), (x, 0.02, z), radius + 0.002, "rubber", 16, "foot"))
+    for shelf in GH_EQUIP_SHELVES:
+        rail_y = shelf - 0.022
+        parts.append(shapes.box((-post_x + 0.01, shelf - 0.012, -post_z + 0.01), (post_x - 0.01, shelf, post_z - 0.01),
+                                "galvanized_dull", "shelf"))
+        for z in (-post_z, post_z):
+            parts.append(shapes.cylinder((-post_x, rail_y, z), (post_x, rail_y, z), 0.014, "galvanized_steel", 12,
+                                         "rail"))
+        for x in (-post_x, post_x):
+            parts.append(shapes.cylinder((x, rail_y, -post_z), (x, rail_y, post_z), 0.014, "galvanized_steel", 12,
+                                         "rail"))
+            for z in (-post_z, post_z):
+                parts.append(shapes.bevelled(shapes.cylinder((x, rail_y - 0.035, z), (x, rail_y + 0.03, z),
+                                                             radius + 0.002, "bare_steel", 16, "clamp"), 0.003))
+        # The grow-light tube clipped under the shelf's front.
+        lamp_y, lamp_z = shelf - 0.075, -post_z + 0.06
+        parts.append(shapes.cylinder((-post_x + 0.1, lamp_y, lamp_z), (post_x - 0.1, lamp_y, lamp_z), 0.022,
+                                     "lamp_strip", 24, "lens"))
+        for x in (-post_x + 0.1, post_x - 0.1):
+            parts.append(shapes.bevelled(shapes.cylinder((x - 0.03, lamp_y, lamp_z), (x + 0.03, lamp_y, lamp_z),
+                                                         0.026, "anodized_natural", 24, "lamp_cap"), 0.003))
+        for x in (-0.5, 0.0, 0.5):
+            parts.append(shapes.box((x - 0.02, lamp_y + 0.02, lamp_z - 0.006), (x + 0.02, shelf - 0.012,
+                                                                                lamp_z + 0.006),
+                                    "bare_steel", "lamp_clip"))
+        # The lamp's lead back to the cable run on the viewer's left back post.
+        parts.append(shapes.cylinder((post_x - 0.07, lamp_y, lamp_z), (post_x - 0.07, lamp_y, post_z - 0.03), 0.006,
+                                     "cable_black", 8, "cable"))
+        parts.append(shapes.cylinder((post_x - 0.07, lamp_y, post_z - 0.03), (post_x - 0.03, lamp_y, post_z - 0.03),
+                                     0.006, "cable_black", 8, "cable"))
+    cable_x, cable_z = post_x - 0.03, post_z - 0.03
+    parts.append(shapes.cylinder((cable_x, GH_EQUIP_SHELVES[-1] - 0.075, cable_z), (cable_x, 0.12, cable_z), 0.008,
+                                 "cable_black", 10, "cable"))
+    parts.append(floor_bent_tube((cable_x - 0.1, 0.12, cable_z), (1, 0, 0), (0, 1, 0), 0.1, 0.008, 180.0, 360.0,
+                                 "cable_black", "cable", steps=10, sides=10))
+    parts.append(shapes.cylinder((cable_x - 0.2, 0.12, cable_z), (cable_x - 0.2, 0.008, cable_z), 0.008, "cable_black",
+                                 10, "cable"))
+    return parts
+
+
 BUILDERS = {name: value for name, value in globals().items() if callable(value) and name in (
     "backer", "cable_bundle", "cable_drop", "lattice_diamond_strut", "lattice_hip_rib", "lattice_node_plate",
     "lattice_ring_rib", "machine_bay_plate", "pipe_straight", "pit_floor_plate", "pit_wall_panel",
@@ -5374,7 +6490,7 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "wall_lower_plain", "wall_skirting", "wall_upper_plain", "hull_plate", "hoop",
     # method B's fittings (hub round five)
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_window", "hatch_hinge", "hatch_wall_surround", "porthole_panel",
-    "wall_lower_vent", "notice_board", "robot_bench", "arm_monitor", "equipment_bench", "low_cabinet", "floor_socket", "bay_mark", "tool_bench", "vise", "work_stool", "spares_shelves", "spares_crate", "spares_box", "elec_bench", "oscilloscope", "bench_meter", "soldering_station", "parts_drawers", "pendant_lamp", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
+    "wall_lower_vent", "notice_board", "water_tank", "dosing_unit", "humidifier", "control_console", "work_desk", "seedling_shelf", "dock_pad_one", "dock_pad_two", "dock_pad_three", "charge_post", "seed_bin", "soil_bin", "crop_crate", "grow_light_bar", "grow_light_glow", "rig_rail", "rig_hanger", "irrigation_boom", "ledge_cover", "robot_bench", "arm_monitor", "equipment_bench", "low_cabinet", "floor_socket", "bay_mark", "tool_bench", "vise", "work_stool", "spares_shelves", "spares_crate", "spares_box", "elec_bench", "oscilloscope", "bench_meter", "soldering_station", "parts_drawers", "pendant_lamp", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
     # the expedition camp's grounds (mars-build)
     "mast", "ground_cable",
     # the expedition camp habitat's

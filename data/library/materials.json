@@ -339,6 +339,21 @@
 					"roughness": 0.6,
 					"wear_scale": 2.2,
 					"bump": 0.0006
+				},
+				"bay_one_paint": {
+					"recipe": "painted_metal",
+					"token": "bay-one",
+					"roughness": 0.4
+				},
+				"bay_two_paint": {
+					"recipe": "painted_metal",
+					"token": "bay-two",
+					"roughness": 0.4
+				},
+				"bay_three_paint": {
+					"recipe": "painted_metal",
+					"token": "bay-three",
+					"roughness": 0.4
 				}
 			}
 		},
@@ -1598,6 +1613,133 @@
 					"token": "sign-white",
 					"picture": "flat_astronaut_poster",
 					"roughness": 0.8
+				},
+				"label_grow_light": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_grow_light"
+				},
+				"note_check_cables": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_check_cables",
+					"roughness": 0.9
+				},
+				"label_rail_load": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_rail_load"
+				},
+				"label_ledge_cover": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_ledge_cover"
+				},
+				"note_ledge_cover": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "note_ledge_cover",
+					"roughness": 0.9
+				},
+				"label_inspection": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_inspection"
+				},
+				"label_boom": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_boom"
+				},
+				"label_seed": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_seed"
+				},
+				"label_soil": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_soil"
+				},
+				"label_crops": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_crops"
+				},
+				"label_charge": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_charge"
+				},
+				"label_plug": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_plug"
+				},
+				"label_potable": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_potable"
+				},
+				"label_pump_a": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pump_a"
+				},
+				"label_pump_b": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pump_b"
+				},
+				"label_pump_c": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_pump_c"
+				},
+				"label_dose_meter": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_dose_meter"
+				},
+				"label_main_unit": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_main_unit"
+				},
+				"label_nutrient_supply": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_nutrient_supply"
+				},
+				"label_humidifier": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_humidifier"
+				},
+				"label_grow_control": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_grow_control"
+				},
+				"label_caution_voltage": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_caution_voltage"
+				},
+				"label_station_log": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_station_log"
+				},
+				"label_data_entry": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_data_entry"
+				},
+				"label_spare_parts": {
+					"recipe": "printed",
+					"token": "sign-white",
+					"picture": "label_spare_parts"
 				}
 			}
 		},
@@ -1836,6 +1978,29 @@
 					"metal": 0.6,
 					"bump": 0.0006,
 					"bump_size": 0.03
+				}
+			}
+		},
+		"growing": {
+			"is": "What grows in the base's beds and trays: potting soil and young leaves, flat colour by region (the ink look), a fine relief only",
+			"surface": "rubber",
+			"variants": {
+				"potting_soil": {
+					"recipe": "rubber",
+					"token": "soil",
+					"roughness": 0.95,
+					"bump": 0.0006,
+					"bump_size": 0.006,
+					"dirt_share": 0.0,
+					"said": "the plot's own soil colour (PlotField's soil ink)"
+				},
+				"seedling_leaf": {
+					"recipe": "rubber",
+					"token": "crop-green",
+					"roughness": 0.6,
+					"bump": 0.0002,
+					"bump_size": 0.01,
+					"said": "the plot's young crop green (PlotField's crop ink)"
 				}
 			}
 		}
@@ -2737,7 +2902,139 @@
 		},
 		"flat_astronaut_poster": {
 			"style": "drawn",
-			"by": "prologue-build astronaut_poster.py: the game's own suit (game/base/models/hanging_suit) drawn front-on in Blender workbench, on a night ground under the title 航天英雄"
+			"by": "prologue-build astronaut_poster.py: the game's own suit (game/base/models/hanging_suit) drawn front-on in Blender workbench, on a night ground under the title \u822a\u5929\u82f1\u96c4"
+		},
+		"label_grow_light": {
+			"style": "label",
+			"text": "GROW LIGHT 600 W",
+			"ink": "ink-line"
+		},
+		"note_check_cables": {
+			"style": "note",
+			"lines": [
+				"CHECK",
+				"CABLES",
+				"WEEKLY"
+			],
+			"ink": "ink-line"
+		},
+		"label_rail_load": {
+			"style": "label",
+			"text": "MAX LOAD 60 KG",
+			"ink": "ink-line"
+		},
+		"label_ledge_cover": {
+			"style": "label",
+			"text": "SERVICE LEDGE COVER",
+			"ink": "ink-line"
+		},
+		"note_ledge_cover": {
+			"style": "note",
+			"lines": [
+				"WIRING",
+				"CHECKED"
+			],
+			"ink": "ink-line"
+		},
+		"label_inspection": {
+			"style": "label",
+			"text": "INSPECTION",
+			"ink": "ink-line"
+		},
+		"label_boom": {
+			"style": "label",
+			"text": "WATER 2 BAR",
+			"ink": "ink-line"
+		},
+		"label_seed": {
+			"style": "label",
+			"text": "SEED",
+			"ink": "ink-line"
+		},
+		"label_soil": {
+			"style": "label",
+			"text": "SOIL",
+			"ink": "ink-line"
+		},
+		"label_crops": {
+			"style": "label",
+			"text": "CROPS",
+			"ink": "ink-line"
+		},
+		"label_charge": {
+			"style": "label",
+			"text": "CHARGE",
+			"ink": "ink-line"
+		},
+		"label_plug": {
+			"style": "label",
+			"text": "PLUG",
+			"ink": "ink-line"
+		},
+		"label_potable": {
+			"style": "label",
+			"text": "POTABLE WATER",
+			"ink": "ink-line"
+		},
+		"label_pump_a": {
+			"style": "label",
+			"text": "PUMP A",
+			"ink": "ink-line"
+		},
+		"label_pump_b": {
+			"style": "label",
+			"text": "PUMP B",
+			"ink": "ink-line"
+		},
+		"label_pump_c": {
+			"style": "label",
+			"text": "PUMP C",
+			"ink": "ink-line"
+		},
+		"label_dose_meter": {
+			"style": "label",
+			"text": "DOSE METER",
+			"ink": "ink-line"
+		},
+		"label_main_unit": {
+			"style": "label",
+			"text": "MAIN UNIT",
+			"ink": "ink-line"
+		},
+		"label_nutrient_supply": {
+			"style": "label",
+			"text": "HYDROPONIC NUTRIENT SUPPLY",
+			"ink": "ink-line"
+		},
+		"label_humidifier": {
+			"style": "label",
+			"text": "HUMIDIFIER",
+			"ink": "ink-line"
+		},
+		"label_grow_control": {
+			"style": "label",
+			"text": "GROW CONTROL",
+			"ink": "ink-line"
+		},
+		"label_caution_voltage": {
+			"style": "label",
+			"text": "CAUTION HIGH VOLTAGE",
+			"ink": "ink-line"
+		},
+		"label_station_log": {
+			"style": "label",
+			"text": "STATION LOG",
+			"ink": "ink-line"
+		},
+		"label_data_entry": {
+			"style": "label",
+			"text": "DATA ENTRY",
+			"ink": "ink-line"
+		},
+		"label_spare_parts": {
+			"style": "label",
+			"text": "SPARE PARTS",
+			"ink": "ink-line"
 		}
 	}
 }

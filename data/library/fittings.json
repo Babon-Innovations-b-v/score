@@ -3044,6 +3044,547 @@
 				"stub": 0.504
 			},
 			"prints_off": []
+		},
+		"grow_light_bar": {
+			"closeup": "place-greenhouse/closeups/greenhouse/grow_light_bar.png",
+			"parts": [
+				"housing",
+				"end_box",
+				"fin",
+				"lug",
+				"screw",
+				"gland",
+				"cable",
+				"label"
+			],
+			"built": {
+				"cable": 0.698,
+				"end_box": 0.766,
+				"fin": 0.762,
+				"gland": 0.469,
+				"housing": 0.507,
+				"label": 1.0,
+				"lug": 0.704,
+				"screw": 1.0
+			},
+			"prints_off": []
+		},
+		"grow_light_glow": {
+			"closeup": "place-greenhouse/closeups/greenhouse/grow_light_bar.png",
+			"parts": [
+				"lens"
+			],
+			"built": {
+				"lens": 1.0
+			},
+			"prints_off": []
+		},
+		"rig_rail": {
+			"closeup": "place-greenhouse/closeups/greenhouse/rig_rail.png",
+			"parts": [
+				"beam",
+				"clamp",
+				"bolt",
+				"cable",
+				"clip",
+				"label",
+				"note"
+			],
+			"built": {
+				"beam": 0.393,
+				"bolt": 0.7,
+				"cable": 0.827,
+				"clamp": 0.514,
+				"clip": 0.683,
+				"label": 1.0,
+				"note": 1.0
+			},
+			"prints_off": []
+		},
+		"rig_hanger": {
+			"closeup": "place-greenhouse/closeups/greenhouse/rig_hanger.png",
+			"parts": [
+				"eye",
+				"ferrule",
+				"rope",
+				"turnbuckle",
+				"thread",
+				"rope_clip",
+				"nut"
+			],
+			"built": {
+				"eye": 0.742,
+				"ferrule": 0.845,
+				"nut": 0.917,
+				"pin": 0.295,
+				"rope": 0.694,
+				"rope_clip": 0.608,
+				"thread": 0.912,
+				"turnbuckle": 0.759
+			},
+			"prints_off": []
+		},
+		"irrigation_boom": {
+			"closeup": "place-greenhouse/closeups/greenhouse/irrigation_boom.png",
+			"parts": [
+				"pipe",
+				"flange",
+				"saddle",
+				"bolt",
+				"emitter",
+				"label"
+			],
+			"built": {
+				"bolt": 0.941,
+				"emitter": 0.621,
+				"flange": 0.802,
+				"label": 1.0,
+				"pipe": 0.52,
+				"saddle": 0.317
+			},
+			"prints_off": []
+		},
+		"ledge_cover": {
+			"closeup": "place-greenhouse/closeups/greenhouse/ledge_cover.png",
+			"parts": [
+				"base_plate",
+				"lid",
+				"panel",
+				"recess",
+				"handle",
+				"hinge",
+				"screw",
+				"bolt",
+				"label",
+				"note",
+				"sticker"
+			],
+			"built": {
+				"base_plate": 0.171,
+				"bolt": 1.0,
+				"handle": 0.705,
+				"hinge": 0.776,
+				"label": 1.0,
+				"lid": 0.293,
+				"note": 1.0,
+				"panel": 0.949,
+				"recess": 0.814,
+				"screw": 1.0,
+				"sticker": 1.0
+			},
+			"prints_off": []
+		},
+		"dock_pad_one": {
+			"closeup": "place-greenhouse/closeups/greenhouse/dock_pad.png",
+			"parts": [
+				"plate",
+				"hazard_border",
+				"bay_stripe",
+				"guide_rail",
+				"contact_plate",
+				"bolt"
+			],
+			"built": {
+				"bay_stripe": 0.93,
+				"bolt": 1.0,
+				"contact_plate": 0.935,
+				"guide_rail": 1.0,
+				"hazard_border": 0.783,
+				"plate": 0.651
+			},
+			"prints_off": []
+		},
+		"dock_pad_two": {
+			"closeup": "place-greenhouse/closeups/greenhouse/dock_pad.png",
+			"parts": [
+				"plate",
+				"hazard_border",
+				"bay_stripe",
+				"guide_rail",
+				"contact_plate",
+				"bolt"
+			],
+			"built": {
+				"bay_stripe": 0.93,
+				"bolt": 1.0,
+				"contact_plate": 0.935,
+				"guide_rail": 1.0,
+				"hazard_border": 0.783,
+				"plate": 0.651
+			},
+			"prints_off": []
+		},
+		"dock_pad_three": {
+			"closeup": "place-greenhouse/closeups/greenhouse/dock_pad.png",
+			"parts": [
+				"plate",
+				"hazard_border",
+				"bay_stripe",
+				"guide_rail",
+				"contact_plate",
+				"bolt"
+			],
+			"built": {
+				"bay_stripe": 0.93,
+				"bolt": 1.0,
+				"contact_plate": 0.935,
+				"guide_rail": 1.0,
+				"hazard_border": 0.783,
+				"plate": 0.651
+			},
+			"prints_off": []
+		},
+		"charge_post": {
+			"closeup": "place-greenhouse/closeups/greenhouse/charge_post.png",
+			"parts": [
+				"foot",
+				"body",
+				"window_frame",
+				"label",
+				"indicator",
+				"collar",
+				"status_lamp",
+				"cap",
+				"hook",
+				"cable",
+				"plug"
+			],
+			"built": {
+				"body": 0.619,
+				"cable": 0.71,
+				"cap": 0.662,
+				"collar": 0.205,
+				"foot": 0.711,
+				"hook": 0.369,
+				"indicator": 0.817,
+				"label": 0.958,
+				"plug": 0.897,
+				"status_lamp": 0.243,
+				"window_frame": 0.961
+			},
+			"prints_off": []
+		},
+		"seed_bin": {
+			"closeup": "place-greenhouse/closeups/greenhouse/seed_bin.png",
+			"parts": [
+				"floor",
+				"wall",
+				"rim",
+				"bead",
+				"handle",
+				"label"
+			],
+			"built": {
+				"bead": 0.581,
+				"floor": 0.558,
+				"handle": 0.46,
+				"label": 1.0,
+				"rim": 0.672,
+				"wall": 0.504
+			},
+			"prints_off": []
+		},
+		"soil_bin": {
+			"closeup": "place-greenhouse/closeups/greenhouse/soil_bin.png",
+			"parts": [
+				"floor",
+				"wall",
+				"rim",
+				"handle",
+				"handle_eye",
+				"label"
+			],
+			"built": {
+				"floor": 0.551,
+				"handle": 0.617,
+				"handle_eye": 0.493,
+				"label": 1.0,
+				"rim": 0.658,
+				"wall": 0.568
+			},
+			"prints_off": []
+		},
+		"crop_crate": {
+			"closeup": "place-greenhouse/closeups/greenhouse/crop_crate.png",
+			"parts": [
+				"floor",
+				"bottom_rail",
+				"top_rail",
+				"top_bar",
+				"slat",
+				"corner_post",
+				"bolt",
+				"label_plate",
+				"label"
+			],
+			"built": {
+				"bolt": 1.0,
+				"bottom_rail": 0.485,
+				"corner_post": 0.75,
+				"floor": 0.636,
+				"label": 1.0,
+				"label_plate": 0.783,
+				"slat": 0.423,
+				"top_bar": 0.593,
+				"top_rail": 0.547
+			},
+			"prints_off": []
+		},
+		"water_tank": {
+			"closeup": "place-greenhouse/closeups/greenhouse/water_tank.png",
+			"parts": [
+				"post",
+				"rail",
+				"brace",
+				"bolt",
+				"tank",
+				"rib",
+				"hatch",
+				"lid",
+				"screw",
+				"sight_tube",
+				"fitting",
+				"scale",
+				"label",
+				"pipe",
+				"valve",
+				"lever"
+			],
+			"built": {
+				"bolt": 1.0,
+				"brace": 0.75,
+				"fitting": 0.473,
+				"hatch": 0.156,
+				"label": 1.0,
+				"lever": 0.653,
+				"lid": 0.507,
+				"pipe": 0.468,
+				"post": 0.831,
+				"rail": 0.607,
+				"rib": 0.29,
+				"scale": 0.673,
+				"screw": 0.662,
+				"sight_tube": 0.98,
+				"tank": 0.716,
+				"valve": 0.679
+			},
+			"prints_off": []
+		},
+		"dosing_unit": {
+			"closeup": "place-greenhouse/closeups/greenhouse/dosing_unit.png",
+			"parts": [
+				"plinth",
+				"cabinet",
+				"lid",
+				"hinge",
+				"drip_tray",
+				"pump",
+				"rotor",
+				"tube",
+				"dial",
+				"switch",
+				"bezel",
+				"screen",
+				"button_panel",
+				"lamp",
+				"button",
+				"gauge",
+				"gland",
+				"hose",
+				"label"
+			],
+			"built": {
+				"bezel": 0.882,
+				"button": 0.967,
+				"button_panel": 0.918,
+				"cabinet": 0.535,
+				"dial": 1.0,
+				"drip_tray": 0.535,
+				"gauge": 0.825,
+				"gland": 0.595,
+				"hinge": 0.269,
+				"hose": 0.765,
+				"label": 1.0,
+				"lamp": 1.0,
+				"lid": 0.538,
+				"plinth": 0.558,
+				"pump": 0.832,
+				"rotor": 1.0,
+				"screen": 0.884,
+				"switch": 1.0,
+				"tube": 0.836
+			},
+			"prints_off": []
+		},
+		"humidifier": {
+			"closeup": "place-greenhouse/closeups/greenhouse/humidifier.png",
+			"parts": [
+				"foot",
+				"base",
+				"band",
+				"housing",
+				"tank",
+				"cap",
+				"collar",
+				"fan",
+				"grille",
+				"screw",
+				"clamp",
+				"nozzle",
+				"flange",
+				"bolt",
+				"inlet",
+				"panel",
+				"lamp",
+				"bezel",
+				"readout",
+				"button",
+				"label",
+				"tab"
+			],
+			"built": {
+				"band": 0.247,
+				"base": 0.778,
+				"bezel": 0.917,
+				"bolt": 0.16,
+				"button": 1.0,
+				"cap": 0.321,
+				"clamp": 0.54,
+				"collar": 0.303,
+				"fan": 0.312,
+				"flange": 0.299,
+				"foot": 0.69,
+				"grille": 0.466,
+				"housing": 0.3,
+				"inlet": 0.723,
+				"label": 1.0,
+				"lamp": 1.0,
+				"nozzle": 0.603,
+				"panel": 0.739,
+				"readout": 0.8,
+				"screw": 0.681,
+				"tab": 1.0,
+				"tank": 0.206
+			},
+			"prints_off": []
+		},
+		"control_console": {
+			"closeup": "place-greenhouse/closeups/greenhouse/control_console.png",
+			"parts": [
+				"post",
+				"foot",
+				"conduit",
+				"plinth",
+				"kick_panel",
+				"vent",
+				"vent_back",
+				"desk",
+				"fascia",
+				"button",
+				"switch",
+				"lever",
+				"dial",
+				"slope",
+				"slider_slot",
+				"slider",
+				"back_panel",
+				"bezel",
+				"screen",
+				"lamp_block",
+				"lamp",
+				"readout",
+				"label",
+				"sheet"
+			],
+			"built": {
+				"back_panel": 0.492,
+				"bezel": 0.9,
+				"button": 0.814,
+				"conduit": 0.925,
+				"desk": 0.566,
+				"dial": 0.872,
+				"fascia": 0.851,
+				"foot": 0.615,
+				"kick_panel": 0.475,
+				"label": 1.0,
+				"lamp": 1.0,
+				"lamp_block": 0.756,
+				"lever": 0.701,
+				"plinth": 0.608,
+				"post": 0.693,
+				"readout": 0.884,
+				"screen": 0.907,
+				"sheet": 1.0,
+				"slider": 0.981,
+				"slider_slot": 0.756,
+				"slope": 0.729,
+				"switch": 0.655,
+				"vent": 0.912,
+				"vent_back": 0.57
+			},
+			"prints_off": []
+		},
+		"work_desk": {
+			"closeup": "place-greenhouse/closeups/greenhouse/work_desk.png",
+			"parts": [
+				"top",
+				"pedestal",
+				"pedestal_leg",
+				"slide",
+				"drawer",
+				"handle",
+				"standoff",
+				"label",
+				"leg",
+				"foot",
+				"stretcher",
+				"apron",
+				"modesty"
+			],
+			"built": {
+				"apron": 0.833,
+				"drawer": 0.904,
+				"foot": 0.692,
+				"handle": 1.0,
+				"label": 1.0,
+				"leg": 0.847,
+				"modesty": 0.932,
+				"pedestal": 0.712,
+				"pedestal_leg": 0.816,
+				"slide": 0.729,
+				"standoff": 0.534,
+				"stretcher": 0.658,
+				"top": 0.769
+			},
+			"prints_off": []
+		},
+		"seedling_shelf": {
+			"closeup": "place-greenhouse/closeups/greenhouse/seedling_shelf.png",
+			"parts": [
+				"post",
+				"cap",
+				"foot",
+				"shelf",
+				"rail",
+				"clamp",
+				"lens",
+				"lamp_cap",
+				"lamp_clip",
+				"cable"
+			],
+			"built": {
+				"cable": 0.705,
+				"cap": 0.734,
+				"clamp": 0.609,
+				"foot": 0.664,
+				"lamp_cap": 0.675,
+				"lamp_clip": 0.586,
+				"lens": 0.865,
+				"post": 0.805,
+				"rail": 0.604,
+				"shelf": 0.833
+			},
+			"prints_off": []
 		}
 	}
 }
