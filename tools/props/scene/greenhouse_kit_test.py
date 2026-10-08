@@ -52,6 +52,15 @@ def middle(laid):
     return np.asarray(laid["at"]) + np.asarray(laid["y"]) * laid["size"][1] / 2
 
 
+def test_every_piece_stands_in_a_square_right_handed_frame():
+    """A mirrored frame draws a piece's faces inside out; a skewed one shears its model (the grow light bars, their
+    lenses and the booms were mirrored, the node plates near the dome's top up to 8% off square, 2026-10-08)."""
+    for laid in PIECES:
+        axes = np.array([laid["x"], laid["y"], laid["z"]])
+        assert np.allclose(axes @ axes.T, np.eye(3), atol=1e-3), laid["kind"]
+        assert np.linalg.det(axes) > 0.99, laid["kind"]
+
+
 def test_every_rise_top_has_a_surface_at_its_height():
     tops = [laid for laid in PIECES if own(laid) in ("ring_floor_plate", "ledge_cover")]
     for rise in kit.rises():
