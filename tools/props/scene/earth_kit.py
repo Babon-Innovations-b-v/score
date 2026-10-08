@@ -43,6 +43,9 @@ BALCONY_SPOT_Z = -3.5
 ORIGINS = {"flat": (0.0, FLAT_LEVEL, 0.0), "stairwell": (0.0, 0.0, 0.0)}
 PLACES = {"flat": "prologue_flat", "stairwell": "prologue_stairwell"}
 FLOOR_TOP = FLOOR_THICKNESS / 2  # a floor's top over its level
+# The street kit's rendered plates on the block's street face and its pavement's top (earth_outside_kit.py).
+STREET_PLATE = 0.15
+STREET_PAVED_TOP = 0.14
 LINING = 0.03  # a wall lining's depth
 UP = np.array([0.0, 1.0, 0.0])
 DOWN = -UP
@@ -327,9 +330,10 @@ def stair_fittings(room, west, east, far, door):
         piece(room, "lobby_notice", (west + 0.025, 1.2, -4.2), WEST, (0.9, 0.7, 0.05), near=True),
         piece(room, "exit_sign", (east - 0.04, 2.3, FRONT_DOOR_Z), EAST, (0.36, 0.14, 0.08), near=True),
         # The street door's gate stands open outward against the block's street face (inside, the bottom flight
-        # rises beside the doorway).
-        piece(room, "street_gate", (east + WALL + 0.03, FLOOR_TOP, FRONT_DOOR_Z + 1.0), WEST, (1.0, 2.2, 0.05),
-              near=True, foot=0.0),
+        # rises beside the doorway): on the street kit's rendered plates and its raised pavement
+        # (earth_outside_kit.PLATE_DEEP, PAVED_TOP).
+        piece(room, "street_gate", (east + WALL + STREET_PLATE + 0.03, STREET_PAVED_TOP, FRONT_DOOR_Z + 1.0), WEST,
+              (1.0, 2.2, 0.05), near=True, foot=0.0),
         piece(room, "wall_print", (3.95, 9.0 - 0.5, far + LINING + 0.004), NORTH, (0.75, 1.05, 0.003),
               print="poster_moon_flight", near=True),
         piece(room, "wall_print", (3.95, 4.5 + 1.0, far + LINING + 0.004), NORTH, (0.75, 1.05, 0.003),
