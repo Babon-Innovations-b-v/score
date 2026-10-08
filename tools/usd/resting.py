@@ -12,6 +12,8 @@ taken in the stage's frame and each of its points is looked at straight down:
     weight  where the object's weight falls (the middle of its surface, by area). An object whose weight stands
             outside what it touches (its points within TOLERANCE of the ground, of a support under it, or of another
             object beside it) tips: one end hangs in the air.
+    overlap how deep one object lies inside another (two loose ones, or a loose one and a fixed one; fixed pieces may
+            be joined on purpose, a walkway tube into a module): past TOLERANCE both fail.
     depth   how far the object's deepest point lies under the ground under it: an object resting on its contact
             points has nothing under the ground past TOLERANCE, so one deeper is sunk (buried below its own contact
             points), however its layout lifted it.
@@ -43,6 +45,8 @@ FOOTPRINT = 600
 RAY_START = 0.1
 # How far an object's weight may fall outside what it touches and still stand.
 BALANCE = 0.05
+# How many of an object's points are tested for lying inside another, at most.
+OVERLAP_SAMPLES = 3000
 # How densely another object's surface is sampled to find where this one touches it, and the most samples taken.
 CONTACT_SPACING = 0.02
 CONTACT_SAMPLES = 300_000
@@ -163,6 +167,44 @@ def judged(name, prim, mesh, ground, others):
                 result="; ".join(faults) or ("stands as laid (fixed)" if fixed else "rests"), passed=not faults)
 
 
+def overlap_depth(mesh, other):
+    """How deep the deepest of a sample of one object's surface lies inside another object (0 when none is inside)."""
+    points = np.vstack([np.asarray(mesh.vertices), mesh.sample(OVERLAP_SAMPLES, seed=0)])
+    low, high = other.bounds
+    near = points[np.all((points >= low) & (points <= high), axis=1)]
+    if len(near) == 0:
+        return 0.0
+    near = near[:: max(1, len(near) // OVERLAP_SAMPLES)]
+    inside = near[other.contains(near)]
+    if len(inside) == 0:
+        return 0.0
+    return float(trimesh.proximity.closest_point(other, inside)[1].max())
+
+
+def overlaps(meshes, prims):
+    """Pairs of objects, at least one loose (not fixed: two buildings may be joined on purpose), where one lies inside
+    the other deeper than TOLERANCE: {object: [(other, depth)]}, told on both."""
+    loose = {name for name, prim in prims.items() if not (prim.HasAttribute("score:fixed")
+                                                         and prim.GetAttribute("score:fixed").Get())}
+    names = sorted(meshes)
+    found = {}
+    for index, first in enumerate(names):
+        for second in names[index + 1:]:
+            if first not in loose and second not in loose:
+                continue
+            if second.startswith(first + "/") or first.startswith(second + "/"):
+                continue
+            low = np.maximum(meshes[first].bounds[0], meshes[second].bounds[0])
+            high = np.minimum(meshes[first].bounds[1], meshes[second].bounds[1])
+            if np.any(low > high):
+                continue
+            depth = max(overlap_depth(meshes[first], meshes[second]), overlap_depth(meshes[second], meshes[first]))
+            if depth > TOLERANCE:
+                found.setdefault(first, []).append((second, depth))
+                found.setdefault(second, []).append((first, depth))
+    return found
+
+
 def check(stage_path):
     """Every object of the stage judged: a list of verdicts, in the stage's order."""
     stage = Usd.Stage.Open(str(stage_path))
@@ -173,11 +215,18 @@ def check(stage_path):
     for name, prim in prims.items():
         points, triangles = in_stage(prim.GetChild("geo"))
         meshes[name] = trimesh.Trimesh(points, triangles, process=False)
+    inside = overlaps(meshes, prims)
     verdicts = []
     for name, prim in prims.items():
         mesh = meshes[name]
         others = neighbours(meshes, name, *mesh.bounds)
-        verdicts.append(judged(name.removeprefix(f"/{place}/Objects/"), prim, mesh, ground, others))
+        found = judged(name.removeprefix(f"/{place}/Objects/"), prim, mesh, ground, others)
+        if name in inside:
+            said = "; ".join(f"overlaps {other.removeprefix(f'/{place}/Objects/')} by {depth * 100:.0f} cm"
+                             for other, depth in inside[name])
+            found["result"] = said if found.get("passed") is not False else f"{found['result']}; {said}"
+            found["passed"] = False
+        verdicts.append(found)
     return verdicts
 
 

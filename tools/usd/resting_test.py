@@ -115,7 +115,23 @@ def a_box_stands_on_the_planned_ground():
         return problems
 
 
-CHECKS = (floating_sunk_and_hung_are_told_apart, a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground)
+def two_boxes_inside_each_other_overlap():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        made_models(folder)
+        found = results(laid_place(folder, [("crate", "box", (0, 0, 0)), ("crate", "box", (0.6, 0, 0)),
+                                            ("crate", "box", (3, 0, 0))], [("crate", "floor")]))
+        problems = []
+        for name in ("crate_1", "crate_2"):
+            if "overlaps" not in found[name]["result"]:
+                problems.append(f"{name}, 40 cm inside the other box, reads '{found[name]['result']}'")
+        if found["crate_3"]["result"] != "rests":
+            problems.append(f"the box standing apart reads '{found['crate_3']['result']}'")
+        return problems
+
+
+CHECKS = (floating_sunk_and_hung_are_told_apart, a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground,
+          two_boxes_inside_each_other_overlap)
 
 
 if __name__ == "__main__":
