@@ -105,5 +105,41 @@
   "small_panel": "small_panel-r1",
   "tank_dome": "tank_dome-r1",
   "work_lamp": "work_lamp-r1"
+ },
+ "garage": {
+  "rover_lift_1": "rover_lift-g1",
+  "chain_hoist_1": "chain_hoist-g2",
+  "workbench_1": "workbench-g2",
+  "task_lamp_1": "task_lamp-g2",
+  "tyre_shelving_1": "tyre_shelving-g1",
+  "spares_shelf_1": "spares_shelf-g1",
+  "fluid_shelves_1": "fluid_shelves-g1",
+  "breaker_panel_1": "breaker_panel-g1",
+  "junction_box_1": "junction_box-g1",
+  "pressure_gauge_1": "pressure_gauge-g1",
+  "control_cabinet_1": "control_cabinet-g2",
+  "rover_charger_1": "charge_post-g1",
+  "parts_trolley_1": "parts_trolley-g1",
+  "wheel_stand_1": "wheel_stand-g1",
+  "bay_panel_1": "bay_panel-g1",
+  "bracket_beacon_1": "beacon-g1",
+  "ceiling_lamp_1": "ceiling_lamp-g1",
+  "bench_vise_1": "bench_vise-g1",
+  "toolbox_1": "toolbox-g1"
+ },
+ "hangar": {
+  "ship_bench_1": "ship_bench-h1",
+  "fuel_pump_1": "fuel_pump-h1",
+  "parts_rack_1": "parts_rack-h1",
+  "parts_crate_1": "crate-h1",
+  "access_stair_1": "access_stair-h1",
+  "control_desk_1": "control_desk-h1",
+  "monitor_desk_1": "work_desk-h1",
+  "parts_shelving_1": "parts_shelving-h1",
+  "pressure_gauge_1": "pressure_gauge-h1",
+  "bay_panel_1": "bay_panel-h1",
+  "bracket_beacon_1": "beacon-h1",
+  "floodlight_1": "floodlight-h1",
+  "crane_trolley_1": "crane_trolley-h2"
  }
 }
