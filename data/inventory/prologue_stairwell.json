@@ -401,7 +401,7 @@
 			"thing": "prop:stairwell_fire_hose_cabinet"
 		},
 		{
-			"id": "junction_box",
+			"id": "wiring_box",
 			"view": "v1",
 			"box": [
 				1720,
@@ -418,7 +418,7 @@
 				0.22
 			],
 			"count": 3,
-			"thing": "prop:stairwell_junction_box"
+			"thing": "prop:stairwell_wiring_box"
 		},
 		{
 			"id": "cable_drop",

@@ -3024,7 +3024,7 @@
 			},
 			"prints_off": []
 		},
-		"junction_box": {
+		"wiring_box": {
 			"closeup": "prologue-build/pics/clean/junction_box.png",
 			"parts": [
 				"box",

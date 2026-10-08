@@ -357,7 +357,7 @@ def conduits(room, west, east, far):
     found = []
     face = east - LINING - CONDUIT / 2
     for level in (9.0, 6.0, 3.0):
-        found.append(piece(room, "junction_box", (east - LINING - 0.04, level + 1.55, FRONT_DOOR_Z - 0.55), EAST,
+        found.append(piece(room, "wiring_box", (east - LINING - 0.04, level + 1.55, FRONT_DOOR_Z - 0.55), EAST,
                            (0.18, 0.22, 0.08), near=True))
         rise = 2.75 - 1.92
         found.append(piece(room, "pipe_straight", (face, level + 1.92 + rise / 2, FRONT_DOOR_Z + 0.1 - CONDUIT / 2),
@@ -378,7 +378,7 @@ def conduits(room, west, east, far):
             found.append(piece(room, "pipe_straight", (face + sign * CONDUIT / 2, level + 1.62 + drop / 2,
                                                        -2.75 - CONDUIT / 2), back, (drop, CONDUIT, CONDUIT),
                                up=SOUTH if back is EAST else NORTH, near=True))
-            found.append(piece(room, "junction_box", (face + sign * 0.04, level + 1.4, -2.75), back,
+            found.append(piece(room, "wiring_box", (face + sign * 0.04, level + 1.4, -2.75), back,
                                (0.18, 0.22, 0.08), near=True))
     found += [piece(room, "wall_print", (lane_wall[1] + LINING + 0.004, 6.0 + 1.3, -3.27), WEST, (0.75, 1.05, 0.003),
                     print="poster_moon_flight", near=True),

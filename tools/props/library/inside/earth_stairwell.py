@@ -663,7 +663,7 @@ def fire_hose_cabinet(size, laid):
     return parts
 
 
-def junction_box(size, laid):
+def wiring_box(size, laid):
     """A small grey steel junction box on the wall, as its close-up shows it: the box, a cover on its front held by
     a screw at each corner, and two conduit stubs out of its top, each with a lock nut."""
     wide, tall, deep = size
@@ -689,4 +689,4 @@ def junction_box(size, laid):
 BUILDERS = {"stair_flight": stair_flight, "landing": landing, "stair_rail": stair_rail,
             "security_gate": security_gate, "cage_bulkhead": cage_bulkhead, "meter_cabinet": meter_cabinet,
             "letterboxes": letterboxes, "lobby_notice": lobby_notice, "exit_sign": exit_sign,
-            "street_gate": street_gate, "fire_hose_cabinet": fire_hose_cabinet, "junction_box": junction_box}
+            "street_gate": street_gate, "fire_hose_cabinet": fire_hose_cabinet, "wiring_box": wiring_box}

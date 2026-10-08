@@ -27,7 +27,7 @@
 		"stairwell_extinguisher": 2,
 		"stairwell_cable_drop": 1,
 		"stairwell_fire_hose_cabinet": 2,
-		"stairwell_junction_box": 7,
+		"stairwell_wiring_box": 7,
 		"stairwell_pipe_straight": 15
 	},
 	"kinds": {
@@ -89,7 +89,7 @@
 		"stairwell_fire_hose_cabinet": {
 			"group": "hangs"
 		},
-		"stairwell_junction_box": {
+		"stairwell_wiring_box": {
 			"group": "hangs"
 		},
 		"stairwell_pipe_straight": {
@@ -251,7 +251,7 @@
 			"glows": false,
 			"route": "code"
 		},
-		"junction_box_1": {
+		"wiring_box_1": {
 			"glows": false,
 			"route": "code"
 		},
@@ -3303,7 +3303,7 @@
 			"model": "fire_hose_cabinet_1"
 		},
 		{
-			"kind": "stairwell_junction_box",
+			"kind": "stairwell_wiring_box",
 			"at": [
 				5.9305,
 				10.55,
@@ -3331,7 +3331,7 @@
 			],
 			"layer": 1,
 			"near": true,
-			"model": "junction_box_1"
+			"model": "wiring_box_1"
 		},
 		{
 			"kind": "stairwell_pipe_straight",
@@ -3396,7 +3396,7 @@
 			"model": "pipe_straight_2"
 		},
 		{
-			"kind": "stairwell_junction_box",
+			"kind": "stairwell_wiring_box",
 			"at": [
 				5.9305,
 				7.55,
@@ -3424,7 +3424,7 @@
 			],
 			"layer": 1,
 			"near": true,
-			"model": "junction_box_1"
+			"model": "wiring_box_1"
 		},
 		{
 			"kind": "stairwell_pipe_straight",
@@ -3489,7 +3489,7 @@
 			"model": "pipe_straight_2"
 		},
 		{
-			"kind": "stairwell_junction_box",
+			"kind": "stairwell_wiring_box",
 			"at": [
 				5.9305,
 				4.55,
@@ -3517,7 +3517,7 @@
 			],
 			"layer": 1,
 			"near": true,
-			"model": "junction_box_1"
+			"model": "wiring_box_1"
 		},
 		{
 			"kind": "stairwell_pipe_straight",
@@ -3737,7 +3737,7 @@
 			"model": "pipe_straight_4"
 		},
 		{
-			"kind": "stairwell_junction_box",
+			"kind": "stairwell_wiring_box",
 			"at": [
 				4.7195,
 				1.4,
@@ -3765,7 +3765,7 @@
 			],
 			"layer": 1,
 			"near": true,
-			"model": "junction_box_1"
+			"model": "wiring_box_1"
 		},
 		{
 			"kind": "stairwell_pipe_straight",
@@ -3799,7 +3799,7 @@
 			"model": "pipe_straight_4"
 		},
 		{
-			"kind": "stairwell_junction_box",
+			"kind": "stairwell_wiring_box",
 			"at": [
 				4.7195,
 				4.4,
@@ -3827,7 +3827,7 @@
 			],
 			"layer": 1,
 			"near": true,
-			"model": "junction_box_1"
+			"model": "wiring_box_1"
 		},
 		{
 			"kind": "stairwell_pipe_straight",
@@ -3861,7 +3861,7 @@
 			"model": "pipe_straight_4"
 		},
 		{
-			"kind": "stairwell_junction_box",
+			"kind": "stairwell_wiring_box",
 			"at": [
 				4.7195,
 				7.4,
@@ -3889,7 +3889,7 @@
 			],
 			"layer": 1,
 			"near": true,
-			"model": "junction_box_1"
+			"model": "wiring_box_1"
 		},
 		{
 			"kind": "stairwell_pipe_straight",
@@ -3923,7 +3923,7 @@
 			"model": "pipe_straight_4"
 		},
 		{
-			"kind": "stairwell_junction_box",
+			"kind": "stairwell_wiring_box",
 			"at": [
 				4.7195,
 				10.4,
@@ -3951,7 +3951,7 @@
 			],
 			"layer": 1,
 			"near": true,
-			"model": "junction_box_1"
+			"model": "wiring_box_1"
 		},
 		{
 			"kind": "stairwell_wall_print",
