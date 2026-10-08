@@ -22,8 +22,8 @@ PLACE = "wreck"  # a place the library knows; its layout and inventory here are 
 TOP, BOTTOM, EDITED = "hull_white_scorched", "bare_steel", "cast_iron_dark"
 
 
-def box_gltf(folder):
-    """A 1 m box standing on its foot, as a made model: one node, one primitive, normals, uvs and baked maps."""
+def box_gltf(folder, name="box"):
+    """A 1 m box standing on its foot, as a made model `name`: one node, one primitive, normals, uvs and baked maps."""
     box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
     box.apply_translation((0.0, 0.5, 0.0))
     box = box.unmerge_vertices() or box
@@ -33,54 +33,57 @@ def box_gltf(folder):
     indices = np.asarray(box.faces, dtype=np.uint32).reshape(-1)
     blobs = [positions.tobytes(), normals.tobytes(), uvs.tobytes(), indices.tobytes()]
     offsets = np.cumsum([0] + [len(blob) for blob in blobs])
-    (folder / "box.bin").write_bytes(b"".join(blobs))
-    (folder / "textures").mkdir()
+    (folder / f"{name}.bin").write_bytes(b"".join(blobs))
+    (folder / "textures").mkdir(exist_ok=True)
     for role in ("base_color", "metal_roughness", "normal"):
-        Image.new("RGB", (8, 8), (200, 120, 60)).save(folder / f"textures/box_{role}.webp")
+        Image.new("RGB", (8, 8), (200, 120, 60)).save(folder / f"textures/{name}_{role}.webp")
     accessor = [{"bufferView": 0, "componentType": 5126, "count": len(positions), "type": "VEC3",
                  "min": positions.min(axis=0).tolist(), "max": positions.max(axis=0).tolist()},
                 {"bufferView": 1, "componentType": 5126, "count": len(positions), "type": "VEC3"},
                 {"bufferView": 2, "componentType": 5126, "count": len(positions), "type": "VEC2"},
                 {"bufferView": 3, "componentType": 5125, "count": len(indices), "type": "SCALAR"}]
     document = {
-        "asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": "box"}],
+        "asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": name}],
         "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2}, "indices": 3,
                                     "material": 0}]}],
-        "materials": [{"name": "box_game", "normalTexture": {"index": 2}, "pbrMetallicRoughness": {
+        "materials": [{"name": f"{name}_game", "normalTexture": {"index": 2}, "pbrMetallicRoughness": {
             "baseColorTexture": {"index": 0}, "metallicRoughnessTexture": {"index": 1}}}],
         "textures": [{"extensions": {"EXT_texture_webp": {"source": index}}} for index in range(3)],
-        "images": [{"uri": f"textures/box_{role}.webp"} for role in ("base_color", "metal_roughness", "normal")],
+        "images": [{"uri": f"textures/{name}_{role}.webp"} for role in ("base_color", "metal_roughness", "normal")],
         "accessors": accessor,
         "bufferViews": [{"buffer": 0, "byteOffset": int(offsets[index]), "byteLength": len(blob)}
                         for index, blob in enumerate(blobs)],
-        "buffers": [{"uri": "box.bin", "byteLength": int(offsets[-1])}],
+        "buffers": [{"uri": f"{name}.bin", "byteLength": int(offsets[-1])}],
     }
-    (folder / "box.gltf").write_text(json.dumps(document))
+    (folder / f"{name}.gltf").write_text(json.dumps(document))
 
 
-def labelled_parts(folder):
+def labelled_parts(folder, take="r1", halves=((TOP, 0.5, 1.0), (BOTTOM, 0.0, 0.5))):
     """The box's labelled take: its top half one library surface, its bottom half another."""
-    take = folder / "box-r1"
+    take = folder / f"box-{take}"
     take.mkdir(parents=True)
-    for name, low, high in ((TOP, 0.5, 1.0), (BOTTOM, 0.0, 0.5)):
+    for name, low, high in halves:
         part = trimesh.creation.box(bounds=((-0.5, low, -0.5), (0.5, high, 0.5))).subdivide().subdivide()
         part.export(take / f"{name}.ply")
 
 
-def place_files(folder, second_at):
-    """The place's layout (two boxes of one row, the second at `second_at`) and its inventory."""
+def place_files(folder, second_at, children=()):
+    """The place's layout (two boxes of one row, the second at `second_at`, and any `children` standing on them) and
+    its inventory."""
     piece = {"prop": "test_box", "kind": "test_box", "model": "box", "row": "box", "size": [1.0, 1.0, 1.0]}
     kit = {"place": PLACE, "pieces": [dict(piece, at=[0.0, 0.0, 0.0], facing=0.0),
-                                      dict(piece, at=list(second_at), facing=90.0)], "lamps": [], "children": []}
-    inventory = {"rows": [{"id": "box", "name": "a crate", "anchor": "floor"}]}
+                                      dict(piece, at=list(second_at), facing=90.0)], "lamps": [],
+           "children": [{"row": row, "on": "box"} for row in children]}
+    inventory = {"rows": [{"id": "box", "name": "a crate", "anchor": "floor", "thing": "prop:test_box"}]
+                 + [{"id": row, "name": "a can", "anchor": "on:box", "thing": f"prop:test_{row}"} for row in children]}
     (folder / "kit.json").write_text(json.dumps(kit))
     (folder / "inventory.json").write_text(json.dumps(inventory))
 
 
-def exported(folder, second_at):
-    place_files(folder, second_at)
+def exported(folder, second_at, children=(), take=None):
+    place_files(folder, second_at, children)
     return export.export(PLACE, folder / "models", folder / "stage", parts=folder / "parts",
-                         kit_path=folder / "kit.json", inventory_path=folder / "inventory.json")
+                         kit_path=folder / "kit.json", inventory_path=folder / "inventory.json", take=take)
 
 
 def made_place(folder):
@@ -168,8 +171,75 @@ def the_stage_is_in_metres_with_static_colliders():
         return problems
 
 
+def a_child_moves_with_the_object_it_stands_on():
+    """A can standing on each box, where the box's composite places it (its foot 1 m up, 0.2 m across, turned 90
+    degrees): a child prim of the box, so moving the box in the edit layer carries the can."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        made_place(folder)
+        box_gltf(folder / "models", "can")
+        composites = folder / "composites.json"
+        composites.write_text(json.dumps({"test_box": {"children": [
+            {"kind": "test_can", "at": [0.2, 1.0, 0.0], "size": [1.0, 1.0, 1.0], "turn": 90.0}]}}))
+        export.COMPOSITES, kept = composites, export.COMPOSITES
+        try:
+            path = exported(folder, (2.0, 0.0, 0.0), children=("can",))
+        finally:
+            export.COMPOSITES = kept
+        stage = Usd.Stage.Open(str(path))
+        can = stage.GetPrimAtPath(f"/{PLACE}/Objects/box_1/can_1")
+        if not can.IsValid() or not stage.GetPrimAtPath(f"/{PLACE}/Objects/box_2/can_1").IsValid():
+            return ["a box has no can_1 under it"]
+        problems = []
+        placed = UsdGeom.Xformable(can).ComputeLocalToWorldTransform(0)
+        if not Gf.IsClose(placed.ExtractTranslation(), Gf.Vec3d(0.2, 1.0, 0.0), 1e-6):
+            problems.append(f"the can stands at {placed.ExtractTranslation()}, not where the composite puts it")
+        if not Gf.IsClose(placed.TransformDir(Gf.Vec3d(1, 0, 0)), Gf.Vec3d(0, 0, -1), 1e-6):
+            problems.append("the can is not turned 90 degrees as the game's prop scene turns it (across onto -z)")
+        if can.GetAttribute("score:kind").Get() != "test_can":
+            problems.append("the can does not carry its kind")
+        edit = stage.GetLayerStack()[2]
+        stage.SetEditTarget(Usd.EditTarget(edit))
+        stage.GetPrimAtPath(f"/{PLACE}/Objects/box_1").GetAttribute("xformOp:translate").Set(Gf.Vec3d(5.0, 0.0, 1.0))
+        carried = UsdGeom.Xformable(can).ComputeLocalToWorldTransform(0).ExtractTranslation()
+        if not Gf.IsClose(carried, Gf.Vec3d(5.2, 1.0, 1.0), 1e-6):
+            problems.append(f"the box moved to (5, 0, 1) but its can stands at {carried}")
+        return problems
+
+
+def the_parts_are_found_where_the_run_recorded_them():
+    """A rerun names its takes `-s1`, a first run `-r1`: the take the run recorded is read, and with none recorded a
+    take of either name is found."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        (folder / "models").mkdir()
+        box_gltf(folder / "models")
+        labelled_parts(folder / "parts", "s1")
+        labelled_parts(folder / "parts", "r1", halves=((TOP, 0.0, 1.0),))
+        (folder / "plan-route.json").write_text(json.dumps({"take": "s1"}))
+        parts, take = export.run_parts(folder)
+        problems = []
+
+        def surfaces(path):
+            stage = Usd.Stage.Open(str(path))
+            mesh = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Objects/box_1/geo"))
+            return {subset.GetPrim().GetName() for subset in UsdGeom.Subset.GetAllGeomSubsets(mesh)}
+
+        if parts != folder / "parts" or take != "s1":
+            problems.append(f"the run's records give parts {parts} and take {take}")
+        if surfaces(exported(folder, (2.0, 0.0, 0.0), take=take)) != {TOP, BOTTOM}:
+            problems.append("the recorded take s1 was not the one read")
+        for found in (folder / "parts/box-r1").iterdir():
+            found.unlink()
+        (folder / "parts/box-r1").rmdir()
+        if surfaces(exported(folder, (2.0, 0.0, 0.0))) != {TOP, BOTTOM}:
+            problems.append("with no take recorded, the take named -s1 was not found")
+        return problems
+
+
 CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface,
-          the_stage_is_in_metres_with_static_colliders)
+          the_stage_is_in_metres_with_static_colliders, a_child_moves_with_the_object_it_stands_on,
+          the_parts_are_found_where_the_run_recorded_them)
 
 
 if __name__ == "__main__":

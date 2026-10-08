@@ -1,7 +1,11 @@
 """Write one place as an OpenUSD stage: the framework's canonical scene, which Blender and other engines load.
 
     .venv/bin/python tools/usd/export.py <place> --models <folder of the place's made .gltf> --out <folder>
-                                         [--parts <folder of labelled parts, <model>-r<N>/<variant>.ply>]
+                                         [--work <the route run's work folder> | --parts <folder of labelled takes>]
+
+The labelled parts are read where the run's records put them: with --work, <work>/parts/<model>-<take>/ for the take
+plan-route.json names; with --parts (or a run that recorded no take), each model's newest take of any name
+(`<model>-r1` from a first run, `<model>-s1` from the framework's rerun), one <variant>.ply per library surface.
 
 A place today is its made models (glTF) and its layout (`data/kit/<place>.json`), read by the game in Godot. The
 stage holds the same place in three layers, from the strongest down:
@@ -14,7 +18,9 @@ stage holds the same place in three layers, from the strongest down:
 
 Because the edit layer sits above the base and objects keep their names across exports (`<row>_<n>`, the n-th
 object of an inventory row in the layout's order), regenerating the base keeps every edit: a moved object stays
-moved, a part given another surface keeps it.
+moved, a part given another surface keeps it. An object standing on another (the layout's `children`, a gas bottle
+on a parts rack) is a child prim of that object, `<object>/<row>_<n>`, with its transform on the parent as the
+parent's composite places it, so a parent moved in the edit layer carries it along.
 
 Each object carries its kind (`score:kind`), its inventory row and name, its transform in metres (translate, turn
 about up by the facing, tilt, scale, as the game lays it), its collision (a convex hull round the model, a guide
@@ -51,6 +57,7 @@ import library  # noqa: E402
 KITS = REPO / "data/kit"
 INVENTORIES = REPO / "data/inventory"
 DETAILS = REPO / "data/library/details.json"
+COMPOSITES = REPO / "data/library/composites.json"
 SOUNDS = REPO / "data/sound/surfaces.json"
 # How many points of a labelled model the part lookup keeps at most: enough to tell parts apart a few
 # millimetres wide, few enough that a million-face model never loads whole into the tree.
@@ -107,13 +114,25 @@ def model_maps(path):
     return found
 
 
-def labelled_take(parts, model):
-    """The newest labelled take of a model (`<model>-r<N>`, highest N) in the parts folder, or None."""
+def labelled_take(parts, model, take=None):
+    """A model's labelled take in the parts folder: `<model>-<take>` when the run recorded its take (plan-route.json),
+    else the newest written of its takes under any take name (`-r1` from a first run, `-s1` from the framework's own
+    rerun); None when the model has none."""
     if parts is None:
         return None
-    takes = [(int(match.group(1)), found) for found in pathlib.Path(parts).glob(f"{model}-r*")
-             if (match := re.fullmatch(rf"{re.escape(model)}-r(\d+)", found.name)) and found.is_dir()]
-    return max(takes)[1] if takes else None
+    if take is not None:
+        found = pathlib.Path(parts) / f"{model}-{take}"
+        return found if found.is_dir() else None
+    takes = [found for found in pathlib.Path(parts).glob(f"{model}-*")
+             if re.fullmatch(rf"{re.escape(model)}-[a-z]+\d+", found.name) and any(found.glob("*.ply"))]
+    return max(takes, key=lambda found: max(ply.stat().st_mtime for ply in found.glob("*.ply"))) if takes else None
+
+
+def run_parts(work):
+    """Where a route run's labelled parts are and which take it made, from its own records: <work>/parts and the
+    take plan-route.json names (None when the run did not record one)."""
+    planned = json.loads((pathlib.Path(work) / "plan-route.json").read_text())
+    return pathlib.Path(work) / "parts", planned.get("take")
 
 
 def part_points(take, turn, size):
@@ -259,7 +278,7 @@ def part_subsets(stage, mesh, surfaces, maps, variants, sounds):
     return max(set(surfaces), key=lambda variant: areas[surfaces == variant].sum())
 
 
-def write_asset(model, models, parts, turn, size, out, variants, sounds):
+def write_asset(model, models, parts, take, turn, size, out, variants, sounds):
     """One model as its own USD file under <out>/assets: drawn mesh, parts, collision; its largest surface back
     (None when the model has no labelled parts)."""
     gltf = pathlib.Path(models) / f"{model}.gltf"
@@ -274,12 +293,12 @@ def write_asset(model, models, parts, turn, size, out, variants, sounds):
     UsdGeom.Scope.Define(stage, f"/{model}/Looks")
     mesh = render_mesh(stage, f"/{model}/geo", geometry)
     collision_mesh(stage, f"/{model}/collision", geometry)
-    take = labelled_take(parts, model)
+    labelled = labelled_take(parts, model, take)
     largest = None
-    if take is None:
+    if labelled is None:
         UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(baked_material(stage, f"/{model}/Looks/baked", maps, None))
     else:
-        points, names = part_points(take, turn, size)
+        points, names = part_points(labelled, turn, size)
         largest = part_subsets(stage, mesh, face_surfaces(geometry, points, names), maps, variants, sounds)
     stage.GetRootLayer().Save()
     return largest
@@ -295,6 +314,24 @@ def object_names(pieces):
         counts[piece["row"]] = counts.get(piece["row"], 0) + 1
         names.append(f"{piece['row']}_{counts[piece['row']]}")
     return names
+
+
+def child_pieces(place, kit, inventory, composites):
+    """Each object standing on another (the layout's `children`: its row and the row it stands `on`), as pieces laid
+    in the parent's own frame: where the parent's composite (data/library/composites.json) stands it, its foot at
+    `at` and turned `turn` degrees about up, as the game's prop scene places it; {parent row: [piece]}."""
+    rows = {row["id"]: row for row in inventory["rows"]}
+    kinds = {piece["row"]: piece["kind"] for piece in kit["pieces"]}
+    found = {}
+    for child in kit.get("children", []):
+        kind = rows[child["row"]]["thing"].split(":", 1)[1]
+        spots = [spot for spot in composites.get(kinds[child["on"]], {}).get("children", []) if spot["kind"] == kind]
+        if not spots:
+            raise ValueError(f"{place}: {child['row']} stands on {child['on']}, whose composite has no {kind}")
+        found.setdefault(child["on"], []).extend(
+            {"kind": kind, "model": child["row"], "row": child["row"], "size": list(spot["size"]),
+             "at": list(spot["at"]), "facing": -float(spot.get("turn", 0.0))} for spot in spots)
+    return found
 
 
 def library_materials(stage, place, root):
@@ -341,8 +378,9 @@ def lamp(stage, path, entry):
     light.GetPrim().CreateAttribute("score:range", Sdf.ValueTypeNames.Float).Set(float(entry.get("range", 6.0)))
 
 
-def write_base(place, kit, inventory, assets, out):
-    """The generated layer, rewritten whole: the place's root, its library surfaces, its objects and its lamps."""
+def write_base(place, kit, inventory, assets, out, children):
+    """The generated layer, rewritten whole: the place's root, its library surfaces, its objects (each child under
+    the object it stands on, named as objects are, so moving the parent moves it) and its lamps."""
     path = out / "layers/base.usda"
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.FindOrOpen(str(path)) or Sdf.Layer.CreateNew(str(path))
@@ -359,6 +397,10 @@ def write_base(place, kit, inventory, assets, out):
         model = piece["model"]
         laid_object(stage, f"/{place}/Objects/{name}", piece, rows.get(piece["row"], {}),
                     f"../assets/{model}.usdc", assets[model])
+        on_it = children.get(piece["row"], [])
+        for child_name, child in zip(object_names(on_it), on_it):
+            laid_object(stage, f"/{place}/Objects/{name}/{child_name}", child, rows.get(child["row"], {}),
+                        f"../assets/{child['model']}.usdc", assets[child["model"]])
     if kit.get("lamps"):
         UsdGeom.Scope.Define(stage, f"/{place}/Lamps")
     for number, entry in enumerate(kit.get("lamps", []), start=1):
@@ -392,26 +434,26 @@ def write_root(place, out):
 
 # --- the way in ---------------------------------------------------------------------------------------------------
 
-def export(place, models, out, parts=None, kit_path=None, inventory_path=None):
-    """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path."""
+def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None):
+    """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
+    `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read."""
     out = pathlib.Path(out)
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
     inventory = json.loads(pathlib.Path(inventory_path or INVENTORIES / f"{place}.json").read_text())
-    if kit.get("children"):
-        raise NotImplementedError(f"{place}: child objects on a parent ({len(kit['children'])}) are not exported yet")
+    children = child_pieces(place, kit, inventory, json.loads(COMPOSITES.read_text()))
     details = json.loads(DETAILS.read_text())
     variants = library.variants(library.theme_library())
     sounds = json.loads(SOUNDS.read_text())
     (out / "assets").mkdir(parents=True, exist_ok=True)
     assets = {}
-    for piece in kit["pieces"]:
+    for piece in kit["pieces"] + [child for on_it in children.values() for child in on_it]:
         model = piece["model"]
         if model in assets:
             continue
         turn = details.get(piece["kind"], {}).get("turn", [1, 0, 0, 0, 1, 0, 0, 0, 1])
-        largest = write_asset(model, models, parts, turn, piece["size"], out, variants, sounds)
+        largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds)
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
-    write_base(place, kit, inventory, assets, out)
+    write_base(place, kit, inventory, assets, out, children)
     ensure_edit(out)
     return write_root(place, out)
 
@@ -421,9 +463,12 @@ def main():
     parser.add_argument("place")
     parser.add_argument("--models", required=True, type=pathlib.Path)
     parser.add_argument("--out", required=True, type=pathlib.Path)
-    parser.add_argument("--parts", type=pathlib.Path)
+    found = parser.add_mutually_exclusive_group()
+    found.add_argument("--work", type=pathlib.Path, help="the route run's work folder: its parts and recorded take")
+    found.add_argument("--parts", type=pathlib.Path, help="a folder of labelled takes, each model's newest read")
     arguments = parser.parse_args()
-    print(export(arguments.place, arguments.models, arguments.out, arguments.parts))
+    parts, take = run_parts(arguments.work) if arguments.work else (arguments.parts, None)
+    print(export(arguments.place, arguments.models, arguments.out, parts, take=take))
 
 
 if __name__ == "__main__":
