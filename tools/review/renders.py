@@ -2,6 +2,10 @@
 fixed cameras and along a walk, all rendered by headless Blender (`tools/blender/session.py batch`, no window, the
 machine's lock). The scene is the place's OpenUSD stage (tools/usd/export.py); no game engine is involved.
 
+A kit room (a layout of pieces in frames of their own) is drawn from inside: from each wall's middle across the room
+at eye height, from high in a corner with its roof left out (a cutaway), and walked round inside, lit by its own
+lamps where the game hangs them (HubKit), as point lights.
+
 Two runs of a stage are drawn from the same cameras: a model's takes share one camera set from both, and every stage
 is rendered from cameras set from the newest stage's extent.
 """
@@ -34,6 +38,13 @@ STRIP_FRAMES = 6
 # How much room is left round the place in a fixed view, and how far out the walk goes, as shares of its radius.
 VIEW_ROOM = 1.15
 WALK_OUT = 1.35
+# Inside a room: how far in from a wall a view stands, how far round the middle the walk goes (a share of the half
+# floor), the roof's draw layer a cutaway leaves out, and a lamp's watts in Blender for each unit of the game's
+# strength over each metre of its reach.
+WALL_IN = 0.6
+ROOM_WALK = 0.45
+ROOF_LAYER = 2
+LAMP_WATTS = 60.0
 
 
 def blender(script, *arguments):
@@ -158,9 +169,56 @@ def walk_views(low, high):
     return frames
 
 
-def render_stage(stage, views, size, folder, plain=False):
+def room_views(low, high):
+    """Inside a room: from each wall's middle across to the opposite wall at eye height, and from high in a corner
+    looking down across it with its roof left out."""
+    middle = (low + high) / 2
+    views = []
+    for name, side in (("from-north", (0.0, -1.0)), ("from-east", (1.0, 0.0)), ("from-south", (0.0, 1.0)),
+                       ("from-west", (-1.0, 0.0))):
+        half = (high - low) / 2
+        eye = middle + np.array([side[0] * (half[0] - WALL_IN), 0.0, side[1] * (half[2] - WALL_IN)])
+        aim = middle - np.array([side[0] * half[0], 0.0, side[1] * half[2]])
+        views.append(looking(name, [eye[0], low[1] + EYE_HEIGHT, eye[2]], [aim[0], low[1] + 1.2, aim[2]], fov=75.0))
+    corner = np.array([low[0] + (high[0] - low[0]) * 0.1, high[1] + max(high - low) * 0.35,
+                       low[2] + (high[2] - low[2]) * 0.1])
+    views.append(dict(looking("cutaway", corner, [middle[0], low[1], middle[2]], fov=70.0), hide_layers=[ROOF_LAYER]))
+    return views
+
+
+def room_walk(low, high):
+    """Once round inside the room at eye height, looking across it."""
+    middle = (low + high) / 2
+    half = (high - low) / 2 * ROOM_WALK
+    frames = []
+    for number in range(WALK_FRAMES):
+        turn = 2 * math.pi * number / WALK_FRAMES
+        eye = [middle[0] + half[0] * math.sin(turn), low[1] + EYE_HEIGHT, middle[2] + half[2] * math.cos(turn)]
+        aim = [middle[0] - half[0] * math.sin(turn), low[1] + 1.2, middle[2] - half[2] * math.cos(turn)]
+        frames.append(looking(f"walk-{number:03d}", eye, aim, fov=75.0, look_only=True))
+    return frames
+
+
+def room_lights(kit):
+    """A kit room's lamps where HubKit hangs their lights: a little in front of the piece, at its kind's `high`."""
+    lights = []
+    for laid in kit["pieces"]:
+        light = kit.get("kinds", {}).get(laid["kind"], {}).get("light")
+        if light is None or "part" in laid:
+            continue
+        size = np.asarray(laid["size"], dtype=float)
+        at = (np.asarray(laid["at"], dtype=float) + np.asarray(laid["y"]) * size[1] * float(light.get("high", 0.5))
+              - np.asarray(laid["z"]) * (size[2] / 2 + 0.05))
+        lights.append({"at": [round(float(value), 3) for value in at], "radius": 0.1,
+                       "energy": round(LAMP_WATTS * float(light.get("strength", 0.1)) * float(light.get("reach", 4.0)),
+                                       1)})
+    return lights
+
+
+def render_stage(stage, views, size, folder, plain=False, lights=()):
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views, "plain": plain}, indent=1))
+    (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views, "plain": plain,
+                                                   "lights": list(lights)}, indent=1))
     blender(SCENE_VIEWS, stage, folder / "views.json", folder)
 
 
@@ -179,18 +237,23 @@ def walk_video(folder, out):
     strip.save(out / "walk-strip.jpg", quality=85)
 
 
-def scene_shots(place, stages, out, plain=False):
+def scene_shots(place, stages, out, plain=False, room=None):
     """Every stage drawn from the same fixed cameras (set from the newest stage), and the newest one walked round, in
     their materials on their ground (`plain`: in one grey, a debug view). `stages` is {label: stage.usda}, the newest
-    last. The views' names per stage, and the newest stage's import report as Blender read it."""
+    last; `room` is a kit room's layout, drawn from inside by its lamps. The views' names per stage, and the newest
+    stage's import report as Blender read it."""
     low, high = stage_extent(list(stages.values())[-1])
     newest = list(stages)[-1]
-    views = game_views(place, stages[newest]) + on_the_ground(stages[newest], fixed_views(low, high))
+    if room is not None:
+        views, walk, lights = room_views(low, high), room_walk(low, high), room_lights(room)
+    else:
+        views = game_views(place, stages[newest]) + on_the_ground(stages[newest], fixed_views(low, high))
+        walk, lights = on_the_ground(stages[newest], walk_views(low, high)), []
     for label, stage in stages.items():
-        render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain)
-    render_stage(stages[newest], on_the_ground(stages[newest], walk_views(low, high)), WALK_SIZE,
-                 out / "scene" / "walk", plain)
+        render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain, lights)
+    render_stage(stages[newest], walk, WALK_SIZE, out / "scene" / "walk", plain, lights)
     walk_video(out / "scene" / "walk", out / "scene")
     report = json.loads((out / "scene" / newest / "report.json").read_text())
-    return {"views": [view["name"] for view in views], "report": report,
+    return {"views": [view["name"] for view in views], "report": report, "room": room is not None,
+            "lamps": len(lights),
             "extent": [low.round(2).tolist(), high.round(2).tolist()]}

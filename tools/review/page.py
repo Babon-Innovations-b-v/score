@@ -210,18 +210,39 @@ def labels_facts(take):
                   ("surfaces", escaped(shares))])
 
 
+def shown_models(planned, kit_run):
+    """The models the page shows one by one: every one of an outdoor place's; a kit room's generated ones (its code
+    pieces, walls to wiring, are counted, not shown one by one)."""
+    return {model: entry for model, entry in planned["models"].items() if not kit_run or entry["route"] == "model"}
+
+
+def closeup_of(closeups, model, entry):
+    """A model's close-up: under its own name (an outdoor place's model is its row), else its kind's row."""
+    if model in closeups:
+        return closeups[model]
+    own = entry["kind"].split("_", 1)[1] if "_" in entry["kind"] else entry["kind"]
+    return next((closeups[row] for row in (own, entry["kind"]) if row in closeups), None)
+
+
 def models_section(runs, shots, out, closeups):
     newest = [run for run in runs.values() if run]
     planned = next((run["planned"] for run in reversed(newest) if run["planned"]), None)
     if planned is None:
         return section("models", "Made models", missing("no plan-route.json in any run"))
+    kit_run = any(run.get("kit") for run in newest)
     labels = list(runs)
     blocks = []
-    for model, entry in planned["models"].items():
+    if kit_run:
+        code = [model for model, entry in planned["models"].items() if entry["route"] == "code"]
+        blocks.append(f"<p>{len(code)} models of the room are code builds (walls, floor, roof, doors, pipes, cables, "
+                      f"fittings), baked in shared picture sets; the {len(planned['models']) - len(code)} generated ones "
+                      "follow, each from its close-up.</p>")
+    for model, entry in shown_models(planned, kit_run).items():
+        closeup = closeup_of(closeups, model, entry)
         take = next((run["takes"][model] for run in reversed(newest) if model in run["takes"]), None)
         route = ("code: a plain builder" if entry["route"] == "code" else "pipeline: picture, Pixal3D, labelled "
                  "parts, bake")
-        cells = [f'<div class="cell">{figure(closeups[model], "close-up")}</div>' if model in closeups else
+        cells = [f'<div class="cell">{figure(closeup, "close-up")}</div>' if closeup else
                  '<div class="cell"><p class="missing">Built in code: no close-up.</p></div>' if entry["route"] == "code"
                  else f'<div class="cell">{missing("close-up")}</div>']
         cells.append(shot_cell(shots, out, model, "parts", labels, "labelled parts, one colour per surface"))
@@ -275,9 +296,12 @@ def scene_section(scene, out):
                  .exists()]
         tiles.append(pair(paths[0], paths[-1], escaped(view)) if len(paths) > 1 else figure(paths[-1], escaped(view)))
     report = scene["report"]
-    body = ("<p>Rendered by Blender from the place's OpenUSD stage, no game engine: the place in its baked materials "
-            "on its own ground (the planned Moon ground round it, in the plan's skin, where the stage has it) under a "
-            "low sun, with a weak fill from the other side so no side is black.</p>"
+    lit = (f"inside the room in its baked materials, lit by its own {scene.get('lamps', 0)} lamps where the game hangs "
+           "their lights, from each wall across the room and from high in a corner with the roof left out"
+           if scene.get("room") else
+           "the place in its baked materials on its own ground (the planned Moon ground round it, in the plan's skin, "
+           "where the stage has it) under a low sun, with a weak fill from the other side so no side is black")
+    body = (f"<p>Rendered by Blender from the place's OpenUSD stage, no game engine: {lit}.</p>"
             + facts([("layers", escaped(" over ".join(report["layers"]))), ("objects", report["objects"]),
                       ("triangles", f"{report['triangles']:,}"), ("materials", len(report["materials"])),
                       ("extent, m", escaped(f"{scene['extent'][0]} to {scene['extent'][1]}"))])
@@ -447,13 +471,18 @@ def arguments():
 def render_all(options, runs, out):
     """The Blender pictures, or the ones a previous build left when --no-render; what they hold."""
     planned = next((run["planned"] for run in reversed(list(runs.values())) if run and run["planned"]), None)
-    names = list(planned["models"]) if planned else []
+    kit_run = any(run.get("kit") for run in runs.values() if run)
+    names = list(shown_models(planned, kit_run)) if planned else []
     stages = {label: stage for label, stage in (("before", options.before_stage), ("now", options.stage)) if stage}
     if options.no_render:
         found = json.loads((out / "renders.json").read_text())
         return found["shots"], found["scene"]
     shots = renders.model_shots(names, runs, records.surfaces(options.place), out)
-    scene = renders.scene_shots(options.place, stages, out, options.plain) if stages else None
+    layout = records.kit(options.place)
+    # A kit room with a roof (draw layer 2) is drawn from inside; a kit laid outdoors (the prologue's street) from round it.
+    room = layout if layout and any(piece.get("layer") == renders.ROOF_LAYER for piece in layout.get("pieces", [])) \
+        else None
+    scene = renders.scene_shots(options.place, stages, out, options.plain, room) if stages else None
     (out / "renders.json").write_text(json.dumps({"shots": shots, "scene": scene}, indent=1))
     return shots, scene
 

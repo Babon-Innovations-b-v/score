@@ -405,6 +405,8 @@ def laid_object(stage, path, piece, row, asset, sound, ground=None):
         xform.AddScaleOp().Set(Gf.Vec3f(float(piece.get("scale", 1.0))))
     values = {"score:kind": piece["kind"], "score:row": piece["row"], "score:model": piece["model"],
               "score:name": row.get("name", ""), "score:anchor": row.get("anchor", "")}
+    if "layer" in piece:  # a kit room's draw layer: 2 is its roof, left out of a cutaway look
+        values["score:layer"] = str(piece["layer"])
     if sound is not None:
         values.update({"score:sound": sound["impact"], "score:sound:surface": sound["surface"]})
     for name, value in values.items():
