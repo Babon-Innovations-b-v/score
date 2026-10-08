@@ -36,45 +36,31 @@ SCORE joins the two approaches: generative models make the content, while the wo
 This paper makes three contributions:
 
 - **The SCORE framework:** staged, cached generation from a creator's picks into one canonical scene with a generated base layer and the creator's edit layers (Section 2).
-- **Four mechanisms** that keep generated worlds coherent and cheap to get right: checks before spending, a parts check with one model per real-world object, shape and surface kept apart, and review tools for the creator (Section 3).
-- **Evidence across four worlds of different kinds**, with time, cost and faults caught before spending at every stage, and an evaluation on a shared benchmark (Sections 4 and 5).
+- **Four mechanisms** that keep generated worlds coherent and cheap to get right: checks before spending, a parts check with one model per real-world object, shape and surface kept apart, and review tools for the creator (Section 2).
+- **Evidence across four worlds of different kinds**, with time, cost and faults caught before spending at every stage, and an evaluation on a shared benchmark (Sections 3 and 4).
 
-# The SCORE framework
+# Methods
 
-SCORE's input is the creator's picks: references, a concept picture and a style for each place. Its output is a world an engine loads. Between them lie stages whose outputs can be inspected, cached and checked. A world is generated once, offline, in cloud batches; nothing is generated while the world is played, and one world spans the scales its story needs: the game world of 2099 holds rooms, the ground of the Moon and the ground of Mars. Scales far from those, such as galaxies or cells, make worlds of their own, each with its own solvers.
+A world in SCORE is generated once, offline, in cloud batches, from the creator's picks for each place: references, a concept picture and a style. One world spans the scales its story needs (the game world of 2099 holds rooms, the ground of the Moon and the ground of Mars); scales far from those, such as galaxies or cells, make worlds of their own with their own solvers. The output is one canonical scene, an OpenUSD stage [@openusd] with glTF geometry [@gltf2], in which every object carries its kind, place in metres, collision, the surface of each part, its sound, and tags for what a person can do with it, such as door, seat or airlock. Engines and simulators load it through thin adapters. The framework writes a generated base layer; the creator's own changes live in edit layers above it.
 
-The stages are concept, dimensioned plan, inventory, close-ups, shape, surfaces, sound, assembly and review. Each writes an explicit output: a plan in metres, an inventory row for every object with its parent, one clean picture per object, one model per object, baked surfaces, sounds. Each output is cached, so changing one pick reruns only the stages downstream of it.
+Between picks and scene, coding agents and open models work through a fixed sequence of stages: a dimensioned plan in metres, an inventory with a row for every object, one clean close-up picture per object, a shape for each object, its surfaces, its sounds, and assembly. Each stage's output is kept. The creator can therefore trace a weak result to the stage that caused it (a bad close-up, a bad 3D shape, a bad surface), rerun or hand-fix that stage alone, and regenerate everything downstream; the regeneration replaces the base layer and keeps every edit.
 
-**Retraceable stages.** Every stage's output is kept and can be inspected, so the creator can move back and forth between stages and see which one limited a result: a bad close-up, a bad 3D shape or a bad surface. That stage alone can be rerun, or fixed by hand at that stage; the stages downstream then rerun from there, and manual fixes are kept, because they live in the scene's edit layers.
-
-All stages write one canonical scene: an OpenUSD stage [@openusd] with glTF geometry [@gltf2]. Every object carries its kind, place in metres, collision, the library surface of each part, its sound, and tags for what a person can do with it, such as door, seat, terminal or airlock. The framework owns a generated base layer and may rewrite it; the creator's changes live in edit layers above it, so regenerating replaces the base and keeps every edit. Engines and simulators load the same stage through thin adapters.
-
-::: gap
-**Gap: Figure 2, the framework.** The stages with their cached outputs, the scene's base and edit layers, and the engine adapters. To be drawn with the scene export, which is being built in the framework repository.
-:::
-
-# Key mechanisms
-
-## Checks before spending
-
-A fault costs nothing in the plan, cents at a picture, tens of cents and an hour at a 3D model, and an evening of the creator's time once a place is built and played. Every paid stage is therefore gated by deterministic checks on real geometry, never by an agent's judgement, and a failure sends work back one stage, never forward with a flag. The checks cover the room (leaks, blocked openings, pieces off their surface, doors that do not separate their sides), the inventory against the concept, each model (closed, thick enough, straight), the surfaces against the palette and budget, and the assembled scene, including any visible mesh the route did not make (Appendix D).
+Every stage that costs money is preceded by deterministic checks on real geometry rather than an agent's judgement, because a fault costs nothing in the plan, cents at a picture, tens of cents and an hour at a 3D model, and an evening of the creator's time once a place is built. The plan is checked for leaks, blocked openings, pieces off their surface and doors that do not separate their two sides; the inventory against every element of the concept; each model for being closed, thick enough and straight; the surfaces against the place's palette and budget; and the assembled scene for anything floating or sinking and any visible mesh the route did not make (Appendix D). A failure sends the work back one stage.
 
 <!-- Fault cost per stage (€0.18 and 75 minutes at the model): 2099 paper writing/outline.md 9f. -->
 
-## Code or pipeline: the parts check
+The shape stage decides, per kind of object, between a code builder written by a coding agent and a generated model. Picture-to-3D models build chunky solids well and flat panels, thin beams and openings badly; code builders are exact and straight but show only the parts the agent wrote. The **parts check** settles it: a kind is built in code only when its build shows every part its close-up shows, and is otherwise generated from the close-up with Pixal3D [@li2026pixal3d] and made solid. Composites are split in the inventory, one model per real-world object, so a console is a desk carrying its monitors and keyboards rather than one fused mesh.
 
-Picture-to-3D models build chunky solids well and flat panels, thin beams and openings badly; agent-written code builders are exact, light and straight but show only the parts the agent wrote. SCORE decides per object kind with the **parts check**: a kind is built in code only when its code build shows every part its clean close-up shows; otherwise it is generated from the close-up with Pixal3D [@li2026pixal3d] and made solid. Composites are split before anything is made, one model per real-world object, so a console is a desk carrying its monitors and keyboards rather than one fused mesh.
+Shapes carry no surface of their own. Every part takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc] built on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette, with wear, dirt and seed as settings and one wear setting per room, applied from causes such as edges and foot traffic; parts of a generated model come from PartCrafter [@lin2025partcrafter], and its picture only chooses which library surface each part takes. Sound follows the same pattern: surfaces carry their footsteps and impacts, rooms their echo and objects their own sound, generated by MOSS-SoundEffect [@moss2026] and chosen against its prompt by CLAP [@wu2022clap] (Appendix F). Both libraries grow with each world and are reused in the next.
 
-## Shape and surface apart
-
-Models and code give shape only. Every part takes one surface from a shared library of ProcFunc functions [@raistrick2026procfunc] built on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette, with wear, dirt and seed as named settings. A room has one wear setting, applied from causes such as edges and foot traffic, so every piece in it agrees on what worn steel looks like. Parts of a generated model come from PartCrafter [@lin2025partcrafter]; each part takes one library surface, and the picture only chooses which. Sound is made the same way: surfaces carry their footsteps and impacts, rooms their echo, objects their own sound, generated in one batch by MOSS-SoundEffect [@moss2026] and chosen against its prompt by CLAP [@wu2022clap] (Appendix F). The surface and sound libraries grow with each world and are reused in the next.
-
-## Review tools for the creator
-
-The creator picks references, concept and style, and reviews each place; nothing else waits on a person. SCORE supplies the review tools: pages that show each stage's outputs side by side, before and after shots from the same cameras, in-engine walkthroughs, and the results of every check. How the creator forms a judgement with them is the creator's own. The creator's reviews are what steered the mechanisms above (Appendix C).
+The creator's review comes last. SCORE supplies the tools for it: pages with each stage's outputs side by side, before and after shots from the same cameras, in-engine walkthroughs, and every check's result; how the creator judges with them is the creator's own.
 
 ::: gap
-**Gap: Figure 3, one place through the stages.** One place from concept to finished world, with the output of each stage and the checks that fired on it. Waits on a place built and accepted on the final route.
+**Gap: Figure 2, the framework.** The stages with their kept outputs, the scene's base and edit layers, and the engine adapters. To be drawn with the scene export, which is being built in the framework repository.
+:::
+
+::: gap
+**Gap: Figure 3, one place through the stages.** One place from concept to finished world, with each stage's output and the checks that fired on it. Waits on a place built and accepted on the final route.
 :::
 
 # Results across worlds
@@ -136,7 +122,7 @@ Code builders are clean but need an agent to write one per kind of object, which
 
 # Development history: the hub
 
-The mechanisms of Section 3 came out of six rounds on one room, the central hub of the game 2099, on 6 and 7 October 2026, each answering the creator's verdict on the last (Table C1). The first two rounds were decided by side-by-side comparison of the old and new route on the same cameras.
+The mechanisms of Section 2 came out of six rounds on one room, the central hub of the game 2099, on 6 and 7 October 2026, each answering the creator's verdict on the last (Table C1). The first two rounds were decided by side-by-side comparison of the old and new route on the same cameras.
 
 **Table C1.** The hub's six rounds. Cost: rented GPU time (€) and picture calls ($). Frame time: mean on an RTX 5080 at night, 1600×900.
 
