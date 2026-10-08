@@ -96,6 +96,10 @@ Every place is exported as one OpenUSD stage [@openusd] in which each object car
 
 <!-- Wreck stage: tools/usd/export.py on data/kit/wreck.json; renders by tools/usd/views.py (Blender 5.0.1, headless); the edit survival is checked by tools/usd/export_test.py. -->
 
+A place's people are part of its stage. Its cast records who is there, how many, where, doing what and why each is there, and nobody is placed who is not in it. Each person becomes a skinned character (UsdSkel) that plays a clip from its own starting point, in a layer of its own between the creator's edit layer and the base. A crowd is one point instancer of a cheap body, with a prototype for each clip, phase and palette of clothes. The bodies come from the game 2099's character tools: SOMA-X bodies shaped by SAM 3D Body [@yang2026sam3dbody], clips that Kimodo wrote from sentences [@rempe2026kimodo], and clothes draped by GarmentCode. On the leader's walk, UsdSkel skins the converted body to within about a micrometre of the points the glTF file's own skinning gives. The prologue's square holds the leader on the podium, a front row of 24 people mixed from six kit builds, and a crowd of 10,000.
+
+<!-- Characters: tools/characters (skel_usd.py, cast.py), data/characters/square.json; skinning agreement measured 2026-10-08 on the leader's walking clip, frame 20 (max 0.0013 mm); checked by tools/characters/characters_test.py. -->
+
 ::: gap
 **Gap: the scene in a game engine.** The same stage loaded in a game engine, with its collision and surfaces, and the mass and friction of each object written into it. It waits on the game engine adapter and on the framework recording mass and friction.
 :::
@@ -154,6 +158,7 @@ We build four worlds with the same stages: the game world of 2099 (a Moon base a
 - Build the three further worlds: a stylised underwater world, a simulation world for robots, and a third-person fantasy world.
 - Add a game engine adapter for the OpenUSD scene, and write each object's mass and friction into it.
 - Make assets interactable, which robotics in particular needs.
+- Make the other worlds' animals the way people are made, from a picture of each to a rigged, animated character, starting with fish for the underwater world.
 - Replace the closed picture model for close-ups: an open picture model, run in our own cloud batches, is being tested for this stage.
 - Wrap open solvers as stages for worlds at other scales, starting with orbital dynamics through REBOUND [@rein2012rebound].
 - Evaluate SCORE on LEGO-Bench [@li2026lego].
@@ -245,6 +250,7 @@ Every model in the framework must allow commercial use of its output (Table E1).
 | FLUX.2 klein 4B [@flux2klein] | earlier prop pictures | Apache-2.0 |
 | MoGe-2 [@wang2025moge2], SAM 3 [@carion2025sam3] | measuring and finding objects in pictures | MIT; SAM Licence |
 | Kimodo [@rempe2026kimodo], SAM 3D Body [@yang2026sam3dbody] | motion from sentences; body shape from a picture | Apache-2.0 code, NVIDIA Open Model License; SAM Licence |
+| SOMA-X and MHR, GarmentCode with its Warp fork, MakeHuman eyes | the characters' bodies, clothes and eyes | Apache-2.0; MIT; CC0 |
 
 On our tier, Nano Banana Pro allows 250 pictures a day and 20 a minute; the cheaper Nano Banana (gemini-2.5-flash-image) allows 2,000 a day and 500 a minute. We tested whether the cheaper model could draw the close-ups instead, on the same 10 lab objects with the same prompts and inputs (Table E2). It refused the standard prompt for 6 of the 10 objects and drew those only from the crop alone, and its pictures were about one megapixel with the object small in the frame. Close-ups therefore stay on Nano Banana Pro.
 

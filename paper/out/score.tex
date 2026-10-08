@@ -425,6 +425,20 @@ cover and gave the capsule's painted hull another library surface, and
 after the base layer was generated again.}
 \end{figure}
 
+A place's people are part of its stage. Its cast records who is there,
+how many, where, doing what and why each is there, and nobody is placed
+who is not in it. Each person becomes a skinned character (UsdSkel) that
+plays a clip from its own starting point, in a layer of its own between
+the creator's edit layer and the base. A crowd is one point instancer of
+a cheap body, with a prototype for each clip, phase and palette of
+clothes. The bodies come from the game 2099's character tools: SOMA-X
+bodies shaped by SAM 3D Body {[}22{]}, clips that Kimodo wrote from
+sentences {[}23{]}, and clothes draped by GarmentCode. On the leader's
+walk, UsdSkel skins the converted body to within about a micrometre of
+the points the glTF file's own skinning gives. The prologue's square
+holds the leader on the podium, a front row of 24 people mixed from six
+kit builds, and a crowd of 10,000.
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
 \textbf{Gap: the scene in a game engine.} The same stage loaded in a
@@ -568,6 +582,10 @@ with motion from the framework's motion models. It waits on world 3.
   object's mass and friction into it.
 \item
   Make assets interactable, which robotics in particular needs.
+\item
+  Make the other worlds' animals the way people are made, from a picture
+  of each to a rigged, animated character, starting with fish for the
+  underwater world.
 \item
   Replace the closed picture model for close-ups: an open picture model,
   run in our own cloud batches, is being tested for this stage.
@@ -1015,6 +1033,8 @@ pictures & MIT; SAM Licence \\
 Kimodo {[}23{]}, SAM 3D Body {[}22{]} & motion from sentences; body
 shape from a picture & Apache-2.0 code, NVIDIA Open Model License; SAM
 Licence \\
+SOMA-X and MHR, GarmentCode with its Warp fork, MakeHuman eyes & the
+characters' bodies, clothes and eyes & Apache-2.0; MIT; CC0 \\
 \end{longtable}
 }
 
