@@ -1,6 +1,6 @@
 {
  "place": "square",
- "about": "The square below the balcony as the game draws it beyond its kit: the harbour, the far ground, the shore's skyline, the launch view (its own stage), the square's lamps, the floodlights from the towers, the stage lamp, the moonlight and the night sky. Frame: EarthSite's own.",
+ "about": "The square below the balcony as the game draws it beyond its kit: the harbour, the far ground, the launch view (its own stage), the square's lamps, the floodlights from the towers, the stage lamp, the moonlight and the night sky. Frame: EarthSite's own.",
  "ground": [
   {
    "name": "far_ground",
@@ -35,52 +35,6 @@
     "ripple_size": 0.2,
     "from": "game/art/shaders/harbour.gdshader:38-47,186-202 (MIRROR_ALONG 0.65, MIRROR_DOWN 0.2 eased by the square root of how far down the eye looks, RIPPLE_TIP 0.03, RIPPLE_SIZE 0.2; the water's own colour is sea.tres water_color, the library's harbour_water)"
    }
-  }
- ],
- "backdrop": [
-  {
-   "name": "shore_1",
-   "picture": "game/prologue/earth_site/shore/shore_1.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 148.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
-  },
-  {
-   "name": "shore_2",
-   "picture": "game/prologue/earth_site/shore/shore_2.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 208.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
-  },
-  {
-   "name": "shore_3",
-   "picture": "game/prologue/earth_site/shore/shore_3.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 268.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
-  },
-  {
-   "name": "shore_4",
-   "picture": "game/prologue/earth_site/shore/shore_4.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 328.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
   }
  ],
  "places": [
@@ -545,6 +499,7 @@
   }
  ],
  "game_only": [
+  "the far city across the harbour: the game hangs four photographs of Hong Kong round a ring at the sky's edge (earth_site.gd:327-335,959-972), which the scene leaves out, since no backdrop is a picture of a real place; the framework's own far city (tools/usd/far_city.py: its made towers laid as a wall along a far shore with mountains behind, drawn at night onto the same ring) waits for the owner's pick of its tower models",
   "the crowd's look up close: the game's people are flat-shaded and lit by the stage, the scene's are its own skinned characters",
   "the neon signs' glow",
   "the lit columns the game paints onto the water (each lit thing's streak, harbour.gdshader's lit_columns); the water mirrors what stands round it",
