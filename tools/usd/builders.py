@@ -1,11 +1,11 @@
 """Code builders for what a place's own engine code drew and no kit piece covers: room shells, stepped floors and pits,
-stairs, domes, a water surface, a far backdrop ring, a ground of planned heights. Each builder takes plain numbers (from
+stairs, domes, a water surface, a ground of planned heights. Each builder takes plain numbers (from
 the place's scene record, data/scene/<place>.json, read by tools/usd/scene.py) and gives meshes in the place's frame
 (metres, y up): {"points": (n, 3), "triangles": (m, 3), "uvs": (n, 2) in metres along the surface (a picture's 0..1 for
-a backdrop), "surface": the library surface it is painted with}. Nothing here knows an engine.
+a picture), "surface": the library surface it is painted with}. Nothing here knows an engine.
 
-A builder's faces look the way its surface is seen: a wall's inside faces into the room, a floor's up, a dome's and a
-backdrop ring's inward. Meshes are drawn double sided, so this matters only for normals.
+A builder's faces look the way its surface is seen: a wall's inside faces into the room, a floor's up, a dome's
+inward. Meshes are drawn double sided, so this matters only for normals.
 """
 import math
 
@@ -205,15 +205,6 @@ def grid(low, high, height, surface, step):
             first = row * columns + column
             triangles += [[first, first + columns, first + 1], [first + 1, first + columns, first + columns + 1]]
     return mesh(points, triangles, points[:, [0, 2]], surface)
-
-
-def backdrop_ring(radius, low, high, surface, segments=96, centre=(0.0, 0.0), start=0.0):
-    """A far panorama ring round the place, facing in, its uvs the picture's 0..1 once round (u from `start`
-    bearing clockwise), v from its foot to its top."""
-    ring = cylinder_wall(radius, low, high, surface, segments, centre, start, 360.0)
-    ring["uvs"] = np.column_stack([np.repeat(np.linspace(0.0, 1.0, segments + 1), 2),
-                                   np.tile([0.0, 1.0], segments + 1)])
-    return ring
 
 
 def heightfield(heights, low, high, surface, uv_low=(0.0, 0.0), uv_high=(1.0, 1.0)):

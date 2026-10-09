@@ -17,9 +17,6 @@ as numbers copied from the game (each entry names the game file it came from), a
     ground_decals  what the game paints on the ground (the wreck's scorch), mixed into the near ground's baked colour
                 (tools/usd/ground_detail.py, when the place's ground record carries the ground shader's detail)
     water       a flat surface of the library's water: /<place>/Water/<name>, with how much it mirrors (`mirror`)
-    backdrop    panorama rings round the place, each a picture on an arc, drawn as they are (unlit, their sky cut out):
-                /<place>/Backdrop/<name>; the picture a world's file (`picture`) or a strip of the far city the
-                framework draws itself (`render`, tools/usd/far_city.py)
     ground      a ground the game makes in code (a far disc, Mars's plain): structure entries with the ground's surface
     lights      the game's lights, UsdLux (/<place>/Lights): an omni a sphere light, a spot one shaped to its cone, the
                 sun or moon a distant light; the game's own numbers ride on each as `score:game:*`
@@ -55,7 +52,6 @@ import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
 
 import builders
-import far_city
 import glb_asset
 import ground_detail
 import rocks
@@ -433,41 +429,6 @@ def backdrop_material(stage, path, picture_file, threshold=0.5):
     shader.CreateInput("opacityThreshold", Sdf.ValueTypeNames.Float).Set(float(threshold))
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     return material
-
-
-def backdrop_picture(entry, textures):
-    """An arc's picture and where the stage keeps its copy: the framework's own render of the far city (`render`, a
-    strip far_city.py drew). Pictures of real places are never a backdrop (the owner, 2026-10-09)."""
-    source = far_city.strip_file(entry["render"])
-    return source, textures / ("backdrop_" + "_".join(pathlib.PurePosixPath(entry["render"]).with_suffix("").parts)
-                               + ".png")
-
-
-def write_backdrop(stage, place, entries, out):
-    """Panorama arcs round the place: each a part of a ring (`radius`, `low`..`high`) from bearing `from` over `span`
-    degrees, clockwise seen from above from north (-z), its picture once across it."""
-    if not entries:
-        return
-    UsdGeom.Scope.Define(stage, f"/{place}/Backdrop")
-    textures = out / "assets/textures"
-    textures.mkdir(parents=True, exist_ok=True)
-    for entry in entries:
-        source, target = backdrop_picture(entry, textures)
-        if not target.exists() or target.stat().st_mtime < source.stat().st_mtime:
-            target.write_bytes(source.read_bytes())
-        arc = builders.cylinder_wall(float(entry["radius"]), float(entry["low"]), float(entry["high"]), "backdrop",
-                                     int(entry.get("segments", 32)), tuple(entry.get("centre", (0.0, 0.0))),
-                                     float(entry["from"]), float(entry["span"]))
-        segments = int(entry.get("segments", 32))
-        across = np.repeat(np.linspace(0.0, 1.0, segments + 1), 2)
-        arc["uvs"] = np.column_stack([1.0 - across if entry.get("mirrored") else across,
-                                      np.tile([0.0, 1.0], segments + 1)])
-        prim = mesh_prim(stage, f"/{place}/Backdrop/{entry['name']}", arc)
-        material = backdrop_material(stage, f"/{place}/Backdrop/{entry['name']}_look",
-                                     f"../assets/textures/{target.name}")
-        UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
-        for key, value in (("score:kind", "backdrop"), ("score:from", entry.get("from_file", ""))):
-            prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
 
 
 def moved_pieces(pieces, moves):
@@ -959,7 +920,6 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
     write_structure(stage, place, scene.get("water", []), root="Water", kind="water")
     write_objects(stage, place, scene.get("objects", []), out, world)
     write_rocks(stage, place, scene.get("planned_rocks"), out, world, ground)
-    write_backdrop(stage, place, scene.get("backdrop", []), out)
     write_places(stage, place, scene.get("places", []))
     write_moon(stage, place, scene.get("moon"), out)
     lights = (kit_lights(kit, pieces) if kit is not None and scene.get("kit_lights", True) else []) + \
