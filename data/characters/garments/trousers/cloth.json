@@ -1,0 +1,40 @@
+{
+ "note": "How the trousers drapes in Blender's cloth: the work suit's settings (its cloth), checked on Nev's body at a 1.5 cm spacing on 2026-10-09 by the drape agent; resolution_scale as the prologue's kept Warp drapes used it (look/leader/trousers_drape/sim_props.yaml). Worn alone the trousers hangs on the body by itself: no waist hold was needed for the trousers.",
+ "resolution_scale": 1.0,
+ "blender": {
+  "quality": 10,
+  "mass": 0.03,
+  "air_damping": 1.0,
+  "tension": 15.0,
+  "compression": 15.0,
+  "shear": 5.0,
+  "bending": 10.0,
+  "collision_quality": 4,
+  "body_distance": 0.004,
+  "body_friction": 1.0,
+  "self_collision": true,
+  "self_distance": 0.002,
+  "sewing_forces": [
+   20,
+   15,
+   10,
+   30
+  ],
+  "sag_limit": 0.06,
+  "lift": {
+   "torso": 0.1,
+   "collar": 0.1,
+   "wb": 0.1,
+   "pant": 0.1
+  },
+  "mass_spacing": 3.0,
+  "settled_sag_limit": 0.1
+ },
+ "frames": {
+  "sew": 30,
+  "gravity_ramp": 10,
+  "settle": 120,
+  "fine_settle": 40
+ },
+ "coarse_resolution": 3.0
+}
