@@ -193,7 +193,7 @@ def written_models(layout, objects):
 def kit_instance(laid, box, room):
     """One kit piece as scene.json has it: its object, kind, own name (its row), frame and what it is to the game."""
     matrix, stretch = kit_matrix(laid, *box)
-    found = {"object": laid["model"], "kind": laid["kind"], "row": laid["kind"].removeprefix(f"{room}_"),
+    found = {"object": laid["model"], "kind": laid["kind"], "row": laid.get("row", laid["kind"].removeprefix(f"{room}_")),
              "at": [round(float(value), 4) for value in laid["at"]], "size": laid["size"],
              "stretch": [round(float(value), 4) for value in stretch],
              "matrix": [round(float(value), 6) + 0.0 for value in matrix.T.reshape(-1)]}

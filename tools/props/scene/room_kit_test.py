@@ -75,10 +75,11 @@ def test_every_placed_row_is_laid_as_often_as_its_spots():
     for room, inventory in INVENTORIES.items():
         counts = {}
         for laid in LAID[room]:
-            counts[laid["kind"]] = counts.get(laid["kind"], 0) + 1
+            row = laid.get("row", laid["kind"])  # a row laid as another row's kind names its own row
+            counts[row] = counts.get(row, 0) + 1
         for row in inventory["rows"]:
             if row.get("made") == "kit piece" and row.get("at"):
-                laid = counts.get(f"{room}_{row['id']}", 0)
+                laid = counts.get(row["id"], counts.get(f"{room}_{row['id']}", 0))
                 assert laid >= len(row["at"]) if row["id"] in room_kit.PIPE_RUN else laid == len(row["at"]), \
                     (room, row["id"])
 
@@ -125,6 +126,17 @@ def test_every_roof_row_meets_the_roof_plate_it_hangs_from():
                 ((index, laid, surface.plate_faults(laid, surface.shell.roof_plates(layout)))
                  for index, laid in enumerate(LAID[room]) if "ceiling_" in laid["kind"]) if problems]
         assert not hung, (room, hung)
+
+def test_a_row_laid_as_another_row_s_object_keeps_its_own_row_and_model():
+    """A row an audit found later, laid as another row's kind (`object`) with a made model (`model`): the airlock's hose
+    unit, the hangar's hose reel laid again."""
+    row = {"id": "hose_unit", "made": "kit piece", "object": "hose_reel", "model": "hose_unit_1",
+           "size": [0.91, 0.68, 1.09], "at": [{"x": -1.46, "y": 0.0, "z": -1.4, "facing": 90}]}
+    laid = room_kit.placed_rows("airlock", {}, {"hose_unit": row}, {"rows": [row]})
+    assert len(laid) == 1
+    assert laid[0]["kind"] == "airlock_hose_reel" and laid[0]["row"] == "hose_unit" and laid[0]["model"] == "hose_unit_1"
+    assert laid[0]["size"] == [0.91, 1.09, 0.68] and np.allclose(laid[0]["z"], [-1.0, 0.0, 0.0])
+
 
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
