@@ -1,0 +1,13 @@
+{
+	"about": "The far city's tower kinds (tools/usd/far_city.py): each a made model of a far_city row of the launch inventory (data/inventory/launch.json, boxed on the coordinator's concepts K01 and K04), the heights the layout deals it in metres, and where in the city it stands: `office` in the business districts, `residential` everywhere else, `front` along the waterfront.",
+	"kinds": [
+		{"row": "far_city_glass_tower", "use": "office", "heights": [200, 300]},
+		{"row": "far_city_crown_tower", "use": "office", "heights": [130, 200]},
+		{"row": "far_city_spire_tower", "use": "office", "heights": [150, 240]},
+		{"row": "far_city_housing_tower", "use": "residential", "heights": [90, 140]},
+		{"row": "far_city_residential_tower", "use": "residential", "heights": [80, 130]},
+		{"row": "far_city_pencil_tower", "use": "residential", "heights": [90, 140]},
+		{"row": "far_city_housing_slab", "use": "residential", "heights": [50, 80]},
+		{"row": "far_city_low_block", "use": "front", "heights": [25, 45]}
+	]
+}

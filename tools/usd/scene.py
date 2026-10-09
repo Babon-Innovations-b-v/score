@@ -18,7 +18,8 @@ as numbers copied from the game (each entry names the game file it came from), a
                 (tools/usd/ground_detail.py, when the place's ground record carries the ground shader's detail)
     water       a flat surface of the library's water: /<place>/Water/<name>, with how much it mirrors (`mirror`)
     backdrop    panorama rings round the place, each a picture on an arc, drawn as they are (unlit, their sky cut out):
-                /<place>/Backdrop/<name>
+                /<place>/Backdrop/<name>; the picture a world's file (`picture`) or a strip of the far city the
+                framework draws itself (`render`, tools/usd/far_city.py)
     ground      a ground the game makes in code (a far disc, Mars's plain): structure entries with the ground's surface
     lights      the game's lights, UsdLux (/<place>/Lights): an omni a sphere light, a spot one shaped to its cone, the
                 sun or moon a distant light; the game's own numbers ride on each as `score:game:*`
@@ -53,6 +54,7 @@ import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
 
 import builders
+import far_city
 import glb_asset
 import ground_detail
 import rocks
@@ -314,6 +316,17 @@ def backdrop_material(stage, path, picture_file, threshold=0.5):
     return material
 
 
+def backdrop_picture(entry, world, textures):
+    """An arc's picture and where the stage keeps its copy: the framework's own render of the far city (`render`, a
+    strip far_city.py drew), else a file of the world's (`picture`)."""
+    if "render" in entry:
+        source = far_city.strip_file(entry["render"])
+        return source, textures / ("backdrop_" + "_".join(pathlib.PurePosixPath(entry["render"]).with_suffix("").parts)
+                                   + ".png")
+    source = world_file(world, entry["picture"])
+    return source, textures / f"backdrop_{source.stem}.png"
+
+
 def write_backdrop(stage, place, entries, out, world):
     """Panorama arcs round the place: each a part of a ring (`radius`, `low`..`high`) from bearing `from` over `span`
     degrees, clockwise seen from above from north (-z), its picture once across it."""
@@ -323,8 +336,7 @@ def write_backdrop(stage, place, entries, out, world):
     textures = out / "assets/textures"
     textures.mkdir(parents=True, exist_ok=True)
     for entry in entries:
-        source = world_file(world, entry["picture"])
-        target = textures / f"backdrop_{source.stem}.png"
+        source, target = backdrop_picture(entry, world, textures)
         if not target.exists() or target.stat().st_mtime < source.stat().st_mtime:
             target.write_bytes(source.read_bytes())
         arc = builders.cylinder_wall(float(entry["radius"]), float(entry["low"]), float(entry["high"]), "backdrop",
