@@ -32,10 +32,10 @@
 			"id": "dome_wall_panel",
 			"view": "v1",
 			"box": [
-				1344,
-				1054,
-				1672,
-				1343
+				1140,
+				1074,
+				1297,
+				1451
 			],
 			"name": "quilted fabric wall panel between ribs, skirting and top band",
 			"kind": "code",
@@ -50,14 +50,7 @@
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
 			"box_from": [
-				"v1.68",
-				"v1.323",
-				"v1.339",
-				"v1.346",
-				"v1.351",
-				"v1.358",
-				"v1.w2",
-				"v1.w5"
+				"v1.65"
 			]
 		},
 		{
@@ -782,10 +775,10 @@
 			"id": "floor_cable",
 			"view": "v1",
 			"box": [
-				1570,
-				771,
-				1699,
-				1140
+				1343,
+				962,
+				1472,
+				1079
 			],
 			"name": "power cables run loose over the deck with a plug block",
 			"kind": "code",
@@ -800,11 +793,8 @@
 			"made": "kit piece",
 			"why_code": "the camp's concept step (mars-build 2026-10-07): door dome K01, far dome K08",
 			"box_from": [
-				"v1.38",
-				"v1.258",
-				"v1.337",
-				"v1.340",
-				"v1.373"
+				"v1.281",
+				"v1.346"
 			]
 		},
 		{
@@ -1074,10 +1064,10 @@
 			"id": "toaster",
 			"view": "v1",
 			"box": [
-				2137,
-				703,
-				2190,
-				749
+				2141,
+				672,
+				2219,
+				719
 			],
 			"name": "a stainless two-slot toaster on the galley worktop",
 			"kind": "generate",
@@ -1093,7 +1083,7 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"from": "tools/props/scene/camp_kit.py on_the_galley (GALLEY_TOP, GALLEY_THINGS): on the galley's worktop (its made model's top at 0.95 m) beside the coffee maker, toward the back; laid after the run when its model is made (route.py late-lay)",
 			"box_from": [
-				"v1.240"
+				"v1.228"
 			]
 		},
 		{
@@ -1152,9 +1142,9 @@
 			"id": "canister",
 			"view": "v2",
 			"box": [
-				2395,
-				656,
-				2491,
+				2286,
+				821,
+				2366,
 				864
 			],
 			"name": "a small lidded steel drum on the floor",
@@ -1172,17 +1162,17 @@
 			"why_take": "the lab's steel sample jar with its lid, laid at a drum's size (the owner: reuse a model before making a new one)",
 			"from": "tools/props/scene/camp_kit.py canister (CANISTER): on the far dome's floor at 255 degrees and 3.8 m from its middle, between the growth chamber and the way through, where the concept shows a lidded drum right of the chamber; the lab's sample jar model scaled evenly to a drum's height; laid after the run (route.py late-lay)",
 			"box_from": [
-				"v2.91"
+				"v2.248"
 			]
 		},
 		{
 			"id": "sample_jar",
 			"view": "v2",
 			"box": [
-				1737,
-				1147,
-				1795,
-				1214
+				1714,
+				1180,
+				1776,
+				1259
 			],
 			"name": "steel sample jars on the sample shelf",
 			"kind": "generate",
@@ -1199,18 +1189,19 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"from": "tools/props/scene/camp_kit.py by_the_sample_shelf (SHELF_THINGS): two on the sample shelf's 0.63 m board and two on its 1.59 m board (the boards the game's cases leave free), as the concept shows jars on the shelf; laid after the run (route.py late-lay)",
 			"box_from": [
-				"v2.341",
-				"v2.477"
+				"v2.347",
+				"v2.477",
+				"v2.482"
 			]
 		},
 		{
 			"id": "sample_tray",
 			"view": "v2",
 			"box": [
-				1889,
-				1087,
-				2025,
-				1181
+				1843,
+				1104,
+				1992,
+				1212
 			],
 			"name": "shallow trays of rock samples on the sample shelf",
 			"kind": "generate",
@@ -1227,7 +1218,7 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"from": "tools/props/scene/camp_kit.py by_the_sample_shelf (SHELF_THINGS): on the sample shelf's 0.63 m board beside the jars; laid after the run (route.py late-lay)",
 			"box_from": [
-				"v2.216",
+				"v2.299",
 				"v2.328",
 				"v2.430",
 				"v2.478"
@@ -1237,10 +1228,10 @@
 			"id": "sample_case",
 			"view": "v2",
 			"box": [
-				1672,
-				1132,
-				1734,
-				1214
+				1979,
+				1067,
+				2076,
+				1160
 			],
 			"name": "small hard sample cases on the sample shelf",
 			"kind": "generate",
@@ -1257,7 +1248,8 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"from": "tools/props/scene/camp_kit.py by_the_sample_shelf (SHELF_THINGS): on the sample shelf's top board (1.59 m), as the concept shows two small cases on the shelf's top; laid after the run (route.py late-lay)",
 			"box_from": [
-				"v2.274"
+				"v2.189",
+				"v2.425"
 			]
 		},
 		{

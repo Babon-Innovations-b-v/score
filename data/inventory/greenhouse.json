@@ -558,10 +558,10 @@
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				841,
-				539,
-				970,
-				596
+				902,
+				360,
+				928,
+				407
 			],
 			"name": "hatch control box with lit buttons",
 			"kind": "code",
@@ -598,7 +598,7 @@
 				}
 			],
 			"box_from": [
-				"v1.223"
+				"v1.565"
 			]
 		},
 		{
@@ -884,12 +884,7 @@
 		{
 			"id": "pipe_valve",
 			"view": "v1",
-			"box": [
-				288,
-				555,
-				355,
-				730
-			],
+			"box": null,
 			"name": "valve on a pipe with a red hand wheel",
 			"kind": "code",
 			"anchor": "wall",
@@ -925,11 +920,7 @@
 				}
 			],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.129",
-				"v1.301",
-				"v1.722"
-			]
+			"unseen": "no red hand wheel can be made out on the pipes in the concept"
 		},
 		{
 			"id": "pipe_bracket",
@@ -955,12 +946,7 @@
 		{
 			"id": "conduit_box",
 			"view": "v1",
-			"box": [
-				2057,
-				301,
-				2160,
-				359
-			],
+			"box": null,
 			"name": "small grey conduit junction box",
 			"kind": "code",
 			"anchor": "wall",
@@ -991,19 +977,12 @@
 				}
 			],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.289"
-			]
+			"unseen": "no grey junction box can be told apart among the cable clamps in the concept"
 		},
 		{
 			"id": "small_readout",
 			"view": "v1",
-			"box": [
-				2162,
-				15,
-				2752,
-				768
-			],
+			"box": null,
 			"name": "small wall readout of the room's air and water",
 			"kind": "code",
 			"anchor": "wall",
@@ -1028,9 +1007,7 @@
 					"bottom": 0.8
 				}
 			],
-			"box_from": [
-				"v1.4"
-			]
+			"unseen": "no small readout can be told apart from the console's screens (wall_screen_cluster)"
 		},
 		{
 			"id": "notice_board",
@@ -1093,12 +1070,7 @@
 		{
 			"id": "tread_mat",
 			"view": "v1",
-			"box": [
-				727,
-				297,
-				897,
-				560
-			],
+			"box": null,
 			"name": "grated dust mat before a hatch",
 			"kind": "code",
 			"anchor": "floor",
@@ -1120,9 +1092,7 @@
 			],
 			"lies": "floor",
 			"repeats": "across the room",
-			"box_from": [
-				"v1.w15"
-			]
+			"unseen": "no mat can be told apart before the hatch in the concept"
 		},
 		{
 			"id": "grow_light_bar",
@@ -1879,12 +1849,7 @@
 		{
 			"id": "dock_pad_one",
 			"view": "v1",
-			"box": [
-				1394,
-				1185,
-				1472,
-				1338
-			],
+			"box": null,
 			"name": "robot dock pad, bay one's stripe",
 			"kind": "code",
 			"anchor": "floor",
@@ -1899,19 +1864,12 @@
 			"group": "kit: floor",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.140"
-			]
+			"unseen": "the robots stand on their bay floor; no dock pads can be told apart under them"
 		},
 		{
 			"id": "dock_pad_two",
 			"view": "v1",
-			"box": [
-				1542,
-				1186,
-				1666,
-				1277
-			],
+			"box": null,
 			"name": "robot dock pad, bay two's stripe",
 			"kind": "code",
 			"anchor": "floor",
@@ -1926,19 +1884,12 @@
 			"group": "kit: floor",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.195"
-			]
+			"unseen": "the robots stand on their bay floor; no dock pads can be told apart under them"
 		},
 		{
 			"id": "dock_pad_three",
 			"view": "v1",
-			"box": [
-				1644,
-				1135,
-				1761,
-				1219
-			],
+			"box": null,
 			"name": "robot dock pad, bay three's stripe",
 			"kind": "code",
 			"anchor": "floor",
@@ -1953,19 +1904,12 @@
 			"group": "kit: floor",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.206"
-			]
+			"unseen": "the robots stand on their bay floor; no dock pads can be told apart under them"
 		},
 		{
 			"id": "charge_post",
 			"view": "v1",
-			"box": [
-				1394,
-				1070,
-				1761,
-				1338
-			],
+			"box": null,
 			"name": "robot charging post with its charge bar's window",
 			"kind": "code",
 			"anchor": "floor",
@@ -1979,22 +1923,7 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"at": [],
-			"box_from": [
-				"v1.140",
-				"v1.195",
-				"v1.206",
-				"v1.52",
-				"v1.67",
-				"v1.110",
-				"v1.111",
-				"v1.124",
-				"v1.304",
-				"v1.426",
-				"v1.575",
-				"v1.597",
-				"v1.689",
-				"v1.w21"
-			]
+			"unseen": "no charging post can be made out at the robot bays"
 		},
 		{
 			"id": "seed_bin",
@@ -2084,10 +2013,10 @@
 			"id": "wall_screen_cluster",
 			"view": "v1",
 			"box": [
-				2085,
-				471,
+				2095,
+				408,
 				2160,
-				529
+				470
 			],
 			"name": "cluster of small screens on a bracket over the desk",
 			"kind": "code",
@@ -2109,8 +2038,7 @@
 				}
 			],
 			"box_from": [
-				"v1.529",
-				"v1.581"
+				"v1.290"
 			]
 		},
 		{
@@ -2327,12 +2255,7 @@
 		{
 			"id": "waste_bin",
 			"view": "v1",
-			"box": [
-				2131,
-				584,
-				2341,
-				744
-			],
+			"box": null,
 			"name": "waste bin by the desk",
 			"kind": "code",
 			"anchor": "floor",
@@ -2353,19 +2276,12 @@
 					"facing": 270
 				}
 			],
-			"box_from": [
-				"v1.w54"
-			]
+			"unseen": "no waste bin can be made out by the desk in the concept"
 		},
 		{
 			"id": "floor_grating",
 			"view": "v1",
-			"box": [
-				791,
-				607,
-				1101,
-				706
-			],
+			"box": null,
 			"name": "floor grating over the drain duct",
 			"kind": "code",
 			"anchor": "floor",
@@ -2392,29 +2308,12 @@
 			],
 			"lies": "floor",
 			"repeats": "across the room",
-			"box_from": [
-				"v1.326",
-				"v1.343",
-				"v1.436",
-				"v1.453",
-				"v1.468",
-				"v1.490",
-				"v1.492",
-				"v1.495",
-				"v1.508",
-				"v1.595",
-				"v1.716"
-			]
+			"unseen": "no grating can be told apart from the deck plates in the concept"
 		},
 		{
 			"id": "under_floor_box",
 			"view": "v1",
-			"box": [
-				791,
-				607,
-				1101,
-				706
-			],
+			"box": null,
 			"name": "duct box under a floor grating",
 			"kind": "code",
 			"anchor": "floor",
@@ -2430,28 +2329,16 @@
 			"at": [],
 			"why": "laid by room_kit.py under every set-in grating",
 			"repeats": "across the room",
-			"box_from": [
-				"v1.326",
-				"v1.343",
-				"v1.436",
-				"v1.453",
-				"v1.468",
-				"v1.490",
-				"v1.492",
-				"v1.495",
-				"v1.508",
-				"v1.595",
-				"v1.716"
-			]
+			"unseen": "it lies under the floor grating, out of sight"
 		},
 		{
 			"id": "keyboard",
 			"view": "v1",
 			"box": [
-				1778,
-				494,
-				1860,
-				547
+				1828,
+				469,
+				1878,
+				495
 			],
 			"name": "keyboard on the console's desk",
 			"kind": "code",
@@ -2468,7 +2355,7 @@
 			"at": [],
 			"parent": "control_console",
 			"box_from": [
-				"v1.606"
+				"v1.601"
 			]
 		},
 		{

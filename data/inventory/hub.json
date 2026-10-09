@@ -137,8 +137,8 @@
 			"view": "v3",
 			"box": [
 				883,
-				337,
-				1206,
+				336,
+				1218,
 				634
 			],
 			"name": "lab bench with a glovebox and a microscope on it",
@@ -170,22 +170,25 @@
 			"made": "made by the route",
 			"why_code": "2026-10-06, after the owner's in-game test: the old labbench (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
 			"box_from": [
+				"v3.120",
 				"v3.146",
 				"v3.204",
-				"v3.154",
-				"v3.205",
 				"v3.33",
 				"v3.42",
+				"v3.49",
+				"v3.62",
 				"v3.63",
 				"v3.74",
 				"v3.142",
 				"v3.147",
 				"v3.151",
+				"v3.154",
 				"v3.169",
 				"v3.171",
 				"v3.176",
 				"v3.177",
 				"v3.181",
+				"v3.205",
 				"v3.209",
 				"v3.210",
 				"v3.230",
@@ -413,17 +416,19 @@
 			"made": "made by the route",
 			"why_code": "2026-10-06, after the owner's in-game test: the old toolboard (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
 			"box_from": [
-				"v1.125",
-				"v1.205",
-				"v1.219",
-				"v1.177",
+				"v1.208",
+				"v1.188",
 				"v1.w16",
+				"v1.205",
+				"v1.196",
+				"v1.210",
 				"v1.18",
 				"v1.48",
 				"v1.61",
 				"v1.83",
 				"v1.111",
 				"v1.115",
+				"v1.125",
 				"v1.137",
 				"v1.139",
 				"v1.151",
@@ -435,14 +440,13 @@
 				"v1.166",
 				"v1.172",
 				"v1.175",
+				"v1.177",
 				"v1.182",
 				"v1.183",
 				"v1.187",
-				"v1.188",
 				"v1.190",
 				"v1.191",
 				"v1.194",
-				"v1.196",
 				"v1.198",
 				"v1.199",
 				"v1.201",
@@ -451,9 +455,7 @@
 				"v1.204",
 				"v1.206",
 				"v1.207",
-				"v1.208",
 				"v1.209",
-				"v1.210",
 				"v1.211",
 				"v1.212",
 				"v1.213",
@@ -462,6 +464,7 @@
 				"v1.216",
 				"v1.217",
 				"v1.218",
+				"v1.219",
 				"v1.220",
 				"v1.w1",
 				"v1.w2"
@@ -705,12 +708,7 @@
 		{
 			"id": "wall_corner_post",
 			"view": "v2",
-			"box": [
-				595,
-				506,
-				675,
-				632
-			],
+			"box": null,
 			"name": "a square steel corner post with bolts, where two wall panels meet",
 			"kind": "generate",
 			"anchor": "wall",
@@ -724,9 +722,7 @@
 			"group": "kit: wall",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"box_from": [
-				"v2.66"
-			]
+			"unseen": "the wall seams behind the railing cannot be told apart as posts in the Marble views"
 		},
 		{
 			"id": "wall_cornice",
@@ -770,10 +766,10 @@
 			"id": "hatch_wall_surround",
 			"view": "v1",
 			"box": [
-				709,
-				340,
-				853,
-				430
+				364,
+				235,
+				683,
+				622
 			],
 			"name": "a wall panel around a door opening, heavier plating with bolted edges",
 			"kind": "generate",
@@ -789,9 +785,17 @@
 			"made": "kit piece",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.116",
-				"v1.127",
-				"v1.147"
+				"v1.3",
+				"v1.102",
+				"v1.104",
+				"v1.135",
+				"v1.142",
+				"v1.173",
+				"v1.181",
+				"v1.184",
+				"v1.w5",
+				"v1.w10",
+				"v1.w11"
 			]
 		},
 		{
@@ -850,10 +854,10 @@
 			"id": "lattice_ring_rib",
 			"view": "v3",
 			"box": [
-				825,
-				139,
-				1005,
-				224
+				26,
+				153,
+				896,
+				248
 			],
 			"name": "a short straight steel ring beam of the roof lattice",
 			"kind": "generate",
@@ -869,7 +873,7 @@
 			"made": "kit piece",
 			"repeats": "across the room",
 			"box_from": [
-				"v3.97"
+				"v3.21"
 			]
 		},
 		{
@@ -965,12 +969,7 @@
 		{
 			"id": "ceiling_duct",
 			"view": "v5",
-			"box": [
-				330,
-				68,
-				574,
-				138
-			],
+			"box": null,
 			"name": "a rectangular air duct with flanged joints hung under the roof",
 			"kind": "generate",
 			"anchor": "ceiling",
@@ -985,19 +984,12 @@
 			"made": "kit piece",
 			"sound": "vent_air",
 			"repeats": "across the room",
-			"box_from": [
-				"v5.58"
-			]
+			"unseen": "no rectangular duct shows under the roof in the Marble views; the runs there are round pipes"
 		},
 		{
 			"id": "roof_light_fixture",
 			"view": "v2",
-			"box": [
-				472,
-				60,
-				494,
-				93
-			],
+			"box": null,
 			"name": "a caged industrial ceiling flood lamp fixture hung from the lattice",
 			"kind": "generate",
 			"anchor": "wall",
@@ -1011,19 +1003,12 @@
 			"group": "kit: light",
 			"made": "kit piece",
 			"sound": "lamp_buzz",
-			"box_from": [
-				"v2.183"
-			]
+			"unseen": "no caged flood lamp can be made out on the roof lattice in the Marble views; the lights are strip lamps on the walls"
 		},
 		{
 			"id": "ring_floor_plate",
 			"view": "v1",
-			"box": [
-				704,
-				644,
-				964,
-				675
-			],
+			"box": null,
 			"name": "a trapezoid steel deck plate of the floor around the pit, diamond tread, worn",
 			"kind": "generate",
 			"anchor": "floor",
@@ -1037,9 +1022,7 @@
 			"group": "kit: floor",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"box_from": [
-				"v1.45"
-			]
+			"unseen": "SAM gives no proposal for a single deck plate apart from the railing and the floor in the blurry Marble views"
 		},
 		{
 			"id": "floor_grating",
@@ -1172,12 +1155,7 @@
 		{
 			"id": "pit_floor_plate",
 			"view": "v3",
-			"box": [
-				204,
-				835,
-				896,
-				900
-			],
+			"box": null,
 			"name": "a square steel floor plate of the sunken pit, worn tread",
 			"kind": "generate",
 			"anchor": "floor",
@@ -1190,9 +1168,7 @@
 			"thing": "prop:hub_pit_floor_plate",
 			"group": "kit: pit",
 			"made": "kit piece",
-			"box_from": [
-				"v3.10"
-			]
+			"unseen": "the sunken pit's floor lies below its rim in every Marble view"
 		},
 		{
 			"id": "stair_stringer",
@@ -1240,12 +1216,7 @@
 		{
 			"id": "pit_junction_box",
 			"view": "v2",
-			"box": [
-				316,
-				728,
-				1001,
-				900
-			],
+			"box": null,
 			"name": "a steel junction box with a hinged lid on the pit's wall",
 			"kind": "generate",
 			"anchor": "floor",
@@ -1259,26 +1230,7 @@
 			"group": "kit: pit",
 			"made": "kit piece",
 			"sound": "junction_hum",
-			"box_from": [
-				"v2.59",
-				"v2.61",
-				"v2.62",
-				"v2.64",
-				"v2.67",
-				"v2.88",
-				"v2.97",
-				"v2.117",
-				"v2.130",
-				"v2.136",
-				"v2.139",
-				"v2.144",
-				"v2.145",
-				"v2.159",
-				"v2.164",
-				"v2.175",
-				"v2.179",
-				"v2.180"
-			]
+			"unseen": "no junction box can be made out on the pit's wall in the Marble views"
 		},
 		{
 			"id": "machine_bay_plate",
@@ -1392,10 +1344,10 @@
 			],
 			"box_from": [
 				"v1.w9",
+				"v1.75",
 				"v1.116",
 				"v1.127",
-				"v1.147",
-				"v1.75"
+				"v1.147"
 			]
 		},
 		{
@@ -1532,10 +1484,10 @@
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				997,
-				217,
-				1032,
-				275
+				1002,
+				301,
+				1044,
+				347
 			],
 			"name": "a steel door control box with a keypad, a status light and a label",
 			"kind": "generate",
@@ -1597,7 +1549,7 @@
 				}
 			],
 			"box_from": [
-				"v1.114"
+				"v1.118"
 			]
 		},
 		{
@@ -2104,12 +2056,7 @@
 		{
 			"id": "radio",
 			"view": "v5",
-			"box": [
-				1300,
-				402,
-				1344,
-				440
-			],
+			"box": null,
 			"name": "field radio set with its handset on the side",
 			"kind": "code",
 			"anchor": "on:comms",
@@ -2123,9 +2070,7 @@
 			"parent": "comms",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"box_from": [
-				"v5.111"
-			]
+			"unseen": "too small to make out on the comms desk in the Marble view"
 		},
 		{
 			"id": "telephone",
@@ -2190,7 +2135,7 @@
 			"box": [
 				970,
 				512,
-				1284,
+				1315,
 				812
 			],
 			"name": "console monitor on its stand",
@@ -2217,6 +2162,7 @@
 				"v4.146",
 				"v4.149",
 				"v4.10",
+				"v4.104",
 				"v4.202",
 				"v4.215",
 				"v4.258",
@@ -2252,12 +2198,7 @@
 		{
 			"id": "glovebox",
 			"view": "v3",
-			"box": [
-				941,
-				446,
-				1015,
-				507
-			],
+			"box": null,
 			"name": "glovebox with a sloped window and two glove ports",
 			"kind": "code",
 			"anchor": "on:labbench",
@@ -2271,10 +2212,7 @@
 			"parent": "labbench",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"box_from": [
-				"v3.154",
-				"v3.205"
-			]
+			"unseen": "the lab bench's glovebox cannot be told apart in the Marble view"
 		},
 		{
 			"id": "microscope",
@@ -2299,10 +2237,10 @@
 			"id": "wrench",
 			"view": "v1",
 			"box": [
-				1089,
-				341,
-				1131,
-				383
+				1110,
+				346,
+				1116,
+				374
 			],
 			"name": "open-end wrench",
 			"kind": "generate",
@@ -2318,17 +2256,17 @@
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
-				"v1.125"
+				"v1.208"
 			]
 		},
 		{
 			"id": "hammer",
 			"view": "v1",
 			"box": [
-				1089,
+				1245,
 				341,
-				1131,
-				383
+				1274,
+				387
 			],
 			"name": "claw hammer",
 			"kind": "generate",
@@ -2344,17 +2282,18 @@
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
-				"v1.125"
+				"v1.188",
+				"v1.w16"
 			]
 		},
 		{
 			"id": "pump_pliers",
 			"view": "v1",
 			"box": [
-				1219,
-				368,
-				1245,
-				386
+				1144,
+				343,
+				1155,
+				372
 			],
 			"name": "water pump pliers",
 			"kind": "generate",
@@ -2370,7 +2309,7 @@
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
-				"v1.177"
+				"v1.196"
 			]
 		},
 		{
@@ -2380,7 +2319,7 @@
 				1160,
 				346,
 				1169,
-				379
+				370
 			],
 			"name": "combination pliers",
 			"kind": "generate",
@@ -2396,18 +2335,17 @@
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
-				"v1.205",
-				"v1.219"
+				"v1.205"
 			]
 		},
 		{
 			"id": "screwdriver",
 			"view": "v1",
 			"box": [
-				1245,
-				341,
-				1273,
-				387
+				1239,
+				410,
+				1246,
+				426
 			],
 			"name": "flat screwdriver",
 			"kind": "code",
@@ -2423,7 +2361,7 @@
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
-				"v1.w16"
+				"v1.210"
 			]
 		}
 	]
