@@ -33,6 +33,7 @@ sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
 import characters  # noqa: E402
 import records  # noqa: E402
 import renders  # noqa: E402
+import placeholders  # noqa: E402  (tools/usd, on the path renders puts it)
 import resting  # noqa: E402  (tools/usd, on the path renders puts it)
 import scene as scene_record  # noqa: E402  (tools/usd)
 from model import SPREAD_LIMIT, THINNEST_LIMIT  # noqa: E402
@@ -585,6 +586,23 @@ def resting_block(stages):
             + table(["stage", "object", "gap, cm", "depth, cm", "result", "caught"], rows, "Every object rests."))
 
 
+def placeholder_block(stages):
+    """The placeholder check (tools/usd/placeholders.py) on every stage ({label: its faults}): each visible thing that
+    stands in for a made piece, and the rule it breaks."""
+    if not stages:
+        return missing("no OpenUSD stage given")
+    counts = [f"{escaped(label)}: {'no placeholder' if not faults else f'{len(faults)} placeholders'}"
+              for label, faults in stages.items()]
+    rows = [f"<tr><td>{escaped(label)}</td><td>{escaped(fault['prim'])}</td><td>{escaped(fault['rule'])}</td>"
+            f"<td>{verdict(False)}</td><td>{escaped(fault['why'])}</td></tr>"
+            for label, faults in stages.items() for fault in faults]
+    return (f"<p>Everything visible on the stage is a made piece, the game's own model placed or a plain plate, pipe "
+            f"or trim (tools/usd/placeholders.py): a box, quad, disc, lathe, sphere or torus of the scene record that "
+            f"does not say which plain thing it is, a kit piece built in code that the sorter sends to the prop "
+            f"pipeline, a mesh with no material or in the default grey, and a proxy each fail. {'; '.join(counts)}."
+            f"</p>" + table(["stage", "prim", "rule", "result", "caught"], rows, "Nothing stands in for a made piece."))
+
+
 def table(head, rows, empty):
     if not rows:
         return f"<p>{empty}</p>"
@@ -592,7 +610,7 @@ def table(head, rows, empty):
             f'<tbody>{"".join(rows)}</tbody></table></div>')
 
 
-def checks_section(runs, agreement, rests):
+def checks_section(runs, agreement, rests, stand_ins):
     gates = [row for label, run in runs.items() if run and run["checks"] for row in gate_rows(label, run["checks"])]
     sweeps = [row for label, run in runs.items() if run and run["sweep"] for row in sweep_rows(label, run["sweep"])]
     body = ("<h3>Model gate</h3><p>Every made model at its laid size: a wall under 3 mm or proportions more than 20% "
@@ -610,6 +628,7 @@ def checks_section(runs, agreement, rests):
             + "<h3>Rebakes</h3><p>Models a run baked more than once, in order (the bake reports in made/).</p>"
             + table(["run", "model", "bakes"], bake_rows(runs), "No model was baked twice.")
             + "<h3>Resting on the ground</h3>" + resting_block(rests)
+            + "<h3>Placeholders</h3>" + placeholder_block(stand_ins)
             + "<h3>Against the game</h3>" + agreement_block(agreement))
     return section("checks", "Checks and what they caught", body)
 
@@ -690,6 +709,7 @@ def build(options):
     closeups = {row: pictures.add(path, f"closeup-{row}") for run in runs.values() if run
                 for row, path in run["closeups"].items()}
     inventory = records.inventory(options.place)
+    stages = [(label, stage) for label, stage in (("before", options.before_stage), ("now", options.stage)) if stage]
     sections = [
         concept_section(concept, style, options.references, pictures),
         plan_section(concept, runs, pictures, (inventory or {}).get("dimensioned", [])),
@@ -699,8 +719,8 @@ def build(options):
         surfaces_section(options.place, runs),
         scene_section(scene, out, options.place, getattr(options, "game_shots", None), pictures),
         characters_section(cast),
-        checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in
-                                                 (("before", options.before_stage), ("now", options.stage)) if stage}),
+        checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in stages},
+                       {label: placeholders.check(stage) for label, stage in stages}),
     ]
     sources = facts([(label, escaped(run["folder"])) for label, run in runs.items() if run])
     # Each word capitalised by its first letter only: str.title() wrote "Player'S Flat".

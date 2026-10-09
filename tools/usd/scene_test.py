@@ -1,12 +1,12 @@
 """Check what a place's scene record adds to its stage (tools/usd/scene.py), on records made here: the code builders'
 shapes (a room's walls with a doorway cut, a deck with a pit's hole, a dome closing at its top, a turned rocket, a
-flattened ring), a structure piece painted with its library surface and carrying its roof layer, a piece built in its
-own frame and placed, a place shown turned and stretched, the game's lights in the stage's units with the game's own
-numbers kept, a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay along its length, a kit
-piece the game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit light's night glow kept to
-its picture's bright parts, the engine's seeded random numbers, the planned rocks lying as the game lays them, the
-ground shader's detail baked with a decal, and every real record in data/scene naming only builders, surfaces and
-fields that exist.
+flattened ring), a structure piece painted with its library surface and carrying its roof layer and the plain thing a
+primitive says it is, a piece built in its own frame and placed, a place shown turned and stretched, the game's
+lights in the stage's units with the game's own numbers kept, a kit room's lamps hung where HubKit hangs them, a
+walkway tube laid bay by bay along its length, a kit piece the game moves shifted by its node, the Moon drawn as the
+game's sky draws it, a kit light's night glow kept to its picture's bright parts, the engine's seeded random numbers,
+the planned rocks lying as the game lays them, the ground shader's detail baked with a decal, and every real record
+in data/scene naming only builders, surfaces, plain kinds and fields that exist.
 
 Run: .venv/bin/python tools/usd/scene_test.py   (make tests runs it with the framework's environment)
 """
@@ -30,6 +30,7 @@ import export  # noqa: E402
 import ground  # noqa: E402
 import ground_detail  # noqa: E402
 import library  # noqa: E402
+import placeholders  # noqa: E402
 import rocks  # noqa: E402
 import scene  # noqa: E402
 
@@ -61,7 +62,9 @@ def check_lights_and_structure(folder):
         "structure": [{"name": "walls", "builder": "room_walls", "wide": 4.0, "deep": 5.0, "corner": 0.6, "high": 2.8,
                        "surface": "roof_steel_paint", "doors": []},
                       {"name": "roof", "builder": "dome_roof", "wide": 4.0, "deep": 5.0, "corner": 0.6, "eave": 2.8,
-                       "rise": 0.6, "run": 1.1, "surface": "roof_steel_paint", "layer": 2}],
+                       "rise": 0.6, "run": 1.1, "surface": "roof_steel_paint", "layer": 2},
+                      {"name": "slab", "builder": "box", "centre": [0.0, 0.05, 0.0], "size": [2.0, 0.1, 2.0],
+                       "surface": "roof_steel_paint", "plain": "plate"}],
         "water": [{"name": "harbour", "builder": "grid", "low": [-10, -10], "high": [10, 10], "height": 0.0,
                    "step": 5.0, "surface": "harbour_water"}],
         "lights": [{"type": "omni", "at": [0.0, 2.5, 0.0], "colour": "#ffd29a", "energy": 1.92, "range": 6.0,
@@ -81,6 +84,7 @@ def check_lights_and_structure(folder):
     bound = UsdShade.MaterialBindingAPI(walls).ComputeBoundMaterial()[0]
     assert bound.GetPath().name == "roof_steel_paint", bound.GetPath()
     assert stage.GetPrimAtPath(f"/{PLACE}/Structure/roof").GetAttribute("score:layer").Get() == "2"
+    assert stage.GetPrimAtPath(f"/{PLACE}/Structure/slab").GetAttribute("score:plain").Get() == "plate"
     assert stage.GetPrimAtPath(f"/{PLACE}/Water/harbour").IsValid()
     omni = UsdLux.SphereLight(stage.GetPrimAtPath(f"/{PLACE}/Lights/light_1"))
     watts = omni.GetIntensityAttr().Get() * scene.SPHERE_WATTS_PER_INTENSITY
@@ -378,6 +382,7 @@ def check_records():
             for entry in record.get(key, []):
                 assert entry["builder"] in scene.BUILDERS, (path.name, entry["builder"])
                 assert entry["surface"] in surfaces, (path.name, entry["surface"])
+                assert entry.get("plain", "plate") in placeholders.PLAIN_KINDS, (path.name, entry["name"])
                 scene.built_meshes(entry)
         for entry in record.get("backdrop", []):
             assert ("render" in entry) != ("picture" in entry), (path.name, entry["name"])
