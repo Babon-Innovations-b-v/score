@@ -218,9 +218,9 @@ def sew(task, record, force, resolution):
 
 
 def attempt(task, record, force, resolution):
-    """One try: sewn with gravity off, then, if no panel drifted past its limit (`beyond`), settled under gravity and
-    checked again, its seams too (a heavy cloth can slip off a shoulder, a sleeve off its arm, as it settles); the cloth's points,
-    the body, the try's record and whether it held."""
+    """One try: sewn with gravity off, then, if no panel drifted past its limit (`beyond`), settled under gravity
+    and checked again, its seams too (a heavy cloth can slip off a shoulder, a sleeve off its arm, as it settles);
+    the cloth's points, the body, the try's record and whether it held."""
     settings, frames = task["cloth"]["blender"], task["cloth"]["frames"]
     scene, body, cloth, seconds, drifted = sew(task, record, force, resolution)
     worst, excess = beyond(drifted, settings["drift_limits"])
@@ -327,11 +327,12 @@ def outside_body(body, points, margin):
 
 
 def fine_settled(task, record, start):
-    """The fine panels settled with each of the design's fine settings in turn (`blender.fine`) until no panel drifts
-    from where it started past its limit (`beyond`), no seam is open wider than the design allows (one tore open at
-    a shoulder, 2026-10-09) and the top has not fallen further than it allows (a pull at the waist dragged coveralls
-    off the shoulders), or else the one that went least wrong; a fine setting may hold the waist less low; the cloth's points, how many of
-    them lie inside the body, the record of every try, whether one held and how far the waist was lowered."""
+    """The fine panels settled with each of the design's fine settings in turn (`blender.fine`) until no panel
+    drifts from where it started past its limit (`beyond`), no seam is open wider than the design allows (one tore
+    open at a shoulder, 2026-10-09) and the top has not fallen further than it allows (a pull at the waist dragged
+    coveralls off the shoulders), or else the one that went least wrong; a fine setting may hold the waist less low;
+    the cloth's points, how many of them lie inside the body, the record of every try, whether one held and how far
+    the waist was lowered."""
     tries, results = [], []
     for fine in task["cloth"]["blender"]["fine"]:
         points, body, seconds, drop = settled_from(task, record, start, fine)
