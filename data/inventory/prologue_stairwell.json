@@ -67,10 +67,10 @@
 			"id": "stair_flight",
 			"view": "v1",
 			"box": [
-				620,
-				80,
-				1260,
-				1100
+				911,
+				120,
+				1647,
+				793
 			],
 			"name": "terrazzo stair flight",
 			"kind": "code",
@@ -87,10 +87,10 @@
 			"id": "landing",
 			"view": "v1",
 			"box": [
-				290,
-				530,
-				1700,
-				580
+				1673,
+				1340,
+				2344,
+				1501
 			],
 			"name": "terrazzo landing",
 			"kind": "code",
@@ -127,10 +127,10 @@
 			"id": "balcony_rail",
 			"view": "v1",
 			"box": [
-				620,
-				370,
-				1250,
-				560
+				832,
+				1237,
+				1214,
+				1536
 			],
 			"name": "rail at the head of the stairs",
 			"kind": "code",
@@ -167,10 +167,10 @@
 			"id": "timber_door_leaf",
 			"view": "v1",
 			"box": [
-				1300,
-				210,
-				1420,
-				540
+				1789,
+				314,
+				1940,
+				741
 			],
 			"name": "flat door",
 			"kind": "code",
@@ -187,10 +187,10 @@
 			"id": "security_gate",
 			"view": "v1",
 			"box": [
-				1400,
-				210,
-				1540,
-				540
+				2188,
+				939,
+				2314,
+				1456
 			],
 			"name": "folding steel security gate",
 			"kind": "code",
@@ -227,10 +227,10 @@
 			"id": "cage_bulkhead",
 			"view": "v1",
 			"box": [
-				500,
-				85,
-				560,
-				160
+				698,
+				123,
+				755,
+				213
 			],
 			"name": "caged bulkhead lamp",
 			"kind": "code",
@@ -267,10 +267,10 @@
 			"id": "letterboxes",
 			"view": "v1",
 			"box": [
-				1300,
-				740,
-				1480,
-				850
+				1798,
+				1024,
+				1863,
+				1099
 			],
 			"name": "residents' letterboxes",
 			"kind": "code",
@@ -287,10 +287,10 @@
 			"id": "lobby_notice",
 			"view": "v1",
 			"box": [
-				1200,
-				700,
-				1270,
-				780
+				745,
+				397,
+				850,
+				539
 			],
 			"name": "residents' notice board",
 			"kind": "code",
@@ -307,10 +307,10 @@
 			"id": "exit_sign",
 			"view": "v1",
 			"box": [
-				1590,
-				630,
-				1670,
-				670
+				2200,
+				875,
+				2284,
+				933
 			],
 			"name": "lit exit sign",
 			"kind": "code",
@@ -347,10 +347,10 @@
 			"id": "extinguisher",
 			"view": "v1",
 			"box": [
-				460,
-				440,
-				520,
-				540
+				659,
+				613,
+				707,
+				741
 			],
 			"name": "red fire extinguisher",
 			"kind": "generate",

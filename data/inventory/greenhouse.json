@@ -1058,10 +1058,10 @@
 			"id": "grow_light_glow",
 			"view": "v1",
 			"box": [
-				771,
-				454,
-				1459,
-				771
+				1099,
+				165,
+				1194,
+				197
 			],
 			"name": "the grow-light bar's lit LED lens (dimmed by the grow lights' timer)",
 			"kind": "code",
@@ -1183,10 +1183,10 @@
 			"id": "dosing_unit",
 			"view": "v1",
 			"box": [
-				564,
-				468,
-				729,
-				647
+				408,
+				496,
+				602,
+				703
 			],
 			"name": "nutrient dosing unit cabinet",
 			"kind": "code",
@@ -1498,10 +1498,10 @@
 			"id": "soil_bin",
 			"view": "v1",
 			"box": [
-				1968,
-				771,
-				2339,
-				991
+				2076,
+				837,
+				2245,
+				933
 			],
 			"name": "the station's soil bin, open topped",
 			"kind": "generate",
@@ -1548,10 +1548,10 @@
 			"id": "wall_screen_cluster",
 			"view": "v1",
 			"box": [
-				2009,
-				385,
-				2339,
-				523
+				2083,
+				469,
+				2169,
+				528
 			],
 			"name": "cluster of small screens on a bracket over the desk",
 			"kind": "code",
@@ -1887,10 +1887,10 @@
 			"id": "seed_tray",
 			"view": "v1",
 			"box": [
-				949,
-				248,
-				1266,
-				468
+				965,
+				293,
+				1145,
+				369
 			],
 			"name": "seedling tray of young plants",
 			"kind": "generate",

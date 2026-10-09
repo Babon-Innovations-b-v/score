@@ -5,23 +5,32 @@
 
 A scene inventory is the concept partitioned: every row's box is where its thing stands in its view's picture
 (`inventory.py`). Boxes guessed rather than drawn on the picture crowd into one corner and cover the wrong things
-(the camp's, 2026-10-09: round numbers that reached only x 1900, y 900 of a 2752 x 1536 concept). Two halves:
+(the camp's, 2026-10-09: round numbers that reached only x 1900, y 900 of a 2752 x 1536 concept). Three
+parts, the measured ones first and the judge only where they cannot tell:
 
   measured  plain Python on each view's picture: every box lies inside it; a box over WHOLE of the picture marks
             nothing and is allowed only for the room kit's pieces that run round the whole room (ROOM_WIDE: its
-            walls, floor, ceiling and pipe runs); the boxes cover at least COVER_PER_ROW of the picture for each row, up to
-            COVER_ENOUGH (from COVER_FROM boxes on); and they are not all in one corner (no more than FULLEST_QUADRANT of the covered area in
-            one quarter of the picture, and spread over at least SPREAD of its width or of its height).
+            walls, floor, ceiling and pipe runs); the boxes cover at least COVER_PER_ROW of the picture for each
+            row, up to COVER_ENOUGH (from COVER_FROM boxes on); and they are not all in one corner (no more than
+            FULLEST_QUADRANT of the covered area in one quarter of the picture, and spread over at least SPREAD of
+            its width or of its height).
+  masked    with --masks, SAM 3 on a rented card (box_masks.py) masks each row's noun on the picture, and code
+            checks that one of the masks lies mostly inside the box and fills a fair share of it; a box far bigger
+            than the thing inside it is loose, one with the thing only elsewhere is off, and where SAM 3 finds
+            nothing that says anything (or takes the whole room for the thing), the judge decides.
   judged    the open judge (../cloud/judge.py, the close-up check's model) sees the whole concept with the box drawn
             on it and the box's crop, and says whether the crop shows the row's thing; each question is asked with
             check.SEEDS and the majority decides (the third seed only where the first two disagree, since it cannot
             change an agreed majority). The questions and crops go under the --judge folder, the answers
             in its answers/ folder; a question already answered is not asked again.
 
+--tighten (with --masks) sets each loose box to the SAM 3 instance inside it, in the inventory itself.
+
 A row the concept does not show carries `"box": null` and `"unseen": "<why>"` (inventory.py) and is not checked here.
 """
 import argparse
 import json
+import re
 import pathlib
 import sys
 
@@ -70,6 +79,12 @@ Decide:
 After your thinking, answer with one JSON object and nothing after it:
 {{"shows": true, "main": true, "what": "a grey steel locker"}}"""
 SEEDS = check.SEEDS
+# A box is grounded by a SAM 3 instance of its noun with at least MASK_INSIDE of the mask inside the box, filling at
+# least MASK_FILLS of it (a lamp's glow, a desk's shadow and the room round a thing keep the fill under a whole box).
+MASK_INSIDE = 0.5
+MASK_FILLS = 0.15
+# An instance whose box covers more than this share of the picture is SAM 3 taking the room for the thing.
+BROAD = 0.5
 # The whole concept is sent this wide, the crop at least this long on its longer side.
 OVERVIEW_WIDE = 1376
 SHORTEST_CROP = 512
@@ -267,6 +282,44 @@ def verdicts(jobs, answers):
     return found
 
 
+# --- the measurement: SAM 3's masks -----------------------------------------------------------------------------------
+
+def noun(name):
+    """The short name SAM 3 is asked for: a row's words up to their first colon, comma, bracket or qualifying
+    phrase ("stainless galley counter: worktop with hob" asks for "stainless galley counter")."""
+    short = re.split(r"[:,(;]| with | on a | on its | in a | for | from ", name, maxsplit=1)[0].strip()
+    return re.sub(r"^(a|an|the|one|two|three) ", "", short, flags=re.I)
+
+
+def mask_jobs(scene, found, sizes):
+    """box_masks.py's jobs for one inventory: each view's picture with its judged rows' nouns and boxes."""
+    views = {view["id"]: picture_path(view["picture"]) for view in found["plan"]["views"]}
+    rows = judge_rows(found, sizes)
+    return [{"picture": str(views[view]), "rows": [{"key": f"{scene}.{row['id']}", "noun": noun(row["name"]),
+                                                    "box": row["box"]} for row in rows if row["view"] == view]}
+            for view in views if any(row["view"] == view for row in rows)]
+
+
+def grounding(instances, size):
+    """A box measured against SAM 3's instances of its row's noun on a picture of `size`. An instance over BROAD of
+    the picture says nothing (SAM 3 took the whole room for "hygiene cubicle"). "grounded": an instance lies mostly
+    inside the box (MASK_INSIDE) and fills a fair share of it (MASK_FILLS); "loose": the thing is inside the box but
+    the box is far bigger than it (a keyboard's row boxed with its whole desk), with the instance's box as the
+    measured one; "off": SAM 3 finds the thing only outside the box, with where its surest instance is; "not found"
+    when it found none that says anything, which leaves the box to the judge."""
+    wide, tall = size
+    telling = [item for item in instances
+               if (item["box"][2] - item["box"][0]) * (item["box"][3] - item["box"][1]) < BROAD * wide * tall]
+    if not telling:
+        return {"grounding": "not found"}
+    if any(item["inside"] >= MASK_INSIDE and item["fills"] >= MASK_FILLS for item in telling):
+        return {"grounding": "grounded"}
+    within = [item for item in telling if item["inside"] >= MASK_INSIDE]
+    if within:
+        return {"grounding": "loose", "found_at": within[0]["box"]}
+    return {"grounding": "off", "found_at": telling[0]["box"]}
+
+
 # --- the command -----------------------------------------------------------------------------------------------------
 
 def measure_all(scenes):
@@ -283,14 +336,16 @@ def measure_all(scenes):
     return failing
 
 
-def judge_all(scenes, folder, dry_run, cards):
-    """Ask the judge about every box of the scenes (two seeds, then the third where they disagree), then print and
-    write (folder/verdicts.json) each box's verdict."""
+def judge_all(scenes, folder, dry_run, cards, unmeasured=None):
+    """Ask the judge about every box of the scenes, or only those in `unmeasured` (`<scene>.<row>` keys SAM 3 could
+    not measure), two seeds and then the third where they disagree; print and write (folder/verdicts.json) each box's
+    verdict."""
     import judge
     jobs = []
     for scene in scenes:
         found = json.loads(inventory.path_of(scene).read_text())
-        jobs.extend(judge_jobs(scene, found, view_sizes(found), folder, SEEDS[:2]))
+        jobs.extend(job for job in judge_jobs(scene, found, view_sizes(found), folder, SEEDS[:2])
+                    if unmeasured is None or job["name"].rpartition("~")[0].rsplit(".", 1)[0] in unmeasured)
     answers = folder / "answers"
     for round_number, listed in ((1, jobs), (2, None)):
         listed = listed if listed is not None else deciding_jobs(jobs, answers)
@@ -307,17 +362,92 @@ def judge_all(scenes, folder, dry_run, cards):
     return found
 
 
+def mask_all(scenes, folder, dry_run):
+    """Mask every box's noun with SAM 3 on a rented card, then print and write (folder/grounding.json) each box's
+    grounding."""
+    import box_masks_cloud
+    jobs = []
+    for scene in scenes:
+        found = json.loads(inventory.path_of(scene).read_text())
+        jobs.extend(mask_jobs(scene, found, view_sizes(found)))
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "mask-jobs.json").write_text(json.dumps(jobs, indent=1))
+    if not (folder / "masks.json").exists():
+        box_masks_cloud.mask(folder / "mask-jobs.json", folder / "masks.json", dry_run)
+    if not (folder / "masks.json").exists():
+        return {}
+    measured = json.loads((folder / "masks.json").read_text())
+    sizes = {job_row["key"]: Image.open(job["picture"]).size for job in jobs for job_row in job["rows"]}
+    found = {key: grounding(instances, sizes[key]) for key, instances in measured.items()}
+    (folder / "grounding.json").write_text(json.dumps(found, indent=1))
+    for key, result in found.items():
+        if result["grounding"] in ("off", "loose"):
+            print(f"{key}: {result['grounding']}; SAM 3's instance at {result['found_at']}")
+    return found
+
+
+def tighten(scene, found, grounded):
+    """Each loose box of an inventory set to the SAM 3 instance inside it (the thing the row names, measured), except
+    the room-wide kit pieces, whose box is rightly wider than one piece; the rows changed."""
+    changed = []
+    for row in found["rows"]:
+        result = grounded.get(f"{scene}.{row['id']}", {})
+        if result.get("grounding") == "loose" and row.get("group") not in ROOM_WIDE:
+            row["box"] = list(result["found_at"])
+            changed.append(row["id"])
+    return changed
+
+
+def decided(grounded, judged):
+    """Each box's result, the measurement first: a box SAM 3 grounds passes and one it finds loose or off fails,
+    whatever the judge says (a model's judgement of geometry is near a coin flip, LEGO-Anything 2026, Sec. 5.1); the
+    judge decides only the boxes SAM 3 could not measure. Keys are `<scene>.<row>`; a box neither measured nor
+    judged is "unchecked"."""
+    judged_rows = {key.rsplit(".", 1)[0]: result for key, result in judged.items()}
+    results = {}
+    for key in sorted(set(grounded) | set(judged_rows)):
+        measure = grounded.get(key, {"grounding": "not found"})["grounding"]
+        if measure != "not found":
+            results[key] = {"passes": measure == "grounded", "by": f"SAM 3: {measure}"}
+        elif key in judged_rows:
+            results[key] = {"passes": judged_rows[key]["passes"], "by": "judge: " + (
+                "shown" if judged_rows[key]["passes"] else f"round {judged_rows[key]['what']}")}
+        else:
+            results[key] = {"passes": None, "by": "unchecked"}
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("scenes", nargs="*")
     parser.add_argument("--judge", type=pathlib.Path, help="ask the open judge too, its work in this folder")
-    parser.add_argument("--dry-run", action="store_true", help="price the judge's run, rent nothing")
+    parser.add_argument("--masks", type=pathlib.Path, help="measure each box against SAM 3's masks, its work here")
+    parser.add_argument("--tighten", action="store_true", help="set each loose box to SAM 3's instance inside it")
+    parser.add_argument("--dry-run", action="store_true", help="price the cloud runs, rent nothing")
     parser.add_argument("--cards", type=int, default=2, help="the judge's cards at most (each one's setup is paid)")
     options = parser.parse_args()
     scenes = options.scenes or sorted(inventory.every_inventory())
     failing = measure_all(scenes)
-    if options.judge:
-        judge_all(scenes, options.judge, options.dry_run, options.cards)
+    grounded = mask_all(scenes, options.masks, options.dry_run) if options.masks else {}
+    if options.tighten:
+        for scene in scenes:
+            path = inventory.path_of(scene)
+            text = path.read_text()
+            found = json.loads(text)
+            changed = tighten(scene, found, grounded)
+            if changed:
+                indent = re.match(r"\{\n(\s*)", text)
+                path.write_text(json.dumps(found, indent=indent.group(1) if indent else None, ensure_ascii=False)
+                                + ("\n" if text.endswith("\n") else ""))
+                print(f"{scene}: boxes set to SAM 3's instance: {', '.join(changed)}")
+    unmeasured = {key for key, result in grounded.items() if result["grounding"] == "not found"} if grounded else None
+    judged = judge_all(scenes, options.judge, options.dry_run, options.cards, unmeasured) if options.judge else {}
+    if (grounded or judged) and not options.dry_run:
+        results = decided(grounded, judged)
+        (options.masks or options.judge).joinpath("decided.json").write_text(json.dumps(results, indent=1))
+        failing = sorted({key.split(".")[0] for key, result in results.items() if result["passes"] is False})
+        print(f"boxes failing: {sum(result['passes'] is False for result in results.values())} of {len(results)}, "
+              f"in {', '.join(failing) or 'no scene'}")
     raise SystemExit(1 if failing else 0)
 
 

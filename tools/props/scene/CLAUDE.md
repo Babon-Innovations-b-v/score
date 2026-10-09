@@ -36,7 +36,9 @@ serve: skill `make-scene`, bible "How a scene is designed".
   tube's kit layout, `kit_layout`); `match.py` holds migrated scenes to their inventory and prints the rest
   as a to-do list (`python3 tools/props/scene/match.py`). `box_check.py` holds every inventory's boxes to its
   concept: inside the picture, not the whole picture for a single thing, spread over it rather than in one corner,
-  and, with `--judge`, each box shown to the open judge beside its row's words (majority of three); a row the
+  with `--masks`, each box measured against SAM 3's masks of its row's words (`box_masks.py` on a card through
+  `../cloud/box_masks_cloud.py`; `--tighten` sets a loose box to the thing inside it), and, with `--judge`, the boxes
+  SAM 3 cannot measure shown to the open judge beside its row's words (majority of three); a row the
   concept does not show has `"box": null` and says why in `"unseen"`. `duplicates.py` fails when two places'
   made rows name one real-world object and are made from different takes, or one is about to be made again, unless a row
   says why in `own_model` or names the row it reuses in `reuse` (the owner, 2026-10-09: no duplicates; reuse first). `cloud/scene.py` and `cloud/batch.py`

@@ -142,10 +142,10 @@
 			"id": "far_palm",
 			"view": "v1",
 			"box": [
-				0,
-				700,
-				300,
-				1000
+				229,
+				729,
+				364,
+				939
 			],
 			"name": "fan palm on the promenade",
 			"kind": "generate",
@@ -164,10 +164,10 @@
 			"id": "far_flag_pole",
 			"view": "v1",
 			"box": [
-				1240,
-				1040,
-				1520,
-				1400
+				363,
+				1019,
+				410,
+				1109
 			],
 			"name": "red flag on its pole",
 			"kind": "generate",
@@ -186,10 +186,10 @@
 			"id": "far_lantern",
 			"view": "v1",
 			"box": [
-				580,
-				1000,
-				1100,
-				1300
+				870,
+				1189,
+				908,
+				1227
 			],
 			"name": "red paper lantern",
 			"kind": "code",

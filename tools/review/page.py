@@ -167,11 +167,13 @@ def dimensioned_block(found, pictures, number):
         return (f"<h3>Plan {number}</h3><p>{where}</p>{picture}<p>Drawn as a picture only: this plan has no plan.json, "
                 "so its numbers are not listed here.</p>")
     sizes = [(key, escaped(plan_cell(value))) for key, value in plan.items()
-             if key not in ("notes",) and not isinstance(value, list)]
+             if key not in ("notes", "title") and not isinstance(value, list)]
     tables = "".join(plan_table(key, value) for key, value in plan.items()
                      if isinstance(value, list) and value and key != "notes")
     notes = "".join(f"<li>{escaped(note)}</li>" for note in plan.get("notes", []))
-    return (f"<h3>Plan {number}{': ' + escaped(plan['title']) if plan.get('title') else ''}</h3><p>{where}</p>{picture}"
+    folder = found["path"].parent
+    name = plan.get("title") or (folder.parent.name if folder.name == "plan" else folder.name)
+    return (f"<h3>Plan {number}: {escaped(name)}</h3><p>{where}</p>{picture}"
             + facts(sizes) + tables + (f"<ul>{notes}</ul>" if notes else ""))
 
 

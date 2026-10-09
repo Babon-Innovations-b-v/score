@@ -1469,9 +1469,9 @@
    "view": "v1",
    "box": [
     1940,
-    270,
-    2400,
-    500
+    283,
+    2076,
+    411
    ],
    "name": "monitor on a wall bracket, green screen of readouts",
    "kind": "generate",

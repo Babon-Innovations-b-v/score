@@ -1056,10 +1056,10 @@
 			"id": "hatch_frame",
 			"view": "v1",
 			"box": [
-				690,
-				239,
-				910,
-				459
+				790,
+				406,
+				861,
+				476
 			],
 			"name": "the heavy steel frame round a round-cornered pressure hatch opening, bolted, cut top corners",
 			"kind": "generate",
@@ -1172,10 +1172,10 @@
 			"id": "hatch_window",
 			"view": "v1",
 			"box": [
-				690,
-				163,
-				910,
-				383
+				117,
+				210,
+				259,
+				352
 			],
 			"name": "a small round thick glass porthole window with a bolted ring, set in a door",
 			"kind": "generate",
@@ -1611,10 +1611,10 @@
 			"id": "status_display",
 			"view": "v2",
 			"box": [
-				513,
-				92,
-				734,
-				312
+				627,
+				353,
+				794,
+				490
 			],
 			"name": "one single large wall display screen in a heavy steel frame, glowing readouts, the whole screen in view",
 			"kind": "generate",
