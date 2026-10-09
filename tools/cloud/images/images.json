@@ -696,9 +696,9 @@
   }
  },
  "pixal": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pixal:1-ed44fcbabd41@sha256:07d951f7f783a6dbc6ac75465139288f24b9c3eb65ded6829b2547a59f13c3fc",
-  "tag": "1-ed44fcbabd41",
-  "digest": "sha256:07d951f7f783a6dbc6ac75465139288f24b9c3eb65ded6829b2547a59f13c3fc",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pixal:1-a652eb228555@sha256:b8eb3fe649894d152254313e6613c27bf88af9b5c35db09658b08c07ee2c8554",
+  "tag": "1-a652eb228555",
+  "digest": "sha256:b8eb3fe649894d152254313e6613c27bf88af9b5c35db09658b08c07ee2c8554",
   "platforms": "linux/amd64",
   "size_mb": 1088.2,
   "build_minutes": 1.5,
