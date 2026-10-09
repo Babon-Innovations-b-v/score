@@ -67,6 +67,22 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   faults.
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
   intersection test with an offset, distance, touches, raycast. ProcFunc's interface; its release has no such code yet.
+- `snap.py` is placement by snapping, for agents laying a place instead of hand coordinates (ProcFunc's idea, not in
+  its release): `down` drops an object onto the first surface under its footprint (ground, objects, the scene
+  record's Structure and Fixtures) to rest 2 mm over it; `to x,z ...` slides it along each way in turn until it
+  stops 2 mm short of a wall or neighbour; `free xmin,zmin,xmax,zmax --seed N` tries seeded spots, drops each, and
+  keeps the first that collides with nothing (collide.py) and passes triage's floor support rule. It prints the
+  proposed pose; `--write` writes it into the layout with settle.py's pose helpers (no settle limits: a snap is a new
+  laid pose, and a stale `unrested` mark goes). Export again and run the checks after. `snap_test.py` checks it.
+- `camera_paths.py` is a review walkthrough camera's path: RRT* at eye height (1.6 m over the ground or Structure floor
+  under each point) from a start to a goal or round a loop of waypoints, an edge valid only when its ray and four rays
+  offset by the clearance (0.25 m) meet nothing, seeded, cut short where straight edges are clear, and laid out as
+  the review walk's views (renders.py's format: `walk-NNN`, eye, aim, up, fov, look_only). renders.py does not read
+  it; a caller hands the views to `renders.render_stage` and `walk_video`. `camera_paths_test.py` checks a path
+  between two rooms goes through the doorway only.
+- **Openings in code builders.** When a builder needs a hole in a wall (a door, a window, a hatch), cut it as a cutout
+  of the surface itself in its UV layout (ProcFunc's way: the hole is part of the surface, no boolean of two meshes),
+  not a boolean. A note for new builders; the builders in `builders.py` are not changed by it.
 - `annotate.py` (Blender side `../blender/inside/annotate_stage.py`) is the one annotate step: from any camera the look,
   per-pixel object ids, depth and normals, and from them masks and occlusion boundaries. Checks call it; never write a
   second renderer for a check.
