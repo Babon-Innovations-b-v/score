@@ -1,5 +1,5 @@
 {
- "note": "How the space suit drapes in Blender's cloth (tools/characters/maker/cloth_drape.py). resolution_scale is GarmentCode's box mesh spacing in centimetres, as the kept Warp drape used it (look/<person>/space_drape/sim_props.yaml: coarser, heavier and thicker cloth than the work suit). coarse_resolution is the spacing the garment is first sewn at (cloth_drape.py says why). The Blender numbers were tuned by the drape agent on Nev's body, 2026-10-09: the sewing forces are tried in turn until no panel sags off the body, mass is per point at mass_spacing centimetres, lift raises the panels the torso hangs from while it is sewn.",
+ "note": "How the space suit drapes in Blender's cloth (tools/characters/maker/cloth_drape.py). resolution_scale is GarmentCode's box mesh spacing in centimetres, as the kept Warp drape used it (look/<person>/space_drape/sim_props.yaml: coarser, heavier and thicker cloth than the work suit). coarse_resolution is the spacing the garment is first sewn at (cloth_drape.py says why). The Blender numbers were tuned by the drape agent on Nev's body, 2026-10-09: the sewing forces are tried in turn until no panel sags off the body, mass is per point at mass_spacing centimetres, lift raises the panels the torso hangs from while it is sewn. The space suit's waist is held 3 to 4.5 % of the body's height under GarmentCode's waist level (the 'fine' list, the lowest that keeps the shoulders on and the seams shut), where the approved Warp drape hung it, so the people tools' belt finds its cloth.",
  "resolution_scale": 1.8,
  "blender": {
   "quality": 10,
@@ -20,7 +20,6 @@
    10,
    30
   ],
-  "sag_limit": 0.06,
   "lift": {
    "torso": 0.1,
    "collar": 0.1,
@@ -28,13 +27,70 @@
    "pant": 0.1
   },
   "mass_spacing": 3.0,
-  "settled_sag_limit": 0.1
+  "waist_hold": {
+   "below_waist": 0.045,
+   "frames": 20
+  },
+  "fine": [
+   {
+    "tension": 25.0,
+    "compression": 25.0,
+    "sewing_force": 40,
+    "waist_hold": {
+     "below_waist": 0.045,
+     "frames": 20
+    }
+   },
+   {
+    "tension": 25.0,
+    "compression": 25.0,
+    "sewing_force": 40,
+    "waist_hold": {
+     "below_waist": 0.04,
+     "frames": 20
+    }
+   },
+   {
+    "tension": 25.0,
+    "compression": 25.0,
+    "sewing_force": 40,
+    "waist_hold": {
+     "below_waist": 0.035,
+     "frames": 20
+    }
+   },
+   {
+    "tension": 25.0,
+    "compression": 25.0,
+    "sewing_force": 40,
+    "waist_hold": {
+     "below_waist": 0.03,
+     "frames": 20
+    }
+   },
+   {
+    "tension": 25.0,
+    "compression": 25.0,
+    "sewing_force": 40,
+    "waist_hold": {
+     "below_waist": 0.015,
+     "frames": 20
+    }
+   }
+  ],
+  "drift_limits": {
+   "": 0.3,
+   "torso": 0.14,
+   "sleeve": 0.08
+  },
+  "open_thread_limit": 0.05,
+  "top_fall_limit": 0.04
  },
  "frames": {
   "sew": 30,
   "gravity_ramp": 10,
   "settle": 120,
-  "fine_settle": 40
+  "fine_settle": 60
  },
  "coarse_resolution": 3.6
 }

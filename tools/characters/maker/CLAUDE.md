@@ -25,7 +25,10 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
 - **Drapes** (`drape_garment.py`, run by `chain.py`): `garment.py` (GarmentCode's environment) sizes a design of
   `data/characters/garments/` to the body and makes its pattern and box mesh at two spacings, cut back into panels;
   `cloth_drape.py` (Blender 4.2 or 5.0) sews the coarse panels round the body, trying the design's sewing forces until
-  no panel sags off it, settles it, and carries the fine panels onto it to settle; the folder it writes is read by
-  `../people/drape.py` as GarmentCode's Warp drapes were. The cloth's settings are each design's `cloth.json`.
-  Compared with the Warp drapes (Nev, 2026-10-09): more small crumples, a gathered waist on the space suit, wider
-  sleeves standing off the arm, trousers a few centimetres shorter. Look at a new design's drape before it is used.
+  no panel drifts off it, settles it, carries the fine panels onto it and settles them with the waist held as
+  GarmentCode's Warp run held it, trying the design's fine settings until no panel drifts, no seam is open and the
+  shoulders have not slipped. Every try is in the drape's `blender_cloth.json`; `held_on_body: false` means look before
+  using it. The folder it writes is read by `../people/drape.py` as GarmentCode's Warp drapes were. Compared with the
+  Warp drapes (2026-10-09): more small crumples, a gathered waist on the space suit, wider sleeves standing off the
+  arm, trousers a few centimetres shorter, and the space suit's waist 1 to 2 cm higher on some bodies (lower tore its
+  shoulder seams: Warp's cloth stretched where Blender's does not).
