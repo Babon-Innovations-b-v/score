@@ -1,4 +1,4 @@
-\begin{thebibliography}{48}
+\begin{thebibliography}{50}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -222,6 +222,20 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
 {Pixar Animation Studios} and {Alliance for OpenUSD}.
 \newblock {OpenUSD}: Universal scene description, 2026.
 \newblock URL \url{https://openusd.org/}.
+
+\bibitem[Tam et~al.(2025)Tam, Pun, Wang, Chang, and Savva]{tam2025sceneeval}
+Hou In~Ivan Tam, Hou In~Derek Pun, Austin~T. Wang, Angel~X. Chang, and Manolis
+  Savva.
+\newblock {SceneEval}: Evaluating semantic coherence in text-conditioned {3D}
+  indoor scene synthesis.
+\newblock \emph{arXiv preprint arXiv:2503.14756}, 2025.
+
+\bibitem[Xia et~al.(2026)Xia, Li, Li, Ma, Xu, Liu, Cui, Lin, Ma, Wang, Song,
+  and Wei]{xia2026sage}
+Hongchi Xia, Xuan Li, Zhaoshuo Li, Qianli Ma, Jiashu Xu, Ming-Yu Liu, Yin Cui,
+  Tsung-Yi Lin, Wei-Chiu Ma, Shenlong Wang, Shuran Song, and Fangyin Wei.
+\newblock {SAGE}: Scalable agentic {3D} scene generation for embodied {AI}.
+\newblock \emph{arXiv preprint arXiv:2602.10116}, 2026.
 
 \bibitem[{Black Forest Labs}(2026{\natexlab{a}})]{flux2klein}
 {Black Forest Labs}.

@@ -472,6 +472,49 @@ new layout. On the old station, the check found a pile of sandbags lying
 inside the lander's legs, and once the pile was moved, all 29 pieces
 rested.
 
+A place is complete only when its evidence says so. Coding agents
+judging their own scenes from renders agree with a measured score on
+geometry only 45.8 percent of the time, below chance {[}15{]}, and ours
+called places finished that the creator then found unfinished. SCORE
+therefore computes completeness instead of asking for it. A completion
+gate passes a place only when every inventory row has its object on the
+stage or a written reason for dropping it, nothing visible stands in for
+a made piece, no real resting fault is left, every model the creator
+picked is still the one shown, every check was run on the stage as it is
+now, and the review page was rendered from that stage. Every check
+answers pass, fail or unknown, and unknown blocks like fail, as in
+LEGO-Anything's validator; a hook in the agent's harness refuses to end
+a session that claims a place is done while its gate does not pass. The
+resting check became a triage. Each object is judged by what holds it
+up, read from its inventory row (the floor, a wall, the ceiling, the
+object it stands on, a hook it hangs from, or the kit's own frame), with
+SceneEval's guards against false alarms {[}33{]}: an overlap counts only
+if it survives moving the object 5 mm away, and a standing object needs
+four contact points with its weight inside them. Cables, cloths and
+rubble may sink into what they lie on by an amount kept as data, and a
+loose object that moves more than 0.2 m or turns more than 8 degrees
+when dropped does not rest as laid, after SAGE's stability rule
+{[}34{]}. The real faults are grouped by cause, each group with one
+close-up aimed at its worst case. Over world 1's 17 places, the plain
+check flagged 4,104 of 12,032 objects; the triage kept 139 objects with
+real faults in 102 groups and marked the other 3,965 as false alarms,
+most of them kit pieces that stand where the kit lays them. The drop
+test ran on every place with loose pieces on its floor except the
+square, where it did not finish in three hours. The creator's pick of a
+model is written onto each of its objects as the file's hash, and an
+export that would show anything else for a picked row is refused unless
+the creator's decision to replace it is written down. Finally, each
+object is rendered alone from eight directions and compared with its
+close-up by its outline and by DINOv2 similarity {[}16{]}, and the least
+similar are listed first: in the lab, the four lowest were a mouse drawn
+black, a ceiling lamp without its lens, a scanner without its screen and
+a wall monitor with a blank screen. The collision queries behind these
+checks follow the interface of ProcFunc's scene tools {[}31{]}, whose
+code is not yet released, built on python-fcl and trimesh, and one
+annotation step gives every check per-object masks, depth, normals and
+occlusion boundaries from any camera, the same labels a robotics world
+needs.
+
 A place's people are part of its stage. Its cast records who is there,
 how many, where, doing what and why each is there, and nobody is placed
 who is not in it. Each person becomes a skinned character (UsdSkel) that
@@ -488,21 +531,21 @@ entry point. A short spec gives a name and a picture or a few words, and
 the maker returns a rigged, clothed, textured and animated character as
 a glTF file and as UsdSkel, with a far body for crowds and a set of
 clips. A person's whole chain runs on one rented card. The A-pose
-picture is the creator's own, or FLUX.2 klein 4B {[}33{]} draws it from
-the words. SAM3DBody-cpp {[}34{]}, a C++ and ONNX runner of SAM 3D Body
+picture is the creator's own, or FLUX.2 klein 4B {[}35{]} draws it from
+the words. SAM3DBody-cpp {[}36{]}, a C++ and ONNX runner of SAM 3D Body
 {[}22{]}, reads the body off the picture, and the body is fitted to
 SOMA-X through MHR. Kimodo {[}23{]} writes the clips from sentences. The
-clothes are GarmentCode's sewing patterns {[}35{]}, draped on the body
-by Blender's cloth simulation {[}36{]}. Hi3DGen {[}37{]} makes the hair
+clothes are GarmentCode's sewing patterns {[}37{]}, draped on the body
+by Blender's cloth simulation {[}38{]}. Hi3DGen {[}39{]} makes the hair
 from a clay picture of the bald head, and the hair is laid on the scalp
-as a shell. FLUX.2 klein base 4B {[}38{]} with a reference-depth LoRA
-{[}39{]} draws the face on the head's own depth view. The chain then
+as a shell. FLUX.2 klein base 4B {[}40{]} with a reference-depth LoRA
+{[}41{]} draws the face on the head's own depth view. The chain then
 builds the character, converts it to UsdSkel and renders it for review.
 Rebuilt from her own picture, Nev, a crew member of the Moon base, took
 11.2 minutes of an H100, and a new person made from one sentence took 21
 minutes (Appendix G). Animals use the same entry point with a route that
 does not assume a human body: Pixal3D makes the mesh from a close-up,
-UniRig {[}40{]} rigs a quadruped, a fish gets a spine rig made in code,
+UniRig {[}42{]} rigs a quadruped, a fish gets a spine rig made in code,
 and the clips are made in code. Two parts are weak. Blender's drapes are
 rougher than those of GarmentCode's own cloth solver, a fork of NVIDIA
 Warp that we cannot use because its licence allows non-commercial
@@ -659,14 +702,111 @@ export and its Blender adapter are built.
 
 \end{minipage}}\end{center}
 
+\subsection{With and without the agent
+tools}\label{with-and-without-the-agent-tools}
+
+The tools that check an agent's work (the completion gate, the resting
+triage with its drop test, the pick lock and the render-and-compare,
+Section 2) were tested on three places of world 1: a room (the workshop,
+814 objects), an outdoor place (the street, 1,198 objects) and a dense
+room (the hangar, 1,657 objects). Each arm started from the same
+exported stage and the same inventory, and the same agent (Claude Opus
+5.5 in Claude Code, headless) got the same prompt: make the place as
+complete as it can in about 50 minutes, through the place's layout data
+only. One arm had the framework as it was before these tools; the other
+had them. Both arms were measured afterwards with the same instruments
+(Table 1). Each arm ran once, so the table shows what happened, not an
+average.
+
+\textbf{Table 1.} One session per arm and place. Faults are the resting
+triage's real faults left on the final stage, measured against the arm's
+own data; placeholders by the placeholder check; rows are inventory rows
+with no object and no written reason. Agent cost is the session's model
+cost in dollars; cloud is what its rented machines cost.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Place, arm
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Real faults (start → end)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Placeholders
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Rows missing
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Minutes
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Agent cost
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Output tokens
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cloud
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Exports
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Gate said unknown
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Workshop, without & 18 → 13 & 0 → 0 & 1 → 0 & 36 & \$2.26 & 30.4k &
+€0.85 & 7 & not used \\
+Workshop, with & 18 → 0 & 0 → 0 & 1 → 0 & 26 & \$1.42 & 14.3k & €0.85 &
+2 & 2 of 4 calls \\
+Street, without & 11 → 0 & 0 → 0 & 0 → 0 & 38 & \$2.40 & 30.0k & €0.32 &
+9 & not used \\
+Street, with & 12 → 0 & 0 → 0 & 0 → 0 & 39 & \$1.21 & 10.4k & €0.76 & 1
+& 0 of 5 calls \\
+Hangar, without & 14 → 4 & 5 → 0 & 0 → 0 & 47 & \$2.01 & 26.6k & €0.00 &
+7 & not used \\
+Hangar, with & 14 → 9 & 5 → 0 & 0 → 0 & 32 & \$2.34 & 29.1k & €0.64 & 5
+& 3 of 6 calls \\
+\end{longtable}
+}
+
+The tools made building cheaper more often than they made the scene
+better. On the workshop and the street, the arm with the tools used
+about half the agent's output and cost, and exported the stage once or
+twice instead of seven to nine times, because the triage named the few
+real faults among hundreds of alarms. On the workshop it left no real
+fault, but 13 of its 18 were cleared by writing what holds a piece up
+into the inventory (the tools on the tool board hang from it; the arm
+monitors are clamped to their bench), which the creator still has to
+confirm; the other five were moved off the wall they stood in. On the
+hangar the arm without the tools left fewer faults: the arm with them
+spent its time replacing five placeholder slabs with the kit's own wall
+panels and ribs and trying the drop test, which failed on a room with no
+ground mesh (fixed after the run), and the nine faults it left are
+models with stray parts below their feet that no pose can fix. In no arm
+did the completion gate's hook have to refuse a claim, because no agent
+claimed a place was complete; both arms reported what was left. Every
+unknown answer of the gate was a check not yet run on the stage as it
+then was, which is what unknown means; the agents ran the checks and
+went on. Concept fit and the per-part surface check are not in the
+table, because their tools are not built yet, and no row carries an
+owner's pick, so the pick lock was never tested by an agent.
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
 \textbf{Gap: ablations.} This section will compare the framework with
 and without the optional world step, and with the checks before spending
-switched off, on the same places. It will measure how much of the
-concept is covered, how dense the built place is, the cost, the faults
-found after spending, and the creator's review. It waits until every
-stage runs from the framework repository.
+switched off, on the same places (the agent tools are compared above).
+It will measure how much of the concept is covered, how dense the built
+place is, the cost, the faults found after spending, and the creator's
+review. It waits until every stage runs from the framework repository.
 
 \end{minipage}}\end{center}
 
@@ -750,7 +890,7 @@ with motion from the framework's motion models. It waits on world 3.
   often, so that the closed model is needed less.
 \item
   Wrap open solvers as stages for worlds at other scales, starting with
-  orbital dynamics through REBOUND {[}41{]}.
+  orbital dynamics through REBOUND {[}43{]}.
 \item
   Evaluate SCORE on LEGO-Bench {[}15{]}.
 \end{itemize}
@@ -967,97 +1107,110 @@ Function-oriented abstractions for procedural {3D} generation in
 {``{OpenUSD}: Universal scene description.''} 2026. Available:
 \url{https://openusd.org/}}
 
-\bibitem[\citeproctext]{ref-flux2klein}
+\bibitem[\citeproctext]{ref-tam2025sceneeval}
 \CSLLeftMargin{{[}33{]} }%
+\CSLRightInline{H. I. I. Tam, H. I. D. Pun, A. T. Wang, A. X. Chang, and
+M. Savva, {``{SceneEval}: Evaluating semantic coherence in
+text-conditioned {3D} indoor scene synthesis,''} \emph{arXiv preprint
+arXiv:2503.14756}, 2025.}
+
+\bibitem[\citeproctext]{ref-xia2026sage}
+\CSLLeftMargin{{[}34{]} }%
+\CSLRightInline{H. Xia \emph{et al.}, {``{SAGE}: Scalable agentic {3D}
+scene generation for embodied {AI},''} \emph{arXiv preprint
+arXiv:2602.10116}, 2026.}
+
+\bibitem[\citeproctext]{ref-flux2klein}
+\CSLLeftMargin{{[}35{]} }%
 \CSLRightInline{Black Forest Labs, {``{FLUX.2 {[}klein{]} 4B} model
 card.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}}
 
 \bibitem[\citeproctext]{ref-sam3dbodycpp}
-\CSLLeftMargin{{[}34{]} }%
+\CSLLeftMargin{{[}36{]} }%
 \CSLRightInline{A. Qammaz, {``{SAM3DBody-cpp}: A standalone {C++}
 inference engine for {SAM 3D Body}.''} GitHub, 2026. Available:
 \url{https://github.com/AmmarkoV/SAM3DBody-cpp}}
 
 \bibitem[\citeproctext]{ref-korosteleva2023garmentcode}
-\CSLLeftMargin{{[}35{]} }%
+\CSLLeftMargin{{[}37{]} }%
 \CSLRightInline{M. Korosteleva and O. Sorkine-Hornung, {``{GarmentCode}:
 Programming parametric sewing patterns,''} \emph{ACM Transactions on
 Graphics}, vol. 42, no. 6, p. 197, 2023.}
 
 \bibitem[\citeproctext]{ref-blender}
-\CSLLeftMargin{{[}36{]} }%
+\CSLLeftMargin{{[}38{]} }%
 \CSLRightInline{Blender Foundation, {``{Blender}.''} 2026. Available:
 \url{https://www.blender.org/}}
 
 \bibitem[\citeproctext]{ref-ye2025hi3dgen}
-\CSLLeftMargin{{[}37{]} }%
+\CSLLeftMargin{{[}39{]} }%
 \CSLRightInline{C. Ye \emph{et al.}, {``{Hi3DGen}: High-fidelity {3D}
 geometry generation from images via normal bridging,''} in
 \emph{Proceedings of the IEEE/CVF international conference on computer
 vision (ICCV)}, 2025.}
 
 \bibitem[\citeproctext]{ref-flux2kleinbase}
-\CSLLeftMargin{{[}38{]} }%
+\CSLLeftMargin{{[}40{]} }%
 \CSLRightInline{Black Forest Labs, {``{FLUX.2 {[}klein{]} Base 4B} model
 card.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B}}
 
 \bibitem[\citeproctext]{ref-refcontrol}
-\CSLLeftMargin{{[}39{]} }%
+\CSLLeftMargin{{[}41{]} }%
 \CSLRightInline{{thedeoxen}, {``{refcontrol}: Reference-depth {LoRA} for
 {FLUX.2 {[}klein{]} 4B}.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/thedeoxen/refcontrol-FLUX.2-klein-4B-reference-depth-lora}}
 
 \bibitem[\citeproctext]{ref-zhang2025unirig}
-\CSLLeftMargin{{[}40{]} }%
+\CSLLeftMargin{{[}42{]} }%
 \CSLRightInline{J.-P. Zhang, C.-F. Pu, M.-H. Guo, Y.-P. Cao, and S.-M.
 Hu, {``One model to rig them all: Diverse skeleton rigging with
 {UniRig},''} \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.}
 
 \bibitem[\citeproctext]{ref-rein2012rebound}
-\CSLLeftMargin{{[}41{]} }%
+\CSLLeftMargin{{[}43{]} }%
 \CSLRightInline{H. Rein and S.-F. Liu, {``{REBOUND}: An open-source
 multi-purpose {N}-body code for collisional dynamics,''} \emph{Astronomy
 \& Astrophysics}, vol. 537, p. A128, 2012.}
 
 \bibitem[\citeproctext]{ref-simeoni2025dinov3}
-\CSLLeftMargin{{[}42{]} }%
+\CSLLeftMargin{{[}44{]} }%
 \CSLRightInline{{O. Siméoni, H. V. Vo, M. Seitzer, \emph{et al.}},
 {``{DINOv3},''} \emph{arXiv preprint arXiv:2508.10104}, 2025.}
 
 \bibitem[\citeproctext]{ref-li2026segvigen}
-\CSLLeftMargin{{[}43{]} }%
+\CSLLeftMargin{{[}45{]} }%
 \CSLRightInline{L. Li \emph{et al.}, {``{SegviGen}: Repurposing {3D}
 generative model for part segmentation,''} \emph{arXiv preprint
 arXiv:2603.16869}, 2026.}
 
 \bibitem[\citeproctext]{ref-deng2025geosam2}
-\CSLLeftMargin{{[}44{]} }%
+\CSLLeftMargin{{[}46{]} }%
 \CSLRightInline{K. Deng \emph{et al.}, {``{GeoSAM2}: Unleashing the
 power of {SAM2} for {3D} part segmentation,''} \emph{arXiv preprint
 arXiv:2508.14036}, 2025.}
 
 \bibitem[\citeproctext]{ref-marble_terms}
-\CSLLeftMargin{{[}45{]} }%
+\CSLLeftMargin{{[}47{]} }%
 \CSLRightInline{World Labs, {``{Terms of Service}.''} 2026. Available:
 \url{https://docs.worldlabs.ai/terms-of-service}}
 
 \bibitem[\citeproctext]{ref-behnamghader2024llm2vec}
-\CSLLeftMargin{{[}46{]} }%
+\CSLLeftMargin{{[}48{]} }%
 \CSLRightInline{P. BehnamGhader, V. Adlakha, M. Mosbach, D. Bahdanau, N.
 Chapados, and S. Reddy, {``{LLM2Vec}: Large language models are secretly
 powerful text encoders,''} in \emph{Conference on language modeling
 (COLM)}, 2024.}
 
 \bibitem[\citeproctext]{ref-grattafiori2024llama3}
-\CSLLeftMargin{{[}47{]} }%
+\CSLLeftMargin{{[}49{]} }%
 \CSLRightInline{{A. Grattafiori, A. Dubey, A. Jauhri, \emph{et al.}},
 {``The {Llama 3} herd of models,''} \emph{arXiv preprint
 arXiv:2407.21783}, 2024.}
 
 \bibitem[\citeproctext]{ref-claudecode}
-\CSLLeftMargin{{[}48{]} }%
+\CSLLeftMargin{{[}50{]} }%
 \CSLRightInline{Anthropic, {``{Claude Code}.''} 2026. Available:
 \url{https://www.anthropic.com/claude-code}}
 
@@ -1356,6 +1509,31 @@ disk, against 487 MB.
   resting. Hung objects are exempt by their inventory anchor, and fixed
   objects are not judged for tipping.
 \item
+  \textbf{Resting triage:} each object's support comes from its
+  inventory row: a glowing part or screen is judged with its host; a
+  fixed row stands as laid but may not float unless joined to another
+  piece; a kit's shell pieces stand in the kit's frame; a hanging row
+  and a wall or ceiling row need one contact with anything; a floor row
+  and a row standing on another need four points of their footing (the
+  points within 10 cm of their lowest) within 3 cm of a surface under
+  them, with their weight within 5 cm of the area those points span. An
+  overlap deeper than 3 cm counts only if the two still meet after the
+  loose one moves 5 mm away. Cables may sink 6 cm, cloths 8 cm and
+  ground debris 30 cm. From a drop run, an object that moves more than
+  0.2 m or turns more than 8 degrees is a real fault.
+\item
+  \textbf{Completion gate:} the requirements given in Section 2 under
+  the canonical scene, each with its result tied to a fingerprint of the
+  stage's files and inputs; a result made on another stage counts as
+  unknown.
+\item
+  \textbf{Pick lock and render-and-compare:} a picked row's objects must
+  show the model with the picked hash, or the row must carry the
+  creator's written replacement. Each object with a close-up is rendered
+  from eight directions 20 degrees up, and the direction with the
+  highest DINOv2 likeness stands for the close-up's camera; the outline
+  score is the overlap of the two silhouettes, each cut to its box.
+\item
   \textbf{Brightness check:} each view of a place's stage on its review
   page is shown beside the game's shot from the same spot, and a view
   whose mean brightness is under half the game's fails.
@@ -1401,46 +1579,46 @@ ground skins & paid API \\
 Qwen-Image-Edit-2511 {[}28{]} & close-ups, first & Apache-2.0 \\
 Qwen3.8-27B {[}29{]} & the close-ups' shape check; each part's material
 & Apache-2.0 \\
-Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}42{]} for its
+Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}44{]} for its
 encoder \\
 PartCrafter {[}21{]} & parts & MIT; its non-commercial background
 remover not used \\
-SegviGen {[}43{]} & parts of our own model (trial) & MIT, on TRELLIS.2
+SegviGen {[}45{]} & parts of our own model (trial) & MIT, on TRELLIS.2
 (MIT); DINOv3 licence for its encoder; its non-commercial background
 remover and nvdiffrast not used \\
-GeoSAM2 {[}44{]} & parts of our own model, seeded by the close-up's
+GeoSAM2 {[}46{]} & parts of our own model, seeded by the close-up's
 regions (trial) & Apache-2.0 \\
 Depth Anything V2 Small {[}20{]} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
-World Labs Marble {[}45{]} & optional world step & paid; outputs owned
+World Labs Marble {[}47{]} & optional world step & paid; outputs owned
 by paid users \\
-FLUX.2 klein 4B {[}33{]} & earlier prop pictures; the characters' A-pose
+FLUX.2 klein 4B {[}35{]} & earlier prop pictures; the characters' A-pose
 pictures from words and their hair's clay pictures & Apache-2.0 \\
 MoGe-2 {[}19{]}, SAM 3 {[}18{]} & measuring and finding objects in
 pictures & MIT; SAM Licence \\
 Kimodo {[}23{]} & the characters' motion from sentences & Apache-2.0
 code; NVIDIA Open Model License for the Kimodo-SOMA-RP-v1.1 weights,
 commercial use allowed \\
-LLM2Vec {[}46{]} on Meta-Llama-3-8B-Instruct {[}47{]} & Kimodo's text
+LLM2Vec {[}48{]} on Meta-Llama-3-8B-Instruct {[}49{]} & Kimodo's text
 encoder, used only while clips are made; nothing from it ships & Llama 3
 Community License: commercial use allowed, the 700 million monthly users
 clause does not apply, ``Built with Meta Llama 3'' shown, no exclusion
 in the European Union for the text-only 8B model \\
-SAM 3D Body {[}22{]}, SAM3DBody-cpp {[}34{]} & body shape from a picture
+SAM 3D Body {[}22{]}, SAM3DBody-cpp {[}36{]} & body shape from a picture
 & SAM Licence for the weights, SAM3DBody-cpp's converted ONNX and GGUF
 weights included whatever their tag says; MIT for SAM3DBody-cpp's
 code \\
 SOMA-X and MHR & the characters' bodies & Apache-2.0 \\
-GarmentCode {[}35{]}, Blender's cloth {[}36{]} & the clothes' sewing
+GarmentCode {[}37{]}, Blender's cloth {[}38{]} & the clothes' sewing
 patterns and their drape & MIT; Blender is GPL and its output is ours;
 GarmentCode's Warp fork (non-commercial research only) not used \\
-Hi3DGen {[}37{]} & the characters' hair & MIT code; MIT and Apache-2.0
+Hi3DGen {[}39{]} & the characters' hair & MIT code; MIT and Apache-2.0
 weights \\
-FLUX.2 klein base 4B {[}38{]} with the refcontrol reference-depth LoRA
-{[}39{]} & the characters' faces & Apache-2.0, both; the LoRA's training
+FLUX.2 klein base 4B {[}40{]} with the refcontrol reference-depth LoRA
+{[}41{]} & the characters' faces & Apache-2.0, both; the LoRA's training
 data is not disclosed \\
-UniRig {[}40{]} & the skeleton and skin of a quadruped & MIT code and
+UniRig {[}42{]} & the skeleton and skin of a quadruped & MIT code and
 weights \\
 MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
@@ -1534,7 +1712,7 @@ World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 &
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound
 generation, all checks and the assembly run automatically. Coding agents
-(Claude Code {[}48{]}) write the plans, the inventories and every code
+(Claude Code {[}50{]}) write the plans, the inventories and every code
 builder; in the hub's final round, 86 of its 98 models were built in
 code. Some steps were still done by hand: some generated objects were
 turned to face the right way by eye, and a few labels were placed by

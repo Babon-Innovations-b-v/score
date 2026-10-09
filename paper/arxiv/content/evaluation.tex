@@ -6,9 +6,64 @@
 
 \end{minipage}}\end{center}
 
+\subsection{With and without the agent tools}\label{with-and-without-the-agent-tools}
+
+The tools that check an agent's work (the completion gate, the resting triage with its drop test, the pick lock and the render-and-compare, Section 2) were tested on three places of world 1: a room (the workshop, 814 objects), an outdoor place (the street, 1,198 objects) and a dense room (the hangar, 1,657 objects). Each arm started from the same exported stage and the same inventory, and the same agent (Claude Opus 5.5 in Claude Code, headless) got the same prompt: make the place as complete as it can in about 50 minutes, through the place's layout data only. One arm had the framework as it was before these tools; the other had them. Both arms were measured afterwards with the same instruments (Table 1). Each arm ran once, so the table shows what happened, not an average.
+
+\textbf{Table 1.} One session per arm and place. Faults are the resting triage's real faults left on the final stage, measured against the arm's own data; placeholders by the placeholder check; rows are inventory rows with no object and no written reason. Agent cost is the session's model cost in dollars; cloud is what its rented machines cost.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Place, arm
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Real faults (start → end)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Placeholders
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Rows missing
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Minutes
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Agent cost
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Output tokens
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cloud
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Exports
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Gate said unknown
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Workshop, without & 18 → 13 & 0 → 0 & 1 → 0 & 36 & \$2.26 & 30.4k & €0.85 & 7 & not used \\
+Workshop, with & 18 → 0 & 0 → 0 & 1 → 0 & 26 & \$1.42 & 14.3k & €0.85 & 2 & 2 of 4 calls \\
+Street, without & 11 → 0 & 0 → 0 & 0 → 0 & 38 & \$2.40 & 30.0k & €0.32 & 9 & not used \\
+Street, with & 12 → 0 & 0 → 0 & 0 → 0 & 39 & \$1.21 & 10.4k & €0.76 & 1 & 0 of 5 calls \\
+Hangar, without & 14 → 4 & 5 → 0 & 0 → 0 & 47 & \$2.01 & 26.6k & €0.00 & 7 & not used \\
+Hangar, with & 14 → 9 & 5 → 0 & 0 → 0 & 32 & \$2.34 & 29.1k & €0.64 & 5 & 3 of 6 calls \\
+\end{longtable}
+}
+
+The tools made building cheaper more often than they made the scene better. On the workshop and the street, the arm with the tools used about half the agent's output and cost, and exported the stage once or twice instead of seven to nine times, because the triage named the few real faults among hundreds of alarms. On the workshop it left no real fault, but 13 of its 18 were cleared by writing what holds a piece up into the inventory (the tools on the tool board hang from it; the arm monitors are clamped to their bench), which the creator still has to confirm; the other five were moved off the wall they stood in. On the hangar the arm without the tools left fewer faults: the arm with them spent its time replacing five placeholder slabs with the kit's own wall panels and ribs and trying the drop test, which failed on a room with no ground mesh (fixed after the run), and the nine faults it left are models with stray parts below their feet that no pose can fix. In no arm did the completion gate's hook have to refuse a claim, because no agent claimed a place was complete; both arms reported what was left. Every unknown answer of the gate was a check not yet run on the stage as it then was, which is what unknown means; the agents ran the checks and went on. Concept fit and the per-part surface check are not in the table, because their tools are not built yet, and no row carries an owner's pick, so the pick lock was never tested by an agent.
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: ablations.} This section will compare the framework with and without the optional world step, and with the checks before spending switched off, on the same places. It will measure how much of the concept is covered, how dense the built place is, the cost, the faults found after spending, and the creator's review. It waits until every stage runs from the framework repository.
+\textbf{Gap: ablations.} This section will compare the framework with and without the optional world step, and with the checks before spending switched off, on the same places (the agent tools are compared above). It will measure how much of the concept is covered, how dense the built place is, the cost, the faults found after spending, and the creator's review. It waits until every stage runs from the framework repository.
 
 \end{minipage}}\end{center}
 
