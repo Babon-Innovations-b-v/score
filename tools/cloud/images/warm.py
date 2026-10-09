@@ -63,7 +63,7 @@ def set_up(machine, registry, store_spec):
 def warm_job(store, run, job, image, kernel_cache, code):
     spec = {"kind": "blender", "image": image, "code": code, "kernel_cache": kernel_cache, "minutes": RENDER_MINUTES,
             "command": ["/opt/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
-                        "tools/blender/inside/warm_kernels.py", "--", OUT, "OPTIX"],
+                        "tools/blender/inside/warm_kernels.py", "--", OUT],
             "outputs": [{"path": OUT, "key": submit.output_key(run, job, "warm.json")}]}
     if not kernel_cache:
         del spec["kernel_cache"]

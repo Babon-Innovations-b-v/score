@@ -3,7 +3,9 @@ kernel our jobs use, each render timed, so the first render's compile can be mea
 
     blender -b -setaudio None --python-exit-code 1 --python warm_kernels.py -- <out.json> [OPTIX|CUDA]
 
-Three scenes in turn on the first card of the asked backend (OptiX by default, as the jobs take it): plain shading;
+Three scenes in turn on the card, through the asked backend or, by default, the one the jobs take: OptiX when the
+driver gives it, else CUDA (tools/blender/inside/usd_views.py cycles_on_card). The provider's GPU machines carry
+NVIDIA's headless compute driver, which has no OptiX library, so there the jobs render on CUDA. The scenes: plain shading;
 a material with ambient occlusion and bevel nodes (OptiX's shader-raytrace kernels); hair curves. Each is rendered
 twice at a small size, so the second render of the first scene is the render without any compile. out.json holds
 the seconds of each render and the card Blender used.
@@ -19,17 +21,23 @@ def arguments():
     after = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     if not after:
         raise SystemExit("usage: ... warm_kernels.py -- <out.json> [OPTIX|CUDA]")
-    return after[0], (after[1] if len(after) > 1 else "OPTIX")
+    return after[0], (after[1:2] or ["OPTIX", "CUDA"])
 
 
-def use_card(scene, backend):
-    """Cycles on the backend's devices only; the names of the cards used."""
+def use_card(scene, backends):
+    """Cycles on the devices of the first of `backends` that has a card; that backend and the names of the cards."""
     preferences = bpy.context.preferences.addons["cycles"].preferences
-    preferences.compute_device_type = backend
-    preferences.get_devices()
-    used = [device for device in preferences.devices if device.type == backend]
-    if not used:
-        raise SystemExit(f"no {backend} card for Cycles")
+    for backend in backends:
+        try:
+            preferences.compute_device_type = backend
+        except TypeError:
+            continue
+        preferences.get_devices()
+        used = [device for device in preferences.devices if device.type == backend]
+        if used:
+            break
+    else:
+        raise SystemExit(f"no {' or '.join(backends)} card for Cycles")
     for device in preferences.devices:
         device.use = device.type == backend
     scene.render.engine = "CYCLES"
@@ -37,7 +45,7 @@ def use_card(scene, backend):
     scene.cycles.samples = 16
     scene.cycles.use_denoising = False
     scene.render.resolution_x = scene.render.resolution_y = 128
-    return sorted({device.name for device in used})
+    return backend, sorted({device.name for device in used})
 
 
 def plain_scene():
@@ -82,11 +90,11 @@ def render(scene, path):
 
 
 def main():
-    out, backend = arguments()
-    record = {"backend": backend, "blender": bpy.app.version_string, "renders": []}
+    out, backends = arguments()
+    record = {"blender": bpy.app.version_string, "renders": []}
     for name, dress in (("plain", None), ("raytrace", raytrace_material), ("hair", hair)):
         scene = plain_scene()
-        record["cards"] = use_card(scene, backend)
+        record["backend"], record["cards"] = use_card(scene, backends)
         if dress:
             dress(scene)
         for take in (1, 2):
