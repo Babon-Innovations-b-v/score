@@ -1262,20 +1262,19 @@
 				2085,
 				1501
 			],
-			"name": "a 2.5 m steel ramp from the outer door down to the ground",
+			"name": "the steel ramp from the outer door's sill down to the ground",
 			"kind": "code",
 			"anchor": "floor",
 			"size": [
-				1.4,
-				2.5,
-				0.5
+				2.4,
+				1.25,
+				0.46
 			],
 			"count": 1,
-			"thing": "kit:airlock_outer_ramp",
+			"thing": "scene:Ramp",
 			"why_code": "a plain plate laid as a slope (the sorter's plain plates)",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "data/scene/airlock.json structure outer_ramp: the airlock scene's own ramp (airlock.tscn:27-33,96-103, a 2.4 by 0.2 m slab) laid by airlock.gd:18-24,70-87 from the outer door's sill at z 2.5 down at 20 degrees to 5 cm into the ground, the ground's drop under its foot (0.41 m) from the base seat's planned ground where main.tscn:120-121 stands the airlock (tools/usd/ground.py)",
 			"box_from": [
 				"v1.38"
 			]
@@ -1291,22 +1290,30 @@
 			],
 			"name": "a low steel floor unit with a coiled black hose on top",
 			"kind": "code",
-			"anchor": "floor",
+			"anchor": "wall",
 			"size": [
-				0.9,
-				0.7,
-				1.1
+				0.91,
+				0.68,
+				1.09
 			],
 			"count": 1,
 			"thing": "kit:airlock_hose_unit",
 			"object": "hose_reel",
 			"why_code": "the hangar's code-built hose reel on its steel stand, laid again",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"at": [
+				{
+					"wall": "east",
+					"across": 1.3,
+					"bottom": 0.0
+				}
+			],
+			"from": "the hangar's made hose reel (hose_reel_1, its own bake), laid again by room_kit.py placed_rows and route.py late-lay: the hose reel's build is a wall reel (pieces.hose_reel: its drum on arms from a wall bracket, the hose's end hanging to the floor), so it hangs on its bracket against the east wall's lining, its foot on the floor, between the suit alcove (z -0.6) and the north corner (z -1.9), under the status panel (from 1.17 m) and over the vent grille (to 0.4 m). The concept shows a floor unit by the west wall, where the suit bench, the dust vacuum, the lock console, the notice board and the door control box leave no 0.91 m of wall or floor free (data/kit/airlock.json)",
 			"box_from": [
 				"v1.w43"
-			]
+			],
+			"made": "kit piece",
+			"model": "hose_unit_1"
 		}
 	],
 	"concept_elements": [

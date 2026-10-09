@@ -32,7 +32,7 @@
 		"airlock_floor_grating": 2,
 		"airlock_under_floor_box": 2,
 		"airlock_pipe_bracket": 8,
-		"airlock_hose_reel": 1,
+		"airlock_hose_reel": 2,
 		"airlock_tool_case": 1
 	},
 	"kinds": {
@@ -462,6 +462,10 @@
 				0.2
 			],
 			"children": []
+		},
+		"hose_unit_1": {
+			"glows": false,
+			"route": "code"
 		}
 	},
 	"pieces": [
@@ -10632,6 +10636,37 @@
 			"layer": 1,
 			"child_of": "airlock_suit_bench",
 			"model": "tool_case_1"
+		},
+		{
+			"kind": "airlock_hose_reel",
+			"at": [
+				1.6,
+				0.0,
+				-1.3
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.91,
+				1.09,
+				0.68
+			],
+			"layer": 1,
+			"row": "hose_unit",
+			"model": "hose_unit_1"
 		}
 	]
 }
