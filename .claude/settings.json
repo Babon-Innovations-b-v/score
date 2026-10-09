@@ -54,8 +54,8 @@
           },
           {
             "type": "command",
-            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
-            "timeout": 5
+            "command": "cbm=\"$HOME/.local/bin/codebase-memory-mcp\"; \"$cbm\" daemon start >/dev/null 2>&1; \"$cbm\" hook-augment 2>/dev/null || true",
+            "timeout": 20
           }
         ]
       }
