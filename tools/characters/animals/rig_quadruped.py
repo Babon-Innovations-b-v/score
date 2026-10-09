@@ -9,7 +9,7 @@ The clips, each a loop at 30 frames a second:
   idle  breathing (the chest rises and falls) and a slow look to one side and the other, the feet planted
   walk  the four-beat walk (legs.PHASES), the feet sliding back under the body at the walk's speed while on the
         ground (the travel is taken off: the game moves the node at `walk_speed` m/s, in rig.json)
-  sit   the hips lowered and tipped back, the hind legs folding under them, breathing
+  sit   the hind feet drawn forward, the hips lowered and tipped back, the hind legs folding under them, breathing
 """
 import math
 
@@ -23,10 +23,10 @@ UP = Vector((0.0, 0.0, 1.0))
 FORWARD = Vector((0.0, -1.0, 0.0))
 SIDE = Vector((1.0, 0.0, 0.0))  # the animal's left, facing -y
 # Bones of a leg the goal moves (from the foot up): the shoulder or hip above them holds still.
-IK_BONES = 3
-WALK = {"frames": 30, "stride": 0.75, "lift": 0.12, "bob": 0.015}
+IK_BONES = 4
+WALK = {"frames": 30, "stride": 0.6, "lift": 0.1, "bob": 0.015}
 IDLE = {"frames": 90, "breath": 0.02, "look": 0.45}
-SIT = {"frames": 60, "drop": 0.3, "tip": 0.55, "breath": 0.02}
+SIT = {"frames": 60, "drop": 0.35, "tip": 0.6, "tuck": 0.3, "breath": 0.02}
 
 
 def bone_table(armature):
@@ -149,8 +149,11 @@ def idle_pose(armature, parts, phase, height):
     spread_turn(armature, parts["tail"], UP, 0.1 * math.sin(4 * math.pi * phase))
 
 
-def sit_pose(armature, parts, phase, height):
-    """The sit at `phase`: the hips down and tipped back (tail down, chest up), the head kept level, breathing."""
+def sit_pose(armature, parts, goals, phase, height):
+    """The sit at `phase`: the hind feet drawn forward under the hips, the hips down and tipped back (tail down, chest
+    up), the head kept level, breathing."""
+    for leg in ("back_left", "back_right"):
+        place_goal(armature, goals[leg], FORWARD * SIT["tuck"] * height)
     breath = SIT["breath"] * height * (0.5 - 0.5 * math.cos(4 * math.pi * phase))
     move_bone(armature, parts["root"], UP * (breath - SIT["drop"] * height))
     turn_bone(armature, parts["root"], SIDE, -SIT["tip"])
@@ -227,7 +230,7 @@ def rig(meshes, armature, job, report):
     goals = add_goals(armature, parts)
     clips = {"walk": (WALK["frames"], lambda phase: walk_pose(armature, parts, goals, phase, height)),
              "idle": (IDLE["frames"], lambda phase: idle_pose(armature, parts, phase, height)),
-             "sit": (SIT["frames"], lambda phase: sit_pose(armature, parts, phase, height))}
+             "sit": (SIT["frames"], lambda phase: sit_pose(armature, parts, goals, phase, height))}
     report["clips"] = {}
     for name in job["clips"]:
         frames, pose_at = clips[name]
