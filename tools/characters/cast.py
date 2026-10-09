@@ -194,13 +194,14 @@ def characters_of(cast):
                       "pace": person.get("pace", WALK_PACE), "held": person.get("held", False)})
     taken = {look_of(person["character"], person.get("worn")) for person in found}
     for group in cast.get("groups", []):
+        outfit = group.get("outfit", "plain")
         for number, at in enumerate(band_places(group)):
-            mix = unseen_mix(group["seed"] + number, group.get("outfit", "plain"), taken)
+            mix = unseen_mix(group["seed"] + number, outfit, taken)
             found.append({"name": f"{group['name']}_{number}", "character": mix["character"], "at": at,
                           "turn": facing_degrees(at, group["facing_to"]),
                           "doing": group["doing"][number % len(group["doing"])],
                           "start": (number * group.get("phase_step", 0.0)) % 1.0,
-                          "worn": mix["worn"][group.get("outfit", "plain")], "path": None, "pace": WALK_PACE,
+                          "worn": mix["worn"][outfit], "path": None, "pace": WALK_PACE,
                           "held": False})
     return found
 
@@ -264,14 +265,12 @@ def held_still(stage, path, asset, clip, start_seconds):
     skeleton.CreateRelationship("skel:animationSource").SetTargets([pose.GetPath()])
 
 
-def placed(prim, at, turn, tall=1.0):
-    """The character's transform: its spot, its turn about up and its height share."""
+def placed(prim, at, turn):
+    """The character's transform: its spot and its turn about up."""
     xform = UsdGeom.Xformable(prim)
     xform.ClearXformOpOrder()
     xform.AddTranslateOp().Set(Gf.Vec3d(*at))
     xform.AddRotateYOp().Set(float(turn))
-    if tall != 1.0:
-        xform.AddScaleOp().Set(Gf.Vec3f(tall, tall, tall))
 
 
 def walked(prim, path, pace):
@@ -350,6 +349,24 @@ def held_by_root(place, out):
     root.Save()
 
 
+def write_single(stage, root, single, bodies, out):
+    """One character of the cast: its prim referencing its asset, placed or walking, dressed and playing its clip."""
+    asset = asset_of(single["character"], bodies, out)
+    parts, clips = asset_facts(asset)
+    prim_path = f"{root}/{single['name']}"
+    start = single["start"] * clips.get(single["doing"], 0.0)
+    prim = referenced(stage, prim_path, asset, start)
+    if single["path"]:
+        walked(prim, single["path"], single["pace"])
+    else:
+        placed(prim, single["at"], single["turn"])
+    dressed(stage, prim_path, parts, single["worn"] or skel_usd.DEFAULT_WORN)
+    playing(stage, prim_path, single["doing"], clips)
+    if single["held"]:
+        held_still(stage, prim_path, asset, single["doing"], start)
+    prim.SetCustomDataByKey("score:character", single["character"])
+
+
 def write_layer(place, cast, out, bodies=BODIES):
     """The characters layer of the place's stage under `out`, rewritten whole; what it placed, by kind."""
     out = pathlib.Path(out)
@@ -366,20 +383,7 @@ def write_layer(place, cast, out, bodies=BODIES):
     layer.GetPrimAtPath(f"/{place}").specifier = Sdf.SpecifierOver  # the place itself is the base's
     singles = characters_of(cast)
     for single in singles:
-        asset = asset_of(single["character"], bodies, out)
-        parts, clips = asset_facts(asset)
-        prim_path = f"{root}/{single['name']}"
-        start = single["start"] * clips.get(single["doing"], 0.0)
-        prim = referenced(stage, prim_path, asset, start)
-        if single["path"]:
-            walked(prim, single["path"], single["pace"])
-        else:
-            placed(prim, single["at"], single["turn"])
-        dressed(stage, prim_path, parts, single["worn"] or skel_usd.DEFAULT_WORN)
-        playing(stage, prim_path, single["doing"], clips)
-        if single["held"]:
-            held_still(stage, prim_path, asset, single["doing"], start)
-        prim.SetCustomDataByKey("score:character", single["character"])
+        write_single(stage, root, single, bodies, out)
     crowd_count = 0
     if cast.get("crowd"):
         crowd = cast["crowd"]

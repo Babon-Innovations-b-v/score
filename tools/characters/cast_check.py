@@ -54,11 +54,6 @@ def repeated_people(cast_record):
             for who, names in seen.items() if len(names) > 1]
 
 
-def walk_length(path):
-    """A walk's length in metres along its points."""
-    return sum(math.dist(start, end) for start, end in zip(path, path[1:]))
-
-
 def where_at(character, seconds):
     """Where a character's middle is (x, z) after `seconds`: its spot, or along its walk at its pace, stopped at the
     walk's end."""
@@ -75,18 +70,19 @@ def where_at(character, seconds):
     return np.array([path[-1][0], path[-1][2]], dtype=float)
 
 
-def walk_seconds(character):
-    """How long a character's walk takes at its pace (nothing for one standing)."""
-    return walk_length(character["path"]) / float(character["pace"]) if character.get("path") else 0.0
+def walk_times(walker):
+    """The moments, STEP_SECONDS apart, at which a walk is followed: from its start to past its end."""
+    path = walker["path"]
+    seconds = sum(math.dist(start, end) for start, end in zip(path, path[1:])) / float(walker["pace"])
+    return [step * STEP_SECONDS for step in range(int(seconds / STEP_SECONDS) + 2)]
 
 
 def clash_with_people(walker, others):
     """Faults: the first moment the walker comes closer than CLEARANCE to each of the others."""
     faults = []
-    steps = int(walk_seconds(walker) / STEP_SECONDS) + 1
+    times = walk_times(walker)
     for other in others:
-        for step in range(steps + 1):
-            seconds = step * STEP_SECONDS
+        for seconds in times:
             gap = float(np.linalg.norm(where_at(walker, seconds) - where_at(other, seconds)))
             if gap < CLEARANCE:
                 faults.append(f"{walker['name']} walks {gap:.2f} m from {other['name']} after {seconds:.2f} s "
@@ -106,8 +102,7 @@ def clash_with_things(walker, things):
     to its middle somewhere along its walk, reaching between its knee and head."""
     feet = float(walker["path"][0][1])
     keep = BODY_RADIUS + MARGIN
-    steps = int(walk_seconds(walker) / STEP_SECONDS) + 1
-    spots = [where_at(walker, step * STEP_SECONDS) for step in range(steps + 1)]
+    spots = [where_at(walker, seconds) for seconds in walk_times(walker)]
     faults = []
     for name, box, bottom, top in things:
         if top < feet + KNEE or bottom > feet + HEAD:
@@ -157,18 +152,19 @@ def stage_things(stage_path, place):
     return things
 
 
-def wrapping(thing, cast_record):
+def wrapping(thing, spots):
     """Whether a thing's footprint holds every spot of the cast (a room's shell, its whole deck): one stands inside
     it, not in its way."""
     _, box, _, _ = thing
-    spots = [character["at"] for character in cast.characters_of(cast_record)]
-    spots += [point for character in cast.characters_of(cast_record) for point in (character.get("path") or [])]
     return all(box[0] <= spot[0] <= box[2] and box[1] <= spot[2] <= box[3] for spot in spots)
 
 
 def check(cast_record, things):
     """Every fault of a cast against the things of its stage."""
-    standing_in = [thing for thing in things if not wrapping(thing, cast_record)]
+    characters = cast.characters_of(cast_record)
+    spots = [character["at"] for character in characters]
+    spots += [point for character in characters for point in (character.get("path") or [])]
+    standing_in = [thing for thing in things if not wrapping(thing, spots)]
     return repeated_people(cast_record) + walk_faults(cast_record, standing_in)
 
 

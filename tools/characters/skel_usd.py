@@ -143,6 +143,20 @@ def repeated(times, keys, seconds, once):
     return np.arange(frames, dtype=np.float64), cycle[picks]
 
 
+def write_clips(stage, document, blob, joints, joint_names, seconds):
+    """Every clip of the file as a SkelAnimation under /Character/Animations; their names and lengths in seconds."""
+    UsdGeom.Scope.Define(stage, "/Character/Animations")
+    lengths = {}
+    for animation in document.get("animations", []):
+        times, rotations, translations = clip_keys(document, blob, animation, joints)
+        frames, turns = repeated(times, rotations, seconds, animation["name"] in ONCE)
+        _, places = repeated(times, translations, seconds, animation["name"] in ONCE)
+        name = prim_name(animation["name"])
+        write_clip(stage, f"/Character/Animations/{name}", joint_names, frames, turns, places)
+        lengths[name] = float(times[-1] - times[0])
+    return lengths
+
+
 def write_clip(stage, path, joint_names, times, rotations, translations):
     """One SkelAnimation: every joint's turn and place at every frame, scale one."""
     animation = UsdSkel.Animation.Define(stage, path)
@@ -196,6 +210,45 @@ def write_look(stage, path, material, picture):
     look.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     look.GetPrim().CreateAttribute("score:part", Sdf.ValueTypeNames.String).Set(material.get("name", ""))
     return look
+
+
+def write_looks(stage, document, blob, textures, stem):
+    """Every material of the file under /Character/Looks, each picture written once; the looks in the file's order."""
+    UsdGeom.Scope.Define(stage, "/Character/Looks")
+    pictures = {}
+    looks = []
+    for number, material in enumerate(document.get("materials", [])):
+        texture = material.get("pbrMetallicRoughness", {}).get("baseColorTexture")
+        picture = None
+        if texture is not None:
+            image = document["textures"][texture["index"]]["source"]
+            if image not in pictures:
+                pictures[image] = write_picture(document, blob, image, textures, stem)
+            picture = pictures[image]
+        looks.append(write_look(stage, f"/Character/Looks/m{number}_{prim_name(material.get('name', ''))}",
+                                material, picture))
+    return looks
+
+
+def write_body(stage, document, blob, skeleton, looks, worn):
+    """Every mesh node of the file under /Character/Turned/Body, those not in `worn` hidden (all shown when `worn` is
+    None); the names of the shown ones."""
+    UsdGeom.Scope.Define(stage, "/Character/Turned/Body")
+    shown = []
+    for node in document["nodes"]:
+        if "mesh" not in node:
+            continue
+        name = prim_name(node.get("name", f"mesh{node['mesh']}"))
+        holder = UsdGeom.Xform.Define(stage, f"/Character/Turned/Body/{name}")
+        if worn is not None and name not in worn:
+            holder.CreateVisibilityAttr(UsdGeom.Tokens.invisible)
+        else:
+            shown.append(name)
+        for number, primitive in enumerate(document["meshes"][node["mesh"]]["primitives"]):
+            part = document["materials"][primitive["material"]].get("name", "") if "material" in primitive else ""
+            write_part(stage, f"/Character/Turned/Body/{name}/{prim_name(part)}_{number}", document, blob, primitive,
+                       skeleton, looks[primitive.get("material", 0)])
+    return shown
 
 
 def write_part(stage, path, document, blob, primitive, skeleton, look):
@@ -272,48 +325,13 @@ def convert(glb, out, seconds=SECONDS, worn=DEFAULT_WORN):
     inverse_binds = accessor(document, blob, skin["inverseBindMatrices"])
     skeleton.CreateBindTransformsAttr(Vt.Matrix4dArray([matrix(values).GetInverse() for values in inverse_binds]))
     skeleton.CreateRestTransformsAttr(Vt.Matrix4dArray([local_matrix(document["nodes"][joint]) for joint in joints]))
-    UsdGeom.Scope.Define(stage, "/Character/Animations")
-    clips = []
-    lengths = {}
-    for animation in document.get("animations", []):
-        times, rotations, translations = clip_keys(document, blob, animation, joints)
-        frames, turns = repeated(times, rotations, seconds, animation["name"] in ONCE)
-        _, places = repeated(times, translations, seconds, animation["name"] in ONCE)
-        name = prim_name(animation["name"])
-        write_clip(stage, f"/Character/Animations/{name}", joint_names, frames, turns, places)
-        clips.append(name)
-        lengths[name] = float(times[-1] - times[0])
+    lengths = write_clips(stage, document, blob, joints, joint_names, seconds)
+    clips = list(lengths)
     if clips:
         UsdSkel.BindingAPI.Apply(skeleton.GetPrim()).CreateAnimationSourceRel().SetTargets(
             [Sdf.Path(f"/Character/Animations/{clips[0]}")])
-    UsdGeom.Scope.Define(stage, "/Character/Looks")
-    pictures = {}
-    looks = []
-    for number, material in enumerate(document.get("materials", [])):
-        texture = material.get("pbrMetallicRoughness", {}).get("baseColorTexture")
-        picture = None
-        if texture is not None:
-            image = document["textures"][texture["index"]]["source"]
-            if image not in pictures:
-                pictures[image] = write_picture(document, blob, image, textures, glb.stem)
-            picture = pictures[image]
-        looks.append(write_look(stage, f"/Character/Looks/m{number}_{prim_name(material.get('name', ''))}",
-                                material, picture))
-    UsdGeom.Scope.Define(stage, "/Character/Turned/Body")
-    shown = []
-    for node in document["nodes"]:
-        if "mesh" not in node:
-            continue
-        name = prim_name(node.get("name", f"mesh{node['mesh']}"))
-        holder = UsdGeom.Xform.Define(stage, f"/Character/Turned/Body/{name}")
-        if worn is not None and name not in worn:
-            holder.CreateVisibilityAttr(UsdGeom.Tokens.invisible)
-        else:
-            shown.append(name)
-        for number, primitive in enumerate(document["meshes"][node["mesh"]]["primitives"]):
-            part = document["materials"][primitive["material"]].get("name", "") if "material" in primitive else ""
-            write_part(stage, f"/Character/Turned/Body/{name}/{prim_name(part)}_{number}", document, blob, primitive,
-                       skeleton.GetPath(), looks[primitive.get("material", 0)])
+    looks = write_looks(stage, document, blob, textures, glb.stem)
+    shown = write_body(stage, document, blob, skeleton.GetPath(), looks, worn)
     stage.SetStartTimeCode(0)
     stage.SetEndTimeCode(float(np.ceil(seconds * RATE)))
     root.GetPrim().SetCustomDataByKey("score:clips", Vt.StringArray(clips))
