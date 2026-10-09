@@ -117,6 +117,12 @@ def kubeconfig(cluster):
 
 # The order of classes.
 
+def job_kind(spec):
+    """The job kind capacity.py and the ledger know a job by: its `capacity_kind` when the runner names one (a
+    library bake runs in the blender image, whose name is the spec's `kind`), else its `kind`."""
+    return spec.get("capacity_kind") or spec["kind"]
+
+
 def class_order(kind, spec, pool_classes):
     """The classes a job may take, in the order to take them, and which of them only after LATE_MINUTES: the spec's
     own `classes`, else capacity's for its kind in the kind's order; only classes the cluster has pools for."""
@@ -224,8 +230,8 @@ class Run:
         self.run_id, self.specs, self.kubectl, self.cluster = run_id, specs, kubectl, cluster
         self.started = time.time()
         pool_classes = {pool["class"] for pool in cluster.class_pools()}
-        self.orders = {job_id: class_order(spec["kind"], spec, pool_classes) for job_id, spec in specs.items()}
-        self.kinds = {spec["kind"]: {"step": 1, "since": self.started, "first": self.started}
+        self.orders = {job_id: class_order(job_kind(spec), spec, pool_classes) for job_id, spec in specs.items()}
+        self.kinds = {job_kind(spec): {"step": 1, "since": self.started, "first": self.started}
                       for spec in specs.values()}
         self.jobs = {job_id: {"generation": 0, "state": "waiting", "submitted": None, "ran": None, "node": None}
                      for job_id in specs}
@@ -243,13 +249,13 @@ class Run:
             record = self.jobs[job_id]
             record["generation"] = max(record["generation"], int(notes.get("score.dev/generation", 0)))
             record["submitted"] = record["submitted"] or self.started
-            kind = self.kinds[self.specs[job_id]["kind"]]
+            kind = self.kinds[job_kind(self.specs[job_id])]
             kind["step"] = max(kind["step"], len(notes.get("score.dev/classes", "").split(",")))
 
     def allowed(self, job_id):
         """The classes a job is allowed on now: its kind's first `step` classes, in order."""
         order, _late = self.orders[job_id]
-        return order[:self.kinds[self.specs[job_id]["kind"]]["step"]]
+        return order[:self.kinds[job_kind(self.specs[job_id])]["step"]]
 
     def make(self, job_id):
         """Make the job's Job at its current generation and classes."""
@@ -303,7 +309,7 @@ class Run:
         """The kind's pods that fit no node yet: (unscheduled since, last "cannot grow" time)."""
         waiting = []
         for job_id, spec in self.specs.items():
-            if spec["kind"] != kind or self.jobs[job_id]["state"] != "waiting":
+            if job_kind(spec) != kind or self.jobs[job_id]["state"] != "waiting":
                 continue
             for pod in pods.get(manifests.name_part(job_id)[:63], []):
                 since = unscheduled_since(pod)
@@ -315,7 +321,7 @@ class Run:
         """Give each kind whose allowed classes cannot be had its next class, and make its waiting Jobs again."""
         now = time.time()
         for kind, state in self.kinds.items():
-            job_ids = [job_id for job_id, spec in self.specs.items() if spec["kind"] == kind]
+            job_ids = [job_id for job_id, spec in self.specs.items() if job_kind(spec) == kind]
             order, late = self.orders[job_ids[0]]
             if not may_widen(state, order, late, now) or not wants_widening(
                     state, self.waiting_pods(kind, pods, no_grow), now):
@@ -519,7 +525,7 @@ def job_rows(run, kind, timings):
     the runtime's own timings from done.json."""
     rows = {}
     for job_id, record in run.jobs.items():
-        if run.specs[job_id]["kind"] != kind:
+        if job_kind(run.specs[job_id]) != kind:
             continue
         seen = run.nodes.get(record["node"] or "", {})
         rows[job_id] = {"state": record["state"], "generation": record["generation"], "node": record["node"],
@@ -535,12 +541,12 @@ def node_machines(run, kind):
     owner = {}
     for job_id, record in sorted(run.jobs.items(), key=lambda item: item[1]["ran"] or 0):
         if record["node"]:
-            owner.setdefault(record["node"], run.specs[job_id]["kind"])
+            owner.setdefault(record["node"], job_kind(run.specs[job_id]))
     used = run.used_nodes()
     machines = []
     for name, seen in run.our_nodes().items():
         if name not in used:
-            owner[name] = next((run.specs[job_id]["kind"] for job_id in run.specs
+            owner[name] = next((job_kind(run.specs[job_id]) for job_id in run.specs
                                 if seen["class"] in run.orders[job_id][0]), None)
         if owner.get(name) != kind:
             continue

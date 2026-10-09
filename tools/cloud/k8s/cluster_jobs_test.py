@@ -67,6 +67,7 @@ def test_jobs_run_and_outputs_come_back(tmp_path, monkeypatch):
     assert seen["wait"] is False and seen["who"] == "test"
     spec = seen["specs"]["0"]
     assert spec["image"].startswith("registry.example/score-blender") and spec["classes"] == ["gpu-24gb"]
+    assert spec["kind"] == "blender" and spec["capacity_kind"] == "blender"
     assert spec["kernel_cache"] == "blender-5.0.1" and spec["minutes"] == 3
     paths = sorted(entry["path"] for entry in spec["inputs"])
     assert paths == sorted([str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single)])

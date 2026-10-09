@@ -288,3 +288,11 @@ def test_a_run_holds_to_its_parallel_jobs():
     assert len(kubectl.jobs) == 3
     submit.submit_more(run, None)
     assert len(kubectl.jobs) == 5
+
+
+def test_a_bake_in_the_blender_image_keeps_the_library_order():
+    spec = {"kind": "blender", "capacity_kind": "library", "image": "image", "minutes": 5,
+            "classes": ["gpu-24gb", "gpu-48gb", "gpu-80gb"]}
+    run = submit.Run("r1", {"bake": spec}, FakeKubectl([]), PoolCluster(0))
+    assert list(run.kinds) == ["library"]
+    assert run.orders["bake"][1] == {"gpu-80gb"}

@@ -11,6 +11,8 @@ model, which is its credit; the picker's MOSS source offers them, levelled by th
 MOSS-SoundEffect v2.0 is Apache-2.0, code and weights, both pinned below. Measured on the trial: about 6.3 s a clip
 on an H100 whatever its length, 15.6 GB of card memory, so an L4 (24 GB) fits. A long page is cut into shares over
 as many cards as make it in about the setup's time (spread.py), each share's scores joined into scores.json here.
+Under SCORE_CLOUD=k8s the shares go to the Kubernetes cluster as Jobs of the moss image
+(tools/cloud/k8s/cluster_jobs.py); the machines stay the default.
 """
 import argparse
 import json
@@ -25,6 +27,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import REPO  # noqa: E402
@@ -139,6 +142,45 @@ def record(run, machines, started, out, made):
     return entry
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): each share a Kubernetes Job of the moss image (tools/cloud/images/moss/, its
+# moss-run wrapper runs moss_generate.py from the job's code with MOSS and CLAP from the node cache), through
+# tools/cloud/k8s/cluster_jobs.py; the takes come back into the picker's cache as the machines' do.
+CLUSTER_SHARES = 8
+CLUSTER_MODELS = ["moss-soundeffect-v2", "clap-larger-general"]
+
+
+def cluster_job(number, jobs, share_file, out):
+    """One share as the cluster runs it: its jobs file (written to `share_file` here) up, its takes back into
+    `out`."""
+    share_file.write_text(json.dumps(jobs))
+    return {"command": ["moss-run", f"{REMOTE}/jobs-{number}.json", str(number)],
+            "code": ["tools/props/cloud/moss_generate.py"], "models": CLUSTER_MODELS,
+            "inputs": [{"local": str(share_file), "path": f"{REMOTE}/jobs-{number}.json"}],
+            "outputs": [{"path": f"{REMOTE}/out", "local": str(out)}],
+            "minutes": max(15.0, SETUP_MINUTES + MINUTES_A_CLIP * len(jobs) * 2)}
+
+
+def main_on_cluster(options, jobs):
+    """main() under SCORE_CLOUD=k8s: the page's takes in up to CLUSTER_SHARES shares as one run of the cluster on the
+    moss-sound kind's classes (capacity.py), then the scores and the manifest as the machines' run writes them."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    parts = min(len(jobs), CLUSTER_SHARES)
+    if options.dry_run:
+        batch.say(f"{len(jobs)} takes in {parts} shares for the cluster")
+        return
+    folder = batch.BATCHES / time.strftime("moss-k8s-%Y%m%d-%H%M%S")
+    folder.mkdir(parents=True)
+    out = OUT / options.page
+    work = [cluster_job(number, jobs[number::parts], folder / f"jobs-{number}.json", out) for number in range(parts)]
+    failed = cluster_jobs.run("moss-sound", work, options.who, image="moss")
+    if out.exists():
+        join_scores(out)
+        made = write_manifest(out, jobs)
+        batch.say(f"moss: {len(made)} takes on the cluster" + (f"; shares {failed} failed" if failed else ""))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("page")
@@ -148,6 +190,9 @@ def main():
     jobs = jobs_for(options.page)
     if not jobs:
         raise SystemExit(f"no sound on the '{options.page}' page has prompts in data/sound/sounds.json")
+    if provider.on_cluster():
+        main_on_cluster(options, jobs)
+        return
     account = cloud.account()
     batch.sweep(account)
     found, count, allowed_minutes = price(jobs, account)

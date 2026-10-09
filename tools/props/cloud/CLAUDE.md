@@ -9,7 +9,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   and `provider.on_cluster()` says which path is on. A runner that supports it describes each job (command, repo
   code, inputs and outputs at their paths, minutes) to `tools/cloud/k8s/cluster_jobs.py` and keeps its own interface
   and outputs: `blender_cloud.py` (renders, settling, review pages, `Machine` chains) and `library_bake.py` with the
-  blender image, `parts.py` with the parts image, and `batch.py` (Pixal3D) with the pixal image, its takes grouped
+  blender image, `parts.py` with the parts image, `moss_sound.py` with the moss image, and `batch.py` (Pixal3D) with the pixal image, its takes grouped
   as many to a job as a 24 GB card runs at once and finished here as today. The machine runners stay the default; switch none of them over by default.
 - **Provider-neutral.** Runners rent through `provider.py` by capability class (`gpu-24gb`,
   `gpu-80gb-x2`, `cpu-32c-128gb`) and never name a provider, machine type, zone or price; those live in

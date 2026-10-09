@@ -13,8 +13,9 @@ the job path and puts their outputs where the runner expects them.
          "minutes": 10, "env": {...}, "models": [...], "cards": 1, "kernel_cache": "..."}],
         who="<session>", classes=["gpu-24gb", "gpu-48gb"], image="blender")
 
-`image` is a kind in tools/cloud/images/images.json (default: `kind`); `classes` default to capacity.py's for
-`kind`. It returns the numbers of the jobs that did not finish, as a machine runner's `left`. The machine runners
+`image` is a kind in tools/cloud/images/images.json (default: `kind`), the job.json's `kind` (the runtime reads the
+image's models.json by it); `kind` is capacity.py's job kind (`capacity_kind`), whose classes in its order are the
+default `classes` and under which the ledger records the run. It returns the numbers of the jobs that did not finish, as a machine runner's `left`. The machine runners
 stay the default: nothing here runs unless the runner asks for it under SCORE_CLOUD=k8s.
 
 One difference from the machine runners: the runtime brings a job's outputs back only when its command succeeded, and
@@ -75,7 +76,7 @@ def output_entries(helper, run, job_id, outputs):
 def spec_of(helper, store, run, job_id, kind, image, classes, job):
     """One job.json from a runner's job; with where its outputs come back."""
     outputs, back = output_entries(helper, run, job_id, job.get("outputs", ()))
-    spec = {"kind": kind, "image": helper.image(image), "classes": list(classes),
+    spec = {"kind": image, "capacity_kind": kind, "image": helper.image(image), "classes": list(classes),
             "code": helper.upload_code(store, job.get("code", []), kind=image, repo=REPO),
             "inputs": upload_inputs(store, helper.jobs.prefix(run, job_id), job.get("inputs", ())),
             "outputs": outputs, "command": job["command"], "env": job.get("env", {}),
@@ -101,7 +102,8 @@ def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
     helper = submitter.runtime()
     store = helper.cloud_store()
     image = image or kind
-    classes = classes or submitter.capacity.classes_for(kind)
+    classes = classes or sorted(submitter.capacity.classes_for(kind),
+                                key=lambda name: submitter.capacity.speed_rank(name, kind))
     run_name = name or run_id(kind)
     specs, backs = {}, {}
     for number, job in enumerate(jobs):
