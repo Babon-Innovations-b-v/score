@@ -61,6 +61,19 @@ class FolderStore:
                       and str(path.relative_to(self.root)).startswith(prefix))
 
 
+## S3-compatible stores cap a multipart upload at 1,000 parts (Scaleway does; AWS allows 10,000), and boto3's 8 MB
+## parts would stop an upload at 8 GB: a 15 GB model tar failed so (2026-10-09). Parts grow with the file instead.
+MOST_PARTS = 1000
+SMALLEST_PART = 8 * 1024 * 1024
+
+
+def part_size(size):
+    """The multipart part size for a file of `size` bytes: boto3's 8 MB, or larger in whole MB so it fits in
+    MOST_PARTS parts with room to spare."""
+    needed = -(-size // (MOST_PARTS - 50))
+    return max(SMALLEST_PART, -(-needed // (1024 * 1024)) * 1024 * 1024)
+
+
 class BucketStore:
     """A store kept in an S3 bucket (any S3-compatible object storage)."""
 
@@ -88,7 +101,11 @@ class BucketStore:
         self.client.download_file(self.bucket, key, str(destination))
 
     def upload(self, source, key):
-        self.client.upload_file(str(source), self.bucket, key)
+        from boto3.s3.transfer import TransferConfig
+
+        size = part_size(pathlib.Path(source).stat().st_size)
+        self.client.upload_file(str(source), self.bucket, key,
+                                Config=TransferConfig(multipart_threshold=size, multipart_chunksize=size))
 
     def read_bytes(self, key):
         return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
