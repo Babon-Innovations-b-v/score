@@ -29,7 +29,8 @@
 		"camp_case": 1,
 		"camp_canister": 1,
 		"camp_kiosk_terminal": 1,
-		"camp_toaster": 1
+		"camp_toaster": 1,
+		"camp_coffee_maker": 1
 	},
 	"kinds": {
 		"camp_dome_wall_panel": {
@@ -613,6 +614,10 @@
 			"route": "model"
 		},
 		"toaster_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"coffee_maker_1": {
 			"glows": false,
 			"route": "model"
 		}
@@ -9495,6 +9500,36 @@
 			],
 			"layer": 1,
 			"model": "toaster_1"
+		},
+		{
+			"kind": "camp_coffee_maker",
+			"at": [
+				-2.8641,
+				0.95,
+				-6.9175
+			],
+			"x": [
+				-0.0349,
+				0.0,
+				0.99939
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99939,
+				0.0,
+				-0.0349
+			],
+			"size": [
+				0.1587,
+				0.3412,
+				0.3843
+			],
+			"layer": 1,
+			"model": "coffee_maker_1"
 		}
 	]
 }
