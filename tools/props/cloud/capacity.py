@@ -62,6 +62,9 @@ KINDS = {
     # The close-up judge (judge.py): a 27B vision-language model in FP8, 30 GB of weights, through vLLM.
     "judge": ("gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
     "moss-sound": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
+    # The character maker's person chain (characters.py): one person a card, each step's model loaded in turn
+    # (Kimodo with its 8B text encoder holds about 17 GB, the largest).
+    "characters": SINGLE_CARD,
 }
 # Kinds that take their offers in an order of their own. Pixal3D: the 80 GB cards first, which run ten takes at once
 # (18 takes an hour against an L4's 6, measured 2026-10-08). Library bakes (Cycles): the cards with ray-tracing

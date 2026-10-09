@@ -1,0 +1,58 @@
+{
+ "name": "nev_rebuild",
+ "kind": "person",
+ "approved": "owner, job characters-full, 2026-10-09: rebuild one crew member from scratch and compare with the old body",
+ "why": "Nev, the botanist, rebuilt from the same A-pose picture her look was first read off (the nev_mars job, #112), every step on the cloud chain, to compare with the body she has now",
+ "picture": "~/.farm-factory-motion/rnd/people/nev_mars/pics/apose/nev-1.png",
+ "head": "~/.farm-factory-motion/rnd/people/nev_mars/refs/nev_head.png",
+ "references": [
+  "~/.farm-factory-motion/rnd/people/nev_mars/refs/nev_work.png"
+ ],
+ "hair": "short black pixie cut: short cropped sides and back close to the head, a short soft fringe swept to one side over the forehead, a little volume on top, ears uncovered",
+ "face": "her face, short black hair and thin round glasses",
+ "outfits": [
+  "work",
+  "space"
+ ],
+ "garment_body": "mean_female",
+ "look": {
+  "scale": 0.933,
+  "work": "chinese",
+  "space": "chinese",
+  "botanist": true,
+  "glasses": true,
+  "skin": [
+   224,
+   176,
+   142
+  ],
+  "hair": [
+   74,
+   76,
+   82
+  ],
+  "hair_shine": [
+   146,
+   150,
+   158
+  ],
+  "brow": [
+   34,
+   30,
+   30
+  ],
+  "iris": [
+   52,
+   38,
+   30
+  ],
+  "brow_weight": 0.62,
+  "line": [
+   52,
+   34,
+   30
+  ],
+  "brow_lift": 0.0065,
+  "painted_mouth": true
+ }
+}
