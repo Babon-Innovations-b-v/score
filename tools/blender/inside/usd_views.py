@@ -21,6 +21,11 @@ one of a group standing among thousands is seen close. What the motion stage mov
 where it stands at the view's `frame`: a moving prim through Blender's own reader, a switched light by its keyed
 energy. Objects the stage makes invisible (the body parts a character does not wear) stay out of every picture.
 
+The stage's effects (tools/usd/effects.py: UsdGeomPoints with score:kind "effect", looped from their clips) are drawn
+here at each view's frame, since Blender's reader leaves their displayOpacity out: each particle a sphere, a speck flat
+and unlit, a puff lit and soft as the game's dust puff, faded near the eye; they are air like the haze, so left out of
+the masks, and never hidden as a crowd.
+
 What the stage's sky holds is drawn as the game draws it: a haze body (score:kind "haze" with score:haze_*,
 tools/usd/scene.py) filled with fog of its colour and thickness out to its reach from the eye, lit by the sun and
 the lamps but not by the sky's ambient light, and a water surface with score:mirror_* given back
@@ -50,6 +55,8 @@ FILL_STRENGTH = 0.5
 FILL_ELEVATION = 25.0
 SKY_LIGHT = 0.04
 PLAIN_COLOUR = (0.6, 0.6, 0.6, 1.0)
+# How many see-through particles a ray passes on its way through an effect (tools/usd/effects.py) before it stops.
+EFFECT_BOUNCES = 256
 SAMPLES = 16
 CARD_SAMPLES = 64
 # The game's ink lines (2099's ink_edges.gdshader and ink_edges.tres), its numbers as it has them: a pixel is inked
@@ -559,6 +566,124 @@ def water_mirrors(objects):
                             float(score_value(item, "mirror_ripple_tip")), float(score_value(item, "mirror_ripple_size")))
 
 
+# --- the effects (tools/usd/effects.py) ---------------------------------------------------------------------------
+
+def effect_points(stage, objects):
+    """The stage's baked effects (UsdGeomPoints with score:kind "effect", looped from their clips), each with the
+    point cloud Blender brought it in as: Blender's reader leaves displayOpacity out, so each is drawn here instead,
+    frame by frame (draw_effects), its own reader taken off. Each comes as (point cloud, Points prim, its stage)."""
+    from pxr import Usd, UsdGeom
+    opened = Usd.Stage.Open(str(stage))
+    clouds = {item.name: item for item in objects if item.type == "POINTCLOUD"}
+    found = []
+    for prim in opened.Traverse():
+        if not prim.IsA(UsdGeom.Points) or prim.GetAttribute("score:kind").Get() != "effect":
+            continue
+        cloud = clouds.get(prim.GetName())
+        if cloud is None:
+            raise RuntimeError(f"Blender did not bring in the effect {prim.GetPath()}")
+        for modifier in [modifier for modifier in cloud.modifiers if modifier.type == "MESH_SEQUENCE_CACHE"]:
+            cloud.modifiers.remove(modifier)
+        emitter = prim.GetParent()
+        cloud.data.materials.clear()
+        cloud.data.materials.append(effect_material(prim.GetName(), prim.GetAttribute("score:effect:look").Get(),
+                                                    emitter.GetAttribute("score:effect:near_fade").Get(),
+                                                    UsdGeom.PrimvarsAPI(prim).GetPrimvar("displayColor").Get()[0]))
+        found.append((cloud, UsdGeom.Points(prim), opened))  # the stage kept open while its prims are read
+    return found
+
+
+def draw_effects(effects, frame):
+    """Each effect's particles as its stage holds them at a frame: spots, sizes and thickness."""
+    import numpy
+    from pxr import UsdGeom
+    for cloud, points, _ in effects:
+        spots = numpy.asarray(points.GetPointsAttr().Get(frame), dtype=numpy.float32)
+        if len(spots) != len(cloud.data.points):
+            raise RuntimeError(f"{cloud.name} holds {len(cloud.data.points)} points, its stage {len(spots)} at {frame}")
+        widths = numpy.asarray(points.GetWidthsAttr().Get(frame), dtype=numpy.float32)
+        opacity = numpy.asarray(UsdGeom.PrimvarsAPI(points).GetPrimvar("displayOpacity").Get(frame), dtype=numpy.float32)
+        cloud.data.attributes["position"].data.foreach_set("vector", spots.ravel())
+        cloud.data.attributes["radius"].data.foreach_set("value", widths / 2.0)
+        thickness = cloud.data.attributes.get("opacity") or cloud.data.attributes.new("opacity", "FLOAT", "POINT")
+        thickness.data.foreach_set("value", opacity)
+        cloud.data.update_tag()
+
+
+def effect_material(name, look, near_fade, colour):
+    """An effect's particles as the game draws them, each a sphere: a speck (flat, unlit, solid to 0.4 of its radius
+    and fading to its edge) or a puff (lit, thickest in its middle as (1 - r^2)^1.5, which on a sphere seen from any
+    side is the facing share cubed, gone within near_fade metres of the eye), see-through by its `opacity`."""
+    material = bpy.data.materials.new(f"effect_{name}")
+    material.use_nodes = True
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    thickness = nodes.new("ShaderNodeAttribute")
+    thickness.attribute_type = "GEOMETRY"
+    thickness.attribute_name = "opacity"
+    geometry = nodes.new("ShaderNodeNewGeometry")
+    facing = nodes.new("ShaderNodeVectorMath")
+    facing.operation = "DOT_PRODUCT"
+    links.new(geometry.outputs["Normal"], facing.inputs[0])
+    links.new(geometry.outputs["Incoming"], facing.inputs[1])
+    straight = nodes.new("ShaderNodeMath")
+    straight.operation = "ABSOLUTE"
+    links.new(facing.outputs["Value"], straight.inputs[0])
+    shape = nodes.new("ShaderNodeMath")
+    if look == "puff":
+        shape.operation = "POWER"
+        shape.inputs[1].default_value = 3.0
+        links.new(straight.outputs["Value"], shape.inputs[0])
+        surface = nodes.new("ShaderNodeBsdfDiffuse")
+        surface.inputs["Color"].default_value = (*colour, 1.0)
+    else:  # out from the middle r = sqrt(1 - f^2); solid to 0.4, then down to nothing at the edge
+        across = nodes.new("ShaderNodeMath")
+        across.operation = "MULTIPLY"
+        links.new(straight.outputs["Value"], across.inputs[0])
+        links.new(straight.outputs["Value"], across.inputs[1])
+        out = nodes.new("ShaderNodeMath")
+        out.operation = "SQRT"
+        less = nodes.new("ShaderNodeMath")
+        less.operation = "SUBTRACT"
+        less.inputs[0].default_value = 1.0
+        links.new(across.outputs["Value"], less.inputs[1])
+        links.new(less.outputs["Value"], out.inputs[0])
+        shape = nodes.new("ShaderNodeMapRange")
+        shape.inputs["From Min"].default_value, shape.inputs["From Max"].default_value = 1.0, 0.4
+        links.new(out.outputs["Value"], shape.inputs["Value"])
+        surface = nodes.new("ShaderNodeEmission")
+        surface.inputs["Color"].default_value = (*colour, 1.0)
+    share = nodes.new("ShaderNodeMath")
+    share.operation = "MULTIPLY"
+    links.new(thickness.outputs["Fac"], share.inputs[0])
+    links.new(shape.outputs[0], share.inputs[1])
+    if look == "puff" and near_fade is not None and near_fade[1] > 0:
+        eye = nodes.new("ShaderNodeCameraData")
+        near = nodes.new("ShaderNodeMapRange")
+        near.interpolation_type = "SMOOTHSTEP"
+        near.inputs["From Min"].default_value, near.inputs["From Max"].default_value = near_fade[0], near_fade[1]
+        links.new(eye.outputs["View Distance"], near.inputs["Value"])
+        faded = nodes.new("ShaderNodeMath")
+        faded.operation = "MULTIPLY"
+        links.new(share.outputs["Value"], faded.inputs[0])
+        links.new(near.outputs["Result"], faded.inputs[1])
+        share = faded
+    clear = nodes.new("ShaderNodeBsdfTransparent")
+    mix = nodes.new("ShaderNodeMixShader")
+    links.new(share.outputs["Value"], mix.inputs["Fac"])
+    links.new(clear.outputs["BSDF"], mix.inputs[1])
+    links.new(surface.outputs[0], mix.inputs[2])
+    links.new(mix.outputs["Shader"], output.inputs["Surface"])
+    return material
+
+
+def see_through_deep(scene):
+    """Enough see-through bounces for a cloud of thin particles one behind another (Cycles stops at its default 8)."""
+    if scene.render.engine == "CYCLES":
+        scene.cycles.transparent_max_bounces = EFFECT_BOUNCES
+
+
 def textured(item):
     """Whether an object is drawn from a picture (a made model's baked maps): the game inks those thinner."""
     return item.type == "MESH" and any(
@@ -749,7 +874,10 @@ def main():
     objects = import_stage(stage)
     (out / "report.json").write_text(json.dumps(import_report(stage, objects), indent=1))
     objects = [item for item in objects if not item.hide_render]  # what the stage makes invisible stays so
+    effects = effect_points(stage, objects)
     renderer(scene, views["size"])
+    if effects:
+        see_through_deep(scene)
     lights, environment = stage_lights(stage)
     for number, entry in enumerate(lights):
         place_light(scene, number, entry)
@@ -778,9 +906,13 @@ def main():
     lamps(scene, views.get("lights", []))
     layers = {item.name: layer_of(item) for item in objects}
     sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky", "dust")]
+    sky += [cloud for cloud, _, _ in effects]  # effects are air, as the dust is, not the place's objects
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))
-        crowds = [item for item in objects if item.type == "POINTCLOUD"] if view.get("hide_crowds") else []
+        draw_effects(effects, scene.frame_current)
+        drawn = {cloud.name for cloud, _, _ in effects}
+        crowds = [item for item in objects if item.type == "POINTCLOUD" and item.name not in drawn] \
+            if view.get("hide_crowds") else []
         for item in crowds:
             item.hide_render = item.hide_viewport = True
         if "eyes" in view:

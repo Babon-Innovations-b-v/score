@@ -11,6 +11,22 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - **A third layer for characters.** A place with a cast has `layers/characters.usda` (`../characters/cast.py`)
   between the edit layer and the base; `write_root` keeps it there when it exists. It is the characters stage's, never
   written here.
+- **The effects layer** (`effects.py`, `layers/effects.usda`, between the edit layer and the base with the other stage
+  layers): a place's particle effects from its record (`data/effects/<place>.json`, every entry with its game `from`),
+  each emitter written twice. The schema is an Xform `/<place>/Effects/<emitter>` in the emitter's own frame carrying
+  `score:effect:*` (kind; look `speck` or `puff`; emitter shape and size; count, rate, lifetime, explosiveness and a
+  burst's period; direction, spread, flatness, speed; gravity in the emitter's frame; damping, radial push,
+  turbulence; size, scale and size over life; linear colour, opacity and opacity over life; a puff's near fade; the
+  wind it follows in the place's frame; spin; world or local space; seed; the bake's loop; `from`), which an engine
+  adapter makes again with its own particles. Under it a UsdGeomPoints `<emitter>_points` is baked over the loop
+  (points, widths, displayOpacity, a displayColor) as a value clip in `assets/effects/<emitter>.usdc`, looped over the
+  stage's time, so any USD reader shows the particles without the schema. The bake repeats Godot's
+  ParticleProcessMaterial with its own seeded draws: the same record is always the same particles. A record's
+  `replaces` makes a base prim inactive that the layer draws moving (the camp's still drift), and a `variant` puts an
+  entry in that variant of `/<place>/Effects` (the camp's `weather`: calm, storm). Blender's reader leaves
+  displayOpacity out, so `../blender/inside/usd_views.py` draws the effects itself, frame by frame. Effects are
+  fine and many (the owner's rule: real footage first; big or sparse particles read as dots): never thin a record to
+  make it cheaper to draw.
 - **Converted, not referenced.** glTF geometry becomes UsdGeomMesh with UsdPreviewSurface materials and PNG maps:
   usd-core and Blender read no glTF inside USD. Parts are GeomSubsets named after their library surface.
   The parts come from `data/parts` (`../props/library/stored_parts.py`: a stored sample of each labelled take, by

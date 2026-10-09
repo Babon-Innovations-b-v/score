@@ -1,0 +1,31 @@
+{
+ "place": "flat",
+ "about": "The smoke of the cigarette the player smokes on the balcony on launch day, as the game 2099 draws it (CigaretteView): a thin wisp rising off the lit end all the time it burns, and the breath of a drag let out ahead of the face, slowing, spreading, rising and thinning away. Both are let go into the world rather than carried with the head. The cigarette hangs off the player's camera, so both are hung here off the scene record's balcony camera; the cigarette itself, the player's own, is not on the stage. Real footage checked: exhaled cigarette smoke leaves the lips as a dense stream that slows within a few tens of centimetres and billows, and a resting cigarette's smoke rises as one thin laminar thread that breaks into curls (the owner's rule: start from footage, many fine cards tied to the world).",
+ "effects": [
+  {"name": "wisp", "kind": "smoke_wisp", "look": "puff",
+   "placement": {"eye": "balcony", "offset": [0.0661, -0.0723, -0.1502]},
+   "emitter": {"shape": "point"}, "count": 40, "lifetime": 2.5, "direction": [0.0, 1.0, 0.0], "spread": 15.0,
+   "speed": [0.02, 0.05], "rise": 0.15, "size": 0.015, "scale": [1.0, 5.0],
+   "size_over_life": [[0.0, 0.2], [0.4, 0.7], [1.0, 1.0]], "colour": "#ece8e0", "opacity": 0.18,
+   "opacity_over_life": [[0.0, 0.0], [0.1, 1.0], [1.0, 0.0]],
+   "turbulence": {"strength": 0.4, "scale": 0.6, "influence": [0.02, 0.06]}, "near_fade": [1.0, 6.0],
+   "space": "world", "seed": 31,
+   "from": "game/prologue/cigarette_view/cigarette_view.gd:20-30,46-53,107-113,216-233,264-306 (the lit end at MOUTH (0.02, -0.06, -0.06) plus POINTING out FILTER_LENGTH 0.025 + PAPER_LENGTH 0.075 + half EMBER_LENGTH 0.004 in the camera's numbers; WISP_CARDS 40, WISP_SECONDS 2.5, WISP_CARD 0.015, WISP_GROWS 5 with _growing's curve 0.2 / 0.7 / 1 (read straight between its points), WISP_RISE 0.15 up the world, WISP_THICKNESS 0.18 of AIR_HAZE #ece8e0, spread 15, 0.02 to 0.05 m/s, turbulence 0.4 / 0.6 / 0.02 to 0.06, fading 0 / 0.1 / 1), game/outside/dust/dust_grains.gd:81-88 (the lit puff)"},
+  {"name": "breath", "kind": "smoke_breath", "look": "puff",
+   "placement": {"eye": "balcony", "offset": [0.0, -0.08, -0.18]},
+   "emitter": {"shape": "sphere", "radius": 0.01}, "count": 220, "lifetime": 4.0, "explosiveness": 0.4,
+   "one_shot": {"every": 8.0, "at": 0.8}, "direction": [0.0, 0.0, -1.0], "spread": 7.0, "speed": [0.54, 0.9],
+   "damping": [1.28, 1.6], "rise": 0.12, "size": 0.07, "scale": [1.0, 7.0],
+   "size_over_life": [[0.0, 0.142857], [0.4, 0.7], [1.0, 1.0]], "colour": "#ece8e0", "opacity": 0.5,
+   "opacity_over_life": [[0.0, 0.0], [0.1, 1.0], [1.0, 0.0]],
+   "turbulence": {"strength": 0.6, "scale": 0.8, "influence": [0.03, 0.08]}, "near_fade": [1.0, 6.0],
+   "space": "world", "seed": 32,
+   "from": "game/prologue/cigarette_view/cigarette_view.gd:16-18,54-67,124-139,159-163,236-261 (BREATH_OUT (0, -0.08, -0.18) ahead of the eye, along the face's -z; BREATH_CARDS 220, BREATH_SECONDS 4, one shot at explosiveness 0.4, a 0.01 m sphere, spread 7, 0.6 to 1 of BREATH_SPEED 0.9, damping 0.8 to 1 of BREATH_SLOWS 1.6, BREATH_CARD 0.07 growing BREATH_GROWS 7, BREATH_RISE 0.12, BREATH_THICKNESS 0.5, turbulence 0.6 / 0.8 / 0.03 to 0.08; let out 0.8 s into a drag, after DRAW_IN_SECONDS 1 times 0.4 lifted and 0.4 waited), game/prologue/cigarette/cigarette.gd:15-19 (DRAG_SECONDS 2 between drags at least); the bake breathes out once every 8 s, when one breath has gone"}
+ ],
+ "views": [
+  {"name": "balcony-smoke", "eye": [-4.0, 1.62, -3.5], "aim": [-45.65, -3.11, -3.7], "fov": 80, "frame": 48,
+   "from": "data/scene/flat.json view balcony (the game's own, o-balcony.png), 1.2 s after the breath is let out: game/main/main.gd:806-811 takes its balcony-smoke picture 1.4 s after a drag"},
+  {"name": "balcony-smoke-side", "eye": [-6.2, 2.0, -1.4], "aim": [-4.15, 1.62, -3.5], "fov": 50, "frame": 60,
+   "from": "the stage's own: from just past the balcony rail, 3 m off the player's eye, looking back at where the smoke is let out (the game's puff is gone within 1 m of the eye, so its own camera barely sees its breath)"}
+ ]
+}

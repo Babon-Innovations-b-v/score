@@ -295,6 +295,14 @@ def record_views(scene):
             for number, view in enumerate(scene.get("views", []))]
 
 
+def effect_views(place):
+    """The cameras the place's effects record judges its effects from (data/effects/<place>.json `views`, read by
+    tools/usd/effects.py), each at the moment of the stage's time it names."""
+    import effects
+    return [dict(looking(view["name"], view["eye"], view["aim"], fov=float(view.get("fov", 75.0))),
+                 frame=int(view["frame"])) for view in (effects.record(place) or {}).get("views", [])]
+
+
 def cutaway(scene):
     """A room's cutaway: from high over one corner of its floor looking down across it, its roof left out."""
     low, high = np.asarray(scene["floor"][0], dtype=float), np.asarray(scene["floor"][1], dtype=float)
@@ -352,7 +360,7 @@ def scene_shots(place, stages, out, plain=False, room=None, kit=False, scene=Non
     low, high = stage_extent(list(stages.values())[-1])
     newest = list(stages)[-1]
     if scene is not None and scene.get("views"):
-        views = record_views(scene) + ([cutaway(scene)] if scene.get("inside") else [])
+        views = record_views(scene) + effect_views(place) + ([cutaway(scene)] if scene.get("inside") else [])
         walk, lights = record_walk(scene), []
     elif room is not None:
         views, walk, lights = room_views(low, high), room_walk(low, high), room_lights(room)
