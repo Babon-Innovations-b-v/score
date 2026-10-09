@@ -637,16 +637,40 @@ def ensure_edit(out):
     layer.Save()
 
 
+# The stage layers other stages write, each a layer of its own between the creator's edit layer and the base, strongest
+# first: characters (tools/characters/cast.py), sound (tools/usd/sound.py), motion (tools/usd/motion.py), effects
+# (tools/usd/effects.py). A stage tool writes only its own layer and calls held_by_root.
+STAGE_LAYERS = ("characters", "sound", "motion", "effects")
+
+
+def root_layers(out):
+    """The sublayers a stage's root holds, strongest first: the edit layer, every stage layer written, the base."""
+    written = [f"./layers/{name}.usda" for name in STAGE_LAYERS if (pathlib.Path(out) / f"layers/{name}.usda").exists()]
+    return ["./layers/edit.usda", *written, "./layers/base.usda"]
+
+
+def held_by_root(place, out):
+    """The stage's root made to hold every stage layer written so far in its place (a layer written after the
+    export), when the root exists."""
+    root = Sdf.Layer.FindOrOpen(str(pathlib.Path(out) / f"{place}.usda"))
+    if root is None:
+        return
+    wanted = root_layers(out)
+    if list(root.subLayerPaths) != wanted:
+        root.subLayerPaths.clear()
+        for path in wanted:
+            root.subLayerPaths.append(path)
+        root.Save()
+
+
 def write_root(place, out):
-    """The stage's own file: the edit layer over the characters (when the place has them) over the base, metres, y up,
-    the place as its default prim."""
+    """The stage's own file: the edit layer over the stage layers written (characters, sound, motion, effects) over
+    the base, metres, y up, the place as its default prim."""
     path = out / f"{place}.usda"
     layer = Sdf.Layer.FindOrOpen(str(path)) or Sdf.Layer.CreateNew(str(path))
     layer.Clear()
-    layer.subLayerPaths.append("./layers/edit.usda")
-    if (out / "layers/characters.usda").exists():  # the place's characters (tools/characters/cast.py)
-        layer.subLayerPaths.append("./layers/characters.usda")
-    layer.subLayerPaths.append("./layers/base.usda")
+    for sublayer in root_layers(out):
+        layer.subLayerPaths.append(sublayer)
     layer.defaultPrim = place
     layer.pseudoRoot.SetInfo("upAxis", UsdGeom.Tokens.y)
     layer.pseudoRoot.SetInfo("metersPerUnit", 1.0)
