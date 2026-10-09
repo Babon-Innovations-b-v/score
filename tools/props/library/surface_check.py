@@ -9,8 +9,9 @@ REGION_SHARE of the object, the surface drawn over most of it is held against th
 neutral under FAMILY_CHROMA (white, grey and black alike, as a shade changes them), else the hue family. A region fails
 when the close-up is coloured and the surface is of another family, or when the close-up is neutral and the surface
 is strongly coloured (chroma past STRONG: gold over a white band); a surface the place gives a soft colour (the lab's
-blue vinyl over a grey seat) is the place's palette and passes. A region darker than DARK passes a dark surface and is
-unknown under any other; one the drawn model hardly covers is unknown; unknown blocks as fail does.
+blue vinyl over a grey seat) is the place's palette and passes. A region darker than DARK is of the family "dark" and
+passes a dark surface and fails a light one; only one the drawn model hardly covers is unknown, and unknown blocks as
+fail does.
 Two regions of different families over FINISH_SHARE each that got one surface are two finishes painted as one, and
 fail too. The model fails past MISMATCH_LIMIT of its object's pixels in failed regions, or on any such pair.
 """
@@ -74,13 +75,14 @@ def picture(drawn, flat):
 
 
 def verdict(region_colour, surface_colour, covered):
-    """A region's verdict, "pass", "fail" or "unknown" (which blocks as a fail does): unknown where the drawn model
-    covers under COVERED of it, or where the close-up is too dark to tell a colour (shade) and the surface is not dark
-    too; fail where the surface's colour family is not the close-up's there."""
+    """A region's verdict, "pass", "fail" or "unknown" (which blocks as a fail does): unknown only where the drawn
+    model covers under COVERED of it (the camera cannot read it); a region the close-up shows very dark (under DARK) is
+    of the family "dark" and passes a dark surface (under DARK_SURFACE) and fails a light one; elsewhere it fails
+    where the surface's colour family is not the close-up's."""
     if covered < COVERED:
         return "unknown"
-    if region_colour[0] < DARK:
-        return "pass" if surface_colour[0] < DARK_SURFACE else "unknown"
+    if region_colour[0] < DARK:  # the measured family "dark": a shaded interior, a black dial
+        return "pass" if surface_colour[0] < DARK_SURFACE else "fail"
     if family(region_colour) == "neutral":
         return "fail" if float(np.hypot(surface_colour[1], surface_colour[2])) > STRONG else "pass"
     return "pass" if family(surface_colour) == family(region_colour) else "fail"
