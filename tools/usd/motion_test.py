@@ -24,8 +24,8 @@ RATE = 24.0
 
 def base_of(place, out):
     """A stage of the place holding the prims its scene record writes where motions can reach them: each structure
-    entry as a mesh with no transform, each object as a fixture's translate, turn and scale, each light as the record
-    writes it."""
+    entry as a mesh with no transform, each object as a fixture's translate, turn and scale, each other place shown
+    (a door leaf's own kit) at its translate, each light as the record writes it."""
     record = scene_record.record(place)
     (out / "layers").mkdir(parents=True)
     layer = Sdf.Layer.CreateNew(str(out / "layers/base.usda"))
@@ -37,6 +37,9 @@ def base_of(place, out):
         fixture.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry["at"])))
         fixture.AddRotateYOp().Set(float(entry.get("yaw", 0.0)))
         fixture.AddScaleOp().Set(Gf.Vec3f(1.0))
+    for entry in record.get("places", []):
+        shown = UsdGeom.Xform.Define(stage, f"/{place}/Places/{entry['name']}")
+        shown.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry.get("at", [0.0, 0.0, 0.0]))))
     scene_record.write_lights(stage, place, record.get("lights", []))
     layer.Save()
     Sdf.Layer.CreateNew(str(out / "layers/edit.usda")).Save()
@@ -97,13 +100,14 @@ def check_the_airlock_cycles_as_the_game_does(work):
 
 def check_the_bay_doors(work):
     garage = Usd.Stage.Open(str(work / "garage/garage.usda"))
-    close(at(garage, "/garage/Structure/big_door_west", 1.0 + 1.04)[0], -2.6, "the west leaf open, 2.6 m at 2.5 m/s")
-    close(at(garage, "/garage/Structure/big_door_east", 1.0 + 0.52)[0], 1.3, "the east leaf half way")
-    close(at(garage, "/garage/Structure/big_door_west", 7.0)[0], 0.0, "the leaves shut before the tanks fill")
+    west, east = "/garage/Places/big_door_west", "/garage/Places/big_door_east"  # shut at x -1.25 and 1.25
+    close(at(garage, west, 1.0 + 1.04)[0], -1.25 - 2.6, "the west leaf open, 2.6 m at 2.5 m/s")
+    close(at(garage, east, 1.0 + 0.52)[0], 1.25 + 1.3, "the east leaf half way")
+    close(at(garage, west, 7.0)[0], -1.25, "the leaves shut before the tanks fill")
     beacon = "/garage/Lights/big_door_beacon"
     assert lit(garage, beacon, 3.0) > 0.0 and lit(garage, beacon, 11.5) == 0.0, "the beacon dark only with air"
     hangar = Usd.Stage.Open(str(work / "hangar/hangar.usda"))
-    close(at(hangar, "/hangar/Structure/roof_leaf_east", 1.0 + 11.2 / 3.0)[0], 11.2, "the roof leaf open at 3 m/s")
+    close(at(hangar, "/hangar/Places/roof_leaf_east", 1.0 + 11.2 / 3.0)[0], 5.5 + 11.2, "the roof leaf open at 3 m/s")
     print("ok  the garage's leaves and beacon, the hangar's roof leaves")
 
 
