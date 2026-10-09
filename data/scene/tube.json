@@ -215,7 +215,9 @@
   }
  ],
  "game_only": [
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)",
+  "the hub's far hatch (along-east view): the game shows the next tube and the lab through it; the stage shows black space there",
+  "the rover and the module beside it outside the glass (glass-side view)"
  ],
  "planned_ground": {
   "reach": 130.0,
