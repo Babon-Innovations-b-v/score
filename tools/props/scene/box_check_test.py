@@ -114,6 +114,49 @@ def test_the_third_seed_is_asked_only_where_the_first_two_disagree():
     assert box_check.verdicts(jobs, folder)["split"] == {"passes": True, "passed": 2, "of": 3, "what": "a wall"}
 
 
+def test_sam_3_is_asked_for_the_short_name():
+    assert box_check.noun("stainless galley counter: worktop with hob and sink") == "stainless galley counter"
+    assert box_check.noun("a strip lamp in a steel housing with a frosted lens, over a door") == "strip lamp"
+    assert box_check.noun("lamp on a rod from the ceiling: housing and lens") == "lamp"
+
+
+def test_a_box_is_grounded_by_a_mask_inside_it():
+    inside = {"box": [10, 10, 50, 50], "score": 0.9, "inside": 0.9, "fills": 0.6}
+    tiny = {"box": [10, 10, 14, 14], "score": 0.9, "inside": 1.0, "fills": 0.01}
+    elsewhere = {"box": [900, 10, 990, 80], "score": 0.8, "inside": 0.0, "fills": 0.0}
+    room = {"box": [0, 0, 2700, 1500], "score": 0.9, "inside": 0.02, "fills": 0.9}
+    assert box_check.grounding([elsewhere, inside], SIZE) == {"grounding": "grounded"}
+    assert box_check.grounding([elsewhere, tiny], SIZE) == {"grounding": "loose", "found_at": [10, 10, 14, 14]}
+    assert box_check.grounding([elsewhere], SIZE) == {"grounding": "off", "found_at": [900, 10, 990, 80]}
+    assert box_check.grounding([room], SIZE) == {"grounding": "not found"}  # the whole room says nothing
+    assert box_check.grounding([], SIZE) == {"grounding": "not found"}
+
+
+def test_the_mask_jobs_hold_each_views_judged_rows():
+    rows = spread_over_the_picture()[:2] + [a_row("wall", [0, 0, SIZE[0], SIZE[1]], group="kit: wall")]
+    jobs = box_check.mask_jobs("camp", an_inventory(rows, "/concepts/K01.png"), {"v1": SIZE})
+    assert jobs == [{"picture": "/concepts/K01.png", "rows": [
+        {"key": "camp.r0", "noun": "r0", "box": rows[0]["box"]}, {"key": "camp.r1", "noun": "r1", "box": rows[1]["box"]}]}]
+
+
+def test_the_measurement_decides_before_the_judge():
+    grounded = {"camp.galley": {"grounding": "grounded"}, "camp.crate": {"grounding": "off", "found_at": [1, 2, 3, 4]},
+                "camp.net": {"grounding": "not found"}, "camp.bin": {"grounding": "not found"}}
+    judged = {"camp.galley.1-2-3-4": {"passes": False, "what": "a wall"},
+              "camp.crate.1-2-3-4": {"passes": True, "what": ""}, "camp.net.1-2-3-4": {"passes": False, "what": "a wall"}}
+    results = box_check.decided(grounded, judged)
+    assert [results[key]["passes"] for key in ("camp.galley", "camp.crate", "camp.net", "camp.bin")] == \
+        [True, False, False, None]
+
+
+def test_a_loose_box_is_tightened_to_its_measured_thing():
+    found = an_inventory([a_row("keyboard", [100, 100, 900, 600]), a_row("wall", [0, 0, 900, 600], group="kit: wall")])
+    grounded = {"camp.keyboard": {"grounding": "loose", "found_at": [400, 300, 520, 340]},
+                "camp.wall": {"grounding": "loose", "found_at": [0, 0, 10, 10]}}
+    assert box_check.tighten("camp", found, grounded) == ["keyboard"]
+    assert found["rows"][0]["box"] == [400, 300, 520, 340] and found["rows"][1]["box"] == [0, 0, 900, 600]
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:

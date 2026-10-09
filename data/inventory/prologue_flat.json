@@ -167,10 +167,10 @@
 			"id": "sliding_glass_leaf",
 			"view": "v1",
 			"box": [
-				1350,
-				380,
-				1650,
-				1080
+				1053,
+				382,
+				1641,
+				1088
 			],
 			"name": "sliding glass balcony door",
 			"kind": "code",
@@ -387,10 +387,10 @@
 			"id": "thermos",
 			"view": "v1",
 			"box": [
-				2580,
-				880,
-				2700,
-				1150
+				2570,
+				343,
+				2704,
+				603
 			],
 			"name": "green thermos flask",
 			"kind": "generate",
@@ -427,10 +427,10 @@
 			"id": "sauce_bottle",
 			"view": "v1",
 			"box": [
-				2250,
-				460,
-				2500,
-				650
+				2312,
+				469,
+				2369,
+				635
 			],
 			"name": "soy sauce bottle",
 			"kind": "generate",
@@ -507,10 +507,10 @@
 			"id": "bedside_table",
 			"view": "v1",
 			"box": [
-				700,
-				960,
-				920,
-				1110
+				25,
+				1137,
+				497,
+				1536
 			],
 			"name": "timber bedside table",
 			"kind": "code",
@@ -547,10 +547,10 @@
 			"id": "bed_frame",
 			"view": "v1",
 			"box": [
-				400,
-				1000,
-				1030,
-				1536
+				374,
+				996,
+				1003,
+				1531
 			],
 			"name": "painted steel single bed frame",
 			"kind": "code",
@@ -667,10 +667,10 @@
 			"id": "wall_print",
 			"view": "v1",
 			"box": [
-				80,
-				330,
-				620,
-				810
+				473,
+				425,
+				621,
+				660
 			],
 			"name": "family photo, calendar and red poster",
 			"kind": "code",

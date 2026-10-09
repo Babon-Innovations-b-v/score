@@ -713,10 +713,10 @@
 			],
 			"view": "v1",
 			"box": [
-				615,
-				1015,
-				650,
-				1085
+				458,
+				954,
+				535,
+				1072
 			],
 			"thing": "prop:garage_door_control_box"
 		},
@@ -746,13 +746,9 @@
 				}
 			],
 			"view": "v1",
-			"box": [
-				455,
-				955,
-				535,
-				1075
-			],
-			"thing": "prop:garage_small_readout"
+			"box": null,
+			"thing": "prop:garage_small_readout",
+			"unseen": "the small wall unit first boxed as the readout is the door control box (SAM 3's mask and a look at it agree); no other small readout shows"
 		},
 		{
 			"id": "rover_lift",

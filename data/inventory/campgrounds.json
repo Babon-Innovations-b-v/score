@@ -109,10 +109,10 @@
 			"id": "cargo_pallet",
 			"view": "v1",
 			"box": [
-				662,
-				766,
-				904,
-				966
+				659,
+				923,
+				774,
+				971
 			],
 			"name": "flat aluminium cargo pallet",
 			"kind": "generate",
@@ -376,10 +376,10 @@
 			"id": "mast",
 			"view": "v1",
 			"box": [
-				2160,
-				110,
-				2400,
-				740
+				2219,
+				191,
+				2312,
+				725
 			],
 			"name": "guyed lattice radio mast with lamp housing and aerial",
 			"kind": "code",

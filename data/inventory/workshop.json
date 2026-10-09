@@ -314,10 +314,10 @@
 			"id": "hatch_leaf",
 			"view": "v1",
 			"box": [
-				605,
-				880,
-				965,
-				1375
+				1763,
+				262,
+				1952,
+				521
 			],
 			"name": "a thick steel pressure hatch door leaf with rounded corners and a round window",
 			"kind": "code",
@@ -337,10 +337,10 @@
 			"id": "hatch_wheel",
 			"view": "v1",
 			"box": [
-				605,
-				880,
-				965,
-				1375
+				879,
+				1317,
+				936,
+				1381
 			],
 			"name": "a steel locking hand wheel with four spokes on a hub, for a pressure hatch",
 			"kind": "code",
@@ -660,10 +660,10 @@
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				605,
-				880,
-				965,
-				1375
+				1949,
+				442,
+				2035,
+				587
 			],
 			"name": "a steel door control box with a keypad, a status light and a label",
 			"kind": "code",
@@ -748,12 +748,7 @@
 		{
 			"id": "intercom_panel",
 			"view": "v1",
-			"box": [
-				1950,
-				435,
-				2030,
-				505
-			],
+			"box": null,
 			"name": "a wall intercom panel with a speaker grille and a call button",
 			"kind": "code",
 			"anchor": "wall",
@@ -772,7 +767,8 @@
 					"across": -1.75,
 					"bottom": 1.25
 				}
-			]
+			],
+			"unseen": "the panel beside the status console is the door control box (SAM 3's mask and a look at it agree); no wall intercom shows"
 		},
 		{
 			"id": "conduit_box",
@@ -1606,10 +1602,10 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1130,
-				550,
-				1650,
-				950
+				1309,
+				594,
+				1414,
+				651
 			]
 		},
 		{
@@ -1630,10 +1626,10 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1130,
-				550,
-				1650,
-				950
+				1500,
+				784,
+				1565,
+				822
 			]
 		},
 		{
@@ -1679,10 +1675,10 @@
 			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				1061,
+				1109,
+				1194,
+				1211
 			]
 		},
 		{
@@ -1827,10 +1823,10 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1665,
-				1070,
-				2010,
-				1375
+				1309,
+				593,
+				1414,
+				651
 			]
 		},
 		{

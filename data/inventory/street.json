@@ -362,10 +362,10 @@
 			"id": "shop_sign",
 			"view": "v2",
 			"box": [
-				2280,
-				690,
-				2620,
-				840
+				2217,
+				705,
+				2602,
+				962
 			],
 			"name": "shop sign board with its lamps",
 			"kind": "code",
@@ -428,10 +428,10 @@
 			"id": "street_lamp",
 			"view": "v1",
 			"box": [
-				1680,
-				200,
-				2000,
-				990
+				1720,
+				235,
+				1959,
+				981
 			],
 			"name": "street lamp",
 			"kind": "code",
@@ -560,10 +560,10 @@
 			"id": "end_fence",
 			"view": "v2",
 			"box": [
-				700,
-				450,
-				1450,
-				650
+				776,
+				518,
+				1462,
+				552
 			],
 			"name": "wire fence on the harbour wall",
 			"kind": "code",
