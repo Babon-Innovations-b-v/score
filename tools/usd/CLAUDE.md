@@ -83,3 +83,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   a bank of surface sounds each library surface points at) and copies the files into `assets/sound/`. Levels come
   from `data/sound/catalogue.json` with `sounds.json` over it. It never writes the base. `soundtrack` mixes what a
   camera hears; the review's walk and the demo's videos use it.
+- **The motion stage** (`motion.py`) writes `layers/motion.usda` only: time samples on prims the base already has (a
+  door's translate, a light's intensity), as overs, from `data/motion/<place>.json` (each motion's prim, its cycle:
+  start, length, loop, its game numbers with a `from`, and the sounds the game plays with it for `sound.py`). A thing
+  the game moves but the base does not draw while it rests (the airlock's sunk inner door, a dark warning light) is
+  the motion's `adds`, the layer's only defs. Animate only what the game moves, at its own speeds and lengths; a rest
+  the player's pace decides is the record's and says so. `motion_test.py` checks it without Blender.
