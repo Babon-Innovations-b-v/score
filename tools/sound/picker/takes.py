@@ -73,14 +73,12 @@ def level_of(sample):
     return abs(sample) / 32768.0
 
 
-def loud_frames(samples, channels, window, floor=10 ** (SILENCE_DB / 20)):
-    """For each window of frames, whether its peak is over `floor` (a share of full scale)."""
-    frames = len(samples) // channels
-    flags = []
-    for start in range(0, frames, window):
-        chunk = samples[start * channels:(start + window) * channels]
-        flags.append(bool(chunk) and max(level_of(value) for value in chunk) > floor)
-    return flags
+def loud_frames(samples, channels, window):
+    """For each window of frames, whether its peak is over SILENCE_DB."""
+    floor = 10 ** (SILENCE_DB / 20)
+    starts = range(0, len(samples) // channels, window)
+    chunks = (samples[start * channels:(start + window) * channels] for start in starts)
+    return [bool(chunk) and max(level_of(value) for value in chunk) > floor for chunk in chunks]
 
 
 def trimmed(samples, channels):

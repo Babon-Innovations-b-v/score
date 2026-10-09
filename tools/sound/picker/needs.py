@@ -23,48 +23,49 @@ LICENCES = REPO / "data" / "sound" / "licences.json"
 
 
 def read_json(path):
-    return json.loads(pathlib.Path(path).read_text())
+    return json.loads(path.read_text())
 
 
-def layer_names(surfaces=SURFACES, inventories=INVENTORIES):
+def file_list(named):
+    """A `file` field as a list: one file, several, or none."""
+    if not named:
+        return []
+    return [named] if isinstance(named, str) else list(named)
+
+
+def layer_names():
     """Every sound name the three layers' data names, by layer."""
     named = {"surface": [], "thing": []}
-    for sounds in read_json(surfaces)["surfaces"].values():
+    for sounds in read_json(SURFACES)["surfaces"].values():
         for happening in ("footstep", "impact", "scrape"):
             if sounds.get(happening) and sounds[happening] not in named["surface"]:
                 named["surface"].append(sounds[happening])
-    for path in sorted(pathlib.Path(inventories).glob("*.json")):
+    for path in sorted(INVENTORIES.glob("*.json")):
         for row in read_json(path).get("rows", []):
             if row.get("sound") and row["sound"] not in named["thing"]:
                 named["thing"].append(row["sound"])
     return named
 
 
-def written_files(catalogue=CATALOGUE):
+def written_files():
     """Every file each sound in the catalogue plays, by name (all the takes of several)."""
-    found = {}
-    for name, entry in read_json(catalogue)["sounds"].items():
-        named = entry.get("file") or []
-        files = [named] if isinstance(named, str) else list(named)
-        if files:
-            found[name] = files
-    return found
+    found = {name: file_list(entry.get("file")) for name, entry in read_json(CATALOGUE)["sounds"].items()}
+    return {name: files for name, files in found.items() if files}
 
 
-def current_files(name, sounds=None, catalogue=CATALOGUE):
+def current_files(name, sounds):
     """The files a sound plays today: the data's pick when there is one, else the catalogue's own."""
-    entry = (sounds or read_json(SOUNDS)["sounds"]).get(name, {})
+    entry = sounds.get(name, {})
     if "file" in entry:
-        return [entry["file"]] if isinstance(entry["file"], str) and entry["file"] else list(entry["file"])
-    return written_files(catalogue).get(name, [])
+        return file_list(entry["file"])
+    return written_files().get(name, [])
 
 
-def needs_for(page, sounds_path=SOUNDS):
+def needs_for(page):
     """The needs on one picking page, in the data's order: each sound's name and its brief."""
-    sounds = read_json(sounds_path)["sounds"]
     before = written_files()
     found = []
-    for name, entry in sounds.items():
+    for name, entry in read_json(SOUNDS)["sounds"].items():
         brief = entry.get("pick", {})
         if brief.get("page") != page:
             continue
@@ -79,19 +80,14 @@ def needs_for(page, sounds_path=SOUNDS):
 MADE_ONLY = ("warning_tone", "oxygen_low")
 
 
-def unbriefed(sounds_path=SOUNDS):
+def unbriefed():
     """The sounds the layers and the catalogue name that have no prompts yet, by where they are named."""
-    sounds = read_json(sounds_path)["sounds"]
-    named = dict(layer_names())
-    named["catalogue"] = [name for name in catalogue_names() if name not in MADE_ONLY]
+    sounds = read_json(SOUNDS)["sounds"]
+    named = layer_names()
+    named["catalogue"] = [name for name in read_json(CATALOGUE)["sounds"] if name not in MADE_ONLY]
     return {where: [name for name in names if "prompts" not in sounds.get(name, {}).get("pick", {})]
             for where, names in named.items()}
 
 
-def catalogue_names(catalogue=CATALOGUE):
-    """Every sound the catalogue names."""
-    return list(read_json(catalogue)["sounds"])
-
-
-def licences_by_file(path=LICENCES):
-    return {listing["file"]: listing for listing in read_json(path)}
+def licences_by_file():
+    return {listing["file"]: listing for listing in read_json(LICENCES)}
