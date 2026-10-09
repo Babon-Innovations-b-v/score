@@ -1,5 +1,5 @@
 {
-	"is": "method B's room fittings (hub round five, 2026-10-07): the parts each fitting's clean close-up shows, and how much of each the room can see in its last code build (pieces.parts_seen, written back by route.py fittings). sorter.route builds a fitting in code only when every part is there; otherwise the prop pipeline makes it.",
+	"is": "method B's room fittings (hub round five, 2026-10-07): the parts each fitting's clean close-up shows, and how much of each the room can see in its last code build (pieces.parts_seen, written back by route.py fittings). sorter.route builds a fitting in code only when every part is there; otherwise the prop pipeline makes it. `checked`, where present, says when a fitting's code build was last held to a new close-up by eye and why it passed; a kind that failed leaves this list for the prop pipeline, and its inventory row says why.",
 	"fittings": {
 		"hatch_frame": {
 			"closeup": "hubkit/clean/hatch_frame-front.png",
@@ -1870,7 +1870,7 @@
 			"prints_off": []
 		},
 		"vise": {
-			"closeup": "place-workshop/pics/vise.png",
+			"closeup": "closeup/world1-needs/pro-room/workshop-vise.png",
 			"parts": [
 				"base",
 				"lug",
@@ -1909,7 +1909,8 @@
 				"swivel": 0.12,
 				"swivel_lock": 0.547
 			},
-			"prints_off": []
+			"prints_off": [],
+			"checked": "2026-10-09, against the new close-up (Nano Banana Pro, 2026-10-08): passes; it shows the same swivel bench vise as before, a bolted base with lugs, the swivel and its lock lever, the body and fixed jaw, the anvil, the slide, the sliding jaw, knurled jaw plates with their screws, the lead screw's boss, and the handle with its hub and knobs, and the code build shows every one; its name plate is print."
 		},
 		"work_stool": {
 			"closeup": "place-workshop/pics/work_stool.png",
@@ -3480,112 +3481,6 @@
 			},
 			"prints_off": []
 		},
-		"seed_bin": {
-			"closeup": "place-greenhouse/closeups/greenhouse/seed_bin.png",
-			"parts": [
-				"floor",
-				"wall",
-				"rim",
-				"bead",
-				"handle",
-				"label"
-			],
-			"built": {
-				"bead": 0.581,
-				"floor": 0.558,
-				"handle": 0.46,
-				"label": 1.0,
-				"rim": 0.672,
-				"wall": 0.504
-			},
-			"prints_off": []
-		},
-		"soil_bin": {
-			"closeup": "place-greenhouse/closeups/greenhouse/soil_bin.png",
-			"parts": [
-				"floor",
-				"wall",
-				"rim",
-				"handle",
-				"handle_eye",
-				"label"
-			],
-			"built": {
-				"floor": 0.551,
-				"handle": 0.617,
-				"handle_eye": 0.493,
-				"label": 1.0,
-				"rim": 0.658,
-				"wall": 0.568
-			},
-			"prints_off": []
-		},
-		"crop_crate": {
-			"closeup": "place-greenhouse/closeups/greenhouse/crop_crate.png",
-			"parts": [
-				"floor",
-				"bottom_rail",
-				"top_rail",
-				"top_bar",
-				"slat",
-				"corner_post",
-				"bolt",
-				"label_plate",
-				"label"
-			],
-			"built": {
-				"bolt": 1.0,
-				"bottom_rail": 0.485,
-				"corner_post": 0.75,
-				"floor": 0.636,
-				"label": 1.0,
-				"label_plate": 0.783,
-				"slat": 0.423,
-				"top_bar": 0.593,
-				"top_rail": 0.547
-			},
-			"prints_off": []
-		},
-		"water_tank": {
-			"closeup": "place-greenhouse/closeups/greenhouse/water_tank.png",
-			"parts": [
-				"post",
-				"rail",
-				"brace",
-				"bolt",
-				"tank",
-				"rib",
-				"hatch",
-				"lid",
-				"screw",
-				"sight_tube",
-				"fitting",
-				"scale",
-				"label",
-				"pipe",
-				"valve",
-				"lever"
-			],
-			"built": {
-				"bolt": 1.0,
-				"brace": 0.75,
-				"fitting": 0.473,
-				"hatch": 0.156,
-				"label": 1.0,
-				"lever": 0.653,
-				"lid": 0.507,
-				"pipe": 0.468,
-				"post": 0.831,
-				"rail": 0.607,
-				"rib": 0.29,
-				"scale": 0.673,
-				"screw": 0.662,
-				"sight_tube": 0.98,
-				"tank": 0.716,
-				"valve": 0.679
-			},
-			"prints_off": []
-		},
 		"dosing_unit": {
 			"closeup": "place-greenhouse/closeups/greenhouse/dosing_unit.png",
 			"parts": [
@@ -3775,18 +3670,16 @@
 			"prints_off": []
 		},
 		"seedling_shelf": {
-			"closeup": "place-greenhouse/closeups/greenhouse/seedling_shelf.png",
+			"closeup": "closeup/world1-needs/pro/greenhouse-seedling_shelf.png",
 			"parts": [
 				"post",
-				"cap",
 				"foot",
 				"shelf",
 				"rail",
 				"clamp",
 				"lens",
 				"lamp_cap",
-				"lamp_clip",
-				"cable"
+				"lamp_clip"
 			],
 			"built": {
 				"cable": 0.705,
@@ -3800,7 +3693,8 @@
 				"rail": 0.604,
 				"shelf": 0.833
 			},
-			"prints_off": []
+			"prints_off": [],
+			"checked": "2026-10-09, against the new close-up (Nano Banana Pro, 2026-10-08): passes; it shows posts on feet, shelves with their rails, the fixings where each shelf meets a post (bolts in the picture, clamps in the build), and grow-light tubes clipped under each shelf with end caps, and the code build shows every one. The picture's posts are square where the build's are round tubes and it hangs three tubes a shelf where the build hangs one: shape, not missing parts. Its seedling trays are children of their own (composites.json), and the post caps and the cable the old close-up showed are no longer listed."
 		},
 		"beacon": {
 			"closeup": "modules-r6/pics/beacon-crop.png",

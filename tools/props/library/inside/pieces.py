@@ -5983,13 +5983,11 @@ def irrigation_boom(size, laid):
 
 # ---- Greenhouse place (2026-10-07), block gh_station: the robot station's hardware, built in code with library
 # surfaces as method B's parts check allows, each as its clean close-up shows it: the three docking pads (one per bay,
-# each with its bay's coloured stripe), the charge post beside each pad, and the seed bin, soil bin and crop crate.
-# The game (plot_field.gd) draws live fills inside these pieces, so each leaves their room exactly: a hollow channel
-# in the charge post with a slot window at its front for the charge bar (0.06 x 0.56 x 0.08, rising from 0.03 m), and
-# each bin a cavity (wide - 0.08) x (deep - 0.08) from 0.04 m up to its open top, its walls and floor 0.04 m thick,
-# every rim, handle and label outside. Helpers are prefixed `gh_station_`.
+# each with its bay's coloured stripe) and the charge post beside each pad. The game (plot_field.gd) draws a live
+# charge bar inside the post, so it leaves the bar's room exactly: a hollow channel with a slot window at its front
+# (0.06 x 0.56 x 0.08, rising from 0.03 m). The seed bin, soil bin and crop crate failed the parts check against their
+# new close-ups (2026-10-09) and are made by the prop pipeline. Helpers are prefixed `gh_station_`.
 
-GH_STATION_WALL = 0.04  # plot_field.gd BIN_WALL: a bin's walls and floor
 # The charge post's channel round the charge bar (plot_field.gd BAR, centred in the post): a little roomier than the
 # bar's 0.06 x 0.08, from just under its foot (0.03) to over its full height (0.59).
 GH_STATION_CHANNEL = (0.077, 0.097)
@@ -6123,159 +6121,11 @@ def gh_station_cable_loops(side, high):
     return parts
 
 
-def gh_station_bin_shell(size, material):
-    """An open bin's floor and four solid walls, each exactly GH_STATION_WALL thick, round the game's load box."""
-    wide, tall, deep = size
-    wall = GH_STATION_WALL
-    parts = [shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, wall, deep / 2), material, "floor")]
-    for low, high in (((-wide / 2, wall, -deep / 2), (wide / 2, tall, -deep / 2 + wall)),
-                      ((-wide / 2, wall, deep / 2 - wall), (wide / 2, tall, deep / 2)),
-                      ((-wide / 2, wall, -deep / 2 + wall), (-wide / 2 + wall, tall, deep / 2 - wall)),
-                      ((wide / 2 - wall, wall, -deep / 2 + wall), (wide / 2, tall, deep / 2 - wall))):
-        parts.append(shapes.box(low, high, material, "wall"))
-    return parts
-
-
-def gh_station_band(size, low, high, out, material, name):
-    """A band round a bin's outside between two heights, `out` proud of its walls (a rim, a pressed bead): four bars
-    meeting at the corners, the load box inside untouched."""
-    wide, tall, deep = size
-    half_x, half_z = wide / 2 + out, deep / 2 + out
-    return [shapes.bevelled(shapes.box(corner_low, corner_high, material, name), min(0.003, out / 3))
-            for corner_low, corner_high in (((-half_x, low, -half_z), (half_x, high, -deep / 2)),
-                                            ((-half_x, low, deep / 2), (half_x, high, half_z)),
-                                            ((-half_x, low, -deep / 2), (-wide / 2, high, deep / 2)),
-                                            ((wide / 2, low, -deep / 2), (half_x, high, deep / 2)))]
-
-
-def gh_station_pocket_handles(size, walls, high):
-    """A pressed pocket handle in each end wall (+x and -x) of a bin, as the seed bin's close-up shows them: a pocket
-    0.02 m into the 0.04 m wall (the cavity untouched) and a steel frame round it."""
-    wide, tall, deep = size
-    half_wide, half_tall = 0.07, 0.03
-    for wall in walls:
-        for side in (-1, 1):
-            x_low, x_high = sorted((side * (wide / 2 - 0.02), side * (wide / 2 + 0.01)))
-            furn_cut_box(wall, (x_low, high - half_tall, -half_wide), (x_high, high + half_tall, half_wide))
-    parts = []
-    for degrees in (90.0, -90.0):
-        frame = rounded_ring((-half_wide - 0.012, high - half_tall - 0.012), (half_wide + 0.012, high + half_tall + 0.012),
-                             0.012, 0.014, -wide / 2 - 0.006, -wide / 2, "bare_steel", "handle")
-        parts += furn_spun([shapes.bevelled(frame, 0.0015)], (0.0, 0.0), degrees)
-    return parts
-
-
-def seed_bin(size, laid):
-    """The seed bin, as its close-up shows it: a tall open galvanized bin (walls and floor 0.04 m, the seed load inside
-    is the game's), a lipped rim round its top, a pressed bead round it under the rim, a pocket handle in each end and
-    a SEED label on its front."""
-    wide, tall, deep = size
-    shell = gh_station_bin_shell(size, "galvanized_steel")
-    ends = [part for part in shell[3:]]
-    parts = gh_station_pocket_handles(size, ends, tall - 0.1)
-    parts = [shapes.bevelled(part, 0.002) for part in shell] + parts
-    parts += gh_station_band(size, tall - 0.018, tall, 0.012, "galvanized_steel", "rim")
-    parts += gh_station_band(size, tall - 0.165, tall - 0.145, 0.006, "galvanized_steel", "bead")
-    parts.append(label(-wide / 2 + 0.11, tall - 0.24, 0.13, 0.055, -deep / 2, "label_seed"))
-    return parts
-
-
-def soil_bin(size, laid):
-    """The soil bin, as its close-up shows it: a low open steel tub (walls and floor 0.04 m), a rolled rim round its
-    top, a wire bar handle on each end standing off it on two eyes, and a SOIL label on its front."""
-    wide, tall, deep = size
-    parts = [shapes.bevelled(part, 0.003) for part in gh_station_bin_shell(size, "brushed_steel_fine")]
-    parts += gh_station_band(size, tall - 0.022, tall, 0.012, "brushed_steel_fine", "rim")
-    high = tall - 0.1
-    for side in (-1, 1):
-        face = side * wide / 2
-        out = face + side * 0.03
-        for z in (-0.06, 0.06):
-            parts.append(shapes.box((min(face, face + side * 0.012), high + 0.01, z - 0.012),
-                                    (max(face, face + side * 0.012), high + 0.04, z + 0.012), "bare_steel",
-                                    "handle_eye"))
-            parts.append(shapes.cylinder((face, high + 0.025, z), (out, high + 0.025, z), 0.0055, "bare_steel", 10,
-                                         "handle"))
-            parts.append(shapes.cylinder((out, high + 0.025, z), (out, high - 0.035, z), 0.0055, "bare_steel", 10,
-                                         "handle"))
-        parts.append(shapes.cylinder((out, high - 0.035, -0.06), (out, high - 0.035, 0.06), 0.0055, "bare_steel", 10,
-                                     "handle"))
-    parts.append(label(wide * 0.12, tall * 0.55, 0.12, 0.05, -deep / 2, "label_soil"))
-    return parts
-
-
-
-
-def gh_station_crate_sides(size, low, high, inner, outer, material, name):
-    """One band round the crop crate's four sides between two heights, between depths `inner` (into the walls from
-    their outside, at most the wall) and `outer` (proud of them), each side running between the corner posts."""
-    wide, tall, deep = size
-    span_x, span_z = wide / 2 - GH_STATION_WALL, deep / 2 - GH_STATION_WALL
-    found = []
-    for side in (-1, 1):
-        z_low, z_high = sorted((side * (deep / 2 - inner), side * (deep / 2 + outer)))
-        found.append(shapes.box((-span_x, low, z_low), (span_x, high, z_high), material, name))
-        x_low, x_high = sorted((side * (wide / 2 - inner), side * (wide / 2 + outer)))
-        found.append(shapes.box((x_low, low, -span_z), (x_high, high, span_z), material, name))
-    return found
-
-
-def crop_crate(size, laid):
-    """The crop crate, as its close-up shows it: four slatted sides (boards 0.04 m deep at most with gaps between, the
-    crop load inside is the game's) in a white frame: a bottom rail notched between its corner feet, a top rail with
-    a round bar along it, a square corner post at each corner with bolts down it, a floor, and a CROPS plate bolted
-    across the front boards."""
-    wide, tall, deep = size
-    wall = GH_STATION_WALL
-    rail_low, rail_top = 0.1, tall - 0.06
-    floor = shapes.box((-wide / 2 + wall, 0.0, -deep / 2 + wall), (wide / 2 - wall, wall, deep / 2 - wall),
-                       "galvanized_dull", "floor")
-    parts = [floor]
-    bottom = gh_station_crate_sides(size, 0.0, rail_low, wall, 0.015, "hull_white_old", "bottom_rail")
-    for part in bottom:
-        furn_cut_box(part, (-wide / 2 + 0.16, -0.01, -deep), (wide / 2 - 0.16, 0.03, deep))
-        furn_cut_box(part, (-wide, -0.01, -deep / 2 + 0.16), (wide, 0.03, deep / 2 - 0.16))
-    parts += [shapes.bevelled(part, 0.004) for part in bottom]
-    parts += [shapes.bevelled(part, 0.004)
-              for part in gh_station_crate_sides(size, rail_top, tall, wall, 0.015, "hull_white_old", "top_rail")]
-    boards, gap = 4, (rail_top - rail_low - 4 * 0.06) / 3
-    for board in range(boards):
-        low = rail_low + board * (0.06 + gap)
-        parts += [shapes.bevelled(part, 0.004)
-                  for part in gh_station_crate_sides(size, low, low + 0.06, wall, -0.006, "galvanized_dull", "slat")]
-    bar_y = rail_top + 0.03
-    for side in (-1, 1):
-        z = side * (deep / 2 + 0.022)
-        parts.append(shapes.cylinder((-wide / 2 + 0.06, bar_y, z), (wide / 2 - 0.06, bar_y, z), 0.008, "hull_white_old",
-                                     14, "top_bar"))
-        x = side * (wide / 2 + 0.022)
-        parts.append(shapes.cylinder((x, bar_y, -deep / 2 + 0.06), (x, bar_y, deep / 2 - 0.06), 0.008, "hull_white_old",
-                                     14, "top_bar"))
-    for x_side in (-1, 1):
-        for z_side in (-1, 1):
-            x_low, x_high = sorted((x_side * (wide / 2 - wall), x_side * (wide / 2 + 0.024)))
-            z_low, z_high = sorted((z_side * (deep / 2 - wall), z_side * (deep / 2 + 0.024)))
-            parts.append(shapes.bevelled(shapes.box((x_low, 0.0, z_low), (x_high, tall, z_high), "hull_white_old",
-                                                    "corner_post"), 0.005))
-            if z_side < 0:
-                middle = (x_low + x_high) / 2
-                parts += bolts_along([(middle, y) for y in (0.05, tall / 2, tall - 0.05)], z_low)
-    plate_x, plate_y = -wide * 0.18, (rail_low + rail_top) / 2
-    plate_front = -deep / 2 - 0.004
-    parts.append(shapes.bevelled(shapes.box((plate_x - 0.12, plate_y - 0.07, plate_front),
-                                            (plate_x + 0.12, plate_y + 0.07, -deep / 2 + 0.006), "anodized_gold",
-                                            "label_plate"), 0.002))
-    parts += bolts_along([(plate_x + side * 0.1, plate_y + up * 0.05) for side in (-1, 1) for up in (-1, 1)],
-                         plate_front)
-    parts.append(label(plate_x, plate_y, 0.16, 0.07, plate_front, "label_crops"))
-    return parts
-
-
-# ---- Greenhouse place job (2026-10-07), block gh_equip: the greenhouse's water tank, dosing unit, humidifier, grow
-# control console, work desk and seedling shelf, built in code with library surfaces as method B's parts check allows,
-# each as its clean close-up shows it. A holder never carries loose objects: the console's keyboard, the desk's lamp
-# and the shelf's seedling trays are children of their own, placed on purpose (composites). Helpers are prefixed
-# `gh_equip_`.
+# ---- Greenhouse place job (2026-10-07), block gh_equip: the greenhouse's dosing unit, humidifier, grow control
+# console, work desk and seedling shelf, built in code with library surfaces as method B's parts check allows, each as
+# its clean close-up shows it (its water tank failed the parts check on 2026-10-09: the prop pipeline makes it). A
+# holder never carries loose objects: the console's keyboard, the desk's lamp and the shelf's seedling trays are
+# children of their own, placed on purpose (composites). Helpers are prefixed `gh_equip_`.
 
 # The control console's desk: its flat top's height and depth, and the sloped switch panel rising behind it to the
 # upright screen panel (its front face at z 0).
@@ -6632,131 +6482,8 @@ def work_desk(size, laid):
     return parts
 
 
-GH_EQUIP_STAND = 0.55  # the water tank's stand: its top, where the tank's foot sits
 # The seedling shelf's three shelves: their top faces over the foot, where the seedling trays (children) stand.
 GH_EQUIP_SHELVES = (0.42, 1.04, 1.66)
-
-
-def gh_equip_brace(start, end, across, middle_depth, material, name):
-    """A square-tube diagonal brace in a face of the water tank's stand, from (u, y) `start` to `end` in that face:
-    on a front or back face (`across` 'x', u = x, its depth middle on z) or a side face (`across` 'z', u = z, its
-    depth middle on x)."""
-    (start_u, start_y), (end_u, end_y) = start, end
-    length = math.hypot(end_u - start_u, end_y - start_y)
-    middle_u, middle_y = (start_u + end_u) / 2, (start_y + end_y) / 2
-    degrees = math.degrees(math.atan2(end_y - start_y, end_u - start_u))
-    if across == "x":
-        bar = shapes.box((middle_u - length / 2, middle_y - 0.02, middle_depth - 0.015),
-                         (middle_u + length / 2, middle_y + 0.02, middle_depth + 0.015), material, name)
-        return turned(bar, (middle_u, middle_y), degrees)
-    bar = shapes.box((middle_depth - 0.015, middle_y - 0.02, middle_u - length / 2),
-                     (middle_depth + 0.015, middle_y + 0.02, middle_u + length / 2), material, name)
-    return tilted(bar, (middle_y, middle_u), -degrees)
-
-
-def gh_equip_stand(half, top, material):
-    """The water tank's welded steel stand: four square corner posts, top and bottom rails round all four faces,
-    crossed braces in each face, and bolt heads at the front's joints."""
-    post = 0.06
-    parts = []
-    for x in (-half + post / 2, half - post / 2):
-        for z in (-half + post / 2, half - post / 2):
-            parts.append(shapes.bevelled(shapes.box((x - post / 2, 0.0, z - post / 2), (x + post / 2, top,
-                                                                                        z + post / 2),
-                                                    material, "post"), 0.004))
-    rail = 0.05
-    inner = half - post
-    for low_y in (0.0, top - rail):
-        for sign in (-1, 1):
-            middle = sign * (half - 0.025)
-            parts.append(shapes.bevelled(shapes.box((-inner, low_y, middle - 0.025), (inner, low_y + rail,
-                                                                                      middle + 0.025),
-                                                    material, "rail"), 0.003))
-            parts.append(shapes.bevelled(shapes.box((middle - 0.025, low_y, -inner), (middle + 0.025, low_y + rail,
-                                                                                      inner),
-                                                    material, "rail"), 0.003))
-    low, high = (-inner, rail), (inner, top - rail)
-    for sign in (-1, 1):
-        middle = sign * (half - 0.025)
-        for across in ("x", "z"):
-            parts.append(gh_equip_brace(low, high, across, middle, material, "brace"))
-            parts.append(gh_equip_brace((low[0], high[1]), (high[0], low[1]), across, middle, material, "brace"))
-    for x in (-half + post / 2, half - post / 2):
-        for y in (rail / 2, top - rail / 2):
-            parts.append(bolt(x, y, -half, "cast_iron_dark"))
-    return parts
-
-
-def water_tank(size, laid):
-    """The water tank, as its close-up shows it: a square moulded plastic tank with rounded edges, raised ribs round
-    it and up its faces, a round lid hatch on top (a collar, the screwed cover and its boss), a level sight tube up
-    its front between two fittings beside a scale, the WATER label and a POTABLE WATER sticker; on a welded steel
-    stand (posts, rails, crossed braces, bolts), the outlet pipe dropping from the tank's foot and out through the
-    stand's front to a valve with a red lever."""
-    wide, tall, deep = size
-    half = min(wide, deep) / 2
-    stand = GH_EQUIP_STAND
-    parts = gh_equip_stand(half - 0.007, stand, "enamel_white")  # its bolt heads inside the laid box
-    tank_half = half - 0.05
-    top = tall - 0.08
-    parts.append(shapes.bevelled(shapes.box((-tank_half, stand, -tank_half), (tank_half, top, tank_half),
-                                            "plastic_white", "tank"), 0.05))
-    for rib_y in (stand + 0.17, top - 0.2):
-        parts.append(shapes.bevelled(shapes.box((-tank_half - 0.015, rib_y - 0.025, -tank_half - 0.015),
-                                                (tank_half + 0.015, rib_y + 0.025, tank_half + 0.015),
-                                                "plastic_white", "rib"), 0.012))
-    for offset in (-0.42, 0.42):
-        for sign in (-1, 1):
-            parts.append(shapes.bevelled(shapes.box((offset - 0.03, stand + 0.06, sign * tank_half - 0.012),
-                                                    (offset + 0.03, top - 0.06, sign * tank_half + 0.012),
-                                                    "plastic_white", "rib"), 0.008))
-            parts.append(shapes.bevelled(shapes.box((sign * tank_half - 0.012, stand + 0.06, offset - 0.03),
-                                                    (sign * tank_half + 0.012, top - 0.06, offset + 0.03),
-                                                    "plastic_white", "rib"), 0.008))
-    # The lid hatch on top: its collar, the cover, the boss and four screws.
-    parts.append(shapes.bevelled(shapes.cylinder((0.0, top - 0.01, 0.0), (0.0, top + 0.03, 0.0), 0.3,
-                                                 "plastic_white", 32, "hatch"), 0.008))
-    parts.append(shapes.bevelled(shapes.cylinder((0.0, top + 0.03, 0.0), (0.0, top + 0.055, 0.0), 0.26,
-                                                 "plastic_white", 32, "lid"), 0.006))
-    parts.append(shapes.bevelled(shapes.cylinder((0.0, top + 0.055, 0.0), (0.0, tall, 0.0), 0.1, "plastic_white", 32,
-                                                 "lid"), 0.006))
-    for at in range(4):
-        angle = math.pi / 4 + math.pi * at / 2
-        x, z = 0.22 * math.cos(angle), 0.22 * math.sin(angle)
-        parts.append(shapes.cylinder((x, top + 0.055, z), (x, top + 0.062, z), 0.012, "bare_steel", 12, "screw"))
-    # The level sight tube up the front at the viewer's left, between its two fittings, its scale beside it.
-    front = -tank_half
-    tube_x, tube_z = tank_half - 0.2, front - 0.03
-    parts.append(shapes.cylinder((tube_x, stand + 0.1, tube_z), (tube_x, top - 0.12, tube_z), 0.014, "glass", 16,
-                                 "sight_tube"))
-    for fitting_y in (stand + 0.07, top - 0.1):
-        parts.append(shapes.bevelled(shapes.cylinder((tube_x, fitting_y - 0.035, tube_z),
-                                                     (tube_x, fitting_y + 0.035, tube_z), 0.02, "plastic_white", 16,
-                                                     "fitting"), 0.004))
-        parts.append(shapes.cylinder((tube_x, fitting_y, front + 0.01), (tube_x, fitting_y, tube_z), 0.014,
-                                     "plastic_white", 12, "fitting"))
-    parts.append(shapes.box((tube_x - 0.035, stand + 0.12, front - 0.006), (tube_x - 0.02, top - 0.14, front),
-                            "plastic_grey", "scale"))
-    parts.append(label(-0.12, stand + 0.09, 0.24, 0.07, front, "label_water"))
-    parts.append(label(-0.58, top - 0.36, 0.16, 0.12, front, "label_potable"))
-    # The outlet: down out of the tank's foot, forward through the stand's front, a valve with its red lever.
-    pipe_y, pipe_x, riser_z = stand - 0.16, 0.38, -0.35
-    parts.append(shapes.cylinder((pipe_x, stand, riser_z), (pipe_x, pipe_y, riser_z), 0.035, "plastic_grey", 24,
-                                 "pipe"))
-    parts.append(wall_sphere((pipe_x, pipe_y, riser_z), 0.035, "plastic_grey", "pipe"))
-    parts.append(shapes.cylinder((pipe_x, pipe_y, riser_z), (pipe_x, pipe_y, -half + 0.01), 0.035, "plastic_grey", 24,
-                                 "pipe"))
-    valve_z = -half + 0.14
-    parts.append(shapes.bevelled(shapes.cylinder((pipe_x, pipe_y, valve_z - 0.06), (pipe_x, pipe_y, valve_z + 0.06),
-                                                 0.055, "plastic_grey", 24, "valve"), 0.006))
-    parts.append(shapes.bevelled(shapes.ring((pipe_x, pipe_y, -half + 0.03), (pipe_x, pipe_y, -half), 0.045, 0.026,
-                                             "plastic_grey", 24, "pipe"), 0.003))
-    parts.append(shapes.cylinder((pipe_x, pipe_y + 0.05, valve_z), (pipe_x, pipe_y + 0.08, valve_z), 0.012,
-                                 "bare_steel", 12, "valve"))
-    parts.append(shapes.bevelled(shapes.box((pipe_x - 0.015, pipe_y + 0.08, valve_z - 0.12),
-                                            (pipe_x + 0.015, pipe_y + 0.1, valve_z + 0.015), "anodized_red", "lever"),
-                                 0.004))
-    return parts
 
 
 def seedling_shelf(size, laid):
@@ -6820,7 +6547,7 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "wall_lower_plain", "wall_skirting", "wall_upper_plain", "hull_plate", "hoop",
     # method B's fittings (hub round five)
     "hatch_frame", "hatch_leaf", "hatch_wheel", "hatch_window", "hatch_hinge", "hatch_wall_surround", "porthole_panel",
-    "wall_lower_vent", "notice_board", "water_tank", "dosing_unit", "humidifier", "control_console", "work_desk", "seedling_shelf", "dock_pad_one", "dock_pad_two", "dock_pad_three", "charge_post", "seed_bin", "soil_bin", "crop_crate", "grow_light_bar", "grow_light_glow", "rig_rail", "rig_hanger", "irrigation_boom", "ledge_cover", "robot_bench", "arm_monitor", "equipment_bench", "low_cabinet", "floor_socket", "bay_mark", "tool_bench", "vise", "work_stool", "spares_shelves", "spares_crate", "spares_box", "elec_bench", "oscilloscope", "bench_meter", "soldering_station", "parts_drawers", "pendant_lamp", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
+    "wall_lower_vent", "notice_board", "dosing_unit", "humidifier", "control_console", "work_desk", "seedling_shelf", "dock_pad_one", "dock_pad_two", "dock_pad_three", "charge_post", "grow_light_bar", "grow_light_glow", "rig_rail", "rig_hanger", "irrigation_boom", "ledge_cover", "robot_bench", "arm_monitor", "equipment_bench", "low_cabinet", "floor_socket", "bay_mark", "tool_bench", "vise", "work_stool", "spares_shelves", "spares_crate", "spares_box", "elec_bench", "oscilloscope", "bench_meter", "soldering_station", "parts_drawers", "pendant_lamp", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
     "wall_lower_vent", "notice_board", "rail_bracket", "lock_console", "lock_gauge_panel", "vent_grille", "hose_coil", "tool_case", "storage_case", "tool_case", "supply_cart", "gas_cylinder", "floor_marking", "slippers", "cable_coil", "tea_towel", "beacon", "door_frame", "door_leaf", "suit_alcove", "hose_reel", "suit_bench", "status_panel", "fan_unit", "crown_strip_lamp", "hull_patch", "sign_plate", "end_mat", "galley_counter", "mess_table", "stool", "exam_couch", "light_ring", "pot", "couch_pillow", "sleep_pod", "pillow", "locker_bank", "food_shelf", "food_jug", "food_tin", "ration_box", "med_cabinet", "med_box", "med_bottle", "hygiene_cubicle", "radio", "screwdriver", "talllocker", "rack", "comms", "console", "labbench", "toolboard", "waste_bin", "monitor", "keyboard", "glovebox", "floor_grating", "floor_access_hatch", "tread_mat", "ceiling_cable_tray", "ceiling_duct", "roof_apex_hub", "roof_light_fixture", "pipe_bracket", "pipe_elbow", "pipe_valve", "pit_junction_box", "wall_lower_patched", "wall_upper_patched", "wall_upper_cables", "wall_upper_pipes", "wall_upper_screen_recess", "status_display", "wall_screen_cluster", "intercom_panel", "small_readout", "door_control_box", "conduit_box", "wall_cage_lamp", "door_strip_lamp", "grab_bar",
     # the expedition camp's grounds (mars-build)
     "mast", "ground_cable",
