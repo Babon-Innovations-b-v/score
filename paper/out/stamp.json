@@ -6,13 +6,15 @@
     "paper/figures/fig-partition.jpg": "f2bfe7e9e406900c810f2cc99dd7b2432cc8d843ce98e69c0545ced10daf0dd3",
     "paper/figures/fig-parts-check.jpg": "2fb3470887f9fbd3a9e4adac11b3ce6f2647a1687094094fe76737c1261bd409",
     "paper/figures/fig-review.jpg": "66578175d6551ef2359d46b4e52f1a097b5c51b70d5c8a5dc915952e93ef820b",
+    "paper/figures/fig-stages.jpg": "3d637175bb80a12c5ecca7906384a757ef96f252b9ccc6a7354c0c487255b772",
     "paper/figures/fig-surfaces.jpg": "b990b29caf2c7272d0eb7c3f30d4a10dc665ce23a2efbb6f76ccf8152f88ca07",
     "paper/figures/fig-terrain.jpg": "6ec7bc91533c2d4ed0eb0c233d348e46a099fb55ffa40f41f9afd88a8f986f86",
     "paper/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
+    "paper/figures/fig-world1.jpg": "6ce4cca2102938b1c2c3c409911ad9672de3219fd81dae169e3ab3f24876fadb",
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "d20c367d7e9ac9ddd69eb80bf24143519be5a69ca65afa27335e6bf8f3f45d9d",
     "paper/source/refs.bib": "ecefb21637e485b5bb8d6e9f11e715b65412770d3f5633605c4aa29e55fa65ba",
-    "paper/source/score.md": "51b7cfb2570e1ac47e6655d9a4ffbe36ca248c6317b7987c7ce9b99f44574845"
+    "paper/source/score.md": "9d4a3347ee7a166c34c4b2eed8ba2b09ff0ec827877114f369dc3c666098d090"
   },
   "outputs": {
     "paper/arxiv/content/abstract.tex": "1a0c0d79ea980ff7a0c7ed48d38e978251db6877b8177a08f796b0c6f9f28cd7",
@@ -28,7 +30,7 @@
     "paper/arxiv/content/limitations.tex": "fc0487f1ae810ada06498f838880b076e741597e2eb0b26da3705ac60607c140",
     "paper/arxiv/content/methods.tex": "578de2507373b15c29c797eda57c8852d75271539b9d7abd7c0b3c40182c8f90",
     "paper/arxiv/content/models_and_licences.tex": "863166e28e12267b95adc957ee1adb81459cf3eec693fbc31755e7958c2e33e1",
-    "paper/arxiv/content/per_world_demos.tex": "6028f9cb751abe0cca6e071814e670fd12b91067d50274a24d6ec1e7ccece801",
+    "paper/arxiv/content/per_world_demos.tex": "5527ea955a03a52ded3e319a0a539a3ed8397337357b3d951640cd7bdfc51b2e",
     "paper/arxiv/content/results_across_worlds.tex": "8a5da61e97a181069c82e7f2a3ff038aac97673e700c5a4d9c931034ee8b3389",
     "paper/arxiv/content/surfaces_sound_and_light.tex": "7bdf60a7c2ba1eb7b831fbb53a9305e44c21b5bc9fcae1ea03c1bbdfe89bccce",
     "paper/arxiv/content/teaser.tex": "35eae54bd9daaaa884efae610e97442b821e0a6f52ea612d4aa83fe5efa622c6",
@@ -37,14 +39,16 @@
     "paper/arxiv/figures/fig-partition.jpg": "f2bfe7e9e406900c810f2cc99dd7b2432cc8d843ce98e69c0545ced10daf0dd3",
     "paper/arxiv/figures/fig-parts-check.jpg": "2fb3470887f9fbd3a9e4adac11b3ce6f2647a1687094094fe76737c1261bd409",
     "paper/arxiv/figures/fig-review.jpg": "66578175d6551ef2359d46b4e52f1a097b5c51b70d5c8a5dc915952e93ef820b",
+    "paper/arxiv/figures/fig-stages.jpg": "3d637175bb80a12c5ecca7906384a757ef96f252b9ccc6a7354c0c487255b772",
     "paper/arxiv/figures/fig-surfaces.jpg": "b990b29caf2c7272d0eb7c3f30d4a10dc665ce23a2efbb6f76ccf8152f88ca07",
     "paper/arxiv/figures/fig-terrain.jpg": "6ec7bc91533c2d4ed0eb0c233d348e46a099fb55ffa40f41f9afd88a8f986f86",
     "paper/arxiv/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
+    "paper/arxiv/figures/fig-world1.jpg": "6ce4cca2102938b1c2c3c409911ad9672de3219fd81dae169e3ab3f24876fadb",
     "paper/arxiv/main.bbl": "0529bf8773318e8af5d56b9d374c0fd7e43ee6c35fe057a7b1cf20e457b139b6",
-    "paper/arxiv/main.pdf": "acbd5b22bb1e664ce984764af273bcd4bdcc9d421ae77605851f1b0ade0c4f9a",
+    "paper/arxiv/main.pdf": "489b2d5776208b6875e353907ad41927113ebac2fab411124ab4b6ec7b7ec153",
     "paper/arxiv/main.tex": "74c8ff18344e55b01083d201cb9e84ed13b26af5c92e6ee909e1c182f12a64d2",
     "paper/arxiv/refs.bib": "ecefb21637e485b5bb8d6e9f11e715b65412770d3f5633605c4aa29e55fa65ba",
-    "paper/out/score.pdf": "12526bb44af0ff2684963a9ce23d749eb79ffa54ec91906f7dccd27328f8f167",
-    "paper/out/score.tex": "c6e04bd1d392389ea0bc27a3cb158195ab27930db3d4e19a7fcab5edaee22b98"
+    "paper/out/score.pdf": "cf344f22d529e1e433aecb179d21ccccc17fe58af6d306d824be79ea18d4f5bb",
+    "paper/out/score.tex": "2057014f75349ab6b1bb6e6731f1d0afc22876ba7fc90eb2b7ea721eae81ef90"
   }
 }

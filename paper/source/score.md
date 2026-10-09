@@ -195,8 +195,24 @@ SCORE builds complete, owned and responsive worlds from a creator's choices, by 
 
 # Per-world demos
 
+## World 1: the game world of 2099
+
+Figure A1 shows one frame of each of world 1's 17 places, in story order: the prologue on Earth, the Moon base and the ground around it, and the first camp on Mars. Every frame is rendered by Blender's Cycles from the place's OpenUSD stage, from one of the player's spots in its scene record, with the stage's own lights and sky and its characters; no game engine is involved. What a scene record lists as drawn only by the game, such as the ink outline pass, the haze and the stars, is missing. A walk-through video of every place was rendered the same way, two to four slow shots of 3.5 seconds a place from the player's spots, and joined in story order into one video of world 1, 3 minutes 35 seconds long, with each place's plain name on a title card. For the videos, every surface map was reduced to at most 1,024 pixels. The creator has not yet reviewed world 1, so these pictures show the framework's output as it stands, not an accepted result.
+
+![World 1 of SCORE, one frame of each of its 17 places in story order: the prologue on Earth (flat to launch view), the Moon base, its walkway tube and the ground around it (hub to old station), and the first camp on Mars. Rendered by Blender's Cycles from each place's OpenUSD stage, from one of the player's spots, with the stage's own lights, sky and characters; not reviewed by the creator. The habitat's and the flat's style texts came from the optional world step (Generated using World Labs).](figures/fig-world1.jpg){width=100%}
+
+<!-- Frames: tools/review/demo.py plan/cut on the stages of ~/.farm-factory-props/work/usd-complete (complete-scenes export, 2026-10-09 00:00, casts 01:32) copied with their maps at most 1024 px; frame per place in tmp/paper-demo/stills.json; figure by tmp/paper-demo/figures.py. Style texts from the world step: data/definitions/place.json lines 85 and 295 (marble/paint.json). Render: 34 cloud jobs, 5,292 frames at 1280x720, 64 samples, 20 L4 cards, 78.1 min, EUR 15.82 (work/demo/world1/run.log; ledger batch blender-20261009-020545-2401425). -->
+
+The 17 places' videos were rendered as 5,292 frames at 1280 by 720 pixels, in 34 jobs spread over 20 rented L4 cards, in 78 minutes for €15.82.
+
+Figure A2 follows two objects through the stages, from the concept to the place.
+
+![Two objects through the stages: the lab's desk chair (top) and the wreck's forward section (bottom). From left: the concept the creator chose, the close-up drawn from it, the generated model with its parts, the model painted from the surface library, and the model in its place on the stage. The forward section shows a known fault: its scorched paint has no part of its own and is lost in painting (Section 5).](figures/fig-stages.jpg){width=100%}
+
+<!-- Concepts: the picks lab C6 and wreck C2 (review pages ~/.farm-factory-props/work/review-complete/{lab,wreck}/img); close-ups, parts and painted shots: the same pages' img/closeup-*.jpg and models/*--parts--now.png, *--made--now.png; placed: demo frames lab shot0-042, wreck shot1-000. -->
+
 ::: gap
-**Gap.** This appendix will show every place of every world as its concept beside the finished build, with links to demo videos and playable builds. It waits until the worlds are finished.
+**Gap: worlds 2 to 4, and a public link to the videos.** This appendix will show every place of the other three worlds in the same way. The videos of world 1 are not yet published at a public address.
 :::
 
 # Detailed per-stage results
