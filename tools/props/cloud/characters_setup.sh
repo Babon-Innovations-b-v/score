@@ -47,10 +47,11 @@ motion() {
   /root/envs/motion/bin/python -c "import soma, kimodo, pxr; print('motion ok')"
 }
 
-sam3dbody() {
+cuda_toolkit() {
   # CUDA 12.6 and cuDNN 9 from NVIDIA's apt repository: ONNX Runtime's CUDA provider and the ggml heads link them.
   # The GPU image already lists that repository (its own keyring); adding NVIDIA's keyring package beside it makes
-  # apt refuse both, so it is added only on an image without it.
+  # apt refuse both, so it is added only on an image without it. It is installed before the environments are built
+  # side by side: Kimodo's C++ extension failed to configure while the toolkit was landing under it (an L4, 9 October).
   if ! grep -rqs "developer.download.nvidia.com/compute/cuda/repos" /etc/apt/sources.list.d/; then
     local release; release="$(. /etc/os-release && echo "${VERSION_ID//./}")"
     wget -q -O /tmp/keyring.deb \
@@ -59,6 +60,9 @@ sam3dbody() {
     apt-get update -qq
   fi
   apt-get install -y -qq cuda-toolkit-12-6 libcudnn9-cuda-12 libcudnn9-dev-cuda-12 >/dev/null
+}
+
+sam3dbody() {
   cp -r /root/score/vendor/sam3dbody-cpp /root/sam3dbody-cpp
   cd /root/sam3dbody-cpp
   PATH=/usr/local/cuda-12.6/bin:$PATH bash scripts/setup.sh --cuda-arch "$ARCH" --skip-venv < /dev/null
@@ -117,6 +121,8 @@ blender() {
   rm "$tarball" "$tarball.sha256"
   /root/blender/blender -b -setaudio None --python-expr "import bpy; print('blender ok', bpy.app.version_string)"
 }
+
+cuda_toolkit
 
 # Side by side, each into its own log; the step that fails names its log. Steps named on the command line run alone
 # (mending one on a held machine).
