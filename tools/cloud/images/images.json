@@ -430,5 +430,23 @@
     }
    }
   }
+ },
+ "parts": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-parts:1-b7522dd5a11e@sha256:ecc9cc470b0362b0cc423304d4a021261dc195c2d8b33046bca7af9be27f678c",
+  "tag": "1-b7522dd5a11e",
+  "digest": "sha256:ecc9cc470b0362b0cc423304d4a021261dc195c2d8b33046bca7af9be27f678c",
+  "platforms": "linux/amd64",
+  "size_mb": 3599.7,
+  "build_minutes": 6.1,
+  "built": "2026-10-09T14:53:22Z"
+ },
+ "pixal": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pixal:1-ed44fcbabd41@sha256:07d951f7f783a6dbc6ac75465139288f24b9c3eb65ded6829b2547a59f13c3fc",
+  "tag": "1-ed44fcbabd41",
+  "digest": "sha256:07d951f7f783a6dbc6ac75465139288f24b9c3eb65ded6829b2547a59f13c3fc",
+  "platforms": "linux/amd64",
+  "size_mb": 1088.2,
+  "build_minutes": 1.5,
+  "built": "2026-10-09T14:54:57Z"
  }
 }
