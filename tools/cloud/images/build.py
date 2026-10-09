@@ -27,6 +27,7 @@ import json
 import os
 import pathlib
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -115,7 +116,7 @@ def tag(kind, built):
     digest = hashlib.sha256()
     for name, path in context_files(kind).items():
         if name != "models.json":
-            digest.update(name.encode() + b"\0" + path.read_bytes() + b"\0")
+            digest.update(name.encode() + b"\0" + oct(path.stat().st_mode & 0o777).encode() + path.read_bytes() + b"\0")
     if has_parent(kind):
         digest.update(built[PARENT]["digest"].encode())
     return f"{IMAGE_VERSION}-{digest.hexdigest()[:12]}"
@@ -165,13 +166,20 @@ def send_store_environment(machine, store_spec):
                  input=environment, text=True, check=True)
 
 
-def send_context(machine, kind):
-    """The kind's build context onto the builder, in REMOTE/<kind>."""
-    folder, host = machine["folder"], machine["host"]
+def staged_context(kind, folder):
+    """The kind's build context copied into a new folder under `folder`, each file with its mode (a script the
+    Dockerfile copies stays executable); the folder."""
     staged = pathlib.Path(tempfile.mkdtemp(prefix=f"context-{kind}-", dir=folder))
     for name, path in context_files(kind).items():
         (staged / name).parent.mkdir(parents=True, exist_ok=True)
-        (staged / name).write_bytes(path.read_bytes())
+        shutil.copy2(path, staged / name)
+    return staged
+
+
+def send_context(machine, kind):
+    """The kind's build context onto the builder, in REMOTE/<kind>."""
+    folder, host = machine["folder"], machine["host"]
+    staged = staged_context(kind, folder)
     batch.remote(folder, host, f"rm -rf {REMOTE / kind}; mkdir -p {REMOTE}", check=True)
     batch.copy(folder, [f"{staged}/"], f"root@{host}:{REMOTE / kind}/")
 
@@ -222,10 +230,10 @@ def build_one(machine, kind, registry, built):
              "platforms": platforms(kind), "size_mb": compressed_mb(machine, reference),
              "build_minutes": round(minutes, 1),
              "built": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
-    built[kind] = entry
+    built[kind] = {**built.get(kind, {}), **entry}  # what other tools measured of the kind (warm.py) stays
     save(built)
     batch.say(f"{kind}: pushed {entry['image']} ({entry['size_mb']} MB) in {minutes:.1f} min")
-    return entry
+    return built[kind]
 
 
 def seconds_between(timings, first, last):
