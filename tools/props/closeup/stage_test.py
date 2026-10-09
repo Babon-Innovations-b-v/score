@@ -41,9 +41,9 @@ def test_rows_come_from_the_inventory_s_generated_rows():
 
 def test_rows_whose_boxes_the_gate_has_not_passed_are_not_drawn():
     problems = stage.gate_problems([{"id": "cabinet", "words": "a cabinet"},
-                                    {"id": "galley", "scene": "camp", "words": "a galley"}])
+                                    {"id": "no_such_row", "scene": "camp", "words": "a thing"}])
     assert problems[0].startswith("cabinet: names no scene"), problems
-    assert problems[1].startswith("camp.galley: the box gate says"), problems
+    assert problems[1].startswith("camp.no_such_row: the box gate says no row"), problems
     try:
         stage.run([{"id": "cabinet", "words": "a cabinet"}], pathlib.Path(tempfile.mkdtemp()))
     except SystemExit as stopped:
