@@ -107,7 +107,7 @@ def a_dent_is_a_shallow_bowl():
         after = ground.dented(sloped, before, 2.0, 1.0, 0.6, 0.08)
         change = after - before
         problems = []
-        middle = sloped.direction(sloped.frame, sloped.frame[1], 2.0, 1.0)
+        middle = sloped.direction(sloped.frame, sloped.origin, 2.0, 1.0)
         sloped.heights = before
         was = sloped.plan_height(middle)[0][0]
         sloped.heights = after
@@ -116,7 +116,7 @@ def a_dent_is_a_shallow_bowl():
             problems.append(f"the dent's middle is {(was - now) * 100:.1f} cm deep, not about 8")
         if change.max() > 0 or change.min() < -0.0801:
             problems.append("the dent raised the ground or went deeper than asked")
-        far = sloped.direction(sloped.frame, sloped.frame[1], 6.0, 1.0)
+        far = sloped.direction(sloped.frame, sloped.origin, 6.0, 1.0)
         sloped.heights = before
         far_before = sloped.plan_height(far)[0][0]
         sloped.heights = after
