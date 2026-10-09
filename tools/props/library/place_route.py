@@ -198,7 +198,9 @@ def styled_as(place):
 def jobs(planned, work, place):
     """The cloud bake jobs, each written to <work>/job-<name>.json."""
     wear, dirt = library.wear_of(styled_as(place))
-    specs = library.by_library(styled_as(place))
+    # A code-built part names a library variant; a generated piece's labelled parts are the place's own materials
+    # (labels.py), which in the camp are not named as their variants (stainless is stainless_lander): both, as route.py.
+    specs = dict(library.by_library(styled_as(place)), **library.resolved(styled_as(place)))
     made = work / "made"
     found = code_jobs(planned, made, place, wear, dirt, specs)
     found.update(chunky_jobs(planned, made, work, wear, dirt, specs))

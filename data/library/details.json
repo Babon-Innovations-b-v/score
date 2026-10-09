@@ -4308,24 +4308,6 @@
 			}
 		]
 	},
-	"campgrounds_cable_coil": {
-		"materials": [
-			"rubber"
-		],
-		"turn": [
-			0.87729,
-			0.0,
-			-0.47996,
-			0.0,
-			1.0,
-			0.0,
-			0.47996,
-			0.0,
-			0.87729
-		],
-		"screens": [],
-		"cuts": []
-	},
 	"campgrounds_sample_case": {
 		"materials": [
 			"dust_coated_paint",
@@ -4359,5 +4341,23 @@
 			}
 		],
 		"square": true
+	},
+	"campgrounds_coiled_cable": {
+		"materials": [
+			"rubber"
+		],
+		"turn": [
+			0.87729,
+			0.0,
+			-0.47996,
+			0.0,
+			1.0,
+			0.0,
+			0.47996,
+			0.0,
+			0.87729
+		],
+		"screens": [],
+		"cuts": []
 	}
 }

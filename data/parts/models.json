@@ -7,10 +7,10 @@
   "lockers_1": "lockers-m1"
  },
  "campgrounds": {
-  "cable_coil": "cable_coil-g1",
   "cargo_case": "cargo_case-r1",
   "cargo_case_open": "cargo_case_open-r1",
   "cargo_pallet": "cargo_pallet-r1",
+  "coiled_cable": "cable_coil-g1",
   "crane": "crane-r1",
   "drift": "drift-r1",
   "ice_drill": "ice_drill-g1",

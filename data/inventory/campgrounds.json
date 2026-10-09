@@ -51,13 +51,15 @@
 			"at": [
 				{
 					"x": -18.0,
-					"y": 0.0,
+					"y": -0.02,
 					"z": -12.0,
 					"facing": 180.0,
 					"level": "ground",
 					"fit": "seat across/along"
 				}
-			]
+			],
+			"fixed": true,
+			"fixed_why": "the 19 m ship stands upright as the game stands it, let into the dust"
 		},
 		{
 			"id": "crane",
@@ -85,13 +87,20 @@
 			"at": [
 				{
 					"x": -12.5,
-					"y": 0.0,
+					"y": -0.094,
 					"z": -13.5,
 					"facing": 300.0,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.103274,
+						-0.495958,
+						0.073729,
+						-0.859025
+					]
 				}
-			]
+			],
+			"level_why": "its made model's feet are 14.58 degrees off level; each spot's rotation stands it on its own feet (the downward face of its hull turned straight down), its facing kept"
 		},
 		{
 			"id": "cargo_pallet",
@@ -177,29 +186,48 @@
 			"at": [
 				{
 					"x": -19.2,
-					"y": 0.155,
+					"y": 0.1295,
 					"z": -4.6,
 					"facing": 270.0,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.028573,
+						-0.70638,
+						-0.035169,
+						-0.70638
+					]
 				},
 				{
 					"x": -16.4,
-					"y": 0.155,
+					"y": 0.1295,
 					"z": -4.6,
 					"facing": 270.0,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.028573,
+						-0.70638,
+						-0.035169,
+						-0.70638
+					]
 				},
 				{
 					"x": -15.0,
-					"y": 0.155,
+					"y": 0.1295,
 					"z": -4.6,
 					"facing": 270.0,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.028573,
+						-0.70638,
+						-0.035169,
+						-0.70638
+					]
 				}
-			]
+			],
+			"level_why": "its made model's feet are 5.19 degrees off level; each spot's rotation stands it on its own feet (the downward face of its hull turned straight down), its facing kept"
 		},
 		{
 			"id": "cargo_case",
@@ -326,12 +354,18 @@
 			"prop": "campgrounds_ice_drill",
 			"at": [
 				{
-					"x": -21.0,
-					"y": 0.0,
-					"z": 1.0,
-					"facing": 70.0,
+					"x": -21.0235,
+					"y": -0.0666,
+					"z": 0.9717,
+					"facing": 68.73,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.034086,
+						-0.564596,
+						-0.002674,
+						0.824659
+					]
 				}
 			]
 		},
@@ -368,7 +402,9 @@
 					"fit": "seat across/along"
 				}
 			],
-			"keep": "game object (CampMast), kept whatever its score"
+			"keep": "game object (CampMast), kept whatever its score",
+			"fixed": true,
+			"fixed_why": "a guyed mast stands as laid"
 		},
 		{
 			"id": "mast_cabinet",
@@ -403,7 +439,9 @@
 					"fit": "seat across/along"
 				}
 			],
-			"note": "stands on the ground round the mast's foot, its column through it, as the game's CampMast lays it (its Cabinet box at the mast's middle)"
+			"note": "stands on the ground round the mast's foot, its column through it, as the game's CampMast lays it (its Cabinet box at the mast's middle)",
+			"fixed": true,
+			"fixed_why": "stands round the mast's foot, the column through it, as the game's CampMast"
 		},
 		{
 			"id": "ground_cable",
@@ -526,7 +564,9 @@
 					"fit": "seat across/along"
 				}
 			],
-			"keep": "laid along the runs in expedition_camp.gd CABLE_RUNS"
+			"keep": "laid along the runs in expedition_camp.gd CABLE_RUNS",
+			"fixed": true,
+			"fixed_why": "cable lengths laid where they lie along the game's runs"
 		},
 		{
 			"id": "power_unit",
@@ -563,7 +603,7 @@
 			]
 		},
 		{
-			"id": "cable_coil",
+			"id": "coiled_cable",
 			"view": "v1",
 			"box": [
 				2150,
@@ -580,11 +620,11 @@
 				0.15
 			],
 			"count": 1,
-			"thing": "prop:campgrounds_cable_coil",
+			"thing": "prop:campgrounds_coiled_cable",
 			"parent": "",
 			"made": "made by the route",
 			"why_code": "mars-build 2026-10-07: the camp grounds from the picked concept (outside K05), one model per real-world object",
-			"prop": "campgrounds_cable_coil",
+			"prop": "campgrounds_coiled_cable",
 			"at": [
 				{
 					"x": 15.0,
@@ -594,7 +634,8 @@
 					"level": "ground",
 					"fit": "seat across/along"
 				}
-			]
+			],
+			"name_why": "not cable_coil: that own name is the habitat's code-built coil (names.py)"
 		},
 		{
 			"id": "sample_case",
@@ -634,7 +675,9 @@
 						0.707107
 					]
 				}
-			]
+			],
+			"fixed": true,
+			"fixed_why": "held in Bram's arms (the camp's cast), not dropped"
 		},
 		{
 			"id": "drift",
@@ -798,7 +841,7 @@
 			"element": "coiled cable on the ground right of the door dome",
 			"where": "C-domes",
 			"count": 1,
-			"row": "cable_coil"
+			"row": "coiled_cable"
 		},
 		{
 			"element": "cables from the domes to the reactor and the mast",
