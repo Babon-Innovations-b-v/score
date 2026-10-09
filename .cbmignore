@@ -1,0 +1,9 @@
+# codebase-memory-mcp: paths kept out of the code graph (gitignore syntax).
+# Third-party code, kept as released (also on the tool's built-in skip list).
+vendor/
+# Data the framework reads and writes: parts, pictures, kits, motions, sounds.
+data/
+# The paper's generated outputs: the PDF, its stamp and the arXiv LaTeX tree.
+paper/out/
+paper/arxiv/
+paper/figures/
