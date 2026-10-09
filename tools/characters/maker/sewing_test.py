@@ -1,7 +1,8 @@
-"""Check the plain pieces of the Blender drape: GarmentCode's measurements carried to a body by the measured ratios, the
-seams of panels cut apart and put back in the box mesh's order (so GarmentCode's segmentation, a line per box mesh
-point, still lines up), fine panels carried onto a sewn coarse cloth, and the cloth file read back by people/drape.py
-exactly as it read GarmentCode's own.
+"""Check the plain pieces of the drapes (Newton and Blender): GarmentCode's measurements carried to a body by the
+measured ratios, the seams of panels cut apart and put back in the box mesh's order (so GarmentCode's segmentation, a
+line per box mesh point, still lines up), fine panels carried onto a sewn coarse cloth, and the cloth file read back
+by people/drape.py exactly as it read GarmentCode's own; for Newton, the welded cloth's rest shapes, masses and
+bending edges taken from the flat panels, and the points GarmentCode holds while it drapes.
 
 Run: .venv/bin/python tools/characters/maker/sewing_test.py   (make tests runs it with the framework's environment)
 """
@@ -113,10 +114,50 @@ def a_sleeve_must_reach_down_the_upper_arm():
     assert gaps == [0.55, 0.6, 0.65, 0.7, 0.75], gaps
 
 
+RECORD = {"points": np.array(LEFT + RIGHT), "faces": np.array(FACES), "box_index": np.array(BOX_INDEX)}
+
+
+def the_welded_cloth_keeps_its_panels_rest_shapes():
+    welded = sewing.welded_faces(RECORD)
+    assert welded.tolist() == [[0, 2, 1], [1, 2, 3], [0, 1, 4], [1, 5, 4]], welded
+    assert np.allclose(sewing.rest_areas(RECORD), 50.0)  # each half of a 10 cm square, however the box stretched it
+    masses = sewing.point_masses(RECORD, 6, 0.3)
+    assert np.isclose(masses.sum(), 0.3 * 200.0) and np.isclose(masses[0], 0.3 * 100.0 / 3), masses
+
+
+def bending_edges_pair_the_triangles_either_side():
+    edges, owners, odd = sewing.bending_edges(sewing.welded_faces(RECORD))
+    assert odd == 0 and len(edges) == 9, (edges, odd)  # 4 triangles: 3 inner edges (one the seam), 6 border
+    inner = {tuple(sorted(edge[2:])): edge for edge in edges.tolist() if edge[1] != -1}
+    assert set(inner) == {(1, 2), (0, 1), (1, 4)}, inner
+    # Newton's order: the first triangle (i, k, l) runs k to l, the second (j, l, k) back
+    opposite_first, opposite_second, start, end = inner[(0, 1)]
+    assert {opposite_first, opposite_second} == {2, 4}
+    lengths = sewing.rest_edge_lengths(RECORD, edges, owners)
+    seam = [index for index, edge in enumerate(edges.tolist()) if sorted(edge[2:]) == [0, 1]][0]
+    assert np.isclose(lengths[seam], 10.0)
+    # the right panel's bottom edge is 10 cm in its flat panel, though the box mesh stretches it to 12
+    bottom = [index for index, edge in enumerate(edges.tolist()) if sorted(edge[2:]) == [0, 4]][0]
+    assert np.isclose(lengths[bottom], 10.0), lengths
+    _, _, odd = sewing.bending_edges(np.array([[0, 1, 2], [0, 1, 3]]))  # two triangles running the same way
+    assert odd == 1
+
+
+def garmentcode_holds_the_waist_and_the_collars():
+    body = {"height": 170.0, "head_l": 25.0, "waist_line": 40.0, "neck_w": 16.0}
+    labels = {"lower_interface": [3, 4], "right_collar": [7], "left_collar": [8], "left_armhole": [9]}
+    held = sewing.attachments(labels, body)
+    assert [(points.tolist(), axis, value) for points, axis, value in held] == \
+        [([3, 4], 1, 105.0), ([7], 0, -7.0), ([8], 0, 7.0)], held
+    assert sewing.attachments({}, dict(body, _waist_level=101.0)) == []
+    assert sewing.attachments({"lower_interface": [1]}, dict(body, _waist_level=101.0))[0][2] == 101.0
+
+
 if __name__ == "__main__":
     for check in (measurements_unchanged_on_the_same_body, measurements_follow_their_own_ratio,
                   threads_tie_every_copy_to_its_first, sewn_points_come_back_in_box_order,
                   drape_reads_the_cloth_file, fine_points_ride_on_the_sewn_coarse_cloth,
-                  a_sleeve_must_reach_down_the_upper_arm):
+                  a_sleeve_must_reach_down_the_upper_arm, the_welded_cloth_keeps_its_panels_rest_shapes,
+                  bending_edges_pair_the_triangles_either_side, garmentcode_holds_the_waist_and_the_collars):
         check()
         print("ok", check.__name__)

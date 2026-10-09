@@ -1,5 +1,5 @@
 {
- "note": "How the work suit drapes in Blender's cloth (tools/characters/maker/cloth_drape.py). resolution_scale is GarmentCode's box mesh spacing in centimetres, as the kept Warp drape used it (look/<person>/work_drape/sim_props.yaml). coarse_resolution is the spacing the garment is first sewn at (cloth_drape.py says why). The Blender numbers were tuned by the drape agent on Nev's body, 2026-10-09: the sewing forces are tried in turn until no panel sags off the body, mass is per point at mass_spacing centimetres, lift raises the panels the torso hangs from while it is sewn.",
+ "note": "How the work suit drapes in Blender's cloth (tools/characters/maker/cloth_drape.py). resolution_scale is GarmentCode's box mesh spacing in centimetres, as the kept Warp drape used it (look/<person>/work_drape/sim_props.yaml). coarse_resolution is the spacing the garment is first sewn at (cloth_drape.py says why). The Blender numbers were tuned by the drape agent on Nev's body, 2026-10-09: the sewing forces are tried in turn until no panel sags off the body, mass is per point at mass_spacing centimetres, lift raises the panels the torso hangs from while it is sewn. The 'newton' section is newton_drape.py's (the default simulator), tuned on Nev's kept pattern against the Warp drape on 2026-10-09 by the drapes-sim agent: a soft membrane (tri_ke 500 N/m; 3000 and more pulled the torso off the shoulders), stiff bending (edge_ke 2; lower left small crumples), gravity 2 m/s^2 while sewing and held, 9.81 for the settle.",
  "resolution_scale": 1.0,
  "blender": {
   "quality": 10,
@@ -60,5 +60,12 @@
   "settle": 120,
   "fine_settle": 60
  },
- "coarse_resolution": 3.0
+ "coarse_resolution": 3.0,
+ "newton": {
+  "tri_ke": 500.0,
+  "tri_ka": 500.0,
+  "edge_ke": 2.0,
+  "gravity": 2.0,
+  "settle_gravity": 9.81
+ }
 }

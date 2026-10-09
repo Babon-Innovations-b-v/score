@@ -1,5 +1,5 @@
 {
- "note": "How the space suit drapes in Blender's cloth (tools/characters/maker/cloth_drape.py). resolution_scale is GarmentCode's box mesh spacing in centimetres, as the kept Warp drape used it (look/<person>/space_drape/sim_props.yaml: coarser, heavier and thicker cloth than the work suit). coarse_resolution is the spacing the garment is first sewn at (cloth_drape.py says why). The Blender numbers were tuned by the drape agent on Nev's body, 2026-10-09: the sewing forces are tried in turn until no panel sags off the body, mass is per point at mass_spacing centimetres, lift raises the panels the torso hangs from while it is sewn. The space suit's waist is held 3 to 4.5 % of the body's height under GarmentCode's waist level (the 'fine' list, the lowest that keeps the shoulders on and the seams shut), where the approved Warp drape hung it, so the people tools' belt finds its cloth.",
+ "note": "How the space suit drapes in Blender's cloth (tools/characters/maker/cloth_drape.py). resolution_scale is GarmentCode's box mesh spacing in centimetres, as the kept Warp drape used it (look/<person>/space_drape/sim_props.yaml: coarser, heavier and thicker cloth than the work suit). coarse_resolution is the spacing the garment is first sewn at (cloth_drape.py says why). The Blender numbers were tuned by the drape agent on Nev's body, 2026-10-09: the sewing forces are tried in turn until no panel sags off the body, mass is per point at mass_spacing centimetres, lift raises the panels the torso hangs from while it is sewn. The space suit's waist is held 3 to 4.5 % of the body's height under GarmentCode's waist level (the 'fine' list, the lowest that keeps the shoulders on and the seams shut), where the approved Warp drape hung it, so the people tools' belt finds its cloth. The 'newton' section is newton_drape.py's (the default simulator), tuned on Nev's kept pattern against the Warp drape on 2026-10-09 by the drapes-sim agent: the work suit's cloth, gravity 2 m/s^2 while sewing and held and 9.81 for the settle, and the waist held through the settle 1 % of the height under GarmentCode's waist level (hold_to_end, below_waist), as the suit's belt holds it: released, the suit slid down off the shoulders at full gravity.",
  "resolution_scale": 1.8,
  "blender": {
   "quality": 10,
@@ -96,5 +96,14 @@
   "settle": 120,
   "fine_settle": 60
  },
- "coarse_resolution": 3.6
+ "coarse_resolution": 3.6,
+ "newton": {
+  "tri_ke": 500.0,
+  "tri_ka": 500.0,
+  "edge_ke": 2.0,
+  "gravity": 2.0,
+  "settle_gravity": 9.81,
+  "hold_to_end": true,
+  "below_waist": 0.01
+ }
 }

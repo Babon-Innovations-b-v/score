@@ -536,21 +536,22 @@ the words. SAM3DBody-cpp {[}36{]}, a C++ and ONNX runner of SAM 3D Body
 {[}22{]}, reads the body off the picture, and the body is fitted to
 SOMA-X through MHR. Kimodo {[}23{]} writes the clips from sentences. The
 clothes are GarmentCode's sewing patterns {[}37{]}, draped on the body
-by Blender's cloth simulation {[}38{]}. Hi3DGen {[}39{]} makes the hair
-from a clay picture of the bald head, and the hair is laid on the scalp
-as a shell. FLUX.2 klein base 4B {[}40{]} with a reference-depth LoRA
-{[}41{]} draws the face on the head's own depth view. The chain then
-builds the character, converts it to UsdSkel and renders it for review.
-Rebuilt from her own picture, Nev, a crew member of the Moon base, took
-11.2 minutes of an H100, and a new person made from one sentence took 21
-minutes (Appendix G). Animals use the same entry point with a route that
-does not assume a human body: Pixal3D makes the mesh from a close-up,
-UniRig {[}42{]} rigs a quadruped, a fish gets a spine rig made in code,
-and the clips are made in code. Two parts are weak. Blender's drapes are
-rougher than those of GarmentCode's own cloth solver, a fork of NVIDIA
-Warp that we cannot use because its licence allows non-commercial
-research only. The animals' clips are made in code, so the dog's paws
-twist and its feet slide (Limitations).
+by the cloth solver of Newton {[}38{]}, an open physics engine on NVIDIA
+Warp {[}39{]}. Hi3DGen {[}40{]} makes the hair from a clay picture of
+the bald head, and the hair is laid on the scalp as a shell. FLUX.2
+klein base 4B {[}41{]} with a reference-depth LoRA {[}42{]} draws the
+face on the head's own depth view. The chain then builds the character,
+converts it to UsdSkel and renders it for review. Rebuilt from her own
+picture, Nev, a crew member of the Moon base, took 11.2 minutes of an
+H100, and a new person made from one sentence took 21 minutes (Appendix
+G). Animals use the same entry point with a route that does not assume a
+human body: Pixal3D makes the mesh from a close-up, UniRig {[}43{]} rigs
+a quadruped, a fish gets a spine rig made in code, and the clips are
+made in code. Two parts are weak. Blender's drapes are rougher than
+those of GarmentCode's own cloth solver, a fork of NVIDIA Warp that we
+cannot use because its licence allows non-commercial research only. The
+animals' clips are made in code, so the dog's paws twist and its feet
+slide (Limitations).
 
 A place's sound is also part of its stage, in its own layer. Every sound
 is a UsdMedia spatial audio prim with its file, its gain and how it
@@ -890,7 +891,7 @@ with motion from the framework's motion models. It waits on world 3.
   often, so that the closed model is needed less.
 \item
   Wrap open solvers as stages for worlds at other scales, starting with
-  orbital dynamics through REBOUND {[}43{]}.
+  orbital dynamics through REBOUND {[}44{]}.
 \item
   Evaluate SCORE on LEGO-Bench {[}15{]}.
 \end{itemize}
@@ -1138,79 +1139,91 @@ inference engine for {SAM 3D Body}.''} GitHub, 2026. Available:
 Programming parametric sewing patterns,''} \emph{ACM Transactions on
 Graphics}, vol. 42, no. 6, p. 197, 2023.}
 
-\bibitem[\citeproctext]{ref-blender}
+\bibitem[\citeproctext]{ref-newton}
 \CSLLeftMargin{{[}38{]} }%
-\CSLRightInline{Blender Foundation, {``{Blender}.''} 2026. Available:
-\url{https://www.blender.org/}}
+\CSLRightInline{The Newton Developers, {``{Newton}: A {GPU}-accelerated
+physics simulation engine.''} 2026. Available:
+\url{https://github.com/newton-physics/newton}}
+
+\bibitem[\citeproctext]{ref-warp}
+\CSLLeftMargin{{[}39{]} }%
+\CSLRightInline{M. Macklin, {``{Warp}: A high-performance {Python}
+framework for {GPU} simulation and graphics.''} NVIDIA, 2022. Available:
+\url{https://github.com/NVIDIA/warp}}
 
 \bibitem[\citeproctext]{ref-ye2025hi3dgen}
-\CSLLeftMargin{{[}39{]} }%
+\CSLLeftMargin{{[}40{]} }%
 \CSLRightInline{C. Ye \emph{et al.}, {``{Hi3DGen}: High-fidelity {3D}
 geometry generation from images via normal bridging,''} in
 \emph{Proceedings of the IEEE/CVF international conference on computer
 vision (ICCV)}, 2025.}
 
 \bibitem[\citeproctext]{ref-flux2kleinbase}
-\CSLLeftMargin{{[}40{]} }%
+\CSLLeftMargin{{[}41{]} }%
 \CSLRightInline{Black Forest Labs, {``{FLUX.2 {[}klein{]} Base 4B} model
 card.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B}}
 
 \bibitem[\citeproctext]{ref-refcontrol}
-\CSLLeftMargin{{[}41{]} }%
+\CSLLeftMargin{{[}42{]} }%
 \CSLRightInline{{thedeoxen}, {``{refcontrol}: Reference-depth {LoRA} for
 {FLUX.2 {[}klein{]} 4B}.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/thedeoxen/refcontrol-FLUX.2-klein-4B-reference-depth-lora}}
 
 \bibitem[\citeproctext]{ref-zhang2025unirig}
-\CSLLeftMargin{{[}42{]} }%
+\CSLLeftMargin{{[}43{]} }%
 \CSLRightInline{J.-P. Zhang, C.-F. Pu, M.-H. Guo, Y.-P. Cao, and S.-M.
 Hu, {``One model to rig them all: Diverse skeleton rigging with
 {UniRig},''} \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.}
 
 \bibitem[\citeproctext]{ref-rein2012rebound}
-\CSLLeftMargin{{[}43{]} }%
+\CSLLeftMargin{{[}44{]} }%
 \CSLRightInline{H. Rein and S.-F. Liu, {``{REBOUND}: An open-source
 multi-purpose {N}-body code for collisional dynamics,''} \emph{Astronomy
 \& Astrophysics}, vol. 537, p. A128, 2012.}
 
+\bibitem[\citeproctext]{ref-blender}
+\CSLLeftMargin{{[}45{]} }%
+\CSLRightInline{Blender Foundation, {``{Blender}.''} 2026. Available:
+\url{https://www.blender.org/}}
+
 \bibitem[\citeproctext]{ref-simeoni2025dinov3}
-\CSLLeftMargin{{[}44{]} }%
+\CSLLeftMargin{{[}46{]} }%
 \CSLRightInline{{O. Siméoni, H. V. Vo, M. Seitzer, \emph{et al.}},
 {``{DINOv3},''} \emph{arXiv preprint arXiv:2508.10104}, 2025.}
 
 \bibitem[\citeproctext]{ref-li2026segvigen}
-\CSLLeftMargin{{[}45{]} }%
+\CSLLeftMargin{{[}47{]} }%
 \CSLRightInline{L. Li \emph{et al.}, {``{SegviGen}: Repurposing {3D}
 generative model for part segmentation,''} \emph{arXiv preprint
 arXiv:2603.16869}, 2026.}
 
 \bibitem[\citeproctext]{ref-deng2025geosam2}
-\CSLLeftMargin{{[}46{]} }%
+\CSLLeftMargin{{[}48{]} }%
 \CSLRightInline{K. Deng \emph{et al.}, {``{GeoSAM2}: Unleashing the
 power of {SAM2} for {3D} part segmentation,''} \emph{arXiv preprint
 arXiv:2508.14036}, 2025.}
 
 \bibitem[\citeproctext]{ref-marble_terms}
-\CSLLeftMargin{{[}47{]} }%
+\CSLLeftMargin{{[}49{]} }%
 \CSLRightInline{World Labs, {``{Terms of Service}.''} 2026. Available:
 \url{https://docs.worldlabs.ai/terms-of-service}}
 
 \bibitem[\citeproctext]{ref-behnamghader2024llm2vec}
-\CSLLeftMargin{{[}48{]} }%
+\CSLLeftMargin{{[}50{]} }%
 \CSLRightInline{P. BehnamGhader, V. Adlakha, M. Mosbach, D. Bahdanau, N.
 Chapados, and S. Reddy, {``{LLM2Vec}: Large language models are secretly
 powerful text encoders,''} in \emph{Conference on language modeling
 (COLM)}, 2024.}
 
 \bibitem[\citeproctext]{ref-grattafiori2024llama3}
-\CSLLeftMargin{{[}49{]} }%
+\CSLLeftMargin{{[}51{]} }%
 \CSLRightInline{{A. Grattafiori, A. Dubey, A. Jauhri, \emph{et al.}},
 {``The {Llama 3} herd of models,''} \emph{arXiv preprint
 arXiv:2407.21783}, 2024.}
 
 \bibitem[\citeproctext]{ref-claudecode}
-\CSLLeftMargin{{[}50{]} }%
+\CSLLeftMargin{{[}52{]} }%
 \CSLRightInline{Anthropic, {``{Claude Code}.''} 2026. Available:
 \url{https://www.anthropic.com/claude-code}}
 
@@ -1551,9 +1564,10 @@ through its own copy. What passes from one model to the next is always
 pictures, masks, depth maps or meshes, never one model's internal
 features. The characters' licence check found that GarmentCode's fork of
 NVIDIA Warp, which drapes its patterns, allows non-commercial research
-only, so Blender's cloth simulation replaced it. The one open doubt
-among the characters' models is the face LoRA, whose training data is
-not disclosed.
+only, so Newton's cloth solver on upstream Warp, both Apache-2.0,
+replaced it; Blender's cloth simulation {[}45{]} is kept as a second
+route. The one open doubt among the characters' models is the face LoRA,
+whose training data is not disclosed.
 
 \textbf{Table E1.} Models in the framework.
 
@@ -1579,19 +1593,19 @@ ground skins & paid API \\
 Qwen-Image-Edit-2511 {[}28{]} & close-ups, first & Apache-2.0 \\
 Qwen3.8-27B {[}29{]} & the close-ups' shape check; each part's material
 & Apache-2.0 \\
-Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}44{]} for its
+Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}46{]} for its
 encoder \\
 PartCrafter {[}21{]} & parts & MIT; its non-commercial background
 remover not used \\
-SegviGen {[}45{]} & parts of our own model (trial) & MIT, on TRELLIS.2
+SegviGen {[}47{]} & parts of our own model (trial) & MIT, on TRELLIS.2
 (MIT); DINOv3 licence for its encoder; its non-commercial background
 remover and nvdiffrast not used \\
-GeoSAM2 {[}46{]} & parts of our own model, seeded by the close-up's
+GeoSAM2 {[}48{]} & parts of our own model, seeded by the close-up's
 regions (trial) & Apache-2.0 \\
 Depth Anything V2 Small {[}20{]} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
-World Labs Marble {[}47{]} & optional world step & paid; outputs owned
+World Labs Marble {[}49{]} & optional world step & paid; outputs owned
 by paid users \\
 FLUX.2 klein 4B {[}35{]} & earlier prop pictures; the characters' A-pose
 pictures from words and their hair's clay pictures & Apache-2.0 \\
@@ -1600,7 +1614,7 @@ pictures & MIT; SAM Licence \\
 Kimodo {[}23{]} & the characters' motion from sentences & Apache-2.0
 code; NVIDIA Open Model License for the Kimodo-SOMA-RP-v1.1 weights,
 commercial use allowed \\
-LLM2Vec {[}48{]} on Meta-Llama-3-8B-Instruct {[}49{]} & Kimodo's text
+LLM2Vec {[}50{]} on Meta-Llama-3-8B-Instruct {[}51{]} & Kimodo's text
 encoder, used only while clips are made; nothing from it ships & Llama 3
 Community License: commercial use allowed, the 700 million monthly users
 clause does not apply, ``Built with Meta Llama 3'' shown, no exclusion
@@ -1610,15 +1624,16 @@ SAM 3D Body {[}22{]}, SAM3DBody-cpp {[}36{]} & body shape from a picture
 weights included whatever their tag says; MIT for SAM3DBody-cpp's
 code \\
 SOMA-X and MHR & the characters' bodies & Apache-2.0 \\
-GarmentCode {[}37{]}, Blender's cloth {[}38{]} & the clothes' sewing
-patterns and their drape & MIT; Blender is GPL and its output is ours;
+GarmentCode {[}37{]}, Newton {[}38{]} on Warp {[}39{]}, Blender's cloth
+{[}45{]} & the clothes' sewing patterns and their drape & MIT; Newton
+and Warp Apache-2.0; Blender is GPL and its output is ours;
 GarmentCode's Warp fork (non-commercial research only) not used \\
-Hi3DGen {[}39{]} & the characters' hair & MIT code; MIT and Apache-2.0
+Hi3DGen {[}40{]} & the characters' hair & MIT code; MIT and Apache-2.0
 weights \\
-FLUX.2 klein base 4B {[}40{]} with the refcontrol reference-depth LoRA
-{[}41{]} & the characters' faces & Apache-2.0, both; the LoRA's training
+FLUX.2 klein base 4B {[}41{]} with the refcontrol reference-depth LoRA
+{[}42{]} & the characters' faces & Apache-2.0, both; the LoRA's training
 data is not disclosed \\
-UniRig {[}42{]} & the skeleton and skin of a quadruped & MIT code and
+UniRig {[}43{]} & the skeleton and skin of a quadruped & MIT code and
 weights \\
 MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
@@ -1712,7 +1727,7 @@ World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 &
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound
 generation, all checks and the assembly run automatically. Coding agents
-(Claude Code {[}50{]}) write the plans, the inventories and every code
+(Claude Code {[}52{]}) write the plans, the inventories and every code
 builder; in the hub's final round, 86 of its 98 models were built in
 code. Some steps were still done by hand: some generated objects were
 turned to face the right way by eye, and a few labels were placed by

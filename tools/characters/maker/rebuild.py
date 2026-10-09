@@ -4,7 +4,7 @@ rest, by a commercial-OK simulator, into a NEW look copy; the people built again
 the new body taken with the same cameras (job drapes, 2026-10-09: the looks kept before were draped by GarmentCode's
 non-commercial Warp fork).
 
-    .venv/bin/python tools/characters/maker/rebuild.py bundle [<person> ...] [--simulator blender]
+    .venv/bin/python tools/characters/maker/rebuild.py bundle [<person> ...] [--simulator newton|blender]
     .venv/bin/python tools/props/cloud/characters.py ~/.farm-factory-motion/rebuild/make/<group> ... --who "<session>"
     .venv/bin/python tools/characters/maker/rebuild.py land [<group> ...]
 
@@ -332,7 +332,25 @@ def redrape_blender(run, drape):
     return json.loads((out / "blender_cloth.json").read_text()).get("held_on_body")
 
 
-SIMULATORS = {"blender": redrape_blender}
+def redrape_newton(run, drape):
+    """One drape again from its kept pattern on the rest body with Newton (drape_garment.py's 1:1 redrape: the
+    pattern as it was sized, the measurements it was sized on for the held waist and collars, newton_drape.py); into
+    the lead's new look. Whether it held: the cloth came to rest with both upper arms covered."""
+    os.environ.update(GARMENTCODE="/root/garmentcode", GARMENTCODE_PYTHON=str(GARMENT))
+    sys.path.insert(0, str(HERE))
+    import drape_garment
+    out = run.new_look(run.lead) / drape["folder"]
+    sized = run.folder / "in/sized" / drape["folder"]
+    drape_garment.drape(run.rest, drape["design"], out, drape["kind"], run.spec["reference"], simulator="newton",
+                        pattern=run.old_look(run.lead) / drape["folder"] / f"{drape['tag']}_specification.json",
+                        measurements=sized / "body_measurements.yaml", work=run.work / "drapes" / drape["folder"])
+    if (sized / "design.yaml").exists() and not (out / "design.yaml").exists():
+        shutil.copy2(sized / "design.yaml", out / "design.yaml")
+    report = json.loads((out / "newton_cloth.json").read_text())
+    return bool(report["came_to_rest"]) and not any(report["bare_arm"].values())
+
+
+SIMULATORS = {"newton": redrape_newton, "blender": redrape_blender}
 
 
 def share_drapes(run):
@@ -447,7 +465,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     bundling = sub.add_parser("bundle", help="write the groups' make folders here")
     bundling.add_argument("people", nargs="*", help="whose groups (default everybody)")
-    bundling.add_argument("--simulator", default="blender", choices=sorted(SIMULATORS))
+    bundling.add_argument("--simulator", default="newton", choices=sorted(SIMULATORS))
     landing = sub.add_parser("land", help="copy the groups' out folders into the rebuild folders here")
     landing.add_argument("groups", nargs="*")
     running = sub.add_parser("run", help="on the machine: rebuild one group")

@@ -8,7 +8,9 @@
 #   /root/sam3dbody-cpp  SAM3DBody-cpp (vendor/sam3dbody-cpp, MIT code; its ONNX/GGUF weights are SAM 3D Body's,
 #                        under Meta's SAM License): the body read off one picture.
 #   /root/envs/garment   GarmentCode (MIT), pinned: sewing patterns and their box meshes, no simulation (its Warp fork
-#                        is non-commercial and is never installed; Blender's cloth drapes them).
+#                        is non-commercial and is never installed).
+#   /root/envs/newton    Newton (Apache-2.0, newton-physics/newton) on NVIDIA Warp (Apache-2.0 since 1.6.2), pinned: the
+#                        cloth simulator that drapes the patterns (tools/characters/maker/newton_drape.py).
 #   /root/envs/hi3dgen   Hi3DGen (Stable-X, MIT code and weights), pinned: hair meshes from clay pictures.
 #   /root/envs/picture   FLUX.2 klein 4B and klein base 4B (Apache-2.0) with diffusers: the A-pose picture, the clay
 #                        hair picture and the face drawing (base 4B with the refcontrol depth LoRA, Apache-2.0).
@@ -26,6 +28,8 @@ ARCH="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1 | tr 
 GARMENTCODE_COMMIT=d449629979028123a5c4dc9e732a2ec19b7fce31
 HI3DGEN_COMMIT=c29f668ecec44b197275e9bf77f823c0c8a21076
 BLENDER_VERSION=4.2.23
+NEWTON_VERSION=1.6.1
+WARP_VERSION=1.18.0
 
 apt-get update -qq
 apt-get install -y -qq build-essential cmake git wget unzip xz-utils libjpeg-dev libpng-dev libzstd-dev liblz4-dev \
@@ -79,6 +83,13 @@ garment() {
 from pygarment.meshgen.boxmeshgen import BoxMesh; print('garment ok')"
 }
 
+newton() {
+  $UV venv --quiet --python 3.12 /root/envs/newton
+  $UV pip install --quiet --python /root/envs/newton/bin/python "newton==$NEWTON_VERSION" "warp-lang==$WARP_VERSION" \
+    numpy pyyaml
+  /root/envs/newton/bin/python -c "import newton, warp; warp.init(); print('newton ok', newton.__version__, warp.__version__)"
+}
+
 hi3dgen() {
   git clone -q https://github.com/Stable-X/Stable3DGen /root/hi3dgen
   git -C /root/hi3dgen checkout -q "$HI3DGEN_COMMIT"
@@ -127,7 +138,7 @@ cuda_toolkit
 # Side by side, each into its own log; the step that fails names its log. Steps named on the command line run alone
 # (mending one on a held machine).
 pids=()
-for step in ${*:-motion sam3dbody garment hi3dgen picture blender}; do
+for step in ${*:-motion sam3dbody garment newton hi3dgen picture blender}; do
   ( set -euo pipefail; "$step" ) > "$LOGS/$step.log" 2>&1 &
   pids+=("$!:$step")
 done
