@@ -18,6 +18,207 @@
    "radius": 220.0,
    "surface": "earth_face",
    "from": "game/world/earth (radius 220 at 1302 m: about 20 degrees across), Orbits/LunarCycle"
+  },
+  {
+   "name": "landing_pad",
+   "builder": "lathe",
+   "profile": [
+    [
+     -0.6,
+     0.2,
+     16.5,
+     15.0
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "sides": 32,
+   "surface": "deck",
+   "placed_at": [
+    97.053,
+    -25.647,
+    30.59
+   ],
+   "placed_turn": [
+    0.097012,
+    0.10944,
+    -0.218245,
+    0.964873
+   ],
+   "from": "world.tscn:11-38 LandingPad (CylinderMesh 15/16.5, 0.8 high, at y -0.2) and PadRing (CSGTorus3D 13.6/14.2, y scale 0.2, at y 0.2) at 32 across, 48 along, stood on the ground under it (world.gd:137-140, Space.stand_on_the_ground)"
+  },
+  {
+   "name": "landing_pad_ring",
+   "builder": "torus",
+   "inner": 13.6,
+   "outer": 14.2,
+   "height": 0.2,
+   "flatten": 0.2,
+   "sides": 32,
+   "ring_sides": 8,
+   "surface": "hazard_paint",
+   "placed_at": [
+    97.053,
+    -25.647,
+    30.59
+   ],
+   "placed_turn": [
+    0.097012,
+    0.10944,
+    -0.218245,
+    0.964873
+   ],
+   "from": "world.tscn:11-38 LandingPad (CylinderMesh 15/16.5, 0.8 high, at y -0.2) and PadRing (CSGTorus3D 13.6/14.2, y scale 0.2, at y 0.2) at 32 across, 48 along, stood on the ground under it (world.gd:137-140, Space.stand_on_the_ground)"
+  },
+  {
+   "name": "ship_pad",
+   "builder": "lathe",
+   "profile": [
+    [
+     -0.57,
+     0.03,
+     3.6,
+     3.4
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "sides": 32,
+   "surface": "painted_panel",
+   "placed_at": [
+    47.608,
+    -6.738,
+    23.028
+   ],
+   "placed_turn": [
+    0.05914,
+    0.058564,
+    -0.105838,
+    0.990894
+   ],
+   "from": "ship_pad.tscn (Deck: CylinderMesh 3.4/3.6, 0.6 high, at y -0.27; Ring: TorusMesh 2.95/3.2, y scale 0.2, at y 0.03), laid at ShipDomain.PAD_ACROSS -20, PAD_ALONG 30 and stood on the ground (main.gd:378-380)"
+  },
+  {
+   "name": "ship_pad_ring",
+   "builder": "torus",
+   "inner": 2.95,
+   "outer": 3.2,
+   "height": 0.03,
+   "flatten": 0.2,
+   "sides": 48,
+   "ring_sides": 8,
+   "surface": "hazard_paint",
+   "placed_at": [
+    47.608,
+    -6.738,
+    23.028
+   ],
+   "placed_turn": [
+    0.05914,
+    0.058564,
+    -0.105838,
+    0.990894
+   ],
+   "from": "ship_pad.tscn (Deck: CylinderMesh 3.4/3.6, 0.6 high, at y -0.27; Ring: TorusMesh 2.95/3.2, y scale 0.2, at y 0.03), laid at ShipDomain.PAD_ACROSS -20, PAD_ALONG 30 and stood on the ground (main.gd:378-380)"
+  },
+  {
+   "name": "ship_body",
+   "builder": "lathe",
+   "profile": [
+    [
+     0.8,
+     5.8,
+     1.6,
+     1.6
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "sides": 64,
+   "surface": "hull_white_gloss",
+   "placed_at": [
+    47.717,
+    -6.253,
+    23.08
+   ],
+   "placed_turn": [
+    0.05914,
+    0.058564,
+    -0.105838,
+    0.990894
+   ],
+   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none"
+  },
+  {
+   "name": "ship_nose",
+   "builder": "lathe",
+   "profile": [
+    [
+     5.8,
+     7.8,
+     1.6,
+     0.0
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "sides": 64,
+   "surface": "painted_panel",
+   "placed_at": [
+    47.717,
+    -6.253,
+    23.08
+   ],
+   "placed_turn": [
+    0.05914,
+    0.058564,
+    -0.105838,
+    0.990894
+   ],
+   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none"
+  },
+  {
+   "name": "ship_band",
+   "builder": "lathe",
+   "profile": [
+    [
+     1.05,
+     1.35,
+     1.62,
+     1.62
+    ]
+   ],
+   "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "sides": 64,
+   "surface": "hazard_paint",
+   "placed_at": [
+    47.717,
+    -6.253,
+    23.08
+   ],
+   "placed_turn": [
+    0.05914,
+    0.058564,
+    -0.105838,
+    0.990894
+   ],
+   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none"
   }
  ],
  "places": [
@@ -25,34 +226,97 @@
    "name": "hub",
    "stage": "hub",
    "at": [
-    61.6,
-    -9.2,
-    -9.7
+    61.603,
+    -9.024,
+    -9.71
    ],
-   "yaw": 180.0,
-   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+   "rotation": [
+    0.142929,
+    0.985365,
+    -0.008986,
+    -0.092449
+   ],
+   "from": "game/main/main.tscn:81-158 (the base's modules on the base seat); the base seat turned into this place's frame (Seat, the ground record)"
   },
   {
    "name": "greenhouse",
    "stage": "greenhouse",
    "at": [
-    45.4,
-    -5.0,
-    -6.6
+    45.588,
+    -4.207,
+    -6.656
    ],
-   "yaw": 0.0,
-   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+   "rotation": [
+    -0.008986,
+    0.092449,
+    -0.142929,
+    0.985365
+   ],
+   "from": "game/main/main.tscn:81-158 (the base's modules on the base seat); the base seat turned into this place's frame (Seat, the ground record)"
+  },
+  {
+   "name": "workshop",
+   "stage": "workshop",
+   "at": [
+    77.618,
+    -13.841,
+    -12.764
+   ],
+   "rotation": [
+    -0.008986,
+    0.092449,
+    -0.142929,
+    0.985365
+   ],
+   "from": "game/main/main.tscn:81-158 (the base's modules on the base seat); the base seat turned into this place's frame (Seat, the ground record)"
   },
   {
    "name": "airlock",
    "stage": "airlock",
    "at": [
-    66.0,
-    -10.4,
-    -4.3
+    66.115,
+    -10.091,
+    -4.267
    ],
-   "yaw": 30.0,
-   "from": "main.tscn:81-158 (the base's modules on the base seat)"
+   "rotation": [
+    0.028313,
+    0.34433,
+    -0.140384,
+    0.927862
+   ],
+   "from": "game/main/main.tscn:81-158 (the base's modules on the base seat); the base seat turned into this place's frame (Seat, the ground record)"
+  },
+  {
+   "name": "tube_west",
+   "stage": "tube",
+   "at": [
+    53.124,
+    -6.474,
+    -8.093
+   ],
+   "rotation": [
+    0.094712,
+    0.762129,
+    -0.10742,
+    0.631387
+   ],
+   "from": "main.tscn:96-98 CorridorWest at -6.825 across, link_tube.gd:58-66 (joined from its west end, the tube stage's z along the base's +x, its 4.35 m from ModuleShell.inside_of); the base seat turned into this place's frame (Seat, the ground record)"
+  },
+  {
+   "name": "tube_east",
+   "stage": "tube",
+   "at": [
+    65.983,
+    -10.342,
+    -10.545
+   ],
+   "rotation": [
+    0.094712,
+    0.762129,
+    -0.10742,
+    0.631387
+   ],
+   "from": "main.tscn:108-110 CorridorEast at 6.825 across, link_tube.gd:58-66 (laid as the west one, from its hub end); the base seat turned into this place's frame (Seat, the ground record)"
   }
  ],
  "lights": [
@@ -172,5 +436,97 @@
   "the ground shader's pebbles, pits and stipple",
   "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour",
   "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
- ]
+ ],
+ "objects": [
+  {
+   "name": "SolarRow1",
+   "model": "game/world/solar_field/solar_panel_row/solar_panel_row.glb",
+   "at": [
+    93.194,
+    -22.43,
+    -21.777
+   ],
+   "rotation": [
+    0.15503,
+    0.782325,
+    -0.183202,
+    0.574779
+   ],
+   "children": [],
+   "from": "world.gd:79-93,564-611 (SOLAR_ROWS 3 across 30 + 1.5 x 4.2, along -6 step 5; each row stood by solar_row_standing: tipped along its 12 m, its lowest foot on the ground)"
+  },
+  {
+   "name": "SolarRow2",
+   "model": "game/world/solar_field/solar_panel_row/solar_panel_row.glb",
+   "at": [
+    94.138,
+    -22.399,
+    -16.947
+   ],
+   "rotation": [
+    0.163169,
+    0.780459,
+    -0.176152,
+    0.577261
+   ],
+   "children": [],
+   "from": "world.gd:79-93,564-611 (SOLAR_ROWS 3 across 30 + 1.5 x 4.2, along -6 step 5; each row stood by solar_row_standing: tipped along its 12 m, its lowest foot on the ground)"
+  },
+  {
+   "name": "SolarRow3",
+   "model": "game/world/solar_field/solar_panel_row/solar_panel_row.glb",
+   "at": [
+    95.036,
+    -22.466,
+    -12.108
+   ],
+   "rotation": [
+    0.169217,
+    0.779129,
+    -0.166271,
+    0.580239
+   ],
+   "children": [],
+   "from": "world.gd:79-93,564-611 (SOLAR_ROWS 3 across 30 + 1.5 x 4.2, along -6 step 5; each row stood by solar_row_standing: tipped along its 12 m, its lowest foot on the ground)"
+  },
+  {
+   "name": "Inverter",
+   "model": "game/world/solar_field/inverter_cabinet/inverter_cabinet.glb",
+   "at": [
+    84.607,
+    -18.426,
+    -23.194
+   ],
+   "rotation": [
+    -0.026077,
+    0.135899,
+    -0.202133,
+    0.969533
+   ],
+   "children": [],
+   "from": "world.gd:94,614-619 (INVERTER_AT 27 across, -9 along, on the ground in its seat's frame)"
+  }
+ ],
+ "planned_rocks": {
+  "plan": "game/world/ground/moon_plan.json",
+  "boulders": [
+   "game/world/rocks/moon_boulder_angular/moon_boulder_angular.glb",
+   "game/world/rocks/moon_boulder_rounded/moon_boulder_rounded.glb",
+   "game/world/rocks/moon_boulder_slab/moon_boulder_slab.glb"
+  ],
+  "stones": [
+   "game/world/rocks/moon_boulder_angular/moon_boulder_angular_small.glb",
+   "game/world/rocks/moon_boulder_rounded/moon_boulder_rounded_small.glb",
+   "game/world/rocks/moon_boulder_slab/moon_boulder_slab_small.glb"
+  ],
+  "seed": 41,
+  "sunk": 0.12,
+  "tip": 0.25,
+  "crest_reach": 1.0,
+  "pebble": 0.45,
+  "pebbles_seen": 40.0,
+  "plan_reach": 116.0,
+  "reach": 130.0,
+  "from": "world.gd:47-75 (PLANNED_BOULDERS, PLANNED_STONES, PLANNED_ROCKS_SEED 41, ROCK_SUNK, ROCK_TIP, CREST_REACH, PEBBLE_SIZE, PEBBLES_SEEN), world.gd:413-525 (_rocks, _planned_rocks, _planned_lying, _crest_under), ground.gd:123-130 (MOON_PLAN_LAYOUT, PLAN_REACH 116)"
+ }
 }
