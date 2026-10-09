@@ -12,6 +12,9 @@ tools/characters/maker/chain.py; what it makes comes back into the folder's `out
 each step did and how long it took. The people are spread over machines (spread.py), one person a machine at a
 time; characters_setup.sh sets each machine up once (about half an hour: six environments side by side).
 
+A make folder whose spec names another maker program (`program`: rebuild.py, which drapes kept looks again and
+builds them) runs that program instead of chain.py, on the same machines.
+
 --hold keeps the first machine after its people, for hands-on work over ssh, until the run folder holds `release`.
 The owner's limits, the self-delete, the watchdog, the delete and the ledger are batch.py's.
 """
@@ -48,6 +51,8 @@ PERSON_MINUTES = 60
 # Room for six environments, CUDA, the Llama 3 encoder, the picture models and Hi3DGen's weights.
 DISK_GB = 200
 POLL_SECONDS = 30
+# The programs of tools/characters/maker a make folder may run, by the name its spec gives.
+PROGRAMS = {"chain.py": "chain.py", "rebuild.py": "rebuild.py run"}
 
 
 def price(makes, account, classes):
@@ -89,10 +94,19 @@ def set_up(machine):
     batch.say(f"{folder.name} set up in {machine['setup_minutes']} min")
 
 
-def chain_line(name):
-    """The detached command that runs one person's chain and leaves its exit code beside its log."""
+def program_of(make):
+    """The maker program a make folder runs up there: chain.py, or the one its spec names (rebuild.py's make
+    folders name `rebuild.py`, which takes `run` before the folder)."""
+    program = json.loads((make / "in" / "spec.json").read_text()).get("program", "chain.py")
+    if program not in PROGRAMS:
+        raise SystemExit(f"{make}: no maker program {program!r}")
+    return PROGRAMS[program]
+
+
+def chain_line(name, program=PROGRAMS["chain.py"]):
+    """The detached command that runs one make's program and leaves its exit code beside its log."""
     place = REMOTE / name
-    run = (f"cd {place} && /root/envs/motion/bin/python /root/score/tools/characters/maker/chain.py {place} "
+    run = (f"cd {place} && /root/envs/motion/bin/python /root/score/tools/characters/maker/{program} {place} "
            f"> {place}/chain.log 2>&1; echo $? > {place}/exit")
     return f"setsid -f bash -c {shlex.quote(run)} < /dev/null > /dev/null 2>&1"
 
@@ -117,7 +131,7 @@ def make_one(run, machine, make, card):
     batch.remote(folder, host, f"rm -rf {REMOTE / make.name} && mkdir -p {REMOTE / make.name}", check=True)
     batch.copy(folder, [make / "in"], f"root@{host}:{REMOTE / make.name}/")
     began = time.time()
-    batch.remote(folder, host, f"CUDA_VISIBLE_DEVICES={card or 0} {chain_line(make.name)}", check=True)
+    batch.remote(folder, host, f"CUDA_VISIBLE_DEVICES={card or 0} {chain_line(make.name, program_of(make))}", check=True)
     code = None
     while time.time() < run.deadline and (code := exit_code(folder, host, make.name)) is None:
         time.sleep(POLL_SECONDS)
@@ -184,6 +198,7 @@ def main():
     for make in makes:
         if not (make / "in" / "spec.json").exists():
             raise SystemExit(f"{make} holds no in/spec.json (tools/characters/maker/make.py writes it)")
+        program_of(make)
     classes = options.classes.split(",") if options.classes else None
     account = cloud.account()
     batch.sweep(account)

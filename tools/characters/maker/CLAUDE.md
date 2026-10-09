@@ -32,3 +32,8 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   Warp drapes (2026-10-09): more small crumples, a gathered waist on the space suit, wider sleeves standing off the
   arm, trousers a few centimetres shorter, and the space suit's waist 1 to 2 cm higher on some bodies (lower tore its
   shoulder seams: Warp's cloth stretched where Blender's does not).
+- **Rebuilding kept looks** (`rebuild.py`): the looks kept before 2026-10-09 carry drapes from GarmentCode's Warp fork;
+  `rebuild.py bundle` makes a make folder for each group of people sharing drapes, `characters.py` runs it up there
+  (each drape again from its own kept pattern on the look's rest body, the people built, old and new rendered with the
+  same cameras), and `rebuild.py land` copies it into `~/.farm-factory-motion/rebuild/`. It never writes the kept
+  looks or bodies; whoever judges the pictures swaps them.
