@@ -44,6 +44,7 @@ import regions  # noqa: E402
 import skin  # noqa: E402
 import texels  # noqa: E402
 import torch  # noqa: E402
+import cloth_licence  # noqa: E402
 import paths  # noqa: E402
 from paths import BODIES, IDENTITY, MOTIONS, PERSON  # noqa: E402
 from person import WHO  # noqa: E402
@@ -580,7 +581,8 @@ def build(out_path, clip_names, identity):
         "skeleton": joint_node[0],
     })
 
-    report = {"joints": len(joint_names), "surfaces": {}, "levels": {}, "clips": {}}
+    report = {"joints": len(joint_names), "surfaces": {}, "levels": {}, "clips": {},
+              "drapes": cloth_licence.drapes_of(paths.LOOK)}
     # The distant body stays bare, in its three colour zones: nobody reads a belt at twelve metres.
     for level, layer in (("far", layers["far"]),):
         _, vertices = bind_pose(layer, None if WHO["average_body"] else floor_lift(near))
