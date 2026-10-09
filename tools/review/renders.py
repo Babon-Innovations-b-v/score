@@ -232,11 +232,13 @@ def room_lights(kit):
 
 def render_stage(stage, views, size, folder, plain=False, lights=(), shown=()):
     """The stage drawn from the views; `shown` are the other places' stages it references (its scene record's
-    `places`, exported beside it), sent with it when it renders elsewhere."""
+    `places`, exported beside it), sent with it when it renders elsewhere; one not exported beside it (a before stage
+    written before that place existed) is not sent."""
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views, "plain": plain,
                                                    "lights": list(lights)}, indent=1))
-    beside = [pathlib.Path(stage).parent.parent / name for name in shown]
+    beside = [pathlib.Path(stage).parent.parent / name for name in shown
+              if (pathlib.Path(stage).parent.parent / name).exists()]
     blender(SCENE_VIEWS, stage, folder / "views.json", folder,
             inputs=[pathlib.Path(stage).parent, *beside, folder / "views.json"], outputs=[folder])
 
