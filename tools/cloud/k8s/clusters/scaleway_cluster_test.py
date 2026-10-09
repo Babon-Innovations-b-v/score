@@ -78,3 +78,23 @@ def test_a_busy_cluster_is_asked_again(monkeypatch):
     monkeypatch.setattr(cluster.backend, "scw", scw)
     monkeypatch.setattr(cluster, "WAIT_SECONDS", 0)
     assert cluster.scw("k8s", "pool", "update", "p", "max-size=1") == {"ok": 1}
+
+
+def test_caps_fit_the_control_planes_node_limit(monkeypatch):
+    pools = [{"name": f"p{number}", "id": f"id{number}", "max": 20 if number == 0 else 0, "euros_a_minute": 0.013}
+             for number in range(8)]
+    calls = []
+
+    def scw(*arguments):
+        calls.append(arguments)
+        if arguments[:3] == ("k8s", "cluster-type", "list"):
+            return [{"name": "kapsule", "max_nodes": 150}]
+        return None
+    monkeypatch.setattr(cluster, "scw", scw)
+    monkeypatch.setattr(cluster, "class_pools", lambda: pools)
+    monkeypatch.setattr(cluster, "owned_cluster", lambda project: {"type": "kapsule"})
+    monkeypatch.setattr(cluster.backend, "account", lambda: OURS)
+    caps = cluster.cap_pools(1500, 4)
+    assert set(caps.values()) == {18} and sum(caps.values()) <= 149
+    updates = [call[3] for call in calls if call[:3] == ("k8s", "pool", "update")]
+    assert updates[0] == "id0"
