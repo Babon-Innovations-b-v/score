@@ -99,18 +99,6 @@ def settings_of(cloth):
     return {**SETTINGS, **given}
 
 
-def read_obj(path):
-    """An OBJ file's points and triangles (the first index of each corner)."""
-    points, faces = [], []
-    for line in pathlib.Path(path).read_text().splitlines():
-        if line.startswith("v "):
-            points.append([float(value) for value in line.split()[1:4]])
-        elif line.startswith("f "):
-            corners = [int(token.split("/")[0]) - 1 for token in line.split()[1:]]
-            faces.extend([corners[0], corners[index], corners[index + 1]] for index in range(1, len(corners) - 1))
-    return np.array(points, dtype=float), np.array(faces, dtype=np.int64)
-
-
 def add_cloth(builder, record, start, settings):
     """The welded cloth: a particle per box mesh point at `start` (metres), each triangle with its flat panel's rest
     shape, each edge bending with its flat panel's rest length and a flat rest angle; the number of edges whose
@@ -147,7 +135,7 @@ def add_cloth(builder, record, start, settings):
 
 def add_body(builder, path, settings):
     """The body as a fixed triangle mesh the cloth collides with."""
-    points, faces = read_obj(path)
+    points, faces = sewing.read_obj(path)
     shape = newton.ModelBuilder.ShapeConfig(ke=settings["body_ke"], kd=settings["body_kd"], mu=settings["body_mu"],
                                            margin=settings["body_margin"])
     builder.add_shape_mesh(body=-1, mesh=newton.Mesh(points, faces.reshape(-1)), cfg=shape)
@@ -210,7 +198,7 @@ class Drape:
     def __init__(self, task, record, settings):
         self.settings = settings
         builder = newton.ModelBuilder(up_axis=newton.Axis.Y, gravity=0.0)
-        box_points, _ = read_obj(task["box_mesh"])
+        box_points, _ = sewing.read_obj(task["box_mesh"])
         self.start = box_points * CENTIMETRES
         self.odd_edges = add_cloth(builder, record, self.start, settings)
         self.body_points, self.body_faces = add_body(builder, task["body"], settings)

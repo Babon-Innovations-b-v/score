@@ -180,13 +180,15 @@ def head(chain):
     chain.run([MOTION, MAKER / "head.py", chain.work, chain.folder / "in/shared/makehuman"])
 
 
-def eye_height(chain):
-    return json.loads((chain.work / "gc/body/joints.json").read_text())["LeftEye"][1]
+def head_picture(chain):
+    """What the face and the hair are drawn after: the spec's head, else its picture, else the A-pose drawing."""
+    return chain.file(chain.spec.get("head") or chain.spec.get("picture") or "work/pics/apose.png")
 
 
 def views(chain, prefix, size, azimuths, parts):
     """Grey stills of npz parts round the head (blender_views.py)."""
-    centre = f"0,{eye_height(chain) + 0.016:.4f},0.0"
+    eye_height = json.loads((chain.work / "gc/body/joints.json").read_text())["LeftEye"][1]
+    centre = f"0,{eye_height + 0.016:.4f},0.0"
     chain.run([BLENDER, "-b", "-P", MAKER / "blender_views.py", "--", prefix, centre, size, "700x700", azimuths,
                *parts])
 
@@ -198,9 +200,8 @@ def hair(chain):
     made.mkdir(exist_ok=True)
     head_parts = [f"{chain.work / 'head/skin_head.npz'}:0.78", f"{chain.work / 'head/eyes.npz'}:0.97"]
     views(chain, chain.work / "pics/bald", BALD_VIEW_SIZE, "0,35,90,180", head_parts)
-    reference = chain.file(chain.spec.get("head") or chain.spec.get("picture") or "work/pics/apose.png")
     chain.run([PICTURE, MAKER / "drawings.py", "hair", made, chain.spec["hair"], chain.work / "pics/bald_035.png",
-               reference, "--seeds", *map(str, SEEDS)])
+               head_picture(chain), "--seeds", *map(str, SEEDS)])
     clay = made / f"klein_s{SEEDS[0]}.png"
     chain.run([HI3DGEN, MAKER / "hair_mesh.py", clay, made / "h3d.glb"])
     chain.run([BLENDER, "-b", "-P", MAKER / "blender_clean.py", "--", made / "h3d.glb", made / "h3d_60k.glb",
@@ -234,9 +235,8 @@ def face(chain):
     chain.run([MOTION, PEOPLE / "body.py", "--out", chain.work / "first.glb", "--clips", "standing", "walking",
                "--identity", chain.look / "identity.npz"], DUMP_PARTS=str(chain.work / "parts"))
     chain.run([MOTION, MAKER / "face_depth.py", chain.work])
-    reference = chain.file(chain.spec.get("head") or chain.spec.get("picture") or "work/pics/apose.png")
     chain.run([PICTURE, MAKER / "drawings.py", "face", chain.work / "face", chain.spec["face"],
-               chain.work / "face/depth.png", reference, "--seeds", *map(str, SEEDS)])
+               chain.work / "face/depth.png", head_picture(chain), "--seeds", *map(str, SEEDS)])
     chain.run([MOTION, MAKER / "face_pick.py", chain.work, str(SEEDS[0]), *chain.spec.get("face_options", [])])
     for seed in SEEDS:
         chain.keep(chain.work / f"face/drawn_s{seed}.png", f"face_s{seed}.png")

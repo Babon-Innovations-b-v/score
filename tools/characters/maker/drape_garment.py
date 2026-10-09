@@ -183,13 +183,10 @@ def drape(body, design, out, kind, reference="mean_male", overrides=None, machin
                    pathlib.Path(measurements).resolve() if measurements else None)
     if simulator == "newton":
         run_newton(newton_job(box, work, design, out, name))
-        finish(box, work, out, name)
-        return out
-    job = cloth_job(box, work, design, out, name)
-    if blender:
-        run_cloth_here(job, blender)
+    elif blender:
+        run_cloth_here(cloth_job(box, work, design, out, name), blender)
     else:
-        run_cloth(job, work, out, machine, classes, who)
+        run_cloth(cloth_job(box, work, design, out, name), work, out, machine, classes, who)
     finish(box, work, out, name)
     return out
 

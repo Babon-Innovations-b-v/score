@@ -120,6 +120,20 @@ def sized_with(specification, by_digest, by_tag):
     return by_digest.get(file_digest(specification)) or by_tag.get(tag_of(specification))
 
 
+def replace_tree(source, target, **options):
+    """`target` made a copy of `source`, whatever it held before."""
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(source, target, **options)
+
+
+def copy_if_there(source, folder):
+    """`source` copied into `folder` when there is one."""
+    if source.exists():
+        folder.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, folder / source.name)
+
+
 def results_row(old, new):
     """drape_measure's numbers old beside new, and new minus old where both are numbers."""
     row = {"old": old, "new": new, "change": {}}
@@ -144,8 +158,7 @@ def bundle_group(lead, members, simulator, pattern_index):
     for person in members:
         shutil.copytree(looks / person, inputs / "look" / person)
         for suffix in (".glb", ".json"):
-            if (MOTION_HOME / "work/bodies" / f"{person}{suffix}").exists():
-                shutil.copy2(MOTION_HOME / "work/bodies" / f"{person}{suffix}", inputs / "old" / f"{person}{suffix}")
+            copy_if_there(MOTION_HOME / "work/bodies" / f"{person}{suffix}", inputs / "old")
     drapes = []
     for drape in drape_folders(looks / lead):
         specification = next(drape.glob("*_specification.json"))
@@ -192,16 +205,10 @@ def land(group):
         for source, target in ((out / "look" / person, REBUILD / "look" / person),
                                (out / "review" / person, REBUILD / "review" / person)):
             if source.exists():
-                if target.exists():
-                    shutil.rmtree(target)
-                shutil.copytree(source, target)
-        (REBUILD / "bodies").mkdir(parents=True, exist_ok=True)
+                replace_tree(source, target)
         for suffix in (".glb", ".json"):
-            if (out / "bodies" / f"{person}{suffix}").exists():
-                shutil.copy2(out / "bodies" / f"{person}{suffix}", REBUILD / "bodies" / f"{person}{suffix}")
-        if (out / "checks" / f"{person}.json").exists():
-            (REBUILD / "checks/after").mkdir(parents=True, exist_ok=True)
-            shutil.copy2(out / "checks" / f"{person}.json", REBUILD / "checks/after" / f"{person}.json")
+            copy_if_there(out / "bodies" / f"{person}{suffix}", REBUILD / "bodies")
+        copy_if_there(out / "checks" / f"{person}.json", REBUILD / "checks/after")
         result = out / "results" / f"{person}.json"
         if result.exists():
             (REBUILD / "results").mkdir(parents=True, exist_ok=True)
@@ -215,10 +222,7 @@ def land(group):
             (REBUILD / "results" / f"{person}.json").write_text(json.dumps(row, indent=1))
         print(f"landed {person}", flush=True)
     if (out / "bodies/crowd_body").exists():
-        target = REBUILD / "bodies/crowd_body"
-        if target.exists():
-            shutil.rmtree(target)
-        shutil.copytree(out / "bodies/crowd_body", target)
+        replace_tree(out / "bodies/crowd_body", REBUILD / "bodies/crowd_body")
 
 
 # ---- up there: the run -------------------------------------------------------------------------------------------
@@ -299,17 +303,12 @@ def prepare(run):
     REMOTE_HOME.mkdir(exist_ok=True)
     if not (REMOTE_HOME / "env").exists():
         (REMOTE_HOME / "env").symlink_to(ENVS / "motion")
-    if (REMOTE_HOME / "look").exists():
-        shutil.rmtree(REMOTE_HOME / "look")
-    shutil.copytree(run.folder / "in/shared/look", REMOTE_HOME / "look")
+    replace_tree(run.folder / "in/shared/look", REMOTE_HOME / "look")
     motions = run.work / "motionwork/motions"
     if not motions.exists():
         shutil.copytree(run.folder / "in/motions", motions)
     for person in run.spec["people"]:
-        new = run.new_look(person)
-        if new.exists():
-            shutil.rmtree(new)
-        shutil.copytree(run.old_look(person), new, ignore=shutil.ignore_patterns("*_drape"))
+        replace_tree(run.old_look(person), run.new_look(person), ignore=shutil.ignore_patterns("*_drape"))
 
 
 def rest_body(run):
@@ -318,60 +317,33 @@ def rest_body(run):
     run.program([MOTION, HERE / "export_body.py", look / "identity.npz", run.rest], run.lead, look)
 
 
-def redrape_blender(run, drape):
-    """One drape again from its kept pattern on the rest body with Blender's cloth: GarmentCode's box meshes of the
-    pattern as it was sized (no new pattern), the measurements it was sized on for the held waist, then
-    cloth_drape.py; into the lead's new look."""
-    os.environ.update(GARMENTCODE="/root/garmentcode", GARMENTCODE_PYTHON=str(GARMENT))
-    sys.path.insert(0, str(HERE))
-    import drape_garment
-    tag, out = drape["tag"], run.new_look(run.lead) / drape["folder"]
-    work = run.work / "drapes" / drape["folder"]
-    for place in (out, work):
-        if place.exists():
-            shutil.rmtree(place)
-        place.mkdir(parents=True)
-    drape_garment.garmentcode("measure", run.rest / "ours.npz", work, run.spec["reference"])
-    shutil.copy2(run.rest / "joints.json", work / "bodies/joints.json")
-    sized = run.folder / "in/sized" / drape["folder"]
-    shutil.copy2(sized / "body_measurements.yaml", work / "bodies/ours.yaml")
-    pattern = work / "patterns" / tag
-    pattern.mkdir(parents=True)
-    shutil.copy2(run.old_look(run.lead) / drape["folder"] / f"{tag}_specification.json", pattern)
-    shutil.copy2(sized / "body_measurements.yaml", pattern / "body_measurements.yaml")
-    if (sized / "design.yaml").exists():
-        shutil.copy2(sized / "design.yaml", pattern / "design.yaml")
-    design = drape_garment.design_folder(drape["design"])
-    cloth = json.loads((design / "cloth.json").read_text())
-    drape_garment.garmentcode("box", work, tag, cloth["resolution_scale"])
-    drape_garment.garmentcode("box", work, tag, cloth["coarse_resolution"], f"{tag}_coarse")
-    job = drape_garment.cloth_job(work / "box" / tag, work, design, out, tag)
-    drape_garment.run_cloth_here(job, BLENDER)
-    box = work / "box" / tag
-    for suffix in ("_sim_segmentation.txt", "_specification.json"):
-        shutil.copy2(box / f"{tag}{suffix}", out / f"{tag}{suffix}")
-    if (pattern / "design.yaml").exists():
-        shutil.copy2(pattern / "design.yaml", out / "design.yaml")
-    if not (out / f"{tag}_sim.obj").exists():
-        raise RuntimeError(f"the cloth run wrote no {out / f'{tag}_sim.obj'}")
-    return json.loads((out / "blender_cloth.json").read_text()).get("held_on_body")
-
-
-def redrape_newton(run, drape):
-    """One drape again from its kept pattern on the rest body with Newton (drape_garment.py's 1:1 redrape: the
-    pattern as it was sized, the measurements it was sized on for the held waist and collars, newton_drape.py); into
-    the lead's new look. Whether it held: the cloth came to rest with both upper arms covered."""
+def redrape(run, drape, simulator):
+    """One drape again from its kept pattern on the rest body (drape_garment.py's 1:1 redrape: the pattern as it was
+    sized, the measurements it was sized on for the held waist and collars); into the lead's new look."""
     os.environ.update(GARMENTCODE="/root/garmentcode", GARMENTCODE_PYTHON=str(GARMENT))
     sys.path.insert(0, str(HERE))
     import drape_garment
     out = run.new_look(run.lead) / drape["folder"]
     sized = run.folder / "in/sized" / drape["folder"]
-    drape_garment.drape(run.rest, drape["design"], out, drape["kind"], run.spec["reference"], simulator="newton",
+    drape_garment.drape(run.rest, drape["design"], out, drape["kind"], run.spec["reference"], blender=BLENDER,
+                        simulator=simulator, measurements=sized / "body_measurements.yaml",
                         pattern=run.old_look(run.lead) / drape["folder"] / f"{drape['tag']}_specification.json",
-                        measurements=sized / "body_measurements.yaml", work=run.work / "drapes" / drape["folder"])
+                        work=run.work / "drapes" / drape["folder"])
     if (sized / "design.yaml").exists() and not (out / "design.yaml").exists():
         shutil.copy2(sized / "design.yaml", out / "design.yaml")
-    report = json.loads((out / "newton_cloth.json").read_text())
+    return out
+
+
+def redrape_blender(run, drape):
+    """One drape again with Blender's cloth (cloth_drape.py); whether it held on the body."""
+    out = redrape(run, drape, "blender")
+    return json.loads((out / "blender_cloth.json").read_text()).get("held_on_body")
+
+
+def redrape_newton(run, drape):
+    """One drape again with Newton (newton_drape.py); whether it held: the cloth came to rest with both upper arms
+    covered."""
+    report = json.loads((redrape(run, drape, "newton") / "newton_cloth.json").read_text())
     return held_newton(report, drape["kind"])
 
 
@@ -389,10 +361,7 @@ def share_drapes(run):
     """The lead's new drape folders copied into every other member's new look (their old ones were byte copies)."""
     for person in run.spec["people"][1:]:
         for drape in run.spec["drapes"]:
-            target = run.new_look(person) / drape["folder"]
-            if target.exists():
-                shutil.rmtree(target)
-            shutil.copytree(run.new_look(run.lead) / drape["folder"], target)
+            replace_tree(run.new_look(run.lead) / drape["folder"], run.new_look(person) / drape["folder"])
 
 
 def measuring_look(run):

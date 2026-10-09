@@ -7,7 +7,7 @@ Points are metres, y up, facing +z, like the people tools' parts.
 """
 import numpy as np
 
-# Take C's shell centre; a person's is moved with their eyes (hair_fit.centre_for).
+# Take C's shell centre; a person's is moved with their eyes (hair_fit.Head).
 TAKE_C_CENTRE = np.array([0.0, 1.655, -0.012])
 TUCK = 0.003
 # Hairline polar angle (degrees from straight up) by |azimuth| (degrees from the front): level across the front to a
