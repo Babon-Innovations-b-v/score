@@ -4,12 +4,14 @@ with docker runs it. The store comes from SCORE_STORE_* (store.py); the job from
     {"kind": "pixal", "image": "<registry>/score-pixal:<tag>@sha256:...", "code": "code/<sha256>.tar.gz",
      "inputs": [{"key": "...", "path": "/abs/path"}], "outputs": [{"path": "/abs/path", "key": "..."}],
      "command": ["..."], "env": {...}, "models": ["pixal3d"], "minutes": 30, "attempt_limit": 3,
-     "tool_only": false}
+     "tool_only": false, "kernel_cache": "blender-5.0.1"}
 
 A job whose done.json is in the store exits 0 at once, so a rerun after a node loss redoes only the unfinished jobs.
 Otherwise it fetches the code into /work/repo, the models into the node cache (weights.py, from the kind's
 models.json in the code), the inputs to their paths; runs the command in /work/repo with a timeout of `minutes`;
-uploads the outputs (a folder output as one key per file under its key); and writes done.json last, with its
+uploads the outputs (a folder output as one key per file under its key); and writes done.json last. A job naming a
+`kernel_cache` runs with the node's compiled GPU kernels for its card (kernels.py), restored from the store before and
+kept there after; done.json then says what was restored and uploaded, with its
 timings and where it ran. On a failure it writes failed-<attempt>.json with the stage and the log's tail and exits
 non-zero, so Kubernetes retries it; past attempt_limit it refuses to run again. The log goes to stdout and to
 log-<attempt>.txt.
@@ -29,6 +31,7 @@ import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import kernels  # noqa: E402
 import store as stores  # noqa: E402
 import weights  # noqa: E402
 
@@ -167,13 +170,15 @@ def card():
 
 
 def command_environment(spec, run, job, attempt, models):
-    """The command's environment: the container's, the job's env, its models' folders and its own names."""
+    """The command's environment: the container's, the job's env, its models' folders (and kernel caches) and its
+    own names."""
     return {**os.environ, **spec.get("env", {}), **models,
             "SCORE_RUN": run, "SCORE_JOB": job, "SCORE_ATTEMPT": str(attempt)}
 
 
-def work(store, run, job, attempt, spec, log, timings):
-    """Every step of the job, its timings filled as it goes; the output keys uploaded."""
+def work(store, run, job, attempt, spec, log, timings, record):
+    """Every step of the job, its timings filled as it goes (and the kernel cache's doings in `record`); the output
+    keys uploaded."""
     repo = WORK / "repo"
     log.say(f"job {run}/{job} attempt {attempt}: {spec['kind']} on {socket.gethostname()}")
     try:
@@ -194,6 +199,7 @@ def work(store, run, job, attempt, spec, log, timings):
     except Exception as error:
         raise Failure("inputs", error) from error
     timings["inputs_ready"] = now()
+    models.update(kernel_caches(store, spec, log, timings, record))
     returncode = run_command(spec, command_environment(spec, run, job, attempt, models), repo, log)
     timings["first_result"] = now()
     if returncode:
@@ -203,7 +209,37 @@ def work(store, run, job, attempt, spec, log, timings):
     except Exception as error:
         raise Failure("outputs", error) from error
     timings["uploaded"] = now()
+    keep_kernels(store, spec, log, record)
     return uploaded
+
+
+def kernel_caches(store, spec, log, timings, record):
+    """The kernel cache variables for the job's card, its caches restored first; none without a kernel_cache or a
+    card."""
+    card = kernels.card_key() if spec.get("kernel_cache") else None
+    if not card:
+        return {}
+    try:
+        restored = kernels.restore(store, spec["kernel_cache"], card, weights.CACHE)
+    except Exception as error:
+        raise Failure("kernels", error) from error
+    timings["kernels_ready"] = now()
+    record["kernel_cache"] = {"name": spec["kernel_cache"], "card": card, "restored": restored}
+    log.say(f"kernel cache {spec['kernel_cache']} for {card}: {'restored from the store' if restored else 'local'}")
+    return kernels.environment(weights.CACHE, spec["kernel_cache"], card)
+
+
+def keep_kernels(store, spec, log, record):
+    """Upload the card's kernel caches when they grew past the store's copy. The job's own work is done by now, so a
+    failed upload is recorded in done.json and said, not raised."""
+    if "kernel_cache" not in record:
+        return
+    try:
+        record["kernel_cache"]["uploaded_bytes"] = kernels.keep(store, spec["kernel_cache"],
+                                                                record["kernel_cache"]["card"], weights.CACHE)
+    except Exception as error:  # noqa: BLE001 - recorded in done.json and the log
+        record["kernel_cache"]["upload_failed"] = str(error)
+        log.say(f"the kernel cache upload failed: {error}")
 
 
 def where(spec):
@@ -225,19 +261,20 @@ def run_job(store, run, job):
         print(f"[score-job] {run}/{job} failed {attempt - 1} times, its limit; not run again", flush=True)
         return EXIT_NO_ATTEMPTS
     log = Log(WORK / "logs" / f"log-{attempt}.txt")
+    record = {}
     try:
-        uploaded = work(store, run, job, attempt, spec, log, timings)
+        uploaded = work(store, run, job, attempt, spec, log, timings, record)
     except Failure as failure:
         log.say(f"failed at {failure}")
         stores.write_json(store, base + f"failed-{attempt}.json",
                           {"attempt": attempt, "stage": failure.stage, "error": str(failure), "timings": timings,
-                           **where(spec), "log_tail": log.tail()})
+                           **record, **where(spec), "log_tail": log.tail()})
         store.upload(log.path, base + f"log-{attempt}.txt")
         return 1
     log.say(f"done: {len(uploaded)} output files")
     store.upload(log.path, base + f"log-{attempt}.txt")
-    stores.write_json(store, base + "done.json", {"attempt": attempt, "timings": timings, **where(spec),
-                                                  "outputs": uploaded})
+    stores.write_json(store, base + "done.json", {"attempt": attempt, "timings": timings, **record,
+                                                  **where(spec), "outputs": uploaded})
     return 0
 
 
