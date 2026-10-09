@@ -29,7 +29,9 @@ the pick (<room>-target.png) comes before the rest. "view" is a plan view (planv
 place of the target by "names" and "objects". "build" sends every object redraw.py kept to the
 cloud batch runner (batch.py) as one batch once the pictures are back, so a whole room's objects go
 up together and come back finished; it needs a single seed, since several are for choosing.
-Renting, the owner's limits, the self-delete and deleting are batch.py's; one card does it all.
+Renting, the owner's limits, the self-delete and deleting are batch.py's; one card does it all. Under
+SCORE_CLOUD=k8s the steps run as one Kubernetes Job of the sam image (tools/cloud/k8s/cluster_jobs.py); the machine
+stays the default.
 """
 import argparse
 import json
@@ -50,6 +52,7 @@ import capacity  # noqa: E402
 import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
 import place  # noqa: E402
+import provider  # noqa: E402
 from provider import cloud  # noqa: E402
 from local_models import ALLOW  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
@@ -282,6 +285,48 @@ def build(plan, who, folder):
                     "--inventory", str(REPO / plan["inventory"])], check=True)
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): the steps in turn as one Kubernetes Job of the sam image
+# (tools/cloud/images/sam/: SAM 3, MoGe-2 and FLUX.2 klein from the node cache through sam-run), through
+# tools/cloud/k8s/cluster_jobs.py, on a copy of the room's folder at the machine's paths, which comes back here.
+CLUSTER_MODELS = {"target": ["flux2-klein-4b"], "cutout": ["sam3", "birefnet-general-lite"],
+                  "depth": ["moge-2-vitl-normal"], "redraw": ["flux2-klein-4b"]}
+
+
+def cluster_job(plan, targets_file):
+    """The plan's steps as one cluster job: the room's folder, the plan's inputs and target list (written to
+    `targets_file` here) at the machine's paths, each step through sam-run, the room's folder back."""
+    room = plan["room"]
+    settings = {ALLOW: "1", "PROPS_HOME": str(REMOTE_HOME), "PYTHONUNBUFFERED": "1"}
+    lines = [f"sam-run {shlex.join(arguments)}" for _, arguments in steps(plan)]
+    inputs = [{"local": str(here.resolve()), "path": str(there)} for here, there in uploads(plan)]
+    if local_room(room).is_dir():
+        inputs.append({"local": str(local_room(room).resolve()), "path": str(remote_room(room))})
+    if "target" in plan:
+        targets_file.write_text(json.dumps(target_jobs(plan)))
+        inputs.append({"local": str(targets_file), "path": str(REMOTE_INPUTS / "targets.json")})
+    return {"command": ["bash", "-c", f"mkdir -p {remote_room(room)} && " + " && ".join(lines)],
+            "code": ["tools/props"], "env": settings, "inputs": inputs,
+            "models": sorted({model for step, _ in steps(plan) for model in CLUSTER_MODELS[step]}),
+            "outputs": [{"path": str(remote_room(room)), "local": str(local_room(room))}],
+            "minutes": SETUP_MINUTES + sum(STEP_MINUTES[step] for step, _ in steps(plan)) * 2}
+
+
+def main_on_cluster(plan, options):
+    """main() under SCORE_CLOUD=k8s: the steps as one job on the scene kind's classes in its order (capacity.py),
+    then the build as today."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    if options.dry_run:
+        return
+    folder = batch.BATCHES / time.strftime(f"scene-k8s-{plan['room']}-%Y%m%d-%H%M%S-{os.getpid()}")
+    folder.mkdir(parents=True)
+    if cluster_jobs.run("scene", [cluster_job(plan, folder / "targets.json")], options.who, image="sam"):
+        raise SystemExit(f"{plan['room']}: the scene's steps failed on the cluster")
+    if "build" in plan:
+        build(plan, options.who, folder)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("plan", type=pathlib.Path)
@@ -291,6 +336,9 @@ def main():
     plan = json.loads(options.plan.read_text())
     for step, arguments in steps(plan):
         print(f"{step}: {shlex.join(arguments)}")
+    if provider.on_cluster():
+        main_on_cluster(plan, options)
+        return
     account = cloud.account()
     batch.sweep(account)
     found, allowed_minutes = price(plan, account)

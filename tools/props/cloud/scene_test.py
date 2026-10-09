@@ -109,3 +109,16 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             check()
     print("scene_test: ok")
+
+
+def test_the_steps_run_as_one_cluster_job_on_the_rooms_copy():
+    ROOM.mkdir(parents=True, exist_ok=True)
+    plan = planned(names=["bench"], depth=True, objects=["bench-1:bench"])
+    job = scene.cluster_job(plan, _SANDBOX / "targets.json")
+    line = job["command"][2]
+    assert line.startswith("mkdir -p /root/props/work/scene/lab && sam-run tools/props/scene/cutout.py lab bench")
+    assert line.index("depth.py") < line.index("redraw.py")
+    assert {"local": str(ROOM.resolve()), "path": "/root/props/work/scene/lab"} in job["inputs"]
+    assert job["outputs"] == [{"path": "/root/props/work/scene/lab", "local": str(ROOM)}]
+    assert set(job["models"]) == {"sam3", "birefnet-general-lite", "moge-2-vitl-normal", "flux2-klein-4b"}
+    assert job["env"]["PROPS_HOME"] == "/root/props" and "SAM3_WEIGHTS" not in job["env"]
