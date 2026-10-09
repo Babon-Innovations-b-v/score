@@ -52,6 +52,8 @@ KINDS = {
     "parts": SINGLE_CARD,
     # SAM 2.1's automatic mask generator on clean close-ups (segment.py): 0.9 GB of weights, any card.
     "segment": SINGLE_CARD,
+    # DINOv2 features for the render-and-compare (similar.py): 0.35 GB of weights, any card.
+    "similar": SINGLE_CARD,
     "scene": SINGLE_CARD,
     "closeups": SINGLE_CARD,
     "unlit": SINGLE_CARD,

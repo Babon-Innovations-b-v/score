@@ -82,6 +82,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **Close-up regions** (`segment.py`, `segment_setup.sh`, `segment_worker.py`; job repaint, 2026-10-08): SAM 2.1's
   automatic masks (facebookresearch/sam2 at a pinned commit, code and weights Apache-2.0) of every clean close-up,
   spread over cards (`spread.py`); 73 close-ups took 6 minutes on three L4s, €0.24.
+- **Likeness** (`similar.py`, `similar_setup.sh`, `similar_worker.py`; job agent-tools, 2026-10-09): DINOv2
+  (facebook/dinov2-base, Apache-2.0) cosine likeness of picture pairs on one card, for the render-and-compare
+  (`tools/usd/compare.py`).
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its
   non-commercial background remover patched out and never fetched; the parts only say where a model's part
   boundaries are (`../library/labels.py --parts`).
