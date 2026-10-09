@@ -100,13 +100,14 @@ def gate_problems(rows):
     wrong things (2026-10-09)."""
     sys.path.insert(0, str(HERE.parent / "scene"))
     import box_check
-    problems, verdicts = [], {}
+    gates = {scene: box_check.gate(scene) for scene in {row.get("scene") for row in rows} if scene}
+    problems = []
     for row in rows:
         if not row.get("scene"):
             problems.append(f"{row['id']}: names no scene, so its box cannot be gated (write the rows with "
                             "--from-inventory)")
             continue
-        verdict = verdicts.setdefault(row["scene"], box_check.gate(row["scene"]))["rows"].get(row["id"])
+        verdict = gates[row["scene"]]["rows"].get(row["id"])
         if not verdict or verdict["result"] != box_check.PASS:
             problems.append(f"{row['scene']}.{row['id']}: the box gate says {verdict['result'] if verdict else 'no row'}"
                             f"{': ' + verdict['why'] if verdict else ''}")
@@ -178,8 +179,7 @@ def checked(row, out, take):
 
 
 def draw_with_pro(rows, out, failed, take):
-    """A Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet, worded as the take says (PRO_TAKES);
-    the number of pictures Pro was asked for."""
+    """A Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet, worded as the take says (PRO_TAKES)."""
     from secret_store import secret
 
     (out / take).mkdir(parents=True, exist_ok=True)
@@ -189,7 +189,6 @@ def draw_with_pro(rows, out, failed, take):
         cut = Image.open(out / "crops" / f"{row['id']}.jpg")
         concept = Image.open(row["concept"]) if PRO_TAKES[take] is WORDING else None
         pro.draw(key, wording(row, PRO_TAKES[take]), cut, concept, out / take / f"{row['id']}.png")
-    return len(todo)
 
 
 def kept_entry(entry, path):
@@ -207,18 +206,14 @@ def share(entry, count):
     return entry["euros"] / count if entry and count else 0.0
 
 
-def model_of(take):
-    """The picture model a take was drawn by."""
-    return "qwen-edit" if take == "qwen" else "nano-banana-pro"
-
-
 def accepted(row, out, faults, euros):
     """One row's record: every take's faults, the first take that passed (its picture and model; none when every take
     failed, left for the creator to look at), the cloud's euros and Pro's dollars for the row."""
     takes = [take for take in ("qwen", *PRO_TAKES) if take in faults]
     passed = next((take for take in takes if not faults[take]), None)
     pro_pictures = sum((out / take / f"{row['id']}.png").exists() for take in takes if take != "qwen")
-    return {"id": row["id"], "accepted": model_of(passed) if passed else None,
+    model = {None: None, "qwen": "qwen-edit"}.get(passed, "nano-banana-pro")
+    return {"id": row["id"], "accepted": model,
             "picture": str(out / passed / f"{row['id']}.png") if passed else None,
             "take": passed, "faults": {take: faults[take] for take in takes}, "euros": euros,
             "pro_dollars": pro_pictures * pro.DOLLARS_A_PICTURE}
