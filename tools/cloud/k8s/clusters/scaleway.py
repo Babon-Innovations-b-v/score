@@ -275,22 +275,32 @@ def class_pools():
     return found
 
 
-def affordable_nodes(euros_left, euros_a_minute, hours):
-    """How many nodes of a pool the month's remaining euros pay for `hours` each, at most POOL_MAX."""
+def affordable_nodes(euros_left, euros_a_minute, hours, most=POOL_MAX):
+    """How many nodes of a pool the month's remaining euros pay for `hours` each, at most `most`."""
     if euros_left <= 0:
         return 0
-    return max(0, min(POOL_MAX, math.floor(euros_left / (euros_a_minute * 60 * hours))))
+    return max(0, min(most, math.floor(euros_left / (euros_a_minute * 60 * hours))))
+
+
+def node_share(pool_count):
+    """The most nodes one class pool may have: Scaleway refuses pools whose max sizes add up to more than the
+    control plane's node limit (150 on the free one, measured 2026-10-09), so the limit less the system pool's node
+    is shared over the class pools."""
+    found = owned_cluster(backend.account())
+    limit = next(item["max_nodes"] for item in scw("k8s", "cluster-type", "list") if item["name"] == found["type"])
+    return min(POOL_MAX, (limit - 1) // max(1, pool_count))
 
 
 def cap_pools(euros_left, hours):
-    """Set each class pool's max size to what the euros left pay for `hours` a node; the autoscaler never grows a
-    pool past it. Returns {pool name: max}."""
-    caps = {}
-    for pool in class_pools():
-        cap = affordable_nodes(euros_left, pool["euros_a_minute"], hours)
-        if cap != pool["max"]:
-            scw("k8s", "pool", "update", pool["id"], f"max-size={cap}")
-        caps[pool["name"]] = cap
+    """Set each class pool's max size to what the euros left pay for `hours` a node, within its share of the
+    cluster's node limit; the autoscaler never grows a pool past it. Pools that shrink are set first, so the sum
+    never passes the limit on the way. Returns {pool name: max}."""
+    found = class_pools()
+    share = node_share(len(found))
+    caps = {pool["name"]: affordable_nodes(euros_left, pool["euros_a_minute"], hours, share) for pool in found}
+    for pool in sorted(found, key=lambda item: caps[item["name"]] - item["max"]):
+        if caps[pool["name"]] != pool["max"]:
+            scw("k8s", "pool", "update", pool["id"], f"max-size={caps[pool['name']]}")
     return caps
 
 
