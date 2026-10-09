@@ -498,6 +498,25 @@ sounds. The review's walk and the demo's videos play what their camera
 hears along its path: each sound at its gain over its distance from the
 eye, panned by where it stands across the view.
 
+What moves in a place moves in its stage as well, in a layer of its own:
+OpenUSD time samples on the prims that the base already holds, at the
+game's own speeds and lengths. The airlock's doors sink 2.8 m into the
+floor at 3 m a second, and its warning light burns while the pump
+empties the chamber and while the tanks fill it again, five seconds
+each. The garage's big door slides apart at 2.5 m a second under a
+warning beacon, and the hangar's roof leaves slide 11.2 m at 3 m a
+second. How long a door stands open is the player's choice in the game,
+so the motion record sets those pauses itself and says so. In the launch
+view, the rocket lifts off 3 seconds after its engines light and climbs
+at the game's rocket thrust of 24 m/s² against Earth's gravity. The game
+never draws this, because the player rides the launch inside the
+capsule, so the climb is an addition of the record, timed by the game's
+launch sequence. Each motion also lists the sounds that the game plays
+with it and when, and the sound layer plays them from the moving prim.
+The places' vehicles and robots do not move yet: no place of world 1
+shows the game's rover, drone or robots, and the street's car stands
+still in the game as well.
+
 The framework stands apart from the game it was first built for. Every
 file a record names is in the repository or in one release of it: the
 first world's made models (199 MB packed) and its 121 sounds (36 MB),
