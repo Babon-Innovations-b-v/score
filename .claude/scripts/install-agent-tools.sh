@@ -3,20 +3,12 @@
 #
 #   bash .claude/scripts/install-agent-tools.sh
 #
-# - codebase-memory-mcp (the code graph): the release archive pinned in
-#   vendor/codebase-memory-mcp/release.env, checked against its SHA-256, binary into ~/.local/bin.
-#   The archive's own install.sh is not run: it would register the server and hooks in
-#   ~/.claude.json and ~/.claude, and this repo registers them itself (.mcp.json, .claude/settings.json).
-# - Bun, which claude-mem's worker runs on: the release zip pinned below, checked the same way,
-#   into ~/.bun/bin (where claude-mem looks for it).
-# - claude-mem's settings in ~/.claude-mem: telemetry off, no Chroma, no read gate, only decisions
-#   and fixes injected at session start, sub-agent observations kept, every worktree one project.
-# - ponytail's one-time status line offer marked as seen, so it never asks to edit ~/.claude/settings.json.
-# - The vendored claude-mem plugin installed into Claude Code for this project (not globally).
-# - The repo indexed once into the code graph.
-#
-# The plugins themselves (ponytail, claude-mem) are vendored under vendor/ and loaded by
-# .claude/settings.json; nothing here installs them globally. Safe to re-run.
+# codebase-memory-mcp (pinned in vendor/codebase-memory-mcp/release.env) into ~/.local/bin and
+# Bun (claude-mem's runtime, pinned below) into ~/.bun/bin, each checked against its SHA-256;
+# claude-mem's settings; the vendored claude-mem plugin for this project (not globally); and the
+# repo indexed once into the code graph. The archive's own install.sh is not run: it would register
+# the server and hooks in ~/.claude.json and ~/.claude, and this repo registers them itself
+# (.mcp.json, .claude/settings.json). Safe to re-run.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -43,6 +35,14 @@ download_checked() {
   echo "$sha  $dir/$name" | sha256sum -c --quiet -
 }
 
+# Put the executable `source` at `target` in one rename, so a half-written binary is never run.
+install_binary() {
+  local source="$1" target="$2"
+  mkdir -p "$(dirname "$target")"
+  install -m 0755 "$source" "$target.new"
+  mv -f "$target.new" "$target"
+}
+
 install_codebase_memory() {
   local target="$BIN_DIR/codebase-memory-mcp" work
   if [ -x "$target" ] && "$target" --version 2>/dev/null | grep -qx "codebase-memory-mcp $CBM_VERSION"; then
@@ -51,11 +51,8 @@ install_codebase_memory() {
   fi
   work="$(mktemp -d)"
   download_checked "$CBM_URL" "$CBM_SHA256" "$work" "$CBM_ARCHIVE"
-  mkdir "$work/unpacked"
-  tar -xzf "$work/$CBM_ARCHIVE" -C "$work/unpacked" codebase-memory-mcp
-  mkdir -p "$BIN_DIR"
-  install -m 0755 "$work/unpacked/codebase-memory-mcp" "$target.new"
-  mv -f "$target.new" "$target"
+  tar -xzf "$work/$CBM_ARCHIVE" -C "$work" codebase-memory-mcp
+  install_binary "$work/codebase-memory-mcp" "$target"
   rm -rf "$work"
   say "codebase-memory-mcp: installed $("$target" --version)"
 }
@@ -68,10 +65,8 @@ install_bun() {
   fi
   work="$(mktemp -d)"
   download_checked "$BUN_URL" "$BUN_SHA256" "$work" bun.zip
-  python3 -I -m zipfile -e "$work/bun.zip" "$work/unpacked"
-  mkdir -p "$(dirname "$target")"
-  install -m 0755 "$work/unpacked/bun-linux-x64/bun" "$target.new"
-  mv -f "$target.new" "$target"
+  python3 -I -m zipfile -e "$work/bun.zip" "$work"
+  install_binary "$work/bun-linux-x64/bun" "$target"
   rm -rf "$work"
   say "bun: installed $("$target" --version) at $target"
 }

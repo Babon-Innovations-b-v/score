@@ -40,18 +40,13 @@ def graphql(query: str, **variables) -> dict:
 
 def checkout_repo() -> str:
     """owner/name for this checkout's origin remote, or "" when there is none."""
-    result = subprocess.run(
-        ["git", "-C", str(CONFIG_PATH.parents[1]), "remote", "get-url", "origin"],
-        capture_output=True,
-        text=True,
-    )
-    url = result.stdout.strip()
+    result = subprocess.run(["git", "-C", str(CONFIG_PATH.parents[1]), "remote", "get-url", "origin"],
+                            capture_output=True, text=True)
+    url = result.stdout.strip().removesuffix(".git")
     if result.returncode != 0 or not url:
         return ""
-    url = url.removesuffix(".git")
-    if url.startswith("git@"):
-        url = url.split(":", 1)[-1]
-    return "/".join(url.split("/")[-2:])
+    # git@host:owner/name and https://host/owner/name both end in owner/name once ":" is a "/".
+    return "/".join(url.replace(":", "/").split("/")[-2:])
 
 
 def config() -> tuple[str, str, int, str]:
@@ -68,19 +63,17 @@ def config() -> tuple[str, str, int, str]:
             f"project.json names {repo} but this checkout is {here}. "
             "Run: python3 .claude/scripts/setup-github.py --board"
         )
-    number = (data.get("project") or {}).get("number") or 0
-    if "/" not in repo or not number:
+    project = data.get("project") or {}
+    if "/" not in repo or not project.get("number"):
         sys.exit("project.json has no repo or board number. Run setup-github.py --board first.")
     owner, name = repo.split("/", 1)
-    return owner, name, int(number), (data.get("project") or {}).get("owner") or owner
+    return owner, name, int(project["number"]), project.get("owner") or owner
 
 
 def status_field(number: int, project_owner: str) -> dict:
     """The Status single-select field, with its options."""
-    fields = json.loads(
-        run(["gh", "project", "field-list", str(number), "--owner", project_owner, "--format", "json"]) or "{}"
-    ).get("fields", [])
-    field = next((f for f in fields if f["name"] == "Status"), None)
+    listing = run(["gh", "project", "field-list", str(number), "--owner", project_owner, "--format", "json"])
+    field = next((f for f in json.loads(listing or "{}").get("fields", []) if f["name"] == "Status"), None)
     if field is None:
         sys.exit(f"project #{number} has no Status field")
     return field
@@ -93,9 +86,7 @@ def board_item(owner: str, name: str, issue: int, number: int) -> tuple[str, str
              repository(owner:$o,name:$n){ issue(number:$i){
                id projectItems(first:20){ nodes{ id project{ id number } } } } }
            }""",
-        o=owner,
-        n=name,
-        i=str(issue),
+        o=owner, n=name, i=str(issue),
     )
     issue_node = data["repository"]["issue"]
     if issue_node is None:
@@ -114,10 +105,10 @@ def main() -> int:
 
     owner, name, number, project_owner = config()
     field = status_field(number, project_owner)
-    option = next((o for o in field.get("options", []) if o["name"] == wanted), None)
+    options = field.get("options", [])
+    option = next((o for o in options if o["name"] == wanted), None)
     if option is None:
-        columns = ", ".join(o["name"] for o in field.get("options", []))
-        sys.exit(f"unknown status {wanted!r}; board columns: {columns}")
+        sys.exit(f"unknown status {wanted!r}; board columns: {', '.join(o['name'] for o in options)}")
 
     found = board_item(owner, name, issue, number)
     if found is None:
@@ -135,10 +126,7 @@ def main() -> int:
                projectId:$p, itemId:$i, fieldId:$f, value:{singleSelectOptionId:$o}
              }){ projectV2Item{ id } }
            }""",
-        p=project_id,
-        i=item_id,
-        f=field["id"],
-        o=option["id"],
+        p=project_id, i=item_id, f=field["id"], o=option["id"],
     )
     print(f"#{issue} -> {wanted}")
     return 0

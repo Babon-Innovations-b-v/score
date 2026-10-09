@@ -24,30 +24,22 @@ link_memory() {
   enc="$(printf '%s' "$REPO" | sed 's#/#-#g')"
   target="$HOME/.claude/projects/$enc/memory"
   mkdir -p "$REPO_MEM" "$(dirname "$target")"
-
-  if [ -L "$target" ]; then
-    if [ "$(readlink -f "$target")" = "$REPO_MEM" ]; then
-      say "memory: already linked"
-      return
-    fi
-    rm "$target"
-    ln -s "$REPO_MEM" "$target"
-    say "memory: relinked $target -> $REPO_MEM"
+  if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$REPO_MEM" ]; then
+    say "memory: already linked"
     return
   fi
-
-  if [ -d "$target" ]; then
-    # A real folder with real memories in it. Move it aside rather than lose it,
-    # then copy its contents into the repo so nothing is dropped.
+  local message="memory: linked $target -> $REPO_MEM"
+  if [ -L "$target" ]; then
+    rm "$target"
+    message="memory: relinked $target -> $REPO_MEM"
+  elif [ -d "$target" ]; then
+    # A real folder with real memories in it: copy them into the repo, then move it aside.
     cp -a "$target/." "$REPO_MEM/" 2>/dev/null || true
     mv "$target" "$target.bak.$$"
-    ln -s "$REPO_MEM" "$target"
-    say "memory: existing folder copied into the repo and saved to $target.bak.$$"
-    return
+    message="memory: existing folder copied into the repo and saved to $target.bak.$$"
   fi
-
   ln -s "$REPO_MEM" "$target"
-  say "memory: linked $target -> $REPO_MEM"
+  say "$message"
 }
 
 # --- 2. Report what the loop still needs -----------------------------------
@@ -65,9 +57,9 @@ check_gh() {
 }
 
 check_project_json() {
-  local cfg="$REPO/.claude/project.json"
   local repo_field
-  repo_field="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('repo',''))" "$cfg" 2>/dev/null || echo '')"
+  repo_field="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('repo',''))" \
+    "$REPO/.claude/project.json" 2>/dev/null || echo '')"
   if [ -z "$repo_field" ]; then
     say "project.json: not filled in yet. Run: python3 .claude/scripts/setup-github.py --board"
   else
@@ -83,14 +75,10 @@ use_repo_hooks() {
   say "git hooks: .githooks"
 }
 
-# --- 4. The agent tools: code graph, Bun for claude-mem, their settings -----
-install_agent_tools() {
-  bash "$REPO/.claude/scripts/install-agent-tools.sh"
-}
-
 link_memory
 use_repo_hooks
-install_agent_tools
+# The agent tools: code graph, Bun for claude-mem, their settings.
+bash "$REPO/.claude/scripts/install-agent-tools.sh"
 check_gh
 check_project_json
 say ""

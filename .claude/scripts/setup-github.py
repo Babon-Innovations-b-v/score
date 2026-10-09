@@ -76,26 +76,15 @@ def graphql(query: str, **variables) -> dict:
     return payload["data"]
 
 
-def load_config() -> dict:
-    return json.loads(CONFIG_PATH.read_text())
-
-
-def save_config(config: dict) -> None:
-    CONFIG_PATH.write_text(json.dumps(config, indent=2) + "\n")
-
-
 def current_repo() -> tuple[str, str]:
     """The repo this checkout points at, as (owner/name, owner)."""
-    raw = run(["gh", "repo", "view", "--json", "nameWithOwner,owner"])
-    data = json.loads(raw)
+    data = json.loads(run(["gh", "repo", "view", "--json", "nameWithOwner,owner"]))
     return data["nameWithOwner"], data["owner"]["login"]
 
 
 def sync_labels(repo: str, dry_run: bool) -> None:
-    existing = {
-        label["name"]
-        for label in json.loads(run(["gh", "label", "list", "--repo", repo, "--limit", "200", "--json", "name"]) or "[]")
-    }
+    listing = run(["gh", "label", "list", "--repo", repo, "--limit", "200", "--json", "name"])
+    existing = {label["name"] for label in json.loads(listing or "[]")}
     for name, color, description in LABELS:
         verb = "update" if name in existing else "create"
         if dry_run:
@@ -107,65 +96,43 @@ def sync_labels(repo: str, dry_run: bool) -> None:
         print(f"label {verb}d: {name}")
 
 
-def project_fields(number: int, owner: str) -> list[dict]:
-    raw = run(["gh", "project", "field-list", str(number), "--owner", owner, "--format", "json"])
-    return json.loads(raw or "{}").get("fields", [])
+def find_or_create_project(project_owner: str, title: str) -> int:
+    """The number of the open project with this title, created when there is none."""
+    listing = run(["gh", "project", "list", "--owner", project_owner, "--format", "json"])
+    existing = json.loads(listing or "{}").get("projects", [])
+    match = next((p for p in existing if p["title"] == title and not p["closed"]), None)
+    if match:
+        print(f"project #{match['number']} already exists ({match['url']}), reusing it")
+        return match["number"]
+    created = json.loads(
+        run(["gh", "project", "create", "--owner", project_owner, "--title", title, "--format", "json"])
+    )
+    print(f"project created: #{created['number']} {created['url']}")
+    return created["number"]
 
 
-def ensure_project(config: dict, repo: str, owner: str, dry_run: bool) -> None:
-    number = config.get("project", {}).get("number") or 0
-    project_owner = config.get("project", {}).get("owner") or owner
-
-    if dry_run:
-        print(f"would create a project on {project_owner} and link it to {repo}")
-        return
-
-    title = repo.split("/")[-1]
-    if number:
-        print(f"project #{number} already in project.json, reusing it")
-    else:
-        existing = json.loads(
-            run(["gh", "project", "list", "--owner", project_owner, "--format", "json"]) or "{}"
-        ).get("projects", [])
-        match = next((p for p in existing if p["title"] == title and not p["closed"]), None)
-        if match:
-            number = match["number"]
-            print(f"project #{number} already exists ({match['url']}), reusing it")
-        else:
-            created = json.loads(
-                run(["gh", "project", "create", "--owner", project_owner, "--title", title, "--format", "json"])
-            )
-            number = created["number"]
-            print(f"project created: #{number} {created['url']}")
-
-    project_id = json.loads(
-        run(["gh", "project", "view", str(number), "--owner", project_owner, "--format", "json"])
-    )["id"]
-
-    fields = {field["name"]: field for field in project_fields(number, project_owner)}
-
-    status = fields.get("Status")
+def set_status_columns(status: dict | None) -> None:
     wanted = [name for name, _, _ in STATUS_OPTIONS]
     if status is None:
         print("no Status field on this project; add one in the UI, then re-run")
-    elif [option["name"] for option in status.get("options", [])] == wanted:
+        return
+    if [option["name"] for option in status.get("options", [])] == wanted:
         print("Status columns already correct")
-    else:
-        options = [
-            {"name": name, "color": color, "description": description}
-            for name, color, description in STATUS_OPTIONS
-        ]
-        graphql(
-            """mutation($f:ID!,$o:[ProjectV2SingleSelectFieldOptionInput!]!){
-                 updateProjectV2Field(input:{fieldId:$f, singleSelectOptions:$o}){
-                   projectV2Field{ ... on ProjectV2SingleSelectField { id } }
-                 }
-               }""",
-            f=status["id"],
-            o=options,
-        )
-        print("Status columns set: " + ", ".join(wanted))
+        return
+    options = [{"name": name, "color": color, "description": description}
+               for name, color, description in STATUS_OPTIONS]
+    graphql(
+        """mutation($f:ID!,$o:[ProjectV2SingleSelectFieldOptionInput!]!){
+             updateProjectV2Field(input:{fieldId:$f, singleSelectOptions:$o}){
+               projectV2Field{ ... on ProjectV2SingleSelectField { id } }
+             }
+           }""",
+        f=status["id"], o=options,
+    )
+    print("Status columns set: " + ", ".join(wanted))
 
+
+def add_date_fields(project_id: str, fields: dict) -> None:
     for name in DATE_FIELDS:
         if name in fields:
             print(f"date field already there: {name}")
@@ -176,24 +143,45 @@ def ensure_project(config: dict, repo: str, owner: str, dry_run: bool) -> None:
                    projectV2Field{ ... on ProjectV2Field { id } }
                  }
                }""",
-            p=project_id,
-            n=name,
+            p=project_id, n=name,
         )
         print(f"date field created: {name}")
 
+
+def add_area_field(project_id: str, areas: list[str]) -> None:
+    options = [{"name": area, "color": "BLUE", "description": area} for area in areas]
+    graphql(
+        """mutation($p:ID!,$o:[ProjectV2SingleSelectFieldOptionInput!]!){
+             createProjectV2Field(input:{projectId:$p, dataType:SINGLE_SELECT, name:"Area", singleSelectOptions:$o}){
+               projectV2Field{ ... on ProjectV2SingleSelectField { id } }
+             }
+           }""",
+        p=project_id, o=options,
+    )
+    print("Area field created: " + ", ".join(areas))
+
+
+def ensure_project(config: dict, repo: str, owner: str, dry_run: bool) -> None:
+    number = config.get("project", {}).get("number") or 0
+    project_owner = config.get("project", {}).get("owner") or owner
+    if dry_run:
+        print(f"would create a project on {project_owner} and link it to {repo}")
+        return
+    if number:
+        print(f"project #{number} already in project.json, reusing it")
+    else:
+        number = find_or_create_project(project_owner, repo.split("/")[-1])
+
+    project_id = json.loads(
+        run(["gh", "project", "view", str(number), "--owner", project_owner, "--format", "json"])
+    )["id"]
+    listing = run(["gh", "project", "field-list", str(number), "--owner", project_owner, "--format", "json"])
+    fields = {field["name"]: field for field in json.loads(listing or "{}").get("fields", [])}
+    set_status_columns(fields.get("Status"))
+    add_date_fields(project_id, fields)
     areas = config.get("areas") or []
     if areas and "Area" not in fields:
-        options = [{"name": area, "color": "BLUE", "description": area} for area in areas]
-        graphql(
-            """mutation($p:ID!,$o:[ProjectV2SingleSelectFieldOptionInput!]!){
-                 createProjectV2Field(input:{projectId:$p, dataType:SINGLE_SELECT, name:"Area", singleSelectOptions:$o}){
-                   projectV2Field{ ... on ProjectV2SingleSelectField { id } }
-                 }
-               }""",
-            p=project_id,
-            o=options,
-        )
-        print("Area field created: " + ", ".join(areas))
+        add_area_field(project_id, areas)
 
     run(["gh", "project", "link", str(number), "--owner", project_owner, "--repo", repo], check=False)
     config["project"] = {"number": number, "owner": project_owner}
@@ -215,7 +203,7 @@ def main() -> int:
         sys.exit("gh is not logged in. Run: gh auth login")
 
     repo, owner = current_repo()
-    config = load_config()
+    config = json.loads(CONFIG_PATH.read_text())
     if config.get("repo") and config["repo"] != repo:
         # "Use this template" copies project.json verbatim, so a fresh repo arrives
         # carrying the template's board number, backlog issue and people. Reusing any of
@@ -237,7 +225,7 @@ def main() -> int:
         ensure_project(config, repo, owner, args.dry_run)
 
     if not args.dry_run:
-        save_config(config)
+        CONFIG_PATH.write_text(json.dumps(config, indent=2) + "\n")
         print(f"\nwrote {CONFIG_PATH.relative_to(REPO_ROOT)}")
     return 0
 
