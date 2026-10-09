@@ -29,5 +29,5 @@ RUN git init -q /root/sfx/MOSS-TTS \
  && /root/venv/bin/python -c "import sys; sys.path.insert(0, '/root/sfx/MOSS-TTS'); \
 from moss_soundeffect_v2 import MossSoundEffectPipeline; import transformers, soundfile; print('moss ok')"
 
-COPY run.sh /usr/local/bin/moss-run
+COPY --chmod=755 run.sh /usr/local/bin/moss-run
 ENV TORCHDYNAMO_DISABLE=1
