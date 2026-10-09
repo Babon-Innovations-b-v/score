@@ -2,6 +2,9 @@
 
     .venv/bin/python tools/usd/settle.py <stage.usda> [--dry-run] [--cloud] [--reuse]
 
+--dry-run simulates and writes nothing to the layout; its result (settle/settled.json beside the stage) is what the
+resting triage (triage.py --settled) reads for SAGE's stability rule (unstable: over SAGE_MOVE or SAGE_TURN).
+
 A loose object is one laid on the ground that is not fixed: its inventory row's anchor is the floor (or none), and
 the row is not marked `"fixed": true` (a building, a mast, a cable run laid where it is). Hung rows, children and
 fixed rows stay where they are and are static in the simulation. Each loose object is lifted just clear of the ground
@@ -52,6 +55,10 @@ DRIFT_MOST = 0.3
 DEBRIS_SIZE = 1.4
 DEBRIS_DRIFT = 1.0
 LOOSE_ANCHORS = {"floor", "ground", ""}
+# SAGE's stability rule (NVlabs, arXiv 2602.10116, Apache-2.0): an object that moves further than this (metres) or turns
+# more (degrees) when dropped does not rest as laid; the resting triage (triage.py) counts it a real fault.
+SAGE_MOVE = 0.2
+SAGE_TURN = 8.0
 
 
 def loose_objects(stage, place, inventory):
@@ -143,6 +150,11 @@ def correction(found):
     return turned, float(np.linalg.norm((after @ middle - before @ middle)[:3]))
 
 
+def unstable(turned, drift):
+    """Whether a drop moved an object too far to call it resting as laid (SAGE's rule)."""
+    return drift > SAGE_MOVE or turned > SAGE_TURN
+
+
 def object_middle(stage, place, name):
     """The middle of an object's drawn mesh, in its own frame."""
     extent = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{place}/Objects/{name}/geo")).GetExtentAttr().Get()
@@ -213,7 +225,9 @@ def main():
                          "middle": object_middle(stage, place, name)}
     if arguments.dry_run:
         for name, found in settled.items():
-            print(name, np.round(found["after"][:3, 3] - found["before"][:3, 3], 3))
+            turned, drift = correction(found)
+            print(name, np.round(found["after"][:3, 3] - found["before"][:3, 3], 3),
+                  "unstable (SAGE)" if unstable(turned, drift) else "")
         return
     kit = json.loads(kit_path.read_text())
     ground = grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))

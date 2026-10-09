@@ -940,4 +940,5 @@ def main():
     print("usd_views: wrote", out)
 
 
-main()
+if __name__ == "__main__":  # annotate_stage.py imports these helpers
+    main()

@@ -1,0 +1,93 @@
+{
+ "about": "What the resting triage (tools/usd/triage.py) reads as data rather than code: which inventory groups and kit kind groups stand fixed in the kit's frame (a kit kind in the group `hangs` or `floors` is part of the room's shell, laid by the kit), which row ids are a kit piece's glowing part (judged with its host, as the game's scene check does), which words make a row hang, and which things may bed into what they lie on, how deep. Words match whole words of a row's id and name. The bedding classes come from the game 2099's scene check (tools/scenecheck/resting.gd, 2026-10-08: a cable drop through its skirting, a pillow on a tilted back pad, a tea towel over a handle, rocks and debris in the ground).",
+ "fixed_in_kit": [
+  "kit: wall",
+  "kit: floor",
+  "kit: ceiling",
+  "kit: door",
+  "kit: pipe",
+  "kit: pit",
+  "kit: under floor",
+  "kit: vent",
+  "kit: street",
+  "kit: stage"
+ ],
+ "fixed_in_kit_kinds": [
+  "hangs",
+  "floors"
+ ],
+ "parts": [
+  "_glow",
+  "_screen"
+ ],
+ "hanging": [
+  "hanging",
+  "hung",
+  "hangs",
+  "pendant",
+  "dangling",
+  "hook",
+  "hoist"
+ ],
+ "may_bed": [
+  {
+   "class": "cable",
+   "words": [
+    "cable",
+    "cables",
+    "hose",
+    "wire",
+    "wires",
+    "cord",
+    "rope",
+    "chain",
+    "conduit"
+   ],
+   "depth": 0.06
+  },
+  {
+   "class": "cloth",
+   "words": [
+    "cloth",
+    "towel",
+    "pillow",
+    "pillows",
+    "cushion",
+    "quilt",
+    "blanket",
+    "tarp",
+    "mattress",
+    "sheet",
+    "bag",
+    "bags",
+    "sack",
+    "sacks",
+    "curtain",
+    "rug",
+    "mat"
+   ],
+   "depth": 0.08
+  },
+  {
+   "class": "ground debris",
+   "words": [
+    "rock",
+    "rocks",
+    "stone",
+    "stones",
+    "boulder",
+    "pebble",
+    "rubble",
+    "debris",
+    "drift",
+    "pile",
+    "regolith",
+    "sand",
+    "soil",
+    "scorch",
+    "crater"
+   ],
+   "depth": 0.3
+  }
+ ]
+}
