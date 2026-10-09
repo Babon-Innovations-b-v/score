@@ -93,7 +93,7 @@ def floor_and_light(low, high):
 
 
 def camera(centre):
-    """A camera that looks at `centre` from `reach` away, and an empty it tracks."""
+    """A camera that tracks an empty at `centre`."""
     target = bpy.data.objects.new("target", None)
     target.location = centre
     bpy.context.scene.collection.objects.link(target)

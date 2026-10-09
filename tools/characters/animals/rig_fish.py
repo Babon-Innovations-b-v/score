@@ -1,8 +1,7 @@
 """Runs in Blender (blender_rig.py): a fish's rig and its three clips.
 
 The rig is a spine of BONES bones along the body from the snout to the tail's tip, every vertex weighted by where it
-lies along it (spine.py), so a fin follows the spine bone beside it. With `"rig": "unirig"` the model arrives with
-UniRig's skeleton and skin instead, and the clips drive the chain from its root to the bone that ends furthest back.
+lies along it (spine.py), so a fin follows the spine bone beside it.
 
 The clips, each a loop at 30 frames a second, every bone keyed on every frame:
   swim   a bend that travels from the head to the tail, growing towards the tail (WAVE)
@@ -60,16 +59,6 @@ def skin(meshes, armature, joints):
         mesh.parent = armature
 
 
-def root_to_tail(armature):
-    """A UniRig skeleton's chain from its root to the bone that ends furthest back (+y, the head faces -y)."""
-    bones = armature.data.bones
-    last = max(bones, key=lambda bone: bone.tail_local.y)
-    chain = [last]
-    while chain[-1].parent is not None:
-        chain.append(chain[-1].parent)
-    return [bone.name for bone in reversed(chain)]
-
-
 def turn_about(bone, axis, angle):
     """A pose rotation of `angle` about a world `axis`, in the bone's own frame."""
     local = (bone.matrix_local.to_3x3().inverted() @ axis).normalized()
@@ -111,14 +100,11 @@ def key_clip(armature, chain, name, settings):
     return action
 
 
-def rig(meshes, armature, job, report):
+def rig(meshes, job, report):
     """The fish rigged and keyed; returns its armature."""
-    if job["rig"] == "spine":
-        armature, joints = spine_armature(meshes)
-        skin(meshes, armature, joints)
-        chain = [f"spine_{number}" for number in range(BONES)]
-    else:
-        chain = root_to_tail(armature)
+    armature, joints = spine_armature(meshes)
+    skin(meshes, armature, joints)
+    chain = [f"spine_{number}" for number in range(BONES)]
     report["bones"] = len(armature.data.bones)
     report["driven_chain"] = chain
     clips = {"swim": SWIM, "turn": TURN, "hover": HOVER}
