@@ -1048,9 +1048,9 @@
 			"view": "v1",
 			"box": [
 				640,
-				355,
-				710,
-				415
+				352,
+				726,
+				416
 			],
 			"name": "a short orange strip lamp on the wall over a window",
 			"kind": "code",
@@ -1066,7 +1066,10 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"why_code": "the same code-built strip lamp the greenhouse, lab and workshop lay over a door (door_strip_lamp), shorter",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v1.w29"
+			]
 		},
 		{
 			"id": "toaster",
@@ -1181,10 +1184,10 @@
 			"id": "sample_jar",
 			"view": "v2",
 			"box": [
-				1660,
-				1080,
-				2030,
-				1240
+				1737,
+				1147,
+				1795,
+				1214
 			],
 			"name": "steel sample jars on the sample shelf",
 			"kind": "generate",
@@ -1200,16 +1203,20 @@
 			"reuse": "lab:sample_jar",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v2.341",
+				"v2.477"
+			]
 		},
 		{
 			"id": "sample_tray",
 			"view": "v2",
 			"box": [
-				1660,
-				1080,
-				2030,
-				1240
+				1889,
+				1087,
+				2025,
+				1181
 			],
 			"name": "shallow trays of rock samples on the sample shelf",
 			"kind": "generate",
@@ -1225,16 +1232,22 @@
 			"reuse": "lab:sample_tray",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v2.216",
+				"v2.328",
+				"v2.430",
+				"v2.478"
+			]
 		},
 		{
 			"id": "sample_case",
 			"view": "v2",
 			"box": [
-				1660,
-				1080,
-				2030,
-				1240
+				1672,
+				1132,
+				1734,
+				1214
 			],
 			"name": "small hard sample cases on the sample shelf",
 			"kind": "generate",
@@ -1250,7 +1263,10 @@
 			"reuse": "campgrounds:sample_case",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v2.274"
+			]
 		},
 		{
 			"id": "coffee_maker",

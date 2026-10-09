@@ -454,16 +454,15 @@ def measure_all(scenes):
     return failing
 
 
-def judge_all(scenes, folder, dry_run, cards, unmeasured=None):
-    """Ask the judge about every box of the scenes, or only those in `unmeasured` (`<scene>.<row>` keys SAM 3 could
-    not measure), two seeds and then the third where they disagree; print and write (folder/verdicts.json) each box's
-    verdict."""
+def judge_all(scenes, folder, dry_run, cards, grounded_keys=frozenset()):
+    """Ask the judge about every box of the scenes but those SAM 3 grounded (`grounded_keys`, `<scene>.<row>`), two
+    seeds and then the third where they disagree; print and write (folder/verdicts.json) each box's verdict."""
     import judge
     jobs = []
     for scene in scenes:
         found = json.loads(inventory.path_of(scene).read_text())
         jobs.extend(job for job in judge_jobs(scene, found, view_sizes(found), folder, SEEDS[:2])
-                    if unmeasured is None or job["name"].rpartition("~")[0].rsplit(".", 1)[0] in unmeasured)
+                    if job["name"].rpartition("~")[0].rsplit(".", 1)[0] not in grounded_keys)
     answers = folder / "answers"
     for round_number, listed in ((1, jobs), (2, None)):
         listed = listed if listed is not None else deciding_jobs(jobs, answers)
@@ -517,21 +516,22 @@ def tighten(scene, found, grounded):
 
 
 def decided(grounded, judged):
-    """Each box's result, the measurement first: a box SAM 3 grounds passes and one it finds loose or off fails,
-    whatever the judge says (a model's judgement of geometry is near a coin flip, LEGO-Anything 2026, Sec. 5.1); the
-    judge decides only the boxes SAM 3 could not measure. Keys are `<scene>.<row>`; a box neither measured nor
-    judged is "unchecked"."""
+    """Each box's result: a box SAM 3 grounds passes; every other box (SAM 3 found the row's words only elsewhere,
+    found them loose, or found nothing) goes to the judge. SAM 3 is asked for short words that name many things in a
+    room ("panel", "box"), and a repeating row is boxed on one of its many copies, so finding the words elsewhere
+    proves nothing about the box (2026-10-09: 143 of 542 boxes "off", most of them right). Keys are `<scene>.<row>`; a
+    box neither grounded nor judged is "unchecked"."""
     judged_rows = {key.rsplit(".", 1)[0]: result for key, result in judged.items()}
     results = {}
     for key in sorted(set(grounded) | set(judged_rows)):
         measure = grounded.get(key, {"grounding": "not found"})["grounding"]
-        if measure != "not found":
-            results[key] = {"passes": measure == "grounded", "by": f"SAM 3: {measure}"}
+        if measure == "grounded":
+            results[key] = {"passes": True, "by": "SAM 3: grounded"}
         elif key in judged_rows:
             results[key] = {"passes": judged_rows[key]["passes"], "by": "judge: " + (
                 "shown" if judged_rows[key]["passes"] else f"round {judged_rows[key]['what']}")}
         else:
-            results[key] = {"passes": None, "by": "unchecked"}
+            results[key] = {"passes": None, "by": f"unchecked (SAM 3: {measure})"}
     return results
 
 
@@ -558,8 +558,8 @@ def main():
                 path.write_text(json.dumps(found, indent=indent.group(1) if indent else None, ensure_ascii=False)
                                 + ("\n" if text.endswith("\n") else ""))
                 print(f"{scene}: boxes set to SAM 3's instance: {', '.join(changed)}")
-    unmeasured = {key for key, result in grounded.items() if result["grounding"] == "not found"} if grounded else None
-    judged = judge_all(scenes, options.judge, options.dry_run, options.cards, unmeasured) if options.judge else {}
+    grounded_keys = {key for key, result in grounded.items() if result["grounding"] == "grounded"}
+    judged = judge_all(scenes, options.judge, options.dry_run, options.cards, grounded_keys) if options.judge else {}
     if (grounded or judged) and not options.dry_run:
         results = decided(grounded, judged)
         (options.masks or options.judge).joinpath("decided.json").write_text(json.dumps(results, indent=1))

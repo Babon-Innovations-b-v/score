@@ -157,7 +157,7 @@ def test_the_measurement_decides_before_the_judge():
               "camp.crate.1-2-3-4": {"passes": True, "what": ""}, "camp.net.1-2-3-4": {"passes": False, "what": "a wall"}}
     results = box_check.decided(grounded, judged)
     assert [results[key]["passes"] for key in ("camp.galley", "camp.crate", "camp.net", "camp.bin")] == \
-        [True, False, False, None]
+        [True, True, False, None]  # SAM 3 finding the words elsewhere leaves the box to the judge
 
 
 def test_a_loose_box_is_tightened_to_its_measured_thing():
