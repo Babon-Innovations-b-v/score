@@ -67,6 +67,8 @@ LOW_BAND = 0.1
 RAY_START = resting.RAY_START
 # The size bands a group of faults is cut by (metres): under 1 cm, 1 to 5, 5 to 20, 20 to 100, over a metre.
 BANDS = (0.01, 0.05, 0.2, 1.0)
+# Only a piece standing loose on the floor is dropped (settle.py's loose pieces); SAGE's rule judges no other.
+DROPPED = ("floor",)
 LOOSE = ("floor", "held", "wall", "ceiling", "hanging")  # "part": a kit piece's glowing part, judged with its host
 STATIC_GROUPS = ("Structure", "Fixtures")
 
@@ -367,6 +369,8 @@ def drop_faults(entries, settled):
         if path is None or found.get("moving", 0.0) > settle.STILL:
             continue
         entry = entries[path]
+        if entry["support"] not in DROPPED:  # a drop run made before its row's support was known: not loose
+            continue
         before = entry["matrix"]
         turned, moved = settle.correction({"before": before, "after": np.asarray(found["motion"]) @ before,
                                            "middle": entry["local"].mean(axis=0).tolist()})
