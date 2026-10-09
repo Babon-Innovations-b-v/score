@@ -82,7 +82,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   via FARM_CYCLES_GPU). A call's jobs are spread over machines like any batch (spread.py). A tool with a
   chain of jobs (a review page's renders) holds one machine for all of them (`blender_cloud.Machine`, --serve on a queue
   folder), deleted when the tool closes the queue or after 10 idle minutes; never rent one per step. The PC's own Blender (one at a time,
-  the machine lock) is for checks of seconds only.
+  the machine lock) is for checks of seconds only. An agent starts a cloud Blender call with `--detach` under `run_in_background`
+  (`detached.py`: progress to a log, one result line at the end) and never polls it in the foreground.
 - **The material library bakes on a card** (`library_bake.py`, `library_setup.sh`; job robust-exp, 2026-10-06):
   Blender 5.0.1 from blender.org, Cycles on OptiX, ProcFunc and infinigen2 from the repo's vendored copies; jobs are
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core
