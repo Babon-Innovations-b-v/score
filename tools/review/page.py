@@ -355,10 +355,21 @@ def mean_brightness(path):
                                                                                  picture.height)
 
 
+def beside_tile(view, game_file, caption, before):
+    """One view's tile beside the game: the scene, its before stage's render first when the page has one
+    (--before-stage, scene/before), and the game's shot."""
+    cells = ([("before", f"scene/before/{view}-look.png")] if before else []) + [("scene", f"scene/now/{view}-look.png"),
+                                                                                   ("game", game_file)]
+    inner = "".join(f'<div><img loading="lazy" src="{escaped(path)}" alt="{tag}"><span class="tag">{tag}</span></div>'
+                    for tag, path in cells)
+    return (f'<figure class="pair"><div class="two{" three" if before else ""}">{inner}</div>'
+            f'<figcaption>{caption}</figcaption></figure>')
+
+
 def game_beside(scene, out, games, pictures):
-    """Each view beside the game's own shot from about the same place, with both pictures' mean brightness: a render
-    far darker than the game's shot (under DARK_SHARE of its brightness) fails. The tiles and (views judged, views
-    passed)."""
+    """Each view beside the game's own shot from about the same place (and after its earlier render, when the page has
+    one), with both pictures' mean brightness: a render far darker than the game's shot (under DARK_SHARE of its
+    brightness) fails. The tiles and (views judged, views passed)."""
     tiles, judged, passed = [], 0, 0
     for view, game in scene.get("games", {}).items():
         render = out / "scene/now" / f"{view}-look.png"
@@ -375,10 +386,8 @@ def game_beside(scene, out, games, pictures):
         game_file = pictures.add(shot, f"game-{view}")
         caption = escaped(f"{view}: scene {ours:.2f}, game {theirs:.2f} mean brightness, "
                           f"{'bright enough' if bright else 'far darker than the game'}")
-        tiles.append(f'<figure class="pair"><div class="two"><div><img loading="lazy" '
-                     f'src="{escaped(f"scene/now/{view}-look.png")}" alt="scene"><span class="tag">scene</span></div>'
-                     f'<div><img loading="lazy" src="{escaped(game_file)}" alt="game"><span class="tag">game</span>'
-                     f'</div></div><figcaption>{verdict(bright)} {caption}</figcaption></figure>')
+        before = (out / "scene/before" / f"{view}-look.png").exists()
+        tiles.append(beside_tile(view, game_file, f"{verdict(bright)} {caption}", before))
     return tiles, judged, passed
 
 

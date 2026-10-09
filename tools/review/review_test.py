@@ -186,9 +186,30 @@ def the_plans_an_inventory_names_are_shown():
     return problems
 
 
+def a_before_stage_stands_beside_the_game():
+    """A view the before stage drew too shows before, scene and game in one tile; one it did not shows scene and game."""
+    with tempfile.TemporaryDirectory() as folder:
+        out = pathlib.Path(folder)
+        for label in ("before", "now"):
+            (out / "scene" / label).mkdir(parents=True)
+        Image.new("RGB", (8, 8), (90, 90, 90)).save(out / "scene/now/a-look.png")
+        Image.new("RGB", (8, 8), (90, 90, 90)).save(out / "scene/now/b-look.png")
+        Image.new("RGB", (8, 8), (40, 40, 40)).save(out / "scene/before/a-look.png")
+        Image.new("RGB", (8, 8), (90, 90, 90)).save(out / "game.png")
+        tiles, judged, _ = page.game_beside({"games": {"a": "game.png", "b": "game.png"}}, out, out,
+                                            page.Pictures(out))
+    problems = []
+    if judged != 2 or "scene/before/a-look.png" not in tiles[0] or 'class="two three"' not in tiles[0]:
+        problems.append("the before stage's view is not laid before the scene and the game's shot")
+    if "scene/before" in tiles[1] or "three" in tiles[1]:
+        problems.append("a view the before stage did not draw shows a before")
+    return problems
+
+
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
           the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, one_view_a_place_is_inked,
-          an_overlap_reads_in_the_resting_table, the_plans_an_inventory_names_are_shown)
+          an_overlap_reads_in_the_resting_table, the_plans_an_inventory_names_are_shown,
+          a_before_stage_stands_beside_the_game)
 
 
 if __name__ == "__main__":
