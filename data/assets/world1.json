@@ -2,18 +2,18 @@
 	"is": "the first world's heavy files (made models and sounds), kept as a release of this repository and named by the records with the names below; tools/assets/world.py fetches, checks and packs them",
 	"release": {
 		"repository": "Babon-Innovations-b-v/score",
-		"tag": "world1-assets-1"
+		"tag": "world1-assets-3"
 	},
 	"archives": [
 		{
 			"name": "models.tar.gz",
-			"bytes": 198506693,
-			"sha256": "08e730e50f3e9be69ea62295e4990c7b55faf3439a6c2af6f96543a7317c26fa"
+			"bytes": 211778918,
+			"sha256": "e6a7bac21a3c344d37e84bc59e93cdd258aea81fbd623997ccd5cca02e5d5a34"
 		},
 		{
 			"name": "sound.tar.gz",
 			"bytes": 35733292,
-			"sha256": "6708c9b063bb5b382c9f8bf60129fadf43d63c90dd85a8c282fbdad1ab92c4e1"
+			"sha256": "035f03fa621d1450fc2c1685f0683f17c664802e99d8b8f76abdfa348c5db94d"
 		}
 	],
 	"licences": [
@@ -718,6 +718,20 @@
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
 		},
+		"models/hub_kit/hammer_1.bin": {
+			"bytes": 490380,
+			"sha256": "5a3e73c0b6170b5a32e38db560396102fc7c6f090806e3155a751643f9c39f23",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/hammer_1.gltf": {
+			"bytes": 2680,
+			"sha256": "030d67bad1203ba4b829c807ad0a8a09dc79ef55bee1cc13f67831634e06d801",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
 		"models/hub_kit/headset_1.bin": {
 			"bytes": 506224,
 			"sha256": "fd82f07b8cbe4dfc6508d7431ce52eae1b873d714ac90145ec43a5ba158585da",
@@ -844,6 +858,34 @@
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
 		},
+		"models/hub_kit/pliers_1.bin": {
+			"bytes": 489392,
+			"sha256": "9ab4deabf49ee0104dfdcbf9c0ee02a420e25f77dde94155ccad6d8240b6a9b4",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/pliers_1.gltf": {
+			"bytes": 2682,
+			"sha256": "1539a3bc6a8ec7f2a59b4f4b0902487bbf6026f07a96bdc454bf6d86dc0bdaea",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/pump_pliers_1.bin": {
+			"bytes": 492208,
+			"sha256": "b27fa96d89963b9959f133a23b1176a394f306f219a337d412aa813de524aa28",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/pump_pliers_1.gltf": {
+			"bytes": 2734,
+			"sha256": "d69c85620f09bed4ce09a5ae2828ca7ade1ab639251562c84248b253aa289524",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
 		"models/hub_kit/rack_1.bin": {
 			"bytes": 74920,
 			"sha256": "bcd73fa50332c0dca1535ac465c447e9df2a6d82b4ffc3220b4ac06dc4777264",
@@ -868,6 +910,41 @@
 		"models/hub_kit/radio_1.gltf": {
 			"bytes": 2686,
 			"sha256": "f6c8325c99dffa24615aedb53a697b6764624283ce2ad17b8efec2f539fde81f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/screwdriver_1.bin": {
+			"bytes": 10752,
+			"sha256": "eba43ee9064b8bb36c7caf742ad080cce7f7fd5cb9b45e5c479901df3f94f952",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/screwdriver_1.gltf": {
+			"bytes": 2696,
+			"sha256": "29ac3b8c82588261b1f1b77c3174a3f7b415f94e83fb8c8e1e76f889c42ce4a7",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/status_lamp_1.bin": {
+			"bytes": 13584,
+			"sha256": "69d2a395dd32aa810756d3165f6a6b725df9d7cc40904fcc38231bfe9d19b057",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/status_lamp_1.gltf": {
+			"bytes": 1728,
+			"sha256": "c3aab238ad1a1c196ed8b11b6945f83fe7c7e92777fbfc0c30f4c7407a93d3ab",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/status_lamp_1.png": {
+			"bytes": 78,
+			"sha256": "cc60906dd2cfd9cfbf104d78eaadcbfa8e9f40c0ea74fe45fc59a92ce974359e",
 			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
@@ -938,6 +1015,27 @@
 		"models/hub_kit/textures/desklamp_1_normal.webp": {
 			"bytes": 378508,
 			"sha256": "a5d1e573c16fdd67610d3844471f24daea06be0451633f84311eba07b38ec976",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hammer_1_base_color.webp": {
+			"bytes": 2358,
+			"sha256": "814028ce3bfa0f2c782505bbeec01d5f9e4ea962f224e99f58c8062d7028169b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hammer_1_metal_roughness.webp": {
+			"bytes": 2538,
+			"sha256": "a6b8665250c434d5055eab75026c538665a7707266857ee9da5bbbf4edb3667b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hammer_1_normal.webp": {
+			"bytes": 30188,
+			"sha256": "793a28d98d10925471ea52d9ac733d232dec8c096c834bc638da679af2a903ba",
 			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
@@ -1131,6 +1229,48 @@
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
 		},
+		"models/hub_kit/textures/pliers_1_base_color.webp": {
+			"bytes": 5158,
+			"sha256": "7b3bee5d73e8dd3782c5eb340616f321fc0a14f485de44da3cd5c47730848996",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/pliers_1_metal_roughness.webp": {
+			"bytes": 11600,
+			"sha256": "0d119881771399d12ae6a52e443c94869546db4884a0b041dda93ba5232f9960",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/pliers_1_normal.webp": {
+			"bytes": 38468,
+			"sha256": "6ae32fd68290d184e07b4713f2c6ca8d5a50e85001fc0a4a7e0bfe8e67f05514",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/pump_pliers_1_base_color.webp": {
+			"bytes": 2358,
+			"sha256": "55610094090207857c24b115cd376838df60d02b3450701c0dde7d661792f3f6",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/pump_pliers_1_metal_roughness.webp": {
+			"bytes": 4836,
+			"sha256": "6b5cc29e02c5825280857c32a68df7028ce93bda318dd2dbab877741c8a55953",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/pump_pliers_1_normal.webp": {
+			"bytes": 32500,
+			"sha256": "74a9f155de796a9885425636049c5e93024158008da08bd51970b57e8669a601",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
 		"models/hub_kit/textures/telephone_1_base_color.webp": {
 			"bytes": 21854,
 			"sha256": "39680343a591fbd26ab9ea766e5c7f0594336d834e5a4ce475c9eac2958bc319",
@@ -1152,6 +1292,90 @@
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
 		},
+		"models/hub_kit/textures/wrench_1_base_color.webp": {
+			"bytes": 2090,
+			"sha256": "0eb69b00f2655b17d505ccf2b5ff6a3be939a8daa7b65818fe18c88562fd5618",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_1_metal_roughness.webp": {
+			"bytes": 2826,
+			"sha256": "1ec937c40283998f96221605610fa242174c266b5aee4437ebb313063c6c8f89",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_1_normal.webp": {
+			"bytes": 26530,
+			"sha256": "40611b3b958a24c4071bf8f60f2b8d1bda5b1e8935a32dd61d213156ade64b0b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_2_base_color.webp": {
+			"bytes": 2894,
+			"sha256": "1e6a79439e2cea8705946446cdb6da052ceff8687219f9a66d6a2e966f3d1aca",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_2_metal_roughness.webp": {
+			"bytes": 3788,
+			"sha256": "8e282438ad0086b32d0f9ac914687cd74349caf64273c973ec68a2a1fc968afe",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_2_normal.webp": {
+			"bytes": 28974,
+			"sha256": "6406699f65c96e1e436242d49b898adf3664ef27bbb4b96ef18f0a83f03caee9",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_3_base_color.webp": {
+			"bytes": 2244,
+			"sha256": "5bf2bcd7ae8b183cd769ac4f9a852794d5b7f585353ad10c8f54282194eb71ec",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_3_metal_roughness.webp": {
+			"bytes": 3612,
+			"sha256": "628e88e65e9826d5944d5fb5cc47ecfd36370c3cc68fffdc66df51d1c7060aac",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_3_normal.webp": {
+			"bytes": 35332,
+			"sha256": "777a76fa827e53460c7ebc2537366ef541f9a2e81f6f642d6ca957c7fad235ea",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_4_base_color.webp": {
+			"bytes": 2800,
+			"sha256": "1ef9abbd622b7fe5661d0208ea15a3512dbd8b6b8c51938030222783491504de",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_4_metal_roughness.webp": {
+			"bytes": 3032,
+			"sha256": "bd0cb566c9f6ee0f70c6af7713b2e66dc394019e829e6f50b5e200459f2bf0e8",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/wrench_4_normal.webp": {
+			"bytes": 22612,
+			"sha256": "80ad1777498e9a8c9d3ead7eea621fa9236d04a96637c7b0ae7adef54a6d7aa9",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
 		"models/hub_kit/toolboard_1.bin": {
 			"bytes": 140920,
 			"sha256": "c542bcf885389edf5a648678c369102274cd9e6140be267c67cb6530f04bcea7",
@@ -1166,11 +1390,102 @@
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
 		},
+		"models/hub_kit/wrench_1.bin": {
+			"bytes": 453040,
+			"sha256": "6654152e6bfb88cfed63e8443baf1fae600bac763368eb6a71ef9dda53cfad2f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/wrench_1.gltf": {
+			"bytes": 2683,
+			"sha256": "f8dd5e4a72b78dd8621ed3f91edf1aceeb9224b4855758ba448f709e7791305b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/wrench_2.bin": {
+			"bytes": 442160,
+			"sha256": "23b1ca2f0517bb781729f8d583644b4d2d1de21dba29b94c4e065138931960ae",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/wrench_2.gltf": {
+			"bytes": 2683,
+			"sha256": "0a9880e50bc9304ffb522164bf769d4dd96f86d8a77310b3928b98257972deff",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/wrench_3.bin": {
+			"bytes": 420592,
+			"sha256": "1389c338a318322b913ba05cee26dcc00ca47b7262ec0a24db2c29d46d6a0443",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/wrench_3.gltf": {
+			"bytes": 2684,
+			"sha256": "d9ee41310d5ce9ebac2713caf80cd253c7e9faf38c8d47219e53645da0ebeb7e",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/wrench_4.bin": {
+			"bytes": 472048,
+			"sha256": "451abfd3c378826b514fff42e90e8dbfc2af943912a470e87feaa70a611a64c0",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/wrench_4.gltf": {
+			"bytes": 2682,
+			"sha256": "a1f96c6e88d82a210479d9b9366ae2eaa985bf84f763e1937a767274de6e069d",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
 		"models/inverter_cabinet/inverter_cabinet.glb": {
 			"bytes": 5206120,
 			"sha256": "d95136f5ba43697ea9fd80601e0ba9ee9d7f1dea284c6eedad0190a2190a1a03",
 			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
 			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf5-479-61)",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket/far_rocket_1.bin": {
+			"bytes": 5988664,
+			"sha256": "0c856ad5c37e358c0f4146ecb24c8a7c2e6b9d79f6bbc7d1bfd294b5c4e2f0a7",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket/far_rocket_1.gltf": {
+			"bytes": 2290,
+			"sha256": "432756f6a9c713b24f8bc7912ee980027fd329c9d9a5fcd76934a347af600f14",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket/textures/far_rocket_1_base_color.png": {
+			"bytes": 1515560,
+			"sha256": "bfaa8f02fcf20160b061591cba2713ab25b847a82f788b515c12028e8c2cbeea",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket/textures/far_rocket_1_metal_roughness.png": {
+			"bytes": 1314859,
+			"sha256": "9df4bafb712adbf6540a1f71d3bbd949c19698394c9db0d759a7a185269d15a2",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket/textures/far_rocket_1_normal.png": {
+			"bytes": 6979001,
+			"sha256": "b29a536fc070aedcb8213c41b47db4846d27874a01cb249778ed0c4bd85cf6b5",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
 			"author": "the 2099 project"
 		},
 		"models/mars_boulder_basalt/mars_boulder_basalt.glb": {
