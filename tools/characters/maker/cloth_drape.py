@@ -62,18 +62,6 @@ def empty_scene():
     return scene
 
 
-def read_obj(path):
-    """An OBJ file's points and triangles (the first index of each corner)."""
-    points, faces = [], []
-    for line in pathlib.Path(path).read_text().splitlines():
-        if line.startswith("v "):
-            points.append([float(value) for value in line.split()[1:4]])
-        elif line.startswith("f "):
-            corners = [int(token.split("/")[0]) - 1 for token in line.split()[1:]]
-            faces.extend([corners[0], corners[index], corners[index + 1]] for index in range(1, len(corners) - 1))
-    return np.array(points), np.array(faces)
-
-
 def mesh_object(name, points, faces, edges):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata([tuple(point) for point in points], [tuple(edge) for edge in edges],
@@ -86,7 +74,7 @@ def mesh_object(name, points, faces, edges):
 
 def body_object(path, settings):
     """The body as a collision object, its normals pointing out."""
-    points, faces = read_obj(path)
+    points, faces = sewing.read_obj(path)
     body = mesh_object("body", points, faces, [])
     tidy = bmesh.new()
     tidy.from_mesh(body.data)

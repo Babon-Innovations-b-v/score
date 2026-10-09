@@ -27,6 +27,8 @@ import sys
 import numpy as np
 from scipy.spatial import cKDTree
 
+import sewing
+
 PEOPLE = pathlib.Path(__file__).resolve().parents[1] / "people"
 # The belt band space_suit.py cuts from the torso, in take C's heights (moved onto the person by fit.y).
 BELT_BAND = (1.005, 1.062)
@@ -36,14 +38,8 @@ WAIST_BAND = (0.95, 1.12)
 
 def read_obj(path):
     """Points (metres) and triangles of an obj written in centimetres."""
-    points, faces = [], []
-    for line in pathlib.Path(path).read_text().splitlines():
-        if line.startswith("v "):
-            points.append([float(value) for value in line.split()[1:4]])
-        elif line.startswith("f "):
-            corners = [int(token.split("/")[0]) - 1 for token in line.split()[1:]]
-            faces.extend([corners[0], corners[index], corners[index + 1]] for index in range(1, len(corners) - 1))
-    return np.array(points) / 100.0, np.array(faces, dtype=np.int64)
+    points, faces = sewing.read_obj(path)
+    return points / 100.0, faces
 
 
 def drape_files(folder):

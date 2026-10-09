@@ -10,6 +10,8 @@ A sewing record (`<name>_sewing.npz`, written by `garment.py`) holds:
     box_index   for each point, the box mesh point it is; a seam's point has a copy in each panel it joins
     panel       for each point, the number of its panel; panel_names names them
 """
+import pathlib
+
 import numpy as np
 
 # Measurements GarmentCode keeps as they are, angles of the body rather than lengths.
@@ -64,6 +66,18 @@ def seam_gaps(points, box_index):
     """How far each thread is still open: the distance between each copy and its first copy."""
     pairs = seams(box_index)
     return np.linalg.norm(points[pairs[:, 0]] - points[pairs[:, 1]], axis=1)
+
+
+def read_obj(path):
+    """An OBJ file's points and triangles (the first index of each corner; polygons fanned)."""
+    points, faces = [], []
+    for line in pathlib.Path(path).read_text().splitlines():
+        if line.startswith("v "):
+            points.append([float(value) for value in line.split()[1:4]])
+        elif line.startswith("f "):
+            corners = [int(token.split("/")[0]) - 1 for token in line.split()[1:]]
+            faces.extend([corners[0], corners[index], corners[index + 1]] for index in range(1, len(corners) - 1))
+    return np.array(points, dtype=float), np.array(faces, dtype=np.int64)
 
 
 def box_point_count(box_obj_text):
