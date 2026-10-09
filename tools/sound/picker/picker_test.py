@@ -150,7 +150,7 @@ def check_a_swap_back_to_the_recording_before_takes_the_data_off(folder):
     record = {"needs": [{"name": "habitat", "category": "room", "takes": [{"key": "game:habitat", "source": "game"}]}]}
     (page_folder / "candidates.json").write_text(json.dumps(record))
     sounds_path, licences_path = folder / "sounds_game.json", folder / "licences_game.json"
-    sounds_path.write_text(json.dumps({"sounds": {"habitat": {"file": "res://x.ogg", "volume_db": -9.0, "pick": {}}}}))
+    sounds_path.write_text(json.dumps({"sounds": {"habitat": {"file": "sound/x.ogg", "volume_db": -9.0, "pick": {}}}}))
     licences_path.write_text("[]")
     assert applying.apply(page_folder, {"habitat": "game:habitat"}, sounds_path, licences_path, folder,
                           swapped={"habitat"}) == ["habitat"]

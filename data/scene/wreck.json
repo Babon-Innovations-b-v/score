@@ -445,7 +445,7 @@
  "objects": [
   {
    "name": "SolarRow1",
-   "model": "game/world/solar_field/solar_panel_row/solar_panel_row.glb",
+   "model": "models/solar_panel_row/solar_panel_row.glb",
    "at": [
     -32.523,
     -14.148,
@@ -462,7 +462,7 @@
   },
   {
    "name": "SolarRow2",
-   "model": "game/world/solar_field/solar_panel_row/solar_panel_row.glb",
+   "model": "models/solar_panel_row/solar_panel_row.glb",
    "at": [
     -33.949,
     -12.904,
@@ -479,7 +479,7 @@
   },
   {
    "name": "SolarRow3",
-   "model": "game/world/solar_field/solar_panel_row/solar_panel_row.glb",
+   "model": "models/solar_panel_row/solar_panel_row.glb",
    "at": [
     -35.36,
     -11.763,
@@ -496,7 +496,7 @@
   },
   {
    "name": "Inverter",
-   "model": "game/world/solar_field/inverter_cabinet/inverter_cabinet.glb",
+   "model": "models/inverter_cabinet/inverter_cabinet.glb",
    "at": [
     -23.066,
     -12.773,
@@ -513,16 +513,16 @@
   }
  ],
  "planned_rocks": {
-  "plan": "game/world/ground/moon_plan.json",
+  "plan": "data/ground/moon_plan_rocks.json",
   "boulders": [
-   "game/world/rocks/moon_boulder_angular/moon_boulder_angular.glb",
-   "game/world/rocks/moon_boulder_rounded/moon_boulder_rounded.glb",
-   "game/world/rocks/moon_boulder_slab/moon_boulder_slab.glb"
+   "models/moon_boulder_angular/moon_boulder_angular.glb",
+   "models/moon_boulder_rounded/moon_boulder_rounded.glb",
+   "models/moon_boulder_slab/moon_boulder_slab.glb"
   ],
   "stones": [
-   "game/world/rocks/moon_boulder_angular/moon_boulder_angular_small.glb",
-   "game/world/rocks/moon_boulder_rounded/moon_boulder_rounded_small.glb",
-   "game/world/rocks/moon_boulder_slab/moon_boulder_slab_small.glb"
+   "models/moon_boulder_angular/moon_boulder_angular_small.glb",
+   "models/moon_boulder_rounded/moon_boulder_rounded_small.glb",
+   "models/moon_boulder_slab/moon_boulder_slab_small.glb"
   ],
   "seed": 41,
   "sunk": 0.12,

@@ -79,7 +79,7 @@
  "objects": [
   {
    "name": "console",
-   "model": "game/base/models/hub_kit/console_1.gltf",
+   "model": "models/hub_kit/console_1.gltf",
    "at": [
     -0.6058,
     -0.9,
@@ -88,7 +88,7 @@
    "yaw": -21.8,
    "children": [
     {
-     "model": "game/base/models/hub_kit/monitor_1.gltf",
+     "model": "models/hub_kit/monitor_1.gltf",
      "at": [
       0.0,
       0.76,
@@ -97,7 +97,7 @@
      "yaw": 0.0
     },
     {
-     "model": "game/base/models/hub_kit/monitor_1.gltf",
+     "model": "models/hub_kit/monitor_1.gltf",
      "at": [
       0.496,
       0.76,
@@ -106,7 +106,7 @@
      "yaw": 12.0
     },
     {
-     "model": "game/base/models/hub_kit/monitor_1.gltf",
+     "model": "models/hub_kit/monitor_1.gltf",
      "at": [
       -0.515,
       0.76,
@@ -115,7 +115,7 @@
      "yaw": -12.0
     },
     {
-     "model": "game/base/models/hub_kit/monitor_2.gltf",
+     "model": "models/hub_kit/monitor_2.gltf",
      "at": [
       1.0,
       0.76,
@@ -124,7 +124,7 @@
      "yaw": 24.0
     },
     {
-     "model": "game/base/models/hub_kit/monitor_3.gltf",
+     "model": "models/hub_kit/monitor_3.gltf",
      "at": [
       -1.0,
       0.76,
@@ -133,7 +133,7 @@
      "yaw": -24.0
     },
     {
-     "model": "game/base/models/hub_kit/keyboard_1.gltf",
+     "model": "models/hub_kit/keyboard_1.gltf",
      "at": [
       0.25,
       0.76,
@@ -142,7 +142,7 @@
      "yaw": 0.0
     },
     {
-     "model": "game/base/models/hub_kit/keyboard_1.gltf",
+     "model": "models/hub_kit/keyboard_1.gltf",
      "at": [
       -0.25,
       0.76,
@@ -151,7 +151,7 @@
      "yaw": 0.0
     },
     {
-     "model": "game/base/models/hub_kit/monitor_2_glow.gltf",
+     "model": "models/hub_kit/monitor_2_glow.gltf",
      "at": [
       1.0,
       0.76,
@@ -160,7 +160,7 @@
      "yaw": 24.0
     },
     {
-     "model": "game/base/models/hub_kit/monitor_3_glow.gltf",
+     "model": "models/hub_kit/monitor_3_glow.gltf",
      "at": [
       -1.0,
       0.76,
@@ -173,7 +173,7 @@
   },
   {
    "name": "screen_feed",
-   "model": "game/base/models/hub_kit/console_screen_1.gltf",
+   "model": "models/hub_kit/console_screen_1.gltf",
    "at": [
     -0.6752,
     0.085,
@@ -184,7 +184,7 @@
   },
   {
    "name": "screen_left",
-   "model": "game/base/models/hub_kit/console_screen_1.gltf",
+   "model": "models/hub_kit/console_screen_1.gltf",
    "at": [
     -0.2002,
     0.095,
@@ -195,7 +195,7 @@
   },
   {
    "name": "screen_right",
-   "model": "game/base/models/hub_kit/console_screen_1.gltf",
+   "model": "models/hub_kit/console_screen_1.gltf",
    "at": [
     -1.1449,
     0.085,
@@ -206,7 +206,7 @@
   },
   {
    "name": "chair",
-   "model": "game/base/models/hub_kit/chair_1.gltf",
+   "model": "models/hub_kit/chair_1.gltf",
    "at": [
     -0.291,
     -0.9,
@@ -217,7 +217,7 @@
   },
   {
    "name": "lab_bench",
-   "model": "game/base/models/hub_kit/labbench_1.gltf",
+   "model": "models/hub_kit/labbench_1.gltf",
    "at": [
     3.529,
     0.0,
@@ -226,7 +226,7 @@
    "yaw": 240.0,
    "children": [
     {
-     "model": "game/base/models/hub_kit/glovebox_1.gltf",
+     "model": "models/hub_kit/glovebox_1.gltf",
      "at": [
       -0.5,
       0.85,
@@ -235,7 +235,7 @@
      "yaw": 0.0
     },
     {
-     "model": "game/base/models/hub_kit/microscope_1.gltf",
+     "model": "models/hub_kit/microscope_1.gltf",
      "at": [
       0.6,
       0.85,
@@ -248,7 +248,7 @@
   },
   {
    "name": "comms_desk",
-   "model": "game/base/models/hub_kit/comms_1.gltf",
+   "model": "models/hub_kit/comms_1.gltf",
    "at": [
     -3.506,
     0.0,
@@ -257,7 +257,7 @@
    "yaw": -120.0,
    "children": [
     {
-     "model": "game/base/models/hub_kit/radio_1.gltf",
+     "model": "models/hub_kit/radio_1.gltf",
      "at": [
       0.21,
       0.76,
@@ -266,7 +266,7 @@
      "yaw": 0.0
     },
     {
-     "model": "game/base/models/hub_kit/radio_1.gltf",
+     "model": "models/hub_kit/radio_1.gltf",
      "at": [
       -0.26,
       0.76,
@@ -275,7 +275,7 @@
      "yaw": 0.0
     },
     {
-     "model": "game/base/models/hub_kit/telephone_1.gltf",
+     "model": "models/hub_kit/telephone_1.gltf",
      "at": [
       0.58,
       0.76,
@@ -284,7 +284,7 @@
      "yaw": -15.0
     },
     {
-     "model": "game/base/models/hub_kit/desklamp_1.gltf",
+     "model": "models/hub_kit/desklamp_1.gltf",
      "at": [
       -0.6,
       0.76,
@@ -293,7 +293,7 @@
      "yaw": 20.0
     },
     {
-     "model": "game/base/models/hub_kit/headset_1.gltf",
+     "model": "models/hub_kit/headset_1.gltf",
      "at": [
       -0.825,
       0.38,
@@ -306,7 +306,7 @@
   },
   {
    "name": "tool_board",
-   "model": "game/base/models/hub_kit/toolboard_1.gltf",
+   "model": "models/hub_kit/toolboard_1.gltf",
    "at": [
     2.371,
     0.783,
@@ -317,7 +317,7 @@
   },
   {
    "name": "tall_locker",
-   "model": "game/base/models/hub_kit/talllocker_1.gltf",
+   "model": "models/hub_kit/talllocker_1.gltf",
    "at": [
     2.325,
     0.0,
@@ -328,7 +328,7 @@
   },
   {
    "name": "rack_1",
-   "model": "game/base/models/hub_kit/rack_1.gltf",
+   "model": "models/hub_kit/rack_1.gltf",
    "at": [
     -3.166,
     0.0,
@@ -339,7 +339,7 @@
   },
   {
    "name": "rack_2",
-   "model": "game/base/models/hub_kit/rack_1.gltf",
+   "model": "models/hub_kit/rack_1.gltf",
    "at": [
     -3.516,
     0.0,

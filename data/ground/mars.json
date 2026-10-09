@@ -44,12 +44,12 @@
    0.03137255
   ],
   "scans": {
-   "wide_shade": "game/world/ground/scan_wide_shade.jpg",
-   "wide_bumps": "game/world/ground/scan_wide_bumps.jpg",
-   "close_shade": "game/world/ground/scan_close_shade.jpg",
-   "close_bumps": "game/world/ground/scan_close_bumps.jpg"
+   "wide_shade": "data/ground/scan_wide_shade.jpg",
+   "wide_bumps": "data/ground/scan_wide_bumps.jpg",
+   "close_shade": "data/ground/scan_close_shade.jpg",
+   "close_bumps": "data/ground/scan_close_bumps.jpg"
   },
-  "relief": "game/world/ground/mars_plan_relief.png",
+  "relief": "data/ground/mars_plan_relief.png",
   "pits_share": 0.0,
   "pebbles_share": 0.0,
   "texel": 0.02,

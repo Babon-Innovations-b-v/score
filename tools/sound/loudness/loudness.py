@@ -1,7 +1,7 @@
 """How loud a sound file is, and bringing one to a safe level: the picker's hard rule against blasts.
 
 The owner was blasted by loud takes while picking (2026-10-06), so nothing reaches the picking page or
-the game without passing through here:
+a world without passing through here:
 
 - **One loudness target a category** (integrated loudness, EBU R128 / ITU-R BS.1770, in LUFS): a room
   tone sits low, a hum a little higher, a short one-shot (a step, a clunk) highest, all at or under
@@ -16,7 +16,7 @@ integrated loudness has too little to gate on) is measured repeated to three sec
 loudness of the take itself played over and over: a step heard as steps.
 
     python3 tools/sound/loudness/loudness.py measure <file>...
-    python3 tools/sound/loudness/loudness.py manifest   # re-measure every game sound into its manifest
+    python3 tools/sound/loudness/loudness.py manifest   # re-measure every sound of the world into its manifest
 """
 import hashlib
 import json
@@ -27,8 +27,11 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-GAME_SOUND = REPO / "game" / "sound"
-MANIFEST = GAME_SOUND / "loudness" / "loudness.json"
+sys.path.insert(0, str(REPO / "tools" / "assets"))
+import world as world_assets  # noqa: E402
+
+## Every sound file's loudness, true peak and hash, by its name in the world's files.
+MANIFEST = REPO / "data" / "sound" / "loudness.json"
 AUDIO_ENDINGS = (".ogg", ".wav", ".mp3")
 
 ## The true-peak ceiling every file keeps under, in dBTP.
@@ -136,27 +139,28 @@ def sha256_of(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
-def game_files(folder=GAME_SOUND):
-    """Every audio file under the game's sound folder, as res:// paths against their local paths."""
+def world_files(world=None):
+    """Every audio file under the world's sound folder (the fetched release when not given), by its name there."""
+    world = pathlib.Path(world) if world else world_assets.root()
     found = {}
-    for path in sorted(folder.rglob("*")):
+    for path in sorted((world / "sound").rglob("*")):
         if path.suffix.lower() in AUDIO_ENDINGS:
-            found["res://" + path.relative_to(REPO).as_posix()] = path
+            found[path.relative_to(world).as_posix()] = path
     return found
 
 
 def manifest_for(files):
     """The loudness manifest for these files: each file's loudness, true peak and hash."""
     written = {}
-    for res_path, path in files.items():
-        written[res_path] = {**measure(path), "sha256": sha256_of(path)}
+    for name, path in files.items():
+        written[name] = {**measure(path), "sha256": sha256_of(path)}
     return written
 
 
 def write_manifest(path=MANIFEST):
-    """Re-measure every game sound into the manifest the game's own test reads."""
+    """Re-measure every sound of the world into the manifest (an engine's own loudness check reads it)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(manifest_for(game_files()), indent="\t") + "\n")
+    path.write_text(json.dumps(manifest_for(world_files()), indent="\t") + "\n")
     return path
 
 

@@ -369,14 +369,14 @@ def check_backdrop_render(folder):
              "from": 148.0, "span": 64.0, "segments": 8, "from_file": "far_city.py seed 3"}
     stage = Usd.Stage.CreateNew(str(folder / "backdrop.usda"))
     UsdGeom.Xform.Define(stage, f"/{PLACE}")
-    scene.write_backdrop(stage, PLACE, [entry], folder, None)
+    scene.write_backdrop(stage, PLACE, [entry], folder)
     assert (folder / "assets/textures/backdrop_seed-3_strips_shore_1.png").exists()
     prim = stage.GetPrimAtPath(f"/{PLACE}/Backdrop/shore_1")
     assert prim.GetAttribute("score:from").Get() == "far_city.py seed 3"
     points = np.asarray(UsdGeom.Mesh(prim).GetPointsAttr().Get())
     assert np.allclose(np.hypot(points[:, 0], points[:, 2]), 300.0, atol=1e-3)
     try:
-        scene.write_backdrop(stage, PLACE, [dict(entry, render="seed-4/strips/shore_1.png")], folder, None)
+        scene.write_backdrop(stage, PLACE, [dict(entry, render="seed-4/strips/shore_1.png")], folder)
     except FileNotFoundError:
         return
     raise AssertionError("a strip never drawn must not be laid")

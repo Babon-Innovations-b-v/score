@@ -38,8 +38,7 @@ SAMPLES = 300
 
 def raw_model(name, about, folder):
     """A made model's (or a kind's own) mesh as made, turned by its `base` but not fitted, or None."""
-    path = ((room.model_file(folder, name) if folder else None) or room.model_file(room.KIT_MODELS, name)
-            or room.model_file(room.GAME_MODELS / name, name))
+    path = room.model_file(folder, name) if folder else None
     if path is None:
         return None
     mesh = trimesh.load(path, force="mesh", skip_materials=True)

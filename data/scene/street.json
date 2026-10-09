@@ -272,7 +272,7 @@
  "objects": [
   {
    "name": "car",
-   "model": "game/prologue/earth_site/models/earth_state_car/earth_state_car.glb",
+   "model": "models/earth_state_car/earth_state_car.glb",
    "at": [
     10.0,
     0.0,

@@ -1,12 +1,12 @@
 """How a kit room's baked pictures are kept in the repo, and what a room may cost (modules batch one, 2026-10-07).
 
     python=~/.farm-factory-props/env/bin/python
-    $python tools/props/library/stored.py store game/base/models/hub_kit    # its pictures stored compressed
-    $python tools/props/library/stored.py budget game/base/models/hub_kit   # what it costs on disk and on the card
+    $python tools/props/library/stored.py store <a kit room's models folder>    # its pictures stored compressed
+    $python tools/props/library/stored.py budget <a kit room's models folder>   # what it costs on disk and on the card
 
 Hub round four put 487 MB of models on disk (414 MB of it PNG pictures, 323 MB of that the normal maps), and the
 repo is public: seven more rooms at that rate would be about 4 GB in git. The game never draws the stored file: Godot
-imports every picture to BC7 on the card (route.py `picture_imports`), so how it is stored only has to give Godot the
+imports every picture to BC7 on the card (its import settings, the game's adapter), so how it is stored only has to give Godot the
 same picture to compress. So a room's pictures are stored as WebP, each the way that keeps what the game draws:
 
 - colour (`_base_color`): lossy, quality COLOUR_QUALITY: about 7 times smaller than PNG, a mean error of about one

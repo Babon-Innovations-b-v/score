@@ -12,6 +12,10 @@ import library  # noqa: E402
 import sorter  # noqa: E402
 import stored  # noqa: E402
 
+sys.path.insert(0, str(library.REPO / "tools/assets"))
+import world as world_assets  # noqa: E402
+
+
 def test_every_variant_resolves_to_a_known_recipe_in_token_colours():
     found = library.library_specs()
     recipes = library.theme_library()["recipes"]
@@ -169,10 +173,16 @@ def test_every_kind_of_every_kit_room_gets_a_route():
 
 
 def test_a_room_s_baked_pictures_are_stored_as_webp_and_its_models_point_at_them():
-    """stored.py: no baked PNG left in a kit room's models folder, every glTF picture a WebP through
-    EXT_texture_webp (stored as PNG the hub's alone were 414 MB)."""
-    for folder in sorted((library.REPO / "game/base/models").glob("*_kit")):
-        assert not [path for path in (folder / "textures").glob("*.png") if stored.kind_of(path.name)], folder.name
+    """stored.py: no baked PNG left in a kit room's models folder of the world's release, every glTF picture a WebP
+    through EXT_texture_webp (stored as PNG the hub's alone were 414 MB). Read from the release when it is fetched;
+    its names are checked from the manifest either way."""
+    names = json.loads((library.REPO / "data/assets/world1.json").read_text())["files"]
+    kit_names = [name for name in names if name.startswith("models/") and name.split("/")[1].endswith("_kit")]
+    assert kit_names
+    assert not [name for name in kit_names if "/textures/" in name and name.endswith(".png")
+                and stored.kind_of(name.rsplit("/", 1)[1])]
+    local = world_assets.local_folder(world_assets.manifest())
+    for folder in sorted((local / "models").glob("*_kit")):
         for gltf in folder.glob("*.gltf"):
             found = json.loads(gltf.read_text())
             for image in found.get("images", []):

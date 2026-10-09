@@ -1,6 +1,6 @@
 """The sounds the game makes itself (#35): no recording, so no licence, and anyone can remake them.
 
-    bash tools/sound/run.sh                 # every sound, into game/sound/made/
+    bash tools/sound/run.sh                 # every sound, into sound/made/ in the world's files
     bash tools/sound/run.sh base_hum        # just these
     bash tools/sound/run.sh --out /tmp/x    # somewhere else, to listen before replacing
 
@@ -31,7 +31,11 @@ import sys
 
 RATE = 44100
 REPO = pathlib.Path(__file__).resolve().parents[2]
-OUT = REPO / "game" / "sound" / "made"
+sys.path.insert(0, str(REPO / "tools" / "assets"))
+import world as world_assets  # noqa: E402
+
+## The world's files (the local copy of its release, tools/assets/world.py): a remade sound is packed with the next.
+OUT = world_assets.local_folder(world_assets.manifest()) / "sound" / "made"
 SEED = 35  # the issue number; any fixed number would do
 
 

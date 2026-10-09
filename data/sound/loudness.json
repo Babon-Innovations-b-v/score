@@ -1,0 +1,607 @@
+{
+	"sound/generated/doors/airlock_air_hiss.ogg": {
+		"lufs": -20.3,
+		"true_peak": -8.0,
+		"sha256": "447782e4b1e7fc60f130f87318ca4f7843ad8677f1d8a41aa8be33fd0be75486"
+	},
+	"sound/generated/doors/airlock_hatch_seal_clunk.ogg": {
+		"lufs": -22.0,
+		"true_peak": -3.9,
+		"sha256": "32ffc1f3e035e4a51514e9f9fa18be5c42ba5883ad725e58e6f4a8dfa7476819"
+	},
+	"sound/generated/doors/airlock_pressure_equalise.ogg": {
+		"lufs": -20.4,
+		"true_peak": -8.8,
+		"sha256": "8a9db8cd2e3357d6c8772dd2fe6bf1eaa844144dacc8d7d5633a8be21b300ed6"
+	},
+	"sound/generated/doors/cockpit_switch.ogg": {
+		"lufs": -25.7,
+		"true_peak": -3.8,
+		"sha256": "367e03888989001559210b9b062274d013a1e407f4e20a89cee2662181270330"
+	},
+	"sound/generated/doors/desk_locked.ogg": {
+		"lufs": -24.8,
+		"true_peak": -7.5,
+		"sha256": "28be3c76f03b44599e5a1fbf50cf51ce75e3dd01497403502122813a9cd929dc"
+	},
+	"sound/generated/doors/ground_thud.ogg": {
+		"lufs": -21.4,
+		"true_peak": -3.7,
+		"sha256": "f5bb1f119b264ef99d49f0327f9089bde98e989ff2dfff9eca483d833b2026d4"
+	},
+	"sound/generated/doors/hatch_open.ogg": {
+		"lufs": -21.2,
+		"true_peak": -3.8,
+		"sha256": "81d7b6f167731de50657803d2236c52084730d162ddcda36d59cfb078271a8e4"
+	},
+	"sound/generated/doors/impact_grating.ogg": {
+		"lufs": -20.2,
+		"true_peak": -7.7,
+		"sha256": "78765c6e001d6fc632232cb2799870f932d23bb966f8e7970856c6c472195870"
+	},
+	"sound/generated/doors/impact_rubber.ogg": {
+		"lufs": -20.8,
+		"true_peak": -3.8,
+		"sha256": "04fcabb9afa601160dfb5df68a54ce9ac9000badd6be497d7dc87286835cd0af"
+	},
+	"sound/generated/doors/impact_steel_plate.ogg": {
+		"lufs": -20.0,
+		"true_peak": -8.0,
+		"sha256": "df77dcecd6f543dffff20a67972b089c5ab62bf78d741b520e5341bcd952c7a7"
+	},
+	"sound/generated/doors/landing_thud.ogg": {
+		"lufs": -25.6,
+		"true_peak": -3.7,
+		"sha256": "31cdb1195cf13af5636e0521a8dd1c500222e1a0564336a66bc0998838db0c82"
+	},
+	"sound/generated/doors/lift_start.ogg": {
+		"lufs": -20.1,
+		"true_peak": -5.5,
+		"sha256": "368f6694c864d9d430df9ecaa0198f4bc0a02933fb885bfd15c6e2f74630a286"
+	},
+	"sound/generated/doors/lift_stop.ogg": {
+		"lufs": -20.1,
+		"true_peak": -4.1,
+		"sha256": "21cc09ff610ddb68edf8d1d0c40286b1d486a84d3ee69a8a61a29794988fa377"
+	},
+	"sound/generated/doors/radio_beep.ogg": {
+		"lufs": -20.1,
+		"true_peak": -14.3,
+		"sha256": "65aa683d6a6a343d00f5f35f3b648388f6de7a1f93bf59c77f12518713d2849a"
+	},
+	"sound/generated/doors/radio_click_in.ogg": {
+		"lufs": -23.3,
+		"true_peak": -4.2,
+		"sha256": "4f9fbb580e32be2f9536754587676069de2785807ce581872e024dbcd3c26bfd"
+	},
+	"sound/generated/doors/radio_click_out.ogg": {
+		"lufs": -22.8,
+		"true_peak": -7.6,
+		"sha256": "4603c0269c5059a40dbc9bb274683c6b27e3a5a261dee1da67e12f51453b04e0"
+	},
+	"sound/generated/doors/radio_squelch.ogg": {
+		"lufs": -20.4,
+		"true_peak": -3.6,
+		"sha256": "55b8e6163c07c48dfaf51822f756327a6e8ac527fc49c671cb2b52266dd127b4"
+	},
+	"sound/generated/doors/robot_planting.ogg": {
+		"lufs": -20.8,
+		"true_peak": -3.9,
+		"sha256": "a53bf622f8c078b87e75aa16de85d25c70eccc60b3f5b19cdcef5b7ae5099ab8"
+	},
+	"sound/generated/doors/rocket_hull_roar.ogg": {
+		"lufs": -20.0,
+		"true_peak": -13.0,
+		"sha256": "7dc4b9af418ae1dfc31b6ee6581c3d7278790cf3826a71120dee816a4a4315e2"
+	},
+	"sound/generated/doors/rocket_launch.ogg": {
+		"lufs": -20.0,
+		"true_peak": -10.2,
+		"sha256": "6a317bbaf1ef3729403e5b3349be022be76575a9059c04d9ae3c9edf6d990a6c"
+	},
+	"sound/generated/doors/rocket_touchdown.ogg": {
+		"lufs": -20.0,
+		"true_peak": -8.7,
+		"sha256": "552586f81ff2ffcb19ff6744e74cbb6a7affa26bc777429c821c82060c438b2a"
+	},
+	"sound/generated/doors/scrape_grating.ogg": {
+		"lufs": -20.3,
+		"true_peak": -8.3,
+		"sha256": "ea1e7c684a10da9dcd21c544d92ced5cc865a1a2e75aaaa926dcc31c1eab4b8a"
+	},
+	"sound/generated/doors/scrape_rubber.ogg": {
+		"lufs": -20.0,
+		"true_peak": -3.9,
+		"sha256": "25b6e08d62985dd544a3c4b53b56a8874ffc88acd0111d5ec143ab795aaad585"
+	},
+	"sound/generated/doors/scrape_steel_plate.ogg": {
+		"lufs": -20.3,
+		"true_peak": -9.3,
+		"sha256": "2c4928bc720bba11d04c24aa67ff60732b74a7b50535ab5654b312a4c34b1495"
+	},
+	"sound/generated/footsteps/footstep_grating_1.ogg": {
+		"lufs": -21.2,
+		"true_peak": -3.7,
+		"sha256": "1327870cca183a3ee1306e9adf27c4800c4cda9be2150bae9fa00040b63f24e9"
+	},
+	"sound/generated/footsteps/footstep_grating_2.ogg": {
+		"lufs": -20.2,
+		"true_peak": -3.7,
+		"sha256": "eb8a004b3b2cff88593dd82ca602276ea73844447591f5bb7b2166951b82f5ec"
+	},
+	"sound/generated/footsteps/footstep_grating_3.ogg": {
+		"lufs": -21.8,
+		"true_peak": -3.7,
+		"sha256": "3f103c38bb95d6a3ddcfa28304017359584c45a4d39c980b96845e12b414be0b"
+	},
+	"sound/generated/footsteps/footstep_grating_4.ogg": {
+		"lufs": -20.2,
+		"true_peak": -4.0,
+		"sha256": "f9015b3cdedf00577458daa39d114dd59a5b85a78c716d803b96232d3a37801b"
+	},
+	"sound/generated/footsteps/footstep_grating_5.ogg": {
+		"lufs": -20.2,
+		"true_peak": -3.7,
+		"sha256": "f9130611f1b4480fe629af6979e52ce3efac0c97f82a7a27e3fd36e0e669258c"
+	},
+	"sound/generated/footsteps/footstep_grating_6.ogg": {
+		"lufs": -20.5,
+		"true_peak": -3.9,
+		"sha256": "d3fdd8a3a24c174ffc4230029931cf33c7bfe36893b03672b43df07fc6870e95"
+	},
+	"sound/generated/footsteps/footstep_grating_7.ogg": {
+		"lufs": -20.4,
+		"true_peak": -3.9,
+		"sha256": "e119fd17f829e477983f50928669f08dc3f55ab8084f1455af614c6e4909f077"
+	},
+	"sound/generated/footsteps/footstep_grating_8.ogg": {
+		"lufs": -20.0,
+		"true_peak": -3.8,
+		"sha256": "8b30754be06b785cf45c7ec8eb00b310a5b9cbf7457f223cc01699755a7cffb2"
+	},
+	"sound/generated/footsteps/footstep_rubber_1.ogg": {
+		"lufs": -24.2,
+		"true_peak": -3.6,
+		"sha256": "8a07aa849ff406a90b30f4922e309adde151217d354c943006dcd89e137cdf0b"
+	},
+	"sound/generated/footsteps/footstep_rubber_2.ogg": {
+		"lufs": -20.3,
+		"true_peak": -4.3,
+		"sha256": "b6de08698f9d8f5006c8a685da131b57b7fbc3840af397a446d5ed23a873ab1a"
+	},
+	"sound/generated/footsteps/footstep_rubber_3.ogg": {
+		"lufs": -22.0,
+		"true_peak": -3.7,
+		"sha256": "0ed45065c0b9d7235110db7a48ee7f06e8135cbb85c89787e89656df5b6a5224"
+	},
+	"sound/generated/footsteps/footstep_rubber_4.ogg": {
+		"lufs": -19.7,
+		"true_peak": -3.7,
+		"sha256": "02c58456b915b3581136b4a5cab1df4ab6927bdd795f9266e2c9ed980f6f7bd9"
+	},
+	"sound/generated/footsteps/footstep_rubber_5.ogg": {
+		"lufs": -24.2,
+		"true_peak": -3.7,
+		"sha256": "76d0dd9b716d855dccedd9453549c0f3b410171a092ddc36a0f1f35efa00dd5f"
+	},
+	"sound/generated/footsteps/footstep_rubber_6.ogg": {
+		"lufs": -22.0,
+		"true_peak": -3.7,
+		"sha256": "87dccbf22fce373dab1dd800777be3fc1bb8d383979df1edc16102c2f26f27b1"
+	},
+	"sound/generated/footsteps/footstep_rubber_7.ogg": {
+		"lufs": -23.3,
+		"true_peak": -3.7,
+		"sha256": "941bb4a837bd707e7601466dc93dc6ffa299d1dd40ee8e7906d49c2a489c9864"
+	},
+	"sound/generated/footsteps/footstep_rubber_8.ogg": {
+		"lufs": -20.9,
+		"true_peak": -3.7,
+		"sha256": "94338899dabb9fbe121dfdd22db9d57a50b37b0070121995277c033112d59af9"
+	},
+	"sound/generated/machines/airlock_pump_down.wav": {
+		"lufs": -24.0,
+		"true_peak": -13.4,
+		"sha256": "94df5192899e77ce331cc49d25bf8c04493f6ed9a0b4722ae989b645b4f8a20d"
+	},
+	"sound/generated/machines/bench_tool.wav": {
+		"lufs": -24.0,
+		"true_peak": -7.2,
+		"sha256": "8d1b1793c399663bec2b6a1f2e8124fe6aebc68214979a635ff220ae5ca8c88d"
+	},
+	"sound/generated/machines/console_hum.wav": {
+		"lufs": -24.0,
+		"true_peak": -5.5,
+		"sha256": "210644e70550677d35a466c122e6f3349fd004ba3724c662dce04e726511d23b"
+	},
+	"sound/generated/machines/digger.wav": {
+		"lufs": -24.0,
+		"true_peak": -11.7,
+		"sha256": "ceb79da3460aef8ded8777aa78ac9484c82bdf3a3e0fbb27a61ac6ed2b65e1f6"
+	},
+	"sound/generated/machines/drone_hover.wav": {
+		"lufs": -24.0,
+		"true_peak": -13.0,
+		"sha256": "3c48210b57c08214567b2609fb92003ee9a81e7fd524d5060863e732985c19b0"
+	},
+	"sound/generated/machines/drone_thrust_burst.wav": {
+		"lufs": -24.0,
+		"true_peak": -11.2,
+		"sha256": "b206b0d02dde408c85cd752542e5e1810421d24b4586aca76e911b219ca526ce"
+	},
+	"sound/generated/machines/footsteps_boots_gravel.wav": {
+		"lufs": -24.7,
+		"true_peak": -3.8,
+		"sha256": "fc58fc8a7a926f39f3c197742f4054962dc7e24c892c01f2f494043b48da9372"
+	},
+	"sound/generated/machines/geiger_ticks.wav": {
+		"lufs": -27.4,
+		"true_peak": -3.8,
+		"sha256": "569396eb0d7e377d6b02daa3e90c87440040096aaee8fe5c278885bf4dac4b0d"
+	},
+	"sound/generated/machines/glovebox_hum.wav": {
+		"lufs": -24.0,
+		"true_peak": -11.6,
+		"sha256": "cc030532408283b97eaeb6f6cddd6d632548d4c0924e5342fde52bace38d05ac"
+	},
+	"sound/generated/machines/junction_hum.wav": {
+		"lufs": -24.0,
+		"true_peak": -11.7,
+		"sha256": "2fa473bf1541526513cf439003cad61d2e9a2973d80c2b12e1903709d69ea7ec"
+	},
+	"sound/generated/machines/lamp_buzz.wav": {
+		"lufs": -24.0,
+		"true_peak": -8.1,
+		"sha256": "c3603791bb8e6e70f3fdd133fbc4e69a5ca54c797288749a8df2b8bdaca4234d"
+	},
+	"sound/generated/machines/lift_travel.wav": {
+		"lufs": -24.0,
+		"true_peak": -10.4,
+		"sha256": "cc1db122bc1d4ce11613de8c80102f9d3ab4bbe2f18ece6bd3f5f9c3e7ce9552"
+	},
+	"sound/generated/machines/robot_servo.wav": {
+		"lufs": -24.0,
+		"true_peak": -11.9,
+		"sha256": "e4b3167fbea3dfe373f707c180ac184d8f2fce629c6b0c8760f0abc0e561a2e7"
+	},
+	"sound/generated/machines/rocket_landing_rumble.wav": {
+		"lufs": -24.0,
+		"true_peak": -19.2,
+		"sha256": "992ffa51a19e899cef81142c11b3a7d923bc1282a1ad4c6e06e736a12472fe43"
+	},
+	"sound/generated/machines/rover_motor.wav": {
+		"lufs": -24.0,
+		"true_peak": -10.6,
+		"sha256": "1c78a80173bd6f0543b06964452c15ac563621fbf22f29e90d4298b13c62c3cd"
+	},
+	"sound/generated/machines/rover_wheels_gravel.wav": {
+		"lufs": -24.7,
+		"true_peak": -3.8,
+		"sha256": "dd0399391857c7e3d5c29e0766230b1428b7225b7b706fdd51eafd516d004e8f"
+	},
+	"sound/generated/machines/suit_fans.wav": {
+		"lufs": -24.0,
+		"true_peak": -10.1,
+		"sha256": "7bd7f06339f5115360552de6062773b0321380ca13c8180d3f882a0699c96d5b"
+	},
+	"sound/generated/machines/vent_air.wav": {
+		"lufs": -24.0,
+		"true_peak": -9.9,
+		"sha256": "d8e31e6742ea6eabbb0087fd1b8912cbd5ad1c6ceefdc0d94b8789568652bbe3"
+	},
+	"sound/generated/places/base_hum.wav": {
+		"lufs": -26.0,
+		"true_peak": -15.7,
+		"sha256": "2cdeab7507fd3baf96c1616b84fe1b843b565d9eed15e4ad21e092cd87c0e20c"
+	},
+	"sound/generated/places/earth_flat.wav": {
+		"lufs": -26.0,
+		"true_peak": -14.6,
+		"sha256": "a3dad7afb24030eb16ce5b63e7f4894e81cfefa480202b1bbe7c0e4a4bf24df9"
+	},
+	"sound/generated/places/garage.wav": {
+		"lufs": -26.0,
+		"true_peak": -12.6,
+		"sha256": "fae7a7ffd07547ee22f868774bdf24b177e10496783805cac9b4931e2c1b6e40"
+	},
+	"sound/generated/places/greenhouse.wav": {
+		"lufs": -26.0,
+		"true_peak": -14.6,
+		"sha256": "9e4af393a591e58a5cdf21e416f7c926a9695f1ccb4da1163ad1ba55b111bdde"
+	},
+	"sound/generated/places/habitat.wav": {
+		"lufs": -26.0,
+		"true_peak": -14.2,
+		"sha256": "d86dc718664420e27f5e9ad7a5148a6bffe32374431e4762b5cdf2ca1044465b"
+	},
+	"sound/generated/places/link_tube.wav": {
+		"lufs": -26.0,
+		"true_peak": -13.7,
+		"sha256": "7cc05881579a6739104c4731d52b0e9ff2a29d4e9d8f0d9422746e3c32ce04ea"
+	},
+	"sound/generated/places/mars_dust_storm_wind.wav": {
+		"lufs": -26.0,
+		"true_peak": -17.1,
+		"sha256": "e7340604d36fb53064c49ed28a7a984b4768acaee8e124f9c79af570ee07cb97"
+	},
+	"sound/generated/places/mars_wind.wav": {
+		"lufs": -26.0,
+		"true_peak": -12.3,
+		"sha256": "7078895fade8d271679ba8d236de30927fd8d994cb2c391f37fa2f35402931ab"
+	},
+	"sound/generated/places/prologue_crowd.wav": {
+		"lufs": -26.0,
+		"true_peak": -14.4,
+		"sha256": "f93c97744b14de3e74709c3d4335025a2de37782b9216c81cd2db1ad3e3a5a23"
+	},
+	"sound/generated/places/ship_inside.wav": {
+		"lufs": -26.0,
+		"true_peak": -15.8,
+		"sha256": "dafeb2a807e2cc97623bc9dfb1427ee91802bd05c68cb0f131897e2f2d5af8f5"
+	},
+	"sound/generated/places/workshop.wav": {
+		"lufs": -26.0,
+		"true_peak": -14.1,
+		"sha256": "046e48f5152edd679ed9555dc7920be8826a64f2c621b675b9268e9c197f2706"
+	},
+	"sound/made/base_hum.wav": {
+		"lufs": -24.6,
+		"true_peak": -12.0,
+		"sha256": "77cef3976f505e7e58c9e62cd4e1e527536772af02d719e764ce9faf787ec7a3"
+	},
+	"sound/made/geiger_ticks.wav": {
+		"lufs": -34.4,
+		"true_peak": -5.1,
+		"sha256": "c203137182e9b5bc10267c7242ec3f34d5cf3b63efaa768393b266e0d43cfe4c"
+	},
+	"sound/made/oxygen_low.wav": {
+		"lufs": -40.3,
+		"true_peak": -30.0,
+		"sha256": "d4569f19a6c76f8674386a2ee5275543e63cb0445e4e223fe78820ed85536b19"
+	},
+	"sound/made/radio_squelch.wav": {
+		"lufs": -29.3,
+		"true_peak": -9.0,
+		"sha256": "48260b21b067930b82992b990d35b30453f8bc9b9e1270eeeba0624cfa657743"
+	},
+	"sound/made/warning_tone.wav": {
+		"lufs": -38.5,
+		"true_peak": -27.0,
+		"sha256": "b82ee215d62613b6a88b8a082a4b4c783363e8d0a7a073da8572fd0a807e9d53"
+	},
+	"sound/recordings/doors/airlock_air_hiss.ogg": {
+		"lufs": -19.6,
+		"true_peak": -5.1,
+		"sha256": "6fa04c271eefc90c9b2619cb5a6352f0ca8d77fbcdc024d869db7e7f76781599"
+	},
+	"sound/recordings/doors/airlock_hatch_seal_clunk.ogg": {
+		"lufs": -16.4,
+		"true_peak": 0.1,
+		"sha256": "a746b562a6b0ff1a4c18f19b7ad4266a65a4c6ab846659a110c527d2c8f61bb1"
+	},
+	"sound/recordings/doors/airlock_pressure_equalise.ogg": {
+		"lufs": -13.0,
+		"true_peak": -0.5,
+		"sha256": "b4048a6c908bf4defaa9a98ec7ac08a46ee3a574dabc27f618cfba10ca684e72"
+	},
+	"sound/recordings/doors/airlock_pump_down.ogg": {
+		"lufs": -28.6,
+		"true_peak": -15.3,
+		"sha256": "9aed060534bf8dc749a7e3de733c77e5e308d85ad608012972d298b49a894e8a"
+	},
+	"sound/recordings/doors/door_slide_close.ogg": {
+		"lufs": -27.6,
+		"true_peak": -6.1,
+		"sha256": "3fdf3b1aa59a718885507cfa40009696fbbe26a0040c1f91448065f6b8fd56ee"
+	},
+	"sound/recordings/doors/door_slide_open.ogg": {
+		"lufs": -25.0,
+		"true_peak": -9.9,
+		"sha256": "0fc3f2d18abdac18272b172bb6c118714be5e167b061165715f53268cf35a524"
+	},
+	"sound/recordings/doors/hatch_open.ogg": {
+		"lufs": -19.2,
+		"true_peak": -5.8,
+		"sha256": "66859a765e2728eb328300672a10a71e4467f029e0fd91cf12a885b0f4033569"
+	},
+	"sound/recordings/doors/lift_start.ogg": {
+		"lufs": -19.4,
+		"true_peak": -4.3,
+		"sha256": "61fa1d5ff8a041d96265020fe0efe319297be38f0fd5d566f093a28dbe27df23"
+	},
+	"sound/recordings/doors/lift_stop.ogg": {
+		"lufs": -16.2,
+		"true_peak": -3.3,
+		"sha256": "5f3fbc094eb539107c0026c3278dc757c0b8eb9fe6acc4b6cb302dec30e4df9d"
+	},
+	"sound/recordings/doors/lift_travel.ogg": {
+		"lufs": -36.2,
+		"true_peak": -19.3,
+		"sha256": "3db3239fa2580c1d6b4117a2de406b0449bba61c2ffbab20dda414fddee636ab"
+	},
+	"sound/recordings/footsteps/footsteps_boots_gravel.ogg": {
+		"lufs": -35.7,
+		"true_peak": -4.3,
+		"sha256": "c12f3c790ad2dc70c4a99a16f64dc78b3352d8f546714f0a9e5d4a6a825bb1c3"
+	},
+	"sound/recordings/footsteps/footsteps_metal_1.ogg": {
+		"lufs": -33.3,
+		"true_peak": -10.7,
+		"sha256": "80ecb925455469a7a2b715b9a4ad148108708f31d148ddc63944f2c97388a760"
+	},
+	"sound/recordings/footsteps/footsteps_metal_2.ogg": {
+		"lufs": -32.6,
+		"true_peak": -10.7,
+		"sha256": "01a2ed49b36f8115d2225a25b6e65cbe1cb716c98146a3746406b038e09cf30c"
+	},
+	"sound/recordings/footsteps/footsteps_metal_3.ogg": {
+		"lufs": -33.5,
+		"true_peak": -10.9,
+		"sha256": "aa0fbbed8cf39c6893e355a5477a69280ed1e475ee93bd38df123d5fa8419eeb"
+	},
+	"sound/recordings/footsteps/footsteps_metal_4.ogg": {
+		"lufs": -32.8,
+		"true_peak": -11.9,
+		"sha256": "66f4f185bc47ef060b35ecf9d177caf83cbcd0cdfd07162d2c13e37f0183830f"
+	},
+	"sound/recordings/footsteps/footsteps_metal_5.ogg": {
+		"lufs": -32.3,
+		"true_peak": -10.8,
+		"sha256": "f1c5e3535dcc2ebf04ad53f142dba74ec731e597d157d1d1d92cda77458ec2cb"
+	},
+	"sound/recordings/footsteps/footsteps_metal_6.ogg": {
+		"lufs": -32.9,
+		"true_peak": -14.0,
+		"sha256": "8bdf60ca2de804fff92ddc66198c1f26ca9b091219dfbb148546b56d82aba25c"
+	},
+	"sound/recordings/footsteps/footsteps_metal_7.ogg": {
+		"lufs": -32.3,
+		"true_peak": -15.6,
+		"sha256": "a43eeb0dd83484527370bd925d1809ae9dfc3ad19da78d1bf863363c0ff5cadc"
+	},
+	"sound/recordings/footsteps/footsteps_metal_8.ogg": {
+		"lufs": -33.4,
+		"true_peak": -12.0,
+		"sha256": "2b64e67998792df3c657a1f37c0381775d7fb15d5fd3bc1d9793c892184cc28f"
+	},
+	"sound/recordings/machines/bench_tool.ogg": {
+		"lufs": -37.7,
+		"true_peak": -10.3,
+		"sha256": "d7740a6b0a84c071a313b18d216ef0ce2e82d0bb5cc27a1f10b49260d29a63e2"
+	},
+	"sound/recordings/machines/digger.ogg": {
+		"lufs": -30.3,
+		"true_peak": -7.7,
+		"sha256": "4a375439594c0ae5a0bfcc1dc319dac1edb6bd1e921fc1fe4462ce14c02e19b7"
+	},
+	"sound/recordings/machines/robot_planting.ogg": {
+		"lufs": -36.7,
+		"true_peak": -6.7,
+		"sha256": "310c73ff7e9a6e8e99152990da39153ae486cb3e97d8003f188a78359e9fe25e"
+	},
+	"sound/recordings/machines/robot_servo.ogg": {
+		"lufs": -33.0,
+		"true_peak": -13.2,
+		"sha256": "8659e43e58b7af62e9270c5b141945d25bde8324c2f62fe4c1a6b4382cdbf3be"
+	},
+	"sound/recordings/places/earth_flat.ogg": {
+		"lufs": -40.9,
+		"true_peak": -22.8,
+		"sha256": "69f9764ab6953b10fce59209042c772bbdba9d4e19ac648ea02501983fc26bb0"
+	},
+	"sound/recordings/places/garage.ogg": {
+		"lufs": -36.9,
+		"true_peak": -24.9,
+		"sha256": "af0f3993e4cc6eafa66f571f274fe1b2e12917f6086f9bf822f7522fa4d5d763"
+	},
+	"sound/recordings/places/greenhouse.ogg": {
+		"lufs": -57.3,
+		"true_peak": -44.7,
+		"sha256": "bac2360b24691375dcd67b975e9ed066468e41bccd18d768d0dee16228143d60"
+	},
+	"sound/recordings/places/habitat.ogg": {
+		"lufs": -45.4,
+		"true_peak": -33.0,
+		"sha256": "c4b82a6a1c068ff851366493cc16e40abc72d56dcc11458ec7ca2a5137bd5274"
+	},
+	"sound/recordings/places/link_tube.ogg": {
+		"lufs": -27.1,
+		"true_peak": -10.7,
+		"sha256": "48279ab595ba8f250fc245f0b035b60917074480ab4519b8ca22bc174e15ffca"
+	},
+	"sound/recordings/places/mars_dust_storm_wind.ogg": {
+		"lufs": -15.0,
+		"true_peak": -1.5,
+		"sha256": "75073247edfaed437882e2ae1beef689179ec03032de60bde3468e2d45abedff"
+	},
+	"sound/recordings/places/mars_wind.ogg": {
+		"lufs": -21.7,
+		"true_peak": -3.7,
+		"sha256": "56af1e9660ea3da2931559af4c6847495634187e7150ba8dc0c798ba0aa82dd9"
+	},
+	"sound/recordings/places/prologue_crowd.ogg": {
+		"lufs": -21.7,
+		"true_peak": -9.2,
+		"sha256": "515e49907c1d01679e1c8f15d29fcecf3105cb58c7f85f06379038a0f217635f"
+	},
+	"sound/recordings/places/ship_inside.ogg": {
+		"lufs": -15.9,
+		"true_peak": -2.3,
+		"sha256": "39e2fe2262175cb1661e61175c7c3e532bfdd2249d13d2dbd1b569082923e107"
+	},
+	"sound/recordings/places/workshop.ogg": {
+		"lufs": -35.9,
+		"true_peak": -19.3,
+		"sha256": "59b5728fc7f976fa3628f44ff882cf6fe5a398f8bac86f81bf32ebd81c6d3284"
+	},
+	"sound/recordings/radio/radio_beep.ogg": {
+		"lufs": -10.3,
+		"true_peak": -1.4,
+		"sha256": "41d4c90082bb2f7b6e6fd990344a10e884848758a18cb913af78945ade46f76e"
+	},
+	"sound/recordings/radio/radio_click.ogg": {
+		"lufs": -25.0,
+		"true_peak": -6.3,
+		"sha256": "aba8833c85db2b69accadda0de15248a1909bdd9fdfbcec81a9073acae46c903"
+	},
+	"sound/recordings/suit/suit_breathing_calm.ogg": {
+		"lufs": -30.3,
+		"true_peak": -12.1,
+		"sha256": "77cd7323c2449ebc91d912991454ddbbcf6b077240e745fa819fee8794aa9619"
+	},
+	"sound/recordings/suit/suit_breathing_fast.ogg": {
+		"lufs": -30.1,
+		"true_peak": -12.0,
+		"sha256": "336f245d949779ba8fa5a453bd52ff7935fd18844ff382608d93c088d64118c1"
+	},
+	"sound/recordings/suit/suit_fans.ogg": {
+		"lufs": -38.9,
+		"true_peak": -27.2,
+		"sha256": "bcfc476d525df5f383b1d8e40af4583ba2ef61958ab190ce9be6534192142422"
+	},
+	"sound/recordings/vehicles/drone_hover.ogg": {
+		"lufs": -27.3,
+		"true_peak": -14.0,
+		"sha256": "b1145708c55d4dcb5a1c660f9fe0d0bbad9e2d67e5289592fae4b472073e5aea"
+	},
+	"sound/recordings/vehicles/drone_thrust_burst.ogg": {
+		"lufs": -19.8,
+		"true_peak": -0.1,
+		"sha256": "2b7d10e0781d8b8c6f0a5cfb8549e224177804469a6456685dc4d933f4452c10"
+	},
+	"sound/recordings/vehicles/ground_thud.ogg": {
+		"lufs": -21.4,
+		"true_peak": -0.5,
+		"sha256": "26f41139f9992e1a5e1209e07ff88e0d0fefed1d83b3f0710a3911f1ce488319"
+	},
+	"sound/recordings/vehicles/rocket_hull_roar.ogg": {
+		"lufs": -20.4,
+		"true_peak": -6.4,
+		"sha256": "5483d924eb7868c53d67a2fadb2e279e11a19f0e409684d48e17a2a3a469b76f"
+	},
+	"sound/recordings/vehicles/rocket_landing_rumble.ogg": {
+		"lufs": -23.2,
+		"true_peak": -8.6,
+		"sha256": "464427754d65620b03312466e56a7046bb8374d7e2568c8d55d8871598ef9cca"
+	},
+	"sound/recordings/vehicles/rocket_launch.ogg": {
+		"lufs": -16.9,
+		"true_peak": -2.8,
+		"sha256": "5b1d439e024be667e3d51f2d59194d9f4f7dd0542fd288431c96199d2f69d934"
+	},
+	"sound/recordings/vehicles/rocket_touchdown.ogg": {
+		"lufs": -23.6,
+		"true_peak": -3.3,
+		"sha256": "f196d45c46fc2e70faf26cec24794a46ddb6fd1a0dc8e6cd44c5d70570dd7ee6"
+	},
+	"sound/recordings/vehicles/rover_motor.ogg": {
+		"lufs": -32.6,
+		"true_peak": -17.9,
+		"sha256": "2d7df82e8dd1b47dbe1eb8be1478107a8e8f9ebfcbe431280342cd276bd18803"
+	},
+	"sound/recordings/vehicles/rover_wheels_gravel.ogg": {
+		"lufs": -25.1,
+		"true_peak": -4.1,
+		"sha256": "a824fb893c15d45b07bad1181d6df29e0b7cfe594e0f961d5a5c6fec6a5d1959"
+	}
+}

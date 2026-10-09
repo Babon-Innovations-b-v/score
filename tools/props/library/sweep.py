@@ -2,7 +2,7 @@
 library surfaces, so no piece brings a colour, a wear or a value of its own ("inconsistent with the rest of the
 room", the owner on round four, whose pieces each carried their picture's rust and stains).
 
-    ~/.farm-factory-props/env/bin/python tools/props/library/sweep.py <room>        # e.g. hub; writes nothing
+    ~/.farm-factory-props/env/bin/python tools/props/library/sweep.py <room> <its models folder>   # e.g. hub; writes nothing
 
 Per model, the colour picture's texels under its own UV islands (a shared set holds many pieces) are compared with
 the room's palette: every colour a library variant the room takes can bake to (its token, its bare metal, its second
@@ -144,12 +144,12 @@ def sweep(place, folder, layout):
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 3:
         raise SystemExit(__doc__)
-    room = sys.argv[1]
+    room, folder = sys.argv[1], pathlib.Path(sys.argv[2])
     layout = json.loads((library.REPO / f"data/kit/{room}.json").read_text())
     # A room's palette is its place's (place.json): the room's own name unless the layout names its place.
-    report = sweep(layout.get("place", room), library.REPO / f"game/base/models/{room}_kit", layout)
+    report = sweep(layout.get("place", room), folder, layout)
     for name, entry in sorted(report.items(), key=lambda item: item[1]["on_palette"]):
         print(f"{name:32} {entry['route'] or '-':6} on palette {entry['on_palette']:.2f}  L* {entry['lightness']}  "
               f"blotchy {entry['blotchy']}  "

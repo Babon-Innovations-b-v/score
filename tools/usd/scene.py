@@ -49,6 +49,7 @@ engine that reads them back.
 import json
 import math
 import pathlib
+import sys
 
 import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
@@ -60,6 +61,8 @@ import ground_detail
 import rocks
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "tools/assets"))
+import world as world_assets  # noqa: E402
 SCENES = REPO / "data/scene"
 # A game directional light of energy 1 as a sun in W/m^2: a white surface it faces then reads about as bright as in
 # the game (the game draws diffuse light without the 1/pi a physical renderer divides by).
@@ -103,13 +106,9 @@ def colour(value):
 
 
 def world_file(world, name):
-    """A file of the world's own assets (the game's tree), named relative to it."""
-    if world is None:
-        raise SystemExit(f"the scene record names the world's file {name}: give the world's folder (--world)")
-    found = pathlib.Path(world) / name
-    if not found.exists():
-        raise FileNotFoundError(found)
-    return found
+    """A file a record names: kept in git (`data/...`), else in the world's release (tools/assets/world.py), in the
+    folder `world` when given (a test's own), else in the fetched release."""
+    return world_assets.resolve(name, world)
 
 
 def mesh_prim(stage, path, built):
@@ -273,7 +272,7 @@ def write_rocks(stage, place, entry, out, world, ground):
     model (the world's own file, converted once), an instance per rock where and how the game lays it."""
     if not entry or ground is None:
         return
-    laid = rocks.laid_rocks(entry, world_file(world, "."), ground)
+    laid = rocks.laid_rocks(entry, world, ground)
     instancer = UsdGeom.PointInstancer.Define(stage, f"/{place}/Rocks")
     models = sorted({rock["model"] for rock in laid})
     boxes = {}
@@ -318,18 +317,15 @@ def backdrop_material(stage, path, picture_file, threshold=0.5):
     return material
 
 
-def backdrop_picture(entry, world, textures):
+def backdrop_picture(entry, textures):
     """An arc's picture and where the stage keeps its copy: the framework's own render of the far city (`render`, a
-    strip far_city.py drew), else a file of the world's (`picture`)."""
-    if "render" in entry:
-        source = far_city.strip_file(entry["render"])
-        return source, textures / ("backdrop_" + "_".join(pathlib.PurePosixPath(entry["render"]).with_suffix("").parts)
-                                   + ".png")
-    source = world_file(world, entry["picture"])
-    return source, textures / f"backdrop_{source.stem}.png"
+    strip far_city.py drew). Pictures of real places are never a backdrop (the owner, 2026-10-09)."""
+    source = far_city.strip_file(entry["render"])
+    return source, textures / ("backdrop_" + "_".join(pathlib.PurePosixPath(entry["render"]).with_suffix("").parts)
+                               + ".png")
 
 
-def write_backdrop(stage, place, entries, out, world):
+def write_backdrop(stage, place, entries, out):
     """Panorama arcs round the place: each a part of a ring (`radius`, `low`..`high`) from bearing `from` over `span`
     degrees, clockwise seen from above from north (-z), its picture once across it."""
     if not entries:
@@ -338,7 +334,7 @@ def write_backdrop(stage, place, entries, out, world):
     textures = out / "assets/textures"
     textures.mkdir(parents=True, exist_ok=True)
     for entry in entries:
-        source, target = backdrop_picture(entry, world, textures)
+        source, target = backdrop_picture(entry, textures)
         if not target.exists() or target.stat().st_mtime < source.stat().st_mtime:
             target.write_bytes(source.read_bytes())
         arc = builders.cylinder_wall(float(entry["radius"]), float(entry["low"]), float(entry["high"]), "backdrop",
@@ -845,7 +841,7 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
     write_structure(stage, place, scene.get("water", []), root="Water", kind="water")
     write_objects(stage, place, scene.get("objects", []), out, world)
     write_rocks(stage, place, scene.get("planned_rocks"), out, world, ground)
-    write_backdrop(stage, place, scene.get("backdrop", []), out, world)
+    write_backdrop(stage, place, scene.get("backdrop", []), out)
     write_places(stage, place, scene.get("places", []))
     write_moon(stage, place, scene.get("moon"), out)
     lights = (kit_lights(kit, pieces) if kit is not None and scene.get("kit_lights", True) else []) + \

@@ -494,7 +494,7 @@ def composites():
 def children(room, found):
     """Every composite's children (data/library/composites.json), one model per real-world object, laid as kit pieces
     of their own kinds on their parent: a child's `at` is its foot's middle in the parent's frame, `turn` its turn
-    about the parent's up (as route.child_transform places a furniture prop's children)."""
+    about the parent's up (as the game's furniture scenes placed a prop's children)."""
     placed = []
     for parent in found:
         for child in composites().get(parent["kind"], {}).get("children", []):

@@ -40,7 +40,6 @@ repainted or the owner approves again.
 import hashlib
 import json
 import pathlib
-import re
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -50,36 +49,13 @@ ROW_KINDS = ("generate", "code", "mechanic")
 ANCHORS = ("floor", "wall", "ceiling", "roof")
 ROW_FIELDS = ("id", "view", "box", "name", "kind", "anchor", "size", "count", "thing")
 ROOM_FIELDS = ("shell", "light", "backdrop", "wall_fill")
-# A comment line in a script or a scene, which never changes a shell.
-COMMENT = re.compile(r"^\s*(#|;)")
 
-# Scene -> what its shell is made of: whole files, and for a scene built by one big script, the
-# constants in it that draw its walls and floors. Comments and blank lines are left out, so a
-# reworded comment changes no shell.
-MODULE_SHELL_FILES = (
-    "game/base/module_shell/module_shell.gd", "game/base/module_shell/shell_steps.gd",
-    "game/base/module_shell/shell_lining.gd", "sim/base/stepped_floor.gd",
-    "game/base/module_shell/shell_pit.gd", "game/base/module_shell/shell_facets.gd",
-)
-EARTH_SITE = "game/prologue/earth_site/earth_site.gd"
-SHELLS = {
-    "habitat": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/habitat/habitat.tscn"},
-    # The hub is the habitat's id drawn as the C12 room (2026-10-05): its scene is the same room file.
-    "hub": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/habitat/habitat.tscn"},
-    "workshop": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/workshop/workshop.tscn"},
-    "greenhouse": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/greenhouse/greenhouse.tscn"},
-    "airlock": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/airlock/airlock.tscn"},
-    "lab": {"files": MODULE_SHELL_FILES, "shell_node": "game/base/lab_room/lab_room.tscn"},
-    "prologue_flat": {"constants": (EARTH_SITE, (
-        "WALL", "FLOOR_THICKNESS", "FLAT_LEVEL", "FLAT_GROUND", "FLAT_HEIGHT", "BALCONY_GROUND",
-        "BALCONY_DOORWAY", "FRONT_DOORWAY", "FRONT_DOOR_Z", "DADO_HEIGHT", "RAIL_HEIGHT"))},
-    "prologue_street": {"constants": (EARTH_SITE, (
-        "WALL", "STAIRWELL_GROUND", "STREET_GROUND", "STREET_DOORWAY", "STAIR_LANE_A", "STAIR_LANE_B",
-        "LANDING_DEPTH", "FLIGHT_RISE", "RISERS", "STEP_THICKNESS", "BUILDING_TOP",
-        "ACROSS_THE_ROAD", "ACROSS_THE_ROAD_TOP"))},
-    "prologue_square": {"constants": (EARTH_SITE, (
-        "CROWD_SPREAD", "BIG_STAGE_AT", "BIG_STAGE_DECK", "PODIUM_AT", "PODIUM_SIZE"))},
-}
+# Scene -> the place whose scene record (data/scene/<place>.json) draws its shell, and the record's entries that do:
+# the structure round the room, its floors, its ceiling and its inside. A note on where a number came from (`from`)
+# changes no shell. Hashes recorded before 2026-10-09 were of the game 2099's own shell code and do not compare.
+SHELL_ENTRIES = ("structure", "floor", "ceiling", "inside")
+SHELLS = {"habitat": "habitat", "hub": "hub", "workshop": "workshop", "greenhouse": "greenhouse", "airlock": "airlock",
+          "lab": "lab", "prologue_flat": "flat", "prologue_street": "street", "prologue_square": "square"}
 
 
 def path_of(scene, folder=INVENTORIES):
@@ -168,49 +144,21 @@ def approved_inventory(path):
     return inventory
 
 
-def code_lines(text):
-    """A script's or a scene's lines with comments and blank lines left out."""
-    return [line.rstrip() for line in text.splitlines() if line.strip() and not COMMENT.match(line)]
-
-
-def shell_node_block(scene_text):
-    """The lines of the node in a room's scene that the module shell's script is on."""
-    shell_id = re.search(r'\[ext_resource [^\]]*path="res://game/base/module_shell/module_shell.gd" id="([^"]+)"\]', scene_text)
-    if not shell_id:
-        return []
-    block, inside = [], False
-    for line in scene_text.splitlines():
-        if line.startswith("["):
-            if inside:
-                break
-            block = [line]
-            continue
-        block.append(line)
-        if line == f'script = ExtResource("{shell_id.group(1)}")':
-            inside = True
-    return block if inside else []
-
-
-def constant_lines(script_text, names):
-    """The lines declaring the named constants in a script, in the order of the names."""
-    lines = []
-    for name in names:
-        lines.extend(re.findall(rf"^const {name}\b.*$", script_text, re.MULTILINE))
-    return lines
+def without_notes(value):
+    """A record's entry with every `from` note left out, so a reworded note changes no hash."""
+    if isinstance(value, dict):
+        return {key: without_notes(item) for key, item in value.items() if key != "from"}
+    if isinstance(value, list):
+        return [without_notes(item) for item in value]
+    return value
 
 
 def shell_hash(scene, repo=REPO):
-    """The hash of what a scene's shell is made of, as its inventory records it."""
-    made_of = SHELLS[scene]
-    digest = hashlib.sha1()
-    for path in made_of.get("files", ()):
-        digest.update("\n".join(code_lines((repo / path).read_text())).encode())
-    if "shell_node" in made_of:
-        digest.update("\n".join(shell_node_block((repo / made_of["shell_node"]).read_text())).encode())
-    if "constants" in made_of:
-        path, names = made_of["constants"]
-        digest.update("\n".join(constant_lines((repo / path).read_text(), names)).encode())
-    return digest.hexdigest()[:16]
+    """The hash of what a scene's shell is made of (its place's scene record's shell entries), as its inventory
+    records it."""
+    record = json.loads((repo / "data/scene" / f"{SHELLS[scene]}.json").read_text())
+    shell = {key: without_notes(record[key]) for key in SHELL_ENTRIES if key in record}
+    return hashlib.sha1(json.dumps(shell, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def main():

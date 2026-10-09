@@ -100,6 +100,20 @@ $py tools/characters/cast.py square --stage ~/.farm-factory-props/work/usd/squar
 The review page then has a Characters section: why each entry is there, each character close up, each group and the
 crowd from where they are seen, and short moving shots, rendered from the stage like the scene.
 
+## The world's files
+
+The first world's heavy files, its made models (about 200 MB) and its sounds (about 36 MB), are not in git: they are
+a release of this repository (`world1-assets-1`), and `data/assets/world1.json` names every file with its sha256, its
+source and its licence. A record names a file by its name there (`models/hub_kit/console_1.gltf`,
+`sound/generated/places/habitat.ogg`); `tools/assets/world.py` fetches and checks the release the first time a
+tool needs one, into `~/.cache/score/world-assets/<tag>/` (or `SCORE_WORLD_ASSETS`). The framework reads nothing
+from the game 2099's checkout; `tools/assets/game_free_test.py` fails when code or data names it.
+
+```bash
+python3 tools/assets/world.py fetch                       # the release, checked
+python3 tools/assets/world.py pack <folder> <new tag>     # a new release from the local files, then: publish
+```
+
 ## Cloud capacity
 
 Every model step runs on machines rented from a cloud provider through one interface
@@ -180,8 +194,8 @@ sunk into the ground below its own contact points.
 ```
 
 A place with a scene record (`data/scene/<place>.json`: what the game drew in its own code, from room shells, stairs
-and gameplay objects to the ground, water, backdrop, lights and sky) is exported whole with `export.py ... --world
-<the game's checkout>`, and its page is drawn from the record's own cameras (the player's spots; a room from inside at
+and gameplay objects to the ground, water, backdrop, lights and sky) is exported whole with `export.py`, which reads
+the files the record names from the world's release (below), and its page is drawn from the record's own cameras (the player's spots; a room from inside at
 standing height and from a cutaway above) by the stage's own lights. `--game-shots <folder>` lays each view beside the
 game's own shot from about the same place, with both pictures' mean brightness, and the page says what of the game's
 place the scene carries, its people included, and what is still missing against the game's shots ("scene vs game").
