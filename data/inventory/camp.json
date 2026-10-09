@@ -1090,16 +1090,19 @@
 			"parent": "galley",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v1.77"
+			]
 		},
 		{
 			"id": "galley_bin",
 			"view": "v1",
 			"box": [
-				1625,
-				605,
-				1685,
-				740
+				1624,
+				597,
+				1691,
+				736
 			],
 			"name": "a small stainless waste bin beside the cold store",
 			"kind": "code",
@@ -1115,16 +1118,19 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"why_code": "the same code-built waste bin the greenhouse, habitat and workshop lay (waste_bin)",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v1.w12"
+			]
 		},
 		{
 			"id": "kiosk_terminal",
 			"view": "v2",
 			"box": [
-				350,
-				945,
-				535,
-				1205
+				349,
+				943,
+				539,
+				1224
 			],
 			"name": "a small terminal screen on a pedestal",
 			"kind": "generate",
@@ -1138,7 +1144,10 @@
 			"thing": "prop:camp_kiosk_terminal",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v2.34"
+			]
 		},
 		{
 			"id": "canister",
@@ -1163,7 +1172,10 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"why_take": "the lab's steel sample jar with its lid, laid at a drum's size (the owner: reuse a model before making a new one)",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v2.91"
+			]
 		},
 		{
 			"id": "sample_jar",
@@ -1262,7 +1274,10 @@
 			"parent": "galley",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v1.77"
+			]
 		},
 		{
 			"id": "shelf_case",
@@ -1287,7 +1302,10 @@
 			"why_code": "the camp's own code-built case (its `case` row), laid once more",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v2.113"
+			]
 		}
 	]
 }
