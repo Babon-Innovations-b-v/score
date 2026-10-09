@@ -28,6 +28,6 @@ RUN curl -fsSL -o /tmp/trellis.tar.gz \
  && rm /tmp/trellis.tar.gz \
  && test -x /opt/pixal/build/trellis-cli
 
-COPY run.sh /usr/local/bin/pixal-run
+COPY --chmod=755 run.sh /usr/local/bin/pixal-run
 # rembg's model folder; run.sh links BiRefNet-lite into it from the node cache.
 ENV U2NET_HOME=/opt/pixal/u2net PYTHONUNBUFFERED=1

@@ -34,5 +34,5 @@ RUN mkdir -p /opt/parts \
       scripts/inference_partcrafter.py \
  && ! grep -n 'snapshot_download(repo_id\|BriaRMBG.from_pretrained' scripts/inference_partcrafter.py
 
-COPY run.sh /usr/local/bin/parts-run
+COPY --chmod=755 run.sh /usr/local/bin/parts-run
 ENV PYTHONUNBUFFERED=1
