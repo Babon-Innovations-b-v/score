@@ -1,5 +1,5 @@
 """The world's heavy files, the made models and the sounds its places name, kept as a release of this repository
-rather than in git (about 235 MB; the repository's own history stays small).
+rather than in git (about 290 MB; the repository's own history stays small).
 
 `data/assets/world1.json` is the manifest: the release (repository and tag), its archives (name, bytes, sha256) and
 every file in them (its name, bytes, sha256, and where it came from and under what licence). A record names such a

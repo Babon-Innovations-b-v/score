@@ -102,8 +102,8 @@ crowd from where they are seen, and short moving shots, rendered from the stage 
 
 ## The world's files
 
-The first world's heavy files, its made models (about 200 MB) and its sounds (about 36 MB), are not in git: they are
-a release of this repository (`world1-assets-1`), and `data/assets/world1.json` names every file with its sha256, its
+The first world's heavy files, its made models (about 256 MB packed) and its sounds (about 36 MB), are not in git: they are
+a release of this repository (`world1-assets-4` now), and `data/assets/world1.json` names every file with its sha256, its
 source and its licence. A record names a file by its name there (`models/hub_kit/console_1.gltf`,
 `sound/generated/places/habitat.ogg`); `tools/assets/world.py` fetches and checks the release the first time a
 tool needs one, into `~/.cache/score/world-assets/<tag>/` (or `SCORE_WORLD_ASSETS`). The framework reads nothing
