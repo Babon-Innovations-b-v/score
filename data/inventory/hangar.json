@@ -1382,7 +1382,9 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v1.472"
-			]
+			],
+			"reuse": "garage:pressure_gauge",
+			"why_take": "the garage's made pressure gauge, placed again: a round gauge on its pipe stub and plate, where the hangar's own take read as a slab"
 		},
 		{
 			"id": "bay_panel",
