@@ -56,8 +56,8 @@ def preview_material(stage, path, material, textures, name, glows=False):
         if glows:
             shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(texture.GetOutput("rgb"))
     else:
-        colour = flat_rgb(getattr(material, "baseColorFactor", None) or getattr(material, "main_color", None),
-                          (0.6, 0.6, 0.6))
+        factor = getattr(material, "baseColorFactor", None)
+        colour = flat_rgb(factor if factor is not None else getattr(material, "main_color", None), (0.6, 0.6, 0.6))
         shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*colour))
     shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(
         float(getattr(material, "roughnessFactor", None) if getattr(material, "roughnessFactor", None) is not None
@@ -68,6 +68,8 @@ def preview_material(stage, path, material, textures, name, glows=False):
     if max(emission) > 0.0:
         shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*emission))
     surface.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    if getattr(material, "name", None):  # the file's own name for it (a game's shared paint is chosen by it)
+        surface.GetPrim().CreateAttribute("score:material", Sdf.ValueTypeNames.String).Set(str(material.name))
     return surface
 
 

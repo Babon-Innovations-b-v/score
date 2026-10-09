@@ -459,7 +459,8 @@
      "from": "robot_model.gd:25-34, 238-246 (the call sign on the frame's left side in Palette.ON_MACHINE; Label3D's own outline, 12 in black)"
     }
    ],
-   "from": "the first robot, planter P1, a bare greenhouse frame at the run's start (sim/robots/robot_build.gd:9-11, robot_record.gd:75-76; data/definitions/robot_model.json:2-3), stood on the turntable's stand at half size (planter.gd:36, 305-308; bench.tscn:17-20 Turntable (0.3, 0.97, 0) and Stand 0.02 up) turned START_ANGLE 0.8 pi (bench.gd:32, 108-109); the bench stands at the room's middle (main.tscn:112-113, 129-130)"
+   "from": "the first robot, planter P1, a bare greenhouse frame at the run's start (sim/robots/robot_build.gd:9-11, robot_record.gd:75-76; data/definitions/robot_model.json:2-3), stood on the turntable's stand at half size (planter.gd:36, 305-308; bench.tscn:17-20 Turntable (0.3, 0.97, 0) and Stand 0.02 up) turned START_ANGLE 0.8 pi (bench.gd:32, 108-109); the bench stands at the room's middle (main.tscn:112-113, 129-130)",
+   "shared_paint": true
   },
   {
    "name": "tray_rover_wheels",
@@ -483,7 +484,8 @@
      "yaw": 180.0,
      "from": "part_model.gd:35-48 (a wheel set: its one wheel again at the axle's other end, turned about)"
     }
-   ]
+   ],
+   "shared_paint": true
   },
   {
    "name": "tray_battery_pack",
@@ -495,7 +497,8 @@
    ],
    "yaw": 0.0,
    "scale": 0.45,
-   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), battery_pack on spot 1 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), battery_pack on spot 1 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45",
+   "shared_paint": true
   },
   {
    "name": "tray_link_basic",
@@ -507,7 +510,8 @@
    ],
    "yaw": 0.0,
    "scale": 0.45,
-   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), link_basic on spot 2 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), link_basic on spot 2 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45",
+   "shared_paint": true
   },
   {
    "name": "tray_seed_drill",
@@ -519,7 +523,8 @@
    ],
    "yaw": 0.0,
    "scale": 0.45,
-   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), seed_drill on spot 3 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), seed_drill on spot 3 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45",
+   "shared_paint": true
   },
   {
    "name": "tray_picker",
@@ -531,7 +536,8 @@
    ],
    "yaw": 0.0,
    "scale": 0.35,
-   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), picker on spot 4 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.35"
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), picker on spot 4 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.35",
+   "shared_paint": true
   },
   {
    "name": "tray_soil_feeder",
@@ -543,7 +549,8 @@
    ],
    "yaw": 0.0,
    "scale": 0.4485,
-   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), soil_feeder on spot 5 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.4485"
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), soil_feeder on spot 5 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.4485",
+   "shared_paint": true
   },
   {
    "name": "tray_row_guide",
@@ -555,7 +562,8 @@
    ],
    "yaw": 0.0,
    "scale": 0.45,
-   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), row_guide on spot 6 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), row_guide on spot 6 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45",
+   "shared_paint": true
   }
  ]
 }

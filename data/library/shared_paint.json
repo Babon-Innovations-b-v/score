@@ -1,0 +1,95 @@
+{
+ "about": "The game's shared paints: the materials a game model's surfaces are named after, which the game draws over the model's own look (2099 game/robots/part_model/part_model.gd:100-125, SHARED_MATERIALS_AT game/art/materials/). Colours are sRGB as the materials give them; a scene record's gameplay object with `shared_paint` is drawn in them (tools/usd/scene.py shared_paint).",
+ "paints": {
+  "hull": {
+   "colour": [
+    0.8745,
+    0.8863,
+    0.8706
+   ],
+   "from": "the game 2099's game/art/materials/hull.tres (flat_color)"
+  },
+  "hull_trim": {
+   "colour": [
+    0.549,
+    0.5882,
+    0.6275
+   ],
+   "from": "the game 2099's game/art/materials/hull_trim.tres (flat_color)"
+  },
+  "roof": {
+   "colour": [
+    0.2941,
+    0.3216,
+    0.3529
+   ],
+   "from": "the game 2099's game/art/materials/roof.tres (flat_color)"
+  },
+  "machine": {
+   "colour": [
+    0.8863,
+    0.3412,
+    0.1176
+   ],
+   "from": "the game 2099's game/art/materials/machine.tres (flat_color)"
+  },
+  "rubber": {
+   "colour": [
+    0.102,
+    0.102,
+    0.1098
+   ],
+   "from": "the game 2099's game/art/materials/rubber.tres (flat_color)"
+  },
+  "steel": {
+   "colour": [
+    0.6078,
+    0.6353,
+    0.6627
+   ],
+   "from": "the game 2099's game/art/materials/steel.tres (flat_color)"
+  },
+  "screen_teal": {
+   "colour": [
+    0.1647,
+    0.7216,
+    0.7529
+   ],
+   "from": "the game 2099's game/art/materials/screen_teal.tres (albedo_color, unshaded)",
+   "unshaded": true
+  },
+  "beacon_glass": {
+   "colour": [
+    1.0,
+    0.9608,
+    0.902
+   ],
+   "from": "the game 2099's game/art/materials/beacon_glass.tres (albedo_color, unshaded)",
+   "unshaded": true
+  },
+  "hopper": {
+   "colour": [
+    0.8784,
+    0.6471,
+    0.149
+   ],
+   "from": "the game 2099's game/art/materials/hopper.tres (flat_color)"
+  },
+  "glass": {
+   "colour": [
+    0.1412,
+    0.1922,
+    0.2275
+   ],
+   "from": "the game 2099's game/art/materials/glass.tres (flat_color)"
+  },
+  "soil": {
+   "colour": [
+    0.3569,
+    0.2627,
+    0.1882
+   ],
+   "from": "the game 2099's game/art/materials/soil.tres (flat_color)"
+  }
+ }
+}
