@@ -4,6 +4,7 @@ The provider-neutral Kubernetes path for the job images (`../images/`, `../runti
 Kubernetes Jobs on node pools per capability class that scale from zero. Chosen by `SCORE_CLOUD=k8s`; the machine
 runners in `tools/props/cloud/` stay as they are.
 
+- `kube.py` is kubectl (objects through stdin); `gpu_operator.py` points NVIDIA's GPU operator at the registry.
 - `manifests.py` makes the plain manifests (JSON for kubectl): one Job a job, the store Secret, the pull Secret.
 - `submitter.py` is the queue and the watcher: Secrets at submit time, pool caps from the month's euros, Jobs, widening
   over classes, the ledger rows. `submitter.py run <run id>`, `idle`, `down`.
@@ -44,9 +45,11 @@ runners in `tools/props/cloud/` stay as they are.
   40 s for their network.
 - **The GPU operator's own setup is about 2.5 min a cold card node** (Scaleway installs NVIDIA's GPU operator;
   the measurements are in `clusters/scaleway.py`). The precompiled driver and a shorter driver probe did not cut it;
-  its images mirrored into the project's registry (ClusterPolicy `repository` and `imagePullSecrets`) cut node Ready
-  to card usable from about 160 s to 146 s on one run. Change the ClusterPolicy only with no card node running: a
-  change reinstalls the driver on live nodes and their pods fail.
+  its images mirrored into the project's registry cut node Ready to card usable from about 160 s to 146 s on one
+  run, so `up` does that (`gpu_operator.py`: a crane Job in the cluster copies them once, then the ClusterPolicy's
+  `repository` and `imagePullSecrets` point at them). The copies stay in the registry: they are the project's own
+  copies of NVIDIA's public images, and the next cluster reuses them. Change the ClusterPolicy only with no card
+  node running: a change reinstalls the driver on live nodes and their pods fail.
 - Tests: `pytest tools/cloud/k8s` with scw and kubectl stubbed; nothing is rented by a test.
 
 ## Another provider

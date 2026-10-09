@@ -86,8 +86,12 @@ sys.path.insert(0, str(CLOUD.parent))
 sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(CLOUD / "backends"))
 
+sys.path.insert(0, str(HERE.parent))
+
+import gpu_operator  # noqa: E402
 import provider  # noqa: E402
 import scaleway as backend  # noqa: E402
+from kube import Kubectl  # noqa: E402
 from paths import HOME  # noqa: E402
 
 NAME = "scaleway"
@@ -268,15 +272,18 @@ def write_kubeconfig(cluster_id):
 
 
 def up():
-    """Make the cluster if missing (else keep its autoscaler settings), add its class pools and fetch its
-    kubeconfig; the path to it."""
+    """Make the cluster if missing (else keep its autoscaler settings), add its class pools, fetch its kubeconfig
+    and point the GPU operator at the registry's copies of its images (gpu_operator.py); the kubeconfig's path."""
     project = backend.account()
     found = cluster(project) or create_cluster(project)
     if found.get("status") != "creating":
         update_cluster(found)
     wait_ready(found["id"])
     ensure_pools(found["id"])
-    return write_kubeconfig(found["id"])
+    config = write_kubeconfig(found["id"])
+    if not gpu_operator.mirror(Kubectl(str(config)), backend.registry()):
+        print("the GPU operator is not installed yet; run `up` again to point it at the registry's copies")
+    return config
 
 
 def wait_ready(cluster_id):
