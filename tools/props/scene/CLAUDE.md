@@ -37,7 +37,9 @@ serve: skill `make-scene`, bible "How a scene is designed".
   as a to-do list (`python3 tools/props/scene/match.py`). `box_check.py` holds every inventory's boxes to its
   concept: inside the picture, not the whole picture for a single thing, spread over it rather than in one corner,
   and, with `--judge`, each box shown to the open judge beside its row's words (majority of three); a row the
-  concept does not show has `"box": null` and says why in `"unseen"`. `cloud/scene.py` and `cloud/batch.py`
+  concept does not show has `"box": null` and says why in `"unseen"`. `duplicates.py` fails when two places'
+  made rows name one real-world object and are made from different takes, or one is about to be made again, unless a row
+  says why in `own_model` or names the row it reuses in `reuse` (the owner, 2026-10-09: no duplicates; reuse first). `cloud/scene.py` and `cloud/batch.py`
   refuse to run without an approved inventory and its place's style text.
 - `depth_pano.tscn --pano-ship` takes the ship's rooms instead (`ShipCabin.ROOMS`, #70), with the
   rest of the game put away so its windows look out on nothing; `--pano-colour` takes the same six

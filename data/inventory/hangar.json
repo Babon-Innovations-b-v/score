@@ -1322,7 +1322,8 @@
 				730,
 				540
 			],
-			"thing": "prop:hangar_bracket_beacon"
+			"thing": "prop:hangar_bracket_beacon",
+			"own_model": "a different object of the same name: the hangar's amber rotating beacon, not the garage's red warning lamp in a steel housing"
 		},
 		{
 			"id": "floodlight",
