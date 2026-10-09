@@ -1901,6 +1901,12 @@
 					"picture": "banner_third",
 					"roughness": 0.8
 				},
+				"banner_crowd": {
+					"recipe": "printed",
+					"token": "sign-red",
+					"picture": "banner_crowd",
+					"roughness": 0.8
+				},
 				"sign_column_restaurant": {
 					"recipe": "printed",
 					"token": "ink-line",
@@ -3393,6 +3399,15 @@
 			"font": "black",
 			"shape": "couplet",
 			"column": "\u4eba\u6c11\u7684\u6708\u7403\u57fa\u5730",
+			"ink": "sign-gold"
+		},
+		"banner_crowd": {
+			"style": "hanzi",
+			"font": "black",
+			"shape": "banner",
+			"lines": [
+				"\u98de\u5411\u6708\u7403"
+			],
 			"ink": "sign-gold"
 		},
 		"sign_column_restaurant": {

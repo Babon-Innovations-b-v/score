@@ -1142,10 +1142,10 @@
 			"count": 6,
 			"thing": "kit:square_crowd_banner",
 			"object": "far_banner",
-			"why_code": "the square's banner builder (far_banner: red cloth, printed characters as a decal) hung between two poles",
+			"why_code": "its own code builder (pieces_earth.crowd_banner: two steel poles, the red cloth across their tops, gold characters printed on it as a decal), since far_banner hangs a 7 m cloth from one pole and cannot be held up between two; its parts check passed against a crop of the concept K06 (data/library/fittings.json)",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "laid by tools/props/scene/earth_outside_kit.py (crowd_banners, CROWD_BANNERS) at six spots spread through the crowd as the concept K06 spreads them, each on the terrace level it falls on, facing the balcony; no game code places it",
 			"box_note": "one banner of the six boxed (the crowd's left one); the partition audit boxed another at [1670,1140,2099,1265]",
 			"box_from": [
 				"v2.137",
