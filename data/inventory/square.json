@@ -1146,10 +1146,10 @@
 			"id": "crowd_banner",
 			"view": "v2",
 			"box": [
-				454,
-				812,
-				647,
-				894
+				459,
+				811,
+				648,
+				901
 			],
 			"name": "a red cloth banner with gold characters held up on two poles in the crowd",
 			"kind": "code",
@@ -1166,7 +1166,10 @@
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
 			"from": "laid by the scene agent's final export from the concept (no game code places it)",
-			"box_note": "one banner of the six boxed (the crowd's left one); the partition audit boxed another at [1670,1140,2099,1265]"
+			"box_note": "one banner of the six boxed (the crowd's left one); the partition audit boxed another at [1670,1140,2099,1265]",
+			"box_from": [
+				"v2.137"
+			]
 		},
 		{
 			"id": "guard_hut",
@@ -1189,7 +1192,10 @@
 			"thing": "prop:square_guard_hut",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v1.w43"
+			]
 		}
 	]
 }

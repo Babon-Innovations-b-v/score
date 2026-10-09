@@ -838,10 +838,10 @@
    "id": "probe_lander",
    "view": "v1",
    "box": [
-    2270,
-    970,
-    2495,
-    1310
+    2223,
+    968,
+    2503,
+    1311
    ],
    "name": "a small lander with solar panels on four legs, standing whole beside the wreck",
    "kind": "generate",
@@ -855,7 +855,10 @@
    "thing": "prop:wreck_probe_lander",
    "needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/wreck.json): the concept shows it and no row held it",
    "at": [],
-   "from": "laid by the scene agent's final export from the concept (no game code places it)"
+   "from": "laid by the scene agent's final export from the concept (no game code places it)",
+   "box_from": [
+    "v1.23"
+   ]
   }
  ],
  "layout_decision": "2026-10-08, coordinator's layout decision (owner may change): follow concept C2, the rocket lying broken in two on the ground. The aft section is re-laid on its side by eye from C2 (rolled 90 degrees about its length, then its settled pose, 6 degrees off) and both sections are settled within 15 degrees and 30 cm; the forward section rests in a 2.5 m wide dent 30 cm deep where it struck, the two pressure spheres in shallow dents (data/ground/moon.json, dents); small debris (no side over 1.4 m) settles freely, any turn and up to 1 m; the work lamp moved 40 cm off the cables it stood in."

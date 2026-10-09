@@ -2549,7 +2549,10 @@
 			"why_take": "the garage's made control cabinet, placed again",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_from": [
+				"v1.27"
+			]
 		}
 	]
 }
