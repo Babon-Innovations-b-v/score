@@ -52,6 +52,8 @@ KINDS = {
     "parts": SINGLE_CARD,
     # SAM 2.1's automatic mask generator on clean close-ups (segment.py): 0.9 GB of weights, any card.
     "segment": SINGLE_CARD,
+    # SAM 3 asked by text for each finish of a close-up (finish_masks.py): 3.4 GB of weights, any card.
+    "finish-masks": SINGLE_CARD,
     # DINOv2 features for the render-and-compare (similar.py): 0.35 GB of weights, any card (similar.py adds processor
     # machines of its own when no card is in stock).
     "similar": SINGLE_CARD,

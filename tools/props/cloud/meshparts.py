@@ -60,12 +60,16 @@ BROUGHT_BACK = ["segvigen_auto.npz", "segvigen_guided.npz", "geosam2.npz", "*_ti
                 "render.png", "seed.npy", "result/inference.log"]
 
 
-def to_split(run, takes=None):
-    """The takes whose uploads are written and whose three splits are not all back."""
+# What each splitter brings back, by the name --methods takes.
+RESULTS = {"segvigen": ["segvigen_auto.npz", "segvigen_guided.npz"], "geosam2": ["geosam2.npz"]}
+
+
+def to_split(run, takes=None, methods=tuple(RESULTS)):
+    """The takes whose uploads are written and whose splits by `methods` are not all back."""
     found = [path.parent.parent.name for path in sorted(run.glob("*/up/raw.glb"))]
     wanted = [take for take in found if not takes or take in takes]
     return [take for take in wanted if not all((run / take / "down" / name).exists()
-                                               for name in BROUGHT_BACK[:3])]
+                                               for method in methods for name in RESULTS[method])]
 
 
 def price(shares, account, hold):
@@ -110,7 +114,7 @@ def held(run, machine, hold, why):
         time.sleep(20)
 
 
-def split(machine, number, takes, card, run):
+def split(machine, number, takes, card, run, methods=tuple(RESULTS)):
     """One share of takes on a machine: uploaded, split by SegviGen then GeoSAM2, brought back. A worker that fails
     raises spread.JobFailed once both have run."""
     log_folder, host = machine["folder"], machine["host"]
@@ -124,7 +128,7 @@ def split(machine, number, takes, card, run):
              "geosam2": f"cd /root/gs/GeoSAM2 && {environment} PATH=/root/gs/venv/bin:$PATH /root/gs/venv/bin/python {REMOTE}/geosam2_worker.py "
                         f"{place} {out} /root/gs/blender/blender"}
     codes = {}
-    for name, line in lines.items():
+    for name, line in ((name, line) for name, line in lines.items() if name in methods):
         began = time.time()
         with (log_folder / f"{name}{number}.log").open("w") as log:
             codes[name] = batch.remote(log_folder, host, line, stdout=log, stderr=subprocess.STDOUT).returncode
@@ -149,7 +153,8 @@ def bring_back(log_folder, host, out, takes, run):
 def record(run, started, folder, takes):
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run.folder.name,
              "kind": KIND, "folder": str(folder), "takes": takes,
-             **ledger.machines_record(run.machines, run.attempts, started), "wall_minutes": (time.time() - started) / 60}
+             **ledger.machines_record(run.machines, run.attempts, started),
+             "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
     batch.say(f"meshparts: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machines, €{entry['euros']:.2f}")
     return entry
@@ -162,8 +167,11 @@ def main():
     parser.add_argument("--takes", default="", help="only these takes, by comma")
     parser.add_argument("--hold", action="store_true", help="keep the machine for ssh work until <run>/release")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
+    parser.add_argument("--methods", default=",".join(RESULTS), help="the splitters to run, by comma (segvigen, "
+                        "geosam2)")
     options = parser.parse_args()
-    takes = to_split(options.run, [take for take in options.takes.split(",") if take])
+    methods = tuple(method for method in options.methods.split(",") if method)
+    takes = to_split(options.run, [take for take in options.takes.split(",") if take], methods)
     if not takes:
         batch.say("every take in the run folder is split already")
         return
@@ -186,7 +194,7 @@ def main():
     def work(machine, share, card):
         machine["share_began"] = time.time()
         try:
-            split(machine, *share, card, options.run)
+            split(machine, *share, card, options.run, methods)
         finally:
             if queue.queued() <= 0:
                 held(options.run, machine, options.hold, "its work is done")
@@ -202,7 +210,7 @@ def main():
         entry = record(run, started, options.run, takes)
         (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
         (options.run / f"cloud-{run_folder.name}.json").write_text(json.dumps(entry, indent=1))
-    left = to_split(options.run, takes)
+    left = to_split(options.run, takes, methods)
     if left:
         raise SystemExit(f"{len(left)} takes not fully split: {', '.join(left)} (logs under {run_folder})")
 
