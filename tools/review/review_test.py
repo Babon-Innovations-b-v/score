@@ -206,10 +206,18 @@ def a_before_stage_stands_beside_the_game():
     return problems
 
 
+def only_the_places_drawn_are_sent():
+    """A stage is sent with the places it shows, never with the ones those show, which it turns off."""
+    record = {"places": [{"stage": "tube"}, {"stage": "airlock"}, {"stage": "tube"}]}
+    if renders.places_shown(record) != ["tube", "airlock"]:
+        return [f"the places sent are {renders.places_shown(record)}, not the tube and the airlock alone"]
+    return []
+
+
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
           the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, one_view_a_place_is_inked,
           an_overlap_reads_in_the_resting_table, the_plans_an_inventory_names_are_shown,
-          a_before_stage_stands_beside_the_game)
+          a_before_stage_stands_beside_the_game, only_the_places_drawn_are_sent)
 
 
 if __name__ == "__main__":
