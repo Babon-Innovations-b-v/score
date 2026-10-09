@@ -295,7 +295,9 @@ def laid_out(room, inventory):
     found += room_kit.placed_rows(room, layout, kinds, inventory) + room_kit.flat_rows(room, inventory, kinds)
     found += room_kit.pipe_brackets(room, kinds, found) + room_kit.under_floor(room, kinds, found)
     found = hub_kit.split_at_fittings(found)
-    return room_kit.cut_openings(room, found + room_kit.children(room, found))
+    # A machine bay's plate is wider than the deck plates it is set into: those wholly under it are left out.
+    return [laid for laid in room_kit.cut_openings(room, found + room_kit.children(room, found))
+            if not room_kit.covered(laid)]
 
 
 def leaf(inventory):

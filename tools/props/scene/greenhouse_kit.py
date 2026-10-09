@@ -566,15 +566,8 @@ def laid_out(inventory):
     found += station() + gantry(layout, kinds)
     found += room_kit.pipe_brackets(ROOM, kinds, found) + room_kit.under_floor(ROOM, kinds, found)
     found = hub_kit.split_at_fittings(found)
-    return [laid for laid in room_kit.cut_openings(ROOM, found + room_kit.children(ROOM, found)) if not covered(laid)]
-
-
-def covered(laid):
-    """Whether a plate lies wholly under the openings cut in it (a narrow strip of floor under a mat): nothing of it
-    would be left to make."""
-    wide, long = laid["size"][0], laid["size"][1]
-    return any(low_x <= -wide / 2 + 1e-3 and high_x >= wide / 2 - 1e-3 and low_y <= 1e-3 and high_y >= long - 1e-3
-               for low_x, low_y, high_x, high_y in laid.get("openings", []))
+    return [laid for laid in room_kit.cut_openings(ROOM, found + room_kit.children(ROOM, found))
+            if not room_kit.covered(laid)]
 
 
 FLOORS = {"ring_floor_plate", "ledge_cover", "dock_pad_one", "dock_pad_two", "dock_pad_three"}

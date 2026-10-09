@@ -432,6 +432,14 @@ def cut_openings(room, found):
     return found
 
 
+def covered(laid):
+    """Whether a plate lies wholly under the openings cut in it (a narrow strip of floor under a mat): nothing of it
+    would be left to make."""
+    wide, long = laid["size"][0], laid["size"][1]
+    return any(low_x <= -wide / 2 + 1e-3 and high_x >= wide / 2 - 1e-3 and low_y <= 1e-3 and high_y >= long - 1e-3
+               for low_x, low_y, high_x, high_y in laid.get("openings", []))
+
+
 def own(laid):
     """A laid piece's kind without its room's prefix."""
     return laid["kind"].split("_", 1)[1]
