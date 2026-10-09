@@ -83,7 +83,8 @@
     0.235
    ],
    "surface": "tray_tile",
-   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)",
+   "plain": "plate"
   },
   {
    "name": "tray_tile_1",
@@ -99,7 +100,8 @@
     0.235
    ],
    "surface": "tray_tile",
-   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)",
+   "plain": "plate"
   },
   {
    "name": "tray_tile_2",
@@ -115,7 +117,8 @@
     0.235
    ],
    "surface": "tray_tile",
-   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)",
+   "plain": "plate"
   },
   {
    "name": "tray_tile_3",
@@ -131,7 +134,8 @@
     0.235
    ],
    "surface": "tray_tile",
-   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)",
+   "plain": "plate"
   },
   {
    "name": "tray_tile_4",
@@ -147,7 +151,8 @@
     0.235
    ],
    "surface": "tray_tile",
-   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)",
+   "plain": "plate"
   },
   {
    "name": "tray_tile_5",
@@ -163,7 +168,8 @@
     0.235
    ],
    "surface": "tray_tile",
-   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)",
+   "plain": "plate"
   },
   {
    "name": "tray_tile_6",
@@ -179,7 +185,8 @@
     0.235
    ],
    "surface": "tray_tile",
-   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)",
+   "plain": "plate"
   }
  ],
  "places": [
