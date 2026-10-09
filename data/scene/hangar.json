@@ -235,7 +235,8 @@
   }
  ],
  "game_only": [
-  "no game shot exists (the hangar is on an unpushed branch of the game)"
+  "no game shot exists (the hangar is on an unpushed branch of the game)",
+  "the ship's legs: the stage's hull hangs 0.5 m above the pad on nothing (ship and from-south-door views), where the game's ship stands on its legs"
  ],
  "places": [
   {
