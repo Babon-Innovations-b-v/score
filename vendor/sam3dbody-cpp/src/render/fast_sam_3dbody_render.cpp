@@ -1,0 +1,2114 @@
+// fast_sam_3dbody_render.cpp
+// OpenGL overlay renderer: reads a camera/image source, runs the MHR body-pose
+// pipeline, and draws the deformed 3D mesh on top of the input frame.
+//
+// Usage:
+//   fast_sam_3dbody_render --onnx-dir DIR --gguf pipeline.gguf
+//       --yolo yolo.onnx [--mesh <onnx-dir>/body_mesh.tri] [--from 0|path]
+//       [--size W H] [--fps Z] [--mjpg] [--color R G B] [--export-mesh PREFIX] [--export-mesh-stride N]
+//       [--render-size W H | --render-scale S]
+//
+// --mjpg requests motion-JPEG from the webcam so UVC cameras can sustain higher
+//   fps at high resolution (uncompressed YUYV is USB-bandwidth limited); it also
+//   prints the fourcc/resolution/fps the driver actually negotiated.
+//
+// --color R G B (0-255 each) tints every mesh overlay with that one color,
+//   e.g. --color 255 255 0 for yellow. Same effect as --mesh-color R G B,
+//   which instead takes 0-1 floats.
+//
+// --export-mesh writes the deformed body mesh per frame as
+//   PREFIX_p<person>_<frame>.obj in world Y-up space with the pelvis at the BVH
+//   root position, so the .obj and .bvh overlay 1:1 in Blender for armature
+//   verification (import both with default axis settings, no rotation needed).
+//
+// --skin-color accumulates each person's appearance from the video onto the
+//   mesh vertices (see src/core/skin_color.h) and draws the mesh with
+//   those colours instead of the uniform --color tint; --export-mesh then
+//   writes them as per-vertex OBJ colours (v x y z r g b).
+// --skin-color-default R G B (0-255, like --color) colours the vertices the
+//   video never shows with R G B instead of filling them in from their seen
+//   neighbours (implies --skin-color).  --skin-color-default arms uses each
+//   person's own skin tone instead: the median observed colour of their
+//   forearms, measured at exit on their rest pose.
+// --skin-color-mirror: a vertex the video never shows takes the colour of its
+//   left/right mirror vertex when that one was seen, before
+//   --skin-color-default or the neighbour fill (implies --skin-color).
+// --skin-hair-cap CM [DEG] paints every vertex within CM centimetres of the
+//   top of the head (measured along pelvis -> head on the person's rest pose)
+//   black, over what was observed; DEG tilts the cut plane that many degrees
+//   about its centre, lower at the back of the head and higher at the front —
+//   a blunt fix for a crown the video only shows as shiny skin (implies
+//   --skin-color).  Applied once at exit, so it reaches --skin-color-save and
+//   --arf, not the live view.
+// --skin-color-save PREFIX writes, at exit, each person's accumulated colours
+//   on their rest-pose mesh as PREFIX_p<person>.obj (implies --skin-color).
+// --skin-match gpu|cpu picks how --skin-color tells people apart between
+//   frames by appearance: a GLSL tiled render-and-diff (default, see
+//   skin_match_gl.h) or the same score per vertex on the CPU.
+// --skin-turntable PREFIX also writes PREFIX<frame>.jpg: every person's live
+//   posed mesh with its accumulated colours, spinning 2 deg per frame, side
+//   by side (implies --skin-color; video.sh encodes it to *_skin_turntable.mp4).
+//   With FSB_SKIN_MATCH_DEBUG=1 and --skin-color on a windowed run the same
+//   view is also shown live in its own window.
+// --arf PATH writes MPEG ARF avatar container(s) (ARF.md); with --skin-color
+//   each person is a skin-colour slot and their container also carries their
+//   accumulated colours (a TextureSet with a COLOR_0 GLB material).
+// --skin-color with --focus replaces --focus's per-person cue (frame difference
+//   over the whole box) with one measured on the person's silhouette: the
+//   retained pose is projected into this frame and the frame it was regressed
+//   on, and the larger of (a) the colour change under its visible vertices and
+//   (b) the growth of its mismatch with the stored colours decides, in the same
+//   0-255 units as the --focus sensitivity.  Background motion inside the box
+//   (a fan, another person) no longer counts, and slow drift adds up against
+//   the keyframe instead of hiding below the threshold frame by frame.
+// --title STR sets the GL window's title (WM_NAME / _NET_WM_NAME), e.g.
+//   --title "Camera 1". Defaults to "SAM3DBody-cpp OpenGL3.x+ Visualization".
+//
+// Controls: close the window to exit.
+
+// GLEW must come before any other GL header.
+#include <GL/glew.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+
+extern "C" {
+#include "../GraphicsEngine/System/glx3.h"
+#include "../GraphicsEngine/ModelLoader/model_loader_tri.h"
+#include "../GraphicsEngine/ModelLoader/model_loader_transform_joints.h"
+}
+
+#include "../core/fast_sam_3dbody.h"
+#include "../core/preprocess.hpp"   // for fsb::apply_hand_pose
+#include "../core/outputFiltering.h" // for QuatLPF + euler_zyx_to_quat helpers
+#include "../core/cli_common.h"      // shared --onnx-dir / --bvh / … parser
+#include "mhr_pose_driver.h"
+
+#include <opencv2/highgui.hpp>     // --skin-color turntable window
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/videoio.hpp>
+
+#include "../core/bvh_writer.h"
+#include "../core/arf_writer.h"
+#include "../core/v4l2_capture.h"
+#include "../core/skin_color.h"
+#include "../core/mhr_joint_table.h"   // --skin-hair-cap: c_head
+#include "../core/skin_match_gl.h"
+#include "../core/skin_turntable_gl.h"
+
+#include <cstdio>
+#include <cstdlib>   // getenv (FSB_LBS_DUMP gate)
+#include <cstring>
+#include <string>
+#include <vector>
+#include <deque>
+#include <time.h>
+
+// ── Inline GLSL shaders ──────────────────────────────────────────────────────
+
+// Background fullscreen quad — uses gl_VertexID, no VBO needed.
+static const char* QUAD_VERT = R"glsl(
+    #version 330 core
+    const vec2 P[4] = vec2[](
+        vec2(-1.0,-1.0), vec2(1.0,-1.0),
+        vec2(-1.0, 1.0), vec2(1.0, 1.0)
+    );
+    const vec2 UV[4] = vec2[](
+        vec2(0.0,1.0), vec2(1.0,1.0),
+        vec2(0.0,0.0), vec2(1.0,0.0)
+    );
+    out vec2 vUV;
+    void main() { gl_Position = vec4(P[gl_VertexID],0.0,1.0); vUV = UV[gl_VertexID]; }
+)glsl";
+
+static const char* QUAD_FRAG = R"glsl(
+    #version 330 core
+    in  vec2      vUV;
+    uniform sampler2D uTex;
+    out vec4 fragColor;
+    void main() { fragColor = vec4(texture(uTex, vUV).rgb, 1.0); }
+)glsl";
+
+// The body-mesh shaders live in src/render/default.vert and src/render/default.frag so
+// they can be edited without a rebuild; default.frag exposes a `uColor` uniform.
+
+// ── GL helpers ───────────────────────────────────────────────────────────────
+
+// Read a whole text file (a GLSL source) into a string.  Returns empty on
+// failure and logs the path — the caller treats empty as fatal.
+static std::string load_text_file(const char* path) {
+    FILE* f = fopen(path, "rb");
+    if (!f) { fprintf(stderr, "[shader] cannot open %s\n", path); return {}; }
+    fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
+    std::string s;
+    if (n > 0) { s.resize((size_t)n); if (fread(&s[0], 1, (size_t)n, f) != (size_t)n) s.clear(); }
+    fclose(f);
+    return s;
+}
+
+static GLuint compile_shader(GLenum type, const char* src) {
+    GLuint s = glCreateShader(type);
+    glShaderSource(s, 1, &src, nullptr);
+    glCompileShader(s);
+    GLint ok = 0; glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+        char buf[512] = {}; glGetShaderInfoLog(s, sizeof(buf), nullptr, buf);
+        fprintf(stderr, "[shader] %s\n", buf);
+    }
+    return s;
+}
+
+static GLuint link_program(const char* vs, const char* fs) 
+{
+    GLuint p = glCreateProgram();
+    GLuint v = compile_shader(GL_VERTEX_SHADER,   vs);
+    GLuint f = compile_shader(GL_FRAGMENT_SHADER, fs);
+    glAttachShader(p, v); glAttachShader(p, f);
+    glLinkProgram(p);
+    GLint ok = 0; glGetProgramiv(p, GL_LINK_STATUS, &ok);
+    if (!ok) {
+        char buf[512] = {}; glGetProgramInfoLog(p, sizeof(buf), nullptr, buf);
+        fprintf(stderr, "[program] %s\n", buf);
+    }
+    glDeleteShader(v); glDeleteShader(f);
+    return p;
+}
+
+// ── GPU mesh state ───────────────────────────────────────────────────────────
+
+struct MeshGPU 
+{
+    GLuint vao, vbo_pos, vbo_norm, ebo;
+    GLsizei n_indices;
+};
+
+static MeshGPU upload_mesh_once(const struct TRI_Model* m) 
+{
+    MeshGPU g{};
+    g.n_indices = (GLsizei)m->header.numberOfIndices;
+
+    glGenVertexArrays(1, &g.vao);
+    glBindVertexArray(g.vao);
+
+    // Positions — DYNAMIC (updated every frame via glBufferSubData)
+    glGenBuffers(1, &g.vbo_pos);
+    glBindBuffer(GL_ARRAY_BUFFER, g.vbo_pos);
+    glBufferData(GL_ARRAY_BUFFER,
+                 (GLsizeiptr)(m->header.numberOfVertices * sizeof(float)),
+                 m->vertices, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    // Normals — DYNAMIC (recomputed from the posed vertices every frame by
+    // mhr_update_mesh_normals; stale T-pose normals made limbs shade wrong
+    // as soon as they rotated away from rest pose — see mhr_pose_driver.h)
+    glGenBuffers(1, &g.vbo_norm);
+    glBindBuffer(GL_ARRAY_BUFFER, g.vbo_norm);
+    glBufferData(GL_ARRAY_BUFFER,
+                 (GLsizeiptr)(m->header.numberOfNormals * sizeof(float)),
+                 m->normal, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    // Indices — STATIC
+    glGenBuffers(1, &g.ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                 (GLsizeiptr)(m->header.numberOfIndices * sizeof(unsigned int)),
+                 m->indices, GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+    return g;
+}
+
+// ── Background texture ───────────────────────────────────────────────────────
+
+struct BgTex { GLuint id; int w, h; bool ready; };
+
+static BgTex create_bg_tex()
+{
+    BgTex t{0, 0, 0, false};
+
+    glGenTextures(1, &t.id);
+    if (t.id == 0) {
+        fprintf(stderr, "[GL] glGenTextures returned 0 — out of texture objects?\n");
+        return t;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, t.id);
+    if (glGetError() != GL_NO_ERROR) {
+        fprintf(stderr, "[GL] glBindTexture(GL_TEXTURE_2D) failed\n");
+        glDeleteTextures(1, &t.id);
+        t.id = 0;
+        return t;
+    }
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    if (glGetError() != GL_NO_ERROR) {
+        fprintf(stderr, "[GL] glTexParameteri failed\n");
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glDeleteTextures(1, &t.id);
+        t.id = 0;
+        return t;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    if (glGetError() != GL_NO_ERROR) {
+        fprintf(stderr, "[GL] glBindTexture(0) failed\n");
+        glDeleteTextures(1, &t.id);
+        t.id = 0;
+    }
+
+    t.ready = true;
+    return t;
+}
+
+// Upload a BGR frame. Converts to RGB so the sampler returns correct colours.
+//
+// Returns true on success, false if the upload could not be completed.  The
+// caller should skip the GL pass for this frame on failure rather than crash
+// — the renderer is otherwise long-lived and a single bad frame shouldn't
+// take it down.
+//
+// Defensively guards against every path that's been observed (or is
+// plausibly causing) the segfault that the previous inline comment flagged:
+//
+//   * Texture object never allocated (`t.id == 0`) — glTexImage2D into 0
+//     is undefined behaviour on some drivers (intel-mesa segfaults, nvidia
+//     silently writes nowhere).
+//   * Input cv::Mat empty / null / wrong type.  `frame.clone()` upstream
+//     can return an empty Mat under OpenCV OOM; the previous code's
+//     `vis.empty()` check happened *after* `cvtColor` would have crashed.
+//   * Non-3-channel input (e.g. greyscale fallback when the decoder
+//     produces YUV420 and OpenCV converts to single-channel by mistake).
+//   * Pathological dimensions (negative, zero, or > MAX_TEXTURE_SIZE
+//     equivalent).  glTexImage2D with width/height beyond the GL
+//     implementation's max gives GL_INVALID_VALUE — and on a few drivers
+//     pre-write checks dereference an oversized row pointer first.
+//   * Non-contiguous cv::Mat (`!isContinuous()`).  After cvtColor this
+//     almost never happens but cvtColor on a sub-region of a larger Mat
+//     can produce one; glTexImage2D reads the buffer as a flat
+//     width*height*3 byte stream and would walk off the end of a strided
+//     buffer.
+//   * cv::cvtColor itself throwing.  Wrap in try/catch and return false
+//     rather than letting the exception kill the process.
+//   * Stale GL errors from earlier in the frame masking ours — drain
+//     them before our own checks so we can correlate any error we see
+//     here with one of our own calls.
+static bool upload_bg_frame(BgTex& t, const cv::Mat& bgr)
+{
+    if (t.id == 0) {
+        fprintf(stderr, "[GL] upload_bg_frame: texture not allocated (id=0)\n");
+        return false;
+    }
+    if (bgr.empty() || bgr.data == nullptr) {
+        fprintf(stderr, "[CV] upload_bg_frame: empty/null input Mat\n");
+        return false;
+    }
+    if (bgr.type() != CV_8UC3) {
+        fprintf(stderr, "[CV] upload_bg_frame: wrong type %d (need CV_8UC3=%d) — "
+                        "%dx%d, channels=%d\n",
+                bgr.type(), CV_8UC3, bgr.cols, bgr.rows, bgr.channels());
+        return false;
+    }
+    if (bgr.cols <= 0 || bgr.rows <= 0 ||
+        bgr.cols > 16384 || bgr.rows > 16384) {
+        // 16384 is GL_MAX_TEXTURE_SIZE on every desktop GPU made since ~2010;
+        // anything beyond is either a decoded-frame corruption or an HDR
+        // 8K+ source we wouldn't want to render anyway.
+        fprintf(stderr, "[CV] upload_bg_frame: bad dimensions %dx%d\n",
+                bgr.cols, bgr.rows);
+        return false;
+    }
+
+    cv::Mat rgb;
+    try {
+        cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
+    } catch (const cv::Exception& e) {
+        fprintf(stderr, "[CV] upload_bg_frame: cvtColor threw: %s\n", e.what());
+        return false;
+    }
+    if (rgb.empty() || rgb.data == nullptr || rgb.type() != CV_8UC3) {
+        fprintf(stderr, "[CV] upload_bg_frame: cvtColor produced bad Mat "
+                        "(empty=%d data=%p type=%d)\n",
+                rgb.empty(), (void*)rgb.data, rgb.type());
+        return false;
+    }
+    // glTexImage2D treats the pixel buffer as a flat (width*height*3) byte
+    // stream when GL_UNPACK_ROW_LENGTH=0; non-contiguous Mats have row
+    // padding that would make GL read past the end of valid memory.
+    // Cheap and safe to force-pack.
+    if (!rgb.isContinuous()) rgb = rgb.clone();
+
+    // Drain any prior GL errors so our error checks below can be trusted.
+    while (glGetError() != GL_NO_ERROR) { /* discard */ }
+
+    GLint old_unpack = 4;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &old_unpack);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    bool ok = true;
+    glBindTexture(GL_TEXTURE_2D, t.id);
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        fprintf(stderr, "[GL] glBindTexture(id=%u) failed: 0x%04X\n", t.id, err);
+        ok = false;
+    } else if (!t.ready || rgb.cols != t.w || rgb.rows != t.h) {
+        // Dimensions changed (or first upload) — allocate storage.
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                     rgb.cols, rgb.rows, 0,
+                     GL_RGB, GL_UNSIGNED_BYTE, rgb.data);
+        err = glGetError();
+        if (err != GL_NO_ERROR) {
+            fprintf(stderr, "[GL] glTexImage2D %dx%d failed: 0x%04X\n",
+                    rgb.cols, rgb.rows, err);
+            // Mark texture invalid so we don't try to glTexSubImage2D into
+            // it next frame (which would silently corrupt the display).
+            t.ready = false;
+            t.w = t.h = 0;
+            ok = false;
+        } else {
+            t.w = rgb.cols; t.h = rgb.rows; t.ready = true;
+        }
+    } else {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                        rgb.cols, rgb.rows,
+                        GL_RGB, GL_UNSIGNED_BYTE, rgb.data);
+        err = glGetError();
+        if (err != GL_NO_ERROR) {
+            fprintf(stderr, "[GL] glTexSubImage2D %dx%d failed: 0x%04X\n",
+                    rgb.cols, rgb.rows, err);
+            ok = false;
+        }
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, old_unpack);
+    return ok;
+}
+
+// ── 4x4 matrix multiply (column-major) ──────────────────────────────────────
+
+static void mat4_mul(float dst[16], const float a[16], const float b[16]) 
+{
+    for (int c = 0; c < 4; ++c)
+        for (int r = 0; r < 4; ++r) 
+        {
+            dst[c*4+r] = 0.f;
+            for (int k = 0; k < 4; ++k)
+                dst[c*4+r] += a[k*4+r] * b[c*4+k];
+        }
+}
+
+static void mat4_print(const char * label,float m[16])
+{
+ fprintf(stderr,"%s\n",label);
+ fprintf(stderr,"_________________________\n");
+ fprintf(stderr,"%0.2f %0.2f %0.2f %0.2f\n",m[0],m[1],m[2],m[3]);
+ fprintf(stderr,"%0.2f %0.2f %0.2f %0.2f\n",m[4],m[5],m[6],m[7]);
+ fprintf(stderr,"%0.2f %0.2f %0.2f %0.2f\n",m[8],m[9],m[10],m[11]);
+ fprintf(stderr,"%0.2f %0.2f %0.2f %0.2f\n",m[12],m[13],m[14],m[15]);
+ fprintf(stderr,"_________________________\n");
+}
+
+
+
+int mat4_transpose(float * mat)
+{
+  if (mat!=0)
+  {
+  /*       -------  TRANSPOSE ------->
+      0   1   2   3           0  4  8   12
+      4   5   6   7           1  5  9   13
+      8   9   10  11          2  6  10  14
+      12  13  14  15          3  7  11  15   */
+
+  float tmp;
+  tmp = mat[1]; mat[1]=mat[4];  mat[4]=tmp;
+  tmp = mat[2]; mat[2]=mat[8];  mat[8]=tmp;
+  tmp = mat[3]; mat[3]=mat[12]; mat[12]=tmp;
+
+
+  tmp = mat[6]; mat[6]=mat[9]; mat[9]=tmp;
+  tmp = mat[13]; mat[13]=mat[7]; mat[7]=tmp;
+  tmp = mat[14]; mat[14]=mat[11]; mat[11]=tmp;
+  } else
+  { //Believe it or not this is the fastest branch prediction :P
+    return 0;
+  }
+
+ return 1;
+}
+// ── Callbacks required by glx3.c ─────────────────────────────────────────────
+
+extern "C" 
+{
+    // Called by glx3_checkEvents() on key/mouse events.
+    int handleUserInput(int key, int x, int y) { (void)key; (void)x; (void)y; return 1; }
+    // Called by glx3_checkEvents() when the window is resized.
+    int windowSizeUpdated(unsigned int w, unsigned int h) { (void)w; (void)h; return 1; }
+}
+
+// ── YOLO skeleton joint pairs (COCO 17-joint order) ─────────────────────────
+
+static const int COCO_PAIRS[][2] = 
+{
+    {0,1},{0,2},{1,3},{2,4},                          // head
+    {5,6},{5,7},{7,9},{6,8},{8,10},                   // arms
+    {5,11},{6,12},{11,12},{11,13},{13,15},{12,14},{14,16} // torso+legs
+};
+static const int N_COCO_PAIRS = 17;
+
+static void draw_yolo_skeleton(cv::Mat& img,
+                                const std::vector<float>& kps,
+                                float conf_thresh = 0.3f) 
+{
+    if ((int)kps.size() < 51) return;
+    // Draw limb lines first, then joint dots on top
+    for (int p = 0; p < N_COCO_PAIRS; ++p) {
+        int a = COCO_PAIRS[p][0], b = COCO_PAIRS[p][1];
+        if (kps[a*3+2] < conf_thresh || kps[b*3+2] < conf_thresh) continue;
+        cv::line(img,
+                 {(int)kps[a*3], (int)kps[a*3+1]},
+                 {(int)kps[b*3], (int)kps[b*3+1]},
+                 cv::Scalar(255, 128, 0), 2, cv::LINE_AA);
+    }
+    for (int k = 0; k < 17; ++k) {
+        if (kps[k*3+2] < conf_thresh) continue;
+        cv::circle(img, {(int)kps[k*3], (int)kps[k*3+1]},
+                   5, cv::Scalar(0, 200, 255), -1, cv::LINE_AA);
+    }
+}
+
+// ── Save GL depth buffer to file (linearized, metres, camera-space distance) ─
+//
+// Reads the GL_DEPTH_COMPONENT buffer and undoes the standard OpenGL
+// perspective-divide nonlinearity to recover linear eye-space depth, using
+// the SAME near/far planes mhr_camera_matrices() (mhr_pose_driver.h) uses to
+// build the projection matrix. Background pixels (never touched by
+// glDrawElements, so still at the far clear value) are written as 0 so a
+// consumer can mask them out. Positive values increase with distance from
+// the camera, matching pyrender's own depth convention (see
+// render_python_gt.py / python_gt_depth.npy) — written for direct numeric
+// comparison against that file (see POSEREFINE.md "hand depth error
+// measurement" / tools/hand_depth_error.py).
+static void save_depth_buffer(const std::string& path, int w, int h) {
+    const float near_plane = 0.01f, far_plane = 100.0f;   // must match mhr_pose_driver.h
+    std::vector<float> depth_ndc(w * h);
+    GLint old_pack = 4;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &old_pack);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, w, h, GL_DEPTH_COMPONENT, GL_FLOAT, depth_ndc.data());
+    glPixelStorei(GL_PACK_ALIGNMENT, old_pack);
+
+    std::vector<float> depth_m(w * h);
+    for (int i = 0; i < w * h; ++i) {
+        float d = depth_ndc[i];
+        if (d >= 1.0f) { depth_m[i] = 0.0f; continue; }   // untouched background
+        float z_ndc = 2.0f * d - 1.0f;
+        float z_eye = (2.0f * near_plane * far_plane) /
+                      (far_plane + near_plane - z_ndc * (far_plane - near_plane));
+        depth_m[i] = z_eye;   // already positive: eye-space -Z distance
+    }
+    // glReadPixels gives bottom-up rows; flip vertically to match save_framebuffer's
+    // (and pyrender's) top-down row order.
+    std::vector<float> flipped(w * h);
+    for (int y = 0; y < h; ++y)
+        std::memcpy(flipped.data() + y*w, depth_m.data() + (h-1-y)*w, w*sizeof(float));
+
+    FILE* f = fopen(path.c_str(), "wb");
+    if (!f) { fprintf(stderr, "[export] cannot open %s\n", path.c_str()); return; }
+    fwrite(flipped.data(), sizeof(float), (size_t)w*h, f);
+    fclose(f);
+}
+
+// ── Save GL framebuffer to file ──────────────────────────────────────────────
+
+static bool save_framebuffer(const std::string& path, int w, int h) {
+    std::vector<uint8_t> px(w * h * 3);
+    // Default GL_PACK_ALIGNMENT is 4 — for widths whose row byte-count (w*3)
+    // is not divisible by 4 (e.g. 2250×3 = 6750 → 2 pad bytes/row) glReadPixels
+    // writes over-aligned rows, shearing the saved image into a parallelogram.
+    GLint old_pack = 4;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &old_pack);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, px.data());
+    glPixelStorei(GL_PACK_ALIGNMENT, old_pack);
+    // glReadPixels gives bottom-up rows; flip vertically
+    cv::Mat img(h, w, CV_8UC3, px.data());
+    cv::flip(img, img, 0);
+    cv::cvtColor(img, img, cv::COLOR_RGB2BGR);
+    // imwrite's return MUST be checked: when the filesystem holding the frame
+    // directory fills up it just returns false, and an unchecked call turns a
+    // full disk into a silent no-op that still looks like a successful render
+    // (video.sh then counts the missing JPEGs and blames a mid-run kill).
+    bool ok = false;
+    try { ok = cv::imwrite(path, img); }
+    catch (const cv::Exception& e) { fprintf(stderr, "[save-frames] %s\n", e.what()); }
+    if (!ok) return false;
+    printf("Saved: %s\n", path.c_str());
+    return true;
+}
+
+// ── Export the deformed body mesh to a Wavefront .obj ─────────────────────────
+//
+// MHR metres → BVH centimetres.  Must match bvh_writer.cpp's POS_SCALE so a
+// plain Blender "Import OBJ" overlays 1:1 on a plain "Import BVH" of the
+// matching skeleton.
+static constexpr float MESH_EXPORT_POS_SCALE = 100.0f;
+
+// Writes `m` (already-LBS-deformed) in the same world space as the BVH export.
+//
+// Coordinate mapping (must match bvh_writer.cpp):
+//   The MHR LBS model has a "body_world" root (joint 0) at the model origin,
+//   with the anatomical pelvis (joint 1, MHR "root") 92.4 cm above it in model
+//   Y-up space.  The BVH writer places the BVH hip at pred_cam_t, which is the
+//   world-space position of the pelvis, NOT body_world.
+//
+//   LBS vertices are in metres with Y and Z negated (camera Y-down convention).
+//   To match BVH world space (Y-up):
+//     OBJ_X =  (v.x − pelvis.x) × scale + cam_t[0] × scale
+//     OBJ_Y = −(v.y − pelvis.y) × scale + cam_t[1] × scale   ← flip Y to world-up
+//     OBJ_Z = −(v.z − pelvis.z) × scale + cam_t[2] × scale   ← flip Z same
+//
+//   Result: pelvis vertex lands exactly at pred_cam_t × scale (= BVH root).
+//   Negating Y and Z together keeps det = +1, so face winding is preserved.
+//
+// pelvis_lbs: joint[1] from mhr_lbs_compute out_joints (metres, Y/Z flipped).
+//             Pass nullptr to skip the pelvis-centering step (legacy behaviour).
+static void write_obj_mesh(const std::string& path,
+                           const struct TRI_Model* m,
+                           const float* cam_t,
+                           const float* pelvis_lbs,
+                           float scale,
+                           const float* rgb = nullptr)   // optional per-vertex colour, 0-1
+{
+    FILE* f = fopen(path.c_str(), "wb");
+    if (!f) { fprintf(stderr, "[export] cannot open %s\n", path.c_str()); return; }
+
+    const float px = pelvis_lbs ? pelvis_lbs[0] : 0.f;
+    const float py = pelvis_lbs ? pelvis_lbs[1] : 0.f;
+    const float pz = pelvis_lbs ? pelvis_lbs[2] : 0.f;
+    const float tx = cam_t ? cam_t[0] * scale : 0.f;
+    const float ty = cam_t ? cam_t[1] * scale : 0.f;
+    const float tz = cam_t ? cam_t[2] * scale : 0.f;
+
+    const unsigned int nv = m->header.numberOfVertices;
+    for (unsigned int i = 0; i + 2 < nv; i += 3) {
+        fprintf(f, "v %.6f %.6f %.6f",
+                 (m->vertices[i]   - px) * scale + tx,
+                -(m->vertices[i+1] - py) * scale + ty,
+                -(m->vertices[i+2] - pz) * scale + tz);
+        if (rgb) fprintf(f, " %.4f %.4f %.4f", rgb[i], rgb[i+1], rgb[i+2]);
+        fputc('\n', f);
+    }
+
+    // numberOfIndices is the raw index count (3 per triangle); OBJ is 1-based.
+    const unsigned int ni = m->header.numberOfIndices;
+    for (unsigned int i = 0; i + 2 < ni; i += 3)
+        fprintf(f, "f %u %u %u\n",
+                m->indices[i] + 1, m->indices[i+1] + 1, m->indices[i+2] + 1);
+
+    fclose(f);
+}
+
+// Writes the MHR LBS joint CENTRES (out_joints) in the SAME world space as
+// write_obj_mesh, one "idx x y z" line per joint.  Lets the overlay checker
+// compare BVH joints to MHR joints centre-to-centre (isolating skeleton/offset
+// error from the joint-centre-vs-surface gap you get comparing to mesh vertices).
+static void write_mhr_joints(const std::string& path,
+                             const float* joints, int n_joints,
+                             const float* cam_t,
+                             const float* pelvis_lbs,
+                             float scale)
+{
+    FILE* f = fopen(path.c_str(), "wb");
+    if (!f) { fprintf(stderr, "[export] cannot open %s\n", path.c_str()); return; }
+    const float px = pelvis_lbs ? pelvis_lbs[0] : 0.f;
+    const float py = pelvis_lbs ? pelvis_lbs[1] : 0.f;
+    const float pz = pelvis_lbs ? pelvis_lbs[2] : 0.f;
+    const float tx = cam_t ? cam_t[0] * scale : 0.f;
+    const float ty = cam_t ? cam_t[1] * scale : 0.f;
+    const float tz = cam_t ? cam_t[2] * scale : 0.f;
+    for (int j = 0; j < n_joints; ++j)
+        fprintf(f, "%d %.6f %.6f %.6f\n", j,
+                 (joints[j*3+0] - px) * scale + tx,
+                -(joints[j*3+1] - py) * scale + ty,
+                -(joints[j*3+2] - pz) * scale + tz);
+    fclose(f);
+}
+
+// 2nd-order Butterworth is now sourced from src/outputFiltering.h
+// (struct ButterWorth + initButterWorth/filter, plus the wrap-aware
+//  ButterWorthWrap shim that absorbs the unwrap-then-filter trick the
+//  previous BwFilter class did inline).  Removing the local duplicate
+//  eliminates the two-coefficient-conventions footgun PLAN.md called
+//  out — there's now exactly one Butterworth implementation in the
+//  project and any change to the smoothing math goes in one place.
+//
+// Helper: filter N channels in-place through a parallel bank of
+// ButterWorthWrap filters.  `bank.size()` must equal `n`.
+static inline void apply_bw_bank(std::vector<ButterWorthWrap>& bank,
+                                 float* data, int n)
+{
+    if ((int)bank.size() != n) return;
+    for (int i = 0; i < n; ++i)
+        data[i] = filter_wrap(&bank[i], data[i]);
+}
+
+// --mesh-color / --color feed straight into the uColor uniform, which the
+// shader multiplies by a [0.3,1.0] diffuse term (default.frag).  A channel
+// above 1.0 (e.g. a --mesh-color caller passing 0-255 by mistake) then stays
+// saturated across that whole diffuse range once the GPU clamps it on write,
+// so the mesh loses its shading gradient and, at low --transparency opacity,
+// reads as an almost invisible flat tint instead of a shaded body. Clamping
+// here keeps every caller in the [0,1] range the shader expects.
+static inline float clamp01(float v) { return v < 0.f ? 0.f : (v > 1.f ? 1.f : v); }
+
+// Per-person LBS model parameters: the pipeline's mhr_model_params with the
+// hand pose and the scale PCA decoded in, ready for mhr_lbs_compute.
+static std::array<float, 204> person_model_params(const struct MHR_LBS_Data* lbs,
+                                                  const fsb::MHRResult&      r)
+{
+    // Decode scale PCA into model_params[136:204] if available.
+    // Python: scales = scale_mean + scale_params @ scale_comps  ([28]→[68])
+    // build_model_params zeros [136:204]; fill them here if lbs has scale data.
+    std::array<float, 204> mp = r.mhr_model_params;
+    // Apply hand pose (v3 lbs file required).  This overrides the zeroed
+    // hand joint slots that build_model_params left in mp with the
+    // PCA-decoded per-finger Euler angles, exactly as Python's
+    // replace_hands_in_pose() does.
+    if (lbs->hand_pose_mean && lbs->hand_pose_comps &&
+        lbs->hand_joint_idxs_left && lbs->hand_joint_idxs_right &&
+        !r.hand_pose.empty())
+    {
+        fsb::apply_hand_pose(mp.data(),
+                              r.hand_pose.data(),
+                              lbs->hand_pose_mean,
+                              lbs->hand_pose_comps,
+                              lbs->hand_joint_idxs_left,
+                              lbs->hand_joint_idxs_right);
+    }
+    if (lbs->scale_mean && lbs->scale_comps && !r.scale.empty()) {
+        int ns = lbs->n_scale_out;  // 68
+        int np = lbs->n_scale_pc;   // 28
+        for (int i = 0; i < ns; ++i)
+            mp[136 + i] = lbs->scale_mean[i];
+        for (int k = 0; k < np && k < (int)r.scale.size(); ++k)
+            for (int i = 0; i < ns; ++i)
+                mp[136 + i] += r.scale[k] * lbs->scale_comps[k * ns + i];
+    }
+    return mp;
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+
+int main(int argc, const char** argv) {
+    std::string onnx_dir  = "./onnx";
+    std::string gguf_path = "./onnx/pipeline.gguf";
+    std::string yolo_path = "./onnx/yolo.onnx";
+    std::string mesh_path = "";   // empty = <onnx-dir>/body_mesh.tri (resolved below)
+    std::string vert_path = "src/render/default.vert";
+    std::string frag_path = "src/render/default.frag";
+    float       mesh_color[3] = {0.65f, 0.75f, 0.9f};  // same for everyone for now; --color R G B (0-255) overrides
+    float       shininess     = 0.0f;   // 0 = matte; --shiny turns on the chrome look
+    float       transparency  = 0.7f;   // mesh opacity (--transparency)
+    std::string lbs_path  = "";
+    std::string src       = "0";
+    std::string save_frames_prefix = "";
+    int         save_frame_idx     = 0;
+    std::string save_depth_prefix  = "";   // --save-depth: per-frame raw float32 depth dump
+    std::string export_mesh_prefix = "";   // --export-mesh: per-frame .obj dump
+    int         export_mesh_stride = 1;     // --export-mesh-stride: every Nth frame
+    std::string bvh_path           = "";
+    std::string bvh_template       = "";
+    // --headless creates a GLX Pbuffer (offscreen surface) instead of a
+    // visible X11 window.  Used by scripts/video.sh in --save mode so the
+    // long-running render can't be killed by an accidental window close,
+    // the screen-saver, or any window-manager interaction with a stale
+    // long-lived window.  The GL context is identical either way; only
+    // the surface is offscreen, so glReadPixels (used by --save-frames)
+    // still produces the same image.
+    bool        headless           = false;
+    bool        bvh_body_shape_change          = true;
+    bool        bvh_hand_shape_change          = true;
+    bool        bvh_compensate_finger_endsites = true;
+    bool        bvh_enforce_hand_limits        = true;   // default on (overwritten from cc)
+    bool        bvh_zero_hand_pose             = false;
+    bool        bvh_sticky_hand_pose           = true;   // default on (overwritten from cc)
+    bool        bvh_rest_align                 = true;
+    bool        bvh_dump_rest_dirs             = false;
+    bool        bvh_foot_contact               = false;
+    bool        bvh_static_root                = false;
+    bool        use_butterworth    = false;
+    float       bw_cutoff         = 6.0f;   // Hz; higher = less lag, less smoothing
+    bool        filter_root_rot   = false;  // enabled by --butterworth-root-rotation
+    float       rot_clamp_deg     = 1.0f;   // rejection threshold in degrees/frame
+    int         max_frames        = -1;     // --frames N: stop after N frames
+    int         pipeline_depth    = 1;      // --pipeline N: frames processed concurrently
+    int         frame_skip        = 0;      // --frameskip K: source frames discarded per processed one
+    int         start_frame       = 0;      // --start N: seek to frame N first
+    int         max_persons       = 0;      // --max-persons N: 0 = unlimited
+    int         detector          = fsb::PipelineConfig::DET_YOLO_POSE; // --detector
+    int  cuda_device  = 0;
+    bool use_trt      = false;
+    bool fp16         = true;
+    bool zero_face    = true;
+    bool refined_pose = false;  // --refined-pose: see PLAN.md
+    bool no_pass2     = false;  // --no-pass2: run only pass 1 of --refined-pose
+    std::string boxes_path;  // --boxes: external person boxes, one "x1 y1 x2 y2" per line
+    float  focal_x    = 0.f; // --fx: camera focal x in pixels (0 = pipeline default)
+    float  focal_y    = 0.f; // --fy: camera focal y in pixels (0 = pipeline default)
+    int    render_w   = 0;   // GL window width  (0 = match input)
+    int    render_h   = 0;   // GL window height (0 = match input)
+    float  render_scale = 0.f; // --render-scale: GL window = this multiple of the
+                               // input frame (0 = unused; --render-size wins)
+    int    cap_w      = 0;   // capture width  (0 = driver default)
+    int    cap_h      = 0;   // capture height (0 = driver default)
+    double cap_fps    = 0.0; // capture fps    (0 = driver default)
+    bool   use_mjpg   = false; // --mjpg: request MJPG from the camera (lets UVC
+                               // webcams sustain higher fps at high resolution)
+    bool   no_drop    = false; // --no-drop: process every captured frame (lockstep),
+                               // disabling the live-source stale-frame skipping
+    std::string window_title;  // --title: overrides the GL window's title
+    bool   skin_color = false; // --skin-color: colour the mesh from the video (skin_color.h)
+    std::string skin_color_save; // --skin-color-save: rest-pose coloured OBJ per person at exit
+    bool   skin_default_set = false; // --skin-color-default R G B (0-255): colour of unseen vertices
+    float  skin_default[3] = {0.f, 0.f, 0.f};
+    bool   skin_default_arms = false; // --skin-color-default arms: each person's forearm colour
+    bool   skin_mirror = false;       // --skin-color-mirror: unseen vertices borrow their mirror
+    float  skin_hair_cap_cm = 0.f;   // --skin-hair-cap CM: paint the crown, 0 = off
+    float  skin_hair_cap_deg = 0.f;  // --skin-hair-cap CM DEG: tilt, lower at the back
+    std::string skin_match = "gpu"; // --skin-match gpu|cpu: appearance check between frames
+    std::string skin_turntable_prefix; // --skin-turntable: rotating coloured-mesh frames
+
+    // Common flags go through the shared parser; binary-specific flags
+    // (--mesh, --lbs, --save-frames, --render-size, --size, --fps, --mjpg,
+    //  --butterworth*, --dev-face, --headless) stay handled inline.
+    CommonConfig cc;
+    for (int i = 1; i < argc; ++i) {
+        if (parse_common_arg(argc, argv, i, cc)) continue;
+
+#define A1(flag, field, conv) \
+        if (!strcmp(argv[i], flag) && i+1<argc) { field = conv(argv[++i]); continue; }
+        A1("--mesh",        mesh_path,          std::string)
+        A1("--vert",        vert_path,          std::string)
+        A1("--frag",        frag_path,          std::string)
+        A1("--lbs",         lbs_path,           std::string)
+        A1("--save-frames", save_frames_prefix, std::string)
+        A1("--save-depth",  save_depth_prefix,  std::string)
+        A1("--export-mesh", export_mesh_prefix, std::string)
+        A1("--fx",          focal_x,            std::stof)
+        A1("--fy",          focal_y,            std::stof)
+        A1("--boxes",       boxes_path,         std::string)
+        A1("--title",       window_title,       std::string)
+        A1("--skin-color-save", skin_color_save,  std::string)
+        A1("--skin-match",  skin_match,         std::string)
+        A1("--skin-turntable", skin_turntable_prefix, std::string)
+#undef A1
+        if (!strcmp(argv[i], "--export-mesh-stride") && i+1 < argc) {
+            export_mesh_stride = std::stoi(argv[++i]);
+            if (export_mesh_stride < 1) export_mesh_stride = 1;
+            continue;
+        }
+        if (!strcmp(argv[i], "--mesh-color") && i+3 < argc)
+            { mesh_color[0]=clamp01(std::stof(argv[++i])); mesh_color[1]=clamp01(std::stof(argv[++i]));
+              mesh_color[2]=clamp01(std::stof(argv[++i])); continue; }
+        // --color R G B: same uniform tint as --mesh-color, but in the more
+        // familiar 0-255 8-bit range, e.g. --color 255 255 0 for yellow.
+        if (!strcmp(argv[i], "--color") && i+3 < argc)
+            { mesh_color[0]=clamp01(std::stof(argv[++i])/255.0f); mesh_color[1]=clamp01(std::stof(argv[++i])/255.0f);
+              mesh_color[2]=clamp01(std::stof(argv[++i])/255.0f); continue; }
+        if (!strcmp(argv[i], "--skin-color-default") && i+1 < argc && !strcmp(argv[i+1], "arms"))
+            { skin_default_arms = true; ++i; continue; }
+        if (!strcmp(argv[i], "--skin-color-default") && i+3 < argc)
+            { for (int c = 0; c < 3; ++c) skin_default[c] = clamp01(std::stof(argv[++i])/255.0f);
+              skin_default_set = true; continue; }
+        if (!strcmp(argv[i], "--skin-hair-cap") && i+1 < argc) {
+            skin_hair_cap_cm = std::stof(argv[++i]);
+            if (i+1 < argc && (isdigit((unsigned char)argv[i+1][0]) || argv[i+1][0]=='.' ||
+                               (argv[i+1][0]=='-' && isdigit((unsigned char)argv[i+1][1]))))
+                skin_hair_cap_deg = std::stof(argv[++i]);
+            continue;
+        }
+        if (!strcmp(argv[i], "--transparency") && i+1 < argc)
+            { transparency = 1.0f - std::stof(argv[++i]); continue; }  // value is transparency; uAlpha is opacity
+        // --shiny enables the reflective look at a default strength; an optional
+        // numeric argument (0..1) overrides it, e.g. --shiny 0.6
+        if (!strcmp(argv[i], "--shiny")) {
+            shininess = 0.85f;
+            if (i+1 < argc && (isdigit((unsigned char)argv[i+1][0]) || argv[i+1][0]=='.'))
+                shininess = std::stof(argv[++i]);
+            continue;
+        }
+        if (!strcmp(argv[i], "--render-size") && i+2 < argc)
+            { render_w = std::stoi(argv[++i]); render_h = std::stoi(argv[++i]); continue; }
+        if (!strcmp(argv[i], "--render-scale") && i+1 < argc)
+            { render_scale = std::stof(argv[++i]); continue; }
+        if (!strcmp(argv[i], "--size") && i+2 < argc)
+            { cap_w = std::stoi(argv[++i]); cap_h = std::stoi(argv[++i]); continue; }
+        if (!strcmp(argv[i], "--fps") && i+1 < argc)
+            { cap_fps = std::stod(argv[++i]); continue; }
+        if (!strcmp(argv[i], "--mjpg")) { use_mjpg = true; continue; }
+        if (!strcmp(argv[i], "--dev-face"))    { zero_face      = false; continue; }
+        if (!strcmp(argv[i], "--refined-pose")){ refined_pose   = true;  continue; }
+        if (!strcmp(argv[i], "--no-pass2"))    { no_pass2       = true;  continue; }
+        if (!strcmp(argv[i], "--butterworth"))              { use_butterworth  = true; continue; }
+        if (!strcmp(argv[i], "--butterworth-root-rotation")){ filter_root_rot  = true; continue; }
+        if (!strcmp(argv[i], "--headless"))                 { headless = true; continue; }
+        if (!strcmp(argv[i], "--no-drop"))                  { no_drop = true; continue; }
+        if (!strcmp(argv[i], "--skin-color"))               { skin_color = true; continue; }
+        if (!strcmp(argv[i], "--skin-color-mirror"))        { skin_mirror = true; continue; }
+    }
+    ensure_models(cc, refined_pose);  // fetch the models if onnx/ is empty
+                                      // (incl. the 'refined' profile under
+                                      // --refined-pose)
+    resolve_detector_defaults(cc);  // "auto" → libreyolo when available; sets the
+                                    // per-detector default threshold too
+    resolve_backbone_defaults(cc);  // CUDA: prefer backbone_fp16.onnx if present
+    // Unpack the common parser's output into the local variables the
+    // rest of main() expects.  Keeping the locals avoids a wholesale
+    // refactor of the rendering loop's pipeline-config / BVH-writer /
+    // filter-init code paths.
+    onnx_dir                       = cc.onnx_dir;
+    gguf_path                      = cc.gguf_path;
+    yolo_path                      = cc.yolo_path;
+    src                            = cc.from;
+    cuda_device                    = cc.cuda_device;
+    use_trt                        = cc.use_trt;
+    fp16                           = cc.fp16;
+    bvh_path                       = cc.bvh_path;
+    bvh_template                   = cc.bvh_template;
+    bvh_body_shape_change          = cc.bvh_body_shape_change;
+    bvh_hand_shape_change          = cc.bvh_hand_shape_change;
+    bvh_compensate_finger_endsites = cc.bvh_compensate_finger_endsites;
+    bvh_enforce_hand_limits        = cc.bvh_enforce_hand_limits;
+    bvh_zero_hand_pose             = cc.bvh_zero_hand_pose;
+    bvh_sticky_hand_pose           = cc.bvh_sticky_hand_pose;
+    bvh_rest_align                 = cc.bvh_rest_align;
+    bvh_dump_rest_dirs             = cc.bvh_dump_rest_dirs;
+    bvh_foot_contact               = cc.bvh_foot_contact;
+    bvh_static_root                = cc.bvh_static_root;
+    bw_cutoff                      = cc.bw_cutoff;
+    rot_clamp_deg                  = cc.rot_clamp_deg;
+    max_frames                     = cc.max_frames;
+    start_frame                    = cc.start_frame;
+    max_persons                    = cc.max_persons;
+    pipeline_depth                 = cc.pipeline_depth;
+    frame_skip                     = cc.frame_skip;
+    detector                       = detector_kind_from_string(cc.detector);
+
+    // ── Pipeline ─────────────────────────────────────────────────────────────
+    fsb::Pipeline pipeline;
+    {
+        fsb::PipelineConfig cfg;
+        cfg.onnx_dir        = onnx_dir;
+        cfg.backbone_name   = cc.backbone_name;   // honour --backbone / fp16 auto-prefer
+        cfg.decoder_name    = cc.decoder_name;    // honour --trt decoder_fp16 auto-swap
+        cfg.gguf_path       = gguf_path;
+        cfg.yolo_path       = yolo_path;
+        cfg.cuda_device     = cuda_device;
+        cfg.use_trt_ep      = use_trt;
+        cfg.use_fp16        = fp16;
+        cfg.ort_verbose     = cc.ort_verbose;      // --ort-verbose
+        cfg.max_persons     = max_persons;
+        cfg.focus           = cc.focus;            // --focus [SENSITIVITY]
+        cfg.focus_sensitivity = cc.focus_sensitivity;
+        cfg.pipeline_depth  = pipeline_depth;      // --pipeline N
+        cfg.detector        = detector;
+        cfg.person_thresh   = cc.person_thresh;   // honour --detector-threshold / per-detector default
+        cfg.person_nms_iou  = cc.person_nms_iou;
+        // Left at 0 the pipeline uses the image diagonal, which is the focal the
+        // decoder/FFN was trained against.  Overriding with a real camera focal
+        // (e.g. from EXIF) changes condition_info, so it is opt-in only.
+        cfg.focal_x         = focal_x;
+        cfg.focal_y         = focal_y;
+        // --boxes: plain text, one "x1 y1 x2 y2" per line, original image pixels.
+        // Blank lines and '#' comments are skipped.  Deliberately not JSON —
+        // there is no JSON dependency in the C++ tree and this is written by a
+        // single producer (python/sam3_solve.py).
+        if (!boxes_path.empty()) {
+            FILE* bf = fopen(boxes_path.c_str(), "r");
+            if (!bf) { fprintf(stderr, "Cannot open --boxes file: %s\n", boxes_path.c_str()); return 1; }
+            char line[256];
+            while (fgets(line, sizeof(line), bf)) {
+                if (line[0] == '#' || line[0] == '\n') continue;
+                float b[4];
+                if (sscanf(line, "%f %f %f %f", &b[0], &b[1], &b[2], &b[3]) == 4)
+                    cfg.external_boxes.push_back({b[0], b[1], b[2], b[3]});
+            }
+            fclose(bf);
+            printf("[boxes] loaded %zu external person boxes from %s\n",
+                   cfg.external_boxes.size(), boxes_path.c_str());
+        }
+        // LBS runs natively in C (this binary loads its own copy below for the
+        // GL mesh); skip body_model.onnx. Exception: refined_pose needs the
+        // Pipeline's OWN lbs_data/kp_mapping internally for the wrist-IK
+        // fusion's FK + keypoint-projection steps (see PLAN.md) — a second,
+        // redundant load, but LBS load/compute is cheap and this keeps the
+        // Pipeline self-contained rather than threading render's copy in.
+        cfg.skip_body_model = !refined_pose;
+        cfg.refined_pose    = refined_pose;
+        cfg.skip_pass2      = no_pass2;
+        if (!pipeline.load(cfg)) {
+            fprintf(stderr, "Failed to load pipeline\n"); return 1;
+        }
+    }
+
+    // ── Video/image source ────────────────────────────────────────────────────
+    bool is_image = false;
+    bool is_live  = false;       // webcam / live device → drop stale frames to stay in sync
+    const int LIVE_BUFFER = 3;   // driver ring-buffer depth requested for live sources
+    cv::Mat static_img;
+    // RobustCapture only changes behavior for real /dev/video* devices or a
+    // numeric webcam index (raw V4L2, re-grabbing frames the kernel flagged
+    // V4L2_BUF_FLAG_ERROR instead of handing back torn/half-updated pixels);
+    // video files and images fall straight through to cv::VideoCapture.
+    RobustCapture cap;
+    {
+        bool numeric = !src.empty() &&
+                       (src[0]=='-' || isdigit((unsigned char)src[0]));
+        // Live capture devices: a numeric camera index or a /dev/video* node.
+        // Video files and image paths are NOT live — they must be processed
+        // frame-exact, so frame-dropping is gated on this flag.
+        is_live = numeric || src.rfind("/dev/video", 0) == 0;
+        if (numeric) {
+            cap.open(std::stoi(src));
+        } else {
+            static_img = cv::imread(src);
+            if (!static_img.empty()) {
+                is_image = true;
+            } else {
+                cap.open(src);
+                if (!cap.isOpened()) { fprintf(stderr,"Cannot open: %s\n", src.c_str()); return 1; }
+            }
+        }
+        if (!is_image && cap.isOpened()) {
+            // --mjpg: ask the camera for motion-JPEG *before* width/height/fps so
+            // the driver re-negotiates the stream format.  Uncompressed YUYV is
+            // bandwidth-capped over USB and drops to lower fps tiers as resolution
+            // climbs; MJPG is compressed on-camera and sustains 30 fps at higher
+            // resolutions.  Harmless if the camera has no MJPG mode (ignored).
+            if (use_mjpg)
+                cap.set(cv::CAP_PROP_FOURCC,
+                        cv::VideoWriter::fourcc('M','J','P','G'));
+            if (cap_w > 0) cap.set(cv::CAP_PROP_FRAME_WIDTH,  cap_w);
+            if (cap_h > 0) cap.set(cv::CAP_PROP_FRAME_HEIGHT, cap_h);
+            if (cap_fps > 0.0) cap.set(cv::CAP_PROP_FPS,      cap_fps);
+            if (use_mjpg) {
+                // Report what the driver actually negotiated (may differ from the
+                // request).  FOURCC is packed little-endian into a double.
+                int fcc = (int)cap.get(cv::CAP_PROP_FOURCC);
+                char tag[5] = { (char)( fcc        & 0xFF),
+                                (char)((fcc >>  8) & 0xFF),
+                                (char)((fcc >> 16) & 0xFF),
+                                (char)((fcc >> 24) & 0xFF), 0 };
+                printf("[mjpg] negotiated fourcc=%s  %gx%g @ %g fps\n",
+                       tag,
+                       cap.get(cv::CAP_PROP_FRAME_WIDTH),
+                       cap.get(cv::CAP_PROP_FRAME_HEIGHT),
+                       cap.get(cv::CAP_PROP_FPS));
+            }
+            // Small ring buffer for live sources so the driver overwrites stale
+            // frames once we fall behind — bounds latency to a few frames instead
+            // of letting an unbounded FIFO accumulate.  Backend-dependent (V4L2
+            // honours it); the time-based drain below works regardless.
+            if (is_live && !no_drop) cap.set(cv::CAP_PROP_BUFFERSIZE, LIVE_BUFFER);
+            if (start_frame > 0) {
+                cap.set(cv::CAP_PROP_POS_FRAMES, (double)start_frame);
+                printf("[start] seeking to frame %d\n", start_frame);
+            }
+        }
+    }
+
+    // Determine initial window size from first frame
+    cv::Mat probe;
+    if (is_image) probe = static_img;
+    else          cap >> probe;
+    if (probe.empty()) { fprintf(stderr, "Empty frame\n"); return 1; }
+    int frame_w = probe.cols;   // input frame dims — used for projection matrix
+    int frame_h = probe.rows;
+    int W = (render_w > 0) ? render_w : frame_w;
+    int H = (render_h > 0) ? render_h : frame_h;
+    // --render-scale: size the window off the frame the source actually gave us
+    // (webcams may negotiate something other than the requested --size), so the
+    // input aspect ratio is preserved by construction.
+    if (render_scale > 0.f && render_w <= 0 && render_h <= 0) {
+        W = (int)(frame_w * render_scale + 0.5f);
+        H = (int)(frame_h * render_scale + 0.5f);
+        printf("[render] --render-scale %g: %dx%d -> %dx%d\n", render_scale, frame_w, frame_h, W, H);
+    }
+
+    // ── GLX surface ───────────────────────────────────────────────────────────
+    // viewWindow=1 → normal visible X11 window
+    // viewWindow=0 → offscreen GLX Pbuffer (no XMapWindow, no event source the
+    //                user can interact with).  Pbuffers were the standard
+    //                pre-EGL way to get offscreen GL on Linux/X11 and the
+    //                fixed-pipeline glReadPixels we use to save frames works
+    //                identically on them.
+    if (!window_title.empty()) glx3_set_window_title(window_title.c_str());
+    if (!start_glx3_stuff(W, H, headless ? 0 : 1, argc, argv)) {
+        fprintf(stderr, "Failed to start GLX %s\n",
+                headless ? "Pbuffer" : "window"); return 1;
+    }
+    if (headless) printf("[headless] running offscreen — no GUI window\n");
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        fprintf(stderr, "GLEW init failed\n"); return 1;
+    }
+
+    // ── Shaders ───────────────────────────────────────────────────────────────
+    GLuint prog_quad = link_program(QUAD_VERT, QUAD_FRAG);
+
+    std::string mesh_vert_src = load_text_file(vert_path.c_str());
+    std::string mesh_frag_src = load_text_file(frag_path.c_str());
+    if (mesh_vert_src.empty() || mesh_frag_src.empty()) {
+        fprintf(stderr, "Cannot load mesh shaders (%s, %s)\n",
+                vert_path.c_str(), frag_path.c_str()); return 1;
+    }
+    GLuint prog_mesh = link_program(mesh_vert_src.c_str(), mesh_frag_src.c_str());
+    GLint  mvp_loc   = glGetUniformLocation(prog_mesh, "uMVP");
+    GLint  view_loc  = glGetUniformLocation(prog_mesh, "uView");
+    GLint  color_loc = glGetUniformLocation(prog_mesh, "uColor");
+    GLint  scene_loc = glGetUniformLocation(prog_mesh, "uScene");
+    GLint  res_loc   = glGetUniformLocation(prog_mesh, "uResolution");
+    GLint  shiny_loc = glGetUniformLocation(prog_mesh, "uShiny");
+    GLint  alpha_loc = glGetUniformLocation(prog_mesh, "uAlpha");
+    GLint  vcolor_loc = glGetUniformLocation(prog_mesh, "uVertexColor");
+    GLint  tex_loc   = glGetUniformLocation(prog_quad, "uTex");
+
+    // ── Load body mesh from .tri ──────────────────────────────────────────────
+    if (mesh_path.empty()) mesh_path = onnx_dir + "/body_mesh.tri";
+    struct TRI_Model* tri_model = tri_allocateModel();
+    if (!tri_loadModel(mesh_path.c_str(), tri_model)) {
+        fprintf(stderr, "Cannot load mesh: %s\n", mesh_path.c_str()); return 1;
+    }
+    printf("Mesh loaded: %u vertices, %u indices\n",
+           tri_model->header.numberOfVertices / 3,
+           tri_model->header.numberOfIndices / 3);
+
+    // Topology (indices) never changes frame to frame, so the 1-ring vertex
+    // adjacency used to smooth away low-poly limb "fluting" is built once,
+    // here, rather than every frame — see mhr_smooth_mesh_normals.
+    MHR_VertexAdjacency vert_adj;
+    mhr_build_vertex_adjacency(tri_model, vert_adj);
+    std::vector<float> normal_smooth_scratch;
+    int normal_smooth_iters = 2;
+    if (const char* e = getenv("FSB_NORMAL_SMOOTH_ITERS")) normal_smooth_iters = atoi(e);
+
+    MeshGPU mesh_gpu = upload_mesh_once(tri_model);
+
+    // --skin-color: one accumulator per detection slot, plus a per-vertex
+    // colour stream on attribute 2 of the mesh VAO (default.vert aColor).
+    if (!skin_color_save.empty() || !skin_turntable_prefix.empty() || skin_default_set ||
+        skin_default_arms || skin_hair_cap_cm > 0.f || skin_mirror) skin_color = true;
+    fsb::PersonSlots                       skin_slots;  // tracks who is who
+    fsb::SkinObserver                      skin_observer;
+    fsb::SkinMatchGL                       skin_matcher;
+    fsb::SkinTurntableGL                   skin_turntable;
+    int                                    skin_turntable_idx = 0;
+    bool                                   skin_turntable_window = false;
+    bool                                   skin_match_gpu = false;
+    std::vector<fsb::SkinColorAccumulator> skin_acc;
+    std::vector<std::array<float, 204>>    skin_mp;     // last params per slot,
+    std::vector<std::vector<float>>        skin_shape;  // for the rest-pose export
+    GLuint skin_vbo = 0;
+    if (skin_color) {
+        glBindVertexArray(mesh_gpu.vao);
+        glGenBuffers(1, &skin_vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, skin_vbo);
+        glBufferData(GL_ARRAY_BUFFER, MHR_VERTEX_FLOATS * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+        glBindVertexArray(0);
+        skin_observer.init(tri_model->indices, tri_model->header.numberOfIndices, MHR_VERTEX_COUNT);
+        if (skin_match != "cpu") {
+            skin_match_gpu = skin_matcher.init(tri_model->indices, tri_model->header.numberOfIndices,
+                                               MHR_VERTEX_COUNT);
+            if (!skin_match_gpu)
+                fprintf(stderr, "[skin-color] GPU matcher unavailable, matching on the CPU\n");
+        }
+        printf("[skin-color] accumulating per-vertex appearance from the video (%s matching)\n",
+               skin_match_gpu ? "GPU" : "CPU");
+        skin_turntable_window = !headless && getenv("FSB_SKIN_MATCH_DEBUG");
+        if ((!skin_turntable_prefix.empty() || skin_turntable_window) &&
+            !skin_turntable.init(tri_model->indices, tri_model->header.numberOfIndices,
+                                 MHR_VERTEX_COUNT, W, H)) {
+            fprintf(stderr, "[skin-color] turntable unavailable\n");
+            skin_turntable_prefix.clear();
+            skin_turntable_window = false;
+        }
+    }
+
+    if (!export_mesh_prefix.empty())
+        printf("[export] writing deformed mesh to %s_p<person>_<frame>.obj "
+               "(every %d frame%s, world Y-up cm, pelvis at BVH root — overlay 1:1 in Blender)\n",
+               export_mesh_prefix.c_str(), export_mesh_stride,
+               export_mesh_stride == 1 ? "" : "s");
+
+    // ── Load LBS data ─────────────────────────────────────────────────────────
+    if (lbs_path.empty()) lbs_path = onnx_dir + "/body_model.lbs";
+    struct MHR_LBS_Data* lbs = mhr_lbs_load(lbs_path.c_str());
+    if (!lbs) fprintf(stderr, "Warning: LBS data not loaded — mesh will not deform\n");
+
+    // --skin-color + --focus: judge each retained person's motion on their
+    // silhouette instead of their whole box (see the usage notes at the top).
+    if (skin_color && cc.focus && lbs) {
+        pipeline.set_focus_motion(
+            [&, verts = std::vector<float>(), joints = std::vector<float>(),
+             obs_now = fsb::SkinObservation(), obs_key = fsb::SkinObservation()]
+            (const uint8_t* now_bgr, const uint8_t* key_bgr, int w, int h,
+             const fsb::MHRResult& r) mutable -> float
+        {
+            // Pose the retained solution; the draw loop overwrites tri_model
+            // later, so it is free to use as scratch here.
+            static const float zero_face_focus[72] = {};
+            std::array<float, 204> mp = person_model_params(lbs, r);
+            verts.resize(MHR_VERTEX_FLOATS);
+            joints.resize((size_t)lbs->n_joints * 3);
+            mhr_lbs_compute(lbs, mp.data(), r.shape.data(),
+                            zero_face ? zero_face_focus : r.face_params.data(),
+                            verts.data(), joints.data(), nullptr);
+            mhr_update_mesh_vertices(tri_model, verts.data());
+            mhr_update_mesh_normals(tri_model);
+            if (normal_smooth_iters > 0)
+                mhr_smooth_mesh_normals(tri_model, vert_adj, normal_smooth_scratch, normal_smooth_iters);
+            for (auto [obs, img] : {std::pair{&obs_now, now_bgr}, std::pair{&obs_key, key_bgr}})
+                skin_observer.observe(*obs, img, w, h, verts.data(), tri_model->normal,
+                                      r.pred_cam_t.data(), r.focal_length, w * 0.5f, h * 0.5f);
+
+            // (a) silhouette frame difference against the keyframe.
+            float m = fsb::observation_change(obs_now, obs_key);
+            if (m >= 0.f) m *= 255.f;
+            // (b) mismatch with the stored colours, relative to the keyframe's
+            // own, so each person's fit/lighting baseline cancels.  The stored
+            // person is whoever explains the keyframe best.
+            float best_key = -1.f;
+            size_t best = 0;
+            for (size_t s = 0; s < skin_acc.size(); ++s) {
+                float k = skin_acc[s].discrepancy(obs_key);
+                if (k >= 0.f && (best_key < 0.f || k < best_key)) { best_key = k; best = s; }
+            }
+            if (best_key >= 0.f) {
+                float now = skin_acc[best].discrepancy(obs_now);
+                if (now >= 0.f) m = std::max(m, std::max(0.f, now - best_key) * 255.f);
+            }
+            return m;   // < 0 = neither cue usable: FocusTracker uses the box
+        });
+        printf("[skin-color] --focus measures motion on each person's silhouette\n");
+    }
+    if (lbs) {
+        std::string corr_path = onnx_dir + "/correctives.bin";
+        if (mhr_correctives_load(lbs, corr_path.c_str()))
+            printf("[LBS] pose correctives loaded from %s\n", corr_path.c_str());
+        else
+            printf("[LBS] correctives.bin not found — rendering without pose correctives\n");
+    }
+    std::vector<float> lbs_out(MHR_VERTEX_FLOATS, 0.f);
+    std::vector<float> lbs_joints;   // joint world positions from LBS FK (allocated on first use)
+
+    // ── Source FPS (used by both BVH writer and Butterworth init) ────────────
+    float video_fps = 30.f;
+    if (!is_image && cap.isOpened()) {
+        double f = cap.get(cv::CAP_PROP_FPS);
+        if (f > 1.0) video_fps = (float)f;
+    }
+
+    // ── BVH writer ────────────────────────────────────────────────────────────
+    BVHWriter bvh_writer;
+    if (!bvh_path.empty()) {
+        if (bvh_template.empty()) bvh_template = "./bvh/body_mhr.bvh";
+        BVHWriterOptions bo;
+        bo.rewrite_body_offsets       = bvh_body_shape_change;
+        bo.rewrite_hand_offsets       = bvh_hand_shape_change;
+        bo.compensate_finger_endsites = bvh_compensate_finger_endsites;
+        bo.enforce_hand_limits        = bvh_enforce_hand_limits;
+        bo.zero_hand_pose             = bvh_zero_hand_pose;
+        bo.sticky_hand_pose           = bvh_sticky_hand_pose;
+        bo.rest_align                 = bvh_rest_align;
+        bo.dump_rest_dirs             = bvh_dump_rest_dirs;
+        if (!bvh_writer.open(bvh_template, bvh_path, 1.f / video_fps, lbs_path, bo))
+            fprintf(stderr, "[BVH] Warning: could not open BVH writer\n");
+        else {
+            bvh_writer.set_foot_contact(bvh_foot_contact);
+            bvh_writer.set_static_root(bvh_static_root);
+            printf("[BVH] Writing to %s (%.1f fps)\n", bvh_path.c_str(), video_fps);
+        }
+    }
+
+    // ── ARF writer (--arf) ────────────────────────────────────────────────────
+    ARFWriter arf_writer;
+    if (!cc.arf_path.empty()) {
+        if (!arf_writer.open(cc.arf_path, lbs_path, mesh_path, 1.f / video_fps, !zero_face))
+            fprintf(stderr, "[ARF] Warning: could not open ARF writer\n");
+        else
+            printf("[ARF] Writing avatar container(s) to %s%s\n", cc.arf_path.c_str(),
+                   skin_color ? " (with skin colours)" : "");
+        arf_writer.set_ground(cc.arf_ground);
+    }
+
+    // ── Butterworth filter banks ──────────────────────────────────────────────
+    //
+    // One ButterWorthWrap per channel.  wrap_input=1 on mhr_model_params is
+    // safe across the whole array — translation sub-ranges have per-frame
+    // deltas well under π so the wrap is a no-op there, while the Euler
+    // sub-ranges (joint rotations) get the wrap-correct integration that
+    // prevents ±π-discontinuity flips.  pred_cam_t is metres, no wrap
+    // possible, so wrap_input=0.
+    //
+    // Above-Nyquist cutoffs are caught here and disable the bank entirely
+    // (same Nyquist guard the old BwFilter::init had, just hoisted up).
+    std::vector<ButterWorthWrap> bw_mp;
+    std::vector<ButterWorthWrap> bw_cam;
+    bool bw_active = false;
+    if (use_butterworth) {
+        if (bw_cutoff <= 0.f || bw_cutoff >= video_fps * 0.5f) {
+            printf("[BW] cutoff %.1f Hz is outside (0, Nyquist=%.1f Hz) — disabled\n",
+                   bw_cutoff, video_fps * 0.5f);
+        } else {
+            bw_active = true;
+            bw_mp.resize(204);
+            bw_cam.resize(3);
+            for (auto& w : bw_mp)  init_butterworth_wrap(&w, video_fps, bw_cutoff, 1);
+            for (auto& w : bw_cam) init_butterworth_wrap(&w, video_fps, bw_cutoff, 0);
+            float lag_ms = 1000.f / (3.14159f * bw_cutoff);
+            printf("[BW] cutoff=%.1f Hz  sample=%.1f Hz  approx lag=%.0f ms (%.1f frames)\n",
+                   bw_cutoff, video_fps, lag_ms, lag_ms * video_fps / 1000.f);
+        }
+    }
+    // global_rot quaternion 1st-order SLERP-EMA — same QuatLPF primitive as
+    // fast_sam_3dbody_run.  Filter directly on orientation (no Euler-wrap or
+    // gimbal-lock artifacts); --rot-clamp is the geodesic SLERP-step clamp.
+    QuatLPF root_rot_filter{};
+    if (use_butterworth && filter_root_rot)
+        init_quat_lpf(&root_rot_filter, video_fps, bw_cutoff);
+
+    // Empty VAO for the quad (we use gl_VertexID in the vertex shader)
+    GLuint quad_vao;
+    glGenVertexArrays(1, &quad_vao);
+
+    BgTex bg = create_bg_tex();
+    if (bg.id == 0) {
+        fprintf(stderr, "[GL] Failed to create background texture\n");
+        return 1;
+    }
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // ── Render loop ───────────────────────────────────────────────────────────
+#define NS_NOW() ({ struct timespec _t; clock_gettime(CLOCK_MONOTONIC,&_t); (long long)_t.tv_sec*1000000000LL + _t.tv_nsec; })
+    long long t_last_frame    = NS_NOW();
+    long long t_last_grab     = NS_NOW();   // wall-clock of the last frame we pulled (live sync)
+    long long t_session_start = NS_NOW();   // for measuring the effective live frame rate
+    double    fps_ema         = 0.0;
+    long long dropped_frames  = 0;       // stale live frames skipped to stay in sync
+    long long processed_frames = 0;      // frames actually run through the pipeline
+    bool      frame_dropping = is_live && !no_drop;  // active only for live sources
+    // Frame counter for the exported OBJ filenames.  Starts at start_frame so the
+    // .obj name reflects the absolute video frame when seeking with --start (the
+    // BVH keeps its own 0-based session timeline).  --frames counts from here.
+    int       frame_index  = start_frame;
+    const int frame_stop   = (max_frames > 0) ? start_frame + max_frames : -1;
+
+    cv::Mat frame;
+    // --pipeline N>1: results come back lagging submission, so once the stream
+    // ends we keep looping to flush the frames still inside the pool.
+    const bool pipelining = pipeline_depth > 1;
+    bool       draining   = false;
+    // --pipeline N hands results back in bursts: the pool finishes N frames at
+    // once, so N iterations return instantly and the next one blocks for a whole
+    // batch.  Drawn as it arrives that looks like a stutter every N frames, so
+    // instead we hold each result until its slot in an even schedule.  It costs
+    // no throughput: the next batch was kicked the moment the previous one was
+    // harvested, so the pool keeps working right through the sleeps.  Headless
+    // runs skip it — nobody is watching, and the point there is raw throughput.
+    const bool pacing        = pipelining && !headless;
+    long long  t_next_emit   = 0;   // when the current result is due on screen
+    // Recent emission times, used to measure the rate we are sustaining.  A
+    // couple of bursts is the right window: shorter and the estimate is just the
+    // burst's own shape, longer and a one-off stall (a TensorRT engine build for
+    // a person count we have not seen yet) skews the schedule for ages.
+    const size_t          pace_window = (size_t)(2 * pipeline_depth);
+    std::deque<long long> pace_hist;
+    while (glx3_checkEvents()) 
+    {
+        if (draining)
+        {
+            // flushing the pool: no new frames go in
+        }
+        else if (is_image)
+        {
+            frame = static_img;
+        } else
+        {
+            // Live sources: discard the frames that queued up while the previous
+            // frame was being processed, keeping only the newest.  How many to
+            // drop ≈ (time we spent busy) × fps, clamped to the ring depth (the
+            // driver has already overwritten anything older, so grabbing beyond
+            // that would block waiting on a not-yet-captured frame).  Video files
+            // fall through untouched and are read frame-by-frame.
+            bool ended = false;
+            if (frame_dropping)
+            {
+                double elapsed_s = (NS_NOW() - t_last_grab) / 1e9;
+                int    behind    = (int)(elapsed_s * video_fps) - 1;
+                if (behind > LIVE_BUFFER - 1) behind = LIVE_BUFFER - 1;
+                for (int s = 0; s < behind; ++s)
+                    if (!cap.grab()) { ended = true; break; }   // discard stale
+                    else             ++dropped_frames;
+            }
+            // --frameskip K: deterministically discard K frames after every
+            // processed one, so we sample every (K+1)-th frame.  This is
+            // independent of the adaptive dropper above: that one reacts to how
+            // long inference took, this one fixes the *spacing* of the samples.
+            // With --pipeline N the pool grabs N frames back to back and then
+            // stalls for a whole batch, so a camera's samples arrive in bursts
+            // and the recovered motion is unevenly timed; skipping widens the
+            // in-burst gaps until they match the batch gap.  Offline it simply
+            // processes less of the video.
+            for (int s = 0; s < frame_skip && !ended; ++s)
+                if (!cap.grab()) ended = true;
+                else             ++dropped_frames;
+            if (ended)                    // source ran out mid-skip
+            {
+                if (!pipelining) break;
+                draining = true;          // flush what is still in the pool
+            }
+            if (!draining) cap >> frame;  // newest available frame
+            t_last_grab = NS_NOW();
+            if (frame.empty())
+            {
+                if (!pipelining) break;
+                draining = true;          // flush what is still in the pool
+            }
+        }
+
+        // Inference
+        long long t_infer = NS_NOW();
+        auto results = draining
+                     ? pipeline.drain()
+                     : pipeline.process_bgr(frame.data, frame.cols, frame.rows);
+        // When pipelining, the results belong to an earlier frame — display that
+        // one instead, or the overlay would sit on the wrong image.  A null here
+        // means no frame came back: either the pool is still filling (keep going,
+        // results are empty) or it has run dry (we are done).
+        int rw = 0, rh = 0;
+        if (const uint8_t* rp = pipeline.last_result_bgr(rw, rh))
+            frame = cv::Mat(rh, rw, CV_8UC3, const_cast<uint8_t*>(rp));
+        else if (draining)
+            break;
+        double latency_ms = (NS_NOW() - t_infer) / 1e6;
+
+        // Spread the burst.  The target period is the rate we are actually
+        // sustaining, taken a few percent fast so the estimate can come back
+        // down — pacing to exactly the achieved rate would make any overshoot
+        // permanent, since the achieved rate is then whatever we chose.
+        if (pacing && !results.empty())
+        {
+            long long now = NS_NOW();
+            if (pace_hist.size() >= 2)
+            {
+                long long period = (long long)(0.97 * (double)(pace_hist.back() - pace_hist.front())
+                                                    / (double)(pace_hist.size() - 1));
+                if (t_next_emit == 0 || now - t_next_emit > 2 * period)
+                    t_next_emit = now;                       // first frame, or lost the beat
+                if (t_next_emit > now)
+                {
+                    struct timespec ts;
+                    ts.tv_sec  = (time_t)((t_next_emit - now) / 1000000000LL);
+                    ts.tv_nsec = (long)  ((t_next_emit - now) % 1000000000LL);
+                    nanosleep(&ts, nullptr);
+                    now = NS_NOW();
+                }
+                t_next_emit += period;
+            }
+            pace_hist.push_back(now);
+            if (pace_hist.size() > pace_window) pace_hist.pop_front();
+        }
+
+        // Patch arm/collar/head angles in mhr_model_params.
+        // The pipeline runs with skip_body_model=true so its internal lbs_data is null,
+        // meaning apply_hand_pose was a no-op inside fast_sam_3dbody.cpp — the arm joint
+        // slots [68:121] in mhr_model_params are zeroed.  Re-apply here using the
+        // renderer's own lbs, which has the hand PCA matrices loaded.  This must happen
+        // before the Butterworth filter (so the filter smooths the true arm angles) and
+        // before bvh_writer.write_frame (which reads from mhr_model_params).
+        if (!results.empty() && lbs &&
+            lbs->hand_pose_mean && lbs->hand_pose_comps &&
+            lbs->hand_joint_idxs_left && lbs->hand_joint_idxs_right &&
+            !results[0].hand_pose.empty()) {
+            fsb::apply_hand_pose(results[0].mhr_model_params.data(),
+                                  results[0].hand_pose.data(),
+                                  lbs->hand_pose_mean, lbs->hand_pose_comps,
+                                  lbs->hand_joint_idxs_left,
+                                  lbs->hand_joint_idxs_right);
+        }
+
+        // Temporal smoothing — scalar Butterworth on linear channels,
+        // QuatLPF SLERP-EMA on the root rotation.  The two gates are
+        // independent because QuatLPF doesn't have a Nyquist constraint:
+        // even if --bw-cutoff is above Nyquist (disabling bw_active), the
+        // user can still ask for --butterworth-root-rotation and get a
+        // working orientation filter.
+        if (use_butterworth && !results.empty()) {
+            if (bw_active) {
+                apply_bw_bank(bw_mp,  results[0].mhr_model_params.data(), 204);
+                apply_bw_bank(bw_cam, results[0].pred_cam_t.data(),       3);
+            }
+
+            // global_rot: quaternion-domain SLERP-EMA — only when
+            // --butterworth-root-rotation is passed.  --rot-clamp is a
+            // geodesic outlier clamp on the SLERP step in deg / frame; 0
+            // disables it (pure EMA).
+            if (filter_root_rot) {
+                auto& gr = results[0].global_rot;
+                float in_q[4], out_q[4];
+                euler_zyx_to_quat(gr[0], gr[1], gr[2], in_q);
+                float max_step_rad = (rot_clamp_deg > 0.0f)
+                    ? rot_clamp_deg * (3.14159265359f / 180.0f) : 0.0f;
+                filter_quat(&root_rot_filter, in_q, max_step_rad, out_q);
+                quat_to_euler_zyx(out_q, &gr[0], &gr[1], &gr[2]);
+            }
+        }
+
+        // BVH frame output
+        if (bvh_writer.is_open())
+            bvh_writer.write_frame(results);
+
+        // Annotate frame: draw YOLO skeleton when LBS mesh is unavailable.
+        cv::Mat vis = frame.clone();
+        bool any_mesh = lbs && !results.empty();
+        if (!any_mesh)
+        {
+            for (const auto& r : results)
+                draw_yolo_skeleton(vis, r.keypoints_yolo);
+        }
+
+        // Upload background.  Failures are non-fatal: skip the background
+        // quad for this frame and let the next frame retry.  Killing the
+        // process here is the regression that produced truncated mp4s
+        // (e.g. matrix_rendered.mp4 stopping at 14s with audio continuing
+        // for the full 90s) — a single bad frame should not take down a
+        // long render.
+        bool bg_ok = upload_bg_frame(bg, vis);
+
+        glClearColor(0.f, 0.f, 0.f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, W, H);
+
+        // ── Background quad (only when we have a valid texture) ──────────────
+        if (bg_ok && bg.ready) {
+            glDisable(GL_DEPTH_TEST);
+            glUseProgram(prog_quad);
+            glUniform1i(tex_loc, 0);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, bg.id);
+            glBindVertexArray(quad_vao);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glEnable(GL_DEPTH_TEST);
+        }
+
+        // ── Mesh overlay for each detected person ─────────────────────────────
+        glUseProgram(prog_mesh);
+
+        // Reflection uniforms (shared by every person this frame).  The scene
+        // texture is the same background image the quad drew; bind it to unit 1
+        // so the chrome shader can sample it.  uShiny=0 short-circuits the
+        // reflection in the shader, so this is a no-op when --shiny is off.
+        glUniform1f(shiny_loc, shininess);
+        glUniform1f(alpha_loc, transparency);
+        glUniform1f(vcolor_loc, skin_color ? 1.f : 0.f);
+        glUniform2f(res_loc, (float)W, (float)H);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, bg.id);
+        glUniform1i(scene_loc, 1);
+
+        // ── --skin-color: pose everyone first, then decide who is who ────────
+        // Matching a detection to a stored person needs every detection's posed
+        // mesh before any of them is accumulated or drawn, so the LBS pass runs
+        // here and the draw loop below reuses its output.
+        std::vector<int>                  skin_slot_of;   // accumulator per detection
+        std::vector<std::vector<float>>   skin_verts, skin_joints;
+        std::vector<fsb::SkinObservation> skin_obs;
+        if (skin_color && lbs) {
+            const size_t D = results.size();
+            skin_verts.resize(D);
+            skin_joints.resize(D);
+            skin_obs.resize(D);
+            std::vector<std::array<float, 16>> mvps(D);
+            std::vector<std::array<float, 4>>  boxes(D);
+            static const float zero_face_pre[72] = {};
+            for (size_t d = 0; d < D; ++d) {
+                const auto& r = results[d];
+                std::array<float, 204> mp = person_model_params(lbs, r);
+                skin_verts[d].resize(MHR_VERTEX_FLOATS);
+                skin_joints[d].resize((size_t)lbs->n_joints * 3);
+                mhr_lbs_compute(lbs, mp.data(), r.shape.data(),
+                                zero_face ? zero_face_pre : r.face_params.data(),
+                                skin_verts[d].data(), skin_joints[d].data(), nullptr);
+                mhr_update_mesh_vertices(tri_model, skin_verts[d].data());
+                mhr_update_mesh_normals(tri_model);
+                if (normal_smooth_iters > 0)
+                    mhr_smooth_mesh_normals(tri_model, vert_adj, normal_smooth_scratch, normal_smooth_iters);
+                skin_observer.observe(skin_obs[d], frame.data, frame.cols, frame.rows,
+                                      skin_verts[d].data(), tri_model->normal,
+                                      r.pred_cam_t.data(), r.focal_length,
+                                      frame.cols * 0.5f, frame.rows * 0.5f);
+                float proj[16], view[16];
+                mhr_camera_matrices(proj, view, r.focal_length, r.pred_cam_t.data(), frame_w, frame_h);
+                mat4_mul(mvps[d].data(), proj, view);
+                boxes[d] = r.bbox;
+            }
+
+            // Appearance discrepancy of every detection vs every stored person.
+            const size_t S = skin_acc.size();
+            std::vector<float> discrepancy;
+            if (D > 0 && S > 0) {
+                if (skin_match_gpu && bg_ok && bg.ready) {
+                    std::vector<const float*> dv(D), sc(S);
+                    for (size_t d = 0; d < D; ++d) dv[d] = skin_verts[d].data();
+                    for (size_t s = 0; s < S; ++s) sc[s] = skin_acc[s].colors_rgba().data();
+                    discrepancy = skin_matcher.score(bg.id, frame_w, frame_h, dv, mvps, boxes, sc);
+                } else {
+                    discrepancy.assign(D * S, -1.f);
+                    for (size_t d = 0; d < D; ++d)
+                        for (size_t s = 0; s < S; ++s)
+                            discrepancy[d * S + s] = skin_acc[s].discrepancy(skin_obs[d]);
+                }
+                if (getenv("FSB_SKIN_MATCH_DEBUG")) {
+                    fprintf(stderr, "\n[skin-match] frame %d:", frame_index);
+                    for (size_t k = 0; k < discrepancy.size(); ++k)
+                        fprintf(stderr, " d%zu/s%zu=%.3f", k / S, k % S, discrepancy[k]);
+                }
+            }
+            skin_slot_of = skin_slots.assign(boxes, discrepancy);
+        }
+
+        int person_idx = -1;
+        for (const auto& r : results) {
+            ++person_idx;   // counts every detection, so .obj indices are stable
+            if (!lbs) continue;
+
+            // Mesh tint — uniform for the whole body and every detected
+            // person; override with --color R G B (0-255) or --mesh-color
+            // R G B (0-1).
+            glUniform3fv(color_loc, 1, mesh_color);
+
+            std::array<float, 204> mp = person_model_params(lbs, r);
+
+            // Run native C LBS forward pass, stream result to GPU.
+            // Always compute joint positions (127×3 floats) — negligible overhead
+            // compared to vertex skinning, and needed for the OBJ export to place
+            // the mesh at the correct world position (pelvis-centred, matching BVH).
+            static const float zero_face_buf[72] = {};
+            if (lbs_joints.empty())
+                lbs_joints.assign((size_t)lbs->n_joints * 3, 0.f);
+            if (!skin_verts.empty()) {   // --skin-color already posed everyone
+                std::copy(skin_verts[person_idx].begin(), skin_verts[person_idx].end(), lbs_out.begin());
+                lbs_joints = skin_joints[person_idx];
+            } else {
+                mhr_lbs_compute(lbs,
+                                mp.data(),
+                                r.shape.data(),
+                                zero_face ? zero_face_buf : r.face_params.data(),
+                                lbs_out.data(),
+                                lbs_joints.data(),
+                                nullptr);
+            }
+            // DIAGNOSTIC: override vertices/camera with externally-supplied ground
+            // truth (e.g. Python's real pred_vertices/pred_cam_t/focal_length) to
+            // isolate whether the C++ OpenGL rendering pipeline itself is at fault
+            // vs. the upstream MHR computation. FSB_VERTS_OVERRIDE points at a raw
+            // binary file of MHR_VERTEX_FLOATS little-endian floats (x0,y0,z0,x1,...).
+            // FSB_CAM_OVERRIDE points at a text file "tx ty tz focal_length".
+            if (const char* vpath = getenv("FSB_VERTS_OVERRIDE")) {
+                FILE* fp = fopen(vpath, "rb");
+                if (fp) {
+                    size_t n = fread(lbs_out.data(), sizeof(float), MHR_VERTEX_FLOATS, fp);
+                    fclose(fp);
+                    fprintf(stderr, "[DIAG] loaded %zu floats from %s (override verts)\n", n, vpath);
+                }
+            }
+            std::array<float,3> cam_t_override = r.pred_cam_t;
+            float focal_override = r.focal_length;
+            bool  have_cam_override = false;
+            if (const char* cpath = getenv("FSB_CAM_OVERRIDE")) {
+                FILE* fp = fopen(cpath, "r");
+                if (fp) {
+                    float tx, ty, tz, focal;
+                    if (fscanf(fp, "%f %f %f %f", &tx, &ty, &tz, &focal) == 4) {
+                        cam_t_override = {tx, ty, tz};
+                        focal_override = focal;
+                        have_cam_override = true;
+                        fprintf(stderr, "[DIAG] override cam_t=(%.4f,%.4f,%.4f) focal=%.3f\n",
+                                tx, ty, tz, focal);
+                    }
+                    fclose(fp);
+                }
+            }
+            mhr_update_mesh_vertices(tri_model, lbs_out.data());
+            mhr_update_mesh_normals(tri_model);
+            if (normal_smooth_iters > 0)
+                mhr_smooth_mesh_normals(tri_model, vert_adj, normal_smooth_scratch, normal_smooth_iters);
+
+            // --skin-color: fold this frame's pixels into the person's colours
+            // (the slot follows the person across frames, see PersonSlots).
+            const float* skin_rgb = nullptr;
+            if (skin_color) {
+                const int slot = skin_slot_of[person_idx];
+                if ((int)skin_acc.size() <= slot) {
+                    skin_acc.resize(slot + 1);
+                    skin_mp.resize(slot + 1);
+                    skin_shape.resize(slot + 1);
+                }
+                skin_mp[slot]    = mp;
+                skin_shape[slot] = r.shape;
+                fsb::SkinColorAccumulator& acc = skin_acc[slot];
+                if (!acc.initialized()) {
+                    acc.init(tri_model->indices, tri_model->header.numberOfIndices, MHR_VERTEX_COUNT);
+                    if (skin_default_set) acc.set_default_color(skin_default);
+                    if (skin_mirror && lbs) {
+                        // The MHR template is left/right symmetric about X
+                        // (mean mirror error ~1e-5 m): pair each vertex with
+                        // the nearest vertex to its reflection.  Brute force,
+                        // once per run.
+                        static std::vector<unsigned int> mirror;
+                        if (mirror.empty()) {
+                            const float* b = lbs->base_shape;
+                            const size_t n = (size_t)lbs->n_verts;
+                            double mx = 0.0;
+                            for (size_t v = 0; v < n; ++v) mx += b[v*3];
+                            const float plane2 = (float)(2.0 * mx / (double)n);
+                            mirror.resize(n);
+                            for (size_t v = 0; v < n; ++v) {
+                                const float x = plane2 - b[v*3], y = b[v*3+1], z = b[v*3+2];
+                                float best = 1e30f;
+                                for (size_t u = 0; u < n; ++u) {
+                                    const float dx = b[u*3]-x, dy = b[u*3+1]-y, dz = b[u*3+2]-z;
+                                    const float d2 = dx*dx + dy*dy + dz*dz;
+                                    if (d2 < best) { best = d2; mirror[v] = (unsigned int)u; }
+                                }
+                            }
+                        }
+                        acc.set_mirror(mirror);
+                    }
+                }
+                acc.add(skin_obs[person_idx]);
+                skin_rgb = acc.colors().data();
+                glBindBuffer(GL_ARRAY_BUFFER, skin_vbo);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, MHR_VERTEX_FLOATS * sizeof(float), skin_rgb);
+            }
+
+            // Export the deformed mesh (Blender-importable) for offline checking
+            // of the BVH armature.  Same space/units the BVH writer uses, so the
+            // .obj and the .bvh overlay 1:1.  Frame index matches BVH frame F.
+            // Joint[1] = MHR "root" = anatomical pelvis — used to centre the OBJ
+            // on the pelvis so it matches the BVH root position exactly.
+            if (!export_mesh_prefix.empty() &&
+                (frame_index % export_mesh_stride) == 0) {
+                char opath[4096];
+                snprintf(opath, sizeof(opath), "%s_p%d_%05d.obj",
+                         export_mesh_prefix.c_str(), person_idx, frame_index);
+                write_obj_mesh(opath, tri_model, r.pred_cam_t.data(),
+                               lbs_joints.data() + 3,   // joint[1] = pelvis LBS position
+                               MESH_EXPORT_POS_SCALE, skin_rgb);
+                // Companion MHR joint-centre dump for centre-to-centre overlay checks.
+                snprintf(opath, sizeof(opath), "%s_p%d_%05d.joints",
+                         export_mesh_prefix.c_str(), person_idx, frame_index);
+                write_mhr_joints(opath, lbs_joints.data(), lbs->n_joints,
+                                 r.pred_cam_t.data(), lbs_joints.data() + 3,
+                                 MESH_EXPORT_POS_SCALE);
+            }
+
+            // First-frame verts dump for verify_transforms.py LBS comparison.
+            // Opt-in only — set FSB_LBS_DUMP=1 to enable (off by default).
+            { static int verts_dumped = 0;
+              if (!verts_dumped && getenv("FSB_LBS_DUMP")) {
+                  verts_dumped = 1;
+                  FILE* fp = fopen("/tmp/cpp_lbs_verts.bin", "wb");
+                  if (fp) {
+                      int hdr[2] = { (int)MHR_VERTEX_COUNT, 3 };
+                      fwrite(hdr, sizeof(int), 2, fp);
+                      fwrite(lbs_out.data(), sizeof(float), MHR_VERTEX_FLOATS, fp);
+                      fclose(fp);
+                      fprintf(stderr, "[LBS] wrote first-frame verts to /tmp/cpp_lbs_verts.bin\n");
+                  }
+              }
+            }
+
+#if 0 /* DEBUG: vertex bounds in model space — re-enable to diagnose mesh placement */
+            // Debug: print vertex bounds in model space
+            { float xmin=1e9f,xmax=-1e9f,ymin=1e9f,ymax=-1e9f,zmin=1e9f,zmax=-1e9f;
+              for (int i=0; i<MHR_VERTEX_FLOATS; i+=3) {
+                  if (lbs_out[i]<xmin)   xmin=lbs_out[i];
+                  if (lbs_out[i]>xmax)   xmax=lbs_out[i];
+                  if (lbs_out[i+1]<ymin) ymin=lbs_out[i+1];
+                  if (lbs_out[i+1]>ymax) ymax=lbs_out[i+1];
+                  if (lbs_out[i+2]<zmin) zmin=lbs_out[i+2];
+                  if (lbs_out[i+2]>zmax) zmax=lbs_out[i+2];
+              }
+              printf("[mesh] model bounds: x[%.3f,%.3f] y[%.3f,%.3f] z[%.3f,%.3f]\n",
+                     xmin,xmax, ymin,ymax, zmin,zmax);
+            }
+#endif
+
+            glBindBuffer(GL_ARRAY_BUFFER, mesh_gpu.vbo_pos);
+            glBufferSubData(GL_ARRAY_BUFFER, 0,
+                            MHR_VERTEX_FLOATS * sizeof(float),
+                            tri_model->vertices);
+
+            glBindBuffer(GL_ARRAY_BUFFER, mesh_gpu.vbo_norm);
+            glBufferSubData(GL_ARRAY_BUFFER, 0,
+                            MHR_VERTEX_FLOATS * sizeof(float),
+                            tri_model->normal);
+
+            // Build MVP = projection * view
+            float proj[16], view[16], mvp[16];
+            mhr_camera_matrices(proj, view,
+                                have_cam_override ? focal_override : r.focal_length,
+                                have_cam_override ? cam_t_override.data() : r.pred_cam_t.data(),
+                                frame_w, frame_h);
+
+
+            //view[0]=1.0; view[1]=0.0; view[2]=0.0; view[3]=0.0;
+            //view[4]=0.0; view[5]=1.0; view[6]=0.0; view[7]=0.0;
+            //view[8]=0.0; view[9]=0.0; view[10]=1.0; view[11]=100.0;
+            //view[12]=0.0; view[13]=0.0; view[14]=0.0; view[15]=1.0;
+            mat4_mul(mvp, proj, view);
+            //mat4_transpose(mvp);
+            //mat4_print("Projection",proj);
+            //mat4_print("View",view);
+            //mat4_print("MVP",mvp);
+
+#if 0 /* DEBUG: view-space and clip-space bounds — re-enable to diagnose projection/clipping */
+            // Debug: view-space and clip-space bounds
+            { float vxmin=1e9f,vxmax=-1e9f,vymin=1e9f,vymax=-1e9f,vzmin=1e9f,vzmax=-1e9f;
+              float cxmin=1e9f,cxmax=-1e9f,cymin=1e9f,cymax=-1e9f,czmin=1e9f,czmax=-1e9f,cwmin=1e9f,cwmax=-1e9f;
+              for (int i=0; i<MHR_VERTEX_FLOATS; i+=3) {
+                  // View space: apply full view matrix (diagonal -1 for Y,Z + translation)
+                  float vx =  lbs_out[i]   + view[12];
+                  float vy = -lbs_out[i+1] + view[13];
+                  float vz = -lbs_out[i+2] + view[14];
+                  if(vx<vxmin)vxmin=vx;
+                  if(vx>vxmax)vxmax=vx;
+                  if(vy<vymin)vymin=vy;
+                  if(vy>vymax)vymax=vy;
+                  if(vz<vzmin)vzmin=vz;
+                  if(vz>vzmax)vzmax=vz;
+                  // Clip space (MVP * vertex)
+                  float wx = mvp[0]*lbs_out[i]   + mvp[4]*lbs_out[i+1] + mvp[8]*lbs_out[i+2] + mvp[12];
+                  float wy = mvp[1]*lbs_out[i]   + mvp[5]*lbs_out[i+1] + mvp[9]*lbs_out[i+2] + mvp[13];
+                  float wz = mvp[2]*lbs_out[i]   + mvp[6]*lbs_out[i+1] + mvp[10]*lbs_out[i+2]+ mvp[14];
+                  float ww = mvp[3]*lbs_out[i]   + mvp[7]*lbs_out[i+1] + mvp[11]*lbs_out[i+2]+ mvp[15];
+                  if(wx<cxmin)cxmin=wx;
+                  if(wx>cxmax)cxmax=wx;
+                  if(wy<cymin)cymin=wy;
+                  if(wy>cymax)cymax=wy;
+                  if(wz<czmin)czmin=wz;
+                  if(wz>czmax)czmax=wz;
+                  if(ww<cwmin)cwmin=ww;
+                  if(ww>cwmax)cwmax=ww;
+              }
+              printf("[mesh] view bounds: x[%.3f,%.3f] y[%.3f,%.3f] z[%.3f,%.3f]\n", vxmin,vxmax, vymin,vymax, vzmin,vzmax);
+              printf("[mesh] clip w=[%.3f,%.3f]  ndcX=[%.3f,%.3f]  ndcY=[%.3f,%.3f]  ndcZ=[%.3f,%.3f]\n",
+                     cwmin,cwmax,
+                     cxmin/cwmax, cxmax/cwmin, // worst-case NDC
+                     cymin/cwmax, cymax/cwmin,
+                     czmin/cwmax, czmax/cwmin);
+            }
+#endif
+
+            glUniformMatrix4fv(mvp_loc, 1, GL_FALSE, mvp);
+            glUniformMatrix4fv(view_loc, 1, GL_FALSE, view);
+
+            // Back-face culling matters here specifically because the mesh is
+            // drawn translucent (GL_BLEND, uAlpha<1) with no back-to-front
+            // sort: without it, both the near and far side of the same body
+            // part (or two self-occluding folds) are rasterized as separate
+            // fragments and blended one after another, so anywhere the
+            // viewing ray sees "through" one layer of the mesh to a second
+            // one, that pixel gets alpha-blended TWICE and reads visibly
+            // different from single-layer coverage next to it — a crease-
+            // shaped double-blend seam that tracks self-occlusion contours,
+            // not lighting.  Culling back faces leaves only the single
+            // nearest surface per pixel, removing the double-blend outright
+            // (and is cheaper, since half the fragments are never shaded).
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
+            glBindVertexArray(mesh_gpu.vao);
+            glDrawElements(GL_TRIANGLES, mesh_gpu.n_indices,
+                           GL_UNSIGNED_INT, nullptr);
+            glDisable(GL_CULL_FACE);
+            GLenum err = glGetError();
+            if (err != GL_NO_ERROR)
+                fprintf(stderr, "[GL] error 0x%04X after draw\n", err);
+        }
+        glBindVertexArray(0);
+
+        // ARF frame output.  With --skin-color the skin slots are the person ids,
+        // so each container's colours belong to the person it animates; slots
+        // absent this frame get a continuation frame, like ARFWriter's own
+        // tracker does.
+        if (arf_writer.is_open()) {
+            if (skin_color && lbs) {
+                std::vector<char> present(skin_acc.size(), 0);
+                for (int s : skin_slot_of) present[s] = 1;
+                std::vector<int> pad;
+                for (size_t s = 0; s < present.size(); ++s) if (!present[s]) pad.push_back((int)s);
+                arf_writer.write_frame_external(results, skin_slot_of, pad);
+            } else {
+                arf_writer.write_frame(results);
+            }
+        }
+
+        // Save this frame before buffer swap when --save-frames is active
+        if (!save_frames_prefix.empty()) {
+            char path[4096];
+            snprintf(path, sizeof(path), "%s%05d.jpg",
+                     save_frames_prefix.c_str(), ++save_frame_idx);
+            if (!save_framebuffer(path, W, H)) {
+                fprintf(stderr, "Cannot write %s (disk full?)\n", path);
+                return 1;
+            }
+        }
+        // --skin-turntable: the rotating coloured-mesh view, one image per frame
+        // (people absent = empty frame, so it stays in step with the main video),
+        // and/or shown live in its own window under FSB_SKIN_MATCH_DEBUG.
+        if (!skin_turntable_prefix.empty() || skin_turntable_window) {
+            std::vector<const float*> tv, tc;
+            for (size_t d = 0; d < skin_verts.size(); ++d) {
+                tv.push_back(skin_verts[d].data());
+                tc.push_back(skin_acc[skin_slot_of[d]].colors().data());
+            }
+            const std::vector<uint8_t>& px = skin_turntable.render(tv, tc, 2.f * frame_index);
+            cv::Mat img(skin_turntable.height(), skin_turntable.width(), CV_8UC3,
+                        const_cast<uint8_t*>(px.data()));
+            cv::Mat bgr;
+            cv::cvtColor(img, bgr, cv::COLOR_RGB2BGR);
+            if (!skin_turntable_prefix.empty()) {
+                char path[4096];
+                snprintf(path, sizeof(path), "%s%05d.jpg", skin_turntable_prefix.c_str(), ++skin_turntable_idx);
+                cv::imwrite(path, bgr);
+            }
+            if (skin_turntable_window) {
+                cv::imshow("skin-color turntable", bgr);
+                cv::waitKey(1);
+            }
+        }
+        if (!save_depth_prefix.empty()) {
+            char path[4096];
+            snprintf(path, sizeof(path), "%s%05d.bin",
+                     save_depth_prefix.c_str(), save_frame_idx > 0 ? save_frame_idx : 1);
+            save_depth_buffer(path, W, H);
+        }
+
+        glx3_endRedraw();
+
+        // Status line: FPS (EMA), inference latency, subjects in view
+        { long long t_now   = NS_NOW();
+          double frame_ms   = (t_now - t_last_frame) / 1e6;
+          t_last_frame      = t_now;
+          fps_ema = (fps_ema == 0.0) ? (1000.0 / frame_ms)
+                                     : (0.9 * fps_ema + 0.1 * (1000.0 / frame_ms));
+          fprintf(stderr, "\r  FPS: %5.1f  Latency: %4.0f ms  Subjects: %d   ",
+                  fps_ema, latency_ms, (int)results.size());
+          fflush(stderr);
+        }
+
+        ++frame_index;   // lockstep with bvh_writer's session frame counter
+        ++processed_frames;
+
+        if (!draining && frame_stop > 0 && frame_index >= frame_stop)
+        {
+            if (!pipelining) break;
+            draining = true;   // stop submitting; the drain loop above ends when
+                               // last_result_bgr() reports the pool is empty
+        }
+        if (is_image && !draining) break;   // keep window open only for live sources
+    }
+
+    // ── Frame-sync summary (live sources only) ────────────────────────────────
+    // fprintf to stderr ends the in-place "\r" status line with a newline first.
+    if (is_live) {
+        fprintf(stderr, "\n");
+        long long total   = processed_frames + dropped_frames;
+        double    wall_s  = (NS_NOW() - t_session_start) / 1e9;
+        // Effective output rate: how many frames we actually emitted per real
+        // second.  Assuming a roughly constant rate, this is the correct BVH
+        // playback rate — the nominal camera fps over-counts because dropped
+        // (and slow-inference) frames don't reach the motion buffer.
+        double    eff_fps = (wall_s > 0.0) ? (processed_frames / wall_s) : 0.0;
+
+        if (frame_dropping) {
+            double pct = total > 0 ? (100.0 * dropped_frames / total) : 0.0;
+            printf("[sync] live frame-dropping ON: processed %lld frame(s), "
+                   "dropped %lld stale frame(s) to stay in sync (%.1f%% of %lld captured).\n",
+                   processed_frames, dropped_frames, pct, total);
+        } else {
+            printf("[sync] live frame-dropping OFF (--no-drop): processed %lld frame(s) in "
+                   "lockstep. If inference lags the camera, latency accumulates and the "
+                   "driver may still drop frames on its own.\n",
+                   processed_frames);
+        }
+
+        // Retime the recorded BVH to the measured rate so playback is real-time.
+        // Only meaningful when we were dropping frames: there each emitted frame
+        // tracks "now" in wall-clock, so processed_frames are spread evenly over
+        // wall_s and 1/eff_fps is the true inter-frame period.  With --no-drop the
+        // frames are consecutive camera frames that keep their nominal spacing, so
+        // we leave the Frame Time alone (and just report the throughput).
+        if (frame_dropping && bvh_writer.is_open() && eff_fps > 0.0 && processed_frames >= 5) {
+            float old_ft = bvh_writer.frame_time();
+            float new_ft = (float)(1.0 / eff_fps);
+            bvh_writer.set_frame_time(new_ft);
+            printf("[sync] effective rate %.2f fps over %.1f s — retimed BVH Frame Time "
+                   "%.4f → %.4f s/frame (was nominal %.2f fps) for real-time playback.\n",
+                   eff_fps, wall_s, old_ft, new_ft, old_ft > 0.f ? 1.f/old_ft : 0.f);
+        } else if (eff_fps > 0.0) {
+            printf("[sync] effective rate %.2f fps over %.1f s%s.\n", eff_fps, wall_s,
+                   bvh_writer.is_open() ? " (BVH Frame Time left at nominal)" : "");
+        }
+    }
+
+    pipeline.print_timing_summary();
+    for (size_t p = 0; p < skin_acc.size(); ++p) {
+        printf("[skin-color] person slot %zu: %.1f%% of vertices observed\n",
+               p, 100.f * skin_acc[p].coverage());
+        // --skin-color-save: the person's colours on their own body shape in
+        // the MHR rest pose (pose params zeroed, scale block [136:204] kept).
+        // --skin-hair-cap and --skin-color-default arms measure on that same
+        // rest pose.
+        if ((skin_color_save.empty() && skin_hair_cap_cm <= 0.f && !skin_default_arms) ||
+            !lbs || skin_shape[p].empty() || lbs_joints.empty()) continue;
+        std::array<float, 204> rest{};
+        std::copy(skin_mp[p].begin() + 136, skin_mp[p].end(), rest.begin() + 136);
+        static const float zero_face_rest[72] = {};
+        mhr_lbs_compute(lbs, rest.data(), skin_shape[p].data(), zero_face_rest,
+                        lbs_out.data(), lbs_joints.data(), nullptr);
+        auto joint_index = [](const char* name) {
+            for (int j = 0; j < mhr_joint_table::N_JOINTS; ++j)
+                if (!strcmp(mhr_joint_table::NAMES[j], name)) return j;
+            return 0;
+        };
+        if (skin_default_arms) {
+            // Observed vertices within 5 cm of either forearm bone, away from
+            // the elbow and wrist ends; their per-channel median is the skin
+            // tone the never-seen vertices take.
+            const std::vector<float>& rgba = skin_acc[p].colors_rgba();
+            std::vector<float> ch[3];
+            const char* bones[2][2] = { {"l_lowarm", "l_wrist"}, {"r_lowarm", "r_wrist"} };
+            for (auto& bone : bones) {
+                const float* a = &lbs_joints[joint_index(bone[0]) * 3];
+                const float* b = &lbs_joints[joint_index(bone[1]) * 3];
+                float ab[3] = { b[0]-a[0], b[1]-a[1], b[2]-a[2] };
+                float ab2 = ab[0]*ab[0] + ab[1]*ab[1] + ab[2]*ab[2];
+                if (ab2 <= 0.f) continue;
+                for (size_t v = 0; v < MHR_VERTEX_COUNT; ++v) {
+                    if (rgba[v*4 + 3] <= 0.f) continue;   // only filled in, never seen
+                    const float* x = &lbs_out[v*3];
+                    float ax[3] = { x[0]-a[0], x[1]-a[1], x[2]-a[2] };
+                    float t = (ax[0]*ab[0] + ax[1]*ab[1] + ax[2]*ab[2]) / ab2;
+                    if (t < 0.2f || t > 0.8f) continue;
+                    float d2 = 0.f;
+                    for (int c = 0; c < 3; ++c) { float d = ax[c] - t*ab[c]; d2 += d*d; }
+                    if (d2 > 0.05f * 0.05f) continue;
+                    for (int c = 0; c < 3; ++c) ch[c].push_back(rgba[v*4 + c]);
+                }
+            }
+            if (ch[0].empty()) {
+                fprintf(stderr, "[skin-color] person slot %zu: forearms never seen, "
+                                "keeping the neighbour fill\n", p);
+            } else {
+                float tone[3];
+                for (int c = 0; c < 3; ++c) {
+                    std::nth_element(ch[c].begin(), ch[c].begin() + ch[c].size()/2, ch[c].end());
+                    tone[c] = ch[c][ch[c].size()/2];
+                }
+                skin_acc[p].set_default_color(tone);
+                printf("[skin-color] person slot %zu: skin tone from %zu forearm vertices: %d %d %d\n",
+                       p, ch[0].size(), (int)(tone[0]*255.f + .5f), (int)(tone[1]*255.f + .5f),
+                       (int)(tone[2]*255.f + .5f));
+            }
+        }
+        if (skin_hair_cap_cm > 0.f) {
+            // "Up" is pelvis (joint 1) -> c_head, so the sign of the LBS
+            // space's flipped Y never matters.
+            const int head = joint_index("c_head");
+            float up[3], len = 0.f;
+            for (int c = 0; c < 3; ++c) {
+                up[c] = lbs_joints[head*3 + c] - lbs_joints[3 + c];
+                len  += up[c] * up[c];
+            }
+            len = std::sqrt(len);
+            for (float& c : up) c /= len;
+            // The untilted cut: CM below the top, measured along up.
+            float top = -1e30f;
+            for (size_t v = 0; v < MHR_VERTEX_COUNT; ++v)
+                top = std::max(top, lbs_out[v*3]*up[0] + lbs_out[v*3+1]*up[1] + lbs_out[v*3+2]*up[2]);
+            // Tilt pivots that plane about the left/right axis through the
+            // middle of the untilted cap (its vertex centroid, moved onto the
+            // plane) -- not c_head, which sits at the back of the skull -- so
+            // the back drops as much as the front rises.  "Forward" is where
+            // the feet point (ankle -> ball of the foot), perpendicular to up.
+            const float cut = top - skin_hair_cap_cm / 100.f;
+            float pivot[3] = {0.f, 0.f, 0.f}, normal[3] = { up[0], up[1], up[2] };
+            size_t n_flat = 0;
+            for (size_t v = 0; v < MHR_VERTEX_COUNT; ++v) {
+                const float* x = &lbs_out[v*3];
+                if (x[0]*up[0] + x[1]*up[1] + x[2]*up[2] <= cut) continue;
+                for (int c = 0; c < 3; ++c) pivot[c] += x[c];
+                ++n_flat;
+            }
+            if (n_flat) {
+                float h = 0.f;
+                for (int c = 0; c < 3; ++c) { pivot[c] /= (float)n_flat; h += pivot[c] * up[c]; }
+                for (int c = 0; c < 3; ++c) pivot[c] += (cut - h) * up[c];
+            }
+            if (skin_hair_cap_deg != 0.f) {
+                const int ankle = joint_index("l_talocrural"), ball = joint_index("l_ball");
+                float fwd[3], d = 0.f, n = 0.f;
+                for (int c = 0; c < 3; ++c) fwd[c] = lbs_joints[ball*3 + c] - lbs_joints[ankle*3 + c];
+                for (int c = 0; c < 3; ++c) d += fwd[c] * up[c];
+                for (int c = 0; c < 3; ++c) { fwd[c] -= d * up[c]; n += fwd[c] * fwd[c]; }
+                n = std::sqrt(n);
+                const float a = skin_hair_cap_deg * 3.14159265f / 180.f;
+                if (n > 0.f)
+                    for (int c = 0; c < 3; ++c) normal[c] = std::cos(a) * up[c] - std::sin(a) * fwd[c] / n;
+            }
+            std::vector<unsigned int> cap;
+            for (size_t v = 0; v < MHR_VERTEX_COUNT; ++v) {
+                float h = 0.f;
+                for (int c = 0; c < 3; ++c) h += (lbs_out[v*3 + c] - pivot[c]) * normal[c];
+                if (h > 0.f) cap.push_back((unsigned int)v);
+            }
+            static const float black[3] = {0.f, 0.f, 0.f};
+            skin_acc[p].set_override(cap, black);
+            printf("[skin-color] person slot %zu: --skin-hair-cap painted %zu vertices within %.1f cm of the crown, "
+                   "tilted %.1f deg\n", p, cap.size(), skin_hair_cap_cm, skin_hair_cap_deg);
+        }
+        if (skin_color_save.empty()) continue;
+        mhr_update_mesh_vertices(tri_model, lbs_out.data());
+        char opath[4096];
+        snprintf(opath, sizeof(opath), "%s_p%zu.obj", skin_color_save.c_str(), p);
+        write_obj_mesh(opath, tri_model, nullptr, lbs_joints.data() + 3,
+                       MESH_EXPORT_POS_SCALE, skin_acc[p].colors().data());
+        printf("[skin-color] wrote %s\n", opath);
+    }
+
+    // ── Cleanup ───────────────────────────────────────────────────────────────
+    if (bvh_writer.is_open()) bvh_writer.close();
+    if (arf_writer.is_open()) {
+        for (size_t p = 0; p < skin_acc.size(); ++p)
+            arf_writer.set_person_colors((int)p, skin_acc[p].colors());
+        arf_writer.close();
+    }
+    mhr_lbs_free(lbs);
+    tri_freeModel(tri_model);
+    stop_glx3_stuff();
+    return 0;
+}
