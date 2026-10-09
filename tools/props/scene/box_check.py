@@ -26,6 +26,9 @@ parts, the measured ones first and the judge only where they cannot tell:
 
 --tighten (with --masks) sets each loose box to the SAM 3 instance inside it, in the inventory itself.
 
+gate(scene) is the box gate (pass, fail or unknown, unknown blocking) that the close-up stage and the completion gate
+run: a box must come from partition.py's proposals and be grounded by SAM 3 or passed by the judge on that very box.
+
 A row the concept does not show carries `"box": null` and `"unseen": "<why>"` (inventory.py) and is not checked here.
 """
 import argparse
@@ -140,14 +143,14 @@ def quadrant_shares(grid):
 def spread_problems(view, boxes, size):
     """What is wrong with how a view's boxes lie over its picture, one line each: too little covered for its rows, or
     all in one corner."""
-    if not boxes:
+    if len(boxes) < COVER_FROM:  # a few boxes are not judged for cover or corners
         return []
     wide, tall = size
     grid = covered(boxes, size)
     cover = sum(map(sum, grid)) / (len(grid) * len(grid[0]))
     found = []
     wanted = min(COVER_ENOUGH, COVER_PER_ROW * len(boxes))
-    if len(boxes) >= COVER_FROM and cover < wanted:
+    if cover < wanted:
         found.append(f"view {view}: its {len(boxes)} boxes cover {cover:.2f} of the picture, under the {wanted:.2f} "
                      "its rows suggest")
     fullest = max(quadrant_shares(grid))
@@ -183,7 +186,7 @@ def measured_problems(found, sizes):
 def view_sizes(found):
     """Each view's picture size, None where the picture is missing."""
     sizes = {}
-    for view in found["plan"]["views"]:
+    for view in found.get("plan", {}).get("views", []):
         path = picture_path(view["picture"])
         sizes[view["id"]] = Image.open(path).size if path.exists() else None
     return sizes
@@ -329,6 +332,111 @@ def grounding(instances, size):
     return {"grounding": "off", "found_at": telling[0]["box"]}
 
 
+# --- the gate: pass, fail or unknown for every box, before any close-up is drawn -----------------------------------
+
+PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
+# Where a scene's partition (partition.py) and its box results live: WORK/partition/<scene>/.
+PARTITION = WORK / "partition"
+# A box with every corner on a multiple of this, and no proposal it came from, was typed.
+ROUND = 10
+
+
+def results_path(scene):
+    return PARTITION / scene / "boxes.json"
+
+
+def typed(row):
+    """Whether a row's box was typed rather than measured: no proposal it came from and round numbers."""
+    return not row.get("box_from") and all(value % ROUND == 0 for value in row["box"])
+
+
+def from_proposals(row, proposals):
+    """Whether a row's box is the box round the proposals it names."""
+    by_id = {proposal["id"]: proposal for proposal in proposals}
+    picked = [by_id[name] for name in row.get("box_from", []) if name in by_id]
+    if not picked or len(picked) != len(row["box_from"]):
+        return False
+    union = [min(item["box"][0] for item in picked), min(item["box"][1] for item in picked),
+             max(item["box"][2] for item in picked), max(item["box"][3] for item in picked)]
+    return union == list(row["box"])
+
+
+def row_verdict(row, size, proposals, recorded):
+    """One row's gate verdict and why. Fail: a box outside its picture or the whole picture, a typed box, a box that
+    is not the box round the proposals it names, or a box the measurement or the judge failed. Pass: a box from its
+    proposals that SAM 3 grounded or the judge passed. Unknown, which blocks like a fail: anything not yet
+    measured, or measured on a box that has changed since."""
+    if row.get("box") is None:
+        return (PASS, f"not in the concept: {row['unseen']}") if row.get("unseen") else (FAIL, "no box, no reason")
+    problems = box_problems(row, size)
+    if problems:
+        return FAIL, "; ".join(problems)
+    if typed(row):
+        return FAIL, "typed: round numbers and no proposal it came from"
+    if not row.get("box_from"):
+        return UNKNOWN, "not measured: no proposal it came from (partition.py)"
+    if proposals is None:
+        return UNKNOWN, "its proposals are not on this machine"
+    if not from_proposals(row, proposals):
+        return FAIL, "its box is not the box round the proposals it names"
+    found = recorded.get(row["id"])
+    if not found or found.get("box") != list(row["box"]):
+        return UNKNOWN, "not checked by SAM 3 or the judge on this box"
+    return (PASS if found["passes"] else FAIL), found["by"]
+
+
+def gate(scene, found=None):
+    """The box gate for one scene: {"result", "rows": {row: {"result", "why"}}, "views": [problems]}. A view whose
+    boxes crowd one corner fails the scene; any failing row fails it; any unknown row makes it unknown."""
+    found = found if found is not None else json.loads(inventory.path_of(scene).read_text())
+    sizes = view_sizes(found)
+    proposals_file = PARTITION / scene / "proposals.json"
+    proposals = json.loads(proposals_file.read_text()) if proposals_file.exists() else None
+    recorded = json.loads(results_path(scene).read_text()) if results_path(scene).exists() else {}
+    rows = {}
+    for row in found["rows"]:
+        size = sizes.get(row.get("view"))
+        verdict, why = (UNKNOWN, "its view's picture is missing") if size is None and row.get("box") else \
+            row_verdict(row, size, proposals, recorded)
+        rows[row["id"]] = {"result": verdict, "why": why}
+    views = [problem for problem in measured_problems(found, sizes) if problem.startswith("view ")]
+    verdicts = {entry["result"] for entry in rows.values()}
+    result = FAIL if views or FAIL in verdicts else UNKNOWN if UNKNOWN in verdicts else PASS
+    return {"result": result, "rows": rows, "views": views}
+
+
+def measured_boxes(folders):
+    """The box each `<scene>.<row>` was measured or judged on, from the mask jobs and the judge's questions in the
+    given work folders."""
+    boxes = {}
+    for folder in (folder for folder in folders if folder):
+        jobs = folder / "mask-jobs.json"
+        for job in json.loads(jobs.read_text()) if jobs.exists() else []:
+            boxes.update({row["key"]: list(row["box"]) for row in job["rows"]})
+        for listing in folder.glob("questions-*.json"):
+            for question in json.loads(listing.read_text()):
+                key, _, box = question["name"].rpartition("~")[0].rpartition(".")
+                boxes.setdefault(key, [int(value) for value in box.split("-")])
+    return boxes
+
+
+def record_results(results, measured):
+    """Write each scene's decided boxes (decided()) to WORK/partition/<scene>/boxes.json with the box each was decided
+    on (`measured`), so a box changed since reads as unknown."""
+    by_scene = {}
+    for key, result in results.items():
+        scene, row = key.split(".", 1)
+        if result["passes"] is None or key not in measured:
+            continue
+        by_scene.setdefault(scene, {})[row] = {"passes": result["passes"], "by": result["by"], "box": measured[key]}
+    for scene, rows in by_scene.items():
+        path = results_path(scene)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        kept = json.loads(path.read_text()) if path.exists() else {}
+        kept.update(rows)
+        path.write_text(json.dumps(kept, indent=1))
+
+
 # --- the command -----------------------------------------------------------------------------------------------------
 
 def measure_all(scenes):
@@ -454,6 +562,7 @@ def main():
     if (grounded or judged) and not options.dry_run:
         results = decided(grounded, judged)
         (options.masks or options.judge).joinpath("decided.json").write_text(json.dumps(results, indent=1))
+        record_results(results, measured_boxes([options.masks, options.judge]))
         failing = sorted({key.split(".")[0] for key, result in results.items() if result["passes"] is False})
         print(f"boxes failing: {sum(result['passes'] is False for result in results.values())} of {len(results)}, "
               f"in {', '.join(failing) or 'no scene'}")

@@ -29,14 +29,27 @@ def test_a_crop_has_its_margin_and_is_scaled_up():
 
 
 def test_rows_come_from_the_inventory_s_generated_rows():
-    inventory = {"plan": {"views": [{"id": "v1", "picture": "concept.png"}]},
+    inventory = {"scene": "lab", "plan": {"views": [{"id": "v1", "picture": "concept.png"}]},
                  "rows": [{"id": "cabinet", "view": "v1", "box": [1, 2, 3, 4], "name": "a steel cabinet",
                            "kind": "generate", "size": [1.2, 0.7, 1.0]},
                           {"id": "wall", "view": "v1", "box": [1, 2, 3, 4], "name": "a wall", "kind": "code",
                            "size": [3, 0.2, 2.8]}]}
-    assert stage.rows_from_inventory(inventory) == [{"id": "cabinet", "words": "a steel cabinet",
+    assert stage.rows_from_inventory(inventory) == [{"id": "cabinet", "scene": "lab", "words": "a steel cabinet",
                                                      "size": [1.2, 0.7, 1.0], "concept": "concept.png",
                                                      "box": [1, 2, 3, 4]}]
+
+
+def test_rows_whose_boxes_the_gate_has_not_passed_are_not_drawn():
+    problems = stage.gate_problems([{"id": "cabinet", "words": "a cabinet"},
+                                    {"id": "galley", "scene": "camp", "words": "a galley"}])
+    assert problems[0].startswith("cabinet: names no scene"), problems
+    assert problems[1].startswith("camp.galley: the box gate says"), problems
+    try:
+        stage.run([{"id": "cabinet", "words": "a cabinet"}], pathlib.Path(tempfile.mkdtemp()))
+    except SystemExit as stopped:
+        assert "box gate" in str(stopped)
+    else:
+        raise AssertionError("an ungated row was drawn")
 
 
 def test_the_picture_batch_skips_rows_already_drawn():

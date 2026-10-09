@@ -49,7 +49,7 @@ STAGES = WORK / "usd"
 REVIEWS = WORK / "review"
 INVENTORIES = REPO / "data/inventory"
 KITS = REPO / "data/kit"
-CHECKS = ("rows", "made_only", "placeholders", "resting", "picks")
+CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes")
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 # What of a stage's folder is the stage: its root file, its layers and its assets (not the checks, the manifest, the
 # inputs record or a settle run kept beside it).
@@ -235,8 +235,23 @@ def picks_check(place, stage):
     return result("picks", FAIL if faults else PASS, stage, faults, f"{locked} rows locked to an owner's pick")
 
 
+def boxes_check(place, stage):
+    """The box gate (props/scene/box_check.py gate()) on the inventory the stage was laid from: every box measured
+    from SAM's proposals and checked on that box; a typed box fails, an unmeasured one is unknown."""
+    sys.path.insert(0, str(REPO / "tools/props/scene"))
+    import box_check
+    found = json.loads(recorded_inventory(place, stage).read_text())
+    verdict = box_check.gate(found["scene"], found)
+    faults = [{"row": row, "result": entry["result"], "why": entry["why"]}
+              for row, entry in verdict["rows"].items() if entry["result"] != box_check.PASS]
+    faults += [{"row": None, "result": FAIL, "why": problem} for problem in verdict["views"]]
+    counts = {name: sum(entry["result"] == name for entry in verdict["rows"].values()) for name in (PASS, FAIL, UNKNOWN)}
+    return result("boxes", verdict["result"], stage, faults,
+                  f"{counts[PASS]} boxes pass, {counts[FAIL]} fail, {counts[UNKNOWN]} unknown")
+
+
 RUNNERS = {"rows": rows_check, "made_only": made_only_check, "placeholders": placeholders_check,
-           "resting": resting_check, "picks": picks_check}
+           "resting": resting_check, "picks": picks_check, "boxes": boxes_check}
 
 
 def run_check(check, place, stage):

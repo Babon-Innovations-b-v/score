@@ -89,8 +89,28 @@ def crop(concept, box):
 def rows_from_inventory(inventory):
     """The stage's rows from a scene inventory: every generated row with its name, size, view picture and box."""
     views = {view["id"]: view["picture"] for view in inventory["plan"]["views"]}
-    return [{"id": row["id"], "words": row["name"], "size": row["size"], "concept": views[row["view"]],
-             "box": row["box"]} for row in inventory["rows"] if row.get("kind") == "generate" and row.get("box")]
+    return [{"id": row["id"], "scene": inventory["scene"], "words": row["name"], "size": row["size"],
+             "concept": views[row["view"]], "box": row["box"]}
+            for row in inventory["rows"] if row.get("kind") == "generate" and row.get("box")]
+
+
+def gate_problems(rows):
+    """Why rows may not be drawn: the box gate (../scene/box_check.py gate()) must pass every row's box first, and a
+    row naming no scene cannot be gated. Unknown blocks like a fail: a typed box made the camp's close-ups of the
+    wrong things (2026-10-09)."""
+    sys.path.insert(0, str(HERE.parent / "scene"))
+    import box_check
+    problems, verdicts = [], {}
+    for row in rows:
+        if not row.get("scene"):
+            problems.append(f"{row['id']}: names no scene, so its box cannot be gated (write the rows with "
+                            "--from-inventory)")
+            continue
+        verdict = verdicts.setdefault(row["scene"], box_check.gate(row["scene"]))["rows"].get(row["id"])
+        if not verdict or verdict["result"] != box_check.PASS:
+            problems.append(f"{row['scene']}.{row['id']}: the box gate says {verdict['result'] if verdict else 'no row'}"
+                            f"{': ' + verdict['why'] if verdict else ''}")
+    return problems
 
 
 def make_crops(rows, out):
@@ -229,7 +249,11 @@ def row_euros(row, out, entries):
 
 
 def run(rows, out, use_pro=True, dry_run=False):
-    """The whole stage for `rows` into `out`; the record written to out/closeups.json."""
+    """The whole stage for `rows` into `out`, once the box gate passes them; the record written to
+    out/closeups.json."""
+    problems = gate_problems(rows)
+    if problems:
+        raise SystemExit("the box gate stops the close-ups:\n  " + "\n  ".join(problems))
     make_crops(rows, out)
     if dry_run:
         draw_with_qwen(rows, out, dry_run=True)

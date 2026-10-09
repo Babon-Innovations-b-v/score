@@ -42,7 +42,7 @@ def to_segment(folder):
     return [path for path in sorted(folder.glob("*.png")) if not (folder / "masks" / f"{path.stem}.npz").exists()]
 
 
-def price(shares, account):
+def price(shares, account, cards=None):
     """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the minutes
     allowed."""
     found = batch.offers(list(capacity.classes_for(KIND)))
@@ -50,6 +50,7 @@ def price(shares, account):
         raise SystemExit("no card that holds SAM 2 is sold by the backend")
     each = SHARE_SIZE * MINUTES_A_PICTURE
     count = capacity.machines_for(len(shares), each, SETUP_MINUTES)
+    count = min(count, cards or count)
     minutes = SETUP_MINUTES + max(each, len(shares) * each / count)
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
@@ -106,6 +107,7 @@ def main():
     parser.add_argument("folder", type=pathlib.Path, help="a folder of cut-out pictures")
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
+    parser.add_argument("--cards", type=int, help="rent at most this many machines (each one's setup is paid)")
     options = parser.parse_args()
     pictures = to_segment(options.folder)
     if not pictures:
@@ -114,7 +116,7 @@ def main():
     shares = [pictures[start:start + SHARE_SIZE] for start in range(0, len(pictures), SHARE_SIZE)]
     account = cloud.account()
     batch.sweep(account)
-    found, count, allowed_minutes = price(shares, account)
+    found, count, allowed_minutes = price(shares, account, options.cards)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())

@@ -3,6 +3,7 @@ the judge's pictures and questions, and its majority vote, without a model or a 
 
 Plain python: python3 tools/props/scene/box_check_test.py
 """
+import json
 import pathlib
 import sys
 import tempfile
@@ -159,6 +160,49 @@ def test_a_loose_box_is_tightened_to_its_measured_thing():
                 "camp.wall": {"grounding": "loose", "found_at": [0, 0, 10, 10]}}
     assert box_check.tighten("camp", found, grounded) == ["keyboard", "wall"]  # a repeating row boxes one example
     assert found["rows"][0]["box"] == [400, 300, 520, 340] and found["rows"][1]["box"] == [0, 0, 10, 10]
+
+
+def a_partitioned_place(boxes):
+    """A place with one picture, its proposals and its recorded results in a temporary partition folder; its
+    inventory with the given {row: (box, box_from)}."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    picture = folder / "concept.png"
+    Image.new("RGB", SIZE, (90, 90, 90)).save(picture)
+    box_check.PARTITION = folder / "partition"
+    (folder / "partition" / "camp").mkdir(parents=True)
+    proposals = [{"id": "v1.1", "view": "v1", "box": [113, 207, 391, 618], "area": 90000},
+                 {"id": "v1.2", "view": "v1", "box": [1503, 811, 1702, 1033], "area": 30000}]
+    (folder / "partition" / "camp" / "proposals.json").write_text(json.dumps(proposals))
+    (folder / "partition" / "camp" / "boxes.json").write_text(json.dumps({
+        "galley": {"passes": True, "by": "SAM 3: grounded", "box": [113, 207, 391, 618]},
+        "crate": {"passes": True, "by": "SAM 3: grounded", "box": [1503, 811, 1702, 1033]}}))
+    rows = [a_row(name, box, **({"box_from": source} if source else {})) for name, (box, source) in boxes.items()]
+    return an_inventory(rows, str(picture))
+
+
+def test_the_gate_passes_only_a_measured_box_checked_on_that_box():
+    found = a_partitioned_place({"galley": ([113, 207, 391, 618], ["v1.1"]), "crate": ([1503, 811, 1702, 1033], ["v1.2"])})
+    verdict = box_check.gate("camp", found)
+    assert verdict["result"] == "pass", verdict
+    found["rows"][1]["box"] = [1503, 811, 1702, 1040]  # moved by hand since: no longer its proposal's box
+    assert box_check.gate("camp", found)["rows"]["crate"]["result"] == "fail"
+
+
+def test_a_typed_or_guessed_box_fails_the_gate():
+    found = a_partitioned_place({
+        "galley": ([600, 200, 900, 640], None),               # round numbers, typed (the camp's, 2026-10-09)
+        "crate": ([0, 0, SIZE[0], SIZE[1]], None),           # the whole picture
+        "table": ([113, 207, 391, 618], ["v1.2"]),           # names a proposal it is not the box of
+        "bunk": ([1200, 300, 1300, 400], ["v1.1"])})          # outside the object it names
+    rows = box_check.gate("camp", found)["rows"]
+    assert all(rows[name]["result"] == "fail" for name in ("galley", "crate", "table", "bunk")), rows
+    assert "typed" in rows["galley"]["why"] and "whole picture" in rows["crate"]["why"]
+
+
+def test_an_unmeasured_box_is_unknown_and_blocks():
+    found = a_partitioned_place({"galley": ([113, 207, 391, 618], ["v1.1"]), "crate": ([1503, 811, 1701, 1033], None)})
+    verdict = box_check.gate("camp", found)
+    assert verdict["rows"]["crate"]["result"] == "unknown" and verdict["result"] == "unknown", verdict
 
 
 def main():
