@@ -82,7 +82,9 @@ Recorded here because the repo is public and the body file ships:
   body shape is.
 - **Clothing**: sewing patterns by GarmentCode (MIT). The looks kept before 2026-10-09 were draped with its NVIDIA
   Warp fork, whose licence allows non-commercial research only; drapes from then on are Blender's cloth
-  (`../maker/drape_garment.py`; Blender is GPL, its output is ours).
+  (`../maker/drape_garment.py`; Blender is GPL, its output is ours). Every built body's report names the simulator of each
+  drape it wears (`cloth_licence.py`), and `../cast.py` refuses a cast that draws a body whose drapes are not
+  commercial-OK; `python3 cloth_licence.py` checks every person's body.
 - **Boots and hair**: Hi3DGen (MIT) from drawings by FLUX.2 klein 4B (Apache 2.0), as the prop
   chain uses them.
 - **Eyes**: MakeHuman system assets (CC0, from the CC0 system pack). MakeHuman's base mesh was used
@@ -98,7 +100,7 @@ a `paths.py` of its own that would shadow this one's.
 
 ## What the gate can run
 
-`regions_test.py` and `glb_test.py`, and nothing else. The gate runs the tools' checks with the
+`regions_test.py`, `glb_test.py` and `cloth_licence_test.py`, and nothing else. The gate runs the tools' checks with the
 system python on a box with no graphics card and no tool chain built, so nothing it runs may
 import numpy, torch or soma. That is why the two pieces worth pinning, which part of the body a
 joint belongs to and whether a written file is well formed, live in modules with no dependencies

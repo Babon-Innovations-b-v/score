@@ -391,11 +391,23 @@ def write_layer(place, cast, out, bodies=BODIES):
     return {"characters": len(singles), "crowd": crowd_count, "layer": str(path)}
 
 
-def refuse_faulty(place, cast, stage_folder):
-    """Stop before writing a cast that shows somebody twice or walks somebody through a person or a thing on the
-    place's stage (tools/characters/cast_check.py)."""
+def characters_drawn(cast):
+    """Every body file the cast draws: its people's, its groups' kit builds and its crowd's."""
+    drawn = [single["character"] for single in characters_of(cast)]
+    if cast.get("crowd"):
+        drawn.append(cast["crowd"]["character"])
+    return drawn
+
+
+def refuse_faulty(place, cast, stage_folder, bodies=BODIES):
+    """Stop before writing a cast that shows somebody twice, walks somebody through a person or a thing on the
+    place's stage (tools/characters/cast_check.py), or draws a body whose drapes are not commercial-OK
+    (people/cloth_licence.py)."""
     import cast_check
+    sys.path.insert(0, str(HERE / "people"))
+    import cloth_licence
     faults = cast_check.check(cast, cast_check.stage_things(stage_folder / "layers/base.usda", place))
+    faults += cloth_licence.body_faults(characters_drawn(cast), bodies)
     if faults:
         raise SystemExit(f"{place}'s cast is not written: " + "; ".join(faults))
 
@@ -408,7 +420,7 @@ def main():
     parser.add_argument("--cast", type=pathlib.Path, help="the cast file, by default data/characters/<place>.json")
     arguments = parser.parse_args()
     cast = json.loads((arguments.cast or CASTS / f"{arguments.place}.json").read_text())
-    refuse_faulty(arguments.place, cast, arguments.stage)
+    refuse_faulty(arguments.place, cast, arguments.stage, arguments.bodies)
     print(json.dumps(write_layer(arguments.place, cast, arguments.stage, arguments.bodies)))
 
 
