@@ -10,7 +10,8 @@
   "sample_tray_1": "sample_tray-lab1",
   "sample_case_1": "sample_case-g1",
   "toaster_1": "toaster-rr1",
-  "kiosk_terminal_1": "kiosk_terminal-rr1"
+  "kiosk_terminal_1": "kiosk_terminal-rr1",
+  "coffee_maker_1": "coffee_maker-rr2"
  },
  "campgrounds": {
   "cargo_case": "cargo_case-r1",

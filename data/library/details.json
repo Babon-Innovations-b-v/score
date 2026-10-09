@@ -5007,6 +5007,27 @@
 		"cuts": [],
 		"decals": []
 	},
+	"camp_coffee_maker": {
+		"materials": [
+			"rubber",
+			"glass",
+			"stainless"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
 	"camp_kiosk_terminal": {
 		"materials": [
 			"dust_coated_paint",
