@@ -249,6 +249,17 @@
  ],
  "places": [
   {
+   "name": "square",
+   "stage": "square",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "EarthSite (the square's record shows the launch the same way)"
+  },
+  {
    "name": "far_city",
    "stage": "far_city",
    "at": [
