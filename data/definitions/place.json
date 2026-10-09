@@ -2366,7 +2366,10 @@
 			],
 			"accents": [
 				"sign-red",
-				"machine"
+				"machine",
+				"flat-wall",
+				"sign-lit",
+				"tile"
 			],
 			"accents_are": "the masts' warning lamps"
 		},
