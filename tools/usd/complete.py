@@ -22,7 +22,8 @@ agent finishing while validations are stale). The requirements:
                   world's own model, each saying so (score:model, score:builder or score:kind), and every object's model
                   loaded
     placeholders  the placeholder check (placeholders.py): nothing visible stands in for a made piece
-    resting       the resting check (resting.py): nothing floats, tips, is sunk or lies inside another
+    resting       the resting triage (triage.py): no real resting fault left (false alarms are listed, not counted)
+    picks         the pick lock (picks.py): no object the owner picked shows another model without a written decision
     current       every check result was made on this stage as it is now (the same fingerprint) and none is unknown
     review        the review page (tools/review/page.py) was built, and its scene rendered, from this stage as it is now
 
@@ -48,7 +49,7 @@ STAGES = WORK / "usd"
 REVIEWS = WORK / "review"
 INVENTORIES = REPO / "data/inventory"
 KITS = REPO / "data/kit"
-CHECKS = ("rows", "made_only", "placeholders", "resting")
+CHECKS = ("rows", "made_only", "placeholders", "resting", "picks")
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 # What of a stage's folder is the stage: its root file, its layers and its assets (not the checks, the manifest, the
 # inputs record or a settle run kept beside it).
@@ -106,13 +107,15 @@ def input_name(path):
     return str(resolved.relative_to(REPO)) if resolved.is_relative_to(REPO) else str(resolved)
 
 
-def record_inputs(out, inventory, inputs, models):
+def record_inputs(out, inventory, inputs, models, hashes=None):
     """Write what a stage was exported from beside it (inputs.json): the inventory it was laid from, each input file
     by its content, and each made model (.gltf) by its content, file and time, for the gate to tell when the stage is
-    older than they are. `models` is {model: its .gltf}; inputs that do not exist are left out."""
+    older than they are. `models` is {model: its .gltf}, `hashes` their model_hash when already worked out; inputs that do
+    not exist are left out."""
+    hashes = hashes or {}
     written = {"at": now(), "inventory": input_name(inventory),
                "inputs": {input_name(path): file_hash(path) for path in [inventory, *inputs] if pathlib.Path(path).exists()},
-               "models": {model: {"file": str(pathlib.Path(gltf).resolve()), "sha256": model_hash(gltf),
+               "models": {model: {"file": str(pathlib.Path(gltf).resolve()), "sha256": hashes.get(model) or model_hash(gltf),
                                   "mtime": pathlib.Path(gltf).stat().st_mtime_ns}
                           for model, gltf in sorted(models.items())}}
     (pathlib.Path(out) / INPUTS).write_text(json.dumps(written, indent=1) + "\n")
@@ -213,14 +216,27 @@ def placeholders_check(place, stage):
 
 
 def resting_check(place, stage):
-    """The resting check (resting.py): every object that floats, tips, is sunk or lies inside another."""
-    import resting
-    faults = [verdict for verdict in resting.check(stage) if verdict.get("passed") is False]
-    return result("resting", FAIL if faults else PASS, stage, faults)
+    """The resting triage's real faults (triage.py): each a fault the false-alarm guards kept, with the last settle
+    run's drop (SAGE's rule) when one lies beside the stage (settle/settled.json, newer than the stage)."""
+    import triage
+    settled_file = pathlib.Path(stage).parent / "settle/settled.json"
+    fresh = settled_file.exists() and settled_file.stat().st_mtime_ns >= pathlib.Path(stage).stat().st_mtime_ns
+    found = triage.triage(stage, json.loads(settled_file.read_text()) if fresh else None)
+    real = [fault for fault in found["faults"] if fault["real"]]
+    note = (f"{found['real_objects']} objects with real faults, {found['false_objects']} false alarms"
+            + ("" if fresh else "; no drop run on this stage (settle.py --dry-run)"))
+    return result("resting", FAIL if real else PASS, stage, real, note)
+
+
+def picks_check(place, stage):
+    """The pick lock (picks.py): every object of a picked row still the model the owner picked."""
+    import picks
+    faults, locked = picks.check(stage, json.loads(recorded_inventory(place, stage).read_text()))
+    return result("picks", FAIL if faults else PASS, stage, faults, f"{locked} rows locked to an owner's pick")
 
 
 RUNNERS = {"rows": rows_check, "made_only": made_only_check, "placeholders": placeholders_check,
-           "resting": resting_check}
+           "resting": resting_check, "picks": picks_check}
 
 
 def run_check(check, place, stage):

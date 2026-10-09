@@ -58,6 +58,23 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   current, the review page built and rendered from this stage). Unknown blocks like fail. The Stop hook
   (`.claude/hooks/completion_guard.py`) refuses a session's "done" for a place it worked on unless the gate passes.
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
+- `triage.py` is the resting triage over `resting.py`: each object judged by its support from data (row `support`,
+  `fixed`, kit shell groups and kit kinds `hangs`/`floors`, `on:` held, hanging words, wall, ceiling, floor;
+  `data/checks/resting.json`), SceneEval's guards (4 contacts and the weight inside them; one contact for wall, ceiling
+  and hanging; an overlap counts only if it survives a 5 mm nudge), bedding classes as data, SAGE's drop rule from a
+  settle run (`settle.py --dry-run`: over 0.2 m or 8 degrees is unstable), and real faults grouped by cause with a
+  close-up each (`--closeups`). False alarms are kept, marked, never deleted. The gate's resting requirement is its real
+  faults.
+- `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
+  intersection test with an offset, distance, touches, raycast. ProcFunc's interface; its release has no such code yet.
+- `annotate.py` (Blender side `../blender/inside/annotate_stage.py`) is the one annotate step: from any camera the look,
+  per-pixel object ids, depth and normals, and from them masks and occlusion boundaries. Checks call it; never write a
+  second renderer for a check.
+- `picks.py` is the pick lock: a row's `pick` (model, hash, the decision in words) is written on its objects at export
+  (`score:pick_sha256` beside `score:model_sha256`); export refuses a picked row showing another model or none unless
+  the row has `pick_replaced` (the owner's written decision). Never write a pick or a replacement the owner did not make.
+- `compare.py` is the render-and-compare: each object with a close-up rendered alone from 8 ways round it, the best
+  outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../props/cloud/similar.py`).
 - `made_only.py` is the made-only check on the stage: every drawn mesh says what made it (score:model, score:builder,
   score:kind) and every object's model loaded.
 - `settle.py` is the physics settle: loose rows dropped in headless Blender (`../blender/inside/settle_stage.py`) on

@@ -72,6 +72,7 @@ import ground as grounds  # noqa: E402
 import ground_detail  # noqa: E402
 import library  # noqa: E402
 import package  # noqa: E402
+import picks  # noqa: E402
 import scene as scene_record  # noqa: E402
 import stored_parts  # noqa: E402
 
@@ -465,10 +466,10 @@ def library_materials(stage, place, root):
             material.GetPrim().CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(str(spec[key]))
 
 
-def laid_object(stage, path, piece, row, asset, sound, ground=None):
+def laid_object(stage, path, piece, row, asset, sound, ground=None, sha256=None):
     """One object of the place: its model referenced, its transform as the game lays it (on the place's ground when
     it has one: stood on a seat of its own under its spot, lifted off the ground there), its kind, inventory row,
-    name, lift and sound."""
+    name, lift and sound, and its model's hash beside the owner's pick of its row (picks.py)."""
     xform = UsdGeom.Xform.Define(stage, path)
     xform.GetPrim().GetReferences().AddReference(asset)
     if "matrix" in piece:  # a kit room's piece: its frame as one transform (USD's matrices are row by row, transposed)
@@ -479,6 +480,10 @@ def laid_object(stage, path, piece, row, asset, sound, ground=None):
         xform.AddScaleOp().Set(Gf.Vec3f(float(piece.get("scale", 1.0))))
     values = {"score:kind": piece["kind"], "score:row": piece["row"], "score:model": piece["model"],
               "score:name": row.get("name", ""), "score:anchor": row.get("anchor", "")}
+    if sha256:
+        values["score:model_sha256"] = sha256
+    if (row.get("pick") or {}).get("sha256"):
+        values["score:pick_sha256"] = row["pick"]["sha256"]
     if "layer" in piece:  # a kit room's draw layer: 2 is its roof, left out of a cutaway look
         values["score:layer"] = str(piece["layer"])
     if sound is not None:
@@ -579,7 +584,7 @@ def lamp(stage, path, entry, ground=None):
                                               "from": "MadePlace lamp, game/base/lamp/lamp.gd"})
 
 
-def write_base(place, kit, inventory, assets, out, children, ground=None, scene=None, world=None):
+def write_base(place, kit, inventory, assets, out, children, ground=None, scene=None, world=None, hashes=None):
     """The generated layer, rewritten whole: the place's root, its library surfaces, its objects (each child under
     the object it stands on, named as objects are, so moving the parent moves it), its lamps, and what its scene record
     holds (tools/usd/scene.py: the structure, ground, water, backdrop, gameplay objects, lights and sky the game drew in
@@ -599,11 +604,12 @@ def write_base(place, kit, inventory, assets, out, children, ground=None, scene=
     for name, piece in zip(object_names(kit["pieces"]), kit["pieces"]):
         model = piece["model"]
         laid_object(stage, f"/{place}/Objects/{name}", piece, rows.get(piece["row"], {}),
-                    f"../assets/{model}.usdc", assets[model], ground)
+                    f"../assets/{model}.usdc", assets[model], ground, (hashes or {}).get(model))
         on_it = children.get(piece["row"], [])
         for child_name, child in zip(object_names(on_it), on_it):
             laid_object(stage, f"/{place}/Objects/{name}/{child_name}", child, rows.get(child["row"], {}),
-                        f"../assets/{child['model']}.usdc", assets[child["model"]])
+                        f"../assets/{child['model']}.usdc", assets[child["model"]], sha256=(hashes or {}).get(
+                            child["model"]))
     if kit.get("lamps"):
         UsdGeom.Scope.Define(stage, f"/{place}/Lamps")
     for number, entry in enumerate(kit.get("lamps", []), start=1):
@@ -713,18 +719,36 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         turn = details.get(piece["kind"], {}).get("turn", [1, 0, 0, 0, 1, 0, 0, 0, 1])
         largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds, glows.get(model))
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
-    write_base(place, kit, inventory, assets, out, children, ground, scene, world)
+    hashes = {model: complete.model_hash(pathlib.Path(models) / f"{model}.gltf") for model in assets}
+    lock_picks(place, kit, children, inventory, hashes)
+    write_base(place, kit, inventory, assets, out, children, ground, scene, world, hashes)
     ensure_edit(out)
     stage = write_root(place, out)
-    record_inputs(place, out, kit_path or KITS / f"{place}.json", inventory_path, models, assets)
+    record_inputs(place, out, kit_path or KITS / f"{place}.json", inventory_path, models, hashes)
     return stage
 
 
-def record_inputs(place, out, kit_path, inventory_path, models, assets):
+def lock_picks(place, kit, children, inventory, hashes):
+    """Refuse the export when a row the owner picked a model for would show another (picks.py), naming each."""
+    shown = {}
+    for name, piece in zip(object_names(kit["pieces"]), kit["pieces"]):
+        shown.setdefault(piece["row"], []).append((name, piece["model"], hashes.get(piece["model"])))
+        on_it = children.get(piece["row"], [])
+        for child_name, child in zip(object_names(on_it), on_it):
+            shown.setdefault(child["row"], []).append((f"{name}/{child_name}", child["model"], hashes.get(child["model"])))
+    broken = picks.faults(inventory["rows"], shown)
+    if broken:
+        raise picks.PickBroken(f"{place}: the owner's picks would be replaced without a written decision "
+                               "(the row's pick_replaced): " + "; ".join(f"{fault['row']}: {fault['why']}"
+                                                                         for fault in broken))
+
+
+def record_inputs(place, out, kit_path, inventory_path, models, hashes):
     """What the stage was made from, written beside it for the completion gate (tools/usd/complete.py): the inventory,
     the kit, the scene record and the cast, and every made model by its hash."""
     inputs = [kit_path, scene_record.SCENES / f"{place}.json", REPO / "data/characters" / f"{place}.json"]
-    complete.record_inputs(out, inventory_path, inputs, {model: pathlib.Path(models) / f"{model}.gltf" for model in assets})
+    complete.record_inputs(out, inventory_path, inputs,
+                           {model: pathlib.Path(models) / f"{model}.gltf" for model in hashes}, hashes)
 
 
 def main():
