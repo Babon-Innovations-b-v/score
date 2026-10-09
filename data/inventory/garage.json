@@ -82,7 +82,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_wall_lower_plain"
+			"thing": "prop:garage_wall_lower_plain",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -105,7 +106,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_wall_upper_plain"
+			"thing": "prop:garage_wall_upper_plain",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_skirting",
@@ -128,7 +130,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_wall_skirting"
+			"thing": "prop:garage_wall_skirting",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cornice",
@@ -151,7 +154,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_wall_cornice"
+			"thing": "prop:garage_wall_cornice",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_corner_post",
@@ -174,7 +178,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_wall_corner_post"
+			"thing": "prop:garage_wall_corner_post",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -197,7 +202,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_ring_floor_plate"
+			"thing": "prop:garage_ring_floor_plate",
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_face_panel",
@@ -220,7 +226,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_roof_face_panel"
+			"thing": "prop:garage_roof_face_panel",
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_ring_rib",
@@ -243,7 +250,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_lattice_ring_rib"
+			"thing": "prop:garage_lattice_ring_rib",
+			"repeats": "across the room"
 		},
 		{
 			"id": "hatch_frame",
@@ -408,7 +416,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_pipe_bracket"
+			"thing": "prop:garage_pipe_bracket",
+			"repeats": "across the room"
 		},
 		{
 			"id": "tread_mat",
@@ -448,7 +457,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_tread_mat"
+			"thing": "prop:garage_tread_mat",
+			"repeats": "across the room"
 		},
 		{
 			"id": "machine_bay_plate",
@@ -478,7 +488,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_machine_bay_plate"
+			"thing": "prop:garage_machine_bay_plate",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_straight",
@@ -532,7 +543,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_pipe_straight"
+			"thing": "prop:garage_pipe_straight",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_valve",
@@ -561,7 +573,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_pipe_valve"
+			"thing": "prop:garage_pipe_valve",
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_bundle",
@@ -615,7 +628,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_cable_bundle"
+			"thing": "prop:garage_cable_bundle",
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_drop",
@@ -679,7 +693,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_cable_drop"
+			"thing": "prop:garage_cable_drop",
+			"repeats": "across the room"
 		},
 		{
 			"id": "door_control_box",
@@ -811,7 +826,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_chain_hoist"
+			"thing": "prop:garage_chain_hoist",
+			"repeats": "across the room"
 		},
 		{
 			"id": "workbench",
@@ -1055,7 +1071,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_breaker_panel"
+			"thing": "prop:garage_breaker_panel",
+			"repeats": "across the room"
 		},
 		{
 			"id": "junction_box",
@@ -1086,7 +1103,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_junction_box"
+			"thing": "prop:garage_junction_box",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pressure_gauge",
@@ -1135,7 +1153,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_pressure_gauge"
+			"thing": "prop:garage_pressure_gauge",
+			"repeats": "across the room"
 		},
 		{
 			"id": "control_cabinet",
@@ -1306,7 +1325,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:garage_bay_panel"
+			"thing": "prop:garage_bay_panel",
+			"repeats": "across the room"
 		},
 		{
 			"id": "bracket_beacon",

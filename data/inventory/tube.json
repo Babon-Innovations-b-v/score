@@ -52,7 +52,8 @@
 			"thing": "prop:tube_ring_floor_plate",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "hull_plate",
@@ -75,7 +76,8 @@
 			"thing": "prop:tube_hull_plate",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "hoop",
@@ -98,7 +100,8 @@
 			"thing": "prop:tube_hoop",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_straight",
@@ -121,7 +124,8 @@
 			"thing": "prop:tube_pipe_straight",
 			"made": "kit piece",
 			"group": "kit: pipe",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_bundle",
@@ -144,7 +148,8 @@
 			"thing": "prop:tube_cable_bundle",
 			"made": "kit piece",
 			"group": "kit: pipe",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "crown_strip_lamp",
@@ -195,7 +200,8 @@
 			"thing": "prop:tube_hull_patch",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "sign_plate",
@@ -241,7 +247,8 @@
 			"thing": "prop:tube_end_mat",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "rail_bracket",
@@ -263,7 +270,8 @@
 			"count": 2,
 			"thing": "prop:tube_rail_bracket",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_bracket",
@@ -285,7 +293,8 @@
 			"count": 6,
 			"thing": "prop:tube_pipe_bracket",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "small_readout",
@@ -329,7 +338,8 @@
 			"count": 1,
 			"thing": "prop:tube_conduit_box",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		}
 	],
 	"concept_elements": [

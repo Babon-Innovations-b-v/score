@@ -3,7 +3,7 @@ box, for the box check (box_check.py --masks).
 
     /root/venv/bin/python tools/props/scene/box_masks.py <jobs.json> <out.json>
 
-The jobs are [{"picture": <name of a picture beside jobs.json>, "rows": [{"key", "noun", "box"}]}]. For each picture
+The jobs are [{"picture": <name of a picture beside jobs.json>, "rows": [{"key", "nouns", "box"}]}]. For each picture
 every distinct noun is asked of SAM 3 once (cutout.py's way, at cutout.THRESHOLD); each instance it finds is measured
 against each row asking for that noun: `inside`, the share of the mask inside the row's box, and `fills`, the share
 of the box the mask covers. The out file maps each row's key to its instances, surest first, at most KEEP of them:
@@ -37,12 +37,13 @@ def measured(mask, box):
 
 
 def picture_rows(model, processor, picture, rows):
-    """Every row of one picture with its noun's instances measured against its box."""
+    """Every row of one picture with its nouns' instances measured against its box, surest first."""
     image = Image.open(picture).convert("RGB")
-    found = {noun: cutout.found(model, processor, image, noun, cutout.THRESHOLD)
-             for noun in sorted({row["noun"] for row in rows})}
+    found = {word: cutout.found(model, processor, image, word, cutout.THRESHOLD)
+             for word in sorted({word for row in rows for word in row["nouns"]})}
     return {row["key"]: [dict(measured(mask, row["box"]), score=round(score, 3))
-                         for mask, score in sorted(found[row["noun"]], key=lambda pair: -pair[1])[:KEEP]]
+                         for mask, score in sorted((pair for word in row["nouns"] for pair in found[word]),
+                                                   key=lambda pair: -pair[1])[:KEEP]]
             for row in rows}
 
 

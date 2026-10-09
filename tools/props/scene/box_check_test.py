@@ -59,13 +59,13 @@ def test_a_box_outside_its_picture_fails():
     assert any("row over" in problem and "not inside" in problem for problem in problems), problems
 
 
-def test_the_whole_picture_is_a_box_only_for_the_room_wide_kit_pieces():
+def test_the_whole_picture_is_never_a_box():
     whole = [0, 0, SIZE[0], SIZE[1]]
-    rows = spread_over_the_picture() + [a_row("wall_lower", whole, group="kit: wall"),
+    rows = spread_over_the_picture() + [a_row("wall_lower", whole, group="kit: wall", repeats="across the room"),
                                         a_row("desk", whole, group="kit: furniture"), a_row("rack", whole)]
     problems = box_check.measured_problems(an_inventory(rows), {"v1": SIZE})
     named = {problem.split(":")[0] for problem in problems if "whole picture" in problem}
-    assert named == {"row desk", "row rack"}, problems
+    assert named == {"row wall_lower", "row desk", "row rack"}, problems
 
 
 def test_an_unseen_row_and_a_missing_picture():
@@ -118,6 +118,8 @@ def test_sam_3_is_asked_for_the_short_name():
     assert box_check.noun("stainless galley counter: worktop with hob and sink") == "stainless galley counter"
     assert box_check.noun("a strip lamp in a steel housing with a frosted lens, over a door") == "strip lamp"
     assert box_check.noun("lamp on a rod from the ceiling: housing and lens") == "lamp"
+    assert box_check.nouns("plain lower wall panel, bolted") == ["plain lower wall panel", "panel"]
+    assert box_check.nouns("hammer") == ["hammer"]
 
 
 def test_a_box_is_grounded_by_a_mask_inside_it():
@@ -136,7 +138,9 @@ def test_the_mask_jobs_hold_each_views_judged_rows():
     rows = spread_over_the_picture()[:2] + [a_row("wall", [0, 0, SIZE[0], SIZE[1]], group="kit: wall")]
     jobs = box_check.mask_jobs("camp", an_inventory(rows, "/concepts/K01.png"), {"v1": SIZE})
     assert jobs == [{"picture": "/concepts/K01.png", "rows": [
-        {"key": "camp.r0", "noun": "r0", "box": rows[0]["box"]}, {"key": "camp.r1", "noun": "r1", "box": rows[1]["box"]}]}]
+        {"key": "camp.r0", "nouns": ["r0"], "box": rows[0]["box"]},
+        {"key": "camp.r1", "nouns": ["r1"], "box": rows[1]["box"]},
+        {"key": "camp.wall", "nouns": ["wall"], "box": rows[2]["box"]}]}]
 
 
 def test_the_measurement_decides_before_the_judge():
@@ -153,8 +157,8 @@ def test_a_loose_box_is_tightened_to_its_measured_thing():
     found = an_inventory([a_row("keyboard", [100, 100, 900, 600]), a_row("wall", [0, 0, 900, 600], group="kit: wall")])
     grounded = {"camp.keyboard": {"grounding": "loose", "found_at": [400, 300, 520, 340]},
                 "camp.wall": {"grounding": "loose", "found_at": [0, 0, 10, 10]}}
-    assert box_check.tighten("camp", found, grounded) == ["keyboard"]
-    assert found["rows"][0]["box"] == [400, 300, 520, 340] and found["rows"][1]["box"] == [0, 0, 900, 600]
+    assert box_check.tighten("camp", found, grounded) == ["keyboard", "wall"]  # a repeating row boxes one example
+    assert found["rows"][0]["box"] == [400, 300, 520, 340] and found["rows"][1]["box"] == [0, 0, 10, 10]
 
 
 def main():

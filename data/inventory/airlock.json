@@ -65,7 +65,8 @@
 			"thing": "prop:airlock_wall_lower_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -88,7 +89,8 @@
 			"thing": "prop:airlock_wall_upper_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_skirting",
@@ -111,7 +113,8 @@
 			"thing": "prop:airlock_wall_skirting",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cornice",
@@ -134,7 +137,8 @@
 			"thing": "prop:airlock_wall_cornice",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -157,7 +161,8 @@
 			"thing": "prop:airlock_ring_floor_plate",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_face_panel",
@@ -180,7 +185,8 @@
 			"thing": "prop:airlock_roof_face_panel",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "door_frame",
@@ -425,7 +431,8 @@
 						0.1
 					]
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_valve",
@@ -469,7 +476,8 @@
 					"across": 1.0,
 					"bottom": 1.96
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "door_strip_lamp",
@@ -557,7 +565,8 @@
 					"facing": 180
 				}
 			],
-			"lies": "floor"
+			"lies": "floor",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_bracket",
@@ -580,7 +589,8 @@
 				688,
 				936
 			],
-			"count": 8
+			"count": 8,
+			"repeats": "across the room"
 		},
 		{
 			"id": "under_floor_box",
@@ -827,7 +837,8 @@
 					"bottom": 1.35
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"repeats": "across the room"
 		},
 		{
 			"id": "tool_case",
@@ -947,7 +958,8 @@
 					"bottom": 0.95
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"repeats": "across the room"
 		},
 		{
 			"id": "notice_board",
@@ -1017,7 +1029,8 @@
 					]
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_bundle",
@@ -1062,7 +1075,8 @@
 					]
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"repeats": "across the room"
 		}
 	],
 	"concept_elements": [

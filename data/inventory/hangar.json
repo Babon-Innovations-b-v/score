@@ -90,7 +90,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_wall_lower_plain"
+			"thing": "prop:hangar_wall_lower_plain",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -113,7 +114,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_wall_upper_plain"
+			"thing": "prop:hangar_wall_upper_plain",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_skirting",
@@ -136,7 +138,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_wall_skirting"
+			"thing": "prop:hangar_wall_skirting",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cornice",
@@ -159,7 +162,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_wall_cornice"
+			"thing": "prop:hangar_wall_cornice",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_corner_post",
@@ -182,7 +186,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_wall_corner_post"
+			"thing": "prop:hangar_wall_corner_post",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -205,7 +210,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_ring_floor_plate"
+			"thing": "prop:hangar_ring_floor_plate",
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_face_panel",
@@ -228,7 +234,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_roof_face_panel"
+			"thing": "prop:hangar_roof_face_panel",
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_ring_rib",
@@ -251,7 +258,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_lattice_ring_rib"
+			"thing": "prop:hangar_lattice_ring_rib",
+			"repeats": "across the room"
 		},
 		{
 			"id": "hatch_frame",
@@ -420,7 +428,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_pipe_bracket"
+			"thing": "prop:hangar_pipe_bracket",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cage_lamp",
@@ -597,7 +606,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_tread_mat"
+			"thing": "prop:hangar_tread_mat",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_straight",
@@ -681,7 +691,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_pipe_straight"
+			"thing": "prop:hangar_pipe_straight",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_valve",
@@ -730,7 +741,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_pipe_valve"
+			"thing": "prop:hangar_pipe_valve",
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_bundle",
@@ -764,7 +776,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_cable_bundle"
+			"thing": "prop:hangar_cable_bundle",
+			"repeats": "across the room"
 		},
 		{
 			"id": "machine_bay_plate",
@@ -794,7 +807,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_machine_bay_plate"
+			"thing": "prop:hangar_machine_bay_plate",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ship_bench",
@@ -1212,7 +1226,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_pressure_gauge"
+			"thing": "prop:hangar_pressure_gauge",
+			"repeats": "across the room"
 		},
 		{
 			"id": "bay_panel",
@@ -1255,7 +1270,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_bay_panel"
+			"thing": "prop:hangar_bay_panel",
+			"repeats": "across the room"
 		},
 		{
 			"id": "bracket_beacon",
@@ -1431,7 +1447,8 @@
 				2752,
 				1536
 			],
-			"thing": "prop:hangar_crane_trolley"
+			"thing": "prop:hangar_crane_trolley",
+			"repeats": "across the room"
 		}
 	]
 }

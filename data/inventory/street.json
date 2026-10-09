@@ -48,7 +48,8 @@
 			"count": 1,
 			"thing": "kit:street_ground_asphalt",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/ground_asphalt.png"
+			"close_up": "place-ssl/pics/ground_asphalt.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ground_paving",
@@ -70,7 +71,8 @@
 			"count": 1,
 			"thing": "kit:street_ground_paving",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/ground_paving.png"
+			"close_up": "place-ssl/pics/ground_paving.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "kerb_stone",
@@ -92,7 +94,8 @@
 			"count": 1,
 			"thing": "kit:street_kerb_stone",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/kerb_stone.png"
+			"close_up": "place-ssl/pics/kerb_stone.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "render_upper",
@@ -114,7 +117,8 @@
 			"count": 1,
 			"thing": "kit:street_render_upper",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_upper.png"
+			"close_up": "place-ssl/pics/render_upper.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "render_lower",
@@ -136,7 +140,8 @@
 			"count": 1,
 			"thing": "kit:street_render_lower",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_lower.png"
+			"close_up": "place-ssl/pics/render_lower.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "render_shop",
@@ -158,7 +163,8 @@
 			"count": 1,
 			"thing": "kit:street_render_shop",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_shop.png"
+			"close_up": "place-ssl/pics/render_shop.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "facade_band",
@@ -180,7 +186,8 @@
 			"count": 1,
 			"thing": "kit:street_facade_band",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/facade_band.png"
+			"close_up": "place-ssl/pics/facade_band.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "drainpipe",
@@ -202,7 +209,8 @@
 			"count": 1,
 			"thing": "kit:street_drainpipe",
 			"group": "kit: pipe",
-			"close_up": "place-ssl/pics/drainpipe.png"
+			"close_up": "place-ssl/pics/drainpipe.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "window_dark",
@@ -224,7 +232,8 @@
 			"count": 1,
 			"thing": "kit:street_window_dark",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window.png"
+			"close_up": "place-ssl/pics/window.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "window_lit",
@@ -246,7 +255,8 @@
 			"count": 1,
 			"thing": "kit:street_window_lit",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window.png"
+			"close_up": "place-ssl/pics/window.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ac_unit",
@@ -268,7 +278,8 @@
 			"count": 1,
 			"thing": "kit:street_ac_unit",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/ac_unit.png"
+			"close_up": "place-ssl/pics/ac_unit.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "window_cage",
@@ -290,7 +301,8 @@
 			"count": 1,
 			"thing": "kit:street_window_cage",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window_cage.png"
+			"close_up": "place-ssl/pics/window_cage.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "shop_shutter",
@@ -312,7 +324,8 @@
 			"count": 1,
 			"thing": "kit:street_shop_shutter",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/shop_shutter.png"
+			"close_up": "place-ssl/pics/shop_shutter.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "shop_open",
@@ -334,7 +347,8 @@
 			"count": 1,
 			"thing": "kit:street_shop_open",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/tea_front.png"
+			"close_up": "place-ssl/pics/tea_front.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "tea_front",
@@ -356,7 +370,8 @@
 			"count": 1,
 			"thing": "kit:street_tea_front",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/tea_front.png"
+			"close_up": "place-ssl/pics/tea_front.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "shop_sign",
@@ -422,7 +437,8 @@
 			"count": 1,
 			"thing": "kit:street_door_canopy",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/door_canopy.png"
+			"close_up": "place-ssl/pics/door_canopy.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "street_lamp",
@@ -510,7 +526,8 @@
 			"count": 1,
 			"thing": "kit:street_road_line",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/road_line.png"
+			"close_up": "place-ssl/pics/road_line.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "facade_pipe",
@@ -532,7 +549,8 @@
 			"count": 1,
 			"thing": "kit:street_facade_pipe",
 			"group": "kit: pipe",
-			"close_up": "place-ssl/pics/facade_pipe.png"
+			"close_up": "place-ssl/pics/facade_pipe.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "end_wall",
@@ -598,7 +616,8 @@
 			"count": 1,
 			"thing": "kit:street_window_awning",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window_awning.png"
+			"close_up": "place-ssl/pics/window_awning.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "drying_rack",
@@ -620,7 +639,8 @@
 			"count": 1,
 			"thing": "kit:street_drying_rack",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/drying_rack.png"
+			"close_up": "place-ssl/pics/drying_rack.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "vent_louvre",
@@ -642,7 +662,8 @@
 			"count": 1,
 			"thing": "kit:street_vent_louvre",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/vent_louvre.png"
+			"close_up": "place-ssl/pics/vent_louvre.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "meter_box",
@@ -664,7 +685,8 @@
 			"count": 1,
 			"thing": "kit:street_meter_box",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/meter_box.png"
+			"close_up": "place-ssl/pics/meter_box.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "barber_pole",

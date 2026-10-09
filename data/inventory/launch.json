@@ -48,7 +48,8 @@
 			"count": 1,
 			"thing": "kit:launch_far_pad",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/pad.png"
+			"close_up": "place-ssl/pics/pad.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_lightning_mast",

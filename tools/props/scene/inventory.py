@@ -23,7 +23,9 @@ the owner approved on page A.
         "anchor": "on:r3", "size": [0.3, 0.2, 0.15], "count": 1, "thing": "prop:habitat_radio"}]}
 
 A row the concept does not show (hidden behind the camera, added for the game) has `"box": null` and says why in
-`"unseen"`; the box check (`box_check.py`) holds every other box to the thing it names on the picture.
+`"unseen"`; a row whose pieces repeat round the room (wall panels, deck plates, pipe runs) boxes one clear example
+and says so in `"repeats": "across the room"`, never the whole picture. The box check (`box_check.py`) holds every
+box to the thing it names on the picture.
 
 A row's `kind` is `generate` (a model made from its plan crop), `code` (wall fittings, signs,
 moving parts, built from the place's materials) or `mechanic` (a generated model tied to a game

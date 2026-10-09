@@ -201,8 +201,11 @@ def plan_section(concept, runs, pictures, dimensioned):
 
 
 def unseen_note(row):
-    """A row the concept does not show, said so with why (inventory.py's `unseen`)."""
-    return f"<br><small>not in the concept: {escaped(row['unseen'])}</small>" if row.get("unseen") else ""
+    """A row the concept does not show, said so with why (inventory.py's `unseen`), or one boxed on one example of
+    many (`repeats`)."""
+    if row.get("unseen"):
+        return f"<br><small>not in the concept: {escaped(row['unseen'])}</small>"
+    return f"<br><small>boxed on one example; repeats {escaped(row['repeats'])}</small>" if row.get("repeats") else ""
 
 
 def inventory_section(inventory, pictures):

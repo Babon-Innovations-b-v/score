@@ -68,7 +68,8 @@
    "thing": "prop:lab_wall_lower_plain",
    "made": "kit piece",
    "group": "kit: wall",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "wall_upper_plain",
@@ -91,7 +92,8 @@
    "thing": "prop:lab_wall_upper_plain",
    "made": "kit piece",
    "group": "kit: wall",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "wall_upper_pipes",
@@ -114,7 +116,8 @@
    "thing": "prop:lab_wall_upper_pipes",
    "made": "kit piece",
    "group": "kit: wall",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "wall_upper_cables",
@@ -137,7 +140,8 @@
    "thing": "prop:lab_wall_upper_cables",
    "made": "kit piece",
    "group": "kit: wall",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "wall_skirting",
@@ -160,7 +164,8 @@
    "thing": "prop:lab_wall_skirting",
    "made": "kit piece",
    "group": "kit: wall",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "wall_cornice",
@@ -183,7 +188,8 @@
    "thing": "prop:lab_wall_cornice",
    "made": "kit piece",
    "group": "kit: wall",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "ring_floor_plate",
@@ -206,7 +212,8 @@
    "thing": "prop:lab_ring_floor_plate",
    "made": "kit piece",
    "group": "kit: floor",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "roof_face_panel",
@@ -229,7 +236,8 @@
    "thing": "prop:lab_roof_face_panel",
    "made": "kit piece",
    "group": "kit: ceiling",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "hatch_frame",
@@ -535,7 +543,8 @@
      "facing": 0
     }
    ],
-   "lies": "floor"
+   "lies": "floor",
+   "repeats": "across the room"
   },
   {
    "id": "pipe_straight",
@@ -679,7 +688,8 @@
       0.08
      ]
     }
-   ]
+   ],
+   "repeats": "across the room"
   },
   {
    "id": "pipe_valve",
@@ -723,7 +733,8 @@
      "across": 0.6,
      "bottom": 2.04
     }
-   ]
+   ],
+   "repeats": "across the room"
   },
   {
    "id": "pipe_bracket",
@@ -746,7 +757,8 @@
    "thing": "prop:lab_pipe_bracket",
    "made": "kit piece",
    "group": "kit: pipe",
-   "at": []
+   "at": [],
+   "repeats": "across the room"
   },
   {
    "id": "cable_drop",
@@ -795,7 +807,8 @@
      "across": 0.0,
      "bottom": 1.2
     }
-   ]
+   ],
+   "repeats": "across the room"
   },
   {
    "id": "cable_bundle",
@@ -839,7 +852,8 @@
      "across": 0.0,
      "bottom": 0.14
     }
-   ]
+   ],
+   "repeats": "across the room"
   },
   {
    "id": "conduit_box",
@@ -888,7 +902,8 @@
      "across": 0.0,
      "bottom": 1.0
     }
-   ]
+   ],
+   "repeats": "across the room"
   },
   {
    "id": "small_readout",
@@ -1357,7 +1372,8 @@
      "bottom": 1.6
     }
    ],
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/gauge_panel.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/gauge_panel.png",
+   "repeats": "across the room"
   },
   {
    "id": "switch_panel",
@@ -1387,7 +1403,8 @@
      "bottom": 1.45
     }
    ],
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/switch_panel.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/switch_panel.png",
+   "repeats": "across the room"
   },
   {
    "id": "junction_box",
@@ -1427,7 +1444,8 @@
      "bottom": 1.6
     }
    ],
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/junction_box.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/junction_box.png",
+   "repeats": "across the room"
   },
   {
    "id": "hose_loop",
@@ -1462,7 +1480,8 @@
      "bottom": 1.5
     }
    ],
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/hose_loop.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/hose_loop.png",
+   "repeats": "across the room"
   },
   {
    "id": "wall_monitor",
@@ -1542,7 +1561,8 @@
      "bottom": 0.45
     }
    ],
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/fire_extinguisher.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/fire_extinguisher.png",
+   "repeats": "across the room"
   },
   {
    "id": "task_lamp",
