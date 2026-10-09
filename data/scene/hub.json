@@ -546,6 +546,6 @@
   "the tool board's 26 tools",
   "the screens' live readouts and the label readouts over the desks",
   "the Moon outside the tubes' glass",
-  "the ink outline pass and the haze"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ]
 }

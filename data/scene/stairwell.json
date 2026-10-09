@@ -217,6 +217,6 @@
   }
  ],
  "game_only": [
-  "the ink outline pass"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ]
 }

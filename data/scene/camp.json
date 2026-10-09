@@ -777,9 +777,9 @@
  "game_only": [
   "the camp's airlock and its link tube (the whole of the outside shots' foreground)",
   "the boot rock (the game's own model, not placed yet) and the cairn (held back for the ending)",
-  "the haze that colours the sky (a fog volume) and the wind's dust",
+  "the wind's dust (the drift, the dust devils and a storm's)",
   "the mast's light beam",
   "the planned rocks",
-  "the ink outline pass"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ]
 }

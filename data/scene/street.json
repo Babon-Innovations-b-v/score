@@ -590,7 +590,7 @@
  "game_only": [
   "the water tanks, stair huts and aerials on the tenements' roofs (their parapets and roof tops are in the stage, though no view sees them): the game deals their spots from its seeded random numbers after every window it dresses (tenement.gd:243-259), which the record cannot copy without running the game; no street view sees a roof",
   "the stairwell seen through the street door: the street's stage cannot show the stairwell's, which shows the street's",
-  "the stars",
-  "the ink outline pass"
+  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour",
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ]
 }

@@ -180,8 +180,8 @@
   "the landing pad and its supply rocket (in the wake shot, behind the greenhouse)",
   "the walkway tubes and the solar field round the base",
   "the ground shader's pebbles, pits and stipple, and the scorch decal",
-  "the stars",
+  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour",
   "the planned rocks",
-  "the ink outline pass"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ]
 }
