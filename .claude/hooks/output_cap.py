@@ -1,25 +1,16 @@
 #!/usr/bin/env python3
 """PostToolUse hook: a long Bash output goes to a file, and the agent sees a short summary of it with the file's path.
 
-Reads the Claude Code PostToolUse payload on stdin (``{tool_name, tool_input, tool_response, session_id,
-tool_use_id, ...}``). When a Bash call's stdout and stderr together are longer than ``CAP_CHARS``, the whole output is
-written to ``<SCORE_OUTPUT_DIR or /tmp/score-output>/<session>/<call>.txt`` and the output the model sees is replaced
-(``hookSpecificOutput.updatedToolOutput``) by:
+When a Bash call's stdout and stderr together are longer than ``CAP_CHARS``, the whole output is written to
+``<SCORE_OUTPUT_DIR or /tmp/score-output>/<session>/<call>.txt`` and the output the model sees is replaced
+(``hookSpecificOutput.updatedToolOutput``) by a header with the counts and the file's path, then the JSON's structure
+or else the first lines, the error and warning lines and the last lines. Nothing is lost: the file holds every byte.
 
-- one line with the line and character count and the file's path;
-- for JSON, its structure (top-level keys, value types, array lengths) instead of text lines;
-- otherwise the first lines, every error or warning line (error, Traceback, FAIL, warning, exception), and the last
-  lines;
-- for a whole-file ``cat`` of one file, a pointer to read that file in ranges (Read with offset and limit).
-
-Nothing is lost: the file holds every byte, and the agent reads what it needs from it (Read with offset/limit, grep,
-``sed -n``). Left untouched: outputs up to the cap, images, background commands, reads the agent narrowed itself (a
-pipeline or command ending in ``head``, ``tail``, ``sed -n``, ``awk`` with ``NR``, ``grep -m`` or ``-c``, ``wc``), a
-``cat`` of a rules file the agent reads whole to follow it (a ``CLAUDE.md`` overlay, ``SKILL.md``, ``soul.md``,
-``CONTEXT.md``), an output whose summary would not be at least ``MIN_SAVING`` shorter, and any command that carries
-``SCORE_FULL_OUTPUT=1`` (as a prefix, ``SCORE_FULL_OUTPUT=1 make tests``), the documented way to ask for an output in
-full. Claude Code's own limit still applies above 30,000 characters. A failing command fires PostToolUseFailure, which
-cannot replace output, so its output is never capped here.
+Left untouched: outputs up to the cap, images, background commands, reads the agent narrowed itself (a pipeline ending
+in ``head``, ``tail``, ``sed -n``, ``awk`` with ``NR``, ``grep -m`` or ``-c``, ``wc``), a ``cat`` of a rules file read
+whole to follow it (``CLAUDE.md``, ``SKILL.md``, ``soul.md``, ``CONTEXT.md``), a summary not at least ``MIN_SAVING``
+shorter, and any command carrying ``SCORE_FULL_OUTPUT=1``. Claude Code's own limit still applies above 30,000
+characters. A failing command fires PostToolUseFailure, which cannot replace output, so it is never capped here.
 
 FAILURE POLICY: fail open. An unreadable payload, an unknown output shape, or a spill file that cannot be written
 leaves the output as it was (exit 0, no replacement), so a fault here can only cost tokens, never hide output.
@@ -79,9 +70,7 @@ def _last_stages(command):
 def leave_alone(command):
     """True when the agent asked for this output as it is: the full-output marker, reads it narrowed itself, or a
     rules file (CLAUDE.md overlay, SKILL.md, soul.md, CONTEXT.md) it reads whole to follow."""
-    if FULL_OUTPUT_MARKER in command:
-        return True
-    if _RULES_CAT.search(command):
+    if FULL_OUTPUT_MARKER in command or _RULES_CAT.search(command):
         return True
     printing = [stage for stage in _last_stages(command) if not _QUIET.search(stage)]
     return bool(printing) and all(_NARROWED.search(stage) for stage in printing)
