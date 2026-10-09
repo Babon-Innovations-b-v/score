@@ -353,6 +353,15 @@ class Run:
         for name, seen in self.nodes.items():
             if name not in present and seen["deleted"] is None:
                 seen["deleted"] = seen["last_seen"]
+        self.note_hosts()
+
+    def note_hosts(self):
+        """Mark the nodes any job pod of any run has been placed on, so a node another run used is not taken for one
+        the autoscaler made for this run in vain."""
+        for pod in self.kubectl.json("get", "pods", "-n", manifests.NAMESPACE)["items"]:
+            name = pod["spec"].get("nodeName")
+            if name in self.nodes:
+                self.nodes[name]["hosted"] = True
 
     def used_nodes(self):
         """The nodes a job of this run ran on."""
@@ -360,11 +369,12 @@ class Run:
 
     def our_nodes(self):
         """The nodes this run pays for: those its jobs ran on, and those the autoscaler made during the run that ran
-        none of them (it grows a node for each waiting pod, and a faster node may take the pod first: a second L4
-        came up unused on 2026-10-09). With two runs on one cluster an unused node is counted by both."""
+        none of them and no other run's either (it grows a node for each waiting pod, and a faster node may take the
+        pod first: a second L4 came up unused on 2026-10-09). An unused node is counted by each run that saw it come
+        up; with runs side by side that overcounts, never undercounts."""
         used = self.used_nodes()
         return {name: seen for name, seen in self.nodes.items()
-                if name in used or (seen["created"] or 0) >= self.started}
+                if name in used or ((seen["created"] or 0) >= self.started and not seen.get("hosted"))}
 
     def live_euros(self):
         """What the run's nodes have cost so far."""

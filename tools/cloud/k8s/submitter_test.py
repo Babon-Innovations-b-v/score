@@ -262,6 +262,7 @@ def test_an_unused_node_made_during_the_run_is_paid_for():
         run.nodes[name] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
                            "created": 10_060.0, "ready": 10_150.0, "deleted": 10_660.0, "jobs": set()}
     run.nodes["other-run"] = dict(run.nodes["first"], created=9_000.0)
+    run.nodes["side-by-side"] = dict(run.nodes["first"], hosted=True)
     machines = submit.node_machines(run, "judge")
     assert sorted((machine["node"], machine["unused"]) for machine in machines) == [("first", False),
                                                                                     ("second", True)]
