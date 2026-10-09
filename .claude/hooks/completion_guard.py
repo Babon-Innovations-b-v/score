@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Stop guard: a session may not end on the claim that a place is done while the place's evidence says otherwise.
 
-Reads the Claude Code Stop hook payload on stdin (``{transcript_path, stop_hook_active, ...}``), and from the session's
-transcript:
+Reads the Claude Code Stop or SubagentStop hook payload on stdin (``{transcript_path, agent_transcript_path,
+stop_hook_active, ...}``), and from the session's (or sub-agent's) transcript:
 
 1. The places the session worked on: a place named in a tool call's input as one of its files
    (``data/{inventory,kit,scene,characters}/<place>.json``), its stage or review folder (``work/usd/<place>``,
@@ -83,6 +83,7 @@ def last_text(entries):
 def claimed(text, candidates):
     """The places among these that the text claims are done."""
     found = set()
+    text = re.sub(r"`[^`]*`", "", text)  # a quoted command (`complete.py done wreck`) is not a claim
     for sentence in re.split(r"(?<=[.!?;])\s+|\n+", text):
         if not _CLAIM.search(sentence) or _NEGATION.search(sentence):
             continue
@@ -119,10 +120,13 @@ def message(refused):
 def main():
     try:
         payload = json.loads(sys.stdin.read() or "{}")
-        entries = transcript_entries(payload["transcript_path"])
+        # SubagentStop names the sub-agent's own transcript; Stop has only the session's
+        entries = transcript_entries(payload.get("agent_transcript_path") or payload["transcript_path"])
     except Exception:
         sys.exit(0)  # fail-open: no readable session to judge
-    claims = claimed(last_text(entries), touched(entries, places()))
+    # the payload's copy: the transcript file may not hold the final message yet when the hook runs
+    text = payload.get("last_assistant_message") or last_text(entries)
+    claims = claimed(text, touched(entries, places()))
     if not claims:
         sys.exit(0)
     refused = refusals(claims)
