@@ -22,6 +22,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "tools/review"))
 import cast  # noqa: E402
+import cast_check  # noqa: E402
 import skel_usd  # noqa: E402
 
 # A quarter turn about z for the hips, as x y z w.
@@ -261,12 +262,37 @@ def test_review_plan(folder):
     assert frames == sorted(frames) and len(set(frames)) == characters.MOVE_FRAMES
 
 
+def test_cast_check():
+    """The cast check finds the same person twice (a named body, a kit look), a walk through somebody standing and a
+    walk through a thing between knee and head, passes a walk round them, steps over a floor plate, and a group is
+    dealt a new look for every member."""
+    walker = {"name": "walker", "character": "bram", "doing": "walking", "at": [0.0, 0.0, 0.0], "facing_to": [4, 0, 0],
+              "path": [[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]]}
+    standing = {"name": "standing", "character": "take_c", "doing": "waiting", "at": [2.0, 0.0, 0.2],
+                "facing_to": [2.0, 0.0, 1.0]}
+    twice = {"people": [walker, dict(standing, name="again", at=[9.0, 0.0, 9.0]), standing]}
+    assert cast_check.repeated_people(twice) == ["again and standing are the same person (take_c)"]
+    assert any("from standing" in fault for fault in cast_check.walk_faults({"people": [walker, standing]}, []))
+    crate = ("Objects/crate_1", (1.8, -0.3, 2.4, 0.3), 0.0, 0.8)
+    plate = ("Objects/plate_1", (1.0, -1.0, 3.0, 1.0), -0.05, 0.02)
+    faults = cast_check.walk_faults({"people": [walker]}, [crate, plate])
+    assert len(faults) == 1 and "crate_1" in faults[0], faults
+    round_them = dict(walker, path=[[0.0, 0.0, 0.0], [2.0, 0.0, -1.2], [4.0, 0.0, 0.0]])
+    assert cast_check.check({"people": [round_them, standing]}, [crate, plate]) == []
+    group = {"name": "row", "count": 40, "seed": 5000, "band": [0.0, 0.0, 4.0, 20.0], "facing_to": [0, 0, -9],
+             "doing": ["cheering"]}
+    members = cast.characters_of({"groups": [group]})
+    looks = {cast.look_of(member["character"], member["worn"]) for member in members}
+    assert len(looks) == len(members) == 40
+
+
 def main():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         (folder / "bodies").mkdir()
         test_asset(folder)
         test_cast_rules()
+        test_cast_check()
         test_layer(folder)
         test_review_plan(folder)
     print("characters_test: ok")
