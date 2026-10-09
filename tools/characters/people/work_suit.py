@@ -17,6 +17,14 @@ import trimesh
 from scipy import ndimage
 from scipy.spatial import cKDTree
 
+# A sleeve's cuff reaches at least this far past the wrist joint. A drape whose sleeve ends higher (Blender's cloth
+# ended 5 to 10 cm short of the wrist on the made people, the Warp drapes about 1 cm, and the hands stood apart from the
+# sleeves: owner, 2026-10-09) has its forearm stretched down to it over SLEEVE_STRETCH_OVER above the cuff; a sleeve
+# that already reaches is left as it is.
+CUFF_PAST_WRIST = 0.015
+SLEEVE_STRETCH_OVER = 0.20
+# A sleeve point counts as round the forearm within this of its line.
+ROUND_THE_FOREARM = 0.12
 # The drape is thinned to about this many triangles, keeping the left and right alike.
 CLOTH_TRIANGLES = 9000
 # Stand collar: height over the neckline, how far it overlaps the cloth below it, how far its
@@ -76,6 +84,33 @@ def thin_cloth(folder):
     mesh = trimesh.Trimesh(thin_points, thin_faces, process=False)
     trimesh.repair.fix_normals(mesh, multibody=True)
     return mesh, panels[nearest], limbs[nearest]
+
+
+def sleeves_to_the_wrists(points, limbs, body):
+    """The cloth with each sleeve stretched along its forearm until its cuff reaches CUFF_PAST_WRIST past the wrist;
+    a sleeve that does not reach past the elbow has slipped off the arm, and is left for the drape to be redone."""
+    moved = points.copy()
+    for side in ("Left", "Right"):
+        arm = limbs == side.lower() + "_arm"
+        elbow, wrist = body.joints[side + "ForeArm"], body.joints[side + "Hand"]
+        length = float(np.linalg.norm(wrist - elbow))
+        axis = (wrist - elbow) / length
+        along = (points - elbow) @ axis
+        off_the_line = np.linalg.norm(points - elbow - np.outer(along, axis), axis=1)
+        round_it = arm & (off_the_line < ROUND_THE_FOREARM)
+        if not round_it.any() or along[round_it].max() <= 0.0:
+            print(f"{side} sleeve: does not reach past the elbow; left as it is (redo the drape)")
+            continue
+        end = float(along[round_it].max())
+        target = length + CUFF_PAST_WRIST
+        if end >= target:
+            continue
+        anchor = end - SLEEVE_STRETCH_OVER
+        moving = arm & (along > anchor)
+        moved[moving] += np.outer((along[moving] - anchor) * ((target - anchor) / (end - anchor) - 1.0), axis)
+        print(f"{side} sleeve: cuff {(length - end) * 100:.1f} cm short of the wrist, drawn down to "
+              f"{CUFF_PAST_WRIST * 100:.1f} cm past it")
+    return moved
 
 
 def open_edge_points(mesh):
@@ -365,6 +400,7 @@ def pieces(body, folder):
     The hard parts are measured off the cloth before its trouser legs are tucked into the boots;
     the tuck moves nothing above the boots."""
     mesh, panels, limbs = thin_cloth(folder)
+    mesh = trimesh.Trimesh(sleeves_to_the_wrists(np.asarray(mesh.vertices), limbs, body), mesh.faces, process=False)
     body_mesh = trimesh.Trimesh(body.points, body.faces, process=False)
     line = collar_line(mesh, body_mesh)
     mesh = tailored_neckline(mesh, body_mesh, line)
