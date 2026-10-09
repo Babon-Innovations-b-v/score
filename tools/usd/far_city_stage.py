@@ -59,9 +59,9 @@ WATER_HIGH = -0.02
 # surface they glow with.
 FLOOR = 3.2
 BAY = 3.0
-WINDOW = (1.6, 1.4)
+WINDOW = (1.4, 1.2)
 PROUD = 0.15
-LIT = 0.45
+LIT = 0.15
 UPRIGHT = 0.3
 WINDOW_SURFACE = "window_lit"
 
