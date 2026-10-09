@@ -2,7 +2,9 @@
 shapes (a room's walls with a doorway cut, a deck with a pit's hole, a dome closing at its top, a turned rocket), a
 structure piece painted with its library surface and carrying its roof layer, the game's lights in the stage's units
 with the game's own numbers kept, a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay
-along its length, and every real record in data/scene naming only builders, surfaces and fields that exist.
+along its length, a kit piece the game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit
+light's night glow kept to its picture's bright parts, and every real record in data/scene naming only builders,
+surfaces and fields that exist.
 
 Run: .venv/bin/python tools/usd/scene_test.py   (make tests runs it with the framework's environment)
 """
@@ -113,6 +115,76 @@ def check_tube():
     assert len(ends) == 2 and ends[1][0, 0] == -1.0 and ends[1][2, 3] == 4.35
 
 
+def check_moved():
+    """A piece the game moves (the flat's balcony door) is shifted by its node, its transform with it; others stay."""
+    door = {"kind": "flat_sliding_glass_leaf", "node": "BalconyDoor", "at": [-2.94, 0.02, -3.5],
+            "matrix": np.eye(4).tolist()}
+    wall = {"kind": "flat_render_wall", "at": [0.0, 0.0, 0.0]}
+    moved = scene.moved_pieces([door, wall], [{"node": "BalconyDoor", "by": [0.0, 0.0, 1.4]}])
+    assert np.allclose(moved[0]["at"], [-2.94, 0.02, -2.1]) and np.isclose(moved[0]["matrix"][2][3], 1.4)
+    assert moved[1] is wall and door["at"][2] == -3.5
+    try:
+        scene.moved_pieces([wall], [{"node": "BalconyDoor", "by": [0.0, 0.0, 1.4]}])
+    except ValueError:
+        return
+    raise AssertionError("a move naming no piece of the kit went unnoticed")
+
+
+def check_moon(folder):
+    """The Moon's face covers its 4.4 degrees and no more, its halo falls off from its way, and both stand square to
+    the way far out from the eye."""
+    entry = {"way": [-0.90042, 0.39071, -0.1913], "eye": [-4.0, 9.0, -3.5], "across": 4.4, "colour": "#e6ebf2",
+             "brightness": 1.2, "seas": 0.4, "halo": 0.35, "halo_fall": 0.09, "distance": 1800.0}
+    face, half = scene.moon_face_picture(entry, pixels=200)
+    assert face[100, 100, 3] == 255 and face[0, 0, 3] == 0 and face[100, 2, 3] == 0
+    covered = (face[100, :, 3] > 127).sum() / 200 * 2 * math.tan(half)
+    assert math.isclose(covered, 2 * math.tan(math.radians(2.2)), rel_tol=0.03), covered
+    halo, _ = scene.moon_halo_picture(entry, pixels=101)
+    assert math.isclose(halo[50, 50, 3] / 255, 0.35, abs_tol=0.01) and halo[50, 0, 3] < 2
+    stage = Usd.Stage.CreateNew(str(folder / "moon.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    scene.write_moon(stage, PLACE, entry, folder)
+    points = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/moon")).GetPointsAttr().Get())
+    middle = points.mean(axis=0) - np.array(entry["eye"])
+    assert math.isclose(np.linalg.norm(middle), 1800.0, rel_tol=1e-4)
+    assert np.allclose(middle / 1800.0, np.array(entry["way"]) / np.linalg.norm(entry["way"]), atol=1e-4)
+
+
+def check_night_glow(folder):
+    """A kit light's glow map: its picture times the night's strength where it is bright, nothing where it is dark;
+    only the kinds a kit marks glow, and only with the record's kit_glow."""
+    from PIL import Image
+    picture = np.zeros((2, 2, 3), dtype=np.uint8)
+    picture[0, 0] = 255
+    picture[1, 1] = 60
+    Image.fromarray(picture).save(folder / "sign.png")
+    export.night_glow_map(folder / "sign.png", {"strength": 0.9, "from": 0.5, "ramp": 0.15}, folder / "glow.png")
+    glow = np.asarray(Image.open(folder / "glow.png"))
+    assert glow[0, 0, 0] == round((1.055 * 0.9 ** (1 / 2.4) - 0.055) * 255) and glow[1, 1].max() == 0
+    kit = {"kinds": {"street_shop_sign": {"night_glow": 0.5}, "street_kerb_stone": {}},
+           "pieces": [{"kind": "street_shop_sign", "model": "shop_sign_1"}, {"kind": "street_kerb_stone",
+                                                                             "model": "kerb_stone_1"}]}
+    assert export.night_glows(kit, None) == {}
+    assert export.night_glows(kit, {"strength": 0.9, "ramp": 0.15}) == {
+        "shop_sign_1": {"strength": 0.9, "ramp": 0.15, "from": 0.5}}
+
+
+def check_stretched_fixture(folder):
+    """A gameplay object the game presses to other proportions (the street's car) is scaled by its stretch."""
+    import trimesh
+    world = folder / "world"
+    world.mkdir()
+    trimesh.creation.box(extents=(2.0, 2.0, 4.0)).export(world / "car.glb")
+    (folder / "layers").mkdir(exist_ok=True)
+    stage = Usd.Stage.CreateNew(str(folder / "layers/car.usda"))  # beside the assets, as a base layer stands
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    scene.write_objects(stage, PLACE, [{"name": "car", "model": "car.glb", "at": [10.0, 0.0, 4.0], "yaw": 180.0,
+                                        "stretch": [0.72, 0.72, 1.0]}], folder, world)
+    box = UsdGeom.Imageable(stage.GetPrimAtPath(f"/{PLACE}/Fixtures/car")).ComputeWorldBound(
+        Usd.TimeCode.Default(), "default").ComputeAlignedRange()
+    assert np.allclose(np.asarray(box.GetSize()), [1.44, 1.44, 4.0], atol=1e-4), box
+
+
 def check_records():
     """Every record names builders that exist with their own arguments, library surfaces that exist, and views
     with an eye, an aim and a field of view."""
@@ -137,8 +209,12 @@ def main():
     check_builders()
     with tempfile.TemporaryDirectory() as folder:
         check_lights_and_structure(pathlib.Path(folder))
+        check_moon(pathlib.Path(folder))
+        check_night_glow(pathlib.Path(folder))
+        check_stretched_fixture(pathlib.Path(folder))
     check_kit_lamps()
     check_tube()
+    check_moved()
     check_records()
     print("scene_test: ok")
 

@@ -226,7 +226,8 @@ def png_maps(maps, textures):
 def baked_material(stage, path, maps, surface, glows=False):
     """A material drawn with the model's baked maps (UsdPreviewSurface), named for the library surface it paints;
     its surface's name, family and sounds ride on it. A glowing part (a lamp's lens, a screen: `glows`) gives off its
-    own baked colour as light too."""
+    own baked colour as light too; a model with a night glow map (`night_glow` among its maps, night_glow_map) gives
+    off that map instead."""
     material = UsdShade.Material.Define(stage, path)
     shader = UsdShade.Shader.Define(stage, f"{path}/surface")
     shader.CreateIdAttr("UsdPreviewSurface")
@@ -239,8 +240,13 @@ def baked_material(stage, path, maps, surface, glows=False):
         texture.CreateIdAttr("UsdUVTexture")
         texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(file)
         texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(coordinates)
-        texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set("sRGB" if role == "base_color" else "raw")
-        if role == "base_color":
+        texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set(
+            "sRGB" if role in ("base_color", "night_glow") else "raw")
+        if role == "night_glow":
+            if not glows:
+                shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+                    texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
+        elif role == "base_color":
             shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
                 texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
             if glows:
@@ -329,12 +335,28 @@ def part_subsets(stage, mesh, surfaces, maps, variants, sounds):
     return max(set(surfaces), key=lambda variant: areas[surfaces == variant].sum())
 
 
-def write_asset(model, models, parts, take, turn, size, out, variants, sounds):
-    """One model as its own USD file under <out>/assets: drawn mesh, parts, collision; its largest surface back
-    (None when the model has no labelled parts)."""
+def night_glow_map(base_color, glow, target):
+    """A kit light's glow at night as the game's textured shader gives it off (ink_textured.gdshader): its picture
+    times the night's `strength`, where the picture is brighter than its kind's `from` (in full `ramp` past it), written
+    as an sRGB PNG at `target`."""
+    pixels = np.asarray(Image.open(base_color).convert("RGB"), dtype=np.float64) / 255.0
+    linear = np.where(pixels <= 0.04045, pixels / 12.92, ((pixels + 0.055) / 1.055) ** 2.4)
+    bright = linear @ np.array([0.299, 0.587, 0.114])
+    share = scene_record.smoothstep(glow["from"], glow["from"] + glow["ramp"], bright)
+    Image.fromarray(scene_record.srgb_bytes(linear * glow["strength"] * share[..., None]), "RGB").save(target)
+
+
+def write_asset(model, models, parts, take, turn, size, out, variants, sounds, glow=None):
+    """One model as its own USD file under <out>/assets: drawn mesh, parts, collision (with its night glow map when
+    the model is a kit's light at night, `glow`: night_glow_map); its largest surface back (None when the model has no
+    labelled parts)."""
     gltf = pathlib.Path(models) / f"{model}.gltf"
     geometry = model_geometry(gltf)
     maps = png_maps(model_maps(gltf), out / "assets/textures")
+    if glow is not None and "base_color" in maps:
+        target = out / "assets/textures" / f"{model}_night_glow.png"
+        night_glow_map(out / "assets" / maps["base_color"], glow, target)
+        maps["night_glow"] = f"./textures/{target.name}"
     stage = Usd.Stage.CreateNew(str(out / "assets" / f"{model}.usdc"))
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -583,6 +605,17 @@ def write_base(place, kit, inventory, assets, out, children, ground=None, scene=
     layer.Save()
 
 
+def night_glows(kit, kit_glow):
+    """Each model of a kit light at night (its kind's `night_glow` in the kit, the scene record's `kit_glow` given):
+    {model: {strength, from, ramp}}; none without a `kit_glow`."""
+    if not kit_glow:
+        return {}
+    kinds = kit.get("kinds", {})
+    return {piece["model"]: {"strength": float(kit_glow["strength"]), "ramp": float(kit_glow["ramp"]),
+                             "from": float(kinds[piece["kind"]]["night_glow"])}
+            for piece in kit["pieces"] if "night_glow" in kinds.get(piece["kind"], {})}
+
+
 def ensure_edit(out):
     """The creator's layer: made empty the first time, left exactly as it is every time after."""
     path = out / "layers/edit.usda"
@@ -625,6 +658,9 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
     if kit["pieces"] and "x" in kit["pieces"][0]:
         kit = dict(kit, pieces=kit_room_pieces(kit, models, (scene or {}).get("tube_length")))
+    if (scene or {}).get("moved"):  # the pieces the game moves in its own code (a door it slides open)
+        kit = dict(kit, pieces=scene_record.moved_pieces(kit["pieces"], scene["moved"]))
+    glows = night_glows(kit, (scene or {}).get("kit_glow"))
     if inventory_path is None:  # a room of a place of another name keeps its inventory under the place's (the flat)
         inventory_path = next((path for path in (INVENTORIES / f"{place}.json", INVENTORIES / f"{kit.get('place')}.json")
                                if path.exists()), INVENTORIES / f"{place}.json")
@@ -640,7 +676,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         if model in assets:
             continue
         turn = details.get(piece["kind"], {}).get("turn", [1, 0, 0, 0, 1, 0, 0, 0, 1])
-        largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds)
+        largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds, glows.get(model))
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
     write_base(place, kit, inventory, assets, out, children, ground, scene, world)
     ensure_edit(out)

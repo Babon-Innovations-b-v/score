@@ -31,6 +31,19 @@
    "from": "earth_site.gd:674-692 _build_the_building (FLAT_WALL)"
   }
  ],
+ "places": [
+  {
+   "name": "street",
+   "stage": "street",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "EarthSite: the stairwell and the street share its frame; the street door at the foot opens onto it, its canopy lamp (street_fittings.gd:226-236) and the street lamps spilling in"
+  }
+ ],
  "lights": [
   {
    "type": "omni",
