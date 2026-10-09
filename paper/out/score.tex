@@ -1735,9 +1735,21 @@ keeps within 6.8 mm of the body model's own posed points on average and
 MB. Her far body has 612 vertices and 1,220 triangles, her work suit
 31,260 triangles and her space suit 44,846. The development machine on
 which the chain was built and Nev was rebuilt ran for 163 billed minutes
-and cost €7.79 in all. On a 16-core processor machine, Blender drapes
-the work suit in 1.5 minutes and the space suit in 0.6 minutes, with
-every seam within 3 cm and no cloth inside the body.
+and cost €7.79 in all. On an L4, the same chain made the player from the
+creator's drawing of him, on his own body 1.742 m tall, in 26.2 minutes,
+for about €0.35 of the card at €0.79 an hour. The face is the slow step
+on an L4: klein base 4B with the LoRA, 50 steps and two seeds, took 13.6
+of those minutes against 2.7 on the H100. The L4 was set up in 24.8
+minutes. A new person made from words alone, an engineer, reached the
+build on a second L4: klein drew her picture, and her body, drapes (7.35
+minutes) and hair (3.21 minutes) were made, but her build failed at the
+arm stripe of her space suit, a fault of the drape. The batch of both
+people cost €1.50 for 60 minutes on three L4 machines, one of which
+failed its setup after 25 minutes because Kimodo's C++ extension was
+built while the CUDA toolkit installed beside it; the toolkit now
+installs first. On a 16-core processor machine, Blender drapes the work
+suit in 1.5 minutes and the space suit in 0.6 minutes, with every seam
+within 3 cm and no cloth inside the body.
 
 The animals' route rents cheaper cards. One Pixal3D run on an L40S made
 both animals' meshes in 11.2 minutes for €0.29, and UniRig rigs a model
@@ -1750,7 +1762,8 @@ for the dog and 0.01 µm for the fish. The fish's levels have 40,000,
 6,000 and 532 triangles, the dog's 39,999, 5,999 and 1,500.
 
 \textbf{Table G4.} Characters made by the character maker, 9 October
-2026. Minutes of card time per group of steps; the fish and the dog
+2026. Minutes of card time per group of steps; a person's cost is the
+card time of the chain alone, without the setup; the fish and the dog
 shared one Pixal3D run on an L40S, split evenly here, and their costs
 are on cards for every step.
 
@@ -1797,6 +1810,9 @@ Setup
 \endlastfoot
 Nev, from her picture & H100 PCIe & 0 (her own) & 0.13 & 0 (made
 already) & 4.75 & 4.23 & 2.09 & 11.2 min & €0.54 & about 30 min \\
+The player, from the creator's drawing & L4 & 0 (the creator's drawing)
+& 0.34 & 0 (made already) & 5.18 & 17.08 & 3.60 & 26.2 min & €0.35 &
+24.8 min \\
 Dog, from words & L4; L40S for the mesh & 2 (4 pictures) & 5.6 & about
 1.2 (UniRig) & & & 5.2 & about 14 min & about €0.40 & about 1.5 min
 (UniRig) \\
