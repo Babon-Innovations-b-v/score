@@ -32,10 +32,10 @@
 			"id": "lander",
 			"view": "v1",
 			"box": [
-				773,
+				767,
 				0,
-				1228,
-				704
+				1225,
+				706
 			],
 			"name": "landed stainless lander on four legs, cargo ramp down",
 			"kind": "generate",
@@ -62,16 +62,46 @@
 				}
 			],
 			"fixed": true,
-			"fixed_why": "the 19 m ship stands upright as the game stands it, let into the dust"
+			"fixed_why": "the 19 m ship stands upright as the game stands it, let into the dust",
+			"box_from": [
+				"v1.37",
+				"v1.48",
+				"v1.53",
+				"v1.55",
+				"v1.59",
+				"v1.60",
+				"v1.67",
+				"v1.69",
+				"v1.96",
+				"v1.102",
+				"v1.106",
+				"v1.107",
+				"v1.110",
+				"v1.111",
+				"v1.114",
+				"v1.120",
+				"v1.129",
+				"v1.155",
+				"v1.170",
+				"v1.181",
+				"v1.194",
+				"v1.195",
+				"v1.202",
+				"v1.215",
+				"v1.216",
+				"v1.230",
+				"v1.363",
+				"v1.366"
+			]
 		},
 		{
 			"id": "crane",
 			"view": "v1",
 			"box": [
-				607,
-				414,
-				773,
-				814
+				602,
+				402,
+				860,
+				816
 			],
 			"name": "small cargo crane on a slewing base with outrigger feet",
 			"kind": "generate",
@@ -103,14 +133,17 @@
 					]
 				}
 			],
-			"level_why": "its made model's feet are 14.58 degrees off level; each spot's rotation stands it on its own feet (the downward face of its hull turned straight down), its facing kept"
+			"level_why": "its made model's feet are 14.58 degrees off level; each spot's rotation stands it on its own feet (the downward face of its hull turned straight down), its facing kept",
+			"box_from": [
+				"v1.w1"
+			]
 		},
 		{
 			"id": "cargo_pallet",
 			"view": "v1",
 			"box": [
 				659,
-				923,
+				922,
 				774,
 				971
 			],
@@ -161,16 +194,19 @@
 					"level": "ground",
 					"fit": "seat across/along"
 				}
+			],
+			"box_from": [
+				"v1.w2"
 			]
 		},
 		{
 			"id": "cargo_case_open",
 			"view": "v1",
 			"box": [
-				662,
-				766,
+				655,
+				761,
 				904,
-				966
+				971
 			],
 			"name": "rugged cargo case, lid open, supplies packed inside",
 			"kind": "generate",
@@ -230,16 +266,46 @@
 					]
 				}
 			],
-			"level_why": "its made model's feet are 5.19 degrees off level; each spot's rotation stands it on its own feet (the downward face of its hull turned straight down), its facing kept"
+			"level_why": "its made model's feet are 5.19 degrees off level; each spot's rotation stands it on its own feet (the downward face of its hull turned straight down), its facing kept",
+			"box_from": [
+				"v1.w2",
+				"v1.56",
+				"v1.64",
+				"v1.141",
+				"v1.142",
+				"v1.157",
+				"v1.182",
+				"v1.247",
+				"v1.250",
+				"v1.256",
+				"v1.264",
+				"v1.296",
+				"v1.306",
+				"v1.324",
+				"v1.342",
+				"v1.361",
+				"v1.w3",
+				"v1.w4",
+				"v1.w5",
+				"v1.w6",
+				"v1.w15",
+				"v1.77",
+				"v1.121",
+				"v1.160",
+				"v1.162",
+				"v1.163",
+				"v1.209",
+				"v1.286"
+			]
 		},
 		{
 			"id": "cargo_case",
 			"view": "v1",
 			"box": [
-				952,
-				966,
+				946,
+				965,
 				1042,
-				1042
+				1040
 			],
 			"name": "rugged cargo case, closed, company stencil",
 			"kind": "generate",
@@ -296,16 +362,19 @@
 					"level": "ground",
 					"fit": "seat across/along"
 				}
+			],
+			"box_from": [
+				"v1.w7"
 			]
 		},
 		{
 			"id": "reactor",
 			"view": "v1",
 			"box": [
-				2277,
+				2384,
 				593,
-				2567,
-				821
+				2548,
+				795
 			],
 			"name": "small fission power unit: housing on a skid, heat pipes, radiator",
 			"kind": "generate",
@@ -330,16 +399,24 @@
 					"level": "ground",
 					"fit": "seat across/along"
 				}
+			],
+			"box_from": [
+				"v1.83",
+				"v1.137",
+				"v1.180",
+				"v1.192",
+				"v1.207",
+				"v1.231"
 			]
 		},
 		{
 			"id": "ice_drill",
 			"view": "v1",
 			"box": [
-				248,
-				510,
-				455,
-				869
+				244,
+				602,
+				446,
+				864
 			],
 			"name": "ice drill rig: mast frame, drill head, base frame, cable reel",
 			"kind": "generate",
@@ -370,6 +447,18 @@
 						0.824659
 					]
 				}
+			],
+			"box_from": [
+				"v1.87",
+				"v1.125",
+				"v1.152",
+				"v1.161",
+				"v1.199",
+				"v1.219",
+				"v1.222",
+				"v1.259",
+				"v1.266",
+				"v1.309"
 			]
 		},
 		{
@@ -377,7 +466,7 @@
 			"view": "v1",
 			"box": [
 				2219,
-				191,
+				192,
 				2312,
 				725
 			],
@@ -407,16 +496,19 @@
 			],
 			"keep": "game object (CampMast), kept whatever its score",
 			"fixed": true,
-			"fixed_why": "a guyed mast stands as laid"
+			"fixed_why": "a guyed mast stands as laid",
+			"box_from": [
+				"v1.w10"
+			]
 		},
 		{
 			"id": "mast_cabinet",
 			"view": "v1",
 			"box": [
-				2222,
-				560,
-				2332,
-				718
+				2218,
+				672,
+				2282,
+				726
 			],
 			"name": "radio equipment cabinet at the mast's foot",
 			"kind": "generate",
@@ -444,16 +536,19 @@
 			],
 			"note": "stands on the ground round the mast's foot, its column through it, as the game's CampMast lays it (its Cabinet box at the mast's middle)",
 			"fixed": true,
-			"fixed_why": "stands round the mast's foot, the column through it, as the game's CampMast"
+			"fixed_why": "stands round the mast's foot, the column through it, as the game's CampMast",
+			"box_from": [
+				"v1.183"
+			]
 		},
 		{
 			"id": "ground_cable",
 			"view": "v1",
 			"box": [
-				290,
-				590,
-				1180,
-				900
+				391,
+				794,
+				904,
+				993
 			],
 			"name": "heavy power cable lying on the ground, laid in 2 m lengths",
 			"kind": "code",
@@ -569,16 +664,48 @@
 			],
 			"keep": "laid along the runs in expedition_camp.gd CABLE_RUNS",
 			"fixed": true,
-			"fixed_why": "cable lengths laid where they lie along the game's runs"
+			"fixed_why": "cable lengths laid where they lie along the game's runs",
+			"box_from": [
+				"v1.w2",
+				"v1.56",
+				"v1.64",
+				"v1.66",
+				"v1.80",
+				"v1.92",
+				"v1.95",
+				"v1.131",
+				"v1.141",
+				"v1.142",
+				"v1.147",
+				"v1.150",
+				"v1.157",
+				"v1.182",
+				"v1.247",
+				"v1.250",
+				"v1.254",
+				"v1.256",
+				"v1.264",
+				"v1.296",
+				"v1.306",
+				"v1.324",
+				"v1.342",
+				"v1.361",
+				"v1.w3",
+				"v1.w4",
+				"v1.w5",
+				"v1.w6",
+				"v1.w9",
+				"v1.w15"
+			]
 		},
 		{
 			"id": "power_unit",
 			"view": "v1",
 			"box": [
-				1010,
-				900,
-				1100,
-				1010
+				946,
+				965,
+				1043,
+				1040
 			],
 			"name": "small ground power unit between the lander's legs",
 			"kind": "generate",
@@ -603,16 +730,20 @@
 					"level": "ground",
 					"fit": "seat across/along"
 				}
+			],
+			"box_from": [
+				"v1.w7",
+				"v1.63"
 			]
 		},
 		{
 			"id": "coiled_cable",
 			"view": "v1",
 			"box": [
-				2150,
-				890,
-				2280,
-				980
+				2157,
+				907,
+				2267,
+				968
 			],
 			"name": "coil of heavy power cable lying on the ground",
 			"kind": "generate",
@@ -638,16 +769,19 @@
 					"fit": "seat across/along"
 				}
 			],
-			"name_why": "not cable_coil: that own name is the habitat's code-built coil (names.py)"
+			"name_why": "not cable_coil: that own name is the habitat's code-built coil (names.py)",
+			"box_from": [
+				"v1.179"
+			]
 		},
 		{
 			"id": "sample_case",
 			"view": "v1",
 			"box": [
-				952,
-				966,
+				946,
+				965,
 				1042,
-				1042
+				1040
 			],
 			"name": "Bram's hard geology sample case",
 			"kind": "generate",
@@ -680,17 +814,15 @@
 				}
 			],
 			"fixed": true,
-			"fixed_why": "held in Bram's arms (the camp's cast), not dropped"
+			"fixed_why": "held in Bram's arms (the camp's cast), not dropped",
+			"box_from": [
+				"v1.w7"
+			]
 		},
 		{
 			"id": "drift",
 			"view": "v1",
-			"box": [
-				421,
-				1132,
-				635,
-				1366
-			],
+			"box": null,
 			"name": "small drift of wind-blown dust over Bram's legs",
 			"kind": "generate",
 			"anchor": "floor",
@@ -714,7 +846,8 @@
 					"level": "ground",
 					"fit": "seat across/along"
 				}
-			]
+			],
+			"unseen": "the concept shows no one lying at the camp's edge, so no drift over his legs"
 		}
 	],
 	"concept_elements": [

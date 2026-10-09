@@ -34,10 +34,10 @@
    "id": "hab_lander",
    "view": "v1",
    "box": [
-    1280,
-    385,
-    2009,
-    1121
+    1273,
+    381,
+    2011,
+    1116
    ],
    "name": "lived-in lander module: a vertical cylinder 4.5 m across on four legs, gold and silver foil, bags on its roof, a ladder up to its hatch, two portholes, one lit",
    "kind": "generate",
@@ -59,16 +59,105 @@
     }
    ],
    "why": "The caretaker's home: the one module still heated and lit. C4's middle module.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.w7",
+    "v1.20",
+    "v1.21",
+    "v1.25",
+    "v1.33",
+    "v1.35",
+    "v1.36",
+    "v1.37",
+    "v1.40",
+    "v1.43",
+    "v1.44",
+    "v1.45",
+    "v1.60",
+    "v1.62",
+    "v1.63",
+    "v1.64",
+    "v1.66",
+    "v1.68",
+    "v1.69",
+    "v1.75",
+    "v1.76",
+    "v1.78",
+    "v1.80",
+    "v1.81",
+    "v1.82",
+    "v1.86",
+    "v1.88",
+    "v1.94",
+    "v1.98",
+    "v1.99",
+    "v1.116",
+    "v1.118",
+    "v1.120",
+    "v1.121",
+    "v1.122",
+    "v1.123",
+    "v1.124",
+    "v1.125",
+    "v1.126",
+    "v1.127",
+    "v1.131",
+    "v1.136",
+    "v1.138",
+    "v1.139",
+    "v1.141",
+    "v1.142",
+    "v1.144",
+    "v1.145",
+    "v1.147",
+    "v1.152",
+    "v1.155",
+    "v1.162",
+    "v1.166",
+    "v1.172",
+    "v1.177",
+    "v1.179",
+    "v1.181",
+    "v1.185",
+    "v1.193",
+    "v1.195",
+    "v1.196",
+    "v1.201",
+    "v1.202",
+    "v1.205",
+    "v1.206",
+    "v1.209",
+    "v1.216",
+    "v1.220",
+    "v1.223",
+    "v1.231",
+    "v1.233",
+    "v1.235",
+    "v1.243",
+    "v1.244",
+    "v1.250",
+    "v1.258",
+    "v1.259",
+    "v1.262",
+    "v1.267",
+    "v1.274",
+    "v1.276",
+    "v1.279",
+    "v1.281",
+    "v1.283",
+    "v1.284",
+    "v1.287",
+    "v1.288"
+   ]
   },
   {
    "id": "first_module",
    "view": "v1",
    "box": [
-    83,
-    647,
-    688,
-    1053
+    87,
+    659,
+    677,
+    1044
    ],
    "name": "the station's first module: a horizontal cylinder 4.2 m across and 6.5 m long on cradles, its foil torn and its hull holed, abandoned",
    "kind": "generate",
@@ -90,16 +179,71 @@
     }
    ],
    "why": "The 2030s first module, holed and stripped for spares: C4's torn module.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.39",
+    "v1.41",
+    "v1.42",
+    "v1.46",
+    "v1.54",
+    "v1.57",
+    "v1.67",
+    "v1.90",
+    "v1.93",
+    "v1.96",
+    "v1.97",
+    "v1.104",
+    "v1.106",
+    "v1.109",
+    "v1.117",
+    "v1.119",
+    "v1.129",
+    "v1.130",
+    "v1.132",
+    "v1.133",
+    "v1.135",
+    "v1.137",
+    "v1.143",
+    "v1.148",
+    "v1.154",
+    "v1.157",
+    "v1.158",
+    "v1.160",
+    "v1.163",
+    "v1.165",
+    "v1.175",
+    "v1.182",
+    "v1.183",
+    "v1.191",
+    "v1.194",
+    "v1.197",
+    "v1.200",
+    "v1.211",
+    "v1.218",
+    "v1.219",
+    "v1.236",
+    "v1.237",
+    "v1.239",
+    "v1.240",
+    "v1.241",
+    "v1.242",
+    "v1.255",
+    "v1.260",
+    "v1.261",
+    "v1.263",
+    "v1.266",
+    "v1.273",
+    "v1.277"
+   ]
   },
   {
    "id": "lab_module",
    "view": "v1",
    "box": [
-    2133,
-    592,
-    2621,
-    949
+    2146,
+    602,
+    2622,
+    946
    ],
    "name": "shut lab module: a white horizontal cylinder 4.2 m across and 6.5 m long on cradles, dusty, its hatch closed",
    "kind": "generate",
@@ -121,16 +265,52 @@
     }
    ],
    "why": "Closed to save power over the long emergency: C4's white module.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.14",
+    "v1.49",
+    "v1.50",
+    "v1.55",
+    "v1.59",
+    "v1.61",
+    "v1.89",
+    "v1.112",
+    "v1.114",
+    "v1.128",
+    "v1.134",
+    "v1.140",
+    "v1.159",
+    "v1.161",
+    "v1.167",
+    "v1.170",
+    "v1.171",
+    "v1.180",
+    "v1.198",
+    "v1.199",
+    "v1.210",
+    "v1.214",
+    "v1.222",
+    "v1.225",
+    "v1.226",
+    "v1.228",
+    "v1.229",
+    "v1.232",
+    "v1.246",
+    "v1.252",
+    "v1.254",
+    "v1.257",
+    "v1.285",
+    "v1.w9"
+   ]
   },
   {
    "id": "rover",
    "view": "v1",
    "box": [
-    681,
-    530,
-    998,
-    736
+    688,
+    554,
+    963,
+    741
    ],
    "name": "six-wheeled pressurised rover 6 m long, docked tail-first to the walkway tube",
    "kind": "generate",
@@ -152,16 +332,32 @@
     }
    ],
    "why": "His way to the ice, the reactor and the other base; his lifeboat.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.92",
+    "v1.105",
+    "v1.107",
+    "v1.111",
+    "v1.113",
+    "v1.115",
+    "v1.151",
+    "v1.153",
+    "v1.173",
+    "v1.213",
+    "v1.238",
+    "v1.272",
+    "v1.275",
+    "v1.282"
+   ]
   },
   {
    "id": "solar_mast",
    "view": "v1",
    "box": [
-    1149,
-    131,
-    1328,
-    695
+    1175,
+    144,
+    1309,
+    664
    ],
    "name": "vertical solar array mast 14 m tall: a lattice mast on a tripod foot with a 2 m by 10 m solar blanket hung from 8 m up",
    "kind": "generate",
@@ -183,16 +379,19 @@
     }
    ],
    "why": "The sun skims the horizon at the pole, so the array stands tall and turns.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.w3"
+   ]
   },
   {
    "id": "solar_mast_dead",
    "view": "v1",
    "box": [
-    1149,
-    131,
-    1328,
-    695
+    1175,
+    144,
+    1309,
+    666
    ],
    "name": "dead vertical solar mast 12 m tall: the same mast with its blanket stuck half folded and hanging slack",
    "kind": "generate",
@@ -214,16 +413,19 @@
     }
    ],
    "why": "The second array, its drive failed, left standing.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.w5"
+   ]
   },
   {
    "id": "comms_mast",
    "view": "v1",
    "box": [
-    1947,
-    151,
-    2098,
-    722
+    1966,
+    165,
+    2078,
+    720
    ],
    "name": "comms mast 8 m tall on a braced foot with a 2 m dish antenna and a whip antenna",
    "kind": "generate",
@@ -245,16 +447,27 @@
     }
    ],
    "why": "The caretaker's one voice: a dish on Earth, a whip for surface radio.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.181",
+    "v1.262",
+    "v1.58",
+    "v1.79",
+    "v1.84",
+    "v1.268",
+    "v1.280",
+    "v1.w4",
+    "v1.w6"
+   ]
   },
   {
    "id": "radiator",
    "view": "v1",
    "box": [
-    1823,
-    585,
-    1975,
-    764
+    1835,
+    602,
+    1968,
+    758
    ],
    "name": "flat heat radiator: a 6 m by 2.4 m panel of fins facing the sky on short legs",
    "kind": "generate",
@@ -276,7 +489,10 @@
     }
    ],
    "why": "Dumps the lived-in module's heat; flat to the sky, never sees the sun.",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.w7"
+   ]
   },
   {
    "id": "power_unit",
@@ -338,10 +554,10 @@
    "id": "bag_pile",
    "view": "v1",
    "box": [
-    1362,
-    1025,
-    1658,
-    1149
+    1357,
+    1008,
+    1644,
+    1141
    ],
    "name": "low pile of regolith sandbags",
    "kind": "generate",
@@ -416,16 +632,19 @@
      ]
     }
    ],
-   "why": "Bags under each walkway tube, holding it, and spare piles."
+   "why": "Bags under each walkway tube, holding it, and spare piles.",
+   "box_from": [
+    "v1.w8"
+   ]
   },
   {
    "id": "bag_stack",
    "view": "v1",
    "box": [
-    1362,
-    1025,
-    1658,
-    1149
+    1357,
+    1008,
+    1644,
+    1141
    ],
    "name": "neat stack of filled regolith sandbags",
    "kind": "generate",
@@ -452,7 +671,10 @@
      ]
     }
    ],
-   "why": "Filled bags ready to patch the cover."
+   "why": "Filled bags ready to patch the cover.",
+   "box_from": [
+    "v1.w8"
+   ]
   },
   {
    "id": "spare_wheel",
@@ -490,10 +712,10 @@
    "id": "walkway_tube",
    "view": "v1",
    "box": [
-    1000,
-    650,
-    1310,
-    860
+    1041,
+    653,
+    1306,
+    862
    ],
    "name": "walkway tube between modules",
    "kind": "code",
@@ -530,16 +752,27 @@
     }
    ],
    "why": "Joins the modules (pipe_straight).",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.250",
+    "v1.187",
+    "v1.189",
+    "v1.190",
+    "v1.208",
+    "v1.215",
+    "v1.253",
+    "v1.265",
+    "v1.286"
+   ]
   },
   {
    "id": "apron",
    "view": "v1",
    "box": [
-    1690,
-    1030,
-    1980,
-    1120
+    1714,
+    1045,
+    1990,
+    1111
    ],
    "name": "dust apron of chequer plates in front of the ladder",
    "kind": "code",
@@ -561,16 +794,21 @@
     }
    ],
    "why": "Where suits are brushed before the hatch; the path arrives here (pit_floor_plate laid flat).",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.185",
+    "v1.276",
+    "v1.287"
+   ]
   },
   {
    "id": "cable_run",
    "view": "v1",
    "box": [
-    1060,
-    920,
-    1335,
-    1040
+    1263,
+    973,
+    1339,
+    1000
    ],
    "name": "power and signal cables lying on the ground",
    "kind": "code",
@@ -635,7 +873,10 @@
     }
    ],
    "why": "Between the masts, the power unit and the modules (cable_bundle laid on its back).",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.203"
+   ]
   },
   {
    "id": "gas_bottle",

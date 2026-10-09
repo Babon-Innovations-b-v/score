@@ -54,10 +54,10 @@
 			"id": "wall_lower_plain",
 			"view": "v1",
 			"box": [
-				1789,
-				83,
-				2532,
-				358
+				1704,
+				679,
+				1880,
+				846
 			],
 			"name": "plain lower wall panel, bolted, dark",
 			"kind": "code",
@@ -72,16 +72,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.104"
+			]
 		},
 		{
 			"id": "wall_upper_plain",
 			"view": "v1",
 			"box": [
-				1789,
-				83,
-				2532,
-				358
+				1692,
+				288,
+				1764,
+				549
 			],
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
@@ -96,17 +99,15 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.144"
+			]
 		},
 		{
 			"id": "wall_skirting",
 			"view": "v1",
-			"box": [
-				1789,
-				83,
-				2532,
-				358
-			],
+			"box": null,
 			"name": "rubber skirting at the wall's foot",
 			"kind": "code",
 			"anchor": "wall",
@@ -120,16 +121,17 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the skirting is hidden behind the room's furniture and too thin to make out"
 		},
 		{
 			"id": "wall_cornice",
 			"view": "v1",
 			"box": [
-				1789,
-				83,
-				2532,
-				358
+				1596,
+				241,
+				2160,
+				387
 			],
 			"name": "cornice along the wall's top",
 			"kind": "code",
@@ -144,16 +146,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.87"
+			]
 		},
 		{
 			"id": "ring_floor_plate",
 			"view": "v1",
 			"box": [
-				963,
-				881,
-				1789,
-				1376
+				1383,
+				672,
+				1643,
+				743
 			],
 			"name": "deck plate, bolted",
 			"kind": "code",
@@ -168,16 +173,19 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.338"
+			]
 		},
 		{
 			"id": "roof_face_panel",
 			"view": "v1",
 			"box": [
-				413,
+				482,
 				0,
-				2339,
-				193
+				2271,
+				216
 			],
 			"name": "dome plate, ribbed",
 			"kind": "code",
@@ -192,16 +200,75 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.37",
+				"v1.38",
+				"v1.48",
+				"v1.84",
+				"v1.91",
+				"v1.137",
+				"v1.140",
+				"v1.151",
+				"v1.154",
+				"v1.171",
+				"v1.194",
+				"v1.200",
+				"v1.201",
+				"v1.215",
+				"v1.230",
+				"v1.233",
+				"v1.235",
+				"v1.262",
+				"v1.280",
+				"v1.288",
+				"v1.289",
+				"v1.311",
+				"v1.313",
+				"v1.318",
+				"v1.362",
+				"v1.381",
+				"v1.391",
+				"v1.393",
+				"v1.424",
+				"v1.428",
+				"v1.461",
+				"v1.469",
+				"v1.484",
+				"v1.503",
+				"v1.515",
+				"v1.516",
+				"v1.542",
+				"v1.555",
+				"v1.597",
+				"v1.600",
+				"v1.611",
+				"v1.617",
+				"v1.627",
+				"v1.632",
+				"v1.643",
+				"v1.648",
+				"v1.652",
+				"v1.654",
+				"v1.657",
+				"v1.680",
+				"v1.688",
+				"v1.689",
+				"v1.w1",
+				"v1.w2",
+				"v1.w53",
+				"v1.w80",
+				"v1.w81"
+			]
 		},
 		{
 			"id": "hatch_frame",
 			"view": "v1",
 			"box": [
-				722,
-				344,
-				949,
-				688
+				737,
+				380,
+				927,
+				662
 			],
 			"name": "tube hatch frame round the doorway",
 			"kind": "generate",
@@ -215,16 +282,19 @@
 			"thing": "prop:habitat_hatch_frame",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w13"
+			]
 		},
 		{
 			"id": "hatch_leaf",
 			"view": "v1",
 			"box": [
-				722,
-				344,
-				949,
-				688
+				724,
+				351,
+				927,
+				671
 			],
 			"name": "tube hatch door leaf",
 			"kind": "generate",
@@ -238,16 +308,32 @@
 			"thing": "prop:habitat_hatch_leaf",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w13",
+				"v1.w19",
+				"v1.111",
+				"v1.180",
+				"v1.332",
+				"v1.344",
+				"v1.408",
+				"v1.411",
+				"v1.481",
+				"v1.499",
+				"v1.551",
+				"v1.593",
+				"v1.649",
+				"v1.681"
+			]
 		},
 		{
 			"id": "hatch_wheel",
 			"view": "v1",
 			"box": [
-				722,
-				344,
-				949,
-				688
+				1892,
+				495,
+				1959,
+				565
 			],
 			"name": "tube hatch locking hand wheel",
 			"kind": "generate",
@@ -261,17 +347,15 @@
 			"thing": "prop:habitat_hatch_wheel",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w42"
+			]
 		},
 		{
 			"id": "hatch_hinge",
 			"view": "v1",
-			"box": [
-				722,
-				344,
-				949,
-				688
-			],
+			"box": null,
 			"name": "tube hatch hinge",
 			"kind": "generate",
 			"anchor": "wall",
@@ -284,16 +368,17 @@
 			"thing": "prop:habitat_hatch_hinge",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"unseen": "the hatches' hinges are hidden in their frames"
 		},
 		{
 			"id": "hatch_window",
 			"view": "v1",
 			"box": [
-				722,
-				344,
-				949,
-				688
+				736,
+				380,
+				926,
+				658
 			],
 			"name": "tube hatch round window",
 			"kind": "generate",
@@ -307,17 +392,15 @@
 			"thing": "prop:habitat_hatch_window",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w19"
+			]
 		},
 		{
 			"id": "wall_lower_patched",
 			"view": "v1",
-			"box": [
-				1830,
-				619,
-				2009,
-				826
-			],
+			"box": null,
 			"name": "lower wall panel with a welded patch, scuffs and taped repairs",
 			"kind": "generate",
 			"anchor": "wall",
@@ -331,16 +414,17 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no patched lower panel can be told apart in the concept"
 		},
 		{
 			"id": "sleep_pod",
 			"view": "v1",
 			"box": [
-				984,
-				227,
-				1775,
-				709
+				978,
+				218,
+				1769,
+				718
 			],
 			"name": "sleep pod stacked two high: two berths, each with a mattress, reading lamp, small screen and curtain rail, a control panel down the middle",
 			"kind": "generate",
@@ -368,16 +452,128 @@
 					"facing": 180
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w54",
+				"v1.w91",
+				"v1.144",
+				"v1.6",
+				"v1.33",
+				"v1.51",
+				"v1.55",
+				"v1.125",
+				"v1.146",
+				"v1.149",
+				"v1.174",
+				"v1.178",
+				"v1.187",
+				"v1.189",
+				"v1.191",
+				"v1.202",
+				"v1.206",
+				"v1.208",
+				"v1.209",
+				"v1.222",
+				"v1.227",
+				"v1.253",
+				"v1.255",
+				"v1.265",
+				"v1.272",
+				"v1.275",
+				"v1.276",
+				"v1.279",
+				"v1.281",
+				"v1.285",
+				"v1.291",
+				"v1.308",
+				"v1.309",
+				"v1.334",
+				"v1.339",
+				"v1.349",
+				"v1.350",
+				"v1.355",
+				"v1.361",
+				"v1.368",
+				"v1.370",
+				"v1.386",
+				"v1.387",
+				"v1.388",
+				"v1.398",
+				"v1.400",
+				"v1.418",
+				"v1.427",
+				"v1.433",
+				"v1.441",
+				"v1.446",
+				"v1.447",
+				"v1.471",
+				"v1.474",
+				"v1.475",
+				"v1.480",
+				"v1.485",
+				"v1.489",
+				"v1.492",
+				"v1.493",
+				"v1.494",
+				"v1.495",
+				"v1.497",
+				"v1.504",
+				"v1.512",
+				"v1.513",
+				"v1.527",
+				"v1.528",
+				"v1.529",
+				"v1.531",
+				"v1.533",
+				"v1.547",
+				"v1.549",
+				"v1.550",
+				"v1.566",
+				"v1.567",
+				"v1.571",
+				"v1.578",
+				"v1.579",
+				"v1.580",
+				"v1.583",
+				"v1.601",
+				"v1.610",
+				"v1.613",
+				"v1.625",
+				"v1.626",
+				"v1.635",
+				"v1.638",
+				"v1.641",
+				"v1.647",
+				"v1.651",
+				"v1.656",
+				"v1.666",
+				"v1.676",
+				"v1.677",
+				"v1.686",
+				"v1.w10",
+				"v1.w21",
+				"v1.w22",
+				"v1.w23",
+				"v1.w28",
+				"v1.w48",
+				"v1.w52",
+				"v1.w55",
+				"v1.w56",
+				"v1.w57",
+				"v1.w61",
+				"v1.w66",
+				"v1.w79",
+				"v1.w86"
+			]
 		},
 		{
 			"id": "locker_bank",
 			"view": "v1",
 			"box": [
-				241,
-				509,
-				461,
-				929
+				230,
+				500,
+				477,
+				930
 			],
 			"name": "personal locker bank, four tall steel lockers with vents, name plates and handles",
 			"kind": "generate",
@@ -399,16 +595,43 @@
 					"facing": 90
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w90",
+				"v1.18",
+				"v1.41",
+				"v1.61",
+				"v1.63",
+				"v1.110",
+				"v1.126",
+				"v1.176",
+				"v1.199",
+				"v1.295",
+				"v1.300",
+				"v1.389",
+				"v1.456",
+				"v1.482",
+				"v1.568",
+				"v1.615",
+				"v1.639",
+				"v1.640",
+				"v1.662",
+				"v1.w24",
+				"v1.w60",
+				"v1.w63",
+				"v1.w73",
+				"v1.w87",
+				"v1.w93"
+			]
 		},
 		{
 			"id": "food_shelf",
 			"view": "v1",
 			"box": [
-				440,
-				468,
-				805,
-				846
+				367,
+				463,
+				804,
+				862
 			],
 			"name": "food store shelf unit, open steel shelves of labelled food packs, jars and bottles",
 			"kind": "generate",
@@ -430,16 +653,19 @@
 					"facing": 90
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w25"
+			]
 		},
 		{
 			"id": "galley_counter",
 			"view": "v1",
 			"box": [
-				1493,
-				1073,
-				1913,
-				1376
+				1492,
+				1088,
+				1922,
+				1385
 			],
 			"name": "galley counter: steel cabinet with a two-ring hob, a sink with a tap and a kettle",
 			"kind": "generate",
@@ -461,16 +687,19 @@
 					"facing": 0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w30"
+			]
 		},
 		{
 			"id": "mess_table",
 			"view": "v1",
 			"box": [
-				1183,
-				839,
-				1472,
-				1087
+				1185,
+				843,
+				1548,
+				1126
 			],
 			"name": "mess table, steel top on four legs",
 			"kind": "generate",
@@ -492,16 +721,19 @@
 					"facing": 0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w31"
+			]
 		},
 		{
 			"id": "stool",
 			"view": "v1",
 			"box": [
-				1493,
-				963,
-				1582,
-				1087
+				1499,
+				971,
+				1577,
+				1093
 			],
 			"name": "round steel stool with a padded seat",
 			"kind": "generate",
@@ -541,16 +773,19 @@
 					"facing": 0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w33"
+			]
 		},
 		{
 			"id": "hygiene_cubicle",
 			"view": "v1",
 			"box": [
-				1954,
-				392,
-				2360,
-				881
+				1941,
+				400,
+				2361,
+				879
 			],
 			"name": "hygiene cubicle: pale panelled booth with a sliding door, a small sink and a mirror inside, a blue stripe",
 			"kind": "generate",
@@ -572,16 +807,65 @@
 					"facing": 270
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.645",
+				"v1.49",
+				"v1.88",
+				"v1.93",
+				"v1.166",
+				"v1.173",
+				"v1.186",
+				"v1.197",
+				"v1.210",
+				"v1.219",
+				"v1.224",
+				"v1.232",
+				"v1.244",
+				"v1.256",
+				"v1.270",
+				"v1.287",
+				"v1.299",
+				"v1.306",
+				"v1.315",
+				"v1.364",
+				"v1.369",
+				"v1.396",
+				"v1.404",
+				"v1.409",
+				"v1.412",
+				"v1.415",
+				"v1.420",
+				"v1.442",
+				"v1.444",
+				"v1.445",
+				"v1.457",
+				"v1.463",
+				"v1.472",
+				"v1.507",
+				"v1.517",
+				"v1.534",
+				"v1.562",
+				"v1.609",
+				"v1.629",
+				"v1.631",
+				"v1.642",
+				"v1.653",
+				"v1.670",
+				"v1.671",
+				"v1.687",
+				"v1.w45",
+				"v1.w95"
+			]
 		},
 		{
 			"id": "exam_couch",
 			"view": "v1",
 			"box": [
 				2215,
-				757,
-				2518,
-				991
+				768,
+				2498,
+				951
 			],
 			"name": "medical exam couch with a thin mattress and a folded blanket",
 			"kind": "generate",
@@ -603,16 +887,30 @@
 					"facing": 270
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w58",
+				"v1.w65",
+				"v1.175",
+				"v1.182",
+				"v1.217",
+				"v1.225",
+				"v1.240",
+				"v1.430",
+				"v1.453",
+				"v1.594",
+				"v1.665",
+				"v1.w94"
+			]
 		},
 		{
 			"id": "med_cabinet",
 			"view": "v1",
 			"box": [
-				2346,
-				516,
-				2539,
-				633
+				2351,
+				517,
+				2542,
+				673
 			],
 			"name": "medical cabinet: steel base cupboard with glass-fronted shelves above, a red cross label",
 			"kind": "generate",
@@ -634,7 +932,10 @@
 					"facing": 0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w35"
+			]
 		},
 		{
 			"id": "wall_screen_cluster",
@@ -642,8 +943,8 @@
 			"box": [
 				736,
 				179,
-				991,
-				344
+				989,
+				345
 			],
 			"name": "cluster of six small screens on a bracket with readouts and graphs",
 			"kind": "generate",
@@ -663,16 +964,31 @@
 					"across": 0.0,
 					"bottom": 1.6
 				}
+			],
+			"box_from": [
+				"v1.216",
+				"v1.223",
+				"v1.229",
+				"v1.247",
+				"v1.250",
+				"v1.251",
+				"v1.269",
+				"v1.277",
+				"v1.284",
+				"v1.356",
+				"v1.439",
+				"v1.599",
+				"v1.684"
 			]
 		},
 		{
 			"id": "pipe_straight",
 			"view": "v1",
 			"box": [
-				248,
-				206,
-				716,
-				454
+				421,
+				213,
+				583,
+				269
 			],
 			"name": "pipe run with flanges",
 			"kind": "code",
@@ -788,16 +1104,19 @@
 					]
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.264"
+			]
 		},
 		{
 			"id": "pipe_valve",
 			"view": "v1",
 			"box": [
-				255,
-				261,
-				454,
-				454
+				657,
+				268,
+				721,
+				344
 			],
 			"name": "valve on a pipe with a red hand wheel",
 			"kind": "generate",
@@ -823,16 +1142,19 @@
 					"bottom": 2.16
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.238"
+			]
 		},
 		{
 			"id": "light_ring",
 			"view": "v1",
 			"box": [
-				1087,
-				28,
-				1665,
-				261
+				1089,
+				65,
+				1664,
+				229
 			],
 			"name": "round ceiling light ring: a steel ring with twelve round lamps, hung on rods from the dome",
 			"kind": "generate",
@@ -859,16 +1181,19 @@
 				"strength": 1.0,
 				"reach": 11.0,
 				"high": 0.08
-			}
+			},
+			"box_from": [
+				"v1.w41"
+			]
 		},
 		{
 			"id": "door_strip_lamp",
 			"view": "v1",
 			"box": [
-				757,
-				337,
-				901,
-				392
+				774,
+				331,
+				898,
+				379
 			],
 			"name": "strip light over a door",
 			"kind": "generate",
@@ -912,16 +1237,19 @@
 				"strength": 0.2,
 				"reach": 5.0,
 				"high": 0.5
-			}
+			},
+			"box_from": [
+				"v1.w46"
+			]
 		},
 		{
 			"id": "tread_mat",
 			"view": "v1",
 			"box": [
-				805,
-				688,
-				1046,
-				812
+				809,
+				686,
+				1051,
+				805
 			],
 			"name": "grated dust mat before a hatch",
 			"kind": "generate",
@@ -958,7 +1286,10 @@
 				}
 			],
 			"lies": "floor",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.74"
+			]
 		},
 		{
 			"id": "pipe_bracket",
@@ -975,14 +1306,10 @@
 			"made": "kit piece",
 			"why": "laid by room_kit.py from the room's pipe runs and set-in floor fittings (modules round, step 1)",
 			"view": "v1",
-			"box": [
-				248,
-				206,
-				716,
-				454
-			],
+			"box": null,
 			"count": 15,
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the pipe brackets are too small to make out in the concept"
 		},
 		{
 			"id": "pillow",
@@ -1006,6 +1333,9 @@
 				533,
 				1564,
 				587
+			],
+			"box_from": [
+				"v1.w54"
 			]
 		},
 		{
@@ -1026,10 +1356,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				440,
-				468,
-				805,
-				846
+				659,
+				539,
+				712,
+				566
+			],
+			"box_from": [
+				"v1.582"
 			]
 		},
 		{
@@ -1050,10 +1383,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				440,
-				468,
-				805,
-				846
+				532,
+				732,
+				565,
+				781
+			],
+			"box_from": [
+				"v1.476"
 			]
 		},
 		{
@@ -1074,10 +1410,15 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				440,
-				468,
-				805,
-				846
+				574,
+				664,
+				639,
+				700
+			],
+			"box_from": [
+				"v1.520",
+				"v1.552",
+				"v1.586"
 			]
 		},
 		{
@@ -1098,10 +1439,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1493,
-				1073,
-				1913,
-				1376
+				1816,
+				1104,
+				1882,
+				1152
+			],
+			"box_from": [
+				"v1.w64"
 			]
 		},
 		{
@@ -1126,6 +1470,9 @@
 				1104,
 				1882,
 				1152
+			],
+			"box_from": [
+				"v1.w64"
 			]
 		},
 		{
@@ -1150,6 +1497,9 @@
 				768,
 				2484,
 				832
+			],
+			"box_from": [
+				"v1.w58"
 			]
 		},
 		{
@@ -1174,6 +1524,9 @@
 				859,
 				2370,
 				951
+			],
+			"box_from": [
+				"v1.w65"
 			]
 		},
 		{
@@ -1196,8 +1549,11 @@
 			"box": [
 				563,
 				395,
-				704,
+				705,
 				496
+			],
+			"box_from": [
+				"v1.w59"
 			]
 		},
 		{
@@ -1218,20 +1574,23 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				2346,
-				516,
-				2539,
-				633
+				2363,
+				544,
+				2430,
+				630
+			],
+			"box_from": [
+				"v1.236"
 			]
 		},
 		{
 			"id": "supply_cart",
 			"view": "v1",
 			"box": [
-				315,
-				757,
-				560,
-				1020
+				329,
+				769,
+				561,
+				1024
 			],
 			"name": "a two-shelf steel supply cart by the lockers",
 			"kind": "code",
@@ -1254,16 +1613,37 @@
 					"facing": 90
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.199",
+				"v1.389",
+				"v1.568",
+				"v1.639",
+				"v1.w63",
+				"v1.249",
+				"v1.282",
+				"v1.314",
+				"v1.487",
+				"v1.506",
+				"v1.525",
+				"v1.540",
+				"v1.543",
+				"v1.544",
+				"v1.603",
+				"v1.619",
+				"v1.633",
+				"v1.w38",
+				"v1.w71"
+			]
 		},
 		{
 			"id": "gas_cylinder",
 			"view": "v1",
 			"box": [
-				1425,
-				1305,
-				1560,
-				1430
+				1433,
+				1312,
+				1556,
+				1425
 			],
 			"name": "gas cylinders by the galley",
 			"kind": "code",
@@ -1296,16 +1676,24 @@
 						0.2
 					]
 				}
+			],
+			"box_from": [
+				"v1.213",
+				"v1.297",
+				"v1.337",
+				"v1.346",
+				"v1.w74",
+				"v1.w76"
 			]
 		},
 		{
 			"id": "floor_marking",
 			"view": "v1",
 			"box": [
-				1360,
-				650,
-				1730,
-				730
+				1397,
+				652,
+				1676,
+				722
 			],
 			"name": "the painted outline on the deck before each sleep pod",
 			"kind": "code",
@@ -1333,16 +1721,24 @@
 				}
 			],
 			"lies": "floor",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.388",
+				"v1.400",
+				"v1.446",
+				"v1.571",
+				"v1.625",
+				"v1.448"
+			]
 		},
 		{
 			"id": "slippers",
 			"view": "v1",
 			"box": [
-				1500,
-				660,
-				1600,
-				720
+				1383,
+				639,
+				1605,
+				741
 			],
 			"name": "a pair of slippers on the deck before a sleep pod",
 			"kind": "code",
@@ -1370,16 +1766,19 @@
 					"z": -3.55,
 					"facing": 180
 				}
+			],
+			"box_from": [
+				"v1.96"
 			]
 		},
 		{
 			"id": "cable_coil",
 			"view": "v1",
 			"box": [
-				965,
-				435,
-				1040,
-				512
+				978,
+				447,
+				1024,
+				513
 			],
 			"name": "a coil of cable hung on the wall beside the left sleep pod",
 			"kind": "code",
@@ -1401,16 +1800,19 @@
 					"bottom": 0.15
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.334"
+			]
 		},
 		{
 			"id": "cable_drop",
 			"view": "v1",
 			"box": [
-				1690,
-				270,
-				1760,
-				420
+				1692,
+				273,
+				1758,
+				402
 			],
 			"name": "cable runs dropping beside the sleep pods",
 			"kind": "code",
@@ -1437,16 +1839,20 @@
 					"bottom": 1.3
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.361",
+				"v1.529"
+			]
 		},
 		{
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				1420,
-				500,
-				1460,
-				560
+				1971,
+				555,
+				2003,
+				580
 			],
 			"name": "a keypad box beside the north and south hatches",
 			"kind": "code",
@@ -1472,16 +1878,19 @@
 					"across": 1.36,
 					"bottom": 1.1
 				}
+			],
+			"box_from": [
+				"v1.645"
 			]
 		},
 		{
 			"id": "small_readout",
 			"view": "v1",
 			"box": [
-				1450,
-				280,
-				1530,
-				350
+				1466,
+				289,
+				1515,
+				337
 			],
 			"name": "small panels: a breaker panel by the screens, an outlet panel by the exam couch",
 			"kind": "code",
@@ -1507,16 +1916,19 @@
 					"across": -1.6,
 					"bottom": 1.0
 				}
+			],
+			"box_from": [
+				"v1.387"
 			]
 		},
 		{
 			"id": "conduit_box",
 			"view": "v1",
 			"box": [
-				2470,
+				2465,
 				470,
-				2540,
-				510
+				2542,
+				556
 			],
 			"name": "a junction box low on the north-east wall",
 			"kind": "code",
@@ -1538,16 +1950,19 @@
 					"bottom": 1.5
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.190"
+			]
 		},
 		{
 			"id": "wall_cage_lamp",
 			"view": "v1",
 			"box": [
-				2340,
-				680,
-				2380,
-				720
+				2343,
+				672,
+				2375,
+				704
 			],
 			"name": "the wall lamp over the exam couch",
 			"kind": "code",
@@ -1573,16 +1988,19 @@
 				"strength": 0.08,
 				"reach": 3.0,
 				"high": 0.5
-			}
+			},
+			"box_from": [
+				"v1.569"
+			]
 		},
 		{
 			"id": "waste_bin",
 			"view": "v1",
 			"box": [
-				2620,
-				940,
-				2680,
-				1010
+				2048,
+				1032,
+				2100,
+				1128
 			],
 			"name": "a blue bin by the exam couch",
 			"kind": "code",
@@ -1604,16 +2022,19 @@
 					"z": 3.45,
 					"facing": 270
 				}
+			],
+			"box_from": [
+				"v1.260"
 			]
 		},
 		{
 			"id": "wall_upper_cables",
 			"view": "v1",
 			"box": [
-				1834,
-				150,
-				2400,
-				420
+				1854,
+				161,
+				2347,
+				410
 			],
 			"name": "the upper wall panels with cable runs and a junction block (east wall)",
 			"kind": "code",
@@ -1628,16 +2049,31 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.428",
+				"v1.102",
+				"v1.390",
+				"v1.416",
+				"v1.422",
+				"v1.466",
+				"v1.560",
+				"v1.565",
+				"v1.668",
+				"v1.683",
+				"v1.w18",
+				"v1.w44",
+				"v1.w85"
+			]
 		},
 		{
 			"id": "storage_case",
 			"view": "v1",
 			"box": [
-				1600,
-				212,
-				1727,
-				308
+				1614,
+				219,
+				1720,
+				299
 			],
 			"name": "storage case",
 			"kind": "code",
@@ -1652,16 +2088,19 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"parent": "sleep_pod"
+			"parent": "sleep_pod",
+			"box_from": [
+				"v1.w91"
+			]
 		},
 		{
 			"id": "tool_case",
 			"view": "v1",
 			"box": [
-				232,
-				500,
-				352,
-				590
+				239,
+				516,
+				344,
+				592
 			],
 			"name": "tool case",
 			"kind": "code",
@@ -1676,16 +2115,19 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"parent": "locker_bank"
+			"parent": "locker_bank",
+			"box_from": [
+				"v1.w90"
+			]
 		},
 		{
 			"id": "tea_towel",
 			"view": "v1",
 			"box": [
-				1550,
-				1300,
-				1600,
-				1405
+				1557,
+				1306,
+				1595,
+				1397
 			],
 			"name": "tea towel",
 			"kind": "code",
@@ -1700,7 +2142,10 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"parent": "galley_counter"
+			"parent": "galley_counter",
+			"box_from": [
+				"v1.w96"
+			]
 		}
 	],
 	"concept_elements": [

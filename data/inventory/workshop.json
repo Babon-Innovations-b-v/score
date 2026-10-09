@@ -84,10 +84,10 @@
 			"id": "wall_lower_plain",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				132,
+				733,
+				281,
+				1053
 			],
 			"name": "plain lower wall panel, bolted, worn",
 			"kind": "code",
@@ -102,16 +102,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.80"
+			]
 		},
 		{
 			"id": "wall_upper_plain",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1985,
+				290,
+				2033,
+				389
 			],
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
@@ -126,16 +129,21 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.279",
+				"v1.312",
+				"v1.322"
+			]
 		},
 		{
 			"id": "wall_lower_patched",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				346,
+				920,
+				448,
+				991
 			],
 			"name": "a lower wall panel patched with a riveted plate over old damage",
 			"kind": "code",
@@ -150,17 +158,15 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.192"
+			]
 		},
 		{
 			"id": "wall_upper_cables",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"name": "an upper wall panel with bundled cables in clips running across it",
 			"kind": "code",
 			"anchor": "wall",
@@ -174,16 +180,17 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no cable-run upper panel can be told apart in the concept"
 		},
 		{
 			"id": "wall_upper_pipes",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1348,
+				182,
+				1540,
+				260
 			],
 			"name": "an upper wall panel with three pipes running across it on brackets",
 			"kind": "code",
@@ -198,17 +205,15 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.152"
+			]
 		},
 		{
 			"id": "wall_skirting",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"name": "rubber skirting at the wall's foot",
 			"kind": "code",
 			"anchor": "wall",
@@ -222,17 +227,13 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the skirting is too thin to make out in the concept"
 		},
 		{
 			"id": "wall_cornice",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"name": "cornice along the wall's top",
 			"kind": "code",
 			"anchor": "wall",
@@ -246,16 +247,17 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the concept is cut away at the walls' top"
 		},
 		{
 			"id": "ring_floor_plate",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1647,
+				960,
+				2066,
+				1214
 			],
 			"name": "deck plate, bolted, scuffed",
 			"kind": "code",
@@ -270,17 +272,15 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.39"
+			]
 		},
 		{
 			"id": "roof_face_panel",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"name": "dome plate, ribbed",
 			"kind": "code",
 			"anchor": "ceiling",
@@ -294,16 +294,17 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the concept's dome is cut away"
 		},
 		{
 			"id": "hatch_frame",
 			"view": "v1",
 			"box": [
-				605,
-				880,
-				965,
-				1375
+				608,
+				919,
+				938,
+				1382
 			],
 			"name": "the heavy steel frame round a round-cornered pressure hatch opening, bolted, cut top corners",
 			"kind": "code",
@@ -317,7 +318,20 @@
 			"thing": "prop:workshop_hatch_frame",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w14",
+				"v1.22",
+				"v1.31",
+				"v1.226",
+				"v1.248",
+				"v1.336",
+				"v1.341",
+				"v1.360",
+				"v1.379",
+				"v1.409",
+				"v1.446"
+			]
 		},
 		{
 			"id": "hatch_leaf",
@@ -340,7 +354,10 @@
 			"thing": "prop:workshop_hatch_leaf",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w11"
+			]
 		},
 		{
 			"id": "hatch_wheel",
@@ -363,17 +380,15 @@
 			"thing": "prop:workshop_hatch_wheel",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w14"
+			]
 		},
 		{
 			"id": "hatch_hinge",
 			"view": "v1",
-			"box": [
-				605,
-				880,
-				965,
-				1375
-			],
+			"box": null,
 			"name": "a heavy steel door hinge knuckle with a pin",
 			"kind": "code",
 			"anchor": "wall",
@@ -386,16 +401,17 @@
 			"thing": "prop:workshop_hatch_hinge",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"unseen": "the hatches' hinges are hidden in their frames"
 		},
 		{
 			"id": "hatch_window",
 			"view": "v1",
 			"box": [
-				605,
-				880,
-				965,
-				1375
+				608,
+				919,
+				938,
+				1382
 			],
 			"name": "a small round thick glass porthole window with a bolted ring, set in a door",
 			"kind": "code",
@@ -409,17 +425,25 @@
 			"thing": "prop:workshop_hatch_window",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w14",
+				"v1.22",
+				"v1.31",
+				"v1.226",
+				"v1.248",
+				"v1.336",
+				"v1.341",
+				"v1.360",
+				"v1.379",
+				"v1.409",
+				"v1.446"
+			]
 		},
 		{
 			"id": "pipe_bracket",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"name": "a steel wall bracket clamping a pipe",
 			"kind": "code",
 			"anchor": "wall",
@@ -433,16 +457,17 @@
 			"made": "kit piece",
 			"group": "kit: pipe",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the pipe brackets are too small to make out"
 		},
 		{
 			"id": "pipe_straight",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				351,
+				1053,
+				576,
+				1257
 			],
 			"name": "a straight steel pipe section with flanges at both ends",
 			"kind": "code",
@@ -558,16 +583,19 @@
 					]
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.104"
+			]
 		},
 		{
 			"id": "pipe_valve",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				473,
+				1080,
+				526,
+				1147
 			],
 			"name": "an inline pipe valve with a red hand wheel",
 			"kind": "code",
@@ -608,16 +636,21 @@
 					"bottom": 2.4
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.245",
+				"v1.w13",
+				"v1.w24"
+			]
 		},
 		{
 			"id": "door_strip_lamp",
 			"view": "v1",
 			"box": [
-				2065,
-				375,
-				2235,
-				405
+				2102,
+				352,
+				2236,
+				400
 			],
 			"name": "a strip lamp in a steel housing with a frosted lens, over a door",
 			"kind": "code",
@@ -666,16 +699,19 @@
 				"strength": 0.2,
 				"reach": 5.0,
 				"high": 0.5
-			}
+			},
+			"box_from": [
+				"v1.w29"
+			]
 		},
 		{
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				1949,
+				1946,
 				442,
-				2035,
-				587
+				2031,
+				584
 			],
 			"name": "a steel door control box with a keypad, a status light and a label",
 			"kind": "code",
@@ -710,16 +746,20 @@
 					"across": 1.55,
 					"bottom": 1.2
 				}
+			],
+			"box_from": [
+				"v1.86",
+				"v1.285"
 			]
 		},
 		{
 			"id": "tread_mat",
 			"view": "v1",
 			"box": [
-				605,
-				880,
-				965,
-				1375
+				1662,
+				463,
+				1941,
+				595
 			],
 			"name": "a tread-plate mat in front of a hatch, worn in the middle",
 			"kind": "code",
@@ -756,7 +796,10 @@
 				}
 			],
 			"lies": "floor",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.64"
+			]
 		},
 		{
 			"id": "intercom_panel",
@@ -787,10 +830,10 @@
 			"id": "conduit_box",
 			"view": "v1",
 			"box": [
-				1990,
-				345,
-				2340,
-				630
+				1946,
+				442,
+				2031,
+				584
 			],
 			"name": "a small steel conduit junction box with cable glands",
 			"kind": "code",
@@ -836,17 +879,15 @@
 					"bottom": 0.8
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.86"
+			]
 		},
 		{
 			"id": "small_readout",
 			"view": "v1",
-			"box": [
-				1990,
-				345,
-				2340,
-				630
-			],
+			"box": null,
 			"name": "a small square wall readout screen with buttons beside it",
 			"kind": "code",
 			"anchor": "wall",
@@ -875,16 +916,17 @@
 					"across": -4.25,
 					"bottom": 1.3
 				}
-			]
+			],
+			"unseen": "no small readout can be told apart beside the hatches"
 		},
 		{
 			"id": "robot_bench",
 			"view": "v1",
 			"box": [
-				1130,
-				550,
-				1650,
-				950
+				1129,
+				565,
+				1643,
+				909
 			],
 			"name": "robot assembly bench: steel base with drawer banks, a gooseneck ring lamp over the turning table, clamps for two screen arms",
 			"kind": "code",
@@ -907,16 +949,84 @@
 				}
 			],
 			"solid": false,
-			"why": "the game's Bench (bench.tscn) keeps the collision, the turning table and the parts tray"
+			"why": "the game's Bench (bench.tscn) keeps the collision, the turning table and the parts tray",
+			"box_from": [
+				"v1.w56",
+				"v1.w62",
+				"v1.75",
+				"v1.96",
+				"v1.113",
+				"v1.120",
+				"v1.122",
+				"v1.123",
+				"v1.131",
+				"v1.142",
+				"v1.144",
+				"v1.146",
+				"v1.159",
+				"v1.161",
+				"v1.164",
+				"v1.170",
+				"v1.172",
+				"v1.173",
+				"v1.175",
+				"v1.178",
+				"v1.189",
+				"v1.191",
+				"v1.195",
+				"v1.204",
+				"v1.205",
+				"v1.207",
+				"v1.209",
+				"v1.211",
+				"v1.212",
+				"v1.213",
+				"v1.220",
+				"v1.221",
+				"v1.235",
+				"v1.250",
+				"v1.252",
+				"v1.253",
+				"v1.256",
+				"v1.274",
+				"v1.282",
+				"v1.284",
+				"v1.289",
+				"v1.302",
+				"v1.314",
+				"v1.324",
+				"v1.332",
+				"v1.337",
+				"v1.345",
+				"v1.357",
+				"v1.358",
+				"v1.359",
+				"v1.363",
+				"v1.364",
+				"v1.368",
+				"v1.374",
+				"v1.394",
+				"v1.432",
+				"v1.w36",
+				"v1.w37",
+				"v1.w38",
+				"v1.w39",
+				"v1.w57",
+				"v1.w58",
+				"v1.w60",
+				"v1.w63",
+				"v1.w64",
+				"v1.w65"
+			]
 		},
 		{
 			"id": "tool_bench",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				272,
+				409,
+				669,
+				849
 			],
 			"name": "heavy hand-tool bench, timber top on a steel frame, drawer unit",
 			"kind": "code",
@@ -938,16 +1048,131 @@
 					"facing": 0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.472",
+				"v1.444",
+				"v1.455",
+				"v1.380",
+				"v1.491",
+				"v1.499",
+				"v1.290",
+				"v1.116",
+				"v1.93",
+				"v1.109",
+				"v1.114",
+				"v1.126",
+				"v1.179",
+				"v1.188",
+				"v1.261",
+				"v1.262",
+				"v1.263",
+				"v1.265",
+				"v1.272",
+				"v1.273",
+				"v1.277",
+				"v1.295",
+				"v1.296",
+				"v1.298",
+				"v1.305",
+				"v1.313",
+				"v1.326",
+				"v1.331",
+				"v1.334",
+				"v1.340",
+				"v1.349",
+				"v1.353",
+				"v1.361",
+				"v1.375",
+				"v1.381",
+				"v1.382",
+				"v1.393",
+				"v1.398",
+				"v1.400",
+				"v1.406",
+				"v1.410",
+				"v1.421",
+				"v1.422",
+				"v1.439",
+				"v1.447",
+				"v1.448",
+				"v1.449",
+				"v1.450",
+				"v1.451",
+				"v1.452",
+				"v1.453",
+				"v1.454",
+				"v1.456",
+				"v1.457",
+				"v1.458",
+				"v1.459",
+				"v1.460",
+				"v1.461",
+				"v1.462",
+				"v1.463",
+				"v1.464",
+				"v1.465",
+				"v1.466",
+				"v1.467",
+				"v1.468",
+				"v1.469",
+				"v1.470",
+				"v1.471",
+				"v1.473",
+				"v1.474",
+				"v1.475",
+				"v1.476",
+				"v1.477",
+				"v1.478",
+				"v1.479",
+				"v1.480",
+				"v1.481",
+				"v1.482",
+				"v1.483",
+				"v1.484",
+				"v1.485",
+				"v1.486",
+				"v1.487",
+				"v1.488",
+				"v1.489",
+				"v1.490",
+				"v1.492",
+				"v1.493",
+				"v1.494",
+				"v1.495",
+				"v1.496",
+				"v1.497",
+				"v1.498",
+				"v1.500",
+				"v1.501",
+				"v1.502",
+				"v1.503",
+				"v1.504",
+				"v1.505",
+				"v1.506",
+				"v1.507",
+				"v1.508",
+				"v1.509",
+				"v1.510",
+				"v1.511",
+				"v1.512",
+				"v1.513",
+				"v1.514",
+				"v1.515",
+				"v1.w16",
+				"v1.w31",
+				"v1.w42",
+				"v1.w53"
+			]
 		},
 		{
 			"id": "toolboard",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				272,
+				409,
+				669,
+				849
 			],
 			"name": "tool board with its hand tools",
 			"kind": "code",
@@ -967,16 +1192,131 @@
 					"across": -3.6,
 					"bottom": 1.08
 				}
+			],
+			"box_from": [
+				"v1.472",
+				"v1.444",
+				"v1.455",
+				"v1.380",
+				"v1.491",
+				"v1.499",
+				"v1.290",
+				"v1.116",
+				"v1.93",
+				"v1.109",
+				"v1.114",
+				"v1.126",
+				"v1.179",
+				"v1.188",
+				"v1.261",
+				"v1.262",
+				"v1.263",
+				"v1.265",
+				"v1.272",
+				"v1.273",
+				"v1.277",
+				"v1.295",
+				"v1.296",
+				"v1.298",
+				"v1.305",
+				"v1.313",
+				"v1.326",
+				"v1.331",
+				"v1.334",
+				"v1.340",
+				"v1.349",
+				"v1.353",
+				"v1.361",
+				"v1.375",
+				"v1.381",
+				"v1.382",
+				"v1.393",
+				"v1.398",
+				"v1.400",
+				"v1.406",
+				"v1.410",
+				"v1.421",
+				"v1.422",
+				"v1.439",
+				"v1.447",
+				"v1.448",
+				"v1.449",
+				"v1.450",
+				"v1.451",
+				"v1.452",
+				"v1.453",
+				"v1.454",
+				"v1.456",
+				"v1.457",
+				"v1.458",
+				"v1.459",
+				"v1.460",
+				"v1.461",
+				"v1.462",
+				"v1.463",
+				"v1.464",
+				"v1.465",
+				"v1.466",
+				"v1.467",
+				"v1.468",
+				"v1.469",
+				"v1.470",
+				"v1.471",
+				"v1.473",
+				"v1.474",
+				"v1.475",
+				"v1.476",
+				"v1.477",
+				"v1.478",
+				"v1.479",
+				"v1.480",
+				"v1.481",
+				"v1.482",
+				"v1.483",
+				"v1.484",
+				"v1.485",
+				"v1.486",
+				"v1.487",
+				"v1.488",
+				"v1.489",
+				"v1.490",
+				"v1.492",
+				"v1.493",
+				"v1.494",
+				"v1.495",
+				"v1.496",
+				"v1.497",
+				"v1.498",
+				"v1.500",
+				"v1.501",
+				"v1.502",
+				"v1.503",
+				"v1.504",
+				"v1.505",
+				"v1.506",
+				"v1.507",
+				"v1.508",
+				"v1.509",
+				"v1.510",
+				"v1.511",
+				"v1.512",
+				"v1.513",
+				"v1.514",
+				"v1.515",
+				"v1.w16",
+				"v1.w31",
+				"v1.w42",
+				"v1.w53"
 			]
 		},
 		{
 			"id": "rack",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				286,
+				653,
+				375,
+				735
 			],
 			"name": "single steel locker (the plan painted lockers where the list said equipment racks)",
 			"kind": "code",
@@ -998,17 +1338,15 @@
 					"facing": 0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.116"
+			]
 		},
 		{
 			"id": "waste_bin",
 			"view": "v1",
-			"box": [
-				275,
-				410,
-				690,
-				840
-			],
+			"box": null,
 			"name": "a small steel waste bin with a pedal lid",
 			"kind": "code",
 			"anchor": "floor",
@@ -1034,16 +1372,17 @@
 					"z": 4.35,
 					"facing": 270
 				}
-			]
+			],
+			"unseen": "no waste bin can be made out in the concept"
 		},
 		{
 			"id": "spares_crate",
 			"view": "v1",
 			"box": [
-				865,
-				165,
-				1100,
-				475
+				1129,
+				822,
+				1215,
+				906
 			],
 			"name": "spares crate",
 			"kind": "code",
@@ -1066,17 +1405,15 @@
 				}
 			],
 			"parent": "spares_shelves",
-			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent"
+			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v1.133"
+			]
 		},
 		{
 			"id": "work_stool",
 			"view": "v1",
-			"box": [
-				275,
-				410,
-				690,
-				840
-			],
+			"box": null,
 			"name": "steel shop stool with a padded seat",
 			"kind": "code",
 			"anchor": "floor",
@@ -1103,16 +1440,17 @@
 					"facing": 90
 				}
 			],
-			"solid": true
+			"solid": true,
+			"unseen": "the concept shows office chairs at the benches, no stools"
 		},
 		{
 			"id": "elec_bench",
 			"view": "v1",
 			"box": [
-				1665,
-				1070,
-				2010,
-				1375
+				1675,
+				1072,
+				1988,
+				1372
 			],
 			"name": "electronics bench: anti-static mat, shelf riser with a power strip, drawer pedestal",
 			"kind": "code",
@@ -1134,16 +1472,36 @@
 					"facing": 270
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.275",
+				"v1.392",
+				"v1.304",
+				"v1.88",
+				"v1.177",
+				"v1.206",
+				"v1.224",
+				"v1.278",
+				"v1.317",
+				"v1.328",
+				"v1.329",
+				"v1.338",
+				"v1.370",
+				"v1.401",
+				"v1.428",
+				"v1.442",
+				"v1.w26",
+				"v1.w54"
+			]
 		},
 		{
 			"id": "parts_drawers",
 			"view": "v1",
 			"box": [
-				1525,
-				180,
-				1690,
-				425
+				1536,
+				196,
+				1683,
+				436
 			],
 			"name": "steel parts cabinet: forty small bin drawers on a two-door cupboard",
 			"kind": "code",
@@ -1165,16 +1523,23 @@
 					"facing": 270
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.60",
+				"v1.190",
+				"v1.193",
+				"v1.198",
+				"v1.w44"
+			]
 		},
 		{
 			"id": "spares_shelves",
 			"view": "v1",
 			"box": [
-				865,
-				165,
-				1100,
-				475
+				880,
+				171,
+				1086,
+				484
 			],
 			"name": "steel shelving of spares crates and boxes",
 			"kind": "code",
@@ -1196,16 +1561,19 @@
 					"facing": 90
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w49"
+			]
 		},
 		{
 			"id": "low_cabinet",
 			"view": "v1",
 			"box": [
-				1990,
-				345,
-				2340,
-				630
+				2026,
+				512,
+				2213,
+				644
 			],
 			"name": "low steel wall cabinet run with four doors",
 			"kind": "code",
@@ -1227,16 +1595,28 @@
 					"facing": 180
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.162",
+				"v1.163",
+				"v1.166",
+				"v1.389",
+				"v1.411",
+				"v1.w2",
+				"v1.w3",
+				"v1.w4",
+				"v1.w40",
+				"v1.w41"
+			]
 		},
 		{
 			"id": "status_display",
 			"view": "v1",
 			"box": [
-				1990,
-				345,
-				2340,
-				630
+				1985,
+				325,
+				2292,
+				637
 			],
 			"name": "one single large wall display screen in a heavy steel frame, glowing readouts, the whole screen in view",
 			"kind": "code",
@@ -1256,16 +1636,42 @@
 					"across": -3.2,
 					"bottom": 1.25
 				}
+			],
+			"box_from": [
+				"v1.322",
+				"v1.162",
+				"v1.163",
+				"v1.166",
+				"v1.389",
+				"v1.w2",
+				"v1.w3",
+				"v1.w4",
+				"v1.w40",
+				"v1.w41",
+				"v1.w29",
+				"v1.57",
+				"v1.78",
+				"v1.87",
+				"v1.169",
+				"v1.186",
+				"v1.255",
+				"v1.346",
+				"v1.372",
+				"v1.403",
+				"v1.414",
+				"v1.418",
+				"v1.w35",
+				"v1.w59"
 			]
 		},
 		{
 			"id": "floor_socket",
 			"view": "v1",
 			"box": [
-				520,
-				690,
-				1100,
-				1020
+				509,
+				672,
+				1083,
+				1013
 			],
 			"name": "flush floor service socket with a checker-plate lid",
 			"kind": "code",
@@ -1401,16 +1807,39 @@
 					"facing": 0
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.360",
+				"v1.400",
+				"v1.29",
+				"v1.44",
+				"v1.47",
+				"v1.54",
+				"v1.129",
+				"v1.184",
+				"v1.196",
+				"v1.227",
+				"v1.264",
+				"v1.271",
+				"v1.294",
+				"v1.321",
+				"v1.323",
+				"v1.342",
+				"v1.344",
+				"v1.415",
+				"v1.w8",
+				"v1.w28",
+				"v1.w50"
+			]
 		},
 		{
 			"id": "bay_mark",
 			"view": "v1",
 			"box": [
-				520,
-				690,
-				1100,
-				1020
+				509,
+				672,
+				1083,
+				1013
 			],
 			"name": "painted outline of a machine bay on the deck, two L's a bay",
 			"kind": "code",
@@ -1474,7 +1903,30 @@
 					"facing": 180
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.360",
+				"v1.400",
+				"v1.29",
+				"v1.44",
+				"v1.47",
+				"v1.54",
+				"v1.129",
+				"v1.184",
+				"v1.196",
+				"v1.227",
+				"v1.264",
+				"v1.271",
+				"v1.294",
+				"v1.321",
+				"v1.323",
+				"v1.342",
+				"v1.344",
+				"v1.415",
+				"v1.w8",
+				"v1.w28",
+				"v1.w50"
+			]
 		},
 		{
 			"id": "pendant_lamp",
@@ -1580,10 +2032,10 @@
 			"id": "equipment_bench",
 			"view": "v1",
 			"box": [
-				1045,
-				1070,
-				1390,
-				1360
+				1061,
+				1108,
+				1362,
+				1359
 			],
 			"name": "equipment maker's workbench: cabinet base, steel top, back panel with a copper bus bar and switched sockets",
 			"kind": "code",
@@ -1598,7 +2050,21 @@
 			"made": "made by the route",
 			"group": "kit: furniture",
 			"at": [],
-			"why": "placed by the game's EquipmentBench node (shown only once built), not by the kit"
+			"why": "placed by the game's EquipmentBench node (shown only once built), not by the kit",
+			"box_from": [
+				"v1.w25",
+				"v1.98",
+				"v1.181",
+				"v1.197",
+				"v1.216",
+				"v1.259",
+				"v1.316",
+				"v1.318",
+				"v1.325",
+				"v1.377",
+				"v1.386",
+				"v1.w61"
+			]
 		},
 		{
 			"id": "arm_monitor",
@@ -1619,9 +2085,12 @@
 			"view": "v1",
 			"box": [
 				1309,
-				594,
+				593,
 				1414,
 				651
+			],
+			"box_from": [
+				"v1.w56"
 			]
 		},
 		{
@@ -1646,6 +2115,9 @@
 				784,
 				1565,
 				822
+			],
+			"box_from": [
+				"v1.w62"
 			]
 		},
 		{
@@ -1666,10 +2138,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				603,
+				562,
+				651,
+				606
+			],
+			"box_from": [
+				"v1.290"
 			]
 		},
 		{
@@ -1695,6 +2170,9 @@
 				1109,
 				1194,
 				1211
+			],
+			"box_from": [
+				"v1.w25"
 			]
 		},
 		{
@@ -1716,10 +2194,13 @@
 			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				412,
+				504,
+				421,
+				535
+			],
+			"box_from": [
+				"v1.472"
 			]
 		},
 		{
@@ -1741,10 +2222,13 @@
 			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				451,
+				484,
+				465,
+				545
+			],
+			"box_from": [
+				"v1.444"
 			]
 		},
 		{
@@ -1766,10 +2250,14 @@
 			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				348,
+				537,
+				370,
+				600
+			],
+			"box_from": [
+				"v1.380",
+				"v1.491"
 			]
 		},
 		{
@@ -1791,10 +2279,13 @@
 			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				472,
+				516,
+				484,
+				545
+			],
+			"box_from": [
+				"v1.455"
 			]
 		},
 		{
@@ -1815,10 +2306,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				275,
-				410,
-				690,
-				840
+				511,
+				513,
+				516,
+				533
+			],
+			"box_from": [
+				"v1.499"
 			]
 		},
 		{
@@ -1843,6 +2337,9 @@
 				593,
 				1414,
 				651
+			],
+			"box_from": [
+				"v1.w56"
 			]
 		},
 		{
@@ -1863,10 +2360,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1665,
-				1070,
-				2010,
-				1375
+				1893,
+				1150,
+				1956,
+				1245
+			],
+			"box_from": [
+				"v1.275"
 			]
 		},
 		{
@@ -1887,10 +2387,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1665,
-				1070,
-				2010,
-				1375
+				1830,
+				1190,
+				1867,
+				1216
+			],
+			"box_from": [
+				"v1.392"
 			]
 		},
 		{
@@ -1911,10 +2414,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1665,
-				1070,
-				2010,
-				1375
+				1762,
+				1305,
+				1819,
+				1347
+			],
+			"box_from": [
+				"v1.304"
 			]
 		},
 		{
@@ -1935,10 +2441,14 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				865,
-				165,
-				1100,
-				475
+				1552,
+				859,
+				1625,
+				949
+			],
+			"box_from": [
+				"v1.174",
+				"v1.339"
 			]
 		}
 	]

@@ -32,10 +32,10 @@
 			"id": "far_pad",
 			"view": "v1",
 			"box": [
-				1500,
-				950,
-				2000,
-				1050
+				1523,
+				960,
+				1969,
+				1025
 			],
 			"name": "the launch pad's concrete apron",
 			"kind": "code",
@@ -49,16 +49,19 @@
 			"thing": "kit:launch_far_pad",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/pad.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.132"
+			]
 		},
 		{
 			"id": "far_lightning_mast",
 			"view": "v1",
 			"box": [
-				1580,
-				330,
-				1750,
-				990
+				1577,
+				341,
+				1710,
+				987
 			],
 			"name": "lightning mast",
 			"kind": "code",
@@ -71,16 +74,28 @@
 			"count": 1,
 			"thing": "kit:launch_far_lightning_mast",
 			"group": "kit: light",
-			"close_up": "place-ssl/pics/lightning_mast.png"
+			"close_up": "place-ssl/pics/lightning_mast.png",
+			"box_from": [
+				"v1.69",
+				"v1.75",
+				"v1.277",
+				"v1.359",
+				"v1.396",
+				"v1.459",
+				"v1.484",
+				"v1.502",
+				"v1.w1",
+				"v1.w5"
+			]
 		},
 		{
 			"id": "far_pad_floodlight",
 			"view": "v1",
 			"box": [
-				1780,
-				660,
-				1880,
-				850
+				1781,
+				677,
+				1864,
+				772
 			],
 			"name": "pad floodlight",
 			"kind": "code",
@@ -93,16 +108,20 @@
 			"count": 1,
 			"thing": "kit:launch_far_pad_floodlight",
 			"group": "kit: light",
-			"close_up": "place-ssl/pics/pad_floodlight.png"
+			"close_up": "place-ssl/pics/pad_floodlight.png",
+			"box_from": [
+				"v1.338",
+				"v1.419"
+			]
 		},
 		{
 			"id": "far_ferry",
 			"view": "v1",
 			"box": [
-				300,
-				850,
-				660,
-				990
+				334,
+				880,
+				631,
+				963
 			],
 			"name": "harbour ferry",
 			"kind": "generate",
@@ -115,16 +134,20 @@
 			"count": 1,
 			"thing": "kit:launch_far_ferry",
 			"group": "kit: street",
-			"close_up": "place-ssl/pics/ferry.png"
+			"close_up": "place-ssl/pics/ferry.png",
+			"box_from": [
+				"v1.340",
+				"v1.w6"
+			]
 		},
 		{
 			"id": "far_city_glass_tower",
 			"view": "v1",
 			"box": [
-				360,
-				25,
+				354,
+				27,
 				470,
-				790
+				794
 			],
 			"name": "tall slim glass office skyscraper with a tapering lit crown",
 			"kind": "generate",
@@ -136,16 +159,19 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v1.w9"
+			]
 		},
 		{
 			"id": "far_city_crown_tower",
 			"view": "v1",
 			"box": [
-				645,
-				455,
-				735,
-				755
+				640,
+				456,
+				729,
+				756
 			],
 			"name": "glass office tower with a rounded, notched lit crown",
 			"kind": "generate",
@@ -157,16 +183,23 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v1.166",
+				"v1.437",
+				"v1.438",
+				"v1.w11",
+				"v1.w12"
+			]
 		},
 		{
 			"id": "far_city_spire_tower",
 			"view": "v1",
 			"box": [
-				780,
-				300,
+				782,
+				313,
 				895,
-				735
+				738
 			],
 			"name": "stepped office tower with a lit pyramid top and a spire",
 			"kind": "generate",
@@ -178,16 +211,22 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v1.35",
+				"v1.190",
+				"v1.447",
+				"v1.488"
+			]
 		},
 		{
 			"id": "far_city_housing_tower",
 			"view": "v2",
 			"box": [
-				965,
+				966,
 				500,
-				1100,
-				820
+				1104,
+				819
 			],
 			"name": "tall public housing tower of joined slender blocks with rows of small windows",
 			"kind": "generate",
@@ -199,16 +238,23 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v2.49",
+				"v2.160",
+				"v2.204",
+				"v2.332",
+				"v2.400"
+			]
 		},
 		{
 			"id": "far_city_housing_slab",
 			"view": "v2",
 			"box": [
-				1100,
-				645,
-				1255,
-				815
+				1091,
+				642,
+				1252,
+				817
 			],
 			"name": "plain public housing slab block with rows of small windows",
 			"kind": "generate",
@@ -220,16 +266,19 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v2.45"
+			]
 		},
 		{
 			"id": "far_city_residential_tower",
 			"view": "v2",
 			"box": [
-				1375,
+				1377,
 				520,
 				1500,
-				810
+				816
 			],
 			"name": "tall residential tower with recessed bays and rows of small windows",
 			"kind": "generate",
@@ -241,16 +290,19 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v2.33"
+			]
 		},
 		{
 			"id": "far_city_pencil_tower",
 			"view": "v2",
 			"box": [
-				2408,
-				450,
-				2485,
-				690
+				2409,
+				451,
+				2486,
+				700
 			],
 			"name": "very slim pencil residential tower",
 			"kind": "generate",
@@ -262,16 +314,19 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v2.66"
+			]
 		},
 		{
 			"id": "far_city_low_block",
 			"view": "v2",
 			"box": [
-				600,
-				630,
-				740,
-				800
+				592,
+				672,
+				738,
+				808
 			],
 			"name": "low plain apartment block along the waterfront",
 			"kind": "generate",
@@ -283,16 +338,19 @@
 			],
 			"count": 1,
 			"thing": "scene:far_city",
-			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)"
+			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
+			"box_from": [
+				"v2.59"
+			]
 		},
 		{
 			"id": "far_rocket",
 			"view": "v1",
 			"box": [
-				1880,
-				525,
-				1985,
-				920
+				1873,
+				528,
+				1969,
+				903
 			],
 			"name": "the launch rocket on its pad",
 			"kind": "generate",
@@ -305,7 +363,10 @@
 			"count": 1,
 			"thing": "model:earth_launch_rocket",
 			"group": "scene: the rocket",
-			"close_up": "the game's own made model (game/prologue/earth_site/models/earth_launch_rocket), placed by the scene record's objects"
+			"close_up": "the game's own made model (game/prologue/earth_site/models/earth_launch_rocket), placed by the scene record's objects",
+			"box_from": [
+				"v1.w18"
+			]
 		}
 	]
 }

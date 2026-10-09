@@ -31,12 +31,7 @@
 		{
 			"id": "far_paving",
 			"view": "v1",
-			"box": [
-				600,
-				900,
-				2200,
-				1400
-			],
+			"box": null,
 			"name": "the square's stone paving",
 			"kind": "code",
 			"anchor": "floor",
@@ -49,16 +44,17 @@
 			"thing": "kit:square_far_paving",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/paving.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the square's paving is hidden under the crowd in both concepts"
 		},
 		{
 			"id": "far_terrace",
 			"view": "v1",
 			"box": [
-				600,
-				900,
-				2200,
-				1400
+				875,
+				816,
+				1186,
+				881
 			],
 			"name": "a terrace of the square, paved on top",
 			"kind": "code",
@@ -72,16 +68,19 @@
 			"thing": "kit:square_far_terrace",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/terrace.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.68"
+			]
 		},
 		{
 			"id": "far_road",
 			"view": "v1",
 			"box": [
-				2000,
-				800,
+				1968,
+				797,
 				2752,
-				1100
+				1083
 			],
 			"name": "the roads round the square",
 			"kind": "code",
@@ -95,16 +94,45 @@
 			"thing": "kit:square_far_road",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/road.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.49",
+				"v1.75",
+				"v1.89",
+				"v1.163",
+				"v1.181",
+				"v1.184",
+				"v1.210",
+				"v1.238",
+				"v1.260",
+				"v1.277",
+				"v1.285",
+				"v1.290",
+				"v1.335",
+				"v1.367",
+				"v1.369",
+				"v1.377",
+				"v1.442",
+				"v1.448",
+				"v1.460",
+				"v1.482",
+				"v1.542",
+				"v1.606",
+				"v1.w7",
+				"v1.w12",
+				"v1.w30",
+				"v1.w37",
+				"v1.w38"
+			]
 		},
 		{
 			"id": "far_promenade",
 			"view": "v1",
 			"box": [
-				0,
-				700,
-				2752,
-				900
+				1904,
+				737,
+				2082,
+				863
 			],
 			"name": "the harbour promenade's paving",
 			"kind": "code",
@@ -118,17 +146,15 @@
 			"thing": "kit:square_far_promenade",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/promenade.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.150"
+			]
 		},
 		{
 			"id": "far_promenade_rail",
 			"view": "v1",
-			"box": [
-				2100,
-				900,
-				2752,
-				1130
-			],
+			"box": null,
 			"name": "the promenade's railing",
 			"kind": "code",
 			"anchor": "floor",
@@ -141,7 +167,8 @@
 			"thing": "kit:square_far_promenade_rail",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/promenade_rail.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the promenade's railing is too far to make out behind the crowd"
 		},
 		{
 			"id": "far_palm",
@@ -163,7 +190,10 @@
 			"count": 1,
 			"thing": "kit:square_far_palm",
 			"group": "kit: street",
-			"close_up": "place-ssl/pics/palm.png"
+			"close_up": "place-ssl/pics/palm.png",
+			"box_from": [
+				"v1.w4"
+			]
 		},
 		{
 			"id": "far_flag_pole",
@@ -185,7 +215,10 @@
 			"count": 1,
 			"thing": "kit:square_far_flag_pole",
 			"group": "kit: street",
-			"close_up": "place-ssl/pics/flag_pole.png"
+			"close_up": "place-ssl/pics/flag_pole.png",
+			"box_from": [
+				"v1.w9"
+			]
 		},
 		{
 			"id": "far_lantern",
@@ -207,16 +240,19 @@
 			"count": 1,
 			"thing": "kit:square_far_lantern",
 			"group": "kit: light",
-			"close_up": "place-ssl/pics/lantern.png"
+			"close_up": "place-ssl/pics/lantern.png",
+			"box_from": [
+				"v1.w14"
+			]
 		},
 		{
 			"id": "far_cable",
 			"view": "v1",
 			"box": [
-				580,
-				1000,
-				1100,
-				1300
+				578,
+				998,
+				1032,
+				1317
 			],
 			"name": "the cable the lanterns hang from",
 			"kind": "code",
@@ -229,16 +265,52 @@
 			"count": 1,
 			"thing": "kit:square_far_cable",
 			"group": "kit: light",
-			"close_up": "place-ssl/pics/cable.png"
+			"close_up": "place-ssl/pics/cable.png",
+			"box_from": [
+				"v1.w14",
+				"v1.104",
+				"v1.115",
+				"v1.216",
+				"v1.244",
+				"v1.283",
+				"v1.342",
+				"v1.352",
+				"v1.366",
+				"v1.378",
+				"v1.383",
+				"v1.396",
+				"v1.407",
+				"v1.429",
+				"v1.437",
+				"v1.445",
+				"v1.446",
+				"v1.463",
+				"v1.474",
+				"v1.488",
+				"v1.499",
+				"v1.536",
+				"v1.566",
+				"v1.588",
+				"v1.601",
+				"v1.603",
+				"v1.w11",
+				"v1.w13",
+				"v1.w15",
+				"v1.w16",
+				"v1.w17",
+				"v1.w29",
+				"v1.w33",
+				"v1.w36"
+			]
 		},
 		{
 			"id": "far_floodlight_tower",
 			"view": "v1",
 			"box": [
-				580,
-				480,
-				720,
-				1060
+				588,
+				484,
+				711,
+				1069
 			],
 			"name": "floodlight tower",
 			"kind": "code",
@@ -251,16 +323,39 @@
 			"count": 1,
 			"thing": "kit:square_far_floodlight_tower",
 			"group": "kit: light",
-			"close_up": "place-ssl/pics/floodlight_tower.png"
+			"close_up": "place-ssl/pics/floodlight_tower.png",
+			"box_from": [
+				"v1.378",
+				"v1.66",
+				"v1.78",
+				"v1.106",
+				"v1.158",
+				"v1.161",
+				"v1.166",
+				"v1.168",
+				"v1.194",
+				"v1.204",
+				"v1.253",
+				"v1.271",
+				"v1.278",
+				"v1.292",
+				"v1.297",
+				"v1.462",
+				"v1.503",
+				"v1.556",
+				"v1.558",
+				"v1.582",
+				"v1.w20"
+			]
 		},
 		{
 			"id": "far_square_lamp",
 			"view": "v1",
 			"box": [
-				130,
-				780,
-				290,
-				1000
+				148,
+				791,
+				263,
+				1020
 			],
 			"name": "lamp post round the square",
 			"kind": "code",
@@ -273,16 +368,25 @@
 			"count": 1,
 			"thing": "kit:square_far_square_lamp",
 			"group": "kit: light",
-			"close_up": "place-ssl/pics/square_lamp.png"
+			"close_up": "place-ssl/pics/square_lamp.png",
+			"box_from": [
+				"v1.199",
+				"v1.236",
+				"v1.359",
+				"v1.370",
+				"v1.375",
+				"v1.576",
+				"v1.w31"
+			]
 		},
 		{
 			"id": "far_stage",
 			"view": "v1",
 			"box": [
-				680,
-				620,
-				1180,
-				900
+				672,
+				642,
+				1186,
+				898
 			],
 			"name": "the rally stage's deck, skirt and steps",
 			"kind": "code",
@@ -295,16 +399,41 @@
 			"count": 1,
 			"thing": "kit:square_far_stage",
 			"group": "kit: stage",
-			"close_up": "place-ssl/pics/stage.png"
+			"close_up": "place-ssl/pics/stage.png",
+			"box_from": [
+				"v1.68",
+				"v1.362",
+				"v1.34",
+				"v1.35",
+				"v1.36",
+				"v1.38",
+				"v1.43",
+				"v1.44",
+				"v1.48",
+				"v1.70",
+				"v1.84",
+				"v1.88",
+				"v1.98",
+				"v1.119",
+				"v1.303",
+				"v1.553",
+				"v1.568",
+				"v1.590",
+				"v1.600",
+				"v1.w23",
+				"v1.w24",
+				"v1.w25",
+				"v1.w26"
+			]
 		},
 		{
 			"id": "far_backdrop",
 			"view": "v1",
 			"box": [
-				680,
-				620,
-				1180,
-				900
+				672,
+				642,
+				1186,
+				898
 			],
 			"name": "the red backdrop behind the stage with its sign",
 			"kind": "code",
@@ -317,16 +446,41 @@
 			"count": 1,
 			"thing": "kit:square_far_backdrop",
 			"group": "kit: stage",
-			"close_up": "place-ssl/pics/stage.png"
+			"close_up": "place-ssl/pics/stage.png",
+			"box_from": [
+				"v1.68",
+				"v1.362",
+				"v1.34",
+				"v1.35",
+				"v1.36",
+				"v1.38",
+				"v1.43",
+				"v1.44",
+				"v1.48",
+				"v1.70",
+				"v1.84",
+				"v1.88",
+				"v1.98",
+				"v1.119",
+				"v1.303",
+				"v1.553",
+				"v1.568",
+				"v1.590",
+				"v1.600",
+				"v1.w23",
+				"v1.w24",
+				"v1.w25",
+				"v1.w26"
+			]
 		},
 		{
 			"id": "far_podium",
 			"view": "v1",
 			"box": [
-				680,
-				620,
-				1180,
-				900
+				672,
+				642,
+				1186,
+				898
 			],
 			"name": "the red-draped podium",
 			"kind": "code",
@@ -339,16 +493,41 @@
 			"count": 1,
 			"thing": "kit:square_far_podium",
 			"group": "kit: stage",
-			"close_up": "place-ssl/pics/stage.png"
+			"close_up": "place-ssl/pics/stage.png",
+			"box_from": [
+				"v1.68",
+				"v1.362",
+				"v1.34",
+				"v1.35",
+				"v1.36",
+				"v1.38",
+				"v1.43",
+				"v1.44",
+				"v1.48",
+				"v1.70",
+				"v1.84",
+				"v1.88",
+				"v1.98",
+				"v1.119",
+				"v1.303",
+				"v1.553",
+				"v1.568",
+				"v1.590",
+				"v1.600",
+				"v1.w23",
+				"v1.w24",
+				"v1.w25",
+				"v1.w26"
+			]
 		},
 		{
 			"id": "far_lectern",
 			"view": "v1",
 			"box": [
-				680,
-				620,
-				1180,
-				900
+				1005,
+				790,
+				1038,
+				842
 			],
 			"name": "the lectern",
 			"kind": "code",
@@ -361,16 +540,19 @@
 			"count": 1,
 			"thing": "kit:square_far_lectern",
 			"group": "kit: stage",
-			"close_up": "place-ssl/pics/stage.png"
+			"close_up": "place-ssl/pics/stage.png",
+			"box_from": [
+				"v1.362"
+			]
 		},
 		{
 			"id": "far_banner",
 			"view": "v1",
 			"box": [
-				680,
-				620,
-				1180,
-				900
+				848,
+				642,
+				1155,
+				853
 			],
 			"name": "red banner down its pole",
 			"kind": "code",
@@ -383,16 +565,19 @@
 			"count": 1,
 			"thing": "kit:square_far_banner",
 			"group": "kit: stage",
-			"close_up": "place-ssl/pics/stage.png"
+			"close_up": "place-ssl/pics/stage.png",
+			"box_from": [
+				"v1.34"
+			]
 		},
 		{
 			"id": "far_neon_column",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				300,
-				600
+				232,
+				370,
+				291,
+				485
 			],
 			"name": "neon sign hung out from the block",
 			"kind": "code",
@@ -405,14 +590,17 @@
 			"count": 1,
 			"thing": "kit:square_far_neon_column",
 			"group": "kit: sign",
-			"close_up": "place-ssl/pics/neon_sign.png"
+			"close_up": "place-ssl/pics/neon_sign.png",
+			"box_from": [
+				"v1.114"
+			]
 		},
 		{
 			"id": "bay_balcony_slab",
 			"view": "v1",
 			"box": [
-				2100,
-				900,
+				2104,
+				898,
 				2752,
 				1536
 			],
@@ -428,14 +616,42 @@
 			"thing": "kit:square_bay_balcony_slab",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/balcony_slab.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.210",
+				"v1.238",
+				"v1.285",
+				"v1.335",
+				"v1.367",
+				"v1.377",
+				"v1.448",
+				"v1.460",
+				"v1.542",
+				"v1.w12",
+				"v1.w37",
+				"v1.58",
+				"v1.113",
+				"v1.302",
+				"v1.310",
+				"v1.314",
+				"v1.317",
+				"v1.325",
+				"v1.346",
+				"v1.392",
+				"v1.398",
+				"v1.401",
+				"v1.402",
+				"v1.414",
+				"v1.468",
+				"v1.507"
+			]
 		},
 		{
 			"id": "bay_balcony_rail",
 			"view": "v1",
 			"box": [
-				2100,
-				900,
+				2104,
+				898,
 				2752,
 				1536
 			],
@@ -451,16 +667,44 @@
 			"thing": "kit:square_bay_balcony_rail",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/balcony_rail.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.210",
+				"v1.238",
+				"v1.285",
+				"v1.335",
+				"v1.367",
+				"v1.377",
+				"v1.448",
+				"v1.460",
+				"v1.542",
+				"v1.w12",
+				"v1.w37",
+				"v1.58",
+				"v1.113",
+				"v1.302",
+				"v1.310",
+				"v1.314",
+				"v1.317",
+				"v1.325",
+				"v1.346",
+				"v1.392",
+				"v1.398",
+				"v1.401",
+				"v1.402",
+				"v1.414",
+				"v1.468",
+				"v1.507"
+			]
 		},
 		{
 			"id": "render_upper",
-			"view": "v1",
+			"view": "v2",
 			"box": [
+				2511,
 				0,
-				0,
-				700,
-				900
+				2728,
+				382
 			],
 			"name": "a tenement's wall upper render",
 			"kind": "code",
@@ -474,17 +718,33 @@
 			"thing": "kit:square_wall_upper_render",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_upper.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.283",
+				"v2.284",
+				"v2.301",
+				"v2.331",
+				"v2.392",
+				"v2.395",
+				"v2.531",
+				"v2.534",
+				"v2.550",
+				"v2.551",
+				"v2.559",
+				"v2.611",
+				"v2.666",
+				"v2.667",
+				"v2.673",
+				"v2.676",
+				"v2.686",
+				"v2.775",
+				"v2.807"
+			]
 		},
 		{
 			"id": "far_render_upper",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's wall upper render (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -497,16 +757,17 @@
 			"thing": "kit:square_far_wall_upper_render",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_upper.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "render_shop",
-			"view": "v1",
+			"view": "v2",
 			"box": [
-				0,
-				0,
-				700,
-				900
+				2484,
+				679,
+				2752,
+				1334
 			],
 			"name": "a tenement's wall lower shop",
 			"kind": "code",
@@ -520,17 +781,15 @@
 			"thing": "kit:square_wall_lower_shop",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_shop.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.27"
+			]
 		},
 		{
 			"id": "far_render_shop",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's wall lower shop (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -543,17 +802,13 @@
 			"thing": "kit:square_far_wall_lower_shop",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_shop.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "facade_band",
-			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"view": "v2",
+			"box": null,
 			"name": "a tenement's facade band",
 			"kind": "code",
 			"anchor": "wall",
@@ -566,17 +821,13 @@
 			"thing": "kit:square_facade_band",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/facade_band.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no facade band can be made out on the block's edge in K06"
 		},
 		{
 			"id": "far_facade_band",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's facade band (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -589,17 +840,13 @@
 			"thing": "kit:square_far_facade_band",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/facade_band.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "drainpipe",
-			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"view": "v2",
+			"box": null,
 			"name": "a tenement's drainpipe",
 			"kind": "code",
 			"anchor": "wall",
@@ -612,17 +859,13 @@
 			"thing": "kit:square_drainpipe",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/drainpipe.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no drainpipe can be made out on the block's edge in K06"
 		},
 		{
 			"id": "far_drainpipe",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's drainpipe (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -635,16 +878,17 @@
 			"thing": "kit:square_far_drainpipe",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/drainpipe.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "window_dark",
-			"view": "v1",
+			"view": "v2",
 			"box": [
-				0,
-				0,
-				700,
-				900
+				2562,
+				244,
+				2589,
+				287
 			],
 			"name": "a tenement's window dark",
 			"kind": "code",
@@ -658,17 +902,15 @@
 			"thing": "kit:square_window_dark",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.551"
+			]
 		},
 		{
 			"id": "far_window_dark",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's window dark (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -681,16 +923,17 @@
 			"thing": "kit:square_far_window_dark",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "window_lit",
-			"view": "v1",
+			"view": "v2",
 			"box": [
-				0,
-				0,
-				700,
-				900
+				2668,
+				74,
+				2719,
+				116
 			],
 			"name": "a tenement's window lit",
 			"kind": "code",
@@ -704,17 +947,15 @@
 			"thing": "kit:square_window_lit",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.283"
+			]
 		},
 		{
 			"id": "far_window_lit",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's window lit (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -727,17 +968,13 @@
 			"thing": "kit:square_far_window_lit",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "ac_unit",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's ac unit",
 			"kind": "code",
 			"anchor": "wall",
@@ -750,17 +987,13 @@
 			"thing": "kit:square_ac_unit",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/ac_unit.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no air conditioner can be made out on the block's edge in K06"
 		},
 		{
 			"id": "far_ac_unit",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's ac unit (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -773,17 +1006,13 @@
 			"thing": "kit:square_far_ac_unit",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/ac_unit.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "window_cage",
-			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"view": "v2",
+			"box": null,
 			"name": "a tenement's window cage",
 			"kind": "code",
 			"anchor": "wall",
@@ -796,17 +1025,13 @@
 			"thing": "kit:square_window_cage",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window_cage.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no caged window can be told apart on the block's edge in K06"
 		},
 		{
 			"id": "far_window_cage",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's window cage (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -819,17 +1044,13 @@
 			"thing": "kit:square_far_window_cage",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window_cage.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "shop_shutter",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's shop shutter",
 			"kind": "code",
 			"anchor": "wall",
@@ -842,17 +1063,13 @@
 			"thing": "kit:square_shop_shutter",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/shop_shutter.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the block's ground floor is hidden behind the crowd and the floodlight mast"
 		},
 		{
 			"id": "far_shop_shutter",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's shop shutter (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -865,17 +1082,13 @@
 			"thing": "kit:square_far_shop_shutter",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/shop_shutter.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "shop_sign",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's shop sign",
 			"kind": "code",
 			"anchor": "wall",
@@ -888,17 +1101,13 @@
 			"thing": "kit:square_shop_sign",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/shop_sign.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no shop sign can be made out on the block's edge in K06"
 		},
 		{
 			"id": "far_shop_sign",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a tenement's shop sign (far block)",
 			"kind": "code",
 			"anchor": "wall",
@@ -911,17 +1120,13 @@
 			"thing": "kit:square_far_shop_sign",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/shop_sign.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		},
 		{
 			"id": "far_render_lower",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				700,
-				900
-			],
+			"box": null,
 			"name": "a far tenement's ground floor wall",
 			"kind": "code",
 			"anchor": "wall",
@@ -934,7 +1139,8 @@
 			"thing": "kit:square_far_wall_lower_render",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_lower.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
 		}
 	]
 }

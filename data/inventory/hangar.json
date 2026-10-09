@@ -85,13 +85,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				169,
+				1017,
+				356,
+				1204
 			],
 			"thing": "prop:hangar_wall_lower_plain",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.75"
+			]
 		},
 		{
 			"id": "wall_upper_plain",
@@ -109,13 +112,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				2419,
+				474,
+				2504,
+				864
 			],
 			"thing": "prop:hangar_wall_upper_plain",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.99"
+			]
 		},
 		{
 			"id": "wall_skirting",
@@ -132,14 +138,10 @@
 			"made": "kit piece",
 			"at": [],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"thing": "prop:hangar_wall_skirting",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the skirting is too thin to make out in the concept"
 		},
 		{
 			"id": "wall_cornice",
@@ -156,14 +158,10 @@
 			"made": "kit piece",
 			"at": [],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"thing": "prop:hangar_wall_cornice",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the cornice lies under the roof leaves, in their shadow, and cannot be made out"
 		},
 		{
 			"id": "wall_corner_post",
@@ -181,13 +179,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				2381,
+				672,
+				2470,
+				1124
 			],
 			"thing": "prop:hangar_wall_corner_post",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.93"
+			]
 		},
 		{
 			"id": "ring_floor_plate",
@@ -205,13 +206,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1017,
+				1053,
+				1469,
+				1182
 			],
 			"thing": "prop:hangar_ring_floor_plate",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.50"
+			]
 		},
 		{
 			"id": "roof_face_panel",
@@ -229,13 +233,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1549,
+				116,
+				2722,
+				572
 			],
 			"thing": "prop:hangar_roof_face_panel",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w9"
+			]
 		},
 		{
 			"id": "lattice_ring_rib",
@@ -253,13 +260,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				557,
+				178,
+				784,
+				346
 			],
 			"thing": "prop:hangar_lattice_ring_rib",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.28"
+			]
 		},
 		{
 			"id": "hatch_frame",
@@ -284,12 +294,31 @@
 			],
 			"view": "v1",
 			"box": [
-				550,
-				1100,
-				810,
+				548,
+				1116,
+				820,
 				1536
 			],
-			"thing": "prop:hangar_hatch_frame"
+			"thing": "prop:hangar_hatch_frame",
+			"box_from": [
+				"v1.w15",
+				"v1.20",
+				"v1.110",
+				"v1.161",
+				"v1.277",
+				"v1.296",
+				"v1.299",
+				"v1.324",
+				"v1.393",
+				"v1.402",
+				"v1.425",
+				"v1.426",
+				"v1.431",
+				"v1.450",
+				"v1.454",
+				"v1.465",
+				"v1.469"
+			]
 		},
 		{
 			"id": "hatch_leaf",
@@ -314,12 +343,15 @@
 			],
 			"view": "v1",
 			"box": [
-				595,
-				1205,
+				584,
+				1168,
 				765,
-				1480
+				1440
 			],
-			"thing": "prop:hangar_hatch_leaf"
+			"thing": "prop:hangar_hatch_leaf",
+			"box_from": [
+				"v1.w15"
+			]
 		},
 		{
 			"id": "hatch_wheel",
@@ -349,7 +381,10 @@
 				879,
 				672
 			],
-			"thing": "prop:hangar_hatch_wheel"
+			"thing": "prop:hangar_hatch_wheel",
+			"box_from": [
+				"v1.w17"
+			]
 		},
 		{
 			"id": "hatch_hinge",
@@ -400,12 +435,15 @@
 			],
 			"view": "v1",
 			"box": [
-				835,
-				630,
+				840,
+				626,
 				875,
-				670
+				672
 			],
-			"thing": "prop:hangar_hatch_window"
+			"thing": "prop:hangar_hatch_window",
+			"box_from": [
+				"v1.356"
+			]
 		},
 		{
 			"id": "pipe_bracket",
@@ -422,14 +460,10 @@
 			"made": "kit piece",
 			"at": [],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"thing": "prop:hangar_pipe_bracket",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the pipe brackets are too small to make out in the concept"
 		},
 		{
 			"id": "wall_cage_lamp",
@@ -522,12 +556,15 @@
 			},
 			"view": "v1",
 			"box": [
-				1310,
-				445,
-				1355,
-				470
+				1304,
+				387,
+				1372,
+				482
 			],
-			"thing": "prop:hangar_wall_cage_lamp"
+			"thing": "prop:hangar_wall_cage_lamp",
+			"box_from": [
+				"v1.199"
+			]
 		},
 		{
 			"id": "door_control_box",
@@ -561,12 +598,16 @@
 			],
 			"view": "v1",
 			"box": [
-				506,
-				757,
-				625,
-				890
+				508,
+				754,
+				626,
+				864
 			],
-			"thing": "prop:hangar_door_control_box"
+			"thing": "prop:hangar_door_control_box",
+			"box_from": [
+				"v1.102",
+				"v1.234"
+			]
 		},
 		{
 			"id": "tread_mat",
@@ -600,14 +641,10 @@
 			],
 			"lies": "floor",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"thing": "prop:hangar_tread_mat",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no mat shows before any hatch in the concept"
 		},
 		{
 			"id": "pipe_straight",
@@ -686,13 +723,16 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				439,
+				541,
+				628,
+				912
 			],
 			"thing": "prop:hangar_pipe_straight",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w24"
+			]
 		},
 		{
 			"id": "pipe_valve",
@@ -736,13 +776,16 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
+				854,
+				1444,
+				1118,
 				1536
 			],
 			"thing": "prop:hangar_pipe_valve",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w23"
+			]
 		},
 		{
 			"id": "cable_bundle",
@@ -770,14 +813,10 @@
 				}
 			],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"thing": "prop:hangar_cable_bundle",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no cable bundle can be made out in the concept"
 		},
 		{
 			"id": "machine_bay_plate",
@@ -802,13 +841,16 @@
 			"lies": "floor",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1541,
+				765,
+				1977,
+				1160
 			],
 			"thing": "prop:hangar_machine_bay_plate",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w31"
+			]
 		},
 		{
 			"id": "ship_bench",
@@ -836,12 +878,15 @@
 			"thing": "node:ShipBench",
 			"view": "v1",
 			"box": [
-				1926,
-				949,
-				2036,
-				1073
+				1949,
+				943,
+				2045,
+				1099
 			],
-			"keep": "game object (ShipBench), kept whatever its score"
+			"keep": "game object (ShipBench), kept whatever its score",
+			"box_from": [
+				"v1.w44"
+			]
 		},
 		{
 			"id": "fuel_pump",
@@ -869,12 +914,15 @@
 			"thing": "node:FuelPoint",
 			"view": "v1",
 			"box": [
-				509,
-				770,
-				605,
-				880
+				506,
+				757,
+				627,
+				891
 			],
-			"keep": "game object (FuelPoint), kept whatever its score"
+			"keep": "game object (FuelPoint), kept whatever its score",
+			"box_from": [
+				"v1.w57"
+			]
 		},
 		{
 			"id": "hose_reel",
@@ -900,12 +948,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				740,
-				715,
-				800,
-				775
+				721,
+				721,
+				784,
+				822
 			],
-			"thing": "prop:hangar_hose_reel"
+			"thing": "prop:hangar_hose_reel",
+			"box_from": [
+				"v1.162"
+			]
 		},
 		{
 			"id": "parts_rack",
@@ -996,12 +1047,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1183,
-				454,
-				1279,
-				509
+				1194,
+				453,
+				1280,
+				512
 			],
-			"thing": "prop:hangar_parts_crate"
+			"thing": "prop:hangar_parts_crate",
+			"box_from": [
+				"v1.w25"
+			]
 		},
 		{
 			"id": "access_stair",
@@ -1028,12 +1082,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1912,
-				729,
-				2091,
-				922
+				1920,
+				726,
+				2083,
+				920
 			],
-			"thing": "prop:hangar_access_stair"
+			"thing": "prop:hangar_access_stair",
+			"box_from": [
+				"v1.w42"
+			]
 		},
 		{
 			"id": "control_desk",
@@ -1060,12 +1117,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1066,
-				1135,
+				1062,
+				1137,
 				1568,
-				1376
+				1414
 			],
-			"thing": "prop:hangar_control_desk"
+			"thing": "prop:hangar_control_desk",
+			"box_from": [
+				"v1.w48"
+			]
 		},
 		{
 			"id": "monitor",
@@ -1084,12 +1144,15 @@
 			"parent": "control_desk",
 			"view": "v1",
 			"box": [
-				1305,
-				1145,
-				1395,
-				1205
+				1300,
+				1141,
+				1398,
+				1227
 			],
-			"thing": "prop:hangar_monitor"
+			"thing": "prop:hangar_monitor",
+			"box_from": [
+				"v1.w52"
+			]
 		},
 		{
 			"id": "keyboard",
@@ -1108,12 +1171,15 @@
 			"parent": "control_desk",
 			"view": "v1",
 			"box": [
-				1075,
-				1240,
-				1170,
-				1280
+				1105,
+				1238,
+				1179,
+				1272
 			],
-			"thing": "prop:hangar_keyboard"
+			"thing": "prop:hangar_keyboard",
+			"box_from": [
+				"v1.308"
+			]
 		},
 		{
 			"id": "monitor_desk",
@@ -1140,12 +1206,17 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1307,
-				454,
-				1417,
-				537
+				1311,
+				456,
+				1386,
+				510
 			],
-			"thing": "prop:hangar_monitor_desk"
+			"thing": "prop:hangar_monitor_desk",
+			"box_from": [
+				"v1.440",
+				"v1.441",
+				"v1.457"
+			]
 		},
 		{
 			"id": "parts_shelving",
@@ -1178,12 +1249,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1087,
-				509,
-				1293,
-				646
+				1077,
+				517,
+				1223,
+				673
 			],
-			"thing": "prop:hangar_parts_shelving"
+			"thing": "prop:hangar_parts_shelving",
+			"box_from": [
+				"v1.w56"
+			]
 		},
 		{
 			"id": "pressure_gauge",
@@ -1221,13 +1295,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/pressure_gauge.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				802,
+				498,
+				829,
+				526
 			],
 			"thing": "prop:hangar_pressure_gauge",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.472"
+			]
 		},
 		{
 			"id": "bay_panel",
@@ -1265,13 +1342,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/bay_panel.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				949,
+				561,
+				987,
+				609
 			],
 			"thing": "prop:hangar_bay_panel",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.322"
+			]
 		},
 		{
 			"id": "bracket_beacon",
@@ -1333,13 +1413,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/beacon.png",
 			"view": "v1",
 			"box": [
-				688,
-				512,
-				730,
-				540
+				682,
+				516,
+				727,
+				542
 			],
 			"thing": "prop:hangar_bracket_beacon",
-			"own_model": "a different object of the same name: the hangar's amber rotating beacon, not the garage's red warning lamp in a steel housing"
+			"own_model": "a different object of the same name: the hangar's amber rotating beacon, not the garage's red warning lamp in a steel housing",
+			"box_from": [
+				"v1.429"
+			]
 		},
 		{
 			"id": "floodlight",
@@ -1411,12 +1494,15 @@
 			},
 			"view": "v1",
 			"box": [
-				905,
-				445,
-				960,
-				480
+				908,
+				450,
+				947,
+				473
 			],
-			"thing": "prop:hangar_floodlight"
+			"thing": "prop:hangar_floodlight",
+			"box_from": [
+				"v1.463"
+			]
 		},
 		{
 			"id": "crane_trolley",
@@ -1442,13 +1528,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/crane_trolley.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1198,
+				274,
+				1472,
+				365
 			],
 			"thing": "prop:hangar_crane_trolley",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.82"
+			]
 		}
 	]
 }

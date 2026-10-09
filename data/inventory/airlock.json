@@ -48,10 +48,10 @@
 			"id": "wall_lower_plain",
 			"view": "v1",
 			"box": [
-				413,
-				303,
-				716,
-				771
+				1844,
+				541,
+				1910,
+				864
 			],
 			"name": "plain lower wall panel, bolted, dark",
 			"kind": "code",
@@ -66,16 +66,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.113"
+			]
 		},
 		{
 			"id": "wall_upper_plain",
 			"view": "v1",
 			"box": [
-				413,
-				303,
-				716,
-				771
+				1856,
+				295,
+				1952,
+				411
 			],
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
@@ -90,16 +93,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.196"
+			]
 		},
 		{
 			"id": "wall_skirting",
 			"view": "v1",
 			"box": [
-				413,
-				303,
-				716,
-				771
+				1084,
+				672,
+				1162,
+				764
 			],
 			"name": "rubber skirting at the wall's foot",
 			"kind": "code",
@@ -114,16 +120,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.120"
+			]
 		},
 		{
 			"id": "wall_cornice",
 			"view": "v1",
 			"box": [
-				413,
-				303,
-				716,
-				771
+				744,
+				195,
+				1110,
+				284
 			],
 			"name": "cornice along the wall's top",
 			"kind": "code",
@@ -138,16 +147,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.52"
+			]
 		},
 		{
 			"id": "ring_floor_plate",
 			"view": "v1",
 			"box": [
-				853,
-				894,
-				1514,
-				1101
+				1116,
+				791,
+				1472,
+				975
 			],
 			"name": "deck plate, bolted",
 			"kind": "code",
@@ -162,16 +174,19 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.25"
+			]
 		},
 		{
 			"id": "roof_face_panel",
 			"view": "v1",
 			"box": [
-				771,
-				206,
-				1926,
-				316
+				592,
+				0,
+				1472,
+				230
 			],
 			"name": "dome plate, ribbed",
 			"kind": "code",
@@ -186,16 +201,19 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.8"
+			]
 		},
 		{
 			"id": "door_frame",
 			"view": "v1",
 			"box": [
-				702,
-				330,
-				1087,
-				826
+				701,
+				334,
+				1083,
+				834
 			],
 			"name": "heavy airlock door frame with yellow and black hazard stripes",
 			"kind": "generate",
@@ -209,16 +227,46 @@
 			"thing": "prop:airlock_door_frame",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.12",
+				"v1.22",
+				"v1.61",
+				"v1.75",
+				"v1.83",
+				"v1.98",
+				"v1.100",
+				"v1.108",
+				"v1.110",
+				"v1.115",
+				"v1.131",
+				"v1.132",
+				"v1.133",
+				"v1.228",
+				"v1.251",
+				"v1.260",
+				"v1.266",
+				"v1.267",
+				"v1.268",
+				"v1.328",
+				"v1.369",
+				"v1.371",
+				"v1.372",
+				"v1.374",
+				"v1.376",
+				"v1.378",
+				"v1.w6",
+				"v1.w29"
+			]
 		},
 		{
 			"id": "door_leaf",
 			"view": "v1",
 			"box": [
-				743,
-				372,
-				1046,
-				812
+				734,
+				357,
+				1017,
+				793
 			],
 			"name": "heavy grey airlock door leaf with a round port and bolted cross bracing",
 			"kind": "generate",
@@ -234,16 +282,39 @@
 			"group": "kit: door",
 			"at": [],
 			"made_as": "prop",
-			"prop": "airlock_door_leaf"
+			"prop": "airlock_door_leaf",
+			"box_from": [
+				"v1.61",
+				"v1.75",
+				"v1.83",
+				"v1.98",
+				"v1.100",
+				"v1.108",
+				"v1.110",
+				"v1.115",
+				"v1.131",
+				"v1.251",
+				"v1.260",
+				"v1.266",
+				"v1.267",
+				"v1.268",
+				"v1.328",
+				"v1.369",
+				"v1.371",
+				"v1.372",
+				"v1.378",
+				"v1.w6",
+				"v1.w29"
+			]
 		},
 		{
 			"id": "suit_alcove",
 			"view": "v1",
 			"box": [
-				1555,
-				330,
-				2105,
-				908
+				1579,
+				361,
+				1827,
+				880
 			],
 			"name": "suit locker alcove: a lit recess with a back pad, side rails, a hose reel and hooks, empty (the suit hangs in it)",
 			"kind": "generate",
@@ -263,16 +334,44 @@
 					"across": 0.0,
 					"bottom": 0.0
 				}
+			],
+			"box_from": [
+				"v1.28",
+				"v1.35",
+				"v1.114",
+				"v1.123",
+				"v1.141",
+				"v1.167",
+				"v1.189",
+				"v1.207",
+				"v1.239",
+				"v1.252",
+				"v1.254",
+				"v1.258",
+				"v1.264",
+				"v1.270",
+				"v1.292",
+				"v1.314",
+				"v1.315",
+				"v1.325",
+				"v1.331",
+				"v1.336",
+				"v1.347",
+				"v1.359",
+				"v1.379",
+				"v1.386",
+				"v1.w1",
+				"v1.w4"
 			]
 		},
 		{
 			"id": "suit_bench",
 			"view": "v1",
 			"box": [
-				688,
-				922,
-				1018,
-				1101
+				1385,
+				683,
+				1588,
+				827
 			],
 			"name": "suit-up bench: a steel box seat with a padded top",
 			"kind": "generate",
@@ -293,16 +392,19 @@
 					"bottom": 0.0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w7"
+			]
 		},
 		{
 			"id": "status_panel",
 			"view": "v1",
 			"box": [
-				1142,
-				268,
-				1376,
-				605
+				1155,
+				290,
+				1366,
+				544
 			],
 			"name": "airlock cycle status panel: screens, gauges, switches and a keypad",
 			"kind": "generate",
@@ -327,16 +429,19 @@
 					"across": -1.45,
 					"bottom": 1.25
 				}
+			],
+			"box_from": [
+				"v1.w8"
 			]
 		},
 		{
 			"id": "fan_unit",
 			"view": "v1",
 			"box": [
-				1899,
-				764,
-				2078,
-				963
+				1892,
+				769,
+				2083,
+				982
 			],
 			"name": "box fan unit with a round guard and louvres",
 			"kind": "generate",
@@ -357,16 +462,19 @@
 					"bottom": 0.0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w12"
+			]
 		},
 		{
 			"id": "dust_vacuum",
 			"view": "v1",
 			"box": [
-				1004,
-				1018,
-				1238,
-				1211
+				1003,
+				1024,
+				1242,
+				1246
 			],
 			"name": "dust vacuum unit with a hose and a brush",
 			"kind": "generate",
@@ -387,16 +495,19 @@
 					"bottom": 0.0
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w13"
+			]
 		},
 		{
 			"id": "pipe_straight",
 			"view": "v1",
 			"box": [
-				454,
-				413,
-				688,
-				936
+				468,
+				436,
+				640,
+				695
 			],
 			"name": "pipe run with flanges",
 			"kind": "code",
@@ -432,16 +543,19 @@
 					]
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w18"
+			]
 		},
 		{
 			"id": "pipe_valve",
 			"view": "v1",
 			"box": [
-				523,
-				592,
-				660,
-				716
+				612,
+				608,
+				659,
+				656
 			],
 			"name": "valve on a pipe with a red hand wheel",
 			"kind": "generate",
@@ -477,16 +591,19 @@
 					"bottom": 1.96
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w21"
+			]
 		},
 		{
 			"id": "door_strip_lamp",
 			"view": "v1",
 			"box": [
-				812,
-				310,
-				963,
-				344
+				831,
+				309,
+				967,
+				353
 			],
 			"name": "strip light over a door",
 			"kind": "generate",
@@ -530,16 +647,19 @@
 				"strength": 0.15,
 				"reach": 4.0,
 				"high": 0.5
-			}
+			},
+			"box_from": [
+				"v1.w26"
+			]
 		},
 		{
 			"id": "floor_grating",
 			"view": "v1",
 			"box": [
-				750,
-				764,
-				1225,
-				922
+				757,
+				789,
+				1118,
+				920
 			],
 			"name": "grated dust mat before the outer door",
 			"kind": "generate",
@@ -566,7 +686,17 @@
 				}
 			],
 			"lies": "floor",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.85",
+				"v1.93",
+				"v1.95",
+				"v1.124",
+				"v1.348",
+				"v1.350",
+				"v1.w41",
+				"v1.w42"
+			]
 		},
 		{
 			"id": "pipe_bracket",
@@ -584,13 +714,16 @@
 			"why": "laid by room_kit.py from the room's pipe runs and set-in floor fittings (modules round, step 1)",
 			"view": "v1",
 			"box": [
-				454,
-				413,
-				688,
-				936
+				468,
+				436,
+				640,
+				695
 			],
 			"count": 8,
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w18"
+			]
 		},
 		{
 			"id": "under_floor_box",
@@ -607,13 +740,9 @@
 			"made": "kit piece",
 			"why": "laid by room_kit.py from the room's pipe runs and set-in floor fittings (modules round, step 1)",
 			"view": "v1",
-			"box": [
-				750,
-				764,
-				1225,
-				922
-			],
-			"count": 1
+			"box": null,
+			"count": 1,
+			"unseen": "it lies under the floor grating, out of sight"
 		},
 		{
 			"id": "hose_reel",
@@ -633,20 +762,24 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1555,
-				330,
-				2105,
-				908
+				1888,
+				408,
+				2020,
+				533
+			],
+			"box_from": [
+				"v1.119",
+				"v1.238"
 			]
 		},
 		{
 			"id": "beacon",
 			"view": "v1",
 			"box": [
-				1260,
-				20,
-				1420,
-				160
+				1280,
+				37,
+				1398,
+				158
 			],
 			"name": "the amber warning beacon on the airlock's roof: a bolted flange, a grey body and an amber dome",
 			"kind": "code",
@@ -669,16 +802,24 @@
 					"layer": 2
 				}
 			],
-			"why_code": "modules round: the beacon over the airlock (concept K02), a kit piece of its own, made-only"
+			"why_code": "modules round: the beacon over the airlock (concept K02), a kit piece of its own, made-only",
+			"box_from": [
+				"v1.63",
+				"v1.109",
+				"v1.139",
+				"v1.297",
+				"v1.396",
+				"v1.w35"
+			]
 		},
 		{
 			"id": "roof_light_fixture",
 			"view": "v1",
 			"box": [
-				1100,
-				230,
-				1320,
-				290
+				1464,
+				245,
+				1538,
+				277
 			],
 			"name": "a caged industrial ceiling flood lamp fixture hung from the lattice",
 			"kind": "generate",
@@ -712,16 +853,20 @@
 					"facing": 0
 				}
 			],
-			"why_code": "modules round: the airlock's two lights hung bare under its dome; the hub's caged lamp"
+			"why_code": "modules round: the airlock's two lights hung bare under its dome; the hub's caged lamp",
+			"box_from": [
+				"v1.322",
+				"v1.w27"
+			]
 		},
 		{
 			"id": "lock_console",
 			"view": "v1",
 			"box": [
-				1150,
-				270,
-				1370,
-				550
+				1155,
+				346,
+				1366,
+				544
 			],
 			"name": "the airlock's cycle console over the suit-up bench: two monitors on its top, a status screen, a readout, five gauges, a keypad, buttons and a red stop button",
 			"kind": "code",
@@ -742,16 +887,19 @@
 					"bottom": 0.85
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"box_from": [
+				"v1.w37"
+			]
 		},
 		{
 			"id": "lock_gauge_panel",
 			"view": "v1",
 			"box": [
-				1440,
-				285,
-				1565,
-				390
+				1449,
+				290,
+				1602,
+				421
 			],
 			"name": "a gauge panel: two analog meters, toggle switches, red buttons and a label",
 			"kind": "code",
@@ -772,16 +920,23 @@
 					"bottom": 1.15
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"box_from": [
+				"v1.48",
+				"v1.237",
+				"v1.274",
+				"v1.342",
+				"v1.w11"
+			]
 		},
 		{
 			"id": "vent_grille",
 			"view": "v1",
 			"box": [
-				540,
-				330,
-				645,
-				400
+				592,
+				333,
+				643,
+				392
 			],
 			"name": "a louvred vent grille in a rounded frame bolted at its corners",
 			"kind": "code",
@@ -807,16 +962,19 @@
 					"bottom": 0.15
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"box_from": [
+				"v1.250"
+			]
 		},
 		{
 			"id": "hose_coil",
 			"view": "v1",
 			"box": [
-				2030,
-				450,
-				2125,
-				565
+				2034,
+				472,
+				2123,
+				585
 			],
 			"name": "a coiled air hose hung on a bolted wall hook",
 			"kind": "code",
@@ -838,17 +996,15 @@
 				}
 			],
 			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.111"
+			]
 		},
 		{
 			"id": "tool_case",
 			"view": "v1",
-			"box": [
-				1500,
-				700,
-				1560,
-				735
-			],
+			"box": null,
 			"name": "tool case",
 			"kind": "code",
 			"anchor": "on:suit_bench",
@@ -863,16 +1019,17 @@
 			"group": "kit: furniture",
 			"at": [],
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
-			"parent": "suit_bench"
+			"parent": "suit_bench",
+			"unseen": "no tool case shows in the concept; the box beside the bench is the bench's own end"
 		},
 		{
 			"id": "small_readout",
 			"view": "v1",
 			"box": [
-				1170,
-				620,
-				1230,
-				700
+				1097,
+				419,
+				1140,
+				518
 			],
 			"name": "a small square wall readout screen with buttons beside it",
 			"kind": "code",
@@ -893,16 +1050,19 @@
 					"bottom": 1.3
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"box_from": [
+				"v1.153"
+			]
 		},
 		{
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				1180,
-				700,
-				1220,
-				750
+				666,
+				537,
+				708,
+				601
 			],
 			"name": "a steel box with a keypad and a status light: a junction box by the inner door and a power socket box by the fan",
 			"kind": "code",
@@ -928,16 +1088,19 @@
 					"bottom": 0.25
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"box_from": [
+				"v1.222"
+			]
 		},
 		{
 			"id": "conduit_box",
 			"view": "v1",
 			"box": [
-				2110,
-				540,
-				2150,
-				590
+				2098,
+				828,
+				2151,
+				864
 			],
 			"name": "a small steel conduit junction box with cable glands",
 			"kind": "code",
@@ -959,16 +1122,19 @@
 				}
 			],
 			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.285"
+			]
 		},
 		{
 			"id": "notice_board",
 			"view": "v1",
 			"box": [
-				1230,
-				670,
-				1290,
-				720
+				1508,
+				479,
+				1562,
+				570
 			],
 			"name": "a caution notice taped on a steel plate",
 			"kind": "code",
@@ -994,16 +1160,19 @@
 					]
 				}
 			],
-			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up"
+			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
+			"box_from": [
+				"v1.204"
+			]
 		},
 		{
 			"id": "cable_drop",
 			"view": "v1",
 			"box": [
-				1220,
-				540,
-				1310,
-				790
+				1233,
+				546,
+				1294,
+				753
 			],
 			"name": "a run of black cables from the console down the wall to the floor",
 			"kind": "code",
@@ -1030,16 +1199,19 @@
 				}
 			],
 			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.125"
+			]
 		},
 		{
 			"id": "cable_bundle",
 			"view": "v1",
 			"box": [
-				700,
-				200,
-				1600,
-				260
+				404,
+				302,
+				526,
+				442
 			],
 			"name": "a bundle of black and grey cables held by clips along the wall tops",
 			"kind": "code",
@@ -1076,7 +1248,10 @@
 				}
 			],
 			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.84"
+			]
 		}
 	],
 	"concept_elements": [
