@@ -66,7 +66,18 @@ def inventory(place):
         return None
     views = {view["id"]: work_path(view["picture"]) for view in found["plan"]["views"]}
     return {"approved": found.get("approved", ""), "views": views, "rows": found["rows"],
-            "dimensioned": [dimensioned_plan(work_path(written)) for written in found["plan"].get("dimensioned", [])]}
+            "dimensioned": [dimensioned_plan(work_path(written)) for written in found["plan"].get("dimensioned", [])],
+            "gate": box_gate(found)}
+
+
+def box_gate(found):
+    """The box gate's verdict on the inventory (props/scene/box_check.py gate()): per row pass, fail or unknown and
+    why; None when the inventory names no scene."""
+    if not found.get("scene"):
+        return None
+    sys.path.insert(0, str(REPO / "tools/props/scene"))
+    import box_check
+    return box_check.gate(found["scene"], found)
 
 
 def dimensioned_plan(path):

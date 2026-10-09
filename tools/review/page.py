@@ -208,6 +208,24 @@ def unseen_note(row):
     return f"<br><small>boxed on one example; repeats {escaped(row['repeats'])}</small>" if row.get("repeats") else ""
 
 
+def box_verdict(verdict):
+    """One row's box gate verdict as a pill with why."""
+    if not verdict:
+        return ""
+    pill = {"pass": "ok", "fail": "bad"}.get(verdict["result"], "")
+    return f'<span class="pill {pill}">{escaped(verdict["result"])}</span><br><small>{escaped(verdict["why"])}</small>'
+
+
+def gate_summary(gate):
+    """The box gate's count for the place: every box measured from SAM's proposals and checked on that box."""
+    if not gate:
+        return ""
+    counts = {name: sum(entry["result"] == name for entry in gate["rows"].values()) for name in ("pass", "fail", "unknown")}
+    return (f"<p>Box gate: <b>{escaped(gate['result'])}</b>, {counts['pass']} boxes pass, {counts['fail']} fail, "
+            f"{counts['unknown']} unknown (a box comes from SAM 2.1's proposals on the concept's tiles and passes when SAM 3 "
+            "grounds it or the open judge says it shows its row; unknown blocks the close-ups like a fail).</p>")
+
+
 def inventory_section(inventory, pictures):
     if inventory is None:
         return section("inventory", "Inventory", missing("no inventory in data/inventory"))
@@ -226,13 +244,15 @@ def inventory_section(inventory, pictures):
                       f' alt="the concept with the inventory boxes"><svg viewBox="0 0 {wide} {tall}" '
                       f'preserveAspectRatio="none">{boxes}</svg></div><figcaption>view {escaped(view)}: '
                       f"{len(rows)} rows boxed on the concept</figcaption></figure>")
+    gate = (inventory.get("gate") or {}).get("rows", {})
     table = "".join(
-        f"<tr><td>{escaped(row['id'])}</td><td>{escaped(row.get('kind', ''))}</td>"
+        f"<tr><td>{escaped(row['id'])}</td><td>{box_verdict(gate.get(row['id']))}</td><td>{escaped(row.get('kind', ''))}</td>"
         f"<td class=\"num\">{' × '.join(f'{value:g}' for value in row.get('size', []))}</td>"
         f"<td class=\"num\">{row.get('count', len(row.get('at', [])))}</td><td>{escaped(row.get('thing', ''))}</td>"
         f"<td>{escaped(row['name'])}{unseen_note(row)}</td></tr>" for row in inventory["rows"])
     body = ("".join(blocks) + f"<p><small>Approved: {escaped(inventory['approved'])}</small></p>"
-            "<div class=\"scroll\"><table><thead><tr><th>row</th><th>kind</th><th>size, m</th><th>count</th>"
+            + gate_summary(inventory.get("gate"))
+            + "<div class=\"scroll\"><table><thead><tr><th>row</th><th>box</th><th>kind</th><th>size, m</th><th>count</th>"
             f"<th>thing</th><th>what</th></tr></thead><tbody>{table}</tbody></table></div>")
     return section("inventory", "Inventory and its partition of the concept", body)
 

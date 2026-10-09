@@ -36,6 +36,11 @@ serve: skill `make-scene`, bible "How a scene is designed".
   tube's kit layout, `kit_layout`); `match.py` holds migrated scenes to their inventory and prints the rest
   as a to-do list (`python3 tools/props/scene/match.py`). `box_check.py` holds every inventory's boxes to its
   concept: inside the picture, not the whole picture for a single thing, spread over it rather than in one corner,
+  **No box is typed** (2026-10-09: the camp's typed boxes made close-ups of the wrong things): `partition.py` cuts
+  the concept into tiles, SAM 2.1 proposes a mask per element (`../cloud/segment.py`), and the agent only maps each
+  proposal to a row, drops it with a reason or names a new element; a row's box is its proposals' box (`box_from`).
+  `box_check.gate()` runs before any close-up (`../closeup/stage.py`) and in the completion gate (`../../usd/complete.py`
+  "boxes"); unknown blocks like a fail. Also
   with `--masks`, each box measured against SAM 3's masks of its row's words (`box_masks.py` on a card through
   `../cloud/box_masks_cloud.py`; `--tighten` sets a loose box to the thing inside it), and, with `--judge`, the boxes
   SAM 3 cannot measure shown to the open judge beside its row's words (majority of three); a row the
