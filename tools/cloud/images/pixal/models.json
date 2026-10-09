@@ -1,0 +1,18 @@
+[
+ {"name": "pixal3d", "source": "hf:raven38/pixal3d-sv-q8_0-v1", "revision": "46d399ac986f45a0d7f5b1ca5058614d8729a131",
+  "sha256": "",
+  "licence": "MIT (flow models, decoders, NAF) and DINOv3 License (dinov3.gguf)",
+  "licence_url": "https://huggingface.co/raven38/pixal3d-sv-q8_0-v1/blob/46d399ac986f45a0d7f5b1ca5058614d8729a131/LICENSE.md",
+  "commercial_use": true,
+  "note": "Pixal3D's single-view Q8_0 set, the files bootstrap_pixal3d.py fetches. The DINOv3 License grants a worldwide, royalty-free licence with no commercial bar; it asks that DINO be acknowledged in publications, that redistribution carries the licence, and bars military, weapons and similar end uses."},
+ {"name": "trellis2-birefnet", "source": "hf:ilintar/trellis2-gguf", "revision": "a57397bd3d351599d9729fc144b3f87c3f87d65b",
+  "files": ["q8/birefnet.gguf"], "sha256": "",
+  "licence": "MIT", "licence_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE",
+  "commercial_use": true,
+  "note": "BiRefNet's matting model in GGUF for trellis-cli, the one file bootstrap_pixal3d.py takes from this repo (it flattens q8/birefnet.gguf into the models folder). The repo's card says 'see the source model'; trellis.cpp's README names ZhengPeng7/BiRefNet (MIT, not BRIA's RMBG-2.0) as the background remover it converts. The generator cuts pictures out with BiRefNet-lite first, so trellis-cli keeps their alpha."},
+ {"name": "birefnet-general-lite", "source": "url:https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx",
+  "revision": "v0.0.0", "sha256": "",
+  "licence": "MIT", "licence_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE",
+  "commercial_use": true,
+  "note": "BiRefNet-lite through rembg (224 MB, rembg's published md5 4fab47adc4ff364be1713e97b7e66334), the cut-out every picture takes before Pixal3D (image_to_3dlab/matte.py); rembg looks for it as birefnet-general-lite.onnx in U2NET_HOME."}
+]
