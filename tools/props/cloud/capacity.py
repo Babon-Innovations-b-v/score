@@ -52,8 +52,9 @@ KINDS = {
     "parts": SINGLE_CARD,
     # SAM 2.1's automatic mask generator on clean close-ups (segment.py): 0.9 GB of weights, any card.
     "segment": SINGLE_CARD,
-    # DINOv2 features for the render-and-compare (similar.py): 0.35 GB of weights, any card.
-    "similar": SINGLE_CARD,
+    # DINOv2 features for the render-and-compare (similar.py): 0.35 GB of weights, any card, or a processor machine
+    # when no card is in stock (a few hundred pictures take minutes there).
+    "similar": SINGLE_CARD + ("cpu-16c-64gb", "cpu-32c-64gb", "cpu-32c-128gb"),
     # UniRig's skeleton and skin models on a finished model (unirig.py): a 350M transformer, any card.
     "unirig": SINGLE_CARD,
     "scene": SINGLE_CARD,
