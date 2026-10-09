@@ -73,11 +73,11 @@ def _has_finished_but_not_been_collected(pid):
     return bool(after_the_name) and after_the_name[0] == b"Z"
 
 
-def _read_claim(path=None):
+def _read_claim(path):
     """Who holds a claim, as (process id, what they are doing), or None when nobody does."""
     try:
-        text = (path or CLAIM).read_text()
-    except (FileNotFoundError, OSError):
+        text = path.read_text()
+    except OSError:
         return None
     pid_text, _, doing = text.partition(" ")
     try:
@@ -95,21 +95,20 @@ def _may_share(holder):
     return holder is not None and holder[1].startswith(SHARES)
 
 
-def _drop_stale_claim(text, path=None):
+def _drop_stale_claim(text, path):
     """Remove a claim whose process is gone, unless somebody rewrote it while we looked."""
-    path = path or CLAIM
     try:
         if path.read_text() == text:
             path.unlink()
-    except (FileNotFoundError, OSError):
+    except OSError:
         pass
 
 
-def _take_claim(doing, path=None):
+def _take_claim(doing, path):
     """Write our own claim, or return False when somebody else got there first."""
     HOME.mkdir(parents=True, exist_ok=True)
     try:
-        handle = os.open(path or CLAIM, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
         return False
     with os.fdopen(handle, "w") as claim:
@@ -117,9 +116,8 @@ def _take_claim(doing, path=None):
     return True
 
 
-def _drop_a_claim_nobody_holds(path=None):
+def _drop_a_claim_nobody_holds(path):
     """Remove the claim file when whoever wrote it is gone, or it is not a claim at all."""
-    path = path or CLAIM
     try:
         if _read_claim(path) is None:
             _drop_stale_claim(path.read_text(), path)
@@ -134,8 +132,7 @@ def _ours(holder):
 def _try_alone(doing):
     """One attempt at the card for a run that must be alone on it: the claim it now holds (kept
     while it waits for a sharing run to finish), or None."""
-    held = _read_claim(CLAIM)
-    if not _ours(held) and not _take_claim(doing, CLAIM):
+    if not _ours(_read_claim(CLAIM)) and not _take_claim(doing, CLAIM):
         return None
     # Claim first, then look at the second slot: a sharing run does the same the other way
     # round, so at least one of two runs arriving together sees the other.

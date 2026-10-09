@@ -47,11 +47,12 @@ def check(sides, size, flat=False):
     target[1] = tall
     target[0], target[2] = (ground[0], ground[1]) if longer_on_x else (ground[1], ground[0])
     scale = target / np.maximum(sides, 1e-9)
+    measured = scale
     if flat:
         thin = 0 if sides[0] < sides[2] else 2
         scale[thin] = float(np.mean(np.delete(scale, thin)))
         target[thin] = sides[thin] * scale[thin]
-    measured = np.delete(scale, []) if not flat else np.delete(scale, [0 if sides[0] < sides[2] else 2])
+        measured = np.delete(scale, thin)
     spread = float(measured.max() / measured.min() - 1.0)
     return {"upright": bool(upright), "spread": round(spread, 3), "flag": (not upright) or spread > SPREAD,
             "scale": [round(float(value), 4) for value in scale], "sides": [round(float(value), 4) for value in sides],
