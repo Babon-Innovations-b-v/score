@@ -106,6 +106,18 @@ def wait_for_policy(kubectl):
     return None
 
 
+def wait_for_os(kubectl):
+    """The nodes' operating system once node feature discovery has labelled a node (a minute or two after the
+    operator comes); raise after POLICY_MINUTES."""
+    deadline = time.time() + POLICY_MINUTES * 60
+    while time.time() < deadline:
+        for node in kubectl.json("get", "nodes")["items"]:
+            if "feature.node.kubernetes.io/system-os_release.ID" in node["metadata"]["labels"]:
+                return node_os(node)
+        time.sleep(WAIT_SECONDS)
+    raise RuntimeError("no node carries node feature discovery's OS labels; is the GPU operator running?")
+
+
 def wait_for_job(kubectl, name):
     """Wait for a Job in kube-system to finish; raise if it failed or ran past COPY_MINUTES."""
     deadline = time.time() + COPY_MINUTES * 60
@@ -131,12 +143,8 @@ def mirror(kubectl, registry):
     secret = manifests.registry_secret(registry)
     secret["metadata"]["namespace"] = NAMESPACE
     kubectl.apply([secret])
-    described = [node for node in kubectl.json("get", "nodes")["items"]
-                 if "feature.node.kubernetes.io/system-os_release.ID" in node["metadata"]["labels"]]
-    if not described:
-        raise RuntimeError("no node carries node feature discovery's OS labels yet; run `up` again in a minute")
     kubectl.run("delete", "job", MIRROR_JOB, "-n", NAMESPACE, "--ignore-not-found")
-    kubectl.apply([copy_job(images(policy["spec"], node_os(described[0])), registry["endpoint"])])
+    kubectl.apply([copy_job(images(policy["spec"], wait_for_os(kubectl)), registry["endpoint"])])
     wait_for_job(kubectl, MIRROR_JOB)
     kubectl.run("patch", "clusterpolicy", POLICY, "--type", "merge", "-p",
                 json.dumps(policy_patch(registry["endpoint"], manifests.REGISTRY_SECRET)))
