@@ -303,7 +303,8 @@
    ],
    "why": "Takes the solar mast and the reactor line, feeds the module through the night.",
    "fixed": true,
-   "unseen": "the concept C4 does not show the yard's power cabinet; the row is the plan's"
+   "unseen": "the concept C4 does not show the yard's power cabinet; the row is the plan's",
+   "own_model": "a different object of the same name: the old station's battery and power switching cabinet (2.4 m), not the campgrounds' small ground power unit between the lander's legs"
   },
   {
    "id": "parts_rack",
@@ -330,7 +331,8 @@
    ],
    "why": "His repair stock, by the way in.",
    "fixed": true,
-   "unseen": "the concept C4 does not show the parts rack; the row is the plan's"
+   "unseen": "the concept C4 does not show the parts rack; the row is the plan's",
+   "own_model": "a different object of the same name: the old station's low open shelf rack, not the hangar's tall pallet rack holding crates and ship parts"
   },
   {
    "id": "bag_pile",

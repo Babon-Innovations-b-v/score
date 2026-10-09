@@ -1096,7 +1096,8 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "desk",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/microscope.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/microscope.png",
+   "own_model": "a different object of the same name: the lab's large white research microscope on its stand, not the hub's small one with its side screen"
   },
   {
    "id": "desk_monitor",
@@ -1624,7 +1625,8 @@
     "high": 0.05
    },
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/ceiling_lamp.png",
-   "unseen": "the room's light is not drawn in the cutaway (round two's reason)"
+   "unseen": "the room's light is not drawn in the cutaway (round two's reason)",
+   "own_model": "a different object of the same name: the lab's long flood lamp with a frosted lens behind a grille, not the garage's high-bay reflector hood"
   }
  ]
 }
