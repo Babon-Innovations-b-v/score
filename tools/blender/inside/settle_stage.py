@@ -166,15 +166,17 @@ def main():
     rigid(unparented(ground), "PASSIVE", "MESH", range(GROUPS))
     statics, moving, inside = {}, {}, {}
     for name, holder in holders.items():
-        if not any(child.type == "MESH" for child in holder.children):
+        meshes = [child for child in holder.children if child.type == "MESH"]
+        if not meshes:
             continue
-        item = unparented(drawn_mesh(holder))
         if name in loose:
-            moving[name] = item
+            moving[name] = unparented(drawn_mesh(holder))
             continue
-        statics[name] = tree(item)
-        rigid(item, "PASSIVE", "MESH", range(GROUPS))
-        item.rigid_body.collision_collections = [False] + [True] * (GROUPS - 1)
+        for item in meshes:  # a static holder may draw several meshes (a character's body and clothes)
+            item = unparented(item)
+            statics[name if len(meshes) == 1 else f"{name}/{item.name}"] = tree(item)
+            rigid(item, "PASSIVE", "MESH", range(GROUPS))
+            item.rigid_body.collision_collections = [False] + [True] * (GROUPS - 1)
     for number, (name, item) in enumerate(moving.items()):
         inside[name] = inside_statics(item, statics)
         weight_at_middle(item)
