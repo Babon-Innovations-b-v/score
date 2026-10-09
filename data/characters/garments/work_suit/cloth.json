@@ -1,0 +1,40 @@
+{
+ "note": "How the work suit drapes in Blender's cloth (tools/characters/maker/cloth_drape.py). resolution_scale is GarmentCode's box mesh spacing in centimetres, as the kept Warp drape used it (look/<person>/work_drape/sim_props.yaml). coarse_resolution is the spacing the garment is first sewn at (cloth_drape.py says why). The Blender numbers were tuned by the drape agent on Nev's body, 2026-10-09: the sewing forces are tried in turn until no panel sags off the body, mass is per point at mass_spacing centimetres, lift raises the panels the torso hangs from while it is sewn.",
+ "resolution_scale": 1.0,
+ "blender": {
+  "quality": 10,
+  "mass": 0.03,
+  "air_damping": 1.0,
+  "tension": 15.0,
+  "compression": 15.0,
+  "shear": 5.0,
+  "bending": 10.0,
+  "collision_quality": 4,
+  "body_distance": 0.004,
+  "body_friction": 1.0,
+  "self_collision": true,
+  "self_distance": 0.002,
+  "sewing_forces": [
+   20,
+   15,
+   10,
+   30
+  ],
+  "sag_limit": 0.06,
+  "lift": {
+   "torso": 0.1,
+   "collar": 0.1,
+   "wb": 0.1,
+   "pant": 0.1
+  },
+  "mass_spacing": 3.0,
+  "settled_sag_limit": 0.1
+ },
+ "frames": {
+  "sew": 30,
+  "gravity_ramp": 10,
+  "settle": 120,
+  "fine_settle": 40
+ },
+ "coarse_resolution": 3.0
+}

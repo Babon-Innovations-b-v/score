@@ -80,7 +80,9 @@ Recorded here because the repo is public and the body file ships:
   2025: commercial use allowed; not for military or trade-controlled uses, no reverse engineering,
   and the licence ends for anyone who sues Meta). Its weights are not shipped; only the measured
   body shape is.
-- **Clothing**: draped by GarmentCode and its NVIDIA Warp fork (both MIT), offline only.
+- **Clothing**: sewing patterns by GarmentCode (MIT). The looks kept before 2026-10-09 were draped with its NVIDIA
+  Warp fork, whose licence allows non-commercial research only; drapes from then on are Blender's cloth
+  (`../maker/drape_garment.py`; Blender is GPL, its output is ours).
 - **Boots and hair**: Hi3DGen (MIT) from drawings by FLUX.2 klein 4B (Apache 2.0), as the prop
   chain uses them.
 - **Eyes**: MakeHuman system assets (CC0, from the CC0 system pack). MakeHuman's base mesh was used
