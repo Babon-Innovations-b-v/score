@@ -4,7 +4,7 @@
  "motions": [
   {
    "name": "big_door_west",
-   "prim": "/garage/Structure/big_door_west",
+   "prim": "/garage/Places/big_door_west",
    "start": 0.0, "length": 17.0, "loop": true,
    "slide": {"by": [-2.6, 0.0, 0.0], "speed": 2.5, "starts": "shut", "moves": [[1.0, "open"], [5.0, "shut"]]},
    "sounds": [],
@@ -12,7 +12,7 @@
   },
   {
    "name": "big_door_east",
-   "prim": "/garage/Structure/big_door_east",
+   "prim": "/garage/Places/big_door_east",
    "start": 0.0, "length": 17.0, "loop": true,
    "slide": {"by": [2.6, 0.0, 0.0], "speed": 2.5, "starts": "shut", "moves": [[1.0, "open"], [5.0, "shut"]]},
    "sounds": [],
