@@ -186,7 +186,7 @@
      "label": [
       "OFFLINE"
      ],
-     "font": "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
+     "font": "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
      "font_size": 48,
      "pixel_size": 0.0018,
      "outline_size": 0,
@@ -200,7 +200,7 @@
      "from": "workstation.gd:85-96 (SCREEN_OFFLINE in Palette.DANGER, art/palette/palette.gd:26) while the desk is off, as it is until the base's first robot"
     },
     {
-     "model": "game/base/models/hub_kit/status_lamp_1.gltf",
+     "model": "models/hub_kit/status_lamp_1.gltf",
      "at": [
       0.0,
       -0.18,
@@ -281,7 +281,7 @@
       "Lab desk",
       "Nothing to research yet"
      ],
-     "font": "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
+     "font": "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
      "font_size": 48,
      "pixel_size": 0.003,
      "outline_size": 10,
@@ -296,7 +296,7 @@
      "from": "lab_desk.tscn Readout (1.6 over the desk, pixel 0.003, font 48, outline 10) and lab_desk.gd:16-28, 76-79 (NAME and NOTHING_YET in Palette.IDLE with an INK_LINE outline before the first harvest); the game turns it to the camera (billboard), here it faces the hub's middle"
     },
     {
-     "model": "game/base/models/hub_kit/status_lamp_1.gltf",
+     "model": "models/hub_kit/status_lamp_1.gltf",
      "at": [
       -0.45,
       0.82,
@@ -382,7 +382,7 @@
    "from": "layout.json tool_panel; its 26 tools where game/base/models/hub_toolboard/hub_toolboard.tscn hangs them on the board",
    "children": [
     {
-     "model": "game/base/models/hub_kit/wrench_1.gltf",
+     "model": "models/hub_kit/wrench_1.gltf",
      "at": [
       0.53,
       0.51,
@@ -392,7 +392,7 @@
      "from": "hub_toolboard.tscn:42-43 (Wrench1_0)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_1.gltf",
+     "model": "models/hub_kit/wrench_1.gltf",
      "at": [
       0.48,
       0.51,
@@ -402,7 +402,7 @@
      "from": "hub_toolboard.tscn:45-46 (Wrench1_1)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_1.gltf",
+     "model": "models/hub_kit/wrench_1.gltf",
      "at": [
       0.43,
       0.51,
@@ -412,7 +412,7 @@
      "from": "hub_toolboard.tscn:48-49 (Wrench1_2)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_2.gltf",
+     "model": "models/hub_kit/wrench_2.gltf",
      "at": [
       0.38,
       0.55,
@@ -422,7 +422,7 @@
      "from": "hub_toolboard.tscn:51-52 (Wrench2_3)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_2.gltf",
+     "model": "models/hub_kit/wrench_2.gltf",
      "at": [
       0.33,
       0.55,
@@ -432,7 +432,7 @@
      "from": "hub_toolboard.tscn:54-55 (Wrench2_4)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_2.gltf",
+     "model": "models/hub_kit/wrench_2.gltf",
      "at": [
       0.28,
       0.55,
@@ -442,7 +442,7 @@
      "from": "hub_toolboard.tscn:57-58 (Wrench2_5)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "model": "models/hub_kit/wrench_3.gltf",
      "at": [
       0.23,
       0.59,
@@ -452,7 +452,7 @@
      "from": "hub_toolboard.tscn:60-61 (Wrench3_6)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "model": "models/hub_kit/wrench_3.gltf",
      "at": [
       0.18,
       0.59,
@@ -462,7 +462,7 @@
      "from": "hub_toolboard.tscn:63-64 (Wrench3_7)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "model": "models/hub_kit/wrench_3.gltf",
      "at": [
       0.13,
       0.59,
@@ -472,7 +472,7 @@
      "from": "hub_toolboard.tscn:66-67 (Wrench3_8)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "model": "models/hub_kit/wrench_3.gltf",
      "at": [
       0.08,
       0.59,
@@ -482,7 +482,7 @@
      "from": "hub_toolboard.tscn:69-70 (Wrench3_9)"
     },
     {
-     "model": "game/base/models/hub_kit/hammer_1.gltf",
+     "model": "models/hub_kit/hammer_1.gltf",
      "at": [
       -0.04,
       0.44,
@@ -492,7 +492,7 @@
      "from": "hub_toolboard.tscn:72-73 (Hammer1_10)"
     },
     {
-     "model": "game/base/models/hub_kit/hammer_1.gltf",
+     "model": "models/hub_kit/hammer_1.gltf",
      "at": [
       -0.17,
       0.44,
@@ -502,7 +502,7 @@
      "from": "hub_toolboard.tscn:75-76 (Hammer1_11)"
     },
     {
-     "model": "game/base/models/hub_kit/hammer_1.gltf",
+     "model": "models/hub_kit/hammer_1.gltf",
      "at": [
       -0.3,
       0.44,
@@ -512,7 +512,7 @@
      "from": "hub_toolboard.tscn:78-79 (Hammer1_12)"
     },
     {
-     "model": "game/base/models/hub_kit/pump_pliers_1.gltf",
+     "model": "models/hub_kit/pump_pliers_1.gltf",
      "at": [
       -0.46,
       0.49,
@@ -522,7 +522,7 @@
      "from": "hub_toolboard.tscn:81-82 (PumpPliers1_13)"
     },
     {
-     "model": "game/base/models/hub_kit/wrench_4.gltf",
+     "model": "models/hub_kit/wrench_4.gltf",
      "at": [
       0.52,
       0.1,
@@ -532,7 +532,7 @@
      "from": "hub_toolboard.tscn:84-85 (Wrench4_14)"
     },
     {
-     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "model": "models/hub_kit/pliers_1.gltf",
      "at": [
       0.41,
       0.2,
@@ -542,7 +542,7 @@
      "from": "hub_toolboard.tscn:87-88 (Pliers1_15)"
     },
     {
-     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "model": "models/hub_kit/pliers_1.gltf",
      "at": [
       0.32,
       0.2,
@@ -552,7 +552,7 @@
      "from": "hub_toolboard.tscn:90-91 (Pliers1_16)"
     },
     {
-     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "model": "models/hub_kit/pliers_1.gltf",
      "at": [
       0.23,
       0.2,
@@ -562,7 +562,7 @@
      "from": "hub_toolboard.tscn:93-94 (Pliers1_17)"
     },
     {
-     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "model": "models/hub_kit/pliers_1.gltf",
      "at": [
       0.14,
       0.2,
@@ -572,7 +572,7 @@
      "from": "hub_toolboard.tscn:96-97 (Pliers1_18)"
     },
     {
-     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "model": "models/hub_kit/pliers_1.gltf",
      "at": [
       0.05,
       0.2,
@@ -582,7 +582,7 @@
      "from": "hub_toolboard.tscn:99-100 (Pliers1_19)"
     },
     {
-     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "model": "models/hub_kit/pliers_1.gltf",
      "at": [
       -0.04,
       0.2,
@@ -592,7 +592,7 @@
      "from": "hub_toolboard.tscn:102-103 (Pliers1_20)"
     },
     {
-     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "model": "models/hub_kit/screwdriver_1.gltf",
      "at": [
       -0.2,
       0.08,
@@ -602,7 +602,7 @@
      "from": "hub_toolboard.tscn:105-106 (Screwdriver1_21)"
     },
     {
-     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "model": "models/hub_kit/screwdriver_1.gltf",
      "at": [
       -0.27,
       0.08,
@@ -612,7 +612,7 @@
      "from": "hub_toolboard.tscn:108-109 (Screwdriver1_22)"
     },
     {
-     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "model": "models/hub_kit/screwdriver_1.gltf",
      "at": [
       -0.34,
       0.08,
@@ -622,7 +622,7 @@
      "from": "hub_toolboard.tscn:111-112 (Screwdriver1_23)"
     },
     {
-     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "model": "models/hub_kit/screwdriver_1.gltf",
      "at": [
       -0.41,
       0.08,
@@ -632,7 +632,7 @@
      "from": "hub_toolboard.tscn:114-115 (Screwdriver1_24)"
     },
     {
-     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "model": "models/hub_kit/screwdriver_1.gltf",
      "at": [
       -0.48,
       0.08,
