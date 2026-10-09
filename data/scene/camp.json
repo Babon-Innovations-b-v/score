@@ -521,6 +521,43 @@
    ],
    "yaw": 130.5,
    "from": "expedition_camp.gd LAYOUT on the camp seat; the habitat stands 0.55 m over the ground there (0.4769 m over the seat's level), turned -130.5 degrees (camp_habitat.gd:318-327)"
+  },
+  {
+   "name": "camp_airlock",
+   "stage": "airlock",
+   "at": [
+    9.5456,
+    -0.8695,
+    -13.9885
+   ],
+   "rotation": [
+    0.005912,
+    0.907359,
+    -0.036575,
+    0.418721
+   ],
+   "from": "camp_habitat.gd:88-117,168-185 (the airlock out along the doorway at -40.5 degrees, 10.55 m from the door dome's middle), expedition_camp.gd:208-210,330-333,671-701 (set down 0.3 m over the ground there, turned to the ground's facing with its along kept along the seat), in this frame through the habitat's own set-down (0.55 m, turned -130.5 degrees): the Moon's airlock stage stands in for the camp's, a room of the same 4 m by 5 m shell (camp_airlock.gd:1-13), which the game draws in the shell's code look with boxes for its doors and locker"
+  },
+  {
+   "name": "camp_tube",
+   "stage": "tube",
+   "at": [
+    5.2299,
+    0.0,
+    -10.3163
+   ],
+   "rotation": [
+    0.040328,
+    0.902696,
+    -0.099278,
+    0.416723
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    0.749
+   ],
+   "from": "camp_habitat.gd:113-117,168-172 (LinkTube.join from the lining's doorway to the airlock's inner door), link_tube.gd:137-160, tube_kit.gd:26-46: the way between them is 3.26 m long, three bays as the 4.35 m tube stage has, so that stage is shown at 0.749 of its length along its run; the game bends it in a shallow S of under 8 cm off the straight line, laid straight here, and its end pieces are squashed with it"
   }
  ],
  "lights": [
@@ -781,5 +818,61 @@
   "the mast's light beam",
   "the planned rocks",
   "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+ ],
+ "structure": [
+  {
+   "name": "camp_airlock_ramp",
+   "builder": "box",
+   "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "size": [
+    2.4,
+    0.2,
+    1.1021
+   ],
+   "surface": "deck",
+   "placed_at": [
+    11.7998,
+    -1.364,
+    -15.9006
+   ],
+   "placed_turn": [
+    0.078532,
+    0.887223,
+    -0.19358,
+    0.411333
+   ],
+   "from": "camp_airlock.gd:25-28,63-85 (the ramp's 2.4 m by 0.2 m slab) re-laid by airlock.gd:18-24,70-87 from the outer door's sill down at 20 degrees to 5 cm into the ground (a 0.38 m drop here)"
+  },
+  {
+   "name": "camp_airlock_footing",
+   "builder": "box",
+   "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "size": [
+    7.2,
+    1.2,
+    5.6
+   ],
+   "surface": "roof_steel_paint",
+   "placed_at": [
+    9.5188,
+    -1.5177,
+    -13.9486
+   ],
+   "placed_turn": [
+    0.005912,
+    0.907359,
+    -0.036575,
+    0.418721
+   ],
+   "from": "camp_airlock.gd:31-32,88-96 (the dark footing block, 3.6 by 2.8 m out from the room's middle and 1.2 m deep, in roof.tres)"
+  }
  ]
 }
