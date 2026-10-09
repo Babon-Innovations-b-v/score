@@ -4,10 +4,10 @@
  "people": [
   {"name": "nev", "character": "nev", "doing": "bench", "at": [2.988, 0.0, 1.725], "facing_to": [3.854, 0.0, 2.225],
    "why": "the botanist at the lab desk, the hub's lab bench against its 300-degree wall (CrewPlaces LAB_DESK, facing 60 on the seat)"},
-  {"name": "resting", "character": "take_c", "doing": "waiting", "at": [2.3, 0.0, -2.3], "facing_to": [2.3, 0.0, -1.3],
-   "why": "a crew member with nothing to do, resting by the hub's south-west wall (CrewPlaces REST, facing 0 on the seat); the game draws every crew member after Nev in take C's body"},
-  {"name": "walking_in", "character": "take_c", "doing": "walking", "at": [-1.725, 0.0, -2.988],
-   "path": [[-1.725, 0.0, -2.988], [0.4, 0.0, -2.7], [2.3, 0.0, -2.3]], "facing_to": [2.3, 0.0, -2.3],
-   "why": "a crew member back from outside, walking from the doorstep at the airlock's inner door to the rest spot (CrewPlaces DOORSTEP to REST, at the walk clip's 1.333 m a second)"}
+  {"name": "resting", "character": "sefa", "doing": "waiting", "at": [2.3, 0.0, -2.3], "facing_to": [2.3, 0.0, -1.3],
+   "why": "a crew member with nothing to do, resting by the hub's south-west wall (CrewPlaces REST, facing 0 on the seat); drawn as Sefa, one of the crew the story names with a body of their own (2099 game/people/CLAUDE.md), as the game's take C stand-in would show the same person as the one walking in"},
+  {"name": "walking_in", "character": "bram", "doing": "walking", "at": [-1.625, 0.0, -2.815], "facing_to": [2.3, 0.0, -2.3],
+   "path": [[-1.625, 0.0, -2.815], [0.4, 0.0, -2.7], [1.419, 0.0, -2.485]],
+   "why": "a crew member back from outside, Bram (a body of his own, 2099 game/people/CLAUDE.md), walking from the airlock's inner door to the rest spot (CrewPlaces DOORSTEP to REST, at the walk clip's 1.333 m a second); he starts 0.2 m further in than the doorstep so his body clears the hatch's frame, and stops 0.9 m short of the rest spot, beside Sefa who rests there, so his walk keeps clear of people and things (tools/characters/cast_check.py)"}
  ]
 }

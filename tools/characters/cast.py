@@ -59,6 +59,10 @@ KIT_SCHEMES = ["navy", "olive", "maroon"]
 KIT_PLAIN = ["jacket_blue", "coat_grey", "uniform_olive"]
 # How far a crowd's spot is drawn again when it falls on somebody or on ground kept off, before it is kept anyway.
 CLEAR_TRIES = 8
+# A group member whose look an earlier character has is drawn again from its seed stepped on this far, at most this
+# many times (the kit has 63 looks: 27 men's and 36 women's builds, faces and hair).
+MIX_STEP = 1000
+MIX_TRIES = 200
 # A walk's pace in metres a second when the cast gives none: the walk clip's own (the game's crew walk).
 WALK_PACE = 1.333
 
@@ -77,6 +81,24 @@ def kit_mix(seed):
     head = [f"head_{face}", f"hair_{hair}_{face}"]
     return {"character": f"kit_{build}",
             "worn": {"plain": [f"plain_{plain}"] + head, "work": [f"work_{scheme}"] + head, "suit": ["suit"]}}
+
+
+def look_of(character, worn):
+    """Who a character looks like: its body file and, for a kit mix, the face and hair it wears (a named body has its
+    own). Two characters with the same look are the same person, whatever else they wear."""
+    return (character, *sorted(part for part in (worn or []) if part.startswith(("head_", "hair_"))))
+
+
+def unseen_mix(seed, outfit, taken):
+    """A kit mix from a seed whose look nobody in `taken` has yet (the seed stepped on by MIX_STEP until one is new),
+    added to `taken`: a place never shows the same person twice."""
+    for tries in range(MIX_TRIES):
+        mix = kit_mix(seed + tries * MIX_STEP)
+        look = look_of(mix["character"], mix["worn"][outfit])
+        if look not in taken:
+            taken.add(look)
+            return mix
+    raise ValueError(f"no new person from the kit after {MIX_TRIES} draws from seed {seed}: the kit has too few looks")
 
 
 def facing_degrees(at, to):
@@ -170,9 +192,10 @@ def characters_of(cast):
                       "turn": facing_degrees(person["at"], person["facing_to"]), "doing": person["doing"],
                       "start": person.get("start", 0.0), "worn": person.get("worn"), "path": person.get("path"),
                       "pace": person.get("pace", WALK_PACE), "held": person.get("held", False)})
+    taken = {look_of(person["character"], person.get("worn")) for person in found}
     for group in cast.get("groups", []):
         for number, at in enumerate(band_places(group)):
-            mix = kit_mix(group["seed"] + number)
+            mix = unseen_mix(group["seed"] + number, group.get("outfit", "plain"), taken)
             found.append({"name": f"{group['name']}_{number}", "character": mix["character"], "at": at,
                           "turn": facing_degrees(at, group["facing_to"]),
                           "doing": group["doing"][number % len(group["doing"])],
@@ -368,6 +391,15 @@ def write_layer(place, cast, out, bodies=BODIES):
     return {"characters": len(singles), "crowd": crowd_count, "layer": str(path)}
 
 
+def refuse_faulty(place, cast, stage_folder):
+    """Stop before writing a cast that shows somebody twice or walks somebody through a person or a thing on the
+    place's stage (tools/characters/cast_check.py)."""
+    import cast_check
+    faults = cast_check.check(cast, cast_check.stage_things(stage_folder / "layers/base.usda", place))
+    if faults:
+        raise SystemExit(f"{place}'s cast is not written: " + "; ".join(faults))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("place")
@@ -376,6 +408,7 @@ def main():
     parser.add_argument("--cast", type=pathlib.Path, help="the cast file, by default data/characters/<place>.json")
     arguments = parser.parse_args()
     cast = json.loads((arguments.cast or CASTS / f"{arguments.place}.json").read_text())
+    refuse_faulty(arguments.place, cast, arguments.stage)
     print(json.dumps(write_layer(arguments.place, cast, arguments.stage, arguments.bodies)))
 
 
