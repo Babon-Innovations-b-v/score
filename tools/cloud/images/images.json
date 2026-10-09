@@ -483,6 +483,89 @@
    "measured": "2026-10-09"
   }
  },
+ "judge": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-judge:1-3b99fde8d053@sha256:a29dfbdfa0f60fd9b2757407b5fb2090b1612992833045c56f756fe0750b58ae",
+  "tag": "1-3b99fde8d053",
+  "digest": "sha256:a29dfbdfa0f60fd9b2757407b5fb2090b1612992833045c56f756fe0750b58ae",
+  "platforms": "linux/amd64",
+  "size_mb": 5595.5,
+  "build_minutes": 7.7,
+  "built": "2026-10-09T17:00:52Z",
+  "proof": {
+   "NVIDIA H100 PCIe, 580.178.04": {
+    "type": "H100-1-80G",
+    "class": "gpu-80gb",
+    "zone": "pl-waw-2",
+    "answered_minutes": 0.63,
+    "docker_setup_minutes": 0.05,
+    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-judge:1-98220c5f2e9b@sha256:7ceacc26a54f0ff5db0f222cba3f0dd977213c56e950f937dd020d674f0e2e8a",
+    "pull_seconds": 62.2,
+    "jobs": {
+     "new-node-on": {
+      "container_seconds": 770.5,
+      "marks": {
+       "weights_ready": 146.3,
+       "inputs_ready": 147.3,
+       "kernels_ready": 148.5,
+       "first_result": 762.1,
+       "uploaded": 762.8
+      },
+      "card": "NVIDIA H100 PCIe, 580.178.04",
+      "kernel_cache": {
+       "name": "judge-vllm-0.31.0",
+       "card": "sm90-580.178.04",
+       "restored": true,
+       "uploaded_bytes": 177784652
+      },
+      "env": {},
+      "cache": "a"
+     },
+     "warm-on": {
+      "container_seconds": 411.5,
+      "marks": {
+       "weights_ready": 0.2,
+       "inputs_ready": 1.0,
+       "kernels_ready": 1.0,
+       "first_result": 407.3,
+       "uploaded": 408.0
+      },
+      "card": "NVIDIA H100 PCIe, 580.178.04",
+      "kernel_cache": {
+       "name": "judge-vllm-0.31.0",
+       "card": "sm90-580.178.04",
+       "restored": false,
+       "uploaded_bytes": 177785473
+      },
+      "env": {},
+      "cache": "a"
+     },
+     "warm-off": {
+      "container_seconds": 226.0,
+      "marks": {
+       "weights_ready": 0.2,
+       "inputs_ready": 0.9,
+       "kernels_ready": 1.0,
+       "first_result": 221.4,
+       "uploaded": 222.2
+      },
+      "card": "NVIDIA H100 PCIe, 580.178.04",
+      "kernel_cache": {
+       "name": "judge-vllm-0.31.0",
+       "card": "sm90-580.178.04",
+       "restored": false,
+       "uploaded_bytes": 177786294
+      },
+      "env": {
+       "VLLM_USE_DEEP_GEMM": "0",
+       "VLLM_USE_FLASHINFER_SAMPLER": "0"
+      },
+      "cache": "a"
+     }
+    },
+    "note": "proved on the build before this one (the same files, with DeepGEMM and FlashInfer's sampler on by default); this build leaves them off by default, as the warm-off job ran"
+   }
+  }
+ },
  "moss": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-moss:1-6c13534f42f5@sha256:5c3d9a06c6c9974e53d3200ee53a5609d72755c0b17026a25574ff148703dcbc",
   "tag": "1-6c13534f42f5",
@@ -517,6 +600,91 @@
   "build_minutes": 6.1,
   "built": "2026-10-09T14:53:22Z"
  },
+ "pictures": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pictures:1-468c1e1107b0@sha256:8f0376e21b4ee094bd6afc8c09027ec0d51a6c17fe38f691e73573fa16f9ca43",
+  "tag": "1-468c1e1107b0",
+  "digest": "sha256:8f0376e21b4ee094bd6afc8c09027ec0d51a6c17fe38f691e73573fa16f9ca43",
+  "platforms": "linux/amd64",
+  "size_mb": 3283.3,
+  "build_minutes": 5.3,
+  "built": "2026-10-09T15:34:32Z",
+  "proof": {
+   "NVIDIA L4, 580.178.04": {
+    "type": "L4-1-24G",
+    "class": "gpu-24gb",
+    "zone": "fr-par-2",
+    "answered_minutes": 0.41,
+    "docker_setup_minutes": 0.08,
+    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pictures:1-468c1e1107b0@sha256:8f0376e21b4ee094bd6afc8c09027ec0d51a6c17fe38f691e73573fa16f9ca43",
+    "pull_seconds": 37.1,
+    "jobs": {
+     "klein-first-node": {
+      "container_seconds": 250.5,
+      "marks": {
+       "weights_ready": 230.2,
+       "inputs_ready": 230.3,
+       "first_result": 247.6,
+       "uploaded": 247.7
+      },
+      "card": "NVIDIA L4, 580.178.04",
+      "kernel_cache": null,
+      "env": {},
+      "cache": "a"
+     },
+     "klein-new-node": {
+      "container_seconds": 90.8,
+      "marks": {
+       "weights_ready": 67.9,
+       "inputs_ready": 68.0,
+       "first_result": 88.1,
+       "uploaded": 88.3
+      },
+      "card": "NVIDIA L4, 580.178.04",
+      "kernel_cache": null,
+      "env": {},
+      "cache": "b"
+     }
+    }
+   },
+   "NVIDIA H100 PCIe, 580.178.04": {
+    "type": "H100-1-80G",
+    "class": "gpu-80gb",
+    "zone": "fr-par-2",
+    "answered_minutes": 0.6,
+    "docker_setup_minutes": 0.04,
+    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pictures:1-468c1e1107b0@sha256:8f0376e21b4ee094bd6afc8c09027ec0d51a6c17fe38f691e73573fa16f9ca43",
+    "pull_seconds": 30.1,
+    "jobs": {
+     "qwen-first-node": {
+      "container_seconds": 856.3,
+      "marks": {
+       "weights_ready": 786.7,
+       "inputs_ready": 786.8,
+       "first_result": 851.8,
+       "uploaded": 851.9
+      },
+      "card": "NVIDIA H100 PCIe, 580.178.04",
+      "kernel_cache": null,
+      "env": {},
+      "cache": "a"
+     },
+     "qwen-new-node": {
+      "container_seconds": 297.5,
+      "marks": {
+       "weights_ready": 230.7,
+       "inputs_ready": 230.8,
+       "first_result": 295.9,
+       "uploaded": 296.0
+      },
+      "card": "NVIDIA H100 PCIe, 580.178.04",
+      "kernel_cache": null,
+      "env": {},
+      "cache": "c"
+     }
+    }
+   }
+  }
+ },
  "pixal": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pixal:1-ed44fcbabd41@sha256:07d951f7f783a6dbc6ac75465139288f24b9c3eb65ded6829b2547a59f13c3fc",
   "tag": "1-ed44fcbabd41",
@@ -525,5 +693,100 @@
   "size_mb": 1088.2,
   "build_minutes": 1.5,
   "built": "2026-10-09T14:54:57Z"
+ },
+ "sam": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-sam:1-7f5e73e5c579@sha256:00ba7affa2cf35b15dedc975b4fd61e796cc11cabd402849d0818416704ae88b",
+  "tag": "1-7f5e73e5c579",
+  "digest": "sha256:00ba7affa2cf35b15dedc975b4fd61e796cc11cabd402849d0818416704ae88b",
+  "platforms": "linux/amd64",
+  "size_mb": 4670.2,
+  "build_minutes": 8.7,
+  "built": "2026-10-09T15:43:18Z",
+  "proof": {
+   "NVIDIA L4, 580.178.04": {
+    "type": "L4-1-24G",
+    "class": "gpu-24gb",
+    "zone": "fr-par-2",
+    "answered_minutes": 0.41,
+    "docker_setup_minutes": 0.08,
+    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-sam:1-7f5e73e5c579@sha256:00ba7affa2cf35b15dedc975b4fd61e796cc11cabd402849d0818416704ae88b",
+    "pull_seconds": 57.4,
+    "jobs": {
+     "sam3-first-node": {
+      "container_seconds": 33.0,
+      "marks": {
+       "weights_ready": 13.5,
+       "inputs_ready": 13.8,
+       "first_result": 26.9,
+       "uploaded": 27.0
+      },
+      "card": "NVIDIA L4, 580.178.04",
+      "kernel_cache": null,
+      "env": {
+       "FARM_LOCAL_MODELS": "1"
+      },
+      "cache": "a"
+     },
+     "moge-first-node": {
+      "container_seconds": 19.3,
+      "marks": {
+       "weights_ready": 5.8,
+       "inputs_ready": 6.4,
+       "first_result": 15.8,
+       "uploaded": 16.2
+      },
+      "card": "NVIDIA L4, 580.178.04",
+      "kernel_cache": null,
+      "env": {
+       "FARM_LOCAL_MODELS": "1"
+      },
+      "cache": "a"
+     },
+     "sam2-first-node": {
+      "container_seconds": 90.6,
+      "marks": {
+       "weights_ready": 35.0,
+       "inputs_ready": 35.2,
+       "first_result": 88.5,
+       "uploaded": 88.7
+      },
+      "card": "NVIDIA L4, 580.178.04",
+      "kernel_cache": null,
+      "env": {},
+      "cache": "a"
+     },
+     "sam3-new-node": {
+      "container_seconds": 27.6,
+      "marks": {
+       "weights_ready": 12.6,
+       "inputs_ready": 12.8,
+       "first_result": 25.9,
+       "uploaded": 25.9
+      },
+      "card": "NVIDIA L4, 580.178.04",
+      "kernel_cache": null,
+      "env": {
+       "FARM_LOCAL_MODELS": "1"
+      },
+      "cache": "b"
+     },
+     "sam3-warm": {
+      "container_seconds": 15.1,
+      "marks": {
+       "weights_ready": 0.1,
+       "inputs_ready": 0.6,
+       "first_result": 13.6,
+       "uploaded": 13.6
+      },
+      "card": "NVIDIA L4, 580.178.04",
+      "kernel_cache": null,
+      "env": {
+       "FARM_LOCAL_MODELS": "1"
+      },
+      "cache": "b"
+     }
+    }
+   }
+  }
  }
 }

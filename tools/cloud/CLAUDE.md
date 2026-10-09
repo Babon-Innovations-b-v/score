@@ -32,4 +32,9 @@ same way. The machine runners in `tools/props/cloud/` stay the default; this pat
   `images/warm.py --classes ...` renders `tools/blender/inside/warm_kernels.py` on one machine a class (before,
   first node, new node) and leaves the caches in the store; run it after a new Blender or driver. Its numbers go into
   images.json (`first_render`).
+- **An image is proved with real jobs before a runner uses it:** `images/prove.py <plan.json>` rents one card from
+  the plan's classes (asked again every 3 min while none is in stock), pulls each kind's image and runs its jobs through
+  `score-job` in plain docker, each with a named node cache (a new name is a new node), and writes the pull and
+  every job's marks into images.json (`proof`, by card). A job's command is the image's run wrapper (`sam-run`,
+  `judge-run`, `pictures-run`), which puts the cached weights where the machine runner's worker looks.
 - Tests run against a folder store, no cloud: `.venv/bin/python tools/cloud/runtime/job_test.py` and its siblings.
