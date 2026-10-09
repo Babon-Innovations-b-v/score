@@ -1,12 +1,12 @@
 {
  "base": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-base:1-853caab19c97@sha256:c425d21933d0cfcfc35411b027a4e61fd8725aa3d6c508cc7f194b2a5d565127",
-  "tag": "1-853caab19c97",
-  "digest": "sha256:c425d21933d0cfcfc35411b027a4e61fd8725aa3d6c508cc7f194b2a5d565127",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-base:1-eaec3a643139@sha256:1491a5aa6e4661687ff97b9e035847f1a23bb05698a74308829608257fb545bb",
+  "tag": "1-eaec3a643139",
+  "digest": "sha256:1491a5aa6e4661687ff97b9e035847f1a23bb05698a74308829608257fb545bb",
   "platforms": "linux/amd64,linux/arm64",
   "size_mb": 174.4,
   "build_minutes": 0.3,
-  "built": "2026-10-09T14:43:52Z",
+  "built": "2026-10-09T15:13:58Z",
   "smoke": {
    "pull_seconds": 6.0,
    "runs": {
@@ -429,6 +429,83 @@
      }
     }
    }
+  }
+ },
+ "characters-garment": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-garment:1-c06ef3651d02@sha256:3134b32de7303e2e85ccb8c0968044282e18919460a7c2a21a9498a34007f3aa",
+  "tag": "1-c06ef3651d02",
+  "digest": "sha256:3134b32de7303e2e85ccb8c0968044282e18919460a7c2a21a9498a34007f3aa",
+  "platforms": "linux/amd64",
+  "size_mb": 378.1,
+  "build_minutes": 1.1,
+  "built": "2026-10-09T15:15:08Z",
+  "proof": {
+   "machine": "POP2-16C-64G pl-waw-2",
+   "answer_seconds": 29.8,
+   "pull_seconds": 12.5,
+   "new_node": {
+    "weights_seconds": 0.2,
+    "first_result_seconds": 8.7,
+    "note": "GarmentCode measure, pattern and box mesh of the work suit on a body made by the characters-motion proof"
+   },
+   "measured": "2026-10-09"
+  }
+ },
+ "characters-motion": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-motion:1-4a0a1f02a260@sha256:b0cdcc2a7db9bb72674d59781a2f730fdd568fe540f08a37c1675c8684925b0f",
+  "tag": "1-4a0a1f02a260",
+  "digest": "sha256:b0cdcc2a7db9bb72674d59781a2f730fdd568fe540f08a37c1675c8684925b0f",
+  "platforms": "linux/amd64",
+  "size_mb": 6777.6,
+  "build_minutes": 21.2,
+  "built": "2026-10-09T15:36:22Z",
+  "proof": {
+   "machine": "L4-1-24G fr-par-2",
+   "answer_seconds": 28.9,
+   "pull_seconds": 71.6,
+   "first_node": {
+    "weights_seconds": 650.3,
+    "first_result_seconds": 694.7,
+    "note": "Kimodo clip; its five models (Llama 3 8B 15 GB) seeded into the store"
+   },
+   "new_node": {
+    "body": {
+     "weights_seconds": 21.8,
+     "first_result_seconds": 38.5,
+     "note": "SAM3DBody-cpp body read off a picture, then export_body.py on SOMA-X"
+    },
+    "clip": {
+     "weights_seconds": 90.4,
+     "first_result_seconds": 135.7,
+     "note": "one 5 s Kimodo clip"
+    }
+   },
+   "measured": "2026-10-09"
+  }
+ },
+ "moss": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-moss:1-6c13534f42f5@sha256:5c3d9a06c6c9974e53d3200ee53a5609d72755c0b17026a25574ff148703dcbc",
+  "tag": "1-6c13534f42f5",
+  "digest": "sha256:5c3d9a06c6c9974e53d3200ee53a5609d72755c0b17026a25574ff148703dcbc",
+  "platforms": "linux/amd64",
+  "size_mb": 4606.5,
+  "build_minutes": 7.7,
+  "built": "2026-10-09T15:44:11Z",
+  "proof": {
+   "machine": "L4-1-24G fr-par-2",
+   "answer_seconds": 28.9,
+   "pull_seconds": 61.2,
+   "first_node": {
+    "weights_seconds": 331.0,
+    "first_result_seconds": 412.9,
+    "note": "weights seeded from Hugging Face into the store"
+   },
+   "new_node": {
+    "weights_seconds": 44.3,
+    "first_result_seconds": 129.5,
+    "note": "weights from the store; 2 takes of 15 s, MOSS loaded in 14.4 s, 28 to 31 s a take"
+   },
+   "measured": "2026-10-09"
   }
  },
  "parts": {

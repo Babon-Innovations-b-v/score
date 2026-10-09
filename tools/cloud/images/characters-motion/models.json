@@ -1,40 +1,89 @@
 [
- {"name": "kimodo-soma-rp-v1.1", "source": "hf:nvidia/Kimodo-SOMA-RP-v1.1",
+ {
+  "name": "kimodo-soma-rp-v1.1",
+  "source": "hf:nvidia/Kimodo-SOMA-RP-v1.1",
   "revision": "6c9233af1180b8151e3c4703477104af5dce9dd5",
-  "files": ["config.yaml", "model.safetensors", "stats/*"],
-  "sha256": "", "licence": "NVIDIA Open Model License",
+  "files": [
+   "config.yaml",
+   "model.safetensors",
+   "stats/*"
+  ],
+  "sha256": "d46f40cc8412e657d1de658f23d80b3fc37b27b1db9243b5c49b1f156edfaf3e",
+  "licence": "NVIDIA Open Model License",
   "licence_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
   "commercial_use": true,
-  "note": "Kimodo's text-to-motion checkpoint (people/clips.py MODEL), trained on Bones Rigplay 1, which NVIDIA licensed commercially; the licence allows commercial use (checked 2026-10-09). The SEED and SMPLX checkpoints are deliberately not used (#36)."},
- {"name": "llm2vec-llama3-mntp", "source": "hf:McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp",
+  "note": "Kimodo's text-to-motion checkpoint (people/clips.py MODEL), trained on Bones Rigplay 1, which NVIDIA licensed commercially; the licence allows commercial use (checked 2026-10-09). The SEED and SMPLX checkpoints are deliberately not used (#36)."
+ },
+ {
+  "name": "llm2vec-llama3-mntp",
+  "source": "hf:McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp",
   "revision": "31474e395ada192e8ed1586db6be79fb3b70c9c0",
-  "sha256": "", "licence": "MIT (adapter); Llama 3 Community License (base)",
+  "sha256": "db7d8e0e9445e340c17dbb1ec280d927485ea64d87cba221ea6df29df7e597ac",
+  "licence": "MIT (adapter); Llama 3 Community License (base)",
   "licence_url": "https://huggingface.co/McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp",
   "commercial_use": true,
-  "note": "Kimodo's text encoder, first adapter (the MNTP LoRA on Llama 3 8B Instruct). The adapter is MIT; as a derivative of Llama 3 it is used under the Llama 3 Community License too (checked 2026-10-09)."},
- {"name": "llm2vec-llama3-mntp-supervised", "source": "hf:McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised",
+  "note": "Kimodo's text encoder, first adapter (the MNTP LoRA on Llama 3 8B Instruct). The adapter is MIT; as a derivative of Llama 3 it is used under the Llama 3 Community License too (checked 2026-10-09)."
+ },
+ {
+  "name": "llm2vec-llama3-mntp-supervised",
+  "source": "hf:McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised",
   "revision": "baa8ebf04a1c2500e61288e7dad65e8ae42601a7",
-  "sha256": "", "licence": "MIT (adapter); Llama 3 Community License (base)",
+  "sha256": "e4c83880362f84e367d55da025efba4b40e3148d75b940bdf18ba974be7de471",
+  "licence": "MIT (adapter); Llama 3 Community License (base)",
   "licence_url": "https://huggingface.co/McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised",
   "commercial_use": true,
-  "note": "Kimodo's text encoder, second adapter (supervised contrastive LoRA); terms as the first adapter's."},
- {"name": "llama3-8b-instruct", "source": "hf:meta-llama/Meta-Llama-3-8B-Instruct",
+  "note": "Kimodo's text encoder, second adapter (supervised contrastive LoRA); terms as the first adapter's."
+ },
+ {
+  "name": "llama3-8b-instruct",
+  "source": "hf:meta-llama/Meta-Llama-3-8B-Instruct",
   "revision": "8afb486c1db24fe5011ec46dfbe5b5dccdb575c2",
-  "files": ["config.json", "generation_config.json", "model-*.safetensors", "model.safetensors.index.json",
-            "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json", "LICENSE", "USE_POLICY.md"],
-  "sha256": "", "licence": "Llama 3 Community License", "licence_url": "https://www.llama.com/llama3/license/",
+  "files": [
+   "config.json",
+   "generation_config.json",
+   "model-*.safetensors",
+   "model.safetensors.index.json",
+   "special_tokens_map.json",
+   "tokenizer.json",
+   "tokenizer_config.json",
+   "LICENSE",
+   "USE_POLICY.md"
+  ],
+  "sha256": "e04ae0c15550032024005248f4773c58c412a577392a678486bd7a36f2528ada",
+  "licence": "Llama 3 Community License",
+  "licence_url": "https://www.llama.com/llama3/license/",
   "commercial_use": true,
-  "note": "The base of Kimodo's text encoder. Gated: seeding needs the hf-read-token secret (Secret Manager, by name). Commercial use is allowed below 700 million monthly users, under Meta's Acceptable Use Policy, with 'Built with Meta Llama 3' shown where a product built with it is distributed (checked 2026-10-09). The 16 GB original/ consolidated checkpoint is not fetched."},
- {"name": "soma-x-assets", "source": "hf:nvidia/SOMA-X",
-  "revision": "3648707b69e1b1dcf14c473e30613266b786b9f1", "ref": "v0.3.3",
-  "sha256": "", "licence": "Apache-2.0", "licence_url": "https://github.com/NVlabs/SOMA-X/blob/main/LICENSE",
+  "note": "The base of Kimodo's text encoder. Gated: seeding needs the hf-read-token secret (Secret Manager, by name). Commercial use is allowed below 700 million monthly users, under Meta's Acceptable Use Policy, with 'Built with Meta Llama 3' shown where a product built with it is distributed (checked 2026-10-09). The 16 GB original/ consolidated checkpoint is not fetched."
+ },
+ {
+  "name": "soma-x-assets",
+  "source": "hf:nvidia/soma-x",
+  "revision": "3648707b69e1b1dcf14c473e30613266b786b9f1",
+  "ref": "v0.3.3",
+  "sha256": "ee658ba0a5b04a15c93bde93ae33fb25e5e75abb8e6b22635b34c1bb8acbb6c5",
+  "licence": "Apache-2.0",
+  "licence_url": "https://github.com/NVlabs/SOMA-X/blob/main/LICENSE",
   "commercial_use": true,
-  "note": "SOMA-X's body model assets at tag v0.3.3 (the tag SOMA-X d6aa640 asks for in soma.assets.get_assets_dir); Apache-2.0, shape space from commercially licensed scans (checked 2026-10-09). Its SMPL, SMPLX and MANO folders hold only NVIDIA's wrap meshes for interoperability: the SMPL-family model files, whose licences forbid commercial use, are user-supplied, never fetched and never used here."},
- {"name": "sam3dbody-cpp-onnx", "source": "hf:AmmarkoV/SAM3DBody-cpp-onnx-models",
+  "note": "SOMA-X's body model assets at tag v0.3.3 (the tag SOMA-X d6aa640 asks for in soma.assets.get_assets_dir); Apache-2.0, shape space from commercially licensed scans (checked 2026-10-09). Its SMPL, SMPLX and MANO folders hold only NVIDIA's wrap meshes for interoperability: the SMPL-family model files, whose licences forbid commercial use, are user-supplied, never fetched and never used here. The source is written in lower case, as SOMA-X asks for it (the hub cache is case-sensitive; Hugging Face redirects it to nvidia/SOMA-X)."
+ },
+ {
+  "name": "sam3dbody-cpp-onnx",
+  "source": "hf:AmmarkoV/SAM3DBody-cpp-onnx-models",
   "revision": "a65660aece130b86a154fc2850eb1ed08856d8af",
-  "files": ["yolo.onnx", "pipeline.gguf", "body_model.lbs", "correctives.bin", "keypoint_mapping.bin", "backbone.onnx",
-            "backbone.onnx.data", "decoder.onnx"],
-  "sha256": "", "licence": "SAM License", "licence_url": "https://github.com/facebookresearch/sam-3d-body/blob/main/LICENSE",
+  "files": [
+   "yolo.onnx",
+   "pipeline.gguf",
+   "body_model.lbs",
+   "correctives.bin",
+   "keypoint_mapping.bin",
+   "backbone.onnx",
+   "backbone.onnx.data",
+   "decoder.onnx"
+  ],
+  "sha256": "d0b72055357901f6b0a21f1a8e0528facbab689a8f01961b4584072f55f0aa85",
+  "licence": "SAM License",
+  "licence_url": "https://github.com/facebookresearch/sam-3d-body/blob/main/LICENSE",
   "commercial_use": true,
-  "note": "SAM3DBody-cpp's shared and cuda profiles (vendor/sam3dbody-cpp/tools/fetch_model.sh, whose per-file sha256 these match). The repository is marked MIT, but the weights are converted from Meta's SAM 3D Body and stay under the SAM License, which allows commercial use, asks that publications acknowledge SAM, and forbids military, weapons and Trade-Control uses (checked 2026-10-09)."}
+  "note": "SAM3DBody-cpp's shared and cuda profiles (vendor/sam3dbody-cpp/tools/fetch_model.sh, whose per-file sha256 these match). The repository is marked MIT, but the weights are converted from Meta's SAM 3D Body and stay under the SAM License, which allows commercial use, asks that publications acknowledge SAM, and forbids military, weapons and Trade-Control uses (checked 2026-10-09)."
+ }
 ]
