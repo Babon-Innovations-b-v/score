@@ -7,14 +7,18 @@
   "lockers_1": "lockers-m1"
  },
  "campgrounds": {
-  "cargo_case_1": "cargo_case-r1",
-  "cargo_case_open_1": "cargo_case_open-r1",
-  "cargo_pallet_1": "cargo_pallet-r1",
-  "crane_1": "crane-r1",
-  "drift_1": "drift-r1",
-  "lander_1": "lander-r1",
-  "mast_cabinet_1": "mast_cabinet-r1",
-  "reactor_1": "reactor-r1"
+  "cable_coil": "cable_coil-g1",
+  "cargo_case": "cargo_case-r1",
+  "cargo_case_open": "cargo_case_open-r1",
+  "cargo_pallet": "cargo_pallet-r1",
+  "crane": "crane-r1",
+  "drift": "drift-r1",
+  "ice_drill": "ice_drill-g1",
+  "lander": "lander-r1",
+  "mast_cabinet": "mast_cabinet-r1",
+  "power_unit": "power_unit-g1",
+  "reactor": "reactor-r1",
+  "sample_case": "sample_case-g1"
  },
  "flat": {
   "bedside_lamp_1": "flat_bedside_lamp-pb",
