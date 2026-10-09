@@ -21,7 +21,8 @@ one of a group standing among thousands is seen close. Objects the stage makes i
 (the body parts a character does not wear) stay out of every picture.
 
 What the stage's sky holds is drawn as the game draws it: a haze body (score:kind "haze" with score:haze_*,
-tools/usd/scene.py) filled with fog of its colour and thickness, and a water surface with score:mirror_* given back
+tools/usd/scene.py) filled with fog of its colour and thickness out to its reach from the eye, lit by the sun and
+the lamps but not by the sky's ambient light, and a water surface with score:mirror_* given back
 as the game's harbour mirrors it (more along it than down into it, its ripples breaking what it mirrors into streaks).
 A view with `"ink": true` also gets <name>-ink.png: its look with the game's ink lines over it (ink_edges.gdshader's
 rule, worked out on the depth Cycles gives in a second, one-sample render), an option beside the look and never
@@ -396,7 +397,9 @@ def place_light(scene, number, entry):
 
 def stage_sky(scene, environment):
     """The stage's sky: the ambient light from every side (its dome), the background the camera sees, the exposure
-    (the game's multiplier as stops)."""
+    (the game's multiplier as stops). The ambient light does not light the haze (the game's environment leaves its
+    fog's ambient inject at nought, so only the sun and the lamps light it): a ray scattered in a haze body sees
+    black."""
     world = bpy.data.worlds.new("stage_sky")
     world.use_nodes = True
     nodes, links = world.node_tree.nodes, world.node_tree.links
@@ -411,7 +414,10 @@ def stage_sky(scene, environment):
     links.new(path.outputs["Is Camera Ray"], mix.inputs["Fac"])
     links.new(background.outputs["Background"], mix.inputs[1])
     links.new(seen.outputs["Background"], mix.inputs[2])
-    links.new(mix.outputs["Shader"], output.inputs["Surface"])
+    unlit = nodes.new("ShaderNodeMixShader")  # its second shader left empty: black
+    links.new(path.outputs["Is Volume Scatter Ray"], unlit.inputs["Fac"])
+    links.new(mix.outputs["Shader"], unlit.inputs[1])
+    links.new(unlit.outputs["Shader"], output.inputs["Surface"])
     scene.world = world
     scene.view_settings.exposure = math.log2(max(environment["exposure"], 1e-3))
 
@@ -429,7 +435,9 @@ def score_value(item, name):
 
 def haze_volumes(objects):
     """Every haze body of the stage filled with the game's fog: its colour as what the fog scatters, its density as
-    how thick it is a metre, its forward throw as the scatter's anisotropy; its shell itself is not drawn."""
+    how thick it is a metre, its forward throw as the scatter's anisotropy, and only as far from the eye as its
+    `reach` (the game works its fog out that far from the camera and no further: volumetric_fog_length); its shell
+    itself is not drawn."""
     for item in objects:
         density = score_value(item, "haze_density") if item.type == "MESH" else None
         if density is None:
@@ -442,6 +450,18 @@ def haze_volumes(objects):
         volume = nodes.new("ShaderNodeVolumePrincipled")
         volume.inputs["Color"].default_value = (*list(score_value(item, "haze_colour"))[:3], 1.0)
         volume.inputs["Density"].default_value = float(density)
+        reach = score_value(item, "haze_reach")
+        if reach:
+            seen = nodes.new("ShaderNodeCameraData")
+            within = nodes.new("ShaderNodeMath")
+            within.operation = "LESS_THAN"
+            within.inputs[1].default_value = float(reach)
+            thickness = nodes.new("ShaderNodeMath")
+            thickness.operation = "MULTIPLY"
+            thickness.inputs[1].default_value = float(density)
+            links.new(seen.outputs["View Distance"], within.inputs[0])
+            links.new(within.outputs["Value"], thickness.inputs[0])
+            links.new(thickness.outputs["Value"], volume.inputs["Density"])
         volume.inputs["Anisotropy"].default_value = float(score_value(item, "haze_forward") or 0.0)
         output = nodes.new("ShaderNodeOutputMaterial")
         links.new(volume.outputs["Volume"], output.inputs["Volume"])
@@ -735,7 +755,7 @@ def main():
         water_mirrors(objects)
     lamps(scene, views.get("lights", []))
     layers = {item.name: layer_of(item) for item in objects}
-    sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky")]
+    sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky", "dust")]
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))
         crowds = [item for item in objects if item.type == "POINTCLOUD"] if view.get("hide_crowds") else []
