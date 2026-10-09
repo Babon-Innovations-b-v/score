@@ -54,11 +54,9 @@ class FolderStore:
 
     def keys(self, prefix):
         """Every key that starts with `prefix`, sorted."""
-        if not self.root.exists():
-            return []
-        return sorted(str(path.relative_to(self.root)) for path in self.root.rglob("*")
-                      if path.is_file() and not path.name.endswith(".partial")
-                      and str(path.relative_to(self.root)).startswith(prefix))
+        found = (str(path.relative_to(self.root)) for path in self.root.rglob("*")
+                 if path.is_file() and not path.name.endswith(".partial"))
+        return sorted(key for key in found if key.startswith(prefix))
 
 
 ## S3-compatible stores cap a multipart upload at 1,000 parts (Scaleway does; AWS allows 10,000), and boto3's 8 MB

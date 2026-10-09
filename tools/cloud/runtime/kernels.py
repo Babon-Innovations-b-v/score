@@ -25,18 +25,24 @@ CACHE_BYTES = 4 << 30
 SIZE_SUFFIX = ".bytes"
 
 
-def card_key():
-    """The node's first card's compute capability and driver as one name (sm90-580.178.04), or None on a processor
-    node."""
+def first_card(fields):
+    """The node's first card's nvidia-smi `fields` as one csv line, or None on a processor node."""
     try:
-        answer = subprocess.run(["nvidia-smi", "--query-gpu=compute_cap,driver_version", "--format=csv,noheader"],
+        answer = subprocess.run(["nvidia-smi", f"--query-gpu={fields}", "--format=csv,noheader"],
                                 capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired):
         return None
     lines = answer.stdout.strip().splitlines() if answer.returncode == 0 else []
-    if not lines:
+    return lines[0] if lines else None
+
+
+def card_key():
+    """The node's first card's compute capability and driver as one name (sm90-580.178.04), or None on a processor
+    node."""
+    line = first_card("compute_cap,driver_version")
+    if not line:
         return None
-    capability, driver = (part.strip() for part in lines[0].split(","))
+    capability, driver = (part.strip() for part in line.split(","))
     return re.sub(r"[^a-z0-9.-]+", "", f"sm{capability.replace('.', '')}-{driver}".lower())
 
 
@@ -71,11 +77,10 @@ def restore(store, name, card, cache):
     """Bring the card's caches from the store onto a node that has none; True when it did."""
     root = folder(cache, name, card)
     with locked(cache, name, card):
+        root.mkdir(parents=True, exist_ok=True)
         if size_of(root) or not store.exists(store_key(name, card)):
-            root.mkdir(parents=True, exist_ok=True)
             return False
         tar = cache / "partial" / f"kernels-{card}-{os.getpid()}-{time.time_ns()}.tar"
-        root.mkdir(parents=True, exist_ok=True)
         store.download(store_key(name, card), tar)
         try:
             with tarfile.open(tar) as archive:

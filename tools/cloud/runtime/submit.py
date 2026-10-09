@@ -28,6 +28,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import job as jobs  # noqa: E402
 import store as stores  # noqa: E402
+import weights  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 IMAGES = REPO / "tools/cloud/images/images.json"
@@ -66,12 +67,7 @@ def bundle(paths, repo=REPO):
     with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as zipped:
         with tarfile.open(fileobj=zipped, mode="w", format=tarfile.PAX_FORMAT) as archive:
             for name in bundled_files(paths, repo):
-                info = archive.gettarinfo(repo / name, str(name))
-                info.uid = info.gid = 0
-                info.uname = info.gname = ""
-                info.mtime = 0
-                with open(repo / name, "rb") as source:
-                    archive.addfile(info, source)
+                weights.add_fixed(archive, repo / name, str(name))
     return raw.getvalue()
 
 
