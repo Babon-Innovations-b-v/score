@@ -1,0 +1,72 @@
+[
+  {
+    "name": "sam3",
+    "source": "hf:jetjodh/sam3",
+    "revision": "1aa50ce07302cb375f85d8084b68a0fb378b8d85",
+    "files": [
+      "config.json",
+      "model.safetensors",
+      "processor_config.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "special_tokens_map.json",
+      "vocab.json",
+      "merges.txt",
+      "LICENSE"
+    ],
+    "sha256": "",
+    "licence": "SAM License (Meta, 2025-11-19)",
+    "licence_url": "https://github.com/facebookresearch/sam3/blob/main/LICENSE",
+    "commercial_use": true,
+    "note": "SAM 3 in transformers' layout (Sam3Model, Sam3TrackerModel), from jetjodh/sam3, a public copy of Meta's gated facebook/sam3 (not open to the account; scene.py's SAM3_WEIGHTS). The SAM License grants use, copies and derivatives royalty-free, commercial use included; a copy passed on carries the licence, a publication acknowledges SAM, and trade-control, military and weapons uses are excluded. The original checkpoint sam3.pt is left out. sam-run sets SAM3_WEIGHTS to its folder."
+  },
+  {
+    "name": "sam2.1-hiera-large",
+    "source": "hf:facebook/sam2.1-hiera-large",
+    "revision": "665f8e2ad61cf5f53d65644ff27c8ee525124610",
+    "sha256": "",
+    "licence": "Apache-2.0",
+    "licence_url": "https://github.com/facebookresearch/sam2/blob/main/LICENSE",
+    "commercial_use": true,
+    "note": "SAM 2.1 large for segment_worker.py, which loads it by repository id (build_sam2_hf); sam-run lays it out as a Hugging Face hub cache (runtime/hf_cache.py) so the id resolves offline. Code and weights Apache-2.0."
+  },
+  {
+    "name": "moge-2-vitl-normal",
+    "source": "hf:Ruicheng/moge-2-vitl-normal",
+    "revision": "cb0e8bbd6b1e243589717c78e750b1ba4c093acf",
+    "sha256": "",
+    "licence": "MIT",
+    "licence_url": "https://huggingface.co/Ruicheng/moge-2-vitl-normal",
+    "commercial_use": true,
+    "note": "MoGe-2 for scene/depth.py, which loads it by repository id; sam-run lays it out as a Hugging Face hub cache (runtime/hf_cache.py). Code MIT with DINOv2 parts under Apache-2.0, in the image at the commit the Dockerfile pins."
+  },
+  {
+    "name": "birefnet-general-lite",
+    "source": "url:https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx",
+    "revision": "v0.0.0",
+    "sha256": "",
+    "licence": "MIT",
+    "licence_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE",
+    "commercial_use": true,
+    "note": "BiRefNet-lite as rembg's ONNX file (rembg's release v0.0.0, md5 4fab47adc4ff364be1713e97b7e66334 as closeups_setup.sh checks); sam-run links it as U2NET_HOME/birefnet-general-lite.onnx, the name rembg looks for. BiRefNet MIT, rembg MIT."
+  },
+  {
+    "name": "flux2-klein-4b",
+    "source": "hf:black-forest-labs/FLUX.2-klein-4B",
+    "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+    "files": [
+      "model_index.json",
+      "scheduler/*",
+      "text_encoder/*",
+      "tokenizer/*",
+      "transformer/*",
+      "vae/*",
+      "LICENSE.md"
+    ],
+    "sha256": "",
+    "licence": "Apache-2.0",
+    "licence_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+    "commercial_use": true,
+    "note": "FLUX.2 klein 4B in diffusers' layout (picture_setup.sh's and scene_setup.sh's allow patterns); the single-file checkpoint and the sample pictures are left out. sam-run links it to PROPS_HOME/flux2-klein, pictures-run to /root/model."
+  }
+]
