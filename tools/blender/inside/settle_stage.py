@@ -3,7 +3,7 @@
     python3 tools/blender/session.py batch tools/blender/inside/settle_stage.py -- <stage.usda> <job.json> <out.json>
 
 job.json: {"loose": [object name, ...], "lift": {object name: metres}}. The stage is brought in whole; its ground
-(`Ground`) and every object not named loose are static (passive rigid bodies, their own triangles as their collision).
+(`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision).
 Each loose object is lifted by its `lift` (just clear of the ground, from tools/usd/settle.py), given its convex hull
 as collision and its weight at the middle of its surface (the resting check's weight), and dropped. Loose objects
 collide with the ground and the static objects, not with each other: a convex hull spans a hollow, so one hull section
@@ -35,6 +35,8 @@ DAMPING_ANGULAR = 0.95
 # static one.
 GROUPS = 20
 MARGIN = 0.004
+# A room's stage has no Ground: the floor is y = 0 (resting.py's flat place), a plane this many metres across.
+FLAT_SIDE = 400.0
 SUBSTEPS = 20
 ITERATIONS = 40
 # The stage's y-up frame onto Blender's z-up and back, as Blender's importer turns a y-up stage.
@@ -142,6 +144,16 @@ def world(scene):
     scene.render.fps = FPS
 
 
+def flat_ground(scene):
+    """A room's ground where the stage has none: a wide plane at the stage's y = 0, as the resting check reads it."""
+    mesh = bpy.data.meshes.new("Ground")
+    half = FLAT_SIDE / 2
+    mesh.from_pydata([(-half, -half, 0), (half, -half, 0), (half, half, 0), (-half, half, 0)], [], [(0, 1, 2, 3)])
+    plane = bpy.data.objects.new("Ground", mesh)
+    scene.collection.objects.link(plane)
+    return plane
+
+
 def main():
     stage, job, out = arguments()
     import_stage(stage)
@@ -149,7 +161,8 @@ def main():
     world(scene)
     loose = set(job["loose"])
     holders = {item.name: item for item in bpy.data.objects if item.type == "EMPTY"}
-    ground = next(item for item in bpy.data.objects if item.type == "MESH" and item.name.split(".")[0] == "Ground")
+    ground = next((item for item in bpy.data.objects if item.type == "MESH" and item.name.split(".")[0] == "Ground"),
+                  None) or flat_ground(scene)
     rigid(unparented(ground), "PASSIVE", "MESH", range(GROUPS))
     statics, moving, inside = {}, {}, {}
     for name, holder in holders.items():
