@@ -39,7 +39,7 @@ runners in `tools/props/cloud/` stay as they are.
 ## Another provider
 
 A provider is one `clusters/<name>.py` with `KUBECONFIG`, `up()`, `idle()`, `down()`, `class_pools()` (name, class,
-type, zone, max, euros a minute, billing unit), `cap_pools(euros_left, hours)`, `nodes()` (name, pool, status,
+type, zone, max, euros a minute, billing unit), `cap_pools(euros_left, hours)`, `nodes()` (name, pool, type, zone, status,
 billed creation time), `price(type, zone)` and `month_spend()`; `SCORE_K8S_PROVIDER=<name>` picks it. The
 manifests and the submitter do not change.
 

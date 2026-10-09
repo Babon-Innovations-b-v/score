@@ -348,8 +348,8 @@ class Run:
                     self.remake(job_id)
 
     def watch_nodes(self):
-        """Note every class node: its class, type, zone, when the provider made it, when it was Ready, when last
-        seen."""
+        """Note every class node: its class, type and zone (from its labels, else from the provider's record), when
+        the provider made it, when it was Ready, when last seen."""
         billed = {node["name"]: node for node in self.cluster.nodes()}
         listed = self.kubectl.json("get", "nodes")["items"]
         for node in listed:
@@ -357,10 +357,12 @@ class Run:
             machine_class = meta["labels"].get(manifests.CLASS_LABEL)
             if not machine_class:
                 continue
+            provider_record = billed.get(meta["name"], {})
             seen = self.nodes.setdefault(meta["name"], {
-                "class": machine_class, "type": meta["labels"].get(INSTANCE_LABEL, "?").upper(),
-                "zone": meta["labels"].get(ZONE_LABEL, "?"), "cards": provider.cards(machine_class),
-                "created": billed.get(meta["name"], {}).get("created") or parse_time(meta["creationTimestamp"]),
+                "class": machine_class, "cards": provider.cards(machine_class),
+                "type": (meta["labels"].get(INSTANCE_LABEL) or provider_record.get("type", "?")).upper(),
+                "zone": meta["labels"].get(ZONE_LABEL) or provider_record.get("zone", "?"),
+                "created": provider_record.get("created") or parse_time(meta["creationTimestamp"]),
                 "ready": None, "deleted": None, "jobs": set()})
             ready = [condition for condition in node["status"].get("conditions", [])
                      if condition["type"] == "Ready" and condition["status"] == "True"]
