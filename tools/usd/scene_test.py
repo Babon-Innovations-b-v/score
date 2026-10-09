@@ -26,7 +26,6 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
 import builders  # noqa: E402
-import far_city  # noqa: E402
 import export  # noqa: E402
 import ground  # noqa: E402
 import ground_detail  # noqa: E402
@@ -366,30 +365,6 @@ def check_ground_detail(folder):
     assert np.median(facing[..., 2]) > 0.9
 
 
-def check_backdrop_render(folder):
-    """A backdrop arc names a strip of the far city the framework drew (`render`): the strip is copied into the
-    stage's textures under its seed's name and laid on the arc, unlit, with where it came from."""
-    far_city.RENDERS = folder / "renders"
-    strip = far_city.RENDERS / "seed-3/strips/shore_1.png"
-    strip.parent.mkdir(parents=True)
-    Image.new("RGBA", (64, 16), (200, 180, 120, 255)).save(strip)
-    entry = {"name": "shore_1", "render": "seed-3/strips/shore_1.png", "radius": 300.0, "low": 0.0, "high": 84.0,
-             "from": 148.0, "span": 64.0, "segments": 8, "from_file": "far_city.py seed 3"}
-    stage = Usd.Stage.CreateNew(str(folder / "backdrop.usda"))
-    UsdGeom.Xform.Define(stage, f"/{PLACE}")
-    scene.write_backdrop(stage, PLACE, [entry], folder)
-    assert (folder / "assets/textures/backdrop_seed-3_strips_shore_1.png").exists()
-    prim = stage.GetPrimAtPath(f"/{PLACE}/Backdrop/shore_1")
-    assert prim.GetAttribute("score:from").Get() == "far_city.py seed 3"
-    points = np.asarray(UsdGeom.Mesh(prim).GetPointsAttr().Get())
-    assert np.allclose(np.hypot(points[:, 0], points[:, 2]), 300.0, atol=1e-3)
-    try:
-        scene.write_backdrop(stage, PLACE, [dict(entry, render="seed-4/strips/shore_1.png")], folder)
-    except FileNotFoundError:
-        return
-    raise AssertionError("a strip never drawn must not be laid")
-
-
 def check_dust(folder):
     """The wind's grains hang over their square round the place, none under the ground or over their height, the same
     every time; each is a speck of six points and eight triangles."""
@@ -480,8 +455,7 @@ def check_records():
                 assert entry["surface"] in surfaces, (path.name, entry["surface"])
                 assert entry.get("plain", "plate") in placeholders.PLAIN_KINDS, (path.name, entry["name"])
                 scene.built_meshes(entry)
-        for entry in record.get("backdrop", []):
-            assert ("render" in entry) != ("picture" in entry), (path.name, entry["name"])
+        assert "backdrop" not in record, path.name  # no picture of a place on a ring: the far city is built in 3D
         for entry in record.get("lights", []):
             assert entry["type"] in ("omni", "spot", "sun"), (path.name, entry)
         assert record.get("views"), path.name
@@ -508,7 +482,6 @@ def main():
         check_moon(pathlib.Path(folder))
         check_night_glow(pathlib.Path(folder))
         check_stretched_fixture(pathlib.Path(folder))
-        check_backdrop_render(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_sky(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:

@@ -1,22 +1,16 @@
-"""The far city: a harbour city the framework builds itself and draws onto a place's backdrop arcs (the owner on the
-demo, 2026-10-09: the game's Hong Kong photographs on the skyline were "cheating").
+"""The far city's plan: a harbour city the framework lays itself (the owner on the demo, 2026-10-09: the game's Hong
+Kong photographs on the skyline were "cheating").
 
-A real skyline is density and depth, and the sky dome cannot hold one in 3D (the owner, 2026-09-30: single models
-spread over flat ground read as a toy lineup). So the city is laid and drawn away from the stage: hundreds of copies
-of a few made tower kinds (data/definitions/far_city.json: the launch inventory's far_city rows, each made from its
-close-up by the prop pipeline) stand as a dense wall along a far shore, rows deep, seeded turns and heights, the
-business districts taller, with code-built mountains behind; Cycles draws it at night on a card in the cloud
-(../blender/inside/far_city_render.py, through ../props/cloud/blender_cloud.py), one strip for each backdrop arc, seen
-from the ring's middle by a central cylindrical camera, so a strip lies on its arc exactly as the arc's uvs take it
-(across: the arc's bearings; up: height on the ring over its radius). The stage keeps its own water and mirror in
-front of the ring.
+A real skyline is density and depth (the owner, 2026-09-30: single models spread over flat ground read as a toy
+lineup). So hundreds of copies of a few made tower kinds (data/definitions/far_city.json: the launch inventory's
+far_city rows, each made from its close-up by the prop pipeline) stand as a dense wall along a far shore, rows deep,
+seeded turns and heights, the business districts taller, with code-built mountains behind. far_city_stage.py stands
+the plan up in 3D as a place of its own, which the flat, the street, the square and the launch view reference.
 
-    .venv/bin/python tools/usd/far_city.py plan --seed 7                 # writes <renders>/seed-7/city.json
-    .venv/bin/python tools/usd/far_city.py render --seed 7 --who "<session>" [--samples 64]
+    .venv/bin/python tools/usd/far_city.py --seed 7       # prints how many towers of each kind the seed lays
 
-Frame: EarthSite's metres (x across, -x toward the harbour; z along; bearings clockwise from north, -z, as
-builders.cylinder_wall takes them), the water at height 0. The strips land in RENDERS/seed-<n>/<arc>.png, outside the
-repo; a scene record's backdrop entry names one by `render` ("seed-7/shore_1.png").
+Frame: EarthSite's metres (x across, -x toward the harbour; z along; bearings clockwise from north, -z), the water at
+height 0.
 """
 import argparse
 import json
@@ -24,7 +18,6 @@ import math
 import os
 import pathlib
 import random
-import sys
 
 import numpy as np
 
@@ -33,16 +26,16 @@ REPO = HERE.parents[1]
 KINDS = REPO / "data/definitions/far_city.json"
 INVENTORY = REPO / "data/inventory/launch.json"
 WORK = pathlib.Path(os.environ.get("PROPS_WORK", pathlib.Path.home() / ".farm-factory-props/work"))
-RENDERS = WORK / "far-city/renders"
-MODELS = WORK / "far-city/models"
-RENDER_SCRIPT = "tools/blender/inside/far_city_render.py"
+# Where the made tower kinds wait for the world's release, each <row>_1.gltf (job r2-city, 2026-10-09).
+MODELS = WORK / "far-city/release/models/far_city"
 
 # The far shore's distance from the ring's middle: furthest straight across the harbour (west, bearing 270), nearer
 # round to the south and the north, where the city runs on across land; a slow seeded wander along it.
 SHORE_ACROSS = 1750.0
 SHORE_ROUND = 1300.0
 SHORE_WANDER = 70.0
-# The city's stretch of bearings (the backdrop arcs cover 148 to 392 degrees) and its rows behind the shore.
+# The city's stretch of bearings (round the harbour's far side, where the game's shore ring hung, 148 to 392 degrees)
+# and its rows behind the shore.
 CITY_FROM = 136.0
 CITY_TO = 404.0
 ROWS = 14
@@ -63,12 +56,6 @@ MOUNTAIN_DEEP = 3200.0
 MOUNTAIN_LOW = 300.0
 MOUNTAIN_HIGH = 1150.0
 MOUNTAIN_STEP = 100.0
-# The eye the strips are drawn from: the ring's middle at standing height over the water.
-EYE = 1.6
-# The ring the strips go on, the game's far shore (earth_site.gd:327-335,959-972: SHORE_RADIUS 300, SHORE_HEIGHT 84, four
-# 64 degree arcs from these bearings): its arcs as a scene record's backdrop entries give them.
-ARCS = tuple({"name": f"shore_{number}", "radius": 300.0, "low": 0.0, "high": 84.0, "from": bearing, "span": 64.0}
-             for number, bearing in enumerate((148.0, 208.0, 268.0, 328.0), start=1))
 
 
 def wander(bearing, seed, waves=((2, 0.5), (5, 0.3), (11, 0.2))):
@@ -91,11 +78,14 @@ def district(bearing):
     return max(weight * math.exp(-(apart(middle) / width) ** 2) for middle, width, weight in DISTRICTS)
 
 
-def kinds():
-    """The tower kinds with their row's size (wide, deep, tall in metres) from the launch inventory."""
+def kinds(made=None):
+    """The tower kinds with their row's size (wide, deep, tall in metres) from the launch inventory; with `made`, only
+    the kinds named there (those with a made model)."""
     rows = {row["id"]: row for row in json.loads(INVENTORY.read_text())["rows"]}
     found = []
     for kind in json.loads(KINDS.read_text())["kinds"]:
+        if made is not None and kind["row"] not in made:
+            continue
         if kind["row"] not in rows:
             raise SystemExit(f"far city kind {kind['row']} is not a row of {INVENTORY}")
         found.append(dict(kind, size=[float(side) for side in rows[kind["row"]]["size"]]))
@@ -104,7 +94,9 @@ def kinds():
 
 def pick_kind(choose, row, office, by_use):
     """Which kind stands on a lot: the waterfront's low blocks on the first row, office towers as often as the lot is
-    in a business district, homes elsewhere."""
+    in a business district, homes elsewhere; a use with no kind made takes the homes' (the offices' when there are
+    none)."""
+    by_use = {use: by_use[use] or by_use["residential"] or by_use["office"] for use in by_use}
     if row == 0 and choose.random() < 0.7:
         return choose.choice(by_use["front"])
     if choose.random() < 0.08 + 0.85 * office:
@@ -136,11 +128,11 @@ def clear(spot, radius, laid_grid, cell=120.0):
     return True
 
 
-def lay_towers(seed):
+def lay_towers(seed, made=None):
     """Every tower of the city: {kind, at: [x, z], facing: the bearing its front looks along, height}, rows deep
     along the far shore, seeded."""
     choose = random.Random(seed)
-    all_kinds = kinds()
+    all_kinds = kinds(made)
     by_use = {use: [kind for kind in all_kinds if kind["use"] == use] for use in ("office", "residential", "front")}
     laid, grid = [], {}
     for row in range(ROWS):
@@ -185,67 +177,19 @@ def mountains(seed):
             "shore": [round(shore_distance(bearing, seed), 2) for bearing in bearings]}
 
 
-def strips(arcs, eye=EYE):
-    """The camera for each backdrop arc: its middle bearing, its half span (radians across), and the heights on the
-    ring over its radius that its foot (on the water, height 0) and top stand at seen from the eye, with the picture's
-    size (the game's 2048 by 512 a 64 degree arc, twice over)."""
-    found = []
-    for arc in arcs:
-        radius, tall = float(arc["radius"]), float(arc["high"]) - float(arc["low"])
-        across = radius * math.radians(float(arc["span"]))
-        width = 4096
-        found.append({"name": arc["name"], "middle": float(arc["from"]) + float(arc["span"]) / 2.0,
-                      "half": math.radians(float(arc["span"])) / 2.0,
-                      "v_low": -eye / radius, "v_high": (tall - eye) / radius,
-                      "width": width, "height": int(round(width * tall / across))})
-    return found
-
-
-def plan(seed):
-    """The city's whole plan for the ring's arcs: its towers, mountains, shore and the strips' cameras."""
-    return {"seed": seed, "eye": EYE, "towers": lay_towers(seed), "mountains": mountains(seed),
-            "kinds": {kind["row"]: str(MODELS / f"{kind['row']}.glb") for kind in kinds()},
-            "uses": {kind["row"]: kind["use"] for kind in kinds()},
-            "strips": strips(ARCS)}
-
-
-def strip_file(render):
-    """The strip a backdrop entry names by `render` (seed-<n>/<arc>.png under RENDERS)."""
-    found = RENDERS / render
-    if not found.exists():
-        raise FileNotFoundError(f"{found}: draw the far city first (tools/usd/far_city.py render)")
-    return found
-
-
-def render(seed, who, samples):
-    """Draw the plan's strips on a card in the cloud and bring them back."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
-    sys.path.insert(0, str(REPO / "tools/props"))
-    import blender_cloud
-    folder = RENDERS / f"seed-{seed}"
-    city = folder / "city.json"
-    models = sorted(set(json.loads(city.read_text())["kinds"].values()))
-    models = [pathlib.Path(model) for model in models]
-    windows = [model.with_name(f"{model.stem}_windows.png") for model in models]
-    blender_cloud.run_elsewhere(REPO / RENDER_SCRIPT, [city, folder / "strips", samples], [city, *models, *windows],
-                                [folder / "strips"], ("gpu-48gb", "gpu-24gb", "gpu-80gb"), who, minutes=30)
+def plan(seed, made=None):
+    """The city's plan: its towers (of the `made` kinds only, when given), mountains and shore, and each kind's use."""
+    return {"seed": seed, "towers": lay_towers(seed, made), "mountains": mountains(seed),
+            "uses": {kind["row"]: kind["use"] for kind in kinds(made)}}
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("step", choices=("plan", "render"))
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--who", default="far city")
-    parser.add_argument("--samples", type=int, default=64)
     arguments = parser.parse_args()
-    if arguments.step == "plan":
-        folder = RENDERS / f"seed-{arguments.seed}"
-        folder.mkdir(parents=True, exist_ok=True)
-        city = plan(arguments.seed)
-        (folder / "city.json").write_text(json.dumps(city))
-        print(f"{folder / 'city.json'}: {len(city['towers'])} towers, {len(city['strips'])} strips")
-    else:
-        render(arguments.seed, arguments.who, arguments.samples)
+    towers = lay_towers(arguments.seed)
+    counts = {kind["row"]: sum(tower["kind"] == kind["row"] for tower in towers) for kind in kinds()}
+    print(f"seed {arguments.seed}: {len(towers)} towers {json.dumps(counts)}")
 
 
 if __name__ == "__main__":

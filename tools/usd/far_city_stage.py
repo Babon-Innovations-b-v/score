@@ -7,8 +7,9 @@ The owner on the demo (2026-10-09): a picture on the skyline is "cheating"; the 
 rows deep along a far shore, the business districts taller, code-built mountains behind); this module stands it up:
 
     /far_city/Towers      one point instancer: a prototype per tower kind (the kind's made model, converted once by
-                          glb_asset.py), an instance per tower of the plan, standing on the land at its spot, turned to
-                          face the ring's middle as the plan turns it and scaled to the height the plan deals it
+                          glb_asset.py, with its lit windows), an instance per tower of the plan, standing on the land
+                          at its spot, turned to face the ring's middle as the plan turns it and scaled to the height
+                          the plan deals it
     /far_city/Land        the waterfront's flat land, from the shore back to the mountains' foot
     /far_city/Mountains   the plan's mountain heights on its polar grid
     /far_city/Harbour     the water from the places' own harbour (radius HARBOUR_FROM) out to the shore, so no gap
@@ -17,8 +18,11 @@ rows deep along a far shore, the business districts taller, code-built mountains
     .venv/bin/python tools/usd/far_city_stage.py --seed 7 --out <stages folder> [--models <folder of made towers>]
 
 writes <out>/far_city/far_city.usda (and its assets/), beside the places that reference it as ../../far_city/.
-A tower kind's model is <models>/<row>.gltf or .glb (far_city.MODELS by default); a kind with no model yet stops the
-stage, since a city of stand-ins would be a placeholder. Frame: EarthSite's metres, the water at height 0, bearings
+A tower kind's model is <models>/<row>.gltf, <row>_1.gltf or <row>.glb (far_city.MODELS by default). The city is laid
+of the kinds that are made; a kind not made yet is left out and its lots dealt to the made ones (far_city.lay_towers),
+never stood in for. The towers' made models carry no lit windows, so each kind's lit windows are laid here: small
+quads of the library's lit-window surface on its upright faces, a share of them lit, floor by floor
+(window_lights). Frame: EarthSite's metres, the water at height 0, bearings
 clockwise from north (-z), as far_city.py.
 """
 import argparse
@@ -28,6 +32,7 @@ import pathlib
 import sys
 
 import numpy as np
+import trimesh
 from pxr import Gf, Kind, Sdf, Usd, UsdGeom, Vt
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -49,6 +54,16 @@ HARBOUR_FROM = 300.0
 LAND_HIGH = 2.0
 LAND_FRONT = 20.0
 WATER_HIGH = -0.02
+# The lit windows: a storey's height, a bay's width along a face, a window's size (wide, tall), how far proud of the
+# face it stands, the share of bays lit at night, which faces count as upright (the up part of their normal) and the
+# surface they glow with.
+FLOOR = 3.2
+BAY = 3.0
+WINDOW = (1.6, 1.4)
+PROUD = 0.15
+LIT = 0.45
+UPRIGHT = 0.3
+WINDOW_SURFACE = "window_lit"
 
 
 def bearing_point(bearing, reach, height):
@@ -98,12 +113,45 @@ def harbour_mesh(city):
 
 
 def model_file(models, row):
-    """A tower kind's made model in the models folder."""
-    for suffix in (".gltf", ".glb"):
-        found = pathlib.Path(models) / f"{row}{suffix}"
+    """A tower kind's made model in the models folder, or None while it is not made."""
+    for name in (f"{row}.gltf", f"{row}_1.gltf", f"{row}.glb"):
+        found = pathlib.Path(models) / name
         if found.exists():
             return found
-    raise SystemExit(f"{row}: no made model in {models}; the far city waits for its tower kinds' models")
+    return None
+
+
+def made_kinds(models):
+    """The tower kinds that have a made model in the folder."""
+    return {kind["row"] for kind in far_city.kinds() if model_file(models, kind["row"]) is not None}
+
+
+def window_lights(model, seed):
+    """A tower model's lit windows as one mesh in the model's own frame: a WINDOW sized quad, LIFT proud of the face,
+    on a share LIT of the bays of its upright faces (faces within UPRIGHT of vertical), one row a floor (FLOOR)."""
+    mesh = trimesh.load(model, force="mesh")
+    upright = np.abs(mesh.face_normals[:, 1]) < UPRIGHT
+    faces = mesh.submesh([np.nonzero(upright)[0]], append=True)
+    count = int(faces.area / (FLOOR * BAY))
+    if count == 0:
+        return None
+    centres, face_index = trimesh.sample.sample_surface_even(faces, count, seed=seed)
+    lit = np.random.default_rng(seed).random(len(centres)) < LIT
+    centres, normals = centres[lit], faces.face_normals[face_index[lit]]
+    normals[:, 1] = 0.0
+    normals /= np.linalg.norm(normals, axis=1, keepdims=True)
+    low = mesh.bounds[0][1]
+    centres[:, 1] = low + (np.floor((centres[:, 1] - low) / FLOOR) + 0.5) * FLOOR
+    up = np.array([0.0, 1.0, 0.0])
+    across = np.cross(up, normals)
+    middles = centres + normals * PROUD
+    corners = [middles + across * side * WINDOW[0] / 2 + up * rise * WINDOW[1] / 2
+               for side, rise in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    points = np.stack(corners, axis=1).reshape(-1, 3)
+    first = np.arange(len(middles))[:, None] * 4
+    triangles = np.concatenate([first + [0, 1, 2], first + [0, 2, 3]])
+    uvs = np.tile([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]], (len(middles), 1))
+    return {"points": points, "triangles": triangles, "uvs": uvs, "surface": WINDOW_SURFACE}
 
 
 def tower_turn(facing):
@@ -117,10 +165,18 @@ def write_towers(stage, city, models, out):
     instancer = UsdGeom.PointInstancer.Define(stage, f"/{PLACE}/Towers")
     kinds = sorted({tower["kind"] for tower in city["towers"]})
     boxes = {}
-    for kind in kinds:
+    for number, kind in enumerate(kinds):
+        model = model_file(models, kind)
+        if model is None:
+            raise SystemExit(f"{kind}: the plan lays it but {models} has no made model of it")
         prototype = UsdGeom.Xform.Define(stage, f"/{PLACE}/Towers/Prototypes/{kind}")
-        boxes[kind] = glb_asset.asset(model_file(models, kind), out / "assets" / f"{kind}.usdc", out / "assets/textures")
-        prototype.GetPrim().GetReferences().AddReference(f"./assets/{kind}.usdc")
+        body = UsdGeom.Xform.Define(stage, f"/{PLACE}/Towers/Prototypes/{kind}/body")
+        boxes[kind] = glb_asset.asset(model, out / "assets" / f"{kind}.usdc", out / "assets/textures")
+        body.GetPrim().GetReferences().AddReference(f"./assets/{kind}.usdc")
+        windows = window_lights(model, number + int(city["seed"]))
+        if windows is not None:
+            prim = scene.mesh_prim(stage, f"/{PLACE}/Towers/Prototypes/{kind}/windows", windows)
+            scene.bind_surface(stage, prim, PLACE, windows["surface"])
         instancer.GetPrototypesRel().AddTarget(prototype.GetPath())
     indices, positions, turns, scales = [], [], [], []
     for tower in city["towers"]:
@@ -179,8 +235,12 @@ def main():
     parser.add_argument("--out", required=True, type=pathlib.Path)
     parser.add_argument("--models", type=pathlib.Path, default=far_city.MODELS)
     arguments = parser.parse_args()
-    path, counts = write_stage(far_city.plan(arguments.seed), arguments.models, arguments.out)
-    print(f"{path}: {sum(counts.values())} towers ({json.dumps(counts)})")
+    made = made_kinds(arguments.models)
+    if not made:
+        raise SystemExit(f"{arguments.models}: no tower kind is made yet")
+    left = sorted(kind["row"] for kind in far_city.kinds() if kind["row"] not in made)
+    path, counts = write_stage(far_city.plan(arguments.seed, made), arguments.models, arguments.out)
+    print(f"{path}: {sum(counts.values())} towers ({json.dumps(counts)}); not made, so not laid: {', '.join(left) or 'none'}")
 
 
 if __name__ == "__main__":

@@ -31,10 +31,10 @@ def check_towers_stand_as_planned():
     city = far_city.plan(7)
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        made_towers(folder, city["kinds"])
+        made_towers(folder, city["uses"])
         path, counts = far_city_stage.write_stage(city, folder, folder / "stages")
         assert path == folder / "stages/far_city/far_city.usda"
-        assert sum(counts.values()) == len(city["towers"]) and len(counts) == len(city["kinds"])
+        assert sum(counts.values()) == len(city["towers"]) and len(counts) == len(city["uses"])
         stage = Usd.Stage.Open(str(path))
         assert stage.GetDefaultPrim().GetName() == "far_city"
         instancer = UsdGeom.PointInstancer(stage.GetPrimAtPath("/far_city/Towers"))
@@ -52,11 +52,27 @@ def check_towers_stand_as_planned():
             assert material, name
 
 
+def check_windows_light_a_tower_s_sides_floor_by_floor():
+    with tempfile.TemporaryDirectory() as temporary:
+        model = pathlib.Path(temporary) / "tower.glb"
+        trimesh.creation.box(bounds=((-10.0, 0.0, -10.0), (10.0, 60.0, 10.0))).export(model)
+        windows = far_city_stage.window_lights(model, 7)
+        assert windows["surface"] == far_city_stage.WINDOW_SURFACE
+        count = len(windows["points"]) // 4
+        bays = 4 * 20.0 * 60.0 / (far_city_stage.FLOOR * far_city_stage.BAY)
+        assert 0.3 * bays < count < 0.6 * bays, (count, bays)
+        middles = windows["points"].reshape(-1, 4, 3).mean(axis=1)
+        floors = (middles[:, 1] / far_city_stage.FLOOR) - 0.5
+        assert np.allclose(floors, np.round(floors), atol=1e-6)
+        assert (np.abs(middles[:, [0, 2]]).max(axis=1) > 10.0).all(), "a window sits inside its tower"
+        assert far_city_stage.made_kinds(pathlib.Path(temporary)) == set()
+
+
 def check_a_kind_without_a_model_stops_the_stage():
     city = far_city.plan(7)
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        made_towers(folder, city["kinds"], skip=("far_city_pencil_tower",))
+        made_towers(folder, city["uses"], skip=("far_city_pencil_tower",))
         try:
             far_city_stage.write_stage(city, folder, folder / "stages")
         except SystemExit as stop:
@@ -77,6 +93,7 @@ def check_tower_turn_faces_the_bearing():
 
 if __name__ == "__main__":
     check_tower_turn_faces_the_bearing()
+    check_windows_light_a_tower_s_sides_floor_by_floor()
     check_a_kind_without_a_model_stops_the_stage()
     check_towers_stand_as_planned()
     print("far city stage: all checks passed")

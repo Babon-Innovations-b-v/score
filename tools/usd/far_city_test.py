@@ -1,8 +1,8 @@
 """Check the far city's plan (tools/usd/far_city.py) without Blender: the same seed lays the same city and another seed
 another, hundreds of towers stand as a wall rows deep behind the shore with no two feet overlapping, each turned to
 the ring's middle within its jitter, of the kinds the data names, taller in the business districts; the mountains
-rise from their foot behind the shore; and each backdrop arc's strip covers exactly the arc's bearings and its
-height on the ring, in the arc's own proportions.
+rise from their foot behind the shore; and a city of only the kinds made deals the missing
+kinds' lots to the made ones.
 
 Run: .venv/bin/python tools/usd/far_city_test.py   (make tests runs it with the framework's environment)
 """
@@ -51,23 +51,17 @@ def check_mountains():
     assert mountains["reaches"][0] == far_city.MOUNTAIN_BEHIND
 
 
-def check_strips():
-    arcs = far_city.ARCS
-    for arc, strip in zip(arcs, far_city.strips(arcs)):
-        assert strip["name"] == arc["name"]
-        assert math.isclose(strip["middle"] - math.degrees(strip["half"]), arc["from"])
-        assert math.isclose(strip["middle"] + math.degrees(strip["half"]), arc["from"] + arc["span"])
-        tall = arc["high"] - arc["low"]
-        assert math.isclose((strip["v_high"] - strip["v_low"]) * arc["radius"], tall)
-        assert math.isclose(strip["v_low"] * arc["radius"], -far_city.EYE)
-        across = arc["radius"] * math.radians(arc["span"])
-        assert abs(strip["width"] / strip["height"] - across / tall) < 0.01
+def check_only_made_kinds():
+    made = {"far_city_glass_tower", "far_city_housing_tower"}
+    towers = far_city.lay_towers(7, made)
+    assert towers and {tower["kind"] for tower in towers} == made
+    assert set(far_city.plan(7, made)["uses"]) == made
 
 
 def main():
     check_layout()
     check_mountains()
-    check_strips()
+    check_only_made_kinds()
     print("far_city_test: ok")
 
 
