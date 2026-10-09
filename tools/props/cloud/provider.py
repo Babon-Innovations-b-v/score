@@ -68,9 +68,23 @@ def card_gb(machine_class):
     return int(found.group(1)) if found else 0
 
 
+# SCORE_CLOUD=k8s sends the runners' work to a Kubernetes cluster (tools/cloud/k8s/) instead of renting machines;
+# the cluster's provider, whose backend still gives the registry, the store, prices and secrets, is SCORE_K8S_PROVIDER.
+CLUSTER = "k8s"
+
+
+def on_cluster():
+    """Whether the runners send their work to the Kubernetes cluster (SCORE_CLOUD=k8s) instead of rented machines."""
+    return os.environ.get("SCORE_CLOUD") == CLUSTER
+
+
 def load(name=None):
-    """The backend module named `name`, else SCORE_CLOUD's, else Scaleway."""
-    return importlib.import_module(name or os.environ.get("SCORE_CLOUD", "scaleway"))
+    """The backend module named `name`, else SCORE_CLOUD's (with SCORE_CLOUD=k8s, the cluster's provider,
+    SCORE_K8S_PROVIDER), else Scaleway."""
+    chosen = name or os.environ.get("SCORE_CLOUD", "scaleway")
+    if chosen == CLUSTER:
+        chosen = os.environ.get("SCORE_K8S_PROVIDER", "scaleway")
+    return importlib.import_module(chosen)
 
 
 cloud = load()

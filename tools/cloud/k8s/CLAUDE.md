@@ -4,6 +4,9 @@ The provider-neutral Kubernetes path for the job images (`../images/`, `../runti
 Kubernetes Jobs on node pools per capability class that scale from zero. Chosen by `SCORE_CLOUD=k8s`; the machine
 runners in `tools/props/cloud/` stay as they are.
 
+- `cluster_jobs.py` is the runners' one door (SCORE_CLOUD=k8s): jobs described as command, code, inputs and outputs
+  at their paths become one run; outputs come back where the runner wants them. `blender_cloud.py` and
+  `library_bake.py` use it; a runner whose image lands next does the same in a `main_on_cluster` of its own.
 - `kube.py` is kubectl (objects through stdin); `gpu_operator.py` points NVIDIA's GPU operator at the registry.
 - `manifests.py` makes the plain manifests (JSON for kubectl): one Job a job, the store Secret, the pull Secret.
 - `submitter.py` is the queue and the watcher: Secrets at submit time, pool caps from the month's euros, Jobs, widening

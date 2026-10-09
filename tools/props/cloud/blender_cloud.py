@@ -29,6 +29,9 @@ the default), a card for renders (`--classes gpu-24gb`, Cycles on the card; on a
 its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). Blender is 5.0.1 from
 blender.org, set up by library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
 are batch.py's.
+
+Under SCORE_CLOUD=k8s the same calls run each job as a Kubernetes Job of the blender image on the cluster
+(tools/cloud/k8s/cluster_jobs.py), inputs and outputs at the same paths; the machines stay the default.
 """
 import argparse
 import json
@@ -46,6 +49,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
 from paths import REPO  # noqa: E402
 from provider import cloud  # noqa: E402
@@ -209,6 +213,14 @@ def run_spread(run, account, found, count, jobs):
 CLOUD_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
 
 
+def cloud_python():
+    """The Python a call of this file runs in: the machine runner's, or under SCORE_CLOUD=k8s the repo's own
+    environment, which has boto3 for the object store."""
+    from paths import VENV_PYTHON
+
+    return VENV_PYTHON if provider.on_cluster() else CLOUD_PYTHON
+
+
 def job_of(script, arguments, inputs, outputs, minutes):
     """A job as this file takes it."""
     return {"script": str(pathlib.Path(script).resolve().relative_to(REPO)),
@@ -226,7 +238,8 @@ class Machine:
 
     def __enter__(self):
         self.queue.mkdir(parents=True)
-        self.process = subprocess.Popen([str(CLOUD_PYTHON), str(HERE / "blender_cloud.py"), "--serve", str(self.queue),
+        self.process = subprocess.Popen([str(cloud_python()), str(HERE / "blender_cloud.py"), "--serve",
+                                         str(self.queue),
                                          "--who", self.who, "--classes", ",".join(self.classes),
                                          "--minutes", str(self.minutes)])
         return self
@@ -257,10 +270,79 @@ def run_elsewhere(script, arguments, inputs, outputs, classes, who, minutes=10):
     folder.mkdir(parents=True, exist_ok=True)
     job_path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}-{threading.get_ident()}.json"
     job_path.write_text(json.dumps(job_of(script, arguments, inputs, outputs, minutes), indent=1))
-    command = [str(CLOUD_PYTHON), str(HERE / "blender_cloud.py"), str(job_path), "--who", who,
+    command = [str(cloud_python()), str(HERE / "blender_cloud.py"), str(job_path), "--who", who,
                "--classes", ",".join(classes)]
     if subprocess.run(command).returncode != 0:
         raise RuntimeError(f"the cloud Blender run failed: {shlex.join(command)}")
+
+
+# The Kubernetes path (SCORE_CLOUD=k8s): the same jobs run as Kubernetes Jobs of the blender image
+# (tools/cloud/images/blender/), through tools/cloud/k8s/cluster_jobs.py, with the outputs at the same paths.
+CLUSTER_KERNELS = "blender-5.0.1"
+
+
+def cluster_job(job, classes):
+    """One job as the cluster runs it: the script in the image's Blender from the job's code, its output folders
+    made first, Cycles on the card on card classes (with the image's kernel cache), on the cores otherwise."""
+    card = any(provider.cards(name) for name in classes)
+    parents = sorted({str(pathlib.Path(local).resolve().parent) for local in job.get("outputs", ())})
+    blender = ["/opt/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
+               job["script"], "--", *[str(argument) for argument in job.get("args", ())]]
+    line = (f"mkdir -p {shlex.join(parents)} && " if parents else "") + shlex.join(blender)
+    found = {"command": ["sh", "-c", line], "code": shipped([job]), "inputs": list(job.get("inputs", ())),
+             "outputs": list(job.get("outputs", ())), "minutes": float(job.get("minutes", 10)),
+             "env": {"FARM_CYCLES_GPU" if card else "FARM_CYCLES_CPU": "1"}}
+    if card:
+        found["kernel_cache"] = CLUSTER_KERNELS
+    return found
+
+
+def cluster_jobs_module():
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    return cluster_jobs
+
+
+def run_on_cluster(jobs, classes, who):
+    """The jobs on the cluster as one run; the numbers of those that failed."""
+    return cluster_jobs_module().run(KIND, [cluster_job(job, classes) for job in jobs], who, classes,
+                                     image="blender")
+
+
+def serve_on_cluster(queue, classes, who, idle_minutes):
+    """--serve on the cluster: each job written to `queue` run in turn as a run of its own (`<n>.done` or
+    `<n>.failed` beside it), until the queue is closed and empty or nothing came for `idle_minutes`. The cluster's
+    node stays warm between them while they come within its scale-down time."""
+    (queue / "ready").write_text(",".join(classes))
+    last = time.time()
+    while True:
+        waiting = sorted((path for path in queue.glob("*.json") if not path.with_suffix(".done").exists()
+                          and not path.with_suffix(".failed").exists()), key=lambda path: int(path.stem))
+        if not waiting:
+            if (queue / "close").exists() or time.time() - last > idle_minutes * 60:
+                return
+            time.sleep(2)
+            continue
+        began = time.time()
+        if run_on_cluster([json.loads(waiting[0].read_text())], classes, who):
+            waiting[0].with_suffix(".failed").write_text("the cluster job failed; its log is in the store")
+        else:
+            waiting[0].with_suffix(".done").write_text(str(round(time.time() - began, 1)))
+        last = time.time()
+
+
+def main_on_cluster(options, jobs, classes):
+    """main() under SCORE_CLOUD=k8s."""
+    if options.dry_run:
+        batch.say(f"{len(jobs)} Blender jobs for the cluster, classes {', '.join(classes)}")
+        return
+    if options.serve:
+        serve_on_cluster(options.serve, classes, options.who, IDLE_MINUTES)
+        return
+    left = run_on_cluster(jobs, classes, options.who)
+    if left:
+        raise SystemExit(f"Blender jobs {', '.join(map(str, left))} failed on the cluster")
 
 
 def main():
@@ -274,6 +356,9 @@ def main():
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs] or [{"minutes": options.minutes}]
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
+    if provider.on_cluster():
+        main_on_cluster(options, jobs, classes)
+        return
     account = cloud.account()
     batch.sweep(account)
     found, count, allowed_minutes = price(jobs, account, classes)

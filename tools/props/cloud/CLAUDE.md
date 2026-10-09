@@ -4,6 +4,12 @@ The cloud batch runners: a whole batch of approved pictures through Pixal3D on r
 cards, the raw models brought back and finished here, the machines deleted after (#55), and the other
 model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 
+- **SCORE_CLOUD=k8s sends a runner's work to the Kubernetes cluster** (`tools/cloud/k8s/`) instead of renting
+  machines; the cluster's provider (registry, store, prices, secrets) is `SCORE_K8S_PROVIDER`, Scaleway by default,
+  and `provider.on_cluster()` says which path is on. A runner that supports it describes each job (command, repo
+  code, inputs and outputs at their paths, minutes) to `tools/cloud/k8s/cluster_jobs.py` and keeps its own interface
+  and outputs: `blender_cloud.py` (renders, settling, review pages, `Machine` chains) and `library_bake.py` do so
+  with the blender image. The machine runners stay the default; switch none of them over by default.
 - **Provider-neutral.** Runners rent through `provider.py` by capability class (`gpu-24gb`,
   `gpu-80gb-x2`, `cpu-32c-128gb`) and never name a provider, machine type, zone or price; those live in
   the backend (`backends/`, Scaleway today, chosen by `SCORE_CLOUD`). Secrets come through
