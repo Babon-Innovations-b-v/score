@@ -14,4 +14,4 @@ COPY requirements.txt /opt/pictures/requirements.txt
 RUN uv venv --python 3.12.13 /opt/venv \
  && uv pip sync --python /opt/venv --require-hashes /opt/pictures/requirements.txt \
  && /opt/venv/bin/python -c "import diffusers; diffusers.Flux2KleinPipeline; diffusers.QwenImageEditPlusPipeline"
-COPY run.sh /usr/local/bin/pictures-run
+COPY --chmod=755 run.sh /usr/local/bin/pictures-run
