@@ -1,0 +1,11 @@
+{
+ "name": "dog_stray",
+ "kind": "animal",
+ "picture": "/home/dupe/.farm-factory-props/work/pictures/dog_stray-s2.png",
+ "description": "a medium sized mixed-breed stray dog with a short tan and white coat",
+ "references": [],
+ "approved": "owner, job characters-full, 2026-10-09",
+ "body": "quadruped",
+ "length_m": 0.9,
+ "clips": ["idle", "walk", "sit"]
+}

@@ -54,6 +54,8 @@ KINDS = {
     "segment": SINGLE_CARD,
     # DINOv2 features for the render-and-compare (similar.py): 0.35 GB of weights, any card.
     "similar": SINGLE_CARD,
+    # UniRig's skeleton and skin models on a finished model (unirig.py): a 350M transformer, any card.
+    "unirig": SINGLE_CARD,
     "scene": SINGLE_CARD,
     "closeups": SINGLE_CARD,
     "unlit": SINGLE_CARD,
