@@ -99,9 +99,24 @@ def fine_points_ride_on_the_sewn_coarse_cloth():
     assert np.allclose(carried[3], [0.0, 5.0, -0.5]), carried  # just past the panel's edge, carried on in line
 
 
+def a_sleeve_must_reach_down_the_upper_arm():
+    assert sewing.arm_of("left_sleeve_f") == "left_arm" and sewing.arm_of("sl_right_cuff_b") == "right_arm"
+    assert sewing.arm_of("pant_l_cuff_f") is None and sewing.arm_of("left_ftorso") is None
+    # A strip of two triangles along x from 0.1 to 0.5, an arm from x = 0 to x = 1.
+    points = np.array([[0.1, 0, 0], [0.5, 0, 0], [0.1, 1, 0], [0.5, 1, 0], [0.9, 0, 0]])
+    faces = np.array([[0, 1, 2], [1, 3, 2], [1, 4, 3]])
+    on_limb = np.array([True, True, True, True, False])
+    gaps = sewing.uncovered(points, faces, on_limb, [0, 0, 0], [1, 0, 0], (0.3, 0.75), step=0.05)
+    # the third triangle has a corner on the limb, so it counts, reaching to 0.9
+    assert gaps == [], gaps
+    gaps = sewing.uncovered(points, faces[:2], on_limb, [0, 0, 0], [1, 0, 0], (0.3, 0.75), step=0.05)
+    assert gaps == [0.55, 0.6, 0.65, 0.7, 0.75], gaps
+
+
 if __name__ == "__main__":
     for check in (measurements_unchanged_on_the_same_body, measurements_follow_their_own_ratio,
                   threads_tie_every_copy_to_its_first, sewn_points_come_back_in_box_order,
-                  drape_reads_the_cloth_file, fine_points_ride_on_the_sewn_coarse_cloth):
+                  drape_reads_the_cloth_file, fine_points_ride_on_the_sewn_coarse_cloth,
+                  a_sleeve_must_reach_down_the_upper_arm):
         check()
         print("ok", check.__name__)

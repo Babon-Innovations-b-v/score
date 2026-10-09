@@ -120,3 +120,23 @@ def carried(fine, coarse, sewn):
         chosen = weights[np.arange(len(mine)), best]
         result[mine] = (chosen[:, :, None] * sewn[faces[best]]).sum(axis=1)
     return result
+
+
+def arm_of(panel):
+    """The arm a panel dresses, as people/drape.py's limb_of reads a panel's name, or None."""
+    if panel.startswith("pant_") or not ("sleeve" in panel or "cuff" in panel):
+        return None
+    return "left_arm" if "left" in panel else "right_arm"
+
+
+def uncovered(points, faces, on_limb, shoulder, elbow, span, step=0.01):
+    """The shares of the upper arm, from shoulder to elbow, within `span` (from, to) that no triangle of the limb's
+    cloth (any corner on it, as people/space_suit.py cuts its bands) reaches across: an empty list when the sleeve
+    covers the whole span, as every band the space suits lay round the upper arm needs."""
+    axis = np.asarray(elbow, dtype=float) - np.asarray(shoulder, dtype=float)
+    length = np.linalg.norm(axis)
+    along = (np.asarray(points) - shoulder) @ (axis / length) / length
+    kept = np.asarray(faces)[np.asarray(on_limb)[faces].any(axis=1)]
+    low, high = along[kept].min(axis=1), along[kept].max(axis=1)
+    shares = np.round(np.arange(span[0], span[1] + step / 2, step), 4)
+    return [float(share) for share in shares if not ((low <= share) & (high >= share)).any()]

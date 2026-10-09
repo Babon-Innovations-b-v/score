@@ -55,6 +55,8 @@ def box_mesh(body, design, work, name, reference, overrides):
     spacing (<name>_coarse, which cloth_drape.py sews first); the box mesh's folder."""
     cloth = json.loads((design / "cloth.json").read_text())
     garmentcode("measure", body, work, reference)
+    if (body.parent / "joints.json").exists():  # where the sleeves are checked against (cloth_drape.bare_arm)
+        shutil.copy(body.parent / "joints.json", work / "bodies" / "joints.json")
     garmentcode("pattern", design, work, name, *(f"{key}={value}" for key, value in overrides.items()))
     garmentcode("box", work, name, cloth["resolution_scale"])
     garmentcode("box", work, name, cloth["coarse_resolution"], f"{name}_coarse")
@@ -66,7 +68,9 @@ def cloth_job(box, work, design, out, name):
     coarse = box.with_name(f"{name}_coarse") / f"{name}_coarse_sewing.npz"
     job = {"sewing": str(box / f"{name}_sewing.npz"), "coarse": str(coarse),
            "box_mesh": str(box / f"{name}_boxmesh.obj"),
-           "body": str(work / "bodies" / "ours.obj"), "cloth": json.loads((design / "cloth.json").read_text()),
+           "body": str(work / "bodies" / "ours.obj"),
+           "joints": str(work / "bodies" / "joints.json") if (work / "bodies" / "joints.json").exists() else None,
+           "cloth": json.loads((design / "cloth.json").read_text()),
            "out": str(out), "name": name}
     path = work / f"{name}_cloth_job.json"
     path.write_text(json.dumps(job, indent=1))
