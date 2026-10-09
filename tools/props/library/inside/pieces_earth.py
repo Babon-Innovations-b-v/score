@@ -648,10 +648,11 @@ def far_banner(size, laid):
     return parts
 
 
-# A banner held up in the crowd on two poles (the square's concept K06): its cloth across the poles' tops, under it
-# the arms of the people holding it.
-CROWD_CLOTH = 0.75
+# A banner held up in the crowd on two poles (the square's concept K06): its cloth across the poles' tops, clear over
+# the heads of the people holding it, its words printed at the picture's own proportions (four wide to one tall).
+CROWD_CLOTH = 0.5
 CROWD_POLE = 0.025
+CROWD_WORDS_SHAPE = 4.0
 
 
 def crowd_banner(size, laid):
@@ -663,8 +664,10 @@ def crowd_banner(size, laid):
                              "poles") for side in (-1.0, 1.0)]
     parts.append(shapes.box((-pole_x + CROWD_POLE, cloth_low, -0.01), (pole_x - CROWD_POLE, cloth_top, 0.01), "flag_red",
                             "cloth"))
-    parts.append(pieces.label(0.0, (cloth_top + cloth_low) / 2, (wide - 4 * CROWD_POLE) * 0.9, CROWD_CLOTH * 0.8, -0.01,
-                              laid.get("label", "banner_crowd"), 0.0, 0.005, "label"))
+    words_tall = CROWD_CLOTH * 0.8
+    parts.append(pieces.label(0.0, (cloth_top + cloth_low) / 2, min((wide - 4 * CROWD_POLE) * 0.9,
+                                                                    words_tall * CROWD_WORDS_SHAPE),
+                              words_tall, -0.01, laid.get("label", "banner_crowd"), 0.0, 0.005, "label"))
     return parts
 
 

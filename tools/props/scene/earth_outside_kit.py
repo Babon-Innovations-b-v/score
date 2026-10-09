@@ -560,10 +560,11 @@ BALCONY_RAIL_HIGH = 1.1
 # The banners held up in the crowd (the square's concept K06, the inventory row crowd_banner: six, 3.0 wide and 2.4
 # tall on their poles), facing the balcony: two near the balcony, two in the middle on the terraces, two at the back
 # by the stage, spread across the crowd as the concept spreads them. No game code places them; the spots are ours,
-# each clear of a terrace's edge so both poles stand on one level.
+# each clear of a terrace's edge so both poles stand on one level, and moved up to a metre so no pole stands within
+# 0.4 m of a person of the square's cast crowd as its characters layer stands them (2026-10-09).
 CROWD_BANNER = (3.0, 2.4, 0.1)
-CROWD_BANNERS = (((-12.0, 22.0), "banner_crowd"), ((-10.0, -24.0), "banner_first"), ((-24.0, 0.0), "banner_crowd"),
-                 ((-30.0, 10.0), "banner_first"), ((-30.0, -48.0), "banner_crowd"), ((-18.0, 40.0), "banner_first"))
+CROWD_BANNERS = (((-12.8, 22.4), "banner_crowd"), ((-10.1, -25.0), "banner_first"), ((-23.8, -0.1), "banner_crowd"),
+                 ((-30.7, 10.1), "banner_first"), ((-29.0, -47.5), "banner_crowd"), ((-17.8, 40.8), "banner_first"))
 # The guard hut at the square's left edge as the balcony sees it (concept K04's box [469, 816, 640, 924]: left of the
 # stage, a little in front of its backdrop, about three metres clear of the stage's side), its door toward the
 # balcony. No game code places it; the spot is read off the concept against the stage's own ground. Its size is the

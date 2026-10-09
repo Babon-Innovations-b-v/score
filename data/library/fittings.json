@@ -4253,9 +4253,9 @@
 				"label"
 			],
 			"built": {
-				"cloth": 0.349,
+				"cloth": 0.744,
 				"label": 1.0,
-				"poles": 0.958
+				"poles": 0.979
 			},
 			"prints_off": []
 		},
