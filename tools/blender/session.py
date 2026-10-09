@@ -20,8 +20,7 @@ machine-wide lock (tools/test/lock/), for Blender's whole life, so a Blender, a 
 game shot never run at once (WSL ran out of memory twice on 2026-10-05 with them side by side),
 and it is let go however Blender ends. Stop a started Blender before running the gate: the gate
 waits for it. Blender starts only with MIN_FREE_GB of memory free, and a watchdog stops it after
-MAX_HOURS. `stop` stops only the Blender this file started, by the process
-group it recorded.
+MAX_HOURS. `stop` stops only the Blender this file started, by the session it recorded.
 """
 import argparse
 import json
@@ -67,12 +66,12 @@ def blender_path(version):
     return path
 
 
-def free_gb(meminfo="/proc/meminfo"):
+def free_gb():
     """MemAvailable in GB."""
-    for line in pathlib.Path(meminfo).read_text().splitlines():
+    for line in pathlib.Path("/proc/meminfo").read_text().splitlines():
         if line.startswith("MemAvailable:"):
             return int(line.split()[1]) / (1024 * 1024)
-    raise RuntimeError(f"no MemAvailable in {meminfo}")
+    raise RuntimeError("no MemAvailable in /proc/meminfo")
 
 
 def refuse_low_memory(available_gb, floor_gb=MIN_FREE_GB):
@@ -119,19 +118,14 @@ def launch_environment(base, version):
     return environment
 
 
-def launch_command(blender, display, blender_arguments, wait_seconds=0, lock=LOCK, max_hours=MAX_HOURS):
+def launch_command(blender, display, blender_arguments, wait_seconds=0):
     """Blender on a private Xvfb display (launch.sh), under the gate lock and the watchdog."""
     return [
-        "flock", "-w", str(wait_seconds), str(lock), "sh", "-c", HOLDER_LINE, str(lock),
-        "timeout", "--kill-after=30", f"{int(max_hours * 3600)}",
+        "flock", "-w", str(wait_seconds), str(LOCK), "sh", "-c", HOLDER_LINE, str(LOCK),
+        "timeout", "--kill-after=30", f"{int(MAX_HOURS * 3600)}",
         "bash", str(HERE / "launch.sh"), str(refuse_owner_screen(display)),
         str(blender), *blender_arguments,
     ]
-
-
-def interface_arguments():
-    """Blender with its interface, the MCP add-on started by startup.py."""
-    return ["--gpu-backend", "opengl", "-setaudio", "None", "--python", str(INSIDE / "startup.py")]
 
 
 def socket_peers(member_pids, listing):
@@ -151,13 +145,10 @@ def socket_peers(member_pids, listing):
 
 def owner_screen_paths(peers):
     """The peer paths that reach the owner's screen: WSLg's Wayland, or an X display under :99."""
-    found = []
-    for path in peers:
-        plain = path.lstrip("@")
-        display = re.search(r"\.X11-unix/X(\d+)$", plain)
-        if "wayland" in plain or (display and int(display.group(1)) < FIRST_PRIVATE_DISPLAY):
-            found.append(path)
-    return sorted(found)
+    def reaches_owner(path):
+        display = re.search(r"\.X11-unix/X(\d+)$", path)
+        return "wayland" in path or (display and int(display.group(1)) < FIRST_PRIVATE_DISPLAY)
+    return sorted(filter(reaches_owner, peers))
 
 
 def session_members(session):
@@ -184,27 +175,23 @@ def refuse_window_on_owner_screen(session):
         raise SystemExit(f"Blender connected to the owner's screen ({', '.join(leaks)}); stopped it")
 
 
-def read_state(state=STATE):
+def read_state():
     try:
-        return json.loads(pathlib.Path(state).read_text())
+        return json.loads(STATE.read_text())
     except FileNotFoundError:
         return None
 
 
-def alive(session):
-    return bool(session_members(session))
-
-
-def port_open(port=PORT, host="127.0.0.1"):
+def port_open(port=PORT):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.settimeout(0.3)
-        return probe.connect_ex((host, port)) == 0
+        return probe.connect_ex(("127.0.0.1", port)) == 0
 
 
-def send(command, port=PORT, timeout=COMMAND_SECONDS):
+def send(command, port=PORT):
     """One command to the add-on, its JSON answer back. The add-on frames by whole JSON objects."""
     with socket.create_connection(("127.0.0.1", port), timeout=10) as connection:
-        connection.settimeout(timeout)
+        connection.settimeout(COMMAND_SECONDS)
         connection.sendall(json.dumps(command).encode("utf-8"))
         received = b""
         while True:
@@ -235,13 +222,15 @@ def inside_call(module, call):
 
 def start(version, who, wait_seconds):
     state = read_state()
-    if state and alive(state["session"]):
+    if state and session_members(state["session"]):
         raise SystemExit(f"Blender already running for {state['who']} (session "
                          f"{state['group']}, port {state['port']}); use it or stop it first")
     refuse_low_memory(free_gb())
     if port_open():
         raise SystemExit(f"port {PORT} is taken by something else; set FARM_BLENDER_PORT")
-    command = launch_command(blender_path(version), private_display(), interface_arguments(), wait_seconds)
+    # The interface, so the MCP add-on (started by startup.py) gets the timers it serves from.
+    interface = ["--gpu-backend", "opengl", "-setaudio", "None", "--python", str(INSIDE / "startup.py")]
+    command = launch_command(blender_path(version), private_display(), interface, wait_seconds)
     with open(LOG, "w") as log:
         process = subprocess.Popen(
             command, env=launch_environment(os.environ, version), stdout=log,
@@ -298,7 +287,7 @@ def stop():
 
 def status():
     state = read_state()
-    if not state or not alive(state["session"]):
+    if not state or not session_members(state["session"]):
         print("no Blender running")
         return
     minutes = (time.time() - state["started"]) / 60
