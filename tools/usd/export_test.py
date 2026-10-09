@@ -305,9 +305,28 @@ def a_kit_room_s_pieces_stand_in_their_frames():
         return problems
 
 
+def a_model_laid_later_is_found_in_a_further_folder():
+    """A model a place's run did not make, laid in it later, is read from the next models folder given."""
+    problems = []
+    with tempfile.TemporaryDirectory() as temporary:
+        first, second = pathlib.Path(temporary) / "run", pathlib.Path(temporary) / "later"
+        first.mkdir()
+        second.mkdir()
+        (first / "box_1.gltf").write_text("{}")
+        (second / "lamp_1.gltf").write_text("{}")
+        if export.model_file([first, second], "lamp_1") != second / "lamp_1.gltf":
+            problems.append("a model in the second folder was not found there")
+        if export.model_file([first, second], "box_1") != first / "box_1.gltf":
+            problems.append("the run's own folder does not come first")
+        if export.model_file(first, "box_1") != first / "box_1.gltf":
+            problems.append("one folder is not read as before")
+    return problems
+
+
 CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface, stored_takes_paint_like_their_labels,
           the_stage_is_in_metres_with_static_colliders, a_child_moves_with_the_object_it_stands_on,
-          the_parts_are_found_where_the_run_recorded_them, a_kit_room_s_pieces_stand_in_their_frames)
+          the_parts_are_found_where_the_run_recorded_them, a_kit_room_s_pieces_stand_in_their_frames,
+          a_model_laid_later_is_found_in_a_further_folder)
 
 
 if __name__ == "__main__":

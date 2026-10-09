@@ -1,6 +1,6 @@
 """Write one place as an OpenUSD stage: the framework's canonical scene, which Blender and other engines load.
 
-    .venv/bin/python tools/usd/export.py <place> --models <folder of the place's made .gltf> --out <folder>
+    .venv/bin/python tools/usd/export.py <place> --models <folder of the place's made .gltf> [<more folders>] --out <folder>
                                          [--work <the route run's work folder> | --parts <folder of labelled takes>]
 
 The labelled parts are read where the run's records put them: with --work, <work>/parts/<model>-<take>/ for the take
@@ -346,11 +346,19 @@ def night_glow_map(base_color, glow, target):
     Image.fromarray(scene_record.srgb_bytes(linear * glow["strength"] * share[..., None]), "RGB").save(target)
 
 
+def model_file(models, model):
+    """A made model's .gltf in the models folder, or in the first of several folders that holds it (a place's own run,
+    then the folders of models laid in it later)."""
+    folders = [models] if isinstance(models, (str, pathlib.Path)) else list(models)
+    found = [pathlib.Path(folder) / f"{model}.gltf" for folder in folders]
+    return next((path for path in found if path.exists()), found[0])
+
+
 def write_asset(model, models, parts, take, turn, size, out, variants, sounds, glow=None):
     """One model as its own USD file under <out>/assets: drawn mesh, parts, collision (with its night glow map when
     the model is a kit's light at night, `glow`: night_glow_map); its largest surface back (None when the model has no
     labelled parts)."""
-    gltf = pathlib.Path(models) / f"{model}.gltf"
+    gltf = model_file(models, model)
     geometry = model_geometry(gltf)
     maps = png_maps(model_maps(gltf), out / "assets/textures")
     if glow is not None and "base_color" in maps:
@@ -408,7 +416,7 @@ def kit_room_pieces(kit, models, tube_length=None):
     room = kit.get("room", "")
     found = []
     for laid in kit["pieces"]:
-        matrix, _ = package.kit_matrix(laid, *package.model_box(pathlib.Path(models) / f"{laid['model']}.gltf"))
+        matrix, _ = package.kit_matrix(laid, *package.model_box(model_file(models, laid['model'])))
         own = laid["kind"].removeprefix(f"{room}_")
         # A glowing part (a lamp's lens, a screen) is an object of its own, named apart from its host's.
         row = f"{own}_{laid['part']}" if "part" in laid else own
@@ -715,15 +723,20 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     variants = library.variants(library.theme_library())
     sounds = json.loads(SOUNDS.read_text())
     (out / "assets").mkdir(parents=True, exist_ok=True)
+    laid = kit["pieces"] + [child for on_it in children.values() for child in on_it]
+    if not isinstance(parts, dict):  # a run's folder of takes: a model it did not make (laid later) by its stored take
+        stored = stored_parts.takes_of(place)
+        found = {piece["model"]: labelled_take(parts, piece["model"], take) or stored.get(piece["model"]) for piece in laid}
+        parts, take = {model: path for model, path in found.items() if path is not None}, None
     assets = {}
-    for piece in kit["pieces"] + [child for on_it in children.values() for child in on_it]:
+    for piece in laid:
         model = piece["model"]
         if model in assets:
             continue
         turn = details.get(piece["kind"], {}).get("turn", [1, 0, 0, 0, 1, 0, 0, 0, 1])
         largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds, glows.get(model))
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
-    hashes = {model: complete.model_hash(pathlib.Path(models) / f"{model}.gltf") for model in assets}
+    hashes = {model: complete.model_hash(model_file(models, model)) for model in assets}
     lock_picks(place, kit, children, inventory, hashes)
     write_base(place, kit, inventory, assets, out, children, ground, scene, world, hashes)
     ensure_edit(out)
@@ -752,13 +765,14 @@ def record_inputs(place, out, kit_path, inventory_path, models, hashes):
     the kit, the scene record and the cast, and every made model by its hash."""
     inputs = [kit_path, scene_record.SCENES / f"{place}.json", REPO / "data/characters" / f"{place}.json"]
     complete.record_inputs(out, inventory_path, inputs,
-                           {model: pathlib.Path(models) / f"{model}.gltf" for model in hashes}, hashes)
+                           {model: model_file(models, model) for model in hashes}, hashes)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("place")
-    parser.add_argument("--models", required=True, type=pathlib.Path)
+    parser.add_argument("--models", required=True, type=pathlib.Path, nargs="+",
+                        help="the place's made models; more folders after it for models laid in it later")
     parser.add_argument("--out", required=True, type=pathlib.Path)
     found = parser.add_mutually_exclusive_group()
     found.add_argument("--work", type=pathlib.Path, help="the route run's work folder: its parts and recorded take")
