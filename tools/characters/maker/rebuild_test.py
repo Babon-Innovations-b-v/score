@@ -59,3 +59,11 @@ def test_a_make_folder_names_its_program(tmp_path):
     assert characters.program_of(tmp_path) == "rebuild.py run"
     (tmp_path / "in/spec.json").write_text("{}")
     assert characters.program_of(tmp_path) == "chain.py"
+
+
+def test_drapes_that_did_not_hold_and_sleeves_off_the_arm_are_flagged():
+    log = "built work\nLeft sleeve: does not reach past the elbow; left as it is (redo the drape)\nok\n"
+    warnings = rebuild.warnings_in(log)
+    assert warnings == ["Left sleeve: does not reach past the elbow; left as it is (redo the drape)"]
+    assert rebuild.flags_of({"work_drape": False, "space_drape": True}, warnings) == [
+        "work_drape did not hold on the body", warnings[0]]

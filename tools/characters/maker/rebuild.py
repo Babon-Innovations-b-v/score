@@ -14,8 +14,10 @@ prologue's guard, driver and technicians wear their kit build's), so each patter
 it on a rented card, one group a machine, with this file as the program (`spec.json`'s `program`). `land` copies
 what came back into ~/.farm-factory-motion/rebuild/: look/<person>/ (the new look copy), bodies/<person>.glb and
 .json (with crowd_body/ for kit_m_avg), review/<person>/{old,new}/ (front, side, back and the other side of each
-outfit, standing) and results/<person>.json (each drape's measurements old and new, drape_measure.py's numbers,
-whether the build passed, the picture paths). Nothing here touches ~/.farm-factory-motion/look or work/bodies.
+outfit at rest, and the standing clip's first, middle and last frames), checks/after/<person>.json (people/joins.py's
+wrists, ankles and stance of the new body) and results/<person>.json (each drape's measurements old and new,
+drape_measure.py's numbers; joins.py's old (checks/before/) and new verdicts; whether the build passed and what it
+warned; `flags`, the drapes that did not hold and the warnings; the picture paths). Nothing here touches ~/.farm-factory-motion/look or work/bodies.
 
 On the machine (`run`, /root/envs/motion/bin/python rebuild.py run /root/make/<group>): the lead's rest body
 (export_body.py), each drape again from its pattern with the measurements it was sized on (bodies/ours.yaml, the
@@ -50,6 +52,10 @@ CROWD_CLIPS = ("standing", "shifting", "clapping", "cheering")
 # Front, side, back, other side: blender_review.py's turntable at four angles, standing.
 REVIEW_ANGLES = 4
 REVIEW_SIZE = 640
+# The standing clip's first, middle and last frames, where the wrists, ankles and stance show.
+REVIEW_FRAMES = 3
+# What a build prints when a drape left a sleeve off the arm (work_suit.py).
+BUILD_WARNINGS = ("does not reach past the elbow",)
 
 
 # ---- plain pieces (no numpy: the gate tests them) ---------------------------------------------------------------
@@ -189,10 +195,17 @@ def land(group):
         for suffix in (".glb", ".json"):
             if (out / "bodies" / f"{person}{suffix}").exists():
                 shutil.copy2(out / "bodies" / f"{person}{suffix}", REBUILD / "bodies" / f"{person}{suffix}")
+        if (out / "checks" / f"{person}.json").exists():
+            (REBUILD / "checks/after").mkdir(parents=True, exist_ok=True)
+            shutil.copy2(out / "checks" / f"{person}.json", REBUILD / "checks/after" / f"{person}.json")
         result = out / "results" / f"{person}.json"
         if result.exists():
             (REBUILD / "results").mkdir(parents=True, exist_ok=True)
             row = json.loads(result.read_text())
+            before = REBUILD / "checks/before" / f"{person}.json"
+            row.setdefault("joins", {})["old"] = json.loads(before.read_text()) if before.exists() else None
+            if row["flags"]:
+                print(f"{person}: LOOK AT {'; '.join(row['flags'])}", flush=True)
             row["pictures"] = {which: sorted(str(path) for path in (REBUILD / "review" / person / which).glob("*.png"))
                                for which in ("old", "new")}
             (REBUILD / "results" / f"{person}.json").write_text(json.dumps(row, indent=1))
@@ -232,10 +245,18 @@ class Run:
                     GARMENTCODE="/root/garmentcode", GARMENTCODE_PYTHON=str(GARMENT),
                     LD_LIBRARY_PATH=":".join(filter(None, [CUDA_LIBRARIES, os.environ.get("LD_LIBRARY_PATH")])))
 
-    def program(self, command, person, look, **extra):
+    def program(self, command, person, look, log=None, **extra):
+        """One program with the person's environment; its output into the run's log, or into `log` too."""
         print("$", " ".join(map(str, command)), flush=True)
-        subprocess.run([str(part) for part in command], check=True,
-                       env={**self.environment(person, look), **extra}, cwd=self.work)
+        environment = {**self.environment(person, look), **extra}
+        if log is None:
+            subprocess.run([str(part) for part in command], check=True, env=environment, cwd=self.work)
+            return
+        done = subprocess.run([str(part) for part in command], env=environment, cwd=self.work, text=True,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        log.write_text(done.stdout)
+        print(done.stdout, flush=True)
+        done.check_returncode()
 
     def step(self, name, work):
         """Run one step, timed into out/rebuild.json; a failed step is recorded and False returned."""
@@ -393,10 +414,17 @@ def measure(run):
 
 
 def build(run, person):
-    """One member built from the new look, its report beside it."""
+    """One member built from the new look, its report beside it and its output kept for the warnings."""
     look = run.new_look(person)
     run.program([MOTION, PEOPLE_TOOLS / "body.py", "--out", run.out / "bodies" / f"{person}.glb",
-                 "--report", run.out / "bodies" / f"{person}.json"], person, look, CUDA_VISIBLE_DEVICES="")
+                 "--report", run.out / "bodies" / f"{person}.json"], person, look,
+                log=run.out / "bodies" / f"{person}.build.log", CUDA_VISIBLE_DEVICES="")
+
+
+def joins(run, person):
+    """people/joins.py's wrists, ankles and stance of the new body, into out/checks/<person>.json."""
+    run.program([MOTION, PEOPLE_TOOLS / "joins.py", run.out / "bodies" / f"{person}.glb", "--out",
+                 run.out / "checks", "--record-only"], person, run.new_look(person))
 
 
 def crowd(run):
@@ -407,19 +435,35 @@ def crowd(run):
 
 
 def review(run, person, which, glb):
-    """Front, side, back and other side of each outfit standing, Cycles on the card (blender_review.py)."""
+    """Front, side, back and other side of each outfit at rest, and the standing clip's first, middle and last frames
+    from three quarters, Cycles on the card (blender_review.py)."""
     target = run.out / "review" / person / which
     target.mkdir(parents=True, exist_ok=True)
     run.program([BLENDER, "-b", "-P", HERE / "blender_review.py", "--", glb, target, "--clips", "standing",
-                 "--angles", REVIEW_ANGLES, "--frames", 1, "--size", REVIEW_SIZE], person, run.new_look(person))
+                 "--angles", REVIEW_ANGLES, "--frames", REVIEW_FRAMES, "--size", REVIEW_SIZE], person, run.new_look(person))
+
+
+def warnings_in(text):
+    """The lines of a build's output that say a drape has to be looked at."""
+    return [line.strip() for line in text.splitlines() if any(warning in line for warning in BUILD_WARNINGS)]
+
+
+def flags_of(held, warnings):
+    """What a reader must look at first: drapes that did not hold on the body and the build's warnings."""
+    return [f"{folder} did not hold on the body" for folder, ok in sorted(held.items()) if not ok] + list(warnings)
 
 
 def write_results(run, built):
     """out/results/<person>.json for each member."""
     for person in run.spec["people"]:
+        log = run.out / "bodies" / f"{person}.build.log"
+        warnings = warnings_in(log.read_text()) if log.exists() else []
+        checks = run.out / "checks" / f"{person}.json"
         row = {"person": person, "group": run.lead, "simulator": run.spec["simulator"],
-               "drapes": run.measurements, "build_ok": built.get(person, False),
-               "held_on_body": run.held, "steps": run.record["steps"]}
+               "flags": flags_of(run.held, warnings), "drapes": run.measurements,
+               "build_ok": built.get(person, False), "build_warnings": warnings, "held_on_body": run.held,
+               "joins": {"new": json.loads(checks.read_text()) if checks.exists() else None},
+               "steps": run.record["steps"]}
         (run.out / "results" / f"{person}.json").write_text(json.dumps(row, indent=1))
 
 
@@ -445,6 +489,8 @@ def run_group(folder):
     built = {}
     for person in run.spec["people"]:
         built[person] = draped and run.step(f"build {person}", lambda person=person: build(run, person))
+        if built[person]:
+            run.step(f"joins {person}", lambda person=person: joins(run, person))
     if run.spec.get("crowd") and built.get(run.lead):
         run.step(f"crowd {run.lead}", lambda: crowd(run))
     for person in run.spec["people"]:
