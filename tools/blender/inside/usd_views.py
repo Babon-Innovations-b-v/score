@@ -97,7 +97,17 @@ def import_stage(stage):
                                    import_lights=False, create_world_material=False)
     if "FINISHED" not in result:
         raise RuntimeError(f"Blender did not import {stage}: {result}")
+    leave_prototypes_out()
     return [item for item in bpy.data.objects if item not in before]
+
+
+def leave_prototypes_out():
+    """A point instancer's prototypes (the planned rocks' models, a crowd's bodies) drawn only where it copies them:
+    Blender's reader gathers them in a `prototypes` collection that would otherwise draw each at the stage's origin,
+    so that collection is left out of the view layer (its copies still draw)."""
+    for layer_collection in bpy.context.view_layer.layer_collection.children:
+        if layer_collection.collection.name.startswith("prototypes"):
+            layer_collection.exclude = True
 
 
 def layer_stack(stage):
