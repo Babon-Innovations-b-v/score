@@ -215,8 +215,7 @@
   }
  ],
  "game_only": [
-  "the glass between the hull's crown and feet (almost clear in the game)",
-  "the Moon's ground and sky seen through it"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ],
  "planned_ground": {
   "reach": 130.0,
