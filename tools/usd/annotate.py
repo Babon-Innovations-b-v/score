@@ -47,19 +47,23 @@ def view(name, eye, aim, fov=40.0, up=(0.0, 1.0, 0.0), only=None, look=True):
     return found
 
 
-def run(stage, views, out, cloud=False, size=SIZE, classes=None):
-    """Render every view of the stage into `out`; the folder."""
+def run(stage, views, out, cloud=False, size=SIZE, classes=None, machine=None):
+    """Render every view of the stage into `out` (here, on a rented machine of its own with `cloud`, or on a machine a
+    caller holds for a chain of jobs, blender_cloud.Machine); the folder."""
     out = pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
     job = out / "annotate-job.json"
     job.write_text(json.dumps({"size": list(size), "views": views}, indent=1))
     stage = pathlib.Path(stage).resolve()
-    if cloud:
+    if cloud or machine is not None:
         sys.path.insert(0, str(REPO / "tools/props/cloud"))
         import blender_cloud
         outputs = [out / "ids.json"] + [out / f"{entry['name']}-{part}" for entry in views
                                         for part in (("look.png", "passes.npz") if entry.get("look", True)
                                                      else ("passes.npz",))]
+        if machine is not None:
+            machine.run(INSIDE, [stage, job, out], [stage.parent, job], outputs, max(5, len(views) // 4))
+            return out
         blender_cloud.run_elsewhere(INSIDE, [stage, job, out], [stage.parent, job], outputs,
                                     classes or blender_cloud.DEFAULT_CLASSES, "annotate",
                                     minutes=max(5, len(views) // 4))
@@ -109,7 +113,7 @@ def aimed_at(name, point, size, only):
     return view(name, np.asarray(point) + CLOSEUP_WAY * distance, point, fov=40.0, only=only)
 
 
-def fault_closeups(stage, groups, folder, cloud=False):
+def fault_closeups(stage, groups, folder, cloud=False, machine=None):
     """One close-up of each group's worst fault (the object and what it meets, nothing else drawn); writes
     closeups.json beside them: {group number: its picture}."""
     import triage
@@ -123,7 +127,7 @@ def fault_closeups(stage, groups, folder, cloud=False):
         views.append(aimed_at(f"group-{number:03d}", worst["point"], sizes.get(worst["object"], 1.0), only))
     if not views:
         return {}
-    run(stage, views, folder, cloud)
+    run(stage, views, folder, cloud, machine=machine)
     found = {number: str(pathlib.Path(folder) / f"group-{number:03d}-look.png") for number in range(1, len(views) + 1)}
     (pathlib.Path(folder) / "closeups.json").write_text(json.dumps(found, indent=1))
     return found
