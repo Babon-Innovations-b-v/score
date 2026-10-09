@@ -1,0 +1,7 @@
+[
+ {"name": "partcrafter", "source": "hf:wgsxm/PartCrafter", "revision": "69a0ffc1dad5e48e7e5ed91c0609f2b1276eb31f",
+  "sha256": "",
+  "licence": "MIT", "licence_url": "https://huggingface.co/wgsxm/PartCrafter",
+  "commercial_use": true,
+  "note": "PartCrafter's whole pipeline (transformer, VAE, scheduler, and the DINOv2 image encoder it ships, DINOv2 being Apache-2.0). Its optional background remover briaai/RMBG-1.4 is non-commercial and is not listed: the image patches its download and loading out, and the pictures come cut out already."}
+]
