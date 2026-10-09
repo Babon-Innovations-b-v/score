@@ -616,6 +616,8 @@ def main():
     parser.add_argument("--ask", type=pathlib.Path, help="write each seen part's outlined picture and question here "
                         "(part_judge.py), for ../cloud/judge.py")
     parser.add_argument("--answers", type=pathlib.Path, help="the judge's answers: each part takes the material named")
+    parser.add_argument("--face-parts", type=pathlib.Path, help="a split of this raw model, one part per welded face "
+                        "(.npy: GeoSAM2 guided, ../cloud/meshparts.py and split_compare.py): paint by its parts")
     parser.add_argument("--split", action="store_true", help="with --regions and --answers: split the parts in 3D "
                         "along the close-up's finishes (finish_split.py), each new part one surface")
     parser.add_argument("--ask-parts", type=pathlib.Path, help="--split: write each new part's question here")
@@ -640,7 +642,12 @@ def main():
     final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
     matrix, gap = onto_finished(mesh.sample(SAMPLED, seed=1), final.sample(SAMPLED, seed=2),
                                 finish_turn(arguments.take))
-    if arguments.parts and arguments.regions:
+    if arguments.face_parts:
+        part_of = np.load(arguments.face_parts).astype(int)
+        if len(part_of) != len(mesh.faces):
+            raise SystemExit(f"{arguments.face_parts}: {len(part_of)} faces, the welded model has {len(mesh.faces)}")
+        report.update(way="parts of our own model (GeoSAM2 guided)", parts_file=str(arguments.face_parts))
+    elif arguments.parts and arguments.regions:
         part_of, report["registration"] = part_hint(arguments.parts, mesh, final.sample(SAMPLED, seed=3), matrix)
         report.update(way="parts", parts_folder=str(arguments.parts))
         if not report["registration"]["registered"]:
@@ -655,7 +662,10 @@ def main():
     else:
         part_of = np.zeros(len(mesh.faces), dtype=int)
         report.update(way="whole")
-    if arguments.split:
+    if arguments.face_parts:
+        painted, names, face_region, named = paint_by_own_parts(arguments, mesh, view, colours, part_of, materials,
+                                                                report)
+    elif arguments.split:
         painted, names, face_region, named = paint_by_split_parts(arguments, mesh, view, part_of, materials, report)
     elif arguments.regions:
         painted, names, face_region, named = paint_by_regions(arguments, mesh, view, part_of, materials, report)
@@ -767,6 +777,44 @@ def inherited_answers(asked, origin, centres, anchors, names):
         if source not in split or fits:
             found[region] = asked[source]
     return found
+
+
+def paint_by_own_parts(arguments, mesh, view, colours, part_of, materials, report):
+    """Each face's surface from its part of our own model's split: the judge names one library surface per part seen
+    (outlined on the close-up, neutral codes), a part the camera hardly saw takes the surface of the part it borders
+    most (paint_parts), a strongly coloured pick on a part the close-up shows colourless is set aside; neighbouring
+    parts given one surface are one painted part (the splitter's needless cuts on a smooth surface go).
+    (painted, names, painted parts, named)"""
+    picture, seen, row, column = view
+    count = int(part_of.max()) + 1
+    pixel_parts = part_judge.part_pixels(part_of, seen, row, column, np.asarray(picture).shape[:2])
+    if arguments.ask:
+        asked = [part for part in range(count) if ((part_of == part) & seen).sum() >= SEEN_LEAST]
+        report["asked"] = part_judge.write_questions(arguments.ask, arguments.take, picture, pixel_parts, asked,
+                                                     arguments.object or arguments.kind, materials)
+    judged = part_judge.judged(arguments.answers, arguments.take, count, list(materials)) if arguments.answers else {}
+    vivid = part_vividness(pixel_parts, picture_lab(picture), count)
+    names, anchors = anchors_of(materials)
+    kept = {part: answer for part, answer in judged.items()
+            if not (np.hypot(*anchors[names.index(answer[0])][1:]) > SATURATED and vivid[part] < NEUTRAL)}
+    chosen, about, names = paint_parts(mesh, colours, part_of, materials, kept)
+    painted_parts = joined_parts(mesh, part_of, chosen)
+    areas = mesh.area_faces
+    for part, entry in enumerate(about):
+        entry["share"] = round(float(areas[part_of == part].sum() / areas.sum()), 3)
+    report.update(parts=about, judged_parts=len(kept), judge_set_aside=sorted(set(judged) - set(kept)),
+                  painted_parts=int(painted_parts.max()) + 1)
+    return chosen[part_of], names, painted_parts, np.isin(part_of, list(kept))
+
+
+def joined_parts(mesh, part_of, chosen):
+    """Each face's painted part: the split's parts joined where neighbouring parts take one surface."""
+    pairs = mesh.face_adjacency
+    first, second = part_of[pairs[:, 0]], part_of[pairs[:, 1]]
+    same = (first != second) & (chosen[first] == chosen[second])
+    count = len(chosen)
+    links = sparse.coo_matrix((np.ones(same.sum()), (first[same], second[same])), shape=(count, count))
+    return connected_components(links + links.T, directed=False)[1][part_of]
 
 
 def part_vividness(pixel_parts, colours, count):

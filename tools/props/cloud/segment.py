@@ -96,7 +96,8 @@ def segment(machine, number, pictures, card, folder):
 def record(run, started, folder, pictures):
     entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run.folder.name,
              "kind": KIND, "folder": str(folder), "pictures": pictures,
-             **ledger.machines_record(run.machines, run.attempts, started), "wall_minutes": (time.time() - started) / 60}
+             **ledger.machines_record(run.machines, run.attempts, started),
+             "wall_minutes": (time.time() - started) / 60}
     ledger.record(entry)
     batch.say(f"segment: {entry['wall_minutes']:.0f} min on {len(entry['machines'])} machines, €{entry['euros']:.2f}")
     return entry

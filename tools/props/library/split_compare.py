@@ -152,21 +152,26 @@ def to_geosam2(points, centre, scale):
     return ((points - centre) * scale) @ GEOSAM2_TURN.T
 
 
-def write_inputs(run, take, masks_folder):
-    """The take's uploads (<run>/<take>/up/) and the close-up's regions on its faces (<run>/<take>/view.npz)."""
+def write_inputs(run, take, masks_folder, seeds_folder=None):
+    """The take's uploads (<run>/<take>/up/) and the close-up's regions on its faces (<run>/<take>/view.npz). With
+    `seeds_folder` the guide and the seeds are its finish seeds (<take>.npy, one finish per pixel: SAM 3 asked for
+    each finish by name, the judge confirming each) instead of SAM 2.1's regions, which cut a close-up by look; the
+    regions stay in view.npz for the scores."""
     folder = run / take / "up"
     folder.mkdir(parents=True, exist_ok=True)
     mesh = raw_model(take)
     pixels = pixel_regions(take, masks_folder)
-    on_faces = face_regions(mesh, take, pixels)
+    seeds = np.load(seeds_folder / f"{take}.npy") if seeds_folder else pixels
+    on_faces = face_regions(mesh, take, seeds)
     shutil.copyfile(labels.PIXAL / f"{take}.glb", folder / "raw.glb")
-    guide_map(pixels).save(folder / "map.png")
+    guide_map(seeds).save(folder / "map.png")
     centre, scale = geosam2_frame(mesh)
     turned = trimesh.Trimesh(to_geosam2(mesh.vertices, centre, scale), mesh.faces, process=False)
     turned.simplify_quadric_decimation(face_count=GEOSAM2_FACES).export(folder / "mesh.glb")
     np.savez_compressed(folder / "seed_points.npz", middles=to_geosam2(mesh.triangles_center, centre, scale)
                         .astype(np.float32), regions=(on_faces + 1).astype(np.int32))  # 0: no region seen there
-    np.savez_compressed(run / take / "view.npz", pixels=pixels, on_faces=on_faces, centre=centre, scale=scale)
+    np.savez_compressed(run / take / "view.npz", pixels=pixels, on_faces=face_regions(mesh, take, pixels),
+                        centre=centre, scale=scale)
     return {"take": take, "faces": len(mesh.faces), "regions": int(pixels.max()) + 1,
             "seen_faces": int((on_faces >= 0).sum())}
 
@@ -351,11 +356,12 @@ def main():
     parser.add_argument("run", type=pathlib.Path)
     parser.add_argument("takes", nargs="*")
     parser.add_argument("--masks", type=pathlib.Path, help="the folder of segment.py's masks (<take>.npz)")
+    parser.add_argument("--seeds", type=pathlib.Path, help="inputs: a folder of finish seed maps (<take>.npy)")
     arguments = parser.parse_args()
     arguments.run.mkdir(parents=True, exist_ok=True)
     if arguments.step == "inputs":
         for take in arguments.takes:
-            print(json.dumps(write_inputs(arguments.run, take, arguments.masks)), flush=True)
+            print(json.dumps(write_inputs(arguments.run, take, arguments.masks, arguments.seeds)), flush=True)
     else:
         for take in arguments.takes or sorted(path.parent.name for path in arguments.run.glob("*/view.npz")):
             print(take, json.dumps(lay_all(arguments.run, take), default=str), flush=True)
