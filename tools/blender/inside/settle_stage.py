@@ -177,10 +177,11 @@ def main():
             statics[name if len(meshes) == 1 else f"{name}/{item.name}"] = tree(item)
             rigid(item, "PASSIVE", "MESH", range(GROUPS))
             item.rigid_body.collision_collections = [False] + [True] * (GROUPS - 1)
+    lifts = {name: Matrix.Translation(Vector((0.0, 0.0, float(job["lift"].get(name, 0.0))))) for name in moving}
     for number, (name, item) in enumerate(moving.items()):
         inside[name] = inside_statics(item, statics)
         weight_at_middle(item)
-        item.matrix_world = Matrix.Translation(Vector((0.0, 0.0, float(job["lift"].get(name, 0.0))))) @ item.matrix_world
+        item.matrix_world = lifts[name] @ item.matrix_world
         rigid(item, "ACTIVE", "CONVEX_HULL", [0] if inside[name] else [own_group(number)])
     starts = {name: item.matrix_world.copy() for name, item in moving.items()}
     last = {}
@@ -190,8 +191,7 @@ def main():
             last = {name: item.matrix_world.translation.copy() for name, item in moving.items()}
     found = {}
     for name, item in moving.items():
-        lifted = Matrix.Translation(Vector((0.0, 0.0, float(job["lift"].get(name, 0.0)))))
-        motion = item.matrix_world @ starts[name].inverted() @ lifted
+        motion = item.matrix_world @ starts[name].inverted() @ lifts[name]
         found[name] = {"motion": stage_motion(motion), "inside": inside[name],
                        "moving": (item.matrix_world.translation - last[name]).length * FPS}
     out.write_text(json.dumps({"objects": found, "overlaps": overlaps(moving)}, indent=1))

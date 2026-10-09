@@ -20,8 +20,6 @@ import pathlib
 import re
 import sys
 
-import bpy
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import usd_views  # noqa: E402
 
@@ -68,20 +66,6 @@ def numbered(objects):
     return paths
 
 
-def lit(scene, stage):
-    """The stage's own lights, or the fixed sun and fill when it has none."""
-    lights, environment = usd_views.stage_lights(stage)
-    for number, entry in enumerate(lights):
-        usd_views.place_light(scene, number, entry)
-    if environment is not None:
-        usd_views.stage_sky(scene, environment)
-    else:
-        usd_views.black_sky(scene)
-    if not lights:
-        usd_views.sun(scene, "sun", usd_views.SUN_STRENGTH, usd_views.SUN_ELEVATION, usd_views.SUN_HEADING)
-        usd_views.sun(scene, "fill", usd_views.FILL_STRENGTH, usd_views.FILL_ELEVATION, usd_views.SUN_HEADING + 180.0)
-
-
 def shown_only(objects, only):
     """Hide every mesh whose laid object is not one of these prim paths (None: show all)."""
     for item in objects:
@@ -108,7 +92,7 @@ def main():
     paths = numbered(objects)
     (out / "ids.json").write_text(json.dumps(paths, indent=1))
     usd_views.renderer(scene, job["size"])
-    lit(scene, stage)
+    usd_views.lit(scene, stage)
     for view in job["views"]:
         usd_views.camera(scene, view)
         shown_only(objects, set(view["only"]) if view.get("only") else None)
