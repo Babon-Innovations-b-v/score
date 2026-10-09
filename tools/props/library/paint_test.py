@@ -252,6 +252,11 @@ def test_the_surface_check_sees_gold_on_white_and_two_finishes_as_one():
     assert found["collapsed"] and found["collapsed"][0]["families"] == ["neutral", "warm"]
     drawn[:] = 2  # soft blue vinyl over a grey seat and its grey base
     assert surface_check.check(drawn, landed, regions_map, np.array([grey, grey]), surfaces, names)["pass"]
+    dark = np.array([20.0, 1.0, 1.0])  # a shaded interior: a dark surface passes, a light one fails
+    assert surface_check.check(np.zeros((20, 20), dtype=int), landed, regions_map, np.array([dark, white]),
+                               np.array([white, gold, soft_blue]), names)["regions"][0]["verdict"] == "fail"
+    assert surface_check.check(np.zeros((20, 20), dtype=int), landed, regions_map, np.array([dark, white]),
+                               np.array([dark, gold, soft_blue]), names)["regions"][0]["verdict"] == "pass"
     landed[:, 10:] = False
     unknown = surface_check.check(drawn, landed, regions_map, np.array([grey, grey]), surfaces, names)
     assert not unknown["pass"] and unknown["regions"][1]["verdict"] == "unknown", unknown
