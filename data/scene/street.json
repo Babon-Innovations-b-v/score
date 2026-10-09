@@ -1,6 +1,6 @@
 {
  "place": "street",
- "about": "The street outside the block as the game draws it beyond its kit: the street lamps, the door's canopy lamp, the barber's open-shop glow, the moonlight, the far ground, the shore's skyline and the night sky. Frame: EarthSite's own.",
+ "about": "The street outside the block as the game draws it beyond its kit: the street lamps, the door's canopy lamp, the barber's open-shop glow, the moonlight, the far ground and the night sky. Frame: EarthSite's own.",
  "ground": [
   {
    "name": "far_ground",
@@ -10,52 +10,6 @@
    "surface": "concrete_dark",
    "segments": 96,
    "from": "earth_site.gd:942-949 (far disc, earth_far_ground)"
-  }
- ],
- "backdrop": [
-  {
-   "name": "shore_1",
-   "picture": "game/prologue/earth_site/shore/shore_1.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 148.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
-  },
-  {
-   "name": "shore_2",
-   "picture": "game/prologue/earth_site/shore/shore_2.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 208.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
-  },
-  {
-   "name": "shore_3",
-   "picture": "game/prologue/earth_site/shore/shore_3.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 268.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
-  },
-  {
-   "name": "shore_4",
-   "picture": "game/prologue/earth_site/shore/shore_4.png",
-   "radius": 300.0,
-   "low": -0.02,
-   "high": 83.98,
-   "from": 328.0,
-   "span": 64.0,
-   "segments": 24,
-   "from_file": "earth_site.gd:327-335,959-972 (arc from atan2(z, x) + 90 as a bearing)"
   }
  ],
  "structure": [
@@ -603,6 +557,7 @@
   }
  ],
  "game_only": [
+  "the far city across the harbour: the game hangs four photographs of Hong Kong round a ring at the sky's edge (earth_site.gd:327-335,959-972), which the scene leaves out, since no backdrop is a picture of a real place; the framework's own far city (tools/usd/far_city.py: its made towers laid as a wall along a far shore with mountains behind, drawn at night onto the same ring) waits for the owner's pick of its tower models",
   "the water tanks, stair huts and aerials on the tenements' roofs (their parapets and roof tops are in the stage, though no view sees them): the game deals their spots from its seeded random numbers after every window it dresses (tenement.gd:243-259), which the record cannot copy without running the game; no street view sees a roof",
   "the stairwell seen through the street door: the street's stage cannot show the stairwell's, which shows the street's",
   "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour",
