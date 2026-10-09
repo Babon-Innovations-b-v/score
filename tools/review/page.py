@@ -401,7 +401,8 @@ def game_beside(scene, out, games, pictures):
 
 def complete_line(place, scene, judged, passed):
     """The place's 'scene vs game' line: what of what the game draws the scene carries (its people too, from its cast),
-    what is still missing against the game's shots, and how many views are as bright as the game's."""
+    what is still missing against the game's shots, what the owner chose to leave out (`owner_rejected`), and how many
+    views are as bright as the game's."""
     record = scene_record.record(place)
     if record is None:
         return "<p><b>Scene vs game:</b> no scene record yet: only the made pieces are in the scene.</p>"
@@ -428,7 +429,14 @@ def complete_line(place, scene, judged, passed):
     return (f"<p><b>Scene vs game:</b> the scene carries {escaped(', '.join(carried))}. "
             f"Still missing against the game's shots: "
             f"{escaped('; '.join(missing_now)) if missing_now else 'nothing found yet'}. "
+            f"{rejected_sentence(record)}"
             f"Brightness: {escaped(light)}.</p>")
+
+
+def rejected_sentence(record):
+    """What the game draws that the owner chose to leave out of the scene, said apart from what is missing."""
+    rejected = record.get("owner_rejected", [])
+    return f"Left out by the owner: {escaped('; '.join(rejected))}. " if rejected else ""
 
 
 def scene_section(scene, out, place=None, games=None, pictures=None):
