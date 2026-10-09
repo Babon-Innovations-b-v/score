@@ -6,11 +6,16 @@ shells and the building round a room, stepped floors, stairs, the gameplay objec
 rocket), the water, the far backdrop, the ground beyond the place, every light and the sky. The scene record holds them
 as numbers copied from the game (each entry names the game file it came from), and this module builds them:
 
-    structure   code builders (tools/usd/builders.py) by name with their numbers, each painted with a library surface:
+    structure   code builders (tools/usd/builders.py) by name with their numbers, each painted with a library surface,
+                built in the place's frame or in its own and placed (`placed_at`, `placed_turn`):
                 /<place>/Structure/<name>
     objects     a world model file (a gameplay object; tools/usd/glb_asset.py) where the game stands it, turned about up
-                (`yaw`, as the game turns it) and scaled to the height the game gives it, with what stands on it:
-                /<place>/Fixtures/<name>
+                (`yaw`, as the game turns it) or by a whole `rotation` (one on a seat of its own, tipped with the
+                ball's curve), scaled to the height the game gives it, with what stands on it: /<place>/Fixtures/<name>
+    planned_rocks  the plan's rocks round the place, each lying as the game lays it (tools/usd/rocks.py), one point
+                instancer of the world's rock models: /<place>/Rocks
+    ground_decals  what the game paints on the ground (the wreck's scorch), mixed into the near ground's baked colour
+                (tools/usd/ground_detail.py, when the place's ground record carries the ground shader's detail)
     water       a flat surface of the library's water: /<place>/Water/<name>, with how much it mirrors (`mirror`)
     backdrop    panorama rings round the place, each a picture on an arc, drawn as they are (unlit, their sky cut out):
                 /<place>/Backdrop/<name>
@@ -21,8 +26,8 @@ as numbers copied from the game (each entry names the game file it came from), a
                 its `stars` (the game's star field, its own seed's) and its `haze` (a body of fog the game fills a room
                 or Mars's air with, as a see-through shell carrying the fog's numbers; on Earth the haze ring) under
                 /<place>/Sky
-    places      other places seen from this one, their own stages referenced where the game stands them:
-                /<place>/Places/<name>
+    places      other places seen from this one, their own stages referenced where the game stands them (`yaw` or a
+                whole `rotation`, as objects; `scale` for one shown at another length): /<place>/Places/<name>
     moon        the Moon on the night sky as the game's sky shader draws it (its face with its seas, and its halo in the
                 city's air), each a picture on a square far out along its way: /<place>/Sky/moon, /<place>/Sky/halo
     moved       kit pieces the game moves in its own code (a door it slides open), by the piece's `node`: shifted `by`
@@ -49,6 +54,8 @@ from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
 
 import builders
 import glb_asset
+import ground_detail
+import rocks
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 SCENES = REPO / "data/scene"
@@ -75,7 +82,7 @@ TUBE_LIGHT_EVERY = 2
 # The code builders a scene record may name.
 BUILDERS = ("quad", "box", "annulus", "walls", "wall_strip", "pyramid_roof", "dome", "cylinder_wall", "disc", "stairs",
             "grid", "heightfield", "room_walls", "room_deck", "dome_roof", "lathe", "sphere", "tube_arc", "stars",
-            "haze_volume")
+            "haze_volume", "torus")
 
 
 def record(place):
@@ -128,13 +135,28 @@ def bind_surface(stage, prim, place, surface):
 
 
 def built_meshes(entry):
-    """A structure entry's meshes: its builder called with its numbers (every key but name, builder, from)."""
+    """A structure entry's meshes: its builder called with its numbers (every key but name, builder, from, layer and
+    its placing), each placed where the entry stands (`placed`)."""
     if entry["builder"] not in BUILDERS:
         raise ValueError(f"no code builder named {entry['builder']}")
     builder = getattr(builders, entry["builder"])
-    numbers = {key: value for key, value in entry.items() if key not in ("name", "builder", "from", "layer", "mirror")}
+    numbers = {key: value for key, value in entry.items()
+               if key not in ("name", "builder", "from", "layer", "mirror", "placed_at", "placed_turn")}
     built = builder(**numbers)
-    return built if isinstance(built, list) else [built]
+    return [placed(part, entry) for part in (built if isinstance(built, list) else [built])]
+
+
+def placed(built, entry):
+    """A built mesh moved from the entry's own frame into the place's: turned by its `placed_turn` (a unit quaternion
+    [x, y, z, w]) and moved to its `placed_at`, for a piece the game stands on a seat of its own (the landing pad,
+    tipped with the ball's curve); an entry with neither is built in the place's frame already."""
+    if "placed_at" not in entry and "placed_turn" not in entry:
+        return built
+    x, y, z, w = (float(value) for value in entry.get("placed_turn", (0.0, 0.0, 0.0, 1.0)))
+    turn = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                     [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                     [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+    return dict(built, points=built["points"] @ turn.T + np.asarray(entry.get("placed_at", (0.0, 0.0, 0.0)), dtype=float))
 
 
 def write_structure(stage, place, entries, root="Structure", kind="structure"):
@@ -174,11 +196,21 @@ def fixture_asset(entry, out, world, boxes):
     return name, boxes[name]
 
 
+def turn(xform, entry):
+    """An entry's turn: its `rotation` (a unit quaternion [x, y, z, w] in the place's frame, for one standing on a seat
+    of its own that the ball's curve tips), else `yaw` degrees about up (right-handed, as the game turns it: +x toward
+    -z)."""
+    if "rotation" in entry:
+        x, y, z, w = (float(value) for value in entry["rotation"])
+        xform.AddOrientOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
+        return
+    xform.AddRotateYOp().Set(float(entry.get("yaw", 0.0)))
+
+
 def fixture(stage, path, entry, out, world, boxes):
-    """One gameplay object where the game stands it: its model at `at`, turned `yaw` degrees about up (right-handed,
-    as the game turns it: +x toward -z), scaled by `scale` or to `height` metres tall; the things standing on it
-    (`children`, each the same in its parent's frame) under it. A `stretch` (x, y, z) presses it unevenly after that,
-    as the game draws a model pressed to other proportions."""
+    """One gameplay object where the game stands it: its model at `at`, turned (`turn`), scaled by `scale` or to
+    `height` metres tall; the things standing on it (`children`, each the same in its parent's frame) under it. A
+    `stretch` (x, y, z) presses it unevenly after that, as the game draws a model pressed to other proportions."""
     name, (low, high) = fixture_asset(entry, out, world, boxes)
     scale = float(entry.get("scale", 1.0))
     stretch = entry.get("stretch")
@@ -187,7 +219,7 @@ def fixture(stage, path, entry, out, world, boxes):
     xform = UsdGeom.Xform.Define(stage, path)
     xform.GetPrim().GetReferences().AddReference(f"../assets/{name}.usdc")
     xform.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry["at"])))
-    xform.AddRotateYOp().Set(float(entry.get("yaw", 0.0)))
+    turn(xform, entry)
     xform.AddScaleOp().Set(Gf.Vec3f(*stretch) * scale if stretch is not None else Gf.Vec3f(scale))
     for key, value in (("score:kind", entry.get("kind", "fixture")), ("score:model", entry["model"]),
                        ("score:from", entry.get("from", ""))):
@@ -210,7 +242,7 @@ def write_objects(stage, place, entries, out, world):
 def write_places(stage, place, entries):
     """Other places seen from this one (the base on the wreck's horizon, the square and the launch view past the
     flat's balcony): each the other place's own stage referenced, as exported beside this one (`../../<stage>/`),
-    where the game stands it in this place's frame, turned `yaw` degrees about up."""
+    where the game stands it in this place's frame, turned as `turn` says."""
     if not entries:
         return
     UsdGeom.Scope.Define(stage, f"/{place}/Places")
@@ -218,7 +250,9 @@ def write_places(stage, place, entries):
         xform = UsdGeom.Xform.Define(stage, f"/{place}/Places/{entry['name']}")
         xform.GetPrim().GetReferences().AddReference(f"../../{entry['stage']}/{entry['stage']}.usda")
         xform.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry["at"])))
-        xform.AddRotateYOp().Set(float(entry.get("yaw", 0.0)))
+        turn(xform, entry)
+        if "scale" in entry:  # a stage laid for one length, shown at another (a walkway tube's run)
+            xform.AddScaleOp().Set(Gf.Vec3f(*map(float, entry["scale"])))
         for key, value in (("score:kind", "place"), ("score:place", entry["stage"]), ("score:from", entry.get("from", ""))):
             xform.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
         # What this place draws itself (its ground, water, backdrop, sky and sun) is left out of the one it shows.
@@ -228,6 +262,31 @@ def write_places(stage, place, entries):
         for name, light in zip(light_names(shown), shown):
             if light["type"] == "sun":
                 stage.OverridePrim(f"/{place}/Places/{entry['name']}/Lights/{name}").SetActive(False)
+
+
+def write_rocks(stage, place, entry, out, world, ground):
+    """The planned rocks round the place (rocks.py), as one point instancer (/<place>/Rocks): a prototype per rock
+    model (the world's own file, converted once), an instance per rock where and how the game lays it."""
+    if not entry or ground is None:
+        return
+    laid = rocks.laid_rocks(entry, world_file(world, "."), ground)
+    instancer = UsdGeom.PointInstancer.Define(stage, f"/{place}/Rocks")
+    models = sorted({rock["model"] for rock in laid})
+    boxes = {}
+    prototypes = []
+    for number, model in enumerate(models):
+        name, _ = fixture_asset({"model": model}, out, world, boxes)
+        prototype = UsdGeom.Xform.Define(stage, f"/{place}/Rocks/Prototypes/{name}")
+        prototype.GetPrim().GetReferences().AddReference(f"../assets/{name}.usdc")
+        prototypes.append(prototype.GetPath())
+    instancer.CreatePrototypesRel().SetTargets(prototypes)
+    instancer.CreateProtoIndicesAttr([models.index(rock["model"]) for rock in laid])
+    instancer.CreatePositionsAttr([Gf.Vec3f(*map(float, rock["at"])) for rock in laid])
+    instancer.CreateOrientationsAttr([Gf.Quath(Gf.Matrix3d(*np.asarray(rock["turn"]).T.reshape(-1).tolist())
+                                               .ExtractRotation().GetQuat()) for rock in laid])
+    instancer.CreateScalesAttr([Gf.Vec3f(*map(float, rock["stretch"])) for rock in laid])
+    for key, value in (("score:kind", "rocks"), ("score:from", entry.get("from", ""))):
+        instancer.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
 
 
 def backdrop_material(stage, path, picture_file, threshold=0.5):
@@ -548,7 +607,8 @@ def ground_skin(ground, picture):
 
 def far_ground(stage, place, ground, entry, out, near):
     """The planned ground past the near patch (the export's /<place>/Ground, `near` its box across and along): the
-    plan's square out to `reach` metres round the place, `step` metres apart, in the plan's skin; and, under it, the
+    plan's square out to `reach` metres round the place, `step` metres apart, in the plan's skin (shaded as the
+    ground shader shades it, ground_detail.far_colour, when the ground carries its detail); and, under it, the
     ball itself (`ball`), so the horizon is round as the game's. Both in the place's frame."""
     reach, step = float(entry.get("reach", 130.0)), float(entry.get("step", 2.0))
     points, triangles, skin_at = ground.mesh(np.array([-reach, -reach]), np.array([reach, reach]), 0.0, step)
@@ -557,10 +617,13 @@ def far_ground(stage, place, ground, entry, out, near):
     keep = ~np.all(inside[triangles], axis=1)
     textures = out / "assets/textures"
     textures.mkdir(parents=True, exist_ok=True)
-    skin = textures / f"ground_far_{pathlib.Path(ground.skin).stem}.jpg"
+    shaded = getattr(ground, "detail", None)
+    skin = textures / f"ground_far_{pathlib.Path(ground.skin).stem}{'_shaded' if shaded else ''}.jpg"
     if not skin.exists():
         from PIL import Image
-        ground_skin(ground, Image.open(ground.skin)).convert("RGB").save(skin, quality=90)
+        picture = Image.open(ground.skin)
+        coloured = ground_detail.far_colour(shaded, picture) if shaded else ground_skin(ground, picture)
+        coloured.convert("RGB").save(skin, quality=90)
     built = builders.mesh(points, triangles[keep], np.column_stack([skin_at[:, 0], 1.0 - skin_at[:, 1]]), None)
     prim = mesh_prim(stage, f"/{place}/Terrain/far", built)
     material = UsdShade.Material.Define(stage, f"/{place}/Terrain/far_look")
@@ -735,6 +798,7 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
         far_ground(stage, place, ground, scene["planned_ground"], out, near)
     write_structure(stage, place, scene.get("water", []), root="Water", kind="water")
     write_objects(stage, place, scene.get("objects", []), out, world)
+    write_rocks(stage, place, scene.get("planned_rocks"), out, world, ground)
     write_backdrop(stage, place, scene.get("backdrop", []), out, world)
     write_places(stage, place, scene.get("places", []))
     write_moon(stage, place, scene.get("moon"), out)

@@ -1,10 +1,12 @@
 """Check what a place's scene record adds to its stage (tools/usd/scene.py), on records made here: the code builders'
-shapes (a room's walls with a doorway cut, a deck with a pit's hole, a dome closing at its top, a turned rocket), a
-structure piece painted with its library surface and carrying its roof layer, the game's lights in the stage's units
-with the game's own numbers kept, a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay
-along its length, a kit piece the game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit
-light's night glow kept to its picture's bright parts, and every real record in data/scene naming only builders,
-surfaces and fields that exist.
+shapes (a room's walls with a doorway cut, a deck with a pit's hole, a dome closing at its top, a turned rocket, a
+flattened ring), a structure piece painted with its library surface and carrying its roof layer, a piece built in its
+own frame and placed, a place shown turned and stretched, the game's lights in the stage's units with the game's own
+numbers kept, a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay along its length, a kit
+piece the game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit light's night glow kept to
+its picture's bright parts, the engine's seeded random numbers, the planned rocks lying as the game lays them, the
+ground shader's detail baked with a decal, and every real record in data/scene naming only builders, surfaces and
+fields that exist.
 
 Run: .venv/bin/python tools/usd/scene_test.py   (make tests runs it with the framework's environment)
 """
@@ -15,6 +17,8 @@ import sys
 import tempfile
 
 import numpy as np
+import trimesh
+from PIL import Image
 from pxr import Usd, UsdGeom, UsdLux, UsdShade
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -22,7 +26,10 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
 import builders  # noqa: E402
 import export  # noqa: E402
+import ground  # noqa: E402
+import ground_detail  # noqa: E402
 import library  # noqa: E402
+import rocks  # noqa: E402
 import scene  # noqa: E402
 
 PLACE = "hub"
@@ -260,6 +267,82 @@ def check_stretched_fixture(folder):
     assert np.allclose(np.asarray(box.GetSize()), [1.44, 1.44, 4.0], atol=1e-4), box
 
 
+def check_ring_and_placing(folder):
+    """A flattened ring keeps its hole and outside and its squashed height; a piece built in its own frame is turned and
+    moved by its placing; a place is shown turned by its whole rotation and stretched along its run."""
+    ring = builders.torus(13.6, 14.2, 0.2, "x", flatten=0.2)
+    across = np.hypot(ring["points"][:, 0], ring["points"][:, 2])
+    assert np.isclose(across.min(), 13.6) and np.isclose(across.max(), 14.2)
+    assert np.isclose(ring["points"][:, 1].max(), 0.2 + 0.3 * 0.2)
+    half_turn = [0.0, math.sin(math.pi / 4), 0.0, math.cos(math.pi / 4)]  # 90 degrees about up
+    entry = {"name": "pad", "builder": "box", "centre": [1.0, 0.0, 0.0], "size": [0.2, 0.2, 0.2], "surface": "deck",
+             "placed_at": [10.0, 2.0, 0.0], "placed_turn": half_turn}
+    middle = scene.built_meshes(entry)[0]["points"].mean(axis=0)
+    assert np.allclose(middle, [10.0, 2.0, -1.0], atol=1e-6), middle  # +x turned 90 degrees about up is -z
+    stage = Usd.Stage.CreateNew(str(folder / "placed.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    scene.write_places(stage, PLACE, [{"name": "tube", "stage": "tube", "at": [1.0, 0.0, 0.0], "rotation": half_turn,
+                                       "scale": [1.0, 1.0, 0.5]}])
+    matrix = UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Places/tube")).ComputeLocalToWorldTransform(
+        Usd.TimeCode.Default())
+    assert np.allclose(np.asarray(matrix.Transform((0.0, 0.0, 2.0))), [2.0, 0.0, 0.0], atol=1e-6)
+
+
+def flat_ground(folder, skin=(128, 128, 128)):
+    """A ground record for a flat plan, its seat straight out from the plan's middle."""
+    size = 65
+    code = np.full((size, size), round(20.0 / 40.0 * 65535), dtype=np.int64)
+    pixels = np.stack([code >> 8, code & 255, np.zeros_like(code)], axis=-1).astype(np.uint8)
+    Image.fromarray(pixels).save(folder / "heights.png")
+    Image.new("RGB", (64, 64), skin).save(folder / "skin.jpg")
+    record = {"heights": "heights.png", "skin": "skin.jpg", "side": 260.0, "low": 20.0, "span": 40.0,
+              "radius": 220.0, "plan_out": [0.0, 1.0, 0.0], "folder": str(folder)}
+    return ground.Ground(record, {"out": [0.0, 1.0, 0.0], "heading": 0.0}, [0.0, 0.0])
+
+
+def check_planned_rocks(folder):
+    """On flat ground a planned rock lies sunk by its share of its size, as long as its size, the same way every time;
+    a pebble past where pebbles are seen and a rock off the plan's square are left out."""
+    flat = flat_ground(folder)
+    (folder / "game").mkdir()
+    trimesh.creation.box(extents=(1.0, 0.5, 0.8)).export(folder / "game/rock.glb")
+    layout = {"rocks": [{"x": 2.0, "z": 3.0, "size": 1.2, "kind": 0}, {"x": 60.0, "z": 0.0, "size": 0.2, "kind": 0},
+                        {"x": 120.0, "z": 0.0, "size": 2.0, "kind": 0}]}
+    (folder / "game/plan.json").write_text(json.dumps(layout))
+    entry = {"plan": "game/plan.json", "boulders": ["game/rock.glb"], "stones": ["game/rock.glb"], "seed": 41,
+             "sunk": 0.12, "tip": 0.25, "crest_reach": 1.0, "pebble": 0.45, "pebbles_seen": 40.0, "plan_reach": 116.0,
+             "reach": 130.0}
+    laid = rocks.laid_rocks(entry, folder, flat)
+    assert len(laid) == 1, laid
+    rock = laid[0]
+    assert np.allclose(rock["at"][[0, 2]], [2.0, 3.0], atol=0.5), rock["at"]
+    assert np.isclose(rock["stretch"].max() / rock["stretch"].min() < 1.6, True)
+    assert 1.2 * 0.85 - 1e-6 <= rock["stretch"][0] <= 1.2 * 1.15 + 1e-6
+    assert np.allclose(rock["turn"] @ rock["turn"].T, np.eye(3), atol=1e-9)
+    assert np.allclose(rocks.laid_rocks(entry, folder, flat)[0]["turn"], rock["turn"])
+
+
+def check_ground_detail(folder):
+    """The baked ground is the rock colour shaded by the skin, darker where a decal lies, and faces mostly up."""
+    flat = flat_ground(folder, skin=(107, 107, 107))  # the skin's red at its middle grey (0.42): no shade from it
+    for name in ("shade", "bumps"):
+        Image.new("RGB", (32, 32), (128, 128, 255) if name == "bumps" else (128, 128, 128)).save(folder / f"{name}.png")
+    Image.new("RGB", (32, 32), (128, 128, 128)).save(folder / "relief.png")
+    detail = {"flat_colour": [0.5, 0.5, 0.5], "ink_colour": [0.0, 0.0, 0.0], "relief": "relief.png",
+              "scans": {"wide_shade": "shade.png", "close_shade": "shade.png", "wide_bumps": "bumps.png",
+                        "close_bumps": "bumps.png"}}
+    decal = {"centre": [2.0, 0.0, 0.0], "radius": 1.0, "solid": 0.35, "rays": 13, "ray_reach": 0.55, "seed": 23,
+             "colour": [0.1, 0.1, 0.1]}
+    baked = ground_detail.bake(flat, detail, [decal], folder, np.array([-3.0, -1.0]), np.array([3.0, 1.0]),
+                               folder / "out", texel=0.02)
+    colour = np.asarray(Image.open(baked["colour"]), dtype=np.float64)
+    facing = np.asarray(Image.open(baked["facing"]), dtype=np.float64) / 255.0 * 2.0 - 1.0
+    assert colour.shape == (100, 300, 3)
+    burnt = colour[45:55, 245:255].mean()
+    assert burnt < 40 and np.median(colour[:, :100]) > 100, (burnt, np.median(colour[:, :100]))
+    assert np.median(facing[..., 2]) > 0.9
+
+
 def check_records():
     """Every record names builders that exist with their own arguments, library surfaces that exist, and views
     with an eye, an aim and a field of view."""
@@ -302,6 +385,12 @@ def main():
     check_kit_lamps()
     check_tube()
     check_moved()
+    with tempfile.TemporaryDirectory() as folder:
+        check_ring_and_placing(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_planned_rocks(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_ground_detail(pathlib.Path(folder))
     check_records()
     print("scene_test: ok")
 

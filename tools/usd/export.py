@@ -68,6 +68,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 sys.path.insert(0, str(REPO / "tools/props/library"))
 import glb_file  # noqa: E402
 import ground as grounds  # noqa: E402
+import ground_detail  # noqa: E402
 import library  # noqa: E402
 import package  # noqa: E402
 import scene as scene_record  # noqa: E402
@@ -515,20 +516,32 @@ def stand_on(xform, at, ground):
     xform.AddOrientOp(UsdGeom.XformOp.PrecisionDouble, "seat").Set(turn)
 
 
-def ground_mesh(stage, path, ground, pieces, out):
-    """The place's ground round its pieces: a drawn mesh of the planned heights, coloured with the plan's skin (cut
-    to the patch, as PNG under assets/textures), and a static collider; its box (across, along) back."""
+def ground_mesh(stage, path, ground, pieces, out, scene=None, world=None):
+    """The place's ground round its pieces: a drawn mesh of the planned heights and a static collider; its box (across,
+    along) back. It is coloured with the plan's skin (cut to the patch, as PNG under assets/textures), or, when its
+    ground record carries the ground shader's detail and the world's folder is given, with the detail baked from the
+    game's shader (ground_detail.py: colour and facing maps over the patch, the scene record's `ground_decals` mixed
+    in)."""
     spots = np.array([[piece["at"][0], piece["at"][2]] for piece in pieces])
     points, triangles, skin_at = ground.mesh(spots.min(axis=0), spots.max(axis=0))
     near = (points[:, [0, 2]].min(axis=0), points[:, [0, 2]].max(axis=0))
-    picture = Image.open(ground.skin).convert("RGB")
-    wide, tall = picture.size
-    low = np.floor(skin_at.min(axis=0) * [wide, tall]).astype(int).clip(0, [wide - 1, tall - 1])
-    high = np.ceil(skin_at.max(axis=0) * [wide, tall]).astype(int).clip(1, [wide, tall])
     textures = out / "assets/textures"
     textures.mkdir(parents=True, exist_ok=True)
-    scene_record.ground_skin(ground, picture.crop((*low, *high))).save(textures / "ground_skin.png")
-    inside = (skin_at * [wide, tall] - low) / (high - low)
+    if getattr(ground, "detail", None) and world is not None:
+        baked = ground_detail.bake(ground, ground.detail, (scene or {}).get("ground_decals", []), world, near[0],
+                                   near[1], textures)
+        size = np.subtract(baked["high"], baked["low"])
+        inside = (points[:, [0, 2]] - baked["low"]) / size
+        maps = {"base_color": f"../assets/textures/{baked['colour'].name}",
+                "normal": f"../assets/textures/{baked['facing'].name}"}
+    else:
+        picture = Image.open(ground.skin).convert("RGB")
+        wide, tall = picture.size
+        low = np.floor(skin_at.min(axis=0) * [wide, tall]).astype(int).clip(0, [wide - 1, tall - 1])
+        high = np.ceil(skin_at.max(axis=0) * [wide, tall]).astype(int).clip(1, [wide, tall])
+        scene_record.ground_skin(ground, picture.crop((*low, *high))).save(textures / "ground_skin.png")
+        inside = (skin_at * [wide, tall] - low) / (high - low)
+        maps = {"base_color": "../assets/textures/ground_skin.png"}
     mesh = UsdGeom.Mesh.Define(stage, path)
     mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(points.astype(np.float32)))
     mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(triangles), 3, dtype=np.int32)))
@@ -539,7 +552,7 @@ def ground_mesh(stage, path, ground, pieces, out):
     mesh.CreateExtentAttr([Gf.Vec3f(*points.min(axis=0)), Gf.Vec3f(*points.max(axis=0))])
     UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
     mesh.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
-    material = baked_material(stage, f"{path}_look", {"base_color": "../assets/textures/ground_skin.png"}, None)
+    material = baked_material(stage, f"{path}_look", maps, None)
     shader = UsdShade.Shader(stage.GetPrimAtPath(f"{path}_look/surface"))
     shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(1.0)  # regolith has no shine
 
@@ -596,7 +609,7 @@ def write_base(place, kit, inventory, assets, out, children, ground=None, scene=
         lamp(stage, f"/{place}/Lamps/lamp_{number}", entry, ground)
     near = None
     if ground is not None:
-        near = ground_mesh(stage, f"/{place}/Ground", ground, kit["pieces"], out)
+        near = ground_mesh(stage, f"/{place}/Ground", ground, kit["pieces"], out, scene, world)
     if scene is not None:
         scene_record.write(stage, place, scene, out, world, kit, kit["pieces"], ground, near)
     layer.Save()
