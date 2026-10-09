@@ -60,6 +60,8 @@ BURIED = 0.02
 # The least a sleeve must reach past the hand, and a boot past the trouser leg, so nothing is seen between them from
 # any side: a sleeve or a hem stands a centimetre or two off the arm or the boot.
 LEAST_OVERLAP = 0.01
+# The overlap recorded where a hand or a boot has no sleeve or trouser leg round it at all.
+NO_SLEEVE = -1.0
 # The ankles' spacing over the hip joints' in a relaxed stance (the header says where it comes from).
 RELAXED_STANCE = (0.55, 1.2)
 STANDING = "standing"
@@ -323,9 +325,12 @@ def unburied(points, cover, within=BURIED):
 
 
 def measure_join(outer, inner, start, end):
-    """One join's (overlap, opening), NaN for both where either piece is missing."""
-    if not len(outer) or not len(inner):
+    """One join's (overlap, opening): NaN for both where the inner piece is missing (hidden, or not worn), NO_SLEEVE
+    and NaN where the inner piece is there and the outer one is not (a sleeve slipped off the arm)."""
+    if not len(inner):
         return float("nan"), float("nan")
+    if not len(outer):
+        return NO_SLEEVE, float("nan")
     begins, inner_end = start_of(inner, start, end)
     reaches = overlap(outer, begins, start, end)
     covered = along(inner_end, start, end, np.inf)[0] <= begins + reaches
