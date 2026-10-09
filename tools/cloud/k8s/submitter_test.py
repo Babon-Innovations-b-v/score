@@ -210,3 +210,21 @@ def test_a_run_never_settles_and_takes_stock_that_comes_back(monkeypatch):
 
 def time_text(seconds):
     return submit.datetime.datetime.fromtimestamp(seconds, submit.datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+class PricedCluster(PoolCluster):
+    def price(self, machine_type, zone):
+        return 0.013125, 1
+
+
+def test_a_warm_node_counts_from_the_runs_start():
+    spec = {"kind": "judge", "image": "image", "minutes": 5}
+    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster(0))
+    run.started = 10_000.0
+    run.jobs["ask"].update(node="warm", ran=10_030.0, state="done")
+    run.nodes["warm"] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
+                         "created": 4_000.0, "ready": 4_200.0, "deleted": 10_600.0, "jobs": set()}
+    machine, = submit.node_machines(run, "judge")
+    assert machine["created"] == 10_000.0 and machine["ready"] == 10_000.0
+    row = submit.ledger.machine_row(machine)
+    assert row["start_wait_minutes"] == 0 and row["minutes"] == 10

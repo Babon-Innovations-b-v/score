@@ -511,9 +511,12 @@ def node_machines(run, kind):
         if owner.get(name) != kind:
             continue
         per_minute, unit = run.cluster.price(seen["type"], seen["zone"])
-        machines.append({"type": seen["type"], "zone": seen["zone"], "cards": seen["cards"],
-                         "created": max(seen["created"], run.started - 60) if seen["created"] else run.started,
-                         "ready": seen["ready"], "deleted": seen["deleted"] or time.time(), "price": per_minute,
+        # A node up before the run (a warm one) counts from the run's start, ready at once: its earlier minutes
+        # belong to the runs before.
+        created = max(seen["created"] or run.started, run.started)
+        machines.append({"type": seen["type"], "zone": seen["zone"], "cards": seen["cards"], "created": created,
+                         "ready": max(seen["ready"], created) if seen["ready"] else None,
+                         "deleted": seen["deleted"] or time.time(), "price": per_minute,
                          "unit_minutes": unit, "class": seen["class"], "node": name})
     return machines
 
