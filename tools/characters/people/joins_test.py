@@ -51,6 +51,12 @@ def test_a_sleeve_short_of_the_hand_is_a_gap():
     assert gap > 0.04, gap
 
 
+def test_a_hand_with_no_sleeve_fails():
+    hand, _ = tube(0.03, 0.24, 0.34)
+    got, _ = joins.measure_join(np.zeros((0, 3)), hand, np.zeros(3), np.array([0.25, 0.0, 0.0]))
+    assert got == joins.NO_SLEEVE
+
+
 def test_a_slanted_cuff_is_judged_on_its_short_side():
     sleeve, _ = tube(0.05, 0.0, 0.30)
     # Cut the cuff on a slant: one side reaches 0.30, the far side only 0.20.
