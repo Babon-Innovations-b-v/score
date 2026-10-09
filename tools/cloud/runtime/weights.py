@@ -139,15 +139,20 @@ def pack(folder, tar):
     always gives one sha256."""
     with tarfile.open(tar, "w", format=tarfile.PAX_FORMAT) as archive:
         for path in sorted(folder.rglob("*")):
-            info = archive.gettarinfo(path, str(path.relative_to(folder)))
-            info.uid = info.gid = 0
-            info.uname = info.gname = ""
-            info.mtime = 0
-            if path.is_file():
-                with open(path, "rb") as source:
-                    archive.addfile(info, source)
-            else:
-                archive.addfile(info)
+            add_fixed(archive, path, str(path.relative_to(folder)))
+
+
+def add_fixed(archive, path, name):
+    """Add one file or folder to a tar as `name`, with fixed owners and time."""
+    info = archive.gettarinfo(path, name)
+    info.uid = info.gid = 0
+    info.uname = info.gname = ""
+    info.mtime = 0
+    if path.is_file():
+        with open(path, "rb") as source:
+            archive.addfile(info, source)
+    else:
+        archive.addfile(info)
 
 
 def hf_token():

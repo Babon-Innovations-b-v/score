@@ -11,11 +11,11 @@ Otherwise it fetches the code into /work/repo, the models into the node cache (w
 models.json in the code), the inputs to their paths; runs the command in /work/repo with a timeout of `minutes`;
 uploads the outputs (a folder output as one key per file under its key); and writes done.json last. A job naming a
 `kernel_cache` runs with the node's compiled GPU kernels for its card (kernels.py), restored from the store before and
-kept there after; done.json then says what was restored and uploaded, with its
-timings and where it ran. On a failure it writes failed-<attempt>.json with the stage and the log's tail and exits
+kept there after. done.json says what was restored and uploaded, with its timings and where it ran. On a failure it writes failed-<attempt>.json with the stage and the log's tail and exits
 non-zero, so Kubernetes retries it; past attempt_limit it refuses to run again. The log goes to stdout and to
 log-<attempt>.txt.
 """
+import contextlib
 import datetime
 import io
 import os
@@ -95,11 +95,6 @@ def fetch_code(store, key, repo):
         archive.extractall(repo, filter="data")
 
 
-def fetch_inputs(store, inputs):
-    for item in inputs:
-        store.download(item["key"], item["path"])
-
-
 def models_manifest(spec, repo):
     """The job's models.json: SCORE_MODELS, else the one of its kind's image folder in the code bundle."""
     path = pathlib.Path(os.environ.get("SCORE_MODELS") or repo / "tools/cloud/images" / spec["kind"] / "models.json")
@@ -109,9 +104,7 @@ def models_manifest(spec, repo):
 def fetch_models(store, spec, repo):
     """{SCORE_MODEL_<NAME>: folder} for the job's models, each in the node cache."""
     names = spec.get("models") or []
-    if not names:
-        return {}
-    return weights.all_ready(store, names, models_manifest(spec, repo), spec.get("tool_only", False))
+    return weights.all_ready(store, names, models_manifest(spec, repo), spec.get("tool_only", False)) if names else {}
 
 
 def stop_group(process):
@@ -162,16 +155,6 @@ def upload_outputs(store, outputs):
     return uploaded
 
 
-def card():
-    """The node's card name and driver (nvidia-smi), or 'none' on a processor node."""
-    try:
-        answer = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
-                                capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired):
-        return "none"
-    return answer.stdout.strip().splitlines()[0] if answer.returncode == 0 and answer.stdout.strip() else "none"
-
-
 def command_environment(spec, run, job, attempt, models):
     """The command's environment: the container's, the job's env, its models' folders (and kernel caches) and its
     own names."""
@@ -179,38 +162,40 @@ def command_environment(spec, run, job, attempt, models):
             "SCORE_RUN": run, "SCORE_JOB": job, "SCORE_ATTEMPT": str(attempt)}
 
 
+@contextlib.contextmanager
+def stage(name):
+    """Any error inside, as a Failure of the stage `name` (a refused model raises SystemExit)."""
+    try:
+        yield
+    except (Exception, SystemExit) as error:
+        raise Failure(name, error) from error
+
+
 def work(store, run, job, attempt, spec, log, timings, record):
     """Every step of the job, its timings filled as it goes (and the kernel cache's doings in `record`); the output
     keys uploaded."""
     repo = WORK / "repo"
     log.say(f"job {run}/{job} attempt {attempt}: {spec['kind']} on {socket.gethostname()}")
-    try:
+    with stage("code"):
         if spec.get("code"):
             fetch_code(store, spec["code"], repo)
         else:
             repo.mkdir(parents=True, exist_ok=True)
-    except Exception as error:
-        raise Failure("code", error) from error
-    try:
+    with stage("models"):
         models = fetch_models(store, spec, repo)
-    except (Exception, SystemExit) as error:
-        raise Failure("models", error) from error
     timings["weights_ready"] = now()
     log.say(f"models ready: {', '.join(spec.get('models') or []) or 'none'}")
-    try:
-        fetch_inputs(store, spec.get("inputs") or [])
-    except Exception as error:
-        raise Failure("inputs", error) from error
+    with stage("inputs"):
+        for item in spec.get("inputs") or []:
+            store.download(item["key"], item["path"])
     timings["inputs_ready"] = now()
     models.update(kernel_caches(store, spec, log, timings, record))
     returncode = run_command(spec, command_environment(spec, run, job, attempt, models), repo, log)
     timings["first_result"] = now()
     if returncode:
         raise Failure("command", f"exited with {returncode}")
-    try:
+    with stage("outputs"):
         uploaded = upload_outputs(store, spec.get("outputs") or [])
-    except Exception as error:
-        raise Failure("outputs", error) from error
     timings["uploaded"] = now()
     keep_kernels(store, spec, log, record)
     return uploaded
@@ -222,10 +207,8 @@ def kernel_caches(store, spec, log, timings, record):
     card = kernels.card_key() if spec.get("kernel_cache") else None
     if not card:
         return {}
-    try:
+    with stage("kernels"):
         restored = kernels.restore(store, spec["kernel_cache"], card, weights.CACHE)
-    except Exception as error:
-        raise Failure("kernels", error) from error
     timings["kernels_ready"] = now()
     record["kernel_cache"] = {"name": spec["kernel_cache"], "card": card, "restored": restored}
     log.say(f"kernel cache {spec['kernel_cache']} for {card}: {'restored from the store' if restored else 'local'}")
@@ -247,7 +230,8 @@ def keep_kernels(store, spec, log, record):
 
 def where(spec):
     """Where the job ran: the node, the card, the image."""
-    return {"node": os.environ.get("SCORE_NODE") or socket.gethostname(), "card": card(),
+    return {"node": os.environ.get("SCORE_NODE") or socket.gethostname(),
+            "card": kernels.first_card("name,driver_version") or "none",
             "image": os.environ.get("SCORE_IMAGE") or spec.get("image")}
 
 
