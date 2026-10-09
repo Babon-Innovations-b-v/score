@@ -1174,7 +1174,7 @@
 			"thing": "prop:square_guard_hut",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
-			"from": "laid by tools/props/scene/earth_outside_kit.py (guard_hut, GUARD_HUT_AT) at the square's left edge as the balcony sees it, read off the concept K04 against the stage's own ground (left of the stage, about three metres clear of its side), its door toward the balcony; no game code places it",
+			"from": "laid by tools/props/scene/earth_outside_kit.py (guard_hut, GUARD_HUT_AT) at the square's left edge as the balcony sees it, read off the concept K04 against the stage's own ground (left of the stage, about three metres clear of its side), its door toward the balcony; no game code places it. Its Pixal3D foot sloped 22 cm from corner to corner under a level roof, so it stood on one corner; the labelled take's foot was flattened level at its highest corner before the bake (made at 2.31 x 2.62 x 2.39 m)",
 			"box_from": [
 				"v1.168",
 				"v1.292",
