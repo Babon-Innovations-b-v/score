@@ -70,7 +70,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_0_0",
@@ -86,7 +87,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_0_17",
@@ -102,7 +104,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_0_34",
@@ -118,7 +121,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_0_1",
@@ -134,7 +138,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_1_0",
@@ -150,7 +155,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_1_17",
@@ -166,7 +172,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_1_34",
@@ -182,7 +189,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_0_2",
@@ -198,7 +206,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_2_0",
@@ -214,7 +223,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_2_17",
@@ -230,7 +240,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_2_34",
@@ -246,7 +257,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_0_3",
@@ -262,7 +274,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_3_0",
@@ -278,7 +291,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_3_17",
@@ -294,7 +308,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_3_34",
@@ -310,7 +325,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_0_4",
@@ -326,7 +342,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_4_0",
@@ -342,7 +359,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_4_17",
@@ -358,7 +376,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_0_4_34",
@@ -374,7 +393,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_1_0",
@@ -390,7 +410,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_0_0",
@@ -406,7 +427,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_0_17",
@@ -422,7 +444,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_0_34",
@@ -438,7 +461,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_1_1",
@@ -454,7 +478,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_1_0",
@@ -470,7 +495,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_1_17",
@@ -486,7 +512,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_1_34",
@@ -502,7 +529,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_1_2",
@@ -518,7 +546,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_2_0",
@@ -534,7 +563,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_2_17",
@@ -550,7 +580,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_2_34",
@@ -566,7 +597,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_1_3",
@@ -582,7 +614,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_3_0",
@@ -598,7 +631,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_3_17",
@@ -614,7 +648,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_3_34",
@@ -630,7 +665,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_1_4",
@@ -646,7 +682,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_4_0",
@@ -662,7 +699,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_4_17",
@@ -678,7 +716,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_1_4_34",
@@ -694,7 +733,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_2_0",
@@ -710,7 +750,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_0_0",
@@ -726,7 +767,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_0_17",
@@ -742,7 +784,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_0_34",
@@ -758,7 +801,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_2_1",
@@ -774,7 +818,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_1_0",
@@ -790,7 +835,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_1_17",
@@ -806,7 +852,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_1_34",
@@ -822,7 +869,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_2_2",
@@ -838,7 +886,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_2_0",
@@ -854,7 +903,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_2_17",
@@ -870,7 +920,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_2_34",
@@ -886,7 +937,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_2_3",
@@ -902,7 +954,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_3_0",
@@ -918,7 +971,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_3_17",
@@ -934,7 +988,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_3_34",
@@ -950,7 +1005,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_2_4",
@@ -966,7 +1022,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_4_0",
@@ -982,7 +1039,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_4_17",
@@ -998,7 +1056,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_2_4_34",
@@ -1014,7 +1073,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_3_0",
@@ -1030,7 +1090,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_0_0",
@@ -1046,7 +1107,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_0_17",
@@ -1062,7 +1124,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_0_34",
@@ -1078,7 +1141,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_3_1",
@@ -1094,7 +1158,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_1_0",
@@ -1110,7 +1175,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_1_17",
@@ -1126,7 +1192,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_1_34",
@@ -1142,7 +1209,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_3_2",
@@ -1158,7 +1226,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_2_0",
@@ -1174,7 +1243,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_2_17",
@@ -1190,7 +1260,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_2_34",
@@ -1206,7 +1277,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_3_3",
@@ -1222,7 +1294,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_3_0",
@@ -1238,7 +1311,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_3_17",
@@ -1254,7 +1328,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_3_34",
@@ -1270,7 +1345,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_3_4",
@@ -1286,7 +1362,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_4_0",
@@ -1302,7 +1379,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_4_17",
@@ -1318,7 +1396,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_3_4_34",
@@ -1334,7 +1413,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_4_0",
@@ -1350,7 +1430,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_0_0",
@@ -1366,7 +1447,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_0_17",
@@ -1382,7 +1464,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_0_34",
@@ -1398,7 +1481,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_4_1",
@@ -1414,7 +1498,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_1_0",
@@ -1430,7 +1515,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_1_17",
@@ -1446,7 +1532,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_1_34",
@@ -1462,7 +1549,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_4_2",
@@ -1478,7 +1566,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_2_0",
@@ -1494,7 +1583,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_2_17",
@@ -1510,7 +1600,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_2_34",
@@ -1526,7 +1617,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_4_3",
@@ -1542,7 +1634,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_3_0",
@@ -1558,7 +1651,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_3_17",
@@ -1574,7 +1668,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_3_34",
@@ -1590,7 +1685,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "bed_4_4",
@@ -1606,7 +1702,8 @@
     0.6
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:26,84"
+   "from": "plot_shapes.gd:26,84",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_4_0",
@@ -1622,7 +1719,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_4_17",
@@ -1638,7 +1736,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "ridge_4_4_34",
@@ -1654,7 +1753,8 @@
     0.56
    ],
    "surface": "potting_soil",
-   "from": "plot_shapes.gd:90-95"
+   "from": "plot_shapes.gd:90-95",
+   "plain": "soil"
   },
   {
    "name": "plot_wall_0",
@@ -1670,7 +1770,8 @@
     0.06
    ],
    "surface": "painted_panel",
-   "from": "plot_field.gd:100-102,638-659"
+   "from": "plot_field.gd:100-102,638-659",
+   "plain": "plate"
   },
   {
    "name": "plot_wall_1",
@@ -1686,7 +1787,8 @@
     3.56
    ],
    "surface": "painted_panel",
-   "from": "plot_field.gd:100-102,638-659"
+   "from": "plot_field.gd:100-102,638-659",
+   "plain": "plate"
   },
   {
    "name": "plot_wall_2",
@@ -1702,7 +1804,8 @@
     3.56
    ],
    "surface": "painted_panel",
-   "from": "plot_field.gd:100-102,638-659"
+   "from": "plot_field.gd:100-102,638-659",
+   "plain": "plate"
   },
   {
    "name": "plot_wall_3",
@@ -1718,7 +1821,8 @@
     0.06
    ],
    "surface": "painted_panel",
-   "from": "plot_field.gd:100-102,638-659"
+   "from": "plot_field.gd:100-102,638-659",
+   "plain": "plate"
   },
   {
    "name": "plot_wall_4",
@@ -1734,7 +1838,8 @@
     0.06
    ],
    "surface": "painted_panel",
-   "from": "plot_field.gd:100-102,638-659"
+   "from": "plot_field.gd:100-102,638-659",
+   "plain": "plate"
   }
  ],
  "places": [
