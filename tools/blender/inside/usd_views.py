@@ -17,8 +17,9 @@ leaves out every object whose `score:layer` is one of them (a room's roof, for a
 moment of their clips; a walkthrough's frames give consecutive ones, so they move. A view with `"eyes": [...]` in place
 of one eye is seen from the first of them with a clear line to its aim (a character's views, where a wall may stand
 in front of somebody). A view with `"hide_crowds": true` leaves out every instancer (a crowd, tools/characters/cast.py), so
-one of a group standing among thousands is seen close. Objects the stage makes invisible
-(the body parts a character does not wear) stay out of every picture.
+one of a group standing among thousands is seen close. What the motion stage moves (tools/usd/motion.py) is drawn
+where it stands at the view's `frame`: a moving prim through Blender's own reader, a switched light by its keyed
+energy. Objects the stage makes invisible (the body parts a character does not wear) stay out of every picture.
 
 What the stage's sky holds is drawn as the game draws it: a haze body (score:kind "haze" with score:haze_*,
 tools/usd/scene.py) filled with fog of its colour and thickness out to its reach from the eye, lit by the sun and
@@ -35,6 +36,7 @@ import pathlib
 import sys
 
 import bpy
+from bpy_extras import anim_utils
 from mathutils import Matrix, Vector
 
 GROUND_SIDE = 600.0
@@ -353,6 +355,9 @@ def stage_lights(stage):
                  "matrix": [list(row) for row in cache.GetLocalToWorldTransform(prim)],
                  "colour": list(light.GetColorAttr().Get() or (1.0, 1.0, 1.0)),
                  "intensity": float(light.GetIntensityAttr().Get() or 0.0),
+                 # A light the motion stage switches (tools/usd/motion.py): its intensity at each sample's time code.
+                 "intensity_at": [[code, float(light.GetIntensityAttr().Get(code))]
+                                  for code in light.GetIntensityAttr().GetTimeSamples()],
                  "shadows": bool(prim.GetAttribute("score:game:shadows").Get()) if prim.HasAttribute(
                      "score:game:shadows") else True}
         if entry["type"] == "sphere":
@@ -391,9 +396,25 @@ def place_light(scene, number, entry):
         data.shadow_soft_size = entry["radius"]
     data.color = entry["colour"][:3]
     data.use_shadow = entry["shadows"]
+    switched(data, entry)
     item = bpy.data.objects.new(f"stage_light_{number}", data)
     item.matrix_world = world
     scene.collection.objects.link(item)
+
+
+def switched(data, entry):
+    """A light the stage switches over its time (tools/usd/motion.py): its energy keyed at each sample, in the units
+    place_light gives it, each key held until the next."""
+    if not entry.get("intensity_at"):
+        return
+    per_intensity = 4.0 if data.type == "SUN" else math.pi
+    for code, intensity in entry["intensity_at"]:
+        data.energy = intensity * per_intensity
+        data.keyframe_insert("energy", frame=code)
+    animation = data.animation_data
+    for curve in anim_utils.action_get_channelbag_for_slot(animation.action, animation.action_slot).fcurves:
+        for key in curve.keyframe_points:
+            key.interpolation = "CONSTANT"
 
 
 def stage_sky(scene, environment):

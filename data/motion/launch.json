@@ -1,0 +1,16 @@
+{
+ "place": "launch",
+ "about": "The launch across the harbour, played once at a set moment of the walk-through: the engines light 1 s into the stage's time, build for the prologue's three seconds of rumble, and the rocket lifts straight off its pad and climbs. In the game the player rides this launch inside the capsule and the launch view is taken away as it begins (the Earth block is left undrawn), so the game never draws this rocket leaving its pad: its rise here is this record's addition, timed by the prologue's launch beat and climbing at the game's own rocket push against Earth's pull. It climbs straight up all the way (the game's rockets lift straight for 1.5 s and then turn for their aim, which a launch to the Moon seen from the shore does not show). Frame: EarthSite's own (data/scene/launch.json).",
+ "motions": [
+  {
+   "name": "rocket_launch",
+   "prim": "/launch/Fixtures/rocket",
+   "start": 1.0, "length": 59.0, "loop": false,
+   "climb": {"lift": 3.0, "push": 24.0, "pull": 9.81},
+   "sounds": [
+    {"name": "rocket_launch", "at": 0.0, "loops_until": null, "fade_in": 3.0, "from": "game/sound/prologue/prologue_sounds.gd:21,62-67 (the engines' recording as the launch beat begins, faded in over RUMBLE_SECONDS; the game plays it at the capsule, whose rocket this is)"}
+   ],
+   "from": "game/prologue/prologue/prologue.gd:76-80 (RUMBLE_SECONDS 3 of engines building, then CLIMB_SECONDS 3.5 of climb), 334-341 (the launch beat); sim/base/rockets/mission_pilot.gd:17-19 (a rocket's push at full, 24 m/s/s, against Earth's pull of 9.81); game/prologue/earth_site/earth_site.gd:256-262,1284 (the rocket on its pad at ROCKET_AT)"
+  }
+ ]
+}

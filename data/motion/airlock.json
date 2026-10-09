@@ -1,0 +1,47 @@
+{
+ "place": "airlock",
+ "about": "The airlock's cycle as the game runs it, one round of 14 s from the stage's start: the chamber holds its air (the inner door sunk open, the outer shut, as the base stands them), the inner door rises shut and the pump empties the chamber under the warning light, the outer door sinks open, rises shut again, the tanks fill the chamber under the light and the inner door sinks open. The pump and the tanks take the game's five seconds each and the doors the game's speed; how long the chamber rests with air or without (1 s and 2 s here) is the player's own pace in the game, which presses the doors, so those rests are this record's. Frame: the airlock's own (data/scene/airlock.json).",
+ "motions": [
+  {
+   "name": "inner_door",
+   "prim": "/airlock/Fixtures/inner_door",
+   "start": 0.0, "length": 14.0, "loop": true,
+   "adds": {"like": "/airlock/Fixtures/outer_door", "at": [0.0, 0.0, -2.5], "yaw": 180.0,
+            "from": "airlock.tscn:86-91 (InnerDoor at z -2.5, its leaf the outer door's made leaf turned half round); the scene record leaves it out because it stands sunk 2.8 m under the floor while the chamber holds air"},
+   "slide": {"by": [0.0, -2.8, 0.0], "speed": 3.0, "starts": "open", "moves": [[1.0, "shut"], [13.0, "open"]]},
+   "sounds": [
+    {"name": "door_slide_close", "at": 1.0, "loops_until": null, "from": "game/sound/airlock/airlock_sounds.gd:56-71 (the inner door shuts as the pump starts)"},
+    {"name": "airlock_hatch_seal_clunk", "at": 1.9, "loops_until": null, "from": "airlock_sounds.gd:26-28,74-86 (it seals DOOR_SLIDE_SECONDS after it starts to shut)"},
+    {"name": "door_slide_open", "at": 13.0, "loops_until": null, "from": "airlock_sounds.gd:56-71 (the inner door opens once the chamber has its air)"}
+   ],
+   "from": "game/base/airlock/airlock.gd:13-15 (OPEN_DROP 2.8 m, DOOR_SPEED 3 m/s), 58-62 and 122-126 (each door moved toward its place at that speed; the inner one open while the chamber holds air); sim/outside/airlock/airlock_cycle.gd:29-37 (may_open_inner while pressurised)"
+  },
+  {
+   "name": "outer_door",
+   "prim": "/airlock/Fixtures/outer_door",
+   "start": 0.0, "length": 14.0, "loop": true,
+   "slide": {"by": [0.0, -2.8, 0.0], "speed": 3.0, "starts": "shut", "moves": [[6.0, "open"], [8.0, "shut"]]},
+   "sounds": [
+    {"name": "door_slide_open", "at": 6.0, "loops_until": null, "from": "airlock_sounds.gd:56-71 (the outer door opens once the chamber is empty)"},
+    {"name": "door_slide_close", "at": 8.0, "loops_until": null, "from": "airlock_sounds.gd:56-71 (it shuts as the tanks start)"},
+    {"name": "airlock_hatch_seal_clunk", "at": 8.9, "loops_until": null, "from": "airlock_sounds.gd:26-28,74-86"}
+   ],
+   "from": "airlock.gd:13-15, 58-62, 122-126; airlock_cycle.gd:29-37 (may_open_outer while the chamber is empty)"
+  },
+  {
+   "name": "cycle_light",
+   "prim": "/airlock/Lights/cycle_light",
+   "start": 0.0, "length": 14.0, "loop": true,
+   "adds": {"light": {"type": "omni", "at": [0.0, 2.7, 1.9], "colour": "#f2c21a", "energy": 2.0, "range": 6.0, "attenuation": 1.0, "shadows": false,
+            "from": "airlock.tscn:52-55 (CycleLight at 0, 2.7, 1.9, range 6, Godot's attenuation 1), airlock.gd:16-17,46,61 (energy 2 while the pump or the tanks run, else 0; its colour Palette.HAZARD, game/art/palette/palette.gd:22 f2c21a)"}},
+   "light": {"on": [[1.0, 6.0], [8.0, 13.0]]},
+   "sounds": [
+    {"name": "airlock_air_hiss", "at": 1.9, "loops_until": null, "from": "airlock_sounds.gd:74-86 (the chamber's: the game sounds it from the Chamber, where the cycle light hangs)"},
+    {"name": "airlock_pump_down", "at": 1.9, "loops_until": 6.0, "from": "airlock_sounds.gd:74-86 (the pump from the inner door's seal), 46-48 and 133-135 (stopped when the chamber leaves pumping)"},
+    {"name": "airlock_air_hiss", "at": 8.9, "loops_until": null, "from": "airlock_sounds.gd:74-86 (the air let back in)"},
+    {"name": "airlock_pressure_equalise", "at": 13.0, "loops_until": null, "from": "airlock_sounds.gd:56-63 (filling to pressurised)"}
+   ],
+   "from": "airlock.gd:61 (lit while the cycle runs); airlock_cycle.gd:14-18 (pumping and filling each one base hour, CYCLE_MINUTES 60), sim/engine/world/pace.gd:19,39 (300 ticks a base hour, 60 a real second: 5 s)"
+  }
+ ]
+}

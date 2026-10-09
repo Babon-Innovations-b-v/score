@@ -1,0 +1,32 @@
+{
+ "place": "garage",
+ "about": "The garage's big door as the game runs it (the whole room is an airlock for the rover going out): one round of 17 s from the stage's start, begun with the room's air pumped out and the warning beacon lit, the two leaves sliding apart along the south wall, shut again, the tanks filling the room, a moment with air in it and the beacon dark, and the pump emptying it again. The pump and the tanks take the game's five seconds and the leaves its speed; how long the door stands open (3 s) and the room holds its air (about 1 s) is the player's pace in the game, so those rests are this record's. The game plays no sound of its own with the big door or the room's pump. Frame: the room's middle on its floor (data/scene/garage.json). The sealing doors the game slides in doorways joined by tubes are not here: the stage lays no doorway of the garage as joined.",
+ "motions": [
+  {
+   "name": "big_door_west",
+   "prim": "/garage/Structure/big_door_west",
+   "start": 0.0, "length": 17.0, "loop": true,
+   "slide": {"by": [-2.6, 0.0, 0.0], "speed": 2.5, "starts": "shut", "moves": [[1.0, "open"], [5.0, "shut"]]},
+   "sounds": [],
+   "from": "the game's unpushed bay room (game/base/bay/bay_room.gd at the game's commit dcb2954b): 20-21 (DOOR_SPEED 2.5 m/s), 77-83 (each leaf moved toward open or shut at that speed), 109-123 (a leaf slides along the wall by half the door's width and 0.1 m, the west one toward -x); sim/base/module_doors.gd:59-61 (the garage's door 5 m wide)"
+  },
+  {
+   "name": "big_door_east",
+   "prim": "/garage/Structure/big_door_east",
+   "start": 0.0, "length": 17.0, "loop": true,
+   "slide": {"by": [2.6, 0.0, 0.0], "speed": 2.5, "starts": "shut", "moves": [[1.0, "open"], [5.0, "shut"]]},
+   "sounds": [],
+   "from": "bay_room.gd:20-21, 77-83, 109-123 at dcb2954b; module_doors.gd:59-61"
+  },
+  {
+   "name": "big_door_beacon",
+   "prim": "/garage/Lights/big_door_beacon",
+   "start": 0.0, "length": 17.0, "loop": true,
+   "adds": {"light": {"type": "omni", "at": [0.0, 4.4, 5.7], "colour": "#f2c21a", "energy": 2.0, "range": 6.0, "attenuation": 1.0, "shadows": false,
+            "from": "bay_room.gd:32-34 (BEACON_ENERGY 2, BEACON_RANGE 6), 124 and 233-243 (over the big door: 0.4 m over its top and 0.4 m in from it, Palette.HAZARD f2c21a, no shadow) at dcb2954b"}},
+   "light": {"on": [[0.0, 11.04], [12.0, 17.0]]},
+   "sounds": [],
+   "from": "bay_room.gd:77-91 at dcb2954b (lit while the room does not hold its air: pumping, empty and filling); sim/engine/domains/bay_domain.gd:30-33 at dcb2954b (the garage's cycle 60 base minutes, 5 s at sim/engine/world/pace.gd:19,39); the tanks start once the leaves are shut (bay_domain.gd's rules: the air comes back only once the big door is shut)"
+  }
+ ]
+}

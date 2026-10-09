@@ -1,0 +1,22 @@
+{
+ "place": "hangar",
+ "about": "The hangar's roof as the game runs it (the whole room is an airlock for the ship lifting straight out): one round of 43 s from the stage's start, begun with the room's air pumped out, the two roof leaves sliding apart east and west onto the roof, shut again, the tanks filling the room for the hangar's fifteen seconds, a moment with air in it and the pump emptying it again for fifteen more. The leaves move at the game's roof speed; how long the roof stands open (about 3 s) and the room holds its air (about 1 s) is the player's pace in the game, so those rests are this record's. The game plays no sound with the roof, and lights no beacon over it (only over doorways joined by tubes, which the stage does not lay). The ship stands still: the game flies it out only when the player flies it. Frame: the room's middle on its floor (data/scene/hangar.json).",
+ "motions": [
+  {
+   "name": "roof_leaf_west",
+   "prim": "/hangar/Structure/roof_leaf_west",
+   "start": 0.0, "length": 43.0, "loop": true,
+   "slide": {"by": [-11.2, 0.0, 0.0], "speed": 3.0, "starts": "shut", "moves": [[1.0, "open"], [8.0, "shut"]]},
+   "sounds": [],
+   "from": "the game's unpushed bay room (game/base/bay/bay_room.gd at the game's commit dcb2954b): 22-23 (ROOF_SPEED 3 m/s), 77-83 and 94-95 (each leaf moved toward open or shut at the roof's speed), 127-137 (a leaf slides by half the opening's width and 0.2 m, the west one toward -x); sim/base/module_doors.gd:66-68 (the opening 22 m across); sim/engine/domains/bay_domain.gd:30-33 (the hangar's cycle 180 base minutes, 15 s at sim/engine/world/pace.gd:19,39), the tanks starting once the leaves are shut"
+  },
+  {
+   "name": "roof_leaf_east",
+   "prim": "/hangar/Structure/roof_leaf_east",
+   "start": 0.0, "length": 43.0, "loop": true,
+   "slide": {"by": [11.2, 0.0, 0.0], "speed": 3.0, "starts": "shut", "moves": [[1.0, "open"], [8.0, "shut"]]},
+   "sounds": [],
+   "from": "bay_room.gd:22-23, 77-83, 94-95, 127-137 at dcb2954b; module_doors.gd:66-68; bay_domain.gd:30-33"
+  }
+ ]
+}
