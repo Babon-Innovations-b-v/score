@@ -26,6 +26,12 @@ def test_the_paper_draft_is_a_build_input_not_a_document():
     assert gate_scope.plan({"paper/source/score.md"}, "")[0] == "full"
 
 
+def test_the_hooks_and_scripts_are_code_not_documents():
+    for path in (".claude/hooks/md_guard.py", ".claude/scripts/gate-scope.py", ".claude/settings.json"):
+        assert gate_scope.plan({path}, "")[0] == "full"
+    assert gate_scope.plan({".claude/skills/grill/SKILL.md"}, "")[0] == "none"
+
+
 def test_nothing_to_compare_with_runs_everything():
     assert gate_scope.plan(None, "")[0] == "full"
 
