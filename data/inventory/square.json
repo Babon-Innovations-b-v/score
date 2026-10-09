@@ -96,43 +96,46 @@
 			"close_up": "place-ssl/pics/road.png",
 			"repeats": "across the room",
 			"box_from": [
+				"v1.184",
+				"v1.210",
+				"v1.238",
+				"v1.285",
+				"v1.290",
+				"v1.335",
+				"v1.341",
+				"v1.367",
+				"v1.377",
+				"v1.448",
+				"v1.460",
+				"v1.542",
+				"v1.606",
+				"v1.w12",
+				"v1.w30",
+				"v1.w37",
 				"v1.49",
 				"v1.75",
 				"v1.89",
 				"v1.163",
 				"v1.181",
-				"v1.184",
-				"v1.210",
-				"v1.238",
 				"v1.260",
 				"v1.277",
-				"v1.285",
-				"v1.290",
-				"v1.335",
-				"v1.367",
 				"v1.369",
-				"v1.377",
 				"v1.442",
-				"v1.448",
-				"v1.460",
+				"v1.467",
 				"v1.482",
-				"v1.542",
-				"v1.606",
+				"v1.549",
 				"v1.w7",
-				"v1.w12",
-				"v1.w30",
-				"v1.w37",
 				"v1.w38"
 			]
 		},
 		{
 			"id": "far_promenade",
-			"view": "v1",
+			"view": "v2",
 			"box": [
-				1904,
-				737,
-				2082,
-				863
+				383,
+				672,
+				754,
+				779
 			],
 			"name": "the harbour promenade's paving",
 			"kind": "code",
@@ -148,7 +151,13 @@
 			"close_up": "place-ssl/pics/promenade.png",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.150"
+				"v2.290",
+				"v2.351",
+				"v2.356",
+				"v2.401",
+				"v2.423",
+				"v2.703",
+				"v2.889"
 			]
 		},
 		{
@@ -247,13 +256,8 @@
 		},
 		{
 			"id": "far_cable",
-			"view": "v1",
-			"box": [
-				578,
-				998,
-				1032,
-				1317
-			],
+			"view": "v2",
+			"box": null,
 			"name": "the cable the lanterns hang from",
 			"kind": "code",
 			"anchor": "ceiling",
@@ -266,42 +270,7 @@
 			"thing": "kit:square_far_cable",
 			"group": "kit: light",
 			"close_up": "place-ssl/pics/cable.png",
-			"box_from": [
-				"v1.w14",
-				"v1.104",
-				"v1.115",
-				"v1.216",
-				"v1.244",
-				"v1.283",
-				"v1.342",
-				"v1.352",
-				"v1.366",
-				"v1.378",
-				"v1.383",
-				"v1.396",
-				"v1.407",
-				"v1.429",
-				"v1.437",
-				"v1.445",
-				"v1.446",
-				"v1.463",
-				"v1.474",
-				"v1.488",
-				"v1.499",
-				"v1.536",
-				"v1.566",
-				"v1.588",
-				"v1.601",
-				"v1.603",
-				"v1.w11",
-				"v1.w13",
-				"v1.w15",
-				"v1.w16",
-				"v1.w17",
-				"v1.w29",
-				"v1.w33",
-				"v1.w36"
-			]
+			"unseen": "a thin wire the lanterns hang from, which SAM gives no mask of its own; the lanterns show where it runs"
 		},
 		{
 			"id": "far_floodlight_tower",
@@ -325,7 +294,6 @@
 			"group": "kit: light",
 			"close_up": "place-ssl/pics/floodlight_tower.png",
 			"box_from": [
-				"v1.378",
 				"v1.66",
 				"v1.78",
 				"v1.106",
@@ -340,6 +308,7 @@
 				"v1.278",
 				"v1.292",
 				"v1.297",
+				"v1.378",
 				"v1.462",
 				"v1.503",
 				"v1.556",
@@ -355,7 +324,7 @@
 				148,
 				791,
 				263,
-				1020
+				1022
 			],
 			"name": "lamp post round the square",
 			"kind": "code",
@@ -372,6 +341,7 @@
 			"box_from": [
 				"v1.199",
 				"v1.236",
+				"v1.307",
 				"v1.359",
 				"v1.370",
 				"v1.375",
@@ -383,10 +353,10 @@
 			"id": "far_stage",
 			"view": "v1",
 			"box": [
-				672,
+				664,
 				642,
 				1186,
-				898
+				911
 			],
 			"name": "the rally stage's deck, skirt and steps",
 			"kind": "code",
@@ -403,6 +373,12 @@
 			"box_from": [
 				"v1.68",
 				"v1.362",
+				"v1.194",
+				"v1.204",
+				"v1.253",
+				"v1.271",
+				"v1.278",
+				"v1.558",
 				"v1.34",
 				"v1.35",
 				"v1.36",
@@ -416,6 +392,7 @@
 				"v1.98",
 				"v1.119",
 				"v1.303",
+				"v1.485",
 				"v1.553",
 				"v1.568",
 				"v1.590",
@@ -430,10 +407,10 @@
 			"id": "far_backdrop",
 			"view": "v1",
 			"box": [
-				672,
+				664,
 				642,
 				1186,
-				898
+				911
 			],
 			"name": "the red backdrop behind the stage with its sign",
 			"kind": "code",
@@ -450,6 +427,12 @@
 			"box_from": [
 				"v1.68",
 				"v1.362",
+				"v1.194",
+				"v1.204",
+				"v1.253",
+				"v1.271",
+				"v1.278",
+				"v1.558",
 				"v1.34",
 				"v1.35",
 				"v1.36",
@@ -463,6 +446,7 @@
 				"v1.98",
 				"v1.119",
 				"v1.303",
+				"v1.485",
 				"v1.553",
 				"v1.568",
 				"v1.590",
@@ -477,10 +461,10 @@
 			"id": "far_podium",
 			"view": "v1",
 			"box": [
-				672,
+				664,
 				642,
 				1186,
-				898
+				911
 			],
 			"name": "the red-draped podium",
 			"kind": "code",
@@ -497,6 +481,12 @@
 			"box_from": [
 				"v1.68",
 				"v1.362",
+				"v1.194",
+				"v1.204",
+				"v1.253",
+				"v1.271",
+				"v1.278",
+				"v1.558",
 				"v1.34",
 				"v1.35",
 				"v1.36",
@@ -510,6 +500,7 @@
 				"v1.98",
 				"v1.119",
 				"v1.303",
+				"v1.485",
 				"v1.553",
 				"v1.568",
 				"v1.590",
@@ -547,12 +538,12 @@
 		},
 		{
 			"id": "far_banner",
-			"view": "v1",
+			"view": "v2",
 			"box": [
-				848,
-				642,
-				1155,
-				853
+				1489,
+				472,
+				1525,
+				700
 			],
 			"name": "red banner down its pole",
 			"kind": "code",
@@ -567,7 +558,7 @@
 			"group": "kit: stage",
 			"close_up": "place-ssl/pics/stage.png",
 			"box_from": [
-				"v1.34"
+				"v2.115"
 			]
 		},
 		{
@@ -650,10 +641,10 @@
 			"id": "bay_balcony_rail",
 			"view": "v1",
 			"box": [
-				2104,
-				898,
+				1584,
+				878,
 				2752,
-				1536
+				1066
 			],
 			"name": "a balcony's steel balustrade",
 			"kind": "code",
@@ -669,32 +660,28 @@
 			"close_up": "place-ssl/pics/balcony_rail.png",
 			"repeats": "across the room",
 			"box_from": [
+				"v1.184",
 				"v1.210",
 				"v1.238",
+				"v1.281",
 				"v1.285",
+				"v1.290",
 				"v1.335",
+				"v1.341",
 				"v1.367",
 				"v1.377",
 				"v1.448",
 				"v1.460",
+				"v1.539",
 				"v1.542",
+				"v1.570",
+				"v1.585",
+				"v1.598",
+				"v1.606",
 				"v1.w12",
-				"v1.w37",
-				"v1.58",
-				"v1.113",
-				"v1.302",
-				"v1.310",
-				"v1.314",
-				"v1.317",
-				"v1.325",
-				"v1.346",
-				"v1.392",
-				"v1.398",
-				"v1.401",
-				"v1.402",
-				"v1.414",
-				"v1.468",
-				"v1.507"
+				"v1.w30",
+				"v1.w35",
+				"v1.w37"
 			]
 		},
 		{
@@ -763,12 +750,7 @@
 		{
 			"id": "render_shop",
 			"view": "v2",
-			"box": [
-				2484,
-				679,
-				2752,
-				1334
-			],
+			"box": null,
 			"name": "a tenement's wall lower shop",
 			"kind": "code",
 			"anchor": "wall",
@@ -782,9 +764,7 @@
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_shop.png",
 			"repeats": "across the room",
-			"box_from": [
-				"v2.27"
-			]
+			"unseen": "the block's lower storey is hidden behind the floodlight mast in K06 and not in K04"
 		},
 		{
 			"id": "far_render_shop",
@@ -1168,15 +1148,17 @@
 			"from": "laid by the scene agent's final export from the concept (no game code places it)",
 			"box_note": "one banner of the six boxed (the crowd's left one); the partition audit boxed another at [1670,1140,2099,1265]",
 			"box_from": [
-				"v2.137"
+				"v2.137",
+				"v2.192",
+				"v2.286"
 			]
 		},
 		{
 			"id": "guard_hut",
 			"view": "v1",
 			"box": [
-				469,
-				816,
+				461,
+				810,
 				640,
 				924
 			],
@@ -1194,6 +1176,12 @@
 			"at": [],
 			"from": "laid by the scene agent's final export from the concept (no game code places it)",
 			"box_from": [
+				"v1.168",
+				"v1.292",
+				"v1.503",
+				"v1.556",
+				"v1.101",
+				"v1.441",
 				"v1.w43"
 			]
 		}

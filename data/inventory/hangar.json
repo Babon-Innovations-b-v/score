@@ -93,7 +93,9 @@
 			"thing": "prop:hangar_wall_lower_plain",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.75"
+				"v1.75",
+				"v1.309",
+				"v1.474"
 			]
 		},
 		{
@@ -179,15 +181,15 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				2381,
-				672,
-				2470,
-				1124
+				1825,
+				415,
+				1845,
+				482
 			],
 			"thing": "prop:hangar_wall_corner_post",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.93"
+				"v1.383"
 			]
 		},
 		{
@@ -206,15 +208,15 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				1017,
-				1053,
-				1469,
-				1182
+				687,
+				956,
+				946,
+				1071
 			],
 			"thing": "prop:hangar_ring_floor_plate",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.50"
+				"v1.65"
 			]
 		},
 		{
@@ -233,15 +235,56 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				1549,
+				1547,
 				116,
 				2722,
-				572
+				581
 			],
 			"thing": "prop:hangar_roof_face_panel",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.w9"
+				"v1.383",
+				"v1.8",
+				"v1.9",
+				"v1.123",
+				"v1.168",
+				"v1.206",
+				"v1.231",
+				"v1.232",
+				"v1.246",
+				"v1.251",
+				"v1.263",
+				"v1.282",
+				"v1.284",
+				"v1.318",
+				"v1.325",
+				"v1.326",
+				"v1.328",
+				"v1.331",
+				"v1.334",
+				"v1.346",
+				"v1.355",
+				"v1.361",
+				"v1.365",
+				"v1.367",
+				"v1.375",
+				"v1.376",
+				"v1.380",
+				"v1.382",
+				"v1.384",
+				"v1.386",
+				"v1.401",
+				"v1.407",
+				"v1.436",
+				"v1.448",
+				"v1.453",
+				"v1.460",
+				"v1.468",
+				"v1.504",
+				"v1.w6",
+				"v1.w8",
+				"v1.w9",
+				"v1.w21"
 			]
 		},
 		{
@@ -302,6 +345,7 @@
 			"thing": "prop:hangar_hatch_frame",
 			"box_from": [
 				"v1.w15",
+				"v1.426",
 				"v1.20",
 				"v1.110",
 				"v1.161",
@@ -312,7 +356,6 @@
 				"v1.393",
 				"v1.402",
 				"v1.425",
-				"v1.426",
 				"v1.431",
 				"v1.450",
 				"v1.454",
@@ -555,16 +598,9 @@
 				"reach": 6.0
 			},
 			"view": "v1",
-			"box": [
-				1304,
-				387,
-				1372,
-				482
-			],
+			"box": null,
 			"thing": "prop:hangar_wall_cage_lamp",
-			"box_from": [
-				"v1.199"
-			]
+			"unseen": "no caged bulkhead lamp can be told apart from the hall's rectangular wall lights in the concept"
 		},
 		{
 			"id": "door_control_box",
@@ -723,15 +759,15 @@
 			],
 			"view": "v1",
 			"box": [
-				439,
-				541,
-				628,
-				912
+				546,
+				384,
+				588,
+				686
 			],
 			"thing": "prop:hangar_pipe_straight",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.w24"
+				"v1.215"
 			]
 		},
 		{
@@ -778,12 +814,16 @@
 			"box": [
 				854,
 				1444,
-				1118,
+				1121,
 				1536
 			],
 			"thing": "prop:hangar_pipe_valve",
 			"repeats": "across the room",
 			"box_from": [
+				"v1.265",
+				"v1.271",
+				"v1.396",
+				"v1.447",
 				"v1.w23"
 			]
 		},
@@ -841,15 +881,49 @@
 			"lies": "floor",
 			"view": "v1",
 			"box": [
-				1541,
-				765,
-				1977,
-				1160
+				831,
+				770,
+				1912,
+				1053
 			],
 			"thing": "prop:hangar_machine_bay_plate",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.w31"
+				"v1.81",
+				"v1.103",
+				"v1.121",
+				"v1.122",
+				"v1.171",
+				"v1.200",
+				"v1.203",
+				"v1.213",
+				"v1.219",
+				"v1.226",
+				"v1.268",
+				"v1.269",
+				"v1.272",
+				"v1.293",
+				"v1.301",
+				"v1.317",
+				"v1.335",
+				"v1.348",
+				"v1.351",
+				"v1.352",
+				"v1.354",
+				"v1.357",
+				"v1.358",
+				"v1.366",
+				"v1.410",
+				"v1.415",
+				"v1.419",
+				"v1.420",
+				"v1.424",
+				"v1.435",
+				"v1.439",
+				"v1.455",
+				"v1.482",
+				"v1.w3",
+				"v1.w30"
 			]
 		},
 		{
@@ -879,12 +953,14 @@
 			"view": "v1",
 			"box": [
 				1949,
-				943,
+				942,
 				2045,
 				1099
 			],
 			"keep": "game object (ShipBench), kept whatever its score",
 			"box_from": [
+				"v1.281",
+				"v1.371",
 				"v1.w44"
 			]
 		},
@@ -915,12 +991,14 @@
 			"view": "v1",
 			"box": [
 				506,
-				757,
+				754,
 				627,
 				891
 			],
 			"keep": "game object (FuelPoint), kept whatever its score",
 			"box_from": [
+				"v1.102",
+				"v1.234",
 				"v1.w57"
 			]
 		},
@@ -1413,15 +1491,15 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/beacon.png",
 			"view": "v1",
 			"box": [
-				682,
-				516,
-				727,
-				542
+				628,
+				1131,
+				667,
+				1162
 			],
 			"thing": "prop:hangar_bracket_beacon",
 			"own_model": "a different object of the same name: the hangar's amber rotating beacon, not the garage's red warning lamp in a steel housing",
 			"box_from": [
-				"v1.429"
+				"v1.426"
 			]
 		},
 		{
@@ -1527,17 +1605,10 @@
 			],
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/crane_trolley.png",
 			"view": "v1",
-			"box": [
-				1198,
-				274,
-				1472,
-				365
-			],
+			"box": null,
 			"thing": "prop:hangar_crane_trolley",
 			"repeats": "across the room",
-			"box_from": [
-				"v1.82"
-			]
+			"unseen": "the crane's trolley cannot be told apart on its yellow girder under the roof truss"
 		}
 	]
 }

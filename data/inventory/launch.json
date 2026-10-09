@@ -32,10 +32,10 @@
 			"id": "far_pad",
 			"view": "v1",
 			"box": [
-				1523,
-				960,
-				1969,
-				1025
+				1854,
+				923,
+				1973,
+				988
 			],
 			"name": "the launch pad's concrete apron",
 			"kind": "code",
@@ -51,7 +51,7 @@
 			"close_up": "place-ssl/pics/pad.png",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.132"
+				"v1.450"
 			]
 		},
 		{
@@ -278,7 +278,7 @@
 				1377,
 				520,
 				1500,
-				816
+				817
 			],
 			"name": "tall residential tower with recessed bays and rows of small windows",
 			"kind": "generate",
@@ -292,7 +292,8 @@
 			"thing": "scene:far_city",
 			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
 			"box_from": [
-				"v2.33"
+				"v2.33",
+				"v2.210"
 			]
 		},
 		{

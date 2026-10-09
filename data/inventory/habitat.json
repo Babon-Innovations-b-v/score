@@ -53,12 +53,7 @@
 		{
 			"id": "wall_lower_plain",
 			"view": "v1",
-			"box": [
-				1704,
-				679,
-				1880,
-				846
-			],
+			"box": null,
 			"name": "plain lower wall panel, bolted, dark",
 			"kind": "code",
 			"anchor": "wall",
@@ -73,19 +68,12 @@
 			"group": "kit: wall",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.104"
-			]
+			"unseen": "the lower wall is hidden behind the lockers, pods and cubicle; no plain lower panel can be told apart"
 		},
 		{
 			"id": "wall_upper_plain",
 			"view": "v1",
-			"box": [
-				1692,
-				288,
-				1764,
-				549
-			],
+			"box": null,
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
 			"anchor": "wall",
@@ -100,9 +88,7 @@
 			"group": "kit: wall",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.144"
-			]
+			"unseen": "every upper wall in the concept is covered by pipe runs and cable bundles; no plain upper panel shows"
 		},
 		{
 			"id": "wall_skirting",
@@ -127,12 +113,7 @@
 		{
 			"id": "wall_cornice",
 			"view": "v1",
-			"box": [
-				1596,
-				241,
-				2160,
-				387
-			],
+			"box": null,
 			"name": "cornice along the wall's top",
 			"kind": "code",
 			"anchor": "wall",
@@ -147,9 +128,7 @@
 			"group": "kit: wall",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.87"
-			]
+			"unseen": "the wall tops are hidden behind the pipe runs and cable bundles in the concept"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -1113,10 +1092,10 @@
 			"id": "pipe_valve",
 			"view": "v1",
 			"box": [
-				657,
-				268,
-				721,
-				344
+				378,
+				351,
+				449,
+				429
 			],
 			"name": "valve on a pipe with a red hand wheel",
 			"kind": "generate",
@@ -1144,7 +1123,7 @@
 			],
 			"repeats": "across the room",
 			"box_from": [
-				"v1.238"
+				"v1.211"
 			]
 		},
 		{
@@ -1356,13 +1335,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				659,
-				539,
-				712,
-				566
+				527,
+				534,
+				564,
+				593
 			],
 			"box_from": [
-				"v1.582"
+				"v1.397"
 			]
 		},
 		{
@@ -1573,15 +1552,8 @@
 			"group": "kit: furniture",
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
-			"box": [
-				2363,
-				544,
-				2430,
-				630
-			],
-			"box_from": [
-				"v1.236"
-			]
+			"box": null,
+			"unseen": "the bottles stand behind the med cabinet's glass and cannot be told apart"
 		},
 		{
 			"id": "supply_cart",

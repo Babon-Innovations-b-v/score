@@ -75,10 +75,10 @@
 			"id": "wall_upper_plain",
 			"view": "v1",
 			"box": [
-				1856,
-				295,
-				1952,
-				411
+				1455,
+				455,
+				1580,
+				583
 			],
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
@@ -95,18 +95,15 @@
 			"at": [],
 			"repeats": "across the room",
 			"box_from": [
-				"v1.196"
+				"v1.59",
+				"v1.204",
+				"v1.288"
 			]
 		},
 		{
 			"id": "wall_skirting",
 			"view": "v1",
-			"box": [
-				1084,
-				672,
-				1162,
-				764
-			],
+			"box": null,
 			"name": "rubber skirting at the wall's foot",
 			"kind": "code",
 			"anchor": "wall",
@@ -121,9 +118,7 @@
 			"group": "kit: wall",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.120"
-			]
+			"unseen": "the skirting is too thin to make out at the walls feet in the concept"
 		},
 		{
 			"id": "wall_cornice",
@@ -1208,10 +1203,10 @@
 			"id": "cable_bundle",
 			"view": "v1",
 			"box": [
-				404,
-				302,
-				526,
-				442
+				1856,
+				295,
+				1952,
+				411
 			],
 			"name": "a bundle of black and grey cables held by clips along the wall tops",
 			"kind": "code",
@@ -1250,7 +1245,7 @@
 			"why_code": "concept density (owner, 2026-10-08): the airlock's concept K02 shows it; a crop of the concept is its close-up",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.84"
+				"v1.196"
 			]
 		},
 		{

@@ -504,12 +504,7 @@
 		{
 			"id": "mast_cabinet",
 			"view": "v1",
-			"box": [
-				2218,
-				672,
-				2282,
-				726
-			],
+			"box": null,
 			"name": "radio equipment cabinet at the mast's foot",
 			"kind": "generate",
 			"anchor": "floor",
@@ -537,18 +532,16 @@
 			"note": "stands on the ground round the mast's foot, its column through it, as the game's CampMast lays it (its Cabinet box at the mast's middle)",
 			"fixed": true,
 			"fixed_why": "stands round the mast's foot, the column through it, as the game's CampMast",
-			"box_from": [
-				"v1.183"
-			]
+			"unseen": "no cabinet stands at the mast's foot in the concept, only its foot plate"
 		},
 		{
 			"id": "ground_cable",
 			"view": "v1",
 			"box": [
-				391,
-				794,
-				904,
-				993
+				392,
+				805,
+				697,
+				983
 			],
 			"name": "heavy power cable lying on the ground, laid in 2 m lengths",
 			"kind": "code",
@@ -666,36 +659,11 @@
 			"fixed": true,
 			"fixed_why": "cable lengths laid where they lie along the game's runs",
 			"box_from": [
-				"v1.w2",
-				"v1.56",
-				"v1.64",
-				"v1.66",
-				"v1.80",
-				"v1.92",
 				"v1.95",
-				"v1.131",
-				"v1.141",
-				"v1.142",
 				"v1.147",
 				"v1.150",
-				"v1.157",
-				"v1.182",
-				"v1.247",
-				"v1.250",
 				"v1.254",
-				"v1.256",
-				"v1.264",
-				"v1.296",
-				"v1.306",
-				"v1.324",
-				"v1.342",
-				"v1.361",
-				"v1.w3",
-				"v1.w4",
-				"v1.w5",
-				"v1.w6",
-				"v1.w9",
-				"v1.w15"
+				"v1.w9"
 			]
 		},
 		{

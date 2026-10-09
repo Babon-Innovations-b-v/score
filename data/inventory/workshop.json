@@ -84,10 +84,10 @@
 			"id": "wall_lower_plain",
 			"view": "v1",
 			"box": [
-				132,
-				733,
-				281,
-				1053
+				2127,
+				652,
+				2346,
+				750
 			],
 			"name": "plain lower wall panel, bolted, worn",
 			"kind": "code",
@@ -104,17 +104,17 @@
 			"at": [],
 			"repeats": "across the room",
 			"box_from": [
-				"v1.80"
+				"v1.82"
 			]
 		},
 		{
 			"id": "wall_upper_plain",
 			"view": "v1",
 			"box": [
-				1985,
-				290,
-				2033,
-				389
+				1808,
+				181,
+				1996,
+				274
 			],
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
@@ -131,9 +131,9 @@
 			"at": [],
 			"repeats": "across the room",
 			"box_from": [
-				"v1.279",
-				"v1.312",
-				"v1.322"
+				"v1.111",
+				"v1.330",
+				"v1.384"
 			]
 		},
 		{
@@ -254,10 +254,10 @@
 			"id": "ring_floor_plate",
 			"view": "v1",
 			"box": [
-				1647,
-				960,
-				2066,
-				1214
+				1630,
+				795,
+				1889,
+				980
 			],
 			"name": "deck plate, bolted, scuffed",
 			"kind": "code",
@@ -274,7 +274,7 @@
 			"at": [],
 			"repeats": "across the room",
 			"box_from": [
-				"v1.39"
+				"v1.46"
 			]
 		},
 		{
@@ -701,6 +701,7 @@
 				"high": 0.5
 			},
 			"box_from": [
+				"v1.414",
 				"v1.w29"
 			]
 		},
@@ -829,12 +830,7 @@
 		{
 			"id": "conduit_box",
 			"view": "v1",
-			"box": [
-				1946,
-				442,
-				2031,
-				584
-			],
+			"box": null,
 			"name": "a small steel conduit junction box with cable glands",
 			"kind": "code",
 			"anchor": "wall",
@@ -880,9 +876,7 @@
 				}
 			],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.86"
-			]
+			"unseen": "no conduit junction box can be told apart on the walls in the concept"
 		},
 		{
 			"id": "small_readout",
@@ -1051,16 +1045,16 @@
 			"solid": true,
 			"box_from": [
 				"v1.472",
-				"v1.444",
-				"v1.455",
 				"v1.380",
 				"v1.491",
-				"v1.499",
+				"v1.455",
+				"v1.462",
+				"v1.467",
 				"v1.290",
-				"v1.116",
 				"v1.93",
 				"v1.109",
 				"v1.114",
+				"v1.116",
 				"v1.126",
 				"v1.179",
 				"v1.188",
@@ -1094,6 +1088,7 @@
 				"v1.421",
 				"v1.422",
 				"v1.439",
+				"v1.444",
 				"v1.447",
 				"v1.448",
 				"v1.449",
@@ -1108,12 +1103,10 @@
 				"v1.459",
 				"v1.460",
 				"v1.461",
-				"v1.462",
 				"v1.463",
 				"v1.464",
 				"v1.465",
 				"v1.466",
-				"v1.467",
 				"v1.468",
 				"v1.469",
 				"v1.470",
@@ -1143,6 +1136,7 @@
 				"v1.496",
 				"v1.497",
 				"v1.498",
+				"v1.499",
 				"v1.500",
 				"v1.501",
 				"v1.502",
@@ -1195,16 +1189,16 @@
 			],
 			"box_from": [
 				"v1.472",
-				"v1.444",
-				"v1.455",
 				"v1.380",
 				"v1.491",
-				"v1.499",
+				"v1.455",
+				"v1.462",
+				"v1.467",
 				"v1.290",
-				"v1.116",
 				"v1.93",
 				"v1.109",
 				"v1.114",
+				"v1.116",
 				"v1.126",
 				"v1.179",
 				"v1.188",
@@ -1238,6 +1232,7 @@
 				"v1.421",
 				"v1.422",
 				"v1.439",
+				"v1.444",
 				"v1.447",
 				"v1.448",
 				"v1.449",
@@ -1252,12 +1247,10 @@
 				"v1.459",
 				"v1.460",
 				"v1.461",
-				"v1.462",
 				"v1.463",
 				"v1.464",
 				"v1.465",
 				"v1.466",
-				"v1.467",
 				"v1.468",
 				"v1.469",
 				"v1.470",
@@ -1287,6 +1280,7 @@
 				"v1.496",
 				"v1.497",
 				"v1.498",
+				"v1.499",
 				"v1.500",
 				"v1.501",
 				"v1.502",
@@ -1312,12 +1306,7 @@
 		{
 			"id": "rack",
 			"view": "v1",
-			"box": [
-				286,
-				653,
-				375,
-				735
-			],
+			"box": null,
 			"name": "single steel locker (the plan painted lockers where the list said equipment racks)",
 			"kind": "code",
 			"anchor": "floor",
@@ -1339,9 +1328,7 @@
 				}
 			],
 			"solid": true,
-			"box_from": [
-				"v1.116"
-			]
+			"unseen": "the concept shows no single locker; the grey unit by the tool bench is a bench-side box"
 		},
 		{
 			"id": "waste_bin",
@@ -1475,7 +1462,7 @@
 			"solid": true,
 			"box_from": [
 				"v1.275",
-				"v1.392",
+				"v1.338",
 				"v1.304",
 				"v1.88",
 				"v1.177",
@@ -1485,8 +1472,8 @@
 				"v1.317",
 				"v1.328",
 				"v1.329",
-				"v1.338",
 				"v1.370",
+				"v1.392",
 				"v1.401",
 				"v1.428",
 				"v1.442",
@@ -1501,7 +1488,7 @@
 				1536,
 				196,
 				1683,
-				436
+				448
 			],
 			"name": "steel parts cabinet: forty small bin drawers on a two-door cupboard",
 			"kind": "code",
@@ -1529,6 +1516,8 @@
 				"v1.190",
 				"v1.193",
 				"v1.198",
+				"v1.202",
+				"v1.208",
 				"v1.w44"
 			]
 		},
@@ -1616,7 +1605,7 @@
 				1985,
 				325,
 				2292,
-				637
+				672
 			],
 			"name": "one single large wall display screen in a heavy steel frame, glowing readouts, the whole screen in view",
 			"kind": "code",
@@ -1638,29 +1627,35 @@
 				}
 			],
 			"box_from": [
-				"v1.322",
 				"v1.162",
 				"v1.163",
 				"v1.166",
 				"v1.389",
+				"v1.411",
 				"v1.w2",
 				"v1.w3",
 				"v1.w4",
 				"v1.w40",
 				"v1.w41",
+				"v1.414",
 				"v1.w29",
+				"v1.48",
 				"v1.57",
 				"v1.78",
 				"v1.87",
+				"v1.165",
+				"v1.168",
 				"v1.169",
 				"v1.186",
 				"v1.255",
+				"v1.322",
 				"v1.346",
 				"v1.372",
 				"v1.403",
-				"v1.414",
 				"v1.418",
+				"v1.w1",
 				"v1.w35",
+				"v1.w48",
 				"v1.w59"
 			]
 		},
@@ -1668,7 +1663,7 @@
 			"id": "floor_socket",
 			"view": "v1",
 			"box": [
-				509,
+				478,
 				672,
 				1083,
 				1013
@@ -1810,11 +1805,15 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v1.360",
+				"v1.295",
+				"v1.305",
 				"v1.400",
 				"v1.29",
 				"v1.44",
 				"v1.47",
 				"v1.54",
+				"v1.67",
+				"v1.72",
 				"v1.129",
 				"v1.184",
 				"v1.196",
@@ -1836,7 +1835,7 @@
 			"id": "bay_mark",
 			"view": "v1",
 			"box": [
-				509,
+				478,
 				672,
 				1083,
 				1013
@@ -1906,11 +1905,15 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v1.360",
+				"v1.295",
+				"v1.305",
 				"v1.400",
 				"v1.29",
 				"v1.44",
 				"v1.47",
 				"v1.54",
+				"v1.67",
+				"v1.72",
 				"v1.129",
 				"v1.184",
 				"v1.196",
@@ -2032,10 +2035,10 @@
 			"id": "equipment_bench",
 			"view": "v1",
 			"box": [
-				1061,
-				1108,
-				1362,
-				1359
+				1121,
+				1190,
+				1291,
+				1301
 			],
 			"name": "equipment maker's workbench: cabinet base, steel top, back panel with a copper bus bar and switched sockets",
 			"kind": "code",
@@ -2052,14 +2055,8 @@
 			"at": [],
 			"why": "placed by the game's EquipmentBench node (shown only once built), not by the kit",
 			"box_from": [
-				"v1.w25",
-				"v1.98",
-				"v1.181",
-				"v1.197",
 				"v1.216",
 				"v1.259",
-				"v1.316",
-				"v1.318",
 				"v1.325",
 				"v1.377",
 				"v1.386",
@@ -2222,13 +2219,14 @@
 			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
 			"view": "v1",
 			"box": [
-				451,
-				484,
-				465,
-				545
+				348,
+				537,
+				370,
+				600
 			],
 			"box_from": [
-				"v1.444"
+				"v1.380",
+				"v1.491"
 			]
 		},
 		{
@@ -2250,14 +2248,13 @@
 			"why_take": "the hub's labelled Pixal3D take (round six), rebaked with the workshop's surfaces",
 			"view": "v1",
 			"box": [
-				348,
-				537,
 				370,
-				600
+				564,
+				381,
+				591
 			],
 			"box_from": [
-				"v1.380",
-				"v1.491"
+				"v1.462"
 			]
 		},
 		{
@@ -2306,13 +2303,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				511,
-				513,
+				397,
 				516,
-				533
+				408,
+				548
 			],
 			"box_from": [
-				"v1.499"
+				"v1.467"
 			]
 		},
 		{
@@ -2387,13 +2384,13 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1830,
-				1190,
-				1867,
-				1216
+				1811,
+				1228,
+				1855,
+				1278
 			],
 			"box_from": [
-				"v1.392"
+				"v1.338"
 			]
 		},
 		{
@@ -2455,10 +2452,10 @@
 			"id": "bench_lamp",
 			"view": "v1",
 			"box": [
-				459,
+				452,
 				784,
 				564,
-				870
+				871
 			],
 			"name": "an articulated desk lamp clamped to the end of the tool bench",
 			"kind": "generate",
@@ -2476,6 +2473,10 @@
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/workshop.json): the concept shows it and no row held it",
 			"from": "laid by the scene agent's final export from the concept (no game code places it)",
 			"box_from": [
+				"v1.342",
+				"v1.w28",
+				"v1.232",
+				"v1.343",
 				"v1.w27"
 			],
 			"dropped": "the desklamp row's copy on the tool bench is this lamp: the tool bench's composite (data/library/composites.json workshop_tool_bench) stands a desk lamp on its east end, the end the concept shows it on; a second lamp there would show it twice"

@@ -35,9 +35,9 @@
 			"id": "ring_floor_plate",
 			"view": "v1",
 			"box": [
-				786,
-				1057,
-				1578,
+				703,
+				1052,
+				1579,
 				1536
 			],
 			"name": "deck plate, bolted",
@@ -60,6 +60,8 @@
 				"v1.28",
 				"v1.29",
 				"v1.30",
+				"v1.35",
+				"v1.36",
 				"v1.40",
 				"v1.43",
 				"v1.74",
@@ -67,9 +69,13 @@
 				"v1.76",
 				"v1.83",
 				"v1.84",
+				"v1.149",
+				"v1.151",
 				"v1.161",
+				"v1.257",
 				"v1.268",
 				"v1.318",
+				"v1.343",
 				"v1.w10"
 			]
 		},
@@ -243,8 +249,8 @@
 			"box": [
 				1549,
 				0,
-				2262,
-				552
+				2263,
+				579
 			],
 			"name": "cable run along the crown",
 			"kind": "code",
@@ -261,17 +267,30 @@
 			"at": [],
 			"repeats": "across the room",
 			"box_from": [
+				"v1.210",
 				"v1.42",
 				"v1.48",
+				"v1.63",
 				"v1.64",
 				"v1.73",
+				"v1.85",
+				"v1.105",
+				"v1.109",
 				"v1.130",
+				"v1.142",
 				"v1.148",
 				"v1.152",
+				"v1.179",
+				"v1.183",
+				"v1.186",
+				"v1.187",
+				"v1.208",
 				"v1.227",
 				"v1.228",
 				"v1.235",
 				"v1.239",
+				"v1.269",
+				"v1.271",
 				"v1.280",
 				"v1.282",
 				"v1.285",
@@ -284,6 +303,7 @@
 				"v1.350",
 				"v1.351",
 				"v1.w3",
+				"v1.w4",
 				"v1.w18",
 				"v1.w21"
 			]
@@ -425,7 +445,9 @@
 			"made": "kit piece",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.89"
+				"v1.89",
+				"v1.225",
+				"v1.301"
 			]
 		},
 		{
@@ -482,12 +504,7 @@
 		{
 			"id": "conduit_box",
 			"view": "v1",
-			"box": [
-				822,
-				459,
-				879,
-				523
-			],
+			"box": null,
 			"name": "a small steel conduit junction box with cable glands (the hub's)",
 			"kind": "code",
 			"anchor": "wall",
@@ -504,7 +521,8 @@
 			"box_from": [
 				"v1.224",
 				"v1.w15"
-			]
+			],
+			"unseen": "no junction box can be told apart in the Marble views; the plate there is a sign"
 		}
 	],
 	"concept_elements": [

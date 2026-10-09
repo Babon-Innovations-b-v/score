@@ -34,7 +34,7 @@
    "id": "hab_lander",
    "view": "v1",
    "box": [
-    1273,
+    1263,
     381,
     2011,
     1116
@@ -62,6 +62,7 @@
    "fixed": true,
    "box_from": [
     "v1.w7",
+    "v1.203",
     "v1.20",
     "v1.21",
     "v1.25",
@@ -715,7 +716,7 @@
     1041,
     653,
     1306,
-    862
+    864
    ],
    "name": "walkway tube between modules",
    "kind": "code",
@@ -760,20 +761,17 @@
     "v1.190",
     "v1.208",
     "v1.215",
+    "v1.249",
     "v1.253",
     "v1.265",
+    "v1.269",
     "v1.286"
    ]
   },
   {
    "id": "apron",
    "view": "v1",
-   "box": [
-    1714,
-    1045,
-    1990,
-    1111
-   ],
+   "box": null,
    "name": "dust apron of chequer plates in front of the ladder",
    "kind": "code",
    "anchor": "floor",
@@ -799,7 +797,8 @@
     "v1.185",
     "v1.276",
     "v1.287"
-   ]
+   ],
+   "unseen": "no apron plate can be told apart under the ladder in the Marble views; the ground there is bare dust"
   },
   {
    "id": "cable_run",

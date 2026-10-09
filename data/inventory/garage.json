@@ -103,17 +103,10 @@
 			"made": "kit piece",
 			"at": [],
 			"view": "v1",
-			"box": [
-				470,
-				611,
-				784,
-				864
-			],
+			"box": null,
 			"thing": "prop:garage_wall_upper_plain",
 			"repeats": "across the room",
-			"box_from": [
-				"v1.35"
-			]
+			"unseen": "the upper wall bands show no panel of their own on the concept: SAM 2.1 gives no mask that is one panel"
 		},
 		{
 			"id": "wall_skirting",
@@ -178,15 +171,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				2198,
-				1013,
-				2255,
-				1221
+				2237,
+				508,
+				2267,
+				743
 			],
 			"thing": "prop:garage_wall_corner_post",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.w27"
+				"v1.206",
+				"v1.421"
 			]
 		},
 		{
@@ -605,15 +599,15 @@
 			],
 			"view": "v1",
 			"box": [
-				1272,
-				98,
-				1472,
-				185
+				907,
+				1266,
+				977,
+				1379
 			],
 			"thing": "prop:garage_pipe_straight",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.151"
+				"v1.146"
 			]
 		},
 		{
@@ -763,17 +757,10 @@
 				}
 			],
 			"view": "v1",
-			"box": [
-				1240,
-				182,
-				1297,
-				256
-			],
+			"box": null,
 			"thing": "prop:garage_cable_drop",
 			"repeats": "across the room",
-			"box_from": [
-				"v1.185"
-			]
+			"unseen": "no cable run dropping down a wall can be told apart in the concept"
 		},
 		{
 			"id": "door_control_box",
@@ -1278,15 +1265,15 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/pressure_gauge.png",
 			"view": "v1",
 			"box": [
-				571,
-				464,
-				678,
-				688
+				664,
+				401,
+				711,
+				462
 			],
 			"thing": "prop:garage_pressure_gauge",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.w50"
+				"v1.281"
 			]
 		},
 		{
