@@ -425,7 +425,7 @@
  "objects": [
   {
    "name": "robot_p1",
-   "model": "game/robots/models/greenhouse/greenhouse.glb",
+   "model": "models/robots/greenhouse/greenhouse.glb",
    "at": [
     0.3,
     0.99,
@@ -438,7 +438,7 @@
      "label": [
       "P1"
      ],
-     "font": "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
+     "font": "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
      "font_size": 64,
      "pixel_size": 0.0025,
      "outline_size": 12,
@@ -457,7 +457,7 @@
   },
   {
    "name": "tray_rover_wheels",
-   "model": "game/robots/models/rover_wheels/rover_wheels.glb",
+   "model": "models/robots/rover_wheels/rover_wheels.glb",
    "at": [
     -0.92,
     1.0178,
@@ -468,7 +468,7 @@
    "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), rover_wheels on spot 0 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.1444",
    "children": [
     {
-     "model": "game/robots/models/rover_wheels/rover_wheels.glb",
+     "model": "models/robots/rover_wheels/rover_wheels.glb",
      "at": [
       0.0,
       0.0,
@@ -481,7 +481,7 @@
   },
   {
    "name": "tray_battery_pack",
-   "model": "game/robots/models/battery_pack/battery_pack.glb",
+   "model": "models/robots/battery_pack/battery_pack.glb",
    "at": [
     -0.68,
     1.0355,
@@ -493,7 +493,7 @@
   },
   {
    "name": "tray_link_basic",
-   "model": "game/robots/models/link_basic/link_basic.glb",
+   "model": "models/robots/link_basic/link_basic.glb",
    "at": [
     -0.44,
     0.986,
@@ -505,7 +505,7 @@
   },
   {
    "name": "tray_seed_drill",
-   "model": "game/robots/models/seed_drill/seed_drill.glb",
+   "model": "models/robots/seed_drill/seed_drill.glb",
    "at": [
     -0.92,
     1.103,
@@ -517,7 +517,7 @@
   },
   {
    "name": "tray_picker",
-   "model": "game/robots/models/picker/picker.glb",
+   "model": "models/robots/picker/picker.glb",
    "at": [
     -0.68,
     1.0455,
@@ -529,7 +529,7 @@
   },
   {
    "name": "tray_soil_feeder",
-   "model": "game/robots/models/soil_feeder/soil_feeder.glb",
+   "model": "models/robots/soil_feeder/soil_feeder.glb",
    "at": [
     -0.44,
     0.986,
@@ -541,7 +541,7 @@
   },
   {
    "name": "tray_row_guide",
-   "model": "game/robots/models/row_guide/row_guide.glb",
+   "model": "models/robots/row_guide/row_guide.glb",
    "at": [
     -0.92,
     1.0198,
