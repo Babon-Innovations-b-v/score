@@ -1,0 +1,15 @@
+[
+ {"name": "moss-soundeffect-v2", "source": "hf:OpenMOSS-Team/MOSS-SoundEffect-v2.0",
+  "revision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+  "files": ["model_index.json", "scheduler/*", "text_encoder/*", "tokenizer/*", "transformer/*", "vae/*"],
+  "sha256": "", "licence": "Apache-2.0", "licence_url": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0",
+  "commercial_use": true,
+  "note": "MOSS-SoundEffect v2.0 (OpenMOSS), code and weights Apache-2.0 (checked 2026-10-09); the revision is moss_sound.py's MOSS_MODEL_REVISION. About 11 GB."},
+ {"name": "clap-larger-general", "source": "hf:laion/larger_clap_general",
+  "revision": "ada0c23a36c4e8582805bb38fec3905903f18b41",
+  "files": ["config.json", "merges.txt", "preprocessor_config.json", "pytorch_model.bin", "special_tokens_map.json",
+            "tokenizer.json", "tokenizer_config.json", "vocab.json"],
+  "sha256": "", "licence": "Apache-2.0", "licence_url": "https://huggingface.co/laion/larger_clap_general",
+  "commercial_use": true,
+  "note": "LAION's CLAP, which scores each take against its prompt (moss_generate.py's CLAP_REVISION); Apache-2.0 (checked 2026-10-09). moss_generate.py loads it by repository id, so the job links it into a Hugging Face cache (tools/cloud/runtime/hf_cache.py)."}
+]
