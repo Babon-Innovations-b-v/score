@@ -17,7 +17,8 @@ cumesh, flex_gemm and o_voxel (MIT); DINOv3 ViT-L/16 (DINOv3 Licence: worldwide,
 an open copy, its weights file checked against the sha256 six copies share, since Meta's own is gated); GeoSAM2
 (VAST-AI-Research/GeoSAM2, Apache-2.0) and its weights (VAST-AI/GeoSAM2, Apache-2.0); Blender 4.0.2 (GPL, a tool
 run on the machine). Left out: briaai/RMBG-2.0 and nvdiffrast, both non-commercial (meshparts_setup.sh). The owner's
-limits, the self-delete, the watchdog and the delete are batch.py's.
+limits, the self-delete, the watchdog and the delete are batch.py's. Under SCORE_CLOUD=k8s the shares go to the
+Kubernetes cluster as Jobs of the meshparts image (tools/cloud/k8s/cluster_jobs.py); the machines stay the default.
 """
 import argparse
 import json
@@ -34,7 +35,9 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
+from paths import REPO  # noqa: E402
 from provider import cloud  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/mp")
@@ -160,6 +163,51 @@ def record(run, started, folder, takes):
     return entry
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): each share a Kubernetes Job of the meshparts image (tools/cloud/images/
+# meshparts/: segvigen-run and geosam2-run with the weights from the node cache), through
+# tools/cloud/k8s/cluster_jobs.py; each take's results come back into <take>/down/ as the machines' do. A splitter
+# that fails leaves its take unsplit (to_split says so), as on a machine.
+CLUSTER_MODELS = {"segvigen": ["trellis2-4b", "segvigen", "dinov3-vitl16"], "geosam2": ["geosam2"]}
+CLUSTER_LINES = {
+    "segvigen": "segvigen-run /work/repo/tools/props/cloud/segvigen_worker.py /work/in /work/out "
+                '"$SCORE_MODEL_DINOV3_VITL16"',
+    "geosam2": "geosam2-run /work/repo/tools/props/cloud/geosam2_worker.py /work/in /work/out /opt/gs/blender/blender"}
+
+
+def kept_files():
+    """The find(1) test that keeps only what bring_back would bring back."""
+    tests = [f"-name {shlex.quote(name)}" for name in BROUGHT_BACK if "/" not in name]
+    tests += [f"-path {shlex.quote('*/' + name)}" for name in BROUGHT_BACK if "/" in name]
+    return " -o ".join(tests)
+
+
+def cluster_job(takes, run, methods=tuple(RESULTS)):
+    """One share as the cluster runs it: each take's up/ folder at /work/in/<take>, the splitters in turn, only what
+    bring_back keeps left in /work/out/<take>, which comes back into <take>/down/."""
+    lines = [CLUSTER_LINES[name] + "; true" for name in RESULTS if name in methods]
+    folders = " ".join(f"/work/out/{take}" for take in takes)
+    line = (f"mkdir -p {folders} && {' && '.join(lines)} && "
+            f"find /work/out -type f ! \\( {kept_files()} \\) -delete")
+    return {"command": ["bash", "-c", line],
+            "code": ["tools/props/cloud/segvigen_worker.py", "tools/props/cloud/geosam2_worker.py"],
+            "models": [model for name in methods for model in CLUSTER_MODELS[name]],
+            "inputs": [{"local": str(run / take / "up"), "path": f"/work/in/{take}"} for take in takes],
+            "outputs": [{"path": f"/work/out/{take}", "local": str(run / take / "down")} for take in takes],
+            "minutes": SETUP_MINUTES + MINUTES_A_TAKE * len(takes) * 2}
+
+
+def main_on_cluster(options, shares, methods):
+    """main() under SCORE_CLOUD=k8s: the shares as one run of the cluster on the meshparts kind's classes in its
+    order (capacity.py)."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    if options.dry_run:
+        batch.say(f"{len(shares)} shares for the cluster")
+        return
+    cluster_jobs.run(KIND, [cluster_job(share, options.run, methods) for share in shares], options.who)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("run", type=pathlib.Path, help="split_compare.py's run folder")
@@ -176,6 +224,12 @@ def main():
         batch.say("every take in the run folder is split already")
         return
     shares = [takes[start:start + SHARE_SIZE] for start in range(0, len(takes), SHARE_SIZE)]
+    if provider.on_cluster():
+        main_on_cluster(options, shares, methods)
+        left = to_split(options.run, takes, methods)
+        if left:
+            raise SystemExit(f"{len(left)} takes not fully split on the cluster: {', '.join(left)}")
+        return
     account = cloud.account()
     batch.sweep(account)
     found, count, allowed_minutes = price(shares, account, options.hold)
