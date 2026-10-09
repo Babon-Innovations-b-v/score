@@ -228,3 +228,24 @@ def test_a_warm_node_counts_from_the_runs_start():
     assert machine["created"] == 10_000.0 and machine["ready"] == 10_000.0
     row = submit.ledger.machine_row(machine)
     assert row["start_wait_minutes"] == 0 and row["minutes"] == 10
+
+
+class NodeKubectl(FakeKubectl):
+    def json(self, *arguments):
+        return {"items": self.items if arguments[1] == "nodes" else []}
+
+
+class BilledCluster(PoolCluster):
+    def nodes(self):
+        return [{"name": "kosmos-node", "type": "POP2-32C-128G", "zone": "pl-waw-2", "created": 100.0}]
+
+
+def test_a_node_without_zone_labels_takes_the_providers_record():
+    node = {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:50:00Z",
+                         "labels": {"score.dev/class": "cpu-32c-128gb"}},
+            "status": {"conditions": [{"type": "Ready", "status": "True",
+                                       "lastTransitionTime": "2026-10-09T14:50:13Z"}]}}
+    run = submit.Run("r1", {}, NodeKubectl([node]), BilledCluster(0))
+    run.watch_nodes()
+    seen = run.nodes["kosmos-node"]
+    assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)

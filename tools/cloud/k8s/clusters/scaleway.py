@@ -305,12 +305,17 @@ def cap_pools(euros_left, hours):
 
 
 def nodes():
-    """The cluster's nodes as Scaleway bills them: name, pool, status and creation time (epoch seconds)."""
+    """The cluster's nodes as Scaleway bills them: name, pool, machine type, zone, status and creation time (epoch
+    seconds). Kosmos nodes carry no zone or instance-type label, so the pool's record is what says them."""
     found = owned_cluster(backend.account())
-    names = {pool["id"]: pool["name"] for pool in pools(found["id"])}
-    return [{"name": node["name"], "pool": names.get(node["pool_id"], node["pool_id"]), "status": node["status"],
-             "created": parse_time(node["created_at"])}
-            for node in scw("k8s", "node", "list", f"cluster-id={found['id']}") or []]
+    pools_by_id = {pool["id"]: pool for pool in pools(found["id"])}
+    listed = []
+    for node in scw("k8s", "node", "list", f"cluster-id={found['id']}") or []:
+        pool = pools_by_id.get(node["pool_id"], {})
+        listed.append({"name": node["name"], "pool": pool.get("name", node["pool_id"]),
+                       "type": pool.get("node_type", "?").upper(), "zone": pool.get("zone", "?"),
+                       "status": node["status"], "created": parse_time(node["created_at"])})
+    return listed
 
 
 def price(machine_type, zone):
