@@ -37,8 +37,12 @@ the current backend). No model runs on the coordinating machine.
   rooms, `place_route.py` for outdoor places, `package.py` for the scene package), the gates (`gates/`), Infinigen
   grounds and life (`infinigen/`). Each directory's rules are in its overlay.
 - `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body
-  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode clothes; moved from 2099's `tools/crew`
-  with its history, its model steps not yet on the cloud); `skel_usd.py` turns a body into a UsdSkel asset;
+  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by Blender's cloth;
+  moved from 2099's `tools/crew` with its history). `maker/` is the character maker, one entry (`make.py`) for a
+  person or an animal from a picture or a few words (`data/characters/makes/<name>.json`): a person's whole chain
+  (picture, body by SAM3DBody-cpp, clips by Kimodo, drapes, head, hair by Hi3DGen, face by klein with a depth LoRA,
+  build, UsdSkel, review renders) runs on one rented card (`tools/props/cloud/characters.py`), an animal's through
+  `animals/`. `skel_usd.py` turns a body into a UsdSkel asset;
   `cast.py` writes a place's characters layer (`<stage>/layers/characters.usda`, between the edit layer and the
   base) from its cast in `data/characters/<place>.json`: named people, kit groups mixed by seed, and a crowd as one
   PointInstancer. The review page draws them (`tools/review/characters.py`).
@@ -232,6 +236,14 @@ world's name, kept so the cloud ledger, keys and work carry over): `cloud/` (the
 key, the spend ledger), `work/` (`PROPS_WORK`: takes, pictures, places' runs). The machines need `uv`, `make env`,
 and the cloud backend's tools: for Scaleway, the current backend, the `scw` CLI logged in to the project named by
 `SCORE_SCALEWAY_PROJECT` (by name, never an id).
+
+**The character maker** (`tools/characters/maker/`) needs nothing installed here: every environment it runs is set up
+on the rented card by `tools/props/cloud/characters_setup.sh` (about half an hour). It reads the secret
+`hf-read-token` (a HuggingFace read token whose account accepted Meta's terms for `meta-llama/Meta-Llama-3-8B-Instruct`,
+the base of Kimodo's text encoder), and from `MOTION_HOME` (default `~/.farm-factory-motion`) what every person shares:
+the two boots (`look/work_boot.npz`, `look/space_boot.npz`), MakeHuman's CC0 base mesh and low-poly eyes, and the clips
+already made (`work/motions/`); `make.py` names each (`SHARED`). A fresh box without them makes the clips again from
+their sentences; the boots and the eyes' source files must be copied over.
 
 **What survives a wipe:** everything in git. **What does not:** Claude's memory (git-ignored,
 because the repository is public), `gh` auth, any local toolchain, and anything a session left
