@@ -20,11 +20,6 @@ BACKGROUND = (232, 220, 192)
 SIDE = 320
 
 
-def one_mesh(path):
-    """The file as a single mesh, whatever it holds."""
-    return trimesh.load(path, force="mesh", process=False)
-
-
 def face_colours(mesh):
     """One colour per face, from the vertices when the mesh carries colour, else plain hull."""
     visual = getattr(mesh, "visual", None)
@@ -44,7 +39,8 @@ def view_matrix(turn, down):
 
 def draw_view(mesh, colours, turn, down, side):
     """One picture of the mesh from one angle, nearest face per pixel."""
-    rotated = mesh.vertices @ view_matrix(turn, down).T
+    turning = view_matrix(turn, down).T
+    rotated = mesh.vertices @ turning
     low, high = rotated.min(axis=0), rotated.max(axis=0)
     middle = (low + high) / 2.0
     reach = max(high[0] - low[0], high[1] - low[1]) * 0.55 or 1.0
@@ -54,7 +50,7 @@ def draw_view(mesh, colours, turn, down, side):
     screen[:, 1] = side / 2.0 - (rotated[:, 1] - middle[1]) * scale
     screen[:, 2] = rotated[:, 2]
 
-    normals = mesh.face_normals @ view_matrix(turn, down).T
+    normals = mesh.face_normals @ turning
     light = np.clip(0.35 + 0.65 * np.abs(normals[:, 2]), 0.0, 1.0)
     shaded = np.clip(colours * light[:, None], 0, 255).astype(np.uint8)
 
@@ -72,7 +68,7 @@ def sheet(paths, side=SIDE):
     """Every mesh in a row of its own, one column per view, its name and size written over it."""
     rows = []
     for path in paths:
-        mesh = one_mesh(path)
+        mesh = trimesh.load(path, force="mesh", process=False)
         colours = face_colours(mesh)
         row = Image.new("RGB", (side * len(VIEWS), side), BACKGROUND)
         for column, (turn, down) in enumerate(VIEWS):

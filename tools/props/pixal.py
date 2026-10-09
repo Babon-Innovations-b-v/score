@@ -26,7 +26,7 @@ Four steps, and only the second touches the graphics card:
 Writes <name>.glb (the raw model), <name>-<faces>.glb (finished) and <name>-final.glb (upright and
 padded, the one to import) under WORK/pixal/, with each finishing step's file and log in
 <name>-<faces>/. --finish-only redoes steps 3 and 4 from the raw model already there, which is how
-a model already in the game is re-finished. Import the final file with `run.sh --import ... --keep-texture --keep-maps`.
+a model already in the game is re-finished.
 """
 import argparse
 import contextlib
@@ -117,7 +117,7 @@ def finish(raw, picture, finished, faces, paint_from=None):
     clean_finish.finish(raw, picture, finished, faces, views)
 
 
-def stand_and_pad(finished, final, long, feet, tube=False):
+def stand_and_pad(finished, final, long, feet, tube):
     """The finished model stood upright, its maps padded, written to `final`."""
     import glb_file
     document, views = glb_file.read(finished)
