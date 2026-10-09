@@ -66,6 +66,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools/props"))
 sys.path.insert(0, str(REPO / "tools/usd"))
 sys.path.insert(0, str(REPO / "tools/props/library"))
+import complete  # noqa: E402
 import glb_file  # noqa: E402
 import ground as grounds  # noqa: E402
 import ground_detail  # noqa: E402
@@ -690,7 +691,16 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
     write_base(place, kit, inventory, assets, out, children, ground, scene, world)
     ensure_edit(out)
-    return write_root(place, out)
+    stage = write_root(place, out)
+    record_inputs(place, out, kit_path or KITS / f"{place}.json", inventory_path, models, assets)
+    return stage
+
+
+def record_inputs(place, out, kit_path, inventory_path, models, assets):
+    """What the stage was made from, written beside it for the completion gate (tools/usd/complete.py): the inventory,
+    the kit, the scene record and the cast, and every made model by its hash."""
+    inputs = [kit_path, scene_record.SCENES / f"{place}.json", REPO / "data/characters" / f"{place}.json"]
+    complete.record_inputs(out, inventory_path, inputs, {model: pathlib.Path(models) / f"{model}.gltf" for model in assets})
 
 
 def main():
