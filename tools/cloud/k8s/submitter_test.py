@@ -45,12 +45,14 @@ def test_reading_the_autoscaler_and_jobs():
     events = [{"reason": "NotTriggerScaleUp", "involvedObject": {"name": "pod-a"},
                "lastTimestamp": "2026-10-09T14:00:00Z",
                "message": "pod didn't trigger scale-up: 1 in backoff after failed scale-up"},
-              {"reason": "TriggeredScaleUp", "involvedObject": {"name": "pod-b"}, "lastTimestamp": "2026-10-09T14:00:00Z",
+              {"reason": "TriggeredScaleUp", "involvedObject": {"name": "pod-b"},
+               "lastTimestamp": "2026-10-09T14:00:00Z",
                "message": "pod triggered scale-up"}]
     found = submit.no_grow_times(events)
     assert set(found) == {"pod-a"} and found["pod-a"] == submit.parse_time("2026-10-09T14:00:00Z")
     grown_after = [{"reason": "NotTriggerScaleUp", "involvedObject": {"name": "pod-c"},
-                    "lastTimestamp": "2026-10-09T14:20:39Z", "message": "pod didn't trigger scale-up: 8 max node group size reached"},
+                    "lastTimestamp": "2026-10-09T14:20:39Z",
+                    "message": "pod didn't trigger scale-up: 8 max node group size reached"},
                    {"reason": "TriggeredScaleUp", "involvedObject": {"name": "pod-c"},
                     "lastTimestamp": "2026-10-09T14:20:59Z", "message": "pod triggered scale-up"}]
     assert submit.no_grow_times(grown_after) == {}
@@ -249,3 +251,17 @@ def test_a_node_without_zone_labels_takes_the_providers_record():
     run.watch_nodes()
     seen = run.nodes["kosmos-node"]
     assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)
+
+
+def test_an_unused_node_made_during_the_run_is_paid_for():
+    spec = {"kind": "judge", "image": "image", "minutes": 5}
+    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster(0))
+    run.started = 10_000.0
+    run.jobs["ask"].update(node="first", ran=10_200.0, state="done")
+    for name in ("first", "second"):
+        run.nodes[name] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
+                           "created": 10_060.0, "ready": 10_150.0, "deleted": 10_660.0, "jobs": set()}
+    run.nodes["other-run"] = dict(run.nodes["first"], created=9_000.0)
+    machines = submit.node_machines(run, "judge")
+    assert sorted((machine["node"], machine["unused"]) for machine in machines) == [("first", False),
+                                                                                    ("second", True)]

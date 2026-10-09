@@ -3,7 +3,7 @@ per capability class, machine type and zone, and its kubeconfig. The submitter (
 cluster through kubectl; this module is what it asks of the provider: the pools and their prices, the cap on each
 pool's size, and the nodes with their billed times.
 
-    python3 tools/cloud/k8s/clusters/scaleway.py up        # make or update the cluster and its pools, fetch its kubeconfig
+    python3 tools/cloud/k8s/clusters/scaleway.py up        # make or update the cluster and its pools; kubeconfig
     python3 tools/cloud/k8s/clusters/scaleway.py status    # the cluster, its pools and their nodes
     python3 tools/cloud/k8s/clusters/scaleway.py idle      # every class pool held at 0 nodes (max 0)
     python3 tools/cloud/k8s/clusters/scaleway.py down      # delete the whole cluster with its pools and nodes
@@ -37,6 +37,30 @@ What Scaleway offers (read from its docs and the scw CLI, 2026-10-09):
   H100-1-80G €2.87, H100-2-80G €5.73, H100-SXM-2-80G €6.62, POP2-32C-128G €1.18; DEV1-M (the system pool) €0.02.
 - **A private registry** is pulled from with an image pull secret (kubernetes.io/dockerconfigjson) holding the
   registry's user and the runtime key's secret; the submitter makes it from `provider.registry()` at submit time.
+
+Measured on this cluster (2026-10-09, fr-par Kapsule `score-jobs` and a Kosmos `score-jobs-kosmos`):
+
+- A cluster is ready in about 5 min with its system node; adding the 8 class pools takes seconds. The free control
+  plane refuses pool max sizes adding up past 150 nodes (cap_pools shares that). scw cannot set a label with a dot
+  in its key at pool creation (`labels.score.dev/class` reads as a nested field); `pool set-label` can.
+- An L4 from zero, order to pod running: 290 to 324 s over four runs. The autoscaler acts about 40 s after the pod
+  appears; the node is Ready about 100 s later; then NVIDIA's GPU operator takes about 2.7 min (node feature
+  discovery, the driver image, the driver's load, the toolkit, the device plugin, each image pulled in turn). Neither
+  NVIDIA's precompiled driver (595; no 580 build exists for the node's kernel) nor a shorter driver startup probe
+  cut it. The operator's images mirrored into the project's registry (copied in the cluster with crane in 68 s)
+  gave 146 s from node Ready to card usable and 249 s from order to pod running, on one run. A pod on a warm node
+  starts in about 1 s; the 174 MB base image pulls from the private registry in 5.6 s.
+- End to end through `../submitter.py`: two base-image jobs ran, their done.json read back and their ledger rows
+  written, on Kapsule (a warm L4) and on Kosmos (a cold L4 in fr-par-2 after pl-waw-2 and fr-par-1 were out of
+  stock: 4.1 min from submit to the pod running, EUR 0.12).
+- Out of stock: an L4 in fr-par-1 came back `creation_error` ("L4-1-24G is out of stock") 5 s after its order, and
+  the autoscaler ordered from the fr-par-2 pool 42 s later. With POP2-32C-128G out in both fr-par zones it kept
+  ordering from each pool every one to five minutes; the Kosmos cluster's pl-waw-2 pool got one after 20 min.
+- An empty node is deleted 5.5 to 6.5 min after its last pod ends (scale-down-unneeded-time 5 min).
+- With the priority expander and its ConfigMap (`cluster-autoscaler-priority-expander` in kube-system), the first
+  order went to the preferred pool; one sample, so the job path does not rely on it (expander random).
+- Kosmos nodes carry no `topology.kubernetes.io/zone` or instance-type label (`nodes()` gives both from the pool),
+  and their first pods wait about 40 s for the Kilo network.
 
 Every cluster and pool this module touches is checked by its own record: the cluster's project_id must be the
 project named PROJECT_NAME and its name CLUSTER_NAME. The organisation also holds another company's cluster in
@@ -270,7 +294,8 @@ def class_pools():
             continue
         per_minute, unit_minutes = price(pool["node_type"], pool["zone"])
         found.append({"name": pool["name"], "id": pool["id"], "class": machine_class,
-                      "type": pool["node_type"].upper(), "zone": pool["zone"], "max": pool.get("max_size", 0),
+                      "type": machine_type_name(pool["node_type"]), "zone": pool["zone"],
+                      "max": pool.get("max_size", 0),
                       "euros_a_minute": per_minute, "unit_minutes": unit_minutes})
     return found
 
@@ -313,9 +338,14 @@ def nodes():
     for node in scw("k8s", "node", "list", f"cluster-id={found['id']}") or []:
         pool = pools_by_id.get(node["pool_id"], {})
         listed.append({"name": node["name"], "pool": pool.get("name", node["pool_id"]),
-                       "type": pool.get("node_type", "?").upper(), "zone": pool.get("zone", "?"),
+                       "type": machine_type_name(pool.get("node_type", "?")), "zone": pool.get("zone", "?"),
                        "status": node["status"], "created": parse_time(node["created_at"])})
     return listed
+
+
+def machine_type_name(node_type):
+    """A pool's node type as the Instance type's name: Kapsule says `L4-1-24G`, Kosmos `l4_1_24g`."""
+    return node_type.upper().replace("_", "-")
 
 
 def price(machine_type, zone):
