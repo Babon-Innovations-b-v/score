@@ -67,3 +67,10 @@ def test_drapes_that_did_not_hold_and_sleeves_off_the_arm_are_flagged():
     assert warnings == ["Left sleeve: does not reach past the elbow; left as it is (redo the drape)"]
     assert rebuild.flags_of({"work_drape": False, "space_drape": True}, warnings) == [
         "work_drape did not hold on the body", warnings[0]]
+
+
+def test_trousers_are_not_judged_by_the_arms_they_leave_bare():
+    bare = {"came_to_rest": True, "bare_arm": {"left_arm": [0.3, 0.31], "right_arm": []}}
+    assert rebuild.held_newton(bare, "trousers")
+    assert not rebuild.held_newton(bare, "jacket")
+    assert not rebuild.held_newton(dict(bare, came_to_rest=False), "trousers")
