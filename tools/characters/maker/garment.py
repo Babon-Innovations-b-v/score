@@ -238,9 +238,19 @@ def write_box_mesh(work, name, resolution, tag=None):
     box = boxmeshgen.BoxMesh(paths.in_g_spec, float(resolution))
     box.load()
     box.serialize(paths, store_panels=False, uv_config={"seam_width": 0.5, "dpi": 300})
-    np.savez(paths.out_el / f"{tag}_sewing.npz", **panels_apart(box))
+    np.savez(paths.out_el / f"{tag}_sewing.npz", **panels_apart(box), **waist_of(box, work / "bodies" / "ours.yaml"))
     print("box mesh in", paths.out_el)
     return paths.out_el
+
+
+def waist_of(box, measurements):
+    """Where GarmentCode holds a garment's waist while it drapes (its Warp run's 'lower_interface' attachment): the
+    box mesh points so labelled, the body's waist level and its height (centimetres)."""
+    import yaml
+    body = yaml.safe_load(pathlib.Path(measurements).read_text())["body"]
+    level = body.get("_waist_level", body["height"] - body["head_l"] - body["waist_line"])
+    return {"waist_points": np.array(box.vertex_labels.get("lower_interface", []), dtype=np.int64),
+            "waist_level": float(level), "height": float(body["height"])}
 
 
 def panels_apart(box):

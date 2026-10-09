@@ -20,7 +20,6 @@
    10,
    30
   ],
-  "sag_limit": 0.06,
   "lift": {
    "torso": 0.1,
    "collar": 0.1,
@@ -28,13 +27,34 @@
    "pant": 0.1
   },
   "mass_spacing": 3.0,
-  "settled_sag_limit": 0.1
+  "waist_hold": {
+   "below_waist": 0.0,
+   "frames": 20
+  },
+  "fine": [
+   {
+    "sewing_force": 40
+   },
+   {
+    "sewing_force": 80
+   },
+   {
+    "sewing_force": 20
+   }
+  ],
+  "drift_limits": {
+   "": 0.3,
+   "torso": 0.14,
+   "sleeve": 0.08
+  },
+  "open_thread_limit": 0.05,
+  "top_fall_limit": 0.04
  },
  "frames": {
   "sew": 30,
   "gravity_ramp": 10,
   "settle": 120,
-  "fine_settle": 40
+  "fine_settle": 60
  },
  "coarse_resolution": 3.0
 }
