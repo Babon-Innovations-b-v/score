@@ -461,6 +461,8 @@ def library_materials(stage, place, root):
         shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(spec.get("metal", 0.0)))
         if spec["family"] == "light":  # a lit window, a lamp's lens: it gives off its colour
             shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*spec["colour"]))
+        if "opacity" in spec:  # clear glass: the share of light it stops
+            shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(float(spec["opacity"]))
         material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
         for key in ("recipe", "token", "family"):
             material.GetPrim().CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(str(spec[key]))

@@ -1,5 +1,5 @@
 {
- "about": "The Moon's planned ground round the base of the game 2099 (its game/world/ground/moon_plan.json, #130 there): the heights picture (sixteen bits in red and green: height = code / 65535 * span - low, metres), its skin (the same square), the square's side in metres, the ball's radius, the base seat's way out the square is laid on (ModuleFloors.STANDS), and each place's seat: its way out and its heading (radians about out), as the game's Seat has them. The wreck's is the base seat walked 55 m on the bearing (-30, 100) and turned so its along runs home (Wreck.seat); the old station's is the base seat itself, its layout offset by the kit's on_seat.",
+ "about": "The Moon's planned ground round the base of the game 2099 (its game/world/ground/moon_plan.json, #130 there): the heights picture (sixteen bits in red and green: height = code / 65535 * span - low, metres), its skin (the same square), the square's side in metres, the ball's radius, the base seat's way out the square is laid on (ModuleFloors.STANDS), and each place's seat: its way out and its heading (radians about out), as the game's Seat has them. The wreck's is the base seat walked 55 m on the bearing (-30, 100) and turned so its along runs home (Wreck.seat); the old station's is the base seat itself, its layout offset by the kit's on_seat. The base's rooms (hub, tube, greenhouse) are laid flat on the base seat as main.tscn stands them: each its middle at `flat` (across, along) on the unturned seat and turned `heading`; the hub is the Habitat node, turned half round; the tube is the west corridor from its west end, its along running east. `dug` is the pit the game digs the ground out under round the base seat (Ground.dug_pit from the hub's stepped floor, sim/base/stepped_floor.gd:77; game/world/ground/ground.gd:99-104, 282-292).",
  "heights": "moon_plan_heights.png",
  "skin": "moon_plan_skin.jpg",
  "side": 260.0,
@@ -63,6 +63,42 @@
     "height": -0.4951,
     "blend": 4.0
    }
+  },
+  "hub": {
+   "out": [
+    0.420568151,
+    0.720973973,
+    -0.550744007
+   ],
+   "heading": 3.141592653589793,
+   "flat": [
+    0.0,
+    0.0
+   ]
+  },
+  "greenhouse": {
+   "out": [
+    0.420568151,
+    0.720973973,
+    -0.550744007
+   ],
+   "heading": 0.0,
+   "flat": [
+    -17.0,
+    0.0
+   ]
+  },
+  "tube": {
+   "out": [
+    0.420568151,
+    0.720973973,
+    -0.550744007
+   ],
+   "heading": 1.5707963267948966,
+   "flat": [
+    -9.0,
+    0.0
+   ]
   }
  },
  "detail": {
@@ -88,5 +124,9 @@
   "pebbles_share": 1.0,
   "texel": 0.02,
   "from": "game/art/materials/regolith_ground.tres (flat_color, ink_color, the scans, plan_relief); ink_ground.gdshader:52-58 (pits_share and pebbles_share default to 1 on the Moon)"
+ },
+ "dug": {
+  "radius": 2.33,
+  "deep": 0.9
  }
 }

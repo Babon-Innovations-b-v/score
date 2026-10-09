@@ -398,6 +398,38 @@ def check_dust(folder):
     assert np.isclose(np.ptp(built["points"][:6, 0]), 0.03)
 
 
+def check_labels_and_glow(folder):
+    """A gameplay object worn in the glow the game paints over it, and a label on it (a Label3D's words drawn in the
+    world's font, as large as its pixel size makes them), written into a stage."""
+    world = folder / "world"
+    (world / "models").mkdir(parents=True)
+    import trimesh
+    trimesh.creation.box((0.06, 0.06, 0.06)).export(world / "models/lamp.glb")
+    font = HERE.parents[1] / "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf"
+    record = {"objects": [{"name": "desk_lamp", "model": "models/lamp.glb", "at": [1.0, 0.8, 0.0],
+                           "glow": {"colour": "#ff3a22", "strength": 4.0},
+                           "children": [{"label": ["Lab desk", "Nothing yet"], "font": str(font), "font_size": 48,
+                                         "pixel_size": 0.003, "outline_size": 10, "colour": "#a79c8b",
+                                         "at": [0.0, 1.6, 0.0], "yaw": 180.0}]}]}
+    (folder / "layers").mkdir()
+    stage = Usd.Stage.CreateNew(str(folder / "layers/labels.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    scene.write(stage, PLACE, record, folder, world=world)
+    lamp = stage.GetPrimAtPath(f"/{PLACE}/Fixtures/desk_lamp")
+    mesh = next(prim for prim in Usd.PrimRange(lamp) if prim.IsA(UsdGeom.Mesh) and "label" not in str(prim.GetPath()))
+    bound = UsdShade.MaterialBindingAPI(mesh).ComputeBoundMaterial()[0]
+    assert bound.GetPath().name == "desk_lamp_glow", bound.GetPath()
+    glow = UsdShade.Shader(stage.GetPrimAtPath(f"{bound.GetPath()}/surface")).GetInput("emissiveColor").Get()
+    assert math.isclose(glow[0], 4.0, rel_tol=1e-6), glow
+    label = stage.GetPrimAtPath(f"/{PLACE}/Fixtures/desk_lamp/label_1")
+    assert label.GetAttribute("score:label").Get() == "Lab desk\nNothing yet"
+    text = stage.GetPrimAtPath(f"{label.GetPath()}/text")
+    assert UsdShade.MaterialBindingAPI(text).ComputeBoundMaterial()[0].GetPath().name == "look"
+    points = np.asarray(UsdGeom.Mesh(text).GetPointsAttr().Get())
+    tall = points[:, 1].max() - points[:, 1].min()
+    assert 0.2 < tall < 0.5, tall  # two lines of a 48 pixel font at 3 mm a pixel
+
+
 def check_records():
     """Every record names builders that exist with their own arguments, library surfaces that exist, and views
     with an eye, an aim and a field of view."""
@@ -441,6 +473,8 @@ def main():
         check_backdrop_render(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_sky(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_labels_and_glow(pathlib.Path(folder))
     check_kit_lamps()
     check_tube()
     check_moved()

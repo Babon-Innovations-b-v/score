@@ -311,10 +311,10 @@ class Bake:
         step = self.texel
         corners = []
         for offset_x, offset_z in ((0.0, 0.0), (step, 0.0), (0.0, step)):
-            flat = (self.ground.frame[1] * self.ground.radius + (grid_x + offset_x)[..., None] * self.ground.frame[0]
+            flat = (self.ground.origin + (grid_x + offset_x)[..., None] * self.ground.frame[0]
                     + (grid_z + offset_z)[..., None] * self.ground.frame[2])
             directions = flat / np.linalg.norm(flat, axis=-1, keepdims=True)
-            height, plan_flat = self.ground.plan_height(directions.reshape(-1, 3))
+            height, plan_flat = self.ground.height(directions.reshape(-1, 3))
             corners.append((directions * (self.ground.radius + height.reshape(grid_x.shape))[..., None],
                             plan_flat.reshape(grid_x.shape + (2,))))
         moon, plan_flat = corners[0]
