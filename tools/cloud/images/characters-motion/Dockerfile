@@ -46,14 +46,16 @@ RUN cd /root/sam3dbody-cpp \
  && PATH=/usr/local/cuda-12.6/bin:$PATH cmake --build build -- -j"$(nproc)" >/tmp/build.log \
  && test -f build/libfast_sam_3dbody.so
 # What the built engine loads at run time, by package: the final stage installs exactly these.
-RUN for library in /root/sam3dbody-cpp/build/libfast_sam_3dbody.so /root/sam3dbody-cpp/build/fast_sam_3dbody_run \
+# The engine's own shared libraries (ggml's, miniz's) stay where its RPATH finds them, under build/_deps; only the
+# build's object files go.
+RUN for library in /root/sam3dbody-cpp/build/fast_sam_3dbody_run $(find /root/sam3dbody-cpp/build -name '*.so*' -type f) \
       /opt/onnxruntime/lib/libonnxruntime*.so*; do \
       LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:/opt/onnxruntime/lib ldd "$library"; done \
     | awk '/=> \// {print $3}' | sort -u | xargs -r readlink -f | xargs -r dpkg -S 2>/dev/null \
     | cut -d: -f1 | sort -u > /opt/runtime-packages \
  && echo libcudnn9-cuda-12 >> /opt/runtime-packages && cat /opt/runtime-packages \
- && rm -rf /root/sam3dbody-cpp/build/CMakeFiles /root/sam3dbody-cpp/build/_deps /root/sam3dbody-cpp/.git \
-      /root/sam3dbody-cpp/RGBDAcquisition/.git
+ && find /root/sam3dbody-cpp/build -name '*.o' -delete \
+ && rm -rf /root/sam3dbody-cpp/.git /root/sam3dbody-cpp/RGBDAcquisition/.git
 
 FROM ${BASE}
 ARG CUDNN=9.27.0.42-1
@@ -67,8 +69,10 @@ RUN apt-get update -qq \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=engine /opt/onnxruntime /opt/onnxruntime
 COPY --from=engine /root/sam3dbody-cpp /root/sam3dbody-cpp
-RUN LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:/opt/onnxruntime/lib ldd /root/sam3dbody-cpp/build/libfast_sam_3dbody.so \
-      /opt/onnxruntime/lib/libonnxruntime_providers_cuda.so | grep "not found" && exit 1 || true
+# Every library the engine loads is found (the driver's libcuda comes from the node at run time).
+RUN ! LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:/opt/onnxruntime/lib ldd /root/sam3dbody-cpp/build/libfast_sam_3dbody.so \
+      $(find /root/sam3dbody-cpp/build -name '*.so*' -type f) /opt/onnxruntime/lib/libonnxruntime_providers_cuda.so \
+      | grep "not found" | grep -v "libcuda.so.1" 
 
 COPY requirements.txt /root/envs/motion-requirements.txt
 RUN uv venv --quiet --python ${PYTHON} /root/envs/motion \
