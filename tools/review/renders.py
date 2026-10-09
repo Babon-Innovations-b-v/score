@@ -271,9 +271,11 @@ def timed(walk, stage):
 
 def record_views(scene):
     """The scene record's own cameras (data/scene/<place>.json `views`: the player's spots, inside a room at standing
-    height), each naming the game's shot from about the same place."""
+    height), each naming the game's shot from about the same place; the first also drawn with the game's ink lines
+    over it (`ink`), one extra picture a place."""
     return [dict(looking(view["name"], view["eye"], view["aim"], fov=float(view.get("fov", 75.0))),
-                 game=view.get("game")) for view in scene.get("views", [])]
+                 game=view.get("game"), **({"ink": True} if number == 0 else {}))
+            for number, view in enumerate(scene.get("views", []))]
 
 
 def cutaway(scene):

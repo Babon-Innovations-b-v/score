@@ -114,7 +114,20 @@
    "energy": 0.22
   },
   "exposure": 1.05,
-  "from": "sky.gd:345 (ambient lerp(0.05, 0.22, sun) in full sun), lighting.json exposure 1.05 sunlit"
+  "from": "sky.gd:345 (ambient lerp(0.05, 0.22, sun) in full sun), lighting.json exposure 1.05 sunlit",
+  "stars": {
+   "count": 1800,
+   "seed": 9,
+   "sky_distance": 700.0,
+   "distance": 1900.0,
+   "radius": 0.7,
+   "size": [
+    0.4,
+    1.3
+   ],
+   "colour": "#eef2ff",
+   "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned with the place's own axes, where the game turns them with the world's spin and the hour, which the record does not carry"
+  }
  },
  "views": [
   {

@@ -186,10 +186,10 @@ def closeups_section(runs, pictures):
     return section("closeups", "Close-ups", f'<div class="grid">{"".join(tiles)}</div>')
 
 
-def pair(before, after, caption):
-    return (f'<figure class="pair"><div class="two"><div><img loading="lazy" src="{escaped(before)}" alt="before">'
-            f'<span class="tag">before</span></div><div><img loading="lazy" src="{escaped(after)}" alt="after">'
-            f'<span class="tag">after</span></div></div><figcaption>{caption}</figcaption></figure>')
+def pair(before, after, caption, tags=("before", "after")):
+    return (f'<figure class="pair"><div class="two"><div><img loading="lazy" src="{escaped(before)}" alt="{tags[0]}">'
+            f'<span class="tag">{tags[0]}</span></div><div><img loading="lazy" src="{escaped(after)}" alt="{tags[1]}">'
+            f'<span class="tag">{tags[1]}</span></div></div><figcaption>{caption}</figcaption></figure>')
 
 
 def shot_cell(shots, out, model, what, labels, caption):
@@ -369,6 +369,9 @@ def scene_section(scene, out, place=None, games=None, pictures=None):
         paths = [f"scene/{label}/{view}-look.png" for label in labels if (out / "scene" / label / f"{view}-look.png")
                  .exists()]
         tiles.append(pair(paths[0], paths[-1], escaped(view)) if len(paths) > 1 else figure(paths[-1], escaped(view)))
+    inked = [pair(f"scene/{labels[-1]}/{view}-look.png", f"scene/{labels[-1]}/{view}-ink.png",
+                  escaped(f"{view}: the look, and the same with the game's ink lines over it"), ("look", "ink"))
+             for view in scene["views"] if labels and (out / "scene" / labels[-1] / f"{view}-ink.png").exists()]
     report = scene["report"]
     lit = ("in its baked materials with everything the game draws in its own code that its scene record carries "
            "(structure, ground, water, backdrop, gameplay objects), lit by the stage's own lights and sky as the game "
@@ -388,7 +391,11 @@ def scene_section(scene, out, place=None, games=None, pictures=None):
               "poster=\"scene/walk-strip.jpg\"></video>"
             + figure("scene/walk-strip.jpg", "the walk, every tenth frame")
             + (f'<h3>Beside the game</h3>{complete}<div class="grid pairs">{"".join(beside)}</div>' if complete else "")
-            + f'<h3>Fixed cameras</h3><div class="grid {"pairs" if len(labels) > 1 else "wide"}">{"".join(tiles)}</div>')
+            + f'<h3>Fixed cameras</h3><div class="grid {"pairs" if len(labels) > 1 else "wide"}">{"".join(tiles)}</div>'
+            + (f'<h3>Ink lines</h3><p>An option of the render, never part of the stage: the game\'s full-screen ink '
+               f'pass (ink_edges.gdshader: its depth and crease rule, its line widths and its fade with distance) '
+               f'worked out on the render\'s own depth and facing, laid over the look.</p>'
+               f'<div class="grid pairs">{"".join(inked)}</div>' if inked else ""))
     return section("scene", "The assembled scene", body)
 
 

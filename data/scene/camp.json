@@ -636,13 +636,40 @@
   }
  ],
  "environment": {
-  "background": "#8a5a32",
+  "background": "#030409",
   "ambient": {
    "colour": "#9fb8e6",
    "energy": 0.22
   },
   "exposure": 1.05,
-  "from": "sky.gd:345, mars.gd:31-36 (the butterscotch sky is a fog volume of MARS_HAZE #d9a066; its seen colour here is the haze darkened as the shots show it)"
+  "from": "sky.gd:161 (background Palette.SPACE, as everywhere), sky.gd:345 (ambient), mars.gd:31-36 (the butterscotch sky is Mars's air, the fog volume in `haze`, seen against space)",
+  "haze": {
+   "shape": "ellipsoid",
+   "centre": "ball",
+   "size": [
+    580.0,
+    580.0,
+    580.0
+   ],
+   "colour": "#d9a066",
+   "density": 0.012,
+   "forward": 0.5,
+   "reach": 160.0,
+   "from": "game/world/mars/mars.gd:31-37,105-116 (the Air FogVolume: an ellipsoid (Worlds.RADIUS 220 + AIR_HEIGHT 70) x 2 across round Mars's middle, Palette.MARS_HAZE #d9a066, AIR_DENSITY 0.012), game/world/sky/sky.gd:50,56,314-319 (worked out 160 m out, thrown forward 0.5)"
+  },
+  "stars": {
+   "count": 1800,
+   "seed": 9,
+   "sky_distance": 700.0,
+   "distance": 1900.0,
+   "radius": 0.7,
+   "size": [
+    0.4,
+    1.3
+   ],
+   "colour": "#eef2ff",
+   "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned with the place's own axes, where the game turns them with the world's spin and the hour, which the record does not carry"
+  }
  },
  "floor": [
   [
