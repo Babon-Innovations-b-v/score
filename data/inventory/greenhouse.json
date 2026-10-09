@@ -2450,5 +2450,11 @@
 			"made": "kit piece",
 			"model": "control_cabinet_1"
 		}
-	]
+	],
+	"concept_pick": {
+		"concept": "K09",
+		"picture": "jobs/3326150f/tmp/concepts-world1/greenhouse/concepts/K09.png",
+		"sha256": "b3ed4bd3321a3e45d41b4b044b73186c933c359bb810c25cf8dd2cc8dbd69553",
+		"decided": "owner, 2026-10-07 16:48 UTC, on the Moon modules concept page (claude.ai/artifact/3SrCRmxLoxX3AM4AuX4TL7): approved the module concepts as the coordinator had picked them, correcting only the garage (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #343); the pick and its reasons: jobs/3326150f/tmp/concepts-world1/greenhouse/picks.json"
+	}
 }

@@ -130,7 +130,12 @@
 				"v4.w5",
 				"v4.w24",
 				"v4.w25"
-			]
+			],
+			"pick": {
+				"model": "console_1",
+				"sha256": "87d1d92bf52f139995e53fce9a496e587d71d18be5ee6929da082a96e1217538",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "labbench",
@@ -196,7 +201,12 @@
 				"v3.w1",
 				"v3.w7",
 				"v3.w10"
-			]
+			],
+			"pick": {
+				"model": "labbench_1",
+				"sha256": "cd95c4f44db112af2fe0a13ac7f5667cdf7f8265c59baebb05bb729afa47de1e",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "chair",
@@ -241,7 +251,12 @@
 				"v4.203",
 				"v4.246",
 				"v4.249"
-			]
+			],
+			"pick": {
+				"model": "chair_1",
+				"sha256": "4d8e569d332dbc38180f27a265ce18c99722eb3447bafc26314f59737d9fbb8f",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "talllocker",
@@ -285,7 +300,12 @@
 				"v4.165",
 				"v4.204",
 				"v4.222"
-			]
+			],
+			"pick": {
+				"model": "talllocker_1",
+				"sha256": "f756372a49799fa66289039cccfd656316f624b44070a77b4674d727b440fcaa",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "rack",
@@ -339,7 +359,12 @@
 				"v5.124",
 				"v5.146",
 				"v5.161"
-			]
+			],
+			"pick": {
+				"model": "rack_1",
+				"sha256": "d3b68f1c98abc11d8e32eccadda4634c628ffdc32842a3ea269026e5513f0835",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "comms",
@@ -378,7 +403,12 @@
 			"why_code": "2026-10-06, after the owner's in-game test: the old comms (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
 			"box_from": [
 				"v5.w4"
-			]
+			],
+			"pick": {
+				"model": "comms_1",
+				"sha256": "bdda3572501b6d84448240a491bee6b8305fcaf3a6d110e5bd12014947ced365",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "toolboard",
@@ -468,7 +498,12 @@
 				"v1.220",
 				"v1.w1",
 				"v1.w2"
-			]
+			],
+			"pick": {
+				"model": "toolboard_1",
+				"sha256": "0163f4fb08e7cac2318e22668ba1ffa60a768c9e0c90e1930f4b31a4d97fa06d",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "wall_lower_plain",
@@ -497,7 +532,14 @@
 				"v4.189",
 				"v4.195",
 				"v4.243"
-			]
+			],
+			"pick": {
+				"models": {
+					"wall_lower_plain_1": "855a166d505bffb921132c03a143e1d5a1231b2a0e45a8367046f62b094c061e",
+					"wall_lower_plain_2": "8409cb2becdb758811080f642500750c15583f147d4948c96b20a8163776c074"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_lower_vent",
@@ -517,7 +559,12 @@
 			"made": "kit piece",
 			"sound": "vent_air",
 			"repeats": "across the room",
-			"unseen": "no vented lower panel can be told apart in the Marble views"
+			"unseen": "no vented lower panel can be told apart in the Marble views",
+			"pick": {
+				"model": "wall_lower_vent_1",
+				"sha256": "a0ebbae789471b67b6e13cb92c00b63cfa3e0ce92db6d071cfcdc5ec7779cad7",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_lower_patched",
@@ -556,7 +603,12 @@
 				"v4.231",
 				"v4.w10",
 				"v4.w15"
-			]
+			],
+			"pick": {
+				"model": "wall_lower_patched_1",
+				"sha256": "d9bc78965ec55587bd01ecea43c01caf4071b5dc118dc2c4d77a028895584bf4",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_upper_plain",
@@ -582,7 +634,16 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v4.16"
-			]
+			],
+			"pick": {
+				"models": {
+					"wall_upper_plain_1": "88637484e8f679e73198ac562050a6ae2ca5dfd7ea0b21970970b17d68736530",
+					"wall_upper_plain_2": "c6ba55642b87eb918afbe2afc20a35420eaf491a83caf6074c0044b6f36d3ccc",
+					"wall_upper_plain_3": "c8be399394d74b04616c31ea2eb694f053c32380d82d3dfc6d97af7f0504e9cf",
+					"wall_upper_plain_4": "a251a0de108b1cda8aa5449a7101163e1e725d19731c4a40b31ca71df886c690"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_upper_pipes",
@@ -609,7 +670,12 @@
 			"box_from": [
 				"v4.51",
 				"v4.257"
-			]
+			],
+			"pick": {
+				"model": "wall_upper_pipes_1",
+				"sha256": "72b07986b8a38e2cc1b4108649cb771be719cb42debbc55ab2ce03bb1ab8308c",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_upper_cables",
@@ -642,7 +708,12 @@
 				"v1.93",
 				"v1.95",
 				"v1.146"
-			]
+			],
+			"pick": {
+				"model": "wall_upper_cables_1",
+				"sha256": "ae45901ad2607c658801f5834357e2c8a455f2a996706f0798c35cfc865c6239",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_upper_screen_recess",
@@ -675,7 +746,12 @@
 				"v3.146",
 				"v3.159",
 				"v3.204"
-			]
+			],
+			"pick": {
+				"model": "wall_upper_screen_recess_1",
+				"sha256": "7e04e208db1c8ac00b02cff3b2c8aeb68b4231da55243b67f66a981548873483",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_upper_patched",
@@ -703,7 +779,12 @@
 				"v5.62",
 				"v5.100",
 				"v5.110"
-			]
+			],
+			"pick": {
+				"model": "wall_upper_patched_1",
+				"sha256": "c17915271f7e36dffda9c67bc2e7241bdc75ad256eea2a976d986a8280e30920",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_corner_post",
@@ -722,7 +803,12 @@
 			"group": "kit: wall",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "the wall seams behind the railing cannot be told apart as posts in the Marble views"
+			"unseen": "the wall seams behind the railing cannot be told apart as posts in the Marble views",
+			"pick": {
+				"model": "wall_corner_post_1",
+				"sha256": "10881a2b519e8548588bd132773bea8eb3d66c274fab2232778a0bb88898879e",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_cornice",
@@ -741,7 +827,12 @@
 			"group": "kit: wall",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "the wall tops are hidden behind the pipe runs in every view"
+			"unseen": "the wall tops are hidden behind the pipe runs in every view",
+			"pick": {
+				"model": "wall_cornice_1",
+				"sha256": "bfb8dab7472e25354abb5ad9f1249b443a6b5fa8b563469654b005cd4b5120d6",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_skirting",
@@ -760,7 +851,12 @@
 			"group": "kit: wall",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "the skirting is hidden behind the railing and the consoles in every view"
+			"unseen": "the skirting is hidden behind the railing and the consoles in every view",
+			"pick": {
+				"model": "wall_skirting_1",
+				"sha256": "b30895c520239e61c0d565033d13e8bf200d74416146a6644ee5952e5eb5f2a6",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "hatch_wall_surround",
@@ -796,7 +892,17 @@
 				"v1.w5",
 				"v1.w10",
 				"v1.w11"
-			]
+			],
+			"pick": {
+				"models": {
+					"hatch_wall_surround_1": "f58c0e10122a46c56812cff3cb88b8a793e3e7f6439abde1d39d9d83ab72994b",
+					"hatch_wall_surround_2": "b5c9fc2bece6fc0d380a11edc9ea003651f222aa2f9eada009a4e6a47aa84d40",
+					"hatch_wall_surround_3": "d34c6733d0c48f9b17b56fc2ade0c6dcfa71d9df0da569941154ce3065f967fd",
+					"hatch_wall_surround_4": "3b6afd6e0602964b7a2113934e06a24c184c3be0754e43cfdba3a93548c26467",
+					"hatch_wall_surround_5": "61264b02a23316830caad7afb36bd354825cd4bb801accf033906c9dada755a6"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "roof_face_panel",
@@ -822,7 +928,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v3.20"
-			]
+			],
+			"pick": {
+				"model": "roof_face_panel_1",
+				"sha256": "4a95eb79296605788f949e57c9a7e65224db14fffc068fa3375e5ce321abd2bc",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "lattice_hip_rib",
@@ -848,7 +959,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v3.11"
-			]
+			],
+			"pick": {
+				"model": "lattice_hip_rib_1",
+				"sha256": "4e77925efdf17644037a85361eb091e8513e38a9ad7e29479de521e0f9a6d0cb",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "lattice_ring_rib",
@@ -874,7 +990,15 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v3.21"
-			]
+			],
+			"pick": {
+				"models": {
+					"lattice_ring_rib_1": "add07b6ab7411a6832f80972c14f2830866941309ce698dc9d616a35121291f9",
+					"lattice_ring_rib_2": "0d0371ce17aa23c6a22ba07918d8c0a6a16f35ad406d9996da3cde2cfab4b501",
+					"lattice_ring_rib_3": "c406eae601453147b0d56bf17ffbf70d4c470b982b4db5f9c64a72b859291fae"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "lattice_diamond_strut",
@@ -900,7 +1024,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v3.65"
-			]
+			],
+			"pick": {
+				"model": "lattice_diamond_strut_1",
+				"sha256": "28664c1f7078de4c45dcb33fec6affc51295514bc61b3930d6b57366bbf20114",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "lattice_node_plate",
@@ -926,7 +1055,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v4.w21"
-			]
+			],
+			"pick": {
+				"model": "lattice_node_plate_1",
+				"sha256": "a4c221bf928b9280f750cb338e33519c7cbba2b7d880e6d71d3a6ad6a6e61c54",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "roof_apex_hub",
@@ -945,7 +1079,12 @@
 			"group": "kit: ceiling",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "the roof's top is out of every view"
+			"unseen": "the roof's top is out of every view",
+			"pick": {
+				"model": "roof_apex_hub_1",
+				"sha256": "b2d59058555f1a6fb3a923b2413c984ab658ae7c0d1be82f42ed7a691f7e7d53",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "ceiling_cable_tray",
@@ -964,7 +1103,12 @@
 			"group": "kit: ceiling",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "no cable tray can be made out under the roof in the Marble views"
+			"unseen": "no cable tray can be made out under the roof in the Marble views",
+			"pick": {
+				"model": "ceiling_cable_tray_1",
+				"sha256": "7725a61f47470f850be50fabadb83d5b8700e66eb2789367dd364be824cf9a49",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "ceiling_duct",
@@ -984,7 +1128,12 @@
 			"made": "kit piece",
 			"sound": "vent_air",
 			"repeats": "across the room",
-			"unseen": "no rectangular duct shows under the roof in the Marble views; the runs there are round pipes"
+			"unseen": "no rectangular duct shows under the roof in the Marble views; the runs there are round pipes",
+			"pick": {
+				"model": "ceiling_duct_1",
+				"sha256": "21c7343e7b2e29630d86c8afb6b8e1407475e259fd93caa27e6cdc47ebb05324",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "roof_light_fixture",
@@ -1003,7 +1152,12 @@
 			"group": "kit: light",
 			"made": "kit piece",
 			"sound": "lamp_buzz",
-			"unseen": "no caged flood lamp can be made out on the roof lattice in the Marble views; the lights are strip lamps on the walls"
+			"unseen": "no caged flood lamp can be made out on the roof lattice in the Marble views; the lights are strip lamps on the walls",
+			"pick": {
+				"model": "roof_light_fixture_1",
+				"sha256": "21a5674c171e4c9d387a5c7d60fb8840d66217e14b65d7efff08be1737a9cbf9",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "ring_floor_plate",
@@ -1022,7 +1176,18 @@
 			"group": "kit: floor",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "SAM gives no proposal for a single deck plate apart from the railing and the floor in the blurry Marble views"
+			"unseen": "SAM gives no proposal for a single deck plate apart from the railing and the floor in the blurry Marble views",
+			"pick": {
+				"models": {
+					"ring_floor_plate_1": "7f9e5726f31d6c09f473f592e950f3e9c02d3a9445b842d94631e43a844c819d",
+					"ring_floor_plate_2": "f5724ef6b4f0220d78c9ce8b3d2eedb9da36a462fd846c9fef2a95c9efe449d0",
+					"ring_floor_plate_3": "8c9cd429c67ab3ec409316b2ae3a21d020335ae8f919695fa46f1889fbd14bac",
+					"ring_floor_plate_4": "970ae8c95794bec310fa1156ca16c9335494d8c6f2add9a29bd2fd290673ff7b",
+					"ring_floor_plate_5": "0cde1498cb708d48377bd05a65db645bcd1862d37f38a9ed97f6c8138544304f",
+					"ring_floor_plate_6": "5f7cf314616f1b60b6fca355deac8a50a2ee4d59d460aa878e919f8407a08add"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "floor_grating",
@@ -1041,7 +1206,14 @@
 			"group": "kit: floor",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "no grating can be told apart from the deck plates in the Marble views"
+			"unseen": "no grating can be told apart from the deck plates in the Marble views",
+			"pick": {
+				"models": {
+					"floor_grating_1": "0b3b403e145bcfb8e5e9b1bd8b2a25febca15eb963dc99ddf6ecf37f98d5e751",
+					"floor_grating_2": "452483c01b67c8d4bfe2eb6f6a642b2626994279ea0b269dbb1e74a03adfff46"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "floor_access_hatch",
@@ -1060,7 +1232,12 @@
 			"group": "kit: floor",
 			"made": "kit piece",
 			"repeats": "across the room",
-			"unseen": "no access cover can be told apart from the deck plates in the Marble views"
+			"unseen": "no access cover can be told apart from the deck plates in the Marble views",
+			"pick": {
+				"model": "floor_access_hatch_1",
+				"sha256": "afef88860a15b76484da1c149ba1de03885533e260ee21173628481a57b75a22",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "tread_mat",
@@ -1125,7 +1302,12 @@
 			"box_from": [
 				"v1.24",
 				"v1.174"
-			]
+			],
+			"pick": {
+				"model": "tread_mat_1",
+				"sha256": "7bdd1924562db875b22845859ee3c8407a4beafa5180d0652d59d5428ca1bb08",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "pit_wall_panel",
@@ -1150,7 +1332,12 @@
 			"made": "kit piece",
 			"box_from": [
 				"v3.10"
-			]
+			],
+			"pick": {
+				"model": "pit_wall_panel_1",
+				"sha256": "8c38df2d302578555942d18e0a917bafb97a18b660cb2d92bdcc7010cbc68c8d",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "pit_floor_plate",
@@ -1168,7 +1355,14 @@
 			"thing": "prop:hub_pit_floor_plate",
 			"group": "kit: pit",
 			"made": "kit piece",
-			"unseen": "the sunken pit's floor lies below its rim in every Marble view"
+			"unseen": "the sunken pit's floor lies below its rim in every Marble view",
+			"pick": {
+				"models": {
+					"pit_floor_plate_1": "a7ce9cd2b2ff039b44c824d15f125adab6daa0788def6e9d512e0198751af3f1",
+					"pit_floor_plate_2": "52affcdb516c10a336771d9e21cfac53006333817fe8c568cb8cf772dfd608a8"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "stair_stringer",
@@ -1193,7 +1387,12 @@
 			"made": "kit piece",
 			"box_from": [
 				"v3.10"
-			]
+			],
+			"pick": {
+				"model": "stair_stringer_1",
+				"sha256": "a564ed0286c5343ebcdcd6d0a4cd3b0e90909d7a3e3794f6ff71081cf831bd20",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "under_floor_box",
@@ -1211,7 +1410,14 @@
 			"thing": "prop:hub_under_floor_box",
 			"group": "kit: under floor",
 			"made": "kit piece",
-			"unseen": "it lies under the floor grating, out of sight"
+			"unseen": "it lies under the floor grating, out of sight",
+			"pick": {
+				"models": {
+					"under_floor_box_1": "19e7216719f069e0ecd29efbf2fdf48f653901e16835ab45895467984c820b42",
+					"under_floor_box_2": "c6bcc07dc742cb18452b909db1c308ca4c1353b7b6b867ecf4417cf4b7b8859e"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "pit_junction_box",
@@ -1230,7 +1436,12 @@
 			"group": "kit: pit",
 			"made": "kit piece",
 			"sound": "junction_hum",
-			"unseen": "no junction box can be made out on the pit's wall in the Marble views"
+			"unseen": "no junction box can be made out on the pit's wall in the Marble views",
+			"pick": {
+				"model": "pit_junction_box_1",
+				"sha256": "90a3213182068d32669cb7ae62a8e625c29a2b004911b6472738ab4695dafcf7",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "machine_bay_plate",
@@ -1248,7 +1459,12 @@
 			"thing": "prop:hub_machine_bay_plate",
 			"group": "kit: pit",
 			"made": "kit piece",
-			"unseen": "no machine bay plate can be made out on the floor"
+			"unseen": "no machine bay plate can be made out on the floor",
+			"pick": {
+				"model": "machine_bay_plate_1",
+				"sha256": "680d847ff003fe1a52214af42c6f73fe820d0cb96279c4f8aef5598c44a2e505",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "hatch_frame",
@@ -1280,7 +1496,12 @@
 			],
 			"box_from": [
 				"v1.w9"
-			]
+			],
+			"pick": {
+				"model": "hatch_frame_1",
+				"sha256": "96f7bdf7b02c6229ede3a70a639575a04cf7a53da57f400734a1825932d3e8de",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "hatch_leaf",
@@ -1312,7 +1533,12 @@
 			],
 			"box_from": [
 				"v1.w12"
-			]
+			],
+			"pick": {
+				"model": "hatch_leaf_1",
+				"sha256": "30a8628b0a66ad3402cbc4f51b808f6fc8b7ee0aae75dfc66c3495ccdced7e55",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "hatch_wheel",
@@ -1348,7 +1574,12 @@
 				"v1.116",
 				"v1.127",
 				"v1.147"
-			]
+			],
+			"pick": {
+				"model": "hatch_wheel_1",
+				"sha256": "6787ef57f28c8d1aa02b8c00eb338149f6160afd7f0c531a44bcdf692bb4e14c",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "hatch_hinge",
@@ -1373,7 +1604,12 @@
 				"hatch_hinge",
 				"hatch_window"
 			],
-			"unseen": "the hatches' hinges are hidden in their frames"
+			"unseen": "the hatches' hinges are hidden in their frames",
+			"pick": {
+				"model": "hatch_hinge_1",
+				"sha256": "2843438cc8a84591d2a5478334f7980adc1847e3c3052d4eb83999e5dbced82e",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "hatch_window",
@@ -1405,7 +1641,12 @@
 			],
 			"box_from": [
 				"v1.w13"
-			]
+			],
+			"pick": {
+				"model": "hatch_window_1",
+				"sha256": "cf6b8699ae8c4613ff9f54faf89e6590313174c8327d3ca11e776509f5c011a0",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "door_strip_lamp",
@@ -1478,7 +1719,12 @@
 			"sound": "lamp_buzz",
 			"box_from": [
 				"v6.115"
-			]
+			],
+			"pick": {
+				"model": "door_strip_lamp_1",
+				"sha256": "9332291af4d1675656b343f02bf4941045013c5a00f0eb5763aa707bb0b81104",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "door_control_box",
@@ -1550,7 +1796,12 @@
 			],
 			"box_from": [
 				"v1.118"
-			]
+			],
+			"pick": {
+				"model": "door_control_box_1",
+				"sha256": "9a51642861ae17b99db2b829b9e82d2690a63ddaf2dca659e1a08f96ec6f3d5c",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "grab_bar",
@@ -1606,7 +1857,12 @@
 					"across": 0.5
 				}
 			],
-			"unseen": "no grab bar can be made out beside the hatches"
+			"unseen": "no grab bar can be made out beside the hatches",
+			"pick": {
+				"model": "grab_bar_1",
+				"sha256": "788bfbe0c48ff34b818dc29c97724f6d1323159128eba702aefad0d3788639d9",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "porthole_panel",
@@ -1644,7 +1900,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v6.33"
-			]
+			],
+			"pick": {
+				"model": "porthole_panel_1",
+				"sha256": "9c89eae1da6af66ca6e9f77d8db4fa5e8f9d007ba40122003e5aafedc9239767",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "pipe_straight",
@@ -1672,7 +1933,14 @@
 				"v6.53",
 				"v6.132",
 				"v6.w10"
-			]
+			],
+			"pick": {
+				"models": {
+					"pipe_straight_1": "dcf2e2738681a47355b311ebe1df79e1d8461dfc19c6d07c9bcd5f7f9c43ff76",
+					"pipe_straight_2": "786d9c0c7c96be6db0d7e13159bd644b137008dcfee699085a96281a17bd541a"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "pipe_elbow",
@@ -1699,7 +1967,12 @@
 			"box_from": [
 				"v6.55",
 				"v6.100"
-			]
+			],
+			"pick": {
+				"model": "pipe_elbow_1",
+				"sha256": "304c1fc0fbc420c02be23718d6b9a48e13492290915d8cfd09644624dd2fd999",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "pipe_valve",
@@ -1725,7 +1998,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v6.w12"
-			]
+			],
+			"pick": {
+				"model": "pipe_valve_1",
+				"sha256": "0074e4ddfcbb77b65f63b063e882298b1040a0cb1f5887d89dee6258dd517221",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "pipe_bracket",
@@ -1751,7 +2029,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v5.39"
-			]
+			],
+			"pick": {
+				"model": "pipe_bracket_1",
+				"sha256": "cb97722a5c8514ff5aab7d13b73d9e1a7a77dd0c55c9f7e47277b3efd5494438",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "cable_bundle",
@@ -1780,7 +2063,12 @@
 				"v5.79",
 				"v5.141",
 				"v5.158"
-			]
+			],
+			"pick": {
+				"model": "cable_bundle_1",
+				"sha256": "cfdd2e4e60fa114b3673fec190afdcc6ab075a7d60307ea0ae4d52335a94358c",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "cable_drop",
@@ -1809,7 +2097,12 @@
 				"v5.79",
 				"v5.141",
 				"v5.158"
-			]
+			],
+			"pick": {
+				"model": "cable_drop_1",
+				"sha256": "f4a631eb9964a74a899ddaaefed06904ccf9545615c8a6fb0e2f72534e30811a",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "conduit_box",
@@ -1835,7 +2128,12 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v1.108"
-			]
+			],
+			"pick": {
+				"model": "conduit_box_1",
+				"sha256": "f79f6deaa87ae95fae0ff1be55c222a20c2d49e2be98a1b07ca83b3cb08af42a",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "wall_cage_lamp",
@@ -1861,7 +2159,12 @@
 			"sound": "lamp_buzz",
 			"box_from": [
 				"v1.132"
-			]
+			],
+			"pick": {
+				"model": "wall_cage_lamp_1",
+				"sha256": "48eef1b891ae06145bfb9b4ee3c7b160c1125ee4ca71d82b65f4c825d689ea9c",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "status_display",
@@ -1898,7 +2201,12 @@
 			],
 			"box_from": [
 				"v2.w15"
-			]
+			],
+			"pick": {
+				"model": "status_display_1",
+				"sha256": "e60038393b2eb60c2518decdf6575788a39932f2922139acacc5fcbb6445db92",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "wall_screen_cluster",
@@ -1938,7 +2246,12 @@
 				"v3.94",
 				"v3.159",
 				"v3.204"
-			]
+			],
+			"pick": {
+				"model": "wall_screen_cluster_1",
+				"sha256": "f63a1bae55dd4e9a822ec903119fe9c63e2c2f130d88ec0ab4b0b78b8d89db1f",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "small_readout",
@@ -1963,7 +2276,12 @@
 			"made": "kit piece",
 			"box_from": [
 				"v6.w13"
-			]
+			],
+			"pick": {
+				"model": "small_readout_1",
+				"sha256": "d7acdadb8245869b4c1d328bfc12dd15cef025a8184197e6a575ce0ba31d5cfb",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "intercom_panel",
@@ -1989,7 +2307,12 @@
 			"box_from": [
 				"v1.37",
 				"v1.189"
-			]
+			],
+			"pick": {
+				"model": "intercom_panel_1",
+				"sha256": "6656cc520869197d8789cbbbd6dba34fae30656054e9c35f0990b175a269d448",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "notice_board",
@@ -2026,7 +2349,12 @@
 			],
 			"box_from": [
 				"v5.w18"
-			]
+			],
+			"pick": {
+				"model": "notice_board_1",
+				"sha256": "3e13a5fcbfc63666a3f6795113590b8063a87ce114878dbd55f9212e7c3e0f46",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the export's file (package/hub/objects): the same mesh as round six byte for byte, its maps the same bake kept as PNG where the game kept WebP (mean pixel difference under 1 in 255)"
+			}
 		},
 		{
 			"id": "waste_bin",
@@ -2051,7 +2379,12 @@
 			"made": "kit piece",
 			"box_from": [
 				"v5.w20"
-			]
+			],
+			"pick": {
+				"model": "waste_bin_1",
+				"sha256": "f5bd146df0e5f022f2cd69f7bbcba381b4a367bca2ff8b2e475b750142bc5837",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
+			}
 		},
 		{
 			"id": "radio",
@@ -2070,7 +2403,12 @@
 			"parent": "comms",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"unseen": "too small to make out on the comms desk in the Marble view"
+			"unseen": "too small to make out on the comms desk in the Marble view",
+			"pick": {
+				"model": "radio_1",
+				"sha256": "00e053a6f63fa1eb013250f2d0a22f95ae60268655bfa062161c0ae887bb7faf",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "telephone",
@@ -2089,7 +2427,12 @@
 			"parent": "comms",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"unseen": "too small to make out on the comms desk in the Marble view"
+			"unseen": "too small to make out on the comms desk in the Marble view",
+			"pick": {
+				"model": "telephone_1",
+				"sha256": "e0289003860f20836f3540f80c2a4a1eda924a93c3a38769cefb5dca9cf58261",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "desklamp",
@@ -2108,7 +2451,12 @@
 			"parent": "comms",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"unseen": "no desk lamp can be made out on the comms desk"
+			"unseen": "no desk lamp can be made out on the comms desk",
+			"pick": {
+				"model": "desklamp_1",
+				"sha256": "99534304e543a6c130ba94c6ab62a5ef26c51b0aa9e92a2d08f678fb8e01e247",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "headset",
@@ -2127,7 +2475,12 @@
 			"parent": "comms",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"unseen": "too small to make out by the comms desk in the Marble view"
+			"unseen": "too small to make out by the comms desk in the Marble view",
+			"pick": {
+				"model": "headset_1",
+				"sha256": "e44288ce047ab78361a959528e2ada2294bd26abe9400885ab5b3f7ae2263ffe",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "monitor",
@@ -2167,7 +2520,17 @@
 				"v4.215",
 				"v4.258",
 				"v4.w3"
-			]
+			],
+			"pick": {
+				"models": {
+					"monitor_1": "b9e63debdc7f6480098e502a3919a1043529023d365394d641882779f18c6e0e",
+					"monitor_2": "ef2b2a5fc06a045cc8572dd33cd404364dab220d592cf1f14f566acaa3f21f4f",
+					"monitor_2_glow": "f4d3c3beb789cd776ba3f564f19c49a601edb79a9c4b52192ae4da8b36e8b688",
+					"monitor_3": "de7eb9990402850eb71f8e9f9fd61ec9777a57144516a69767c8febdee2d89df",
+					"monitor_3_glow": "45824331b7e3d07f348bd24f6f0ade0d01aa18c0f0e0048aed58ef294e7f3a75"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "keyboard",
@@ -2193,7 +2556,12 @@
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
 				"v4.164"
-			]
+			],
+			"pick": {
+				"model": "keyboard_1",
+				"sha256": "086cedcf82b0ec1abe7b145046cf74921537c2e4e63335e0bf4eef1fca1bd34d",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "glovebox",
@@ -2212,7 +2580,12 @@
 			"parent": "labbench",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"unseen": "the lab bench's glovebox cannot be told apart in the Marble view"
+			"unseen": "the lab bench's glovebox cannot be told apart in the Marble view",
+			"pick": {
+				"model": "glovebox_1",
+				"sha256": "0c10f1fb2be584217683775561113a47dd199484883db8cdb324fd4534a7a468",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "microscope",
@@ -2231,7 +2604,12 @@
 			"parent": "labbench",
 			"made": "made by the route",
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
-			"unseen": "too small to make out on the lab bench in the Marble view"
+			"unseen": "too small to make out on the lab bench in the Marble view",
+			"pick": {
+				"model": "microscope_1",
+				"sha256": "2cd41ebe6acba1448b987d8c05b8745d6a6f750fb93cff6afe53edb5275b6812",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "wrench",
@@ -2257,7 +2635,16 @@
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
 				"v1.208"
-			]
+			],
+			"pick": {
+				"models": {
+					"wrench_1": "d0495cc6b63c3186ad7b9f34550dc45d16e202f26fe87ae31a2ab80c8173d687",
+					"wrench_2": "b437a7f13b6a3d767c1371219421f20dcbced2c8aa15faea8900f331ccadc211",
+					"wrench_3": "f560823713ffde24fe4f25d5aa5818bee1e1a8724acc92f5228535938f95b4fc",
+					"wrench_4": "1fb8f65e8615e086c977d0b5407605811f4f767287ef3ad4d945f9974b385442"
+				},
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "hammer",
@@ -2284,7 +2671,12 @@
 			"box_from": [
 				"v1.188",
 				"v1.w16"
-			]
+			],
+			"pick": {
+				"model": "hammer_1",
+				"sha256": "4112b759a77cee9ad1d704eccb54aa2862974c62b325676fec7ae7410e0d0c3d",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "pump_pliers",
@@ -2310,7 +2702,12 @@
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
 				"v1.196"
-			]
+			],
+			"pick": {
+				"model": "pump_pliers_1",
+				"sha256": "ba115e8baf1d97974058da7f072d1c144b78660f7ebe26fef4087a84e9e21297",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "pliers",
@@ -2336,7 +2733,12 @@
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
 				"v1.205"
-			]
+			],
+			"pick": {
+				"model": "pliers_1",
+				"sha256": "c213f14e6c91e7de37ac40ccf9d79b43113d26160c3d29f807c189afa114ce75",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		},
 		{
 			"id": "screwdriver",
@@ -2362,7 +2764,18 @@
 			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
 			"box_from": [
 				"v1.210"
-			]
+			],
+			"pick": {
+				"model": "screwdriver_1",
+				"sha256": "dbfb3105fe285cb79988ee557a43151dbdc6df7bf456cac5833ca070c799ac10",
+				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); the release's file (world1-assets-4 models/hub_kit), byte for byte the round-six model"
+			}
 		}
-	]
+	],
+	"concept_pick": {
+		"concept": "C12",
+		"picture": "jobs/3326150f/tmp/hubrefs/concepts/C12.png",
+		"sha256": "39e2552f20bc0bd9791d534eee5e4e3dc7867f628be628e7023782239e01d8e5",
+		"decided": "owner, 2026-10-04: C12 among his four concept picks (C10, C12, C15, C16) on the hub concepts page's pick store (jobs/3326150f/tmp/playtest3/progress-hubrefs.txt line 17); 2026-10-05 12:03 UTC: C12's shape for the hub, named as his pick (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #236)"
+	}
 }

@@ -2088,7 +2088,9 @@
 			],
 			"box_from": [
 				"v1.w56"
-			]
+			],
+			"support": "fixed",
+			"support_why": "clamped to the robot bench on its screen arm, as the concept draws it (coordinator's decision, 2026-10-09, obvious from concept K10)"
 		},
 		{
 			"id": "keyboard",
@@ -2198,7 +2200,9 @@
 			],
 			"box_from": [
 				"v1.472"
-			]
+			],
+			"support": "hanging",
+			"support_why": "hangs from the tool board, as the concept draws it (coordinator's decision, 2026-10-09, obvious from concept K10)"
 		},
 		{
 			"id": "hammer",
@@ -2227,7 +2231,9 @@
 			"box_from": [
 				"v1.380",
 				"v1.491"
-			]
+			],
+			"support": "hanging",
+			"support_why": "hangs from the tool board, as the concept draws it (coordinator's decision, 2026-10-09, obvious from concept K10)"
 		},
 		{
 			"id": "pump_pliers",
@@ -2255,7 +2261,9 @@
 			],
 			"box_from": [
 				"v1.462"
-			]
+			],
+			"support": "hanging",
+			"support_why": "hangs from the tool board, as the concept draws it (coordinator's decision, 2026-10-09, obvious from concept K10)"
 		},
 		{
 			"id": "pliers",
@@ -2283,7 +2291,9 @@
 			],
 			"box_from": [
 				"v1.455"
-			]
+			],
+			"support": "hanging",
+			"support_why": "hangs from the tool board, as the concept draws it (coordinator's decision, 2026-10-09, obvious from concept K10)"
 		},
 		{
 			"id": "screwdriver",
@@ -2310,7 +2320,9 @@
 			],
 			"box_from": [
 				"v1.467"
-			]
+			],
+			"support": "hanging",
+			"support_why": "hangs from the tool board, as the concept draws it (coordinator's decision, 2026-10-09, obvious from concept K10)"
 		},
 		{
 			"id": "monitor",

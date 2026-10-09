@@ -1992,5 +1992,11 @@
    "unseen": "the room's light is not drawn in the cutaway (round two's reason)",
    "own_model": "a different object of the same name: the lab's long flood lamp with a frosted lens behind a grille, not the garage's high-bay reflector hood"
   }
- ]
+ ],
+ "concept_pick": {
+  "concept": "K06",
+  "picture": "jobs/3326150f/tmp/concepts-world1/lab/concepts/K06.png",
+  "sha256": "c22bfcac20c428c5b514c8241531dd53a76ae77e7a3daa4773a6421a14080d7e",
+  "decided": "owner, 2026-10-07 16:48 UTC, on the Moon modules concept page (claude.ai/artifact/3SrCRmxLoxX3AM4AuX4TL7): approved the module concepts as the coordinator had picked them, correcting only the garage (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #343); the pick and its reasons: jobs/3326150f/tmp/concepts-world1/lab/picks.json"
+ }
 }

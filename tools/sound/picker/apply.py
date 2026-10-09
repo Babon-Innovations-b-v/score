@@ -107,7 +107,10 @@ def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICE
             continue
         entry = sounds.setdefault(need["name"], {})
         already = entry.get("pick", {}).get("chosen", {}).get("take") == key and in_place(entry, world)
+        before = entry.get("pick", {}).get("chosen", {})
         entry.setdefault("pick", {})["chosen"] = {"take": key, "by": "owner" if need["name"] in swapped else "scoring"}
+        if before.get("decided") and before.get("take") == key:  # the owner's written decision stays with its take
+            entry["pick"]["chosen"]["decided"] = before["decided"]
         if take["source"] == "game":
             remove_generated(need, listed, world)
             back_to_the_recording(entry, need)

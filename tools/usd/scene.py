@@ -11,7 +11,9 @@ as numbers copied from the game (each entry names the game file it came from), a
                 /<place>/Structure/<name>
     objects     a world model file (a gameplay object; tools/usd/glb_asset.py) where the game stands it, turned about up
                 (`yaw`, as the game turns it) or by a whole `rotation` (one on a seat of its own, tipped with the
-                ball's curve), scaled to the height the game gives it, with what stands on it: /<place>/Fixtures/<name>
+                ball's curve), scaled to the height the game gives it, with what stands on it: /<place>/Fixtures/<name>;
+                one that stands for an inventory row names it (`row`) and carries its model's hash, so the pick lock
+                (tools/usd/picks.py) holds it like a laid object
     planned_rocks  the plan's rocks round the place, each lying as the game lays it (tools/usd/rocks.py), one point
                 instancer of the world's rock models: /<place>/Rocks
     ground_decals  what the game paints on the ground (the wreck's scorch), mixed into the near ground's baked colour
@@ -296,6 +298,8 @@ def fixture(stage, path, entry, out, world, boxes):
     for key, value in (("score:kind", entry.get("kind", "fixture")), ("score:model", entry["model"]),
                        ("score:from", entry.get("from", ""))):
         xform.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+    if "row" in entry:  # an inventory row's made model the game stands from code: its row and model hash (picks.py)
+        row_of(xform.GetPrim(), entry, world)
     if "glow" in entry:  # bound on the model's own meshes, so a label standing on it keeps its own look
         glow = glow_material(stage, f"{path}_glow", entry["glow"])
         for prim in Usd.PrimRange(xform.GetPrim()):
@@ -344,6 +348,14 @@ def shared_paint(stage, prim, path):
         if name not in made:
             made[name] = shared_paint_material(stage, f"{path}_paint/{name}", paints[name])
         UsdShade.MaterialBindingAPI.Apply(part).Bind(made[name])
+
+
+def row_of(prim, entry, world):
+    """A fixture's inventory row and its model's content hash (complete.model_hash), as the pick lock reads them."""
+    import complete
+    prim.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(entry["row"])
+    prim.CreateAttribute("score:model_sha256", Sdf.ValueTypeNames.String).Set(
+        complete.model_hash(world_file(world, entry["model"])))
 
 
 def write_objects(stage, place, entries, out, world):

@@ -92,9 +92,11 @@ def file_hash(path):
 
 
 def model_hash(gltf):
-    """A made model's content as a sha256 hex digest: its .gltf and every buffer file it names."""
+    """A made model's content as a sha256 hex digest: its .gltf and every buffer file it names (a .glb holds its own)."""
     gltf = pathlib.Path(gltf)
     digest = hashlib.sha256(gltf.read_bytes())
+    if gltf.suffix == ".glb":
+        return digest.hexdigest()
     for buffer in json.loads(gltf.read_text()).get("buffers", []):
         if buffer.get("uri") and not buffer["uri"].startswith("data:"):
             digest.update(file_hash(gltf.parent / buffer["uri"]).encode())

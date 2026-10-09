@@ -149,7 +149,12 @@
     "v1.284",
     "v1.287",
     "v1.288"
-   ]
+   ],
+   "pick": {
+    "model": "hab_lander",
+    "sha256": "acbd35977068c1d429b05c86099fb25a0629aa48f4b1a84157d13478d9335a13",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "first_module",
@@ -235,7 +240,12 @@
     "v1.266",
     "v1.273",
     "v1.277"
-   ]
+   ],
+   "pick": {
+    "model": "first_module",
+    "sha256": "4fa6e4c3863745f93ef65f6f2abf61364dc7d7311d264e69ba3f152cf702c23a",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "lab_module",
@@ -302,7 +312,12 @@
     "v1.257",
     "v1.285",
     "v1.w9"
-   ]
+   ],
+   "pick": {
+    "model": "lab_module",
+    "sha256": "6348c36b3de5b33911162814f850c4ce6a5b0a54cb914c1df4bc67f04bdd3f86",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "rover",
@@ -349,7 +364,12 @@
     "v1.272",
     "v1.275",
     "v1.282"
-   ]
+   ],
+   "pick": {
+    "model": "rover",
+    "sha256": "ebc6b2c7149261bc4f88e95bab1b7842172b8b77c839b2641c4145e10efc92ba",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "solar_mast",
@@ -383,7 +403,12 @@
    "fixed": true,
    "box_from": [
     "v1.w3"
-   ]
+   ],
+   "pick": {
+    "model": "solar_mast",
+    "sha256": "2fe9d234b434be66f6a930e5864c12a004a7c86552b5b2edd396fee9b2a180f5",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "solar_mast_dead",
@@ -417,7 +442,12 @@
    "fixed": true,
    "box_from": [
     "v1.w5"
-   ]
+   ],
+   "pick": {
+    "model": "solar_mast_dead",
+    "sha256": "f0713c790486b1f1ac783a3172d38ec7f9f5bcff667a77371d56e2e26fa36be3",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "comms_mast",
@@ -459,7 +489,12 @@
     "v1.280",
     "v1.w4",
     "v1.w6"
-   ]
+   ],
+   "pick": {
+    "model": "comms_mast",
+    "sha256": "cafa19689a12f27d1fc1754b231a8eed86de47de1e0d324bc1228890c5cbe2ff",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "radiator",
@@ -493,7 +528,12 @@
    "fixed": true,
    "box_from": [
     "v1.w7"
-   ]
+   ],
+   "pick": {
+    "model": "radiator",
+    "sha256": "5e3bfda3effaec24883286d15728c678c22625d8e8db66ce8d7f6cab9b2c6146",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "power_unit",
@@ -521,7 +561,12 @@
    "why": "Takes the solar mast and the reactor line, feeds the module through the night.",
    "fixed": true,
    "unseen": "the concept C4 does not show the yard's power cabinet; the row is the plan's",
-   "own_model": "a different object of the same name: the old station's battery and power switching cabinet (2.4 m), not the campgrounds' small ground power unit between the lander's legs"
+   "own_model": "a different object of the same name: the old station's battery and power switching cabinet (2.4 m), not the campgrounds' small ground power unit between the lander's legs",
+   "pick": {
+    "model": "power_unit",
+    "sha256": "756cb46653b8a1c2d86146d1f7352dcf4d0e19bbecfd05e92b009b97fff9ce4d",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "parts_rack",
@@ -549,7 +594,12 @@
    "why": "His repair stock, by the way in.",
    "fixed": true,
    "unseen": "the concept C4 does not show the parts rack; the row is the plan's",
-   "own_model": "a different object of the same name: the old station's low open shelf rack, not the hangar's tall pallet rack holding crates and ship parts"
+   "own_model": "a different object of the same name: the old station's low open shelf rack, not the hangar's tall pallet rack holding crates and ship parts",
+   "pick": {
+    "model": "parts_rack",
+    "sha256": "88aa39a22dad2da29f645dee1bf705b9708a8dd1aa6d70090ed35cd7e65b9b07",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "bag_pile",
@@ -636,7 +686,12 @@
    "why": "Bags under each walkway tube, holding it, and spare piles.",
    "box_from": [
     "v1.w8"
-   ]
+   ],
+   "pick": {
+    "model": "bag_pile",
+    "sha256": "dd7228266f03b45d82cfd7cac2676033368ad29e90aa41dfb16b48ead4e62971",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "bag_stack",
@@ -675,7 +730,12 @@
    "why": "Filled bags ready to patch the cover.",
    "box_from": [
     "v1.w8"
-   ]
+   ],
+   "pick": {
+    "model": "bag_stack",
+    "sha256": "db66d8fcfc2426eec10c351eec21cfe351019bf9c5950db3530f133759df077f",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "spare_wheel",
@@ -707,7 +767,12 @@
     }
    ],
    "why": "A wheel taken off for spares, by the rack.",
-   "unseen": "the concept C4 does not show the spare wheel leaning on the rack; the row is the plan's"
+   "unseen": "the concept C4 does not show the spare wheel leaning on the rack; the row is the plan's",
+   "pick": {
+    "model": "spare_wheel",
+    "sha256": "2d7385047fda156008d79ff6d03552b2a920a8ae23205112b20eea8b9131acab",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "walkway_tube",
@@ -766,7 +831,14 @@
     "v1.265",
     "v1.269",
     "v1.286"
-   ]
+   ],
+   "pick": {
+    "models": {
+     "walkway_tube_2p7": "2a42b70f413f5979f3759cb4d7514bb9c2766b1249548bec74ee1e78ab5ee825",
+     "walkway_tube_3p6": "7d67a241dc93b8646cf569ddb389cd9078f462da4d3ba8b386e2baf10b199c33"
+    },
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "apron",
@@ -798,7 +870,12 @@
     "v1.276",
     "v1.287"
    ],
-   "unseen": "no apron plate can be told apart under the ladder in the Marble views; the ground there is bare dust"
+   "unseen": "no apron plate can be told apart under the ladder in the Marble views; the ground there is bare dust",
+   "pick": {
+    "model": "apron_2p6",
+    "sha256": "d2afdec5a33106b1d677e461df1593fc6b5f6baaac0a422499fd4095aaa8bf6d",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "cable_run",
@@ -875,7 +952,19 @@
    "fixed": true,
    "box_from": [
     "v1.203"
-   ]
+   ],
+   "pick": {
+    "models": {
+     "cable_run_1p28": "da1cd98a2c9dabb830a95f1a65577db5f79e1b45847cad1a56e3b35c271af9dd",
+     "cable_run_2p33": "1466630055ed4dd6c141c1a7133a99f9f2813835a860922a4020bbdc9d745120",
+     "cable_run_3": "329f40a9a88d58e565959048ca280d8cedb0a613bd6b7d76ac26e606bd37f1a5",
+     "cable_run_3p85": "5da4f81d471a71873185e1ba9248cf4b9dc1fcb863f201aecf1f6915f0c5fe46",
+     "cable_run_4p79": "7f59c0babe8183bb6e78a22cf681cb854fb035c37de2a7d731ae710cbb72696e",
+     "cable_run_5p55": "eea3a8c47159ade52dc22d305f245986783aa6436a5a909c123f495580d1fcaa",
+     "cable_run_7": "c05e6e819a1f8ca9ac637e3895623856c63de4aea22ac1db24982bff4cdb6b7e"
+    },
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "gas_bottle",
@@ -895,7 +984,12 @@
    "at": [],
    "why": "on the parts rack",
    "parent": "parts_rack",
-   "unseen": "the concept C4 does not show the gas bottle on the rack; the row is the plan's"
+   "unseen": "the concept C4 does not show the gas bottle on the rack; the row is the plan's",
+   "pick": {
+    "model": "gas_bottle",
+    "sha256": "7b9225548901df941bbb903071b7b018e160bbb34ef0822bfd7325abe14710c5",
+    "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
+   }
   },
   {
    "id": "supply_rocket",
@@ -955,5 +1049,11 @@
    "fixed": true,
    "why_fixed": "it stands on its own legs on the pad as the game lays it (a landed rocket, the lift's frame beside it), not loose"
   }
- ]
+ ],
+ "concept_pick": {
+  "concept": "C4",
+  "picture": "jobs/3326150f/tmp/playtest3/moonground2/station/C4.png",
+  "sha256": "c651a58d08ed54388367b13fdb06deca8bb3c832c51819f852a231e887290d74",
+  "decided": "the coordinator's pick (jobs/3326150f/tmp/handoffs/moonground2.txt line 38); owner, 2026-10-07 21:16 UTC: signed off the old station built from C4 on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2; the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354); he did not pick between the concepts himself"
+ }
 }

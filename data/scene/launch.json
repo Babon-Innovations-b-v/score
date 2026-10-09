@@ -4,6 +4,7 @@
  "objects": [
   {
    "name": "rocket",
+   "row": "far_rocket",
    "model": "models/launch_rocket/far_rocket_1.gltf",
    "at": [
     -270.0,

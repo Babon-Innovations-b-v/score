@@ -138,7 +138,12 @@
     "v1.w6",
     "v1.w17",
     "v1.w18"
-   ]
+   ],
+   "pick": {
+    "model": "aft_section",
+    "sha256": "e1b469800d355af123c6f5beff40ecef64d2718d0a518310a35e453a0e8a09fc",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "forward_section",
@@ -202,7 +207,12 @@
     "v1.220",
     "v1.225",
     "v1.w16"
-   ]
+   ],
+   "pick": {
+    "model": "forward_section",
+    "sha256": "9a46e0385aa6eb8c6ea214bd676c39e7ab9d74bdb475ccd3e4b2e011969a2c06",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "work_lamp",
@@ -241,7 +251,12 @@
    "why": "E4",
    "box_from": [
     "v1.62"
-   ]
+   ],
+   "pick": {
+    "model": "work_lamp",
+    "sha256": "15c95658edd9a3f1027a21ce556bc55ecc69f7402c24554ea9b374269ce8d70e",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "hull_panel",
@@ -310,7 +325,12 @@
     "v1.128",
     "v1.w12",
     "v1.w19"
-   ]
+   ],
+   "pick": {
+    "model": "hull_panel",
+    "sha256": "5831c3c4200799201e5937716382c0c9fa94209dd5ba4e282aec6dc9ed21b05c",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "small_panel",
@@ -364,7 +384,12 @@
    "box_from": [
     "v1.95",
     "v1.w13"
-   ]
+   ],
+   "pick": {
+    "model": "small_panel",
+    "sha256": "ec62364f077922bcd8eaea10502c37ce85817b851b68db3909bef91efeb46c02",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "pressure_sphere",
@@ -415,7 +440,12 @@
    "why": "E8",
    "box_from": [
     "v1.w8"
-   ]
+   ],
+   "pick": {
+    "model": "pressure_sphere",
+    "sha256": "3e451988c7273ce4e8992d8d8e5d93d713dae6b34ef3486af5d77ad62e284f1b",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "foil_blanket",
@@ -454,7 +484,12 @@
    "why": "E9",
    "box_from": [
     "v1.w10"
-   ]
+   ],
+   "pick": {
+    "model": "foil_blanket",
+    "sha256": "e145a5dfae6b091b1c124a643394896ad7393b7766f8245dbd7a393c05431af2",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "access_cover",
@@ -493,7 +528,12 @@
    "why": "E10",
    "box_from": [
     "v1.w11"
-   ]
+   ],
+   "pick": {
+    "model": "access_cover",
+    "sha256": "53e056d202e17d56a8582f9897f2485875738636d7d7fb46b65ffb623f7789bb",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "leg_strut",
@@ -536,7 +576,12 @@
     "v1.228",
     "v1.236",
     "v1.w14"
-   ]
+   ],
+   "pick": {
+    "model": "leg_strut",
+    "sha256": "a3d5c5f800e5b44c2f47b4a5ae9b8c71a52886b858117f3cb96dbb7b84c60254",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "leg_foot",
@@ -575,7 +620,12 @@
    "why": "E11, split in two (the game's 1.4 m piece limit)",
    "box_from": [
     "v1.w14"
-   ]
+   ],
+   "pick": {
+    "model": "leg_foot",
+    "sha256": "bdf9017c078e648f1f1614f71e88b5217d923f87568cd52ebecfb1e3bba46cc8",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "ring_frame",
@@ -623,7 +673,12 @@
     "v1.184",
     "v1.204",
     "v1.220"
-   ]
+   ],
+   "pick": {
+    "model": "ring_frame",
+    "sha256": "78b3c09ebf891be1922b2dbbb1d378c2e08980f4efd638bc367cdfdaf6c2fa98",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "tank_dome",
@@ -663,7 +718,12 @@
    "box_from": [
     "v1.90",
     "v1.213"
-   ]
+   ],
+   "pick": {
+    "model": "tank_dome",
+    "sha256": "ca75a33969add4cd205f5bb32d483879e287aa09d7c89fafbfa08a942e430f6b",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "fragment",
@@ -731,7 +791,12 @@
     "v1.108",
     "v1.146",
     "v1.216"
-   ]
+   ],
+   "pick": {
+    "model": "fragment",
+    "sha256": "73959e83fd380f57c645ee2acd25d3932229f80c7846e7d42fb0e482d711172e",
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "cable_run",
@@ -780,7 +845,15 @@
    "fixed": true,
    "box_from": [
     "v1.w22"
-   ]
+   ],
+   "pick": {
+    "models": {
+     "cable_run_1p4": "92676465af294bb4a8dc60f88dfa2e81366bdedc88225d3639fb3aceae5930a1",
+     "cable_run_2p4": "a2be93f1277cb8243bada3f4c892a54e66a98bc65480f80f565c697fb596dd9a",
+     "cable_run_2p6": "d89a744864b804dd11e1921ed488df89c545bd551d781f1f62022a5e290246d5"
+    },
+    "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
+   }
   },
   {
    "id": "supply_rocket",
@@ -872,5 +945,11 @@
    ]
   }
  ],
- "layout_decision": "2026-10-08, coordinator's layout decision (owner may change): follow concept C2, the rocket lying broken in two on the ground. The aft section is re-laid on its side by eye from C2 (rolled 90 degrees about its length, then its settled pose, 6 degrees off) and both sections are settled within 15 degrees and 30 cm; the forward section rests in a 2.5 m wide dent 30 cm deep where it struck, the two pressure spheres in shallow dents (data/ground/moon.json, dents); small debris (no side over 1.4 m) settles freely, any turn and up to 1 m; the work lamp moved 40 cm off the cables it stood in."
+ "layout_decision": "2026-10-08, coordinator's layout decision (owner may change): follow concept C2, the rocket lying broken in two on the ground. The aft section is re-laid on its side by eye from C2 (rolled 90 degrees about its length, then its settled pose, 6 degrees off) and both sections are settled within 15 degrees and 30 cm; the forward section rests in a 2.5 m wide dent 30 cm deep where it struck, the two pressure spheres in shallow dents (data/ground/moon.json, dents); small debris (no side over 1.4 m) settles freely, any turn and up to 1 m; the work lamp moved 40 cm off the cables it stood in.",
+ "concept_pick": {
+  "concept": "C2",
+  "picture": "jobs/3326150f/tmp/playtest3/moonground2/wreck/C2.png",
+  "sha256": "466769ff7567a5cb05ba76eb05215b1f9a350356af837d9735d2023b4a088d4b",
+  "decided": "the coordinator's pick (jobs/3326150f/tmp/handoffs/moonground2.txt line 48); owner, 2026-10-07 18:17 UTC: the new wreck concepts are better and more consistent than keeping the old rocket's look (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #350; jobs/3326150f/tmp/playtest3/progress-place-wreck.txt line 7), and 21:16 UTC: signed off the wreck built from C2 (#354)"
+ }
 }

@@ -57,7 +57,8 @@
 				"before": "footsteps_metal",
 				"chosen": {
 					"take": "game:footstep_steel_plate",
-					"by": "owner"
+					"by": "owner",
+					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
 				}
 			}
 		},
@@ -255,7 +256,8 @@
 				],
 				"chosen": {
 					"take": "game:door_slide_open",
-					"by": "owner"
+					"by": "owner",
+					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
 				}
 			}
 		},
@@ -277,7 +279,8 @@
 				],
 				"chosen": {
 					"take": "game:door_slide_close",
-					"by": "owner"
+					"by": "owner",
+					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
 				}
 			}
 		},
@@ -650,7 +653,8 @@
 				"loop": true,
 				"chosen": {
 					"take": "game:suit_breathing_calm",
-					"by": "owner"
+					"by": "owner",
+					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
 				}
 			}
 		},
@@ -667,7 +671,8 @@
 				"loop": true,
 				"chosen": {
 					"take": "game:suit_breathing_fast",
-					"by": "owner"
+					"by": "owner",
+					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
 				}
 			}
 		},
@@ -957,7 +962,8 @@
 				"seconds": 8,
 				"chosen": {
 					"take": "game:footsteps_metal",
-					"by": "owner"
+					"by": "owner",
+					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
 				}
 			}
 		},
