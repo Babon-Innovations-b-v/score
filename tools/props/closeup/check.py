@@ -123,11 +123,10 @@ def measure(path, size):
     solid = ndimage.binary_closing(distance > FAR, iterations=2)
     labels, count = ndimage.label(solid)
     sizes = ndimage.sum(solid, labels, range(1, count + 1)) if count else np.array([])
-    total = float(sizes.sum()) if count else 0.0
-    kept = [index + 1 for index, area in enumerate(sizes) if total and area >= SPECK * total]
+    total = sizes.sum()
+    kept = [index + 1 for index, area in enumerate(sizes) if area >= SPECK * total]
     if not kept:
-        return {"border_clean": border_clean, "fill": 0.0, "one_piece": 0.0,
-                "proportion_error": None}
+        return {"border_clean": border_clean, "fill": 0.0, "one_piece": 0.0, "proportion_error": None}
     rows, columns = np.nonzero(np.isin(labels, kept))
     height, width = rows.max() - rows.min() + 1, columns.max() - columns.min() + 1
     seen = height / width
