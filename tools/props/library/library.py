@@ -2,8 +2,9 @@
 of variants, each a ProcFunc recipe (recipes.py) with its settings, which every place of the theme takes by name in
 its own `materials` (data/definitions/place.json), with its own palette token where it differs and its own wear level.
 
-    python3 tools/props/library/library.py <place>            # print the place's resolved materials as JSON
+    python3 tools/props/library/library.py <place>            # the place's resolved materials as JSON
     python3 tools/props/library/library.py --list             # every family and variant
+    ... [--verbose]    # print the whole output; without it one summary line, the output written under OUTPUT
 
 Shape and material are kept apart (the robust route): a model or a code-built piece only names, per part, which
 library variant it is; colours come only from palette tokens (design/tokens/tokens.json), so two rooms of the theme
@@ -22,6 +23,8 @@ PICTURES = REPO / "data/library/pictures"
 TOKENS = REPO / "design/tokens/tokens.json"
 # Settings that name a palette token rather than hold a number.
 COLOUR_SETTINGS = ("bare", "second")
+# Where the command line writes its whole output; the summary line it prints names the file.
+OUTPUT = pathlib.Path("/tmp/score-output")
 
 
 def token_colours(path=TOKENS):
@@ -112,16 +115,57 @@ def by_library(place_id, path=PLACES, library_path=LIBRARY, tokens_path=TOKENS):
     return found
 
 
+def list_text(library):
+    """Every family and its variants, a line each, then the count of variants."""
+    lines = [f"{family}: {', '.join(entry['variants'])}" for family, entry in library["families"].items()]
+    return "\n".join(lines + [f"{len(variants(library))} variants"]) + "\n"
+
+
+def list_summary(library, path):
+    """The list in one line: its families and variants, and the file holding it."""
+    return f"library: {len(library['families'])} families, {len(variants(library))} variants; list: {path}"
+
+
+def place_found(place_id):
+    """A place's wear and its resolved library materials, as the command line shows them."""
+    return {"wear": wear_of(place_id), "materials": resolved(place_id)}
+
+
+def place_summary(place_id, found, path):
+    """A place's materials in one line: how many take a library variant, its wear and dirt, and the JSON file."""
+    wear, dirt = found["wear"]
+    used = {entry["library"] for entry in found["materials"].values()}
+    return (f"library {place_id}: {len(found['materials'])} materials on {len(used)} library variants, wear {wear}, "
+            f"dirt {dirt}; JSON: {path}")
+
+
+def write_output(name, text):
+    """Write the command line's whole output to OUTPUT/<name>; return the path."""
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    path = OUTPUT / name
+    path.write_text(text)
+    return path
+
+
 def main():
-    if sys.argv[1:] == ["--list"]:
-        library = theme_library()
-        for family, entry in library["families"].items():
-            print(f"{family}: {', '.join(entry['variants'])}")
-        print(len(variants(library)), "variants")
-        return
-    if len(sys.argv) != 2:
+    verbose = "--verbose" in sys.argv[1:]
+    arguments = [argument for argument in sys.argv[1:] if argument != "--verbose"]
+    if len(arguments) != 1:
         raise SystemExit(__doc__)
-    print(json.dumps({"wear": wear_of(sys.argv[1]), "materials": resolved(sys.argv[1])}, indent=1))
+    if arguments == ["--list"]:
+        library = theme_library()
+        text = list_text(library)
+        if verbose:
+            print(text, end="")
+        else:
+            print(list_summary(library, write_output("library-list.txt", text)))
+        return
+    found = place_found(arguments[0])
+    text = json.dumps(found, indent=1) + "\n"
+    if verbose:
+        print(text, end="")
+        return
+    print(place_summary(arguments[0], found, write_output(f"library-{arguments[0]}.json", text)))
 
 
 if __name__ == "__main__":
