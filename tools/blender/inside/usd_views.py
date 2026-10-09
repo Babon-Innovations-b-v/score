@@ -330,8 +330,9 @@ def place_light(scene, number, entry):
     light's watts its intensity times pi, a distant light's strength its intensity times 4), its shadows as the game
     casts them."""
     usd = Matrix(entry["matrix"]).transposed()  # USD's matrices are row by row with the translation in the last row
-    turn = Y_UP_TO_Z_UP.to_4x4()
-    world = turn @ usd @ turn.inverted()
+    # The light's own frame is kept as USD gives it (a UsdLux light and a Blender light both shine down their own -z),
+    # and only the world is turned onto Blender's z up; turning its own frame too made it shine down its own -y.
+    world = Y_UP_TO_Z_UP.to_4x4() @ usd
     if entry["type"] == "distant":
         data = bpy.data.lights.new(f"stage_light_{number}", type="SUN")
         data.energy = entry["intensity"] * 4.0
