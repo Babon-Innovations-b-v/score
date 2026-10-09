@@ -157,5 +157,8 @@
   "bracket_beacon_1": "beacon-h1",
   "floodlight_1": "floodlight-h1",
   "crane_trolley_1": "crane_trolley-h2"
+ },
+ "launch": {
+  "far_rocket_1": "wf-launch-rocket-2"
  }
 }

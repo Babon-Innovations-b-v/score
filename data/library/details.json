@@ -4558,5 +4558,218 @@
 				"variant": "label_crops"
 			}
 		]
+	},
+	"launch_far_rocket": {
+		"materials": [
+			"hull_white_gloss",
+			"dark_panel",
+			"bare_steel",
+			"galvanized_dull"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_glass_tower": {
+		"materials": [
+			"glass",
+			"galvanized_dull",
+			"gate_grey",
+			"concrete",
+			"window_lit",
+			"sign_lit",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_crown_tower": {
+		"materials": [
+			"glass",
+			"galvanized_dull",
+			"gate_grey",
+			"concrete",
+			"window_lit",
+			"sign_lit",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_spire_tower": {
+		"materials": [
+			"glass",
+			"galvanized_dull",
+			"gate_grey",
+			"concrete",
+			"window_lit",
+			"sign_lit",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_housing_tower": {
+		"materials": [
+			"facade_paint",
+			"concrete",
+			"wall_tile_white",
+			"window_lit",
+			"glass",
+			"galvanized_dull",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_residential_tower": {
+		"materials": [
+			"facade_paint",
+			"concrete",
+			"wall_tile_white",
+			"window_lit",
+			"glass",
+			"galvanized_dull",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_pencil_tower": {
+		"materials": [
+			"facade_paint",
+			"concrete",
+			"wall_tile_white",
+			"window_lit",
+			"glass",
+			"galvanized_dull",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_housing_slab": {
+		"materials": [
+			"facade_paint",
+			"concrete",
+			"wall_tile_white",
+			"window_lit",
+			"glass",
+			"galvanized_dull",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"far_city_low_block": {
+		"materials": [
+			"facade_paint",
+			"concrete",
+			"wall_tile_white",
+			"window_lit",
+			"glass",
+			"galvanized_dull",
+			"post_dark"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": []
 	}
 }
