@@ -36,6 +36,14 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   quad, disc, round wall, lathe, sphere or torus says which plain thing it is (`plain`: plate, pipe, trim, shell,
   ground, soil, water or sky) or fails; a kit piece built in code must be a kind the sorter sends to code; a mesh
   with no material or in the default grey, and a proxy, fail. Never mark a thing with detail plain to pass it: make it.
+- `complete.py` is the completion gate: `check <place>` runs the checks and keeps each result beside the stage
+  (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
+  every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, every result
+  current, the review page built and rendered from this stage). Unknown blocks like fail. The Stop hook
+  (`.claude/hooks/completion_guard.py`) refuses a session's "done" for a place it worked on unless the gate passes.
+  Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
+- `made_only.py` is the made-only check on the stage: every drawn mesh says what made it (score:model, score:builder,
+  score:kind) and every object's model loaded.
 - `settle.py` is the physics settle: loose rows dropped in headless Blender (`../blender/inside/settle_stage.py`) on
   the stage's ground with their own triangles (cut down), `"fixed": true` rows static, and the rest pose written into the layout
   (inventory spot and kit piece: `x`, `z`, the lift `y` and a `rotation` quaternion [x, y, z, w] in the piece's own

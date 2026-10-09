@@ -31,6 +31,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "tools/props/gates"))
 sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
 import characters  # noqa: E402
+import complete  # noqa: E402  (tools/usd, on the path renders puts it)
 import records  # noqa: E402
 import renders  # noqa: E402
 import placeholders  # noqa: E402  (tools/usd, on the path renders puts it)
@@ -738,7 +739,20 @@ def build(options):
             .replace("{{PLACE}}", escaped(style["name"])).replace("{{SOURCES}}", sources)
             .replace("{{SECTIONS}}", "\n".join(sections)))
     (out / "index.html").write_text(page)
+    stamp(out, options.stage, rendered=not options.no_render)
     return out / "index.html"
+
+
+def stamp(out, stage, rendered):
+    """Write which stage the page was built from (review.json), for the completion gate (tools/usd/complete.py): the
+    stage's fingerprint now, and the one its scene was last rendered from (kept from the last stamp on --no-render)."""
+    if stage is None:
+        return
+    path = out / complete.REVIEW_STAMP
+    before = json.loads(path.read_text()) if path.exists() else {}
+    current = complete.fingerprint(stage)
+    path.write_text(json.dumps({"stage": str(stage), "fingerprint": current, "at": complete.now(),
+                                "rendered": current if rendered else before.get("rendered")}, indent=1) + "\n")
 
 
 def main():

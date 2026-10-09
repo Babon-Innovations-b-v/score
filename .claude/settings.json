@@ -75,6 +75,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/completion_guard.py\"",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "d=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; br=$(git -C \"$d\" symbolic-ref --short HEAD 2>/dev/null) || exit 0; [ \"$br\" = main ] || exit 0; if [ -n \"$(git -C \"$d\" status --porcelain -- .claude/memory)\" ]; then git -C \"$d\" add .claude/memory && git -C \"$d\" commit -q -m 'memory: auto-save' -- .claude/memory || exit 0; fi; git -C \"$d\" fetch -q origin main 2>/dev/null || exit 0; [ \"$(git -C \"$d\" rev-list --count main..origin/main)\" -gt 0 ] && { git -C \"$d\" rebase -q --autostash origin/main 2>/dev/null || { git -C \"$d\" rebase --abort 2>/dev/null; exit 0; }; }; [ \"$(git -C \"$d\" rev-list --count origin/main..main)\" -gt 0 ] && git -C \"$d\" push -q origin main 2>/dev/null; exit 0",
             "timeout": 30
           }
