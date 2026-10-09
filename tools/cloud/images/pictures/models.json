@@ -1,0 +1,40 @@
+[
+  {
+    "name": "flux2-klein-4b",
+    "source": "hf:black-forest-labs/FLUX.2-klein-4B",
+    "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+    "files": [
+      "model_index.json",
+      "scheduler/*",
+      "text_encoder/*",
+      "tokenizer/*",
+      "transformer/*",
+      "vae/*",
+      "LICENSE.md"
+    ],
+    "sha256": "",
+    "licence": "Apache-2.0",
+    "licence_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+    "commercial_use": true,
+    "note": "FLUX.2 klein 4B in diffusers' layout (picture_setup.sh's and scene_setup.sh's allow patterns); the single-file checkpoint and the sample pictures are left out. sam-run links it to PROPS_HOME/flux2-klein, pictures-run to /root/model."
+  },
+  {
+    "name": "qwen-image-edit-2511",
+    "source": "hf:Qwen/Qwen-Image-Edit-2511",
+    "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9",
+    "files": [
+      "model_index.json",
+      "scheduler/*",
+      "text_encoder/*",
+      "tokenizer/*",
+      "processor/*",
+      "transformer/*",
+      "vae/*"
+    ],
+    "sha256": "",
+    "licence": "Apache-2.0",
+    "licence_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+    "commercial_use": true,
+    "note": "Qwen-Image-Edit-2511 (20B), 58 GB in diffusers' layout, picture_setup.sh's allow patterns; an 80 GB card. pictures-run links it to /root/model, where picture_worker.py loads it."
+  }
+]
