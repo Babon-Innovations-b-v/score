@@ -1,0 +1,51 @@
+{
+ "name": "engineer_ama",
+ "kind": "person",
+ "approved": "owner, job characters-full, 2026-10-09: make one new person from a description",
+ "why": "A person nobody drew: the maker's route from a few words alone (a test character, not cast in any place)",
+ "description": "a tall Ghanaian woman in her fifties, a Moon base engineer, short grey natural hair cut close to the head, a calm lined face, in a plain light blue one-piece indoor work jumpsuit with a stand collar, a front zip, a fabric belt, and white sneakers, a tall slim woman's figure",
+ "hair": "short grey natural hair cut close to the head, a neat rounded shape, ears uncovered",
+ "face": "her face, short grey natural hair cut close",
+ "outfits": [
+  "work",
+  "space"
+ ],
+ "garment_body": "mean_female",
+ "look": {
+  "scale": 1.03,
+  "work": "american",
+  "space": "american",
+  "name": "AMA",
+  "skin": [
+   116,
+   76,
+   54
+  ],
+  "hair": [
+   150,
+   148,
+   146
+  ],
+  "hair_shine": [
+   204,
+   202,
+   200
+  ],
+  "brow": [
+   70,
+   60,
+   56
+  ],
+  "iris": [
+   40,
+   26,
+   20
+  ],
+  "brow_weight": 0.62,
+  "line": [
+   34,
+   20,
+   16
+  ]
+ }
+}

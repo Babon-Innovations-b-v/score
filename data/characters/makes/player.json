@@ -1,0 +1,18 @@
+{
+ "name": "player",
+ "kind": "person",
+ "approved": "owner, job characters-full, 2026-10-09: make the player model with the same tool",
+ "why": "Take C, the player's first astronaut, made from the owner's drawing on his own body for the first time (he was approved on the average body, #100; the redrape his drawn face and flag waited on is this make)",
+ "picture": "~/.farm-factory-props/work/pictures/crew-work-1.png",
+ "hair": "short black hair with a side part on his right, the top swept up and over to his left, short tidy sides and back, ears uncovered, clean shaven face",
+ "face": "his face, short black hair swept up and to one side",
+ "outfits": [
+  "work",
+  "space"
+ ],
+ "garment_body": "mean_male",
+ "look": {
+  "work": "chinese",
+  "space": "chinese"
+ }
+}
