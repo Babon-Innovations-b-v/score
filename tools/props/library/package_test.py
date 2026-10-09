@@ -202,6 +202,38 @@ def test_the_camp_grounds_are_painted_as_the_camp_and_their_cables_are_code_leng
     assert models["ground_cable_2"]["size"] == [2.0, 0.05, 0.05] and len(pieces) == 3
 
 
+def box_gltf(path, low, high):
+    """A made model's file as far as its box goes: one primitive whose positions' bounds are `low` and `high`."""
+    path.write_text(json.dumps({"meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}],
+                                "accessors": [{"min": list(low), "max": list(high)}]}))
+
+
+def test_a_piece_laid_after_the_run_stands_on_its_model_s_foot_with_its_glow():
+    """route.py late-lay: a piece naming its model is laid at the model's own box with the box's foot on its spot, its
+    glowing part where the host's frame puts it; a piece whose model is not made yet is left out and named; late-plan
+    plans only the code models not made already."""
+    import route
+    with tempfile.TemporaryDirectory() as folder:
+        models = pathlib.Path(folder)
+        box_gltf(models / "window_strip_lamp_1.gltf", (-0.3, 0.0, -0.056), (0.3, 0.08, 0.052))
+        box_gltf(models / "window_strip_lamp_1_glow.gltf", (-0.23, 0.01, -0.048), (0.23, 0.045, -0.044))
+        axes = {"x": [1.0, 0.0, 0.0], "y": [0.0, 1.0, 0.0], "z": [0.0, 0.0, 1.0]}
+        layout = {"pieces": [
+            dict(axes, kind="camp_door_strip_lamp", at=[1.0, 3.15, 2.0], size=[0.6, 0.08, 0.104],
+                 model="window_strip_lamp_1", row="window_strip_lamp"),
+            dict(axes, kind="camp_toaster", at=[0.0, 0.95, 0.0], size=[0.28, 0.2, 0.18], model="toaster_1"),
+            dict(axes, kind="camp_dome_rib", at=[0.0, 0.0, 0.0], size=[0.14, 3.4, 0.12])]}
+        pieces, about, missing = route.late_pieces(layout, models)
+        assert missing == ["toaster_1"] and len(pieces) == 2
+        host, glow = pieces
+        assert host["size"] == [0.6, 0.08, 0.108] and host["at"] == [1.0, 3.15, 2.0] and host["row"] == "window_strip_lamp"
+        assert glow["part"] == "glow" and glow["model"] == "window_strip_lamp_1_glow"
+        assert np.allclose(glow["at"], [1.0, 3.16, 2.0 - 0.044]) and about["window_strip_lamp_1_glow"]["glows"]
+        planned = route.late_plan(layout)
+        assert list(planned["models"]) == ["window_strip_lamp_1"] and planned["models"]["window_strip_lamp_1"]["atlas"] == "late"
+        assert not route.late_plan(layout, {"window_strip_lamp_1"})["models"]
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:

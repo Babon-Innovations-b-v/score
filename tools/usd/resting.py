@@ -5,7 +5,8 @@ ground or over the object it stands on, nothing tipping, nothing buried in the g
 
 The stage is read as composed (the creator's edit layer included), in its own frame (metres, y up). The ground is the
 stage's `/<place>/Ground` mesh, or y = 0 on a flat place. For every object (children included) the drawn mesh is
-taken in the stage's frame and each of its points is looked at straight down:
+taken in the stage's frame and each of its points is looked at straight down (the game's own furniture the scene
+record stands, /<place>/Fixtures, is something to stand on or beside, but is not judged itself):
 
     gap     how far the object's lowest point clears what is under it: the ground, or another object's surface
             a ray down from that point meets (the place's structure too: a pad's deck, a stair). An object with a gap
@@ -78,18 +79,30 @@ def objects_of(stage, place):
             if prim.HasAttribute("score:kind") and prim.GetChild("geo").IsValid()}
 
 
-def structure_of(stage, place):
-    """The place's structure (a scene record's code-built shells, decks and pads, /<place>/Structure): what an object
-    may stand on, though it is not itself judged: {path: mesh}."""
-    root = stage.GetPrimAtPath(f"/{place}/Structure")
+def meshes_under(stage, path):
+    """Every drawn mesh under a group of the stage, in the stage's frame: {path: mesh}; none when there is no group."""
+    root = stage.GetPrimAtPath(path)
     if not root.IsValid():
         return {}
     found = {}
     for prim in Usd.PrimRange(root):
-        if prim.IsA(UsdGeom.Mesh):
+        if prim.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(prim).ComputeVisibility() != UsdGeom.Tokens.invisible:
             points, triangles = in_stage(prim)
             found[str(prim.GetPath())] = trimesh.Trimesh(points, triangles, process=False)
     return found
+
+
+def structure_of(stage, place):
+    """The place's structure (a scene record's code-built shells, decks and pads, /<place>/Structure): what an object
+    may stand on, though it is not itself judged: {path: mesh}."""
+    return meshes_under(stage, f"/{place}/Structure")
+
+
+def fixtures_of(stage, place):
+    """Every drawn mesh of the game's own furniture the scene record stands (/<place>/Fixtures: the camp's galley and
+    sample shelf): {path: mesh}. Not judged here (the game stands them, a door leaf set into its frame among them),
+    but what stands on or beside them rests on them."""
+    return meshes_under(stage, f"/{place}/Fixtures")
 
 
 def support_gaps(points, others):
@@ -232,7 +245,7 @@ def check(stage_path):
         points, triangles = in_stage(prim.GetChild("geo"))
         meshes[name] = trimesh.Trimesh(points, triangles, process=False)
     inside = overlaps(meshes, prims)
-    supports = {**meshes, **structure_of(stage, place)}
+    supports = {**meshes, **structure_of(stage, place), **fixtures_of(stage, place)}
     verdicts = []
     for name, prim in prims.items():
         mesh = meshes[name]

@@ -351,12 +351,15 @@ def lining(layout, kinds, side_name, low, high):
 def placed_rows(room, layout, kinds, inventory):
     """Every row the inventory places by its spots: on a wall (`wall`, `across`, `bottom`: against the wall's panels,
     `out` further), on the floor or hung from the roof (`x`, `y`, `z`, `facing`: its foot's middle and the bearing its
-    front looks toward), or on another row's piece (`on`: the same, its foot `y` up)."""
+    front looks toward), or on another row's piece (`on`: the same, its foot `y` up). A row laid as another row's
+    object (`object`: the kind it is built or made as, the hangar's hose reel laid in the airlock) is that kind's piece
+    under its own row (`row`); a row laid after the room's run names the made model it is laid with (`model`)."""
     found = []
     for row in inventory["rows"]:
         if row.get("made") != "kit piece" or row.get("lies") == "floor":
             continue
         size = size_of(kinds, row["id"])
+        kind = row.get("object", row["id"])
         for spot in row.get("at", []):
             spot_size = tuple(spot.get("size", size))
             if "wall" in spot:
@@ -364,17 +367,21 @@ def placed_rows(room, layout, kinds, inventory):
                 behind = lining(layout, kinds, spot["wall"], spot["bottom"], spot["bottom"] + spot_size[1])
                 if row["id"] in PIPE_RUN:
                     behind += hub_kit.PIPE_AXIS - spot_size[2] / 2
-                laid = on_side(room, row["id"], side, spot["across"], spot["bottom"], spot_size,
+                laid = on_side(room, kind, side, spot["across"], spot["bottom"], spot_size,
                                out=behind + spot.get("out", 0.0), layer=spot.get("layer", 1))
             else:
                 bearing = math.radians(spot["facing"])
                 front = np.array([math.sin(bearing), 0.0, -math.cos(bearing)])
-                laid = piece(room, row["id"], np.array([spot["x"], spot["y"], spot["z"]]), frame_facing(front, (0, 1, 0)),
+                laid = piece(room, kind, np.array([spot["x"], spot["y"], spot["z"]]), frame_facing(front, (0, 1, 0)),
                              spot_size, spot.get("layer", 1))
+            if kind != row["id"]:
+                laid["row"] = row["id"]
+            if "model" in row:
+                laid["model"] = row["model"]
             if spot.get("set_in"):
                 laid["set_in"] = True
             # What a composite parent's own build shows (a tool board's tools and their outlines), made with it.
-            parent_shows = composites().get(f"{room}_{row['id']}", {}).get("laid")
+            parent_shows = composites().get(f"{room}_{kind}", {}).get("laid")
             if parent_shows:
                 laid["shows"] = parent_shows
             found.append(laid)

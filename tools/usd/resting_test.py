@@ -13,7 +13,7 @@ import tempfile
 import numpy as np
 import trimesh
 from PIL import Image
-from pxr import Usd
+from pxr import Sdf, Usd, UsdGeom
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -176,7 +176,29 @@ def a_crate_on_a_structure_deck_rests():
         return [] if found["result"] == "rests" else [f"the crate on the deck reads '{found['result']}'"]
 
 
-CHECKS = (floating_sunk_and_hung_are_told_apart, a_crate_on_a_structure_deck_rests, a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground,
+def a_box_on_the_game_s_furniture_rests_on_it():
+    """A box laid on the game's own furniture (a scene record's fixture, /<place>/Fixtures) rests on it; the same box
+    with no furniture under it floats."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        made_models(folder)
+        path = laid_place(folder, [("jar", "box", (0, 1.0, 0))], [("jar", "on:shelf")])
+        before = results(path)["jar_1"]["result"]
+        stage = Usd.Stage.Open(str(path))
+        stage.SetEditTarget(Usd.EditTarget(Sdf.Layer.FindOrOpen(str(path.parent / "layers/base.usda"))))
+        shelf = trimesh.creation.box(bounds=((-1.0, 0.95, -1.0), (1.0, 1.0, 1.0)))
+        mesh = UsdGeom.Mesh.Define(stage, f"/{PLACE}/Fixtures/shelf/mesh_0")
+        mesh.CreatePointsAttr([tuple(point) for point in shelf.vertices.tolist()])
+        mesh.CreateFaceVertexCountsAttr([3] * len(shelf.faces))
+        mesh.CreateFaceVertexIndicesAttr(shelf.faces.reshape(-1).tolist())
+        stage.GetEditTarget().GetLayer().Save()
+        after = results(path)["jar_1"]["result"]
+        problems = [] if before.startswith("floats") else [f"with nothing under it the box reads '{before}'"]
+        return problems + ([] if after == "rests" else [f"on the furniture the box reads '{after}'"])
+
+
+CHECKS = (floating_sunk_and_hung_are_told_apart, a_crate_on_a_structure_deck_rests, a_box_on_the_game_s_furniture_rests_on_it,
+          a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground,
           two_boxes_inside_each_other_overlap, a_room_lies_flat_on_its_seat_over_a_dug_pit)
 
 

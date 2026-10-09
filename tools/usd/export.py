@@ -410,14 +410,15 @@ def tube_spots(laid, length, bay):
 
 
 def kit_room_pieces(kit, models, tube_length=None):
-    """A kit room's pieces as objects: each its kind's own name as its row, and its transform (`matrix`, the game's,
+    """A kit room's pieces as objects: each its kind's own name as its row (or the row it names, `row`: a piece laid
+    as another row's kind, the airlock's hose unit built as a hose reel), and its transform (`matrix`, the game's,
     package.kit_matrix) from its model's box; the layout's other fields as they are. A walkway tube's kit (its layout
     has a `bay`) is laid along a way `tube_length` long (tube_spots), as the game lays it between two rooms."""
     room = kit.get("room", "")
     found = []
     for laid in kit["pieces"]:
         matrix, _ = package.kit_matrix(laid, *package.model_box(model_file(models, laid['model'])))
-        own = laid["kind"].removeprefix(f"{room}_")
+        own = laid.get("row", laid["kind"].removeprefix(f"{room}_"))
         # A glowing part (a lamp's lens, a screen) is an object of its own, named apart from its host's.
         row = f"{own}_{laid['part']}" if "part" in laid else own
         spots = tube_spots(laid, tube_length, float(kit["bay"])) if "bay" in kit and tube_length else [np.eye(4)]

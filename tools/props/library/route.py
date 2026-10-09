@@ -7,6 +7,8 @@ way end to end, as the route would run for a new room).
     $python tools/props/library/route.py install <work> <room>          # the made models into the world's files
     $python tools/props/library/route.py fittings <work>                # method B's check: the fittings' parts seen
     $python tools/props/library/route.py precheck <work>                # the model check on the code models, pre-bake
+    $python tools/props/library/route.py late-plan <kit layout> <work> [<models>]  # bake jobs of pieces laid after the run
+    $python tools/props/library/route.py late-lay <kit layout> <models> <room>   # those pieces into data/kit/<room>.json
 
 `plan` sorts every kind of the room's kit layout (tools/props/scene/hub_kit.py writes it: where every piece stands,
 as its kind) by sorter.py and makes one model per kind and size (and per what a piece of it shows: a door's label,
@@ -20,6 +22,11 @@ model's own box (a model made at the laid size, so nothing is stretched), the gl
 split into (make_kit.py: a screen's content, a lamp's lens) and a generated piece's screens as `part` pieces of their
 own, and the room's lamps and floors as before. A generated model that fails the model check (gates/model.py) is
 not placed: its pieces are left out and listed.
+
+`late-plan` and `late-lay` lay what a room's run left out (rows an audit of its concept found later): a piece of
+the room's kit layout that names its `model` is a model placed again from another room or baked alone after the run
+(its code-built models in a picture set of their own); `late-lay` puts those pieces into the installed layout at their
+models' own boxes and leaves every other piece as the run laid it.
 
 `install` runs the name check first (gates/names.py: an own name means one thing in every room), copies the made
 models and their shared pictures into the world's files (`models/<room>_kit/`, tools/assets/world.py), stores the
@@ -72,7 +79,7 @@ PIT_DEEP = 0.9  # hub_kit.PIT_DEEP: the pit's floor under the walkway
 FACADE = 256
 SET_DENSITY = {"roof": FAR, "floor": NEAR, "walls_low": NEAR, "walls_high": FAR, "gear": NEAR, "furniture": NEAR,
                "fittings": NEAR, "distant": DISTANT, "camp_shell": CAMP_SOFT, "camp_high": CAMP_SOFT, "camp_floor": FAR,
-               "camp_walls": FAR, "plaster": FAR, "street_level": FAR, "facade": FACADE}
+               "camp_walls": FAR, "plaster": FAR, "street_level": FAR, "facade": FACADE, "late": NEAR}
 # The bake's largest picture side and the share of it packed UV islands fill (inside/bake.py), and how much of that a
 # shared set is planned to fill, leaving room for packing, print drawn sharp and the faces a box's estimate misses (both
 # sides of an open box's thin walls: planned at 0.7, a floor set came out 1% past the cap, 2026-10-07).
@@ -573,6 +580,81 @@ def game_layout(layout, planned, reports, checks):
     return dict(room, counts=counts, kinds=kinds, models=models, pieces=pieces), held_back
 
 
+def late_plan(layout, made=()):
+    """The code-built models of the pieces a room's layout lays after its run (each names its `model`: a row laid when
+    an audit found it), one per model not among `made` (a model placed again from another room is made already), in a
+    picture set of their own (`late`), as plan() makes a room's: {"models": {name: {kind, route, size, laid, atlas,
+    near, foot}}, "pieces": []}."""
+    models = {}
+    for laid in layout["pieces"]:
+        if "model" not in laid or laid["model"] in made or sorter.planned_route(laid["kind"]) != "code":
+            continue
+        entry = models.setdefault(laid["model"], {"kind": laid["kind"], "route": "code", "size": list(laid["size"]),
+                                                  "laid": shows(laid["kind"], laid), "atlas": "late", "near": False,
+                                                  "foot": 99.0})
+        entry["near"] |= laid.get("near", middle_high(laid) < REACH_HIGH)
+        entry["foot"] = min(entry["foot"], laid.get("foot", foot_of(laid["at"][1])))
+    return {"models": models, "pieces": []}
+
+
+def late_pieces(layout, models):
+    """The pieces a room's layout lays after its run whose made model is in the folder `models`, each at its model's
+    own box with the box's foot on the laid spot, and its glowing part (`<model>_glow`, split off by make_kit) as a
+    part piece of its own where the host's frame puts it; {model: {glows, route}} beside them, and the models not made
+    yet (their pieces left out until they are)."""
+    pieces, about, missing = [], {}, []
+    for laid in (laid for laid in layout["pieces"] if "model" in laid):
+        model = pathlib.Path(models) / f"{laid['model']}.gltf"
+        if not model.exists():
+            missing.append(laid["model"])
+            continue
+        low, high = package.model_box(model)
+        pieces.append(dict(laid, size=[round(float(value), 4) for value in high - low]))
+        about[laid["model"]] = {"glows": False, "route": sorter.planned_route(laid["kind"])}
+        glow = model.with_name(f"{laid['model']}_glow.gltf")
+        if glow.exists():
+            glow_low, glow_high = package.model_box(glow)
+            shift = [(glow_low[0] + glow_high[0] - low[0] - high[0]) / 2, glow_low[1] - low[1],
+                     (glow_low[2] + glow_high[2] - low[2] - high[2]) / 2]
+            at = np.asarray(laid["at"]) + sum(np.asarray(laid[axis]) * value for axis, value in zip("xyz", shift))
+            pieces.append(dict(laid, model=glow.stem, part="glow", at=[round(float(value), 4) for value in at],
+                               size=[round(float(value), 4) for value in glow_high - glow_low]))
+            about[glow.stem] = {"glows": True}
+    return pieces, about, sorted(set(missing))
+
+
+def row_of(laid, room):
+    """The inventory row a laid piece stands for: the row it names, else its kind's own name."""
+    return laid.get("row", laid["kind"].removeprefix(f"{room}_"))
+
+
+def lay_late(room, layout, models):
+    """The room's installed layout (data/kit/<room>.json) with the pieces its new layout lays after the run put in
+    (late_pieces): every piece of those rows laid before is taken out first, so laying again replaces them; the
+    counts and kinds kept in step. Stops on a name the name check (gates/names.py) refuses. The number laid and the
+    models not made yet."""
+    path = REPO / f"data/kit/{room}.json"
+    installed = json.loads(path.read_text())
+    pieces, about, missing = late_pieces(layout, models)
+    rows = {row_of(laid, room) for laid in pieces}
+    installed["pieces"] = [laid for laid in installed["pieces"] if row_of(laid, room) not in rows] + pieces
+    installed["models"] = dict(installed.get("models", {}), **about)
+    installed["counts"] = {}
+    for laid in installed["pieces"]:
+        if "part" not in laid:
+            installed["counts"][laid["kind"]] = installed["counts"].get(laid["kind"], 0) + 1
+    for laid in pieces:
+        if laid["kind"] in layout.get("kinds", {}):
+            installed["kinds"].setdefault(laid["kind"], {
+                key: value for key, value in layout["kinds"][laid["kind"]].items()
+                if key in ("group", "light", "solid", "outside", "night_glow")})
+    faults = names.check(installed, room)
+    if faults:
+        raise SystemExit("the name check (gates/names.py) stops the lay:\n  " + "\n  ".join(faults))
+    path.write_text(json.dumps(installed, indent="\t") + "\n")
+    return len(pieces), missing
+
+
 def install(work, room):
     """The made models and their pictures into the world's files (`models/<room>_kit/` in the local copy of the world's
     release, tools/assets/world.py; pack and publish a new release to share them), the layout into
@@ -699,6 +781,20 @@ def main():
         work = pathlib.Path(sys.argv[2])
         models, folder = install(work, sys.argv[3])
         print(models, "models installed in", folder)
+    elif step == "late-plan":
+        layout = json.loads(pathlib.Path(sys.argv[2]).read_text())
+        work = pathlib.Path(sys.argv[3])
+        work.mkdir(parents=True, exist_ok=True)
+        made = {path.stem for path in pathlib.Path(sys.argv[4]).glob("*.gltf")} if len(sys.argv) > 4 else set()
+        planned = late_plan(layout, made)
+        (work / "plan.json").write_text(json.dumps(planned, indent=1))
+        for name, job in jobs(planned, {}, work, layout.get("place", layout.get("room", "hub"))).items():
+            (work / f"job-{name}.json").write_text(json.dumps(job, indent=1))
+            print(name, len(job.get("pieces", [])))
+    elif step == "late-lay":
+        layout = json.loads(pathlib.Path(sys.argv[2]).read_text())
+        laid, missing = lay_late(sys.argv[4], layout, pathlib.Path(sys.argv[3]))
+        print(laid, "pieces laid after the run; models not made yet, their pieces left out:", missing or "none")
     elif step == "fittings":
         reports = [{"pieces": package.made_reports(pathlib.Path(sys.argv[2]))}]
         for kind, missing in sorted(record_fittings(reports).items()):
