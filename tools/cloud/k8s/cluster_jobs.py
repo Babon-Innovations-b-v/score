@@ -15,7 +15,8 @@ the job path and puts their outputs where the runner expects them.
 
 `image` is a kind in tools/cloud/images/images.json (default: `kind`), the job.json's `kind` (the runtime reads the
 image's models.json by it); `kind` is capacity.py's job kind (`capacity_kind`), whose classes in its order are the
-default `classes` and under which the ledger records the run. It returns the numbers of the jobs that did not finish, as a machine runner's `left`. The machine runners
+default `classes` and under which the ledger records the run. It returns the numbers of the jobs that did not
+finish, as a machine runner's `left`. The machine runners
 stay the default: nothing here runs unless the runner asks for it under SCORE_CLOUD=k8s.
 
 One difference from the machine runners: the runtime brings a job's outputs back only when its command succeeded, and
