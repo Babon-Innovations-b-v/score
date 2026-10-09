@@ -292,7 +292,9 @@ place is assembled in an engine (f). The output of every stage is kept,
 so the creator can trace a weak result to the stage that caused it,
 rerun or fix that stage, and regenerate the stages after it while
 keeping their own edits. The sections below describe each stage with an
-example.
+example. Every stage that loads a model runs as a job in a pinned
+container image on rented cards, either on single machines or on any
+Kubernetes cluster (Appendix G).
 
 \subsection{Inventory as a partition of the
 concept}\label{inventory-as-a-partition-of-the-concept}
@@ -2018,6 +2020,134 @@ Dog, from words & L4; L40S for the mesh & 2 (4 pictures) & 5.6 & about
 (UniRig) \\
 Fish, from a close-up & L40S for the mesh; L4 & 0 (given) & 5.6 & in
 code & & & on an L4 as the dog's & & about €0.32 & \\
+\end{longtable}
+}
+
+Since 9 October every stage that loads a model also runs from a pinned
+container image, one image per kind of job, built from files in the
+repository and pushed to a private registry chosen through the provider
+interface. The weights are not in the images: a job fetches each model
+once per node from our own object storage into a cache on the node,
+checked by its hash, and the first node to need a model seeds the
+storage from its pinned source. Each model's licence is recorded beside
+its image. Table G5 compares the time from a machine answering to the
+start of work under the old route, in which a fresh machine installed
+its software and downloaded its weights itself, with the image route on
+a new node. The old route was already fast for the kinds whose software
+comes as prebuilt packages, so the images gained little there and were
+slower for the largest weights, which come from our storage more slowly
+than from Hugging Face. They gained where the old route compiled or
+built: the part splitters, the character chain, and the first Cycles
+render on an H100, which compiled its kernels for 218 s because Blender
+ships no binary for that card and now reads them from a cache kept per
+card and driver. On a warm node an image's weights are ready in under a
+second.
+
+\textbf{Table G5.} Cold start per kind of job, 9 October 2026: from the
+machine answering to the start of work. The old route installs and
+downloads on a fresh machine; the image route pulls the image and reads
+the weights from our storage on a new node.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Job
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Card
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Old route
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Image route (pull + weights)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Pixal3D & L4 & 1.5 min & 1.2 min (13 s + 58 s, 9.2 GB) \\
+PartCrafter & L4 & 1.0 min & 1.0 min (47 s + 14 s, 4.0 GB) \\
+GeoSAM2 and SegviGen & H100 & 5.2 min & 4.0 min (111 s + 128 s, 23
+GB) \\
+shape-check judge, Qwen3.8-27B & H100 & 1.0 to 1.5 min & 3.5 min (62 s +
+146 s, 31 GB) \\
+Qwen-Image-Edit & H100 & 1.0 min & 4.4 min (30 s + 231 s, 58 GB) \\
+FLUX.2 klein & L4 & 0.8 min & 1.8 min (37 s + 68 s) \\
+SAM 3 cut-outs & L4 & 0.9 min & 1.2 min (57 s + 13 s) \\
+MOSS sound & L4 & not measured & 1.8 min (61 s + 44 s) \\
+character chain (six environments) & L4 & 24.8 min & motion and body
+steps 2.7 min (72 s + 90 s) \\
+first Cycles render & H100 & 218 s & 0.3 s, kernels from the cache \\
+\end{longtable}
+}
+
+The same images run on any Kubernetes cluster. A job becomes one
+Kubernetes Job, allowed on its kind's classes in the order of Table G1's
+rules, on node pools per class that scale from zero with the cluster's
+autoscaler; when no pool of those classes can get a node, the job is
+widened to the next class and keeps the ones it had, so it never settles
+for one card. A job writes its result last and is skipped when that
+result exists, so a run resumes after a lost node. On Scaleway's managed
+clusters, whose control plane is free, an L4 node went from the order to
+a running job in 249 to 326 s in five runs: the node was ready after
+about 140 s and NVIDIA's driver setup took about 2.5 minutes more,
+against a rented machine that answers in 0.5 to 1.5 minutes. One job
+alone therefore finishes later on a cold cluster (a PartCrafter split
+took 8.1 minutes against 4.6 and cost €0.20 against €0.07, with
+identical output), while a job on a warm node starts in about a second.
+When an L4 zone was out of stock the autoscaler moved to the next zone
+within a minute, and when processor machines were out of stock in both
+Paris zones for 20 minutes, a cluster spanning Warsaw took one there.
+
+Table G6 shows how a batch's time falls with the number of cards on the
+cluster. The same 24 Pixal3D takes, three at once on each L4, were run
+on one, two, four and eight nodes side by side. Every run used about the
+same card time, 210 to 221 minutes, and so cost about the same, while
+the time to the last result fell from 217 to 48 minutes. The four- and
+eight-node runs fell short of a linear speed-up for two reasons: only
+one zone had L4 cards, so their last nodes came 23 and 27 minutes after
+the order while the autoscaler kept retrying the other two zones, and
+eight nodes ran only eight jobs, so the run ended with its slowest job
+of 38 minutes.
+
+\textbf{Table G6.} One batch on more cards: 24 Pixal3D takes, three at
+once on each L4, on a Scaleway cluster spanning Paris and Warsaw, 9
+October 2026. Time runs from the submit to the last result; card time is
+the minutes the run's jobs held a card.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Nodes
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Time
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Speed-up
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Last node came
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Card time
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cost of card time
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & 216.7 min & 1.0 & after 4.6 min & 210 min & €2.76 \\
+2 & 118.9 min & 1.8 & after 4.2 min & 215 min & €2.82 \\
+4 & 83.6 min & 2.6 & after 27 min & 214 min & €2.81 \\
+8 & 48.0 min & 4.5 & after 23 min & 221 min & €2.90 \\
 \end{longtable}
 }
 
