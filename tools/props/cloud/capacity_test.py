@@ -1,7 +1,10 @@
 """Checks for the capacity lists, the order a fleet takes offers in, the ledger's machine rows and the report,
 without renting anything."""
+import contextlib
+import io
 import pathlib
 import sys
+import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
@@ -142,6 +145,34 @@ def test_the_report_groups_by_kind_and_card():
     assert l40s["units"] == 3 and l40s["seconds_a_unit"] == 320.0 and abs(l40s["euros_a_unit"] - 0.18) < 1e-9
     assert len(capacity.summarise(capacity.machine_rows(entries, since="2026-10-01"))) == 2
     assert {row["type"] for row in capacity.summarise(capacity.machine_rows(entries[:1]))} == {"L4-1-24G"}
+
+
+def report_output(arguments, entries, report_path):
+    """What `capacity.py report <arguments>` prints over `entries`, its table written to `report_path`."""
+    saved = (sys.argv, capacity.ledger.entries, capacity.REPORT)
+    sys.argv = ["capacity.py", "report", *arguments]
+    capacity.ledger.entries, capacity.REPORT = (lambda: entries), report_path
+    try:
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            capacity.main()
+    finally:
+        sys.argv, capacity.ledger.entries, capacity.REPORT = saved
+    return printed.getvalue()
+
+
+def test_the_report_prints_one_line_and_writes_its_table():
+    entries = [{"started": "2026-10-08T10:00:00Z", "kind": "pixal",
+                "machines": [{"type": "L40S-1-48G", "zone": "fr-par-2", "minutes": 22.0, "euros": 0.54}],
+                "attempts": [{"type": "L4-1-24G", "zone": "pl-waw-2", "started": False, "euros": 0.1}]}]
+    table = capacity.table_text(capacity.summarise(capacity.machine_rows(entries)))
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "report.txt"
+        printed = report_output([], entries, path)
+        assert printed == (f"capacity report: 1 job kinds on 2 card types, 1 machines, 1 failed starts, €0.64; "
+                           f"table: {path}\n"), printed
+        assert path.read_text() == table and "L40S-1-48G" in table and len(table.splitlines()) == 3
+        assert report_output(["--verbose"], entries, pathlib.Path(folder) / "unused.txt") == table
+        assert not (pathlib.Path(folder) / "unused.txt").exists()
 
 
 def test_a_batch_leaves_out_cards_the_limits_cannot_hold():
