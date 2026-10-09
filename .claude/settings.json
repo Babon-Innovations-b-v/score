@@ -1,9 +1,32 @@
 {
+  "env": {
+    "PONYTAIL_MAP": "0",
+    "PONYTAIL_QUIET_STARTUP": "1",
+    "PONYTAIL_HIDE_STATUS": "1",
+    "PONYTAIL_SUBAGENT_MATCHER": "^(general-purpose|fork|claude)$",
+    "CLAUDE_MEM_TELEMETRY": "0",
+    "CLAUDE_MEM_TELEMETRY_ERRORS": "0",
+    "DO_NOT_TRACK": "1"
+  },
   "permissions": {
     "allow": [
       "mcp__github__*",
       "Bash(gh:*)"
     ]
+  },
+  "enabledMcpjsonServers": [
+    "codebase-memory-mcp"
+  ],
+  "extraKnownMarketplaces": {
+    "thedotmack": {
+      "source": {
+        "source": "directory",
+        "path": "./vendor/claude-mem"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true
   },
   "hooks": {
     "SessionStart": [
@@ -18,6 +41,21 @@
             "type": "command",
             "command": "CLAUDE_HOOK=SessionStart python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/scripts/worktree-reap.py\" 2>/dev/null || true",
             "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/vendor/ponytail/hooks/ponytail-activate.js\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
+            "timeout": 5
           }
         ]
       }
@@ -68,6 +106,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Grep|Glob|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
@@ -86,6 +134,40 @@
             "type": "command",
             "command": "d=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; br=$(git -C \"$d\" symbolic-ref --short HEAD 2>/dev/null) || exit 0; [ \"$br\" = main ] || exit 0; if [ -n \"$(git -C \"$d\" status --porcelain -- .claude/memory)\" ]; then git -C \"$d\" add .claude/memory && git -C \"$d\" commit -q -m 'memory: auto-save' -- .claude/memory || exit 0; fi; git -C \"$d\" fetch -q origin main 2>/dev/null || exit 0; [ \"$(git -C \"$d\" rev-list --count main..origin/main)\" -gt 0 ] && { git -C \"$d\" rebase -q --autostash origin/main 2>/dev/null || { git -C \"$d\" rebase --abort 2>/dev/null; exit 0; }; }; [ \"$(git -C \"$d\" rev-list --count origin/main..main)\" -gt 0 ] && git -C \"$d\" push -q origin main 2>/dev/null; exit 0",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "general-purpose|fork|claude",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/vendor/ponytail/hooks/ponytail-subagent.js\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
+            "timeout": 5
           }
         ]
       }

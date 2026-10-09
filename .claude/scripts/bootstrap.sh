@@ -4,7 +4,8 @@
 #   bash .claude/scripts/bootstrap.sh
 #
 # Link Claude's memory folder into the repo (git-ignored: the repo is public), use the
-# repo's git hooks, and report anything else the loop needs that is not here yet.
+# repo's git hooks, install the pinned agent tools (install-agent-tools.sh), and report anything
+# else the loop needs that is not here yet.
 # Safe to re-run: every step skips what is already done.
 set -euo pipefail
 
@@ -82,8 +83,14 @@ use_repo_hooks() {
   say "git hooks: .githooks"
 }
 
+# --- 4. The agent tools: code graph, Bun for claude-mem, their settings -----
+install_agent_tools() {
+  bash "$REPO/.claude/scripts/install-agent-tools.sh"
+}
+
 link_memory
 use_repo_hooks
+install_agent_tools
 check_gh
 check_project_json
 say ""

@@ -38,6 +38,16 @@ Per-area overlays: `<area>/CLAUDE.md` auto-loads when files in its directory are
 
 **Glossary is the working surface.** Opinionated CONTEXT format — every term has `_Avoid_:` aliases. When you reach for a domain word in any output (issue title, refactor proposal, hypothesis, test name), use the canonical term, not the alias. Skills that explore the codebase obey [`.claude/skills/DOMAIN-AWARENESS.md`](.claude/skills/DOMAIN-AWARENESS.md). The `grill` skill writes glossary updates to `CONTEXT.md` inline as terms get sharpened; a decided trade-off is proposed as an ADR in one line and written only if the owner says yes.
 
+## Agent tools
+
+Three tools are wired in for every session and agent here, each pinned (`.claude/settings.json`, `.mcp.json`):
+
+- **codebase-memory-mcp** (code graph, v0.11.0, MCP server plus hooks). Look code up with `search_graph` and `trace_path` (callers, callees) before Grep or whole-file reads, and run `check_index_coverage` on any file you rely on: the graph can lag behind uncommitted edits, so read what it reports as missed. `.cbmignore` keeps `vendor/`, `data/` and the paper's outputs out of it.
+- **claude-mem** (cross-session memory, v13.35.0, `vendor/claude-mem`). Search it (`mem-search`) for past decisions and fixes, sub-agents' included. It is a log, not a rulebook: a lesson worth keeping still goes into its `CLAUDE.md` overlay or the bible, which load every time and are reviewed. Its observer runs on Haiku under the owner's subscription, one call stream per agent.
+- **ponytail** (lean-code rules, v5.1.0, `vendor/ponytail`), injected at session start and into coding sub-agents. Where it differs from the house rules, the house rules win: one function, one purpose still means split; no `shortcut:` comments.
+
+Fresh box: `bash .claude/scripts/bootstrap.sh` runs `.claude/scripts/install-agent-tools.sh`, which downloads and checks the pinned binaries, writes claude-mem's settings, installs the plugin for this project and indexes the repo. State outside the repo: `~/.claude-mem` (memory database and settings), `~/.cache/codebase-memory-mcp` (graph index), `~/.local/bin/codebase-memory-mcp`, `~/.bun`, and Claude Code's plugin cache.
+
 ## Response Style
 
 - Default to concise. Bullets and short summaries beat long technical explanations.

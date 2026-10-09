@@ -225,8 +225,12 @@ Getting a fresh machine, or a wiped one, back to working.
    issues and the board go through `gh`; without it, `to-prd`, `triage`, `close` and `my-issues`
    cannot run.
 2. `bash .claude/scripts/bootstrap.sh`. It links `~/.claude/projects/<encoded-repo-path>/memory` to
-   the repo's git-ignored `.claude/memory` (private, never pushed), and reports anything else
-   that is missing. It is safe to re-run; every step skips what is already done.
+   the repo's git-ignored `.claude/memory` (private, never pushed), runs
+   `.claude/scripts/install-agent-tools.sh` (the agent tools in root `CLAUDE.md`: the pinned
+   codebase-memory-mcp binary and Bun, each checked against its SHA-256; claude-mem's settings in
+   `~/.claude-mem`; the vendored claude-mem plugin installed for this project; the repo indexed into
+   `~/.cache/codebase-memory-mcp`), and reports anything else that is missing. It needs `node`,
+   `python3`, `curl` and the `claude` CLI. It is safe to re-run; every step skips what is already done.
 3. `python3 .claude/scripts/setup-github.py --board` on a fresh repo only. Labels and the board are
    GitHub-side state and are not copied by "Use this template", so a repo spawned from the template
    starts without them.
