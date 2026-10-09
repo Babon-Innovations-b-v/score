@@ -25,8 +25,8 @@ as numbers copied from the game (each entry names the game file it came from), a
                 sun or moon a distant light; the game's own numbers ride on each as `score:game:*`
     environment the sky the camera sees and the ambient light (a dome light, `/<place>/Environment`), the exposure;
                 its `stars` (the game's star field, its own seed's) and its `haze` (a body of fog the game fills a room
-                or Mars's air with, as a see-through shell carrying the fog's numbers; on Earth the haze ring) under
-                /<place>/Sky
+                or Mars's air with, as a see-through shell carrying the fog's numbers; on Earth the haze ring) and
+                its `dust` (the fine grains Mars's wind carries along the ground, at one moment) under /<place>/Sky
     places      other places seen from this one, their own stages referenced where the game stands them (`yaw` or a
                 whole `rotation`, as objects; `scale` for one shown at another length): /<place>/Places/<name>
     moon        the Moon on the night sky as the game's sky shader draws it (its face with its seas, and its halo in the
@@ -84,7 +84,7 @@ TUBE_LIGHT_EVERY = 2
 # The code builders a scene record may name.
 BUILDERS = ("quad", "box", "annulus", "walls", "wall_strip", "pyramid_roof", "dome", "cylinder_wall", "disc", "stairs",
             "grid", "heightfield", "room_walls", "room_deck", "dome_roof", "lathe", "sphere", "tube_arc", "stars",
-            "haze_volume", "torus")
+            "haze_volume", "torus", "specks")
 
 
 def record(place):
@@ -786,15 +786,47 @@ def write_haze_ring(stage, place, entry, out):
         prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
 
 
+def dust_points(entry, ground):
+    """Where the drift's fine grains hang at one moment (environment `dust`): `count` of them over a square `side`
+    metres wide round the place's middle, each from three draws of Godot's seeded generator (`seed`: across, along,
+    and its height up to `high` metres over the ground under it), in the place's frame."""
+    count, side, high = int(entry["count"]), float(entry["side"]), float(entry["high"])
+    draws = np.asarray(builders.pcg32_floats(int(entry["seed"]), 3 * count), dtype=np.float64).reshape(count, 3)
+    across, along = (draws[:, 0] - 0.5) * side, (draws[:, 1] - 0.5) * side
+    lift = draws[:, 2] * high
+    if ground is None:
+        return np.column_stack([across, lift, along])
+    flat = ground.frame[1] * ground.radius + across[:, None] * ground.frame[0] + along[:, None] * ground.frame[2]
+    directions = flat / np.linalg.norm(flat, axis=1, keepdims=True)
+    height, _ = ground.plan_height(directions)
+    return ground.in_place_frame(directions * (ground.radius + height + lift)[:, None])
+
+
+def write_dust(stage, place, entry, ground):
+    """The wind's fine grains of dust (environment `dust`, dust_points), as specks of their unlit colour, see-through
+    by `thickness`: /<place>/Sky/Dust."""
+    built = builders.specks(dust_points(entry, ground), float(entry["across"]), None)
+    prim = mesh_prim(stage, f"/{place}/Sky/Dust", built)
+    material = unlit_material(stage, f"/{place}/Sky/dust_look", entry["colour"])
+    UsdShade.Shader(stage.GetPrimAtPath(f"/{place}/Sky/dust_look/surface")).CreateInput(
+        "opacity", Sdf.ValueTypeNames.Float).Set(float(entry["thickness"]))
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
+    for key, value in (("score:kind", "dust"), ("score:from", entry.get("from", ""))):
+        prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+
+
 def write_sky(stage, place, environment, out, ground=None):
-    """What the game hangs in the place's air and sky that the camera sees: the stars (environment `stars`) and the
-    haze (environment `haze`: a body of fog, or with shape `ring` the Earth site's haze ring), under /<place>/Sky."""
+    """What the game hangs in the place's air and sky that the camera sees: the stars (environment `stars`), the
+    haze (environment `haze`: a body of fog, or with shape `ring` the Earth site's haze ring) and the wind's dust
+    (environment `dust`), under /<place>/Sky."""
     environment = environment or {}
-    if not (environment.get("stars") or environment.get("haze")):
+    if not (environment.get("stars") or environment.get("haze") or environment.get("dust")):
         return
     UsdGeom.Scope.Define(stage, f"/{place}/Sky")
     if environment.get("stars"):
         write_stars(stage, place, environment["stars"])
+    if environment.get("dust"):
+        write_dust(stage, place, environment["dust"], ground)
     haze = environment.get("haze")
     if haze and haze["shape"] == "ring":
         write_haze_ring(stage, place, haze, out)

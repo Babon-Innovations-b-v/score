@@ -431,6 +431,17 @@ def stars(count, seed, sky_distance, distance, radius, smallest, largest, surfac
     return mesh(points, np.vstack(triangles), np.zeros((len(points), 2)), surface)
 
 
+def specks(points, across, surface):
+    """A small octahedron `across` metres wide at each point (n x 3): fine grains of dust, each a few pixels wide, as
+    the game draws one as a round speck facing the eye."""
+    points = np.asarray(points, dtype=np.float64).reshape(-1, 3)
+    corners = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 0, -1], [0, -1, 0]], dtype=np.float64)
+    faces = np.array([[0, 2, 1], [0, 3, 2], [0, 4, 3], [0, 1, 4], [5, 1, 2], [5, 2, 3], [5, 3, 4], [5, 4, 1]])
+    laid = (points[:, None, :] + corners[None, :, :] * across / 2.0).reshape(-1, 3)
+    triangles = (faces[None, :, :] + 6 * np.arange(len(points))[:, None, None]).reshape(-1, 3)
+    return mesh(laid, triangles, np.zeros((len(laid), 2)), surface)
+
+
 def facing_out(shell, centre):
     """A closed shell's faces turned to face out from `centre`, as a renderer reads a volume's inside by them."""
     points, triangles = shell["points"], shell["triangles"].copy()
