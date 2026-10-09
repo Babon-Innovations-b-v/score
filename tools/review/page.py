@@ -620,7 +620,10 @@ def resting_rows(label, judged):
 
 def resting_block(stages):
     """The resting check (tools/usd/resting.py) on every stage ({label: its verdicts}): each object that floats,
-    tips or is sunk, and why."""
+    tips or is sunk, and why; None when the page was built without it (--no-resting)."""
+    if stages is None:
+        return missing("the resting check, left out of this page (--no-resting) because it ran out of memory on the "
+                       "machine that built it")
     if not stages:
         return missing("no OpenUSD stage given")
     counts = [f"{escaped(label)}: {sum(found.get('passed') is not False for found in judged)} of {len(judged)} "
@@ -707,6 +710,8 @@ def arguments():
                         "own shots in, laid beside the scene's")
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("--plain", action="store_true")
+    parser.add_argument("--no-resting", action="store_true", help="leave the resting check out (a stage too big for "
+                        "this machine's memory)")
     parser.add_argument("--cloud", action="store_true", help="render on rented cards, not this PC's Blender")
     return parser.parse_args()
 
@@ -767,7 +772,7 @@ def build(options):
         surfaces_section(options.place, runs),
         scene_section(scene, out, options.place, getattr(options, "game_shots", None), pictures),
         characters_section(cast),
-        checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in stages},
+        checks_section(runs, options.agreement, None if getattr(options, "no_resting", False) else {label: resting.check(stage) for label, stage in stages},
                        {label: placeholders.check(stage) for label, stage in stages}),
     ]
     sources = facts([(label, escaped(run["folder"])) for label, run in runs.items() if run])
