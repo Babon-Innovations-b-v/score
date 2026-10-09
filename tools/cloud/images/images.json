@@ -29,13 +29,13 @@
   }
  },
  "blender": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-9803b776f0bb@sha256:1d85e3a6b18cecf8692b4604ae6d7695d1a42acf3b629705c4902d68471389f5",
-  "tag": "1-9803b776f0bb",
-  "digest": "sha256:1d85e3a6b18cecf8692b4604ae6d7695d1a42acf3b629705c4902d68471389f5",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-3d6af73b4e22@sha256:41c0d7d3fa4d89ede0d50a1704a614110f62b80ce8504088d2ad6a526faca6fd",
+  "tag": "1-3d6af73b4e22",
+  "digest": "sha256:41c0d7d3fa4d89ede0d50a1704a614110f62b80ce8504088d2ad6a526faca6fd",
   "platforms": "linux/amd64",
   "size_mb": 794.5,
-  "build_minutes": 1.6,
-  "built": "2026-10-09T14:46:00Z",
+  "build_minutes": 1.7,
+  "built": "2026-10-09T16:18:37Z",
   "smoke": {
    "pull_seconds": 13.9,
    "runs": {
@@ -429,7 +429,8 @@
      }
     }
    }
-  }
+  },
+  "measured_image": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-9803b776f0bb@sha256:1d85e3a6b18cecf8692b4604ae6d7695d1a42acf3b629705c4902d68471389f5"
  },
  "characters-garment": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-garment:1-c06ef3651d02@sha256:3134b32de7303e2e85ccb8c0968044282e18919460a7c2a21a9498a34007f3aa",
@@ -566,6 +567,15 @@
    }
   }
  },
+ "meshparts": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-meshparts:1-796b9ef7141d@sha256:0d59e30aa5de1e21c9e3851d936c68fb556800ebf1543b757d3f7bae72313e47",
+  "tag": "1-796b9ef7141d",
+  "digest": "sha256:0d59e30aa5de1e21c9e3851d936c68fb556800ebf1543b757d3f7bae72313e47",
+  "platforms": "linux/amd64",
+  "size_mb": 7848.7,
+  "build_minutes": 8.2,
+  "built": "2026-10-09T16:26:54Z"
+ },
  "moss": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-moss:1-6c13534f42f5@sha256:5c3d9a06c6c9974e53d3200ee53a5609d72755c0b17026a25574ff148703dcbc",
   "tag": "1-6c13534f42f5",
@@ -592,13 +602,13 @@
   }
  },
  "parts": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-parts:1-b7522dd5a11e@sha256:ecc9cc470b0362b0cc423304d4a021261dc195c2d8b33046bca7af9be27f678c",
-  "tag": "1-b7522dd5a11e",
-  "digest": "sha256:ecc9cc470b0362b0cc423304d4a021261dc195c2d8b33046bca7af9be27f678c",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-parts:1-002b79b0f345@sha256:3c4957f0234860821c7a656f691b27bc80bcf5f2ba6f7ee7b0cd2a3cd4eddbbf",
+  "tag": "1-002b79b0f345",
+  "digest": "sha256:3c4957f0234860821c7a656f691b27bc80bcf5f2ba6f7ee7b0cd2a3cd4eddbbf",
   "platforms": "linux/amd64",
   "size_mb": 3599.7,
-  "build_minutes": 6.1,
-  "built": "2026-10-09T14:53:22Z"
+  "build_minutes": 5.8,
+  "built": "2026-10-09T16:32:48Z"
  },
  "pictures": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-pictures:1-468c1e1107b0@sha256:8f0376e21b4ee094bd6afc8c09027ec0d51a6c17fe38f691e73573fa16f9ca43",
