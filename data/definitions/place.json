@@ -332,7 +332,10 @@
 			"accents": [
 				"alarm",
 				"hazard",
-				"flat-dado"
+				"flat-dado",
+				"foliage",
+				"sign-blue",
+				"soil"
 			],
 			"accents_are": "from the flat's plan: the red poster and papers, the gilt on them, the green gloss dado"
 		},
@@ -484,6 +487,18 @@
 			"plastic_grey": {
 				"token": "idle",
 				"library": "plastic_grey"
+			},
+			"enamel_blue": {
+				"token": "sign-blue",
+				"library": "enamel_blue"
+			},
+			"foliage_leaf": {
+				"token": "foliage",
+				"library": "foliage_leaf"
+			},
+			"potting_soil": {
+				"token": "soil",
+				"library": "potting_soil"
 			}
 		},
 		"light": {
@@ -1384,7 +1399,9 @@
 			],
 			"accents": [
 				"sign-gold",
-				"lamp"
+				"lamp",
+				"alarm",
+				"solar-panel"
 			],
 			"accents_are": "lit window and lamp, gold foil"
 		},
@@ -1428,6 +1445,30 @@
 			"lamp_lens": {
 				"token": "lamp",
 				"library": "lamp_lens"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
+			},
+			"galvanized_steel": {
+				"token": "steel",
+				"library": "galvanized_steel"
+			},
+			"chequer_plate_steel": {
+				"token": "steel",
+				"library": "chequer_plate_steel"
+			},
+			"cable_black": {
+				"token": "rubber",
+				"library": "cable_black"
+			},
+			"mli_silver": {
+				"token": "steel",
+				"library": "mli_silver"
+			},
+			"solar_cell": {
+				"token": "solar-panel",
+				"library": "solar_cell"
 			}
 		},
 		"light": {

@@ -2450,6 +2450,32 @@
 				"v1.174",
 				"v1.339"
 			]
+		},
+		{
+			"id": "bench_lamp",
+			"view": "v1",
+			"box": [
+				460,
+				795,
+				565,
+				875
+			],
+			"name": "an articulated desk lamp clamped to the end of the tool bench",
+			"kind": "generate",
+			"anchor": "on:tool_bench",
+			"size": [
+				0.3,
+				0.22,
+				0.52
+			],
+			"count": 1,
+			"thing": "prop:workshop_desklamp",
+			"parent": "tool_bench",
+			"object": "desklamp",
+			"reuse": "workshop:desklamp",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/workshop.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
 		}
 	]
 }
