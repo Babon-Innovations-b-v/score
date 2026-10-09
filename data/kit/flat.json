@@ -45,7 +45,10 @@
 		"flat_cooking_pot": 1,
 		"flat_plate": 1,
 		"flat_bowl_stack": 1,
-		"flat_sauce_bottle": 3
+		"flat_sauce_bottle": 3,
+		"flat_balcony_fern_pot": 1,
+		"flat_balcony_rubber_plant": 1,
+		"flat_ashtray": 1
 	},
 	"kinds": {
 		"flat_plaster_wall": {
@@ -168,6 +171,15 @@
 			"group": "hangs"
 		},
 		"flat_sauce_bottle": {
+			"group": "hangs"
+		},
+		"flat_balcony_fern_pot": {
+			"group": "hangs"
+		},
+		"flat_balcony_rubber_plant": {
+			"group": "hangs"
+		},
+		"flat_ashtray": {
 			"group": "hangs"
 		}
 	},
@@ -349,6 +361,18 @@
 			"route": "model"
 		},
 		"sauce_bottle_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"balcony_fern_pot_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"balcony_rubber_plant_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"ashtray_1": {
 			"glows": false,
 			"route": "model"
 		}
@@ -1953,6 +1977,96 @@
 			],
 			"layer": 1,
 			"model": "sauce_bottle_1"
+		},
+		{
+			"kind": "flat_balcony_fern_pot",
+			"at": [
+				-4.85,
+				0.02,
+				-5.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.542,
+				0.482,
+				0.55
+			],
+			"layer": 1,
+			"model": "balcony_fern_pot_1"
+		},
+		{
+			"kind": "flat_balcony_rubber_plant",
+			"at": [
+				-4.85,
+				0.02,
+				-1.85
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.368,
+				0.6,
+				0.46
+			],
+			"layer": 1,
+			"model": "balcony_rubber_plant_1"
+		},
+		{
+			"kind": "flat_ashtray",
+			"at": [
+				-3.5,
+				0.02,
+				-5.05
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.047,
+				0.12
+			],
+			"layer": 1,
+			"model": "ashtray_1"
 		}
 	]
 }
