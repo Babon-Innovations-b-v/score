@@ -71,7 +71,8 @@
 			"thing": "prop:habitat_wall_lower_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -94,7 +95,8 @@
 			"thing": "prop:habitat_wall_upper_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_skirting",
@@ -117,7 +119,8 @@
 			"thing": "prop:habitat_wall_skirting",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cornice",
@@ -140,7 +143,8 @@
 			"thing": "prop:habitat_wall_cornice",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -163,7 +167,8 @@
 			"thing": "prop:habitat_ring_floor_plate",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_face_panel",
@@ -186,7 +191,8 @@
 			"thing": "prop:habitat_roof_face_panel",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "hatch_frame",
@@ -324,7 +330,8 @@
 			"thing": "prop:habitat_wall_lower_patched",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "sleep_pod",
@@ -780,7 +787,8 @@
 						0.1
 					]
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_valve",
@@ -814,7 +822,8 @@
 					"across": 1.8,
 					"bottom": 2.16
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "light_ring",
@@ -948,7 +957,8 @@
 					"facing": 270
 				}
 			],
-			"lies": "floor"
+			"lies": "floor",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_bracket",
@@ -971,7 +981,8 @@
 				716,
 				454
 			],
-			"count": 15
+			"count": 15,
+			"repeats": "across the room"
 		},
 		{
 			"id": "pillow",
@@ -1321,7 +1332,8 @@
 					"facing": 180
 				}
 			],
-			"lies": "floor"
+			"lies": "floor",
+			"repeats": "across the room"
 		},
 		{
 			"id": "slippers",
@@ -1388,7 +1400,8 @@
 					"across": 3.82,
 					"bottom": 0.15
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_drop",
@@ -1423,7 +1436,8 @@
 					"across": -1.36,
 					"bottom": 1.3
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "door_control_box",
@@ -1523,7 +1537,8 @@
 					"across": 0.0,
 					"bottom": 1.5
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cage_lamp",
@@ -1612,7 +1627,8 @@
 			"thing": "prop:habitat_wall_upper_cables",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03"
+			"why_code": "concept density (owner, 2026-10-08): an element of the picked concept K03",
+			"repeats": "across the room"
 		},
 		{
 			"id": "storage_case",

@@ -348,7 +348,8 @@
 			"count": 8,
 			"thing": "prop:hub_wall_lower_plain",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_lower_vent",
@@ -371,7 +372,8 @@
 			"thing": "prop:hub_wall_lower_vent",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"sound": "vent_air"
+			"sound": "vent_air",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_lower_patched",
@@ -393,7 +395,8 @@
 			"count": 2,
 			"thing": "prop:hub_wall_lower_patched",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -415,7 +418,8 @@
 			"count": 4,
 			"thing": "prop:hub_wall_upper_plain",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_pipes",
@@ -437,7 +441,8 @@
 			"count": 4,
 			"thing": "prop:hub_wall_upper_pipes",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_cables",
@@ -459,7 +464,8 @@
 			"count": 4,
 			"thing": "prop:hub_wall_upper_cables",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_screen_recess",
@@ -481,7 +487,8 @@
 			"count": 2,
 			"thing": "prop:hub_wall_upper_screen_recess",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_patched",
@@ -503,7 +510,8 @@
 			"count": 2,
 			"thing": "prop:hub_wall_upper_patched",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_corner_post",
@@ -525,7 +533,8 @@
 			"count": 10,
 			"thing": "prop:hub_wall_corner_post",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cornice",
@@ -547,7 +556,8 @@
 			"count": 12,
 			"thing": "prop:hub_wall_cornice",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_skirting",
@@ -569,7 +579,8 @@
 			"count": 7,
 			"thing": "prop:hub_wall_skirting",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "hatch_wall_surround",
@@ -591,7 +602,8 @@
 			"count": 5,
 			"thing": "prop:hub_hatch_wall_surround",
 			"group": "kit: wall",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_face_panel",
@@ -613,7 +625,8 @@
 			"count": 12,
 			"thing": "prop:hub_roof_face_panel",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_hip_rib",
@@ -635,7 +648,8 @@
 			"count": 12,
 			"thing": "prop:hub_lattice_hip_rib",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_ring_rib",
@@ -657,7 +671,8 @@
 			"count": 36,
 			"thing": "prop:hub_lattice_ring_rib",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_diamond_strut",
@@ -679,7 +694,8 @@
 			"count": 48,
 			"thing": "prop:hub_lattice_diamond_strut",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_node_plate",
@@ -701,7 +717,8 @@
 			"count": 36,
 			"thing": "prop:hub_lattice_node_plate",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_apex_hub",
@@ -723,7 +740,8 @@
 			"count": 1,
 			"thing": "prop:hub_roof_apex_hub",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ceiling_cable_tray",
@@ -745,7 +763,8 @@
 			"count": 5,
 			"thing": "prop:hub_ceiling_cable_tray",
 			"group": "kit: ceiling",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ceiling_duct",
@@ -768,7 +787,8 @@
 			"thing": "prop:hub_ceiling_duct",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"sound": "vent_air"
+			"sound": "vent_air",
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_light_fixture",
@@ -813,7 +833,8 @@
 			"count": 12,
 			"thing": "prop:hub_ring_floor_plate",
 			"group": "kit: floor",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "floor_grating",
@@ -835,7 +856,8 @@
 			"count": 6,
 			"thing": "prop:hub_floor_grating",
 			"group": "kit: floor",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "floor_access_hatch",
@@ -857,7 +879,8 @@
 			"count": 3,
 			"thing": "prop:hub_floor_access_hatch",
 			"group": "kit: floor",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "tread_mat",
@@ -917,7 +940,8 @@
 					"facet": 270,
 					"across": 0.0
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pit_wall_panel",
@@ -1428,7 +1452,8 @@
 					"across": 0.009,
 					"fit": "painted"
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_straight",
@@ -1450,7 +1475,8 @@
 			"count": 56,
 			"thing": "prop:hub_pipe_straight",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_elbow",
@@ -1472,7 +1498,8 @@
 			"count": 2,
 			"thing": "prop:hub_pipe_elbow",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_valve",
@@ -1494,7 +1521,8 @@
 			"count": 2,
 			"thing": "prop:hub_pipe_valve",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_bracket",
@@ -1516,7 +1544,8 @@
 			"count": 10,
 			"thing": "prop:hub_pipe_bracket",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_bundle",
@@ -1538,7 +1567,8 @@
 			"count": 12,
 			"thing": "prop:hub_cable_bundle",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_drop",
@@ -1560,7 +1590,8 @@
 			"count": 4,
 			"thing": "prop:hub_cable_drop",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "conduit_box",
@@ -1582,7 +1613,8 @@
 			"count": 6,
 			"thing": "prop:hub_conduit_box",
 			"group": "kit: pipe",
-			"made": "kit piece"
+			"made": "kit piece",
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cage_lamp",

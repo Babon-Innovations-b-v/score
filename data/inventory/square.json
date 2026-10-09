@@ -48,7 +48,8 @@
 			"count": 1,
 			"thing": "kit:square_far_paving",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/paving.png"
+			"close_up": "place-ssl/pics/paving.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_terrace",
@@ -70,7 +71,8 @@
 			"count": 1,
 			"thing": "kit:square_far_terrace",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/terrace.png"
+			"close_up": "place-ssl/pics/terrace.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_road",
@@ -92,7 +94,8 @@
 			"count": 1,
 			"thing": "kit:square_far_road",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/road.png"
+			"close_up": "place-ssl/pics/road.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_promenade",
@@ -114,7 +117,8 @@
 			"count": 1,
 			"thing": "kit:square_far_promenade",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/promenade.png"
+			"close_up": "place-ssl/pics/promenade.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_promenade_rail",
@@ -136,7 +140,8 @@
 			"count": 1,
 			"thing": "kit:square_far_promenade_rail",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/promenade_rail.png"
+			"close_up": "place-ssl/pics/promenade_rail.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_palm",
@@ -422,7 +427,8 @@
 			"count": 1,
 			"thing": "kit:square_bay_balcony_slab",
 			"group": "kit: floor",
-			"close_up": "place-ssl/pics/balcony_slab.png"
+			"close_up": "place-ssl/pics/balcony_slab.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "bay_balcony_rail",
@@ -444,7 +450,8 @@
 			"count": 1,
 			"thing": "kit:square_bay_balcony_rail",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/balcony_rail.png"
+			"close_up": "place-ssl/pics/balcony_rail.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "render_upper",
@@ -466,7 +473,8 @@
 			"count": 1,
 			"thing": "kit:square_wall_upper_render",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_upper.png"
+			"close_up": "place-ssl/pics/render_upper.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_render_upper",
@@ -488,7 +496,8 @@
 			"count": 1,
 			"thing": "kit:square_far_wall_upper_render",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_upper.png"
+			"close_up": "place-ssl/pics/render_upper.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "render_shop",
@@ -510,7 +519,8 @@
 			"count": 1,
 			"thing": "kit:square_wall_lower_shop",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_shop.png"
+			"close_up": "place-ssl/pics/render_shop.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_render_shop",
@@ -532,7 +542,8 @@
 			"count": 1,
 			"thing": "kit:square_far_wall_lower_shop",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_shop.png"
+			"close_up": "place-ssl/pics/render_shop.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "facade_band",
@@ -554,7 +565,8 @@
 			"count": 1,
 			"thing": "kit:square_facade_band",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/facade_band.png"
+			"close_up": "place-ssl/pics/facade_band.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_facade_band",
@@ -576,7 +588,8 @@
 			"count": 1,
 			"thing": "kit:square_far_facade_band",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/facade_band.png"
+			"close_up": "place-ssl/pics/facade_band.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "drainpipe",
@@ -598,7 +611,8 @@
 			"count": 1,
 			"thing": "kit:square_drainpipe",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/drainpipe.png"
+			"close_up": "place-ssl/pics/drainpipe.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_drainpipe",
@@ -620,7 +634,8 @@
 			"count": 1,
 			"thing": "kit:square_far_drainpipe",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/drainpipe.png"
+			"close_up": "place-ssl/pics/drainpipe.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "window_dark",
@@ -642,7 +657,8 @@
 			"count": 1,
 			"thing": "kit:square_window_dark",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window.png"
+			"close_up": "place-ssl/pics/window.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_window_dark",
@@ -664,7 +680,8 @@
 			"count": 1,
 			"thing": "kit:square_far_window_dark",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window.png"
+			"close_up": "place-ssl/pics/window.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "window_lit",
@@ -686,7 +703,8 @@
 			"count": 1,
 			"thing": "kit:square_window_lit",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window.png"
+			"close_up": "place-ssl/pics/window.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_window_lit",
@@ -708,7 +726,8 @@
 			"count": 1,
 			"thing": "kit:square_far_window_lit",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window.png"
+			"close_up": "place-ssl/pics/window.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "ac_unit",
@@ -730,7 +749,8 @@
 			"count": 1,
 			"thing": "kit:square_ac_unit",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/ac_unit.png"
+			"close_up": "place-ssl/pics/ac_unit.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_ac_unit",
@@ -752,7 +772,8 @@
 			"count": 1,
 			"thing": "kit:square_far_ac_unit",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/ac_unit.png"
+			"close_up": "place-ssl/pics/ac_unit.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "window_cage",
@@ -774,7 +795,8 @@
 			"count": 1,
 			"thing": "kit:square_window_cage",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window_cage.png"
+			"close_up": "place-ssl/pics/window_cage.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_window_cage",
@@ -796,7 +818,8 @@
 			"count": 1,
 			"thing": "kit:square_far_window_cage",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/window_cage.png"
+			"close_up": "place-ssl/pics/window_cage.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "shop_shutter",
@@ -818,7 +841,8 @@
 			"count": 1,
 			"thing": "kit:square_shop_shutter",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/shop_shutter.png"
+			"close_up": "place-ssl/pics/shop_shutter.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_shop_shutter",
@@ -840,7 +864,8 @@
 			"count": 1,
 			"thing": "kit:square_far_shop_shutter",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/shop_shutter.png"
+			"close_up": "place-ssl/pics/shop_shutter.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "shop_sign",
@@ -862,7 +887,8 @@
 			"count": 1,
 			"thing": "kit:square_shop_sign",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/shop_sign.png"
+			"close_up": "place-ssl/pics/shop_sign.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_shop_sign",
@@ -884,7 +910,8 @@
 			"count": 1,
 			"thing": "kit:square_far_shop_sign",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/shop_sign.png"
+			"close_up": "place-ssl/pics/shop_sign.png",
+			"repeats": "across the room"
 		},
 		{
 			"id": "far_render_lower",
@@ -906,7 +933,8 @@
 			"count": 1,
 			"thing": "kit:square_far_wall_lower_render",
 			"group": "kit: wall",
-			"close_up": "place-ssl/pics/render_lower.png"
+			"close_up": "place-ssl/pics/render_lower.png",
+			"repeats": "across the room"
 		}
 	]
 }

@@ -101,7 +101,8 @@
 			"thing": "prop:workshop_wall_lower_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -124,7 +125,8 @@
 			"thing": "prop:workshop_wall_upper_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_lower_patched",
@@ -147,7 +149,8 @@
 			"thing": "prop:workshop_wall_lower_patched",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_cables",
@@ -170,7 +173,8 @@
 			"thing": "prop:workshop_wall_upper_cables",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_pipes",
@@ -193,7 +197,8 @@
 			"thing": "prop:workshop_wall_upper_pipes",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_skirting",
@@ -216,7 +221,8 @@
 			"thing": "prop:workshop_wall_skirting",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cornice",
@@ -239,7 +245,8 @@
 			"thing": "prop:workshop_wall_cornice",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -262,7 +269,8 @@
 			"thing": "prop:workshop_ring_floor_plate",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "roof_face_panel",
@@ -285,7 +293,8 @@
 			"thing": "prop:workshop_roof_face_panel",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "hatch_frame",
@@ -423,7 +432,8 @@
 			"thing": "prop:workshop_pipe_bracket",
 			"made": "kit piece",
 			"group": "kit: pipe",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_straight",
@@ -547,7 +557,8 @@
 						0.1
 					]
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_valve",
@@ -596,7 +607,8 @@
 					"across": 2.6,
 					"bottom": 2.4
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "door_strip_lamp",
@@ -743,7 +755,8 @@
 					"facing": 90
 				}
 			],
-			"lies": "floor"
+			"lies": "floor",
+			"repeats": "across the room"
 		},
 		{
 			"id": "intercom_panel",
@@ -822,7 +835,8 @@
 					"across": -1.9,
 					"bottom": 0.8
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "small_readout",
@@ -1386,7 +1400,8 @@
 					"z": 2.3,
 					"facing": 0
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "bay_mark",
@@ -1458,7 +1473,8 @@
 					"z": 3.5,
 					"facing": 180
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pendant_lamp",

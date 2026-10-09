@@ -81,7 +81,8 @@
 			"thing": "prop:greenhouse_wall_lower_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -104,7 +105,8 @@
 			"thing": "prop:greenhouse_wall_upper_plain",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_cables",
@@ -127,7 +129,8 @@
 			"thing": "prop:greenhouse_wall_upper_cables",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_lower_vent",
@@ -150,7 +153,8 @@
 			"thing": "prop:greenhouse_wall_lower_vent",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_skirting",
@@ -173,7 +177,8 @@
 			"thing": "prop:greenhouse_wall_skirting",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_cornice",
@@ -196,7 +201,8 @@
 			"thing": "prop:greenhouse_wall_cornice",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_hip_rib",
@@ -219,7 +225,8 @@
 			"thing": "prop:greenhouse_lattice_hip_rib",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_ring_rib",
@@ -242,7 +249,8 @@
 			"thing": "prop:greenhouse_lattice_ring_rib",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "lattice_node_plate",
@@ -265,7 +273,8 @@
 			"thing": "prop:greenhouse_lattice_node_plate",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -288,7 +297,8 @@
 			"thing": "prop:greenhouse_ring_floor_plate",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "ledge_cover",
@@ -311,7 +321,8 @@
 			"thing": "prop:greenhouse_ledge_cover",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "hatch_frame",
@@ -800,7 +811,8 @@
 						0.1
 					]
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_valve",
@@ -844,7 +856,8 @@
 					"across": 5.5,
 					"bottom": 0.52
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "pipe_bracket",
@@ -868,7 +881,8 @@
 			"made": "kit piece",
 			"group": "kit: pipe",
 			"at": [],
-			"why": "laid by room_kit.py from the room's pipe runs"
+			"why": "laid by room_kit.py from the room's pipe runs",
+			"repeats": "across the room"
 		},
 		{
 			"id": "conduit_box",
@@ -907,7 +921,8 @@
 					"across": 3.0,
 					"bottom": 1.6
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "small_readout",
@@ -999,7 +1014,8 @@
 					"across": 1.4,
 					"bottom": 0.62
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "tread_mat",
@@ -1029,7 +1045,8 @@
 					"facing": 0
 				}
 			],
-			"lies": "floor"
+			"lies": "floor",
+			"repeats": "across the room"
 		},
 		{
 			"id": "grow_light_bar",
@@ -1098,7 +1115,8 @@
 			"thing": "prop:greenhouse_rig_rail",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "rig_hanger",
@@ -1121,7 +1139,8 @@
 			"thing": "prop:greenhouse_rig_hanger",
 			"made": "kit piece",
 			"group": "kit: ceiling",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "irrigation_boom",
@@ -1144,7 +1163,8 @@
 			"thing": "prop:greenhouse_irrigation_boom",
 			"made": "kit piece",
 			"group": "kit: pipe",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "water_tank",
@@ -1398,7 +1418,8 @@
 			"thing": "prop:greenhouse_dock_pad_one",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "dock_pad_two",
@@ -1421,7 +1442,8 @@
 			"thing": "prop:greenhouse_dock_pad_two",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "dock_pad_three",
@@ -1444,7 +1466,8 @@
 			"thing": "prop:greenhouse_dock_pad_three",
 			"made": "kit piece",
 			"group": "kit: floor",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "charge_post",
@@ -1664,7 +1687,8 @@
 						0.08
 					]
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "cable_drop",
@@ -1698,7 +1722,8 @@
 						0.08
 					]
 				}
-			]
+			],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_lower_patched",
@@ -1721,7 +1746,8 @@
 			"thing": "prop:greenhouse_wall_lower_patched",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "wall_upper_patched",
@@ -1744,7 +1770,8 @@
 			"thing": "prop:greenhouse_wall_upper_patched",
 			"made": "kit piece",
 			"group": "kit: wall",
-			"at": []
+			"at": [],
+			"repeats": "across the room"
 		},
 		{
 			"id": "waste_bin",
@@ -1809,7 +1836,8 @@
 					"facing": 0
 				}
 			],
-			"lies": "floor"
+			"lies": "floor",
+			"repeats": "across the room"
 		},
 		{
 			"id": "under_floor_box",
@@ -1833,7 +1861,8 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"why": "laid by room_kit.py under every set-in grating"
+			"why": "laid by room_kit.py under every set-in grating",
+			"repeats": "across the room"
 		},
 		{
 			"id": "keyboard",

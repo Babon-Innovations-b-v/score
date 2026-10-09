@@ -9,8 +9,8 @@ A scene inventory is the concept partitioned: every row's box is where its thing
 parts, the measured ones first and the judge only where they cannot tell:
 
   measured  plain Python on each view's picture: every box lies inside it; a box over WHOLE of the picture marks
-            nothing and is allowed only for the room kit's pieces that run round the whole room (ROOM_WIDE: its
-            walls, floor, ceiling and pipe runs); the boxes cover at least COVER_PER_ROW of the picture for each
+            nothing and always fails (a row that repeats round the room, a wall panel or a pipe run, boxes one clear
+            example and says so in `repeats`, the coordinator's rule of 2026-10-09); the boxes cover at least COVER_PER_ROW of the picture for each
             row, up to COVER_ENOUGH (from COVER_FROM boxes on); and they are not all in one corner (no more than
             FULLEST_QUADRANT of the covered area in one quarter of the picture, and spread over at least SPREAD of
             its width or of its height).
@@ -46,8 +46,8 @@ from paths import WORK  # noqa: E402
 
 # A box over this share of its picture marks no place in it.
 WHOLE = 0.8
-# The kit groups whose pieces run round the whole room, so the whole picture is their box. A kit's furniture,
-# screens, lamps and doors are single things, boxed like any other row.
+# The kit groups whose pieces repeat round the whole room: each such row boxes one clear example and carries
+# `"repeats": "across the room"`.
 ROOM_WIDE = ("kit: wall", "kit: floor", "kit: ceiling", "kit: pipe")
 # The share of the picture a view's boxes should cover for each row boxed on it, and the cover that is always enough
 # (a picture with many rows is not expected to be covered whole). Set on the 17 world-1 places, 2026-10-09: the
@@ -107,9 +107,9 @@ def box_problems(row, size):
     found = []
     if not (0 <= box[0] < box[2] <= wide and 0 <= box[1] < box[3] <= tall):
         found.append(f"row {row['id']}: its box {box} is not inside the picture ({wide} x {tall})")
-    if is_whole(box, size) and row.get("group") not in ROOM_WIDE:
-        found.append(f"row {row['id']}: its box is the whole picture, which marks nothing; box the thing, or mark "
-                     "the row unseen with why")
+    if is_whole(box, size):
+        found.append(f"row {row['id']}: its box is the whole picture, which marks nothing; box the thing (one clear "
+                     "example of a row that repeats), or mark the row unseen with why")
     return found
 
 
@@ -287,15 +287,24 @@ def verdicts(jobs, answers):
 def noun(name):
     """The short name SAM 3 is asked for: a row's words up to their first colon, comma, bracket or qualifying
     phrase ("stainless galley counter: worktop with hob" asks for "stainless galley counter")."""
-    short = re.split(r"[:,(;]| with | on a | on its | in a | for | from ", name, maxsplit=1)[0].strip()
-    return re.sub(r"^(a|an|the|one|two|three) ", "", short, flags=re.I)
+    short = re.split(r"[:,(;]| with | on a | on its | in a | for | from | of | over | beside | by ", name,
+                     maxsplit=1)[0].strip()
+    return re.sub(r"^(a|an|the|one|two|three|four|six) ", "", short, flags=re.I)
+
+
+def nouns(name):
+    """The words SAM 3 is asked for a row: its short name and, when that is longer, its last word alone (SAM 3 finds
+    "panel" where it finds nothing for "plain lower wall panel")."""
+    short = noun(name)
+    head = short.split()[-1] if short.split() else short
+    return [short] if head == short else [short, head]
 
 
 def mask_jobs(scene, found, sizes):
-    """box_masks.py's jobs for one inventory: each view's picture with its judged rows' nouns and boxes."""
+    """box_masks.py's jobs for one inventory: each view's picture with its judged rows' words and boxes."""
     views = {view["id"]: picture_path(view["picture"]) for view in found["plan"]["views"]}
-    rows = judge_rows(found, sizes)
-    return [{"picture": str(views[view]), "rows": [{"key": f"{scene}.{row['id']}", "noun": noun(row["name"]),
+    rows = [row for view, size in sizes.items() if size for row in boxed_rows(found, view)]
+    return [{"picture": str(views[view]), "rows": [{"key": f"{scene}.{row['id']}", "nouns": nouns(row["name"]),
                                                     "box": row["box"]} for row in rows if row["view"] == view]}
             for view in views if any(row["view"] == view for row in rows)]
 
@@ -387,12 +396,12 @@ def mask_all(scenes, folder, dry_run):
 
 
 def tighten(scene, found, grounded):
-    """Each loose box of an inventory set to the SAM 3 instance inside it (the thing the row names, measured), except
-    the room-wide kit pieces, whose box is rightly wider than one piece; the rows changed."""
+    """Each loose box of an inventory set to the SAM 3 instance inside it (the thing the row names, measured; for a
+    row that repeats, one clear example of it); the rows changed."""
     changed = []
     for row in found["rows"]:
         result = grounded.get(f"{scene}.{row['id']}", {})
-        if result.get("grounding") == "loose" and row.get("group") not in ROOM_WIDE:
+        if result.get("grounding") == "loose":
             row["box"] = list(result["found_at"])
             changed.append(row["id"])
     return changed
