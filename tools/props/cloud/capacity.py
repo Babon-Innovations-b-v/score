@@ -50,6 +50,8 @@ KINDS = {
     "pixal": ("gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-24gb-x2", "gpu-80gb-x2"),
     "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
     "parts": SINGLE_CARD,
+    # SAM 2.1's automatic mask generator on clean close-ups (segment.py): 0.9 GB of weights, any card.
+    "segment": SINGLE_CARD,
     "scene": SINGLE_CARD,
     "closeups": SINGLE_CARD,
     "unlit": SINGLE_CARD,

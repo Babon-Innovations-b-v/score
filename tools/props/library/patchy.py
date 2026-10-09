@@ -226,6 +226,9 @@ def baked_model(path, place, names):
     distances = np.stack([np.min(np.linalg.norm(colours[:, None, :] - palette[None], axis=2), axis=1)
                           for palette in palettes], axis=1)
     mesh = trimesh.Trimesh(geometry.vertices, geometry.faces, process=True)
+    # A black face one of the materials bakes to (a screen that is off is ink black) is that material, not unbaked:
+    # the CRT television's screen read 15% unbaked (job repaint, 2026-10-08).
+    unbaked &= distances.min(1) > WORN_REACH
     return mesh, worn_as_around(mesh, distances), unbaked
 
 

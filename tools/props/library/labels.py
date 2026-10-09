@@ -49,6 +49,7 @@ import glb_file  # noqa: E402
 import library  # noqa: E402
 import part_judge  # noqa: E402
 import patchy  # noqa: E402
+import regions  # noqa: E402
 import register  # noqa: E402
 import stored_parts  # noqa: E402
 from paths import REPO, WORK  # noqa: E402
@@ -159,10 +160,15 @@ def picture_view(mesh, take):
     return picture, seen & (rgba[row, column, 3] > 0.5), row, column
 
 
+def picture_lab(picture):
+    """The picture's colours in Lab, median-filtered over 5 pixels (a speck or a scratch is not a colour)."""
+    return lab(median_filter(np.asarray(picture, dtype=np.float64)[..., :3] / 255, size=(5, 5, 1)))
+
+
 def face_colours(mesh, view):
     """Each seen face's colour in the picture (picture_view), in Lab (NaN where the camera does not see it)."""
     picture, seen, row, column = view
-    colours = lab(median_filter(np.asarray(picture, dtype=np.float64)[..., :3] / 255, size=(5, 5, 1)))
+    colours = picture_lab(picture)
     found = np.full((len(mesh.faces), 3), np.nan)
     found[seen] = colours[row[seen], column[seen]]
     return found
@@ -427,6 +433,35 @@ def with_finishes(mesh, colours, part_paint, anchors):
     return without_crumbs(mesh, painted)
 
 
+def region_materials(centres, judged, materials):
+    """Each region's material index: the judge's (part_judge.judged), else the allowed material nearest its colour."""
+    names, anchors = anchors_of(materials)
+    return np.array([names.index(judged[region][0]) if region in judged
+                     else int(np.argmin([weighted(centre, anchor) for anchor in anchors]))
+                     for region, centre in enumerate(centres)])
+
+
+def painted_by_regions(mesh, view, pixel_regions, region_paint, part_of):
+    """Each face's material from the picture's regions: a seen face the material of the region under it; an unseen face
+    that of the nearest seen face of its own part (the part splitter's boundary hint), of any part when its part has
+    none seen; then smoothed over the surface and without crumbs."""
+    _, seen, row, column = view
+    face_region = np.full(len(mesh.faces), -1)
+    face_region[seen] = pixel_regions[row[seen], column[seen]]
+    known = face_region >= 0
+    painted = np.full(len(mesh.faces), -1)
+    painted[known] = region_paint[face_region[known]]
+    middles = mesh.triangles_center
+    for part in np.unique(part_of):
+        members = part_of == part
+        source = members & known if (members & known).any() else known
+        missing = members & ~known
+        if missing.any():
+            painted[missing] = painted[source][cKDTree(middles[source]).query(middles[missing])[1]]
+    scores = np.eye(int(painted.max()) + 1)[painted]
+    return without_crumbs(mesh, smoothed_parts(scores, neighbour_matrix(mesh)))
+
+
 def photo_palettes(place, names):
     """Every colour each material bakes to (patchy.material_colours), its lightness drawn into a studio picture's
     range as anchors_of does, so a picture's colours can be held against it."""
@@ -516,6 +551,8 @@ def main():
     parser.add_argument("--ask", type=pathlib.Path, help="write each seen part's outlined picture and question here "
                         "(part_judge.py), for ../cloud/judge.py")
     parser.add_argument("--answers", type=pathlib.Path, help="the judge's answers: each part takes the material named")
+    parser.add_argument("--regions", type=pathlib.Path, help="the close-up's SAM 2.1 masks (../cloud/segment.py): "
+                        "paint by the picture's regions (regions.py), the parts kept for moving pieces and as a hint")
     arguments = parser.parse_args()
     arguments.out.mkdir(parents=True, exist_ok=True)
     for old in list(arguments.out.glob("*.ply")) + list(arguments.out.glob("parts/*.ply")):
@@ -542,16 +579,10 @@ def main():
     else:
         part_of = np.zeros(len(mesh.faces), dtype=int)
         report.update(way="whole")
-    count = int(part_of.max()) + 1
-    if arguments.ask:
-        seen_parts = [part for part in range(count) if ((part_of == part) & view[1]).sum() >= SEEN_LEAST]
-        pixels = part_judge.part_pixels(part_of, view[1], view[2], view[3], np.asarray(view[0]).shape[:2])
-        report["asked"] = part_judge.write_questions(arguments.ask, arguments.take, view[0], pixels, seen_parts,
-                                                     arguments.object or arguments.kind, list(materials))
-    judged = part_judge.judged(arguments.answers, arguments.take, count, list(materials)) if arguments.answers else {}
-    report["judged_parts"] = len(judged)
-    chosen, about, names = paint_parts(mesh, colours, part_of, materials, judged)
-    painted = with_finishes(mesh, colours, chosen[part_of], anchors_of(materials)[1])
+    if arguments.regions:
+        painted, names = paint_by_regions(arguments, mesh, view, part_of, materials, report)
+    else:
+        painted, names = paint_by_parts(arguments, mesh, view, colours, part_of, materials, report)
     report["stripped"] = patchy.stripped(colours, painted, photo_palettes(arguments.place, names), names)
     order = sorted({names[index] for index in np.unique(painted)})
     labels = np.array([order.index(name) if name in order else -1 for name in names])[painted]
@@ -559,16 +590,52 @@ def main():
     mesh.apply_transform(matrix)
     report["shares"], inside = write_parts(mesh, labels, order, part_of, final.bounds, arguments.out)
     report["faces_kept"] = int(inside.sum())
-    areas = mesh.area_faces
-    for part, entry in enumerate(about):
-        entry["share"] = round(float(areas[inside & (part_of == part)].sum() / areas[inside].sum()), 3)
-    report["parts"] = about
     kept, kept_labels, _, kept_parts = patchy.labelled_parts(arguments.out)
     report["patchy"] = patchy.score(kept, kept_labels, kept_parts)
     (arguments.out / "labels.json").write_text(json.dumps(report, indent=1))
     stored_parts.write(arguments.out, arguments.take)
     print(json.dumps({key: report[key] for key in ("take", "way", "shares", "patchy") + (
         ("registration",) if "registration" in report else ())}))
+
+
+def paint_by_regions(arguments, mesh, view, part_of, materials, report):
+    """Each face's material from the close-up's regions (regions.py), judged region by region; (painted, names)."""
+    picture = view[0]
+    inside = np.asarray(picture)[..., 3] > 127
+    pixel_regions = regions.region_map(regions.masks_of(arguments.regions), inside)
+    centres = regions.medians(pixel_regions, picture_lab(picture))
+    if arguments.ask:
+        report["asked"] = part_judge.write_questions(arguments.ask, arguments.take, picture, pixel_regions,
+                                                     list(range(len(centres))), arguments.object or arguments.kind,
+                                                     materials)
+    judged = part_judge.judged(arguments.answers, arguments.take, len(centres), list(materials)) \
+        if arguments.answers else {}
+    region_paint = region_materials(centres, judged, materials)
+    names = list(materials)
+    painted_regions = [{"material": names[region_paint[number]], "judged": judged.get(number, (None, None))[1],
+                        "share": round(float((pixel_regions == number).sum() / inside.sum()), 3)}
+                       for number in range(len(centres))]
+    report.update(way=report["way"] + ", painted by the picture's regions", regions=painted_regions,
+                  judged_parts=len(judged))
+    return painted_by_regions(mesh, view, pixel_regions, region_paint, part_of), names
+
+
+def paint_by_parts(arguments, mesh, view, colours, part_of, materials, report):
+    """Each face's material from its part (paint_parts) and the finishes the picture shows on it; (painted, names)."""
+    count = int(part_of.max()) + 1
+    if arguments.ask:
+        seen_parts = [part for part in range(count) if ((part_of == part) & view[1]).sum() >= SEEN_LEAST]
+        pixels = part_judge.part_pixels(part_of, view[1], view[2], view[3], np.asarray(view[0]).shape[:2])
+        report["asked"] = part_judge.write_questions(arguments.ask, arguments.take, view[0], pixels, seen_parts,
+                                                     arguments.object or arguments.kind, materials)
+    judged = part_judge.judged(arguments.answers, arguments.take, count, list(materials)) if arguments.answers else {}
+    report["judged_parts"] = len(judged)
+    chosen, about, names = paint_parts(mesh, colours, part_of, materials, judged)
+    areas = mesh.area_faces
+    for part, entry in enumerate(about):
+        entry["share"] = round(float(areas[part_of == part].sum() / areas.sum()), 3)
+    report["parts"] = about
+    return with_finishes(mesh, colours, chosen[part_of], anchors_of(materials)[1]), names
 
 
 if __name__ == "__main__":
