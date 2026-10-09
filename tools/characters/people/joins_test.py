@@ -38,15 +38,17 @@ def tube(radius, start, end, rings=40, around=24, axis=0):
 def test_a_sleeve_past_the_hand_overlaps_by_the_difference():
     sleeve, _ = tube(0.05, 0.0, 0.26)
     hand, _ = tube(0.03, 0.24, 0.34)
-    got = joins.overlap(sleeve, hand, np.zeros(3), np.array([0.25, 0.0, 0.0]))
+    got, gap = joins.measure_join(sleeve, hand, np.zeros(3), np.array([0.25, 0.0, 0.0]))
     assert abs(got - 0.02) < 0.004, got
+    assert gap < 0.025, gap
 
 
 def test_a_sleeve_short_of_the_hand_is_a_gap():
     sleeve, _ = tube(0.05, 0.0, 0.20)
     hand, _ = tube(0.03, 0.24, 0.34)
-    got = joins.overlap(sleeve, hand, np.zeros(3), np.array([0.25, 0.0, 0.0]))
+    got, gap = joins.measure_join(sleeve, hand, np.zeros(3), np.array([0.25, 0.0, 0.0]))
     assert abs(got + 0.04) < 0.004, got
+    assert gap > 0.04, gap
 
 
 def test_a_slanted_cuff_is_judged_on_its_short_side():
@@ -54,15 +56,10 @@ def test_a_slanted_cuff_is_judged_on_its_short_side():
     # Cut the cuff on a slant: one side reaches 0.30, the far side only 0.20.
     keep = sleeve[:, 0] <= 0.25 + 0.05 * sleeve[:, 1] / 0.05
     hand, _ = tube(0.03, 0.24, 0.34)
-    got = joins.overlap(sleeve[keep], hand, np.zeros(3), np.array([0.25, 0.0, 0.0]))
-    assert got < -0.02, got
-
-
-def test_the_rim_of_an_open_tube_is_its_two_ends():
-    points, faces = tube(0.03, 0.0, 0.1, rings=5)
-    rim = joins.on_the_rim(points, faces)
-    assert rim.sum() == 2 * 24
-    assert set(np.round(points[rim, 0], 3)) == {0.0, 0.1}
+    got, gap = joins.measure_join(sleeve[keep], hand, np.zeros(3), np.array([0.25, 0.0, 0.0]))
+    # It reaches past the hand on one side, so only the opening shows the bare side.
+    assert got > 0.0, got
+    assert gap > 0.04, gap
 
 
 def joint_frames(places):
@@ -82,10 +79,23 @@ def test_the_stance_is_ankles_across_over_hips_across():
 
 
 def test_the_verdict_holds_each_measure_to_its_range():
-    record = {"outfits": {"work": {"standing": {"wrist_Left": 0.02, "ankle_Left": -0.01}}},
+    record = {"outfits": {"work": {"standing": {"wrist_Left": 0.02, "wrist_Left_opening": 0.02,
+                                                "ankle_Left": -0.01, "ankle_Left_opening": 0.02}}},
               "stance": {"mean": 2.1}}
     found = joins.verdict(record)
     assert found["wrist"]["pass"] and not found["ankle"]["pass"] and not found["stance"]["pass"]
+
+
+def test_a_hand_pressed_into_other_clothes_is_hidden():
+    hand = np.array([[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]])
+    cover = np.array([[0.51, 0.0, 0.0]])
+    assert np.array_equal(joins.unburied(hand, cover), hand[:1])
+
+
+def test_cloth_is_measured_over_its_triangles():
+    points = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    samples = joins.surface_samples(points, np.array([[0, 1, 2]]))
+    assert len(samples) == 15 and np.allclose(samples.mean(axis=0), points.mean(axis=0))
 
 
 def upright_boot(top):

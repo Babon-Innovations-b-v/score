@@ -1,4 +1,4 @@
-"""Measures a built body file at its joins and its stance, in every frame of every clip: numpy only, no judgement.
+"""Measures a built body file at its joins and its stance, in every frame of every clip: no judgement.
 
     .venv/bin/python tools/characters/people/joins.py BODY.glb [BODY.glb ...] --out DIR [--record-only]
 
@@ -9,11 +9,14 @@ records in out/checks/.
 end piece (a hand, a mitt, a glove, a boot, a shoe) does not reach into the clothes next to it the background shows
 through (owner, 2026-10-09: "their hands aren't attached to their forearms"; the boots float under the trousers).
 For each side, each outfit and each frame, a wrist is measured along the forearm (the forearm joint to the hand
-joint) and an ankle down the shin (the shin joint to the foot joint): how far the sleeve reaches past where the hand
-begins, and how far the trouser leg reaches past where the boot begins (its top). A negative overlap is a gap one
-sees through. The hand begins at its open rim (the body's own hand, cut at the wrist), the boot at its top; the sleeve or the trouser leg ends at
-its furthest, both measured in each wedge round the limb, since a slanted cuff or hem leaves a gap on one side
-only, and the worst wedge is the join's number.
+joint) and an ankle down the shin (the shin joint to the foot joint), two ways. The overlap: how far the sleeve
+reaches past where the hand begins, or the trouser leg past where the boot begins (its top); negative is a gap one
+sees through. The opening: how far the hand's or boot's open end (its first START_BAND metres) lies from the sleeve
+or trouser leg at its worst point, which shows a cuff or hem cut on a slant. Only the overlap is judged: loose
+cloth stands 5 to 15 cm off a wrist or a boot in joins the renders show closed (the space suits; a crouch), so the
+opening is recorded for a reader and never passes or fails a body. The clothes are measured over their
+triangles, not only their corners; a hand or boot point pressed into the body's or another limb's clothes (folded
+arms, a hand on the thigh) is hidden there and not counted.
 
 **The stance.** In the standing clip, the spacing of the two ankles (the foot joints) across the hips over the
 spacing of the two hip joints (the thigh joints). McIlroy and Maki (1997, "Preferred placement of the feet during
@@ -32,6 +35,7 @@ import struct
 import sys
 
 import numpy as np
+from scipy.spatial import cKDTree
 
 _COMPONENTS = {5120: np.int8, 5121: np.uint8, 5122: np.int16, 5123: np.uint16, 5125: np.uint32, 5126: np.float32}
 _WIDTH = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
@@ -47,9 +51,12 @@ ARM = ("ForeArm", "Hand")
 LEG = ("Shin", "Foot", "ToeBase")
 # How far from the limb's line a point of the clothes may be and still count as the sleeve or the trouser leg.
 REACH = 0.15
-# The wedges round a limb each measured on its own, round the middle of the inner piece's first BEGINNING metres.
-BINS = 12
-BEGINNING = 0.03
+# A hand or a boot's open end: its first START_BAND metres along the limb.
+START_BAND = 0.05
+# The grid of points laid over each triangle of a sleeve or a trouser leg, this many a side.
+SAMPLES_A_SIDE = 4
+# A hand or boot point this close to the clothes of the body or another limb is hidden by them.
+BURIED = 0.02
 # The least a sleeve must reach past the hand, and a boot past the trouser leg, so nothing is seen between them from
 # any side: a sleeve or a hem stands a centimetre or two off the arm or the boot.
 LEAST_OVERLAP = 0.01
@@ -168,7 +175,7 @@ def skinned(points, joints, weights, joint_worlds, inverse_bind):
 
 class Part:
     """One drawn surface of an outfit: its name, points, each point's four joints and weights (skin indices), its
-    strongest joint, and which points lie on its open rim."""
+    strongest joint, and its triangles."""
 
     def __init__(self, name, points, joints, weights, faces):
         self.name = name
@@ -176,20 +183,7 @@ class Part:
         self.joints = joints.astype(int)
         self.weights = weights
         self.strongest = joints[np.arange(len(joints)), weights.argmax(axis=1)].astype(int)
-        self.rim = on_the_rim(points, faces)
-
-
-def on_the_rim(points, faces):
-    """Which points lie on an edge only one triangle has: the open rim of a hand or a boot. Points at one place are
-    taken as one first, since a painted part is split along its picture's seams."""
-    _, welded = np.unique(np.round(points, 5), axis=0, return_inverse=True)
-    welded = welded.ravel()[faces]
-    edges = np.sort(np.concatenate([welded[:, [0, 1]], welded[:, [1, 2]], welded[:, [2, 0]]]), axis=1)
-    unique, counts = np.unique(edges, axis=0, return_counts=True)
-    open_places = np.zeros(welded.max() + 1, bool)
-    open_places[unique[counts == 1].ravel()] = True
-    _, place_of = np.unique(np.round(points, 5), axis=0, return_inverse=True)
-    return open_places[place_of.ravel()]
+        self.faces = faces
 
 
 def outfits(document, blob):
@@ -247,36 +241,33 @@ def along(points, start, end, reach):
     return distance, off_the_line < reach
 
 
-def overlap(outer_points, inner_points, start, end, reach=REACH, bins=BINS):
-    """How far the outer piece (a sleeve, a trouser leg) reaches past where the inner piece (a hand, a boot) begins,
-    along the limb from `start` to `end`, on the worst side round it: positive when they overlap, negative a gap; NaN
-    when either is not there. The limb is cut into `bins` wedges round a line along it through the middle of where
-    the inner piece begins, and each wedge is measured on its own, since a slanted cuff or hem leaves a gap on one
-    side only."""
-    axis = (end - start) / np.linalg.norm(end - start)
-    inner, near_inner = along(inner_points, start, end, reach)
-    if not near_inner.any() or not len(outer_points):
+def start_of(inner_points, start, end, reach=REACH):
+    """Where the inner piece (a hand, a boot) begins along the limb from `start` to `end`, and its points within
+    START_BAND of that: its open end, never its fingers or its toe."""
+    inner, near = along(inner_points, start, end, reach)
+    if not near.any():
+        return float("nan"), np.zeros((0, 3))
+    begins = float(inner[near].min())
+    return begins, inner_points[near & (inner < begins + START_BAND)]
+
+
+def overlap(outer_points, begins, start, end, reach=REACH):
+    """How far the outer piece (a sleeve, a trouser leg) reaches along the limb past `begins`, where the inner piece
+    begins: positive when they overlap, negative a gap."""
+    outer, near = along(outer_points, start, end, reach)
+    if not near.any() or np.isnan(begins):
         return float("nan")
-    begins = near_inner & (inner < inner[near_inner].min() + BEGINNING)
-    centre = inner_points[begins].mean(axis=0)
-    across = np.cross(axis, [0.0, 1.0, 0.0] if abs(axis[1]) < 0.9 else [1.0, 0.0, 0.0])
-    across /= np.linalg.norm(across)
-    third = np.cross(axis, across)
+    return float(outer[near].max() - begins)
 
-    def wedges(points):
-        distance, near = along(points, centre, centre + axis, reach)
-        offset = points - centre
-        wedge = ((np.arctan2(offset @ third, offset @ across) + np.pi) / (2 * np.pi) * bins).astype(int) % bins
-        return distance[near], wedge[near]
 
-    outer, outer_wedge = wedges(outer_points)
-    inner, inner_wedge = wedges(inner_points)
-    worst = float("inf")
-    for wedge in range(bins):
-        mine, theirs = outer_wedge == wedge, inner_wedge == wedge
-        if mine.any() and theirs.any():
-            worst = min(worst, outer[mine].max() - inner[theirs].min())
-    return float(worst) if np.isfinite(worst) else float("nan")
+def opening(outer_points, inner_end, covered):
+    """How far the inner piece's open end lies from the outer piece at its worst point, over the part of it the outer
+    piece reaches past (`covered`; all of it where it reaches past none): a cuff or a hem cut on a slant reaches past
+    the hand or the boot on one side and leaves it bare on the other."""
+    if not len(inner_end) or not len(outer_points):
+        return float("nan")
+    distance, _ = cKDTree(outer_points).query(inner_end[covered] if covered.any() else inner_end)
+    return float(distance.max())
 
 
 def stance_ratio(joint_worlds, joint_names):
@@ -289,30 +280,83 @@ def stance_ratio(joint_worlds, joint_names):
     return abs(float(ankles @ hips)) / hip_spacing / hip_spacing
 
 
-def gather(part_points, chosen, rim=False):
-    """The chosen points of each (part, which) pair, skinned already in `part_points`, as one array; with `rim`, only
-    those on the part's open rim where it has one."""
-    pieces = [part_points[id(part)][which & part.rim if rim and (which & part.rim).any() else which]
-              for part, which in chosen]
+def surface_samples(points, faces):
+    """Points spread over each triangle (a grid of SAMPLES_A_SIDE a side), so a thinned cloth's few large triangles
+    at a cuff are measured where they are, not only at their corners."""
+    steps = SAMPLES_A_SIDE
+    shares = np.array([(first, second, steps - first - second) for first in range(steps + 1)
+                       for second in range(steps + 1 - first)], float) / steps
+    return np.einsum("sc,fcd->fsd", shares, points[faces]).reshape(-1, 3)
+
+
+def gather(part_points, chosen, surface=False):
+    """The chosen points of each (part, which) pair, skinned already in `part_points`, as one array; with `surface`,
+    points over the triangles all of whose corners are chosen as well."""
+    pieces = []
+    for part, which in chosen:
+        moved = part_points[id(part)]
+        pieces.append(moved[which])
+        if surface:
+            pieces.append(surface_samples(moved, part.faces[which[part.faces].all(axis=1)]))
     return np.concatenate(pieces) if pieces else np.zeros((0, 3))
 
 
+def elsewhere(parts, part_points, side, chain, joint_names):
+    """The clothes' points not on the side's limb `chain`: the body and the other limbs, which can hide a join."""
+    mine = {joint_names.index(side + joint) for joint in chain if side + joint in joint_names}
+    pieces = [part_points[id(part)][~np.isin(part.strongest, list(mine))]
+              for part in parts if part.name in SLEEVES + TROUSERS]
+    return np.concatenate(pieces) if pieces else np.zeros((0, 3))
+
+
+def unburied(points, cover, within=BURIED):
+    """The points not within `within` of any of `cover`'s: a hand tucked under the other arm (folded arms) or pressed
+    into the chest shows no gap, wherever its own sleeve ends."""
+    if not len(points) or not len(cover):
+        return points
+    low, high = points.min(axis=0) - within, points.max(axis=0) + within
+    cover = cover[((cover >= low) & (cover <= high)).all(axis=1)]
+    if not len(cover):
+        return points
+    nearest, _ = cKDTree(cover).query(points, distance_upper_bound=within)
+    return points[~np.isfinite(nearest)]
+
+
+def measure_join(outer, inner, start, end):
+    """One join's (overlap, opening), NaN for both where either piece is missing."""
+    if not len(outer) or not len(inner):
+        return float("nan"), float("nan")
+    begins, inner_end = start_of(inner, start, end)
+    reaches = overlap(outer, begins, start, end)
+    covered = along(inner_end, start, end, np.inf)[0] <= begins + reaches
+    return reaches, opening(outer, inner_end, covered)
+
+
 def joins_of_a_frame(parts, part_points, joint_places, joint_names):
-    """One frame's overlaps, {"wrist_Left": m, "wrist_Right": m, "ankle_Left": m, "ankle_Right": m}, NaN where the
+    """One frame's joins, {"wrist_Left": overlap, "wrist_Left_opening": opening, ... ankle_Right ...}, NaN where the
     outfit has no such pieces."""
     found = {}
     for side in ("Left", "Right"):
         place = {name: joint_places[joint_names.index(side + name)] for name in ("ForeArm", "Hand", "Shin", "Foot")}
-        hand = gather(part_points, points_of(parts, HANDS, side, ARM, joint_names), rim=True)
-        sleeve = gather(part_points, points_of(parts, SLEEVES, side, ARM, joint_names))
-        found[f"wrist_{side}"] = (overlap(sleeve, hand, place["ForeArm"], place["Hand"])
-                                  if len(hand) and len(sleeve) else float("nan"))
-        boot = gather(part_points, points_of(parts, BOOTS, side, LEG, joint_names))
-        trousers = gather(part_points, points_of(parts, TROUSERS, side, LEG, joint_names))
+        hand = unburied(gather(part_points, points_of(parts, HANDS, side, ARM, joint_names)),
+                        elsewhere(parts, part_points, side, ARM, joint_names))
+        sleeve = gather(part_points, points_of(parts, SLEEVES, side, ARM, joint_names), surface=True)
+        found[f"wrist_{side}"], found[f"wrist_{side}_opening"] = measure_join(sleeve, hand, place["ForeArm"],
+                                                                              place["Hand"])
+        boot = unburied(gather(part_points, points_of(parts, BOOTS, side, LEG, joint_names)),
+                        elsewhere(parts, part_points, side, LEG, joint_names))
+        trousers = gather(part_points, points_of(parts, TROUSERS, side, LEG, joint_names), surface=True)
         # Down the shin the trouser leg is the outer piece, reaching past where the boot begins (its top).
-        found[f"ankle_{side}"] = (overlap(trousers, boot, place["Shin"], place["Foot"])
-                                  if len(boot) and len(trousers) else float("nan"))
+        found[f"ankle_{side}"], found[f"ankle_{side}_opening"] = measure_join(trousers, boot, place["Shin"],
+                                                                              place["Foot"])
     return found
+
+
+def worse(join, old, new):
+    """The worse of two values of a join: the smaller overlap, the larger opening."""
+    if old is None:
+        return new
+    return max(old, new) if join.endswith("_opening") else min(old, new)
 
 
 def measure_body(path):
@@ -343,7 +387,7 @@ def measure_body(path):
                                for part in parts if part.name in AT_A_JOIN}
                 for join, value in joins_of_a_frame(parts, part_points, joint_places, joint_names).items():
                     if not np.isnan(value):
-                        worst[outfit][join] = min(worst[outfit].get(join, value), value)
+                        worst[outfit][join] = worse(join, worst[outfit].get(join), value)
         for outfit in dressed:
             record["outfits"][outfit][animation["name"]] = {join: round(value, 4)
                                                             for join, value in sorted(worst[outfit].items())}
@@ -354,17 +398,20 @@ def measure_body(path):
 
 
 def verdict(record):
-    """The record's worst wrist and ankle over every outfit and clip, and whether each and the stance pass."""
-    worst = {"wrist": float("inf"), "ankle": float("inf")}
+    """The record's worst wrist and ankle over every outfit and clip (the least overlap, the widest opening), whether
+    each overlap and the stance pass."""
+    worst = {}
     for clips in record["outfits"].values():
         for joins in clips.values():
             for join, value in joins.items():
-                kind = join.split("_")[0]
-                worst[kind] = min(worst[kind], value)
+                kind = join.split("_")[0] + ("Opening" if join.endswith("_opening") else "Overlap")
+                worst[kind] = worse(join, worst.get(kind), value)
     found = {}
-    for kind, value in worst.items():
-        found[kind] = None if value == float("inf") else {"worstOverlapMetres": round(value, 4),
-                                                           "pass": value >= LEAST_OVERLAP}
+    for kind in ("wrist", "ankle"):
+        overlap_value, opening_value = worst.get(kind + "Overlap"), worst.get(kind + "Opening")
+        found[kind] = None if overlap_value is None else {
+            "worstOverlapMetres": round(overlap_value, 4), "worstOpeningMetres": round(opening_value, 4),
+            "pass": overlap_value >= LEAST_OVERLAP}
     stance = record["stance"]
     found["stance"] = None if stance is None else {
         "ratio": stance["mean"], "pass": RELAXED_STANCE[0] <= stance["mean"] <= RELAXED_STANCE[1]}
