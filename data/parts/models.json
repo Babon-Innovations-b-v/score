@@ -45,7 +45,8 @@
   "water_tank_1": "water_tank-r1",
   "seed_bin_1": "seed_bin-r1",
   "soil_bin_1": "soil_bin-r1",
-  "crop_crate_1": "crop_crate-r2"
+  "crop_crate_1": "crop_crate-r2",
+  "control_cabinet_1": "control_cabinet-g2"
  },
  "hub": {
   "chair_1": "chair-b",

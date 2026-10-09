@@ -1141,6 +1141,55 @@
 			"close_up": "place-ssl/pics/render_lower.png",
 			"repeats": "across the room",
 			"unseen": "the far block's facade shows in neither concept; it is the near block's pieces again (repeats across the street)"
+		},
+		{
+			"id": "crowd_banner",
+			"view": "v2",
+			"box": [
+				454,
+				812,
+				647,
+				894
+			],
+			"name": "a red cloth banner with gold characters held up on two poles in the crowd",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.0,
+				0.1,
+				2.4
+			],
+			"count": 6,
+			"thing": "kit:square_crowd_banner",
+			"object": "far_banner",
+			"why_code": "the square's banner builder (far_banner: red cloth, printed characters as a decal) hung between two poles",
+			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"box_note": "one banner of the six boxed (the crowd's left one); the partition audit boxed another at [1670,1140,2099,1265]"
+		},
+		{
+			"id": "guard_hut",
+			"view": "v1",
+			"box": [
+				469,
+				816,
+				640,
+				924
+			],
+			"name": "a small guard hut at the square's left edge",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.0,
+				2.0,
+				2.6
+			],
+			"count": 1,
+			"thing": "prop:square_guard_hut",
+			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
 		}
 	]
 }

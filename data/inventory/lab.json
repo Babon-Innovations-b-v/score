@@ -1335,7 +1335,7 @@
     0.39,
     0.62
    ],
-   "count": 1,
+   "count": 2,
    "thing": "prop:lab_microscope",
    "made": "kit piece",
    "group": "kit: furniture",
@@ -1345,7 +1345,8 @@
    "own_model": "a different object of the same name: the lab's large white research microscope on its stand, not the hub's small one with its side screen",
    "box_from": [
     "v1.w36"
-   ]
+   ],
+   "why_count": "a second microscope stands on the east desk in the concept (partition audit, 2026-10-09)"
   },
   {
    "id": "desk_monitor",

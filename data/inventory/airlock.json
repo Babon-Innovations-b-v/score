@@ -1252,6 +1252,55 @@
 			"box_from": [
 				"v1.84"
 			]
+		},
+		{
+			"id": "outer_ramp",
+			"view": "v1",
+			"box": [
+				1688,
+				1247,
+				2085,
+				1501
+			],
+			"name": "a 2.5 m steel ramp from the outer door down to the ground",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				1.4,
+				2.5,
+				0.5
+			],
+			"count": 1,
+			"thing": "kit:airlock_outer_ramp",
+			"why_code": "a plain plate laid as a slope (the sorter's plain plates)",
+			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "hose_unit",
+			"view": "v1",
+			"box": [
+				1133,
+				1051,
+				1320,
+				1269
+			],
+			"name": "a low steel floor unit with a coiled black hose on top",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.7,
+				1.1
+			],
+			"count": 1,
+			"thing": "kit:airlock_hose_unit",
+			"object": "hose_reel",
+			"why_code": "the hangar's code-built hose reel on its steel stand, laid again",
+			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
 		}
 	],
 	"concept_elements": [
