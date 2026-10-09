@@ -35,6 +35,8 @@ SECONDS = 12.0
 ONCE = ("lifting", "door")
 # The mesh nodes a character wears when the cast names nothing: a named person's clothes, a crew member's work suit.
 DEFAULT_WORN = ("person", "person_cap", "work")
+# The pictures a file may carry, by type, and the ending each is written with.
+PICTURE_ENDINGS = {"image/png": ".png", "image/jpeg": ".jpg"}
 
 _COMPONENTS = {5120: np.int8, 5121: np.uint8, 5122: np.int16, 5123: np.uint16, 5125: np.uint32, 5126: np.float32}
 _WIDTH = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
@@ -157,13 +159,13 @@ def write_clip(stage, path, joint_names, times, rotations, translations):
 # --- the body -----------------------------------------------------------------------------------------------------
 
 def write_picture(document, blob, image, textures, stem):
-    """A picture carried in the file, written out as PNG beside the asset; its asset-relative path."""
+    """A picture carried in the file, written out as it is (PNG or JPEG) beside the asset; its asset-relative path."""
     found = document["images"][image]
     view = document["bufferViews"][found["bufferView"]]
     start = view.get("byteOffset", 0)
-    if found.get("mimeType") != "image/png":
-        raise ValueError(f"picture {image} is {found.get('mimeType')}, only PNG is carried")
-    target = textures / f"{stem}_{image}.png"
+    if found.get("mimeType") not in PICTURE_ENDINGS:
+        raise ValueError(f"picture {image} is {found.get('mimeType')}, only PNG and JPEG are carried")
+    target = textures / f"{stem}_{image}{PICTURE_ENDINGS[found['mimeType']]}"
     target.write_bytes(blob[start:start + view["byteLength"]])
     return f"./textures/{target.name}"
 
@@ -240,8 +242,9 @@ def prim_name(text):
 
 # --- the way in ---------------------------------------------------------------------------------------------------
 
-def convert(glb, out, seconds=SECONDS):
-    """Write the character's asset under `out` and return its path; its name is the file's stem."""
+def convert(glb, out, seconds=SECONDS, worn=DEFAULT_WORN):
+    """Write the character's asset under `out` and return its path; its name is the file's stem. The mesh nodes named
+    in `worn` are shown and the rest hidden; with `worn` None every mesh is shown (an animal has no outfits)."""
     glb, out = pathlib.Path(glb), pathlib.Path(out)
     document, blob = read_glb(glb)
     if len(document.get("skins", [])) != 1:
@@ -297,16 +300,16 @@ def convert(glb, out, seconds=SECONDS):
         looks.append(write_look(stage, f"/Character/Looks/m{number}_{prim_name(material.get('name', ''))}",
                                 material, picture))
     UsdGeom.Scope.Define(stage, "/Character/Turned/Body")
-    worn = []
+    shown = []
     for node in document["nodes"]:
         if "mesh" not in node:
             continue
         name = prim_name(node.get("name", f"mesh{node['mesh']}"))
         holder = UsdGeom.Xform.Define(stage, f"/Character/Turned/Body/{name}")
-        if name not in DEFAULT_WORN:
+        if worn is not None and name not in worn:
             holder.CreateVisibilityAttr(UsdGeom.Tokens.invisible)
         else:
-            worn.append(name)
+            shown.append(name)
         for number, primitive in enumerate(document["meshes"][node["mesh"]]["primitives"]):
             part = document["materials"][primitive["material"]].get("name", "") if "material" in primitive else ""
             write_part(stage, f"/Character/Turned/Body/{name}/{prim_name(part)}_{number}", document, blob, primitive,
@@ -314,7 +317,7 @@ def convert(glb, out, seconds=SECONDS):
     stage.SetStartTimeCode(0)
     stage.SetEndTimeCode(float(np.ceil(seconds * RATE)))
     root.GetPrim().SetCustomDataByKey("score:clips", Vt.StringArray(clips))
-    root.GetPrim().SetCustomDataByKey("score:worn", Vt.StringArray(worn))
+    root.GetPrim().SetCustomDataByKey("score:worn", Vt.StringArray(shown))
     root.GetPrim().SetCustomDataByKey("score:clip_seconds", lengths)
     stage.GetRootLayer().Save()
     return path

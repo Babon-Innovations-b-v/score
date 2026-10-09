@@ -13,6 +13,11 @@ approved by the owner (inventory.py) and its place's style text (place.json), an
 name is one of their `generate` or `mechanic` rows, by the row's id or its prop kind, alone or after
 a prefix (`habitat-locker`) or before a take (`locker-b`).
 
+A character the owner asked for is the one other thing a batch builds: `batch.py --characters
+data/characters/makes/<name>.json [...] --who "<session>"` takes no list; each spec must carry
+"approved" (who asked, and when) and its "picture", and its model is named after the spec's "name"
+(the character maker's animal route, job characters-full, 2026-10-09).
+
 The cut-out and the raw Pixal3D step run in the cloud (#55): no model runs on this PC (owner,
 2026-10-03; local_models.py). The pictures go up as they are, each machine cuts its own out with
 the same BiRefNet-lite as the lab, and as many cards are rented as it takes to finish in about --minutes, across the
@@ -140,6 +145,25 @@ def from_the_inventory(models, paths):
         raise SystemExit(f"on no row of {', '.join(map(str, paths))}: {', '.join(strays)}; a batch builds only "
                          "the scenes' rows")
     return kinds
+
+
+def from_the_characters(paths):
+    """The models of character specs (data/characters/makes/<name>.json), one each, named after the spec; refused
+    for a spec the owner did not approve or whose picture is missing."""
+    parser = pixal.options_parser()
+    models = []
+    for path in paths:
+        spec = json.loads(pathlib.Path(path).read_text())
+        if not spec.get("approved"):
+            raise SystemExit(f"{path}: not approved; a batch builds only characters the owner asked for")
+        picture = os.path.expanduser(spec.get("picture") or "")
+        if not pathlib.Path(picture).is_file():
+            raise SystemExit(f"{path}: no picture at '{picture}'")
+        models.append(parser.parse_args([picture, spec["name"], "--who", "batch", *spec.get("pixal", [])]))
+    names = [options.name for options in models]
+    if len(set(names)) != len(names):
+        raise SystemExit("two character specs share a name")
+    return models
 
 
 def row_kinds(inventory):
@@ -826,10 +850,13 @@ def run(models, options, account, found, cards, allowed_minutes):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("list")
+    parser.add_argument("list", nargs="?", help="the models, one a line (not with --characters)")
     parser.add_argument("--who", required=True, help="the session asking")
-    parser.add_argument("--inventory", required=True, type=pathlib.Path, nargs="+",
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--inventory", type=pathlib.Path, nargs="+",
                         help="the scenes' approved inventories, data/inventory/<scene>.json")
+    source.add_argument("--characters", type=pathlib.Path, nargs="+",
+                        help="approved character specs, data/characters/makes/<name>.json, in place of a list")
     parser.add_argument("--minutes", type=float, default=TARGET_MINUTES, help="aim to finish in this long")
     parser.add_argument("--per-card", type=int, help="runs at once on a card (default: as many as its memory "
                         "holds, capacity.runs_at_once)")
@@ -843,8 +870,13 @@ def main():
     if unknown:
         raise SystemExit(f"the {cloud.NAME} backend gives no machine of: {', '.join(sorted(unknown))}")
 
-    models = read_list(options.list)
-    from_the_inventory(models, options.inventory)
+    if bool(options.characters) == bool(options.list):
+        raise SystemExit("give a list with --inventory, or --characters with no list")
+    if options.characters:
+        models = from_the_characters(options.characters)
+    else:
+        models = read_list(options.list)
+        from_the_inventory(models, options.inventory)
     if taken(models):
         raise SystemExit(f"raw models already here, pick new names: {', '.join(taken(models))}")
     account = cloud.account()

@@ -160,6 +160,10 @@ def test_asset(folder):
     assert (folder / "assets/textures/tester_0.png").exists()
     lengths = stage.GetPrimAtPath("/Character").GetCustomDataByKey("score:clip_seconds")
     assert math.isclose(lengths["walking"], 2 / 30, rel_tol=1e-5)
+    # An animal wears every mesh of its file: nothing is hidden when no outfit is named.
+    every = Usd.Stage.Open(str(skel_usd.convert(folder / "bodies/tester.glb", folder / "animal", worn=None)))
+    far = UsdGeom.Imageable(every.GetPrimAtPath("/Character/Turned/Body/far"))
+    assert far.ComputeVisibility() == UsdGeom.Tokens.inherited
 
 
 def test_cast_rules():

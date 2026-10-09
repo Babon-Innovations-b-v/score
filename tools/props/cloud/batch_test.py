@@ -112,6 +112,30 @@ def test_a_batch_builds_only_an_approved_inventorys_rows():
             raise AssertionError("a code row's fitting was sent to be generated")
 
 
+def test_a_batch_builds_a_character_only_when_its_spec_is_approved():
+    with tempfile.TemporaryDirectory() as folder:
+        picture = pathlib.Path(folder) / "tang.png"
+        picture.write_bytes(b"")
+        spec = {"name": "fish_tang", "kind": "animal", "picture": str(picture), "body": "fish"}
+        path = pathlib.Path(folder) / "fish_tang.json"
+        for wanted, change in (("not approved", {}), ("no picture", {"approved": "owner", "picture": None}),
+                               (None, {"approved": "owner, 2026-10-09"})):
+            path.write_text(json.dumps(dict(spec, **change)))
+            try:
+                models = batch.from_the_characters([path])
+            except SystemExit as refused:
+                assert wanted and wanted in str(refused), refused
+            else:
+                assert wanted is None, f"accepted with {wanted}"
+        assert [(options.name, options.picture) for options in models] == [("fish_tang", str(picture))]
+        try:
+            batch.from_the_characters([path, path])
+        except SystemExit as refused:
+            assert "share a name" in str(refused)
+        else:
+            raise AssertionError("two specs of one name were both built")
+
+
 def test_leftovers():
     here = socket.gethostname()
     later = 2e9

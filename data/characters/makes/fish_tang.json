@@ -1,0 +1,11 @@
+{
+ "name": "fish_tang",
+ "kind": "animal",
+ "picture": "/home/dupe/.farm-factory-props/work/characters/fish/tang.jpg",
+ "description": "a yellow tang, a small bright yellow reef fish with a tall flat body, a pointed snout and a forked tail, for world 2",
+ "references": [],
+ "approved": "owner, job characters-full, 2026-10-09",
+ "body": "fish",
+ "length_m": 0.2,
+ "clips": ["swim", "turn", "hover"]
+}

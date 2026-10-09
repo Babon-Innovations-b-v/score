@@ -151,7 +151,6 @@ def serve(run, machine, queue, idle_minutes):
     import pictures
     log_folder = machine["folder"]
     stop = threading.Event()
-    sent = set(ALWAYS_SHIPPED)
     try:
         host = machine["host"]
         batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
@@ -170,11 +169,12 @@ def serve(run, machine, queue, idle_minutes):
                 continue
             job = json.loads(waiting[0].read_text())
             try:
-                for folder in set(shipped([job])) - sent:
+                # Every job's folders go up again (rsync sends only what changed), so a script edited during a
+                # chain runs as it is now.
+                for folder in shipped([job]):
                     parent = (REMOTE / "repo" / folder).parent
                     batch.remote(log_folder, host, f"mkdir -p {parent}", check=True)
                     batch.copy(log_folder, [REPO / folder], f"root@{host}:{parent}/", "--exclude", "__pycache__")
-                    sent.add(folder)
                 seconds = run_job(log_folder, host, int(waiting[0].stem), job, card)
                 machine.setdefault("unit_seconds", []).append(seconds)
                 waiting[0].with_suffix(".done").write_text(str(seconds))
