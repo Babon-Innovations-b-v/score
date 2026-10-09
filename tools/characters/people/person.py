@@ -6,8 +6,9 @@ the next. A setting a file leaves out is take C's.
 - `average_body`: built on the body model's average rest shape and skeleton rather than the
   person's own. Take C only: he was drawn, draped and approved that way (#100), before a build
   read a person's own body (#112). Redraped on his own body his drawn mouth doubled and his flag
-  lost its star (2026-09-30), so he stays as approved until his face and drapes are redone; that
-  redrape is kept on the box in the look folder `take_c_own`.
+  lost its star (2026-09-30), so he stays as approved until his face and drapes are redone. That
+  redrape was the Warp fork's and was retired with the other Warp drapes (2026-10-10); his kept
+  look now wears Newton drapes on the average body.
 - `skin`, `hair`, `hair_shine`, `brow`, `iris`, `line`: flat colours picked from the drawing.
 - `brow_weight`: the brows' thickness as a share of take C's (thinner on the women).
 - `work`, `space`: which design each outfit is, "chinese" (take C's) or "american" (#112's first
