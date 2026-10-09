@@ -10,6 +10,9 @@
     "id": "v1",
     "picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/lab/concepts/K06.png"
    }
+  ],
+  "dimensioned": [
+   "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/lab/plan/plan.json"
   ]
  },
  "approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K06, runner-up K02; round two 2026-10-08: every element of K06 (the owner: 'lost a massive amount of detail')",
@@ -232,10 +235,10 @@
    "id": "hatch_frame",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1555,
+    265,
+    1835,
+    900
    ],
    "name": "the heavy steel frame round a tube hatch opening, bolted (the hub's door kit)",
    "kind": "code",
@@ -262,9 +265,9 @@
    "id": "hatch_leaf",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
+    640,
+    1310,
+    1000,
     1536
    ],
    "name": "a thick steel pressure hatch door leaf (the hub's door kit)",
@@ -291,12 +294,7 @@
   {
    "id": "hatch_wheel",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "a steel locking hand wheel (the hub's door kit)",
    "kind": "code",
    "anchor": "wall",
@@ -316,17 +314,13 @@
     "hatch_wheel",
     "hatch_hinge",
     "hatch_window"
-   ]
+   ],
+   "unseen": "neither hatch shows its hand wheel: N stands open seen edge-on, S is cut by the picture's bottom edge"
   },
   {
    "id": "hatch_hinge",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "a heavy steel door hinge (the hub's door kit)",
    "kind": "code",
    "anchor": "wall",
@@ -346,15 +340,16 @@
     "hatch_wheel",
     "hatch_hinge",
     "hatch_window"
-   ]
+   ],
+   "unseen": "no hatch hinge shows in the concept"
   },
   {
    "id": "hatch_window",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
+    750,
+    1480,
+    865,
     1536
    ],
    "name": "a small round window in a hatch leaf (the hub's door kit)",
@@ -381,12 +376,7 @@
   {
    "id": "door_strip_lamp",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "a strip lamp in a steel housing over a door (the hub's)",
    "kind": "code",
    "anchor": "wall",
@@ -417,16 +407,17 @@
     "strength": 0.15,
     "reach": 4.0,
     "high": 0.5
-   }
+   },
+   "unseen": "no strip lamp shows over either hatch; the concept's roof and the hatch heads are cut away"
   },
   {
    "id": "door_control_box",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    360,
+    1245,
+    430,
+    1380
    ],
    "name": "a steel door control box with a keypad and a status light (the hub's)",
    "kind": "code",
@@ -457,10 +448,10 @@
    "id": "intercom_panel",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1865,
+    485,
+    1900,
+    575
    ],
    "name": "a wall call box with a speaker grille and a call button (the hub's)",
    "kind": "code",
@@ -486,10 +477,10 @@
    "id": "grab_bar",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    660,
+    1170,
+    1210,
+    1350
    ],
    "name": "a U-shaped steel grab rail on two brackets by hatch S (the hub's)",
    "kind": "code",
@@ -903,10 +894,10 @@
    "id": "small_readout",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    700,
+    600,
+    805,
+    710
    ],
    "name": "a small wall readout screen with buttons beside it (the hub's)",
    "kind": "code",
@@ -947,10 +938,10 @@
    "id": "desk",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    770,
+    420,
+    1480,
+    930
    ],
    "name": "lab desk: a pale grey steel top on a three-drawer pedestal and two legs",
    "kind": "generate",
@@ -985,10 +976,10 @@
    "id": "desk_chair",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    910,
+    740,
+    1210,
+    1050
    ],
    "name": "office swivel chair, grey padded seat and back, five-wheel base",
    "kind": "generate",
@@ -1022,10 +1013,10 @@
    "id": "sample_store",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    360,
+    700,
+    800,
+    1110
    ],
    "name": "sample store: riveted steel drawer cabinet with meters on top",
    "kind": "generate",
@@ -1054,10 +1045,10 @@
    "id": "glovebox_cabinet",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1760,
+    880,
+    2290,
+    1390
    ],
    "name": "glovebox cabinet: sealed box with a sloped window and two glove ports on a cabinet",
    "kind": "generate",
@@ -1086,10 +1077,10 @@
    "id": "microscope",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    785,
+    320,
+    1010,
+    690
    ],
    "name": "large white research microscope on its stand",
    "kind": "generate",
@@ -1111,10 +1102,10 @@
    "id": "desk_monitor",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    950,
+    485,
+    1065,
+    580
    ],
    "name": "small beige computer monitor with a green screen",
    "kind": "generate",
@@ -1136,10 +1127,10 @@
    "id": "instrument_unit",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1225,
+    435,
+    1450,
+    690
    ],
    "name": "beige benchtop analyser with a small screen, knobs and meters",
    "kind": "generate",
@@ -1161,10 +1152,10 @@
    "id": "desk_keyboard",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1180,
+    670,
+    1290,
+    712
    ],
    "name": "beige computer keyboard",
    "kind": "generate",
@@ -1186,10 +1177,10 @@
    "id": "desk_mouse",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1280,
+    690,
+    1320,
+    720
    ],
    "name": "computer mouse",
    "kind": "generate",
@@ -1211,10 +1202,10 @@
    "id": "desk_keypad",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    800,
+    700,
+    915,
+    800
    ],
    "name": "beige keypad unit with a small readout",
    "kind": "generate",
@@ -1236,10 +1227,10 @@
    "id": "sample_jar",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1945,
+    790,
+    2005,
+    890
    ],
    "name": "steel sample jar with a lid and a label",
    "kind": "generate",
@@ -1261,10 +1252,10 @@
    "id": "sample_tray",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    405,
+    790,
+    585,
+    845
    ],
    "name": "shallow steel tray of moon rock chips",
    "kind": "generate",
@@ -1286,10 +1277,10 @@
    "id": "sample_scanner",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    515,
+    740,
+    645,
+    800
    ],
    "name": "handheld sample scanner with a keypad and a small screen",
    "kind": "generate",
@@ -1311,10 +1302,10 @@
    "id": "hanging_glove",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1780,
+    1150,
+    1945,
+    1310
    ],
    "name": "a worn work glove hanging from a hook",
    "kind": "generate",
@@ -1476,10 +1467,10 @@
    "id": "wall_monitor",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1940,
+    270,
+    2400,
+    500
    ],
    "name": "monitor on a wall bracket, green screen of readouts",
    "kind": "generate",
@@ -1556,10 +1547,10 @@
    "id": "task_lamp",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    970,
+    220,
+    1090,
+    310
    ],
    "name": "wall task lamp: a cone shade on a jointed arm",
    "kind": "generate",
@@ -1600,12 +1591,7 @@
   {
    "id": "ceiling_lamp",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "ceiling flood lamp: steel housing, frosted lens behind a grille",
    "kind": "generate",
    "anchor": "ceiling",
@@ -1637,7 +1623,8 @@
     "reach": 7.0,
     "high": 0.05
    },
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/ceiling_lamp.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/ceiling_lamp.png",
+   "unseen": "the room's light is not drawn in the cutaway (round two's reason)"
   }
  ]
 }

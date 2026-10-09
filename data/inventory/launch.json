@@ -14,7 +14,10 @@
 				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/launch/concepts/K04.png"
 			}
 		],
-		"concept": "concepts-world1/launch: the coordinator's pick (owner may change)"
+		"concept": "concepts-world1/launch: the coordinator's pick (owner may change)",
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/launch/plan/plan.json"
+		]
 	},
 	"approved": "2026-10-07, the owner's world 1 scale-up: every place built without stopping for review, the owner reviews everything at the end; rows from the coordinator's concept pick",
 	"migrated": "",

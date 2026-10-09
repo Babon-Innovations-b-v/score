@@ -10,6 +10,9 @@
 				"id": "v1",
 				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/hangar/concepts/K01.png"
 			}
+		],
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/place-gh/hangar/plan/plan.json"
 		]
 	},
 	"approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K01",
@@ -273,9 +276,9 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
+				550,
+				1100,
+				810,
 				1536
 			],
 			"thing": "prop:hangar_hatch_frame"
@@ -303,10 +306,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				595,
+				1205,
+				765,
+				1480
 			],
 			"thing": "prop:hangar_hatch_leaf"
 		},
@@ -333,10 +336,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				680,
+				1280,
+				740,
+				1360
 			],
 			"thing": "prop:hangar_hatch_wheel"
 		},
@@ -362,13 +365,9 @@
 				"hatch_window"
 			],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
-			"thing": "prop:hangar_hatch_hinge"
+			"box": null,
+			"thing": "prop:hangar_hatch_hinge",
+			"unseen": "the hatches' hinges are hidden in their frames"
 		},
 		{
 			"id": "hatch_window",
@@ -393,10 +392,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				835,
+				630,
+				875,
+				670
 			],
 			"thing": "prop:hangar_hatch_window"
 		},
@@ -514,10 +513,10 @@
 			},
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1310,
+				445,
+				1355,
+				470
 			],
 			"thing": "prop:hangar_wall_cage_lamp"
 		},
@@ -553,10 +552,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				715,
+				630,
+				760,
+				665
 			],
 			"thing": "prop:hangar_door_control_box"
 		},
@@ -823,10 +822,10 @@
 			"thing": "node:ShipBench",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1926,
+				949,
+				2036,
+				1073
 			],
 			"keep": "game object (ShipBench), kept whatever its score"
 		},
@@ -856,10 +855,10 @@
 			"thing": "node:FuelPoint",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				509,
+				770,
+				605,
+				880
 			],
 			"keep": "game object (FuelPoint), kept whatever its score"
 		},
@@ -887,10 +886,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				740,
+				715,
+				800,
+				775
 			],
 			"thing": "prop:hangar_hose_reel"
 		},
@@ -936,13 +935,9 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/parts_rack.png",
 			"solid": true,
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
-			"thing": "prop:hangar_parts_rack"
+			"box": null,
+			"thing": "prop:hangar_parts_rack",
+			"unseen": "the concept shows one shelving unit at the back (parts_shelving) and no pallet rack"
 		},
 		{
 			"id": "parts_crate",
@@ -987,10 +982,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1183,
+				454,
+				1279,
+				509
 			],
 			"thing": "prop:hangar_parts_crate"
 		},
@@ -1019,10 +1014,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1912,
+				729,
+				2091,
+				922
 			],
 			"thing": "prop:hangar_access_stair"
 		},
@@ -1051,10 +1046,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1066,
+				1135,
+				1568,
+				1376
 			],
 			"thing": "prop:hangar_control_desk"
 		},
@@ -1075,10 +1070,10 @@
 			"parent": "control_desk",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1305,
+				1145,
+				1395,
+				1205
 			],
 			"thing": "prop:hangar_monitor"
 		},
@@ -1099,10 +1094,10 @@
 			"parent": "control_desk",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1075,
+				1240,
+				1170,
+				1280
 			],
 			"thing": "prop:hangar_keyboard"
 		},
@@ -1131,10 +1126,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1307,
+				454,
+				1417,
+				537
 			],
 			"thing": "prop:hangar_monitor_desk"
 		},
@@ -1169,10 +1164,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1087,
+				509,
+				1293,
+				646
 			],
 			"thing": "prop:hangar_parts_shelving"
 		},
@@ -1322,10 +1317,10 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/beacon.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				688,
+				512,
+				730,
+				540
 			],
 			"thing": "prop:hangar_bracket_beacon"
 		},
@@ -1399,10 +1394,10 @@
 			},
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				905,
+				445,
+				960,
+				480
 			],
 			"thing": "prop:hangar_floodlight"
 		},

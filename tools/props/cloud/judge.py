@@ -43,13 +43,14 @@ def to_ask(path, answers):
             if not (answers / f"{job['name']}.txt").exists()]
 
 
-def price(jobs, account):
-    """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the minutes
-    allowed."""
+def price(jobs, account, cards=None):
+    """Print the estimate and refuse what passes the owner's limits; the offers, the machines (at most `cards` when
+    given) and the minutes allowed."""
     found = batch.offers(list(capacity.classes_for(KIND)))
     if not found:
         raise SystemExit("no card that holds the judge is sold in the zones used")
     count = capacity.machines_for(len(jobs), SECONDS_A_QUESTION / 60, SETUP_MINUTES, capacity.slots_for(KIND))
+    count = min(count, cards or count)
     minutes = capacity.spread_minutes(len(jobs), SECONDS_A_QUESTION / 60, SETUP_MINUTES, count,
                                       capacity.slots_for(KIND))
     dearest = max(offer[0] for offer in found)
@@ -108,9 +109,10 @@ def record(run, jobs, started):
     return entry
 
 
-def ask(path, answers, dry_run=False):
-    """Answer the list's open questions into `answers` on one rented card; the run's ledger entry, or None when
-    nothing was rented."""
+def ask(path, answers, dry_run=False, cards=None):
+    """Answer the list's open questions into `answers` on rented cards (at most `cards`: each card's setup costs
+    about SETUP_MINUTES, so a list that may wait runs cheaper on fewer); the run's ledger entry, or None when nothing
+    was rented."""
     answers.mkdir(parents=True, exist_ok=True)
     jobs = to_ask(path, answers)
     if not jobs:
@@ -118,7 +120,7 @@ def ask(path, answers, dry_run=False):
         return None
     account = cloud.account()
     batch.sweep(account)
-    found, count, allowed_minutes = price(jobs, account)
+    found, count, allowed_minutes = price(jobs, account, cards)
     if dry_run:
         return None
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -146,8 +148,9 @@ def main():
     parser.add_argument("questions")
     parser.add_argument("answers", type=pathlib.Path)
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
+    parser.add_argument("--cards", type=int, help="rent at most this many cards")
     options = parser.parse_args()
-    ask(options.questions, options.answers, options.dry_run)
+    ask(options.questions, options.answers, options.dry_run, options.cards)
 
 
 if __name__ == "__main__":

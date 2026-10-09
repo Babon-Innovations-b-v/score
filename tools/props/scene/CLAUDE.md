@@ -34,7 +34,10 @@ serve: skill `make-scene`, bible "How a scene is designed".
   today (layout, the room's scene, main.tscn's game nodes, the machines, the kit's wall fill, the
   opening's constants, an outdoor place's made layout `data/kit/<place>.json`: the old station, the wreck; a walkway
   tube's kit layout, `kit_layout`); `match.py` holds migrated scenes to their inventory and prints the rest
-  as a to-do list (`python3 tools/props/scene/match.py`). `cloud/scene.py` and `cloud/batch.py`
+  as a to-do list (`python3 tools/props/scene/match.py`). `box_check.py` holds every inventory's boxes to its
+  concept: inside the picture, not the whole picture for a single thing, spread over it rather than in one corner,
+  and, with `--judge`, each box shown to the open judge beside its row's words (majority of three); a row the
+  concept does not show has `"box": null` and says why in `"unseen"`. `cloud/scene.py` and `cloud/batch.py`
   refuse to run without an approved inventory and its place's style text.
 - `depth_pano.tscn --pano-ship` takes the ship's rooms instead (`ShipCabin.ROOMS`, #70), with the
   rest of the game put away so its windows look out on nothing; `--pano-colour` takes the same six

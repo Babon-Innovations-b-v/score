@@ -5,7 +5,8 @@ the owner approved on page A.
 
     {"scene": "habitat", "place": "habitat",
      "plan": {"world": "<Marble world id>", "seed": 7,
-              "views": [{"id": "v1", "picture": "WORK/scene/habitat/views/habitat-north.png"}]},
+              "views": [{"id": "v1", "picture": "WORK/scene/habitat/views/habitat-north.png"}],
+              "dimensioned": ["<the dimensioned plan's plan.json, or its picture when it has no plan.json>"]},
      "approved": "2026-10-05, plan: <world id>",     # the owner's pick on page A; "" until then
      "migrated": "2026-10-06",                        # page C picked, built to it; "" until then
      "room": {"shell": "<shell_hash()>", "light": "place", "backdrop": "", "wall_fill": []},
@@ -20,6 +21,9 @@ the owner approved on page A.
         "prop": "habitat_workstation_desk"},
        {"id": "r4", "view": "v2", "box": [...], "name": "radio", "kind": "generate",
         "anchor": "on:r3", "size": [0.3, 0.2, 0.15], "count": 1, "thing": "prop:habitat_radio"}]}
+
+A row the concept does not show (hidden behind the camera, added for the game) has `"box": null` and says why in
+`"unseen"`; the box check (`box_check.py`) holds every other box to the thing it names on the picture.
 
 A row's `kind` is `generate` (a model made from its plan crop), `code` (wall fittings, signs,
 moving parts, built from the place's materials) or `mechanic` (a generated model tied to a game
@@ -120,7 +124,9 @@ def row_problems(scene, row, views, ids):
         return found
     if row["view"] not in views:
         found.append(f"{name}: its view '{row['view']}' is not one of the plan's views: no box, no row")
-    if not (isinstance(row["box"], list) and len(row["box"]) == 4):
+    if row["box"] is None and not row.get("unseen"):
+        found.append(f"{name}: no box, and no 'unseen' saying why the concept does not show it")
+    elif row["box"] is not None and not (isinstance(row["box"], list) and len(row["box"]) == 4):
         found.append(f"{name}: its box is not four numbers on its view")
     if row["kind"] not in ROW_KINDS:
         found.append(f"{name}: its kind '{row['kind']}' is not one of {', '.join(ROW_KINDS)}")
