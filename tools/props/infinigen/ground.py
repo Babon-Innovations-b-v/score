@@ -7,24 +7,12 @@ import bpy
 import numpy as np
 
 import crater
+import steer
 
 
 def patch_metres(points, side):
     """Blender points (n x 3) as the plan's metres from the patch's south-west corner (x east, y north)."""
     return points[:, 0] + side / 2, points[:, 1] + side / 2
-
-
-def sample(field, side, x, y):
-    """A plan grid (row 0 north, x east) read at plan metres, bilinear."""
-    rows, cols = field.shape
-    column = np.clip(x / side * (cols - 1), 0, cols - 1)
-    row = np.clip((side - y) / side * (rows - 1), 0, rows - 1)
-    left, top = np.floor(column).astype(int), np.floor(row).astype(int)
-    right, bottom = np.minimum(left + 1, cols - 1), np.minimum(top + 1, rows - 1)
-    across, down = column - left, row - top
-    upper = field[top, left] * (1 - across) + field[top, right] * across
-    lower = field[bottom, left] * (1 - across) + field[bottom, right] * across
-    return upper * (1 - down) + lower * down
 
 
 def grid_object(name, side, cell, height_of):
@@ -58,7 +46,7 @@ def grid_object(name, side, cell, height_of):
 
 def heightfield(heights, side, cell, name="ground"):
     """The plan's heights as a grid mesh."""
-    return grid_object(name, side, cell, lambda x, y: sample(heights, side, x, y))
+    return grid_object(name, side, cell, lambda x, y: steer.bilinear(heights, side, x, y))
 
 
 def add_zones(obj, zones, side):
@@ -68,46 +56,32 @@ def add_zones(obj, zones, side):
     x, y = patch_metres(points.reshape(-1, 3), side)
     for name in zones.files:
         attribute = obj.data.attributes.new(name, "FLOAT", "POINT")
-        attribute.data.foreach_set("value", sample(zones[name].astype(np.float64), side, x, y).round().astype(np.float32))
+        inside = steer.bilinear(zones[name].astype(np.float64), side, x, y)
+        attribute.data.foreach_set("value", inside.round().astype(np.float32))
 
 
 class CraterGround:
     """A new Infinigen terrain element: Infinigen's own Ground (Perlin relief, compiled) with the plan's craters and
-    slope added to its signed distance. It answers the meshers the way every Infinigen element does: called with
-    points, it gives their signed distances and material weights. With `spherical_radius` it puts its craters on a
-    small round world (Ground then measures altitude from the world's middle too)."""
+    slope added to its signed distance: called with points, it gives their signed distances as Infinigen's elements
+    do."""
 
-    def __init__(self, spec, spherical_radius=-1.0):
-        from infinigen.core.util.organization import ElementNames, Materials, Transparency
+    def __init__(self, spec):
         from infinigen.terrain.elements.ground import Ground
-        self.inner = Ground("cpu", None, spherical_radius=spherical_radius, freq=0.08, octaves=6, scale=0.35)
-        self.name = ElementNames.Ground
-        self.material, self.transparency, self.tag = Materials.GroundCollection, Transparency.Opaque, self.inner.tag
-        self.attributes, self.displacement = self.inner.attributes, []
+        self.inner = Ground("cpu", None, freq=0.08, octaves=6, scale=0.35)
         self.side, self.craters, self.plane = spec["side_m"], spec["craters"], spec.get("plane", {})
-        self.spherical_radius = spherical_radius
         self.rng_seed = spec["seed"]
-
-    def bumps(self, points):
-        """The ejecta's lumpy ground, -1 to 1, smooth and the same for the same point: crater.lumps over x and y."""
-        return crater.lumps(points[:, :2], self.rng_seed)
 
     def __call__(self, positions, sdf_only=False):
         from infinigen.terrain.utils.kernelizer_util import Vars
         answer = self.inner(positions, sdf_only)
-        if self.spherical_radius > 0:
-            added = crater.lift(positions, self.craters, self.bumps(positions), self.spherical_radius)
-        else:
-            x, y = patch_metres(positions, self.side)
-            local = np.stack([x, y, positions[:, 2]], axis=1)
-            added = crater.lift(local, self.craters, self.bumps(positions))
-            added += self.plane.get("base_m", 0) + self.plane.get("rise_east", 0) * x + \
-                self.plane.get("rise_north", 0) * y
+        x, y = patch_metres(positions, self.side)
+        local = np.stack([x, y, positions[:, 2]], axis=1)
+        # The ejecta's lumpy ground: -1 to 1, smooth, the same for the same point.
+        added = crater.lift(local, self.craters, crater.lumps(positions[:, :2], self.rng_seed))
+        added += self.plane.get("base_m", 0) + self.plane.get("rise_east", 0) * x + \
+            self.plane.get("rise_north", 0) * y
         answer[Vars.SDF] = (answer[Vars.SDF] - added).astype(np.float32)
         return answer
-
-    def cleanup(self):
-        self.inner.cleanup()
 
 
 def crater_ground(spec, cell=0.1):
@@ -124,7 +98,7 @@ def crater_ground(spec, cell=0.1):
         points = np.stack([np.asarray(x) - side / 2, np.asarray(y) - side / 2, np.zeros(len(x))], axis=1)
         return -element(points.astype(np.float32), sdf_only=True)[Vars.SDF]
 
-    return grid_object("ground", side, cell, height_of), element
+    return grid_object("ground", side, cell, height_of)
 
 
 def principled(name, colour, roughness):

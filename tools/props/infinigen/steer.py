@@ -51,8 +51,7 @@ def bilinear(field, side, x, y):
 def window_grid(x0, y0, side, size=GRID):
     """The plan metres of a `size` x `size` grid over the window, row 0 north."""
     across = np.linspace(0, side, size)
-    east, north = np.meshgrid(x0 + across, y0 + across[::-1])
-    return east, north
+    return np.meshgrid(x0 + across, y0 + across[::-1])
 
 
 def crop(field, plan_side, x0, y0, side, size=GRID):
