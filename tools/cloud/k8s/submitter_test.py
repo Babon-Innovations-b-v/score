@@ -92,3 +92,32 @@ def test_run_specs_reads_each_job_json(tmp_path):
     store.write_bytes("runs/r2/c/job.json", b'{"kind": "judge"}')
     assert submit.run_specs(store, "r1") == {"a": {"kind": "pixal"}, "b": {"kind": "judge"}}
     assert submit.runtime().state(store, "r1", "a") == "done"
+
+
+class FakeKubectl:
+    """kubectl answering with fixed Jobs, and recording what is applied."""
+
+    def __init__(self, items):
+        self.items, self.applied = items, []
+
+    def json(self, *arguments):
+        return {"items": self.items if arguments[1] == "jobs,pods" else []}
+
+    def apply(self, objects):
+        self.applied += objects
+
+
+class PoolCluster(FakeCluster):
+    def class_pools(self):
+        return [{"class": name} for name in POOLS]
+
+
+def test_resume_takes_up_the_newest_generation():
+    spec = {"kind": "library", "image": "image", "minutes": 5}
+    made = submit.manifests.job(spec, "r1", "bake", ["gpu-24gb", "gpu-48gb"], 1, generation=2)
+    kubectl = FakeKubectl([made])
+    run = submit.Run("r1", {"bake": spec, "other": spec}, kubectl, PoolCluster(0))
+    run.resume()
+    assert run.jobs["bake"]["generation"] == 2 and run.jobs["bake"]["submitted"]
+    assert run.jobs["other"]["submitted"] is None
+    assert run.allowed("other") == ["gpu-24gb", "gpu-48gb"]
