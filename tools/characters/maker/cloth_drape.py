@@ -6,7 +6,8 @@ wrote it.
 
 job.json (written by `drape_garment.py`):
     {"sewing": "<name>_sewing.npz", "coarse": "<name>_coarse_sewing.npz", "box_mesh": "<name>_boxmesh.obj",
-     "body": "ours.obj" (metres, y up), "cloth": {...} the design's cloth.json, "out": "<folder>", "name": "<name>"}
+     "body": "ours.obj" (metres, y up), "joints": "joints.json" (optional, the body's joints, metres),
+     "cloth": {...} the design's cloth.json, "out": "<folder>", "name": "<name>"}
 
 The panels start where GarmentCode laid them round the body, flat and true to the pattern; each seam is a sewing
 thread (a loose edge between the two copies of a seam point, `sewing.seams`), which Blender's cloth pulls shut
@@ -204,6 +205,28 @@ def beyond(drifts, limits, allowance=0.0):
     return worst, excess[worst]
 
 
+def bare_arm(task, record, points):
+    """Each arm's shares of its upper arm that its sleeve leaves bare within the design's `sleeve_span`
+    (`sewing.uncovered`), {arm: [share, ...]}, only the arms with a gap; nothing when the job names no joints.
+
+    The space suits lay their bands round the upper arm between 0.30 and 0.73 of its length; a sleeve that slid up or
+    bunched passed every other check and left a band nothing to lie on (2026-10-09)."""
+    span = task["cloth"]["blender"].get("sleeve_span")
+    if not span or not task.get("joints"):
+        return {}
+    joints = {name: np.array(place) for name, place in json.loads(pathlib.Path(task["joints"]).read_text()).items()}
+    arms = np.array([sewing.arm_of(str(record["panel_names"][number])) for number in record["panel"]], dtype=object)
+    bare = {}
+    for side, arm in (("Left", "left_arm"), ("Right", "right_arm")):
+        if not (arms == arm).any():
+            continue
+        gaps = sewing.uncovered(points, record["faces"], arms == arm, joints[f"{side}Arm"], joints[f"{side}ForeArm"],
+                                span)
+        if gaps:
+            bare[arm] = gaps
+    return bare
+
+
 def sew(task, record, force, resolution):
     """A scene with the body and the panels (raised, `lifted`), sewn shut with gravity off; the scene, body, cloth,
     the seconds it took and how far each panel drifted (`sag`)."""
@@ -236,10 +259,11 @@ def attempt(task, record, force, resolution):
     report.update({"settled_worst_panel": worst, "settled_past_limit_cm": round(excess / CENTIMETRES, 1),
                    "settled_panels_cm": {name: round(value / CENTIMETRES, 1) for name, value in settled.items()}})
     gap = float(sewing.seam_gaps(points, record["box_index"]).max())
-    report["settled_open_thread_cm"] = round(gap / CENTIMETRES, 1)
-    print(f"settled: {worst} {excess / CENTIMETRES:+.1f} cm past its limit, a seam open {gap / CENTIMETRES:.1f} cm",
-          flush=True)
-    return points, body, report, excess <= 0 and gap <= settings["open_thread_limit"]
+    bare = bare_arm(task, record, points)
+    report.update({"settled_open_thread_cm": round(gap / CENTIMETRES, 1), "settled_bare_arm": bare})
+    print(f"settled: {worst} {excess / CENTIMETRES:+.1f} cm past its limit, a seam open {gap / CENTIMETRES:.1f} cm, "
+          f"bare arm {bare}", flush=True)
+    return points, body, report, excess <= 0 and gap <= settings["open_thread_limit"] and not bare
 
 
 def sewn_and_settled(task, record, resolution):
@@ -340,20 +364,22 @@ def fine_settled(task, record, start):
         gap = float(sewing.seam_gaps(points, record["box_index"]).max())
         # The shoulders: lowering the waist slid a whole coverall off them while every panel's middle moved little.
         slid = float(start[:, 1].max() - points[:, 1].max())
+        bare = bare_arm(task, record, points)
         tries.append({**fine, "seconds": round(seconds, 1), "worst_panel": worst,
                       "past_limit_cm": round(fell / CENTIMETRES, 1), "open_thread_cm": round(gap / CENTIMETRES, 1),
-                      "top_fell_cm": round(slid / CENTIMETRES, 1),
+                      "top_fell_cm": round(slid / CENTIMETRES, 1), "bare_arm": bare,
                       "waist_lowered_cm": round(drop / CENTIMETRES, 1)})
         # Counted now: the next try's new scene takes this body with it.
         results.append((points, inside_body(body, points), drop))
         print(f"fine cloth {fine}: {worst} {fell / CENTIMETRES:+.1f} cm past its limit, a seam open "
-              f"{gap / CENTIMETRES:.1f} cm, the top fell {slid / CENTIMETRES:.1f} cm", flush=True)
+              f"{gap / CENTIMETRES:.1f} cm, the top fell {slid / CENTIMETRES:.1f} cm, bare arm {bare}", flush=True)
         limits = task["cloth"]["blender"]
-        if fell <= 0 and gap <= limits["open_thread_limit"] and slid <= limits["top_fall_limit"]:
+        if fell <= 0 and gap <= limits["open_thread_limit"] and slid <= limits["top_fall_limit"] and not bare:
             tries[-1]["kept"] = True
             return points, results[-1][1], tries, True, drop
-    least = min(range(len(tries)), key=lambda index: max(tries[index]["past_limit_cm"], tries[index]["open_thread_cm"],
-                                      tries[index]["top_fell_cm"]))
+    least = min(range(len(tries)), key=lambda index: (bool(tries[index]["bare_arm"]),
+                                     max(tries[index]["past_limit_cm"], tries[index]["open_thread_cm"],
+                                         tries[index]["top_fell_cm"])))
     tries[least]["kept"] = True
     return results[least][0], results[least][1], tries, False, results[least][2]
 
