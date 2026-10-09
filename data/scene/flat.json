@@ -13,6 +13,17 @@
  ],
  "ceiling": 3.0,
  "inside": true,
+ "moved": [
+  {
+   "node": "BalconyDoor",
+   "by": [
+    0.0,
+    0.0,
+    1.4
+   ],
+   "from": "earth_site.gd:79 BALCONY_DOORWAY (1.4 wide), 444-456 open_the_balcony_door (the leaf slides to BALCONY_SPOT.z + 1.4 = -2.1, open from the start of the balcony beat, prologue.gd:255-260)"
+  }
+ ],
  "structure": [
   {
    "name": "block_under",
@@ -45,18 +56,6 @@
    ],
    "surface": "whitewash",
    "from": "earth_site.gd:674-692 _build_the_building (FLAT_WALL)"
-  },
-  {
-   "name": "moon",
-   "builder": "sphere",
-   "centre": [
-    -279.13,
-    112.12,
-    -59.3
-   ],
-   "radius": 11.9,
-   "surface": "moon_face",
-   "from": "night.gd:16-17,178-183 (4.4 degrees across, 23 up)"
   }
  ],
  "ground": [
@@ -201,6 +200,27 @@
    "from": "night.gd:255-264 (0.08 at full Moon)"
   }
  ],
+ "moon": {
+  "way": [
+   -0.90042,
+   0.39071,
+   -0.1913
+  ],
+  "eye": [
+   -4.0,
+   0.0,
+   -3.5
+  ],
+  "across": 4.4,
+  "colour": "#e6ebf2",
+  "brightness": 1.2,
+  "seas": 0.4,
+  "halo": 0.35,
+  "halo_fall": 0.09,
+  "lit": 1.0,
+  "distance": 1800.0,
+  "from": "night.gd:16-17 (MOON_HEIGHT_DEGREES 23, MOON_ACROSS_DEGREES 4.4), 180-184 moon_way from the balcony toward the rocket; night_dome.gdshader:12-18,43-68 (MOON_BRIGHTNESS 1.2, SEAS 0.4, its face noise) and night_sky.gdshaderinc:25-26 (HALO 0.35, HALO_FALL 0.09); earth_night_sky.tres moon_color #e6ebf2; lit 1, the full Moon of the game's shots"
+ },
  "environment": {
   "background": "#030409",
   "ambient": {

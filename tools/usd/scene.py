@@ -20,6 +20,12 @@ as numbers copied from the game (each entry names the game file it came from), a
     environment the sky the camera sees and the ambient light (a dome light, `/<place>/Environment`), the exposure
     places      other places seen from this one, their own stages referenced where the game stands them:
                 /<place>/Places/<name>
+    moon        the Moon on the night sky as the game's sky shader draws it (its face with its seas, and its halo in the
+                city's air), each a picture on a square far out along its way: /<place>/Sky/moon, /<place>/Sky/halo
+    moved       kit pieces the game moves in its own code (a door it slides open), by the piece's `node`: shifted `by`
+                metres in the place's frame before the kit is laid (moved_pieces)
+    kit_glow    how the night lights a kit's lights (a kind's `night_glow` in the kit): `strength` and `ramp` of the
+                game's textured shader, which the export bakes into each such model's glow map
     views       the cameras the place is judged from (the player's own spots; inside a room at standing height), each
                 naming the game's shot from about the same place
     game_only   what the game draws there that the scene does not carry, said plainly (a crowd, the stars)
@@ -153,16 +159,18 @@ def fixture_asset(entry, out, world, boxes):
 def fixture(stage, path, entry, out, world, boxes):
     """One gameplay object where the game stands it: its model at `at`, turned `yaw` degrees about up (right-handed,
     as the game turns it: +x toward -z), scaled by `scale` or to `height` metres tall; the things standing on it
-    (`children`, each the same in its parent's frame) under it."""
+    (`children`, each the same in its parent's frame) under it. A `stretch` (x, y, z) presses it unevenly after that,
+    as the game draws a model pressed to other proportions."""
     name, (low, high) = fixture_asset(entry, out, world, boxes)
     scale = float(entry.get("scale", 1.0))
+    stretch = entry.get("stretch")
     if "height" in entry:
         scale = float(entry["height"]) / float(high[1] - low[1])
     xform = UsdGeom.Xform.Define(stage, path)
     xform.GetPrim().GetReferences().AddReference(f"../assets/{name}.usdc")
     xform.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry["at"])))
     xform.AddRotateYOp().Set(float(entry.get("yaw", 0.0)))
-    xform.AddScaleOp().Set(Gf.Vec3f(scale))
+    xform.AddScaleOp().Set(Gf.Vec3f(*stretch) * scale if stretch is not None else Gf.Vec3f(scale))
     for key, value in (("score:kind", entry.get("kind", "fixture")), ("score:model", entry["model"]),
                        ("score:from", entry.get("from", ""))):
         xform.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
@@ -196,7 +204,7 @@ def write_places(stage, place, entries):
         for key, value in (("score:kind", "place"), ("score:place", entry["stage"]), ("score:from", entry.get("from", ""))):
             xform.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
         # What this place draws itself (its ground, water, backdrop, sky and sun) is left out of the one it shows.
-        for shared in ("Ground", "Terrain", "Water", "Backdrop", "Environment", "Places"):
+        for shared in ("Ground", "Terrain", "Water", "Backdrop", "Sky", "Environment", "Places"):
             stage.OverridePrim(f"/{place}/Places/{entry['name']}/{shared}").SetActive(False)
         shown = (record(entry["stage"]) or {}).get("lights", [])
         for name, light in zip(light_names(shown), shown):
@@ -204,8 +212,9 @@ def write_places(stage, place, entries):
                 stage.OverridePrim(f"/{place}/Places/{entry['name']}/Lights/{name}").SetActive(False)
 
 
-def backdrop_material(stage, path, picture_file):
-    """A backdrop picture drawn as it is: unlit (its colour as emission, no diffuse), its alpha cutting out the sky."""
+def backdrop_material(stage, path, picture_file, threshold=0.5):
+    """A backdrop picture drawn as it is: unlit (its colour as emission, no diffuse), its alpha cutting out the sky
+    (at `threshold`; 0 lays it over what is behind as much as its alpha says, as the game's sky draws its Moon)."""
     material = UsdShade.Material.Define(stage, path)
     shader = UsdShade.Shader.Define(stage, f"{path}/surface")
     shader.CreateIdAttr("UsdPreviewSurface")
@@ -223,7 +232,7 @@ def backdrop_material(stage, path, picture_file):
         texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
     shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).ConnectToSource(
         texture.CreateOutput("a", Sdf.ValueTypeNames.Float))
-    shader.CreateInput("opacityThreshold", Sdf.ValueTypeNames.Float).Set(0.5)
+    shader.CreateInput("opacityThreshold", Sdf.ValueTypeNames.Float).Set(float(threshold))
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     return material
 
@@ -254,6 +263,129 @@ def write_backdrop(stage, place, entries, out, world):
         UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
         for key, value in (("score:kind", "backdrop"), ("score:from", entry.get("from_file", ""))):
             prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+
+
+def moved_pieces(pieces, moves):
+    """The kit's laid pieces with the ones the game moves in its own code shifted: each move names a piece by its
+    `node` (the game's node name in the kit's layout) and shifts it `by` metres in the place's frame (its `at` and
+    its transform, `matrix`, when it has one)."""
+    by_node = {move["node"]: np.asarray(move["by"], dtype=np.float64) for move in moves}
+    found = []
+    for piece in pieces:
+        shift = by_node.get(piece.get("node"))
+        if shift is None:
+            found.append(piece)
+            continue
+        moved = dict(piece, at=[float(value) for value in np.asarray(piece["at"], dtype=np.float64) + shift])
+        if "matrix" in piece:
+            matrix = np.array(piece["matrix"], dtype=np.float64)
+            matrix[:3, 3] += shift
+            moved["matrix"] = matrix.tolist()
+        found.append(moved)
+    missing = set(by_node) - {piece.get("node") for piece in pieces}
+    if missing:
+        raise ValueError(f"the kit has no piece of the node {sorted(missing)} to move")
+    return found
+
+
+def smoothstep(low, high, value):
+    inside = np.clip((value - low) / (high - low), 0.0, 1.0)
+    return inside * inside * (3.0 - 2.0 * inside)
+
+
+def sky_frame(way):
+    """The Moon's way and the two ways across its face, as the game's sky shader sets them (night_dome.gdshader)."""
+    toward = np.asarray(way, dtype=np.float64)
+    toward /= np.linalg.norm(toward)
+    right = np.cross([0.0, 1.0, 0.0], toward)
+    right /= np.linalg.norm(right)
+    return toward, right, np.cross(toward, right)
+
+
+def sky_rays(half_angle, pixels):
+    """For a square picture `pixels` across on a plane square to the way, `half_angle` radians either side of it: each
+    pixel's ray as its share across (x) and up (y) the face of the sky, and how far it is from the way, in radians."""
+    edge = math.tan(half_angle)
+    across = (np.arange(pixels) + 0.5) / pixels * 2.0 - 1.0
+    x_side, y_side = np.meshgrid(across * edge, -across * edge)
+    length = np.sqrt(1.0 + x_side ** 2 + y_side ** 2)
+    return x_side / length, y_side / length, np.arccos(np.clip(1.0 / length, -1.0, 1.0))
+
+
+def face_noise(at_x, at_y):
+    """The sky shader's smooth noise on the Moon's face, from 0 to 1 (its hash2 and face_noise)."""
+    def hashed(cell_x, cell_y):
+        return np.modf(np.sin(cell_x * 127.1 + cell_y * 311.7) * 43758.5453)[0] % 1.0
+    cell_x, cell_y = np.floor(at_x), np.floor(at_y)
+    blend_x = (at_x - cell_x) ** 2 * (3.0 - 2.0 * (at_x - cell_x))
+    blend_y = (at_y - cell_y) ** 2 * (3.0 - 2.0 * (at_y - cell_y))
+    low = hashed(cell_x, cell_y) * (1 - blend_x) + hashed(cell_x + 1, cell_y) * blend_x
+    high = hashed(cell_x, cell_y + 1) * (1 - blend_x) + hashed(cell_x + 1, cell_y + 1) * blend_x
+    return low * (1 - blend_y) + high * blend_y
+
+
+def srgb_bytes(linear):
+    linear = np.clip(linear, 0.0, 1.0)
+    srgb = np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
+    return (srgb * 255.0 + 0.5).astype(np.uint8)
+
+
+def moon_face_picture(entry, pixels=1024):
+    """The Moon's face as the sky shader draws it on a full Moon: its colour, its seas darker, `brightness` times
+    (kept to 1, a picture's most), its rim smoothed off; RGBA, the alpha how much of the sky it covers."""
+    half = math.radians(float(entry["across"])) / 2.0
+    on_x, on_y, _ = sky_rays(half * 1.05, pixels)
+    across = math.sin(half)
+    face_x, face_y = on_x / across, on_y / across
+    covered = 1.0 - smoothstep(0.96, 1.0, np.hypot(face_x, face_y))
+    seas = smoothstep(0.45, 0.75, face_noise(face_x * 2.2 + 4.0, face_y * 2.2 + 4.0)) * float(entry["seas"])
+    lit = float(entry["brightness"]) * float(entry.get("lit", 1.0))
+    rgb = np.stack([channel * (1.0 - seas) * lit for channel in colour(entry["colour"])], axis=-1)
+    return np.dstack([srgb_bytes(rgb), (np.clip(covered, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)]), half * 1.05
+
+
+def moon_halo_picture(entry, pixels=512):
+    """The Moon's glow in the city's air as the sky shader draws it: the Moon's colour laid over the sky by
+    `halo` times its lit share, falling off as exp(-angle / `halo_fall`) from its way; RGBA."""
+    half = 6.0 * float(entry["halo_fall"])
+    _, _, angle = sky_rays(half, pixels)
+    glow = np.clip(float(entry["halo"]) * float(entry.get("lit", 1.0)) * np.exp(-angle / float(entry["halo_fall"])),
+                   0.0, 1.0)
+    rgb = np.broadcast_to(np.asarray(colour(entry["colour"])), (pixels, pixels, 3))
+    return np.dstack([srgb_bytes(rgb), (glow * 255.0 + 0.5).astype(np.uint8)]), half
+
+
+def sky_square(stage, path, entry, half_angle, distance, picture_file):
+    """A square far out along the Moon's way from its `eye`, square to the way, `half_angle` across either side,
+    drawn with its picture as the sky shows it (unlit, laid over by its alpha)."""
+    toward, right, up = sky_frame(entry["way"])
+    middle = np.asarray(entry["eye"], dtype=np.float64) + toward * distance
+    edge = distance * math.tan(half_angle)
+    corners = [middle + (right * side_x + up * side_y) * edge for side_x, side_y in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    built = builders.quad(corners, "sky")
+    built["uvs"] = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
+    prim = mesh_prim(stage, path, built)
+    material = backdrop_material(stage, f"{path}_look", picture_file, threshold=0.0)
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
+    for key, value in (("score:kind", "sky"), ("score:from", entry.get("from", ""))):
+        prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+
+
+def write_moon(stage, place, entry, out):
+    """The Moon as the game's sky draws it at infinity, here `distance` metres out along its way from the eye it is
+    seen from (far past everything else, so it moves little across the place): its face, and behind it its halo."""
+    if not entry:
+        return
+    from PIL import Image
+    UsdGeom.Scope.Define(stage, f"/{place}/Sky")
+    textures = out / "assets/textures"
+    textures.mkdir(parents=True, exist_ok=True)
+    distance = float(entry.get("distance", 1800.0))
+    for name, (picture, half), farther in (("halo", moon_halo_picture(entry), 10.0),
+                                           ("moon", moon_face_picture(entry), 0.0)):
+        target = textures / f"sky_{name}.png"
+        Image.fromarray(picture, "RGBA").save(target)
+        sky_square(stage, f"/{place}/Sky/{name}", entry, half, distance + farther, f"../assets/textures/{target.name}")
 
 
 def game_values(prim, entry):
@@ -449,6 +581,7 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
     write_objects(stage, place, scene.get("objects", []), out, world)
     write_backdrop(stage, place, scene.get("backdrop", []), out, world)
     write_places(stage, place, scene.get("places", []))
+    write_moon(stage, place, scene.get("moon"), out)
     lights = (kit_lights(kit, pieces) if kit is not None and scene.get("kit_lights", True) else []) + \
         scene.get("lights", [])
     write_lights(stage, place, lights)

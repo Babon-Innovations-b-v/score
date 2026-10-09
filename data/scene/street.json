@@ -60,16 +60,262 @@
  ],
  "structure": [
   {
-   "name": "moon",
-   "builder": "sphere",
+   "name": "roof_own_up",
+   "builder": "box",
    "centre": [
-    -279.13,
-    121.12,
-    -59.3
+    1.45,
+    23.9,
+    -24.1
    ],
-   "radius": 11.9,
-   "surface": "moon_face",
-   "from": "night.gd:16-17,178-183 (4.4 degrees across, 23 up)"
+   "size": [
+    9.7,
+    0.2,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)"
+  },
+  {
+   "name": "parapet_own_up_east",
+   "builder": "box",
+   "centre": [
+    6.2,
+    24.5,
+    -24.1
+   ],
+   "size": [
+    0.2,
+    1.0,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_own_up_west",
+   "builder": "box",
+   "centre": [
+    -3.3,
+    24.5,
+    -24.1
+   ],
+   "size": [
+    0.2,
+    1.0,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_own_up_south",
+   "builder": "box",
+   "centre": [
+    1.45,
+    24.5,
+    -6.355
+   ],
+   "size": [
+    9.7,
+    1.0,
+    0.2
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_own_up_north",
+   "builder": "box",
+   "centre": [
+    1.45,
+    24.5,
+    -41.845
+   ],
+   "size": [
+    9.7,
+    1.0,
+    0.2
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "roof_own_down",
+   "builder": "box",
+   "centre": [
+    1.45,
+    23.9,
+    17.1
+   ],
+   "size": [
+    9.7,
+    0.2,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)"
+  },
+  {
+   "name": "parapet_own_down_east",
+   "builder": "box",
+   "centre": [
+    6.2,
+    24.5,
+    17.1
+   ],
+   "size": [
+    0.2,
+    1.0,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_own_down_west",
+   "builder": "box",
+   "centre": [
+    -3.3,
+    24.5,
+    17.1
+   ],
+   "size": [
+    0.2,
+    1.0,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_own_down_south",
+   "builder": "box",
+   "centre": [
+    1.45,
+    24.5,
+    34.845
+   ],
+   "size": [
+    9.7,
+    1.0,
+    0.2
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_own_down_north",
+   "builder": "box",
+   "centre": [
+    1.45,
+    24.5,
+    -0.645
+   ],
+   "size": [
+    9.7,
+    1.0,
+    0.2
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "roof_across",
+   "builder": "box",
+   "centre": [
+    25.2,
+    23.9,
+    2.0
+   ],
+   "size": [
+    21.895,
+    0.2,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)"
+  },
+  {
+   "name": "parapet_across_east",
+   "builder": "box",
+   "centre": [
+    36.0475,
+    24.5,
+    2.0
+   ],
+   "size": [
+    0.2,
+    1.0,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_across_west",
+   "builder": "box",
+   "centre": [
+    14.3525,
+    24.5,
+    2.0
+   ],
+   "size": [
+    0.2,
+    1.0,
+    35.69
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_across_south",
+   "builder": "box",
+   "centre": [
+    25.2,
+    24.5,
+    19.745
+   ],
+   "size": [
+    21.895,
+    1.0,
+    0.2
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  },
+  {
+   "name": "parapet_across_north",
+   "builder": "box",
+   "centre": [
+    25.2,
+    24.5,
+    -15.745
+   ],
+   "size": [
+    21.895,
+    1.0,
+    0.2
+   ],
+   "surface": "whitewash",
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+  }
+ ],
+ "objects": [
+  {
+   "name": "car",
+   "model": "game/prologue/earth_site/models/earth_state_car/earth_state_car.glb",
+   "at": [
+    10.0,
+    0.0,
+    4.0
+   ],
+   "yaw": 180.0,
+   "stretch": [
+    0.72,
+    0.72,
+    1.0
+   ],
+   "from": "earth_site.gd:150-151 CAR_AT (10, 0, 4), 867-871 _park_the_car; car.gd:24-28,62-68 the kept model pressed to 0.72 across and up and turned PI"
   }
  ],
  "lights": [
@@ -157,6 +403,32 @@
    "from": "night.gd:255-264 (0.08 at full Moon)"
   }
  ],
+ "moon": {
+  "way": [
+   -0.90042,
+   0.39071,
+   -0.1913
+  ],
+  "eye": [
+   -4.0,
+   9.0,
+   -3.5
+  ],
+  "across": 4.4,
+  "colour": "#e6ebf2",
+  "brightness": 1.2,
+  "seas": 0.4,
+  "halo": 0.35,
+  "halo_fall": 0.09,
+  "lit": 1.0,
+  "distance": 1800.0,
+  "from": "night.gd:16-17 (MOON_HEIGHT_DEGREES 23, MOON_ACROSS_DEGREES 4.4), 180-184 moon_way from the balcony toward the rocket; night_dome.gdshader:12-18,43-68 (MOON_BRIGHTNESS 1.2, SEAS 0.4, its face noise) and night_sky.gdshaderinc:25-26 (HALO 0.35, HALO_FALL 0.09); earth_night_sky.tres moon_color #e6ebf2; lit 1, the full Moon of the game's shots"
+ },
+ "kit_glow": {
+  "strength": 0.9,
+  "ramp": 0.15,
+  "from": "night.gd:38-39,270-291 KIT_GLOW 0.9 on every kind its kit marks night_glow (the launch-kit branch, #130); ink_textured.gdshader:67-68,106-109 GLOW_RAMP 0.15"
+ },
  "environment": {
   "background": "#030409",
   "ambient": {
