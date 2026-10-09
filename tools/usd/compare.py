@@ -39,7 +39,9 @@ FOV = 30.0
 SIZE = (384, 384)
 SQUARE = 128
 # The renders run on a rented card (Cycles on the card), or on a processor machine when no card is in stock.
-RENDER_CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb")
+RENDER_CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb", "cpu-16c-64gb")
+# The parts of a kit piece that are objects of their own (export.py names them <row>_<part>_<n>).
+PARTS = ("glow", "screen")
 # A close-up's background is its border's colour; a pixel further from it than this (0 to 255, any channel) is the
 # object's.
 BACKGROUND_STEP = 24
@@ -114,8 +116,8 @@ def object_bounds(stage_path):
     return found
 
 
-def ring_views(name, path, low, high):
-    """YAWS views round one object, at ELEVATION, each framing its bounds."""
+def ring_views(name, paths, low, high):
+    """YAWS views round one object (its prim and its parts' prims), at ELEVATION, each framing its bounds."""
     middle = (low + high) / 2
     radius = max(0.05, float(np.linalg.norm(high - low)) / 2)
     distance = radius / math.sin(math.radians(FOV / 2)) * 1.05
@@ -123,23 +125,34 @@ def ring_views(name, path, low, high):
     for step in range(YAWS):
         yaw, pitch = math.radians(360.0 * step / YAWS), math.radians(ELEVATION)
         way = np.array([math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)])
-        views.append(annotate.view(f"{name}-yaw{step}", middle + way * distance, middle, fov=FOV, only=[path]))
+        views.append(annotate.view(f"{name}-yaw{step}", middle + way * distance, middle, fov=FOV, only=paths))
     return views
 
 
 def chosen(stage_path, rows, closeups):
-    """{row: (first object's prim path, close-up file)} for every row with a close-up and an object on the stage."""
+    """{row: (the row's first object and its parts, as prim paths; close-up file)} for every row with a close-up and an
+    object on the stage. A kit piece's glowing part or screen is an object of its own (`<row>_<part>_<n>`, export.py),
+    drawn with its host, as the close-up shows them together."""
     paths = sorted(object_bounds(stage_path))
     found = {}
     for row in rows:
         picture = closeup_of(row, closeups)
         path = next((path for path in paths if path.rsplit("/", 1)[-1].rsplit("_", 1)[0] == row["id"]), None)
-        if picture is not None and path is not None:
-            found[row["id"]] = (path, picture)
+        if picture is None or path is None:
+            continue
+        number = path.rsplit("_", 1)[-1]
+        parts = [other for other in paths if other.rsplit("/", 1)[0] == path.rsplit("/", 1)[0]
+                 and any(other.rsplit("/", 1)[-1] == f"{row['id']}_{part}_{number}" for part in PARTS)]
+        found[row["id"]] = ([path, *parts], picture)
     return found
 
 
-def ways(out, row, path, picture):
+def joined(bounds, paths):
+    """The box round several objects: (low, high)."""
+    return (np.min([bounds[path][0] for path in paths], axis=0), np.max([bounds[path][1] for path in paths], axis=0))
+
+
+def ways(out, row, paths, picture):
     """Each yaw's render of one object beside its close-up: [(view name, outline score, render cut file)], the cuts
     written into out."""
     target = closeup_mask(Image.open(picture))
@@ -147,7 +160,7 @@ def ways(out, row, path, picture):
     for step in range(YAWS):
         name = f"{row}-yaw{step}"
         seen = annotate.load(out / "renders", name)
-        mask = annotate.mask(seen, path)
+        mask = np.logical_or.reduce([annotate.mask(seen, path) for path in paths])
         cut = out / "cuts" / f"{name}.png"
         cut_on_white(Image.open(seen["look"]), mask).save(cut)
         found.append((name, outline(mask, target), cut))
@@ -165,21 +178,21 @@ def compare(stage_path, rows, out, closeups=None, cloud=False, who="compare", re
     out = pathlib.Path(out)
     bounds = object_bounds(stage_path)
     picked = chosen(stage_path, rows, closeups)
-    views = [view for row, (path, _) in picked.items() for view in ring_views(row, path, *bounds[path])]
+    views = [view for row, (paths, _) in picked.items() for view in ring_views(row, paths, *joined(bounds, paths))]
     if not reuse:
         annotate.run(stage_path, views, out / "renders", cloud, SIZE, RENDER_CLASSES)
     (out / "cuts").mkdir(parents=True, exist_ok=True)
     pairs, scored = {}, {}
-    for row, (path, picture) in sorted(picked.items()):
+    for row, (paths, picture) in sorted(picked.items()):
         closeup_cut = out / "cuts" / f"{row}-closeup.png"
         cut_on_white(Image.open(picture), closeup_mask(Image.open(picture))).save(closeup_cut)
-        scored[row] = ways(out, row, path, picture)
+        scored[row] = ways(out, row, paths, picture)
         pairs.update({name: [str(cut), str(closeup_cut)] for name, _, cut in scored[row]})
     likeness = similar_scores(pairs, out, cloud, who)
     found = []
-    for row, (path, picture) in sorted(picked.items()):
+    for row, (paths, picture) in sorted(picked.items()):
         name, score, cut = best_of(scored[row], likeness)
-        found.append({"row": row, "object": path, "view": name, "outline": round(score, 3),
+        found.append({"row": row, "object": paths[0], "view": name, "outline": round(score, 3),
                       "likeness": round(likeness[name], 3) if name in likeness else None,
                       "render": str(cut), "closeup": str(picture)})
     found.sort(key=lambda entry: (entry["likeness"] if entry["likeness"] is not None else 2.0, entry["outline"]))
