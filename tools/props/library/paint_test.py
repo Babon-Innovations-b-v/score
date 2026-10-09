@@ -29,6 +29,7 @@ import labels  # noqa: E402
 import part_judge  # noqa: E402
 import patchy  # noqa: E402
 import regions  # noqa: E402
+import surface_check  # noqa: E402
 import route  # noqa: E402
 
 
@@ -233,6 +234,27 @@ def test_a_baked_colour_two_materials_share_reads_as_the_one_used():
     names = ["bare_steel", "painted_panel", "rubber"]
     assert patchy.twins_left_out(palettes, names, {"bare_steel": 0.001, "painted_panel": 0.99, "rubber": 0.01}) == [0]
     assert patchy.twins_left_out(palettes, names, None) == []
+
+
+def test_the_surface_check_sees_gold_on_white_and_two_finishes_as_one():
+    """Drawn surfaces against a close-up's regions: gold over a white band fails; the lab's soft blue vinyl over a grey
+    seat passes; a gold and a silver region given one surface fail; a region the drawing does not reach is unknown."""
+    regions_map = np.zeros((20, 20), dtype=int)
+    regions_map[:, 10:] = 1
+    landed = np.ones((20, 20), dtype=bool)
+    white, gold, grey = np.array([80.0, 0.0, 2.0]), np.array([60.0, 6.0, 35.0]), np.array([55.0, 0.0, 1.0])
+    soft_blue = np.array([45.0, -2.0, -15.0])
+    names = ["white", "gold", "blue"]
+    surfaces = np.array([white, gold, soft_blue])
+    drawn = np.ones((20, 20), dtype=int)  # gold everywhere
+    found = surface_check.check(drawn, landed, regions_map, np.array([white, gold]), surfaces, names)
+    assert not found["pass"] and [entry["verdict"] for entry in found["regions"]] == ["fail", "pass"], found
+    assert found["collapsed"] and found["collapsed"][0]["families"] == ["neutral", "warm"]
+    drawn[:] = 2  # soft blue vinyl over a grey seat and its grey base
+    assert surface_check.check(drawn, landed, regions_map, np.array([grey, grey]), surfaces, names)["pass"]
+    landed[:, 10:] = False
+    unknown = surface_check.check(drawn, landed, regions_map, np.array([grey, grey]), surfaces, names)
+    assert not unknown["pass"] and unknown["regions"][1]["verdict"] == "unknown", unknown
 
 
 def test_the_route_refuses_patchy_labels():
