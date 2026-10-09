@@ -72,6 +72,9 @@ class Ground:
         self.skin = folder / record["skin"]
         # A shade map painted in one colour (Mars's ground): the skin is tinted to it in the stage.
         self.tint = record.get("tint")
+        # The ground shader's detail (its flat colours, pictures and shares), baked into the near ground's maps
+        # (ground_detail.py); a ground without one is drawn in its skin.
+        self.detail = record.get("detail")
         self.plan = seat_frame(record["plan_out"], 0.0)
         seat_out, self.heading = np.asarray(entry["out"], dtype=float), float(entry["heading"])
         seat = seat_frame(seat_out, self.heading)

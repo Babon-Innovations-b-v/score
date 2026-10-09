@@ -465,3 +465,27 @@ def haze_shell(shape, centre, size, surface, segments):
         shell["points"] = shell["points"] * [half[0], 1.0, half[2]] + [centre[0], 0.0, centre[2]]
         return shell
     raise ValueError(f"no haze shape named {shape}")
+
+
+def torus(inner, outer, height, surface, sides=32, ring_sides=8, flatten=1.0, centre=(0.0, 0.0)):
+    """A ring round up (a pad's painted ring, a torus as the engine's TorusMesh or CSGTorus3D makes one): its hole
+    `inner` and its outside `outer` in radius, its middle at `height`, its round section squashed upright by `flatten`
+    (the node's own y scale)."""
+    tube = (outer - inner) / 2.0
+    middle = (outer + inner) / 2.0
+    points, uvs = [], []
+    for side in range(sides + 1):
+        angle = 2 * math.pi * side / sides
+        for ring_side in range(ring_sides + 1):
+            round_angle = 2 * math.pi * ring_side / ring_sides
+            reach = middle + tube * math.cos(round_angle)
+            points.append([centre[0] + reach * math.sin(angle), height + tube * flatten * math.sin(round_angle),
+                           centre[1] - reach * math.cos(angle)])
+            uvs.append([angle * middle, round_angle * tube])
+    triangles = []
+    for side in range(sides):
+        for ring_side in range(ring_sides):
+            first = side * (ring_sides + 1) + ring_side
+            following = first + ring_sides + 1
+            triangles += [[first, following, first + 1], [first + 1, following, following + 1]]
+    return mesh(points, triangles, uvs, surface)
