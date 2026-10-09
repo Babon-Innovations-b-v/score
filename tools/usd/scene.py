@@ -137,13 +137,13 @@ def bind_surface(stage, prim, place, surface):
 
 
 def built_meshes(entry):
-    """A structure entry's meshes: its builder called with its numbers (every key but name, builder, from, layer and
-    its placing), each placed where the entry stands (`placed`)."""
+    """A structure entry's meshes: its builder called with its numbers (every key but name, builder, from, layer, plain
+    and its placing), each placed where the entry stands (`placed`)."""
     if entry["builder"] not in BUILDERS:
         raise ValueError(f"no code builder named {entry['builder']}")
     builder = getattr(builders, entry["builder"])
     numbers = {key: value for key, value in entry.items()
-               if key not in ("name", "builder", "from", "layer", "mirror", "placed_at", "placed_turn")}
+               if key not in ("name", "builder", "from", "layer", "mirror", "placed_at", "placed_turn", "plain")}
     built = builder(**numbers)
     return [placed(part, entry) for part in (built if isinstance(built, list) else [built])]
 
@@ -174,6 +174,8 @@ def write_structure(stage, place, entries, root="Structure", kind="structure"):
             for key, value in (("score:kind", kind), ("score:builder", entry["builder"]),
                                ("score:from", entry.get("from", ""))):
                 prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+            if "plain" in entry:  # which plain thing a primitive is (tools/usd/placeholders.py)
+                prim.GetPrim().CreateAttribute("score:plain", Sdf.ValueTypeNames.String).Set(entry["plain"])
             if "layer" in entry:  # a roof's draw layer, left out of a cutaway look
                 prim.GetPrim().CreateAttribute("score:layer", Sdf.ValueTypeNames.String).Set(str(entry["layer"]))
             if "mirror" in entry:

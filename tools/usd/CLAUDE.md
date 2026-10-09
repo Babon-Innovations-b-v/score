@@ -32,6 +32,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   take of any name (`-r1`, `-s1`). Never guess a take name.
 - `resting.py` is the scene check (floating, tipping, sunk below its contact points, one piece inside another; hung
   rows exempt by their inventory `anchor`, fixed rows not judged for tipping, two fixed rows may be joined). Never put a fault right by lowering a piece: settle it.
+- `placeholders.py` is the placeholder check: nothing visible stands in for a made piece. A scene record's box,
+  quad, disc, round wall, lathe, sphere or torus says which plain thing it is (`plain`: plate, pipe, trim, shell,
+  ground, soil, water or sky) or fails; a kit piece built in code must be a kind the sorter sends to code; a mesh
+  with no material or in the default grey, and a proxy, fail. Never mark a thing with detail plain to pass it: make it.
 - `settle.py` is the physics settle: loose rows dropped in headless Blender (`../blender/inside/settle_stage.py`) on
   the stage's ground with their own triangles (cut down), `"fixed": true` rows static, and the rest pose written into the layout
   (inventory spot and kit piece: `x`, `z`, the lift `y` and a `rotation` quaternion [x, y, z, w] in the piece's own
