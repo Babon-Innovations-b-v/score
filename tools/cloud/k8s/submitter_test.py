@@ -265,3 +265,12 @@ def test_an_unused_node_made_during_the_run_is_paid_for():
     machines = submit.node_machines(run, "judge")
     assert sorted((machine["node"], machine["unused"]) for machine in machines) == [("first", False),
                                                                                     ("second", True)]
+
+
+def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")
+    monkeypatch.delenv("SCORE_K8S_PROVIDER", raising=False)
+    assert submit.provider.on_cluster()
+    assert submit.provider.load().NAME == "scaleway"
+    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
+    assert not submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"

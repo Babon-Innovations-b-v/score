@@ -11,7 +11,8 @@ swatch.py) and its `out` folder; a make_chunky job's pieces name their `parts` f
 the card (FARM_CYCLES_GPU), with ProcFunc and infinigen2's shaders from the repo's vendored copies; each job's `out`
 comes back to where it says. The jobs are spread over as many machines as finish them in about the setup and one
 job's time (spread.py), each taking the next job as it finishes one; one machine for a short list. The owner's
-limits, the self-delete, the watchdog and the delete are batch.py's.
+limits, the self-delete, the watchdog and the delete are batch.py's. Under SCORE_CLOUD=k8s the same jobs run as
+Kubernetes Jobs of the blender image on the cluster (tools/cloud/k8s/cluster_jobs.py); the machines stay the default.
 """
 import argparse
 import json
@@ -28,6 +29,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import REPO  # noqa: E402
@@ -164,6 +166,53 @@ def record(run, machines, started, jobs):
     return entry
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): each job a Kubernetes Job of the blender image (one environment for every
+# Blender job), through tools/cloud/k8s/cluster_jobs.py; the job's files at the machine's paths, its out folder back.
+CLUSTER_REPO = "/work/repo"
+
+
+def cluster_job(job, number, card, job_file):
+    """One bake as the cluster runs it: its inputs and job file at the machine's paths (written to `job_file` here),
+    its out folder back to where the job says, Cycles on the card (with the image's kernel cache) or the cores."""
+    moved, sends = remote_job(job, number)
+    job_path = REMOTE / f"job{number}.json"
+    job_file.write_text(json.dumps(moved).replace(str(REPO), CLUSTER_REPO))
+    inputs = [{"local": str(job_file), "path": str(job_path)}]
+    for local, place in sends:
+        files = local if isinstance(local, list) else sorted(
+            found for found in local.iterdir() if found.is_file() and found.name != "labels.json")
+        inputs += [{"local": str(file), "path": str(place / pathlib.Path(file).name)} for file in files]
+    blender = ["/opt/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
+               f"tools/props/library/inside/{job['script']}", "--", str(job_path)]
+    found = {"command": ["sh", "-c", f"mkdir -p {moved['out']} && {shlex.join(blender)}"], "code": list(SHIPPED),
+             "inputs": inputs, "outputs": [{"path": moved["out"], "local": job["out"]}],
+             "minutes": max(10.0, card_minutes(job) * (1 if card else PROCESSOR_SLOWER) * 2),
+             "env": {"FARM_CYCLES_GPU" if card else "FARM_CYCLES_CPU": "1"}}
+    if card:
+        found["kernel_cache"] = "blender-5.0.1"
+    return found
+
+
+def main_on_cluster(options, jobs):
+    """main() under SCORE_CLOUD=k8s: the bakes as one run of the cluster, on the library's classes in its order
+    (capacity.py), or a processor class with --processor, or the classes asked for."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    classes = (options.classes.split(",") if options.classes else
+               list(PROCESSORS) if options.processor else None)
+    card = not options.processor and not (classes and not any(provider.cards(name) for name in classes))
+    if options.dry_run:
+        batch.say(f"{len(jobs)} library jobs for the cluster")
+        return
+    folder = batch.BATCHES / (time.strftime("library-k8s-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
+    folder.mkdir(parents=True)
+    work = [cluster_job(job, number, card, folder / f"job{number}.json") for number, job in enumerate(jobs)]
+    left = cluster_jobs.run("library", work, options.who, classes, image="blender")
+    if left:
+        raise SystemExit(f"library jobs {', '.join(map(str, left))} failed on the cluster")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("jobs", nargs="+", type=pathlib.Path)
@@ -173,6 +222,9 @@ def main():
     parser.add_argument("--classes", help="only these capability classes, comma separated (a measuring run)")
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs]
+    if provider.on_cluster():
+        main_on_cluster(options, jobs)
+        return
     account = cloud.account()
     batch.sweep(account)
     found, count, allowed_minutes = price(jobs, account, options.processor,

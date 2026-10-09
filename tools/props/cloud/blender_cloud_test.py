@@ -85,7 +85,30 @@ def a_held_machine_runs_a_chain():
         return problems
 
 
-CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain)
+def a_cluster_job_keeps_the_paths():
+    """Under SCORE_CLOUD=k8s a job becomes a cluster job: the same arguments, the script from the job's code, its
+    output folders made first, Cycles on the card with the kernel cache on card classes and on the cores otherwise."""
+    job = {"script": "tools/blender/inside/settle_stage.py", "args": ["/w/stage.usda", "/w/out/x.json"],
+           "inputs": ["/w/stage.usda"], "outputs": ["/w/out/x.json"], "minutes": 4}
+    problems = []
+    card = blender_cloud.cluster_job(job, ["gpu-24gb"])
+    words = shlex.split(card["command"][2])
+    if words[:3] != ["mkdir", "-p", "/w/out"] or words[words.index("--") + 1:] != ["/w/stage.usda", "/w/out/x.json"]:
+        problems.append(f"the cluster command is {card['command'][2]}")
+    if "tools/blender/inside/settle_stage.py" not in words or "tools/blender/inside" not in card["code"]:
+        problems.append("the script does not run from the job's code")
+    if card["env"] != {"FARM_CYCLES_GPU": "1"} or card.get("kernel_cache") != blender_cloud.CLUSTER_KERNELS:
+        problems.append("a card job does not render on the card with the kernel cache")
+    processor = blender_cloud.cluster_job(job, ["cpu-32c-128gb"])
+    if processor["env"] != {"FARM_CYCLES_CPU": "1"} or "kernel_cache" in processor:
+        problems.append("a processor job does not render on the cores")
+    if card["inputs"] != job["inputs"] or card["outputs"] != job["outputs"] or card["minutes"] != 4:
+        problems.append("the inputs, outputs or minutes changed")
+    return problems
+
+
+CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain,
+          a_cluster_job_keeps_the_paths)
 
 
 if __name__ == "__main__":

@@ -66,6 +66,9 @@ NO_GROW_GRACE_MINUTES = 1.5
 NO_GROW_WORDS = ("in backoff after failed scale-up", "max node group size reached", "max cluster", "out of stock")
 # How long the end waits for the run's nodes to be removed by the autoscaler before recording them as still up.
 SCALE_DOWN_WAIT_MINUTES = 20
+# When a runner does not wait for that, a node still up is taken as gone this long after the run: the autoscaler's
+# 5 min of idleness and its delete (5.5 to 6.5 min measured, 2026-10-09).
+IDLE_ESTIMATE_MINUTES = 6.5
 INSTANCE_LABEL = "node.kubernetes.io/instance-type"
 ZONE_LABEL = "topology.kubernetes.io/zone"
 
@@ -424,9 +427,11 @@ def poll(run):
     run.watch_nodes()
 
 
-def submit(run_id, specs, store, kubectl=None, cluster=None):
+def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=True, who=None):
     """Run every job of `specs` ({job id: job.json}) not yet done to its end on the cluster; the ledger entries
-    written. `store` is the run's object store (the runtime's), where done.json says a job is finished."""
+    written. `store` is the run's object store (the runtime's), where done.json says a job is finished. A runner
+    that must not wait for its nodes to go (`wait_scale_down=False`) records them as gone after
+    IDLE_ESTIMATE_MINUTES, marked estimated; `who` is the session asking, kept in the ledger."""
     cluster = cluster or cluster_module()
     kubectl = kubectl or Kubectl(kubeconfig(cluster))
     helper = runtime()
@@ -450,10 +455,13 @@ def submit(run_id, specs, store, kubectl=None, cluster=None):
         why = over_limits(run, spent)
         if why:
             stop_run(run, why)
-    wait_for_scale_down(run)
+    if wait_scale_down:
+        wait_for_scale_down(run)
+    else:
+        estimate_scale_down(run)
     timings = {job_id: helper.done(store, run_id, job_id) for job_id, record in run.jobs.items()
                if record["state"] == "done"}
-    entries = ledger_entries(run, timings)
+    entries = [dict(entry, who=who) if who else entry for entry in ledger_entries(run, timings)]
     for entry in entries:
         ledger.record(entry)
     report(run, entries)
@@ -469,6 +477,16 @@ def wait_for_scale_down(run):
             return
         time.sleep(POLL_SECONDS)
     say("some of the run's nodes are still up; their minutes are counted until now")
+
+
+def estimate_scale_down(run):
+    """Take each of the run's nodes still up as gone IDLE_ESTIMATE_MINUTES from now (the autoscaler's measured
+    scale-down), marked estimated."""
+    run.watch_nodes()
+    gone = time.time() + IDLE_ESTIMATE_MINUTES * 60
+    for seen in run.our_nodes().values():
+        if seen["deleted"] is None:
+            seen["deleted"], seen["estimated"] = gone, True
 
 
 def job_rows(run, kind, timings):
@@ -508,7 +526,8 @@ def node_machines(run, kind):
         machines.append({"type": seen["type"], "zone": seen["zone"], "cards": seen["cards"], "created": created,
                          "ready": max(seen["ready"], created) if seen["ready"] else None,
                          "deleted": seen["deleted"] or time.time(), "price": per_minute,
-                         "unit_minutes": unit, "class": seen["class"], "node": name, "unused": name not in used})
+                         "unit_minutes": unit, "class": seen["class"], "node": name, "unused": name not in used,
+                         "estimated": seen.get("estimated", False)})
     return machines
 
 
@@ -519,7 +538,8 @@ def ledger_entries(run, timings):
         machines = node_machines(run, kind)
         record = ledger.machines_record(machines, [], run.started)
         for row, machine in zip(record["machines"], machines):
-            row.update({"class": machine["class"], "node": machine["node"], "unused": machine["unused"]})
+            row.update({"class": machine["class"], "node": machine["node"], "unused": machine["unused"],
+                        "end_estimated": machine["estimated"]})
         jobs = job_rows(run, kind, timings)
         entries.append({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(run.started)),
                         "batch": run.run_id, "kind": kind, "path": "k8s", **record, "jobs": jobs,
