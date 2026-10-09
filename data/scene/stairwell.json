@@ -28,7 +28,8 @@
     5.4
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:674-692 _build_the_building (FLAT_WALL)"
+   "from": "earth_site.gd:674-692 _build_the_building (FLAT_WALL)",
+   "plain": "shell"
   }
  ],
  "places": [
