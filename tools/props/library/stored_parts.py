@@ -62,6 +62,15 @@ def read(path):
         return points, stored["names"][stored["surface"]]
 
 
+def kit_frame(points, turn, size):
+    """Points of a labelled take in the kit frame its made model stands in: turned by the kind's `turn` and fitted to
+    its laid `size` on the middle of its foot, as the route's make_chunky does."""
+    points = points @ np.asarray(turn).reshape(3, 3).T
+    low, high = points.min(axis=0), points.max(axis=0)
+    foot = np.array([(low[0] + high[0]) / 2, low[1], (low[2] + high[2]) / 2])
+    return (points - foot) * (np.asarray(size, dtype=np.float64) / (high - low))
+
+
 def takes_of(place, target=STORED):
     """Each of a place's made models' stored take ({model: path of its .npz}), from the index."""
     index = target / INDEX
