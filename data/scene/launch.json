@@ -4,7 +4,7 @@
  "objects": [
   {
    "name": "rocket",
-   "model": "game/prologue/earth_site/models/earth_launch_rocket/earth_launch_rocket.glb",
+   "model": "models/earth_launch_rocket/earth_launch_rocket.glb",
    "at": [
     -270.0,
     1.2,

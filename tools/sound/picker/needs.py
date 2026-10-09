@@ -2,26 +2,24 @@
 already plays:
 
 1. **Surfaces** (data/sound/surfaces.json): every surface's footstep, impact and scrape.
-2. **Rooms**: a room's tone (its place's ambience); its echo is worked out, not picked (game/sound/echo/).
+2. **Rooms**: a room's tone (its place's ambience); its echo is worked out from its surfaces, not picked.
 3. **Things** (data/inventory/<room>.json): every row's `sound`, the hum, buzz or whir its things make.
 
 A sound's brief is its `pick` in data/sound/sounds.json: the page it is on (`game`: every sound the game needs), its
 category (which sets the loudness its takes are brought to), where it plays, the prompts MOSS is given with their
 seeds and length, and the searches the optional CC0 sources are asked. Every sound the layers and the catalogue name
-has a brief, but the warning tone and the low-oxygen beep, which the game makes itself to an exact shape
+has a brief (the catalogue is data/sound/catalogue.json), but the warning tone and the low-oxygen beep, which the game makes itself to an exact shape
 (tools/sound/made.py); `needs` lists any that has none.
 """
 import json
 import pathlib
-import re
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SOUNDS = REPO / "data" / "sound" / "sounds.json"
 SURFACES = REPO / "data" / "sound" / "surfaces.json"
 INVENTORIES = REPO / "data" / "inventory"
-CATALOGUE = REPO / "game" / "sound" / "catalogue" / "sound_catalogue.gd"
-LICENCES = REPO / "game" / "sound" / "licences" / "licences.json"
-FOLDERS = {"RECORDINGS": "res://game/sound/recordings/", "MADE": "res://game/sound/made/"}
+CATALOGUE = REPO / "data" / "sound" / "catalogue.json"
+LICENCES = REPO / "data" / "sound" / "licences.json"
 
 
 def read_json(path):
@@ -43,18 +41,14 @@ def layer_names(surfaces=SURFACES, inventories=INVENTORIES):
 
 
 def written_files(catalogue=CATALOGUE):
-    """Every file each sound written in the catalogue's script plays, by name (all the takes of several)."""
-    text = pathlib.Path(catalogue).read_text()
+    """Every file each sound in the catalogue plays, by name (all the takes of several)."""
     found = {}
-    for name, body in re.findall(r'^\t"(\w+)": \{(.*?)\n?\t?\},?$', text, re.M | re.S):
-        files = re.findall(r'(RECORDINGS|MADE) \+ "([^"]+)"', body.split(BUS_FIELD)[0])
+    for name, entry in read_json(catalogue)["sounds"].items():
+        named = entry.get("file") or []
+        files = [named] if isinstance(named, str) else list(named)
         if files:
-            found[name] = [FOLDERS[folder] + relative for folder, relative in files]
+            found[name] = files
     return found
-
-
-## Where an entry's file list ends in the catalogue's script: only FILE names files.
-BUS_FIELD = "BUS:"
 
 
 def current_files(name, sounds=None, catalogue=CATALOGUE):
@@ -95,8 +89,8 @@ def unbriefed(sounds_path=SOUNDS):
 
 
 def catalogue_names(catalogue=CATALOGUE):
-    """Every sound the catalogue's script names."""
-    return re.findall(r'^\t"(\w+)": ', pathlib.Path(catalogue).read_text(), re.M)
+    """Every sound the catalogue names."""
+    return list(read_json(catalogue)["sounds"])
 
 
 def licences_by_file(path=LICENCES):

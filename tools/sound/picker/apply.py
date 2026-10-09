@@ -1,6 +1,7 @@
-"""Each sound's take into the game: the chosen one (choose.py), or the owner's swap where the page's store holds one.
-Its files go into game/sound/generated/ (the recordings before stay where they are, so a swap back is possible), its
-credit onto the licence list (a generated take's prompt, seed and model; a recording's source and author), and its
+"""Each sound's take into the world: the chosen one (choose.py), or the owner's swap where the page's store holds one.
+Its files go into the world's files under sound/generated/ (the local copy of the world's release,
+tools/assets/world.py; the recordings before stay where they are, so a swap back is possible), its
+credit onto the licence list (data/sound/licences.json) (a generated take's prompt, seed and model; a recording's source and author), and its
 entry into data/sound/sounds.json: the file, and a level that plays it as loud as the brief says, or as loud as the
 take it replaces played. A swap back to the recording before takes the data's file and level off again.
 
@@ -8,7 +9,6 @@ The swaps are the page's store, read back as JSON: {need: {"take": key, ...}} or
 """
 import json
 import pathlib
-import re
 import shutil
 import sys
 
@@ -17,8 +17,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import loudness  # noqa: E402
 import needs  # noqa: E402
 
-REPO = needs.REPO
-## Where a chosen take goes, under game/sound/generated/, by its category.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "assets"))
+import world as world_assets  # noqa: E402
+
+## Where a chosen take goes, under sound/generated/ in the world's files, by its category.
 FOLDERS = {"steps": "footsteps", "shot": "doors", "loop": "machines", "room": "places"}
 ## The level a take is played at in the game when the brief names none and it replaces nothing, in LUFS.
 LEVELS = {"steps": -55.0, "shot": -43.0, "loop": -52.0, "room": -47.0}
@@ -45,14 +47,14 @@ def chosen_with_swaps(record, swaps):
     return picks
 
 
-def generated_folder(repo, need):
+def generated_folder(world, need):
     """The folder a need's generated files go in."""
-    return repo / "game" / "sound" / "generated" / FOLDERS[need["category"]]
+    return world / "sound" / "generated" / FOLDERS[need["category"]]
 
 
-def game_files_for(need, take):
-    """Where a take's files go in the game, as (page file, res:// path) pairs: several steps, or one file."""
-    folder = f"res://game/sound/generated/{FOLDERS[need['category']]}"
+def world_files_for(need, take):
+    """Where a take's files go in the world's files, as (page file, name) pairs: several steps, or one file."""
+    folder = f"sound/generated/{FOLDERS[need['category']]}"
     if len(take["files"]) == 1:
         return [(take["files"][0], f"{folder}/{need['name']}{pathlib.Path(take['files'][0]).suffix}")]
     return [(page_file, f"{folder}/{need['name']}_{index + 1}{pathlib.Path(page_file).suffix}")
@@ -72,23 +74,24 @@ def played_level(name, sounds, manifest, brief, category):
 
 
 def written_volume(name):
-    """A sound's volume_db as the catalogue's script writes it."""
-    text = needs.CATALOGUE.read_text()
-    found = re.search(rf'"{name}": \{{.*?VOLUME_DB: (-?[\d.]+)', text, re.S)
-    return float(found.group(1)) if found else -12.0
+    """A sound's volume_db as the catalogue writes it, else the catalogue's default."""
+    catalogue = needs.read_json(needs.CATALOGUE)
+    return float(catalogue["sounds"].get(name, {}).get("volume_db", catalogue["defaults"]["volume_db"]))
 
 
-def credit(take, res_path):
+def credit(take, name):
     """A take's line on the licence list: a generated take's model, prompt and seed; a recording's source."""
     source = take["page"]
     if take.get("prompt"):
         source = f"{take['page']}; prompt: {take['prompt']}; seed {take['seed']}"
-    return {"file": res_path, "source": source, "author": take["author"], "licence": take["licence"]}
+    return {"file": name, "source": source, "author": take["author"], "licence": take["licence"]}
 
 
-def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICENCES, repo=REPO, swapped=()):
+def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICENCES, world=None, swapped=()):
     """Puts every pick on a page into the game, and notes on each entry which take it is and who chose it (the
-    owner for the names in `swapped`, else the scoring); gives back the names changed."""
+    owner for the names in `swapped`, else the scoring); gives back the names changed. `world` is the folder of the
+    world's files (the local copy of its release when not given)."""
+    world = pathlib.Path(world) if world else world_assets.local_folder(world_assets.manifest())
     record = json.loads((page_folder / "candidates.json").read_text())
     document = json.loads(sounds_path.read_text())
     sounds = document["sounds"]
@@ -103,17 +106,17 @@ def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICE
         if take is None:
             continue
         entry = sounds.setdefault(need["name"], {})
-        already = entry.get("pick", {}).get("chosen", {}).get("take") == key and in_place(entry, repo)
+        already = entry.get("pick", {}).get("chosen", {}).get("take") == key and in_place(entry, world)
         entry.setdefault("pick", {})["chosen"] = {"take": key, "by": "owner" if need["name"] in swapped else "scoring"}
         if take["source"] == "game":
-            remove_generated(need, listed, repo)
+            remove_generated(need, listed, world)
             back_to_the_recording(entry, need)
             changed.append(need["name"])
             continue
         if already:
             continue
         level = played_level(need["name"], sounds, manifest, entry.get("pick", {}), need["category"])
-        placed = place_files(page_folder, need, take, listed, repo)
+        placed = place_files(page_folder, need, take, listed, world)
         loudest = max(take["measures"][page_file]["lufs"] for page_file in take["files"])
         entry["file"] = placed if len(placed) > 1 else placed[0]
         entry["volume_db"] = round(min(level - loudest, 0.0), 1)
@@ -137,36 +140,35 @@ def back_to_the_recording(entry, need):
     entry["volume_db"] = written_volume(before)
 
 
-def in_place(entry, repo):
+def in_place(entry, world):
     """Whether every file an entry names is on disk: a take already put in is left as it is (an Ogg file comes out
     with new bytes each time it is written, so writing it again would only churn the repository)."""
     named = entry.get("file") or []
     files = [named] if isinstance(named, str) else named
-    return bool(files) and all((repo / path.removeprefix("res://")).exists() for path in files)
+    return bool(files) and all((world / path).exists() for path in files)
 
 
-def remove_generated(need, listed, repo):
+def remove_generated(need, listed, world):
     """Takes a need's generated files out of the game and off the licence list."""
-    folder = generated_folder(repo, need)
+    folder = generated_folder(world, need)
     olds = [path for path in folder.glob(f"{need['name']}*") if path.suffix in (".ogg", ".wav")
             and (path.stem == need["name"] or path.stem.removeprefix(need["name"] + "_").isdigit())]
     for old in olds:
-        res_path = "res://" + old.relative_to(repo).as_posix()
-        listed[:] = [listing for listing in listed if listing["file"] != res_path]
+        name = old.relative_to(world).as_posix()
+        listed[:] = [listing for listing in listed if listing["file"] != name]
         old.unlink()
-        pathlib.Path(str(old) + ".import").unlink(missing_ok=True)
 
 
-def place_files(page_folder, need, take, listed, repo):
+def place_files(page_folder, need, take, listed, world):
     """Copies a take's files into the game and puts each on the licence list, in place of the need's files there
     before (a walk of eight steps replaced by one of six leaves no seventh)."""
-    remove_generated(need, listed, repo)
+    remove_generated(need, listed, world)
     placed = []
-    for page_file, res_path in game_files_for(need, take):
-        target = repo / res_path.removeprefix("res://")
+    for page_file, name in world_files_for(need, take):
+        target = world / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(page_folder / page_file, target)
-        listed[:] = [listing for listing in listed if listing["file"] != res_path]
-        listed.append(credit(take, res_path))
-        placed.append(res_path)
+        listed[:] = [listing for listing in listed if listing["file"] != name]
+        listed.append(credit(take, name))
+        placed.append(name)
     return placed

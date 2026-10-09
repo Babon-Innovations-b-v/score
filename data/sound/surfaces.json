@@ -1,5 +1,5 @@
 {
-	"is": "how each surface sounds: what a boot on it, a thing dropped on it and a thing dragged over it play (names in sounds.json or the catalogue), and how much of a sound it soaks up (absorbs: the share of sound energy taken at about 1 kHz, Sabine's coefficient), which a room's echo is worked out from (game/sound/echo/). A material library family names its surface in data/library/materials.json (its `surface`), a variant only when it sounds unlike its family; a room kit's piece kind names the surface it is, for the boots on its floors and the room's echo. A kit kind not named is 'steel_plate', the base's own",
+	"is": "how each surface sounds: what a boot on it, a thing dropped on it and a thing dragged over it play (names in sounds.json or the catalogue), and how much of a sound it soaks up (absorbs: the share of sound energy taken at about 1 kHz, Sabine's coefficient), which a room's echo is worked out from. A material library family names its surface in data/library/materials.json (its `surface`), a variant only when it sounds unlike its family; a room kit's piece kind names the surface it is, for the boots on its floors and the room's echo. A kit kind not named is 'steel_plate', the base's own",
 	"fallback": {
 		"footstep": "footsteps_metal",
 		"impact": "",

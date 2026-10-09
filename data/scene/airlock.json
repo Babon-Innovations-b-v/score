@@ -63,7 +63,7 @@
  "objects": [
   {
    "name": "outer_door",
-   "model": "game/base/models/airlock_kit/door_leaf_1.gltf",
+   "model": "models/airlock_kit/door_leaf_1.gltf",
    "at": [
     0.0,
     0.0,
@@ -74,7 +74,7 @@
   },
   {
    "name": "hanging_suit",
-   "model": "game/base/models/hanging_suit/hanging_suit.glb",
+   "model": "models/hanging_suit/hanging_suit.glb",
    "at": [
     1.51,
     0.09,

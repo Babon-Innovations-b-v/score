@@ -1,0 +1,2255 @@
+{
+	"is": "the first world's heavy files (made models and sounds), kept as a release of this repository and named by the records with the names below; tools/assets/world.py fetches, checks and packs them",
+	"release": {
+		"repository": "Babon-Innovations-b-v/score",
+		"tag": "world1-assets-1"
+	},
+	"archives": [
+		{
+			"name": "models.tar.gz",
+			"bytes": 198506693,
+			"sha256": "08e730e50f3e9be69ea62295e4990c7b55faf3439a6c2af6f96543a7317c26fa"
+		},
+		{
+			"name": "sound.tar.gz",
+			"bytes": 35733292,
+			"sha256": "6708c9b063bb5b382c9f8bf60129fadf43d63c90dd85a8c282fbdad1ab92c4e1"
+		}
+	],
+	"licences": [
+		{
+			"match": "models/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/earth_launch_rocket/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/earth_state_car/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-state-car-1)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/solar_panel_row/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf5-478-63)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/inverter_cabinet/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf5-479-61)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/hanging_suit/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via image-to-3dlab, clean finish, from a picture in the look of the airlock's world-step plan",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/moon_boulder_angular/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/moon_boulder_rounded/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/moon_boulder_slab/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/robots/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/rover/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D via image-to-3dlab, clean finish (take kit5-rover-3)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/thruster_drone/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D via image-to-3dlab, clean finish (take kit6-drone-17)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/mars_boulder_basalt/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (the game 2099's Mars rocks)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/mars_boulder_layered/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (the game 2099's Mars rocks)",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/camp_boot_rock/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2 picture, Pixal3D via image-to-3dlab, finished with maps",
+			"author": "the 2099 project"
+		}
+	],
+	"files": {
+		"models/airlock_kit/door_leaf_1.bin": {
+			"bytes": 177488,
+			"sha256": "fde2cc6bcf613a9c7be4843ac34e2ecf84268a5766aa3250974c0a7d326e5d2f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/airlock_kit/door_leaf_1.gltf": {
+			"bytes": 2712,
+			"sha256": "ccca01cc5374ba929a91164cc2bfee97b9d405300f76a68c88ced43438f077ca",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/airlock_kit/textures/airlock_furniture_base_color.webp": {
+			"bytes": 127864,
+			"sha256": "6dba49164d336ec4b4b52539fc42b2528e4f39529aac54ee02117e15b712d77b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/airlock_kit/textures/airlock_furniture_metal_roughness.webp": {
+			"bytes": 589294,
+			"sha256": "64e2849e72a8f958516db416ad9f1462b9b3c91914f885c065497834b76f1d23",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/airlock_kit/textures/airlock_furniture_normal.webp": {
+			"bytes": 6291914,
+			"sha256": "c709be89f415ca9b502c534c733f7ce7241c0f25d4819468c08369f510fa03c5",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_boot_rock/camp_boot_rock.glb": {
+			"bytes": 6698276,
+			"sha256": "f01fbc52b6aacc4d2bdb84abf6742377d4201c63b2e3e292078d1fafa6f4d2f7",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2 picture, Pixal3D via image-to-3dlab, finished with maps",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/bunk_1.bin": {
+			"bytes": 1902580,
+			"sha256": "16bbbba143834dbcfdc1477b6015c5398bc488c000e29aa6f8e24ba896eeba69",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/bunk_1.gltf": {
+			"bytes": 2660,
+			"sha256": "edd7ada017ee2b4b4ad9767be6d597dd16b0bd0be6625885b98bfb2a8d8b664b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/case_1.bin": {
+			"bytes": 32720,
+			"sha256": "d30de1ec5c0cd85feea6cf2bfaede18ac480fda9efa1e5a28f64a2a93d35cfed",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/case_1.gltf": {
+			"bytes": 2761,
+			"sha256": "927b01db4761e622f715856d35d40a862b6726537fcc7427ff8348d006d4257a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/cold_store_1.bin": {
+			"bytes": 1923024,
+			"sha256": "967d0b84e7b590a56da966adfeb7d788fdd75882732267de770d3609a66ce2d4",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/cold_store_1.gltf": {
+			"bytes": 2718,
+			"sha256": "48b05b81d06ca1543fc9d1cc0de9ec51a4608b250a6fe0d14565c9738fc58e11",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/comms_desk_1.bin": {
+			"bytes": 48528,
+			"sha256": "d88c0ff8910afa99e5e37015fa4525c51eb16ae1a261ceba21c431c15c1c71c1",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/comms_desk_1.gltf": {
+			"bytes": 2780,
+			"sha256": "70dcfc0f7f19fe8050287a6301dad136e1b8eb6254c4392df3fcf89d3448a040",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/crate_1.bin": {
+			"bytes": 32720,
+			"sha256": "0c977b83b69be4b20659e515207a64b76187200ac3dfbc235c50af94ffd37f44",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/crate_1.gltf": {
+			"bytes": 2759,
+			"sha256": "b7b569f24190514f73c65b0d34710756bebea5ef5da0551f713aa47ee98b9f67",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/crate_small_1.bin": {
+			"bytes": 32720,
+			"sha256": "bcb5356a279d7374083234180cfbd6061f40659bf712d494dc59eab3c143f050",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/crate_small_1.gltf": {
+			"bytes": 2781,
+			"sha256": "456cb641051fbc1e9e7160046495cadd285e703c2b27b8828ef06107361e9328",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/galley_1.bin": {
+			"bytes": 1900608,
+			"sha256": "aa9d1ed5cf6df9bff698136588b4580a174ec145b228492c3835fda382ff9278",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/galley_1.gltf": {
+			"bytes": 2679,
+			"sha256": "738ff50b49e4e25bff03d3941a22180a3949ce064ae54a3c8d563f3bd30e0429",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/growth_chamber_1.bin": {
+			"bytes": 1914052,
+			"sha256": "7af4fad780c491fd679303709db5f989f66475de4ba56e53d7665aacfbd5dffe",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/growth_chamber_1.gltf": {
+			"bytes": 2761,
+			"sha256": "319fb1e5a5b8c6424c3743af41fcc40d8718e1196a71b2e9e5e5c3e779fa3471",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/hygiene_1.bin": {
+			"bytes": 66240,
+			"sha256": "823e37d9d6dec97d3eb6ee99a1ce5ba71eaeb87adab02674cc8883a390a66d3f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/hygiene_1.gltf": {
+			"bytes": 2769,
+			"sha256": "5dd813b020e37a6956ac826230a2194e073ce636dfed641857ad56d986a8061e",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/lockers_1.bin": {
+			"bytes": 1855760,
+			"sha256": "dbe837f872855262b090fe90b3e37dc9a94e801a9875a47f51ac3e2ccce89156",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/lockers_1.gltf": {
+			"bytes": 2691,
+			"sha256": "684dbdc3b2b22974dc768abdf25b7299f626572bb5bb6aa03e155dc7497cb125",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/monitor_1.bin": {
+			"bytes": 42816,
+			"sha256": "8d09c7f760c287762f2a961abf2b956794bd3efaa912396c15347e4107346224",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/monitor_1.gltf": {
+			"bytes": 2744,
+			"sha256": "fb7749dd4647e6cc459b22023920cccaf289e65b234de310000fd08560981055",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/monitor_1_glow.bin": {
+			"bytes": 840,
+			"sha256": "a8ccf687eafa64b4248a094d021ae382744201f1388752f07890d1c4307bdcf2",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/monitor_1_glow.gltf": {
+			"bytes": 2785,
+			"sha256": "8691051be830a809a5656478bb2daad35e752d78b25386542e90a18653958b8d",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/pedestal_table_1.bin": {
+			"bytes": 39296,
+			"sha256": "7f4c1e1ba1a66b9e16d0cf59facce0fab1d01e094582427d96bbfb16f380e2ad",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/pedestal_table_1.gltf": {
+			"bytes": 2788,
+			"sha256": "17ca126805e521c7eb7bf3616c893249ee65095475fd20acf3f1f9c356d8313d",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/radio_1.bin": {
+			"bytes": 104568,
+			"sha256": "fa913eec6a2d6dd0a983ed5688edcb7a88f01798baa2c471f134daddf60a56ba",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/radio_1.gltf": {
+			"bytes": 2770,
+			"sha256": "89ee92fc878de67130089c246a8028ab2b74e5cd7204412e19b8522c3033b9e5",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/sample_shelf_1.bin": {
+			"bytes": 38240,
+			"sha256": "ecda4abc2e86a5289f4082331425dd65fb740be9163f5a40427afb4c8832ecdc",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/sample_shelf_1.gltf": {
+			"bytes": 2769,
+			"sha256": "4bd41afc725d063688684b9e03ac3a4c15fa8087133b03cc8495dcd1d7c04a46",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/stores_rack_1.bin": {
+			"bytes": 38240,
+			"sha256": "5c99d8dc3871b084e856a70058d1d2f88b07c0687f7be51c428f6792cb59cb09",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/stores_rack_1.gltf": {
+			"bytes": 2766,
+			"sha256": "b593dcb4f48b333f8c6014a1218ab46e0ec03b7d8e7b387b315d48ab590a60a9",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/bunk_1_base_color.webp": {
+			"bytes": 644192,
+			"sha256": "5798ad631891ec5ba7d2531bf3935f0bde7865e1b115dc9705bfabe75ecda79c",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/bunk_1_metal_roughness.webp": {
+			"bytes": 310584,
+			"sha256": "2ada953ade24137c3180071b9ba2f7387062aecee9ccf82ccadb3d73e3d835eb",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/bunk_1_normal.webp": {
+			"bytes": 2952102,
+			"sha256": "8330c42e408ce14dd71f1a1ac07555852e288f0b0c676bec22041d9daecf21af",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/cold_store_1_base_color.webp": {
+			"bytes": 389362,
+			"sha256": "3689d4d25331a45c42470b375dace6aed0c066bcb80aed190fa33fbe0ddcc4b7",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/cold_store_1_metal_roughness.webp": {
+			"bytes": 937378,
+			"sha256": "0c3b929be8a7454b00c53d369a20bbacfe1a2e5249feb30af00554bcba0e288b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/cold_store_1_normal.webp": {
+			"bytes": 3065164,
+			"sha256": "3c652aa9b719762981834b9fd5198da39e8ab40c2d24de431fbb569b031c39f2",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_1_base_color.webp": {
+			"bytes": 233580,
+			"sha256": "3fc5309184d1e44956bc39252229caab09b4c97e3a66d69fcf148cd157b39b4e",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_1_metal_roughness.webp": {
+			"bytes": 6880,
+			"sha256": "27e2dcdce5549af0cbb0d5455695169e383250477c34407c68dd9bc9849cc21c",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_1_normal.webp": {
+			"bytes": 5488284,
+			"sha256": "13d3c5c7825e4460339e5e37bc8364567e57a0085516acfb7084472954b13b5f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_2_base_color.webp": {
+			"bytes": 19670,
+			"sha256": "0af62fb49ae5e1a773bf71384f718c427a240fc20db573c56dacbbfb0a08b047",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_2_metal_roughness.webp": {
+			"bytes": 2482,
+			"sha256": "d9f6d0d6f817049e09b8d4565cab792c9298bdbd3e12ced60c81feec2f206624",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_2_normal.webp": {
+			"bytes": 178808,
+			"sha256": "863cc73e08d5e8eaca72fb5b1d26acfc8ed73eeee2a526b9c1413fd6c46efc30",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_3_base_color.webp": {
+			"bytes": 38458,
+			"sha256": "7cd095a1d0343658bd8ee907ace468e5d2f5445ee0887078768e799e2695600d",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_3_metal_roughness.webp": {
+			"bytes": 5188,
+			"sha256": "fb98e943a8a7ab06d048aa25654c515bb8b8f6aa77c4e647559eff3dd5ab67de",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_3_normal.webp": {
+			"bytes": 161292,
+			"sha256": "e8e9065739dbec507657941e306647d6c4263d0c99f28a5608dc259a56062aba",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_4_base_color.webp": {
+			"bytes": 351090,
+			"sha256": "6d7a4b2aaf70b86144e7d68d076c70571674976b2a5e4220b48edf2d369f488e",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_4_metal_roughness.webp": {
+			"bytes": 29682,
+			"sha256": "4bed61851b9d86504023c45d13dfacb13064e3a0a8c6a462a6634590fb125c9d",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_4_normal.webp": {
+			"bytes": 3085286,
+			"sha256": "8aa7a264b6bdd909c7d6ca769ebdaf14b77b3cae1f6f85cf14f4b334e3443644",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_5_base_color.webp": {
+			"bytes": 243568,
+			"sha256": "2c669451b6031fa7820d2e1efad92bd40e77711a5970e7f2aadd6d4264e73534",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_5_metal_roughness.webp": {
+			"bytes": 176008,
+			"sha256": "c1e1c9a7110f6420e5a7a6fdb4fd936eb5cf050d435a2f2df940fdce28ae48cc",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_5_normal.webp": {
+			"bytes": 2627366,
+			"sha256": "c1a3281752acce1373b82bb3217f9c88672e72cbf095ae7d74f3ed7a0ec448a5",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_6_base_color.webp": {
+			"bytes": 243810,
+			"sha256": "628e120a2754f7a3604c03ef1fd9479a87f43c964cde39e9e9443a3ccbc8d8c4",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_6_metal_roughness.webp": {
+			"bytes": 15476,
+			"sha256": "9c3503bbc561f5e2ae5997bbe4ab28204c810f5c853a5ad86480ab5ddb0c742a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/expedition_camp_furniture_6_normal.webp": {
+			"bytes": 1289620,
+			"sha256": "441d95598a87097b62227f98ec78ae99533c6e77983ceef683fc3431774e08c9",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/galley_1_base_color.webp": {
+			"bytes": 328502,
+			"sha256": "7b592f8dbbd05e49bff8a2774d7741a5ff3359afb446df007ff791c8cd6f2303",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/galley_1_metal_roughness.webp": {
+			"bytes": 709012,
+			"sha256": "b6f8c04af12c2e27322d486a0c5e9c4aaf2c6f564daa2106c6a2e52b1db5605a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/galley_1_normal.webp": {
+			"bytes": 2601946,
+			"sha256": "ebe16296d07e827c595810fea12b1f8dcaf27c25d4eb256ad22a1d89b78d583e",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/growth_chamber_1_base_color.webp": {
+			"bytes": 330000,
+			"sha256": "49266bed46542e66e8a6ab5b59343d84c322de074f425061cc99e68440e2ff84",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/growth_chamber_1_metal_roughness.webp": {
+			"bytes": 568140,
+			"sha256": "826e7d7f39de5ece43b469535e59865bcccb38b8e5ff904597a8a9b695f43206",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/growth_chamber_1_normal.webp": {
+			"bytes": 2816026,
+			"sha256": "39900fd27ff77d82b4d3276475ebcaf2c4bdb97fd73c7f2efb7b4ce53395f01a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/lockers_1_base_color.webp": {
+			"bytes": 90414,
+			"sha256": "48b2e6c7cce49f985a833e82b8d2541e4cc7defd6711ccbd13cf1aa228922ffd",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/lockers_1_metal_roughness.webp": {
+			"bytes": 278910,
+			"sha256": "4d5646d4b738cd08fb91220a8d9a4fa76ef93f4e43a1c89eec88ba7d90494568",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/camp_kit/textures/lockers_1_normal.webp": {
+			"bytes": 1668078,
+			"sha256": "895c7495283f7f7b1f1ce61538d8fc16118c7cd5d48cd80098438306eb86a012",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/earth_launch_rocket/earth_launch_rocket.glb": {
+			"bytes": 7985184,
+			"sha256": "08c23d22560c4a54c4b912bb585d2a95dbbb7e3ec978840a43eec2661cef026b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2)",
+			"author": "the 2099 project"
+		},
+		"models/earth_state_car/earth_state_car.glb": {
+			"bytes": 8058780,
+			"sha256": "54d7602ecd1fbc3ce833a1ca587bab921b092c1514d8d0bc7cd28a7e2cc84df3",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-state-car-1)",
+			"author": "the 2099 project"
+		},
+		"models/hanging_suit/hanging_suit.glb": {
+			"bytes": 4655844,
+			"sha256": "82875fe835eacb8daa4079eaf489b4e7f2a339aade25c783f51b87310a8564db",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via image-to-3dlab, clean finish, from a picture in the look of the airlock's world-step plan",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/chair_1.bin": {
+			"bytes": 1552756,
+			"sha256": "35b821b7fff55c5b331c2855c55680e727a831e96339c9b4fc13f8d61841d621",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/chair_1.gltf": {
+			"bytes": 2671,
+			"sha256": "2dbf3a33b2552f4e9240a5e2949e7e1d576fc0752a51d1ad3403d11a75c2b5db",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/comms_1.bin": {
+			"bytes": 89176,
+			"sha256": "2c95ed94281c4616fa5466f3647a45f108b759e476bc08a4a678ad0cbb327e47",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/comms_1.gltf": {
+			"bytes": 2667,
+			"sha256": "263a6463ca11bd8c33fb3e547c7d6ffefff7eb31311352a85a6ad1f269e42899",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/console_1.bin": {
+			"bytes": 443528,
+			"sha256": "ca2dd2b83deaa9b350313524930d7194b2db2d13edabc133ea9342bb63bc1832",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/console_1.gltf": {
+			"bytes": 2698,
+			"sha256": "0dec9b3100f4fb8de8b734e73d24076a5803e08146a18ea40dd47211d774e6d5",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/console_screen_1.bin": {
+			"bytes": 1452,
+			"sha256": "6130afa3be767610142f2cce2d74670d71390a4efb063c70319b8328b1c381c9",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/console_screen_1.gltf": {
+			"bytes": 1608,
+			"sha256": "8c0d60c8ac9fd611a94f3a4b16f6420ce2ad01d051309c5c3bc22b5ed63ab2b4",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/console_screen_1.png": {
+			"bytes": 156,
+			"sha256": "33c838eeb323c7d240816dbc7d86c5fbbbe9fc5600c0ac2c4b13ae7144e5b8bd",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/desklamp_1.bin": {
+			"bytes": 518396,
+			"sha256": "cd8c15f8f4052f52f5274304a748557779cab346c6af8bd20447bdcc1f62e8a8",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/desklamp_1.gltf": {
+			"bytes": 2698,
+			"sha256": "78b3068ed1f0d8f0587b1891249a8abb817ffd62583a362df247a4f27631a116",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/glovebox_1.bin": {
+			"bytes": 113288,
+			"sha256": "f1a057a42ac1e5558667096e37694642c7e2d1f483dff1b40af9c757209986da",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/glovebox_1.gltf": {
+			"bytes": 2692,
+			"sha256": "16247eabf62541c7b8f04c81c38a22767bba8771575b8da0d6b77344f3ad2885",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/headset_1.bin": {
+			"bytes": 506224,
+			"sha256": "fd82f07b8cbe4dfc6508d7431ce52eae1b873d714ac90145ec43a5ba158585da",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/headset_1.gltf": {
+			"bytes": 2689,
+			"sha256": "023ccaf9f8dbbcb6d665899de8b3e2692b28d3ca0f812d3d3d6ef70d67f13f58",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/keyboard_1.bin": {
+			"bytes": 69904,
+			"sha256": "59be1758e6eaabcafb807e377fab680b994f93f71464f64ac4dd05592be351b3",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/keyboard_1.gltf": {
+			"bytes": 2695,
+			"sha256": "e17d61961e089002b6174107ea163abb2e69ede0138ecc37e16a619a534db116",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/labbench_1.bin": {
+			"bytes": 101240,
+			"sha256": "17094440bd92baf9f18ad76cc82bc940aab5b6a201f212d163bb28b11a78b019",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/labbench_1.gltf": {
+			"bytes": 2657,
+			"sha256": "f5f978dfcb90a2ca92396c25bad5e77ffaecc26f65905c6daedc9b612ec0e9ff",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/microscope_1.bin": {
+			"bytes": 506128,
+			"sha256": "1b4b8e9fe7c5add79049b76ec9fa942bef201041c8201f9cf1cfcbdd98788ee8",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/microscope_1.gltf": {
+			"bytes": 2716,
+			"sha256": "54971322fe16b43c56ec0cc2c48044f42a17175ce454c764f94793f69d96aa6b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_1.bin": {
+			"bytes": 42816,
+			"sha256": "44b075dfe77bf01a7d5f4beedb4c3fc985d30cafc3139e7f2e48deedec8c7ebe",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_1.gltf": {
+			"bytes": 2660,
+			"sha256": "320535f38529069fd60b21c230dd1ee3e40a8767c5f8e69a99d5282298fbac16",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_2.bin": {
+			"bytes": 42816,
+			"sha256": "1af151ba11e137d5cb38f341b9b2c6c7e05222669268d6f02a092f0699e53c40",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_2.gltf": {
+			"bytes": 2660,
+			"sha256": "14fdec0782f91a33616078b38e18d9fd08772dab00d0f32d01a1c2076194f2ec",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_2_glow.bin": {
+			"bytes": 840,
+			"sha256": "e6cf982434d81d3ebe210b962e74245ce293856607f3f7bfcb7e68020830037a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_2_glow.gltf": {
+			"bytes": 2701,
+			"sha256": "781e807170996a140c043a14b770e0740c3abcae09d516daff3dc2077887ad2f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_3.bin": {
+			"bytes": 42816,
+			"sha256": "d37e549a23ea316921e5d85f4fad9281862f4c9d8aceaa90c62b35766c458ea0",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_3.gltf": {
+			"bytes": 2660,
+			"sha256": "7cb3808d2107c4b98dfb62799d4d73998c2d1fed49423386a9452d71d74620d0",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_3_glow.bin": {
+			"bytes": 840,
+			"sha256": "18014608377cebc91b9992f080f8445b386de3114a656d2650d9782df4da457c",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/monitor_3_glow.gltf": {
+			"bytes": 2701,
+			"sha256": "8f19e10d1a1943b6c0e1863c84fec68af723d0aa6127bb322959ca44dbfb1b1f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/rack_1.bin": {
+			"bytes": 74920,
+			"sha256": "bcd73fa50332c0dca1535ac465c447e9df2a6d82b4ffc3220b4ac06dc4777264",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/rack_1.gltf": {
+			"bytes": 2678,
+			"sha256": "86c36558bfa4f5e42d763e988bc49245008738c45e013c0eb2726cc889d08a7f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/radio_1.bin": {
+			"bytes": 104568,
+			"sha256": "326b45cdc5152bcdfaa7fdfefc00f4f966214035699b59f2deab2ed3dde50636",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/radio_1.gltf": {
+			"bytes": 2686,
+			"sha256": "f6c8325c99dffa24615aedb53a697b6764624283ce2ad17b8efec2f539fde81f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/talllocker_1.bin": {
+			"bytes": 152456,
+			"sha256": "19e6fcc41eee0e229f273cf88c07630e4d0a42f3b208dab3a35b0d70a79794f9",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/talllocker_1.gltf": {
+			"bytes": 2681,
+			"sha256": "89af7c9b049abfe222063d23edd0f560a0443934c54686ab04e8df397c1edefa",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/telephone_1.bin": {
+			"bytes": 505200,
+			"sha256": "563dfc1891571a6d68e9f56c8bbd0b649a2db792ffe9d328a78668a2dff8db37",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/telephone_1.gltf": {
+			"bytes": 2710,
+			"sha256": "72fdf0c471702d222fff30da33d906d21930016c737f0e48c61c7d6aa930108a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/chair_1_base_color.webp": {
+			"bytes": 153682,
+			"sha256": "aeeb0c1611b413411265454f5721fd44ec6d79f64960c771da832b2ec14b8cea",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/chair_1_metal_roughness.webp": {
+			"bytes": 118954,
+			"sha256": "ba3a65a271d352d76a03ddddcbd38c139923c3299a18538960a4f981b2e2795c",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/chair_1_normal.webp": {
+			"bytes": 1201042,
+			"sha256": "ef963a7cdff1c7f2522ae880d645bb4a33a383dcd2b55414057cb4feedd586d0",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/desklamp_1_base_color.webp": {
+			"bytes": 48802,
+			"sha256": "75bb8fdd43771b92b3002bf2326ee2a4f89ea9b665d70dbbba5ef94003142bc6",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/desklamp_1_metal_roughness.webp": {
+			"bytes": 100568,
+			"sha256": "942ced9182cfe6c49f075b36c5b9e73124759b642e166e5d38dadd7742255b38",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/desklamp_1_normal.webp": {
+			"bytes": 378508,
+			"sha256": "a5d1e573c16fdd67610d3844471f24daea06be0451633f84311eba07b38ec976",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/headset_1_base_color.webp": {
+			"bytes": 14360,
+			"sha256": "4a2b9c11bc5e4ed8fccb78c45e8d650d10fdf48a1159a62eae6fa242421ed366",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/headset_1_metal_roughness.webp": {
+			"bytes": 28578,
+			"sha256": "b27f28961aa8c34db705a6f7c86d6aaa3f47abc0819e1ac21907c59e07494a55",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/headset_1_normal.webp": {
+			"bytes": 110620,
+			"sha256": "b71b48e326739207de05042ebfefda715d89aea5f56f5cca0fe3de0d4e22c05a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_1_base_color.webp": {
+			"bytes": 216946,
+			"sha256": "6d3e38b0daf3ed950f9c2249caee4d1c2a1b68d2dce158c1070c6261c955ab4d",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_1_metal_roughness.webp": {
+			"bytes": 879140,
+			"sha256": "9482ed7fb69b3496ec4fe19c63975693743afe844a7381ee28f50df6dffd6821",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_1_normal.webp": {
+			"bytes": 10329382,
+			"sha256": "f12ed35e0239bfe73ef884f969de6a6447923e0bed031ae7c23b7c26a8485161",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_2_base_color.webp": {
+			"bytes": 124000,
+			"sha256": "9e918533e54c214a2311525dc2e2923f0b04046d8559ce89541ecec04f812e15",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_2_metal_roughness.webp": {
+			"bytes": 701824,
+			"sha256": "77068f65c63ef9d13d4222cac760912f2b33c21786a28efc4c5960a0b9b1a221",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_2_normal.webp": {
+			"bytes": 6506764,
+			"sha256": "462b406d7298c28446f6b78f2f3011408f8b6bca5bb76020f930c6d78e2862d5",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_3_base_color.webp": {
+			"bytes": 45994,
+			"sha256": "18d9ddb4594198dddb17bfcc9a2ff9c052b231e3dd0aee90a5022b96cade0905",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_3_metal_roughness.webp": {
+			"bytes": 32386,
+			"sha256": "98a9dcceb1a3e664c1062738f6ce1791f755bc5118cdc2844ac65b33626baa1d",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_3_normal.webp": {
+			"bytes": 596368,
+			"sha256": "1bf4622fcd6785baeffa444b35d1c203193c2281a5230f5c6585b31cb3fde8e6",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_4_base_color.webp": {
+			"bytes": 178120,
+			"sha256": "a859822788003a1094488c69f10dc37e714d69f4bb9a002dade2467b9789da15",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_4_metal_roughness.webp": {
+			"bytes": 862674,
+			"sha256": "1bc641fed23c43d67859a623181c93684c7d306a7b722651487f0bbedb88bf2b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_4_normal.webp": {
+			"bytes": 11124164,
+			"sha256": "957f30ac987a1db44377b2efd79409bb9a17248b2877647c25834db5a9e2534a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_5_base_color.webp": {
+			"bytes": 258492,
+			"sha256": "b688c95fcd8ba2e1200947dd65afa8a2af2a4464cb98717f5e99d90f8291d2b2",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_5_metal_roughness.webp": {
+			"bytes": 1059608,
+			"sha256": "35dddb567fadacf4aecb698b94a13fba172ab6ed285261e359220e6d65e0fe60",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_5_normal.webp": {
+			"bytes": 8092656,
+			"sha256": "fa461f9ef6ee4b8c4a56da8e5d95855fe82d038d4af0292061564d512678261a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_6_base_color.webp": {
+			"bytes": 132876,
+			"sha256": "44547631bef399cd38cedc037765fafb4cd4fa018f15434d297344448f45040b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_6_metal_roughness.webp": {
+			"bytes": 524350,
+			"sha256": "35d3ab9041d0caa6e50d345cb1cb05a6ba86b9be985c30836df4871cf0b159ae",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_6_normal.webp": {
+			"bytes": 7730414,
+			"sha256": "c1538dca7942c8e4a29f8cc12f546781e5cbdfc1f6b147820bffaade00215ce0",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_7_base_color.webp": {
+			"bytes": 79104,
+			"sha256": "a843fb33ec1b0e6158396915663ea20b47ae94128ea8f752382e23289505ea6c",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_7_metal_roughness.webp": {
+			"bytes": 234182,
+			"sha256": "b3c9054d05e29d3938ecb806e0280544192577474d849632697bb2c515be392f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/hub_furniture_7_normal.webp": {
+			"bytes": 5841384,
+			"sha256": "7d6325bcaee68f04dfbb3a3f390597eb6b2a500c945996ab8c5cf068acc2bafb",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/microscope_1_base_color.webp": {
+			"bytes": 59238,
+			"sha256": "f54231ef876719df3606f0eb9f5d1c851ffcad0a6ca9602a8e86decc823924dc",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/microscope_1_metal_roughness.webp": {
+			"bytes": 100480,
+			"sha256": "283b1c4a359bb4a529f5af63608e7c0f16bd3861ec2de491768309773e840f01",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/microscope_1_normal.webp": {
+			"bytes": 318282,
+			"sha256": "c89348beac6dd91d2357c42a9707923a88cf631d35bf7125f640f99ecf5e5373",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/telephone_1_base_color.webp": {
+			"bytes": 21854,
+			"sha256": "39680343a591fbd26ab9ea766e5c7f0594336d834e5a4ce475c9eac2958bc319",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/telephone_1_metal_roughness.webp": {
+			"bytes": 61908,
+			"sha256": "38d63903970331579227fb4fb0ff0d1cfb9e31288a9b08b1f0cb11f4c8114692",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/textures/telephone_1_normal.webp": {
+			"bytes": 163702,
+			"sha256": "e4fa4cdf6d9dd3f66120e0a8048ce404223b808abd38e0c49e83097283588535",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/toolboard_1.bin": {
+			"bytes": 140920,
+			"sha256": "c542bcf885389edf5a648678c369102274cd9e6140be267c67cb6530f04bcea7",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/hub_kit/toolboard_1.gltf": {
+			"bytes": 2696,
+			"sha256": "5d7145fddde047ef052cf1697e9552d5d9ddb52539d0ce5a6f3382d7c6522e57",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/inverter_cabinet/inverter_cabinet.glb": {
+			"bytes": 5206120,
+			"sha256": "d95136f5ba43697ea9fd80601e0ba9ee9d7f1dea284c6eedad0190a2190a1a03",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf5-479-61)",
+			"author": "the 2099 project"
+		},
+		"models/mars_boulder_basalt/mars_boulder_basalt.glb": {
+			"bytes": 9438364,
+			"sha256": "66d5e570dbd01fd0a0fcb2fdd562e62305a89a55107da7c2d8cc48106a09d6f1",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (the game 2099's Mars rocks)",
+			"author": "the 2099 project"
+		},
+		"models/mars_boulder_basalt/mars_boulder_basalt_small.glb": {
+			"bytes": 2507540,
+			"sha256": "47727acd1aad0d66a4ff74a0979edcc9b41e31e67c9733214af9e97b445222b5",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (the game 2099's Mars rocks)",
+			"author": "the 2099 project"
+		},
+		"models/mars_boulder_layered/mars_boulder_layered.glb": {
+			"bytes": 9260044,
+			"sha256": "8528ed05476e96c311ae3a83d459a0e6e1cb0e4680cc238e573ca8ee8a220e1f",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (the game 2099's Mars rocks)",
+			"author": "the 2099 project"
+		},
+		"models/mars_boulder_layered/mars_boulder_layered_small.glb": {
+			"bytes": 2542424,
+			"sha256": "4dc0f655b21e057db29f27b1548645aaf7e6ea229d08a8a0165d75dd23c30919",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (the game 2099's Mars rocks)",
+			"author": "the 2099 project"
+		},
+		"models/moon_boulder_angular/moon_boulder_angular.glb": {
+			"bytes": 9357752,
+			"sha256": "1fdd5ede6320d101389216467656a8d2f1c5c01f245535ad2b0498907c8f2095",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		"models/moon_boulder_angular/moon_boulder_angular_small.glb": {
+			"bytes": 2317220,
+			"sha256": "6addf048fe3f7411c8236424084ef87ad9a72a55de8f660d7e3316b9350ec65b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		"models/moon_boulder_rounded/moon_boulder_rounded.glb": {
+			"bytes": 9035776,
+			"sha256": "c8b7b5ab150d1f415adbc3a6e79c91554206954f441fbca00b9938ec9855b4d2",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		"models/moon_boulder_rounded/moon_boulder_rounded_small.glb": {
+			"bytes": 2509956,
+			"sha256": "1b0851688e7fb702e89a679031bc291e4f3d099aa70ea194a49905eacc8ba785",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		"models/moon_boulder_slab/moon_boulder_slab.glb": {
+			"bytes": 9786432,
+			"sha256": "d0f3b152664a68915ea8201026a6aa1c1a7c669c357a5b751061fb73b45ce583",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		"models/moon_boulder_slab/moon_boulder_slab_small.glb": {
+			"bytes": 2782668,
+			"sha256": "4573381d64a329c7d3a9121bb4358eed18fae21fcea3455a231dad5600793b05",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "Pixal3D via the model route (2099 #106)",
+			"author": "the 2099 project"
+		},
+		"models/robots/battery_pack/battery_pack.glb": {
+			"bytes": 20872,
+			"sha256": "97be4434a73057dd47d339ced71a450f402f3c6e5d731a9dbb15efffab5b9efd",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/bumper/bumper.glb": {
+			"bytes": 12292,
+			"sha256": "251abf578a864f6e02ad26f6c0f5c9392b03625b98b9e0917166104e67903f53",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/crop_basket/crop_basket.glb": {
+			"bytes": 45548,
+			"sha256": "95d5d216d6f4a95de0f03cd728a416630f6fdcc67590068b7448bb73e0e47609",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/dig_scoop/dig_scoop.glb": {
+			"bytes": 29440,
+			"sha256": "6c86f1fb8967517cbb9098dc82da1b9fabf64cd7d8a31ba854016c8672d2c73a",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/digger/digger.glb": {
+			"bytes": 18680,
+			"sha256": "1ca3211bfc6082479d4cdf4e3eba01b91ed022e3f9022c25bbef107d8599a84e",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/digger_wheels/digger_wheels.glb": {
+			"bytes": 32896,
+			"sha256": "bc7fba2d526de914f35786f96761ab4e628dc44954e8fca76e342dc15aa1facf",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/extension_plate/extension_plate.glb": {
+			"bytes": 13844,
+			"sha256": "47070322a3221bb7d9db35bf5a3b55a7620bb69c5cd628a2e7ea8cead2700b26",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/greenhouse/greenhouse.glb": {
+			"bytes": 36124,
+			"sha256": "d13a7221959292e6403e98afe4fd4609cc4eec4b1a6bf1a1a5e86fec3f42ee40",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/light_wheels/light_wheels.glb": {
+			"bytes": 54584,
+			"sha256": "0b4be64e48991e6c0e24905dabe4802d4a43ab2edcbdc66e24ed8377878b5a87",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/link_2/link_2.glb": {
+			"bytes": 27764,
+			"sha256": "abcb096f5830c8be5fcf376a3627d6ddf381b58511dc6c6723d66b97b4a67135",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/link_3/link_3.glb": {
+			"bytes": 43420,
+			"sha256": "d228460e382a158807d56d0b2af8cc8ae52459d7f0204439e17a07863c562fe1",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/link_basic/link_basic.glb": {
+			"bytes": 18160,
+			"sha256": "b73bbe287f4cd24f77c80fb12549c82cb31c3a4b96738f135f059ed320fa7385",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/picker/picker.glb": {
+			"bytes": 18016,
+			"sha256": "a9d1108f22e29c8fe6447a10c64473f5ca229446995278b6c0703246ebfe5fba",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/regolith_bin/regolith_bin.glb": {
+			"bytes": 16612,
+			"sha256": "03f9259ba7f8cd6df5ceebc5c75c916d7c7e8f6dc551ef7ef3f2b84cf8e2293c",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/rover_wheels/rover_wheels.glb": {
+			"bytes": 32552,
+			"sha256": "98d38f1c18e711efb4a19243ef640ca828f08c1451afdcb0eacf96042e896ffb",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/row_guide/row_guide.glb": {
+			"bytes": 44804,
+			"sha256": "1b608a4aaaeac8ac38db3498ed37d12f7bf7216ef71f8d384e5acf644b7ec891",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/seed_drill/seed_drill.glb": {
+			"bytes": 87128,
+			"sha256": "e75bc846571d7ae6fc58aac37047819c62b05b04b3b2adf878c058a93ea22ca4",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/soil_feeder/soil_feeder.glb": {
+			"bytes": 57980,
+			"sha256": "d073ab278deee85ebb19196bf2fd09c7dbf27db44b9ae0e3a08566e660542436",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/top_rack/top_rack.glb": {
+			"bytes": 15420,
+			"sha256": "4337e1b14a03142c8cd66d38c9545b2da2aa1ebf187eb32b12747e594538f325",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/robots/wide_wheels/wide_wheels.glb": {
+			"bytes": 29684,
+			"sha256": "87913ed766beb88382db11d13c544f675181ddad67fad52bd98437b7273bf95b",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "the game 2099's robot parts, simple shapes made by its tools/kit/robot_parts.py",
+			"author": "the 2099 project"
+		},
+		"models/rover/rover.glb": {
+			"bytes": 9035360,
+			"sha256": "a4c17080ed34d78f09623eaca399fc3102829cdb75986d794c5432fcb5718a09",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D via image-to-3dlab, clean finish (take kit5-rover-3)",
+			"author": "the 2099 project"
+		},
+		"models/solar_panel_row/solar_panel_row.glb": {
+			"bytes": 8255904,
+			"sha256": "0a27d3b339634d4cd69d1d7edb447d8616be400baf19f562e03f4246ed79dfbe",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf5-478-63)",
+			"author": "the 2099 project"
+		},
+		"models/thruster_drone/thruster_drone.glb": {
+			"bytes": 9872388,
+			"sha256": "16ee4057abb4750ee9afa5b93b048b82dbdd1bd1bd8f310753e0312524e4fea3",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D via image-to-3dlab, clean finish (take kit6-drone-17)",
+			"author": "the 2099 project"
+		},
+		"sound/generated/doors/airlock_air_hiss.ogg": {
+			"bytes": 69018,
+			"sha256": "447782e4b1e7fc60f130f87318ca4f7843ad8677f1d8a41aa8be33fd0be75486",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Strong pressurised air venting from a sealed metal chamber: a loud rushing hiss that slowly tapers off.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/airlock_hatch_seal_clunk.ogg": {
+			"bytes": 49054,
+			"sha256": "32ffc1f3e035e4a51514e9f9fa18be5c42ba5883ad725e58e6f4a8dfa7476819",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Heavy steel hatch locking bolts engaging: a deep mechanical clunk and a solid metallic latch in a small metal room, short and final.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/airlock_pressure_equalise.ogg": {
+			"bytes": 61491,
+			"sha256": "8a9db8cd2e3357d6c8772dd2fe6bf1eaa844144dacc8d7d5633a8be21b300ed6",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Air pressure equalising in a sealed airlock: a rising hiss of air flowing in that settles with a soft pop and a valve click.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/cockpit_switch.ogg": {
+			"bytes": 6883,
+			"sha256": "367e03888989001559210b9b062274d013a1e407f4e20a89cee2662181270330",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A solid toggle switch flipped on an aircraft cockpit panel: one firm mechanical click, very short.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/desk_locked.ogg": {
+			"bytes": 4802,
+			"sha256": "28be3c76f03b44599e5a1fbf50cf51ce75e3dd01497403502122813a9cd929dc",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A short dry plastic click of a locked button that does not give, a dull refusal tap, very short.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/ground_thud.ogg": {
+			"bytes": 14245,
+			"sha256": "f5bb1f119b264ef99d49f0327f9089bde98e989ff2dfff9eca483d833b2026d4",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy metal object landing hard on packed dirt: one deep dull ground thud, short.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/hatch_open.ogg": {
+			"bytes": 46461,
+			"sha256": "81d7b6f167731de50657803d2236c52084730d162ddcda36d59cfb078271a8e4",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A spacecraft hatch unlatched and swung open: a heavy metal latch release clunk, a short air hiss and a hinge creak.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/impact_grating.ogg": {
+			"bytes": 22713,
+			"sha256": "78765c6e001d6fc632232cb2799870f932d23bb966f8e7970856c6c472195870",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A metal box dropped onto a steel grating floor: a rattling clank of the grate and a short metallic buzz.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/impact_rubber.ogg": {
+			"bytes": 5874,
+			"sha256": "04fcabb9afa601160dfb5df68a54ce9ac9000badd6be497d7dc87286835cd0af",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy object dropped onto a thick rubber mat: one dull muffled thud, short.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/impact_steel_plate.ogg": {
+			"bytes": 14939,
+			"sha256": "df77dcecd6f543dffff20a67972b089c5ab62bf78d741b520e5341bcd952c7a7",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy metal tool dropped onto a thick steel floor plate: one loud solid metallic clang with a short ring, in a metal room.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/landing_thud.ogg": {
+			"bytes": 14226,
+			"sha256": "31cdb1195cf13af5636e0521a8dd1c500222e1a0564336a66bc0998838db0c82",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A person in a heavy suit landing on their feet after a jump onto hard ground: one soft dull thud, short.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/lift_start.ogg": {
+			"bytes": 37621,
+			"sha256": "368f6694c864d9d430df9ecaa0198f4bc0a02933fb885bfd15c6e2f74630a286",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy industrial freight lift starting: a motor whir spinning up with a mechanical clunk of the brake releasing.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/lift_stop.ogg": {
+			"bytes": 38779,
+			"sha256": "21cc09ff610ddb68edf8d1d0c40286b1d486a84d3ee69a8a61a29794988fa377",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy industrial freight lift stopping: the motor winding down and a solid mechanical clunk of the brake.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/radio_beep.ogg": {
+			"bytes": 8974,
+			"sha256": "65aa683d6a6a343d00f5f35f3b648388f6de7a1f93bf59c77f12518713d2849a",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A single short clean electronic radio beep, a soft two-tone chirp of a headset, very short.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/radio_click_in.ogg": {
+			"bytes": 4838,
+			"sha256": "4f9fbb580e32be2f9536754587676069de2785807ce581872e024dbcd3c26bfd",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A short crisp click of a two-way radio push-to-talk button pressed, with a tiny burst of static, very short.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/radio_click_out.ogg": {
+			"bytes": 4547,
+			"sha256": "4603c0269c5059a40dbc9bb274683c6b27e3a5a261dee1da67e12f51453b04e0",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A short crisp click of a two-way radio push-to-talk button released, with a short tail of static, very short.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/radio_squelch.ogg": {
+			"bytes": 24797,
+			"sha256": "55b8e6163c07c48dfaf51822f756327a6e8ac527fc49c671cb2b52266dd127b4",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A short burst of radio squelch static, a crackling hiss that cuts off abruptly, from a walkie-talkie.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/robot_planting.ogg": {
+			"bytes": 25666,
+			"sha256": "a53bf622f8c078b87e75aa16de85d25c70eccc60b3f5b19cdcef5b7ae5099ab8",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small robot arm pushing a seedling into soft soil: a short servo whir and a soft scoop of earth, short.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/rocket_hull_roar.ogg": {
+			"bytes": 150737,
+			"sha256": "7dc4b9af418ae1dfc31b6ee6581c3d7278790cf3826a71120dee816a4a4315e2",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A rocket launch heard from inside the crew capsule: an overwhelming deep rumbling roar muffled by the hull, violent crackling vibration that builds and holds.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/rocket_launch.ogg": {
+			"bytes": 155411,
+			"sha256": "6a317bbaf1ef3729403e5b3349be022be76575a9059c04d9ae3c9edf6d990a6c",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A large rocket lifting off a few kilometres away: a deep thunderous roar with crackling low rumble that builds, holds and slowly fades as it climbs.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/rocket_touchdown.ogg": {
+			"bytes": 43013,
+			"sha256": "552586f81ff2ffcb19ff6744e74cbb6a7affa26bc777429c821c82060c438b2a",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A huge heavy machine landing hard on a concrete pad: a deep booming thud with metal creaking and the engine roar cutting off.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/scrape_grating.ogg": {
+			"bytes": 37637,
+			"sha256": "ea1e7c684a10da9dcd21c544d92ced5cc865a1a2e75aaaa926dcc31c1eab4b8a",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A metal case dragged over a steel bar grating: a rattling, juddering metallic scrape, about two seconds.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/scrape_rubber.ogg": {
+			"bytes": 38703,
+			"sha256": "25b6e08d62985dd544a3c4b53b56a8874ffc88acd0111d5ec143ab795aaad585",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A box pushed across a rubber floor mat: a soft rubbery squeaking drag, about two seconds.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/doors/scrape_steel_plate.ogg": {
+			"bytes": 35839,
+			"sha256": "2c4928bc720bba11d04c24aa67ff60732b74a7b50535ab5654b312a4c34b1495",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy metal crate dragged across a steel floor: a harsh grinding metallic scrape, about two seconds.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_1.ogg": {
+			"bytes": 8148,
+			"sha256": "1327870cca183a3ee1306e9adf27c4800c4cda9be2150bae9fa00040b63f24e9",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_2.ogg": {
+			"bytes": 8405,
+			"sha256": "eb8a004b3b2cff88593dd82ca602276ea73844447591f5bb7b2166951b82f5ec",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_3.ogg": {
+			"bytes": 9922,
+			"sha256": "3f103c38bb95d6a3ddcfa28304017359584c45a4d39c980b96845e12b414be0b",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_4.ogg": {
+			"bytes": 8926,
+			"sha256": "f9015b3cdedf00577458daa39d114dd59a5b85a78c716d803b96232d3a37801b",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_5.ogg": {
+			"bytes": 8377,
+			"sha256": "f9130611f1b4480fe629af6979e52ce3efac0c97f82a7a27e3fd36e0e669258c",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_6.ogg": {
+			"bytes": 9161,
+			"sha256": "d3fdd8a3a24c174ffc4230029931cf33c7bfe36893b03672b43df07fc6870e95",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_7.ogg": {
+			"bytes": 8911,
+			"sha256": "e119fd17f829e477983f50928669f08dc3f55ab8084f1455af614c6e4909f077",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_grating_8.ogg": {
+			"bytes": 8311,
+			"sha256": "8b30754be06b785cf45c7ec8eb00b310a5b9cbf7457f223cc01699755a7cffb2",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_1.ogg": {
+			"bytes": 11345,
+			"sha256": "8a07aa849ff406a90b30f4922e309adde151217d354c943006dcd89e137cdf0b",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_2.ogg": {
+			"bytes": 8000,
+			"sha256": "b6de08698f9d8f5006c8a685da131b57b7fbc3840af397a446d5ed23a873ab1a",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_3.ogg": {
+			"bytes": 9766,
+			"sha256": "0ed45065c0b9d7235110db7a48ee7f06e8135cbb85c89787e89656df5b6a5224",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_4.ogg": {
+			"bytes": 7648,
+			"sha256": "02c58456b915b3581136b4a5cab1df4ab6927bdd795f9266e2c9ed980f6f7bd9",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_5.ogg": {
+			"bytes": 10277,
+			"sha256": "76d0dd9b716d855dccedd9453549c0f3b410171a092ddc36a0f1f35efa00dd5f",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_6.ogg": {
+			"bytes": 9476,
+			"sha256": "87dccbf22fce373dab1dd800777be3fc1bb8d383979df1edc16102c2f26f27b1",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_7.ogg": {
+			"bytes": 11280,
+			"sha256": "941bb4a837bd707e7601466dc93dc6ffa299d1dd40ee8e7906d49c2a489c9864",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/footsteps/footstep_rubber_8.ogg": {
+			"bytes": 10715,
+			"sha256": "94338899dabb9fbe121dfdd22db9d57a50b37b0070121995277c033112d59af9",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/airlock_pump_down.wav": {
+			"bytes": 816112,
+			"sha256": "94df5192899e77ce331cc49d25bf8c04493f6ed9a0b4722ae989b645b4f8a20d",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A powerful vacuum pump running steadily in a small metal chamber: a constant deep motor drone with a rushing air suction, steady.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/bench_tool.wav": {
+			"bytes": 583408,
+			"sha256": "8d1b1793c399663bec2b6a1f2e8124fe6aebc68214979a635ff220ae5ca8c88d",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small electric screwdriver and a cordless drill working on a metal robot part at a workbench: short whirring bursts and light metal clinks, steady work.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/console_hum.wav": {
+			"bytes": 1104112,
+			"sha256": "210644e70550677d35a466c122e6f3349fd004ba3724c662dce04e726511d23b",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Constant drone of a server rack in a quiet room: even fan noise and a low electrical hum, steady.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/digger.wav": {
+			"bytes": 816112,
+			"sha256": "ceb79da3460aef8ded8777aa78ac9484c82bdf3a3e0fbb27a61ac6ed2b65e1f6",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small digging machine scraping and scooping gravel: a steady motor grind with rocks and grit pouring, constant work.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/drone_hover.wav": {
+			"bytes": 816112,
+			"sha256": "3c48210b57c08214567b2609fb92003ee9a81e7fd524d5060863e732985c19b0",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small rocket-powered drone hovering: a steady soft hissing thrust of gas jets with a light electric whine, constant.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/drone_thrust_burst.wav": {
+			"bytes": 624112,
+			"sha256": "b206b0d02dde408c85cd752542e5e1810421d24b4586aca76e911b219ca526ce",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small rocket thruster firing steadily: a strong roaring hiss of gas exhaust, constant, no ignition pop.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/footsteps_boots_gravel.wav": {
+			"bytes": 624112,
+			"sha256": "fc58fc8a7a926f39f3c197742f4054962dc7e24c892c01f2f494043b48da9372",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps of heavy boots crunching on loose gravel and dust, muffled and dull as if heard through a thick suit, an even walking rhythm.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/geiger_ticks.wav": {
+			"bytes": 617968,
+			"sha256": "569396eb0d7e377d6b02daa3e90c87440040096aaee8fe5c278885bf4dac4b0d",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A geiger counter ticking: irregular sharp clicks at a steady moderate rate, close, no other sounds.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/glovebox_hum.wav": {
+			"bytes": 1104112,
+			"sha256": "cc030532408283b97eaeb6f6cddd6d632548d4c0924e5342fde52bace38d05ac",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Steady low whir of a small laboratory air pump and filter fan running, constant and soft, no changes.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/junction_hum.wav": {
+			"bytes": 1104112,
+			"sha256": "2fa473bf1541526513cf439003cad61d2e9a2973d80c2b12e1903709d69ea7ec",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Constant low mains hum from electrical equipment in a machine room, smooth and unchanging.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/lamp_buzz.wav": {
+			"bytes": 1104112,
+			"sha256": "c3603791bb8e6e70f3fdd133fbc4e69a5ca54c797288749a8df2b8bdaca4234d",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Steady soft buzzing of an industrial ceiling lamp's ballast: a continuous low electric hum.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/lift_travel.wav": {
+			"bytes": 816112,
+			"sha256": "cc1db122bc1d4ce11613de8c80102f9d3ab4bbe2f18ece6bd3f5f9c3e7ce9552",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy industrial freight platform lift moving steadily: a constant electric motor drone with a soft rattle of chains and rails.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/robot_servo.wav": {
+			"bytes": 624112,
+			"sha256": "e4b3167fbea3dfe373f707c180ac184d8f2fce629c6b0c8760f0abc0e561a2e7",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Small electric servo motors of a robot moving: steady soft mechanical whirring rising and falling, constant.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/rocket_landing_rumble.wav": {
+			"bytes": 816112,
+			"sha256": "992ffa51a19e899cef81142c11b3a7d923bc1282a1ad4c6e06e736a12472fe43",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A rocket engine firing steadily during a slow descent: a constant deep roaring rumble with crackle, no start and no end.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/rover_motor.wav": {
+			"bytes": 816112,
+			"sha256": "1c78a80173bd6f0543b06964452c15ac563621fbf22f29e90d4298b13c62c3cd",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: An electric off-road vehicle driving at a steady speed: a smooth high electric motor whine with a low gear hum, constant.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/rover_wheels_gravel.wav": {
+			"bytes": 816112,
+			"sha256": "dd0399391857c7e3d5c29e0766230b1428b7225b7b706fdd51eafd516d004e8f",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Big rubber wheels rolling steadily over loose gravel and rocks: a constant crunching and popping of stones, no engine.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/suit_fans.wav": {
+			"bytes": 1104112,
+			"sha256": "7bd7f06339f5115360552de6062773b0321380ca13c8180d3f882a0699c96d5b",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: The steady whir of small air circulation fans inside a spacesuit helmet, a soft constant airflow hiss close to the ears.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/machines/vent_air.wav": {
+			"bytes": 1104112,
+			"sha256": "d8e31e6742ea6eabbb0087fd1b8912cbd5ad1c6ceefdc0d94b8789568652bbe3",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Steady air flowing out of a ventilation duct behind a metal grille: a constant soft whoosh with a faint fan rumble.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/base_hum.wav": {
+			"bytes": 2208112,
+			"sha256": "2cdeab7507fd3baf96c1616b84fe1b843b565d9eed15e4ad21e092cd87c0e20c",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A very low, steady electrical and mechanical hum of a large building's power plant heard through steel floors, deep and constant, no other sounds.; seed 4",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/earth_flat.wav": {
+			"bytes": 2208112,
+			"sha256": "a3dad7afb24030eb16ce5b63e7f4894e81cfefa480202b1bbe7c0e4a4bf24df9",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Room tone of a small apartment high in a big Asian city at night: a distant city traffic rumble through the window, a refrigerator hum, quiet and calm.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/garage.wav": {
+			"bytes": 2208112,
+			"sha256": "fae7a7ffd07547ee22f868774bdf24b177e10496783805cac9b4931e2c1b6e40",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Room tone of a large empty metal vehicle garage: a low airy hum, faint ventilation and the slight ring of a big steel space, constant.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/greenhouse.wav": {
+			"bytes": 2208112,
+			"sha256": "9e4af393a591e58a5cdf21e416f7c926a9695f1ccb4da1163ad1ba55b111bdde",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Ambience of an enclosed hydroponic greenhouse: soft trickling water in pipes, the gentle whir of small circulation fans and a faint hum of grow lights, calm and constant.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/habitat.wav": {
+			"bytes": 2208112,
+			"sha256": "d86dc718664420e27f5e9ad7a5148a6bffe32374431e4762b5cdf2ca1044465b",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Quiet interior room tone of a sealed space station module: a steady soft hiss of air handling, a distant low ventilation fan drone and a faint electrical hum, constant and even, no voices and no events.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/link_tube.wav": {
+			"bytes": 2208112,
+			"sha256": "7cc05881579a6739104c4731d52b0e9ff2a29d4e9d8f0d9422746e3c32ce04ea",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Ambience inside a narrow enclosed walkway tube: a soft hollow airflow whoosh and a faint distant machine hum, airy and constant.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/mars_dust_storm_wind.wav": {
+			"bytes": 2208112,
+			"sha256": "e7340604d36fb53064c49ed28a7a984b4768acaee8e124f9c79af570ee07cb97",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A howling dust storm heard muffled from inside a spacesuit helmet: strong steady roaring wind with fine sand hissing against glass.; seed 2",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/mars_wind.wav": {
+			"bytes": 2208112,
+			"sha256": "7078895fade8d271679ba8d236de30927fd8d994cb2c391f37fa2f35402931ab",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Thin, distant wind on a cold barren desert plain, heard muffled from inside a helmet: a soft steady low whoosh with gentle gusts.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/prologue_crowd.wav": {
+			"bytes": 2208112,
+			"sha256": "f93c97744b14de3e74709c3d4335025a2de37782b9216c81cd2db1ad3e3a5a23",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A large crowd gathered in a city square at night heard from a balcony above: a steady murmur of thousands of people, distant and even, no clear words.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/ship_inside.wav": {
+			"bytes": 2208112,
+			"sha256": "dafeb2a807e2cc97623bc9dfb1427ee91802bd05c68cb0f131897e2f2d5af8f5",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Interior of a small spacecraft cabin in flight: a steady low engine drone through the hull, cabin fans and a faint electronic hum, constant.; seed 3",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/generated/places/workshop.wav": {
+			"bytes": 2206192,
+			"sha256": "046e48f5152edd679ed9555dc7920be8826a64f2c621b675b9268e9c197f2706",
+			"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)",
+			"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Room tone of a small industrial workshop with machines idling: a low compressor hum, a faint electrical buzz and quiet air ventilation, constant, no tool hits.; seed 1",
+			"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)"
+		},
+		"sound/made/base_hum.wav": {
+			"bytes": 705712,
+			"sha256": "77cef3976f505e7e58c9e62cd4e1e527536772af02d719e764ce9faf787ec7a3",
+			"licence": "made for the first world, the repository's own (MIT)",
+			"source": "tools/sound/made.py (this repository)",
+			"author": "the 2099 project"
+		},
+		"sound/made/geiger_ticks.wav": {
+			"bytes": 705712,
+			"sha256": "c203137182e9b5bc10267c7242ec3f34d5cf3b63efaa768393b266e0d43cfe4c",
+			"licence": "made for the first world, the repository's own (MIT)",
+			"source": "tools/sound/made.py (this repository)",
+			"author": "the 2099 project"
+		},
+		"sound/made/oxygen_low.wav": {
+			"bytes": 105884,
+			"sha256": "d4569f19a6c76f8674386a2ee5275543e63cb0445e4e223fe78820ed85536b19",
+			"licence": "made for the first world, the repository's own (MIT)",
+			"source": "tools/sound/made.py (this repository)",
+			"author": "the 2099 project"
+		},
+		"sound/made/radio_squelch.wav": {
+			"bytes": 35324,
+			"sha256": "48260b21b067930b82992b990d35b30453f8bc9b9e1270eeeba0624cfa657743",
+			"licence": "made for the first world, the repository's own (MIT)",
+			"source": "tools/sound/made.py (this repository)",
+			"author": "the 2099 project"
+		},
+		"sound/made/warning_tone.wav": {
+			"bytes": 141164,
+			"sha256": "b82ee215d62613b6a88b8a082a4b4c783363e8d0a7a073da8572fd0a807e9d53",
+			"licence": "made for the first world, the repository's own (MIT)",
+			"source": "tools/sound/made.py (this repository)",
+			"author": "the 2099 project"
+		},
+		"sound/recordings/doors/airlock_air_hiss.ogg": {
+			"bytes": 76202,
+			"sha256": "6fa04c271eefc90c9b2619cb5a6352f0ca8d77fbcdc024d869db7e7f76781599",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/mcpable/sounds/131934/",
+			"author": "mcpable"
+		},
+		"sound/recordings/doors/airlock_hatch_seal_clunk.ogg": {
+			"bytes": 90391,
+			"sha256": "a746b562a6b0ff1a4c18f19b7ad4266a65a4c6ab846659a110c527d2c8f61bb1",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/AudioPapkin/sounds/814976/",
+			"author": "AudioPapkin"
+		},
+		"sound/recordings/doors/airlock_pressure_equalise.ogg": {
+			"bytes": 47635,
+			"sha256": "b4048a6c908bf4defaa9a98ec7ac08a46ee3a574dabc27f618cfba10ca684e72",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/alexmol/sounds/140578/",
+			"author": "alexmol"
+		},
+		"sound/recordings/doors/airlock_pump_down.ogg": {
+			"bytes": 58127,
+			"sha256": "9aed060534bf8dc749a7e3de733c77e5e308d85ad608012972d298b49a894e8a",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/firanthir/sounds/338971/",
+			"author": "firanthir"
+		},
+		"sound/recordings/doors/door_slide_close.ogg": {
+			"bytes": 52849,
+			"sha256": "3fdf3b1aa59a718885507cfa40009696fbbe26a0040c1f91448065f6b8fd56ee",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/SoundsofTheMachine/sounds/809436/",
+			"author": "SoundsofTheMachine"
+		},
+		"sound/recordings/doors/door_slide_open.ogg": {
+			"bytes": 51066,
+			"sha256": "0fc3f2d18abdac18272b172bb6c118714be5e167b061165715f53268cf35a524",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/SoundsofTheMachine/sounds/809436/",
+			"author": "SoundsofTheMachine"
+		},
+		"sound/recordings/doors/hatch_open.ogg": {
+			"bytes": 152097,
+			"sha256": "66859a765e2728eb328300672a10a71e4467f029e0fd91cf12a885b0f4033569",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/ALEFF-ATMOS/sounds/452784/",
+			"author": "ALEFF-ATMOS"
+		},
+		"sound/recordings/doors/lift_start.ogg": {
+			"bytes": 66583,
+			"sha256": "61fa1d5ff8a041d96265020fe0efe319297be38f0fd5d566f093a28dbe27df23",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/himura.kazuto/sounds/742725/",
+			"author": "himura.kazuto"
+		},
+		"sound/recordings/doors/lift_stop.ogg": {
+			"bytes": 61553,
+			"sha256": "5f3fbc094eb539107c0026c3278dc757c0b8eb9fe6acc4b6cb302dec30e4df9d",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/ValentinPetiteau/sounds/564409/",
+			"author": "ValentinPetiteau"
+		},
+		"sound/recordings/doors/lift_travel.ogg": {
+			"bytes": 310172,
+			"sha256": "3db3239fa2580c1d6b4117a2de406b0449bba61c2ffbab20dda414fddee636ab",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Yoyodaman234/sounds/341196/",
+			"author": "Yoyodaman234"
+		},
+		"sound/recordings/footsteps/footsteps_boots_gravel.ogg": {
+			"bytes": 183293,
+			"sha256": "c12f3c790ad2dc70c4a99a16f64dc78b3352d8f546714f0a9e5d4a6a825bb1c3",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Nox_Sound/sounds/556002/",
+			"author": "Nox_Sound"
+		},
+		"sound/recordings/footsteps/footsteps_metal_1.ogg": {
+			"bytes": 13535,
+			"sha256": "80ecb925455469a7a2b715b9a4ad148108708f31d148ddc63944f2c97388a760",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/footsteps/footsteps_metal_2.ogg": {
+			"bytes": 13464,
+			"sha256": "01a2ed49b36f8115d2225a25b6e65cbe1cb716c98146a3746406b038e09cf30c",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/footsteps/footsteps_metal_3.ogg": {
+			"bytes": 13645,
+			"sha256": "aa0fbbed8cf39c6893e355a5477a69280ed1e475ee93bd38df123d5fa8419eeb",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/footsteps/footsteps_metal_4.ogg": {
+			"bytes": 13639,
+			"sha256": "66f4f185bc47ef060b35ecf9d177caf83cbcd0cdfd07162d2c13e37f0183830f",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/footsteps/footsteps_metal_5.ogg": {
+			"bytes": 13500,
+			"sha256": "f1c5e3535dcc2ebf04ad53f142dba74ec731e597d157d1d1d92cda77458ec2cb",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/footsteps/footsteps_metal_6.ogg": {
+			"bytes": 13592,
+			"sha256": "8bdf60ca2de804fff92ddc66198c1f26ca9b091219dfbb148546b56d82aba25c",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/footsteps/footsteps_metal_7.ogg": {
+			"bytes": 13620,
+			"sha256": "a43eeb0dd83484527370bd925d1809ae9dfc3ad19da78d1bf863363c0ff5cadc",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/footsteps/footsteps_metal_8.ogg": {
+			"bytes": 13733,
+			"sha256": "2b64e67998792df3c657a1f37c0381775d7fb15d5fd3bc1d9793c892184cc28f",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/RFCaldas/sounds/749711/",
+			"author": "RFCaldas"
+		},
+		"sound/recordings/machines/bench_tool.ogg": {
+			"bytes": 214165,
+			"sha256": "d7740a6b0a84c071a313b18d216ef0ce2e82d0bb5cc27a1f10b49260d29a63e2",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/cazalrenoux/sounds/849366/",
+			"author": "cazalrenoux"
+		},
+		"sound/recordings/machines/digger.ogg": {
+			"bytes": 501380,
+			"sha256": "4a375439594c0ae5a0bfcc1dc319dac1edb6bd1e921fc1fe4462ce14c02e19b7",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Ohrwurm/sounds/68471/",
+			"author": "Ohrwurm"
+		},
+		"sound/recordings/machines/robot_planting.ogg": {
+			"bytes": 99169,
+			"sha256": "310c73ff7e9a6e8e99152990da39153ae486cb3e97d8003f188a78359e9fe25e",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/LiezelDippenaar/sounds/707538/",
+			"author": "LiezelDippenaar"
+		},
+		"sound/recordings/machines/robot_servo.ogg": {
+			"bytes": 200310,
+			"sha256": "8659e43e58b7af62e9270c5b141945d25bde8324c2f62fe4c1a6b4382cdbf3be",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/gpag1/sounds/520514/",
+			"author": "gpag1"
+		},
+		"sound/recordings/places/earth_flat.ogg": {
+			"bytes": 242267,
+			"sha256": "69f9764ab6953b10fce59209042c772bbdba9d4e19ac648ea02501983fc26bb0",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/conleec/sounds/149428/",
+			"author": "conleec"
+		},
+		"sound/recordings/places/garage.ogg": {
+			"bytes": 498086,
+			"sha256": "af0f3993e4cc6eafa66f571f274fe1b2e12917f6086f9bf822f7522fa4d5d763",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Kinoton/sounds/353159/",
+			"author": "Kinoton"
+		},
+		"sound/recordings/places/greenhouse.ogg": {
+			"bytes": 533622,
+			"sha256": "bac2360b24691375dcd67b975e9ed066468e41bccd18d768d0dee16228143d60",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/kyles/sounds/637797/",
+			"author": "kyles"
+		},
+		"sound/recordings/places/habitat.ogg": {
+			"bytes": 525252,
+			"sha256": "c4b82a6a1c068ff851366493cc16e40abc72d56dcc11458ec7ca2a5137bd5274",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Kinoton/sounds/670070/",
+			"author": "Kinoton"
+		},
+		"sound/recordings/places/link_tube.ogg": {
+			"bytes": 543981,
+			"sha256": "48279ab595ba8f250fc245f0b035b60917074480ab4519b8ca22bc174e15ffca",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/ecfike/sounds/474458/",
+			"author": "ecfike"
+		},
+		"sound/recordings/places/mars_dust_storm_wind.ogg": {
+			"bytes": 537036,
+			"sha256": "75073247edfaed437882e2ae1beef689179ec03032de60bde3468e2d45abedff",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/gbayles/sounds/632771/",
+			"author": "gbayles (loop of blackatomproductions' SandstormMix, also CC0: https://freesound.org/people/blackatomproductions/sounds/565015/)"
+		},
+		"sound/recordings/places/mars_wind.ogg": {
+			"bytes": 278517,
+			"sha256": "56af1e9660ea3da2931559af4c6847495634187e7150ba8dc0c798ba0aa82dd9",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/DarkShroom/sounds/645305/",
+			"author": "DarkShroom"
+		},
+		"sound/recordings/places/prologue_crowd.ogg": {
+			"bytes": 504492,
+			"sha256": "515e49907c1d01679e1c8f15d29fcecf3105cb58c7f85f06379038a0f217635f",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/itmightgetloud/sounds/829456/",
+			"author": "itmightgetloud"
+		},
+		"sound/recordings/places/ship_inside.ogg": {
+			"bytes": 186121,
+			"sha256": "39e2fe2262175cb1661e61175c7c3e532bfdd2249d13d2dbd1b569082923e107",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Suhuy/sounds/715175/",
+			"author": "Suhuy"
+		},
+		"sound/recordings/places/workshop.ogg": {
+			"bytes": 562609,
+			"sha256": "59b5728fc7f976fa3628f44ff882cf6fe5a398f8bac86f81bf32ebd81c6d3284",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/kyles/sounds/451064/",
+			"author": "kyles"
+		},
+		"sound/recordings/radio/radio_beep.ogg": {
+			"bytes": 8571,
+			"sha256": "41d4c90082bb2f7b6e6fd990344a10e884848758a18cb913af78945ade46f76e",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/bruce965/sounds/321906/",
+			"author": "bruce965"
+		},
+		"sound/recordings/radio/radio_click.ogg": {
+			"bytes": 5919,
+			"sha256": "aba8833c85db2b69accadda0de15248a1909bdd9fdfbcec81a9073acae46c903",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/iwanPlays/sounds/482028/",
+			"author": "iwanPlays"
+		},
+		"sound/recordings/suit/suit_breathing_calm.ogg": {
+			"bytes": 89287,
+			"sha256": "77cd7323c2449ebc91d912991454ddbbcf6b077240e745fa819fee8794aa9619",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Kodack/sounds/256519/",
+			"author": "Kodack"
+		},
+		"sound/recordings/suit/suit_breathing_fast.ogg": {
+			"bytes": 87739,
+			"sha256": "336f245d949779ba8fa5a453bd52ff7935fd18844ff382608d93c088d64118c1",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Kodack/sounds/256519/",
+			"author": "Kodack"
+		},
+		"sound/recordings/suit/suit_fans.ogg": {
+			"bytes": 438382,
+			"sha256": "bcfc476d525df5f383b1d8e40af4583ba2ef61958ab190ce9be6534192142422",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Kinoton/sounds/503255/",
+			"author": "Kinoton"
+		},
+		"sound/recordings/vehicles/drone_hover.ogg": {
+			"bytes": 47573,
+			"sha256": "b1145708c55d4dcb5a1c660f9fe0d0bbad9e2d67e5289592fae4b472073e5aea",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/TheLittleCrow/sounds/774270/",
+			"author": "TheLittleCrow"
+		},
+		"sound/recordings/vehicles/drone_thrust_burst.ogg": {
+			"bytes": 152492,
+			"sha256": "2b7d10e0781d8b8c6f0a5cfb8549e224177804469a6456685dc4d933f4452c10",
+			"licence": "CC0 1.0",
+			"source": "https://kenney.nl/assets/sci-fi-sounds",
+			"author": "Kenney"
+		},
+		"sound/recordings/vehicles/ground_thud.ogg": {
+			"bytes": 70528,
+			"sha256": "26f41139f9992e1a5e1209e07ff88e0d0fefed1d83b3f0710a3911f1ce488319",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/NenadSimic/sounds/149966/",
+			"author": "NenadSimic"
+		},
+		"sound/recordings/vehicles/rocket_hull_roar.ogg": {
+			"bytes": 38511,
+			"sha256": "5483d924eb7868c53d67a2fadb2e279e11a19f0e409684d48e17a2a3a469b76f",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/klangfabrik/sounds/220127/",
+			"author": "klangfabrik (a remix of NASA public-domain Space Shuttle launch recordings)"
+		},
+		"sound/recordings/vehicles/rocket_landing_rumble.ogg": {
+			"bytes": 25593,
+			"sha256": "464427754d65620b03312466e56a7046bb8374d7e2568c8d55d8871598ef9cca",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Sanderboah/sounds/803852/",
+			"author": "Sanderboah"
+		},
+		"sound/recordings/vehicles/rocket_launch.ogg": {
+			"bytes": 132244,
+			"sha256": "5b1d439e024be667e3d51f2d59194d9f4f7dd0542fd288431c96199d2f69d934",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/qubodup/sounds/211617/",
+			"author": "qubodup"
+		},
+		"sound/recordings/vehicles/rocket_touchdown.ogg": {
+			"bytes": 39870,
+			"sha256": "f196d45c46fc2e70faf26cec24794a46ddb6fd1a0dc8e6cd44c5d70570dd7ee6",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/Mr_KeybOred/sounds/372086/",
+			"author": "Mr_KeybOred"
+		},
+		"sound/recordings/vehicles/rover_motor.ogg": {
+			"bytes": 48397,
+			"sha256": "2d7df82e8dd1b47dbe1eb8be1478107a8e8f9ebfcbe431280342cd276bd18803",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/derjuli/sounds/824119/",
+			"author": "derjuli"
+		},
+		"sound/recordings/vehicles/rover_wheels_gravel.ogg": {
+			"bytes": 535356,
+			"sha256": "a824fb893c15d45b07bad1181d6df29e0b7cfe594e0f961d5a5c6fec6a5d1959",
+			"licence": "CC0 1.0",
+			"source": "https://freesound.org/people/TRP/sounds/577504/",
+			"author": "TRP"
+		}
+	}
+}

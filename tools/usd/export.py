@@ -520,7 +520,7 @@ def stand_on(xform, at, ground):
 def ground_mesh(stage, path, ground, pieces, out, scene=None, world=None):
     """The place's ground round its pieces: a drawn mesh of the planned heights and a static collider; its box (across,
     along) back. It is coloured with the plan's skin (cut to the patch, as PNG under assets/textures), or, when its
-    ground record carries the ground shader's detail and the world's folder is given, with the detail baked from the
+    ground record carries the ground shader's detail, with the detail baked from the
     game's shader (ground_detail.py: colour and facing maps over the patch, the scene record's `ground_decals` mixed
     in)."""
     spots = np.array([[piece["at"][0], piece["at"][2]] for piece in pieces])
@@ -528,7 +528,7 @@ def ground_mesh(stage, path, ground, pieces, out, scene=None, world=None):
     near = (points[:, [0, 2]].min(axis=0), points[:, [0, 2]].max(axis=0))
     textures = out / "assets/textures"
     textures.mkdir(parents=True, exist_ok=True)
-    if getattr(ground, "detail", None) and world is not None:
+    if getattr(ground, "detail", None):
         baked = ground_detail.bake(ground, ground.detail, (scene or {}).get("ground_decals", []), world, near[0],
                                    near[1], textures)
         size = np.subtract(baked["high"], baked["low"])
@@ -662,7 +662,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read; without
     `parts`, the place's stored takes (data/parts). `ground` is the place's tools/usd/ground.Ground; without one the
     place is flat. `scene` is the place's scene record (tools/usd/scene.py; None writes only its made pieces) and
-    `world` the folder of the world's own assets (the game's tree) it names files in."""
+    `world` the folder of the world's release files (tools/assets/world.py) its records name."""
     out = pathlib.Path(out)
     if parts is None:
         parts = stored_parts.takes_of(place)
@@ -712,14 +712,14 @@ def main():
     found.add_argument("--work", type=pathlib.Path, help="the route run's work folder: its parts and recorded take")
     found.add_argument("--parts", type=pathlib.Path, help="a folder of labelled takes, each model's newest read")
     parser.add_argument("--flat", action="store_true", help="lay the place on flat ground even if it has a ground")
-    parser.add_argument("--world", type=pathlib.Path, help="the world's own asset folder (the game's checkout) that "
-                        "the place's scene record names models and pictures in")
+    parser.add_argument("--assets", type=pathlib.Path, help="a folder of the world's release files to read instead of "
+                        "the fetched release (tools/assets/world.py)")
     arguments = parser.parse_args()
     parts, take = run_parts(arguments.work) if arguments.work else (arguments.parts, None)
     kit = json.loads((KITS / f"{arguments.place}.json").read_text())
     laid_on = None if arguments.flat else grounds.place_ground(arguments.place, kit.get("on_seat", [0.0, 0.0]))
     print(export(arguments.place, arguments.models, arguments.out, parts, take=take, ground=laid_on,
-                 world=arguments.world, scene=scene_record.record(arguments.place)))
+                 world=arguments.assets, scene=scene_record.record(arguments.place)))
 
 
 if __name__ == "__main__":

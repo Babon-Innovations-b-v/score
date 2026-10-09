@@ -1,0 +1,289 @@
+{
+	"is": "every sound a world can play by name, moved from the game 2099's sound catalogue (game/sound/catalogue/sound_catalogue.gd, 2026-10-09): the file it plays (a name in the world's release, tools/assets/world.py; a list when it has several takes, one played at random), its bus (which part of the mix it goes through: ambience, effects, felt, suit, room), whether it loops, whether it is a ground thud (felt through boots or hands, so heard even in vacuum), how loud it plays in dB, and how far a placed sound carries in metres (0: as far as it carries). data/sound/sounds.json lays each of its entries over the one here, field by field. Quiet by default: the warning tone is the loudest thing, at warning_db",
+	"defaults": {
+		"file": "",
+		"bus": "effects",
+		"ground_thud": false,
+		"loops": false,
+		"volume_db": -12.0,
+		"reach": 0.0
+	},
+	"warning_db": 0.0,
+	"sounds": {
+		"habitat": {
+			"file": "sound/recordings/places/habitat.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -2.0,
+			"note": "Each place's ambience."
+		},
+		"base_hum": {
+			"file": "sound/made/base_hum.wav",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -22.0
+		},
+		"greenhouse": {
+			"file": "sound/recordings/places/greenhouse.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -1.0
+		},
+		"garage": {
+			"file": "sound/recordings/places/garage.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -8.0
+		},
+		"workshop": {
+			"file": "sound/recordings/places/workshop.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -10.0
+		},
+		"link_tube": {
+			"file": "sound/recordings/places/link_tube.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -18.0
+		},
+		"ship_inside": {
+			"file": "sound/recordings/places/ship_inside.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -28.0
+		},
+		"mars_wind": {
+			"file": "sound/recordings/places/mars_wind.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -30.0
+		},
+		"mars_dust_storm_wind": {
+			"file": "sound/recordings/places/mars_dust_storm_wind.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -24.0
+		},
+		"earth_flat": {
+			"file": "sound/recordings/places/earth_flat.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -8.0
+		},
+		"prologue_crowd": {
+			"file": "sound/recordings/places/prologue_crowd.ogg",
+			"bus": "ambience",
+			"loops": true,
+			"volume_db": -20.0
+		},
+		"suit_breathing_calm": {
+			"file": "sound/recordings/suit/suit_breathing_calm.ogg",
+			"bus": "suit",
+			"loops": true,
+			"volume_db": -14.0,
+			"note": "The suit and the radio."
+		},
+		"suit_breathing_fast": {
+			"file": "sound/recordings/suit/suit_breathing_fast.ogg",
+			"bus": "suit",
+			"loops": true,
+			"volume_db": -12.0
+		},
+		"suit_fans": {
+			"file": "sound/recordings/suit/suit_fans.ogg",
+			"bus": "suit",
+			"loops": true,
+			"volume_db": -16.0
+		},
+		"radio_click_in": {
+			"file": "sound/recordings/radio/radio_click.ogg",
+			"bus": "suit",
+			"volume_db": -18.0,
+			"note": "The owner's call: the click in and the click out are the same click."
+		},
+		"radio_click_out": {
+			"file": "sound/recordings/radio/radio_click.ogg",
+			"bus": "suit",
+			"volume_db": -18.0
+		},
+		"radio_beep": {
+			"file": "sound/recordings/radio/radio_beep.ogg",
+			"bus": "suit",
+			"volume_db": -30.0
+		},
+		"radio_squelch": {
+			"file": "sound/made/radio_squelch.wav",
+			"bus": "suit",
+			"volume_db": -12.0
+		},
+		"cockpit_switch": {
+			"file": "sound/recordings/radio/radio_click.ogg",
+			"volume_db": -10.0,
+			"note": "A switch on the launch capsule's console going over, under the player's own hand: the radio's picked click, heard through the glove rather than in the helmet."
+		},
+		"desk_locked": {
+			"file": "sound/recordings/radio/radio_click.ogg",
+			"volume_db": -16.0,
+			"note": "A desk that is still locked answers E with a short dry click: the same picked click, quieter."
+		},
+		"warning_tone": {
+			"file": "sound/made/warning_tone.wav",
+			"bus": "suit",
+			"volume_db": 0.0,
+			"note": "Warnings, in the helmet. The warning tone is the loudest thing in the game."
+		},
+		"oxygen_low": {
+			"file": "sound/made/oxygen_low.wav",
+			"bus": "suit",
+			"volume_db": -3.0
+		},
+		"geiger_ticks": {
+			"file": "sound/made/geiger_ticks.wav",
+			"bus": "suit",
+			"loops": true,
+			"volume_db": -6.0
+		},
+		"door_slide_open": {
+			"file": "sound/recordings/doors/door_slide_open.ogg",
+			"volume_db": -20.0,
+			"note": "Doors, the airlock and the lift."
+		},
+		"door_slide_close": {
+			"file": "sound/recordings/doors/door_slide_close.ogg",
+			"volume_db": -17.0
+		},
+		"hatch_open": {
+			"file": "sound/recordings/doors/hatch_open.ogg",
+			"volume_db": -22.0
+		},
+		"airlock_hatch_seal_clunk": {
+			"file": "sound/recordings/doors/airlock_hatch_seal_clunk.ogg",
+			"volume_db": -24.0
+		},
+		"airlock_pump_down": {
+			"file": "sound/recordings/doors/airlock_pump_down.ogg",
+			"loops": true,
+			"volume_db": -16.0
+		},
+		"airlock_air_hiss": {
+			"file": "sound/recordings/doors/airlock_air_hiss.ogg",
+			"volume_db": -16.0
+		},
+		"airlock_pressure_equalise": {
+			"file": "sound/recordings/doors/airlock_pressure_equalise.ogg",
+			"volume_db": -20.0
+		},
+		"lift_start": {
+			"file": "sound/recordings/doors/lift_start.ogg",
+			"volume_db": -20.0
+		},
+		"lift_travel": {
+			"file": "sound/recordings/doors/lift_travel.ogg",
+			"loops": true,
+			"volume_db": -6.0
+		},
+		"lift_stop": {
+			"file": "sound/recordings/doors/lift_stop.ogg",
+			"volume_db": -30.0
+		},
+		"footsteps_metal": {
+			"file": [
+				"sound/recordings/footsteps/footsteps_metal_1.ogg",
+				"sound/recordings/footsteps/footsteps_metal_2.ogg",
+				"sound/recordings/footsteps/footsteps_metal_3.ogg",
+				"sound/recordings/footsteps/footsteps_metal_4.ogg",
+				"sound/recordings/footsteps/footsteps_metal_5.ogg",
+				"sound/recordings/footsteps/footsteps_metal_6.ogg",
+				"sound/recordings/footsteps/footsteps_metal_7.ogg",
+				"sound/recordings/footsteps/footsteps_metal_8.ogg"
+			],
+			"volume_db": -22.0,
+			"note": "Footsteps. On the Moon the player's own boots are felt, so the outside steps are a thud."
+		},
+		"footsteps_boots_gravel": {
+			"file": "sound/recordings/footsteps/footsteps_boots_gravel.ogg",
+			"ground_thud": true,
+			"loops": true,
+			"volume_db": -6.0
+		},
+		"bench_tool": {
+			"file": "sound/recordings/machines/bench_tool.ogg",
+			"loops": true,
+			"volume_db": -6.0,
+			"note": "Machines and robots."
+		},
+		"digger": {
+			"file": "sound/recordings/machines/digger.ogg",
+			"loops": true,
+			"volume_db": -14.0
+		},
+		"robot_planting": {
+			"file": "sound/recordings/machines/robot_planting.ogg",
+			"volume_db": -8.0
+		},
+		"robot_servo": {
+			"file": "sound/recordings/machines/robot_servo.ogg",
+			"loops": true,
+			"volume_db": -12.0
+		},
+		"drone_hover": {
+			"file": "sound/recordings/vehicles/drone_hover.ogg",
+			"loops": true,
+			"volume_db": -24.0,
+			"note": "Vehicles and craft."
+		},
+		"drone_thrust_burst": {
+			"file": "sound/recordings/vehicles/drone_thrust_burst.ogg",
+			"loops": true,
+			"volume_db": -28.0,
+			"note": "Loops while the burn stays open: as a one-shot it ran out after five seconds of thrust."
+		},
+		"rover_motor": {
+			"file": "sound/recordings/vehicles/rover_motor.ogg",
+			"loops": true,
+			"volume_db": -14.0
+		},
+		"rover_wheels_gravel": {
+			"file": "sound/recordings/vehicles/rover_wheels_gravel.ogg",
+			"loops": true,
+			"volume_db": -18.0
+		},
+		"rocket_launch": {
+			"file": "sound/recordings/vehicles/rocket_launch.ogg",
+			"ground_thud": true,
+			"volume_db": -14.0
+		},
+		"rocket_hull_roar": {
+			"file": "sound/recordings/vehicles/rocket_hull_roar.ogg",
+			"ground_thud": true,
+			"volume_db": -8.0,
+			"note": "The launch from inside the capsule, laid over the recording: the roar and crackle it lacks (the owner's playtest, 2026-10-04). A real Shuttle lift-off, ignition through the first seconds of the climb, low-passed twice at 1.1 kHz as the hull would muffle it and faded in over 2.5 s so it builds with the burn (2026-10-05; it replaced a roar made from noise)."
+		},
+		"rocket_landing_rumble": {
+			"file": "sound/recordings/vehicles/rocket_landing_rumble.ogg",
+			"ground_thud": true,
+			"loops": true,
+			"volume_db": -10.0,
+			"note": "The steady middle of the take, its end joined into its start: the whole take swelled and died away every 14 seconds, so a long descent went quiet before the rocket was down."
+		},
+		"rocket_touchdown": {
+			"file": "sound/recordings/vehicles/rocket_touchdown.ogg",
+			"ground_thud": true,
+			"volume_db": -4.0,
+			"note": "The loudest thing after a warning, and still well under the warning tone."
+		},
+		"ground_thud": {
+			"file": "sound/recordings/vehicles/ground_thud.ogg",
+			"ground_thud": true,
+			"volume_db": -16.0,
+			"note": "Ground thuds."
+		},
+		"landing_thud": {
+			"file": "sound/recordings/vehicles/ground_thud.ogg",
+			"ground_thud": true,
+			"volume_db": -30.0,
+			"note": "The walker coming down off a real fall: the same thud, far softer than a drone's or a rocket's. At the drone's level every hop landed with a big bass boom (first playthrough, 2026-10-01)."
+		}
+	}
+}

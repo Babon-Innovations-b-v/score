@@ -29,6 +29,8 @@ import urllib.request
 import zipfile
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "tools" / "assets"))
+import world as world_assets  # noqa: E402
 CACHE = pathlib.Path.home() / ".cache" / "farm-factory" / "sound-picker"
 AGENT = "Mozilla/5.0 (farm-factory sound picker; open-source game)"
 CC0 = "CC0 1.0"
@@ -251,9 +253,9 @@ class InTheGame:
 
     def search(self, need, count):
         found = []
-        for res_path in self.current_files(need["name"])[:1]:
-            listed = self.licences.get(res_path, {})
-            local = REPO / res_path.removeprefix("res://")
+        for name in self.current_files(need["name"])[:1]:
+            listed = self.licences.get(name, {})
+            local = world_assets.resolve(name)
             found.append(Candidate("game", f"game:{need['name']}", f"The recording before ({local.name})",
                                    listed.get("author", "?"), listed.get("licence", "?"), listed.get("source", ""),
                                    local.as_uri(), note="the CC0 recording the game played before"))

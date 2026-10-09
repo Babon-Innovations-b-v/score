@@ -4,7 +4,7 @@ way end to end, as the route would run for a new room).
     python=~/.farm-factory-props/env/bin/python
     $python tools/props/library/route.py plan <kit layout> <work>       # models to make, and the cloud jobs
     $python tools/props/library/route.py layout <kit layout> <work>     # the game's layout over the made models
-    $python tools/props/library/route.py install <work> <room>          # the made models into the game
+    $python tools/props/library/route.py install <work> <room>          # the made models into the world's files
     $python tools/props/library/route.py fittings <work>                # method B's check: the fittings' parts seen
     $python tools/props/library/route.py precheck <work>                # the model check on the code models, pre-bake
 
@@ -21,10 +21,10 @@ split into (make_kit.py: a screen's content, a lamp's lens) and a generated piec
 own, and the room's lamps and floors as before. A generated model that fails the model check (gates/model.py) is
 not placed: its pieces are left out and listed.
 
-`install` runs the name check first (gates/names.py: an own name means one thing in every room), copies the made models and their shared pictures into game/base/models/<room>_kit/, stores the pictures
-compressed and stops a room past its budget (stored.py), with the pictures'
-import settings (BC7, high quality: an import left lossless took 3.7 GB of video memory in round two), points each
-kind's own scene at its first model, and puts the layout in place (data/kit/<room>.json).
+`install` runs the name check first (gates/names.py: an own name means one thing in every room), copies the made
+models and their shared pictures into the world's files (`models/<room>_kit/`, tools/assets/world.py), stores the
+pictures compressed and stops a room past its budget (stored.py), and puts the layout in place (data/kit/<room>.json).
+An engine's own scenes for the kit (the game 2099's Godot scenes) are the engine adapter's, not the framework's.
 """
 import json
 import pathlib
@@ -42,6 +42,9 @@ import names  # noqa: E402
 import package  # noqa: E402
 import sorter  # noqa: E402
 import stored  # noqa: E402
+
+sys.path.insert(0, str(HERE.parents[1] / "assets"))
+import world as world_assets  # noqa: E402
 
 REPO = library.REPO
 DETAILS = REPO / "data/library/details.json"
@@ -570,20 +573,15 @@ def game_layout(layout, planned, reports, checks):
     return dict(room, counts=counts, kinds=kinds, models=models, pieces=pieces), held_back
 
 
-IMPORT_SETTINGS = {"compress/mode": "2", "compress/high_quality": "true"}
-
-
 def install(work, room):
-    """The made models and their pictures into the game, every kind's scene pointed at its first model, the layout
-    into data/kit/<room>.json."""
+    """The made models and their pictures into the world's files (`models/<room>_kit/` in the local copy of the world's
+    release, tools/assets/world.py; pack and publish a new release to share them), the layout into
+    data/kit/<room>.json."""
     layout = json.loads((work / "layout.json").read_text())
     faults = names.check(layout, room)
     if faults:
         raise SystemExit("the name check (gates/names.py) stops the install:\n  " + "\n  ".join(faults))
-    folder = REPO / f"game/base/models/{room}_kit"
-    # Godot's import files are kept, so a model installed again keeps its id and its import settings.
-    imports = {found.relative_to(folder): found.read_text() for found in folder.rglob("*.import")} \
-        if folder.exists() else {}
+    folder = world_assets.local_folder(world_assets.manifest()) / "models" / f"{room}_kit"
     if folder.exists():
         shutil.rmtree(folder)
     (folder / "textures").mkdir(parents=True)
@@ -602,133 +600,23 @@ def install(work, room):
             continue
         shutil.copy(made / f"{name}.bin", folder / f"{name}.bin")
         stamped(made / f"{name}.gltf", folder / f"{name}.gltf")
-    first, sizes = {}, {}
-    for laid in layout["pieces"]:
-        if "part" not in laid:
-            first.setdefault(laid["kind"], laid["model"])
-            sizes.setdefault(laid["model"], laid["size"])
-    for kind, model in first.items():
-        scene = REPO / f"game/base/models/{kind}"
-        if scene.exists():
-            for old in scene.iterdir():
-                old.unlink()
-        scene.mkdir(exist_ok=True)
-        wide, tall, deep = sizes[model]
-        (scene / f"{kind}.tscn").write_text(KIND_SCENE.format(room=room, model=model, node=node_name(kind),
-                                                              size=f"{wide:g}, {tall:g}, {deep:g}", middle=f"{tall / 2:g}"))
-    for name, about in layout["models"].items():
-        if "prop" in about:
-            prop_scene(room, name, about, layout["models"])
-    for path, text in imports.items():
-        if (folder / path.with_suffix("")).exists():
-            (folder / path).write_text(text)
     stored.store(folder)
-    for path, text in imports.items():
-        if path.name.endswith(".webp.import") and (folder / path.with_suffix("")).exists():
-            (folder / path).write_text(text)
     past = stored.over_budget(stored.cost(folder))
     if past:
         raise SystemExit(f"{room}'s models are over the room budget (stored.BUDGET): {'; '.join(past)}")
     (REPO / f"data/kit/{room}.json").write_text(json.dumps(layout, indent="\t") + "\n")
-    return len(layout["models"]), len(first)
-
-
-# A kind's own scene (the prop catalogue's, the asset gate's): its first model, and a box round it that collides, as
-# every prop's scene has (HubKit draws the room from the models alone; the shell keeps the room's collision).
-KIND_SCENE = """[gd_scene format=3]
-
-[ext_resource type="PackedScene" path="res://game/base/models/{room}_kit/{model}.gltf" id="1_mesh"]
-
-[sub_resource type="BoxShape3D" id="prop_shape"]
-size = Vector3({size})
-
-[node name="{node}" type="StaticBody3D"]
-
-[node name="Mesh" parent="." instance=ExtResource("1_mesh")]
-
-[node name="Collision" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, {middle}, 0)
-shape = SubResource("prop_shape")
-"""
+    return len(layout["models"]), folder
 
 
 def stamped(source, target):
-    """A model's .gltf copied with its .bin's hash written into it (asset.extras.bin_md5): Godot re-imports a glTF only
-    when its own text changes, so a model whose new .bin came with the same .gltf kept its old mesh in the game, its old
-    UVs over the new pictures (2026-10-06: a hatch leaf showed a status screen's content)."""
+    """A model's .gltf copied with its .bin's hash written into it (asset.extras.bin_md5): an engine that re-imports a
+    glTF only when its own text changes (Godot) kept a model's old mesh when only its .bin changed, its old UVs over
+    the new pictures (2026-10-06: a hatch leaf showed a status screen's content)."""
     import hashlib
     found = json.loads(source.read_text())
     binary = source.with_suffix(".bin")
     found.setdefault("asset", {}).setdefault("extras", {})["bin_md5"] = hashlib.md5(binary.read_bytes()).hexdigest()
     target.write_text(json.dumps(found, indent=1))
-
-
-def prop_scene(room, name, about, models):
-    """A furniture model's prop scene (game/base/models/<prop>/<prop>.tscn): the model, its children standing where
-    the composite places them (each its own model, round six), the glowing parts of both under `Glow`, and a box round
-    it that collides."""
-    prop = about["prop"]
-    scene = REPO / f"game/base/models/{prop}"
-    if scene.exists():
-        for old in scene.iterdir():
-            old.unlink()
-    scene.mkdir(exist_ok=True)
-    wide, tall, deep = about["size"]
-    text = KIND_SCENE.format(room=room, model=name, node=node_name(prop), size=f"{wide:g}, {tall:g}, {deep:g}",
-                             middle=f"{tall / 2:g}")
-    resources, nodes, glows = [], [], []
-    if f"{name}_glow" in models:
-        glows.append((f"{name}_glow", IDENTITY))
-    for index, child in enumerate(about.get("children", [])):
-        placed = child_transform(child)
-        resources.append((child["model"], f"c{index}"))
-        nodes.append(f'\n[node name="{node_name(child["model"])}_{index}" parent="." groups=["child_object"] '
-                     f'instance=ExtResource("c{index}")]\ntransform = {placed}\n')
-        if f"{child['model']}_glow" in models:
-            glows.append((f"{child['model']}_glow", placed))
-    if glows:
-        nodes.append('\n[node name="Glow" type="Node3D" parent="."]\n')
-        for index, (glow, placed) in enumerate(glows):
-            resources.append((glow, f"g{index}"))
-            nodes.append(f'\n[node name="{node_name(glow)}_{index}" parent="Glow" instance=ExtResource("g{index}")]\n'
-                         f'transform = {placed}\n')
-    lines = "".join(f'[ext_resource type="PackedScene" path="res://game/base/models/{room}_kit/{model}.gltf" '
-                    f'id="{ident}"]\n' for model, ident in resources)
-    text = text.replace('id="1_mesh"]\n', 'id="1_mesh"]\n' + lines, 1) + "".join(nodes)
-    (scene / f"{prop}.tscn").write_text(text)
-
-
-IDENTITY = "Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)"
-
-
-def child_transform(child):
-    """A child's place on its parent as a scene's Transform3D: turned `turn` degrees about up, its foot at `at` (the
-    parent's kit frame). Godot writes a basis row by row."""
-    angle = np.radians(child.get("turn", 0.0))
-    cos, sin = np.cos(angle), np.sin(angle)
-    x, y, z = child["at"]
-    numbers = (cos, 0.0, sin, 0.0, 1.0, 0.0, -sin, 0.0, cos, x, y, z)
-    return "Transform3D(" + ", ".join(f"{value:.6g}" for value in numbers) + ")"
-
-
-def node_name(kind):
-    return "".join(part.capitalize() for part in kind.split("_"))
-
-
-def picture_imports(folder):
-    """After Godot first imports the shared pictures: their .import files set to BC7, high quality (normal maps
-    keep their normal-map setting)."""
-    changed = 0
-    for found in sorted(pathlib.Path(folder).glob("textures/*.png.import")) + \
-            sorted(pathlib.Path(folder).glob("textures/*.webp.import")):
-        text = found.read_text()
-        for key, value in IMPORT_SETTINGS.items():
-            text = re.sub(rf"^{re.escape(key)}=.*$", f"{key}={value}", text, flags=re.MULTILINE)
-        if "_normal" in found.name:
-            text = re.sub(r"^compress/normal_map=.*$", "compress/normal_map=1", text, flags=re.MULTILINE)
-        found.write_text(text)
-        changed += 1
-    return changed
 
 
 def record_fittings(reports, path=sorter.FITTINGS):
@@ -809,8 +697,8 @@ def main():
         print(len(found["pieces"]), "pieces;", len(found["models"]), "models; held back:", held_back)
     elif step == "install":
         work = pathlib.Path(sys.argv[2])
-        models, kinds = install(work, sys.argv[3])
-        print(models, "models installed;", kinds, "kinds' scenes pointed at them")
+        models, folder = install(work, sys.argv[3])
+        print(models, "models installed in", folder)
     elif step == "fittings":
         reports = [{"pieces": package.made_reports(pathlib.Path(sys.argv[2]))}]
         for kind, missing in sorted(record_fittings(reports).items()):
@@ -820,8 +708,6 @@ def main():
         print("code models failing the model check before the bake:", failed or "none")
         if failed:
             raise SystemExit(1)
-    elif step == "imports":
-        print(picture_imports(sys.argv[2]), "picture imports set to BC7")
     else:
         raise SystemExit(__doc__)
 

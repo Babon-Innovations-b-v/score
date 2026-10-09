@@ -68,7 +68,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   pi, a distant light's strength its intensity times 4), from the game's energies by `scene.SUN_PER_ENERGY` and
   `OMNI_PER_ENERGY`, and a lamp's energy matched halfway out to its range for its own fall-off (`reach_matched`); change those, never a record's energies, when the brightness check against the game's shots says
   the scene is too dark or too bright.
-- `export.py --world <the game's checkout>` resolves the files a record names; a walkway tube's kit is laid along the
+- A record names a file by its name in the world's release (`models/...`, tools/assets/world.py) or by its path in
+  git (`data/...`); `export.py` resolves both (`--assets <folder>` reads another copy of the release), never a file of
+  the game's checkout. A walkway tube's kit is laid along the
   record's `tube_length` as the game's TubeKit lays it. `scene_test.py` checks the builders, the lights' units and
   turns, the kit lamps, the tube's laying and every real record.
 

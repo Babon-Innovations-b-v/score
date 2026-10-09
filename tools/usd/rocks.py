@@ -21,11 +21,15 @@ metres of the place's middle, as the game draws pebbles only that far from the e
 import json
 import math
 import pathlib
+import sys
 
 import numpy as np
 import trimesh
 
 import builders
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "assets"))
+import world as world_assets  # noqa: E402
 
 
 def rodrigues(axis, angle):
@@ -131,9 +135,8 @@ def lying(rng, planned, up, size, box, entry):
 
 def laid_rocks(entry, world, ground):
     """Every planned rock the place shows, lying as the game lays it, in the place's frame."""
-    world = pathlib.Path(world)
-    boxes = {path: model_box(world / path) for path in entry["boulders"]}
-    plan = json.loads((world / entry["plan"]).read_text())["rocks"]
+    boxes = {path: model_box(world_assets.resolve(path, world)) for path in entry["boulders"]}
+    plan = json.loads(world_assets.resolve(entry["plan"], world).read_text())["rocks"]
     planned = PlannedGround(ground)
     base = ground.plan
     out = base[1]

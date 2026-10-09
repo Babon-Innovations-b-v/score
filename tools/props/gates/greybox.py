@@ -1,7 +1,7 @@
 """The greybox gate (G2 of the robust route, job robust-exp 2026-10-06): checks on a kit room's real meshes that cost
 nothing and run before any picture or model is paid for.
 
-    ~/.farm-factory-props/env/bin/python tools/props/gates/greybox.py <layout.json> [--models <folder> ...] \
+    ~/.farm-factory-props/env/bin/python tools/props/gates/greybox.py <layout.json> --models <folder> ... \
         [--sector 255,315] [--report <out.json>]
 
     leaks     rays cast from standing points inside the room outward through a sector of its walls and roof: the
@@ -13,7 +13,7 @@ nothing and run before any picture or model is paid for.
     budget    the sector's pieces, triangles and lamps
 
 A layout is HubKit's (data/kit/hub.json); pieces are placed as the game places them (room.py). `--models` names
-folders of .glb or .gltf models that stand in for the game's own where a kind is found there (a route's new pieces).
+the folders of .glb or .gltf models the pieces are drawn with (a route's made pieces, a scene package's objects).
 """
 import argparse
 import json
@@ -193,12 +193,12 @@ def gate(layout, resolve, sector):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("layout", type=pathlib.Path)
-    parser.add_argument("--models", type=pathlib.Path, nargs="*", default=[])
+    parser.add_argument("--models", type=pathlib.Path, nargs="+", required=True)
     parser.add_argument("--sector", default="255,315")
     parser.add_argument("--report", type=pathlib.Path)
     arguments = parser.parse_args()
     layout = json.loads(arguments.layout.read_text())
-    resolve = room.models_in(*arguments.models) if arguments.models else room.game_models
+    resolve = room.models_in(*arguments.models)
     sector = tuple(float(value) for value in arguments.sector.split(","))
     report = gate(layout, resolve, sector)
     text = json.dumps(report, indent=1)

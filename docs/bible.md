@@ -48,9 +48,13 @@ the current backend). No model runs on the coordinating machine.
   `data/fonts/`: the fonts printed labels use (SIL OFL).
 - The first world's data, the game 2099's, read as the example world: `data/definitions/place.json` (each place's
   style, palette, materials, wear), `design/tokens/tokens.json` (the palette), `data/inventory/` (scene
-  inventories), `data/kit/` (laid kit rooms), `data/sound/` (sound briefs). Some tools still name the game's files
-  (`route.py install`, the sound picker's apply, `inventory.py`'s shell hash): that is the game's adapter, to move out
-  when 2099 consumes the package.
+  inventories), `data/kit/` (laid kit rooms), `data/sound/` (the sound catalogue, briefs, licences and loudness).
+- `tools/assets/`: the world's heavy files (made models, sounds) as a release of this repository, named with their
+  sha256, source and licence by `data/assets/world1.json`; `world.py` fetches, checks, packs and publishes them, and
+  every record names a file by its name there or by its path in git. The framework reads nothing from the game's
+  checkout (2026-10-09, the owner: the game and SCORE are fully separate); `game_free_test.py` holds it so. An
+  engine's own import of the package (the game 2099's Godot scenes for a kit) is that engine's adapter, kept in the
+  engine's repository.
 - `vendor/`: third-party tools as released, each pinned with its licence (ADR-0002).
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
@@ -124,7 +128,7 @@ a change can reach, and keep its rules:
 - **Print the reasons**, one line each, so whoever reads the gate's output sees what was skipped.
 
 A grown version to copy from: the game 2099's `tools/test/scope/` (Godot scripts, scenes and
-`res://` paths).
+its resource paths).
 
 ## workflow/loop
 
