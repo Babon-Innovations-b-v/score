@@ -698,6 +698,8 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     out = pathlib.Path(out)
     if parts is None:
         parts = stored_parts.takes_of(place)
+    elif isinstance(parts, dict):  # a kit room's run: a model its bake jobs do not name (laid later) by its stored take
+        parts = {**stored_parts.takes_of(place), **parts}
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
     if kit["pieces"] and "x" in kit["pieces"][0]:
         kit = dict(kit, pieces=kit_room_pieces(kit, models, (scene or {}).get("tube_length")))
