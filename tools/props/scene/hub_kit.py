@@ -565,11 +565,11 @@ def wall_gear(kinds, inventory):
         for high in highs:
             for across in (-0.6, 0.6):
                 found.append(on_lining(kinds, "pipe_straight", bearing, across, high - straight[1] / 2,
-                                     (FACET_WIDE / 2 - 0.02, straight[1], straight[2]), out=PIPE_AXIS - straight[2] / 2))
+                                     (FACET_WIDE / 2 - 0.02, straight[1], straight[2]), out=bracket[2]))
             found.append(on_lining(kinds, "pipe_bracket", bearing, -0.6, high - bracket[1] / 2, bracket))
             found.append(on_lining(kinds, "pipe_bracket", bearing, 0.6, high - bracket[1] / 2, bracket))
     for bearing, across, high in ((210, -0.3, 1.35), (210, -0.3, 0.75), (300, -0.5, 0.55)):  # each on a pipe laid
-        found.append(on_lining(kinds, "pipe_valve", bearing, across, high - valve[1] / 2, valve))
+        found.append(on_lining(kinds, "pipe_valve", bearing, across, high - valve[1] / 2, valve, out=bracket[2]))
     for bearing in (210, 240, 300):  # not the airlock's wall: its doorway reaches the corners
         for side in (-1, 1):
             found.append(on_lining(kinds, "pipe_elbow", bearing, side * (FACET_WIDE / 2 - elbow[0] / 2), 0.4, elbow, out=bracket[2]))
@@ -601,7 +601,9 @@ def wall_gear(kinds, inventory):
 
 # A pipe run's inline fitting carries the run through its own stub (pieces.pipe_valve: its axis VALVE_AXIS_BACK off
 # its back), so the straight pipe stops at either end of it (step 0 of the modules round, 2026-10-07: the
-# hub's pipes ran on through their valves); a length shorter than SHORTEST_PIPE left over is dropped.
+# hub's pipes ran on through their valves); a length shorter than SHORTEST_PIPE left over is dropped. The other rooms
+# split their runs here; the hub itself keeps round six's runs (through their valves, on the brackets' fronts), the
+# owner's signed-off state, until a new hub is shown to him and approved.
 INLINE = ("pipe_valve",)
 # How far a wall pipe run's axis stands off the wall lining (pieces.PIPE_AXIS): a short stand-off, so its brackets
 # visibly hold it (step 0: at 20 cm the clamp's arm hid behind the pipe and the bracket read as not reaching it).
@@ -752,7 +754,7 @@ def kit_kinds(inventory):
 def laid_out(inventory):
     kinds = kit_kinds(inventory)
     found = (walls(kinds) + roof(kinds) + ceiling_gear(kinds) + floor(kinds, inventory) + pit(kinds) + stairs(kinds)
-             + doors(kinds, inventory) + split_at_fittings(clear_of_furniture(wall_gear(kinds, inventory), inventory)))
+             + doors(kinds, inventory) + clear_of_furniture(wall_gear(kinds, inventory), inventory))
     return cut_openings(found)
 
 
