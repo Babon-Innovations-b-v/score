@@ -508,6 +508,23 @@
    "yaw": 40.0,
    "children": [],
    "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
+  },
+  {
+   "name": "BootRock",
+   "model": "game/world/mars/expedition_camp/camp_boot_rock/camp_boot_rock.glb",
+   "at": [
+    3.4891,
+    -1.2688,
+    -17.3939
+   ],
+   "rotation": [
+    -0.00742,
+    0.907133,
+    -0.038641,
+    0.419002
+   ],
+   "children": [],
+   "from": "expedition_camp.gd:65,109,305,338-341,664-701 (the boot rock, the game's own made model, set down at LAYOUT boot_rock (11, 14) on the camp seat, on the ground there and turned to the ground's facing with its along kept along the seat), ground.gd:107,411-421 (the facing half a metre either way), in this frame through the habitat's own set-down (0.55 m, turned -130.5 degrees)"
   }
  ],
  "places": [
@@ -662,14 +679,14 @@
   {
    "type": "sun",
    "toward": [
-    0.08979,
-    -0.66846,
-    0.7383
+    0.18717,
+    -0.76551,
+    0.61559
    ],
    "colour": "#fff5e6",
    "energy": 1.25,
    "shadows": true,
-   "from": "sky.gd:87 (1.25, 35-50 degrees up and going down in the camp's shots); its way set to match them"
+   "from": "game/world/sky/sky.gd:87,296-307,339-343 (SUN_ENERGY 1.25, the true Sun's way at full strength over 3 degrees up on Mars); its way as the game's camp shots set it, tools/perf/place.gd:223-226,653-675 (_bring_the_camp_sun: the clock run on in 5-minute steps from the run's start until the Sun stands 35 to 50 degrees over the camp and is going down), worked out from sim/engine/space/orbits/orbits.gd (centre_at, facing_at, MARS_LEAD_AT_START 48.2 degrees, the Sun's pull from Earth's 14,400-minute year, Mars's sol of 72,000 ticks, sim/engine/world/pace.gd) and FirstExpedition.CAMP_FACING_OUT: from minute 0 it is minute 8,630, the Sun 49.95 degrees up, going down 0.016 degrees a minute; turned into the habitat's frame"
   }
  ],
  "environment": {
@@ -706,6 +723,16 @@
    ],
    "colour": "#eef2ff",
    "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned with the place's own axes, where the game turns them with the world's spin and the hour, which the record does not carry"
+  },
+  "dust": {
+   "count": 30000,
+   "side": 70.0,
+   "high": 0.4,
+   "across": 0.03,
+   "thickness": 0.53,
+   "colour": "#e16e48",
+   "seed": 116,
+   "from": "game/outside/dust/mars_wind.gd:17-52,190-220,294-312 (the calm day's drift: no wisps, DRIFT_GRAINS_CALM_SHARE 0.06 of DRIFT_GRAINS_A_CELL 20,000 grains on each 14 m cell, CELLS_OUT 2 so five by five cells round the player, DRIFT_HIGH_CALM 0.4 m, DRIFT_GRAIN_M 0.03, DRIFT_GRAIN_THICKNESS 0.7 faded in and out over each grain's life, three quarters on the whole), game/outside/dust/dust_grains.gd:24-38,106-117 (the unshaded speck in MARS_DUST #b4583a lifted by GRAIN_LIFT 1.25); the game's grains are thrown at random by the card each frame and follow the player, so the stage hangs one moment's worth at random from its own fixed seed over the 70 m square round the camp's middle, standing still"
   }
  },
  "floor": [
@@ -809,14 +836,44 @@
    ],
    "fov": 75,
    "game": "mars-build/habitat/shots/now/outside_far.jpg"
+  },
+  {
+   "name": "from_the_ramp",
+   "eye": [
+    15.281,
+    -0.2064,
+    -19.1081
+   ],
+   "aim": [
+    0.0,
+    1.45,
+    0.0
+   ],
+   "fov": 73.74,
+   "game": "mars-build/grounds/shots/now2/grounds from the ramp.png"
+  },
+  {
+   "name": "above",
+   "eye": [
+    35.67,
+    51.1026,
+    -30.4651
+   ],
+   "aim": [
+    -1.5202,
+    -0.5592,
+    1.2984
+   ],
+   "fov": 73.74,
+   "game": "mars-build/grounds/shots/now2/grounds above.png"
   }
  ],
  "game_only": [
-  "the camp's airlock and its link tube (the whole of the outside shots' foreground)",
-  "the boot rock (the game's own model, not placed yet) and the cairn (held back for the ending)",
-  "the wind's dust (the drift, the dust devils and a storm's)",
+  "the cairn (held back for the ending), and the striped stand-in the game draws 1.4 m beside the boot rock only while its find is on show",
+  "the camp airlock's own look: the game draws the camp's airlock in the module shell's code look (white roof on struts, grey walls, dark red inside, boxes for its doors and locker), where the stage shows the Moon base's made airlock room of the same size in its place",
+  "the dust devils and a storm's dust; the drift's fine grains are on the stage as one still moment's worth over the 70 m round the camp, where the game blows them along round the player",
   "the mast's light beam",
-  "the planned rocks",
+  "Mars's seeded rocks past the plan's square (they come from the run's world seed and lie past the stage's 130 m)",
   "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ],
  "structure": [
@@ -876,5 +933,25 @@
    "from": "camp_airlock.gd:31-32,88-96 (the dark footing block, 3.6 by 2.8 m out from the room's middle and 1.2 m deep, in roof.tres)",
    "plain": "plate"
   }
- ]
+ ],
+ "planned_rocks": {
+  "plan": "game/world/ground/mars_plan.json",
+  "boulders": [
+   "game/world/rocks/mars_boulder_basalt/mars_boulder_basalt.glb",
+   "game/world/rocks/mars_boulder_layered/mars_boulder_layered.glb"
+  ],
+  "stones": [
+   "game/world/rocks/mars_boulder_basalt/mars_boulder_basalt_small.glb",
+   "game/world/rocks/mars_boulder_layered/mars_boulder_layered_small.glb"
+  ],
+  "seed": 43,
+  "sunk": 0.12,
+  "tip": 0.25,
+  "tip_sinks": false,
+  "pebble": 0.45,
+  "pebbles_seen": 40.0,
+  "plan_reach": 116.0,
+  "reach": 130.0,
+  "from": "game/world/mars/mars.gd:59-77 (PLANNED_BOULDERS, PLANNED_STONES, PLANNED_PEBBLE 0.45, PLANNED_ROCKS_SEED 43, PLANNED_SUNK 0.12, PLANNED_TIP 0.25, PEBBLES_SEEN 40), mars.gd:371-411,438-449 (_planned_rocks and _planned_lying: every rock of the plan in its order, turned, tipped and stretched from the one seed, sunk by its own share of its height alone), game/world/ground/ground.gd:124-134 (PLAN_SIDE, PLAN_REACH 116, MARS_PLAN_LAYOUT); the game draws the plan's rocks out to 160 m from the eye, the stage those on the plan's square inside 116 m, where its heights have the whole say, and within 130 m of the place's middle"
+ }
 }

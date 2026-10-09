@@ -1,5 +1,5 @@
 {
- "about": "Mars's planned ground round the first expedition's camp in the game 2099 (its game/world/ground/mars_plan.json and mars_plan_heights.png, Ground.PLAN_* and Worlds.RADIUS): the same square, sixteen-bit encoding and ball radius as the Moon's plan, laid on the camp seat (FirstExpedition.CAMP_FACING_OUT, heading 0). The camp's kit (data/kit/camp.json) is the habitat's own frame: the habitat stands 0.55 m over the ground under the seat's middle (ExpeditionCamp.HABITAT_FLOOR_RISE_M), turned -130.5 degrees about up (rad(-40.5) - pi/2), so its entry has that heading and a `lift`; the grounds' (campgrounds) is the camp seat itself. The skin is a shade map: the game paints Mars's ground its MARS_DUST colour (#b4583a, mars_ground.tres) shaded by it, so the stage tints the skin to that colour (`tint`).",
+ "about": "Mars's planned ground round the first expedition's camp in the game 2099 (its game/world/ground/mars_plan.json and mars_plan_heights.png, Ground.PLAN_* and Worlds.RADIUS): the same square, sixteen-bit encoding and ball radius as the Moon's plan, laid on the camp seat (FirstExpedition.CAMP_FACING_OUT, heading 0). The camp's kit (data/kit/camp.json) is the habitat's own frame: the habitat stands 0.55 m over the ground under the seat's middle (ExpeditionCamp.HABITAT_FLOOR_RISE_M), turned -130.5 degrees about up (rad(-40.5) - pi/2), so its entry has that heading and a `lift`; the grounds' (campgrounds) is the camp seat itself. The skin is a shade map: the game paints Mars's ground its MARS_DUST colour (#b4583a, mars_ground.tres) shaded by it, so a stage without the shader's `detail` tints the skin to that colour (`tint`); with it, the near ground is baked from the shader and the far ground shaded from the skin as the shader shades it.",
  "heights": "mars_plan_heights.png",
  "skin": "mars_plan_skin.jpg",
  "side": 260.0,
@@ -30,5 +30,29 @@
    "heading": 0.0
   }
  },
- "tint": "#b4583a"
+ "tint": "#b4583a",
+ "detail": {
+  "about": "The ground shader's detail on Mars (2099's ink_ground.gdshader with its mars_ground.tres material), baked into the camp's near ground by tools/usd/ground_detail.py: Mars's dust colour and the ink colour (sRGB, as the material's source colours), the same two scans of real ground the Moon's material lays, Mars's own plan relief picture, and none of the drawn pits or inked pebbles, which Mars's material turns off (the wind fills the pits in, and its stones are the plan's rocks); its stipple, the scans' light and dark and grains, and the plan's skin and relief stay.",
+  "flat_colour": [
+   0.7058824,
+   0.34509805,
+   0.22745098
+  ],
+  "ink_colour": [
+   0.039215688,
+   0.03529412,
+   0.03137255
+  ],
+  "scans": {
+   "wide_shade": "game/world/ground/scan_wide_shade.jpg",
+   "wide_bumps": "game/world/ground/scan_wide_bumps.jpg",
+   "close_shade": "game/world/ground/scan_close_shade.jpg",
+   "close_bumps": "game/world/ground/scan_close_bumps.jpg"
+  },
+  "relief": "game/world/ground/mars_plan_relief.png",
+  "pits_share": 0.0,
+  "pebbles_share": 0.0,
+  "texel": 0.02,
+  "from": "game/art/materials/mars_ground.tres (flat_color, ink_color, the four scans, plan_skin, plan_relief, pits_share 0, pebbles_share 0); game/art/shaders/ink_ground.gdshader:52-58,151-230 (the shares, the stipple, the scans' shade and grains, the plan's skin and relief)"
+ }
 }
