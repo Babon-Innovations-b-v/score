@@ -55,8 +55,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `complete.py` is the completion gate: `check <place>` runs the checks and keeps each result beside the stage
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
   every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, every result
-  current, the review page built and rendered from this stage). Unknown blocks like fail. The Stop hook
-  (`.claude/hooks/completion_guard.py`) refuses a session's "done" for a place it worked on unless the gate passes.
+  current, the review page built and rendered from this stage). Unknown blocks like fail. The Stop and SubagentStop hooks
+  (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it worked on unless the gate passes.
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
 - `triage.py` is the resting triage over `resting.py`: each object judged by its support from data (row `support`,
   `fixed`, kit shell groups and kit kinds `hangs`/`floors`, `on:` held, hanging words, wall, ceiling, floor;

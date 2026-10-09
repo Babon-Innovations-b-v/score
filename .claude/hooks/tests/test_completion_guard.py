@@ -54,6 +54,40 @@ def test_a_done_claim_without_a_passing_gate_is_blocked(tmp_path, monkeypatch):
     assert _PLACE in said and "unknown" in said
 
 
+def test_a_sub_agents_done_claim_is_judged_on_its_own_transcript(tmp_path, monkeypatch):
+    kit = _with_place(tmp_path, monkeypatch)
+    session = tmp_path / "session"
+    session.mkdir()
+    try:
+        code, said = _run({"transcript_path": str(_transcript(session, "Nothing claimed here.")),
+                           "agent_transcript_path": str(_transcript(tmp_path, f"The {_PLACE} is done."))})
+    finally:
+        kit.unlink()
+    assert code == 2
+    assert _PLACE in said
+
+
+def test_the_payloads_last_message_counts_when_the_transcript_lags(tmp_path, monkeypatch):
+    kit = _with_place(tmp_path, monkeypatch)
+    try:
+        code, said = _run({"transcript_path": str(_transcript(tmp_path, "Reading the inventory now.")),
+                           "last_assistant_message": f"The {_PLACE} is done."})
+    finally:
+        kit.unlink()
+    assert code == 2
+    assert _PLACE in said
+
+
+def test_a_quoted_command_is_not_a_claim(tmp_path, monkeypatch):
+    kit = _with_place(tmp_path, monkeypatch)
+    try:
+        code, _ = _run({"transcript_path": str(_transcript(
+            tmp_path, f"Left: export it, then run `complete.py done {_PLACE}`."))})
+    finally:
+        kit.unlink()
+    assert code == 0
+
+
 def test_saying_it_is_not_complete_passes(tmp_path, monkeypatch):
     kit = _with_place(tmp_path, monkeypatch)
     try:

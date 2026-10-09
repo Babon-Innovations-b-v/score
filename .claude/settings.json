@@ -188,6 +188,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/completion_guard.py\"",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   }
 }
