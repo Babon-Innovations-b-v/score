@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
 """Stop guard: a session may not end on the claim that a place is done while the place's evidence says otherwise.
 
-Reads the Claude Code Stop or SubagentStop hook payload on stdin (``{transcript_path, agent_transcript_path,
-stop_hook_active, ...}``), and from the session's (or sub-agent's) transcript:
-
-1. The places the session worked on: a place named in a tool call's input as one of its files
-   (``data/{inventory,kit,scene,characters}/<place>.json``), its stage or review folder (``work/usd/<place>``,
-   ``work/review/<place>``), or the place a stage tool was run on (``export.py``, ``page.py``, ``settle.py``,
-   ``complete.py``).
-2. Whether the session's last message claims one of them is done: a sentence naming the place (or "every place",
-   "all places") with complete, done, finished or ready in it, and no "not", "incomplete" or "unfinished".
-
-For each claimed place it runs the completion gate (tools/usd/complete.py ``done``) and blocks the stop when the gate
-does not pass, listing every requirement that failed or is unknown. The way out is to make the gate pass or to say
-plainly that the place is not complete. A session that worked on a place and makes no such claim ends as usual: the
-guard refuses a false "done", it does not force every session to finish a place. (LEGO-Anything, arXiv 2609.36380,
-App. G.6: runtime hooks keep the agent from finishing while validations are stale.)
+Reads the Stop or SubagentStop payload on stdin and, from the session's (or sub-agent's) transcript, finds the places
+its tool calls worked on (a place's ``data/...`` file, its ``work/usd`` or ``work/review`` folder, or a stage tool run
+on it) and whether its last message claims one of them is done (a sentence naming the place, or "every/all places",
+with complete, done, finished or ready and no negation). For each claimed place it runs the completion gate
+(tools/usd/complete.py) and blocks the stop when the gate does not pass, listing every requirement that failed or is
+unknown. A session that makes no such claim ends as usual: the guard refuses a false "done", it does not force every
+session to finish a place. (LEGO-Anything, arXiv 2609.36380, App. G.6: runtime hooks keep the agent from finishing
+while validations are stale.)
 
 FAILURE POLICY: the hook's own machinery fails open (an unreadable payload or transcript allows the stop), but a gate
 verdict of unknown blocks like fail. Exit 2 + stderr is the only block path.
@@ -133,7 +126,6 @@ def main():
     if refused:
         print(message(refused), file=sys.stderr)
         sys.exit(2)
-    sys.exit(0)
 
 
 if __name__ == "__main__":

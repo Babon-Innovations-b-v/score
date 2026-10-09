@@ -5,16 +5,10 @@ An agent's turn that comes more than 5 minutes after its previous one re-writes 
 on 2026-10-09 that was about half of all agent spend, most of it after foreground sleep and poll loops and foreground
 cloud runs. Claude Code blocks a command that *starts* with ``sleep`` in some sessions but not in others (in the
 2026-10-09 bench's background sessions ``sleep 300; tail log`` ran), so this guard blocks, for a Bash call not run
-with ``run_in_background``:
-
-1. a ``sleep`` longer than ``LONGEST_SLEEP`` seconds anywhere in the command (``sleep 300; tail log``);
-2. a poll loop: ``while`` or ``until`` with a ``sleep`` in it, or a ``for`` loop sleeping more than
-   ``LONGEST_LOOP_SLEEP`` seconds a round;
-3. a cloud Blender run: Python running ``blender_cloud.py`` (not ``--dry-run``), ``settle.py --cloud`` or
-   ``page.py --cloud`` (not ``--no-render``), which blocks for many minutes. Reading those files is not a run.
-
-The block message names the way out: run_in_background (the completion notice wakes the agent), the tools'
-``--detach`` mode or ``tools/props/cloud/detached.py`` (one result line, progress in a log), or the Monitor tool.
+with ``run_in_background``: a ``sleep`` over ``LONGEST_SLEEP`` seconds anywhere in the command; a poll loop (``while``
+or ``until`` with a ``sleep`` in it, or a ``for`` loop sleeping over ``LONGEST_LOOP_SLEEP`` seconds a round); and a
+foreground cloud Blender run (``blender_cloud.py`` but not ``--dry-run``, ``settle.py --cloud``, ``page.py --cloud``
+but not ``--no-render``), which blocks for many minutes. The block message names the way out.
 
 FAILURE POLICY: fail-open. Any parse error or unknown shape exits 0 (allow). Exit 2 + stderr is the only block path.
 """
@@ -46,12 +40,9 @@ _WAY_OUT = (
 )
 
 
-def seconds_of(match):
-    return float(match.group(1)) * _UNITS[match.group(2)]
-
-
 def sleeps(text):
-    return [seconds_of(match) for match in _SLEEP.finditer(text)]
+    """The length in seconds of each shell sleep in the text."""
+    return [float(match.group(1)) * _UNITS[match.group(2)] for match in _SLEEP.finditer(text)]
 
 
 def long_sleep(command):
@@ -97,7 +88,6 @@ def main():
     if reason:
         print(f"Blocked: {reason}. {_WAY_OUT}", file=sys.stderr)
         sys.exit(2)
-    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
 """PreToolUse guard: keep bare issues and destructive git off the main line.
 
-Reads the Claude Code PreToolUse hook payload on stdin (``{tool_name, tool_input,
-...}``) and blocks two things:
+Reads the Claude Code PreToolUse payload on stdin and blocks:
 
-1. Destructive git (``git push --force`` / ``git reset --hard``) run via Bash. This
-   repo works on ``main`` only (ADR-0001), so a force-push rewrites the one branch
-   everybody and every clone is on.
+1. Destructive git via Bash (``git push --force``, ``-f``, ``--force-with-lease``, a ``+`` refspec, ``git reset
+   --hard``). This repo works on ``main`` only (ADR-0001), so a force-push rewrites the one branch every clone is on.
+2. A bare issue creation (``gh issue create`` or ``mcp__github__create_issue``): every issue needs an assignee and
+   ``PRD`` or a category (``bug``/``enhancement``), plus an ``area:<x>`` label when ``.claude/project.json`` lists
+   ``areas``. An issue with no assignee is invisible on the board, where the backlog lives. The to-prd and triage
+   skills fill these in, so only hand-rolled creations are blocked. A new issue's body may not cite a ``.md`` line
+   number (``x.md line N``, ``L N``, ``:N``): prose line numbers rot within hours. Code refs (``file.py:123``) stay
+   allowed, they are the house citation format for code.
 
-2. A bare issue creation, via either ``gh issue create`` (Bash) or the
-   ``mcp__github__create_issue`` tool. Every issue must carry an assignee and either
-   ``PRD`` (epic) or a category (``bug``/``enhancement``); an issue with no assignee
-   is invisible on the board, which is where the backlog actually lives. When
-   ``.claude/project.json`` lists ``areas``, an ``area:<x>`` label is required too;
-   with the list empty (the default) that check is off. The to-prd and triage skills
-   already fill these in, so their creations pass; only hand-rolled bare creations get
-   blocked, with a message that points at the skills.
-
-   A new issue's *body* is checked for one kind of rot: a ``<file>.md line N`` /
-   ``L N`` / ``:N`` citation. Prose line numbers rot within hours, so cite a section
-   heading instead. Code references (``file.py:123``) stay allowed: they are the house
-   citation format for code. Only creations are checked, never edits.
-
-FAILURE POLICY: fail-open. Any parse error, unknown shape, or unrelated call exits 0
-(allow). A guard that crashes must never wedge a legitimate tool call. Exit 2 + stderr
-is the only block path (the harness feeds stderr back to the model as the block reason).
+FAILURE POLICY: fail-open. Any parse error, unknown shape, or unrelated call exits 0 (allow): a crashing guard must
+never wedge a tool call. Exit 2 + stderr is the only block path (the harness feeds stderr back as the block reason).
 """
 
 import json
@@ -34,12 +23,10 @@ import shlex
 import sys
 
 _CATEGORIES = ("PRD", "bug", "enhancement")
-_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-_CONFIG = _REPO_ROOT / ".claude" / "project.json"
-
-# .md only: prose line numbers rot within hours. Code `file.py:123` references stay
-# allowed, they are the house citation format for code.
+_CONFIG = pathlib.Path(__file__).resolve().parents[2] / ".claude" / "project.json"
 _LINE_NUMBER_REF = re.compile(r"\.md`?\s*(?::\d+|\(?(?:L|line\s+)\d+)", re.IGNORECASE)
+_GH_FLAGS = {"--label": "label", "-l": "label", "--assignee": "assignee", "-a": "assignee",
+             "--body": "body", "-b": "body", "--body-file": "body_file", "-F": "body_file"}
 
 _ISSUE_HELP = (
     "BLOCKED: bare issue creation.\n"
@@ -66,124 +53,83 @@ def _block(message):
     sys.exit(2)
 
 
-def _missing_from_labels(labels, has_assignee):
-    """Return the human list of what a would-be issue is missing, or None if complete."""
+def _missing(labels, has_assignee, areas):
+    """What a would-be issue is missing, as human phrases."""
     joined = " ".join(labels)
-    missing = []
-    if not has_assignee:
-        missing.append("assignee")
-    areas = _areas()
-    if areas and not re.search(rf"area:({'|'.join(re.escape(a) for a in areas)})\b", joined):
+    missing = [] if has_assignee else ["assignee"]
+    if areas and not re.search(rf"area:({'|'.join(re.escape(area) for area in areas)})\b", joined):
         missing.append("an area:<x> label")
-    if not any(re.search(rf"(^|[\s,]){re.escape(cat)}($|[\s,])", joined) for cat in _CATEGORIES):
+    if not any(re.search(rf"(^|[\s,]){re.escape(category)}($|[\s,])", joined) for category in _CATEGORIES):
         missing.append("a PRD or bug/enhancement label")
-    return missing or None
+    return missing
 
 
-def _help_text(missing):
+def _check_new_issue(labels, has_assignee, body):
+    """Block a new issue that lacks an assignee or labels, or whose body cites prose line numbers."""
     areas = _areas()
-    hint = f" --label area:<{'|'.join(areas)}>" if areas else ""
-    return _ISSUE_HELP.format(missing=", ".join(missing), area_hint=hint)
-
-
-def _check_issue_body(body):
-    """Block a new-issue body that cites prose line numbers."""
-    if not body:
-        return
+    missing = _missing(labels, has_assignee, areas)
+    if missing:
+        hint = f" --label area:<{'|'.join(areas)}>" if areas else ""
+        _block(_ISSUE_HELP.format(missing=", ".join(missing), area_hint=hint))
     line_refs = _LINE_NUMBER_REF.findall(body)
     if line_refs:
-        _block(
-            "BLOCKED: issue body cites file line numbers ("
-            + ", ".join(ref.strip() for ref in line_refs[:3])
-            + "). Line numbers in prose rot within hours; cite a section heading or a "
-            "quoted phrase instead."
-        )
+        _block("BLOCKED: issue body cites file line numbers (" + ", ".join(ref.strip() for ref in line_refs[:3])
+               + "). Line numbers in prose rot within hours; cite a section heading or a quoted phrase instead.")
 
 
 def _is_gh_issue_create(tokens):
-    """True only for a real `gh issue create` invocation: a `gh` token followed
-    somewhere by ADJACENT `issue` `create` tokens. Token-based on purpose: a regex
-    matching "create" anywhere after `gh issue` blocks
-    `gh issue close --comment "...create..."` as a creation. Words inside a quoted
-    argument are one token, so they can never match."""
+    """True only for adjacent ``issue`` ``create`` tokens after ``gh``. Token-based on purpose: a regex would block
+    ``gh issue close --comment "...create..."``; a quoted argument is one token, so it never matches."""
     if "gh" not in tokens:
         return False
-    start = tokens.index("gh")
-    return any(
-        tokens[index] == "issue" and tokens[index + 1] == "create"
-        for index in range(start + 1, len(tokens) - 1)
-    )
+    return any(tokens[index:index + 2] == ["issue", "create"] for index in range(tokens.index("gh") + 1, len(tokens)))
 
 
-def _check_gh_issue_create(command):
-    """Guard a Bash `gh issue create`. Non-matching commands return without blocking."""
-    if not re.search(r"\bgh\b", command):
-        return
-    tokens = shlex.split(command)  # may raise on odd quoting -> caller fails open
-    if not _is_gh_issue_create(tokens):
-        return
-    labels = []
-    has_assignee = False
-    body = ""
+def _gh_issue_fields(tokens):
+    """The labels, whether an assignee is given, and the body of a ``gh issue create`` command."""
+    labels, has_assignee, body = [], False, ""
     index = 0
     while index < len(tokens):
-        token = tokens[index]
-        key, _, inline = token.partition("=")
-        value = inline if inline else (tokens[index + 1] if index + 1 < len(tokens) else "")
-        took_next = bool(value) and not inline
-        if key in ("--label", "-l"):
+        key, _, inline = tokens[index].partition("=")
+        value = inline or (tokens[index + 1] if index + 1 < len(tokens) else "")
+        field = _GH_FLAGS.get(key)
+        if field == "body_file" and value in ("", "-"):
+            field = None
+        index += 2 if field and value and not inline else 1
+        if field == "label":
             labels.extend(part.strip() for part in value.split(",") if part.strip())
-            index += 2 if took_next else 1
-            continue
-        if key in ("--assignee", "-a"):
+        elif field == "assignee":
             has_assignee = has_assignee or bool(value.strip())
-            index += 2 if took_next else 1
-            continue
-        if key in ("--body", "-b"):
+        elif field == "body":
             body = value
-            index += 2 if took_next else 1
-            continue
-        if key in ("--body-file", "-F") and value and value != "-":
+        elif field == "body_file":
             try:
                 body = pathlib.Path(value).read_text()
             except OSError:
                 pass  # fail-open: an unreadable body file must not wedge the call
-            index += 2 if took_next else 1
-            continue
-        index += 1
-    missing = _missing_from_labels(labels, has_assignee)
-    if missing:
-        _block(_help_text(missing))
-    _check_issue_body(body)
+    return labels, has_assignee, body
+
+
+def _check_gh_issue_create(command):
+    """Guard a Bash ``gh issue create``; any other command passes."""
+    if not re.search(r"\bgh\b", command):
+        return
+    tokens = shlex.split(command)  # may raise on odd quoting -> fail open
+    if _is_gh_issue_create(tokens):
+        _check_new_issue(*_gh_issue_fields(tokens))
 
 
 def _check_mcp_create_issue(tool_input):
     """Guard the mcp__github__create_issue tool call."""
     labels = tool_input.get("labels") or []
-    if isinstance(labels, str):
-        labels = [labels]
     assignees = tool_input.get("assignees") or tool_input.get("assignee") or []
-    if isinstance(assignees, str):
-        assignees = [assignees]
-    missing = _missing_from_labels([str(label) for label in labels], bool(assignees))
-    if missing:
-        _block(_help_text(missing))
-    _check_issue_body(str(tool_input.get("body") or ""))
+    labels = [labels] if isinstance(labels, str) else labels
+    _check_new_issue([str(label) for label in labels], bool(assignees), str(tool_input.get("body") or ""))
 
 
 def _is_destructive_git(command):
-    """True if `command` runs a history-destroying git op.
-
-    Covers the shorthands a single regex misses: ``-f`` for ``--force``,
-    ``--force-with-lease``, and a leading-``+`` refspec (``git push origin
-    +main:main``), which force-updates the remote ref just like ``--force``.
-
-    Matches on *tokens*, not substrings, so a force pattern quoted inside a commit
-    message (``git commit -m "... git push -f ..."``) does not trip the guard. shlex
-    keeps a quoted message as one token, so ``push`` there is not a standalone token.
-    Odd quoting that shlex cannot parse falls open (allow), matching the hook's global
-    fail-open policy.
-    """
+    """True if ``command`` runs a history-destroying git op. Matches tokens, not substrings, so a force pattern
+    quoted inside a commit message does not trip it; quoting shlex cannot parse falls open."""
     try:
         tokens = shlex.split(command)
     except ValueError:
@@ -194,35 +140,21 @@ def _is_destructive_git(command):
         return True
     if "push" not in tokens:
         return False
-    if any(tok in ("--force", "--force-with-lease", "-f") for tok in tokens):
-        return True
-    # A refspec whose source starts with '+' force-updates the remote,
-    # e.g. `git push origin +main:main` or `git push origin +HEAD:main`.
-    if any(re.match(r"\+[^\s:]+:", tok) for tok in tokens):
-        return True
-    return False
-
-
-def _check_destructive_git(command):
-    if _is_destructive_git(command):
-        _block("BLOCKED: destructive git operation requires explicit user approval.")
+    # a refspec whose source starts with '+' (git push origin +main:main) force-updates the remote
+    return any(token in ("--force", "--force-with-lease", "-f") or re.match(r"\+[^\s:]+:", token) for token in tokens)
 
 
 def main():
-    raw = sys.stdin.read()
-    payload = json.loads(raw)
+    payload = json.loads(sys.stdin.read())
     tool_name = payload.get("tool_name", "")
     tool_input = payload.get("tool_input") or {}
-
     if tool_name == "mcp__github__create_issue":
         _check_mcp_create_issue(tool_input)
-        return
-
-    if tool_name == "Bash":
+    elif tool_name == "Bash":
         command = tool_input.get("command", "")
-        _check_destructive_git(command)
+        if _is_destructive_git(command):
+            _block("BLOCKED: destructive git operation requires explicit user approval.")
         _check_gh_issue_create(command)
-        return
 
 
 if __name__ == "__main__":
@@ -231,6 +163,4 @@ if __name__ == "__main__":
     except SystemExit:
         raise
     except Exception:
-        # Fail-open: never wedge a tool call because the guard tripped over an input
-        # shape it did not expect.
-        sys.exit(0)
+        sys.exit(0)  # fail-open: never wedge a tool call on an input shape the guard did not expect
