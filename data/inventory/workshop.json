@@ -10,6 +10,9 @@
 				"id": "v1",
 				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/workshop/concepts/K10.png"
 			}
+		],
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/workshop/plan/plan.json"
 		]
 	},
 	"approved": "2026-10-07, the coordinator's pick for the owner (round two at 16 x 14 m: K10, runner-up K17; the owner's rule: build every place of world 1 without stopping, he reviews at the end); plan: the concept K10",
@@ -599,10 +602,10 @@
 			"id": "door_strip_lamp",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				2065,
+				375,
+				2235,
+				405
 			],
 			"name": "a strip lamp in a steel housing with a frosted lens, over a door",
 			"kind": "code",
@@ -746,10 +749,10 @@
 			"id": "intercom_panel",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1950,
+				435,
+				2030,
+				505
 			],
 			"name": "a wall intercom panel with a speaker grille and a call button",
 			"kind": "code",
@@ -1464,12 +1467,7 @@
 		{
 			"id": "pendant_lamp",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"name": "industrial pendant work lamp hung from the dome",
 			"kind": "code",
 			"anchor": "ceiling",
@@ -1518,17 +1516,13 @@
 				"strength": 0.55,
 				"reach": 7.0,
 				"high": 0.05
-			}
+			},
+			"unseen": "the concept is cut away above the walls, so no ceiling and none of its hung lamps show"
 		},
 		{
 			"id": "wall_cage_lamp",
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"name": "a small caged bulkhead lamp on a wall",
 			"kind": "code",
 			"anchor": "wall",
@@ -1567,7 +1561,8 @@
 				"strength": 0.25,
 				"reach": 4.5,
 				"high": 0.1
-			}
+			},
+			"unseen": "no caged bulkhead lamp shows on the concept's walls"
 		},
 		{
 			"id": "equipment_bench",

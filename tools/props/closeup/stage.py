@@ -90,7 +90,7 @@ def rows_from_inventory(inventory):
     """The stage's rows from a scene inventory: every generated row with its name, size, view picture and box."""
     views = {view["id"]: view["picture"] for view in inventory["plan"]["views"]}
     return [{"id": row["id"], "words": row["name"], "size": row["size"], "concept": views[row["view"]],
-             "box": row["box"]} for row in inventory["rows"] if row.get("kind") == "generate"]
+             "box": row["box"]} for row in inventory["rows"] if row.get("kind") == "generate" and row.get("box")]
 
 
 def make_crops(rows, out):

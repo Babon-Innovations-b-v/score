@@ -7,8 +7,11 @@
 		"views": [
 			{
 				"id": "v1",
-				"picture": "TMP/concepts-world1/flat/concepts/K06.png"
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/flat/concepts/K06.png"
 			}
+		],
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/flat/plan/plan.json"
 		]
 	},
 	"approved": "2026-10-07, the owner's world-1 scale-up: build every place without stopping for review between places, after the concept picks (coordinator's, concepts-world1); the owner reviews the built world at the end",

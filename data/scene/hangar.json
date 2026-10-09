@@ -56,7 +56,8 @@
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
-   "from": "module_shell.gd:774, module_doors.gd:67"
+   "from": "module_shell.gd:774, module_doors.gd:67",
+   "plain": "plate"
   },
   {
    "name": "roof_slab_east",
@@ -73,7 +74,8 @@
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
-   "from": "module_shell.gd:774, module_doors.gd:67"
+   "from": "module_shell.gd:774, module_doors.gd:67",
+   "plain": "plate"
   },
   {
    "name": "roof_slab_north",
@@ -90,7 +92,8 @@
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
-   "from": "module_shell.gd:774, module_doors.gd:67"
+   "from": "module_shell.gd:774, module_doors.gd:67",
+   "plain": "plate"
   },
   {
    "name": "roof_slab_south",
@@ -107,7 +110,8 @@
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
-   "from": "module_shell.gd:774, module_doors.gd:67"
+   "from": "module_shell.gd:774, module_doors.gd:67",
+   "plain": "plate"
   },
   {
    "name": "roof_leaf_west",

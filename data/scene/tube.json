@@ -86,7 +86,8 @@
     4.35
    ],
    "surface": "roof_steel_paint",
-   "from": "link_tube.gd:207-231, 301-311; tube_way.gd:38-39 (RADIUS 1.6, AXIS_HEIGHT 1.1)"
+   "from": "link_tube.gd:207-231, 301-311; tube_way.gd:38-39 (RADIUS 1.6, AXIS_HEIGHT 1.1)",
+   "plain": "plate"
   }
  ],
  "environment": {

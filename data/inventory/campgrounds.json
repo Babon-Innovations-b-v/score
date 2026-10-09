@@ -10,6 +10,9 @@
 				"id": "v1",
 				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/outside/concepts/K05.png"
 			}
+		],
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/mars-build/outside/plan/plan.json"
 		]
 	},
 	"approved": "2026-10-07, the owner's rule for world 1 (build every place, review at the end): concept pick outside K05, coordinator's pick, owner may change",

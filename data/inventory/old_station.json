@@ -9,6 +9,9 @@
     "id": "v1",
     "picture": "WORK/scene/old_station/views/C4.png"
    }
+  ],
+  "dimensioned": [
+   "/home/dupe/.claude/jobs/3326150f/tmp/playtest3/moonground2/station/plan.json"
   ]
  },
  "approved": "2026-10-07, the owner's rule for world 1 (WORLD 1 SCALE-UP): build every place without stopping for review between places, the owner reviews everything at the end; concept C4 is the coordinator's pick, owner may change",
@@ -278,12 +281,7 @@
   {
    "id": "power_unit",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "battery and power switching cabinet with vents and a door",
    "kind": "generate",
    "anchor": "floor",
@@ -304,17 +302,13 @@
     }
    ],
    "why": "Takes the solar mast and the reactor line, feeds the module through the night.",
-   "fixed": true
+   "fixed": true,
+   "unseen": "the concept C4 does not show the yard's power cabinet; the row is the plan's"
   },
   {
    "id": "parts_rack",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "open steel shelf rack 3 m long",
    "kind": "generate",
    "anchor": "floor",
@@ -335,7 +329,8 @@
     }
    ],
    "why": "His repair stock, by the way in.",
-   "fixed": true
+   "fixed": true,
+   "unseen": "the concept C4 does not show the parts rack; the row is the plan's"
   },
   {
    "id": "bag_pile",
@@ -460,12 +455,7 @@
   {
    "id": "spare_wheel",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "spare rover wheel with a wire-mesh tyre, leaning on the rack",
    "kind": "generate",
    "anchor": "floor",
@@ -491,16 +481,17 @@
      ]
     }
    ],
-   "why": "A wheel taken off for spares, by the rack."
+   "why": "A wheel taken off for spares, by the rack.",
+   "unseen": "the concept C4 does not show the spare wheel leaning on the rack; the row is the plan's"
   },
   {
    "id": "walkway_tube",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1000,
+    650,
+    1310,
+    860
    ],
    "name": "walkway tube between modules",
    "kind": "code",
@@ -543,10 +534,10 @@
    "id": "apron",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1690,
+    1030,
+    1980,
+    1120
    ],
    "name": "dust apron of chequer plates in front of the ladder",
    "kind": "code",
@@ -574,10 +565,10 @@
    "id": "cable_run",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1060,
+    920,
+    1335,
+    1040
    ],
    "name": "power and signal cables lying on the ground",
    "kind": "code",
@@ -647,12 +638,7 @@
   {
    "id": "gas_bottle",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "pressure bottle with a valve, lying",
    "kind": "generate",
    "anchor": "on:parts_rack",
@@ -666,7 +652,8 @@
    "made": "made by the route",
    "at": [],
    "why": "on the parts rack",
-   "parent": "parts_rack"
+   "parent": "parts_rack",
+   "unseen": "the concept C4 does not show the gas bottle on the rack; the row is the plan's"
   }
  ]
 }
