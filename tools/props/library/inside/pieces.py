@@ -130,11 +130,18 @@ def wall_cornice(size, laid):
 
 
 def wall_corner_post(size, laid):
+    """A square steel post with three bolts down its front along its length: up it when it stands (a wall's post),
+    across it when it lies (the big door's header, 0.2 m tall: bolts laid up a header stood 0.1 m under and over it, and
+    the model came out 0.42 m tall)."""
     wide, tall, deep = size
     post = shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), "dark_panel", "post")
     parts = [shapes.bevelled(post, 0.012)]
-    for y in (0.3, tall / 2, tall - 0.3):
-        parts.append(bolt(0.0, y, -deep / 2))
+    if tall >= wide:
+        spots = [(0.0, y) for y in (0.3, tall / 2, tall - 0.3)]
+    else:
+        spots = [(x, tall / 2) for x in (-wide / 2 + 0.3, 0.0, wide / 2 - 0.3)]
+    for x, y in spots:
+        parts.append(bolt(x, y, -deep / 2))
     return parts
 
 

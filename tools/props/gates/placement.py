@@ -27,6 +27,10 @@ LINES_AN_OPENING = ("hatch_frame", "hatch_wall_surround", "porthole_panel", "bac
 # reach this far into an opening, never further.
 LINES_ITS_EDGE = ("wall_lower", "wall_upper", "wall_corner_post")
 EDGE_LAP = 0.025
+# A floor rise the game lays inside an open doorway on purpose: SteppedFloor's door step, 0.18 m high and 0.5 m deep
+# across the doorway's width (sim/base/stepped_floor.gd, DOOR_STEP_HIGH, DOOR_STEP_DEEP, rises_of). Its faces stand in
+# front of the opening as the threshold's own and are not judged; every other rise's face is.
+THRESHOLD_RISES = ("door_step",)
 
 
 def footprint(laid, opening):
@@ -65,7 +69,7 @@ def clashes(layout):
     every_opening = shell.openings(layout)
     found = []
     for index, laid in enumerate(layout["pieces"]):
-        if any(word in laid["kind"] for word in LINES_AN_OPENING):
+        if any(word in laid["kind"] for word in LINES_AN_OPENING) or laid.get("rise") in THRESHOLD_RISES:
             continue
         if abs(laid["z"][1]) > 0.7:
             continue  # a floor or roof piece faces up or down, never into a doorway

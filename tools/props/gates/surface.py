@@ -171,11 +171,12 @@ def floor_faults(laid):
 def is_wall_gear(laid, about, wall):
     """A piece hung on a wall: group `hangs`, standing upright, out past the walkway (within WALL_REACH of its wall's
     face), on the floor's level; a door's own parts (frames lining the opening, leaves and hinges swung open) and
-    corner posts have hosts of their own."""
+    corner posts have hosts of their own, and a floor rise's face (`rise`: a wall panel's model standing on the floor
+    as a step's or a ledge's side, greenhouse_kit.rise_faces) stands on the floor, hung on no wall."""
     reach = float((wall["middle"] - np.array(laid["at"])) @ wall["normal"])
     own_host = any(word in laid["kind"] for word in NOT_ON_ONE_WALL)
     return about.get("group") == "hangs" and abs(laid["y"][1]) > 0.99 and reach < WALL_REACH and \
-        laid["at"][1] >= 0.0 and laid.get("layer", 1) == 1 and not own_host
+        laid["at"][1] >= 0.0 and laid.get("layer", 1) == 1 and not own_host and "rise" not in laid
 
 
 def faults(layout):
