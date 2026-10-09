@@ -2474,11 +2474,11 @@
 			"object": "desklamp",
 			"reuse": "workshop:desklamp",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/workshop.json): the concept shows it and no row held it",
-			"at": [],
 			"from": "laid by the scene agent's final export from the concept (no game code places it)",
 			"box_from": [
 				"v1.w27"
-			]
+			],
+			"dropped": "the desklamp row's copy on the tool bench is this lamp: the tool bench's composite (data/library/composites.json workshop_tool_bench) stands a desk lamp on its east end, the end the concept shows it on; a second lamp there would show it twice"
 		}
 	]
 }

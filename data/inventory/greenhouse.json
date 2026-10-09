@@ -2548,11 +2548,20 @@
 			"reuse": "garage:control_cabinet",
 			"why_take": "the garage's made control cabinet, placed again",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"at": [
+				{
+					"x": 7.359,
+					"y": 0.9,
+					"z": -8.359,
+					"facing": 225
+				}
+			],
+			"from": "the garage's made control cabinet (control_cabinet_1, its own bake), laid again by room_kit.py placed_rows and route.py late-lay on the north dais (0.9 m, greenhouse_kit.py DAIS_HIGH) in the north-east corner past the work desk, its back on the corner's lining at 45 degrees (room_kit.outline with the walls' 0.1 m lining) and 0.06 m off it: the concept stands it between the control console and the work desk, but the game's console (x 2.4 to 4.6) and desk (x 4.85 to 6.45) leave 0.25 m there for its 0.6 m",
 			"box_from": [
 				"v1.27"
-			]
+			],
+			"made": "kit piece",
+			"model": "control_cabinet_1"
 		}
 	]
 }
