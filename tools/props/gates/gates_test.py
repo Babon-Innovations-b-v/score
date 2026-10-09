@@ -99,6 +99,18 @@ def test_a_roof_lamp_standing_up_to_a_flat_roof_plate_passes_and_one_hung_short_
     assert [found[0] for found in surface.faults(layout)] == [2, 3]
 
 
+def test_a_bay_plate_laid_with_its_height_and_depth_swapped_is_too_thick_for_the_floor():
+    """A machine bay's plate 3.2 by 4.6 m and 5 cm thick, set into the garage's floor, and the same row with its
+    depth and height swapped (laid 4.6 m thick, its face 5 cm long)."""
+    inventory_row = {"id": "machine_bay_plate", "made": "kit piece", "lies": "floor", "size": [3.2, 0.05, 4.6],
+                     "at": [{"x": 0.0, "z": -0.9, "facing": 0}]}
+    swapped = dict(inventory_row, size=[3.2, 4.6, 0.05])
+    right = room_kit.flat_rows("garage", {"rows": [inventory_row]}, {"machine_bay_plate": inventory_row})
+    wrong = room_kit.flat_rows("garage", {"rows": [swapped]}, {"machine_bay_plate": swapped})
+    layout = {"room": "garage", "kinds": {}, "pieces": right + wrong}
+    assert [found[0] for found in surface.faults(layout)] == [1]
+
+
 def test_a_box_in_a_bay_s_doorway_clashes_and_the_lining_lapping_to_its_edge_does_not():
     """The garage's east hatch (2.2 m wide) and its south big door (5 m wide, 4 m high)."""
     box = bay_piece("parts_trolley", "east", 0.3, 0.0, (0.6, 0.9, 0.5), out=0.1)

@@ -774,8 +774,8 @@
 			"anchor": "floor",
 			"size": [
 				7.2,
-				7.2,
-				0.05
+				0.05,
+				7.2
 			],
 			"count": 1,
 			"group": "kit: floor",

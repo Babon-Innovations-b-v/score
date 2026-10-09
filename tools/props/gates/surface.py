@@ -11,6 +11,9 @@ turned to it, and stays inside its host face.
     wall gear   pieces hung on a wall (group `hangs`, standing upright, within WALL_REACH of their wall): the back
                 must sit on the wall within its lining's depth, face straight out of it, and stay inside the wall's
                 width; the walls are the room's own (shell.py)
+    floor gear  pieces set into the floor (`set_in`: a mat, a grating, a machine bay's plate): a plate, no thicker
+                than SET_IN_THICKEST (the garage's and the hangar's bay plates were laid 4.6 and 7.2 m thick, their
+                rows' depth and height swapped, and the review cameras framed them from under the floor)
 
 The envelope test cannot see a tray laid the wrong way inside the room; this can (the hub kit's trays lay radially
 at the corners, sticking out across the lattice).
@@ -37,6 +40,8 @@ WALL_REACH = 0.6
 # How far past a roof plate's edge a point still lies under it: the plates lap, and a dome's corner steps meet at a
 # slant.
 PLATE_EDGE = 0.03
+# The thickest a piece set into the floor may be: the deck's gratings are 0.054 m, a mat 0.02.
+SET_IN_THICKEST = 0.1
 # Hung pieces whose host is not one wall: a door's own parts, and the posts standing in a corner between two walls.
 NOT_ON_ONE_WALL = ("hatch_", "airlock_", "door_strip", "grab_bar", "corner_post")
 
@@ -155,6 +160,14 @@ def plate_faults(laid, plates):
     return found
 
 
+def floor_faults(laid):
+    """What is wrong with a piece set into the floor: its thickness (its z, square to the floor) past a plate's."""
+    thick = laid["size"][2]
+    if thick > SET_IN_THICKEST:
+        return [f"set into the floor {thick:.2f} m thick, past a plate's {SET_IN_THICKEST} m (its size's sides swapped?)"]
+    return []
+
+
 def is_wall_gear(laid, about, wall):
     """A piece hung on a wall: group `hangs`, standing upright, out past the walkway (within WALL_REACH of its wall's
     face), on the floor's level; a door's own parts (frames lining the opening, leaves and hinges swung open) and
@@ -176,7 +189,9 @@ def faults(layout):
             continue
         about = layout["kinds"].get(laid["kind"], {})
         wall = shell.wall_of(walls, laid["at"])
-        if "ceiling_" in laid["kind"]:
+        if laid.get("set_in"):
+            problems = floor_faults(laid)
+        elif "ceiling_" in laid["kind"]:
             problems = roof_faults(laid) if shell.is_hub(layout) else plate_faults(laid, plates)
         elif is_wall_gear(laid, about, wall):
             problems = wall_faults(laid, wall)

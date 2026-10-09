@@ -462,8 +462,8 @@
 			"anchor": "floor",
 			"size": [
 				3.2,
-				4.6,
-				0.05
+				0.05,
+				4.6
 			],
 			"count": 1,
 			"group": "kit: floor",
