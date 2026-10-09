@@ -16,6 +16,8 @@ import numpy as np
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import doors  # noqa: E402
+import room  # noqa: E402
 import shell  # noqa: E402
 
 MARGIN = 0.05
@@ -36,21 +38,13 @@ THRESHOLD_RISES = ("door_step",)
 def footprint(laid, opening):
     """The piece's laid box seen straight through an opening's wall: (across low, across high, up low, up high, out),
     across from the opening's middle and out from the wall's inside face."""
-    corners = []
-    origin = np.array(laid["at"])
-    for x in (-0.5, 0.5):
-        for y in (0.0, 1.0):
-            for z in (-0.5, 0.5):
-                corners.append(origin + np.array(laid["x"]) * x * laid["size"][0]
-                               + np.array(laid["y"]) * y * laid["size"][1] + np.array(laid["z"]) * z * laid["size"][2])
-    corners = np.array(corners) - opening["middle"]
+    corners = doors.corners(laid) - opening["middle"]
     across = corners @ opening["along"]
     return across.min(), across.max(), corners[:, 1].min(), corners[:, 1].max(), float((corners @ opening["normal"]).max())
 
 
 def bearing(vector):
-    """A direction's bearing on the floor, in degrees clockwise from north (-z)."""
-    return float(np.degrees(np.arctan2(vector[0], -vector[2])) % 360)
+    return room.bearing_of(np.array([vector]))[0]
 
 
 def in_front(laid, opening):

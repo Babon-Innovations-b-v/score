@@ -45,6 +45,10 @@ def walling(laid):
     return "part" not in laid and any(word in name for word in WALLING)
 
 
+def is_door(laid):
+    return walling(laid) and any(word in own(laid) for word in DOORS)
+
+
 class Grid:
     """The floor's cells, shut where a wall-like box crosses the walking band."""
 
@@ -74,13 +78,13 @@ class Grid:
         start = np.floor((flat.min(axis=0) - self.low) / CELL).astype(int)
         end = np.ceil((flat.max(axis=0) - self.low) / CELL).astype(int)
         heights = np.linspace(max(WALK_LOW, box[:, 1].min()), min(WALK_HIGH, box[:, 1].max()), 5)
-        for i in range(max(start[0], 0), min(end[0] + 1, self.shape[0])):
-            for j in range(max(start[1], 0), min(end[1] + 1, self.shape[1])):
+        for row in range(max(start[0], 0), min(end[0] + 1, self.shape[0])):
+            for column in range(max(start[1], 0), min(end[1] + 1, self.shape[1])):
                 for high in heights:
-                    local = np.array([self.low[0] + i * CELL, high, self.low[1] + j * CELL]) - origin
+                    local = np.array([self.low[0] + row * CELL, high, self.low[1] + column * CELL]) - origin
                     inside = np.array([local @ axis for axis in axes])
                     if np.all(inside >= lows) and np.all(inside <= highs):
-                        self.shut[i, j] = True
+                        self.shut[row, column] = True
                         break
 
     def reaches(self, start, goal):
@@ -91,11 +95,11 @@ class Grid:
         seen[start] = True
         queue = deque([start])
         while queue:
-            i, j = queue.popleft()
-            if (i, j) == goal:
+            row, column = queue.popleft()
+            if (row, column) == goal:
                 return True
             for step in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                near = (i + step[0], j + step[1])
+                near = (row + step[0], column + step[1])
                 if 0 <= near[0] < self.shape[0] and 0 <= near[1] < self.shape[1] and not seen[near] \
                         and not self.shut[near]:
                     seen[near] = True
@@ -121,7 +125,7 @@ def check(layout):
     for laid in pieces:
         grid.close_box(laid)
     found = []
-    for door in (laid for laid in pieces if any(word in own(laid) for word in DOORS)):
+    for door in filter(is_door, pieces):
         middle = np.asarray(door["at"], dtype=float) + np.asarray(door["y"]) * 1.0
         back = np.asarray(door["z"], dtype=float)
         back = back - np.array([0.0, back[1], 0.0])
@@ -143,7 +147,7 @@ def main():
         raise SystemExit(__doc__)
     layout = json.loads(pathlib.Path(sys.argv[1]).read_text())
     found = check(layout)
-    doors = sum(1 for laid in layout["pieces"] if walling(laid) and any(word in own(laid) for word in DOORS))
+    doors = sum(1 for laid in layout["pieces"] if is_door(laid))
     for kind, at, why in found:
         print(f"FAIL {kind} at {at}: {why}")
     print(f"{doors} doors, {len(found)} with a way round")

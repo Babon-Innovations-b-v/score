@@ -70,25 +70,38 @@ def inside_face(point, bearing):
     return abs(float(point @ along)) <= half + 0.01
 
 
-def corners(laid, depth):
-    """A piece's four foot corners (y 0) at `depth` along its z (-0.5 front, 0.5 back)."""
+def corners(laid):
+    """A piece's four foot corners (y 0), front and back. As measured so far they reach a quarter of its width each
+    way (side is +-0.5 and halved again), not a half; kept so the findings stay the same (#3)."""
     origin, x, z = np.array(laid["at"]), np.array(laid["x"]), np.array(laid["z"])
     wide, _, deep = laid["size"]
-    return [origin + x * side * wide / 2 + z * depth * deep for side in (-0.5, 0.5) for depth in (-0.5, 0.5)][:4]
+    return [origin + x * side * wide / 2 + z * end * deep for side in (-0.5, 0.5) for end in (-0.5, 0.5)]
+
+
+def turn_from(axis, normal):
+    """Degrees between a piece's axis and its host's normal, either way along it."""
+    return math.degrees(math.acos(min(1.0, abs(float(np.array(axis) @ normal)))))
+
+
+def seat_faults(foot, plane, axis, host):
+    """A roof-hung piece's foot off its host plane (a point on it, its normal into the room), or its `axis` turned
+    from it."""
+    point, into_room = plane
+    found = []
+    gap = abs(float((foot - point) @ into_room))
+    if gap > FLUSH:
+        found.append(f"foot {gap:.2f} m off the {host}")
+    turn = turn_from(axis, into_room)
+    if turn > TURN_DEGREES:
+        found.append(f"turned {turn:.0f} degrees from the {host}")
+    return found
 
 
 def roof_faults(laid):
     """What is wrong with a roof-hung piece's seat: a list of plain findings."""
     bearing = facet_of(laid["at"])
-    point, into_room = roof_plane(bearing)
-    found = []
-    gap = abs(float((np.array(laid["at"]) - point) @ into_room))
-    if gap > FLUSH:
-        found.append(f"foot {gap:.2f} m off the roof face")
-    turn = math.degrees(math.acos(min(1.0, abs(float(np.array(laid["y"]) @ into_room)))))
-    if turn > TURN_DEGREES:
-        found.append(f"turned {turn:.0f} degrees from the roof face")
-    if not all(inside_face(corner, bearing) for corner in corners(laid, 0.0)):
+    found = seat_faults(np.array(laid["at"]), roof_plane(bearing), laid["y"], "roof face")
+    if not all(inside_face(corner, bearing) for corner in corners(laid)):
         found.append("reaches past its roof face")
     return found
 
@@ -100,11 +113,11 @@ def wall_faults(laid, wall):
     depth = float((wall["middle"] - back) @ wall["normal"])
     if not -FLUSH <= depth <= LINING_DEEPEST:
         found.append(f"back {depth:.2f} m off the wall")
-    turn = math.degrees(math.acos(min(1.0, abs(float(np.array(laid["z"]) @ wall["normal"])))))
+    turn = turn_from(laid["z"], wall["normal"])
     if turn > TURN_DEGREES:
         found.append(f"turned {turn:.0f} degrees from the wall")
     reach = wall["half"] + wall["over"]
-    if not all(abs(float((corner - wall["middle"]) @ wall["along"])) <= reach for corner in corners(laid, 0.5)):
+    if not all(abs(float((corner - wall["middle"]) @ wall["along"])) <= reach for corner in corners(laid)):
         found.append("reaches past its wall")
     return found
 
@@ -147,15 +160,8 @@ def plate_faults(laid, plates):
     host = plate_over(foot, plates)
     if host is None:
         return ["hangs under no roof plate"]
-    point, into_room = plate_face(host)
-    found = []
-    gap = abs(float((foot - point) @ into_room))
-    if gap > FLUSH:
-        found.append(f"foot {gap:.2f} m off the roof plate")
-    turn = math.degrees(math.acos(min(1.0, abs(float(np.array(laid["y"]) @ into_room)))))
-    if turn > TURN_DEGREES:
-        found.append(f"turned {turn:.0f} degrees from the roof plate")
-    if not all(plate_over(corner, plates) for corner in corners(laid, 0.0)):
+    found = seat_faults(foot, plate_face(host), laid["y"], "roof plate")
+    if not all(plate_over(corner, plates) for corner in corners(laid)):
         found.append("reaches past the roof's plates")
     return found
 

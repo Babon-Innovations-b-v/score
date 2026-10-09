@@ -93,6 +93,11 @@ def piece_matrix(laid):
     return matrix
 
 
+def about_of(layout, laid):
+    """A laid piece's model record: its own made model's (`model`) or its kind's."""
+    return layout.get("models", {}).get(laid["model"], {}) if "model" in laid else layout["kinds"].get(laid["kind"], {})
+
+
 def placed(layout, resolve, chosen=None):
     """Every laid piece (or the `chosen` indices) as its model in the room's frame: (index, kind, mesh)."""
     units = {}
@@ -103,8 +108,7 @@ def placed(layout, resolve, chosen=None):
         kind = laid["kind"]
         name = laid.get("model", kind)
         if name not in units:
-            about = layout.get("models", {}).get(name, {}) if "model" in laid else layout["kinds"].get(kind, {})
-            units[name] = resolve(name, about)
+            units[name] = resolve(name, about_of(layout, laid))
         if units[name] is None:
             continue
         mesh = units[name].copy()

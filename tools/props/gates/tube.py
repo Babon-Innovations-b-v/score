@@ -53,13 +53,12 @@ def leaks(pieces, bay):
 
 
 def _to_circle(origin, direction):
-    """How far along a ray in the section from `origin` the hull's circle is."""
-    centre = np.array([0.0, tube_kit.AXIS_HIGH])
-    start = origin[:2] - centre
+    """How far along a ray in the section from `origin` the hull's circle is (the far root of the quadratic)."""
+    start = origin[:2] - np.array([0.0, tube_kit.AXIS_HIGH])
     flat = direction[:2]
-    b = 2 * start @ flat
-    c = start @ start - tube_kit.RADIUS ** 2
-    return (-b + math.sqrt(b * b - 4 * (flat @ flat) * c)) / (2 * (flat @ flat))
+    linear = 2 * start @ flat
+    constant = start @ start - tube_kit.RADIUS ** 2
+    return (-linear + math.sqrt(linear * linear - 4 * (flat @ flat) * constant)) / (2 * (flat @ flat))
 
 
 def envelope(pieces):
@@ -81,9 +80,10 @@ def main():
     options = parser.parse_args()
     kit = json.loads(options.layout.read_text())
     bay_only = dict(kit, pieces=[laid for laid in kit["pieces"] if laid.get("tube_part", "bay") == "bay"])
-    pieces = room.placed(bay_only, room.models_in(*options.models))
+    resolve = room.models_in(*options.models)
+    pieces = room.placed(bay_only, resolve)
     report = {"pieces": len(pieces), "of": len(bay_only["pieces"]), "leaks": leaks(pieces, kit.get("bay", tube_kit.BAY)),
-              "envelope": envelope(room.placed(kit, room.models_in(*options.models)))}
+              "envelope": envelope(room.placed(kit, resolve))}
     if options.report:
         options.report.write_text(json.dumps(report, indent=1))
     print("pieces", report["pieces"], "of", report["of"], "| leak share", report["leaks"]["leak_share"],

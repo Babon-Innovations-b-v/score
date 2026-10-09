@@ -58,14 +58,18 @@ def misnamed(layout, room, taken):
                    and model_own_name(piece["model"]) in taken})
 
 
+def builders_listing(text):
+    """A builder module's text from its `BUILDERS = ` table on ('' when it has none)."""
+    return text[text.index("BUILDERS = "):] if "BUILDERS = " in text else ""
+
+
 def taken_names(others, texts, fittings):
     """Every own name already meaning something: other rooms' kinds, the fittings and the builders."""
     found = set(fittings)
     for other, laid in others.items():
         found |= {own_name(piece["kind"], other) for piece in laid["pieces"] if "part" not in piece}
     for text in texts.values():
-        listed = text[text.index("BUILDERS = "):] if "BUILDERS = " in text else ""
-        found |= set(re.findall(r'"(\w+)"', listed))
+        found |= set(re.findall(r'"(\w+)"', builders_listing(text)))
     return found
 
 
@@ -88,7 +92,7 @@ def twice_defined(texts):
         names = [node.name for node in ast.parse(text).body if isinstance(node, ast.FunctionDef)]
         found += [f"{module}: {name} is defined twice" for name in sorted({name for name in names
                                                                            if names.count(name) > 1})]
-        listed = text[text.index("BUILDERS = "):] if "BUILDERS = " in text else ""
+        listed = builders_listing(text)
         listed = listed[:listed.index("EARTH_ROOMS")] if "EARTH_ROOMS" in listed else listed
         for name in set(re.findall(r'"(\w+)"', listed)) & set(names):
             builders.setdefault(name, []).append(module)
