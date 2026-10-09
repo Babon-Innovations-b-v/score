@@ -323,10 +323,22 @@ def a_model_laid_later_is_found_in_a_further_folder():
     return problems
 
 
+def a_reused_row_reads_its_stored_take():
+    """A row placed again from another place's row (`reuse`) is painted from the take stored for it, not from the take
+    its own room's run made; a row of its own keeps its run's."""
+    run = {"lamp_1": pathlib.Path("parts/lamp-g2"), "box_1": pathlib.Path("parts/box-g1")}
+    stored = {"lamp_1": pathlib.Path("stored/lamp-lab1.npz"), "box_1": pathlib.Path("stored/box-g1.npz")}
+    laid = [{"model": "lamp_1", "row": "lamp"}, {"model": "box_1", "row": "box"}]
+    inventory = {"rows": [{"id": "lamp", "reuse": "lab:lamp"}, {"id": "box"}]}
+    found = export.reused_takes(run, laid, inventory, stored)
+    wanted = {"lamp_1": stored["lamp_1"], "box_1": run["box_1"]}
+    return [] if found == wanted else [f"the takes read are {found}, not {wanted}"]
+
+
 CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface, stored_takes_paint_like_their_labels,
           the_stage_is_in_metres_with_static_colliders, a_child_moves_with_the_object_it_stands_on,
           the_parts_are_found_where_the_run_recorded_them, a_kit_room_s_pieces_stand_in_their_frames,
-          a_model_laid_later_is_found_in_a_further_folder)
+          a_model_laid_later_is_found_in_a_further_folder, a_reused_row_reads_its_stored_take)
 
 
 if __name__ == "__main__":

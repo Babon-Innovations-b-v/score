@@ -697,6 +697,14 @@ def write_root(place, out):
 
 # --- the way in ---------------------------------------------------------------------------------------------------
 
+def reused_takes(parts, laid, inventory, stored):
+    """Each model's labelled take, a model placed again from another place's row (its row's `reuse`) read by the take
+    stored for it (`stored`: data/parts/models.json names the reused row's take) rather than the one its own run made."""
+    reused = {row["id"] for row in inventory["rows"] if row.get("reuse")}
+    return {**parts, **{piece["model"]: stored[piece["model"]] for piece in laid
+                        if piece.get("row") in reused and piece["model"] in stored}}
+
+
 def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None, world=None,
            scene=None):
     """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
@@ -729,6 +737,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         stored = stored_parts.takes_of(place)
         found = {piece["model"]: labelled_take(parts, piece["model"], take) or stored.get(piece["model"]) for piece in laid}
         parts, take = {model: path for model, path in found.items() if path is not None}, None
+    parts = reused_takes(parts, laid, inventory, stored_parts.takes_of(place))
     assets = {}
     for piece in laid:
         model = piece["model"]

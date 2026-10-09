@@ -1037,7 +1037,9 @@
 			"thing": "prop:garage_task_lamp",
 			"box_from": [
 				"v1.w48"
-			]
+			],
+			"reuse": "lab:task_lamp",
+			"why_take": "the lab's made task lamp, placed again: its jointed arm and lit shade read as a task lamp up close, where the garage's own take was a shade on a disc"
 		},
 		{
 			"id": "tyre_shelving",
@@ -1479,7 +1481,9 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v1.134"
-			]
+			],
+			"reuse": "hangar:bay_panel",
+			"why_take": "the hangar's made bay panel, placed again: the same steel box as the garage's own take, with a cleaner face up close"
 		},
 		{
 			"id": "bracket_beacon",

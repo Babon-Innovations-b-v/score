@@ -1774,7 +1774,9 @@
    "repeats": "across the room",
    "box_from": [
     "v1.118"
-   ]
+   ],
+   "reuse": "garage:junction_box",
+   "why_take": "the garage's made junction box, placed again: one clean closed piece with its conduits, where the lab's own take had a lump on its top corner"
   },
   {
    "id": "hose_loop",
