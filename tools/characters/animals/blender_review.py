@@ -1,26 +1,51 @@
 """Runs in Blender (on a rented card, blender_cloud.py): the review frames of one made animal, from its exported file.
 
-    blender -b --python tools/characters/animals/blender_review.py -- <animal.glb> <review folder> [<clip> ...]
+    blender -b --python tools/characters/animals/blender_review.py -- <animal.glb> <review folder> <raised> [<clip> ...]
 
 The file is read back as the game would get it (so a fault in the export shows), then drawn on a plain floor with a
 grid, which shows a foot that slides: <review>/turntable/NN.png (TURNTABLE views round it in its rest pose) and
-<review>/<clip>/NN.png (one loop of each clip, every STEP-th frame, from a raised three-quarter view). Cycles on the
-card (tools/blender/inside/usd_views.renderer).
+<review>/<clip>/NN.png (one loop of each clip, every STEP-th frame, from a three-quarter view `raised` degrees above level: high for a
+fish, whose swim bends it side to side, lower for a walk). Cycles on the
+card, or on the processor's cores on a processor machine (blender_cloud.py sets FARM_CYCLES_GPU or FARM_CYCLES_CPU).
 """
 import math
+import os
 import pathlib
 import sys
 
 import bpy
 from mathutils import Vector
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "blender" / "inside"))
-
-import usd_views  # noqa: E402
-
 TURNTABLE = 12
 STEP = 2
 SIZE = (640, 480)
+SAMPLES = 48
+
+
+def renderer(scene):
+    """Cycles, denoised, on the machine's card (OptiX, else CUDA) when it has one, else on its processor."""
+    scene.render.engine = "CYCLES"
+    scene.cycles.samples = SAMPLES
+    scene.cycles.use_denoising = True
+    scene.cycles.device = "CPU"
+    if os.environ.get("FARM_CYCLES_GPU"):
+        preferences = bpy.context.preferences.addons["cycles"].preferences
+        for kind in ("OPTIX", "CUDA"):
+            try:
+                preferences.compute_device_type = kind
+            except TypeError:
+                continue
+            preferences.get_devices()
+            if any(device.type == kind for device in preferences.devices):
+                for device in preferences.devices:
+                    device.use = device.type == kind
+                scene.cycles.device = "GPU"
+                break
+    scene.render.resolution_x, scene.render.resolution_y = SIZE
+    scene.render.resolution_percentage = 100
+    scene.render.image_settings.file_format = "PNG"
+    # The plain tone curve, so the review shows the model's own colours (Blender's default curve washes them out).
+    scene.view_settings.view_transform = "Standard"
 
 
 def load(path):
@@ -30,7 +55,8 @@ def load(path):
     bpy.ops.import_scene.gltf(filepath=str(path))
     things = list(bpy.context.scene.objects)
     armature = next(thing for thing in things if thing.type == "ARMATURE")
-    return armature, [thing for thing in things if thing.type == "MESH"]
+    # The importer adds a mesh of its own to draw bones with; only the meshes the armature moves are the animal.
+    return armature, [thing for thing in things if thing.type == "MESH" and thing.find_armature() == armature]
 
 
 def bounds(meshes):
@@ -54,7 +80,7 @@ def floor_and_light(low, high):
     grid.data.materials.append(lines)
     bpy.ops.mesh.primitive_plane_add(size=size * 4, location=(0.0, 0.0, low.z - size * 0.003))
     sun = bpy.data.lights.new("sun", "SUN")
-    sun.energy = 3.0
+    sun.energy = 2.0
     holder = bpy.data.objects.new("sun", sun)
     holder.rotation_euler = (math.radians(40), 0.0, math.radians(30))
     bpy.context.scene.collection.objects.link(holder)
@@ -62,7 +88,7 @@ def floor_and_light(low, high):
     world.use_nodes = True
     background = next(node for node in world.node_tree.nodes if node.type == "BACKGROUND")
     background.inputs[0].default_value = (0.75, 0.78, 0.82, 1.0)
-    background.inputs[1].default_value = 0.8
+    background.inputs[1].default_value = 0.5
     bpy.context.scene.world = world
 
 
@@ -107,7 +133,8 @@ def render(path):
 
 def main():
     arguments = sys.argv[sys.argv.index("--") + 1:]
-    model, review, clips = pathlib.Path(arguments[0]), pathlib.Path(arguments[1]), arguments[2:]
+    model, review, raised, clips = (pathlib.Path(arguments[0]), pathlib.Path(arguments[1]), float(arguments[2]),
+                                    arguments[3:])
     armature, meshes = load(model)
     play(armature, None)
     bpy.context.scene.frame_set(0)
@@ -116,12 +143,12 @@ def main():
     reach = max(high - low) * 3.2
     floor_and_light(low, high)
     holder = camera(centre)
-    usd_views.renderer(bpy.context.scene, SIZE)
+    renderer(bpy.context.scene)
     for view in range(TURNTABLE):
         place_camera(holder, centre, reach, 2 * math.pi * view / TURNTABLE, math.radians(12))
         render(review / "turntable" / f"{view:02d}.png")
     actions = clip_actions()
-    place_camera(holder, centre, reach, math.radians(35), math.radians(30))
+    place_camera(holder, centre, reach, math.radians(35), math.radians(raised))
     for clip in clips:
         play(armature, actions[clip])
         start, end = (int(frame) for frame in actions[clip].frame_range)

@@ -36,9 +36,11 @@ CLOUD = HERE.parent.parent / "props" / "cloud"
 # runs on the same machine first.
 CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb")
 # The lighter copies: a share of the triangles for the middle distance, a count for the far one (a school of fish,
-# a street's dogs).
-LODS = {"fish": [["lod1", 0.15], ["lod2", 400]], "quadruped": [["lod1", 0.15], ["lod2", 1500]]}
+# a street's dogs), each with its pictures at most so many pixels across.
+LODS = {"fish": [["lod1", 0.15, 512], ["lod2", 400, 128]], "quadruped": [["lod1", 0.15, 512], ["lod2", 1500, 256]]}
 BLENDER_MINUTES = {"rig": 5, "review": 20}
+# How far above level the review camera looks at the clips (degrees): a fish's swim is seen from high above.
+RAISED = {"fish": 60, "quadruped": 25}
 
 
 def model_path(spec):
@@ -69,9 +71,14 @@ def unirig(model, folder, who, dry_run):
     return out / f"{model.stem}-unirig.glb"
 
 
+def job_body(spec):
+    """The spec's body kind, a quadruped when it names none."""
+    return spec.get("body", "quadruped")
+
+
 def rig_job(spec, folder, model):
     """blender_rig.py's job for the animal, written beside the make."""
-    body = spec.get("body", "quadruped")
+    body = job_body(spec)
     job = {"name": spec["name"], "body": body, "model": str(model), "rig": "spine" if body == "fish" else "unirig",
            "length_m": spec["length_m"], "clips": spec["clips"], "out": str(folder), "lods": LODS[body]}
     path = folder / "work" / "rig-job.json"
@@ -98,8 +105,8 @@ def blender_steps(spec, folder, model, who):
     with blender_cloud.Machine(CLASSES, who, minutes=sum(BLENDER_MINUTES.values())) as machine:
         machine.run(HERE / "blender_rig.py", [job], [job, model],
                     [made, folder / "lods", folder / "rig.json"], BLENDER_MINUTES["rig"])
-        machine.run(HERE / "blender_review.py", [made, review, *spec["clips"]], [made], [review],
-                    BLENDER_MINUTES["review"])
+        machine.run(HERE / "blender_review.py", [made, review, RAISED[job_body(spec)], *spec["clips"]], [made],
+                    [review], BLENDER_MINUTES["review"])
     gifs(review, spec["clips"])
     return made
 
@@ -151,10 +158,10 @@ def make(spec, folder, who, dry_run=False):
     record = {"name": spec["name"], "kind": "animal", "body": spec.get("body"), "started": since, "steps": []}
     try:
         model = model_path(spec)
-        if not model.exists() or dry_run:
+        if not model.exists():
             model = step(record, "mesh: Pixal3D (cloud), finished as a batch finishes", lambda: mesh(spec, folder, who,
                                                                                                    dry_run))
-        if spec.get("body", "quadruped") != "fish":
+        if job_body(spec) != "fish":
             model = step(record, "rig: UniRig (cloud)", lambda: unirig(model, folder, who, dry_run))
         if dry_run:
             return record

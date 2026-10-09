@@ -5,13 +5,14 @@
 The job (written by route.py):
     {"name": "fish_tang", "body": "fish" | "quadruped", "model": "<finished or UniRig-rigged .glb>",
      "rig": "spine" | "unirig", "length_m": 0.2, "clips": ["swim", ...], "out": "<folder>",
-     "lods": [[ "lod1", 0.2], ["lod2", 600]]}
+     "lods": [["lod1", 0.15, 512], ["lod2", 400, 128]]}
 
 The model is stood with its head towards glTF's +z (Blender's -y) and z up, scaled to `length_m` from snout to tail,
 and set on its node: a fish centred on it, a land animal standing on it. Then it is rigged (rig_fish.py: a spine made
 here, or the UniRig skeleton's root-to-tail chain; rig_quadruped.py: the UniRig skeleton), its clips are keyed at
 30 frames a second, and it is written as <out>/<name>.glb with every clip, and its lighter copies as
-<out>/lods/<name>-<lod>.glb (a share of the triangles, or a count when the number is above 1). <out>/rig.json says
+<out>/lods/<name>-<lod>.glb (a share of the triangles, or a count when the number is above 1, and its pictures at
+most the given pixels across). <out>/rig.json says
 what was found and made.
 """
 import json
@@ -45,11 +46,14 @@ def clear_scene():
 def import_model(path):
     """The model's mesh objects and its armature (None when it has none)."""
     bpy.ops.import_scene.gltf(filepath=str(path))
-    meshes = [thing for thing in bpy.context.scene.objects if thing.type == "MESH"]
     armatures = [thing for thing in bpy.context.scene.objects if thing.type == "ARMATURE"]
+    armature = armatures[0] if armatures else None
+    # A rigged file brings a mesh of the importer's own to draw bones with; only the meshes the armature moves count.
+    meshes = [thing for thing in bpy.context.scene.objects
+              if thing.type == "MESH" and (armature is None or thing.find_armature() == armature)]
     if not meshes:
         raise RuntimeError(f"{path}: no mesh")
-    return meshes, (armatures[0] if armatures else None)
+    return meshes, armature
 
 
 def world_points(meshes):
@@ -132,14 +136,30 @@ def decimated(meshes, target, total):
     return copies
 
 
+def smaller_pictures(copies, side):
+    """Give the copies their own materials whose pictures are at most `side` pixels across: a far copy drawn a few
+    pixels high needs no 2048 map, and a school of fish loads it hundreds of times."""
+    for copy in copies:
+        for slot in copy.material_slots:
+            if slot.material is None or not slot.material.use_nodes:
+                continue
+            slot.material = slot.material.copy()
+            for node in slot.material.node_tree.nodes:
+                if node.type == "TEX_IMAGE" and node.image is not None and max(node.image.size) > side:
+                    picture = node.image.copy()
+                    picture.scale(*(max(1, round(length * side / max(node.image.size))) for length in node.image.size))
+                    node.image = picture
+
+
 def write_lods(job, armature, meshes, report):
     """The lighter copies, each exported with the same skeleton and clips, then dropped from the scene."""
     total = triangles(meshes)
     report["lods"] = {"lod0": total}
-    for name, target in job.get("lods", []):
+    for name, target, side in job.get("lods", []):
         for mesh in meshes:
             mesh.hide_set(True)
         copies = decimated(meshes, target, total)
+        smaller_pictures(copies, side)
         export(pathlib.Path(job["out"]) / "lods" / f"{job['name']}-{name}.glb", armature, copies)
         report["lods"][name] = triangles(copies)
         for copy in copies:

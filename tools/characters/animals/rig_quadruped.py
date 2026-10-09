@@ -169,13 +169,28 @@ def driving_action(armature, name, frames, pose_at):
     return action
 
 
+def reach_miss(armature, parts, goals, frames):
+    """The farthest any foot ends from its goal over a clip's frames, in metres: where a leg cannot reach, its foot
+    lags its goal and slides on the ground once the game moves the node."""
+    worst = 0.0
+    for frame in range(frames + 1):
+        bpy.context.scene.frame_set(frame)
+        for leg, chain in parts["legs"].items():
+            foot = armature.matrix_world @ armature.pose.bones[chain[-1]].tail
+            goal = armature.matrix_world @ armature.pose.bones[goals[leg]].head
+            worst = max(worst, (foot - goal).length)
+    return worst
+
+
 def bake(armature, name, frames):
     """The current action's visible pose, constraints and all, baked into plain keys of the deforming bones as the
     clip's action."""
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode="POSE")
     for pose in armature.pose.bones:
-        pose.bone.select = pose.bone.use_deform
+        # Blender 5 keeps a bone's selection on its pose bone; older releases on the bone.
+        holder = pose if hasattr(pose, "select") else pose.bone
+        holder.select = pose.bone.use_deform
     driving = armature.animation_data.action
     bpy.ops.nla.bake(frame_start=0, frame_end=frames, only_selected=True, visual_keying=True,
                      clear_constraints=False, use_current_action=False, bake_types={"POSE"})
@@ -217,8 +232,9 @@ def rig(meshes, armature, job, report):
     for name in job["clips"]:
         frames, pose_at = clips[name]
         driving_action(armature, name, frames, pose_at)
+        miss = reach_miss(armature, parts, goals, frames)
         bake(armature, name, frames)
-        report["clips"][name] = {"frames": frames, "loops": True}
+        report["clips"][name] = {"frames": frames, "loops": True, "foot_miss_m": round(miss, 4)}
     drop_goals(armature, goals, parts)
     armature.animation_data.action = None
     rest(armature)
