@@ -426,7 +426,8 @@
   }
  ],
  "game_only": [
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)",
+  "the equipment maker's workbench (the game's EquipmentBench node, shown once built): its row has no made model yet, so the stage leaves it out"
  ],
  "objects": [
   {
