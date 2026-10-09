@@ -200,6 +200,11 @@ def plan_section(concept, runs, pictures, dimensioned):
     return section("plan", "Dimensioned plan", body)
 
 
+def unseen_note(row):
+    """A row the concept does not show, said so with why (inventory.py's `unseen`)."""
+    return f"<br><small>not in the concept: {escaped(row['unseen'])}</small>" if row.get("unseen") else ""
+
+
 def inventory_section(inventory, pictures):
     if inventory is None:
         return section("inventory", "Inventory", missing("no inventory in data/inventory"))
@@ -222,7 +227,7 @@ def inventory_section(inventory, pictures):
         f"<tr><td>{escaped(row['id'])}</td><td>{escaped(row.get('kind', ''))}</td>"
         f"<td class=\"num\">{' × '.join(f'{value:g}' for value in row.get('size', []))}</td>"
         f"<td class=\"num\">{row.get('count', len(row.get('at', [])))}</td><td>{escaped(row.get('thing', ''))}</td>"
-        f"<td>{escaped(row['name'])}</td></tr>" for row in inventory["rows"])
+        f"<td>{escaped(row['name'])}{unseen_note(row)}</td></tr>" for row in inventory["rows"])
     body = ("".join(blocks) + f"<p><small>Approved: {escaped(inventory['approved'])}</small></p>"
             "<div class=\"scroll\"><table><thead><tr><th>row</th><th>kind</th><th>size, m</th><th>count</th>"
             f"<th>thing</th><th>what</th></tr></thead><tbody>{table}</tbody></table></div>")
