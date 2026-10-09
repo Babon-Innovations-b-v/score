@@ -127,6 +127,15 @@ def test_a_trouser_leg_that_reaches_is_left_alone():
     assert np.array_equal(boots.lengthened(leg, limbs, boot, "Left"), leg)
 
 
+def test_a_wide_cuff_off_the_shaft_is_read_by_its_own_hem():
+    boot, _ = upright_boot(0.20)
+    cuff, _ = tube(0.12, 0.12, 0.40, around=64, axis=1)
+    knee, _ = tube(0.07, 0.40, 0.90, axis=1)
+    leg = np.concatenate([cuff + [0.05, 0.0, 0.0], knee])
+    limbs = np.array(["left_leg"] * len(leg))
+    assert np.array_equal(boots.lengthened(leg, limbs, boot, "Left"), leg)
+
+
 def test_the_other_leg_is_not_stretched():
     boot, _ = upright_boot(0.20)
     leg, _ = tube(0.08, 0.26, 0.90, axis=1)
