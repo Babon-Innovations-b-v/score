@@ -26,4 +26,4 @@ COPY requirements.txt /opt/judge/requirements.txt
 RUN uv venv --python 3.12.13 /opt/venv \
  && uv pip sync --python /opt/venv --require-hashes /opt/judge/requirements.txt \
  && /opt/venv/bin/python -c "import vllm, torch; print(vllm.__version__, torch.__version__, torch.version.cuda)"
-COPY run.sh /usr/local/bin/judge-run
+COPY --chmod=755 run.sh /usr/local/bin/judge-run

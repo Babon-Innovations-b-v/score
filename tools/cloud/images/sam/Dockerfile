@@ -41,4 +41,4 @@ RUN mkdir -p /opt/moge /opt/utils3d-moge \
  && rm /tmp/moge.tar.gz /tmp/utils3d.tar.gz \
  && PYTHONPATH=/opt/moge:/opt/utils3d-moge /opt/venv/bin/python -c \
       "import sam2.build_sam, moge.model.v2, rembg, diffusers, transformers; transformers.Sam3Model"
-COPY run.sh /usr/local/bin/sam-run
+COPY --chmod=755 run.sh /usr/local/bin/sam-run
