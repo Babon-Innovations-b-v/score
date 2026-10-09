@@ -247,6 +247,21 @@ class Run:
                      for job_id in specs}
         self.nodes = {}
 
+    def resume(self):
+        """Take up the run's Jobs a submitter before this one made: each job's newest generation and each kind's
+        classes so far, read from their annotations."""
+        jobs, _pods, _no_grow = self.read()
+        for found in jobs.values():
+            notes = found["metadata"].get("annotations", {})
+            job_id = notes.get("score.dev/job-id")
+            if job_id not in self.jobs:
+                continue
+            record = self.jobs[job_id]
+            record["generation"] = max(record["generation"], int(notes.get("score.dev/generation", 0)))
+            record["submitted"] = record["submitted"] or self.started
+            kind = self.kinds[self.specs[job_id]["kind"]]
+            kind["step"] = max(kind["step"], len(notes.get("score.dev/classes", "").split(",")))
+
     def allowed(self, job_id):
         """The classes a job is allowed on now: its kind's first `step` classes, in order."""
         order, _late = self.orders[job_id]
@@ -434,9 +449,11 @@ def submit(run_id, specs, store, kubectl=None, cluster=None):
     spent = month_spent(cluster)
     prepare(kubectl, cluster, spent)
     run = Run(run_id, specs, kubectl, cluster)
+    run.resume()
     for job_id in specs:
-        run.make(job_id)
-    say(f"{len(specs)} jobs submitted for run {run_id}")
+        if run.jobs[job_id]["submitted"] is None:
+            run.make(job_id)
+    say(f"{len(specs)} jobs on the cluster for run {run_id}")
     while run.unfinished():
         time.sleep(POLL_SECONDS)
         poll(run)

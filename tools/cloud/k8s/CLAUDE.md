@@ -45,7 +45,8 @@ manifests and the submitter do not change.
 
 - **AWS EKS.** One managed node group per class and zone (EKS managed node groups scale from zero; the cluster
   autoscaler needs the node group's tags `k8s.io/cluster-autoscaler/node-template/label/score.dev/class` and
-  `.../taint/nvidia.com/gpu` and `.../resources/nvidia.com/gpu` to build a node for an empty group) with
+  `.../taint/nvidia.com/gpu` and `.../resources/nvidia.com/gpu` to build a node for an empty group; the tags
+  only describe it, so the node group must also set the label and taint on its nodes) with
   `g6.xlarge` (L4, gpu-24gb), `g6e.xlarge` (L40S, gpu-48gb), `p5` slices (H100, gpu-80gb) and `c7i.8xlarge`
   (cpu-32c-128gb), the EKS GPU AMI (driver included) and the NVIDIA device plugin. The cluster autoscaler runs in
   the cluster (Helm chart `autoscaler/cluster-autoscaler`, `--balance-similar-node-groups`, scale-down 5 min).
@@ -55,8 +56,9 @@ manifests and the submitter do not change.
   deletes the cluster between runs. Pull secret: ECR through the node role instead (registry() then gives no
   password and the submitter skips the pull Secret). `month_spend()` from Cost Explorer.
 - **GKE.** One node pool per class with `--enable-autoscaling --min-nodes 0`, `--node-labels score.dev/class=...`,
-  `--accelerator type=nvidia-l4,count=1,gpu-driver-version=latest` (GKE installs the driver and taints GPU nodes
-  `nvidia.com/gpu=present:NoSchedule` itself), machine types `g2-standard-8` (L4), `a3-highgpu-1g` (H100),
-  `n2-standard-32` / `n2-highmem-32`; node locations across the region's zones. Node auto-provisioning can make
-  pools on demand, but fixed pools keep the class names exact. The autopilot-free standard cluster's control plane
-  costs $0.10 an hour beyond the free tier's one zonal cluster. `month_spend()` from the billing export.
+  `--accelerator type=nvidia-l4,count=1,gpu-driver-version=default` (GKE installs the driver, and taints GPU nodes
+  `nvidia.com/gpu=present:NoSchedule` itself in a cluster that also has non-GPU nodes, as ours has its system
+  pool), machine types `g2-standard-8` (L4), `a3-highgpu-1g` (H100), `n2-standard-32` / `n2-highmem-32`; node
+  locations across the region's zones. Node auto-provisioning can make pools on demand, but fixed pools keep the
+  class names exact. A cluster costs $0.10 an hour; the free tier's monthly credit covers one zonal cluster.
+  `month_spend()` from the billing export.
