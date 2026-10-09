@@ -1,4 +1,4 @@
-\begin{thebibliography}{46}
+\begin{thebibliography}{48}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -295,6 +295,20 @@ Hanno Rein and Shang-Fei Liu.
 Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
 \newblock {DINOv3}.
 \newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
+
+\bibitem[Li et~al.(2026{\natexlab{d}})Li, Feng, Huang, Chen, Nie, Hou, Fan, Hu,
+  Wang, Li, and Sheng]{li2026segvigen}
+Lin Li, Haoran Feng, Zehuan Huang, Haohua Chen, Wenbo Nie, Shaohua Hou, Keqing
+  Fan, Pan Hu, Sheng Wang, Buyu Li, and Lu~Sheng.
+\newblock {SegviGen}: Repurposing {3D} generative model for part segmentation.
+\newblock \emph{arXiv preprint arXiv:2603.16869}, 2026{\natexlab{d}}.
+
+\bibitem[Deng et~al.(2025)Deng, Yang, Sun, Liu, Liu, Liang, and
+  Cao]{deng2025geosam2}
+Ken Deng, Yunhan Yang, Jingxiang Sun, Xihui Liu, Yebin Liu, Ding Liang, and
+  Yan-Pei Cao.
+\newblock {GeoSAM2}: Unleashing the power of {SAM2} for {3D} part segmentation.
+\newblock \emph{arXiv preprint arXiv:2508.14036}, 2025.
 
 \bibitem[{World Labs}(2026)]{marble_terms}
 {World Labs}.

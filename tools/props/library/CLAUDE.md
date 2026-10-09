@@ -109,3 +109,7 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   paint into photo grain.
 - Checks: `library_test.py` (system python), `straight_test.py` and `paint_test.py` (hand themselves to the prop
   environment).
+- **Part splitters compared** (`split_compare.py`, `split_page.py`, `split_html.py`; job parts-test, 2026-10-09): on 22
+  models GeoSAM2 seeded with the close-up's regions gave 79% of finishes parts of their own against PartCrafter's 34%
+  (SegviGen 46% unguided, 68% guided but a median of 30 parts); its weakness is cuts through smooth surfaces where SAM
+  cut one finish. Scores: finishes owned, needless cuts, regions whole and parts pure from the close-up's camera.
