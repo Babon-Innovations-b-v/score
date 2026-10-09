@@ -199,10 +199,24 @@
    ],
    "fov": 80,
    "game": "playtest3/prologue-build/after6/o-stairs.png"
+  },
+  {
+   "name": "stairs-out",
+   "eye": [
+    5.3,
+    1.62,
+    -1.5
+   ],
+   "aim": [
+    6.8,
+    1.4,
+    -1.6
+   ],
+   "fov": 80,
+   "game": "playtest3/prologue-build/after6/o-stairs-out.png"
   }
  ],
  "game_only": [
-  "the street door's canopy lamp spilling in at the foot",
   "the ink outline pass"
  ]
 }

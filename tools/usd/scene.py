@@ -59,6 +59,9 @@ OMNI_PER_ENERGY = 4 * math.pi * SUN_PER_ENERGY
 SPHERE_WATTS_PER_INTENSITY = math.pi
 DISTANT_STRENGTH_PER_INTENSITY = 4.0
 LAMP_RADIUS = 0.05
+# A game spot light dims from its middle all the way out to its cone's edge (Godot's SpotLight3D, its angle
+# attenuation 1 by default: 1 - (1 - cos a) / (1 - cos cone)), so its cone is soft across the whole of it.
+SPOT_SOFTNESS = 1.0
 # The game's lamp (game/base/lamp/lamp.gd): energy LAMP_ENERGY times a lamp's strength, its colour and fall-off; only
 # the hub's roof fittings cast shadows (HubKit); a walkway tube lights every second bay (TubeKit.LIGHT_EVERY).
 LAMP_ENERGY = 12.0
@@ -352,7 +355,10 @@ def moon_halo_picture(entry, pixels=512):
     glow = np.clip(float(entry["halo"]) * float(entry.get("lit", 1.0)) * np.exp(-angle / float(entry["halo_fall"])),
                    0.0, 1.0)
     rgb = np.broadcast_to(np.asarray(colour(entry["colour"])), (pixels, pixels, 3))
-    return np.dstack([srgb_bytes(rgb), (glow * 255.0 + 0.5).astype(np.uint8)]), half
+    # Dithered by a fixed half step either way, so the faint glow far out does not fall into rings of one byte each.
+    dither = np.random.default_rng(0).uniform(-0.5, 0.5, glow.shape)
+    alpha = np.clip(glow * 255.0 + 0.5 + dither, 0.0, 255.0).astype(np.uint8)
+    return np.dstack([srgb_bytes(rgb), alpha]), half
 
 
 def sky_square(stage, path, entry, half_angle, distance, picture_file):
@@ -439,7 +445,7 @@ def write_light(stage, path, entry):
             light.AddOrientOp().Set(Gf.Quatf(aim_turn(entry["at"], entry["aim"])))
             shaping = UsdLux.ShapingAPI.Apply(light.GetPrim())
             shaping.CreateShapingConeAngleAttr(float(entry["angle"]))
-            shaping.CreateShapingConeSoftnessAttr(float(entry.get("softness", 0.2)))
+            shaping.CreateShapingConeSoftnessAttr(float(entry.get("softness", SPOT_SOFTNESS)))
     light.CreateColorAttr(tint)
     light.GetPrim().CreateAttribute("score:game:type", Sdf.ValueTypeNames.String).Set(kind)
     game_values(light.GetPrim(), entry)
