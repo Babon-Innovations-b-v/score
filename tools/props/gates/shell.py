@@ -76,15 +76,20 @@ def hub_walls():
     return found
 
 
+def side_frame(side):
+    """A rounded room's side in the room's frame: ({"middle", "normal", "along"}, its length)."""
+    run = side["end"] - side["start"]
+    length = float(np.linalg.norm(run))
+    return {"middle": flat_to_room((side["start"] + side["end"]) / 2), "normal": flat_to_room(side["outward"]),
+            "along": flat_to_room(run / length)}, length
+
+
 def rounded_walls(numbers):
     """A rounded room's walls: every straight run and corner step of its outline (room_kit.sides)."""
     found = []
     for side in room_kit.sides(numbers):
-        run = side["end"] - side["start"]
-        length = float(np.linalg.norm(run))
-        found.append({"name": side["name"], "middle": flat_to_room((side["start"] + side["end"]) / 2),
-                      "normal": flat_to_room(side["outward"]), "along": flat_to_room(run / length),
-                      "half": length / 2, "over": room_kit.LAP / 2 + HUB_OVER})
+        frame, length = side_frame(side)
+        found.append({"name": side["name"], **frame, "half": length / 2, "over": room_kit.LAP / 2 + HUB_OVER})
     return found
 
 
@@ -125,14 +130,8 @@ def rounded_openings(numbers):
     big = numbers.get("big_door")
     if big:
         spots.append((big["wall"], "big door", (big["wide"], big["high"])))
-    openings = []
-    for name, kind, (wide, tall) in spots:
-        side = room_kit.side_named(numbers, name)
-        run = side["end"] - side["start"]
-        openings.append({"name": f"{kind} {name}", "middle": flat_to_room((side["start"] + side["end"]) / 2),
-                         "normal": flat_to_room(side["outward"]), "along": flat_to_room(run / np.linalg.norm(run)),
-                         "box": (-wide / 2, wide / 2, 0.0, tall)})
-    return openings
+    return [{"name": f"{kind} {name}", **side_frame(room_kit.side_named(numbers, name))[0],
+             "box": (-wide / 2, wide / 2, 0.0, tall)} for name, kind, (wide, tall) in spots]
 
 
 def openings(layout):

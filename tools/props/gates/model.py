@@ -104,9 +104,7 @@ def main():
     wanted = set(arguments.kinds.split(",")) if arguments.kinds else None
     sizes = {}
     for laid in layout["pieces"]:
-        name = laid.get("model", laid["kind"])
-        about = layout.get("models", {}).get(name, {}) if "model" in laid else layout["kinds"].get(laid["kind"], {})
-        sizes.setdefault(name, (laid["kind"], laid["size"], about))
+        sizes.setdefault(laid.get("model", laid["kind"]), (laid["kind"], laid["size"], room.about_of(layout, laid)))
     report = {}
     for name, (kind, laid, about) in sorted(sizes.items()):
         if (wanted and name not in wanted) or (arguments.prefix and not name.startswith(arguments.prefix)):

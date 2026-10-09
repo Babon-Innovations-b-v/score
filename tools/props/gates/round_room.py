@@ -15,8 +15,8 @@ The skin and the doorways are the room's numbers (its inventory's `room.layout`,
 room_kit.py); pieces are placed as the game places them (room.py).
 """
 import argparse
+import itertools
 import json
-import math
 import pathlib
 import sys
 
@@ -51,13 +51,18 @@ def skin(layout):
     return trimesh.convex.convex_hull(np.array(points))
 
 
+def door_side(layout, name):
+    """A door's side of the outline, its middle and its direction along it, on the floor."""
+    side = room_kit.side_named(layout, name)
+    run = side["end"] - side["start"]
+    return side, (side["start"] + side["end"]) / 2, run / np.linalg.norm(run)
+
+
 def doorway_rays(layout, shut_by_game, origins, directions, travel):
     """Which rays leave through a doorway the game shuts with a node of its own."""
     found = np.zeros(len(directions), dtype=bool)
     for name in shut_by_game:
-        side = room_kit.side_named(layout, name)
-        middle = (side["start"] + side["end"]) / 2
-        along = (side["end"] - side["start"]) / np.linalg.norm(side["end"] - side["start"])
+        side, middle, along = door_side(layout, name)
         outward = np.array([side["outward"][0], 0.0, side["outward"][1]])
         # where each ray crosses the wall's inside face: through the doorway there, it meets the game's door
         toward = directions @ outward
@@ -76,12 +81,10 @@ def standing_points(layout, solids):
     found = []
     for x in np.arange(-half[0], half[0] + 1e-6, GRID):
         for z in np.arange(-half[1], half[1] + 1e-6, GRID):
-            point = np.array([x, EYE, z])
-            if not in_rounded(layout, x, z, 0.6):
-                continue
-            if not any(mesh.bounds[0][0] - 0.2 < x < mesh.bounds[1][0] + 0.2
-                       and mesh.bounds[0][2] - 0.2 < z < mesh.bounds[1][2] + 0.2 for mesh in solids):
-                found.append(point)
+            if in_rounded(layout, x, z, 0.6) and not any(mesh.bounds[0][0] - 0.2 < x < mesh.bounds[1][0] + 0.2
+                                                         and mesh.bounds[0][2] - 0.2 < z < mesh.bounds[1][2] + 0.2
+                                                         for mesh in solids):
+                found.append(np.array([x, EYE, z]))
     return np.array(found)
 
 
@@ -106,12 +109,11 @@ def directions():
 def leaks(layout, pieces, outer, shut_by_game, solids):
     drawn = trimesh.util.concatenate([mesh for _, _, mesh in pieces])
     caster = drawn.ray  # embree when the prop environment has it (embreex): the rooms run to millions of faces
-    out_caster = outer.ray
     points = standing_points(layout, solids)
     ways = directions()
     origins = np.repeat(points, len(ways), axis=0)
     rays = np.tile(ways, (len(points), 1))
-    exits, exit_rays, _ = out_caster.intersects_location(origins, rays, multiple_hits=False)
+    exits, exit_rays, _ = outer.ray.intersects_location(origins, rays, multiple_hits=False)
     travel = np.full(len(rays), np.inf)
     travel[exit_rays] = np.linalg.norm(exits - origins[exit_rays], axis=1)
     hits, hit_rays, _ = caster.intersects_location(origins, rays, multiple_hits=False)
@@ -139,9 +141,7 @@ def envelope(pieces, outer):
 def in_doorways(layout, pieces, doors):
     found = []
     for name in doors:
-        side = room_kit.side_named(layout, name)
-        middle = (side["start"] + side["end"]) / 2
-        along = (side["end"] - side["start"]) / np.linalg.norm(side["end"] - side["start"])
+        side, middle, along = door_side(layout, name)
         for index, kind, mesh in pieces:
             if "_hatch_" in kind or kind.endswith(("_door_frame", "_tread_mat", "_floor_grating")):
                 continue  # the door's own parts and what lies before it
@@ -156,14 +156,12 @@ def in_doorways(layout, pieces, doors):
 
 def crowding(solid_pieces):
     found = []
-    for first in range(len(solid_pieces)):
-        for second in range(first + 1, len(solid_pieces)):
-            (index_a, kind_a, a), (index_b, kind_b, b) = solid_pieces[first], solid_pieces[second]
-            low = np.maximum(a.bounds[0], b.bounds[0])
-            high = np.minimum(a.bounds[1], b.bounds[1])
-            if np.all(high - low > 0.02):
-                found.append({"pieces": [index_a, index_b], "kinds": [kind_a, kind_b],
-                              "overlap": [round(float(value), 3) for value in high - low]})
+    for (index_a, kind_a, mesh_a), (index_b, kind_b, mesh_b) in itertools.combinations(solid_pieces, 2):
+        low = np.maximum(mesh_a.bounds[0], mesh_b.bounds[0])
+        high = np.minimum(mesh_a.bounds[1], mesh_b.bounds[1])
+        if np.all(high - low > 0.02):
+            found.append({"pieces": [index_a, index_b], "kinds": [kind_a, kind_b],
+                          "overlap": [round(float(value), 3) for value in high - low]})
     return found
 
 

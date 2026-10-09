@@ -42,19 +42,20 @@ def openings():
     return found
 
 
+def in_hole(points, along, kind, numbers):
+    """Which points on an opening's wall plane lie inside the opening: a doorway's rectangle or the porthole's circle."""
+    across, high = points @ along, points[:, 1]
+    if kind == "doorway":
+        return (np.abs(across) <= numbers[0] / 2) & (high >= 0.0) & (high <= numbers[1])
+    return np.hypot(across, high - numbers[0]) <= numbers[1]
+
+
 def in_opening(points, every_opening):
     """Which points (on or near the wall's outside) lie in one of the openings, seen straight through the wall."""
     inside = np.zeros(len(points), dtype=bool)
     for bearing, kind, numbers in every_opening:
         normal, along = hub_kit.bearing_vectors(bearing)
-        across = points @ along
-        outward = points @ normal
-        facing = outward > hub_kit.APOTHEM - 0.05
-        high = points[:, 1]
-        if kind == "doorway":
-            inside |= facing & (np.abs(across) <= numbers[0] / 2) & (high >= 0.0) & (high <= numbers[1])
-        else:
-            inside |= facing & (np.hypot(across, high - numbers[0]) <= numbers[1])
+        inside |= (points @ normal > hub_kit.APOTHEM - 0.05) & in_hole(points, along, kind, numbers)
     return inside
 
 
@@ -66,14 +67,7 @@ def through_opening(origins, vectors, every_opening):
         normal, along = hub_kit.bearing_vectors(bearing)
         outward = vectors @ normal
         travel = np.where(outward > 1e-6, (hub_kit.APOTHEM - origins @ normal) / np.maximum(outward, 1e-6), -1.0)
-        crossing = origins + vectors * travel[:, None]
-        across = crossing @ along
-        high = crossing[:, 1]
-        if kind == "doorway":
-            hit = (np.abs(across) <= numbers[0] / 2) & (high >= 0.0) & (high <= numbers[1])
-        else:
-            hit = np.hypot(across, high - numbers[0]) <= numbers[1]
-        inside |= (travel > 0) & hit
+        inside |= (travel > 0) & in_hole(origins + vectors * travel[:, None], along, kind, numbers)
     return inside
 
 

@@ -10,6 +10,7 @@ an element with neither, a row that is not in the inventory, a row laid fewer ti
 inventory with no element list at all. The after-install half of the rule (the built room drawn from the concept's own
 camera beside the concept) is a picture, shown on the place's page.
 """
+import collections
 import json
 import pathlib
 import sys
@@ -22,17 +23,14 @@ def check(inventory, layout):
         return ["no concept_elements: list every element the picked concept shows, crop by crop"]
     room = inventory.get("scene", "")
     rows = {row["id"]: row for row in inventory["rows"]}
-    laid = {}
-    for piece in layout["pieces"]:
-        if "part" not in piece:
-            laid[piece["kind"]] = laid.get(piece["kind"], 0) + 1
-    wanted, found = {}, []
+    laid = collections.Counter(piece["kind"] for piece in layout["pieces"] if "part" not in piece)
+    wanted, found = collections.Counter(), []
     for element in elements:
         if element.get("row"):
             if element["row"] not in rows:
                 found.append(f"{element['element']}: its row {element['row']} is not in the inventory")
             if not element.get("part"):  # a part of its row's piece (a pod's control column) adds no piece
-                wanted[element["row"]] = wanted.get(element["row"], 0) + int(element.get("count", 1))
+                wanted[element["row"]] += int(element.get("count", 1))
         elif not element.get("dropped"):
             found.append(f"{element['element']}: neither a row nor a reason it is dropped")
     for ident, count in wanted.items():
