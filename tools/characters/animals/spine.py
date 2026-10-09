@@ -6,7 +6,7 @@ fish swims by one travelling bend down its body, so a chain of bones along the b
     weights = spine_weights(points, joints)       # (points, count): each point split between two bones
 
 A point is weighted by where it lies along the spine alone, so a fin follows the spine bone it sits beside, and the
-weights change smoothly from one bone to the next (no crease where two meet). Blender (blender_fish.py) and the tests
+weights change smoothly from one bone to the next (no crease where two meet). Blender (rig_fish.py) and the tests
 use the same functions.
 """
 import numpy as np
@@ -68,7 +68,7 @@ def spine_weights(points, joints):
     length = np.linalg.norm(finish - start)
     direction = (finish - start) / length
     place = np.clip((points - start) @ direction / length * count - 0.5, 0.0, count - 1)
-    lower = np.minimum(np.floor(place).astype(int), count - 1)
+    lower = np.floor(place).astype(int)
     upper = np.minimum(lower + 1, count - 1)
     share = place - lower
     weights = np.zeros((len(points), count))

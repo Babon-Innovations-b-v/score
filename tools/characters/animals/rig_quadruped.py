@@ -89,12 +89,6 @@ def leg_length(armature, chain):
     return (bones[chain[0]].head_local - bones[chain[-1]].tail_local).length
 
 
-def place_goal(armature, goal, offset):
-    """Move a goal bone by a world offset from its rest place."""
-    pose = armature.pose.bones[goal]
-    pose.location = pose.bone.matrix_local.to_3x3().inverted() @ offset
-
-
 def turn_bone(armature, name, axis, angle):
     """Turn a bone by `angle` about a world `axis`, in its own frame."""
     pose = armature.pose.bones[name]
@@ -135,7 +129,7 @@ def walk_pose(armature, parts, goals, phase, height):
     stride = WALK["stride"] * height
     for leg, goal in goals.items():
         ahead, lift = legs.foot_path(phase - legs.PHASES[leg], stride, WALK["lift"] * height)
-        place_goal(armature, goal, FORWARD * ahead + UP * lift)
+        move_bone(armature, goal, FORWARD * ahead + UP * lift)
     move_bone(armature, parts["root"], UP * (WALK["bob"] * height * math.cos(4 * math.pi * phase)))
     spread_turn(armature, parts["tail"], UP, 0.25 * math.sin(2 * math.pi * phase))
     spread_turn(armature, parts["head"], SIDE, 0.06 * math.sin(4 * math.pi * phase))
@@ -153,7 +147,7 @@ def sit_pose(armature, parts, goals, phase, height):
     """The sit at `phase`: the hind feet drawn forward under the hips, the hips down and tipped back (tail down, chest
     up), the head kept level, breathing."""
     for leg in ("back_left", "back_right"):
-        place_goal(armature, goals[leg], FORWARD * SIT["tuck"] * height)
+        move_bone(armature, goals[leg], FORWARD * SIT["tuck"] * height)
     breath = SIT["breath"] * height * (0.5 - 0.5 * math.cos(4 * math.pi * phase))
     move_bone(armature, parts["root"], UP * (breath - SIT["drop"] * height))
     turn_bone(armature, parts["root"], SIDE, -SIT["tip"])

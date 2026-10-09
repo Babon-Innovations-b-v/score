@@ -9,11 +9,10 @@ The job (written by route.py):
 
 The model is stood with its head towards glTF's +z (Blender's -y) and z up, scaled to `length_m` from snout to tail,
 and set on its node: a fish centred on it, a land animal standing on it. Then it is rigged (rig_fish.py: a spine made
-here, or the UniRig skeleton's root-to-tail chain; rig_quadruped.py: the UniRig skeleton), its clips are keyed at
-30 frames a second, and it is written as <out>/<name>.glb with every clip, and its lighter copies as
-<out>/lods/<name>-<lod>.glb (a share of the triangles, or a count when the number is above 1, and its pictures at
-most the given pixels across). <out>/rig.json says
-what was found and made.
+here; rig_quadruped.py: the UniRig skeleton), its clips are keyed at 30 frames a second, and it is written as
+<out>/<name>.glb with every clip, and its lighter copies as <out>/lods/<name>-<lod>.glb (a share of the triangles, or
+a count when the number is above 1, and its pictures at most the given pixels across). <out>/rig.json says what was
+found and made.
 """
 import json
 import pathlib
@@ -178,7 +177,7 @@ def main():
     report = {"name": job["name"], "body": job["body"], "rig": job["rig"],
               "scale": stand(things, job["body"], job["length_m"])}
     if job["body"] == "fish":
-        armature = rig_fish.rig(meshes, armature, job, report)
+        armature = rig_fish.rig(meshes, job, report)
     else:
         armature = rig_quadruped.rig(meshes, armature, job, report)
     export(out / f"{job['name']}.glb", armature, meshes)
