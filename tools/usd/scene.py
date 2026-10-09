@@ -11,13 +11,16 @@ as numbers copied from the game (each entry names the game file it came from), a
     objects     a world model file (a gameplay object; tools/usd/glb_asset.py) where the game stands it, turned about up
                 (`yaw`, as the game turns it) and scaled to the height the game gives it, with what stands on it:
                 /<place>/Fixtures/<name>
-    water       a flat surface of the library's water: /<place>/Water/<name>
+    water       a flat surface of the library's water: /<place>/Water/<name>, with how much it mirrors (`mirror`)
     backdrop    panorama rings round the place, each a picture on an arc, drawn as they are (unlit, their sky cut out):
                 /<place>/Backdrop/<name>
     ground      a ground the game makes in code (a far disc, Mars's plain): structure entries with the ground's surface
     lights      the game's lights, UsdLux (/<place>/Lights): an omni a sphere light, a spot one shaped to its cone, the
                 sun or moon a distant light; the game's own numbers ride on each as `score:game:*`
-    environment the sky the camera sees and the ambient light (a dome light, `/<place>/Environment`), the exposure
+    environment the sky the camera sees and the ambient light (a dome light, `/<place>/Environment`), the exposure;
+                its `stars` (the game's star field, its own seed's) and its `haze` (a body of fog the game fills a room
+                or Mars's air with, as a see-through shell carrying the fog's numbers; on Earth the haze ring) under
+                /<place>/Sky
     places      other places seen from this one, their own stages referenced where the game stands them:
                 /<place>/Places/<name>
     moon        the Moon on the night sky as the game's sky shader draws it (its face with its seas, and its halo in the
@@ -71,7 +74,8 @@ SHADOW_KINDS = ("hub_roof_light_fixture",)
 TUBE_LIGHT_EVERY = 2
 # The code builders a scene record may name.
 BUILDERS = ("quad", "box", "annulus", "walls", "wall_strip", "pyramid_roof", "dome", "cylinder_wall", "disc", "stairs",
-            "grid", "heightfield", "room_walls", "room_deck", "dome_roof", "lathe", "sphere", "tube_arc")
+            "grid", "heightfield", "room_walls", "room_deck", "dome_roof", "lathe", "sphere", "tube_arc", "stars",
+            "haze_volume")
 
 
 def record(place):
@@ -128,7 +132,7 @@ def built_meshes(entry):
     if entry["builder"] not in BUILDERS:
         raise ValueError(f"no code builder named {entry['builder']}")
     builder = getattr(builders, entry["builder"])
-    numbers = {key: value for key, value in entry.items() if key not in ("name", "builder", "from", "layer")}
+    numbers = {key: value for key, value in entry.items() if key not in ("name", "builder", "from", "layer", "mirror")}
     built = builder(**numbers)
     return built if isinstance(built, list) else [built]
 
@@ -148,6 +152,17 @@ def write_structure(stage, place, entries, root="Structure", kind="structure"):
                 prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
             if "layer" in entry:  # a roof's draw layer, left out of a cutaway look
                 prim.GetPrim().CreateAttribute("score:layer", Sdf.ValueTypeNames.String).Set(str(entry["layer"]))
+            if "mirror" in entry:
+                write_mirror(prim.GetPrim(), entry["mirror"])
+
+
+def write_mirror(prim, mirror):
+    """How much of what stands over it a water surface gives back (the game's harbour shader): `along` looking along
+    it, `down` looking straight down, its ripples tipping it by `ripple_tip` and `ripple_size` metres across, as
+    score:mirror_* on the surface for a renderer to draw (tools/blender/inside/usd_views.py)."""
+    for key in ("along", "down", "ripple_tip", "ripple_size"):
+        prim.CreateAttribute(f"score:mirror_{key}", Sdf.ValueTypeNames.Float).Set(float(mirror[key]))
+    prim.CreateAttribute("score:mirror_from", Sdf.ValueTypeNames.String).Set(mirror.get("from", ""))
 
 
 def fixture_asset(entry, out, world, boxes):
@@ -575,6 +590,141 @@ def far_ground(stage, place, ground, entry, out, near):
         sphere.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("ground")
 
 
+def unlit_material(stage, path, value):
+    """A surface that only gives off its colour (`value`, '#rrggbb'), lit by nothing: a star."""
+    material = UsdShade.Material.Define(stage, path)
+    shader = UsdShade.Shader.Define(stage, f"{path}/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.0, 0.0, 0.0))
+    shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*colour(value)))
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    return material
+
+
+def write_stars(stage, place, entry):
+    """The game's star field (builders.stars) as one mesh, /<place>/Sky/Stars, in the stars' unlit colour."""
+    built = builders.stars(int(entry["count"]), int(entry["seed"]), float(entry["sky_distance"]),
+                           float(entry["distance"]), float(entry["radius"]), float(entry["size"][0]),
+                           float(entry["size"][1]), None)
+    prim = mesh_prim(stage, f"/{place}/Sky/Stars", built)
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(
+        unlit_material(stage, f"/{place}/Sky/star_look", entry["colour"]))
+    for key, value in (("score:kind", "stars"), ("score:from", entry.get("from", ""))):
+        prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+
+
+def haze_centre(entry, ground):
+    """A haze body's middle: its own `centre`, or with `"ball"` the middle of the place's world (the planned ground's
+    ball, in the place's frame), as Mars's air is centred on Mars."""
+    if entry["centre"] != "ball":
+        return [float(value) for value in entry["centre"]]
+    if ground is None:
+        raise ValueError("a haze centred on the ball needs the place's planned ground")
+    return [float(value) for value in ground.in_place_frame(np.zeros(3))[0]]
+
+
+def write_haze_volume(stage, place, entry, ground):
+    """A body of haze as the game's FogVolume holds it: a closed shell of its shape (builders.haze_volume), drawn as
+    nothing by its surface (fully see-through) and carrying the fog's colour, density (its thickness per metre), how
+    strongly it throws light forward, how far out the game works it out and how much of a lamp's light it catches, as
+    score:haze_*, for a renderer to fill it (tools/blender/inside/usd_views.py)."""
+    built = builders.haze_volume(entry["shape"], haze_centre(entry, ground), entry["size"], None)
+    prim = mesh_prim(stage, f"/{place}/Sky/Haze", built)
+    material = UsdShade.Material.Define(stage, f"/{place}/Sky/haze_look")
+    shader = UsdShade.Shader.Define(stage, f"/{place}/Sky/haze_look/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(0.0)
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
+    held = prim.GetPrim()
+    held.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("haze")
+    held.CreateAttribute("score:haze_colour", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*colour(entry["colour"])))
+    for key in ("density", "forward", "reach", "lamp_share"):
+        if key in entry:
+            held.CreateAttribute(f"score:haze_{key}", Sdf.ValueTypeNames.Float).Set(float(entry[key]))
+    held.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(entry.get("from", ""))
+
+
+def smoothstep(low, high, value):
+    share = np.clip((np.asarray(value, dtype=np.float64) - low) / (high - low), 0.0, 1.0)
+    return share * share * (3.0 - 2.0 * share)
+
+
+def haze_ring_alpha(entry, heights, angles):
+    """How thick the haze ring is at each height over its foot (metres) and way round (degrees from +x toward +z),
+    as the game's night_haze shader works it out: faint all the way up and thickest near the top of the far shore over
+    the pictures, and thick on the ground in the gap the pictures leave open."""
+    gone = 1.0 - smoothstep(entry["thickest_at"], entry["gone_by"], heights)
+    over = np.maximum(entry["faint"] * gone,
+                      entry["thickest"] * smoothstep(entry["thicken_from"], entry["thickest_at"], heights) * gone)
+    start, end = entry["gap"]
+    past_start = np.mod(angles - start + 360.0, 360.0)
+    before_end = np.mod(end - start + 360.0, 360.0) - past_start
+    in_gap = smoothstep(0.0, entry["gap_edge"], past_start) * smoothstep(0.0, entry["gap_edge"], before_end)
+    ground = entry["ground_haze"] * (1.0 - smoothstep(0.0, entry["ground_height"], heights))
+    return np.maximum(over[:, None], ground[:, None] * in_gap[None, :])
+
+
+def haze_ring_colour(entry, heights):
+    """The ring's colour at each height (linear): the game's night sky along the line from an eye `eye` metres over
+    the ring's foot at its middle, navy at the horizon deepening toward the zenith's (night_sky.gdshaderinc, the Moon's
+    glow left out)."""
+    rise = heights - float(entry["eye"])
+    up = rise / np.hypot(rise, float(entry["radius"]))
+    share = np.clip(up / entry["deepest_at"], 0.0, 1.0) ** entry["deepening"]
+    horizon, zenith = np.asarray(colour(entry["horizon"])), np.asarray(colour(entry["zenith"]))
+    return horizon[None, :] * (1.0 - share[:, None]) + zenith[None, :] * share[:, None]
+
+
+def haze_ring_picture(entry, path, wide=720, tall=150):
+    """The ring's picture, once round it from bearing 0 (north, -z) clockwise, its bottom row at the ring's foot: the
+    colour in sRGB and how thick as alpha."""
+    from PIL import Image
+    high = float(entry["high"]) - float(entry["low"])
+    heights = (np.arange(tall) + 0.5) / tall * high
+    bearings = (np.arange(wide) + 0.5) / wide * 360.0
+    alpha = haze_ring_alpha(entry, heights, np.mod(bearings - 90.0, 360.0))
+    linear = haze_ring_colour(entry, heights)
+    srgb = np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
+    pixels = np.dstack([np.repeat(srgb[:, None, :], wide, axis=1), alpha[:, :, None]])[::-1]
+    Image.fromarray((np.clip(pixels, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8), "RGBA").save(path)
+
+
+def write_haze_ring(stage, place, entry, out):
+    """The city's night haze at the edge of the Earth site: an open ring of `radius` from `low` to `high`, round
+    `centre`, laid over what stands behind it as thinly as its picture's alpha (haze_ring_picture), unlit."""
+    textures = out / "assets/textures"
+    textures.mkdir(parents=True, exist_ok=True)
+    picture = textures / "haze_ring.png"
+    haze_ring_picture(entry, picture)
+    segments = int(entry.get("segments", 96))
+    ring = builders.cylinder_wall(float(entry["radius"]), float(entry["low"]), float(entry["high"]), None, segments,
+                                  tuple(entry.get("centre", (0.0, 0.0))))
+    ring["uvs"] = np.column_stack([np.repeat(np.linspace(0.0, 1.0, segments + 1), 2), np.tile([0.0, 1.0], segments + 1)])
+    prim = mesh_prim(stage, f"/{place}/Sky/HazeRing", ring)
+    material = backdrop_material(stage, f"/{place}/Sky/haze_ring_look", f"../assets/textures/{picture.name}",
+                                 threshold=0.0)
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
+    for key, value in (("score:kind", "haze"), ("score:from", entry.get("from", ""))):
+        prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+
+
+def write_sky(stage, place, environment, out, ground=None):
+    """What the game hangs in the place's air and sky that the camera sees: the stars (environment `stars`) and the
+    haze (environment `haze`: a body of fog, or with shape `ring` the Earth site's haze ring), under /<place>/Sky."""
+    environment = environment or {}
+    if not (environment.get("stars") or environment.get("haze")):
+        return
+    UsdGeom.Scope.Define(stage, f"/{place}/Sky")
+    if environment.get("stars"):
+        write_stars(stage, place, environment["stars"])
+    haze = environment.get("haze")
+    if haze and haze["shape"] == "ring":
+        write_haze_ring(stage, place, haze, out)
+    elif haze:
+        write_haze_volume(stage, place, haze, ground)
+
+
 def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None, near=None):
     """Everything the place's scene record holds, into the base layer being written; a kit room's lamps' lights too
     (kit_lights), and with the place's planned ground the ground past its near patch (far_ground)."""
@@ -592,3 +742,4 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
         scene.get("lights", [])
     write_lights(stage, place, lights)
     write_environment(stage, place, scene.get("environment"))
+    write_sky(stage, place, scene.get("environment"), out, ground)

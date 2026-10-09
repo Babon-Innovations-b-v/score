@@ -225,7 +225,26 @@
   },
   "exposure": 0.85,
   "inside": true,
-  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162"
+  "from": "game/world/sky/sky.tscn + data/definitions/lighting.json bounce_tuned (indoor_fill 0.1, exposure_fittings 0.85), sky.gd:161-162",
+  "haze": {
+   "shape": "box",
+   "centre": [
+    0.0,
+    6.5,
+    0.0
+   ],
+   "size": [
+    26.0,
+    13.0,
+    46.0
+   ],
+   "colour": "#ece8e0",
+   "density": 0.025,
+   "forward": 0.3,
+   "reach": 24.0,
+   "lamp_share": 0.5,
+   "from": "game/base/module_shell/module_shell.gd:191-198,1258-1275 (the room's FogVolume: a box of the room's inside up to its walls' top, Palette.AIR_HAZE #ece8e0, HAZE_DENSITY 0.025), game/world/sky/sky.gd:49,55,314-319 (worked out 24 m out, thrown forward 0.3), game/base/lamp/lamp.gd:27-30 (a lamp's light in the haze at HAZE_SHARE 0.5); hangar height 13.0, 26 x 46 (the garage and hangar game code: the agent-a1aa38a94aaca7589 worktree's module_shell.gd:170-180, module_floors.gd:116-117)"
+  }
  },
  "views": [
   {

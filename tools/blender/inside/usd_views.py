@@ -19,6 +19,13 @@ of one eye is seen from the first of them with a clear line to its aim (a charac
 in front of somebody). A view with `"hide_crowds": true` leaves out every instancer (a crowd, tools/characters/cast.py), so
 one of a group standing among thousands is seen close. Objects the stage makes invisible
 (the body parts a character does not wear) stay out of every picture.
+
+What the stage's sky holds is drawn as the game draws it: a haze body (score:kind "haze" with score:haze_*,
+tools/usd/scene.py) filled with fog of its colour and thickness, and a water surface with score:mirror_* given back
+as the game's harbour mirrors it (more along it than down into it, its ripples breaking what it mirrors into streaks).
+A view with `"ink": true` also gets <name>-ink.png: its look with the game's ink lines over it (ink_edges.gdshader's
+rule, worked out on the depth Cycles gives in a second, one-sample render), an option beside the look and never
+baked into the stage.
 """
 import json
 import math
@@ -42,6 +49,29 @@ SKY_LIGHT = 0.04
 PLAIN_COLOUR = (0.6, 0.6, 0.6, 1.0)
 SAMPLES = 16
 CARD_SAMPLES = 64
+# The game's ink lines (2099's ink_edges.gdshader and ink_edges.tres), its numbers as it has them: a pixel is inked
+# where its neighbours `reach` pixels out average further away than it by DEPTH_BREAK (in one over the distance, so a
+# flat floor at any angle is not), or where it turns from a nearer-or-level neighbour past CREASE_BREAK; the reach is
+# LINE_PX on a 1080-tall picture (TEXTURED_PX on a textured model, whose creases count only where its shape turns a
+# corner too), easing to a pixel from THIN_START to THIN_END metres; lines fade out from FADE_START to FADE_END.
+INK_DEPTH_BREAK = 0.02
+INK_CREASE_BREAK = 0.5
+INK_LEVEL = 0.995
+INK_FLAT_SIDE = 0.95
+INK_SPAN = 2.0
+INK_SPAN_PX = 3.0
+INK_SHAPE_TURN = 0.25
+INK_FADE = (60.0, 120.0)
+INK_LINE_PX = 4.0
+INK_TEXTURED_PX = 1.5
+INK_THIN = (8.0, 35.0)
+INK_SMALL_PART_SHARE = 0.35
+INK_REACH = ((1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (0.7071, 0.7071), (-0.7071, -0.7071), (0.7071, -0.7071),
+             (-0.7071, 0.7071))
+INK_COLOUR = (0.039215688, 0.03529412, 0.03137255)
+# The water's ripples: how far a ripple moves the surface for Blender's bump, as a share of its tip times its size,
+# so the noise's slopes come out about as steep as the game's tip.
+RIPPLE_BUMP_SHARE = 2.0
 # The stage's y-up frame onto Blender's z-up: (x, y, z) -> (x, -z, y), as Blender's importer turns a y-up stage.
 Y_UP_TO_Z_UP = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))
 
@@ -376,6 +406,290 @@ def stage_sky(scene, environment):
     scene.view_settings.exposure = math.log2(max(environment["exposure"], 1e-3))
 
 
+def score_value(item, name):
+    """An imported object's score:<name> (a mesh prim's own attributes come in on its mesh data, an Xform's on the
+    object), or None."""
+    holders = (item, item.data) if getattr(item, "data", None) is not None else (item,)
+    for holder in holders:
+        for key, value in holder.items():
+            if key == f"score:{name}" or key.endswith(f"score:{name}") or key == f"score_{name}":
+                return value
+    return None
+
+
+def haze_volumes(objects):
+    """Every haze body of the stage filled with the game's fog: its colour as what the fog scatters, its density as
+    how thick it is a metre, its forward throw as the scatter's anisotropy; its shell itself is not drawn."""
+    for item in objects:
+        density = score_value(item, "haze_density") if item.type == "MESH" else None
+        if density is None:
+            continue
+        material = bpy.data.materials.new(f"haze_{item.name}")
+        material.use_nodes = True
+        nodes, links = material.node_tree.nodes, material.node_tree.links
+        for node in list(nodes):
+            nodes.remove(node)
+        volume = nodes.new("ShaderNodeVolumePrincipled")
+        volume.inputs["Color"].default_value = (*list(score_value(item, "haze_colour"))[:3], 1.0)
+        volume.inputs["Density"].default_value = float(density)
+        volume.inputs["Anisotropy"].default_value = float(score_value(item, "haze_forward") or 0.0)
+        output = nodes.new("ShaderNodeOutputMaterial")
+        links.new(volume.outputs["Volume"], output.inputs["Volume"])
+        item.data.materials.clear()
+        item.data.materials.append(material)
+        item.visible_shadow = False
+
+
+def mirror_material(item, along, down, tip, size):
+    """The game's harbour on Blender's nodes: its own colour lit as it is, and over it what stands round it mirrored,
+    `along` of it looking along the water and `down` looking straight down (the share eased by the square root of how
+    far down the eye looks), its ripples `tip` steep and `size` metres across."""
+    old = item.data.materials[0] if item.data.materials else None
+    base = (0.0, 0.0, 0.0, 1.0)
+    if old is not None and old.use_nodes:
+        shader = next((node for node in old.node_tree.nodes if node.type == "BSDF_PRINCIPLED"), None)
+        if shader is not None:
+            base = tuple(shader.inputs["Base Color"].default_value)
+    material = bpy.data.materials.new(f"mirror_{item.name}")
+    material.use_nodes = True
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    for node in list(nodes):
+        nodes.remove(node)
+    diffuse = nodes.new("ShaderNodeBsdfDiffuse")
+    diffuse.inputs["Color"].default_value = base
+    coordinates = nodes.new("ShaderNodeTexCoord")
+    scale = nodes.new("ShaderNodeVectorMath")
+    scale.operation = "SCALE"
+    scale.inputs["Scale"].default_value = 1.0 / size
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 1.0
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 1.0
+    bump.inputs["Distance"].default_value = tip * size * RIPPLE_BUMP_SHARE
+    links.new(coordinates.outputs["Object"], scale.inputs[0])
+    links.new(scale.outputs["Vector"], noise.inputs["Vector"])
+    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    weight = nodes.new("ShaderNodeLayerWeight")
+    weight.inputs["Blend"].default_value = 0.5
+    looking_down = nodes.new("ShaderNodeMath")
+    looking_down.operation = "SUBTRACT"
+    looking_down.inputs[0].default_value = 1.0
+    links.new(weight.outputs["Facing"], looking_down.inputs[1])
+    root = nodes.new("ShaderNodeMath")
+    root.operation = "SQRT"
+    links.new(looking_down.outputs["Value"], root.inputs[0])
+    share = nodes.new("ShaderNodeMapRange")
+    share.inputs["To Min"].default_value = along
+    share.inputs["To Max"].default_value = down
+    links.new(root.outputs["Value"], share.inputs["Value"])
+    tint = nodes.new("ShaderNodeCombineColor")
+    for channel in ("Red", "Green", "Blue"):
+        links.new(share.outputs["Result"], tint.inputs[channel])
+    glossy = nodes.new("ShaderNodeBsdfGlossy")
+    glossy.inputs["Roughness"].default_value = 0.0
+    links.new(tint.outputs["Color"], glossy.inputs["Color"])
+    links.new(bump.outputs["Normal"], glossy.inputs["Normal"])
+    added = nodes.new("ShaderNodeAddShader")
+    links.new(diffuse.outputs["BSDF"], added.inputs[0])
+    links.new(glossy.outputs["BSDF"], added.inputs[1])
+    output = nodes.new("ShaderNodeOutputMaterial")
+    links.new(added.outputs["Shader"], output.inputs["Surface"])
+    item.data.materials.clear()
+    item.data.materials.append(material)
+
+
+def water_mirrors(objects):
+    """Every water surface the stage gives a mirror (score:mirror_*) drawn as the game's harbour mirrors."""
+    for item in objects:
+        along = score_value(item, "mirror_along") if item.type == "MESH" else None
+        if along is not None:
+            mirror_material(item, float(along), float(score_value(item, "mirror_down")),
+                            float(score_value(item, "mirror_ripple_tip")), float(score_value(item, "mirror_ripple_size")))
+
+
+def textured(item):
+    """Whether an object is drawn from a picture (a made model's baked maps): the game inks those thinner."""
+    return item.type == "MESH" and any(
+        slot.material is not None and slot.material.use_nodes
+        and any(node.type == "TEX_IMAGE" for node in slot.material.node_tree.nodes) for slot in item.material_slots)
+
+
+def pass_render(scene, path):
+    """The view rendered once more in Cycles at one sample with its distance and object index kept, to a multilayer
+    EXR; the render settings put back after."""
+    settings = scene.render.image_settings
+    kept = {"engine": scene.render.engine, "format": settings.file_format,
+            "media": getattr(settings, "media_type", None),
+            "mode": scene.render.image_settings.color_mode, "depth": scene.render.image_settings.color_depth}
+    if scene.render.engine != "CYCLES":
+        scene.render.engine = "CYCLES"
+        scene.cycles.device = "CPU"
+    samples, denoise = scene.cycles.samples, scene.cycles.use_denoising
+    scene.cycles.samples, scene.cycles.use_denoising = 1, False
+    layer = scene.view_layers[0]
+    layer.use_pass_z = True
+    layer.use_pass_object_index = True
+    layer.use_pass_normal = True
+    if kept["media"] is not None:  # Blender 5: a multilayer EXR is a media type of its own
+        settings.media_type = "MULTI_LAYER_IMAGE"
+    settings.file_format = "OPEN_EXR_MULTILAYER"
+    settings.color_depth = "32"
+    render(scene, path, transparent=False)
+    scene.cycles.samples, scene.cycles.use_denoising = samples, denoise
+    scene.render.engine = kept["engine"]
+    if kept["media"] is not None:
+        settings.media_type = kept["media"]
+    settings.file_format = kept["format"]
+    settings.color_mode = kept["mode"]
+    settings.color_depth = kept["depth"]
+
+
+def exr_channels(path):
+    """A multilayer EXR's distance, normal and object index (top row first) as numpy arrays, from whichever of its
+    parts holds each."""
+    import numpy
+    import OpenImageIO
+    found = {}
+    parts = OpenImageIO.ImageBuf(str(path)).nsubimages
+    for part in range(parts):
+        held = OpenImageIO.ImageBuf(str(path), part, 0)
+        pixels = numpy.asarray(held.get_pixels(OpenImageIO.FLOAT))
+        for index, name in enumerate(held.spec().channelnames):
+            found[name] = pixels[:, :, index]
+
+    def channel(part, axis):
+        return next(values for name, values in found.items() if part in name and name.endswith(axis))
+
+    normal = numpy.dstack([channel("Normal", axis) for axis in (".X", ".Y", ".Z")])
+    return channel("Depth", ".Z"), normal, channel("Index", ".X")
+
+
+def smoothstep(low, high, value):
+    import numpy
+    share = numpy.clip((value - low) / (high - low), 0.0, 1.0)
+    return share * share * (3.0 - 2.0 * share)
+
+
+def shape_normals(depth, fov):
+    """Which way the drawn shape faces at each pixel, from the depth alone (the game's shape_facing): each slope taken
+    toward the nearer-level neighbour, turned to face the eye."""
+    import numpy
+    tall, wide = depth.shape
+    focal = (wide / 2.0) / math.tan(math.radians(fov) / 2.0)
+    across, down = numpy.meshgrid((numpy.arange(wide) + 0.5 - wide / 2.0) / focal,
+                                  (numpy.arange(tall) + 0.5 - tall / 2.0) / focal)
+    points = numpy.dstack([across * depth, down * depth, depth])
+    padded = numpy.pad(points, ((1, 1), (1, 1), (0, 0)), mode="edge")
+    right = padded[1:-1, 2:] - points
+    left = points - padded[1:-1, :-2]
+    below = padded[2:, 1:-1] - points
+    above = points - padded[:-2, 1:-1]
+    sideways = numpy.where((numpy.abs(right[..., 2]) < numpy.abs(left[..., 2]))[..., None], right, left)
+    downward = numpy.where((numpy.abs(below[..., 2]) < numpy.abs(above[..., 2]))[..., None], below, above)
+    normal = numpy.cross(downward, sideways)
+    normal /= numpy.maximum(numpy.linalg.norm(normal, axis=2, keepdims=True), 1e-9)
+    facing_away = (normal * points).sum(axis=2) > 0.0
+    return numpy.where(facing_away[..., None], -normal, normal)
+
+
+def at_offset(values, way, reach):
+    """`values` read `reach` pixels (each pixel's own) along `way` (across, down) from every pixel, the nearest
+    pixel's, held at the picture's edge."""
+    import numpy
+    tall, wide = values.shape[:2]
+    rows, columns = numpy.mgrid[0:tall, 0:wide]
+    rows = numpy.clip(numpy.rint(rows + way[1] * reach), 0, tall - 1).astype(int)
+    columns = numpy.clip(numpy.rint(columns + way[0] * reach), 0, wide - 1).astype(int)
+    return values[rows, columns]
+
+
+def neighbours(depth, normal, reach):
+    """What the neighbours `reach` pixels out on every side say about each pixel (the game's `neighbours`): how far it
+    stands in front of them as a share of its closeness, how far it turns from the nearer-or-level ones, and whether
+    some pair of them both fall away behind it."""
+    import numpy
+    near_side = numpy.zeros(depth.shape)
+    crease = numpy.zeros(depth.shape)
+    narrow = numpy.zeros(depth.shape, dtype=bool)
+    closeness = 1.0 / depth
+    for pair in range(0, 8, 2):
+        out_depth, back_depth = (at_offset(depth, INK_REACH[pair + side], reach) for side in (0, 1))
+        either_side = 0.5 * (1.0 / out_depth + 1.0 / back_depth)
+        near_side = numpy.maximum(near_side, (closeness - either_side) / closeness)
+        falls_away = depth * (1.0 + INK_DEPTH_BREAK)
+        narrow |= (out_depth >= falls_away) & (back_depth >= falls_away)
+        for side, other in ((0, out_depth), (1, back_depth)):
+            turned = 1.0 - (normal * at_offset(normal, INK_REACH[pair + side], reach)).sum(axis=2)
+            crease = numpy.maximum(crease, turned * (other >= depth * INK_LEVEL))
+    return near_side, crease, narrow
+
+
+def shape_corner(shapes, reach):
+    """How surely the shape itself turns a corner at each pixel (the game's shape_corner): the faces a span out on
+    either side turn apart by a corner's turn and each runs on flat as far again."""
+    import numpy
+    corner = numpy.zeros(shapes.shape[:2])
+    span = numpy.maximum(reach * INK_SPAN, INK_SPAN_PX)
+    for pair in range(0, 8, 2):
+        way, back = INK_REACH[pair], INK_REACH[pair + 1]
+        one, other = at_offset(shapes, way, span), at_offset(shapes, back, span)
+        one_beyond, other_beyond = at_offset(shapes, way, span * 2.0), at_offset(shapes, back, span * 2.0)
+        flat_sides = smoothstep(INK_FLAT_SIDE * 0.9, INK_FLAT_SIDE, numpy.minimum(
+            (one * one_beyond).sum(axis=2), (other * other_beyond).sum(axis=2)))
+        turn = smoothstep(INK_SHAPE_TURN * 0.75, INK_SHAPE_TURN, 1.0 - (one * other).sum(axis=2))
+        corner = numpy.maximum(corner, turn * flat_sides)
+    return corner
+
+
+def ink_lines(depth, normal, index, fov):
+    """How strongly each pixel is inked, 0 to 1, by the game's rule (ink_edges.gdshader's fragment): `index` 1 marks a
+    textured model's pixels."""
+    import numpy
+    textured_here = index > 0.5
+    to_pixels = depth.shape[0] / 1080.0
+    thin = smoothstep(INK_THIN[0], INK_THIN[1], depth)
+    full = numpy.where(textured_here, INK_TEXTURED_PX, INK_LINE_PX) * to_pixels
+    reach = full * (1.0 - thin) + thin
+    near_side, crease, narrow = neighbours(depth, normal, reach)
+    small = numpy.maximum(reach * INK_SMALL_PART_SHARE, 1.0)
+    again = narrow & (small < reach)
+    if again.any():
+        small_near, small_crease, _ = neighbours(depth, normal, numpy.where(again, small, reach))
+        near_side = numpy.where(again, small_near, near_side)
+        crease = numpy.where(again, small_crease, crease)
+        reach = numpy.where(again, small, reach)
+    depth_edge = smoothstep(INK_DEPTH_BREAK * 0.35, INK_DEPTH_BREAK * 0.5, near_side)
+    crease_edge = smoothstep(INK_CREASE_BREAK * 0.75, INK_CREASE_BREAK, crease)
+    if textured_here.any():
+        crease_edge = numpy.where(textured_here, crease_edge * shape_corner(shape_normals(depth, fov), reach),
+                                  crease_edge)
+    return numpy.maximum(depth_edge, crease_edge) * (1.0 - smoothstep(INK_FADE[0], INK_FADE[1], depth))
+
+
+def ink_view(scene, view, out, objects, sky):
+    """The view's look with the game's ink lines laid over it: <name>-ink.png beside <name>-look.png. The haze is
+    left out of the pass render, where it would scatter the distances (the game's ink reads the surfaces' depth)."""
+    import numpy
+    import OpenImageIO
+    for item in objects:
+        item.pass_index = 1 if textured(item) else 0
+    passes = out / f"{view['name']}-passes.exr"
+    set_hidden(sky, True)
+    pass_render(scene, passes)
+    set_hidden(sky, False)
+    depth, normal, index = exr_channels(passes)
+    passes.unlink()
+    look = OpenImageIO.ImageBuf(str(out / f"{view['name']}-look.png"))
+    pixels = numpy.asarray(look.get_pixels(OpenImageIO.FLOAT))
+    share = ink_lines(depth, normal, index, float(view["fov"]))[..., None]
+    pixels[..., :3] = pixels[..., :3] * (1.0 - share) + numpy.asarray(INK_COLOUR) * share
+    inked = OpenImageIO.ImageBuf(OpenImageIO.ImageSpec(pixels.shape[1], pixels.shape[0], pixels.shape[2],
+                                                       OpenImageIO.UINT8))
+    inked.set_pixels(OpenImageIO.ROI(), numpy.ascontiguousarray(pixels, dtype=numpy.float32))
+    if not inked.write(str(out / f"{view['name']}-ink.png")):
+        raise RuntimeError(f"the ink view {view['name']} was not written: {inked.geterror()}")
+
+
 def main():
     stage, views, out = arguments()
     out.mkdir(parents=True, exist_ok=True)
@@ -406,8 +720,12 @@ def main():
         plane = bpy.data.objects.new("no_ground", None)
     if views.get("plain"):
         plain(objects)
+    else:
+        haze_volumes(objects)
+        water_mirrors(objects)
     lamps(scene, views.get("lights", []))
     layers = {item.name: layer_of(item) for item in objects}
+    sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky")]
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))
         crowds = [item for item in objects if item.type == "POINTCLOUD"] if view.get("hide_crowds") else []
@@ -420,13 +738,17 @@ def main():
         hidden = [item for item in objects if layers[item.name] in view.get("hide_layers", [])]
         set_hidden(hidden, True)
         render(scene, out / f"{view['name']}-look.png", transparent=False)
+        if view.get("ink"):
+            ink_view(scene, view, out, objects, sky)
         set_hidden(hidden, False)
         for item in crowds:
             item.hide_render = item.hide_viewport = False
         if view.get("look_only"):
             continue
         plane.hide_render = True
+        set_hidden(sky, True)  # the haze and the stars are air and sky, not the place's objects
         render(scene, out / f"{view['name']}-mask.png", transparent=True)
+        set_hidden(sky, False)
         plane.hide_render = False
         set_hidden(objects, True)
         render(scene, out / f"{view['name']}-ground.png", transparent=True)

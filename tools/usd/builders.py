@@ -379,3 +379,89 @@ def tube_arc(radius, axis_high, start, end, length, surface, segments=24):
         first = 2 * segment
         triangles += [[first, first + 1, first + 2], [first + 1, first + 3, first + 2]]
     return mesh(points, triangles, uvs, surface)
+
+
+def pcg32_floats(seed, count, increment=1442695040888963407):
+    """The first `count` numbers of Godot 4's RandomNumberGenerator seeded with `seed`, as its randf() gives them
+    (core/math/random_pcg.h: PCG32 seeded by pcg32_srandom_r with the default increment; a float from two draws, the
+    first's leading zeros its exponent), so a world drawn from a seed in the game draws the same here."""
+    mask = (1 << 64) - 1
+    state, inc = 0, ((increment << 1) | 1) & mask
+
+    def draw():
+        nonlocal state
+        old = state
+        state = (old * 6364136223846793005 + inc) & mask
+        shifted = (((old >> 18) ^ old) >> 27) & 0xFFFFFFFF
+        rotation = old >> 59
+        return ((shifted >> rotation) | (shifted << ((-rotation) & 31))) & 0xFFFFFFFF
+
+    draw()
+    state = (state + seed) & mask
+    draw()
+    found = []
+    for _ in range(count):
+        exponent = draw()
+        if exponent == 0:
+            found.append(np.float32(0.0))
+            continue
+        leading = 32 - exponent.bit_length()
+        found.append(np.float32(math.ldexp(float(np.float32(draw() | 0x80000001)), -32 - leading)))
+    return found
+
+
+def stars(count, seed, sky_distance, distance, radius, smallest, largest, surface):
+    """The game's star field (2099's Sky._stars): `count` stars from a Godot RandomNumberGenerator seeded with `seed`,
+    each a direction of three draws in -1..1 and a size of one draw in smallest..largest, drawn as the game's star (a
+    sphere of `radius` with four sides and two rings: an octahedron) at `sky_distance` scaled by its size; here hung
+    at `distance` with its radius scaled by as much, so each star is as wide seen from the middle."""
+    numbers = iter(pcg32_floats(seed, count * 4))
+    spread = np.float32(2.0)
+    points, triangles = [], []
+    corners = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 0, -1], [0, -1, 0]], dtype=np.float64)
+    faces = [[0, 2, 1], [0, 3, 2], [0, 4, 3], [0, 1, 4], [5, 1, 2], [5, 2, 3], [5, 3, 4], [5, 4, 1]]
+    for number in range(count):
+        way = np.array([next(numbers) * spread - np.float32(1.0) for _ in range(3)], dtype=np.float32)
+        size = next(numbers) * (np.float32(largest) - np.float32(smallest)) + np.float32(smallest)
+        way = way.astype(np.float64) / np.linalg.norm(way.astype(np.float64))
+        across = radius * float(size) * distance / sky_distance
+        points.append(way * distance + corners * across)
+        triangles.append(np.asarray(faces) + 6 * number)
+    points = np.vstack(points)
+    return mesh(points, np.vstack(triangles), np.zeros((len(points), 2)), surface)
+
+
+def facing_out(shell, centre):
+    """A closed shell's faces turned to face out from `centre`, as a renderer reads a volume's inside by them."""
+    points, triangles = shell["points"], shell["triangles"].copy()
+    corners = points[triangles]
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    inward = (normals * (corners.mean(axis=1) - centre)).sum(axis=1) < 0
+    triangles[inward] = triangles[inward][:, ::-1]
+    return mesh(points, triangles, shell["uvs"], shell["surface"])
+
+
+def haze_volume(shape, centre, size, surface, segments=48):
+    """A closed shell round a body of haze, as the game's FogVolume shapes it: a `box`, an upright `cylinder` or an
+    `ellipsoid`, `size` its whole extent (x, y, z) and `centre` its middle, its faces facing out."""
+    return facing_out(haze_shell(shape, centre, size, surface, segments), np.asarray(centre, dtype=np.float64))
+
+
+def haze_shell(shape, centre, size, surface, segments):
+    """The shell of a haze body as built, before its faces are turned out (haze_volume)."""
+    centre = np.asarray(centre, dtype=np.float64)
+    half = np.asarray(size, dtype=np.float64) / 2
+    if shape == "box":
+        return box(centre, size, surface)
+    if shape == "ellipsoid":
+        ball = sphere([0.0, 0.0, 0.0], 1.0, surface, rings=segments // 2, segments=segments)
+        ball["points"] = ball["points"] * half + centre
+        return ball
+    if shape == "cylinder":
+        low, high = centre[1] - half[1], centre[1] + half[1]
+        side = cylinder_wall(1.0, low, high, surface, segments)
+        lids = [disc(1.0, height, surface, segments) for height in (low, high)]
+        shell = joined([side, *lids])
+        shell["points"] = shell["points"] * [half[0], 1.0, half[2]] + [centre[0], 0.0, centre[2]]
+        return shell
+    raise ValueError(f"no haze shape named {shape}")

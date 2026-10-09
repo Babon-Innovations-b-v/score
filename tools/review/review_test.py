@@ -136,6 +136,27 @@ def a_room_is_seen_from_inside():
     return problems
 
 
+def one_view_a_place_is_inked():
+    """A place's first own camera is also drawn with the game's ink lines, and only that one (one extra picture), and
+    the page lays it beside its look."""
+    import scene
+    problems = []
+    for path in sorted(scene.SCENES.glob("*.json")):
+        views = renders.record_views(scene.record(path.stem))
+        if [view["name"] for view in views if view.get("ink")] != [views[0]["name"]]:
+            problems.append(f"{path.stem}: not exactly its first view is inked")
+    with tempfile.TemporaryDirectory() as folder:
+        out = pathlib.Path(folder)
+        (out / "scene/now").mkdir(parents=True)
+        for name in ("a-look.png", "a-ink.png", "b-look.png"):
+            (out / "scene/now" / name).write_bytes(b"")
+        body = page.scene_section({"views": ["a", "b"], "report": {"layers": [], "objects": 0, "triangles": 0,
+                                                                   "materials": []}, "extent": [[0], [1]]}, out)
+        if "scene/now/a-ink.png" not in body or "b-ink.png" in body:
+            problems.append("the page does not lay the inked view beside its look")
+    return problems
+
+
 def an_overlap_reads_in_the_resting_table():
     """An object caught only for lying inside another (a hung one: no gap, no depth) reads as its overlap."""
     rows = page.resting_rows("now", [{"object": "lamp_1", "passed": False, "result": "hung, not checked; overlaps "
@@ -146,7 +167,8 @@ def an_overlap_reads_in_the_resting_table():
 
 
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
-          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, an_overlap_reads_in_the_resting_table)
+          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, one_view_a_place_is_inked,
+          an_overlap_reads_in_the_resting_table)
 
 
 if __name__ == "__main__":

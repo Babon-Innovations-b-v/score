@@ -94,6 +94,80 @@ def check_lights_and_structure(folder):
     assert sky.IsA(UsdLux.DomeLight) and math.isclose(sky.GetAttribute("score:exposure").Get(), 0.85, rel_tol=1e-6)
 
 
+def check_sky_builders():
+    """The star field is the game's (Godot's RandomNumberGenerator of seed 9, as this port of random_pcg.h draws it:
+    its first draws pinned so a change to the port shows, not checked against a running Godot; 1800 stars as wide
+    seen from the middle wherever they hang), and a haze shell closes round its body in each of the game's FogVolume
+    shapes."""
+    assert [round(float(value), 6) for value in builders.pcg32_floats(9, 3)] == [0.896333, 0.085484, 0.925146]
+    near = builders.stars(1800, 9, 700.0, 700.0, 0.7, 0.4, 1.3, None)
+    far = builders.stars(1800, 9, 700.0, 1900.0, 0.7, 0.4, 1.3, None)
+    assert len(near["points"]) == 1800 * 6 and len(near["triangles"]) == 1800 * 8
+    middles = far["points"].reshape(1800, 6, 3).mean(axis=1)
+    assert np.allclose(np.linalg.norm(middles, axis=1), 1900.0)
+    widths = np.ptp(far["points"].reshape(1800, 6, 3), axis=1).max(axis=1) / 1900.0
+    assert np.allclose(widths, np.ptp(near["points"].reshape(1800, 6, 3), axis=1).max(axis=1) / 700.0)
+    assert 2 * 0.7 * 0.4 / 700 - 1e-9 <= widths.min() and widths.max() <= 2 * 0.7 * 1.3 / 700 + 1e-9
+    first = middles[0] / 1900.0
+    way = np.array([0.896333 * 2 - 1, 0.085484 * 2 - 1, 0.925146 * 2 - 1])
+    assert np.allclose(first, way / np.linalg.norm(way), atol=1e-5), first
+    for shape in ("box", "cylinder", "ellipsoid"):
+        shell = builders.haze_volume(shape, [1.0, 2.0, 3.0], [4.0, 2.0, 6.0], None)
+        assert np.allclose(shell["points"].min(axis=0), [-1.0, 1.0, 0.0], atol=1e-6), shape
+        assert np.allclose(shell["points"].max(axis=0), [3.0, 3.0, 6.0], atol=1e-6), shape
+
+
+def check_sky(folder):
+    """A record's stars, haze body, Earth haze ring and water mirror written onto its stage, with the game's numbers
+    kept where a renderer reads them; a place shown from another leaves its sky to the one showing it."""
+    ring = json.loads((scene.SCENES / "launch.json").read_text())["environment"]["haze"]
+    record = {
+        "water": [{"name": "harbour", "builder": "grid", "low": [-10, -10], "high": [10, 10], "height": 0.0,
+                   "step": 5.0, "surface": "harbour_water",
+                   "mirror": {"along": 0.65, "down": 0.2, "ripple_tip": 0.03, "ripple_size": 0.2}}],
+        "environment": {"background": "#030409", "ambient": {"colour": "#9fb8e6", "energy": 0.1}, "exposure": 0.85,
+                        "stars": {"count": 10, "seed": 9, "sky_distance": 700.0, "distance": 1900.0, "radius": 0.7,
+                                  "size": [0.4, 1.3], "colour": "#eef2ff"},
+                        "haze": {"shape": "box", "centre": [0.0, 1.4, 0.0], "size": [6.0, 2.8, 6.0],
+                                 "colour": "#ece8e0", "density": 0.025, "forward": 0.3, "reach": 24.0}}}
+    stage = Usd.Stage.CreateNew(str(folder / "sky.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    export.library_materials(stage, PLACE, f"/{PLACE}")
+    scene.write(stage, PLACE, record, folder)
+    haze = stage.GetPrimAtPath(f"/{PLACE}/Sky/Haze")
+    assert haze.GetAttribute("score:kind").Get() == "haze"
+    assert math.isclose(haze.GetAttribute("score:haze_density").Get(), 0.025, rel_tol=1e-6)
+    assert math.isclose(haze.GetAttribute("score:haze_forward").Get(), 0.3, rel_tol=1e-6)
+    assert np.allclose(haze.GetAttribute("score:haze_colour").Get(), scene.colour("#ece8e0"), atol=1e-6)
+    stars = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/Stars"))
+    assert len(stars.GetPointsAttr().Get()) == 60
+    water = stage.GetPrimAtPath(f"/{PLACE}/Water/harbour")
+    assert math.isclose(water.GetAttribute("score:mirror_along").Get(), 0.65, rel_tol=1e-6)
+    assert math.isclose(water.GetAttribute("score:mirror_ripple_size").Get(), 0.2, rel_tol=1e-6)
+    record["environment"]["haze"] = ring
+    stage = Usd.Stage.CreateNew(str(folder / "ring.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    export.library_materials(stage, PLACE, f"/{PLACE}")
+    scene.write(stage, PLACE, record, folder)
+    ring_prim = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/HazeRing"))
+    points = np.asarray(ring_prim.GetPointsAttr().Get())
+    assert np.allclose(np.hypot(points[:, 0], points[:, 2]), 297.0, atol=1e-3)
+    assert np.isclose(points[:, 1].min(), 0.0) and np.isclose(points[:, 1].max(), 150.0)
+    from PIL import Image
+    alpha = np.asarray(Image.open(folder / "assets/textures/haze_ring.png"))[::-1, :, 3] / 255.0
+    over_pictures = alpha[:, int(180 / 360 * alpha.shape[1])]  # bearing 180 (south, +z): angle 90, on the pictures
+    in_gap = alpha[:, int(90 / 360 * alpha.shape[1])]  # bearing 90 (+x): angle 0, inside the gap
+    def at(height):
+        return int(height / 150.0 * alpha.shape[0])
+
+    assert abs(over_pictures[at(10)] - 0.15) < 0.02 and abs(over_pictures[at(84)] - 0.35) < 0.02, over_pictures
+    assert over_pictures[at(149)] < 0.02 and in_gap[at(1)] > 0.9
+    shown = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(shown, "/flat")
+    scene.write_places(shown, "flat", [{"name": "hub", "stage": "hub", "at": [0, 0, 0]}])
+    assert not shown.GetPrimAtPath("/flat/Places/hub/Sky").IsActive()
+
+
 def check_kit_lamps():
     """A lamp kind hangs its light where HubKit does: at its kind's `high` and a little in front of the piece."""
     kit = {"kinds": {"hub_wall_cage_lamp": {"light": {"strength": 0.05, "reach": 3.5, "high": 0.5}}}}
@@ -204,15 +278,27 @@ def check_records():
             assert len(view["eye"]) == 3 and len(view["aim"]) == 3 and view["fov"] > 0, (path.name, view)
         if record.get("inside"):
             assert "floor" in record, path.name
+        environment = record.get("environment", {})
+        haze = environment.get("haze")
+        if haze:
+            assert haze["shape"] in ("box", "cylinder", "ellipsoid", "ring") and haze.get("from"), path.name
+            assert haze["centre"] != "ball" or record.get("planned_ground"), path.name
+            if haze["shape"] != "ring":
+                builders.haze_volume(haze["shape"], [0.0, 0.0, 0.0], haze["size"], None)
+        if environment.get("stars"):
+            assert environment["stars"].get("from") and environment["stars"]["distance"] < 2000.0, path.name
 
 
 def main():
     check_builders()
+    check_sky_builders()
     with tempfile.TemporaryDirectory() as folder:
         check_lights_and_structure(pathlib.Path(folder))
         check_moon(pathlib.Path(folder))
         check_night_glow(pathlib.Path(folder))
         check_stretched_fixture(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_sky(pathlib.Path(folder))
     check_kit_lamps()
     check_tube()
     check_moved()

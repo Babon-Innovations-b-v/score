@@ -27,7 +27,14 @@
    "height": -0.01,
    "surface": "harbour_water",
    "step": 10.0,
-   "from": "game/prologue/earth_site/earth_site.gd:303-304 SEA_GROUND (x -320..-110, z -320..320, y -0.02), sea.tres"
+   "from": "game/prologue/earth_site/earth_site.gd:303-304 SEA_GROUND (x -320..-110, z -320..320, y -0.02), sea.tres",
+   "mirror": {
+    "along": 0.65,
+    "down": 0.2,
+    "ripple_tip": 0.03,
+    "ripple_size": 0.2,
+    "from": "game/art/shaders/harbour.gdshader:38-47,186-202 (MIRROR_ALONG 0.65, MIRROR_DOWN 0.2 eased by the square root of how far down the eye looks, RIPPLE_TIP 0.03, RIPPLE_SIZE 0.2; the water's own colour is sea.tres water_color, the library's harbour_water)"
+   }
   }
  ],
  "backdrop": [
@@ -371,7 +378,49 @@
    "energy": 0.05
   },
   "exposure": 0.85,
-  "from": "sky.gd:89 NIGHT_AMBIENT 0.05, EARTHSHINE colour, exposure 0.85; night.gd"
+  "from": "sky.gd:89 NIGHT_AMBIENT 0.05, EARTHSHINE colour, exposure 0.85; night.gd",
+  "haze": {
+   "shape": "ring",
+   "radius": 297.0,
+   "low": 0.0,
+   "high": 150.0,
+   "centre": [
+    0.0,
+    0.0
+   ],
+   "segments": 96,
+   "faint": 0.15,
+   "thicken_from": 50.0,
+   "thickest_at": 84.0,
+   "thickest": 0.35,
+   "gone_by": 150.0,
+   "ground_haze": 0.97,
+   "ground_height": 24.0,
+   "gap": [
+    302.0,
+    58.0
+   ],
+   "gap_edge": 4.0,
+   "horizon": "#03335f",
+   "zenith": "#020c22",
+   "deepest_at": 0.7,
+   "deepening": 0.55,
+   "eye": 1.7,
+   "from": "game/prologue/earth_site/night/night.gd:27-29,245-262 (an open ring SHORE_RADIUS 300 - 3 m round the site, 150 m tall from the water, 96 sides), game/art/shaders/night_haze.gdshader:13-30,49-56 (faint 0.15, thickening from 50 m to 0.35 at 84 m, gone by 150 m; 0.97 on the ground up to 24 m in the gap the pictures leave from 302 to 58 degrees, earth_shore_1.tres and _4.tres), night_sky.gdshaderinc:20-30 and earth_night_haze.tres (its colour the night sky's, horizon #03335f deepening to zenith #020c22, worked out here from an eye 1.7 m over the water at the site's middle; the Moon's glow left out)"
+  },
+  "stars": {
+   "count": 1800,
+   "seed": 9,
+   "sky_distance": 700.0,
+   "distance": 1900.0,
+   "radius": 0.7,
+   "size": [
+    0.4,
+    1.3
+   ],
+   "colour": "#eef2ff",
+   "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned with the place's own axes, where the game turns them with the world's spin and the hour, which the record does not carry"
+  }
  },
  "views": [
   {
