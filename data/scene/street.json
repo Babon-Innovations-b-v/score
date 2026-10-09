@@ -73,7 +73,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)",
+   "plain": "plate"
   },
   {
    "name": "parapet_own_up_east",
@@ -89,7 +90,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_own_up_west",
@@ -105,7 +107,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_own_up_south",
@@ -121,7 +124,8 @@
     0.2
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_own_up_north",
@@ -137,7 +141,8 @@
     0.2
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[0], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "roof_own_down",
@@ -153,7 +158,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)",
+   "plain": "plate"
   },
   {
    "name": "parapet_own_down_east",
@@ -169,7 +175,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_own_down_west",
@@ -185,7 +192,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_own_down_south",
@@ -201,7 +209,8 @@
     0.2
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_own_down_north",
@@ -217,7 +226,8 @@
     0.2
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:104-105 OWN_BLOCKS_AT[1], OWN_BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "roof_across",
@@ -233,7 +243,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)"
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE: the top of the block's body (tenement.gd:111, one box of WALL, flat_wall.tres)",
+   "plain": "plate"
   },
   {
    "name": "parapet_across_east",
@@ -249,7 +260,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_across_west",
@@ -265,7 +277,8 @@
     35.69
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_across_south",
@@ -281,7 +294,8 @@
     0.2
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   },
   {
    "name": "parapet_across_north",
@@ -297,7 +311,8 @@
     0.2
    ],
    "surface": "whitewash",
-   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)"
+   "from": "earth_site.gd:106-107 ACROSS_BLOCK_AT, BLOCK_SIZE; tenement.gd:50-55 PARAPET (1.0 high, 0.2 thick), 243-251 _dress_the_roof, 130-141 _on_face and _face_box (the launch-kit branch)",
+   "plain": "trim"
   }
  ],
  "objects": [

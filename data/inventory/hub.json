@@ -7,28 +7,31 @@
 		"views": [
 			{
 				"id": "v1",
-				"picture": "WORK/scene/hub/views/M3-north.png"
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-north.png"
 			},
 			{
 				"id": "v2",
-				"picture": "WORK/scene/hub/views/M3-northeast.png"
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-northeast.png"
 			},
 			{
 				"id": "v3",
-				"picture": "WORK/scene/hub/views/M3-east.png"
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-east.png"
 			},
 			{
 				"id": "v4",
-				"picture": "WORK/scene/hub/views/M3-south.png"
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-south.png"
 			},
 			{
 				"id": "v5",
-				"picture": "WORK/scene/hub/views/M3-west.png"
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-west.png"
 			},
 			{
 				"id": "v6",
-				"picture": "WORK/scene/hub/views/M3-northwest.png"
+				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-northwest.png"
 			}
+		],
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/plan/plan-v3.png"
 		]
 	},
 	"approved": "2026-10-05, the owner's rule: after the concept and style picks everything runs on its own, rows kept by score (keep >= 0.8); plan: c10caa6d-8632-455d-bf6a-b96ef0ef968f",

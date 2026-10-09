@@ -845,7 +845,8 @@
     -0.19358,
     0.411333
    ],
-   "from": "camp_airlock.gd:25-28,63-85 (the ramp's 2.4 m by 0.2 m slab) re-laid by airlock.gd:18-24,70-87 from the outer door's sill down at 20 degrees to 5 cm into the ground (a 0.38 m drop here)"
+   "from": "camp_airlock.gd:25-28,63-85 (the ramp's 2.4 m by 0.2 m slab) re-laid by airlock.gd:18-24,70-87 from the outer door's sill down at 20 degrees to 5 cm into the ground (a 0.38 m drop here)",
+   "plain": "plate"
   },
   {
    "name": "camp_airlock_footing",
@@ -872,7 +873,8 @@
     -0.036575,
     0.418721
    ],
-   "from": "camp_airlock.gd:31-32,88-96 (the dark footing block, 3.6 by 2.8 m out from the room's middle and 1.2 m deep, in roof.tres)"
+   "from": "camp_airlock.gd:31-32,88-96 (the dark footing block, 3.6 by 2.8 m out from the room's middle and 1.2 m deep, in roof.tres)",
+   "plain": "plate"
   }
  ]
 }

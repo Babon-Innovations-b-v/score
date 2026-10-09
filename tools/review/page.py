@@ -33,6 +33,7 @@ sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
 import characters  # noqa: E402
 import records  # noqa: E402
 import renders  # noqa: E402
+import placeholders  # noqa: E402  (tools/usd, on the path renders puts it)
 import resting  # noqa: E402  (tools/usd, on the path renders puts it)
 import scene as scene_record  # noqa: E402  (tools/usd)
 from model import SPREAD_LIMIT, THINNEST_LIMIT  # noqa: E402
@@ -125,19 +126,74 @@ def concept_section(concept, place_style, references_folder, pictures):
     return section("concept", "Concept and the creator's references", body)
 
 
-def plan_section(concept, runs, pictures):
+# The columns of a dimensioned plan's lists that hold rows of plain values (the concept step's plan.json).
+PLAN_COLUMNS = {"items": ("what", "x", "z", "wide", "deep", "wall", "kind"), "doors": ("wall", "at", "wide", "what"),
+                "people": ("x", "z"), "stools": ("x", "z")}
+
+
+def plan_cell(value):
+    if isinstance(value, dict):
+        return "; ".join(f"{key} {plan_cell(item)}" for key, item in value.items())
+    if isinstance(value, list):
+        return " × ".join(plan_cell(item) for item in value)
+    return f"{value:g}" if isinstance(value, float) else "" if value is None else str(value)
+
+
+def plan_table(name, entries):
+    """One list of a dimensioned plan as a table: rows of values under PLAN_COLUMNS' heads, or records under their
+    keys."""
+    if all(isinstance(entry, dict) for entry in entries):
+        heads = list(dict.fromkeys(key for entry in entries for key in entry))
+        cells = [[entry.get(key) for key in heads] for entry in entries]
+    else:
+        cells = [entry if isinstance(entry, list) else [entry] for entry in entries]
+        heads = list(PLAN_COLUMNS.get(name, ()))[:max(len(row) for row in cells)]
+    head = "".join(f"<th>{escaped(key)}</th>" for key in heads)
+    body = "".join("<tr>" + "".join(f"<td>{escaped(plan_cell(value))}</td>" for value in row) + "</tr>" for row in cells)
+    return (f"<h4>{escaped(name)}</h4><div class=\"scroll\"><table>{f'<thead><tr>{head}</tr></thead>' if head else ''}"
+            f"<tbody>{body}</tbody></table></div>")
+
+
+def dimensioned_block(found, pictures, number):
+    """One dimensioned plan the inventory names: its picture, its sizes, every list it holds and its notes."""
+    where = f"<small>{escaped(found['path'])}</small>"
+    if not found["found"]:
+        return f"<h3>Plan {number}</h3>" + missing(f"the plan the inventory names is not on disk ({escaped(found['path'])})")
+    picture = figure(pictures.add(found["picture"], f"dimensioned-{number}"), f"the dimensioned plan {number}") \
+        if found["picture"] else missing("its plan.png")
+    plan = found["plan"]
+    if plan is None:
+        return (f"<h3>Plan {number}</h3><p>{where}</p>{picture}<p>Drawn as a picture only: this plan has no plan.json, "
+                "so its numbers are not listed here.</p>")
+    sizes = [(key, escaped(plan_cell(value))) for key, value in plan.items()
+             if key not in ("notes",) and not isinstance(value, list)]
+    tables = "".join(plan_table(key, value) for key, value in plan.items()
+                     if isinstance(value, list) and value and key != "notes")
+    notes = "".join(f"<li>{escaped(note)}</li>" for note in plan.get("notes", []))
+    return (f"<h3>Plan {number}{': ' + escaped(plan['title']) if plan.get('title') else ''}</h3><p>{where}</p>{picture}"
+            + facts(sizes) + tables + (f"<ul>{notes}</ul>" if notes else ""))
+
+
+def plan_section(concept, runs, pictures, dimensioned):
+    """The dimensioned plans the place was drawn to (named in its inventory) and the plan's elements a run or the
+    concept folder wrote; said plainly when the place has neither."""
     planned = next((run["plan"] for run in reversed(list(runs.values())) if run and run["plan"]), None)
     elements = (planned or {}).get("elements") or (concept or {}).get("elements")
+    plans = "".join(dimensioned_block(found, pictures, number) for number, found in enumerate(dimensioned, 1))
+    if not elements and not plans:
+        return section("plan", "Dimensioned plan", "<p class=\"missing\">This place has no dimensioned plan: its "
+                       "inventory names none, and no run or concept folder holds a plan.json with elements.</p>")
     if not elements:
-        return section("plan", "Dimensioned plan", missing("no plan.json with elements in a run or the concept folder"))
+        return section("plan", "Dimensioned plan", plans)
     rows = "".join(
         f"<tr><td>{escaped(element['id'])}</td><td>{escaped(element['name'])}</td><td>{escaped(element['route'])}</td>"
         f"<td class=\"num\">{' × '.join(f'{value:g}' for value in element['size'])}</td>"
         f"<td class=\"num\">{len(element['at'])}</td></tr>" for element in elements)
     picture = figure(pictures.add(concept["plan_picture"], "plan"), "the plan, 1 m grid, with its side elevation") \
-        if concept and concept["plan_picture"] else missing("plan.png")
-    body = (f"<p>{escaped((planned or {}).get('frame', ''))}</p>{picture}<div class=\"scroll\"><table><thead><tr><th>element</th>"
-            f"<th>what</th><th>route</th><th>size, m</th><th>spots</th></tr></thead><tbody>{rows}</tbody></table></div>")
+        if concept and concept["plan_picture"] else "" if plans else missing("plan.png")
+    body = (plans + f"<h3>The plan's elements</h3><p>{escaped((planned or {}).get('frame', ''))}</p>{picture}"
+            f"<div class=\"scroll\"><table><thead><tr><th>element</th><th>what</th><th>route</th><th>size, m</th>"
+            f"<th>spots</th></tr></thead><tbody>{rows}</tbody></table></div>")
     return section("plan", "Dimensioned plan", body)
 
 
@@ -530,6 +586,23 @@ def resting_block(stages):
             + table(["stage", "object", "gap, cm", "depth, cm", "result", "caught"], rows, "Every object rests."))
 
 
+def placeholder_block(stages):
+    """The placeholder check (tools/usd/placeholders.py) on every stage ({label: its faults}): each visible thing that
+    stands in for a made piece, and the rule it breaks."""
+    if not stages:
+        return missing("no OpenUSD stage given")
+    counts = [f"{escaped(label)}: {'no placeholder' if not faults else f'{len(faults)} placeholders'}"
+              for label, faults in stages.items()]
+    rows = [f"<tr><td>{escaped(label)}</td><td>{escaped(fault['prim'])}</td><td>{escaped(fault['rule'])}</td>"
+            f"<td>{verdict(False)}</td><td>{escaped(fault['why'])}</td></tr>"
+            for label, faults in stages.items() for fault in faults]
+    return (f"<p>Everything visible on the stage is a made piece, the game's own model placed or a plain plate, pipe "
+            f"or trim (tools/usd/placeholders.py): a box, quad, disc, lathe, sphere or torus of the scene record that "
+            f"does not say which plain thing it is, a kit piece built in code that the sorter sends to the prop "
+            f"pipeline, a mesh with no material or in the default grey, and a proxy each fail. {'; '.join(counts)}."
+            f"</p>" + table(["stage", "prim", "rule", "result", "caught"], rows, "Nothing stands in for a made piece."))
+
+
 def table(head, rows, empty):
     if not rows:
         return f"<p>{empty}</p>"
@@ -537,7 +610,7 @@ def table(head, rows, empty):
             f'<tbody>{"".join(rows)}</tbody></table></div>')
 
 
-def checks_section(runs, agreement, rests):
+def checks_section(runs, agreement, rests, stand_ins):
     gates = [row for label, run in runs.items() if run and run["checks"] for row in gate_rows(label, run["checks"])]
     sweeps = [row for label, run in runs.items() if run and run["sweep"] for row in sweep_rows(label, run["sweep"])]
     body = ("<h3>Model gate</h3><p>Every made model at its laid size: a wall under 3 mm or proportions more than 20% "
@@ -555,6 +628,7 @@ def checks_section(runs, agreement, rests):
             + "<h3>Rebakes</h3><p>Models a run baked more than once, in order (the bake reports in made/).</p>"
             + table(["run", "model", "bakes"], bake_rows(runs), "No model was baked twice.")
             + "<h3>Resting on the ground</h3>" + resting_block(rests)
+            + "<h3>Placeholders</h3>" + placeholder_block(stand_ins)
             + "<h3>Against the game</h3>" + agreement_block(agreement))
     return section("checks", "Checks and what they caught", body)
 
@@ -634,17 +708,19 @@ def build(options):
     concept = records.concept(options.concept)
     closeups = {row: pictures.add(path, f"closeup-{row}") for run in runs.values() if run
                 for row, path in run["closeups"].items()}
+    inventory = records.inventory(options.place)
+    stages = [(label, stage) for label, stage in (("before", options.before_stage), ("now", options.stage)) if stage]
     sections = [
         concept_section(concept, style, options.references, pictures),
-        plan_section(concept, runs, pictures),
-        inventory_section(records.inventory(options.place), pictures),
+        plan_section(concept, runs, pictures, (inventory or {}).get("dimensioned", [])),
+        inventory_section(inventory, pictures),
         closeups_section(runs, pictures),
         models_section(runs, shots, out, closeups),
         surfaces_section(options.place, runs),
         scene_section(scene, out, options.place, getattr(options, "game_shots", None), pictures),
         characters_section(cast),
-        checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in
-                                                 (("before", options.before_stage), ("now", options.stage)) if stage}),
+        checks_section(runs, options.agreement, {label: resting.check(stage) for label, stage in stages},
+                       {label: placeholders.check(stage) for label, stage in stages}),
     ]
     sources = facts([(label, escaped(run["folder"])) for label, run in runs.items() if run])
     # Each word capitalised by its first letter only: str.title() wrote "Player'S Flat".

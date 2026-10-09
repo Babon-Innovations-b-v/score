@@ -49,6 +49,12 @@ def test_a_row_with_no_box_on_a_kept_view_is_refused():
     assert any("no box, no row" in line for line in wrong), wrong
 
 
+def test_a_row_the_concept_does_not_show_says_why():
+    assert inventory.problems(an_inventory(a_row(box=None, unseen="behind the camera")), "habitat") == []
+    wrong = inventory.problems(an_inventory(a_row(box=None)), "habitat")
+    assert any("no 'unseen'" in line for line in wrong), wrong
+
+
 def test_a_row_must_say_its_kind_anchor_size_and_count():
     wrong = inventory.problems(an_inventory(a_row(kind="shared", anchor="somewhere", size=[1, 0, 1], count=0)), "habitat")
     assert len(wrong) == 4, wrong
