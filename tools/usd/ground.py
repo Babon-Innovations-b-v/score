@@ -32,6 +32,11 @@ LEVEL_BLEND = 4.0
 # (radius), so a sphere rests in it rather than rolling off.
 DENT_DEPTH = 0.08
 DENT_WIDTH = 0.9
+# The ground dug out under the base's pit (the game's Ground.DUG_PAST, DUG_CLEAR, DUG_BACK, ground.gd:99-104): down
+# past the pit's floor by DUG_PAST over all of the pit and DUG_CLEAR further out, coming back up over DUG_BACK more.
+DUG_PAST = 0.3
+DUG_CLEAR = 0.4
+DUG_BACK = 1.4
 
 
 def ground_record(place):
@@ -76,18 +81,29 @@ class Ground:
         # (ground_detail.py); a ground without one is drawn in its skin.
         self.detail = record.get("detail")
         self.plan = seat_frame(record["plan_out"], 0.0)
+        # The pit the game digs the ground out under, round the base seat (`dug`: its radius and depth).
+        self.dug = record.get("dug")
         seat_out, self.heading = np.asarray(entry["out"], dtype=float), float(entry["heading"])
-        seat = seat_frame(seat_out, self.heading)
-        middle = self.direction(seat, seat_out, on_seat[0], on_seat[1])
-        self.frame = seat_frame(middle, self.heading)
-        self.origin = middle * self.radius
+        seat_out = seat_out / np.linalg.norm(seat_out)
+        if "flat" in entry:
+            # A room laid flat on a seat (the base's modules on the base seat, as main.tscn stands them): its middle
+            # at `flat` (across, along) on the unturned seat's plane, its frame the seat's turned `heading`.
+            seat = seat_frame(seat_out, 0.0)
+            self.frame = seat_frame(seat_out, self.heading)
+            self.origin = seat_out * self.radius + seat[0] * entry["flat"][0] + seat[2] * entry["flat"][1]
+            middle = self.origin / np.linalg.norm(self.origin)
+        else:
+            seat = seat_frame(seat_out, self.heading)
+            middle = self.direction(seat, seat_out * self.radius, on_seat[0], on_seat[1])
+            self.frame = seat_frame(middle, self.heading)
+            self.origin = middle * self.radius
         # A place whose frame stands on a floor above the ground (the camp's habitat, `lift` metres over the ground
         # under its middle): its y is measured from that floor.
         self.drop = float(self.plan_height(middle)[0][0]) + float(entry["lift"]) if "lift" in entry else 0.0
 
-    def direction(self, frame, out, across, along):
-        """The way out to a flat place on a seat (Seat.spot_of, then the spot's up)."""
-        point = np.asarray(out, dtype=float) / np.linalg.norm(out) * self.radius + frame[0] * across + frame[2] * along
+    def direction(self, frame, origin, across, along):
+        """The way out to a flat place on a seat whose middle is `origin` (Seat.spot_of, then the spot's up)."""
+        point = np.asarray(origin, dtype=float) + frame[0] * across + frame[2] * along
         return point / np.linalg.norm(point)
 
     def plan_height(self, directions):
@@ -105,6 +121,19 @@ class Ground:
         bottom = self.heights[row + 1, column] * (1 - part_x) + self.heights[row + 1, column + 1] * part_x
         return top * (1 - part_y) + bottom * part_y, flat
 
+    def height(self, directions):
+        """The ground's height in each direction, as the game's Ground.height_at gives it: the plan's, dug out under
+        the base's pit (`dug`) when the plan has one."""
+        height, flat = self.plan_height(directions)
+        if not self.dug:
+            return height, flat
+        directions = np.atleast_2d(directions)
+        from_base = self.radius * np.arccos(np.clip(directions @ self.plan[1], -1.0, 1.0))
+        clear = float(self.dug["radius"]) + DUG_CLEAR
+        share = np.clip((from_base - clear) / DUG_BACK, 0.0, 1.0)
+        dug = -(float(self.dug["deep"]) + DUG_PAST) * (1.0 - share * share * (3.0 - 2.0 * share))
+        return np.where(from_base >= clear + DUG_BACK, height, np.minimum(height, dug)), flat
+
     def in_place_frame(self, points):
         """World points (from the ball's middle) in the place's frame."""
         return (np.atleast_2d(points) - self.origin) @ self.frame.T - np.array([0.0, self.drop, 0.0])
@@ -112,8 +141,8 @@ class Ground:
     def standing(self, across, along, lift):
         """Where a piece laid at (across, along) of the place stands, lifted `lift` off the ground under it, and the
         turn of its own seat; both in the place's frame (MadePlace.piece_standing)."""
-        out = self.direction(self.frame, self.frame[1], across, along)
-        height, _ = self.plan_height(out)
+        out = self.direction(self.frame, self.origin, across, along)
+        height, _ = self.height(out)
         position = self.in_place_frame(out * (self.radius + height[0] + lift))[0]
         own = seat_frame(out, self.heading)
         return position, own @ self.frame.T
@@ -125,9 +154,9 @@ class Ground:
         across = np.arange(low[0] - margin, high[0] + margin + step, step)
         along = np.arange(low[1] - margin, high[1] + margin + step, step)
         grid_x, grid_z = np.meshgrid(across, along)
-        flat = self.frame[1] * self.radius + grid_x.reshape(-1, 1) * self.frame[0] + grid_z.reshape(-1, 1) * self.frame[2]
+        flat = self.origin + grid_x.reshape(-1, 1) * self.frame[0] + grid_z.reshape(-1, 1) * self.frame[2]
         directions = flat / np.linalg.norm(flat, axis=1, keepdims=True)
-        height, plan_flat = self.plan_height(directions)
+        height, plan_flat = self.height(directions)
         points = self.in_place_frame(directions * (self.radius + height)[:, None])
         columns, rows = len(across), len(along)
         corner = (np.arange(rows - 1)[:, None] * columns + np.arange(columns - 1)[None, :]).reshape(-1)
@@ -155,7 +184,7 @@ def footprint(kit):
 
 def plan_box(laid, low, high):
     """A box of the place's flat numbers as the box of the plan's flat numbers it covers."""
-    corners = [laid.direction(laid.frame, laid.frame[1], across, along)
+    corners = [laid.direction(laid.frame, laid.origin, across, along)
                for across in (low[0], high[0]) for along in (low[1], high[1])]
     _, flat = laid.plan_height(np.array(corners))
     return flat.min(axis=0), flat.max(axis=0)
@@ -182,7 +211,7 @@ def level(place, margin=LEVEL_MARGIN, blend=LEVEL_BLEND):
     laid = Ground(record, entry, kit.get("on_seat", [0.0, 0.0]))
     low, high = footprint(kit)
     box_low, box_high = plan_box(laid, low - margin, high + margin)
-    height = float(laid.plan_height(laid.frame[1])[0][0])
+    height = float(laid.plan_height(laid.origin / np.linalg.norm(laid.origin))[0][0])
     heights = levelled(laid.heights, laid.side, box_low, box_high, height, blend)
     save_heights(record, laid, heights)
     note(place, "level", {"box": [round(float(value), 2) for value in (*box_low, *box_high)],

@@ -5,6 +5,7 @@ object is not checked, and a box laid on a sloping planned ground stands on it.
 Run: .venv/bin/python tools/usd/resting_test.py   (make tests runs it with the framework's environment)
 """
 import json
+import math
 import pathlib
 import sys
 import tempfile
@@ -130,8 +131,34 @@ def two_boxes_inside_each_other_overlap():
         return problems
 
 
+def a_room_lies_flat_on_its_seat_over_a_dug_pit():
+    """A room laid flat on the base seat (`flat`) has its middle there on the seat's plane, its frame the seat's turned
+    by its heading, and the ground under the base's pit dug out past the pit's floor (`dug`), as the game's Ground digs
+    it; out past the dig the ground is the plan's again."""
+    with tempfile.TemporaryDirectory() as temporary:
+        sloped = sloping_ground(pathlib.Path(temporary))
+        record = {"heights": "heights.png", "skin": "skin.jpg", "side": 64.0, "low": 20.0, "span": 40.0,
+                  "radius": 220.0, "plan_out": [0.0, 1.0, 0.0], "folder": temporary,
+                  "dug": {"radius": 2.33, "deep": 0.9}}
+        room = ground.Ground(record, {"out": [0.0, 1.0, 0.0], "heading": math.pi / 2, "flat": [-9.0, 0.0]}, [0, 0])
+        problems = []
+        if not np.allclose(room.origin, [-9.0, 220.0, 0.0]):
+            problems.append(f"the room's middle stands at {room.origin}, not 9 m across the seat's plane")
+        if not np.allclose(room.in_place_frame(np.array([0.0, 220.0, 0.0]))[0], [0.0, 0.0, 9.0], atol=1e-9):
+            problems.append("the seat's middle is not 9 m along the room turned a quarter round")
+        hub = ground.Ground(record, {"out": [0.0, 1.0, 0.0], "heading": math.pi, "flat": [0.0, 0.0]}, [0, 0])
+        points, _, _ = hub.mesh(np.array([0.0, 0.0]), np.array([0.0, 0.0]), 8.0, 0.5)
+        middle = points[np.argmin(np.hypot(points[:, 0], points[:, 2]))]
+        if abs(middle[1] + 1.2) > 1e-6:
+            problems.append(f"the ground under the pit stands at {middle[1]:.3f}, not dug 0.3 past its 0.9 floor")
+        far = points[np.argmin(np.hypot(points[:, 0] + 7.0, points[:, 2]))]
+        if abs(far[1] - sloped.standing(7.0, 0.0, 0.0)[0][1]) > 0.02:
+            problems.append(f"7 m out the ground stands at {far[1]:.3f}, not the plan's own height")
+        return problems
+
+
 CHECKS = (floating_sunk_and_hung_are_told_apart, a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground,
-          two_boxes_inside_each_other_overlap)
+          two_boxes_inside_each_other_overlap, a_room_lies_flat_on_its_seat_over_a_dug_pit)
 
 
 if __name__ == "__main__":

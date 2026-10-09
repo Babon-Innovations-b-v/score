@@ -1,6 +1,6 @@
 {
  "place": "hangar",
- "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 22 x 40 m opening and the two roof leaves shut over it (plain slabs here: their own kit, hdoor, is not laid into the stage yet), the bare ship frame on its pad, the room fill and the indoor sky. Frame: the room's middle on its floor.",
+ "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 22 x 40 m opening and the two roof leaves shut over it (each its own kit's made plates and ribs, the hdoor stage), the bare ship frame on its pad, the room fill and the indoor sky. Frame: the room's middle on its floor.",
  "floor": [
   [
    -13.0,
@@ -112,40 +112,6 @@
    "layer": 2,
    "from": "module_shell.gd:774, module_doors.gd:67",
    "plain": "plate"
-  },
-  {
-   "name": "roof_leaf_west",
-   "builder": "box",
-   "centre": [
-    -5.5,
-    13.4,
-    0.0
-   ],
-   "size": [
-    11.3,
-    0.3,
-    40.6
-   ],
-   "surface": "painted_panel",
-   "layer": 2,
-   "from": "bay_room.gd:128-137 (shut)"
-  },
-  {
-   "name": "roof_leaf_east",
-   "builder": "box",
-   "centre": [
-    5.5,
-    13.4,
-    0.0
-   ],
-   "size": [
-    11.3,
-    0.3,
-    40.6
-   ],
-   "surface": "painted_panel",
-   "layer": 2,
-   "from": "bay_room.gd:128-137 (shut)"
   },
   {
    "name": "ship_body",
@@ -311,5 +277,29 @@
  "game_only": [
   "no game shot exists (the hangar is on an unpushed branch of the game)",
   "the roof leaves' own made pieces (the hdoor kit)"
+ ],
+ "places": [
+  {
+   "name": "roof_leaf_west",
+   "stage": "hdoor",
+   "at": [
+    -5.5,
+    13.25,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage"
+  },
+  {
+   "name": "roof_leaf_east",
+   "stage": "hdoor",
+   "at": [
+    5.5,
+    13.25,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage"
+  }
  ]
 }

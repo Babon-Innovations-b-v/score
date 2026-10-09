@@ -591,6 +591,13 @@
 					"roughness": 0.55,
 					"bump": 0.0002,
 					"bump_size": 0.02
+				},
+				"tray_tile": {
+					"recipe": "rubber",
+					"token": "surface-raised",
+					"roughness": 1.0,
+					"bump": 0.0,
+					"said": "the workshop parts tray's tiles (game/base/parts_tray/parts_tray.gd: Palette.SURFACE_RAISED on a plain StandardMaterial3D)"
 				}
 			}
 		},
@@ -732,6 +739,14 @@
 					"roughness": 0.92,
 					"bump": 0.0006,
 					"bump_size": 0.004
+				},
+				"tarp_cloth": {
+					"recipe": "rubber",
+					"token": "tarp",
+					"roughness": 1.0,
+					"bump": 0.0002,
+					"bump_size": 0.01,
+					"said": "the tarps over the greenhouse plot's later stages (game/base/plot_field/plot_field.gd:681-702: Palette.TARP, roughness 1)"
 				}
 			}
 		},
@@ -764,13 +779,20 @@
 			}
 		},
 		"glass": {
-			"is": "Glass that is drawn, not seen through: dark, frosted, tinted",
+			"is": "Glass that is drawn, not seen through: dark, frosted, tinted; and the clear glass a room is seen out of (its opacity the share of light it stops)",
 			"surface": "glass",
 			"variants": {
 				"glass": {
 					"recipe": "glass",
 					"token": "glass",
 					"roughness": 0.05
+				},
+				"clear_glass": {
+					"recipe": "glass",
+					"token": "clear-glass",
+					"roughness": 0.05,
+					"opacity": 0.02,
+					"said": "the greenhouse dome's and the walkway tubes' glass, nearly invisible as the game draws it (game/art/materials/clear_glass.tres: #A8C4D2 at alpha 5/255, unshaded)"
 				},
 				"glass_frosted": {
 					"recipe": "glass",

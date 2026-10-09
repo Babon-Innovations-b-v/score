@@ -1840,6 +1840,225 @@
    "surface": "painted_panel",
    "from": "plot_field.gd:100-102,638-659",
    "plain": "plate"
+  },
+  {
+   "name": "dome_glass",
+   "builder": "dome_roof",
+   "wide": 16.3,
+   "deep": 18.3,
+   "corner": 1.35,
+   "eave": 2.8,
+   "rise": 3.4,
+   "run": 5.5,
+   "surface": "clear_glass",
+   "rings": 6,
+   "steps": 4,
+   "layer": 2,
+   "from": "module_shell.gd:737-782 (_add_roof drawn in CLEAR when the room is glazed, game/art/materials/clear_glass.tres) and roof_rings 788-805 (ROOF_RINGS 6, run min(5.5, 8 - 0.3)); the outline 0.15 outside the 16 x 18 room (inward - WALL/2), corner 1.2 + 0.15, CORNER_STEPS 4; module_floors.gd:52, 85"
+  },
+  {
+   "name": "tarp_band_1",
+   "builder": "box",
+   "centre": [
+    -1.5,
+    0.025,
+    2.0
+   ],
+   "size": [
+    3.1,
+    0.05,
+    6.1
+   ],
+   "surface": "hazard_paint",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 1's tarp, plot-local centre (4.2, -2.7), 2.94 x 5.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_1",
+   "builder": "box",
+   "centre": [
+    -1.5,
+    0.035,
+    2.0
+   ],
+   "size": [
+    2.94,
+    0.07,
+    5.94
+   ],
+   "surface": "tarp_cloth",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 1's tarp, plot-local centre (4.2, -2.7), 2.94 x 5.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_band_2",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.025,
+    0.5
+   ],
+   "size": [
+    3.1,
+    0.05,
+    3.1
+   ],
+   "surface": "hazard_paint",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 2's tarp, plot-local centre (1.2, -4.2), 2.94 x 2.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_2",
+   "builder": "box",
+   "centre": [
+    -4.5,
+    0.035,
+    0.5
+   ],
+   "size": [
+    2.94,
+    0.07,
+    2.94
+   ],
+   "surface": "tarp_cloth",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 2's tarp, plot-local centre (1.2, -4.2), 2.94 x 2.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_band_3",
+   "builder": "box",
+   "centre": [
+    1.5,
+    0.025,
+    0.5
+   ],
+   "size": [
+    3.1,
+    0.05,
+    9.1
+   ],
+   "surface": "hazard_paint",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 3's tarp, plot-local centre (7.2, -4.2), 2.94 x 8.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_3",
+   "builder": "box",
+   "centre": [
+    1.5,
+    0.035,
+    0.5
+   ],
+   "size": [
+    2.94,
+    0.07,
+    8.94
+   ],
+   "surface": "tarp_cloth",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 3's tarp, plot-local centre (7.2, -4.2), 2.94 x 8.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_band_4",
+   "builder": "box",
+   "centre": [
+    -3.0,
+    0.025,
+    -2.5
+   ],
+   "size": [
+    6.1,
+    0.05,
+    3.1
+   ],
+   "surface": "hazard_paint",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 4's tarp, plot-local centre (2.7, -7.2), 5.94 x 2.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_4",
+   "builder": "box",
+   "centre": [
+    -3.0,
+    0.035,
+    -2.5
+   ],
+   "size": [
+    5.94,
+    0.07,
+    2.94
+   ],
+   "surface": "tarp_cloth",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 4's tarp, plot-local centre (2.7, -7.2), 5.94 x 2.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_band_5",
+   "builder": "box",
+   "centre": [
+    4.5,
+    0.025,
+    -1.0
+   ],
+   "size": [
+    3.1,
+    0.05,
+    12.1
+   ],
+   "surface": "hazard_paint",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 5's tarp, plot-local centre (10.2, -5.7), 2.94 x 11.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_5",
+   "builder": "box",
+   "centre": [
+    4.5,
+    0.035,
+    -1.0
+   ],
+   "size": [
+    2.94,
+    0.07,
+    11.94
+   ],
+   "surface": "tarp_cloth",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 5's tarp, plot-local centre (10.2, -5.7), 2.94 x 11.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_band_6",
+   "builder": "box",
+   "centre": [
+    -1.5,
+    0.025,
+    -5.5
+   ],
+   "size": [
+    9.1,
+    0.05,
+    3.1
+   ],
+   "surface": "hazard_paint",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 6's tarp, plot-local centre (4.2, -10.2), 8.94 x 2.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
+  },
+  {
+   "name": "tarp_6",
+   "builder": "box",
+   "centre": [
+    -1.5,
+    0.035,
+    -5.5
+   ],
+   "size": [
+    8.94,
+    0.07,
+    2.94
+   ],
+   "surface": "tarp_cloth",
+   "from": "plot_field.gd:681-702 (_tarp_boxes: stage 6's tarp, plot-local centre (4.2, -10.2), 8.94 x 2.94; TARP 0.07 high over a hazard band 0.05 high and 0.16 wider, plot_field.gd:108-111; Palette.TARP and HAZARD) on the plot at (-5.7, 0, 4.7) of the room (main.tscn:100-101, 139-140)",
+   "plain": "plate"
   }
  ],
  "places": [
@@ -2135,5 +2354,24 @@
   "the glass over the dome's frame (almost clear)",
   "the tarps over the later field stages",
   "the Moon's ground and sky seen through the glass"
+ ],
+ "planned_ground": {
+  "reach": 130.0,
+  "step": 2.0,
+  "ball": "moon_regolith"
+ },
+ "ground": [
+  {
+   "name": "earth",
+   "builder": "sphere",
+   "centre": [
+    -395.73,
+    492.95,
+    -843.71
+   ],
+   "radius": 220.0,
+   "surface": "earth_face",
+   "from": "the wreck record's Earth (game/world/earth, radius 220; Orbits/LunarCycle) carried into this room's frame on the base seat (data/ground/moon.json); in the ground so a room showing this one draws it once"
+  }
  ]
 }

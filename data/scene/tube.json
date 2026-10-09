@@ -88,6 +88,30 @@
    "surface": "roof_steel_paint",
    "from": "link_tube.gd:207-231, 301-311; tube_way.gd:38-39 (RADIUS 1.6, AXIS_HEIGHT 1.1)",
    "plain": "plate"
+  },
+  {
+   "name": "glass_east",
+   "builder": "tube_arc",
+   "radius": 1.62,
+   "axis_high": 1.1,
+   "start": 38.0,
+   "end": 104.0,
+   "length": 4.35,
+   "surface": "clear_glass",
+   "segments": 5,
+   "from": "link_tube.gd:26, 48-49, 222-231, 273-286 (the glass bands from 38 to 104 degrees each side in CLEAR, 5 segments round; radius 1.6, axis 1.1, tube_way.gd:38-39), at the hull entries' 1.62"
+  },
+  {
+   "name": "glass_west",
+   "builder": "tube_arc",
+   "radius": 1.62,
+   "axis_high": 1.1,
+   "start": -104.0,
+   "end": -38.0,
+   "length": 4.35,
+   "surface": "clear_glass",
+   "segments": 5,
+   "from": "link_tube.gd:26, 48-49, 222-231, 273-286 (the glass bands from 38 to 104 degrees each side in CLEAR, 5 segments round; radius 1.6, axis 1.1, tube_way.gd:38-39), at the hull entries' 1.62"
   }
  ],
  "environment": {
@@ -193,5 +217,38 @@
  "game_only": [
   "the glass between the hull's crown and feet (almost clear in the game)",
   "the Moon's ground and sky seen through it"
+ ],
+ "planned_ground": {
+  "reach": 130.0,
+  "step": 2.0,
+  "ball": "moon_regolith"
+ },
+ "ground": [
+  {
+   "name": "earth",
+   "builder": "sphere",
+   "centre": [
+    843.71,
+    492.95,
+    -403.73
+   ],
+   "radius": 220.0,
+   "surface": "earth_face",
+   "from": "the wreck record's Earth (game/world/earth, radius 220; Orbits/LunarCycle) carried into this room's frame on the base seat (data/ground/moon.json); in the ground so a room showing this one draws it once"
+  }
+ ],
+ "lights": [
+  {
+   "type": "sun",
+   "toward": [
+    -0.35002,
+    -0.32164,
+    -0.87979
+   ],
+   "colour": "#fff5e6",
+   "energy": 1.25,
+   "shadows": true,
+   "from": "sky.tscn:36-40, sky.gd:87 (energy 1.25 in full sun; not put out indoors, it lights a room through its glass); the greenhouse record's sun, matched to the game's shots, carried into this room's frame on the base seat"
+  }
  ]
 }

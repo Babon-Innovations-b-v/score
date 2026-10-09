@@ -1,6 +1,6 @@
 {
  "place": "garage",
- "about": "The garage as the game's (unpushed) bay room draws it beyond its kit: the shell's backing with the big south door's opening, its two leaves shut (plain slabs here: their own kit, gdoor, is not laid into the stage yet), the room fill and the indoor sky. Frame: the room's middle on its floor.",
+ "about": "The garage as the game's (unpushed) bay room draws it beyond its kit: the shell's backing with the big south door's opening, its two leaves shut (each its own kit's made plates and ribs, the gdoor stage), the room fill and the indoor sky. Frame: the room's middle on its floor.",
  "floor": [
   [
    -7.0,
@@ -58,38 +58,6 @@
    "surface": "roof_steel_paint",
    "layer": 2,
    "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
-  },
-  {
-   "name": "big_door_west",
-   "builder": "box",
-   "centre": [
-    -1.25,
-    2.0,
-    6.1
-   ],
-   "size": [
-    2.5,
-    4.0,
-    0.2
-   ],
-   "surface": "painted_panel",
-   "from": "bay_room.gd:110-124 (leaf 2.5 x 4.0 x 0.2, shut)"
-  },
-  {
-   "name": "big_door_east",
-   "builder": "box",
-   "centre": [
-    1.25,
-    2.0,
-    6.1
-   ],
-   "size": [
-    2.5,
-    4.0,
-    0.2
-   ],
-   "surface": "painted_panel",
-   "from": "bay_room.gd:110-124 (leaf 2.5 x 4.0 x 0.2, shut)"
   }
  ],
  "lights": [
@@ -199,5 +167,29 @@
   "no game shot exists (the garage is on an unpushed branch of the game)",
   "the big door leaves' own made pieces (the gdoor kit)",
   "the rover (it parks by the airlock)"
+ ],
+ "places": [
+  {
+   "name": "big_door_west",
+   "stage": "gdoor",
+   "at": [
+    -1.25,
+    0.0,
+    6.0
+   ],
+   "yaw": 0.0,
+   "from": "bay_room.gd:110-124, 142-158 (a leaf 2.5 x 4.0 x 0.2 shut at (+-1.25, 2.0, 6.0), drawn by its kit gdoor standing 2.0 down from the slab's middle, on its foot; the south wall's door frame unturned, module_shell.gd:423-426; LEAF_KITS :37); the leaf's own made pieces (data/kit/gdoor.json: plates and ribs) as their own stage"
+  },
+  {
+   "name": "big_door_east",
+   "stage": "gdoor",
+   "at": [
+    1.25,
+    0.0,
+    6.0
+   ],
+   "yaw": 0.0,
+   "from": "bay_room.gd:110-124, 142-158 (a leaf 2.5 x 4.0 x 0.2 shut at (+-1.25, 2.0, 6.0), drawn by its kit gdoor standing 2.0 down from the slab's middle, on its foot; the south wall's door frame unturned, module_shell.gd:423-426; LEAF_KITS :37); the leaf's own made pieces (data/kit/gdoor.json: plates and ribs) as their own stage"
+  }
  ]
 }

@@ -211,6 +211,61 @@ def fixture_asset(entry, out, world, boxes):
     return name, boxes[name]
 
 
+def label_picture(entry, world):
+    """A label's text as the game's Label3D draws it, as a picture: each line of `label` in the game's font (`font`,
+    `font_size` pixels) in `colour`, an `outline_size` pixel outline in `outline_colour`, the lines centred under each
+    other on a clear ground."""
+    from PIL import Image, ImageDraw, ImageFont
+    font = ImageFont.truetype(str(world_file(world, entry["font"])), int(entry["font_size"]))
+    stroke = int(entry.get("outline_size", 0)) // 2
+    lines = entry["label"]
+    ascent, descent = font.getmetrics()
+    tall = ascent + descent + 2 * stroke
+    wide = max(int(font.getlength(line)) for line in lines) + 2 * stroke + 2
+    picture = Image.new("RGBA", (wide, tall * len(lines)), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(picture)
+    for number, line in enumerate(lines):
+        draw.text((wide / 2, number * tall + stroke), line, font=font, anchor="ma",
+                  fill=entry.get("colour", "#ffffff"), stroke_width=stroke,
+                  stroke_fill=entry.get("outline_colour", "#000000"))
+    return picture
+
+
+def label(stage, path, entry, out, world):
+    """A label the game hangs in the room (a Label3D: a desk's readout, a screen's word): its text drawn unlit on a
+    quad `pixel_size` metres a pixel, centred on `at`, facing +z turned `yaw` degrees about up."""
+    picture = label_picture(entry, world)
+    textures = out / "assets/textures"
+    textures.mkdir(parents=True, exist_ok=True)
+    target = textures / f"label_{pathlib.Path(path).name}.png"
+    picture.save(target)
+    half = np.array(picture.size, dtype=np.float64) * float(entry["pixel_size"]) / 2
+    built = builders.quad([[-half[0], -half[1], 0.0], [half[0], -half[1], 0.0], [half[0], half[1], 0.0],
+                           [-half[0], half[1], 0.0]], None, (1.0, 1.0))
+    xform = UsdGeom.Xform.Define(stage, path)
+    xform.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry["at"])))
+    xform.AddRotateYOp().Set(float(entry.get("yaw", 0.0)))
+    prim = mesh_prim(stage, f"{path}/text", built)
+    material = backdrop_material(stage, f"{path}/look", f"../assets/textures/{target.name}")
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
+    for key, value in (("score:kind", "label"), ("score:label", "\n".join(entry["label"])),
+                       ("score:from", entry.get("from", ""))):
+        xform.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+
+
+def glow_material(stage, path, glow):
+    """A lit lamp's lens as the game paints it over the model's own look: black under its `colour` glowing
+    `strength` times (StandardMaterial3D emission and its energy)."""
+    material = UsdShade.Material.Define(stage, path)
+    shader = UsdShade.Shader.Define(stage, f"{path}/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.0, 0.0, 0.0))
+    shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(
+        Gf.Vec3f(*(channel * float(glow.get("strength", 1.0)) for channel in colour(glow["colour"]))))
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    return material
+
+
 def turn(xform, entry):
     """An entry's turn: its `rotation` (a unit quaternion [x, y, z, w] in the place's frame, for one standing on a seat
     of its own that the ball's curve tips), else `yaw` degrees about up (right-handed, as the game turns it: +x toward
@@ -224,8 +279,12 @@ def turn(xform, entry):
 
 def fixture(stage, path, entry, out, world, boxes):
     """One gameplay object where the game stands it: its model at `at`, turned (`turn`), scaled by `scale` or to
-    `height` metres tall; the things standing on it (`children`, each the same in its parent's frame) under it. A
-    `stretch` (x, y, z) presses it unevenly after that, as the game draws a model pressed to other proportions."""
+    `height` metres tall, worn in a `glow` the game paints over it when it has one; the things standing on it
+    (`children`, each the same in its parent's frame, or a `label`) under it. A `stretch` (x, y, z) presses it
+    unevenly after that, as the game draws a model pressed to other proportions."""
+    if "label" in entry:
+        label(stage, path, entry, out, world)
+        return
     name, (low, high) = fixture_asset(entry, out, world, boxes)
     scale = float(entry.get("scale", 1.0))
     stretch = entry.get("stretch")
@@ -239,9 +298,14 @@ def fixture(stage, path, entry, out, world, boxes):
     for key, value in (("score:kind", entry.get("kind", "fixture")), ("score:model", entry["model"]),
                        ("score:from", entry.get("from", ""))):
         xform.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+    if "glow" in entry:  # bound on the model's own meshes, so a label standing on it keeps its own look
+        glow = glow_material(stage, f"{path}_glow", entry["glow"])
+        for prim in Usd.PrimRange(xform.GetPrim()):
+            if prim.IsA(UsdGeom.Mesh):
+                UsdShade.MaterialBindingAPI.Apply(prim).Bind(glow)
     for number, child in enumerate(entry.get("children", []), start=1):
-        fixture(stage, f"{path}/{pathlib.Path(child['model']).stem}_{number}", dict(child, scale=child.get("scale", 1.0)),
-                out, world, boxes)
+        stem = "label" if "label" in child else pathlib.Path(child["model"]).stem
+        fixture(stage, f"{path}/{stem}_{number}", dict(child, scale=child.get("scale", 1.0)), out, world, boxes)
 
 
 def write_objects(stage, place, entries, out, world):

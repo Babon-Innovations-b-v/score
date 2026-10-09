@@ -68,6 +68,118 @@
    "surface": "roof_steel_paint",
    "layer": 2,
    "from": "ModuleShell backing (module_shell.gd:530, 649-692, 788-805, 1300-1313)"
+  },
+  {
+   "name": "tray_tile_0",
+   "builder": "box",
+   "centre": [
+    -0.92,
+    0.983,
+    0.44
+   ],
+   "size": [
+    0.2256,
+    0.006,
+    0.235
+   ],
+   "surface": "tray_tile",
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+  },
+  {
+   "name": "tray_tile_1",
+   "builder": "box",
+   "centre": [
+    -0.68,
+    0.983,
+    0.44
+   ],
+   "size": [
+    0.2256,
+    0.006,
+    0.235
+   ],
+   "surface": "tray_tile",
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+  },
+  {
+   "name": "tray_tile_2",
+   "builder": "box",
+   "centre": [
+    -0.44,
+    0.983,
+    0.44
+   ],
+   "size": [
+    0.2256,
+    0.006,
+    0.235
+   ],
+   "surface": "tray_tile",
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+  },
+  {
+   "name": "tray_tile_3",
+   "builder": "box",
+   "centre": [
+    -0.92,
+    0.983,
+    0.19
+   ],
+   "size": [
+    0.2256,
+    0.006,
+    0.235
+   ],
+   "surface": "tray_tile",
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+  },
+  {
+   "name": "tray_tile_4",
+   "builder": "box",
+   "centre": [
+    -0.68,
+    0.983,
+    0.19
+   ],
+   "size": [
+    0.2256,
+    0.006,
+    0.235
+   ],
+   "surface": "tray_tile",
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+  },
+  {
+   "name": "tray_tile_5",
+   "builder": "box",
+   "centre": [
+    -0.44,
+    0.983,
+    0.19
+   ],
+   "size": [
+    0.2256,
+    0.006,
+    0.235
+   ],
+   "surface": "tray_tile",
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
+  },
+  {
+   "name": "tray_tile_6",
+   "builder": "box",
+   "centre": [
+    -0.92,
+    0.983,
+    -0.06
+   ],
+   "size": [
+    0.2256,
+    0.006,
+    0.235
+   ],
+   "surface": "tray_tile",
+   "from": "parts_tray.gd:36-38, 150-162 (a BoxMesh tile under each part, 0.94 of its spot, 0.006 thick, in Palette.SURFACE_RAISED)"
   }
  ],
  "places": [
@@ -309,5 +421,135 @@
  "game_only": [
   "the first robot on the robot bench and its turntable (built from parts in code)",
   "the parts tray's tiles and parts"
+ ],
+ "objects": [
+  {
+   "name": "robot_p1",
+   "model": "game/robots/models/greenhouse/greenhouse.glb",
+   "at": [
+    0.3,
+    0.99,
+    0.0
+   ],
+   "yaw": 144.0,
+   "scale": 0.5,
+   "children": [
+    {
+     "label": [
+      "P1"
+     ],
+     "font": "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
+     "font_size": 64,
+     "pixel_size": 0.0025,
+     "outline_size": 12,
+     "colour": "#1b1712",
+     "outline_colour": "#000000",
+     "at": [
+      -0.56,
+      0.4,
+      0.0
+     ],
+     "yaw": -90.0,
+     "from": "robot_model.gd:25-34, 238-246 (the call sign on the frame's left side in Palette.ON_MACHINE; Label3D's own outline, 12 in black)"
+    }
+   ],
+   "from": "the first robot, planter P1, a bare greenhouse frame at the run's start (sim/robots/robot_build.gd:9-11, robot_record.gd:75-76; data/definitions/robot_model.json:2-3), stood on the turntable's stand at half size (planter.gd:36, 305-308; bench.tscn:17-20 Turntable (0.3, 0.97, 0) and Stand 0.02 up) turned START_ANGLE 0.8 pi (bench.gd:32, 108-109); the bench stands at the room's middle (main.tscn:112-113, 129-130)"
+  },
+  {
+   "name": "tray_rover_wheels",
+   "model": "game/robots/models/rover_wheels/rover_wheels.glb",
+   "at": [
+    -0.92,
+    1.0178,
+    0.44
+   ],
+   "yaw": 0.0,
+   "scale": 0.1444,
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), rover_wheels on spot 0 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.1444",
+   "children": [
+    {
+     "model": "game/robots/models/rover_wheels/rover_wheels.glb",
+     "at": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "yaw": 180.0,
+     "from": "part_model.gd:35-48 (a wheel set: its one wheel again at the axle's other end, turned about)"
+    }
+   ]
+  },
+  {
+   "name": "tray_battery_pack",
+   "model": "game/robots/models/battery_pack/battery_pack.glb",
+   "at": [
+    -0.68,
+    1.0355,
+    0.44
+   ],
+   "yaw": 0.0,
+   "scale": 0.45,
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), battery_pack on spot 1 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+  },
+  {
+   "name": "tray_link_basic",
+   "model": "game/robots/models/link_basic/link_basic.glb",
+   "at": [
+    -0.44,
+    0.986,
+    0.44
+   ],
+   "yaw": 0.0,
+   "scale": 0.45,
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), link_basic on spot 2 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+  },
+  {
+   "name": "tray_seed_drill",
+   "model": "game/robots/models/seed_drill/seed_drill.glb",
+   "at": [
+    -0.92,
+    1.103,
+    0.19
+   ],
+   "yaw": 0.0,
+   "scale": 0.45,
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), seed_drill on spot 3 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+  },
+  {
+   "name": "tray_picker",
+   "model": "game/robots/models/picker/picker.glb",
+   "at": [
+    -0.68,
+    1.0455,
+    0.19
+   ],
+   "yaw": 0.0,
+   "scale": 0.35,
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), picker on spot 4 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.35"
+  },
+  {
+   "name": "tray_soil_feeder",
+   "model": "game/robots/models/soil_feeder/soil_feeder.glb",
+   "at": [
+    -0.44,
+    0.986,
+    0.19
+   ],
+   "yaw": 0.0,
+   "scale": 0.4485,
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), soil_feeder on spot 5 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.4485"
+  },
+  {
+   "name": "tray_row_guide",
+   "model": "game/robots/models/row_guide/row_guide.glb",
+   "at": [
+    -0.92,
+    1.0198,
+    -0.06
+   ],
+   "yaw": 0.0,
+   "scale": 0.45,
+   "from": "the parts tray at the run's start (sim/robots/parts_tray.gd:27-29: the planter's KIT and KIT_TOOLS, robot_parts.gd:273, 281), row_guide on spot 6 (game/base/parts_tray/parts_tray.gd:185-199, 212-216; bench.tscn:23), scale 0.45"
+  }
  ]
 }

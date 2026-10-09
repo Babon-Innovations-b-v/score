@@ -179,8 +179,41 @@
     0.085,
     1.6901
    ],
-   "yaw": -21.8,
-   "from": "workstation.tscn:18-25"
+   "yaw": 158.2,
+   "from": "main.tscn:123-124 Workstation (yaw -21.8 on the seat) and workstation.tscn:18-25 (the side screens turned 12 degrees each way), in the hub's frame",
+   "children": [
+    {
+     "label": [
+      "OFFLINE"
+     ],
+     "font": "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
+     "font_size": 48,
+     "pixel_size": 0.0018,
+     "outline_size": 0,
+     "colour": "#f2766a",
+     "at": [
+      0.0,
+      0.0,
+      0.004
+     ],
+     "yaw": 0.0,
+     "from": "workstation.gd:85-96 (SCREEN_OFFLINE in Palette.DANGER, art/palette/palette.gd:26) while the desk is off, as it is until the base's first robot"
+    },
+    {
+     "model": "game/base/models/hub_kit/status_lamp_1.gltf",
+     "at": [
+      0.0,
+      -0.18,
+      0.02
+     ],
+     "yaw": 0.0,
+     "glow": {
+      "colour": "#ff3a22",
+      "strength": 4.0
+     },
+     "from": "workstation.gd:87-88 status lamp on the middle screen's bottom edge; status_lamp.gd red while not ready (art/materials/warning_lamp.tres: black, emission (1, 0.227, 0.133) x4)"
+    }
+   ]
   },
   {
    "name": "screen_left",
@@ -190,8 +223,8 @@
     0.095,
     1.8273
    ],
-   "yaw": -9.8,
-   "from": "workstation.tscn:18-25"
+   "yaw": 170.2,
+   "from": "main.tscn:123-124 Workstation (yaw -21.8 on the seat) and workstation.tscn:18-25 (the side screens turned 12 degrees each way), in the hub's frame"
   },
   {
    "name": "screen_right",
@@ -201,8 +234,8 @@
     0.085,
     1.4883
    ],
-   "yaw": -33.8,
-   "from": "workstation.tscn:18-25"
+   "yaw": 146.2,
+   "from": "main.tscn:123-124 Workstation (yaw -21.8 on the seat) and workstation.tscn:18-25 (the side screens turned 12 degrees each way), in the hub's frame"
   },
   {
    "name": "chair",
@@ -223,7 +256,7 @@
     0.0,
     2.028
    ],
-   "yaw": 240.0,
+   "yaw": 60.0,
    "children": [
     {
      "model": "models/hub_kit/glovebox_1.gltf",
@@ -242,9 +275,42 @@
       0.0
      ],
      "yaw": -20.0
+    },
+    {
+     "label": [
+      "Lab desk",
+      "Nothing to research yet"
+     ],
+     "font": "game/ui/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
+     "font_size": 48,
+     "pixel_size": 0.003,
+     "outline_size": 10,
+     "colour": "#a79c8b",
+     "outline_colour": "#0a0908",
+     "at": [
+      0.0,
+      1.6,
+      0.0
+     ],
+     "yaw": 180.0,
+     "from": "lab_desk.tscn Readout (1.6 over the desk, pixel 0.003, font 48, outline 10) and lab_desk.gd:16-28, 76-79 (NAME and NOTHING_YET in Palette.IDLE with an INK_LINE outline before the first harvest); the game turns it to the camera (billboard), here it faces the hub's middle"
+    },
+    {
+     "model": "game/base/models/hub_kit/status_lamp_1.gltf",
+     "at": [
+      -0.45,
+      0.82,
+      -0.35
+     ],
+     "yaw": 0.0,
+     "glow": {
+      "colour": "#ff3a22",
+      "strength": 4.0
+     },
+     "from": "lab_desk.gd:26 LAMP_AT (0.45, 0.82, 0.35) in the desk's frame, its model turned 180; red until research turns up (status_lamp.gd, warning_lamp.tres)"
     }
    ],
-   "from": "main.tscn:126-127 LabDesk (yaw 60, its model turned 180, lab_desk.tscn)"
+   "from": "main.tscn:126-127 LabDesk (yaw 60 on the seat, so 240 in the hub's frame) with its model turned 180 (lab_desk.tscn), so the model stands at 60 in the hub's frame"
   },
   {
    "name": "comms_desk",
@@ -313,7 +379,269 @@
     -3.665
    ],
    "yaw": 150.0,
-   "from": "layout.json tool_panel"
+   "from": "layout.json tool_panel; its 26 tools where game/base/models/hub_toolboard/hub_toolboard.tscn hangs them on the board",
+   "children": [
+    {
+     "model": "game/base/models/hub_kit/wrench_1.gltf",
+     "at": [
+      0.53,
+      0.51,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:42-43 (Wrench1_0)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_1.gltf",
+     "at": [
+      0.48,
+      0.51,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:45-46 (Wrench1_1)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_1.gltf",
+     "at": [
+      0.43,
+      0.51,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:48-49 (Wrench1_2)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_2.gltf",
+     "at": [
+      0.38,
+      0.55,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:51-52 (Wrench2_3)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_2.gltf",
+     "at": [
+      0.33,
+      0.55,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:54-55 (Wrench2_4)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_2.gltf",
+     "at": [
+      0.28,
+      0.55,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:57-58 (Wrench2_5)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "at": [
+      0.23,
+      0.59,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:60-61 (Wrench3_6)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "at": [
+      0.18,
+      0.59,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:63-64 (Wrench3_7)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "at": [
+      0.13,
+      0.59,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:66-67 (Wrench3_8)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_3.gltf",
+     "at": [
+      0.08,
+      0.59,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:69-70 (Wrench3_9)"
+    },
+    {
+     "model": "game/base/models/hub_kit/hammer_1.gltf",
+     "at": [
+      -0.04,
+      0.44,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:72-73 (Hammer1_10)"
+    },
+    {
+     "model": "game/base/models/hub_kit/hammer_1.gltf",
+     "at": [
+      -0.17,
+      0.44,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:75-76 (Hammer1_11)"
+    },
+    {
+     "model": "game/base/models/hub_kit/hammer_1.gltf",
+     "at": [
+      -0.3,
+      0.44,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:78-79 (Hammer1_12)"
+    },
+    {
+     "model": "game/base/models/hub_kit/pump_pliers_1.gltf",
+     "at": [
+      -0.46,
+      0.49,
+      0.0065
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:81-82 (PumpPliers1_13)"
+    },
+    {
+     "model": "game/base/models/hub_kit/wrench_4.gltf",
+     "at": [
+      0.52,
+      0.1,
+      0.0105
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:84-85 (Wrench4_14)"
+    },
+    {
+     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "at": [
+      0.41,
+      0.2,
+      0.0065
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:87-88 (Pliers1_15)"
+    },
+    {
+     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "at": [
+      0.32,
+      0.2,
+      0.0065
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:90-91 (Pliers1_16)"
+    },
+    {
+     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "at": [
+      0.23,
+      0.2,
+      0.0065
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:93-94 (Pliers1_17)"
+    },
+    {
+     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "at": [
+      0.14,
+      0.2,
+      0.0065
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:96-97 (Pliers1_18)"
+    },
+    {
+     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "at": [
+      0.05,
+      0.2,
+      0.0065
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:99-100 (Pliers1_19)"
+    },
+    {
+     "model": "game/base/models/hub_kit/pliers_1.gltf",
+     "at": [
+      -0.04,
+      0.2,
+      0.0065
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:102-103 (Pliers1_20)"
+    },
+    {
+     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "at": [
+      -0.2,
+      0.08,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:105-106 (Screwdriver1_21)"
+    },
+    {
+     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "at": [
+      -0.27,
+      0.08,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:108-109 (Screwdriver1_22)"
+    },
+    {
+     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "at": [
+      -0.34,
+      0.08,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:111-112 (Screwdriver1_23)"
+    },
+    {
+     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "at": [
+      -0.41,
+      0.08,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:114-115 (Screwdriver1_24)"
+    },
+    {
+     "model": "game/base/models/hub_kit/screwdriver_1.gltf",
+     "at": [
+      -0.48,
+      0.08,
+      0.0015
+     ],
+     "yaw": 0.0,
+     "from": "hub_toolboard.tscn:117-118 (Screwdriver1_25)"
+    }
+   ]
   },
   {
    "name": "tall_locker",
@@ -420,6 +748,18 @@
    "attenuation": 0.4,
    "shadows": false,
    "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
+  },
+  {
+   "type": "sun",
+   "toward": [
+    0.87979,
+    -0.32164,
+    -0.35002
+   ],
+   "colour": "#fff5e6",
+   "energy": 1.25,
+   "shadows": true,
+   "from": "sky.tscn:36-40, sky.gd:87 (energy 1.25 in full sun; not put out indoors, it lights a room through its glass); the greenhouse record's sun, matched to the game's shots, carried into this room's frame on the base seat"
   }
  ],
  "environment": {
@@ -547,5 +887,24 @@
   "the screens' live readouts and the label readouts over the desks",
   "the Moon outside the tubes' glass",
   "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+ ],
+ "planned_ground": {
+  "reach": 130.0,
+  "step": 2.0,
+  "ball": "moon_regolith"
+ },
+ "ground": [
+  {
+   "name": "earth",
+   "builder": "sphere",
+   "centre": [
+    412.73,
+    492.95,
+    843.71
+   ],
+   "radius": 220.0,
+   "surface": "earth_face",
+   "from": "the wreck record's Earth (game/world/earth, radius 220; Orbits/LunarCycle) carried into this room's frame on the base seat (data/ground/moon.json); in the ground so a room showing this one draws it once"
+  }
  ]
 }

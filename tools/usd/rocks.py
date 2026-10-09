@@ -55,8 +55,9 @@ class PlannedGround:
         self.radius = ground.radius
 
     def height(self, out):
-        """How far the ground stands over the round surface in a direction (Ground.height_at, on the plan)."""
-        return float(self.ground.plan_height(np.asarray(out)[None, :])[0][0])
+        """How far the ground stands over the round surface in a direction (Ground.height_at: the plan's, dug under
+        the base's pit)."""
+        return float(self.ground.height(np.asarray(out)[None, :])[0][0])
 
     def point(self, out):
         return out * (self.radius + self.height(out))
