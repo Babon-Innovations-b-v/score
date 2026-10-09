@@ -70,6 +70,8 @@ KINDS = {
     # The character maker's person chain (characters.py): one person a card, each step's model loaded in turn
     # (Kimodo with its 8B text encoder holds about 17 GB, the largest).
     "characters": SINGLE_CARD,
+    # SegviGen and GeoSAM2 on our own models (meshparts.py): SegviGen's README asks for at least 24 GB.
+    "meshparts": SINGLE_CARD,
 }
 # Kinds that take their offers in an order of their own. Pixal3D: the 80 GB cards first, which run ten takes at once
 # (18 takes an hour against an L4's 6, measured 2026-10-08). Library bakes (Cycles): the cards with ray-tracing
@@ -81,6 +83,7 @@ KIND_ORDER = {
     "pictures-20b": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
     # The judge on an L40S answered at about a third of an H100's pace (102 questions in 45 min, 2026-10-08).
     "judge": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
+    "meshparts": ("gpu-80gb", "gpu-48gb", "gpu-24gb"),
 }
 # Classes a kind takes only after LATE_MINUTES with nothing else to be had: the cards without ray-tracing cores, for
 # the bakes.
