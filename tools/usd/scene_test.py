@@ -1,12 +1,13 @@
 """Check what a place's scene record adds to its stage (tools/usd/scene.py), on records made here: the code builders'
 shapes (a room's walls with a doorway cut, a deck with a pit's hole, a dome closing at its top, a turned rocket, a
-flattened ring), a structure piece painted with its library surface and carrying its roof layer and the plain thing a
-primitive says it is, a piece built in its own frame and placed, a place shown turned and stretched, the game's
-lights in the stage's units with the game's own numbers kept, a kit room's lamps hung where HubKit hangs them, a
-walkway tube laid bay by bay along its length, a kit piece the game moves shifted by its node, the Moon drawn as the
-game's sky draws it, a kit light's night glow kept to its picture's bright parts, the engine's seeded random numbers,
-the planned rocks lying as the game lays them, the ground shader's detail baked with a decal, and every real record
-in data/scene naming only builders, surfaces, plain kinds and fields that exist.
+flattened ring, the ship's hull with its windows lying flat on it), a structure piece painted with its library
+surface and carrying its roof layer and the plain thing a primitive says it is, a piece built in its own frame and
+placed, a place shown turned and stretched, the game's lights in the stage's units with the game's own numbers kept,
+a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay along its length, a kit piece the
+game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit light's night glow kept to its
+picture's bright parts, the engine's seeded random numbers, the planned rocks lying as the game lays them, the ground
+shader's detail baked with a decal, and every real record in data/scene naming only builders, surfaces, plain kinds
+and fields that exist.
 
 Run: .venv/bin/python tools/usd/scene_test.py   (make tests runs it with the framework's environment)
 """
@@ -51,6 +52,13 @@ def check_builders():
     rocket = builders.lathe([[0.0, 3.0, 2.8, 1.5], [50.0, 60.0, 3.6, 0.0]], [-270.0, 0.0, -60.0], "x")
     assert np.isclose(rocket["points"][:, 1].max(), 60.0)
     assert np.isclose(np.hypot(rocket["points"][:, 0] + 270.0, rocket["points"][:, 2] + 60.0).max(), 3.6)
+    ship = builders.ship_hull([0.0, 0.5, 0.0], "hull", "nose", "band", "stripe", "seam", "steel", "glass")
+    ship_points = np.vstack([part["points"] for part in ship])
+    assert np.isclose(ship_points[:, 1].max(), 0.5 + 7.8) and np.isclose(ship_points[:, 1].min(), 0.5 + 0.8)
+    assert {part["surface"] for part in ship} == {"hull", "nose", "band", "stripe", "seam", "steel", "glass"}
+    window = next(part for part in ship if part["surface"] == "glass")["points"]
+    reach = np.hypot(window[:, 0], window[:, 2])
+    assert reach.min() > 1.6 - 1e-6 and reach.max() < 1.6 + 0.05, "a service window does not lie flat on the hull"
     facets = builders.walls(12, 4.5, 0.0, 3.1, "x", 15.0, [(0.0, 2.2, 2.6)])
     assert np.isclose(np.hypot(facets["points"][:, 0], facets["points"][:, 2]).min(), 4.5 / math.cos(math.pi / 12),
                       atol=1.2), "a facet's corners stand out on its corner radius"
