@@ -45,6 +45,8 @@ PEOPLE = ("take_c", "nev", "oona", "bram", "sefa", "kit_m_slim", "kit_m_avg", "k
           "kit_w_avg", "kit_w_broad", "leader", "guard", "driver", "tech_man", "tech_woman")
 # The garment design whose cloth settings (data/characters/garments/<design>/cloth.json) each kind is draped with.
 DESIGNS = {"work": "work_suit", "space": "space_suit", "jacket": "jacket", "coat": "coat", "trousers": "trousers"}
+# How many times a drape is tried before its step fails.
+DRAPE_TRIES = 3
 # Garments without sleeves, whose drapes are never judged by the arms they leave bare.
 SLEEVELESS = ("trousers",)
 WOMEN = ("nev", "oona", "kit_w_slim", "kit_w_avg", "kit_w_broad", "tech_woman")
@@ -477,9 +479,18 @@ def write_results(run, built):
 
 
 def hang(run, redrape, drape):
-    """One drape by the group's simulator, whether it held on the body recorded."""
-    run.held[drape["folder"]] = redrape(run, drape)
-    return f"held on body: {run.held[drape['folder']]}"
+    """One drape by the group's simulator, whether it held on the body recorded; a simulator that fails is tried
+    again up to DRAPE_TRIES times (Newton's cloth on a card is not the same twice, and kit_w_broad's coat, draped
+    whole on 2026-10-09, blew up at frame 15 on the next run)."""
+    for attempt in range(1, DRAPE_TRIES + 1):
+        try:
+            run.held[drape["folder"]] = redrape(run, drape)
+            break
+        except (subprocess.CalledProcessError, RuntimeError) as failure:
+            print(f"drape {drape['folder']} try {attempt} failed: {failure}", flush=True)
+            if attempt == DRAPE_TRIES:
+                raise
+    return f"held on body: {run.held[drape['folder']]} (try {attempt})"
 
 
 def run_group(folder):
