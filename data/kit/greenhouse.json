@@ -60,7 +60,8 @@
 		"greenhouse_pipe_bracket": 80,
 		"greenhouse_keyboard": 1,
 		"greenhouse_desklamp": 1,
-		"greenhouse_seed_tray": 12
+		"greenhouse_seed_tray": 12,
+		"greenhouse_control_cabinet": 1
 	},
 	"kinds": {
 		"greenhouse_wall_lower_plain": {
@@ -227,7 +228,8 @@
 		"greenhouse_under_floor_box": {},
 		"greenhouse_keyboard": {},
 		"greenhouse_desklamp": {},
-		"greenhouse_seed_tray": {}
+		"greenhouse_seed_tray": {},
+		"greenhouse_control_cabinet": {}
 	},
 	"models": {
 		"wall_lower_plain_1": {
@@ -856,6 +858,10 @@
 			"route": "model"
 		},
 		"seed_tray_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"control_cabinet_1": {
 			"glows": false,
 			"route": "model"
 		}
@@ -38703,6 +38709,36 @@
 			"layer": 1,
 			"child_of": "greenhouse_seedling_shelf",
 			"model": "seed_tray_1"
+		},
+		{
+			"kind": "greenhouse_control_cabinet",
+			"at": [
+				7.359,
+				0.9,
+				-8.359
+			],
+			"x": [
+				-0.70711,
+				0.0,
+				-0.70711
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.70711,
+				-0.0,
+				-0.70711
+			],
+			"size": [
+				0.5977,
+				1.4995,
+				0.5018
+			],
+			"layer": 1,
+			"model": "control_cabinet_1"
 		}
 	]
 }
