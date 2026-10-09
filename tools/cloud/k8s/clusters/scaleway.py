@@ -94,10 +94,20 @@ AUTOSCALER = {"expander": "random", "scale-down-unneeded-time": "5m", "scale-dow
               "balance-similar-node-groups": "true"}
 KUBECONFIG = HOME / "cloud" / f"kubeconfig-{CLUSTER_NAME}.yaml"
 WAIT_SECONDS = 15
+# A pool or cluster change waits out the cluster's own update (a pool max change takes about a minute) this often.
+BUSY_TRIES = 20
 
 
 def scw(*arguments):
-    """One scw call in the cluster's region, its JSON answer."""
+    """One scw call in the cluster's region, its JSON answer. A change asked while the cluster is still applying the
+    last one (Scaleway: "transient state") is asked again, BUSY_TRIES times WAIT_SECONDS apart."""
+    for _ in range(BUSY_TRIES):
+        try:
+            return backend.scw(*arguments, f"region={REGION}")
+        except subprocess.CalledProcessError as error:
+            if "transient state" not in (error.stderr or "") + (error.stdout or ""):
+                raise
+            time.sleep(WAIT_SECONDS)
     return backend.scw(*arguments, f"region={REGION}")
 
 

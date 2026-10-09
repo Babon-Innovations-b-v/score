@@ -49,6 +49,11 @@ def test_reading_the_autoscaler_and_jobs():
                "message": "pod triggered scale-up"}]
     found = submit.no_grow_times(events)
     assert set(found) == {"pod-a"} and found["pod-a"] == submit.parse_time("2026-10-09T14:00:00Z")
+    grown_after = [{"reason": "NotTriggerScaleUp", "involvedObject": {"name": "pod-c"},
+                    "lastTimestamp": "2026-10-09T14:20:39Z", "message": "pod didn't trigger scale-up: 8 max node group size reached"},
+                   {"reason": "TriggeredScaleUp", "involvedObject": {"name": "pod-c"},
+                    "lastTimestamp": "2026-10-09T14:20:59Z", "message": "pod triggered scale-up"}]
+    assert submit.no_grow_times(grown_after) == {}
     assert submit.job_outcome({"status": {"conditions": [{"type": "Complete", "status": "True"}]}}) == "done"
     assert submit.job_outcome({"status": {"conditions": [
         {"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}}) == "expired"
