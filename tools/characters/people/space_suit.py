@@ -8,6 +8,7 @@ anything hard one joint's, or, for a hard part that must stay seated on moving c
 at one spot. Everything faces +z with y up, in metres.
 """
 import blender
+import boots
 import drape
 import fit
 import networkx
@@ -51,11 +52,24 @@ class SpaceSuit:
             _, nearest = cKDTree(points).query(thin_points)
             points, self.limbs = thin_points, self.limbs[nearest]
         self.body = body
+        points = self.legs_into_the_boots(points, faces)
         self.body_tree = cKDTree(body.points)
         self.cloth_weights = skin.of_a_drape(points, faces, self.limbs, body)
         self.cloth = trimesh.Trimesh(points, faces, process=False)
         self.loops = [self.cloth.vertices[loop] for loop in open_loops(points, faces)]
         self.parts = {}
+
+    def legs_into_the_boots(self, points, faces):
+        """The coverall's legs drawn down into the moon boots where they end above them (`boots.lengthened`)."""
+        loops = [points[loop] for loop in open_loops(points, faces)]
+        for name, sign, _ in SIDES:
+            boot, _ = moon_boot(self.leg_end(loops, name).mean(0), sign)
+            points = boots.lengthened(points, self.limbs, boot, name)
+        return points
+
+    def leg_end(self, loops, name):
+        """The open loop of the cloth nearest the named foot: the end of that trouser leg."""
+        return min(loops, key=lambda ring: np.linalg.norm(ring.mean(0) - self.body.joints[f"{name}Foot"]))
 
     def keep(self, name, mesh, weights):
         self.parts[name] = (np.asarray(mesh.vertices), np.asarray(mesh.faces), weights)
@@ -357,22 +371,26 @@ class SpaceSuit:
     def the_boots(self):
         """The moon boots on the legs' ends, the right the left mirrored, soft: the foot's below
         the ankle, the shin's above it."""
-        data = np.load(SPACE_BOOT)
         names = self.body.joint_names
         for name, sign, side in SIDES:
-            leg_end = min(self.loops, key=lambda ring: np.linalg.norm(ring.mean(0) - self.body.joints[f"{name}Foot"]))
-            centre = leg_end.mean(0)
-            points = (data["points"] - BOOT_SHAFT_MIDDLE) * BOOT_SCALE
-            points[:, 1] -= points[:, 1].min()
-            points[:, 0] *= sign
-            points += [centre[0], 0.0, centre[2]]
-            faces = data["faces"] if sign > 0 else data["faces"][:, ::-1]
+            points, faces = moon_boot(self.leg_end(self.loops, name).mean(0), sign)
             rise = np.clip((points[:, 1] - BOOT_BLEND[0]) / (BOOT_BLEND[1] - BOOT_BLEND[0]), 0, 1)
             rise = rise * rise * (3 - 2 * rise)
             weights = np.zeros((len(points), len(names)))
             weights[:, names.index(f"{name}Foot")] = 1 - rise
             weights[:, names.index(f"{name}Shin")] = rise
             self.keep(f"boot_{side}", trimesh.Trimesh(points, faces, process=False), weights)
+
+
+def moon_boot(centre, sign):
+    """One moon boot, stood on the floor under a leg's end at `centre` (the left, or mirrored for `sign` -1): points
+    and faces."""
+    data = np.load(SPACE_BOOT)
+    points = (data["points"] - BOOT_SHAFT_MIDDLE) * BOOT_SCALE
+    points[:, 1] -= points[:, 1].min()
+    points[:, 0] *= sign
+    points += [centre[0], 0.0, centre[2]]
+    return points, (data["faces"] if sign > 0 else data["faces"][:, ::-1])
 
 
 def strip(mesh, planes):

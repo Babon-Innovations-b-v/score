@@ -25,6 +25,12 @@ UNDER_THE_CROTCH = 0.10
 # covers the neck from about 1.44 m).
 HEAD_JOINTS = ("Neck1", "Neck2", "Head", "HeadEnd")
 TAKE_C_NECK_CUT = 1.42
+# The bare hand runs this share of the forearm up from the wrist, under the sleeve. Cut at the wrist itself (the
+# hand joint's own skin) it met a cuff only where the cuff ended exactly at the wrist: the Warp drapes' cuffs ended a
+# centimetre or two short and Blender's up to eight, and a clip slides a cuff another centimetre, so the background
+# showed between sleeve and hand (owner, 2026-10-09: "their hands aren't attached to their forearms"). Under a cuff
+# that reaches, the forearm is hidden; under one that does not, a bare wrist shows, joined to the hand.
+UNDER_THE_CUFF = 0.5
 NECK_CUT = float(fit.y(TAKE_C_NECK_CUT))
 
 
@@ -117,9 +123,16 @@ def piece_of_the_body(body, kept):
 
 
 def bare_hands(body):
-    """The body's own hands."""
-    hands = [body.joint_names.index(f"{side}Hand") for side in ("Left", "Right")]
-    return piece_of_the_body(body, np.isin(body.weights.argmax(axis=1), hands))
+    """The body's own hands, and the UNDER_THE_CUFF share of each forearm next to them."""
+    owner = body.weights.argmax(axis=1)
+    kept = np.zeros(len(body.points), bool)
+    for side in ("Left", "Right"):
+        elbow, wrist = body.joints[side + "ForeArm"], body.joints[side + "Hand"]
+        forearm = wrist - elbow
+        share = (body.points - elbow) @ forearm / (forearm @ forearm)
+        kept |= owner == body.joint_names.index(side + "Hand")
+        kept |= (owner == body.joint_names.index(side + "ForeArm")) & (share >= 1.0 - UNDER_THE_CUFF)
+    return piece_of_the_body(body, kept)
 
 
 def head_and_neck(body, cut=NECK_CUT):

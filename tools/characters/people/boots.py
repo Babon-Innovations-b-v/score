@@ -3,8 +3,9 @@
 The boot is a lace-up work boot Hi3DGen (MIT) made from a drawing, straightened (toe along +z)
 and thinned, kept as `WORK_BOOT` in the look. It is scaled to the foot's heel-to-toe length plus
 room, turned to the foot's heading, stood on the floor and centred across the foot; the right
-boot is the left one mirrored. Trouser points below the boot's top are drawn in until they sit
-just outside its wall, blending back to the drape over a few centimetres above it.
+boot is the left one mirrored. A trouser leg that ends above the boot's top is drawn down into it
+(`lengthened`); trouser points below the boot's top are drawn in until they sit just outside its
+wall, blending back to the drape over a few centimetres above it.
 """
 import numpy as np
 import trimesh
@@ -26,6 +27,14 @@ TOE_BLEND = (0.0, 0.04, 0.7)
 SHAFT_BLEND = (0.03, 0.12, 0.75)
 # Trouser cloth over the boot's top takes the boot's weights, fading out this far above it.
 HEM_FADE = 0.08
+# A trouser leg reaches at least this far below the lowest point of its boot's top all round. A drape that ends
+# higher (Blender's cloth ends a few centimetres above the Warp drapes', and the boots then stood apart from the
+# trousers: owner, 2026-10-09) has its lower leg stretched down to it over STRETCH_OVER above its hem; a drape that
+# already reaches is left as it is.
+REACH_INTO = 0.03
+STRETCH_OVER = 0.30
+# The angles round a boot's shaft at which its top and a trouser leg's hem are read.
+RIM_BINS = 16
 
 
 def bare_foot(body, side):
@@ -114,6 +123,46 @@ class Walls:
         return self.cache[key]
 
 
+def around(points, axis_point, bins=RIM_BINS):
+    """Which of `bins` angles round an upright line through `axis_point` each point lies at."""
+    offset = points[:, [0, 2]] - axis_point[[0, 2]]
+    return ((np.arctan2(offset[:, 0], offset[:, 1]) + np.pi) / (2 * np.pi) * bins).astype(int) % bins
+
+
+def lowest_top(boot):
+    """The lowest point of the boot's top all round: over the angles round its shaft, the least of its highest point
+    at each, and the shaft's middle at the top, where those angles are read from."""
+    top = boot[:, 1].max()
+    shaft = boot[boot[:, 1] > top - 0.03].mean(axis=0)
+    angle = around(boot, shaft)
+    tops = [boot[angle == bin_, 1].max() for bin_ in range(RIM_BINS) if (angle == bin_).any()]
+    return min(tops), shaft
+
+
+def lengthened(cloth_points, limbs, boot, side):
+    """One trouser leg stretched down until its hem reaches REACH_INTO below its boot's top all round (the highest
+    of its lowest points round the shaft); a leg that already reaches comes back unchanged."""
+    leg = limbs == ("left_leg" if side == "Left" else "right_leg")
+    low_top, shaft = lowest_top(boot)
+    near = leg & (np.linalg.norm(cloth_points[:, [0, 2]] - shaft[[0, 2]], axis=1) < 0.14) \
+        & (cloth_points[:, 1] < boot[:, 1].max() + STRETCH_OVER)
+    if not near.any():
+        return cloth_points
+    angle = around(cloth_points[near], shaft)
+    hem = max(cloth_points[near][angle == bin_, 1].min() for bin_ in range(RIM_BINS) if (angle == bin_).any())
+    target = low_top - REACH_INTO
+    if hem <= target:
+        return cloth_points
+    anchor = hem + STRETCH_OVER
+    stretch = (anchor - target) / (anchor - hem)
+    moved = cloth_points.copy()
+    below = leg & (cloth_points[:, 1] < anchor)
+    moved[below, 1] = anchor - (anchor - cloth_points[below, 1]) * stretch
+    print(f"{side}: trouser hem at {hem * 100:.1f} cm drawn down to {target * 100:.1f} cm, "
+          f"{REACH_INTO * 100:.0f} cm into the boot")
+    return moved
+
+
 def gather(cloth_points, limbs, boot, walls, side):
     """One trouser leg gathered over its boot's top: below the top each point is held between
     just outside the boot's wall and GATHER_SLACK beyond it; the hold fades out BLEND_ABOVE up."""
@@ -172,11 +221,12 @@ def smoothed_moves(before, after, faces):
 
 
 def tucked(cloth_points, faces, limbs, boots_by_side, left_faces, body):
-    """The cloth with both trouser legs gathered into their boots."""
+    """The cloth with both trouser legs drawn down into their boots where they end short, and gathered there."""
     faces = np.asarray(faces)
     points = cloth_points
     for side, boot in boots_by_side.items():
         boot_faces = left_faces if side == "Left" else left_faces[:, ::-1]
+        points = lengthened(points, limbs, boot, side)
         points = gather(points, limbs, boot, Walls(boot, boot_faces), side)
     return smoothed_moves(cloth_points, points, faces)
 

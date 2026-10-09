@@ -124,6 +124,7 @@ def trousers(body, folder, shoes, into_boots=False, lines=None):
     before = np.asarray(mesh.vertices)
     points = before
     for side, (shoe_points, shoe_faces) in zip(("Left", "Right"), shoes):
+        points = boots.lengthened(points, limbs, shoe_points, side)
         points = boots.gather(points, limbs, shoe_points, boots.Walls(shoe_points, shoe_faces), side)
     points = boots.smoothed_moves(before, points, faces)
     if lines is not None:

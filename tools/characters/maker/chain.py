@@ -20,7 +20,8 @@ The steps, each a program in its own environment:
             as a clean shell (hair_fit.py) and thinned (Blender)
   face      a first build's head as a depth view (face_depth.py), the face drawn on it (klein base 4B with the
             refcontrol depth LoRA), the first seed kept (face_pick.py)
-  build     the person built (people/body.py), then made a UsdSkel asset (skel_usd.py)
+  build     the person built (people/body.py), then made a UsdSkel asset (skel_usd.py), and its joins and stance
+            measured into out/checks/ (people/joins.py)
   review    turntables of each outfit and frames through a few clips, rendered by Cycles (blender_review.py)
 """
 import json
@@ -266,6 +267,7 @@ def build(chain):
     chain.run([MOTION, PEOPLE / "body.py", "--out", chain.out / f"{name}.glb", "--report", chain.out / f"{name}.json",
                "--identity", chain.look / "identity.npz", *(["--clips", *wanted] if wanted else [])])
     chain.run([MOTION, MAKER.parent / "skel_usd.py", chain.out / f"{name}.glb", "--out", chain.out / "usd"])
+    chain.run([MOTION, PEOPLE / "joins.py", chain.out / f"{name}.glb", "--out", chain.out / "checks", "--record-only"])
 
 
 # The clips the review page shows moving, where the make has them.
