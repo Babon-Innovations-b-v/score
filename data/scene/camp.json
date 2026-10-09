@@ -1,6 +1,6 @@
 {
  "place": "camp",
- "about": "The expedition camp's habitat on Mars as the game draws it beyond its kit: Mars's planned ground out to the plan's edge and the ball under it, the furniture CampRooms stands in the domes, the six dome lamps, the mast's beacon, the sun and the sky. Frame: the CampHabitat node's own (0.55 m over the ground under the camp seat, turned -130.5 degrees).",
+ "about": "The expedition camp's habitat on Mars as the game draws it beyond its kit: Mars's planned ground out to the plan's edge and the ball under it, the furniture CampRooms stands in the domes, the grounds round it (their own stage), the six dome lamps, the mast's beacon, the sun and the sky. Frame: the CampHabitat node's own (0.55 m over the ground under the camp seat, turned -130.5 degrees).",
  "planned_ground": {
   "reach": 130.0,
   "step": 2.0,
@@ -510,6 +510,19 @@
    "from": "camp_rooms.gd:24-58,150-228 (CampRooms.place_of, its made model turned half round)"
   }
  ],
+ "places": [
+  {
+   "name": "grounds",
+   "stage": "campgrounds",
+   "at": [
+    0.0,
+    -0.4769,
+    0.0
+   ],
+   "yaw": 130.5,
+   "from": "expedition_camp.gd LAYOUT on the camp seat; the habitat stands 0.55 m over the ground there (0.4769 m over the seat's level), turned -130.5 degrees (camp_habitat.gd:318-327)"
+  }
+ ],
  "lights": [
   {
    "type": "omni",
@@ -736,7 +749,7 @@
  ],
  "game_only": [
   "the camp's airlock and its link tube (the whole of the outside shots' foreground)",
-  "the grounds' things (lander, crane, cargo, reactor, cases, cables, boot rock, cairn: the campgrounds place, not laid yet)",
+  "the boot rock (the game's own model, not placed yet) and the cairn (held back for the ending)",
   "the haze that colours the sky (a fog volume) and the wind's dust",
   "the mast's light beam",
   "the planned rocks",
