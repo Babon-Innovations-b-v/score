@@ -78,3 +78,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   seeded plan with each tower an instance of its kind's made model, the land, the mountains and the harbour out to its
   shore. The flat, the street, the square and the launch view reference it through a `places` entry; it refuses to
   write while a tower kind has no made model, so no stand-in tower is ever shown.
+- **The sound stage** (`sound.py`) writes `layers/sound.usda` only (UsdMedia.SpatialAudio: room tones from
+  `data/sound/places.json`, objects' own sounds from their inventory rows, motions' sounds from `data/motion`, and
+  a bank of surface sounds each library surface points at) and copies the files into `assets/sound/`. Levels come
+  from `data/sound/catalogue.json` with `sounds.json` over it. It never writes the base. `soundtrack` mixes what a
+  camera hears; the review's walk and the demo's videos use it.

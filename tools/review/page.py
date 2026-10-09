@@ -453,7 +453,7 @@ def scene_section(scene, out, place=None, games=None, pictures=None):
             + facts([("layers", escaped(" over ".join(report["layers"]))), ("objects", report["objects"]),
                       ("triangles", f"{report['triangles']:,}"), ("materials", len(report["materials"])),
                       ("extent, m", escaped(f"{scene['extent'][0]} to {scene['extent'][1]}"))])
-            + "<h3>A walk round it</h3><video src=\"scene/walk.mp4\" controls loop muted playsinline "
+            + "<h3>A walk round it</h3><video src=\"scene/walk.mp4\" controls loop playsinline "
               "poster=\"scene/walk-strip.jpg\"></video>"
             + figure("scene/walk-strip.jpg", "the walk, every tenth frame")
             + (f'<h3>Beside the game</h3>{complete}<div class="grid pairs">{"".join(beside)}</div>' if complete else "")

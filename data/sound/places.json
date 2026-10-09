@@ -1,0 +1,113 @@
+{
+	"is": "each place's sounds that belong to no object: the room tones it plays all the time (loops, by their names in data/sound/catalogue.json and sounds.json), and, outside on the Moon, what is heard through the suit instead (heard_through). tools/usd/sound.py writes them into the place's stage as non-spatial UsdMedia.SpatialAudio",
+	"places": {
+		"hub": {
+			"loops": [
+				"habitat",
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): the hub is the habitat's room id drawn as the C12 room"
+		},
+		"habitat": {
+			"loops": [
+				"habitat",
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43)"
+		},
+		"greenhouse": {
+			"loops": [
+				"greenhouse",
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43)"
+		},
+		"workshop": {
+			"loops": [
+				"workshop",
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43)"
+		},
+		"airlock": {
+			"loops": [
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): the airlock plays the base's hum alone"
+		},
+		"tube": {
+			"loops": [
+				"link_tube",
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): the west and east corridors"
+		},
+		"lab": {
+			"loops": [
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) names no lab, so the game plays nothing there; the base's hum is laid here as under every other room of the base (its brief: 'under every room of the base')"
+		},
+		"garage": {
+			"loops": [
+				"garage",
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) has no garage yet ('There is no garage yet, so none is played'); the garage's own generated tone (its brief: 'the garage where the rover is kept') and the base's hum are laid here"
+		},
+		"hangar": {
+			"loops": [
+				"base_hum"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) has no hangar; the base's hum is laid here as under every room of the base"
+		},
+		"camp": {
+			"loops": [],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and Hearing: inside the camp on Mars the game plays no place's loop (Mars inside is no base room)"
+		},
+		"wreck": {
+			"loops": [],
+			"heard_through": [
+				"suit_fans",
+				"suit_breathing_calm"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): outside on the Moon there is no air and no place is heard, only the suit; SuitSounds (the game 2099's game/sound/suit/suit_sounds.gd:3-9, 27-48): out on the Moon or on Mars the suit's fans run and the player breathes, calm while walking"
+		},
+		"old_station": {
+			"loops": [],
+			"heard_through": [
+				"suit_fans",
+				"suit_breathing_calm"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): outside on the Moon there is no air and no place is heard, only the suit; SuitSounds (the game 2099's game/sound/suit/suit_sounds.gd:3-9, 27-48): out on the Moon or on Mars the suit's fans run and the player breathes, calm while walking"
+		},
+		"flat": {
+			"loops": [
+				"earth_flat"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) FLAT: the flat in the prologue and through the wait on Earth"
+		},
+		"stairwell": {
+			"loops": [
+				"earth_flat"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and _earth_place: the flat plays on down the stairs (the stairwell cut it to silence in the first playthrough, 2026-10-01)"
+		},
+		"street": {
+			"loops": [
+				"earth_flat"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and _earth_place: the flat plays on down to the car, nothing once the car door shuts"
+		},
+		"square": {
+			"loops": [
+				"prologue_crowd"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) BALCONY: the crowd in the square under the balcony"
+		},
+		"launch": {
+			"loops": [],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and _earth_place: nothing plays on the walk to the rocket; the rocket's own sounds come with its motion"
+		}
+	}
+}
