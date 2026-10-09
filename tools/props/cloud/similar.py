@@ -5,7 +5,8 @@ tools/usd/compare.py: each object rendered alone beside its close-up).
 
 pairs.json: {name: [first picture, second picture]}, local paths; out.json: {name: likeness}, the cosine of DINOv2's
 class tokens (similar_worker.py). DINOv2 (facebookresearch/dinov2, code and weights Apache-2.0; facebook/dinov2-base
-through transformers) runs on any card; the owner's limits, the self-delete, the watchdog and the delete are batch.py's.
+through transformers) runs on any card, or on a processor machine when no card is in stock; the owner's limits, the
+self-delete, the watchdog and the delete are batch.py's.
 """
 import argparse
 import json
@@ -36,7 +37,7 @@ def price(pairs, account):
     """Print the estimate and refuse what passes the owner's limits; the offers and the minutes allowed."""
     found = batch.offers(list(capacity.classes_for(KIND)))
     if not found:
-        raise SystemExit("no card is sold by the backend")
+        raise SystemExit("no machine for DINOv2 is sold by the backend")
     minutes = SETUP_MINUTES + len(pairs) * MINUTES_A_PAIR
     dearest = max(offer[0] for offer in found)
     spent = batch.month_spent(account)
@@ -108,7 +109,7 @@ def likeness(pairs, out, who):
         spread.on_machines(run, account, found, 1, KIND, queue, set_up,
                            lambda machine, _share, card: compare(machine, pairs, card, out))
         if not run.machines:
-            raise SystemExit("no card could be rented")
+            raise SystemExit("no machine could be rented")
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)

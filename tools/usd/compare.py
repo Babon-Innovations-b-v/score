@@ -6,8 +6,8 @@ DINOv2, so a swapped, broken or wrong-scale model shows as a low score instead o
 
 For every inventory row with a close-up (the row's `close_up` or `closeup` file, or <row>.png in --closeups), the
 row's first object is rendered alone (annotate.py: nothing else drawn) from YAWS ways round it at ELEVATION, framed on
-its own bounds, since a close-up is a three-quarter picture whose camera was never recorded: the way whose outline
-matches the close-up's best stands for the close-up's camera. Two numbers per object:
+its own bounds, since a close-up is a three-quarter picture whose camera was never recorded: every way is scored, and the
+one most like the close-up stands for the close-up's camera. Two numbers per object:
 
     outline   the overlap (intersection over union) of the object's mask with the close-up's (its pixels apart from
               the plain background, the largest piece), each cut to its own box and set in the same square
@@ -38,6 +38,8 @@ ELEVATION = 20.0
 FOV = 30.0
 SIZE = (384, 384)
 SQUARE = 128
+# The renders run on a rented card (Cycles on the card), or on a processor machine when no card is in stock.
+RENDER_CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "cpu-32c-128gb", "cpu-32c-64gb")
 # A close-up's background is its border's colour; a pixel further from it than this (0 to 255, any channel) is the
 # object's.
 BACKGROUND_STEP = 24
@@ -137,38 +139,49 @@ def chosen(stage_path, rows, closeups):
     return found
 
 
-def best_way(out, row, path, picture):
-    """The yaw whose outline matches the close-up's best: (its view name, the outline score, the render's mask)."""
+def ways(out, row, path, picture):
+    """Each yaw's render of one object beside its close-up: [(view name, outline score, render cut file)], the cuts
+    written into out."""
     target = closeup_mask(Image.open(picture))
-    scored = []
+    found = []
     for step in range(YAWS):
-        seen = annotate.load(out, f"{row}-yaw{step}")
+        name = f"{row}-yaw{step}"
+        seen = annotate.load(out / "renders", name)
         mask = annotate.mask(seen, path)
-        scored.append((outline(mask, target), f"{row}-yaw{step}", mask))
-    score, name, mask = max(scored, key=lambda found: found[0])
-    return name, score, mask
+        cut = out / "cuts" / f"{name}.png"
+        cut_on_white(Image.open(seen["look"]), mask).save(cut)
+        found.append((name, outline(mask, target), cut))
+    return found
 
 
-def compare(stage_path, rows, out, closeups=None, cloud=False, who="compare"):
-    """Every object with a close-up rendered and scored; the list, worst likeness first."""
+def best_of(scored, likeness):
+    """The way that matches the close-up best: by DINOv2 likeness when it was measured, else by outline."""
+    return max(scored, key=lambda way: (likeness.get(way[0], -1.0), way[1]))
+
+
+def compare(stage_path, rows, out, closeups=None, cloud=False, who="compare", reuse=False):
+    """Every object with a close-up rendered and scored (with `reuse`, from the renders already in <out>/renders); the
+    list, worst likeness first. Every way round each object is scored, and the best stands for the close-up's camera."""
     out = pathlib.Path(out)
     bounds = object_bounds(stage_path)
     picked = chosen(stage_path, rows, closeups)
     views = [view for row, (path, _) in picked.items() for view in ring_views(row, path, *bounds[path])]
-    annotate.run(stage_path, views, out / "renders", cloud, SIZE)
-    pairs, found = {}, []
+    if not reuse:
+        annotate.run(stage_path, views, out / "renders", cloud, SIZE, RENDER_CLASSES)
+    (out / "cuts").mkdir(parents=True, exist_ok=True)
+    pairs, scored = {}, {}
     for row, (path, picture) in sorted(picked.items()):
-        name, score, mask = best_way(out / "renders", row, path, picture)
-        render_cut = out / f"{row}-render.png"
-        cut_on_white(Image.open(out / "renders" / f"{name}-look.png"), mask).save(render_cut)
-        closeup_cut = out / f"{row}-closeup.png"
+        closeup_cut = out / "cuts" / f"{row}-closeup.png"
         cut_on_white(Image.open(picture), closeup_mask(Image.open(picture))).save(closeup_cut)
-        pairs[row] = [str(render_cut), str(closeup_cut)]
-        found.append({"row": row, "object": path, "view": name, "outline": round(score, 3),
-                      "render": str(render_cut), "closeup": str(picture)})
+        scored[row] = ways(out, row, path, picture)
+        pairs.update({name: [str(cut), str(closeup_cut)] for name, _, cut in scored[row]})
     likeness = similar_scores(pairs, out, cloud, who)
-    for entry in found:
-        entry["likeness"] = likeness.get(entry["row"])
+    found = []
+    for row, (path, picture) in sorted(picked.items()):
+        name, score, cut = best_of(scored[row], likeness)
+        found.append({"row": row, "object": path, "view": name, "outline": round(score, 3),
+                      "likeness": round(likeness[name], 3) if name in likeness else None,
+                      "render": str(cut), "closeup": str(picture)})
     found.sort(key=lambda entry: (entry["likeness"] if entry["likeness"] is not None else 2.0, entry["outline"]))
     (out / "compare.json").write_text(json.dumps(found, indent=1) + "\n")
     return found
@@ -191,11 +204,13 @@ def main():
     parser.add_argument("--closeups", type=pathlib.Path)
     parser.add_argument("--cloud", action="store_true", help="render and score on rented machines")
     parser.add_argument("--who", default="compare")
+    parser.add_argument("--reuse", action="store_true", help="score the renders already in <out>/renders")
     options = parser.parse_args()
     import complete
     place = options.stage.stem
     rows = json.loads(complete.recorded_inventory(place, options.stage).read_text())["rows"]
-    for entry in compare(options.stage, rows, options.out, options.closeups, options.cloud, options.who):
+    for entry in compare(options.stage, rows, options.out, options.closeups, options.cloud, options.who,
+                                     options.reuse):
         likeness = "no likeness" if entry["likeness"] is None else f"likeness {entry['likeness']:.2f}"
         print(f"{entry['row']:24} outline {entry['outline']:.2f}  {likeness}  ({entry['view']})")
 

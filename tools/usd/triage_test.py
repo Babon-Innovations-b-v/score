@@ -33,7 +33,7 @@ def place_of(folder, pieces, rows):
            "pieces": [{"prop": f"test_{row}", "kind": f"test_{row}", "model": model, "row": row,
                        "size": [1.0, 1.0, 1.0], "at": list(at), "facing": 0.0} for row, model, at in pieces]}
     (folder / "kit.json").write_text(json.dumps(kit))
-    (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
+    (folder / "inventory.json").write_text(json.dumps({"scene": PLACE, "rows": rows}))
     return export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
                          inventory_path=folder / "inventory.json")
 

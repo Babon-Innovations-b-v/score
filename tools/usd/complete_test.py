@@ -19,12 +19,16 @@ import complete  # noqa: E402
 import made_only  # noqa: E402
 import page  # noqa: E402
 import resting_test  # noqa: E402
+import triage_test  # noqa: E402
 
 
 def laid(folder, rows=(("crate", "floor"), ("lamp", "floor"))):
-    """A place of two boxes, one a row, exported; its stage."""
+    """A place of two boxes, one a row, exported; its stage. The test's rows are drawn from no concept, so each says
+    so (`unseen`), as the box gate asks of a row with no box."""
     resting_test.made_models(folder)
-    return resting_test.laid_place(folder, [("crate", "box", (0, 0, 0)), ("lamp", "box", (3, 0, 0))], list(rows))
+    return triage_test.place_of(folder, [("crate", "box", (0, 0, 0)), ("lamp", "box", (3, 0, 0))],
+                                [triage_test.row(name, anchor, box=None, unseen="a test row, drawn from no concept")
+                                 for name, anchor in rows])
 
 
 def verdicts(stage, review):
