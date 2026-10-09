@@ -114,6 +114,14 @@ A place's people are part of its stage. Its cast records who is there, how many,
 
 <!-- Characters: tools/characters (skel_usd.py, cast.py), data/characters/square.json; skinning agreement measured 2026-10-08 on the leader's walking clip, frame 20 (max 0.0013 mm); checked by tools/characters/characters_test.py. -->
 
+A place's sound is also part of its stage, in its own layer. Every sound is a UsdMedia spatial audio prim with its file, its gain and how it plays. The place's room tones loop without a position. An object's own hum or fan loops where the object stands. Each library surface points at its footstep, impact and scrape sounds, which an engine plays when something happens on that surface. The levels, buses and reaches are those the game 2099 played, now kept as the framework's sound catalogue. On the hub, the layer holds 2 room tones, 23 object sounds and 9 surface sounds. The review's walk and the demo's videos play what their camera hears along its path: each sound at its gain over its distance from the eye, panned by where it stands across the view.
+
+<!-- Sound stage: tools/usd/sound.py, data/sound/catalogue.json and places.json (moved from 2099's sound catalogue and PlaceSounds), checked by tools/usd/sound_test.py; hub counts from a run on the hub's stage, 2026-10-09. -->
+
+The framework stands apart from the game it was first built for. Every file a record names is in the repository or in one release of it: the first world's made models (199 MB packed) and its 121 sounds (36 MB), each listed with its checksum, its source and its licence. A check fails when any code or data names a file of the game's own tree.
+
+<!-- Separation: tools/assets/world.py, data/assets/world1.json (release world1-assets-1, 306 files), tools/assets/game_free_test.py (score 3b0ef7f). -->
+
 ::: gap
 **Gap: the scene in a game engine.** The same stage loaded in a game engine, with its collision and surfaces, and the mass and friction of each object written into it. It waits on the game engine adapter and on the framework recording mass and friction.
 :::

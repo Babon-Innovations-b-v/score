@@ -486,6 +486,24 @@ the points the glTF file's own skinning gives. The prologue's square
 holds the leader on the podium, a front row of 24 people mixed from six
 kit builds, and a crowd of 10,000.
 
+A place's sound is also part of its stage, in its own layer. Every sound
+is a UsdMedia spatial audio prim with its file, its gain and how it
+plays. The place's room tones loop without a position. An object's own
+hum or fan loops where the object stands. Each library surface points at
+its footstep, impact and scrape sounds, which an engine plays when
+something happens on that surface. The levels, buses and reaches are
+those the game 2099 played, now kept as the framework's sound catalogue.
+On the hub, the layer holds 2 room tones, 23 object sounds and 9 surface
+sounds. The review's walk and the demo's videos play what their camera
+hears along its path: each sound at its gain over its distance from the
+eye, panned by where it stands across the view.
+
+The framework stands apart from the game it was first built for. Every
+file a record names is in the repository or in one release of it: the
+first world's made models (199 MB packed) and its 121 sounds (36 MB),
+each listed with its checksum, its source and its licence. A check fails
+when any code or data names a file of the game's own tree.
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
 \textbf{Gap: the scene in a game engine.} The same stage loaded in a

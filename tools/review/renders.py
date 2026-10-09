@@ -241,19 +241,36 @@ def render_stage(stage, views, size, folder, plain=False, lights=(), shown=()):
             inputs=[pathlib.Path(stage).parent, *beside, folder / "views.json"], outputs=[folder])
 
 
-def walk_video(folder, out):
-    """The walk's frames as a small looping video, and a strip of a few of them for where a video does not play."""
+def walk_video(folder, out, stage=None, walk=()):
+    """The walk's frames as a small looping video, with what the walk hears from the stage's sound layer laid under it
+    (tools/usd/sound.py; none when the stage has no sounds), and a strip of a few of them for where a video does not
+    play."""
     if shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is needed for the walk's video")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(WALK_RATE), "-i",
                     str(folder / "walk-%03d-look.png"), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "26",
                     "-movflags", "+faststart", str(out / "walk.mp4")], check=True)
+    if stage is not None and walk and (pathlib.Path(stage).parent / "layers/sound.usda").exists():
+        heard(stage, walk, WALK_RATE, out / "walk.mp4")
     chosen = [folder / f"walk-{number:03d}-look.png" for number in range(0, WALK_FRAMES, WALK_FRAMES // STRIP_FRAMES)]
     frames = [Image.open(path).convert("RGB") for path in chosen[:STRIP_FRAMES]]
     strip = Image.new("RGB", (WALK_SIZE[0] * len(frames), WALK_SIZE[1]))
     for number, frame in enumerate(frames):
         strip.paste(frame, (number * WALK_SIZE[0], 0))
     strip.save(out / "walk-strip.jpg", quality=85)
+
+
+def heard(stage, views, frame_rate, video):
+    """The video with what its camera hears along its views laid under it (sound.soundtrack), in place."""
+    import sound  # noqa: E402  (tools/usd)
+    rate = stage_rate(stage)
+    moments = [{"eye": view["eye"], "aim": view["aim"], "time": view.get("frame", 0) / rate} for view in views]
+    track = pathlib.Path(video).with_suffix(".wav")
+    sound.soundtrack(stage, moments, frame_rate, track)
+    voiced = pathlib.Path(video).with_name(pathlib.Path(video).stem + "-sound.mp4")
+    sound.with_sound(video, track, voiced)
+    voiced.replace(video)
+    track.unlink()
 
 
 def stage_rate(stage):
@@ -349,7 +366,7 @@ def scene_shots(place, stages, out, plain=False, room=None, kit=False, scene=Non
     for label, stage in stages.items():
         render_stage(stage, views, VIEW_SIZE, out / "scene" / label, plain, lights, shown)
     render_stage(stages[newest], walk, WALK_SIZE, out / "scene" / "walk", plain, lights, shown)
-    walk_video(out / "scene" / "walk", out / "scene")
+    walk_video(out / "scene" / "walk", out / "scene", stages[newest], walk)
     report = json.loads((out / "scene" / newest / "report.json").read_text())
     return {"views": [view["name"] for view in views], "report": report, "room": room is not None,
             "lamps": len(lights), "games": {view["name"]: view.get("game") for view in views if view.get("game")},

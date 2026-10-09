@@ -13,6 +13,8 @@ way towards what it looks at while the view turns a few degrees, so no shot pass
 the stage's own time, one shot after the other, so its characters move through the whole video. `cut` makes each
 place's video from its frames (the shots joined by short cross-fades, opened by a title card with the place's plain
 name, given as `place:Title`) and, given more than one place, the world's video with the places in the order given.
+A place whose stage has a sound layer (tools/usd/sound.py) is heard too: each shot's sound is what its camera hears
+along its frames (sound.soundtrack), cross-faded with the pictures.
 
 The videos are made outside the repo, like the review pages; nothing they make is committed.
 """
@@ -49,6 +51,8 @@ STEEPEST = 0.6
 # Minutes a frame takes on a 24 GB card, the import aside (the square and the hub on an L4, 2026-10-09: 14 to 20 s).
 FRAME_MINUTES = 0.3
 FONT = pathlib.Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+# The sound track's sample rate (tools/usd/sound.py's).
+SAMPLE_RATE = 48000
 
 
 def shot_cameras(record, count=SHOTS, names=()):
@@ -130,7 +134,8 @@ def plan(out, stages, places, jobs_each=1):
             raise SystemExit(f"{place} has no scene record with cameras (data/scene/{place}.json)")
         stage = stage_of(stages, place)
         views = place_views(record, renders.stage_rate(stage), names)
-        (out / "views" / f"{place}.json").write_text(json.dumps({"size": list(SIZE), "views": views}, indent=1))
+        (out / "views" / f"{place}.json").write_text(json.dumps({"size": list(SIZE), "views": views,
+                                                                  "stage": str(stage)}, indent=1))
         frames = out / "frames" / place
         shown = [stages / name for name in renders.places_shown(record) if name != place]
         shots = sorted({view["name"].split("-")[0] for view in views}, key=lambda name: int(name[4:]))
@@ -167,19 +172,31 @@ def encode(out):
     return ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", "-r", str(RATE), "-movflags", "+faststart", out]
 
 
+def has_sound(clip):
+    """Whether a clip carries a sound track."""
+    found = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of",
+                            "csv=p=0", str(clip)], capture_output=True, text=True, check=True).stdout
+    return bool(found.strip())
+
+
 def joined(clips, seconds, out):
-    """Clips of the given lengths joined by cross-fades of FADE_SECONDS."""
+    """Clips of the given lengths joined by cross-fades of FADE_SECONDS, their sound too when every clip has some."""
     if len(clips) == 1:
         shutil.copy(clips[0], out)
         return
-    graph, previous, offset = [], "[0:v]", 0.0
+    voiced = all(has_sound(clip) for clip in clips)
+    graph, previous, sound, offset = [], "[0:v]", "[0:a]", 0.0
     for number in range(1, len(clips)):
         offset += seconds[number - 1] - FADE_SECONDS
         label = f"[v{number}]"
         graph.append(f"{previous}[{number}:v]xfade=transition=fade:duration={FADE_SECONDS}:offset={offset:.3f}{label}")
         previous = label
+        if voiced:
+            graph.append(f"{sound}[{number}:a]acrossfade=d={FADE_SECONDS}[a{number}]")
+            sound = f"[a{number}]"
     inputs = [part for clip in clips for part in ("-i", clip)]
-    ffmpeg(*inputs, "-filter_complex", ";".join(graph), "-map", previous, *encode(out))
+    mapped = ["-map", previous] + (["-map", sound, "-c:a", "aac", "-b:a", "160k"] if voiced else [])
+    ffmpeg(*inputs, "-filter_complex", ";".join(graph), *mapped, *encode(out))
 
 
 def named(given):
@@ -191,15 +208,23 @@ def named(given):
 def cut_place(out, place, title):
     """A place's video: its title card, then its shots, joined by cross-fades; its length in seconds."""
     frames = out / "frames" / place
-    views = json.loads((out / "views" / f"{place}.json").read_text())["views"]
+    planned = json.loads((out / "views" / f"{place}.json").read_text())
+    views = planned["views"]
+    stage = planned.get("stage")
+    voiced = bool(stage) and (pathlib.Path(stage).parent / "layers/sound.usda").exists()
     shots = sorted({view["name"].split("-")[0] for view in views}, key=lambda name: int(name[4:]))
     work = out / "clips" / place
     work.mkdir(parents=True, exist_ok=True)
     title_card(title, work / "title.png")
-    ffmpeg("-loop", "1", "-t", TITLE_SECONDS, "-i", work / "title.png", *encode(work / "title.mp4"))
+    silence = ["-f", "lavfi", "-t", TITLE_SECONDS, "-i", f"anullsrc=r={SAMPLE_RATE}:cl=stereo", "-c:a", "aac",
+               "-shortest"] if voiced else []
+    ffmpeg("-loop", "1", "-t", TITLE_SECONDS, "-i", work / "title.png", *silence, *encode(work / "title.mp4"))
     clips, seconds = [work / "title.mp4"], [TITLE_SECONDS]
     for shot in shots:
         ffmpeg("-framerate", RATE, "-i", frames / f"{shot}-%03d-look.png", *encode(work / f"{shot}.mp4"))
+        if voiced:
+            renders.heard(stage, [view for view in views if view["name"].split("-")[0] == shot], RATE,
+                          work / f"{shot}.mp4")
         clips.append(work / f"{shot}.mp4")
         seconds.append(SHOT_SECONDS)
     video = out / "videos" / f"{place}.mp4"
