@@ -102,3 +102,22 @@ def test_fail_open(tmp_path):
     blocker = tmp_path / "file"
     blocker.write_text("")
     assert _run(_bash("make tests", _long_log()), blocker) is None  # spill folder is a file: output stays whole
+
+
+def test_rules_files_read_whole(tmp_path):
+    for command in ("cat tools/props/library/CLAUDE.md", "ls x; cat .claude/skills/grill/SKILL.md", "ls y && cat a/CLAUDE.md 2>/dev/null | head -150"):
+        assert _run(_bash(command, _long_log()), tmp_path) is None, command
+
+
+def test_no_cap_without_a_real_saving(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCORE_OUTPUT_DIR", str(tmp_path))
+    monkeypatch.setattr(output_cap, "SECTION_CHARS", 10000)  # sections as long as the output: nothing would be saved
+    wide = "\n".join("x" * 150 for _ in range(45))
+    assert output_cap.capped_output(_bash("python3 report.py", wide)) is None
+    assert not (tmp_path / "s1").exists()
+
+
+def test_summary_stays_within_budget_on_long_lines(tmp_path):
+    wide = "\n".join(f"{index} " + "y" * 900 for index in range(200))
+    text = _run(_bash("python3 diff.py", wide), tmp_path)["stdout"]
+    assert len(text) < 4 * output_cap.SECTION_CHARS and "more chars]" in text

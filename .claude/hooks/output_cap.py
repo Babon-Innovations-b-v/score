@@ -14,9 +14,12 @@ written to ``<SCORE_OUTPUT_DIR or /tmp/score-output>/<session>/<call>.txt`` and 
 
 Nothing is lost: the file holds every byte, and the agent reads what it needs from it (Read with offset/limit, grep,
 ``sed -n``). Left untouched: outputs up to the cap, images, background commands, reads the agent narrowed itself (a
-pipeline or command ending in ``head``, ``tail``, ``sed -n``, ``awk`` with ``NR``, ``grep -m`` or ``-c``, ``wc``), and
-any command that carries ``SCORE_FULL_OUTPUT=1`` (as a prefix, ``SCORE_FULL_OUTPUT=1 make tests``), the documented
-way to ask for an output in full. Claude Code's own limit still applies above 30,000 characters.
+pipeline or command ending in ``head``, ``tail``, ``sed -n``, ``awk`` with ``NR``, ``grep -m`` or ``-c``, ``wc``), a
+``cat`` of a rules file the agent reads whole to follow it (a ``CLAUDE.md`` overlay, ``SKILL.md``, ``soul.md``,
+``CONTEXT.md``), an output whose summary would not be at least ``MIN_SAVING`` shorter, and any command that carries
+``SCORE_FULL_OUTPUT=1`` (as a prefix, ``SCORE_FULL_OUTPUT=1 make tests``), the documented way to ask for an output in
+full. Claude Code's own limit still applies above 30,000 characters. A failing command fires PostToolUseFailure, which
+cannot replace output, so its output is never capped here.
 
 FAILURE POLICY: fail open. An unreadable payload, an unknown output shape, or a spill file that cannot be written
 leaves the output as it was (exit 0, no replacement), so a fault here can only cost tokens, never hide output.
@@ -34,11 +37,14 @@ CAP_CHARS = 6000
 HEAD_LINES = 25
 TAIL_LINES = 25
 MATCH_LINES = 20
-LINE_CHARS = 240
+LINE_CHARS = 200
+SECTION_CHARS = 1200
+MIN_SAVING = 0.4
 FULL_OUTPUT_MARKER = "SCORE_FULL_OUTPUT=1"
 _MATCH = re.compile(r"\b(errors?|traceback|fail(ed|ures?)?|warnings?|exception)\b", re.IGNORECASE)
 _NARROWED = re.compile(r"^(head|tail|wc)\b|^sed\s+(-\w+\s+)*-n\b|^awk\b.*\bNR\b|^grep\b.*\s-\w*[mc]\w*\b")
 _QUIET = re.compile(r"^(cd|echo|printf|export|set|true|mkdir|rm|mv|cp|touch|sleep)\b|^$")
+_RULES_CAT = re.compile(r"\bcat\s+(\S*/)?(CLAUDE|SKILL|soul|CONTEXT)\.md\b")
 _WHOLE_CAT = re.compile(r"^cat (?P<path>[^\s*?-]\S*)$")
 
 
@@ -71,8 +77,11 @@ def _last_stages(command):
 
 
 def leave_alone(command):
-    """True when the agent asked for this output as it is: the full-output marker, or reads it narrowed itself."""
+    """True when the agent asked for this output as it is: the full-output marker, reads it narrowed itself, or a
+    rules file (CLAUDE.md overlay, SKILL.md, soul.md, CONTEXT.md) it reads whole to follow."""
     if FULL_OUTPUT_MARKER in command:
+        return True
+    if _RULES_CAT.search(command):
         return True
     printing = [stage for stage in _last_stages(command) if not _QUIET.search(stage)]
     return bool(printing) and all(_NARROWED.search(stage) for stage in printing)
@@ -132,19 +141,31 @@ def _children(document):
     return []
 
 
+def _fit(lines, budget):
+    """As many of the lines as fit in the budget of characters (at least one), each clipped."""
+    taken, used = [], 0
+    for line in lines:
+        clipped = _clip(line)
+        if taken and used + len(clipped) > budget:
+            break
+        taken.append(clipped)
+        used += len(clipped) + 1
+    return taken
+
+
 def text_excerpt(lines):
-    """The first lines, the error and warning lines between them and the last lines, each line clipped."""
-    if len(lines) <= HEAD_LINES + TAIL_LINES:
-        return [_clip(line) for line in lines]
-    middle = range(HEAD_LINES, len(lines) - TAIL_LINES)
+    """The first lines, the error and warning lines between them and the last lines, within a character budget."""
+    head = _fit(lines[:HEAD_LINES], SECTION_CHARS)
+    tail = _fit(lines[len(head):][-TAIL_LINES:][::-1], SECTION_CHARS)[::-1]
+    middle = range(len(head), len(lines) - len(tail))
     matches = [index for index in middle if _MATCH.search(lines[index])]
-    excerpt = [f"--- first {HEAD_LINES} lines ---"] + [_clip(line) for line in lines[:HEAD_LINES]]
+    excerpt = [f"--- first {len(head)} lines ---", *head]
     if matches:
-        shown = matches[:MATCH_LINES]
-        excerpt.append(f"--- {len(shown)} of {len(matches)} error/warning lines in between (line number: text) ---")
-        excerpt += [f"{index + 1}: {_clip(lines[index])}" for index in shown]
-    excerpt.append(f"--- last {TAIL_LINES} lines ---")
-    return excerpt + [_clip(line) for line in lines[-TAIL_LINES:]]
+        shown = _fit([f"{index + 1}: {lines[index]}" for index in matches[:MATCH_LINES]], SECTION_CHARS)
+        excerpt += [f"--- {len(shown)} of {len(matches)} error/warning lines in between (line number: text) ---", *shown]
+    if len(middle):
+        excerpt.append(f"--- {len(middle):,} lines in between are in the file ---")
+    return excerpt + [f"--- last {len(tail)} lines ---", *tail]
 
 
 def summary(command, stdout, stderr, path):
@@ -174,8 +195,11 @@ def capped_output(payload):
     if leave_alone(command):
         return None
     path = spill_path(payload)
+    text = summary(command, stdout, stderr, path)
+    if len(text) > (1 - MIN_SAVING) * (len(stdout) + len(stderr)):
+        return None
     write_spill(path, command, stdout, stderr)
-    return dict(response, stdout=summary(command, stdout, stderr, path), stderr="")
+    return dict(response, stdout=text, stderr="")
 
 
 def main():
