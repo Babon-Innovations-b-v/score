@@ -17,7 +17,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **A batch builds approved scene rows** (2026-10-04, #121; several scenes a batch since 2026-10-07): `batch.py --inventory
   data/inventory/<scene>.json` and `scene.py` (its plan's `inventory`) refuse without the owner's
   approval on page A and the place's style text in `place.json`, and every model is named for a
-  row. No per-session job scripts: the wording comes from the repo's data.
+  row. No per-session job scripts: the wording comes from the repo's data. The one other thing a batch builds is a
+  character the owner asked for (`batch.py --characters data/characters/makes/<name>.json`, job characters-full,
+  2026-10-09): refused without the spec's `approved`, its model named after the spec.
 - **Three Pixal3D runs for every 24 GB of card** (`capacity.RUNS_PER_24GB`). Measured on a 24 GB L4: six at
   once is barely faster and ran out of memory.
 - **No keys or account ids in the repo.** The backend finds its account by name; the runner's ssh
@@ -85,6 +87,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **Likeness** (`similar.py`, `similar_setup.sh`, `similar_worker.py`; job agent-tools, 2026-10-09): DINOv2
   (facebook/dinov2-base, Apache-2.0) cosine likeness of picture pairs on one card, for the render-and-compare
   (`tools/usd/compare.py`).
+- **Rigging** (`unirig.py`, `unirig_setup.sh`, `unirig_worker.py`; job characters-full, 2026-10-09): UniRig
+  (VAST-AI-Research/UniRig at a pinned commit, MIT code; VAST-AI/UniRig weights, MIT) gives a finished model a skeleton
+  and skin weights on one card, for the character maker's animals (`../../characters/animals/`). Every compiled piece
+  is a prebuilt wheel; only OPT-350m's configuration is fetched, never its weights. Its launch scripts end with
+  `echo done`, so the worker checks each step's file, not its exit code.
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its
   non-commercial background remover patched out and never fetched; the parts only say where a model's part
   boundaries are (`../library/labels.py --parts`).
