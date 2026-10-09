@@ -81,12 +81,13 @@ def locked_count(rows):
 
 
 def stage_shown(stage_path):
-    """{row: [(object path, model, model sha256)]} of a stage's laid objects."""
+    """{row: [(object path, model, model sha256)]} of a stage's own laid objects (a neighbour shown through a doorway,
+    under /<place>/Places, is held by its own place's picks)."""
     from pxr import Usd
     stage = Usd.Stage.Open(str(stage_path))
     found = {}
     for prim in stage.Traverse():
-        if not prim.HasAttribute("score:row"):
+        if not prim.HasAttribute("score:row") or str(prim.GetPath()).split("/")[2:3] == ["Places"]:
             continue
         sha256 = prim.GetAttribute("score:model_sha256").Get() if prim.HasAttribute("score:model_sha256") else None
         found.setdefault(prim.GetAttribute("score:row").Get(), []).append(

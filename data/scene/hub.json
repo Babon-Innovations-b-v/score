@@ -94,7 +94,8 @@
       0.76,
       0.207
      ],
-     "yaw": 0.0
+     "yaw": 0.0,
+     "row": "monitor"
     },
     {
      "model": "models/hub_kit/monitor_1.gltf",
@@ -103,7 +104,8 @@
       0.76,
       0.158
      ],
-     "yaw": 12.0
+     "yaw": 12.0,
+     "row": "monitor"
     },
     {
      "model": "models/hub_kit/monitor_1.gltf",
@@ -112,7 +114,8 @@
       0.76,
       0.194
      ],
-     "yaw": -12.0
+     "yaw": -12.0,
+     "row": "monitor"
     },
     {
      "model": "models/hub_kit/monitor_2.gltf",
@@ -121,7 +124,8 @@
       0.76,
       0.1
      ],
-     "yaw": 24.0
+     "yaw": 24.0,
+     "row": "monitor"
     },
     {
      "model": "models/hub_kit/monitor_3.gltf",
@@ -130,7 +134,8 @@
       0.76,
       0.1
      ],
-     "yaw": -24.0
+     "yaw": -24.0,
+     "row": "monitor"
     },
     {
      "model": "models/hub_kit/keyboard_1.gltf",
@@ -139,7 +144,8 @@
       0.76,
       -0.12
      ],
-     "yaw": 0.0
+     "yaw": 0.0,
+     "row": "keyboard"
     },
     {
      "model": "models/hub_kit/keyboard_1.gltf",
@@ -148,7 +154,8 @@
       0.76,
       -0.12
      ],
-     "yaw": 0.0
+     "yaw": 0.0,
+     "row": "keyboard"
     },
     {
      "model": "models/hub_kit/monitor_2_glow.gltf",
@@ -157,7 +164,8 @@
       0.76,
       0.1
      ],
-     "yaw": 24.0
+     "yaw": 24.0,
+     "row": "monitor"
     },
     {
      "model": "models/hub_kit/monitor_3_glow.gltf",
@@ -166,10 +174,12 @@
       0.76,
       0.1
      ],
-     "yaw": -24.0
+     "yaw": -24.0,
+     "row": "monitor"
     }
    ],
-   "from": "main.tscn:123-124 Workstation, workstation.tscn:15, hub_console.tscn"
+   "from": "main.tscn:123-124 Workstation, workstation.tscn:15, hub_console.tscn",
+   "row": "console"
   },
   {
    "name": "screen_feed",
@@ -246,7 +256,8 @@
     0.728
    ],
    "yaw": 158.2,
-   "from": "layout.json operations_chair"
+   "from": "layout.json operations_chair",
+   "row": "chair"
   },
   {
    "name": "lab_bench",
@@ -265,7 +276,8 @@
       0.85,
       -0.014
      ],
-     "yaw": 0.0
+     "yaw": 0.0,
+     "row": "glovebox"
     },
     {
      "model": "models/hub_kit/microscope_1.gltf",
@@ -274,7 +286,8 @@
       0.85,
       0.0
      ],
-     "yaw": -20.0
+     "yaw": -20.0,
+     "row": "microscope"
     },
     {
      "label": [
@@ -310,7 +323,8 @@
      "from": "lab_desk.gd:26 LAMP_AT (0.45, 0.82, 0.35) in the desk's frame, its model turned 180; red until research turns up (status_lamp.gd, warning_lamp.tres)"
     }
    ],
-   "from": "main.tscn:126-127 LabDesk (yaw 60 on the seat, so 240 in the hub's frame) with its model turned 180 (lab_desk.tscn), so the model stands at 60 in the hub's frame"
+   "from": "main.tscn:126-127 LabDesk (yaw 60 on the seat, so 240 in the hub's frame) with its model turned 180 (lab_desk.tscn), so the model stands at 60 in the hub's frame",
+   "row": "labbench"
   },
   {
    "name": "comms_desk",
@@ -329,7 +343,8 @@
       0.76,
       0.12
      ],
-     "yaw": 0.0
+     "yaw": 0.0,
+     "row": "radio"
     },
     {
      "model": "models/hub_kit/radio_1.gltf",
@@ -338,7 +353,8 @@
       0.76,
       0.12
      ],
-     "yaw": 0.0
+     "yaw": 0.0,
+     "row": "radio"
     },
     {
      "model": "models/hub_kit/telephone_1.gltf",
@@ -347,7 +363,8 @@
       0.76,
       -0.05
      ],
-     "yaw": -15.0
+     "yaw": -15.0,
+     "row": "telephone"
     },
     {
      "model": "models/hub_kit/desklamp_1.gltf",
@@ -356,7 +373,8 @@
       0.76,
       0.15
      ],
-     "yaw": 20.0
+     "yaw": 20.0,
+     "row": "desklamp"
     },
     {
      "model": "models/hub_kit/headset_1.gltf",
@@ -365,10 +383,12 @@
       0.38,
       0.0
      ],
-     "yaw": 90.0
+     "yaw": 90.0,
+     "row": "headset"
     }
    ],
-   "from": "layout.json comms_desk"
+   "from": "layout.json comms_desk",
+   "row": "comms"
   },
   {
    "name": "tool_board",
@@ -389,7 +409,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:42-43 (Wrench1_0)"
+     "from": "hub_toolboard.tscn:42-43 (Wrench1_0)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_1.gltf",
@@ -399,7 +420,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:45-46 (Wrench1_1)"
+     "from": "hub_toolboard.tscn:45-46 (Wrench1_1)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_1.gltf",
@@ -409,7 +431,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:48-49 (Wrench1_2)"
+     "from": "hub_toolboard.tscn:48-49 (Wrench1_2)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_2.gltf",
@@ -419,7 +442,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:51-52 (Wrench2_3)"
+     "from": "hub_toolboard.tscn:51-52 (Wrench2_3)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_2.gltf",
@@ -429,7 +453,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:54-55 (Wrench2_4)"
+     "from": "hub_toolboard.tscn:54-55 (Wrench2_4)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_2.gltf",
@@ -439,7 +464,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:57-58 (Wrench2_5)"
+     "from": "hub_toolboard.tscn:57-58 (Wrench2_5)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_3.gltf",
@@ -449,7 +475,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:60-61 (Wrench3_6)"
+     "from": "hub_toolboard.tscn:60-61 (Wrench3_6)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_3.gltf",
@@ -459,7 +486,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:63-64 (Wrench3_7)"
+     "from": "hub_toolboard.tscn:63-64 (Wrench3_7)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_3.gltf",
@@ -469,7 +497,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:66-67 (Wrench3_8)"
+     "from": "hub_toolboard.tscn:66-67 (Wrench3_8)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/wrench_3.gltf",
@@ -479,7 +508,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:69-70 (Wrench3_9)"
+     "from": "hub_toolboard.tscn:69-70 (Wrench3_9)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/hammer_1.gltf",
@@ -489,7 +519,8 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:72-73 (Hammer1_10)"
+     "from": "hub_toolboard.tscn:72-73 (Hammer1_10)",
+     "row": "hammer"
     },
     {
      "model": "models/hub_kit/hammer_1.gltf",
@@ -499,7 +530,8 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:75-76 (Hammer1_11)"
+     "from": "hub_toolboard.tscn:75-76 (Hammer1_11)",
+     "row": "hammer"
     },
     {
      "model": "models/hub_kit/hammer_1.gltf",
@@ -509,7 +541,8 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:78-79 (Hammer1_12)"
+     "from": "hub_toolboard.tscn:78-79 (Hammer1_12)",
+     "row": "hammer"
     },
     {
      "model": "models/hub_kit/pump_pliers_1.gltf",
@@ -519,7 +552,8 @@
       0.0065
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:81-82 (PumpPliers1_13)"
+     "from": "hub_toolboard.tscn:81-82 (PumpPliers1_13)",
+     "row": "pump_pliers"
     },
     {
      "model": "models/hub_kit/wrench_4.gltf",
@@ -529,7 +563,8 @@
       0.0105
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:84-85 (Wrench4_14)"
+     "from": "hub_toolboard.tscn:84-85 (Wrench4_14)",
+     "row": "wrench"
     },
     {
      "model": "models/hub_kit/pliers_1.gltf",
@@ -539,7 +574,8 @@
       0.0065
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:87-88 (Pliers1_15)"
+     "from": "hub_toolboard.tscn:87-88 (Pliers1_15)",
+     "row": "pliers"
     },
     {
      "model": "models/hub_kit/pliers_1.gltf",
@@ -549,7 +585,8 @@
       0.0065
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:90-91 (Pliers1_16)"
+     "from": "hub_toolboard.tscn:90-91 (Pliers1_16)",
+     "row": "pliers"
     },
     {
      "model": "models/hub_kit/pliers_1.gltf",
@@ -559,7 +596,8 @@
       0.0065
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:93-94 (Pliers1_17)"
+     "from": "hub_toolboard.tscn:93-94 (Pliers1_17)",
+     "row": "pliers"
     },
     {
      "model": "models/hub_kit/pliers_1.gltf",
@@ -569,7 +607,8 @@
       0.0065
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:96-97 (Pliers1_18)"
+     "from": "hub_toolboard.tscn:96-97 (Pliers1_18)",
+     "row": "pliers"
     },
     {
      "model": "models/hub_kit/pliers_1.gltf",
@@ -579,7 +618,8 @@
       0.0065
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:99-100 (Pliers1_19)"
+     "from": "hub_toolboard.tscn:99-100 (Pliers1_19)",
+     "row": "pliers"
     },
     {
      "model": "models/hub_kit/pliers_1.gltf",
@@ -589,7 +629,8 @@
       0.0065
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:102-103 (Pliers1_20)"
+     "from": "hub_toolboard.tscn:102-103 (Pliers1_20)",
+     "row": "pliers"
     },
     {
      "model": "models/hub_kit/screwdriver_1.gltf",
@@ -599,7 +640,8 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:105-106 (Screwdriver1_21)"
+     "from": "hub_toolboard.tscn:105-106 (Screwdriver1_21)",
+     "row": "screwdriver"
     },
     {
      "model": "models/hub_kit/screwdriver_1.gltf",
@@ -609,7 +651,8 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:108-109 (Screwdriver1_22)"
+     "from": "hub_toolboard.tscn:108-109 (Screwdriver1_22)",
+     "row": "screwdriver"
     },
     {
      "model": "models/hub_kit/screwdriver_1.gltf",
@@ -619,7 +662,8 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:111-112 (Screwdriver1_23)"
+     "from": "hub_toolboard.tscn:111-112 (Screwdriver1_23)",
+     "row": "screwdriver"
     },
     {
      "model": "models/hub_kit/screwdriver_1.gltf",
@@ -629,7 +673,8 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:114-115 (Screwdriver1_24)"
+     "from": "hub_toolboard.tscn:114-115 (Screwdriver1_24)",
+     "row": "screwdriver"
     },
     {
      "model": "models/hub_kit/screwdriver_1.gltf",
@@ -639,9 +684,11 @@
       0.0015
      ],
      "yaw": 0.0,
-     "from": "hub_toolboard.tscn:117-118 (Screwdriver1_25)"
+     "from": "hub_toolboard.tscn:117-118 (Screwdriver1_25)",
+     "row": "screwdriver"
     }
-   ]
+   ],
+   "row": "toolboard"
   },
   {
    "name": "tall_locker",
@@ -652,7 +699,8 @@
     3.42
    ],
    "yaw": 30.0,
-   "from": "habitat.tscn:14-15"
+   "from": "habitat.tscn:14-15",
+   "row": "talllocker"
   },
   {
    "name": "rack_1",
@@ -663,7 +711,8 @@
     2.677
    ],
    "yaw": -60.0,
-   "from": "habitat.tscn:19-25"
+   "from": "habitat.tscn:19-25",
+   "row": "rack"
   },
   {
    "name": "rack_2",
@@ -674,7 +723,8 @@
     2.07
    ],
    "yaw": -60.0,
-   "from": "habitat.tscn:19-25"
+   "from": "habitat.tscn:19-25",
+   "row": "rack"
   }
  ],
  "places": [

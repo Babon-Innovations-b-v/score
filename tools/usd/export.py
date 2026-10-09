@@ -755,13 +755,19 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     return stage
 
 
-def scene_shown(objects, world):
-    """The scene record's objects that stand for an inventory row (their `row`): {row: [(object, model, hash)]}."""
-    shown = {}
-    for entry in objects:
+def scene_shown(objects, world, parent="Fixtures", shown=None):
+    """The scene record's objects that stand for an inventory row (their `row`), the things standing on them
+    (`children`, named as scene.fixture names them) too: {row: [(object, model, hash)]}."""
+    shown = {} if shown is None else shown
+    for number, entry in enumerate(objects, start=1):
+        if "label" in entry:
+            continue
+        path = f"{parent}/{entry['name']}" if parent == "Fixtures" else \
+            f"{parent}/{pathlib.Path(entry['model']).stem}_{number}"
         if "row" in entry:
-            shown.setdefault(entry["row"], []).append((f"Fixtures/{entry['name']}", entry["model"], complete.model_hash(
+            shown.setdefault(entry["row"], []).append((path, entry["model"], complete.model_hash(
                 scene_record.world_file(world, entry["model"]))))
+        scene_shown(entry.get("children", []), world, path, shown)
     return shown
 
 
