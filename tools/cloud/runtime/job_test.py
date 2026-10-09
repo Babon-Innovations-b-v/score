@@ -109,6 +109,19 @@ def test_a_missing_output_fails_the_job():
     assert submit.failures(store, "r1", "j1")[0]["stage"] == "outputs"
 
 
+def test_a_command_that_cannot_start_is_a_recorded_failure():
+    store = stores.FolderStore(ROOT / "store-g")
+    script = pathlib.Path(tempfile.mkdtemp()) / "not-executable.sh"
+    script.write_text("#!/bin/sh\necho hi\n")
+    script.chmod(0o644)
+    for job, command in (("denied", [str(script)]), ("missing", ["/no/such/program"])):
+        submitted(store, "r1", job, command, up=ROOT / f"up-{job}")
+        assert jobs.run_job(store, "r1", job) == 1
+        failed = submit.failures(store, "r1", job)[0]
+        assert failed["stage"] == "command" and "could not start" in failed["error"]
+        assert store.exists(f"runs/r1/{job}/log-1.txt")
+
+
 def test_one_tree_bundles_to_one_key_without_caches():
     repo = a_repo()
     first = submit.bundle(["tools"], repo)

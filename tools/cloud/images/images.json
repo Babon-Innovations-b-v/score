@@ -1,57 +1,57 @@
 {
  "base": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-base:1-97d365b88948@sha256:0f05b9f48f8955427b4f7c6201fc25fc4f1bc390cb3cc693de92f9a0c8eb5057",
-  "tag": "1-97d365b88948",
-  "digest": "sha256:0f05b9f48f8955427b4f7c6201fc25fc4f1bc390cb3cc693de92f9a0c8eb5057",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-base:1-853caab19c97@sha256:c425d21933d0cfcfc35411b027a4e61fd8725aa3d6c508cc7f194b2a5d565127",
+  "tag": "1-853caab19c97",
+  "digest": "sha256:c425d21933d0cfcfc35411b027a4e61fd8725aa3d6c508cc7f194b2a5d565127",
   "platforms": "linux/amd64,linux/arm64",
   "size_mb": 174.4,
-  "build_minutes": 4.2,
-  "built": "2026-10-09T14:15:56Z",
+  "build_minutes": 0.3,
+  "built": "2026-10-09T14:43:52Z",
   "smoke": {
-   "pull_seconds": 5.8,
+   "pull_seconds": 6.0,
    "runs": {
     "first-node": {
-     "container_seconds": 12.0,
-     "weights_seconds": 4.4,
-     "job_seconds": 6.5
+     "container_seconds": 8.5,
+     "weights_seconds": 3.0,
+     "job_seconds": 4.4
     },
     "second-node": {
-     "container_seconds": 9.6,
-     "weights_seconds": 4.1,
-     "job_seconds": 5.8
+     "container_seconds": 4.6,
+     "weights_seconds": 1.4,
+     "job_seconds": 2.1
     },
     "warm": {
-     "container_seconds": 4.8,
-     "weights_seconds": 0.7,
-     "job_seconds": 1.2
+     "container_seconds": 5.1,
+     "weights_seconds": 1.5,
+     "job_seconds": 2.3
     }
    }
   }
  },
  "blender": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-14115bf62f8c@sha256:2b60174f3ce7077faa1471aaa4a6c9fea4684e1be90ffed3d7d78367cf323e65",
-  "tag": "1-14115bf62f8c",
-  "digest": "sha256:2b60174f3ce7077faa1471aaa4a6c9fea4684e1be90ffed3d7d78367cf323e65",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-9803b776f0bb@sha256:1d85e3a6b18cecf8692b4604ae6d7695d1a42acf3b629705c4902d68471389f5",
+  "tag": "1-9803b776f0bb",
+  "digest": "sha256:1d85e3a6b18cecf8692b4604ae6d7695d1a42acf3b629705c4902d68471389f5",
   "platforms": "linux/amd64",
   "size_mb": 794.5,
-  "build_minutes": 1.8,
-  "built": "2026-10-09T14:18:28Z",
+  "build_minutes": 1.6,
+  "built": "2026-10-09T14:46:00Z",
   "smoke": {
-   "pull_seconds": 14.0,
+   "pull_seconds": 13.9,
    "runs": {
     "first-node": {
-     "container_seconds": 7.0,
-     "weights_seconds": 1.2,
-     "job_seconds": 2.2
+     "container_seconds": 5.9,
+     "weights_seconds": 0.8,
+     "job_seconds": 2.0
     },
     "second-node": {
-     "container_seconds": 5.5,
-     "weights_seconds": 1.2,
-     "job_seconds": 2.2
+     "container_seconds": 4.6,
+     "weights_seconds": 0.5,
+     "job_seconds": 1.3
     },
     "warm": {
-     "container_seconds": 6.4,
-     "weights_seconds": 0.8,
+     "container_seconds": 4.8,
+     "weights_seconds": 1.1,
      "job_seconds": 2.3
     }
    }

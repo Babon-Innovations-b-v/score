@@ -80,6 +80,20 @@ def test_the_build_pushes_with_a_registry_cache():
     in_a_copy(check)
 
 
+def test_the_context_keeps_each_files_mode():
+    def check(root):
+        script = root / "child/run.sh"
+        script.write_text("#!/bin/sh\n")
+        script.chmod(0o755)
+        first = build.tag("child", {"base": {"digest": "sha256:a"}})
+        staged = build.staged_context("child", root)
+        assert (staged / "run.sh").stat().st_mode & 0o777 == 0o755
+        assert (staged / "runtime/job.py").read_text() == "print()"
+        script.chmod(0o644)
+        assert build.tag("child", {"base": {"digest": "sha256:a"}}) != first
+    in_a_copy(check)
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

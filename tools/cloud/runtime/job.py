@@ -125,8 +125,11 @@ def stop_group(process):
 def run_command(spec, environment, cwd, log):
     """Run the job's command, its output into the log; its exit code, or a Failure past its minutes."""
     minutes = spec.get("minutes", 60)
-    process = subprocess.Popen(spec["command"], cwd=cwd, env=environment, stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
+    try:
+        process = subprocess.Popen(spec["command"], cwd=cwd, env=environment, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
+    except (OSError, ValueError) as error:
+        raise Failure("command", f"could not start {spec['command'][:1]}: {error}") from error
     expired = threading.Event()
     timer = threading.Timer(minutes * 60, lambda: (expired.set(), stop_group(process)))
     timer.start()
