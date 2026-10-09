@@ -107,6 +107,59 @@ total & & & €366.76 \\
 \end{longtable}
 }
 
+The character maker runs a person's whole chain on one card (Table G4). Its machine is set up once with six environments side by side, which took about 30 minutes, longest for SAM3DBody-cpp, which needs the CUDA 12.6 toolkit and 5.2 GB of weights. On an H100, SAM3DBody-cpp's network takes 1.3 s and its whole call about 4 s once warm, 44 s cold. Against the Python SAM 3D Body on the same picture, its shape parameters correlate at 0.98, and its body at rest is 23 mm shorter (1.548 m against 1.571 m), with a mean gap of 17.6 mm between vertices and joints 19 mm apart on average and 25 mm at worst. The difference comes from the person box: SAM3DBody-cpp finds its own with YOLO, while the Python run was given the whole picture. Kimodo with its text encoder on the same card writes a clip in 30 s once warm, and the first in 82 s, which includes downloading the Llama 3 encoder. Nev's 19 clips had been made already, so her rebuild wrote none. On her walk, the built character's skinning, with 27 joints and thinned weights as an engine plays it, keeps within 6.8 mm of the body model's own posed points on average and 52.6 mm at worst (4.9 mm on average off the hands), and its file is 5.05 MB. Her far body has 612 vertices and 1,220 triangles, her work suit 31,260 triangles and her space suit 44,846. The development machine on which the chain was built and Nev was rebuilt ran for 163 billed minutes and cost €7.79 in all. On a 16-core processor machine, Blender drapes the work suit in 1.5 minutes and the space suit in 0.6 minutes, with every seam within 3 cm and no cloth inside the body.
+
+The animals' route rents cheaper cards. One Pixal3D run on an L40S made both animals' meshes in 11.2 minutes for €0.29, and UniRig rigs a model in about 70 s on an L4. The rig, the clips, the far levels and the review renders take 5.2 minutes of an L4 for €0.08. A processor machine costs 10 to 15 times more for the same job: the fish's own Blender run went to a 32-core processor machine when no card was free and cost €0.85. UsdSkel skins the animals to within 0.2 µm of their glTF skinning for the dog and 0.01 µm for the fish. The fish's levels have 40,000, 6,000 and 532 triangles, the dog's 39,999, 5,999 and 1,500.
+
+\textbf{Table G4.} Characters made by the character maker, 9 October 2026. Minutes of card time per group of steps; the fish and the dog shared one Pixal3D run on an L40S, split evenly here, and their costs are on cards for every step.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 20\tabcolsep) * \real{0.0909}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Character
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Card
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Picture
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Body or mesh
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Rig and clips
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Clothes
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Head, hair and face
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Build and review
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Total
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cost
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Setup
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Nev, from her picture & H100 PCIe & 0 (her own) & 0.13 & 0 (made already) & 4.75 & 4.23 & 2.09 & 11.2 min & €0.54 & about 30 min \\
+Dog, from words & L4; L40S for the mesh & 2 (4 pictures) & 5.6 & about 1.2 (UniRig) & & & 5.2 & about 14 min & about €0.40 & about 1.5 min (UniRig) \\
+Fish, from a close-up & L40S for the mesh; L4 & 0 (given) & 5.6 & in code & & & on an L4 as the dog's & & about €0.32 & \\
+\end{longtable}
+}
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
 \textbf{Gap: cost tables.} These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds and on the bill; the figures per place so far (Appendix B) are lower bounds taken from the build logs.

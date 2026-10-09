@@ -1,6 +1,6 @@
 \section{Models and licences}\label{models-and-licences}
 
-Every model in the framework must allow commercial use of its output (Table E1). Candidate models were dropped under this rule; among them were NVIDIA's Lyra 2.0, whose weights are licensed for internal research only, and Hunyuan3D 2.1, whose licence does not apply in the European Union. We read each licence for its clauses on commercial use. Four of the models read pictures through Meta's DINO family of models, each through its own copy. What passes from one model to the next is always pictures, masks, depth maps or meshes, never one model's internal features.
+Every model in the framework must allow commercial use of its output (Table E1). Candidate models were dropped under this rule; among them were NVIDIA's Lyra 2.0, whose weights are licensed for internal research only, and Hunyuan3D 2.1, whose licence does not apply in the European Union. We read each licence for its clauses on commercial use. Four of the models read pictures through Meta's DINO family of models, each through its own copy. What passes from one model to the next is always pictures, masks, depth maps or meshes, never one model's internal features. The characters' licence check found that GarmentCode's fork of NVIDIA Warp, which drapes its patterns, allows non-commercial research only, so Blender's cloth simulation replaced it. The one open doubt among the characters' models is the face LoRA, whose training data is not disclosed.
 
 \textbf{Table E1.} Models in the framework.
 
@@ -30,10 +30,17 @@ Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
 World Labs Marble \citep{marble_terms} & optional world step & paid; outputs owned by paid users \\
-FLUX.2 klein 4B \citep{flux2klein} & earlier prop pictures & Apache-2.0 \\
+FLUX.2 klein 4B \citep{flux2klein} & earlier prop pictures; the characters' A-pose pictures from words and their hair's clay pictures & Apache-2.0 \\
 MoGe-2 \citep{wang2025moge2}, SAM 3 \citep{carion2025sam3} & measuring and finding objects in pictures & MIT; SAM Licence \\
-Kimodo \citep{rempe2026kimodo}, SAM 3D Body \citep{yang2026sam3dbody} & motion from sentences; body shape from a picture & Apache-2.0 code, NVIDIA Open Model License; SAM Licence \\
-SOMA-X and MHR, GarmentCode with its Warp fork, MakeHuman eyes & the characters' bodies, clothes and eyes & Apache-2.0; MIT; CC0 \\
+Kimodo \citep{rempe2026kimodo} & the characters' motion from sentences & Apache-2.0 code; NVIDIA Open Model License for the Kimodo-SOMA-RP-v1.1 weights, commercial use allowed \\
+LLM2Vec \citep{behnamghader2024llm2vec} on Meta-Llama-3-8B-Instruct \citep{grattafiori2024llama3} & Kimodo's text encoder, used only while clips are made; nothing from it ships & Llama 3 Community License: commercial use allowed, the 700 million monthly users clause does not apply, ``Built with Meta Llama 3'' shown, no exclusion in the European Union for the text-only 8B model \\
+SAM 3D Body \citep{yang2026sam3dbody}, SAM3DBody-cpp \citep{sam3dbodycpp} & body shape from a picture & SAM Licence for the weights, SAM3DBody-cpp's converted ONNX and GGUF weights included whatever their tag says; MIT for SAM3DBody-cpp's code \\
+SOMA-X and MHR & the characters' bodies & Apache-2.0 \\
+GarmentCode \citep{korosteleva2023garmentcode}, Blender's cloth \citep{blender} & the clothes' sewing patterns and their drape & MIT; Blender is GPL and its output is ours; GarmentCode's Warp fork (non-commercial research only) not used \\
+Hi3DGen \citep{ye2025hi3dgen} & the characters' hair & MIT code; MIT and Apache-2.0 weights \\
+FLUX.2 klein base 4B \citep{flux2kleinbase} with the refcontrol reference-depth LoRA \citep{refcontrol} & the characters' faces & Apache-2.0, both; the LoRA's training data is not disclosed \\
+UniRig \citep{zhang2025unirig} & the skeleton and skin of a quadruped & MIT code and weights \\
+MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
 }
 

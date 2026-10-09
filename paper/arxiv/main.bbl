@@ -1,4 +1,4 @@
-\begin{thebibliography}{37}
+\begin{thebibliography}{46}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -223,6 +223,66 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
 \newblock {OpenUSD}: Universal scene description, 2026.
 \newblock URL \url{https://openusd.org/}.
 
+\bibitem[{Black Forest Labs}(2026{\natexlab{a}})]{flux2klein}
+{Black Forest Labs}.
+\newblock {FLUX.2 [klein] 4B} model card.
+\newblock Hugging Face, 2026{\natexlab{a}}.
+\newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
+\newblock Apache-2.0. Vendor material.
+
+\bibitem[Qammaz(2026)]{sam3dbodycpp}
+Ammar Qammaz.
+\newblock {SAM3DBody-cpp}: a standalone {C++} inference engine for {SAM 3D
+  Body}.
+\newblock GitHub, 2026.
+\newblock URL \url{https://github.com/AmmarkoV/SAM3DBody-cpp}.
+\newblock MIT code; its converted weights are under the SAM Licence.
+
+\bibitem[Korosteleva and Sorkine-Hornung(2023)]{korosteleva2023garmentcode}
+Maria Korosteleva and Olga Sorkine-Hornung.
+\newblock {GarmentCode}: Programming parametric sewing patterns.
+\newblock \emph{ACM Transactions on Graphics}, 42\penalty0 (6):\penalty0 197,
+  2023.
+\newblock arXiv:2306.03642.
+
+\bibitem[{Blender Foundation}(2026)]{blender}
+{Blender Foundation}.
+\newblock {Blender}, 2026.
+\newblock URL \url{https://www.blender.org/}.
+\newblock Version 5.0.1 used here. GPL.
+
+\bibitem[Ye et~al.(2025)Ye, Wu, Lu, Chang, Guo, Zhou, Zhao, and
+  Han]{ye2025hi3dgen}
+Chongjie Ye, Yushuang Wu, Ziteng Lu, Jiahao Chang, Xiaoyang Guo, Jiaqing Zhou,
+  Hao Zhao, and Xiaoguang Han.
+\newblock {Hi3DGen}: High-fidelity {3D} geometry generation from images via
+  normal bridging.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on
+  Computer Vision (ICCV)}, 2025.
+\newblock arXiv:2503.22236.
+
+\bibitem[{Black Forest Labs}(2026{\natexlab{b}})]{flux2kleinbase}
+{Black Forest Labs}.
+\newblock {FLUX.2 [klein] Base 4B} model card.
+\newblock Hugging Face, 2026{\natexlab{b}}.
+\newblock URL
+  \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B}.
+\newblock Apache-2.0. Vendor material.
+
+\bibitem[{thedeoxen}(2026)]{refcontrol}
+{thedeoxen}.
+\newblock {refcontrol}: reference-depth {LoRA} for {FLUX.2 [klein] 4B}.
+\newblock Hugging Face, 2026.
+\newblock URL
+  \url{https://huggingface.co/thedeoxen/refcontrol-FLUX.2-klein-4B-reference-depth-lora}.
+\newblock Apache-2.0; training data not disclosed.
+
+\bibitem[Zhang et~al.(2025)Zhang, Pu, Guo, Cao, and Hu]{zhang2025unirig}
+Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, and Shi-Min Hu.
+\newblock One model to rig them all: Diverse skeleton rigging with {UniRig}.
+\newblock \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.
+\newblock arXiv:2504.12451.
+
 \bibitem[Rein and Liu(2012)]{rein2012rebound}
 Hanno Rein and Shang-Fei Liu.
 \newblock {REBOUND}: An open-source multi-purpose {N}-body code for collisional
@@ -242,12 +302,19 @@ Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
 \newblock URL \url{https://docs.worldlabs.ai/terms-of-service}.
 \newblock Last updated 21 January 2026; accessed 2026-10-08. Vendor material.
 
-\bibitem[{Black Forest Labs}(2026)]{flux2klein}
-{Black Forest Labs}.
-\newblock {FLUX.2 [klein] 4B} model card.
-\newblock Hugging Face, 2026.
-\newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
-\newblock Apache-2.0. Vendor material.
+\bibitem[BehnamGhader et~al.(2024)BehnamGhader, Adlakha, Mosbach, Bahdanau,
+  Chapados, and Reddy]{behnamghader2024llm2vec}
+Parishad BehnamGhader, Vaibhav Adlakha, Marius Mosbach, Dzmitry Bahdanau,
+  Nicolas Chapados, and Siva Reddy.
+\newblock {LLM2Vec}: Large language models are secretly powerful text encoders.
+\newblock In \emph{Conference on Language Modeling (COLM)}, 2024.
+\newblock arXiv:2404.05961.
+
+\bibitem[Grattafiori et~al.(2024)Grattafiori, Dubey, Jauhri,
+  et~al.]{grattafiori2024llama3}
+Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, et~al.
+\newblock The {Llama 3} herd of models.
+\newblock \emph{arXiv preprint arXiv:2407.21783}, 2024.
 
 \bibitem[{Anthropic}(2026)]{claudecode}
 {Anthropic}.
