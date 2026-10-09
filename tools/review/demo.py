@@ -1,6 +1,6 @@
 """A world's demo: a walk-through video of each place from its OpenUSD stage, and one video of the world in story order.
 
-    .venv/bin/python tools/review/demo.py plan <out> --stages <stage root> <place> [<place> ...]
+    .venv/bin/python tools/review/demo.py plan <out> --stages <stage root> [--jobs-each N] <place>[=<camera>,...] [...]
     ~/.farm-factory-props/env/bin/python tools/props/cloud/blender_cloud.py <out>/jobs/*.json --who <session> \
         --classes gpu-24gb,gpu-48gb,gpu-80gb
     .venv/bin/python tools/review/demo.py cut <out> <place>[:<Title>] [...]
@@ -8,7 +8,7 @@
 `plan` writes, per place, the views of its shots (`<out>/views/<place>.json`) and one cloud Blender job that renders
 them with the review's scene script (`../blender/inside/usd_views.py`, Cycles on a card), its stage folder and every
 place its stage shows as inputs. A shot starts at one of the scene record's own cameras (the player's spots, inside a
-room at standing height; a camera looking up at a roof is left out) and moves slowly from there: the eye goes a little
+room at standing height; the cameras named, else a few spread over the record, none looking up at a roof) and moves slowly from there: the eye goes a little
 way towards what it looks at while the view turns a few degrees, so no shot passes through a wall. The frames follow
 the stage's own time, one shot after the other, so its characters move through the whole video. `cut` makes each
 place's video from its frames (the shots joined by short cross-fades, opened by a title card with the place's plain
@@ -46,13 +46,20 @@ DOLLY_CAP_OUTSIDE = 6.0
 TURN_DEGREES = 10.0
 # A camera this steep (its aim over its eye by more than this share of the distance) looks at a roof: not a shot.
 STEEPEST = 0.6
-# Minutes of a card a frame takes, measured on the hub (renders a frame in about this, the import aside).
-FRAME_MINUTES = 0.15
+# Minutes a frame takes on a 24 GB card, the import aside (the square and the hub on an L4, 2026-10-09: 14 to 20 s).
+FRAME_MINUTES = 0.3
 FONT = pathlib.Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 
 
-def shot_cameras(record, count=SHOTS):
-    """Up to `count` of the record's cameras, spread over its list: the player's spots, none looking up at a roof."""
+def shot_cameras(record, count=SHOTS, names=()):
+    """The record's cameras named, in that order; else up to `count` of them, spread over its list: the player's spots,
+    none looking up at a roof."""
+    if names:
+        found = {view["name"]: view for view in record.get("views", [])}
+        missing = [name for name in names if name not in found]
+        if missing:
+            raise SystemExit(f"the scene record has no camera {', '.join(missing)}")
+        return [found[name] for name in names]
     level = [view for view in record.get("views", []) if not steep(view)]
     if len(level) <= count:
         return level
@@ -92,11 +99,11 @@ def shot_frames(view, number, frames, inside):
     return views
 
 
-def place_views(record, time_rate):
+def place_views(record, time_rate, names=()):
     """Every frame of a place's video as usd_views views, at consecutive moments of the stage's time."""
     frames = round(SHOT_SECONDS * RATE)
     views = []
-    for number, view in enumerate(shot_cameras(record)):
+    for number, view in enumerate(shot_cameras(record, names=names)):
         views += shot_frames(view, number, frames, bool(record.get("inside")))
     return [dict(view, frame=round(index * time_rate / RATE)) for index, view in enumerate(views)]
 
@@ -105,28 +112,40 @@ def stage_of(stages, place):
     return stages / place / f"{place}.usda"
 
 
-def plan(out, stages, places):
-    """Each place's views and its cloud job; the job files."""
+def chosen(given):
+    """A place as given to plan, `place` or `place=camera,camera`: (place, the cameras named)."""
+    place, _, names = given.partition("=")
+    return place, [name for name in names.split(",") if name]
+
+
+def plan(out, stages, places, jobs_each=1):
+    """Each place's views and its cloud jobs (`jobs_each` a place, its shots shared between them); the job files."""
     (out / "views").mkdir(parents=True, exist_ok=True)
     (out / "jobs").mkdir(parents=True, exist_ok=True)
     written = []
-    for place in places:
+    for given in places:
+        place, names = chosen(given)
         record = scene_record.record(place)
         if not record or not record.get("views"):
             raise SystemExit(f"{place} has no scene record with cameras (data/scene/{place}.json)")
         stage = stage_of(stages, place)
-        views = place_views(record, renders.stage_rate(stage))
-        path = out / "views" / f"{place}.json"
-        path.write_text(json.dumps({"size": list(SIZE), "views": views}, indent=1))
+        views = place_views(record, renders.stage_rate(stage), names)
+        (out / "views" / f"{place}.json").write_text(json.dumps({"size": list(SIZE), "views": views}, indent=1))
         frames = out / "frames" / place
         shown = [stages / name for name in renders.places_shown(record) if name != place]
-        job = {"script": str((REPO / "tools/blender/inside/usd_views.py").relative_to(REPO)),
-               "args": [str(stage), str(path), str(frames)],
-               "inputs": [str(stage.parent), *map(str, shown), str(path)], "outputs": [str(frames)],
-               "minutes": round(10 + FRAME_MINUTES * len(views))}
-        (out / "jobs" / f"{place}.json").write_text(json.dumps(job, indent=1))
-        written.append(out / "jobs" / f"{place}.json")
-        print(f"{place}: {len(views)} frames, about {job['minutes']} min")
+        shots = sorted({view["name"].split("-")[0] for view in views}, key=lambda name: int(name[4:]))
+        for part in range(min(jobs_each, len(shots))):
+            mine = set(shots[part::jobs_each])
+            share = [view for view in views if view["name"].split("-")[0] in mine]
+            path = out / "views" / f"{place}-{part}.json"
+            path.write_text(json.dumps({"size": list(SIZE), "views": share}, indent=1))
+            job = {"script": str((REPO / "tools/blender/inside/usd_views.py").relative_to(REPO)),
+                   "args": [str(stage), str(path), str(frames)],
+                   "inputs": [str(stage.parent), *map(str, shown), str(path)], "outputs": [str(frames)],
+                   "minutes": round(10 + FRAME_MINUTES * len(share))}
+            (out / "jobs" / f"{place}-{part}.json").write_text(json.dumps(job, indent=1))
+            written.append(out / "jobs" / f"{place}-{part}.json")
+        print(f"{place}: {len(views)} frames in {min(jobs_each, len(shots))} jobs")
     return written
 
 
@@ -203,11 +222,12 @@ def main():
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("places", nargs="+")
     parser.add_argument("--stages", type=pathlib.Path, help="plan: the folder holding each place's stage folder")
+    parser.add_argument("--jobs-each", type=int, default=1, help="plan: cloud jobs a place, its shots shared out")
     options = parser.parse_args()
     if options.step == "plan":
         if not options.stages:
             raise SystemExit("plan needs --stages")
-        plan(options.out.resolve(), options.stages.resolve(), options.places)
+        plan(options.out.resolve(), options.stages.resolve(), options.places, options.jobs_each)
     else:
         cut(options.out.resolve(), options.places)
 

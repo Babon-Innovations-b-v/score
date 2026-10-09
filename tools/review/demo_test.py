@@ -24,6 +24,9 @@ def check_cameras():
     chosen = demo.shot_cameras(record, count=4)
     assert [view["name"] for view in chosen] == ["spot0", "spot2", "spot4", "spot6"], chosen
     assert all(view["name"] != "up-roof" for view in demo.shot_cameras(record, count=10))
+    assert [view["name"] for view in demo.shot_cameras(record, names=["spot5", "spot1"])] == ["spot5", "spot1"]
+    assert demo.chosen("hub=wide-north,wide-east") == ("hub", ["wide-north", "wide-east"])
+    assert demo.chosen("hub") == ("hub", [])
 
 
 def check_shot():
