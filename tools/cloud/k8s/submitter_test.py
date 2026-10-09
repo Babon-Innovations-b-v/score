@@ -275,3 +275,16 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
     assert submit.provider.load().NAME == "scaleway"
     monkeypatch.setenv("SCORE_CLOUD", "scaleway")
     assert not submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"
+
+
+def test_a_run_holds_to_its_parallel_jobs():
+    spec = {"kind": "pixal", "image": "image", "minutes": 30, "classes": ["gpu-24gb"]}
+    kubectl = LiveKubectl()
+    run = submit.Run("r1", {f"take-{number}": spec for number in range(5)}, kubectl, PoolCluster(0))
+    submit.submit_more(run, 2)
+    assert len(kubectl.jobs) == 2
+    run.jobs["take-0"]["state"] = "done"
+    submit.submit_more(run, 2)
+    assert len(kubectl.jobs) == 3
+    submit.submit_more(run, None)
+    assert len(kubectl.jobs) == 5

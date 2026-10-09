@@ -324,7 +324,8 @@ class Run:
             state["since"] = now
             say(f"{kind}: {', '.join(order[:state['step'] - 1])} cannot be had now; adding {order[state['step'] - 1]}")
             for job_id in job_ids:
-                if self.jobs[job_id]["state"] == "waiting" and self.jobs[job_id]["ran"] is None:
+                record = self.jobs[job_id]
+                if record["state"] == "waiting" and record["ran"] is None and record["submitted"] is not None:
                     self.remake(job_id)
 
     def watch_nodes(self):
@@ -428,6 +429,8 @@ def poll(run):
     """One look at the cluster: each job's state, the kinds to widen, the nodes."""
     jobs, pods, no_grow = run.read()
     for job_id in run.unfinished():
+        if run.jobs[job_id]["submitted"] is None:
+            continue
         found = run.current(job_id, jobs)
         if found is None:
             run.make(job_id)
@@ -437,11 +440,24 @@ def poll(run):
     run.watch_nodes()
 
 
-def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=True, who=None):
+def submit_more(run, parallel=None):
+    """Put the run's next jobs on the cluster while fewer than `parallel` of its jobs are there unfinished (all of
+    them when `parallel` is None): the run's queue, which holds a run to that many nodes of one card each."""
+    for job_id in run.unfinished():
+        on_cluster = sum(1 for record in run.jobs.values()
+                         if record["submitted"] is not None and record["state"] == "waiting")
+        if parallel is not None and on_cluster >= parallel:
+            return
+        if run.jobs[job_id]["submitted"] is None:
+            run.make(job_id)
+
+
+def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=True, who=None, parallel=None):
     """Run every job of `specs` ({job id: job.json}) not yet done to its end on the cluster; the ledger entries
     written. `store` is the run's object store (the runtime's), where done.json says a job is finished. A runner
     that must not wait for its nodes to go (`wait_scale_down=False`) records them as gone after
-    IDLE_ESTIMATE_MINUTES, marked estimated; `who` is the session asking, kept in the ledger."""
+    IDLE_ESTIMATE_MINUTES, marked estimated; `who` is the session asking, kept in the ledger; `parallel` holds the
+    run to that many jobs on the cluster at once (submit_more)."""
     cluster = cluster or cluster_module()
     kubectl = kubectl or Kubectl(kubeconfig(cluster))
     helper = runtime()
@@ -455,13 +471,12 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
     prepare(kubectl, cluster, spent)
     run = Run(run_id, specs, kubectl, cluster)
     run.resume()
-    for job_id in specs:
-        if run.jobs[job_id]["submitted"] is None:
-            run.make(job_id)
-    say(f"{len(specs)} jobs on the cluster for run {run_id}")
+    submit_more(run, parallel)
+    say(f"{len(specs)} jobs for run {run_id}" + (f", {parallel} at a time" if parallel else ""))
     while run.unfinished():
         time.sleep(POLL_SECONDS)
         poll(run)
+        submit_more(run, parallel)
         why = over_limits(run, spent)
         if why:
             stop_run(run, why)

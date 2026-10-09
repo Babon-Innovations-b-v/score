@@ -47,7 +47,7 @@ def test_jobs_run_and_outputs_come_back(tmp_path, monkeypatch):
     monkeypatch.setattr(cluster_jobs.submitter, "runtime", lambda: helper)
     seen = {}
 
-    def submit(run, specs, store, wait_scale_down=True, who=None):
+    def submit(run, specs, store, wait_scale_down=True, who=None, parallel=None):
         seen.update(run=run, specs=specs, wait=wait_scale_down, who=who)
         finish(store, run, specs, failing={"1"})
         return []

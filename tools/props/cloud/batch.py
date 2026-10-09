@@ -28,7 +28,9 @@ when it has room, so a slow or late machine never holds up the rest, and one tha
 unfinished jobs back. Every model comes back into WORK/pixal/ as if made here, with the camera
 folder its finish paints from (<name>.svviews), and is finished here with `pixal.py --finish-only`
 (Blender and the processor, no model) while the machines are still working. This is the way to make
-every model, one or a hundred.
+every model, one or a hundred. Under SCORE_CLOUD=k8s the takes go to the Kubernetes cluster as Jobs of the pixal
+image instead (run_on_cluster, tools/cloud/k8s/cluster_jobs.py), finished here the same way; the machines stay the
+default.
 
 Before anything is rented, the prices are read from the cloud backend (provider.py) and printed, and a batch that would
 pass four hours, €60, or the month's ceiling (ledger.MONTH_EUROS) is refused (ledger.py). Every machine is deleted whatever
@@ -921,6 +923,69 @@ def run(models, options, account, found, cards, allowed_minutes):
         say(f"finishing failed: {', '.join(fleet.finish_failed)} (see {folder / 'finish.log'})")
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): the takes as Kubernetes Jobs of the pixal image (tools/cloud/images/pixal/:
+# its pixal-run wrapper runs the lab's generator from the job's code bundle, the weights from the node cache), through
+# tools/cloud/k8s/cluster_jobs.py. A pod has its card to itself, so one job holds as many takes as a 24 GB card runs
+# at once (capacity.runs_at_once), started SPACING_SECONDS apart as machine_run.py starts them; the finishing stays
+# here, as today.
+CLUSTER_MODELS = ["pixal3d", "trellis2-birefnet", "birefnet-general-lite"]
+CLUSTER_CODE = ["vendor/image-to-3dlab"]
+CLUSTER_SPACING_SECONDS = 30
+CLUSTER_TAKE_MINUTES = 30
+
+
+def cluster_line(group):
+    """The shell line of one cluster job: each take of `group` through pixal-run, side by side, its log in the
+    output; it fails only when none made its model, so a take that failed is "not made" as on a machine."""
+    starts = []
+    for turn, options in enumerate(group):
+        arguments = pixal.generator_arguments(f"/work/in/{options.name}.png", f"/work/out/{options.name}.glb",
+                                              options.seed)
+        starts.append(f"(sleep {turn * CLUSTER_SPACING_SECONDS}; pixal-run {shlex.join(arguments)} "
+                      f"> /work/out/{options.name}.log 2>&1) &")
+    made = " || ".join(f"test -f /work/out/{options.name}.glb" for options in group)
+    return f"mkdir -p /work/out && {' '.join(starts)} wait; {made}"
+
+
+def cluster_job(group, out):
+    """One group of takes as a cluster job: its pictures up, the whole output folder back to `out`."""
+    return {"command": ["bash", "-c", cluster_line(group)], "code": CLUSTER_CODE, "models": CLUSTER_MODELS,
+            "inputs": [{"local": str(pathlib.Path(options.picture).expanduser().resolve()),
+                        "path": f"/work/in/{options.name}.png"} for options in group],
+            "outputs": [{"path": "/work/out", "local": str(out)}], "minutes": CLUSTER_TAKE_MINUTES * len(group)}
+
+
+def groups_of(models, size):
+    return [models[start:start + size] for start in range(0, len(models), size)]
+
+
+def run_on_cluster(models, options, parallel=None):
+    """The batch on the cluster: the takes in groups, each group's models moved into WORK/pixal and finished here as
+    it arrives (Fleet.arrived), as the machines' batch does."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    size = options.per_card or capacity.runs_at_once("pixal", "gpu-24gb")
+    folder = BATCHES / time.strftime(f"batch-k8s-%Y%m%d-%H%M%S-{os.getpid()}")
+    folder.mkdir(parents=True)
+    groups = groups_of(models, size)
+    work = [cluster_job(group, folder / f"group{number}" / "out") for number, group in enumerate(groups)]
+    fleet = Fleet(models, folder, size, time.time(), options.who, not options.no_finish)
+    try:
+        cluster_jobs.run("pixal", work, options.who, options.classes.split(","), parallel=parallel)
+        for number, group in enumerate(groups):
+            for take in group:
+                if (folder / f"group{number}" / "out" / f"{take.name}.glb").exists():
+                    fleet.arrived(folder / f"group{number}", take.name)
+    finally:
+        fleet.finishers.shutdown(wait=True)
+    missing = sorted(set(fleet.models) - set(fleet.done))
+    if missing:
+        say(f"not made: {', '.join(missing)} (logs under {folder})")
+    if fleet.finish_failed:
+        say(f"finishing failed: {', '.join(fleet.finish_failed)} (see {folder / 'finish.log'})")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("list", nargs="?", help="the models, one a line (not with --characters)")
@@ -952,6 +1017,10 @@ def main():
         from_the_inventory(models, options.inventory)
     if taken(models):
         raise SystemExit(f"raw models already here, pick new names: {', '.join(taken(models))}")
+    if provider.on_cluster():
+        if not options.dry_run:
+            run_on_cluster(models, options)
+        return
     account = cloud.account()
     sweep(account)
     found, cards, allowed_minutes = plan(models, options, account)
