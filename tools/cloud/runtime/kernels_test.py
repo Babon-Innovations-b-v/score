@@ -20,7 +20,7 @@ import store as stores  # noqa: E402
 import submit  # noqa: E402
 import weights  # noqa: E402
 
-CARD = "nvidia-h100-80gb-hbm3-580.95.05"
+CARD = "sm90-580.178.04"
 # The command stands in for a first render: it says whether the cache was there and compiles (writes) it if not.
 COMMAND = [sys.executable, "-c",
            "import os, pathlib; cache = pathlib.Path(os.environ['CUDA_CACHE_PATH']); "

@@ -1,13 +1,14 @@
 """Compiled GPU kernel caches, kept per card and driver so that no node pays a first-use compile twice.
 
-A program that compiles GPU code at first use (Cycles: the CUDA driver compiles its PTX for a card it ships no binary
-for, the H100's sm_90 in Blender 5.0.1; OptiX compiles its pipeline on every card) keeps the result in the CUDA
-compute cache and the OptiX cache. A job that names a `kernel_cache` (job.json, e.g. "blender-5.0.1") gets both
-caches pointed into the node cache, at <cache>/kernels/<name>/<card>/{cuda,optix}, which later jobs on the node reuse;
-a node that has none restores them first from the store's kernels/<name>/<card>.tar, and a job that leaves them
-larger than the store's copy uploads them, so the next new node starts warm. <card> is the card's name and driver
-version (nvidia-smi), since a driver compiles for itself. The caches check their own entries, so a stale entry is
-recompiled, never used wrongly.
+A program that compiles GPU code at first use keeps the result in the CUDA compute cache (and OptiX in its own
+cache). Cycles in Blender 5.0.1 ships CUDA binaries up to sm_89 and sm_120 but none for the H100's sm_90, so the
+driver compiles its PTX there: 218 s before an H100's first render (2026-10-09). A job that names a `kernel_cache`
+(job.json, e.g. "blender-5.0.1") gets both caches pointed into the node cache, at
+<cache>/kernels/<name>/<card>/{cuda,optix}, which later jobs on the node reuse; a node that has none restores them
+first from the store's kernels/<name>/<card>.tar, and a job that leaves them larger than the store's copy uploads
+them, so the next new node starts warm. <card> is the card's compute capability and driver (sm90-580.178.04): a
+driver compiles for itself, and an H100 PCIe and an H100 SXM share one cache. The caches check their own entries, so
+a stale entry is recompiled, never used wrongly.
 """
 import fcntl
 import os
@@ -25,14 +26,18 @@ SIZE_SUFFIX = ".bytes"
 
 
 def card_key():
-    """The node's first card and its driver as one name (nvidia-l4-580.95.05), or None on a processor node."""
+    """The node's first card's compute capability and driver as one name (sm90-580.178.04), or None on a processor
+    node."""
     try:
-        answer = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
+        answer = subprocess.run(["nvidia-smi", "--query-gpu=compute_cap,driver_version", "--format=csv,noheader"],
                                 capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired):
         return None
     lines = answer.stdout.strip().splitlines() if answer.returncode == 0 else []
-    return re.sub(r"[^a-z0-9.]+", "-", lines[0].lower()).strip("-") if lines else None
+    if not lines:
+        return None
+    capability, driver = (part.strip() for part in lines[0].split(","))
+    return re.sub(r"[^a-z0-9.-]+", "", f"sm{capability.replace('.', '')}-{driver}".lower())
 
 
 def folder(cache, name, card):

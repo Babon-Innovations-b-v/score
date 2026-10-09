@@ -5,10 +5,12 @@
 # blender.org, checked against its sha256; the system libraries a headless Blender still links; pandas and NumPy for
 # ProcFunc in PROPS_HOME's blender-mcp/pf-site (tools/props/library/inside/runtime.py). /root/blender and
 # PROPS_HOME=/root/props keep the machine runner's paths, so the same run lines work in here.
-# GPU kernels: Blender 5.0.1 ships Cycles CUDA binaries for sm_50 to sm_89 and sm_120 but none for sm_90 (H100), and
-# OptiX compiles its pipeline at first use on every card; a job naming kernel_cache "blender-5.0.1" keeps the
-# compiled caches per card and driver in the node cache and the store (tools/cloud/runtime/kernels.py). The graphics
-# capability lets the NVIDIA container toolkit mount the driver's OptiX library.
+# GPU kernels: Blender 5.0.1 ships Cycles CUDA binaries for sm_50 to sm_89 and sm_120 but none for sm_90, so an H100's
+# first render waited 218 s for the driver to compile Cycles' PTX; the L4 and L40S (sm_89) start at once. A job naming
+# kernel_cache "blender-5.0.1" keeps the compiled cache per card and driver in the node cache and the store
+# (tools/cloud/runtime/kernels.py, warmed by tools/cloud/images/warm.py): a new H100 node's first render then takes
+# 0.3 s. The provider's GPU machines carry NVIDIA's headless compute driver, which has no OptiX library, so Cycles
+# renders on CUDA there; the graphics capability lets the container toolkit mount OptiX where a driver has it.
 ARG BASE
 FROM ${BASE}
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics PROPS_HOME=/root/props BLENDER=/opt/blender/blender

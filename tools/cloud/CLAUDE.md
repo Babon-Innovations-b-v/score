@@ -27,7 +27,9 @@ same way. The machine runners in `tools/props/cloud/` stay the default; this pat
   (Scaleway: the secret `score-cloud-runtime-key`, a key that may use the project's object storage and registry
   only); a node gets them as the SCORE_STORE_* variables of a Kubernetes Secret, never from the repo or an image.
 - **First-use GPU compiles are paid once per card and driver, never per job.** Blender 5.0.1 ships no Cycles binary
-  for the H100 (sm_90) and OptiX compiles its pipeline on every card; `images/warm.py --classes ...` renders
-  `tools/blender/inside/warm_kernels.py` on one machine a class (before, first node, new node) and leaves the caches
-  in the store. Run it after a new Blender or driver; its numbers go into images.json (`first_render`).
+  for the H100 (sm_90): its first render waited 218 s for the driver's compile, and 0.3 s once the cache was restored
+  (2026-10-09; the L4 and L40S start at once). The provider's GPU driver has no OptiX, so Cycles renders on CUDA.
+  `images/warm.py --classes ...` renders `tools/blender/inside/warm_kernels.py` on one machine a class (before,
+  first node, new node) and leaves the caches in the store; run it after a new Blender or driver. Its numbers go into
+  images.json (`first_render`).
 - Tests run against a folder store, no cloud: `.venv/bin/python tools/cloud/runtime/job_test.py` and its siblings.
