@@ -8,7 +8,8 @@ stage's `/<place>/Ground` mesh, or y = 0 on a flat place. For every object (chil
 taken in the stage's frame and each of its points is looked at straight down:
 
     gap     how far the object's lowest point clears what is under it: the ground, or another object's surface
-            a ray down from that point meets. An object with a gap over TOLERANCE floats.
+            a ray down from that point meets (the place's structure too: a pad's deck, a stair). An object with a gap
+            over TOLERANCE floats.
     weight  where the object's weight falls (the middle of its surface, by area). An object whose weight stands
             outside what it touches (its points within TOLERANCE of the ground, of a support under it, or of another
             object beside it) tips: one end hangs in the air.
@@ -75,6 +76,20 @@ def objects_of(stage, place):
     root = stage.GetPrimAtPath(f"/{place}/Objects")
     return {str(prim.GetPath()): prim for prim in Usd.PrimRange(root)
             if prim.HasAttribute("score:kind") and prim.GetChild("geo").IsValid()}
+
+
+def structure_of(stage, place):
+    """The place's structure (a scene record's code-built shells, decks and pads, /<place>/Structure): what an object
+    may stand on, though it is not itself judged: {path: mesh}."""
+    root = stage.GetPrimAtPath(f"/{place}/Structure")
+    if not root.IsValid():
+        return {}
+    found = {}
+    for prim in Usd.PrimRange(root):
+        if prim.IsA(UsdGeom.Mesh):
+            points, triangles = in_stage(prim)
+            found[str(prim.GetPath())] = trimesh.Trimesh(points, triangles, process=False)
+    return found
 
 
 def support_gaps(points, others):
@@ -217,10 +232,11 @@ def check(stage_path):
         points, triangles = in_stage(prim.GetChild("geo"))
         meshes[name] = trimesh.Trimesh(points, triangles, process=False)
     inside = overlaps(meshes, prims)
+    supports = {**meshes, **structure_of(stage, place)}
     verdicts = []
     for name, prim in prims.items():
         mesh = meshes[name]
-        others = neighbours(meshes, name, *mesh.bounds)
+        others = neighbours(supports, name, *mesh.bounds)
         found = judged(name.removeprefix(f"/{place}/Objects/"), prim, mesh, ground, others)
         if name in inside:
             said = "; ".join(f"overlaps {other.removeprefix(f'/{place}/Objects/')} by {depth * 100:.0f} cm"

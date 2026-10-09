@@ -8,7 +8,9 @@
   "canister_1": "sample_jar-lab1",
   "sample_jar_1": "sample_jar-lab1",
   "sample_tray_1": "sample_tray-lab1",
-  "sample_case_1": "sample_case-g1"
+  "sample_case_1": "sample_case-g1",
+  "toaster_1": "toaster-rr1",
+  "kiosk_terminal_1": "kiosk_terminal-rr1"
  },
  "campgrounds": {
   "cargo_case": "cargo_case-r1",
@@ -133,7 +135,8 @@
   "tank_dome": "tank_dome-r1",
   "work_lamp": "work_lamp-r1",
   "supply_rocket": "supply_rocket-rr1",
-  "cargo_lift": "cargo_lift-rr1"
+  "cargo_lift": "cargo_lift-rr1",
+  "probe_lander": "probe_lander-rr1"
  },
  "garage": {
   "rover_lift_1": "rover_lift-g1",

@@ -157,7 +157,26 @@ def a_room_lies_flat_on_its_seat_over_a_dug_pit():
         return problems
 
 
-CHECKS = (floating_sunk_and_hung_are_told_apart, a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground,
+def a_crate_on_a_structure_deck_rests():
+    """A crate laid on a code-built deck (a scene record's structure, a pad) rests on it rather than floating."""
+    from pxr import UsdGeom
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        made_models(folder)
+        path = laid_place(folder, [("crate", "box", (0, 0.5, 0))], [("crate", "floor")])
+        stage = Usd.Stage.Open(str(path))
+        stage.SetEditTarget(stage.GetRootLayer())
+        deck = trimesh.creation.box(bounds=((-2.0, 0.0, -2.0), (2.0, 0.5, 2.0)))
+        mesh = UsdGeom.Mesh.Define(stage, f"/{PLACE}/Structure/deck")
+        mesh.CreatePointsAttr([tuple(map(float, point)) for point in deck.vertices])
+        mesh.CreateFaceVertexCountsAttr([3] * len(deck.faces))
+        mesh.CreateFaceVertexIndicesAttr([int(index) for index in deck.faces.reshape(-1)])
+        stage.GetRootLayer().Save()
+        found = results(path)["crate_1"]
+        return [] if found["result"] == "rests" else [f"the crate on the deck reads '{found['result']}'"]
+
+
+CHECKS = (floating_sunk_and_hung_are_told_apart, a_crate_on_a_structure_deck_rests, a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground,
           two_boxes_inside_each_other_overlap, a_room_lies_flat_on_its_seat_over_a_dug_pit)
 
 

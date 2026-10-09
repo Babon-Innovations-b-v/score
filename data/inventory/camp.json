@@ -1075,10 +1075,10 @@
 			"id": "toaster",
 			"view": "v1",
 			"box": [
-				2231,
-				735,
-				2380,
-				864
+				2137,
+				703,
+				2190,
+				749
 			],
 			"name": "a stainless two-slot toaster on the galley worktop",
 			"kind": "generate",
@@ -1095,7 +1095,7 @@
 			"at": [],
 			"from": "laid by the scene agent's final export from the concept (no game code places it)",
 			"box_from": [
-				"v1.77"
+				"v1.240"
 			]
 		},
 		{
@@ -1272,10 +1272,10 @@
 			"id": "coffee_maker",
 			"view": "v1",
 			"box": [
-				2231,
-				735,
-				2380,
-				864
+				2178,
+				719,
+				2264,
+				837
 			],
 			"name": "a drip coffee maker with a glass carafe on the galley worktop",
 			"kind": "generate",
@@ -1292,7 +1292,7 @@
 			"at": [],
 			"from": "laid by the scene agent's final export from the concept (no game code places it)",
 			"box_from": [
-				"v1.77"
+				"v1.91"
 			]
 		},
 		{

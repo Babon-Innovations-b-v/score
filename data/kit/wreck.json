@@ -503,6 +503,57 @@
 			],
 			"facing": 35.0,
 			"tilt": 90.0
+		},
+		{
+			"prop": "wreck_supply_rocket",
+			"kind": "wreck_supply_rocket",
+			"model": "supply_rocket",
+			"row": "supply_rocket",
+			"size": [
+				1.083,
+				4.5,
+				1.229
+			],
+			"at": [
+				-40.92,
+				0.2,
+				23.803
+			],
+			"facing": -55.96
+		},
+		{
+			"prop": "wreck_cargo_lift",
+			"kind": "wreck_cargo_lift",
+			"model": "cargo_lift",
+			"row": "cargo_lift",
+			"size": [
+				0.826,
+				1.34,
+				0.818
+			],
+			"at": [
+				-40.056,
+				0.2,
+				24.387
+			],
+			"facing": -55.96
+		},
+		{
+			"prop": "wreck_probe_lander",
+			"kind": "wreck_probe_lander",
+			"model": "probe_lander",
+			"row": "probe_lander",
+			"size": [
+				0.925,
+				0.958,
+				1.0
+			],
+			"at": [
+				10.0,
+				0.0,
+				1.0
+			],
+			"facing": 0.0
 		}
 	],
 	"lamps": [],
@@ -555,6 +606,15 @@
 		},
 		"cable_run_1p4": {
 			"route": "code"
+		},
+		"supply_rocket": {
+			"route": "model"
+		},
+		"cargo_lift": {
+			"route": "model"
+		},
+		"probe_lander": {
+			"route": "model"
 		}
 	}
 }
