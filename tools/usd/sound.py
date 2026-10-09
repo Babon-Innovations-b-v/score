@@ -62,6 +62,8 @@ NEAR_METRES = 1.0
 PEAK_DBFS = -3.0
 # The mix is brought to this loudness (its RMS over the track, dBFS) unless that would take its peak over the ceiling.
 MIX_RMS_DBFS = -24.0
+# How long a looping motion's sounds are written for, in the stage's seconds: past the longest walk or demo place.
+SOUND_SPAN_SECONDS = 60.0
 
 
 def read(path):
@@ -175,6 +177,16 @@ def object_sounds(stage, place, out, found):
             found["object"] += 1
 
 
+def rounds_of(motion):
+    """When each round of a motion starts, in the stage's seconds: once at its start, or for a looping motion every
+    `length` seconds over SOUND_SPAN_SECONDS, so its sounds come back with it (a sound prim plays once)."""
+    start = float(motion.get("start", 0.0))
+    length = float(motion.get("length") or 0.0)
+    if not motion.get("loop") or length <= 0.0:
+        return [start]
+    return [start + length * number for number in range(max(1, math.ceil(SOUND_SPAN_SECONDS / length)))]
+
+
 def motion_sounds(stage, place, out, rate, found):
     """The sounds the game plays with each motion (data/motion/<place>.json), spatial at the moving prim from their
     start time code; a looping one plays until its end."""
@@ -185,16 +197,17 @@ def motion_sounds(stage, place, out, rate, found):
         target = stage.GetPrimAtPath(motion.get("prim", ""))
         if not target:
             continue
-        offset = float(motion.get("start", 0.0))
-        for number, sound in enumerate(motion.get("sounds", [])):
-            start = (offset + float(sound["at"])) * rate
-            until = sound.get("loops_until")
-            end = None if until is None else (offset + float(until)) * rate
-            playback = UsdMedia.Tokens.loopFromStartToEnd if end is not None else UsdMedia.Tokens.onceFromStart
-            if audio_prim(stage, target.GetPath().AppendChild(f"Sound_{number}"), sound["name"],
-                          entry_of(sound["name"]), out, aural=UsdMedia.Tokens.spatial, playback=playback,
-                          start=start, end=end, source=sound.get("from", "")):
-                found["motion"] += 1
+        for round_start in rounds_of(motion):
+            for number, sound in enumerate(motion.get("sounds", [])):
+                start = (round_start + float(sound["at"])) * rate
+                until = sound.get("loops_until")
+                end = None if until is None else (round_start + float(until)) * rate
+                playback = UsdMedia.Tokens.loopFromStartToEnd if end is not None else UsdMedia.Tokens.onceFromStart
+                name = f"Sound_{number}" + (f"_{round(round_start * 1000)}" if round_start else "")
+                if audio_prim(stage, target.GetPath().AppendChild(name), sound["name"], entry_of(sound["name"]), out,
+                              aural=UsdMedia.Tokens.spatial, playback=playback, start=start, end=end,
+                              source=sound.get("from", "")):
+                    found["motion"] += 1
 
 
 def surface_sounds(stage, place, out, found):

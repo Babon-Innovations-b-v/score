@@ -104,6 +104,13 @@ def check_the_soundtrack(sound, out):
     assert np.abs(pcm).max() > 1000
 
 
+def check_the_rounds(sound):
+    """A looping motion's sounds come back every round; a one-off motion's play once from its start."""
+    assert sound.rounds_of({"start": 1.0}) == [1.0]
+    rounds = sound.rounds_of({"start": 0.0, "length": 14.0, "loop": True})
+    assert rounds[:3] == [0.0, 14.0, 28.0] and rounds[-1] < sound.SOUND_SPAN_SECONDS <= rounds[-1] + 14.0
+
+
 def main():
     with tempfile.TemporaryDirectory() as folder:
         folder = pathlib.Path(folder)
@@ -113,6 +120,7 @@ def main():
         small_stage(folder / "stage")
         check_the_layer(sound, folder / "stage")
         check_the_soundtrack(sound, folder / "stage")
+        check_the_rounds(sound)
     print("sound_test: ok")
 
 

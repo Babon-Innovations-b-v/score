@@ -180,7 +180,8 @@
 							860
 						],
 						"said": "the submarine control room's painted wall"
-					}
+					},
+					"game": "hull_trim"
 				},
 				"dark_panel": {
 					"recipe": "painted_metal",
@@ -313,7 +314,8 @@
 				"roof_steel_paint": {
 					"recipe": "painted_metal",
 					"token": "roof-steel",
-					"roughness": 0.5
+					"roughness": 0.5,
+					"game": "roof"
 				},
 				"padding_grey_paint": {
 					"recipe": "painted_metal",
@@ -867,6 +869,31 @@
 					"recipe": "glowing",
 					"token": "earth-ocean",
 					"said": "the Earth's disc in the Moon's sky, its ocean colour (ink_earth)"
+				},
+				"warning_lamp": {
+					"recipe": "glowing",
+					"token": "warning-lamp",
+					"said": "the airlock's cycle lamp and the base's warning lamps, lit (the game 2099's warning_lamp material: emission #ff3a22 at 4)"
+				},
+				"indicator_amber": {
+					"recipe": "glowing",
+					"token": "screen-amber",
+					"said": "a small amber indicator lamp, lit (the game 2099's indicator_amber material: emission #ffb042 at 4)"
+				},
+				"grow_light": {
+					"recipe": "glowing",
+					"token": "grow-light",
+					"said": "the greenhouse's magenta grow-light tubes (the game 2099's grow_light material, unshaded #d64fd0)"
+				},
+				"screen_teal": {
+					"recipe": "glowing",
+					"token": "screen-teal",
+					"said": "a workstation screen showing data, a flat teal glow (the game 2099's screen_teal material, unshaded #2ab8c0)"
+				},
+				"sun_disc": {
+					"recipe": "glowing",
+					"token": "sun-day",
+					"said": "the sun's disc in the sky, unlit, as the game draws it (sun.tres, sky.gd)"
 				}
 			}
 		},
