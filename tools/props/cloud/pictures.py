@@ -12,7 +12,9 @@ share as it finishes one, so a share whose machine never came is drawn by anothe
 WORK/pictures. A picture already there is skipped.
 --model picks the picture model (MODELS): FLUX.2 klein 4B by default, or Qwen-Image-Edit-2511, the
 open image-edit model that came closest to Nano Banana Pro on the lab's ten close-ups after klein
-(job openpics, 2026-10-08). Renting, the owner's limits and deleting are batch.py's.
+(job openpics, 2026-10-08). Renting, the owner's limits and deleting are batch.py's. Under SCORE_CLOUD=k8s the shares
+go to the Kubernetes cluster as Jobs of the pictures image (tools/cloud/k8s/cluster_jobs.py); the machines stay the
+default.
 """
 import argparse
 import concurrent.futures
@@ -34,9 +36,10 @@ import capacity  # noqa: E402
 import ledger  # noqa: E402
 import picture  # noqa: E402
 import place  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
-from paths import PICTURES  # noqa: E402
+from paths import PICTURES, REPO  # noqa: E402
 
 # The picture models a list can be drawn with, each open with commercial use allowed (Apache-2.0: code,
 # weights and text encoder): its Hugging Face repository, its diffusers pipeline, the job kind that
@@ -196,6 +199,51 @@ def record(run, machines, jobs, started, kind="pictures"):
     return entry
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): each share a Kubernetes Job of the pictures image (tools/cloud/images/
+# pictures/, its pictures-run wrapper with the one picture model from the node cache), through
+# tools/cloud/k8s/cluster_jobs.py; the pictures come back into WORK/pictures as the machines' do.
+CLUSTER_SHARES = 8
+CLUSTER_MODELS = {"klein": "flux2-klein-4b", "qwen-edit": "qwen-image-edit-2511"}
+
+
+def cluster_job(number, jobs, listing, out, model):
+    """One share as the cluster runs it: its reference photos and list (written to `listing` here) up under
+    /root/pics, its pictures back into `out`."""
+    listing.write_text(json.dumps([dict(job, refs=[pathlib.Path(ref).name for ref in job["refs"]]) for job in jobs]))
+    refs = sorted({str(pathlib.Path(ref).resolve()) for job in jobs for ref in job["refs"]})
+    settings = MODELS[model]
+    return {"command": ["pictures-run", "tools/props/cloud/picture_worker.py", f"/root/pics/{listing.name}",
+                        settings["pipeline"], str(settings["whole_gb"])],
+            "code": ["tools/props/cloud/picture_worker.py"], "models": [CLUSTER_MODELS[model]],
+            "inputs": [{"local": str(listing), "path": f"/root/pics/{listing.name}"}]
+            + [{"local": ref, "path": f"/root/pics/refs/{pathlib.Path(ref).name}"} for ref in refs],
+            "outputs": [{"path": "/root/pics/out", "local": str(out)}],
+            "minutes": settings["setup_minutes"] + settings["seconds"] * len(jobs) / 60 * 3}
+
+
+def draw_on_cluster(jobs, model, dry_run):
+    """draw_list() under SCORE_CLOUD=k8s: the list in up to CLUSTER_SHARES shares as one run of the cluster on the
+    model's job kind's classes in its order (capacity.py), the pictures copied into WORK/pictures."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    parts = min(len(jobs), CLUSTER_SHARES)
+    if dry_run:
+        batch.say(f"{len(jobs)} pictures in {parts} shares for the cluster")
+        return None
+    folder = batch.BATCHES / time.strftime(f"pictures-k8s-%Y%m%d-%H%M%S-{os.getpid()}")
+    folder.mkdir(parents=True)
+    work = [cluster_job(number, jobs[number::parts], folder / f"jobs-{number}.json", folder / f"out-{number}", model)
+            for number in range(parts)]
+    failed = cluster_jobs.run(MODELS[model]["kind"], work, "pictures.py", image="pictures")
+    PICTURES.mkdir(parents=True, exist_ok=True)
+    made = list(folder.glob("out-*/*.png"))
+    for picture_file in made:
+        shutil.copy2(picture_file, PICTURES / picture_file.name)
+    batch.say(f"{len(made)} of {len(jobs)} pictures on the cluster" + (f"; shares {failed} failed" if failed else ""))
+    return None
+
+
 def draw_list(path, model="klein", cards=None, dry_run=False):
     """Draw the list's pictures not yet made with `model`, spread over rented machines (at most `cards`), into
     WORK/pictures; the run's ledger entry, or None when nothing was rented."""
@@ -203,6 +251,8 @@ def draw_list(path, model="klein", cards=None, dry_run=False):
     if not jobs:
         batch.say("every picture in the list is already made")
         return None
+    if provider.on_cluster():
+        return draw_on_cluster(jobs, model, dry_run)
     account = cloud.account()
     batch.sweep(account)
     machines = machines_for(len(jobs), model, cards)

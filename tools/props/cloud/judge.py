@@ -7,7 +7,8 @@ The list is a JSON array of {"name", "text", "images"}, the images local paths; 
 Apache-2.0, 30 GB of weights) runs through vLLM on one 48 or 80 GB card with its thinking on (judge_worker.py),
 every question of a machine's share at once; a long list is cut into shares over as many machines as answer it in
 about the setup's time (spread.py), one machine for a short one. Its first use is the close-up shape check (../closeup/check.py). Renting, the owner's limits
-and deleting are batch.py's, through pictures.py's helpers.
+and deleting are batch.py's, through pictures.py's helpers. Under SCORE_CLOUD=k8s the shares go to the Kubernetes
+cluster as Jobs of the judge image (tools/cloud/k8s/cluster_jobs.py); the machines stay the default.
 """
 import argparse
 import json
@@ -25,7 +26,9 @@ import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
 import pictures  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
+from paths import REPO  # noqa: E402
 from provider import cloud  # noqa: E402
 
 MODEL = "Qwen/Qwen3.8-27B-FP8"
@@ -109,6 +112,50 @@ def record(run, jobs, started):
     return entry
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): each share a Kubernetes Job of the judge image (tools/cloud/images/judge/, its
+# judge-run wrapper with the weights from the node cache and vLLM's compiled kernels kept per card), through
+# tools/cloud/k8s/cluster_jobs.py; the answers come back into the answers folder as the machines' do.
+CLUSTER_SHARES = 4
+CLUSTER_KERNELS = "judge-vllm-0.31.0"
+
+
+def cluster_job(number, jobs, listing, out):
+    """One share as the cluster runs it: its pictures and question list (written to `listing` here) up under
+    /root/judge, its answers back into `out`."""
+    listing.write_text(json.dumps([dict(job, images=[pathlib.Path(image).name for image in job["images"]])
+                                   for job in jobs]))
+    pictures_up = sorted({str(pathlib.Path(image).resolve()) for job in jobs for image in job["images"]})
+    return {"command": ["judge-run", "tools/props/cloud/judge_worker.py", f"/root/judge/{listing.name}"],
+            "code": ["tools/props/cloud/judge_worker.py"], "models": ["qwen3.8-27b-fp8"],
+            "kernel_cache": CLUSTER_KERNELS,
+            "inputs": [{"local": str(listing), "path": f"/root/judge/{listing.name}"}]
+            + [{"local": image, "path": f"/root/judge/in/{pathlib.Path(image).name}"} for image in pictures_up],
+            "outputs": [{"path": "/root/judge/out", "local": str(out)}],
+            "minutes": SETUP_MINUTES + SECONDS_A_QUESTION * len(jobs) / 60 * 4}
+
+
+def ask_on_cluster(jobs, answers, dry_run):
+    """ask() under SCORE_CLOUD=k8s: the questions in up to CLUSTER_SHARES shares as one run of the cluster on the
+    judge's classes in its order (capacity.py), each share's answers copied into `answers`."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    parts = min(len(jobs), CLUSTER_SHARES)
+    if dry_run:
+        batch.say(f"{len(jobs)} questions in {parts} shares for the cluster")
+        return None
+    folder = batch.BATCHES / time.strftime(f"judge-k8s-%Y%m%d-%H%M%S-{os.getpid()}")
+    folder.mkdir(parents=True)
+    work = [cluster_job(number, jobs[number::parts], folder / f"jobs-{number}.json", folder / f"out-{number}")
+            for number in range(parts)]
+    failed = cluster_jobs.run(KIND, work, "judge.py")
+    for answer in folder.glob("out-*/*.txt"):
+        shutil.copy2(answer, answers / answer.name)
+    batch.say(f"{len(list(folder.glob('out-*/*.txt')))} of {len(jobs)} questions answered on the cluster"
+              + (f"; shares {failed} failed" if failed else ""))
+    return None
+
+
 def ask(path, answers, dry_run=False, cards=None):
     """Answer the list's open questions into `answers` on rented cards (at most `cards`: each card's setup costs
     about SETUP_MINUTES, so a list that may wait runs cheaper on fewer); the run's ledger entry, or None when nothing
@@ -118,6 +165,8 @@ def ask(path, answers, dry_run=False, cards=None):
     if not jobs:
         batch.say("every question in the list is already answered")
         return None
+    if provider.on_cluster():
+        return ask_on_cluster(jobs, answers, dry_run)
     account = cloud.account()
     batch.sweep(account)
     found, count, allowed_minutes = price(jobs, account, cards)
