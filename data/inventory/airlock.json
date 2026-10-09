@@ -10,6 +10,9 @@
 				"id": "v1",
 				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/airlock/concepts/K02.png"
 			}
+		],
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/airlock/plan/plan.json"
 		]
 	},
 	"approved": "2026-10-07, the coordinator's pick for the owner (asleep; the owner's rule: after the concept and style picks everything runs on its own); plan: the concept K02",

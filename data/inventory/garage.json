@@ -10,6 +10,9 @@
 				"id": "v1",
 				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/garage/concepts/K04.png"
 			}
+		],
+		"dimensioned": [
+			"/home/dupe/.claude/jobs/3326150f/tmp/place-gh/garage/plan/plan.json"
 		]
 	},
 	"approved": "2026-10-07, the coordinator's pick for the owner (world 1 scale-up: built without stopping, the owner reviews at the end; owner may change); plan: the concept K04",
@@ -265,10 +268,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				550,
+				845,
+				860,
+				1375
 			],
 			"thing": "prop:garage_hatch_frame"
 		},
@@ -295,10 +298,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				645,
+				990,
+				800,
+				1360
 			],
 			"thing": "prop:garage_hatch_leaf"
 		},
@@ -325,10 +328,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				695,
+				1100,
+				765,
+				1185
 			],
 			"thing": "prop:garage_hatch_wheel"
 		},
@@ -354,13 +357,9 @@
 				"hatch_window"
 			],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
-			"thing": "prop:garage_hatch_hinge"
+			"box": null,
+			"thing": "prop:garage_hatch_hinge",
+			"unseen": "the hatches' hinges are hidden in their frames"
 		},
 		{
 			"id": "hatch_window",
@@ -384,13 +383,9 @@
 				"hatch_window"
 			],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
-			"thing": "prop:garage_hatch_window"
+			"box": null,
+			"thing": "prop:garage_hatch_window",
+			"unseen": "no hatch leaf in the concept has a round window"
 		},
 		{
 			"id": "pipe_bracket",
@@ -718,10 +713,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				615,
+				1015,
+				650,
+				1085
 			],
 			"thing": "prop:garage_door_control_box"
 		},
@@ -752,10 +747,10 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				455,
+				955,
+				535,
+				1075
 			],
 			"thing": "prop:garage_small_readout"
 		},
@@ -784,10 +779,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1238,
+				289,
+				1720,
+				881
 			],
 			"thing": "prop:garage_rover_lift"
 		},
@@ -847,10 +842,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				936,
+				151,
+				1238,
+				495
 			],
 			"thing": "prop:garage_workbench"
 		},
@@ -872,10 +867,10 @@
 			"parent": "workbench",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1128,
+				296,
+				1197,
+				358
 			],
 			"thing": "prop:garage_bench_vise"
 		},
@@ -897,10 +892,10 @@
 			"parent": "workbench",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				963,
+				330,
+				1046,
+				385
 			],
 			"thing": "prop:garage_toolbox"
 		},
@@ -932,10 +927,10 @@
 			},
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1183,
+				165,
+				1238,
+				220
 			],
 			"thing": "prop:garage_task_lamp"
 		},
@@ -964,10 +959,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1431,
+				179,
+				1734,
+				482
 			],
 			"thing": "prop:garage_tyre_shelving"
 		},
@@ -996,10 +991,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				344,
+				537,
+				509,
+				826
 			],
 			"thing": "prop:garage_spares_shelf"
 		},
@@ -1028,10 +1023,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1940,
+				399,
+				2257,
+				771
 			],
 			"thing": "prop:garage_fluid_shelves"
 		},
@@ -1177,10 +1172,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				564,
+				468,
+				674,
+				688
 			],
 			"thing": "prop:garage_control_cabinet"
 		},
@@ -1209,10 +1204,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1692,
+				798,
+				1789,
+				1004
 			],
 			"thing": "prop:garage_rover_charger"
 		},
@@ -1241,10 +1236,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				991,
+				509,
+				1170,
+				716
 			],
 			"thing": "prop:garage_parts_trolley"
 		},
@@ -1273,10 +1268,10 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				771,
+				633,
+				922,
+				839
 			],
 			"thing": "prop:garage_wheel_stand"
 		},
@@ -1365,10 +1360,10 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/beacon.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1968,
+				839,
+				2023,
+				894
 			],
 			"thing": "prop:garage_bracket_beacon"
 		},
@@ -1417,13 +1412,9 @@
 				"reach": 9.0
 			},
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
-			"thing": "prop:garage_ceiling_lamp"
+			"box": null,
+			"thing": "prop:garage_ceiling_lamp",
+			"unseen": "the concept is cut away above the walls, so no ceiling lamp shows"
 		}
 	]
 }

@@ -4,7 +4,8 @@ that wrote nothing reads as None, and the page says so.
 The records of a place live in four kinds of folder, each written by its own stage:
 
     the repo           data/definitions/place.json (the style), data/inventory/<place>.json (the inventory, its boxes
-                       on the concept's picture), data/kit/<place>.json (the layout), the library and its tokens
+                       on the concept's picture, and its plan's `dimensioned`: the dimensioned plans the place was
+                       drawn to, wherever the concept step left them), data/kit/<place>.json (the layout), the library and its tokens
     a concept folder   plan.json (the concept's pick and the dimensioned plan's elements), plan.png, refs.json (the
                        creator's references), ledger.json (every concept take's prompt and cost), C<n>.png (the takes)
     a references folder the reference pictures as downloaded, named as in their URL
@@ -64,7 +65,18 @@ def inventory(place):
     if found is None:
         return None
     views = {view["id"]: work_path(view["picture"]) for view in found["plan"]["views"]}
-    return {"approved": found.get("approved", ""), "views": views, "rows": found["rows"]}
+    return {"approved": found.get("approved", ""), "views": views, "rows": found["rows"],
+            "dimensioned": [dimensioned_plan(work_path(written)) for written in found["plan"].get("dimensioned", [])]}
+
+
+def dimensioned_plan(path):
+    """One dimensioned plan the inventory names: a plan.json (its picture the plan.png beside it), or a plan drawn as a
+    picture only (the hub's plan v3, its numbers kept in a layout script); `found` False when the file is gone."""
+    if path.suffix == ".json":
+        picture = path.parent / "plan.png"
+        return {"path": path, "found": path.exists(), "plan": json_or_none(path),
+                "picture": picture if picture.exists() else None}
+    return {"path": path, "found": path.exists(), "plan": None, "picture": path if path.exists() else None}
 
 
 def kit(place):

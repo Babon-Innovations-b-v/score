@@ -166,9 +166,29 @@ def an_overlap_reads_in_the_resting_table():
     return []
 
 
+def the_plans_an_inventory_names_are_shown():
+    """Each dimensioned plan an inventory names is shown with its picture and lists; a place with none says so."""
+    problems = []
+    with tempfile.TemporaryDirectory() as folder:
+        out = pathlib.Path(folder)
+        (out / "dome").mkdir()
+        (out / "dome/plan.json").write_text(json.dumps({"pieces": [["GALLEY COUNTER", [1.35, 1.2], "door", "game"]],
+                                                        "notes": ["The door dome."]}))
+        Image.new("RGB", (8, 8)).save(out / "dome/plan.png")
+        pictures = page.Pictures(out / "page")
+        found = [records.dimensioned_plan(out / "dome/plan.json"), records.dimensioned_plan(out / "gone/plan.json")]
+        body = page.plan_section(None, {}, pictures, found)
+        for wanted in ("GALLEY COUNTER", "1.35 × 1.2", "The door dome.", "img/dimensioned-1", "not on disk"):
+            if wanted not in body:
+                problems.append(f"the plan section does not show {wanted!r}")
+        if "has no dimensioned plan" not in page.plan_section(None, {}, pictures, []):
+            problems.append("a place with no plan does not say so plainly")
+    return problems
+
+
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
           the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, one_view_a_place_is_inked,
-          an_overlap_reads_in_the_resting_table)
+          an_overlap_reads_in_the_resting_table, the_plans_an_inventory_names_are_shown)
 
 
 if __name__ == "__main__":

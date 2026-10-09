@@ -9,6 +9,9 @@
     "id": "v1",
     "picture": "WORK/scene/wreck/views/C2.png"
    }
+  ],
+  "dimensioned": [
+   "/home/dupe/.claude/jobs/3326150f/tmp/playtest3/moonground2/wreck/plan.json"
   ]
  },
  "approved": "2026-10-07, the owner's rule for world 1 (WORLD 1 SCALE-UP): build every place without stopping for review between places, the owner reviews everything at the end; concept C2 is the coordinator's pick, owner may change",
@@ -369,10 +372,10 @@
    "id": "leg_strut",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1460,
+    1055,
+    1810,
+    1245
    ],
    "name": "torn-off landing leg, its strut half",
    "kind": "generate",
@@ -405,10 +408,10 @@
    "id": "leg_foot",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1700,
+    1165,
+    1810,
+    1250
    ],
    "name": "torn-off landing leg, its footpad half",
    "kind": "generate",
@@ -477,10 +480,10 @@
    "id": "tank_dome",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1925,
+    1030,
+    2125,
+    1110
    ],
    "name": "torn tank dome lying on its back",
    "kind": "generate",
@@ -576,10 +579,10 @@
    "id": "cable_run",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1325,
+    515,
+    1555,
+    595
    ],
    "name": "cables across the gap and a loose cable bundle",
    "kind": "code",
