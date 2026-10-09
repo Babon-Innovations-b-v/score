@@ -6,7 +6,9 @@ are what a generated model is painted by; PartCrafter's parts do not follow them
 
 Each picture (<take>.png, a cut-out) comes back as <folder>/masks/<take>.npz (segment_worker.py says what it holds).
 A picture already segmented is skipped. SAM 2 (facebookresearch/sam2, code and SAM 2.1 weights Apache-2.0) runs
-through segment_worker.py; the owner's limits, the self-delete, the watchdog and the delete are batch.py's.
+through segment_worker.py; the owner's limits, the self-delete, the watchdog and the delete are batch.py's. Under
+SCORE_CLOUD=k8s the shares go to the Kubernetes cluster as Jobs of the sam image (tools/cloud/k8s/cluster_jobs.py);
+the machines stay the default.
 """
 import argparse
 import json
@@ -23,7 +25,9 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
+from paths import REPO  # noqa: E402
 from provider import cloud  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/seg")
@@ -103,6 +107,28 @@ def record(run, started, folder, pictures):
     return entry
 
 
+def cluster_job(pictures, folder):
+    """One share as the cluster runs it (SCORE_CLOUD=k8s): its pictures up, segment_worker.py through the sam image's
+    sam-run with SAM 2.1 from the node cache, the masks back into <folder>/masks/ as the machines bring them."""
+    return {"command": ["sam-run", "tools/props/cloud/segment_worker.py", WEIGHTS, "/work/in", "/work/out"],
+            "code": ["tools/props/cloud/segment_worker.py"], "models": ["sam2.1-hiera-large"],
+            "inputs": [{"local": str(picture.resolve()), "path": f"/work/in/{picture.name}"} for picture in pictures],
+            "outputs": [{"path": "/work/out", "local": str((folder / "masks").resolve())}],
+            "minutes": SETUP_MINUTES + MINUTES_A_PICTURE * len(pictures) * 2}
+
+
+def main_on_cluster(options, shares):
+    """main() under SCORE_CLOUD=k8s: the shares as one run of the cluster on the segment kind's classes in its order
+    (capacity.py)."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    if options.dry_run:
+        batch.say(f"{len(shares)} shares for the cluster")
+        return
+    cluster_jobs.run(KIND, [cluster_job(share, options.folder) for share in shares], options.who, image="sam")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("folder", type=pathlib.Path, help="a folder of cut-out pictures")
@@ -115,6 +141,12 @@ def main():
         batch.say("every picture in the folder is segmented already")
         return
     shares = [pictures[start:start + SHARE_SIZE] for start in range(0, len(pictures), SHARE_SIZE)]
+    if provider.on_cluster():
+        main_on_cluster(options, shares)
+        left = to_segment(options.folder)
+        if left and not options.dry_run:
+            raise SystemExit(f"{len(left)} pictures not segmented on the cluster")
+        return
     account = cloud.account()
     batch.sweep(account)
     found, count, allowed_minutes = price(shares, account, options.cards)
