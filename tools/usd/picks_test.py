@@ -2,7 +2,8 @@
 on its object; an export that would show another model for a picked row, or none, is refused; a written owner decision
 lets it through; the stage check finds a picked row showing another model; a row picked as several models (a piece's
 variants) keeps each and refuses one swapped; a scene record's object that stands for a row (the launch's rocket) is
-locked like a laid one; and a close-up's mask and the outline score
+locked like a laid one, standing on another object too; a neighbour seen through a doorway is not read as
+the place's own; and a close-up's mask and the outline score
 read a plain picture right.
 
 Run: .venv/bin/python tools/usd/picks_test.py   (make tests runs it with the framework's environment)
@@ -14,7 +15,7 @@ import tempfile
 
 import numpy as np
 from PIL import Image
-from pxr import Usd
+from pxr import Sdf, Usd
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -95,36 +96,59 @@ def a_row_of_several_models_keeps_each():
     return problems
 
 
-def scene_rocket(folder, model):
+def scene_rocket(folder, model, on_a_stand=False):
     """A place with no kit pieces whose scene record stands one rocket (this model of the folder's) for the row
-    `rocket`, picked to the box; its stage, or the lock's refusal."""
+    `rocket`, picked to the box, on its own or standing on a stand of no row (`on_a_stand`); its stage, or the lock's
+    refusal."""
     kit = {"place": PLACE, "lamps": [], "children": [], "pieces": []}
     (folder / "kit.json").write_text(json.dumps(kit))
     pick = {"model": "box", "sha256": complete.model_hash(folder / "models/box.gltf"), "decided": "owner, 2026-10-09"}
     (folder / "inventory.json").write_text(json.dumps({"scene": PLACE, "rows": [triage_test.row("rocket", pick=pick)]}))
-    scene = {"objects": [{"name": "rocket", "row": "rocket", "model": f"models/{model}.gltf", "at": [0, 0, 0]}]}
+    rocket = {"name": "rocket", "row": "rocket", "model": f"models/{model}.gltf", "at": [0, 0, 0]}
+    scene = {"objects": [{"name": "stand", "model": "models/plank.gltf", "at": [0, 0, 0], "children": [rocket]}]
+             if on_a_stand else [rocket]}
     return export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
                          inventory_path=folder / "inventory.json", scene=scene, world=folder)
 
 
 def a_scene_object_is_locked_to_its_row():
     problems = []
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        resting_test.made_models(folder)
-        stage = scene_rocket(folder, "box")
-        found, locked = picks.check(stage, json.loads((folder / "inventory.json").read_text()))
-        if found or locked != 1:
-            problems.append(f"the kept rocket's stage check reads {found}, {locked} locked")
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        resting_test.made_models(folder)
-        try:
-            scene_rocket(folder, "plank")
-            problems.append("a scene record showing another model for the picked rocket was exported")
-        except picks.PickBroken:
-            pass
+    for on_a_stand in (False, True):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = pathlib.Path(temporary)
+            resting_test.made_models(folder)
+            try:
+                stage = scene_rocket(folder, "box", on_a_stand)
+            except picks.PickBroken as refused:
+                problems.append(f"the kept rocket (on a stand: {on_a_stand}) was refused: {refused}")
+                continue
+            found, locked = picks.check(stage, json.loads((folder / "inventory.json").read_text()))
+            if found or locked != 1:
+                problems.append(f"the kept rocket's (on a stand: {on_a_stand}) stage check reads {found}, {locked} locked")
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = pathlib.Path(temporary)
+            resting_test.made_models(folder)
+            try:
+                scene_rocket(folder, "plank", on_a_stand)
+                problems.append(f"a scene record showing another model for the picked rocket (on a stand: {on_a_stand}) "
+                                "was exported")
+            except picks.PickBroken:
+                pass
     return problems
+
+
+def a_neighbour_is_not_read_as_the_place():
+    with tempfile.TemporaryDirectory() as temporary:
+        path = pathlib.Path(temporary) / "place.usda"
+        stage = Usd.Stage.CreateNew(str(path))
+        for prim_path in ("/place/Objects/crate_1", "/place/Places/next/Objects/crate_1"):
+            prim = stage.DefinePrim(prim_path, "Xform")
+            prim.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("crate")
+            prim.CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set("box")
+        stage.GetRootLayer().Save()
+        shown = picks.stage_shown(path)
+        return [] if list(shown) == ["crate"] and [name for name, _, _ in shown["crate"]] == ["/place/Objects/crate_1"] \
+            else [f"the stage's own objects read as {shown}"]
 
 
 def closeup_mask_and_outline():
@@ -144,7 +168,8 @@ def closeup_mask_and_outline():
 
 
 CHECKS = (a_kept_pick_exports_with_its_hashes, a_replaced_pick_is_refused_without_a_decision,
-          a_row_of_several_models_keeps_each, a_scene_object_is_locked_to_its_row, closeup_mask_and_outline)
+          a_row_of_several_models_keeps_each, a_scene_object_is_locked_to_its_row, a_neighbour_is_not_read_as_the_place,
+          closeup_mask_and_outline)
 
 
 if __name__ == "__main__":
