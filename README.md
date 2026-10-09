@@ -155,7 +155,8 @@ order that waits least, and is never tied to one card or one zone.
   (`~/.farm-factory-props/cloud/ledger.jsonl`). A row holds the job kind, class, machine type, zone,
   wait until the machine answered, minutes worked, cost and, where the runner counts them, seconds per
   unit of work. Failed starts are recorded too. `python3 tools/props/cloud/capacity.py report
-  [--since YYYY-MM-DD]` prints time and cost per job kind per card type, and `capacity.py offers
+  [--since YYYY-MM-DD]` writes time and cost per job kind per card type to
+  `~/.farm-factory-props/cloud/capacity-report.txt` and prints one summary line (`--verbose` prints the table), and `capacity.py offers
   <kind>` shows where a kind can be rented right now.
 
 The machines keep their safety on every backend: each deletes itself when the runner's heartbeat goes

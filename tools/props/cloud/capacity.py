@@ -1,7 +1,8 @@
 """Which capability classes each kind of cloud job may run on, the order a run takes offers in, and what each run
 cost and took per card type.
 
-    python3 tools/props/cloud/capacity.py report [--since 2026-10-08]   # time and cost per job kind per card type
+    python3 tools/props/cloud/capacity.py report [--since 2026-10-08]   # time and cost per job kind per card type:
+                                                one summary line, the table in REPORT (--verbose prints the table)
     python3 tools/props/cloud/capacity.py offers <kind>                 # where that kind can be rented right now
 
 All day on 2026-10-08 the batches waited because one zone's cheapest cards were out of stock and machines failed to
@@ -97,6 +98,8 @@ OTHER_MACHINES = 5
 RUN_MACHINES = 20
 # A ledger entry written before entries named their kind was a Pixal3D batch.
 OLD_KIND = "pixal"
+# Where `report` writes its table; the summary line it prints names this path.
+REPORT = ledger.LEDGER.parent / "capacity-report.txt"
 
 
 def classes_for(kind):
@@ -241,15 +244,35 @@ def shown(value, digits):
     return "-" if value is None else f"{value:.{digits}f}"
 
 
-def print_table(table):
+def table_text(table):
+    """The report's table as text: a header line, then a line per (job kind, card type)."""
     columns = ("type", "machines", "failed", "wait min", "min", "work min", "euros", "units", "s/unit", "€/unit")
-    print(f"{'kind':<24}" + "".join(f"{name:>15}" if number == 0 else f"{name:>9}"
-                                    for number, name in enumerate(columns)))
+    lines = [f"{'kind':<24}" + "".join(f"{name:>15}" if number == 0 else f"{name:>9}"
+                                       for number, name in enumerate(columns))]
     for row in table:
         cells = (row["machines"], row["failed_starts"], shown(row["start_wait_minutes"], 1), shown(row["minutes"], 1),
                  shown(row["work_minutes"], 1), f"{row['euros']:.2f}", row["units"], shown(row["seconds_a_unit"], 0),
                  shown(row["euros_a_unit"], 3))
-        print(f"{row['kind'][:23]:<24}{row['type']:>15}" + "".join(f"{cell:>9}" for cell in cells))
+        lines.append(f"{row['kind'][:23]:<24}{row['type']:>15}" + "".join(f"{cell:>9}" for cell in cells))
+    return "\n".join(lines) + "\n"
+
+
+def summary_line(table, path):
+    """The report in one line: its job kinds, card types, machines, failed starts and euros, and the table's path."""
+    machines = sum(row["machines"] for row in table)
+    failed = sum(row["failed_starts"] for row in table)
+    euros = sum(row["euros"] for row in table)
+    return (f"capacity report: {len({row['kind'] for row in table})} job kinds on "
+            f"{len({row['type'] for row in table})} card types, {machines} machines, {failed} failed starts, "
+            f"€{euros:.2f}; table: {path}")
+
+
+def write_report(table, path=None):
+    """Write the report's table to `path` (REPORT by default); return the path."""
+    path = pathlib.Path(path or REPORT)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(table_text(table))
+    return path
 
 
 def main():
@@ -257,11 +280,16 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     report = commands.add_parser("report", help="time and cost per job kind per card type, from the ledger")
     report.add_argument("--since", default="", help="only entries started on or after this date (YYYY-MM-DD)")
+    report.add_argument("--verbose", action="store_true", help="print the whole table, not the summary line")
     offers = commands.add_parser("offers", help="where a job kind can be rented right now")
     offers.add_argument("kind")
     options = parser.parse_args()
     if options.command == "report":
-        print_table(summarise(machine_rows(ledger.entries(), options.since)))
+        table = summarise(machine_rows(ledger.entries(), options.since))
+        if options.verbose:
+            print(table_text(table), end="")
+        else:
+            print(summary_line(table, write_report(table)))
         return
     for offer in sorted(provider.cloud.offers(classes_for(options.kind)),
                         key=lambda offer: (offer.stock, speed_rank(offer.machine_class), offer.order, offer.zone)):
