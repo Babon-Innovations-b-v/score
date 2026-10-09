@@ -74,3 +74,18 @@ def test_trousers_are_not_judged_by_the_arms_they_leave_bare():
     assert rebuild.held_newton(bare, "trousers")
     assert not rebuild.held_newton(bare, "jacket")
     assert not rebuild.held_newton(dict(bare, came_to_rest=False), "trousers")
+
+
+def test_a_drape_whose_simulator_fails_is_tried_again():
+    tries = []
+
+    def redrape(run, drape):
+        tries.append(1)
+        if len(tries) < 2:
+            raise RuntimeError("the cloth blew up at frame 15")
+        return True
+
+    class Run:
+        held = {}
+    assert "try 2" in rebuild.hang(Run(), redrape, {"folder": "coat_drape"})
+    assert Run.held == {"coat_drape": True}
