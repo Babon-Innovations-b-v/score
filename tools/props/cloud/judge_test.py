@@ -30,3 +30,15 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             test()
     print("judge_test: ok")
+
+
+def test_a_share_on_the_cluster_keeps_the_machines_paths(tmp_path):
+    picture = tmp_path / "crate.png"
+    picture.write_text("png")
+    jobs = [{"name": "crate-shape", "text": "Is it a crate?", "images": [str(picture)], "seed": 1}]
+    job = judge.cluster_job(0, jobs, tmp_path / "jobs-0.json", tmp_path / "out-0")
+    assert json.loads((tmp_path / "jobs-0.json").read_text())[0]["images"] == ["crate.png"]
+    assert job["command"] == ["judge-run", "tools/props/cloud/judge_worker.py", "/root/judge/jobs-0.json"]
+    assert {"local": str(picture), "path": "/root/judge/in/crate.png"} in job["inputs"]
+    assert job["outputs"] == [{"path": "/root/judge/out", "local": str(tmp_path / "out-0")}]
+    assert job["models"] == ["qwen3.8-27b-fp8"] and job["kernel_cache"] == judge.CLUSTER_KERNELS

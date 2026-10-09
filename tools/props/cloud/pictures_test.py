@@ -39,3 +39,18 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             check()
     print("pictures_test: ok")
+
+
+def test_a_share_on_the_cluster_draws_with_the_named_model(tmp_path):
+    import json
+    import pictures
+
+    ref = tmp_path / "photo.jpg"
+    ref.write_text("jpg")
+    jobs = [{"name": "crate", "wording": "a crate", "seed": 7, "steps": 4, "call": {}, "refs": [str(ref)]}]
+    job = pictures.cluster_job(1, jobs, tmp_path / "jobs-1.json", tmp_path / "out-1", "qwen-edit")
+    assert json.loads((tmp_path / "jobs-1.json").read_text())[0]["refs"] == ["photo.jpg"]
+    assert job["command"][:3] == ["pictures-run", "tools/props/cloud/picture_worker.py", "/root/pics/jobs-1.json"]
+    assert job["command"][3] == "QwenImageEditPlusPipeline" and job["models"] == ["qwen-image-edit-2511"]
+    assert {"local": str(ref), "path": "/root/pics/refs/photo.jpg"} in job["inputs"]
+    assert job["outputs"] == [{"path": "/root/pics/out", "local": str(tmp_path / "out-1")}]
