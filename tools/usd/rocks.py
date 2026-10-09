@@ -4,7 +4,9 @@ scene record's `planned_rocks`.
 The game reads every rock the plan placed (its layout files: the square round the base by flat numbers on the base's
 seat, the rest of the ball by directions in the seat's frame) and lies each one on the ground from one fixed seed:
 turned any way about the ground's facing there, tipped a little, a little longer one way than another, scaled so its
-longest side is the rock's size, its bottom sunk into the dust (`_planned_lying`, `_crest_under`). Its draws come from
+longest side is the rock's size, its bottom sunk into the dust (`_planned_lying`, `_crest_under`). Mars lays its plan's
+rocks the same way (game/world/mars/mars.gd `_planned_lying`) but sinks each only by its own share of its height: an
+entry with `"tip_sinks": false` and no `crest_reach` lays them so. Its draws come from
 Godot's own seeded generator (builders.pcg32_floats), one rock after another in the layout's order, so the same rock lies
 the same way here. A rock a metre or more across is its kind's boulder, a smaller one the same, and a pebble (under
 `pebble` metres) the kind's light piece.
@@ -118,8 +120,11 @@ def lying(rng, planned, up, size, box, entry):
     stretch = np.array([scale * rng.randf_range(0.85, 1.15), scale * rng.randf_range(0.75, 1.1),
                         scale * rng.randf_range(0.85, 1.15)])
     bottom = np.array([(low[0] + high[0]) / 2.0, low[1], (low[2] + high[2]) / 2.0])
-    sunk = (size * (high[1] - low[1]) / longest * float(entry["sunk"]) + 0.5 * size * abs(math.sin(tip))
-            + planned.crest_under(up, size, float(entry["crest_reach"])))
+    sunk = size * (high[1] - low[1]) / longest * float(entry["sunk"])
+    if entry.get("tip_sinks", True):  # the Moon's: a tipped rock's lifted edge goes down too (Mars's does not)
+        sunk += 0.5 * size * abs(math.sin(tip))
+    if "crest_reach" in entry:  # the Moon's: a rock on a crest goes down to the mesh's straight line (Mars's does not)
+        sunk += planned.crest_under(up, size, float(entry["crest_reach"]))
     landed = up * (planned.radius + planned.height(up) - sunk)
     return tipped, stretch, landed - (tipped * stretch) @ bottom
 

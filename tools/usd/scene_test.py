@@ -307,7 +307,8 @@ def flat_ground(folder, skin=(128, 128, 128)):
 
 def check_planned_rocks(folder):
     """On flat ground a planned rock lies sunk by its share of its size, as long as its size, the same way every time;
-    a pebble past where pebbles are seen and a rock off the plan's square are left out."""
+    a pebble past where pebbles are seen and a rock off the plan's square are left out; laid Mars's way (no sinking
+    for its tip) it stands higher by the tip's lift alone."""
     flat = flat_ground(folder)
     (folder / "game").mkdir()
     trimesh.creation.box(extents=(1.0, 0.5, 0.8)).export(folder / "game/rock.glb")
@@ -325,6 +326,15 @@ def check_planned_rocks(folder):
     assert 1.2 * 0.85 - 1e-6 <= rock["stretch"][0] <= 1.2 * 1.15 + 1e-6
     assert np.allclose(rock["turn"] @ rock["turn"].T, np.eye(3), atol=1e-9)
     assert np.allclose(rocks.laid_rocks(entry, folder, flat)[0]["turn"], rock["turn"])
+    # Mars's way: sunk by its share of its height alone, so it stands higher by the tip's half size, and turned alike.
+    mars = {key: value for key, value in entry.items() if key != "crest_reach"}
+    mars["tip_sinks"] = False
+    on_mars = rocks.laid_rocks(mars, folder, flat)[0]
+    tip = rocks.Draws(41, 5)
+    tip.randf_range(0.0, 1.0)
+    lifted = 0.5 * 1.2 * abs(np.sin(tip.randf_range(-0.25, 0.25)))
+    assert np.allclose(on_mars["turn"], rock["turn"])
+    assert np.isclose(np.linalg.norm(on_mars["at"] - rock["at"]), lifted, atol=1e-3), (on_mars["at"], rock["at"], lifted)
 
 
 def check_ground_detail(folder):
@@ -370,6 +380,22 @@ def check_backdrop_render(folder):
     except FileNotFoundError:
         return
     raise AssertionError("a strip never drawn must not be laid")
+
+
+def check_dust(folder):
+    """The wind's grains hang over their square round the place, none under the ground or over their height, the same
+    every time; each is a speck of six points and eight triangles."""
+    flat = flat_ground(folder)
+    entry = {"count": 500, "side": 70.0, "high": 0.4, "seed": 116}
+    points = scene.dust_points(entry, flat)
+    assert points.shape == (500, 3)
+    assert np.abs(points[:, [0, 2]]).max() <= 35.1, np.abs(points[:, [0, 2]]).max()
+    lift = np.linalg.norm((points + [0.0, flat.drop, 0.0]) @ flat.frame + flat.origin, axis=1) - flat.radius
+    assert lift.min() >= -1e-6 and lift.max() <= 0.4 + 1e-6, (lift.min(), lift.max())
+    assert np.allclose(scene.dust_points(entry, flat), points)
+    built = builders.specks(points[:3], 0.03, None)
+    assert built["points"].shape == (18, 3) and built["triangles"].shape == (24, 3)
+    assert np.isclose(np.ptp(built["points"][:6, 0]), 0.03)
 
 
 def check_records():
@@ -424,6 +450,8 @@ def main():
         check_planned_rocks(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_ground_detail(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_dust(pathlib.Path(folder))
     check_records()
     print("scene_test: ok")
 
