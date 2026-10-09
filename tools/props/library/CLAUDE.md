@@ -12,7 +12,8 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
 - **The library is data and only grows.** `data/library/materials.json` holds families of variants (each a recipe
   name, a token, its settings over the recipe's defaults, and the reference patch it was tuned to), the wear
   levels and the printed pictures; a place takes variants by name in its own `materials` in `place.json`, with its
-  own token and wear. `library.py` resolves them (`--list` prints the families); nothing else holds a colour. Add a
+  own token and wear. `library.py` resolves them (`--list` lists the families; the command line prints one summary line naming
+  the file under `/tmp/score-output/` that holds the whole output, `--verbose` prints it); nothing else holds a colour. Add a
   variant for a new surface; never change one a room already uses. `browser.py` writes the browser page from a
   swatch run.
 - **Recipes are ProcFunc** (`recipes.py`, the owner, 2026-10-06): composable functions (relief, edge wear, dirt,

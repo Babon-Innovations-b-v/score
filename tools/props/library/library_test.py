@@ -1,10 +1,13 @@
 """Check the material library's data (library.py, data/library/) and the sorter (sorter.py): plain python, no Blender.
 Run: python3 tools/props/library/library_test.py
 """
+import contextlib
+import io
 import json
 import pathlib
 import re
 import sys
+import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -212,8 +215,43 @@ def test_a_room_past_its_budget_is_named():
     assert stored.over_budget({"disk_mb": stored.BUDGET["disk_mb"] + 1, "card_mb": 1.0})
 
 
+def command_output(arguments, folder):
+    """What `library.py <arguments>` prints, its whole output written under `folder`."""
+    saved = (sys.argv, library.OUTPUT)
+    sys.argv, library.OUTPUT = ["library.py", *arguments], pathlib.Path(folder)
+    try:
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            library.main()
+    finally:
+        sys.argv, library.OUTPUT = saved
+    return printed.getvalue()
+
+
+def test_the_list_prints_one_line_and_writes_every_family():
+    with tempfile.TemporaryDirectory() as folder:
+        printed = command_output(["--list"], folder)
+        path = pathlib.Path(folder) / "library-list.txt"
+        families = len(library.theme_library()["families"])
+        assert printed == f"library: {families} families, {len(library.variants(library.theme_library()))} " \
+                          f"variants; list: {path}\n", printed
+        assert path.read_text() == library.list_text(library.theme_library())
+        assert len(path.read_text().splitlines()) == families + 1
+        assert command_output(["--list", "--verbose"], folder) == path.read_text()
+
+
+def test_a_place_prints_one_line_and_writes_its_materials_as_json():
+    with tempfile.TemporaryDirectory() as folder:
+        printed = command_output(["hub"], folder)
+        path = pathlib.Path(folder) / "library-hub.json"
+        found = json.loads(path.read_text())
+        assert found["materials"] == json.loads(json.dumps(library.resolved("hub")))
+        assert printed.startswith(f"library hub: {len(found['materials'])} materials on ") and \
+            printed.endswith(f"; JSON: {path}\n") and printed.count("\n") == 1, printed
+        assert command_output(["--verbose", "hub"], folder) == path.read_text()
+
+
 def main():
-    tests = [value for name, value in globals().items() if name.startswith("test_")]
+    tests =[value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:
         test()
     print(f"{len(tests)} checks passed")
