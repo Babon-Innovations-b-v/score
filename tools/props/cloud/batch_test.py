@@ -184,3 +184,22 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             check()
     print("batch_test: ok")
+
+
+def test_cluster_groups_run_their_takes_side_by_side():
+    takes = [argparse_namespace(name=f"crate-{number}", picture="/pics/crate.png", seed=number) for number in range(4)]
+    groups = batch.groups_of(takes, 3)
+    assert [len(group) for group in groups] == [3, 1]
+    line = batch.cluster_line(groups[0])
+    assert line.count("pixal-run scripts/pixal3d_generate.py /work/in/crate-") == 3
+    assert "sleep 60" in line and line.rstrip().endswith("test -f /work/out/crate-2.glb")
+    job = batch.cluster_job(groups[0], pathlib.Path("/w/group0/out"))
+    assert job["models"] == batch.CLUSTER_MODELS and job["code"] == ["vendor/image-to-3dlab"]
+    assert [entry["path"] for entry in job["inputs"]] == [f"/work/in/crate-{number}.png" for number in range(3)]
+    assert job["outputs"] == [{"path": "/work/out", "local": "/w/group0/out"}] and job["minutes"] == 90
+
+
+def argparse_namespace(**values):
+    import argparse
+
+    return argparse.Namespace(**values)

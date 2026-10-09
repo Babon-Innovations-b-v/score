@@ -95,19 +95,20 @@ def report_failure(helper, store, run, job_id):
         submitter.say(f"job {job_id} never finished")
 
 
-def run(kind, jobs, who, classes=None, image=None):
-    """Run the jobs on the cluster as one run and bring their outputs back; the numbers of those that failed."""
+def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
+    """Run the jobs on the cluster as one run and bring their outputs back; the numbers of those that failed.
+    `parallel` holds the run to that many jobs at once (one card node each); `name` names the run."""
     helper = submitter.runtime()
     store = helper.cloud_store()
     image = image or kind
     classes = classes or submitter.capacity.classes_for(kind)
-    run_name = run_id(kind)
+    run_name = name or run_id(kind)
     specs, backs = {}, {}
     for number, job in enumerate(jobs):
         job_id = str(number)
         specs[job_id], backs[job_id] = spec_of(helper, store, run_name, job_id, kind, image, classes, job)
         helper.write_job(store, run_name, job_id, specs[job_id])
-    submitter.submit(run_name, specs, store, wait_scale_down=False, who=who)
+    submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
     failed = []
     for job_id in specs:
         if helper.state(store, run_name, job_id) == "done":

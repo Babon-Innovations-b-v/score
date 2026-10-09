@@ -10,7 +10,8 @@ picture. Each picture in the folder (a cut-out on white) is run once for every p
 and one run's time (spread.py), each card taking the next run as it finishes one. Its optional background remover (briaai/RMBG-1.4) is non-commercial: it is
 never downloaded or used; the pictures are cut out already. The owner's limits, the self-delete, the watchdog and
 the delete are batch.py's, as for every machine. No model of ours is made: these parts only say where a model's
-part boundaries are (labels.py).
+part boundaries are (labels.py). Under SCORE_CLOUD=k8s the same runs go to the Kubernetes cluster as Jobs of the
+parts image (tools/cloud/k8s/cluster_jobs.py); the machines stay the default.
 """
 import argparse
 import json
@@ -26,7 +27,9 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import provider  # noqa: E402
 import spread  # noqa: E402
+from paths import REPO  # noqa: E402
 from provider import cloud  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/parts")
@@ -105,6 +108,39 @@ def record(run, machines, folder, started, runs):
     return entry
 
 
+# The Kubernetes path (SCORE_CLOUD=k8s): each run a Kubernetes Job of the parts image (tools/cloud/images/parts/, its
+# parts-run wrapper and PartCrafter's weights from the node cache), through tools/cloud/k8s/cluster_jobs.py.
+CLUSTER_MINUTES = 20
+
+
+def cluster_job(picture, parts):
+    """One picture at one part count as the cluster runs it: the parts back to <folder>/parts/<picture>-<n>/ as the
+    machine runner brings them, without the preview GIFs."""
+    tag = f"{picture.stem}-{parts}"
+    line = (f"mkdir -p /work/out && parts-run scripts/inference_partcrafter.py --image_path /work/in/{picture.name} "
+            f"--num_parts {parts} --tag {tag} --output_dir /work/out && rm -f /work/out/{tag}/*.gif")
+    return {"command": ["bash", "-c", line], "inputs": [{"local": str(picture), "path": f"/work/in/{picture.name}"}],
+            "outputs": [{"path": f"/work/out/{tag}", "local": str(picture.parent / "parts" / tag)}],
+            "models": ["partcrafter"], "minutes": CLUSTER_MINUTES}
+
+
+def main_on_cluster(options, counts):
+    """main() under SCORE_CLOUD=k8s: every picture at every part count as one run of the cluster, on the parts kind's
+    classes (capacity.py); timings.json says which came back."""
+    sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
+    import cluster_jobs
+
+    shares = [(picture, parts) for picture in sorted(options.folder.resolve().glob("*.png")) for parts in counts]
+    if options.dry_run:
+        batch.say(f"{len(shares)} PartCrafter runs for the cluster")
+        return
+    failed = set(cluster_jobs.run("parts", [cluster_job(*share) for share in shares], options.who))
+    (options.folder / "parts").mkdir(exist_ok=True)
+    timings = {f"{picture.name}-{parts}": {"ok": number not in failed, "machine": "k8s"}
+               for number, (picture, parts) in enumerate(shares)}
+    (options.folder / "parts" / "timings.json").write_text(json.dumps(timings, indent=1))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("folder", type=pathlib.Path, help="a folder of cut-out pictures on white")
@@ -114,6 +150,9 @@ def main():
     options = parser.parse_args()
     counts = [int(value) for value in options.parts.split(",")]
     runs = len(list(options.folder.glob("*.png"))) * len(counts)
+    if provider.on_cluster():
+        main_on_cluster(options, counts)
+        return
     account = cloud.account()
     batch.sweep(account)
     found, count, allowed_minutes = price(runs, account)
