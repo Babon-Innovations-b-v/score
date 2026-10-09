@@ -72,6 +72,6 @@ RUN curl -fsSL -o /tmp/blender.tar.xz "${BLENDER_URL}" \
  && /opt/gs/blender/4.0/python/bin/python3.10 -m ensurepip \
  && /opt/gs/blender/4.0/python/bin/python3.10 -m pip install --quiet --no-cache-dir pillow==12.0.0
 
-COPY segvigen-run.sh /usr/local/bin/segvigen-run
-COPY geosam2-run.sh /usr/local/bin/geosam2-run
+COPY --chmod=755 segvigen-run.sh /usr/local/bin/segvigen-run
+COPY --chmod=755 geosam2-run.sh /usr/local/bin/geosam2-run
 ENV PYTHONUNBUFFERED=1
