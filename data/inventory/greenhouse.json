@@ -1153,7 +1153,7 @@
 				729
 			],
 			"name": "square water tank on a steel stand, the irrigation main's source",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "floor",
 			"size": [
 				1.6,
@@ -1172,7 +1172,9 @@
 					"facing": 180
 				}
 			],
-			"solid": true
+			"solid": true,
+			"close_up": "closeup/world1-needs/pro/greenhouse-water_tank.png",
+			"why": "the parts check (2026-10-09): its close-up shows an open tank holding water, a corner overflow lip, a band round its middle, a hatch low on its front and a four-legged stand; its code build has a closed lid with a round hatch, a sight tube, a valve and a cross-braced cage, with no open top, water, overflow lip or legged stand, so the prop pipeline makes it"
 		},
 		{
 			"id": "dosing_unit",
@@ -1474,7 +1476,7 @@
 				991
 			],
 			"name": "the station's seed bin, open topped",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "floor",
 			"size": [
 				0.55,
@@ -1485,7 +1487,9 @@
 			"thing": "prop:greenhouse_seed_bin",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"at": []
+			"at": [],
+			"close_up": "closeup/world1-needs/pro-room/greenhouse-seed_bin.png",
+			"why": "the parts check (2026-10-09): its close-up shows a hopper with sloped side cheeks, a recessed front pull, a front panel and an open plinth at its foot; its code build is a straight-walled bin with a rim, a bead and end handles, with none of those parts, so the prop pipeline makes it"
 		},
 		{
 			"id": "soil_bin",
@@ -1497,7 +1501,7 @@
 				991
 			],
 			"name": "the station's soil bin, open topped",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "floor",
 			"size": [
 				0.9,
@@ -1508,7 +1512,9 @@
 			"thing": "prop:greenhouse_soil_bin",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"at": []
+			"at": [],
+			"close_up": "closeup/world1-needs/pro/greenhouse-soil_bin.png",
+			"why": "the parts check (2026-10-09): its close-up shows a pressed rib across its end walls that its code build lacks, so the prop pipeline makes it"
 		},
 		{
 			"id": "crop_crate",
@@ -1520,7 +1526,7 @@
 				991
 			],
 			"name": "the station's slatted crop crate",
-			"kind": "code",
+			"kind": "generate",
 			"anchor": "floor",
 			"size": [
 				0.8,
@@ -1531,7 +1537,9 @@
 			"thing": "prop:greenhouse_crop_crate",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"at": []
+			"at": [],
+			"close_up": "closeup/world1-needs/pro-room/greenhouse-crop_crate.png",
+			"why": "the parts check (2026-10-09): its close-up shows wooden slats in a steel angle frame with rivet rows, a slatted floor, and a white steel end panel with a recessed grip and a hinged hatch; its code build has no steel end panel, grip, hatch or rivets, so the prop pipeline makes it"
 		},
 		{
 			"id": "wall_screen_cluster",
