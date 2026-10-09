@@ -530,6 +530,40 @@
 			],
 			"facing": 124.0,
 			"tilt": 90.0
+		},
+		{
+			"prop": "old_station_supply_rocket",
+			"kind": "old_station_supply_rocket",
+			"model": "supply_rocket",
+			"row": "supply_rocket",
+			"size": [
+				1.083,
+				4.5,
+				1.229
+			],
+			"at": [
+				96.128,
+				0.2,
+				24.875
+			],
+			"facing": 132.29
+		},
+		{
+			"prop": "old_station_cargo_lift",
+			"kind": "old_station_cargo_lift",
+			"model": "cargo_lift",
+			"row": "cargo_lift",
+			"size": [
+				0.826,
+				1.34,
+				0.818
+			],
+			"at": [
+				95.427,
+				0.2,
+				24.236
+			],
+			"facing": 132.29
 		}
 	],
 	"lamps": [
@@ -620,6 +654,12 @@
 			"route": "code"
 		},
 		"gas_bottle": {
+			"route": "model"
+		},
+		"supply_rocket": {
+			"route": "model"
+		},
+		"cargo_lift": {
 			"route": "model"
 		}
 	}

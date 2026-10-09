@@ -806,7 +806,9 @@
     }
    ],
    "needed": "the story and the game's economy: supply rockets bring every load the base gets (the game's bible, the rocket calendar), and one stands on the pad while its cargo waits; the game draws it there (game/world/supply_rockets)",
-   "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/wreck.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base"
+   "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/wreck.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base",
+   "fixed": true,
+   "why_fixed": "it stands on its own legs on the pad as the game lays it (a landed rocket, the lift's frame beside it), not loose"
   },
   {
    "id": "cargo_lift",
@@ -825,14 +827,16 @@
    "thing": "model:cargo_lift",
    "at": [
     {
-     "x": -40.139,
+     "x": -40.056,
      "y": 0.2,
-     "z": 24.331,
+     "z": 24.387,
      "facing": -55.96
     }
    ],
    "needed": "the story: the player rides it to unload each rocket's cargo (game/base/landing_pad), and it stands beside the rocket on the pad",
-   "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/wreck.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base"
+   "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/wreck.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base; stood 0.1 m further out than the game's 0.95 m, because the made rocket's feet reach wider than the game's code legs",
+   "fixed": true,
+   "why_fixed": "it stands on its own legs on the pad as the game lays it (a landed rocket, the lift's frame beside it), not loose"
   },
   {
    "id": "probe_lander",
@@ -854,8 +858,15 @@
    "count": 1,
    "thing": "prop:wreck_probe_lander",
    "needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/wreck.json): the concept shows it and no row held it",
-   "at": [],
-   "from": "laid by the scene agent's final export from the concept (no game code places it)",
+   "at": [
+    {
+     "x": 10.0,
+     "y": 0.0,
+     "z": 1.0,
+     "facing": 0.0
+    }
+   ],
+   "from": "the wreck plan's drone spot (moonground2/wreck/plan.json game.drone_spot [10, 0.5, 1]: the thrower drone the opening throws clear, prologue.gd), on the ground there; right of the wreck, as the concept C2 shows it",
    "box_from": [
     "v1.23"
    ]
