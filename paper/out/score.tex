@@ -517,6 +517,28 @@ The places' vehicles and robots do not move yet: no place of world 1
 shows the game's rover, drone or robots, and the street's car stands
 still in the game as well.
 
+A place's particle effects are a stage layer as well, and each emitter
+is written twice. One prim carries the effect's parameters in the game's
+numbers: its emitter shape, rate, lifetime, speed, spread, gravity, size
+and opacity over its life, the wind it follows and its seed, so that an
+engine can make the effect again with its own particle system. Under it,
+the particles are baked as points over a loop that repeats exactly, so
+any USD reader shows them without knowing those parameters. The bake
+repeats the particle rules of Godot, the game's engine, with the
+framework's own seeded draws, so the same record always gives the same
+particles. The creator's rule for effects is to start from real footage
+and to use many fine particles, because big or sparse ones read as
+random dots, and the records keep the game's counts. On the calm
+afternoon that the camp's scene record holds, 30,000 grains of 3 cm blow
+along the ground on 25 cells round the camp, and two dust devils of
+6,300 particles each wander downwind at 1.4 m/s; a storm variant of the
+same layer holds 180,630 particles. The flat holds the wisp and the
+breath of the cigarette smoked on its balcony, and the wreck the 40,000
+grains that a supply rocket's engine throws across the landing pad.
+Seven of the game's ten kinds of emitter are placed. The dust thrown by
+a boot, a rover's wheel and a digger's scoop is not, because no place of
+world 1 holds the walker or the machine that throws it.
+
 The framework stands apart from the game it was first built for. Every
 file a record names is in the repository or in one release of it: the
 first world's made models (199 MB packed) and its 121 sounds (36 MB),
