@@ -33,6 +33,11 @@ HEM_FADE = 0.08
 # already reaches is left as it is.
 REACH_INTO = 0.03
 STRETCH_OVER = 0.30
+# How far from the boot's shaft a trouser leg's points are read for its hem. A wide leg whose cuff hangs off the
+# shaft's centre reaches past 14 cm (Bram's Newton work suit, 2026-10-09: the cuff 11 cm round, centred 2.4 cm inside
+# the foot); read only to 14 cm, its outer side's hem was taken from the knee, 49 cm up, and the whole leg was stretched
+# 28 cm down over the boot.
+SHAFT_REACH = 0.25
 # The angles round a boot's shaft at which its top and a trouser leg's hem are read.
 RIM_BINS = 16
 
@@ -144,7 +149,7 @@ def lengthened(cloth_points, limbs, boot, side):
     of its lowest points round the shaft); a leg that already reaches comes back unchanged."""
     leg = limbs == ("left_leg" if side == "Left" else "right_leg")
     low_top, shaft = lowest_top(boot)
-    near = leg & (np.linalg.norm(cloth_points[:, [0, 2]] - shaft[[0, 2]], axis=1) < 0.14) \
+    near = leg & (np.linalg.norm(cloth_points[:, [0, 2]] - shaft[[0, 2]], axis=1) < SHAFT_REACH) \
         & (cloth_points[:, 1] < boot[:, 1].max() + STRETCH_OVER)
     if not near.any():
         return cloth_points
