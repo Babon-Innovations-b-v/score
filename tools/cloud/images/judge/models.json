@@ -3,7 +3,7 @@
     "name": "qwen3.8-27b-fp8",
     "source": "hf:Qwen/Qwen3.8-27B-FP8",
     "revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
-    "sha256": "",
+    "sha256": "c23b767b0e7f30667bb173a8642cd76550005435fdce44f2af6ddad598c7aa75",
     "licence": "Apache-2.0",
     "licence_url": "https://huggingface.co/Qwen/Qwen3.8-27B-FP8",
     "commercial_use": true,

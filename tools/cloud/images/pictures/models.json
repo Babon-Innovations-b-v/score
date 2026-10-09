@@ -12,7 +12,7 @@
       "vae/*",
       "LICENSE.md"
     ],
-    "sha256": "",
+    "sha256": "09e4631d30a268938c9c19177f00f1a4f0d326a01b594181147e6781ceccdedc",
     "licence": "Apache-2.0",
     "licence_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
     "commercial_use": true,
@@ -31,7 +31,7 @@
       "transformer/*",
       "vae/*"
     ],
-    "sha256": "",
+    "sha256": "ad1dc6acc9e227526badd795ff7912d85b597cbf1f01da60ff0444dda55cd70f",
     "licence": "Apache-2.0",
     "licence_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
     "commercial_use": true,
