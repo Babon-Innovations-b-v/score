@@ -33,7 +33,8 @@ on the box as the record of what "too wide" looked like.
 
 The build takes the travel off every clip and moves the body back over its node, cuts each one to
 a stretch that runs round (except the clips in `clips.ONCE`, which play once and are kept whole),
-drops the fingers into the wrist, dresses the body in the crew's two outfits (`dress.py`), and
+drops the fingers into the wrist, brings the feet in to hip width (`stance.py`: Kimodo stands
+people twice as wide), dresses the body in the crew's two outfits (`dress.py`), and
 gives only the outfits' parts a material, each carrying its painted picture. Each of those is a
 decision with a reason, and each reason is in `body.py`'s or `dress.py`'s own header. Undoing one
 is fine; undoing one without reading why is how the walk ends up going through a wall again.
@@ -70,6 +71,15 @@ Everything after the look is code here and runs every time: `work_suit.py`, `boo
 runs from the same look write the same file byte for byte; keep it that way (a tie between two
 labels is settled by sorting, never by a set's order). A change to a part's shape or colour is a
 change here and a rebuild, then a picture of it, never a hand edit of the file.
+
+## The joins are measured
+
+Only the head and hands of the body are drawn, so a hand or boot that does not reach into its sleeve or
+trouser leg shows the background (owner, 2026-10-09). The bare hand runs half the forearm up under the cuff
+(`skin.bare_hands`), a short sleeve is drawn to the wrist (`work_suit.sleeves_to_the_wrists`) and a short
+trouser leg into its boot (`boots.lengthened`). `joins.py` measures every wrist and ankle in every frame of
+every clip, and the standing clip's stance, from the built file; the maker's chain keeps its record in
+`out/checks/`. It measures; the pictures still decide.
 
 ## Licences of what the look is made from
 

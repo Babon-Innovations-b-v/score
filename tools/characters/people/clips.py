@@ -114,6 +114,9 @@ SENTENCES = {
 # them to a loop, and the game holds the last frame. The driver takes hold of the door once and
 # keeps holding it.
 ONCE = {"lifting", "door"}
+# Clips where nobody is on their feet: the build leaves their legs as they are rather than bringing the feet in to a
+# standing stance (`stance.py`).
+OFF_THEIR_FEET = {"lying", "sitting"}
 
 
 # The name a clip carries in the game, where it differs from the file it was generated into.

@@ -194,6 +194,7 @@ def jacket(body, folder, under=None):
     the rest of it is laid out by (the cloth as a mesh, the collar's front height)."""
     mesh, panels, limbs = thin(folder)
     thinned = np.asarray(mesh.vertices).copy()
+    mesh = trimesh.Trimesh(work_suit.sleeves_to_the_wrists(thinned, limbs, body), mesh.faces, process=False)
     body_mesh = trimesh.Trimesh(body.points, body.faces, process=False)
     line = work_suit.collar_line(mesh, body_mesh)
     mesh = work_suit.tailored_neckline(mesh, body_mesh, line)

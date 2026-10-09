@@ -1,6 +1,6 @@
 """Checks the join and stance measures (`joins.py`) and the two fixes they were made for, on shapes made here: the bare
 hand running up under the cuff (`skin.bare_hands`) and a short trouser leg drawn down into its boot
-(`boots.lengthened`). Numpy, scipy and trimesh, nothing else; runs as a script or under pytest."""
+(`boots.lengthened`), and a short sleeve drawn down to the wrist (`work_suit.sleeves_to_the_wrists`). Numpy, scipy and trimesh, nothing else; runs as a script or under pytest."""
 import pathlib
 import sys
 
@@ -145,6 +145,24 @@ def test_the_bare_hand_runs_up_under_the_cuff():
     reaches_up_to = points[:, 0].min()
     assert abs(reaches_up_to - 0.25 * (1 - skin.UNDER_THE_CUFF)) < 0.012, reaches_up_to
     assert points[:, 0].max() > 0.34
+
+
+def test_a_short_sleeve_is_drawn_to_the_wrist():
+    import work_suit
+    sleeve, _ = tube(0.05, -0.30, 0.15)
+    limbs = np.array(["left_arm"] * len(sleeve))
+    moved = work_suit.sleeves_to_the_wrists(sleeve, limbs, an_arm())
+    assert abs(moved[:, 0].max() - (0.25 + work_suit.CUFF_PAST_WRIST)) < 1e-6
+    # Above the stretch the sleeve is where it was.
+    high = sleeve[:, 0] < 0.15 - work_suit.SLEEVE_STRETCH_OVER - 1e-6
+    assert np.allclose(moved[high], sleeve[high])
+
+
+def test_a_sleeve_that_reaches_is_left_alone():
+    import work_suit
+    sleeve, _ = tube(0.05, -0.30, 0.28)
+    limbs = np.array(["left_arm"] * len(sleeve))
+    assert np.array_equal(work_suit.sleeves_to_the_wrists(sleeve, limbs, an_arm()), sleeve)
 
 
 if __name__ == "__main__":

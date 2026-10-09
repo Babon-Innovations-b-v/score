@@ -9,7 +9,7 @@ Both are written onto the same skeleton by the same vendor, so there is no retar
 anywhere in here. The outfits are `dress.py`'s; the licences of what they are made from are in
 `tools/crew/CLAUDE.md`.
 
-Four things this does that are easy to leave out and expensive to leave out:
+Five things this does that are easy to leave out and expensive to leave out:
 
 **It takes the travel off.** The generated walk carries six metres of real travel inside it. Left
 in, somebody working at a bench walks through a wall in five seconds. The body walks on the spot
@@ -22,6 +22,11 @@ that match each other best and the small remaining drift is taken out along the 
 **It drops the fingers.** Fifty of the body's seventy-eight joints are hands. Nothing in this game
 is ever close enough to see a knuckle, and a crowd of people each carrying fifty finger joints is
 paid for every frame. Their weight is merged into the wrist, so the hand is still a hand.
+
+**It brings the feet in.** Kimodo stands people with their feet twice as far apart as their hips;
+`stance.py` turns each leg at the hip and knee so a clip's feet stand no wider than the hips, the
+same move all through the clip so a planted foot stays planted (owner, 2026-10-09: "why do they
+stand so wide"). Lying and sitting are left as they are.
 
 **The outfits carry pictures, the distant body flat colours.** Each part of an outfit brings its
 painted picture, which the game draws with the crew's own light. The bare distant body names its
@@ -42,6 +47,7 @@ import numpy as np  # noqa: E402
 import paint  # noqa: E402
 import regions  # noqa: E402
 import skin  # noqa: E402
+import stance  # noqa: E402
 import texels  # noqa: E402
 import torch  # noqa: E402
 import cloth_licence  # noqa: E402
@@ -560,7 +566,7 @@ def build(out_path, clip_names, identity):
     # and everything in this game faces -z.
     document["nodes"].append({"name": "Person", "rotation": [0.0, 1.0, 0.0, 0.0], "children": []})
     standing, _ = posed_by_the_model(near, MOTIONS / "standing.npz")
-    resting = against_parent(standing[0][kept], parents)
+    resting = against_parent(stance.narrowed(standing[:, kept], joint_names, parents)[0], parents)
     joint_node = {}
     for joint, name in enumerate(joint_names):
         turn = Rotation.from_matrix(resting[joint, :3, :3]).as_quat()
@@ -610,7 +616,10 @@ def build(out_path, clip_names, identity):
     for name in clip_names:
         import clips
         world, _ = posed_by_the_model(near, MOTIONS / f"{name}.npz")
-        local, notes = prepare_clip(world[:, kept], parents, LEAST_FRAMES, name in clips.ONCE)
+        world = world[:, kept]
+        if name not in clips.OFF_THEIR_FEET:
+            world = stance.narrowed(world, joint_names, parents)
+        local, notes = prepare_clip(world, parents, LEAST_FRAMES, name in clips.ONCE)
         notes["seconds"] = round(
             add_clip(contents, document, clips.in_game(name), local, joint_node), 2)
         notes["frames"] = int(local.shape[0])
