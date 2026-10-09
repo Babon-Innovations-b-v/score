@@ -308,25 +308,25 @@
    "NVIDIA H100 PCIe, 580.178.04": {
     "class": "gpu-80gb",
     "type": "H100-1-80G",
-    "pull_seconds": 9.6,
+    "pull_seconds": 9.9,
     "card": "NVIDIA H100 PCIe, 580.178.04",
     "before": {
-     "container_seconds": 225.1,
+     "container_seconds": 225.6,
      "renders": [
       {
        "scene": "plain",
        "take": 1,
-       "seconds": 217.91
+       "seconds": 219.78
       },
       {
        "scene": "plain",
        "take": 2,
-       "seconds": 0.26
+       "seconds": 0.27
       },
       {
        "scene": "raytrace",
        "take": 1,
-       "seconds": 0.27
+       "seconds": 0.26
       },
       {
        "scene": "raytrace",
@@ -336,7 +336,7 @@
       {
        "scene": "hair",
        "take": 1,
-       "seconds": 0.27
+       "seconds": 0.28
       },
       {
        "scene": "hair",
@@ -347,12 +347,12 @@
      "kernel_cache": null
     },
     "first-node": {
-     "container_seconds": 225.6,
+     "container_seconds": 8.8,
      "renders": [
       {
        "scene": "plain",
        "take": 1,
-       "seconds": 218.27
+       "seconds": 0.33
       },
       {
        "scene": "plain",
@@ -377,18 +377,18 @@
       {
        "scene": "hair",
        "take": 2,
-       "seconds": 0.26
+       "seconds": 0.25
       }
      ],
      "kernel_cache": {
       "name": "blender-5.0.1",
-      "card": "nvidia-h100-pcie-580.178.04",
-      "restored": false,
-      "uploaded_bytes": 33430735
+      "card": "sm90-580.178.04",
+      "restored": true,
+      "uploaded_bytes": 0
      }
     },
     "new-node": {
-     "container_seconds": 5.6,
+     "container_seconds": 5.7,
      "renders": [
       {
        "scene": "plain",
@@ -408,7 +408,7 @@
       {
        "scene": "raytrace",
        "take": 2,
-       "seconds": 0.26
+       "seconds": 0.27
       },
       {
        "scene": "hair",
@@ -423,7 +423,7 @@
      ],
      "kernel_cache": {
       "name": "blender-5.0.1",
-      "card": "nvidia-h100-pcie-580.178.04",
+      "card": "sm90-580.178.04",
       "restored": true,
       "uploaded_bytes": 0
      }
