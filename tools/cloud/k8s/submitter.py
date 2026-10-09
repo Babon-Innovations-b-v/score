@@ -205,18 +205,22 @@ def unscheduled_since(pod):
 
 
 def no_grow_times(events):
-    """For each pod, the last time the cluster autoscaler said none of its pools could grow for it."""
-    found = {}
+    """For each pod whose latest word from the cluster autoscaler is that none of its pools can grow for it, the time
+    it said so. A "cannot grow" followed by a scale-up for the pod does not count: right after a pool's size cap
+    changes the autoscaler says "max node group size reached" for a moment and then grows it (2026-10-09)."""
+    latest = {}
     for event in events:
-        if event.get("reason") != "NotTriggerScaleUp":
+        reason = event.get("reason")
+        if reason not in ("NotTriggerScaleUp", "TriggeredScaleUp"):
             continue
         message = event.get("message", "").lower()
-        if not any(word in message for word in NO_GROW_WORDS) and "didn't match" not in message:
+        if reason == "NotTriggerScaleUp" and not any(word in message for word in NO_GROW_WORDS):
             continue
-        when = parse_time(event.get("lastTimestamp") or event.get("eventTime"))
+        when = parse_time(event.get("lastTimestamp") or event.get("eventTime")) or 0
         name = event["involvedObject"]["name"]
-        found[name] = max(found.get(name, 0), when or 0)
-    return found
+        if name not in latest or when >= latest[name][0]:
+            latest[name] = (when, reason)
+    return {name: when for name, (when, reason) in latest.items() if reason == "NotTriggerScaleUp"}
 
 
 def job_outcome(job):

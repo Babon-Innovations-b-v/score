@@ -65,3 +65,16 @@ def test_two_clusters_of_one_name_stop(monkeypatch):
     monkeypatch.setattr(cluster, "scw", fake_scw(twins, []))
     with pytest.raises(SystemExit):
         cluster.cluster(OURS)
+
+
+def test_a_busy_cluster_is_asked_again(monkeypatch):
+    answers = [cluster.subprocess.CalledProcessError(1, "scw", stderr="is in a transient state 'updating'"), {"ok": 1}]
+
+    def scw(*arguments):
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    monkeypatch.setattr(cluster.backend, "scw", scw)
+    monkeypatch.setattr(cluster, "WAIT_SECONDS", 0)
+    assert cluster.scw("k8s", "pool", "update", "p", "max-size=1") == {"ok": 1}
