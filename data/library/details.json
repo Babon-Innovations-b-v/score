@@ -4607,12 +4607,7 @@
 	"far_city_crown_tower": {
 		"materials": [
 			"glass",
-			"galvanized_dull",
-			"gate_grey",
-			"concrete",
-			"window_lit",
-			"sign_lit",
-			"post_dark"
+			"gate_grey"
 		],
 		"turn": [
 			1.0,
