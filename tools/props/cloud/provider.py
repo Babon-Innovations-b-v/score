@@ -20,6 +20,12 @@ The backend is chosen by SCORE_CLOUD (default `scaleway`, the backend the framew
                                            to belong to the account by its own record
     leftover_addresses(account), leftover_disks(account), delete_address(id, zone), delete_disk(id, zone)
     secret(name)                           a secret's value from the provider's secret store, never printed
+    registry()                             the private image registry the job images are pushed to and pulled from:
+                                           {"endpoint": "<host>/<namespace>", "username": ..., "password": ...},
+                                           made once if missing, credentials read at run time (tools/cloud/images/)
+    object_store()                         the S3 bucket for the weights cache, code bundles and job inputs and
+                                           outputs: {"endpoint", "region", "bucket", "access_key", "secret_key"},
+                                           made once if missing, credentials read at run time (tools/cloud/runtime/)
 
 The machine itself runs `self_delete.py`, which needs the backend's own way to ask who it is and to delete itself
 (its BACKENDS table). Running a command and copying files go over ssh and rsync (batch.remote, batch.copy), the same
