@@ -11,7 +11,7 @@ from the ring's middle by a central cylindrical camera, so a strip lies on its a
 (across: the arc's bearings; up: height on the ring over its radius). The stage keeps its own water and mirror in
 front of the ring.
 
-    .venv/bin/python tools/usd/far_city.py plan <place> --seed 7          # writes <renders>/seed-7/city.json
+    .venv/bin/python tools/usd/far_city.py plan --seed 7                 # writes <renders>/seed-7/city.json
     .venv/bin/python tools/usd/far_city.py render --seed 7 --who "<session>" [--samples 64]
 
 Frame: EarthSite's metres (x across, -x toward the harbour; z along; bearings clockwise from north, -z, as
@@ -32,7 +32,6 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 KINDS = REPO / "data/definitions/far_city.json"
 INVENTORY = REPO / "data/inventory/launch.json"
-SCENES = REPO / "data/scene"
 WORK = pathlib.Path(os.environ.get("PROPS_WORK", pathlib.Path.home() / ".farm-factory-props/work"))
 RENDERS = WORK / "far-city/renders"
 MODELS = WORK / "far-city/models"
@@ -66,6 +65,10 @@ MOUNTAIN_HIGH = 1150.0
 MOUNTAIN_STEP = 100.0
 # The eye the strips are drawn from: the ring's middle at standing height over the water.
 EYE = 1.6
+# The ring the strips go on, the game's far shore (earth_site.gd:327-335,959-972: SHORE_RADIUS 300, SHORE_HEIGHT 84, four
+# 64 degree arcs from these bearings): its arcs as a scene record's backdrop entries give them.
+ARCS = tuple({"name": f"shore_{number}", "radius": 300.0, "low": 0.0, "high": 84.0, "from": bearing, "span": 64.0}
+             for number, bearing in enumerate((148.0, 208.0, 268.0, 328.0), start=1))
 
 
 def wander(bearing, seed, waves=((2, 0.5), (5, 0.3), (11, 0.2))):
@@ -198,13 +201,12 @@ def strips(arcs, eye=EYE):
     return found
 
 
-def plan(place, seed):
-    """The city's whole plan for a place's backdrop arcs: its towers, mountains, shore and the strips' cameras."""
-    record = json.loads((SCENES / f"{place}.json").read_text())
+def plan(seed):
+    """The city's whole plan for the ring's arcs: its towers, mountains, shore and the strips' cameras."""
     return {"seed": seed, "eye": EYE, "towers": lay_towers(seed), "mountains": mountains(seed),
             "kinds": {kind["row"]: str(MODELS / f"{kind['row']}.glb") for kind in kinds()},
             "uses": {kind["row"]: kind["use"] for kind in kinds()},
-            "strips": strips(record["backdrop"])}
+            "strips": strips(ARCS)}
 
 
 def strip_file(render):
@@ -232,7 +234,6 @@ def render(seed, who, samples):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("step", choices=("plan", "render"))
-    parser.add_argument("place", nargs="?", default="launch")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--who", default="far city")
     parser.add_argument("--samples", type=int, default=64)
@@ -240,7 +241,7 @@ def main():
     if arguments.step == "plan":
         folder = RENDERS / f"seed-{arguments.seed}"
         folder.mkdir(parents=True, exist_ok=True)
-        city = plan(arguments.place, arguments.seed)
+        city = plan(arguments.seed)
         (folder / "city.json").write_text(json.dumps(city))
         print(f"{folder / 'city.json'}: {len(city['towers'])} towers, {len(city['strips'])} strips")
     else:

@@ -6,7 +6,6 @@ height on the ring, in the arc's own proportions.
 
 Run: .venv/bin/python tools/usd/far_city_test.py   (make tests runs it with the framework's environment)
 """
-import json
 import math
 import pathlib
 import sys
@@ -53,7 +52,7 @@ def check_mountains():
 
 
 def check_strips():
-    arcs = json.loads((far_city.SCENES / "launch.json").read_text())["backdrop"]
+    arcs = far_city.ARCS
     for arc, strip in zip(arcs, far_city.strips(arcs)):
         assert strip["name"] == arc["name"]
         assert math.isclose(strip["middle"] - math.degrees(strip["half"]), arc["from"])
