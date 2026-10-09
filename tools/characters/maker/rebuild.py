@@ -45,6 +45,8 @@ PEOPLE = ("take_c", "nev", "oona", "bram", "sefa", "kit_m_slim", "kit_m_avg", "k
           "kit_w_avg", "kit_w_broad", "leader", "guard", "driver", "tech_man", "tech_woman")
 # The garment design whose cloth settings (data/characters/garments/<design>/cloth.json) each kind is draped with.
 DESIGNS = {"work": "work_suit", "space": "space_suit", "jacket": "jacket", "coat": "coat", "trousers": "trousers"}
+# Garments without sleeves, whose drapes are never judged by the arms they leave bare.
+SLEEVELESS = ("trousers",)
 WOMEN = ("nev", "oona", "kit_w_slim", "kit_w_avg", "kit_w_broad", "tech_woman")
 # The crowd's far body is kit_m_avg's (people/run.sh --crowd) with these clips.
 CROWD_LEAD = "kit_m_avg"
@@ -368,7 +370,14 @@ def redrape_newton(run, drape):
     if (sized / "design.yaml").exists() and not (out / "design.yaml").exists():
         shutil.copy2(sized / "design.yaml", out / "design.yaml")
     report = json.loads((out / "newton_cloth.json").read_text())
-    return bool(report["came_to_rest"]) and not any(report["bare_arm"].values())
+    return held_newton(report, drape["kind"])
+
+
+def held_newton(report, kind):
+    """Whether a Newton drape held: it came to rest and, for a garment with sleeves, both upper arms are covered
+    (trousers have no sleeves, so their arms are bare whatever the cloth did)."""
+    sleeved = kind not in SLEEVELESS
+    return bool(report["came_to_rest"]) and not (sleeved and any(report["bare_arm"].values()))
 
 
 SIMULATORS = {"newton": redrape_newton, "blender": redrape_blender}

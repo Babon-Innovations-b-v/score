@@ -1,5 +1,5 @@
 {
- "note": "How the trousers drapes in Blender's cloth: the work suit's settings (its cloth), checked on Nev's body at a 1.5 cm spacing on 2026-10-09 by the drape agent; resolution_scale as the prologue's kept Warp drapes used it (look/leader/trousers_drape/sim_props.yaml). Worn alone the trousers hangs on the body by itself: no waist hold was needed for the trousers.",
+ "note": "How the trousers drapes in Blender's cloth: the work suit's settings (its cloth), checked on Nev's body at a 1.5 cm spacing on 2026-10-09 by the drape agent; resolution_scale as the prologue's kept Warp drapes used it (look/leader/trousers_drape/sim_props.yaml). Worn alone the trousers hangs on the body by itself: no waist hold was needed for the trousers. The 'newton' section is newton_drape.py's (the default simulator): the work suit's cloth (its defaults) with the waist held through the settle (hold_to_end), as a waistband holds trousers worn alone: released at the attachment's end, every person's trousers slid at full gravity, three of seven to the floor (the rebuild of the kept looks, 2026-10-09).",
  "resolution_scale": 1.0,
  "blender": {
   "quality": 10,
@@ -56,5 +56,8 @@
   "settle": 120,
   "fine_settle": 60
  },
- "coarse_resolution": 3.0
+ "coarse_resolution": 3.0,
+ "newton": {
+  "hold_to_end": true
+ }
 }
