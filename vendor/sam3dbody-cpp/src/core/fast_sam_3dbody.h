@@ -1,0 +1,274 @@
+#pragma once
+// ============================================================================
+// fast_sam_3dbody.h  –  C++ interface for SAM-3D-Body pipeline
+//
+// Pipeline stages
+// ───────────────
+//  1. YOLO Pose (ONNX / TRT engine)      → person bounding boxes
+//  2. Backbone (backbone.onnx)            → image feature map  [B,1280,32,32]
+//  3. Decoder  (decoder.onnx)             → pose token         [B,1024]
+//  4. MHR head  (pipeline.gguf, ggml)    → raw pose params     [B,519]
+//  5. Camera head (pipeline.gguf, ggml)  → camera params       [B,3]
+//  6. Body model  (body_model.onnx)       → vertices + joints
+//
+// Inputs expected in BGR uint8 (OpenCV default).
+// ============================================================================
+
+#include <array>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+#include <cstdint>
+
+namespace fsb {
+
+// ─── Output per detected person ──────────────────────────────────────────────
+struct MHRResult {
+    // Bounding box in original image  [x1, y1, x2, y2]
+    std::array<float, 4> bbox{};
+
+    float focal_length = 0.f;          // Estimated / default focal length (pixels)
+
+    // Camera translation  [tx, ty, tz]
+    std::array<float, 3> pred_cam_t{};
+
+    // ── Pose params ──────────────────────────────────────────────────────────
+    // Global orientation – Euler ZYX  [rx, ry, rz]
+    std::array<float, 3> global_rot{};
+
+    // Body pose – MHR 133-dim Euler angles
+    std::vector<float> body_pose;      // [133]
+
+    // Shape betas  (SMPL-like identity blend shapes)
+    std::vector<float> shape;          // [45]
+
+    // Scale parameters
+    std::vector<float> scale;          // [28]
+
+    // Hand pose (left 54 + right 54 = 108)
+    std::vector<float> hand_pose;      // [108]
+
+    // Face expression
+    std::vector<float> face_params;    // [72]
+
+    // Raw model params fed to the LBS pipeline  [204]
+    std::array<float, 204> mhr_model_params{};
+
+    // ── Geometry (populated when Pipeline::Config::skip_body_model = false) ──
+    std::vector<float> pred_vertices;  // [18439 × 3]  SMPL-like mesh
+    std::vector<float> keypoints_3d;   // [70 × 3]     3-D joints
+    std::vector<float> keypoints_2d;   // [70 × 2]     projected 2-D
+
+    // Full MHR skeleton joint positions (see src/mhr_joint_table.h for names/order)
+    // [127 × 3], same camera coordinate system as keypoints_3d (y,z negated, metres).
+    std::vector<float> skeleton_3d;    // [127 × 3]
+
+    // 2-D YOLO keypoints: 17 COCO joints × [x, y, confidence], image pixel coords
+    std::vector<float> keypoints_yolo; // [17 × 3]   always populated if YOLO ran
+
+    // ── Second-pass fields ────────────────────────────────────────────────────
+    // Raw MHR FFN output before Euler conversion.
+    //   [0:6]   global_rot_6d (6D continuous rotation)
+    //   [6:266] body_cont[260] (23×6D + 58×sincos + 6trans)
+    // Used by the Python second-pass to build prev_estimate for forward_decoder.
+    std::array<float, 266> pred_pose_raw{};
+
+    // Raw camera head FFN output [s, tx, ty] before the nonlinear
+    // s/tx/ty → world-space pred_cam_t conversion.
+    std::array<float, 3> pred_cam_raw{};
+
+    // ── Refined-pose diagnostics (populated only when PipelineConfig::refined_pose
+    // is set; see PLAN.md). Hand-box regression from the pass-1 decoder tokens —
+    // [left, right] × [cx, cy, w, h], normalised to the 512x512 crop [0,1].
+    bool  has_hand_box = false;
+    std::array<float, 8> hand_box{};       // [2][4]: left, right
+    std::array<float, 4> hand_box_cls{};   // [2][2] softmax-able logits
+};
+
+// ─── --focus: caller-supplied motion cue (Pipeline::set_focus_motion) ─────────
+// How much a person we could retain has moved: `now_bgr` is this frame, `key_bgr`
+// the frame their retained solution was regressed on (both width x height BGR),
+// `retained` that solution.  Returns mean change in 0-255, the same units as
+// PipelineConfig::focus_sensitivity; < 0 = cannot tell, use the box cue instead.
+using FocusMotionFn = std::function<float(const uint8_t* now_bgr, const uint8_t* key_bgr,
+                                          int width, int height, const MHRResult& retained)>;
+
+// ─── Pipeline configuration ───────────────────────────────────────────────────
+struct PipelineConfig {
+    // Paths
+    std::string onnx_dir;           // Directory with backbone.onnx, decoder.onnx, body_model.onnx
+    std::string backbone_name = "backbone.onnx"; // filename within onnx_dir; override for quantized variant
+    std::string decoder_name  = "decoder.onnx";  // filename within onnx_dir; resolver swaps in decoder_fp16.onnx under --trt
+    std::string gguf_path;          // Path to pipeline.gguf (mhr_proj/cam_proj — always loaded)
+    // Path to pipeline_refined.gguf (mhr_proj_hand/cam_proj_hand — only loaded
+    // when refined_pose is set). Empty = derive from gguf_path by inserting
+    // "_refined" before ".gguf" (e.g. "onnx/pipeline.gguf" ->
+    // "onnx/pipeline_refined.gguf"). Kept as a SEPARATE file/manifest entry
+    // from pipeline.gguf on purpose — see PLAN.md, issue #15 "refined pose"
+    // plan — so pipeline.gguf's HuggingFace manifest entry (size/hash) never
+    // has to change for users who don't use --refined-pose.
+    std::string gguf_refined_path;
+    std::string yolo_path;          // YOLO model: .onnx or .engine (TRT)
+
+    // Device
+    int  cuda_device    = 0;        // CUDA device (-1 = CPU only)
+    bool use_trt_ep     = false;    // Enable ONNX Runtime TensorRT EP (requires TRT install)
+    bool use_fp16       = true;     // FP16 for ONNX EP
+    // Raise the ORT Env's log severity to VERBOSE (--ort-verbose). Prints the
+    // per-node EP assignment table at session-load time ("Rerunning with
+    // verbose output on a non-minimal build will show node assignments" —
+    // exactly that rerun), so you can see which ops got pinned to the CPU EP
+    // and are forcing the Memcpy nodes at CUDA/TensorRT graph boundaries.
+    bool ort_verbose    = false;
+
+    // Inference options
+    bool skip_body_model = false;   // Skip body model – no vertices/keypoints (faster)
+    float person_thresh  = 0.50f;  // YOLO confidence threshold
+    float person_nms_iou = 0.45f;  // YOLO NMS IoU threshold
+    int  max_persons     = 0;      // 0 = unlimited; >0 = cap after NMS (top-N by conf)
+
+    // --focus: spend inference only on the people who are actually moving, and
+    // retain the previous solution for the ones who are not.  See focus.h
+    // for the method and its citation.  false = every
+    // detection is regressed every frame (the behaviour without the flag).
+    bool  focus             = false;
+    // The one knob: mean per-pixel intensity difference (0-255) inside a person's
+    // box, above which that person is regressed again.  Higher retains more and
+    // costs less; lower regresses more and tracks finer motion.
+    float focus_sensitivity = 2.0f;
+
+    // Bounding-box detector provider (selects how the --yolo ONNX output is parsed).
+    // Kept as an int for the C-ABI-friendly struct style. Extend with new kinds
+    // (e.g. DET_YMAPNET) by adding an enum value, a parser, and a dispatch case.
+    enum DetectorKind { DET_YOLO_POSE = 0, DET_LIBREYOLO = 1 /*, DET_YMAPNET = 2 */ };
+    int  detector        = DET_YOLO_POSE; // 0 = YOLO11-pose (default), 1 = LibreYOLO (YOLOv9 bbox)
+
+    // Externally-supplied person boxes (x1,y1,x2,y2 in original image pixels).
+    // When non-empty the internal detector is skipped entirely and these are
+    // used verbatim.  Lets a stronger external segmenter (e.g. SAM3) drive the
+    // pipeline on crowded frames where YOLO's 640x640 letterbox loses small
+    // people.  No keypoints come with them, which is the same has_kps = false
+    // path DET_LIBREYOLO already takes.
+    std::vector<std::array<float,4>> external_boxes;
+
+    // Camera intrinsics – set to 0 to use default (fx = image_width)
+    float focal_x = 0.f;
+    float focal_y = 0.f;
+    float principal_x = 0.f;       // 0 = image_width  / 2
+    float principal_y = 0.f;       // 0 = image_height / 2
+
+    // Debug / diagnostic flags
+    bool zero_face_params = true;   // Force face expression coefficients to 0 (default on; pass --dev-face to enable)
+
+    // ── Refined pose (see PLAN.md, issue #15 "refined pose" plan) ────────────
+    // Off by default: the extra decoder + hand-crop passes cost real fps for
+    // a fix that mainly affects hand/wrist articulation. When on, loads three
+    // extra ONNX graphs (decoder_handbox_fp32.onnx, decoder_hand.onnx,
+    // decoder_prompted.onnx) and the pipeline.gguf hand FFN heads.
+    // decoder_hand STOPGAP: reverted to the original bf16 file. The fp32
+    // re-export (decoder_hand_fp32.onnx) is numerically more faithful to
+    // Python's own fp32 math, but both bf16 and fp32 versions are missing
+    // Python's iterative per-layer keypoint-token refinement (do_interm_preds
+    // + keypoint_token_update, disabled by the ONNX export wrapper because it
+    // calls the pymomentum LBS model, incompatible with ONNX export) — see
+    // PLAN.md "refinedpose" branch notes. That gap dominates hand-crop scale
+    // accuracy regardless of bf16/fp32, so reverting here is a pure regression
+    // fix (back to the known pre-session baseline) while the real fix (a
+    // faithful per-layer ONNX + native-LBS port of that iterative loop) is
+    // built out on this branch.
+    bool refined_pose = false;
+    // --no-pass2 (or FSB_SKIP_PASS2): run only pass 1 of --refined-pose.  Pass 1
+    // is what fixes the image alignment; pass 2 re-decodes the body from the
+    // keypoint prompt and splices the hand crops in, which costs roughly as much
+    // again.  Skipping it keeps pass 1's alignment at a fraction of the price.
+    bool skip_pass2 = false;
+
+    // --pipeline N: process N frames concurrently on a worker pool.  1 (the
+    // default) keeps the pipeline exactly single-threaded and synchronous.  With
+    // N>1 process_bgr() buffers frames until it holds N, hands the batch to the
+    // pool WITHOUT waiting, and returns results for EARLIER frames — one per
+    // call, so the caller's loop keeps a steady rate instead of stalling for a
+    // whole batch every N frames.  Output lags submission by N to 2N frames, and
+    // the first calls return empty while the pool fills.  Use Pipeline::drain()
+    // at end of stream to get the tail, and Pipeline::last_result_bgr() to find
+    // which frame a result belongs to.
+    int pipeline_depth = 1;
+    std::string decoder_hand_name    = "decoder_hand.onnx";
+    std::string decoder_prompted_name= "decoder_prompted.onnx";
+};
+
+// ─── Pipeline class ───────────────────────────────────────────────────────────
+class Pipeline {
+public:
+    Pipeline();
+    ~Pipeline();
+
+    // Non-copyable, moveable (defined in the .cpp, where Impl is complete)
+    Pipeline(const Pipeline&)            = delete;
+    Pipeline& operator=(const Pipeline&) = delete;
+    Pipeline(Pipeline&&) noexcept;
+    Pipeline& operator=(Pipeline&&) noexcept;
+
+    // Load all models.  Returns false on failure.
+    bool load(const PipelineConfig& cfg);
+
+    // Release all resources.
+    void free();
+
+    // ── Core inference ────────────────────────────────────────────────────────
+    // Process a single BGR image (width × height × 3, uint8).
+    // Returns one MHRResult per detected person.
+    std::vector<MHRResult> process_bgr(const uint8_t* bgr,
+                                       int width, int height);
+
+    /// --pipeline N>1 only: pull one pending result set out of the pipeline at
+    /// end of stream.  Returns empty once nothing is left.  Call it in a loop
+    /// after the last process_bgr(); a no-op when pipeline_depth == 1.
+    std::vector<MHRResult> drain();
+
+    /// --pipeline N>1 only: the frame that the results from the most recent
+    /// process_bgr()/drain() actually belong to, since those lag submission.
+    /// Returns null when not pipelining (the caller already has the frame) or
+    /// while the pool is still filling.  Valid until the next call.
+    const uint8_t* last_result_bgr(int& w, int& h) const;
+
+    // Convenience overload for OpenCV Mat (must be CV_8UC3 BGR).
+    // Declared only if OpenCV is available; implemented in fast_sam_3dbody.cpp.
+    struct cv_mat_tag {};
+#if defined(FSB_HAS_OPENCV_MAT)
+    std::vector<MHRResult> process_mat(const void* cv_mat_ptr);
+#endif
+
+    // ── Whole-frame ViT scene embedding ──────────────────────────────────────
+    // Runs the backbone on the *entire* image (resized to the backbone's
+    // 512×512 input), global-average-pools the [1280,32,32] feature map over
+    // the spatial grid and L2-normalises the result.  Returns a 1280-d unit
+    // vector whose cosine similarity to the previous frame's embedding is a
+    // robust, semantic scene-cut signal (used by the offline detector).
+    // Returns an empty vector if the backbone session isn't available.
+    std::vector<float> scene_embedding(const uint8_t* bgr, int width, int height);
+
+    // --focus: replace the per-person cue (mean frame difference over the whole
+    // box, focus.h) with `fn`, e.g. one measured only on the person's silhouette.
+    // The retain/regress rule, timeout and refresh cap stay as they are.  An empty
+    // fn restores the box cue.
+    void set_focus_motion(FocusMotionFn fn);
+
+    // True after a successful load().
+    bool is_loaded() const;
+
+    // Print loaded model info.
+    void print_info() const;
+
+    // Print a one-line per-stage timing summary (per-frame averages of detection,
+    // preprocess, backbone, decoder, MHR FFN and body model), plus the number of
+    // frames and person crops processed across the lifetime of this Pipeline.
+    void print_timing_summary() const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
+
+} // namespace fsb
