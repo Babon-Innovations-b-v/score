@@ -37,7 +37,7 @@ the current backend). No model runs on the coordinating machine.
   rooms, `place_route.py` for outdoor places, `package.py` for the scene package), the gates (`gates/`), Infinigen
   grounds and life (`infinigen/`). Each directory's rules are in its overlay.
 - `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body
-  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by Blender's cloth;
+  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by Newton's cloth solver;
   moved from 2099's `tools/crew` with its history). `maker/` is the character maker, one entry (`make.py`) for a
   person or an animal from a picture or a few words (`data/characters/makes/<name>.json`): a person's whole chain
   (picture, body by SAM3DBody-cpp, clips by Kimodo, drapes, head, hair by Hi3DGen, face by klein with a depth LoRA,

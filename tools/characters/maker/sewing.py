@@ -1,6 +1,8 @@
-"""The plain pieces of draping a GarmentCode garment in Blender, with nothing but numpy: GarmentCode's measurements
-sized to a body, the seams between the panels cut apart, the sewn cloth put back in the box mesh's point order, and
-the cloth written in GarmentCode's simulation output format (`<name>_sim.obj`, which `people/drape.py` reads).
+"""The plain pieces of draping a GarmentCode garment (in Newton, `newton_drape.py`, or Blender, `cloth_drape.py`), with
+nothing but numpy: GarmentCode's measurements sized to a body, the seams between the panels cut apart, the sewn cloth
+put back in the box mesh's point order, the welded cloth's rest shapes taken from the flat panels, the bending edges,
+the points GarmentCode holds while it drapes, and the cloth written in GarmentCode's simulation output format
+(`<name>_sim.obj`, which `people/drape.py` reads).
 
 A sewing record (`<name>_sewing.npz`, written by `garment.py`) holds:
     points      every panel's points in centimetres, where GarmentCode laid the panel round the body
@@ -140,3 +142,77 @@ def uncovered(points, faces, on_limb, shoulder, elbow, span, step=0.01):
     low, high = along[kept].min(axis=1), along[kept].max(axis=1)
     shares = np.round(np.arange(span[0], span[1] + step / 2, step), 4)
     return [float(share) for share in shares if not ((low <= share) & (high >= share)).any()]
+
+
+# ---- the welded cloth (newton_drape.py) -------------------------------------------------------------------------
+
+def welded_faces(record):
+    """The panels' triangles as the box mesh's: each corner the box mesh point its panel point is."""
+    return np.asarray(record["box_index"])[np.asarray(record["faces"])]
+
+
+def rest_areas(record):
+    """Each triangle's area in its own flat panel (the record's units squared)."""
+    corners = np.asarray(record["points"], dtype=float)[np.asarray(record["faces"])]
+    return 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
+
+
+def point_masses(record, count, density):
+    """Each box mesh point's mass: a third of each of its triangles' flat area times `density` (mass per area)."""
+    masses = np.zeros(count)
+    np.add.at(masses, welded_faces(record), (rest_areas(record) * density / 3.0)[:, None])
+    return masses
+
+
+def bending_edges(faces):
+    """Every edge of a triangle mesh as Newton's bending elements take it: (the corner opposite it in its first
+    triangle, the corner opposite it in its second or -1 at a border, its start, its end), its first triangle running
+    from start to end; the first triangle of each edge; and how many edges join two triangles running the same way
+    along them or more than two triangles (a mesh not oriented alike there), whose bending is left out."""
+    faces = np.asarray(faces)
+    halves = {}
+    for number, (first, second, third) in enumerate(faces.tolist()):
+        for start, end, opposite in ((first, second, third), (second, third, first), (third, first, second)):
+            halves.setdefault((min(start, end), max(start, end)), []).append((start, end, opposite, number))
+    edges, owners, odd = [], [], 0
+    for shared in halves.values():
+        start, end, opposite, owner = shared[0]
+        if len(shared) == 1:
+            edges.append((opposite, -1, start, end))
+        elif len(shared) == 2 and shared[1][0] == end and shared[1][1] == start:
+            edges.append((opposite, shared[1][2], start, end))
+        else:
+            odd += 1
+            edges.append((opposite, -1, start, end))
+        owners.append(owner)
+    return np.array(edges, dtype=np.int64).reshape(-1, 4), np.array(owners, dtype=np.int64), odd
+
+
+def rest_edge_lengths(record, edges, owners):
+    """Each edge's length in the flat panel of the triangle it was read from (`bending_edges`), in the record's
+    units: a seam's edge is as long as the pattern makes it, not as GarmentCode's box mesh stretched it."""
+    copies = np.asarray(record["faces"])[owners]
+    welded = np.asarray(record["box_index"])[copies]
+    points = np.asarray(record["points"], dtype=float)
+
+    def copy_of(corner):
+        column = np.argmax(welded == np.asarray(corner)[:, None], axis=1)
+        return copies[np.arange(len(copies)), column]
+
+    return np.linalg.norm(points[copy_of(edges[:, 2])] - points[copy_of(edges[:, 3])], axis=1)
+
+
+def attachments(labels, body):
+    """The points GarmentCode's Warp run held while the garment draped (its garment.py, MIT): the waist points
+    ('lower_interface') at the body's waist level along y, and each collar at half the neck's width less a centimetre
+    along x. `labels` is the box mesh's vertex labels, `body` GarmentCode's measurements (centimetres); a list of
+    (points, axis, value in centimetres)."""
+    held = []
+    if labels.get("lower_interface"):
+        level = body.get("_waist_level", body["height"] - body["head_l"] - body["waist_line"])
+        held.append((np.asarray(labels["lower_interface"], dtype=np.int64), 1, float(level)))
+    neck = (body["neck_w"] - 2.0) / 2.0
+    for label, value in (("right_collar", -neck), ("left_collar", neck)):
+        if labels.get(label):
+            held.append((np.asarray(labels[label], dtype=np.int64), 0, float(value)))
+    return held

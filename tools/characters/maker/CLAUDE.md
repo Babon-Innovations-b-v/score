@@ -22,16 +22,19 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
 - **Look at the result.** As in `../people/`: the numbers say something changed, only a render says it is right.
 - Licences of every piece are in the paper's models table and in `docs/bible.md`; a new model goes there before it is
   used.
-- **Drapes** (`drape_garment.py`, run by `chain.py`): `garment.py` (GarmentCode's environment) sizes a design of
-  `data/characters/garments/` to the body and makes its pattern and box mesh at two spacings, cut back into panels;
-  `cloth_drape.py` (Blender 4.2 or 5.0) sews the coarse panels round the body, trying the design's sewing forces until
-  no panel drifts off it, settles it, carries the fine panels onto it and settles them with the waist held as
-  GarmentCode's Warp run held it, trying the design's fine settings until no panel drifts, no seam is open and the
-  shoulders have not slipped. Every try is in the drape's `blender_cloth.json`; `held_on_body: false` means look before
-  using it. The folder it writes is read by `../people/drape.py` as GarmentCode's Warp drapes were. Compared with the
-  Warp drapes (2026-10-09): more small crumples, a gathered waist on the space suit, wider sleeves standing off the
-  arm, trousers a few centimetres shorter, and the space suit's waist 1 to 2 cm higher on some bodies (lower tore its
-  shoulder seams: Warp's cloth stretched where Blender's does not).
+- **Drapes** (`drape_garment.py`, run by `chain.py` and `rebuild.py`): `garment.py` (GarmentCode's environment)
+  sizes a design of `data/characters/garments/` to the body and makes its pattern and box mesh (`--pattern` with
+  `--measurements` drapes a kept look's own sized pattern 1:1 instead). `newton_drape.py` (the default, Newton's
+  SolverVBD on upstream NVIDIA Warp, both Apache-2.0, the newton environment on a card) drapes it as GarmentCode's own
+  run did, written anew: the box mesh welded, each triangle and edge resting at its flat panel's shape, so the seams
+  sew themselves; no gravity for 10 frames, light gravity (the design's `gravity`, 2 m/s^2) while the waist and
+  collars are held, then the earth's 9.81 m/s^2 for the final settle until the cloth is still (the space suit's waist
+  stays held, as its belt holds it). Its record is the drape's `newton_cloth.json`. Never copy or port code from
+  GarmentCode's Warp fork (non-commercial); GarmentCode itself (MIT) may be read. Measured with `drape_measure.py`
+  against the Warp drapes on Nev, Ama and the player (2026-10-09): crumples within 0.6 degrees on the work suit and
+  1 degree on the space suit (Blender's were 4 to 6 times Warp's), the work suit's trousers 1 to 2 cm longer because
+  the settle is at full gravity where Warp's ran at a hundredth of it. `cloth_drape.py` (Blender's cloth,
+  `--simulator blender`) stays as a second route; its tries are in `blender_cloth.json`.
 - **Rebuilding kept looks** (`rebuild.py`): the looks kept before 2026-10-09 carry drapes from GarmentCode's Warp fork;
   `rebuild.py bundle` makes a make folder for each group of people sharing drapes, `characters.py` runs it up there
   (each drape again from its own kept pattern on the look's rest body, the people built, old and new rendered with the

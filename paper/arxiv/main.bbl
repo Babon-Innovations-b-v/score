@@ -1,4 +1,4 @@
-\begin{thebibliography}{50}
+\begin{thebibliography}{52}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -259,11 +259,18 @@ Maria Korosteleva and Olga Sorkine-Hornung.
   2023.
 \newblock arXiv:2306.03642.
 
-\bibitem[{Blender Foundation}(2026)]{blender}
-{Blender Foundation}.
-\newblock {Blender}, 2026.
-\newblock URL \url{https://www.blender.org/}.
-\newblock Version 5.0.1 used here. GPL.
+\bibitem[{The Newton Developers}(2026)]{newton}
+{The Newton Developers}.
+\newblock {Newton}: a {GPU}-accelerated physics simulation engine, 2026.
+\newblock URL \url{https://github.com/newton-physics/newton}.
+\newblock Version 1.6.1 used here (SolverVBD). Apache-2.0.
+
+\bibitem[Macklin(2022)]{warp}
+Miles Macklin.
+\newblock {Warp}: A high-performance {Python} framework for {GPU} simulation
+  and graphics, 2022.
+\newblock URL \url{https://github.com/NVIDIA/warp}.
+\newblock Version 1.18.0 used here. Apache-2.0 since 1.6.2.
 
 \bibitem[Ye et~al.(2025)Ye, Wu, Lu, Chang, Guo, Zhou, Zhao, and
   Han]{ye2025hi3dgen}
@@ -303,6 +310,12 @@ Hanno Rein and Shang-Fei Liu.
   dynamics.
 \newblock \emph{Astronomy \& Astrophysics}, 537:\penalty0 A128, 2012.
 \newblock arXiv:1110.4876.
+
+\bibitem[{Blender Foundation}(2026)]{blender}
+{Blender Foundation}.
+\newblock {Blender}, 2026.
+\newblock URL \url{https://www.blender.org/}.
+\newblock Version 5.0.1 used here. GPL.
 
 \bibitem[Sim{\'e}oni et~al.(2025)Sim{\'e}oni, Vo, Seitzer,
   et~al.]{simeoni2025dinov3}

@@ -14,7 +14,7 @@ The steps, each a program in its own environment:
   body      the body read off the picture by SAM3DBody-cpp (body_picture.py)
   rest      the body at rest for the drapes and the head (export_body.py)
   clips     every clip the spec names that is not made yet, from its sentence (Kimodo, people/clips.py)
-  drapes    each outfit's GarmentCode pattern draped on the body by Blender's cloth (drape_garment.py)
+  drapes    each outfit's GarmentCode pattern draped on the body by Newton's cloth (drape_garment.py)
   head      the skin above the collar and MakeHuman's eyes seated on it (head.py)
   hair      the bald head drawn in clay with the reference's hair (klein), made a mesh (Hi3DGen), laid on the scalp
             as a clean shell (hair_fit.py) and thinned (Blender)
@@ -164,7 +164,7 @@ DESIGNS = {"work": "work_suit", "space": "space_suit", "jacket": "jacket", "coat
 
 
 def drapes(chain):
-    """Each outfit's pattern draped on the body (GarmentCode's pattern, Blender's cloth: drape_garment.py)."""
+    """Each outfit's pattern draped on the body (GarmentCode's pattern, Newton's cloth: drape_garment.py)."""
     made = []
     reference = chain.spec.get("garment_body", "mean_male")
     for outfit in chain.spec.get("outfits", ["work"]):

@@ -91,8 +91,9 @@ Recorded here because the repo is public and the body file ships:
   and the licence ends for anyone who sues Meta). Its weights are not shipped; only the measured
   body shape is.
 - **Clothing**: sewing patterns by GarmentCode (MIT). The looks kept before 2026-10-09 were draped with its NVIDIA
-  Warp fork, whose licence allows non-commercial research only; drapes from then on are Blender's cloth
-  (`../maker/drape_garment.py`; Blender is GPL, its output is ours). Every built body's report names the simulator of each
+  Warp fork, whose licence allows non-commercial research only; drapes from then on are Newton's cloth solver
+  on upstream NVIDIA Warp (`../maker/newton_drape.py`; both Apache-2.0), or Blender's cloth as a second route
+  (`../maker/cloth_drape.py`; Blender is GPL, its output is ours). Every built body's report names the simulator of each
   drape it wears (`cloth_licence.py`), and `../cast.py` refuses a cast that draws a body whose drapes are not
   commercial-OK; `python3 cloth_licence.py` checks every person's body.
 - **Boots and hair**: Hi3DGen (MIT) from drawings by FLUX.2 klein 4B (Apache 2.0), as the prop
