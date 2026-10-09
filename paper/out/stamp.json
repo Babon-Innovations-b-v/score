@@ -14,7 +14,7 @@
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "d20c367d7e9ac9ddd69eb80bf24143519be5a69ca65afa27335e6bf8f3f45d9d",
     "paper/source/refs.bib": "ecefb21637e485b5bb8d6e9f11e715b65412770d3f5633605c4aa29e55fa65ba",
-    "paper/source/score.md": "a85da68c2769d49dcdf40269ab580883e3bc758ccb47cc972fecc7709ad1e074"
+    "paper/source/score.md": "0f22bbd9fba1141122d28001db431f6516d227dbc7622937b2276af95b4c1e3c"
   },
   "outputs": {
     "paper/arxiv/content/abstract.tex": "1a0c0d79ea980ff7a0c7ed48d38e978251db6877b8177a08f796b0c6f9f28cd7",
@@ -28,7 +28,7 @@
     "paper/arxiv/content/future_work.tex": "8a9d9d1607ec0ec29842c5fb8942fa5e702b4876615a16b783000526aa417341",
     "paper/arxiv/content/introduction.tex": "3f7f7b84db668a4711ea1f6a10d22eed60a1eb22fcae78002d96f76b653ec7eb",
     "paper/arxiv/content/limitations.tex": "fc0487f1ae810ada06498f838880b076e741597e2eb0b26da3705ac60607c140",
-    "paper/arxiv/content/methods.tex": "a3f73161bb3ae592048d70a1078eedeec664b0d3e209461bdaabe8d7f70bb8f0",
+    "paper/arxiv/content/methods.tex": "d2593c3c40ee96793454f62bb83e3eaa5442482d0be04c95a57476ef92b9ec09",
     "paper/arxiv/content/models_and_licences.tex": "863166e28e12267b95adc957ee1adb81459cf3eec693fbc31755e7958c2e33e1",
     "paper/arxiv/content/per_world_demos.tex": "5527ea955a03a52ded3e319a0a539a3ed8397337357b3d951640cd7bdfc51b2e",
     "paper/arxiv/content/results_across_worlds.tex": "8a5da61e97a181069c82e7f2a3ff038aac97673e700c5a4d9c931034ee8b3389",
@@ -45,10 +45,10 @@
     "paper/arxiv/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
     "paper/arxiv/figures/fig-world1.jpg": "6ce4cca2102938b1c2c3c409911ad9672de3219fd81dae169e3ab3f24876fadb",
     "paper/arxiv/main.bbl": "0529bf8773318e8af5d56b9d374c0fd7e43ee6c35fe057a7b1cf20e457b139b6",
-    "paper/arxiv/main.pdf": "39f8dd4c0ef33267cad818993af32de078a8c31ec06880e39d822adaaf141ed9",
+    "paper/arxiv/main.pdf": "66ef1d7fc94fa8e68b9f6e176050ffac6a9ebb78474f640b8fba322f61287cc4",
     "paper/arxiv/main.tex": "74c8ff18344e55b01083d201cb9e84ed13b26af5c92e6ee909e1c182f12a64d2",
     "paper/arxiv/refs.bib": "ecefb21637e485b5bb8d6e9f11e715b65412770d3f5633605c4aa29e55fa65ba",
-    "paper/out/score.pdf": "8b7a581a3290a90afa5bace67556cbd6d7ccc6b80774611d3efed3da7d61cd9d",
-    "paper/out/score.tex": "f869709c7a189ab862e48825c13c4cd80de3c60df92c045fba79a92f1d2ec199"
+    "paper/out/score.pdf": "cd04170009052337b427be89a3c73da8de1e633ffd2da31c0ad1ec54202b738f",
+    "paper/out/score.tex": "8a71a9fe00c25f33305f2fd6d62edd868aad746ff369a4dc6efdc161fcfc3257"
   }
 }

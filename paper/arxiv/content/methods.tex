@@ -86,6 +86,8 @@ A place's particle effects are a stage layer as well, and each emitter is writte
 
 The framework stands apart from the game it was first built for. Every file a record names is in the repository or in one release of it: the first world's made models (199 MB packed) and its 121 sounds (36 MB), each listed with its checksum, its source and its licence. A check fails when any code or data names a file of the game's own tree.
 
+Some surfaces need more than a flat library colour, so the framework writes its own shaders as UsdPreviewSurface materials over pictures it bakes. Any USD reader can draw these. One example is the Earth in the Moon's sky. Its continents, deserts, ice and cloud come from the game's own noise shader, ported to numpy and baked once into a longitude-latitude picture. The place's own sun lights the ball, so its night side falls dark. The sun's disc hangs along each place's sun as wide as the game draws it. The game's lamp, screen and grow-light materials are library surfaces.
+
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
 \textbf{Gap: the scene in a game engine.} The same stage loaded in a game engine, with its collision and surfaces, and the mass and friction of each object written into it. It waits on the game engine adapter and on the framework recording mass and friction.

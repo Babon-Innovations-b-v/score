@@ -122,3 +122,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   the game moves but the base does not draw while it rests (the airlock's sunk inner door, a dark warning light) is
   the motion's `adds`, the layer's only defs. Animate only what the game moves, at its own speeds and lengths; a rest
   the player's pace decides is the record's and says so. `motion_test.py` checks it without Blender.
+- **Framework shaders** (`shaders.py`): a surface the library's flat colour cannot carry gets a UsdPreviewSurface
+  over a picture the framework bakes (`earth_face`: `earth.py`, the game's ink_earth shader in numpy), bound under
+  `/<place>/Looks/` when the stage's folder is known; the sun's disc is a ball along each unnamed sun light. Add a
+  shader to `LOOKS`, never a picture by hand.

@@ -59,6 +59,7 @@ import far_city
 import glb_asset
 import ground_detail
 import rocks
+import shaders
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools/assets"))
@@ -126,9 +127,11 @@ def mesh_prim(stage, path, built):
     return prim
 
 
-def bind_surface(stage, prim, place, surface):
-    """Paint a built mesh with a library surface of the place (/<place>/Library/<surface>) and say which."""
-    material = UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Library/{surface}"))
+def bind_surface(stage, prim, place, surface, out=None):
+    """Paint a built mesh with a library surface of the place (/<place>/Library/<surface>), or with its framework
+    shader when it has one and the stage's folder is given (shaders.py), and say which."""
+    material = shaders.look(stage, place, surface, out) or \
+        UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Library/{surface}"))
     if not material:
         raise ValueError(f"{place}: the library has no surface {surface}")
     UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
@@ -160,7 +163,16 @@ def placed(built, entry):
     return dict(built, points=built["points"] @ turn.T + np.asarray(entry.get("placed_at", (0.0, 0.0, 0.0)), dtype=float))
 
 
-def write_structure(stage, place, entries, root="Structure", kind="structure"):
+def sun_ball(stage, place, path, centre, radius):
+    """A ball in the sky painted with the library's `sun_disc`, drawn on its own (no shadow, no collision)."""
+    UsdGeom.Scope.Define(stage, str(Sdf.Path(path).GetParentPath()))
+    prim = mesh_prim(stage, path, builders.sphere(list(map(float, centre)), float(radius), "sun_disc", 12, 24))
+    bind_surface(stage, prim, place, "sun_disc")
+    prim.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("sky")
+    return prim
+
+
+def write_structure(stage, place, entries, root="Structure", kind="structure", out=None):
     """Every structure entry as one mesh (several when its builder gives several) painted with its surface."""
     if not entries:
         return
@@ -169,7 +181,7 @@ def write_structure(stage, place, entries, root="Structure", kind="structure"):
         for number, built in enumerate(built_meshes(entry)):
             name = entry["name"] if number == 0 else f"{entry['name']}_{number + 1}"
             prim = mesh_prim(stage, f"/{place}/{root}/{name}", built)
-            bind_surface(stage, prim, place, built["surface"])
+            bind_surface(stage, prim, place, built["surface"], out)
             for key, value in (("score:kind", kind), ("score:builder", entry["builder"]),
                                ("score:from", entry.get("from", ""))):
                 prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
@@ -833,7 +845,7 @@ def write_sky(stage, place, environment, out, ground=None):
 def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None, near=None):
     """Everything the place's scene record holds, into the base layer being written; a kit room's lamps' lights too
     (kit_lights), and with the place's planned ground the ground past its near patch (far_ground)."""
-    write_structure(stage, place, scene.get("structure", []))
+    write_structure(stage, place, scene.get("structure", []), out=out)
     write_structure(stage, place, scene.get("ground", []), root="Terrain", kind="ground")
     if ground is not None and scene.get("planned_ground"):
         UsdGeom.Scope.Define(stage, f"/{place}/Terrain")
@@ -849,3 +861,5 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
     write_lights(stage, place, lights)
     write_environment(stage, place, scene.get("environment"))
     write_sky(stage, place, scene.get("environment"), out, ground)
+    shaders.sun_discs(stage, place, scene.get("lights", []), lambda path, centre, radius: sun_ball(stage, place, path,
+                                                                                                 centre, radius))

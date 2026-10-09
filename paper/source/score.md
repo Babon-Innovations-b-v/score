@@ -128,6 +128,10 @@ A place's particle effects are a stage layer as well, and each emitter is writte
 
 The framework stands apart from the game it was first built for. Every file a record names is in the repository or in one release of it: the first world's made models (199 MB packed) and its 121 sounds (36 MB), each listed with its checksum, its source and its licence. A check fails when any code or data names a file of the game's own tree.
 
+Some surfaces need more than a flat library colour, so the framework writes its own shaders as UsdPreviewSurface materials over pictures it bakes. Any USD reader can draw these. One example is the Earth in the Moon's sky. Its continents, deserts, ice and cloud come from the game's own noise shader, ported to numpy and baked once into a longitude-latitude picture. The place's own sun lights the ball, so its night side falls dark. The sun's disc hangs along each place's sun as wide as the game draws it. The game's lamp, screen and grow-light materials are library surfaces.
+
+<!-- Shaders: tools/usd/shaders.py, earth.py (port of 2099's ink_earth.gdshader), library variants warning_lamp, indicator_amber, grow_light, screen_teal, sun_disc in data/library/materials.json; checked by tools/usd/shaders_test.py and a Blender render of the wreck's Earth, 2026-10-09. -->
+
 <!-- Separation: tools/assets/world.py, data/assets/world1.json (release world1-assets-1, 306 files), tools/assets/game_free_test.py (score 3b0ef7f). -->
 
 ::: gap
