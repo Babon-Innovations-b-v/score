@@ -4240,5 +4240,124 @@
 		"materials": [
 			"rubber"
 		]
+	},
+	"campgrounds_ice_drill": {
+		"materials": [
+			"dust_coated_paint",
+			"anodized_natural",
+			"stainless",
+			"rubber"
+		],
+		"turn": [
+			0.28657,
+			0.0,
+			0.95806,
+			0.0,
+			1.0,
+			0.0,
+			-0.95806,
+			0.0,
+			0.28657
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.8
+				],
+				"size": [
+					0.4,
+					0.1
+				],
+				"variant": "label_ice_drill"
+			}
+		]
+	},
+	"campgrounds_power_unit": {
+		"materials": [
+			"dust_coated_paint",
+			"anodized_natural",
+			"rubber"
+		],
+		"turn": [
+			0.10957,
+			0.0,
+			-0.99398,
+			0.0,
+			1.0,
+			0.0,
+			0.99398,
+			0.0,
+			0.10957
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.55
+				],
+				"size": [
+					0.4,
+					0.1
+				],
+				"variant": "label_power"
+			}
+		]
+	},
+	"campgrounds_cable_coil": {
+		"materials": [
+			"rubber"
+		],
+		"turn": [
+			0.87729,
+			0.0,
+			-0.47996,
+			0.0,
+			1.0,
+			0.0,
+			0.47996,
+			0.0,
+			0.87729
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"campgrounds_sample_case": {
+		"materials": [
+			"dust_coated_paint",
+			"anodized_natural",
+			"rubber"
+		],
+		"turn": [
+			0.15899,
+			0.0,
+			-0.98728,
+			0.0,
+			1.0,
+			0.0,
+			0.98728,
+			0.0,
+			0.15899
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.1
+				],
+				"size": [
+					0.2,
+					0.05
+				],
+				"variant": "stencil_samples_bt"
+			}
+		],
+		"square": true
 	}
 }
