@@ -110,7 +110,7 @@ def fake_machines(check):
     kept = batch.claim, batch.arm_self_delete, batch.delete_machine, pictures.keep_beating
     numbers = iter(range(1, 100))
 
-    def claim(run, account, found, number, kind, disk_gb):
+    def claim(run, account, found, number, kind, disk_gb, wanted=None):
         machine = {"folder": run.folder / f"m{next(numbers)}", "host": "host", "class": "gpu-24gb", "type": "L4",
                    "zone": "zone-a", "created": time.time(), "ready": time.time(), "deleted": None}
         run.machines.append(machine)
@@ -180,6 +180,60 @@ def test_machines_claimed_side_by_side_spread_over_the_zones():
             assert sorted(machine["zone"] for machine in run.machines) == ["zone-a", "zone-b", "zone-c"]
     finally:
         batch.rent, batch.boot = kept_rent, kept_boot
+
+
+def with_stock_after(rounds, check):
+    """Run `check(run, offers_read)` with renting stubbed: every offer is out of stock for the first `rounds` rounds of
+    claims, then in stock; the backend's offers are counted each time they are read again, and no time is waited."""
+    kept = batch.rent, batch.boot, batch.cloud.offers, batch.STOCK_RETRY_MINUTES, batch.month_spent
+    asked, offers_read = [], []
+
+    def rent(run, account, chosen, number, disk_gb):
+        asked.append(chosen.zone)
+        if len(offers_read) < rounds:
+            return None
+        return {"zone": chosen.zone, "class": chosen.machine_class, "deleted": None}
+
+    def read(classes):
+        offers_read.append(sorted(classes))
+        return [offer(machine_class, zone) for machine_class in classes for zone in ("zone-a", "zone-b")]
+    batch.rent, batch.boot, batch.cloud.offers = rent, lambda machine: "host", read
+    batch.STOCK_RETRY_MINUTES, batch.month_spent = 0, lambda account: 0.0
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            check(pictures.Run(pathlib.Path(folder), time.time() + 60), offers_read)
+    finally:
+        batch.rent, batch.boot, batch.cloud.offers, batch.STOCK_RETRY_MINUTES, batch.month_spent = kept
+
+
+def test_a_slot_keeps_asking_until_stock_comes_up():
+    def check(run, offers_read):
+        offers = [offer("gpu-24gb", "zone-a"), offer("gpu-80gb", "zone-b")]
+        machine = batch.claim(run, "account", offers, 1, "parts")
+        assert machine is not None and len(offers_read) == 3
+        assert offers_read[0] == ["gpu-24gb", "gpu-80gb"]  # every class the job fits, read again each round
+    with_stock_after(3, check)
+
+
+def test_a_slot_stops_asking_when_its_work_is_gone():
+    def check(run, offers_read):
+        left = [True, True, False]
+        machine = batch.claim(run, "account", [offer("gpu-24gb", "zone-a")], 1, "parts", wanted=lambda: left.pop(0))
+        assert machine is None and len(offers_read) == 1
+    with_stock_after(99, check)
+
+
+def test_a_slot_stops_asking_at_the_deadline_and_on_a_signal():
+    def check(run, offers_read):
+        run.deadline = time.time() - 1
+        assert batch.claim(run, "account", [offer("gpu-24gb", "zone-a")], 1, "parts") is None and not offers_read
+        run.deadline = time.time() + 60
+        batch.STOPPING.set()
+        try:
+            assert batch.claim(run, "account", [offer("gpu-24gb", "zone-a")], 1, "parts") is None
+        finally:
+            batch.STOPPING.clear()
+    with_stock_after(99, check)
 
 
 if __name__ == "__main__":

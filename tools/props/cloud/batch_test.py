@@ -146,6 +146,39 @@ def test_leftovers():
     assert not batch.is_leftover([f"deadline={later:.0f}", "host=elsewhere", "pid=999999999"], 1e9)
 
 
+def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
+    import threading
+    import time
+    import provider
+
+    class Fleet:
+        def __init__(self):
+            self.stop, self.renting, self.deadline = threading.Event(), threading.Lock(), time.time() + 60
+            self.machines, self.offers, self.work = [], [], True
+
+        def no_more_work(self):
+            return not self.work
+    fleet, rounds = Fleet(), []
+    found = [provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")]
+
+    def rent_fleet(fleet, cards):
+        rounds.append(cards)
+        if len(rounds) < 3:
+            return 0  # out of stock on the first rounds
+        fleet.machines.append({"cards": cards, "deleted": None})
+        fleet.work = False
+        fleet.machines[-1]["deleted"] = time.time()
+        return cards
+    kept = batch.rent_fleet, batch.cloud.offers, batch.STOCK_RETRY_MINUTES, batch.time.sleep
+    batch.rent_fleet, batch.cloud.offers = rent_fleet, lambda classes: list(found)
+    batch.STOCK_RETRY_MINUTES, batch.time.sleep = 0, lambda seconds: None
+    try:
+        batch.keep_the_fleet(fleet, found, 2)
+    finally:
+        batch.rent_fleet, batch.cloud.offers, batch.STOCK_RETRY_MINUTES, batch.time.sleep = kept
+    assert rounds == [2, 2, 2] and fleet.offers == found
+
+
 if __name__ == "__main__":
     for name, check in list(globals().items()):
         if name.startswith("test_"):
