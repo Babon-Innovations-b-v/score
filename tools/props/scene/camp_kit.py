@@ -88,11 +88,60 @@ CABLE_LONG = 3.0
 CABLE_FROM_WALL = 1.2
 CABLE_OVER_DECK = 0.0
 
+# The rows the audit of the concept found after the habitat's run (job partition-audit, 2026-10-09), laid with their
+# made models (`model`; route.py late-lay): code-built ones baked alone, the rest placed again from another place's take.
+# The furniture they stand by or on is the scene record's (data/scene/camp.json `objects`, camp_rooms.gd's spots).
+SCENE = REPO / "data/scene/camp.json"
+INVENTORY = REPO / "data/inventory/camp.json"
+MODELS = REPO / "data/parts/models.json"
+# A window's strip lamp: the door strip lamp's build (pieces.door_strip_lamp, the hub's 1.2 m lamp 0.08 tall and
+# 0.104 deep) cut to 0.6 m, on the top band over the window (pieces.CAMP_WINDOW_HIGH 3.0 and CAMP_FRAME 0.1 put the
+# window frame's top at 3.1 m), its back on the band's face. The made window panel's box runs from 0.06 m in front of
+# its quilt to 0.16 m behind and stands centred on the panel's origin (package.kit_matrix), and the band stands
+# CAMP_BAND_IN 0.06 m into the room: its face is 0.11 m in from the origin.
+WINDOW_LAMP = (0.6, 0.08, 0.104)
+WINDOW_LAMP_FOOT = 3.15
+BAND_FACE_IN = 0.11
+# Over the door dome's window panel nearest each bearing: the comms desk's (35 degrees from the dome's middle) and the
+# galley's (182 degrees), the two windows the concept (K01) shows with a lamp over each.
+WINDOW_LAMPS = (35.0, 182.0)
+# The galley bin between the cold store and the galley: the waste bin's build at its row's size, its back to the lining
+# (the wall's quilt at 4.95 m, its skirting 0.05 m in).
+GALLEY_BIN = (0.3, 0.45, 0.3)
+GALLEY_BIN_OUT = 4.65
+GAP = 0.05
+# On the sample shelf's free boards (its made model's boards stand at 0.15, 0.63, 1.11 and 1.59 m; the game's four
+# cases fill 0.15 and 1.11): steel jars and trays of rock on 0.63, the camp grounds' sample cases and two more jars on
+# 1.59, as the concept (K08) shows the shelf's top: each (row, model, across the shelf, board).
+SHELF_THINGS = (("sample_jar", "sample_jar_1", -0.6, 0.63), ("sample_jar", "sample_jar_1", -0.46, 0.63),
+                ("sample_tray", "sample_tray_1", -0.13, 0.63), ("sample_tray", "sample_tray_1", 0.37, 0.63),
+                ("sample_case", "sample_case_1", -0.42, 1.59), ("sample_case", "sample_case_1", 0.115, 1.59),
+                ("sample_jar", "sample_jar_1", 0.45, 1.59), ("sample_jar", "sample_jar_1", 0.6, 1.59))
+# The case on the floor in front of the sample shelf's end toward the dome's larger bearings (the concept's left of
+# it): the camp's case build at its row's size, its back GAP in front of the shelf's 0.5 m deep frame.
+SHELF_CASE = (0.5, 0.3, 0.34)
+SHELF_CASE_ACROSS = 0.5
+SHELF_DEEP = 0.5
+# The canister by the growth chamber, toward the way through (the concept K08: a lidded drum right of the chamber):
+# the lab's sample jar laid at a drum's size, on the far dome's floor at this bearing and radius, clear of the chamber
+# (its 1.3 m spans 113 to 131 degrees from the far dome's middle at 3.9 m) and of the way through's opening (from 260.5
+# degrees).
+CANISTER = (255.0, 3.8)
+# The kiosk terminal on the far dome's floor against its lining, between Oona's and Sefa's bedside crates (50 and 69
+# degrees from the far dome's middle), at the bunks' end of the dome where the concept (K08) shows it by the wall
+# below the bunks: its bearing and radius.
+KIOSK = (60.0, 4.05)
+# The galley's worktop (its made model's top face at 0.95 m, the shelf over its back from 1.40 m): the toaster and the
+# coffee maker side by side at the worktop's end beside the hob, toward the back, as K01 shows them: (row, model,
+# across, back).
+GALLEY_TOP = 0.95
+GALLEY_THINGS = (("toaster", "toaster_1", 0.05, 0.25), ("coffee_maker", "coffee_maker_1", 0.4, 0.22))
+
 KINDS = {"dome_wall_panel": "hangs", "dome_window_panel": "hangs", "dome_rib": "hangs", "dome_ceiling_gore": "hangs",
          "dome_roof_cap": "hangs", "dome_deck_wedge": "floors", "dome_opening_frame": "hangs", "passage_lining": "floors",
          "partition": "hangs", "rod_lamp": "hangs", "shell_gore": "hangs", "shell_gore_window": "hangs",
          "shell_gore_open": "hangs", "foot_ring": "hangs", "passage_hull": "hangs", "ring_lamp": "hangs",
-         "wall_net": "hangs"}
+         "wall_net": "hangs", "door_strip_lamp": "hangs"}
 
 
 def round_the_dome(dome, degrees, out, high=0.0):
@@ -348,11 +397,116 @@ def wall_nets(dome):
     return found
 
 
+def row_size(row):
+    """A row's size in its piece's frame (wide, tall, deep) from the inventory's (wide, deep, tall); a model placed
+    again is laid at its own box (route.py late-lay)."""
+    found = next(entry for entry in json.loads(INVENTORY.read_text())["rows"] if entry["id"] == row)
+    wide, deep, tall = found["size"]
+    return wide, tall, deep
+
+
+def fixture_spot(name):
+    """A piece of furniture the scene record stands (camp_rooms.gd's spot): where its foot is and its axes, as the
+    stage turns it (`yaw` degrees about up, +x toward -z)."""
+    entry = next(entry for entry in json.loads(SCENE.read_text())["objects"] if entry["name"] == name)
+    angle = math.radians(entry["yaw"])
+    return np.asarray(entry["at"], dtype=np.float64), frame([math.cos(angle), 0.0, -math.sin(angle)], [0.0, 1.0, 0.0],
+                                                            [math.sin(angle), 0.0, math.cos(angle)])
+
+
+def on_fixture(name, kind, model, local, size, row=None):
+    """A piece standing on a piece of furniture, its foot's middle at `local` in the furniture's own frame."""
+    origin, axes = fixture_spot(name)
+    foot = origin + sum(axis * value for axis, value in zip(axes, local))
+    return piece(kind, foot, axes, size, model=model, **({"row": row} if row else {}))
+
+
+def bearing_of(dome, point):
+    """A point's bearing round a dome's middle, in its degrees (from +x towards +z)."""
+    return math.degrees(math.atan2(point[2] - dome["middle"][1], point[0] - dome["middle"][0])) % 360.0
+
+
+def window_lamps():
+    """A short strip lamp on the top band over the door dome's window panels nearest WINDOW_LAMPS."""
+    found = []
+    windows = [panel for panel in panels(DOOR_DOME) if panel["kind"] == "window"]
+    for bearing in WINDOW_LAMPS:
+        panel = min(windows, key=lambda panel: abs((sum(panel["span"]) / 2 - bearing + 180.0) % 360.0 - 180.0))
+        low, high = panel["span"]
+        middle, half = (low + high) / 2, (high - low) / 2
+        axes = radial_frame(middle)
+        origin = round_the_dome(DOOR_DOME, middle, DOOR_DOME["radius"] * math.cos(math.radians(half)), WINDOW_LAMP_FOOT)
+        foot = origin - axes[2] * (BAND_FACE_IN + WINDOW_LAMP[2] / 2)
+        found.append(piece("door_strip_lamp", foot, axes, WINDOW_LAMP, model="window_strip_lamp_1",
+                           row="window_strip_lamp"))
+    return found
+
+
+def galley_bin():
+    """The waste bin in the gap between the cold store and the galley, its back to the lining (the concept shows it
+    beside the cold store on its other side, where the game's crate stack stands)."""
+    spots = []
+    for name, row in (("ColdStore", "cold_store"), ("GalleyCounter", "galley")):
+        at, _ = fixture_spot(name)
+        out = math.hypot(at[0] - DOOR_DOME["middle"][0], at[2] - DOOR_DOME["middle"][1])
+        spots.append((bearing_of(DOOR_DOME, at), math.degrees(row_size(row)[0] / 2 / out)))
+    (cold, cold_half), (galley, galley_half) = spots
+    toward = 1.0 if galley > cold else -1.0
+    bearing = (cold + toward * cold_half + galley - toward * galley_half) / 2
+    return [piece("waste_bin", round_the_dome(DOOR_DOME, bearing, GALLEY_BIN_OUT), radial_frame(bearing), GALLEY_BIN,
+                  model="galley_bin_1", row="galley_bin")]
+
+
+def by_the_sample_shelf():
+    """The jars, trays and sample cases on the sample shelf's free boards, and the case on the floor in front of its
+    end."""
+    found = [on_fixture("SampleShelf", row, model, (across, board, 0.0), row_size(row))
+             for row, model, across, board in SHELF_THINGS]
+    origin, axes = fixture_spot("SampleShelf")
+    ends = [origin + axes[0] * side * SHELF_CASE_ACROSS for side in (-1.0, 1.0)]
+    side = -1.0 if bearing_of(FAR_DOME, ends[0]) > bearing_of(FAR_DOME, ends[1]) else 1.0
+    local = (side * SHELF_CASE_ACROSS, 0.0, -(SHELF_DEEP / 2 + GAP + SHELF_CASE[2] / 2))
+    return found + [on_fixture("SampleShelf", "case", "shelf_case_1", local, SHELF_CASE, row="shelf_case")]
+
+
+def canister():
+    """The lab's sample jar laid at a drum's size on the far dome's floor by the growth chamber."""
+    bearing, out = CANISTER
+    return [piece("canister", round_the_dome(FAR_DOME, bearing, out), radial_frame(bearing), row_size("canister"),
+                  model="canister_1")]
+
+
+def stored(model):
+    """Whether a made model of the camp has its labelled take stored (data/parts/models.json): a model still being made
+    is laid once it has."""
+    return model in json.loads(MODELS.read_text()).get(ROOM, {})
+
+
+def kiosk():
+    """The kiosk terminal on the far dome's floor, its screen to the dome's middle, once its model is made."""
+    bearing, out = KIOSK
+    if not stored("kiosk_terminal_1"):
+        return []
+    return [piece("kiosk_terminal", round_the_dome(FAR_DOME, bearing, out), radial_frame(bearing),
+                  row_size("kiosk_terminal"), model="kiosk_terminal_1")]
+
+
+def on_the_galley():
+    """The toaster and the coffee maker on the galley's worktop, each once its model is made."""
+    return [on_fixture("GalleyCounter", row, model, (across, GALLEY_TOP, back), row_size(row))
+            for row, model, across, back in GALLEY_THINGS if stored(model)]
+
+
+def laid_after_the_run():
+    """Every piece laid after the habitat's run (route.py late-lay): each names its made model."""
+    return window_lamps() + galley_bin() + by_the_sample_shelf() + canister() + kiosk() + on_the_galley()
+
+
 def laid_out():
     found = []
     for dome in (DOOR_DOME, FAR_DOME):
         found += lining(dome) + shell(dome) + ring_lamps(dome) + wall_nets(dome)
-    return found + way_through() + the_partition() + lamps() + cables()
+    return found + way_through() + the_partition() + lamps() + cables() + laid_after_the_run()
 
 
 def main():

@@ -20,7 +20,16 @@
 		"camp_passage_hull": 1,
 		"camp_partition": 1,
 		"camp_rod_lamp": 6,
-		"camp_floor_cable": 10
+		"camp_floor_cable": 10,
+		"camp_door_strip_lamp": 2,
+		"camp_waste_bin": 1,
+		"camp_sample_jar": 4,
+		"camp_sample_tray": 2,
+		"camp_sample_case": 2,
+		"camp_case": 1,
+		"camp_canister": 1,
+		"camp_kiosk_terminal": 1,
+		"camp_toaster": 1
 	},
 	"kinds": {
 		"camp_dome_wall_panel": {
@@ -72,6 +81,9 @@
 			"group": "hangs"
 		},
 		"camp_wall_net": {
+			"group": "hangs"
+		},
+		"camp_door_strip_lamp": {
 			"group": "hangs"
 		}
 	},
@@ -564,6 +576,45 @@
 				0.42,
 				0.35
 			]
+		},
+		"window_strip_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"window_strip_lamp_1_glow": {
+			"glows": true
+		},
+		"galley_bin_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"sample_jar_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"sample_tray_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"sample_case_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"shelf_case_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"canister_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"kiosk_terminal_1": {
+			"glows": false,
+			"route": "model"
+		},
+		"toaster_1": {
+			"glows": false,
+			"route": "model"
 		}
 	},
 	"pieces": [
@@ -8926,6 +8977,524 @@
 			],
 			"layer": 1,
 			"model": "floor_cable_1"
+		},
+		{
+			"kind": "camp_door_strip_lamp",
+			"at": [
+				5.7455,
+				3.15,
+				-4.9607
+			],
+			"x": [
+				0.464,
+				0.0,
+				-0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.88584,
+				0.0,
+				0.464
+			],
+			"size": [
+				0.6,
+				0.08,
+				0.108
+			],
+			"layer": 1,
+			"model": "window_strip_lamp_1",
+			"row": "window_strip_lamp"
+		},
+		{
+			"kind": "camp_door_strip_lamp",
+			"at": [
+				5.7065,
+				3.16,
+				-4.9811
+			],
+			"x": [
+				0.464,
+				0.0,
+				-0.88584
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.88584,
+				0.0,
+				0.464
+			],
+			"size": [
+				0.46,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "window_strip_lamp_1_glow",
+			"row": "window_strip_lamp",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_door_strip_lamp",
+			"at": [
+				-3.1841,
+				3.15,
+				-7.65
+			],
+			"x": [
+				-0.10235,
+				0.0,
+				0.99475
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99475,
+				0.0,
+				-0.10235
+			],
+			"size": [
+				0.6,
+				0.08,
+				0.108
+			],
+			"layer": 1,
+			"model": "window_strip_lamp_1",
+			"row": "window_strip_lamp"
+		},
+		{
+			"kind": "camp_door_strip_lamp",
+			"at": [
+				-3.1403,
+				3.16,
+				-7.6455
+			],
+			"x": [
+				-0.10235,
+				0.0,
+				0.99475
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99475,
+				0.0,
+				-0.10235
+			],
+			"size": [
+				0.46,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "window_strip_lamp_1_glow",
+			"row": "window_strip_lamp",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_waste_bin",
+			"at": [
+				-3.0278,
+				0.0,
+				-6.2882
+			],
+			"x": [
+				0.18835,
+				-0.0,
+				0.9821
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.9821,
+				0.0,
+				0.18835
+			],
+			"size": [
+				0.3,
+				0.438,
+				0.381
+			],
+			"layer": 1,
+			"model": "galley_bin_1",
+			"row": "galley_bin"
+		},
+		{
+			"kind": "camp_sample_jar",
+			"at": [
+				4.0129,
+				0.63,
+				1.0809
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.1191,
+				0.1688,
+				0.1183
+			],
+			"layer": 1,
+			"model": "sample_jar_1"
+		},
+		{
+			"kind": "camp_sample_jar",
+			"at": [
+				3.9248,
+				0.63,
+				0.9721
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.1191,
+				0.1688,
+				0.1183
+			],
+			"layer": 1,
+			"model": "sample_jar_1"
+		},
+		{
+			"kind": "camp_sample_tray",
+			"at": [
+				3.7171,
+				0.63,
+				0.7156
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.4522,
+				0.0785,
+				0.3233
+			],
+			"layer": 1,
+			"model": "sample_tray_1"
+		},
+		{
+			"kind": "camp_sample_tray",
+			"at": [
+				3.4025,
+				0.63,
+				0.3271
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.4522,
+				0.0785,
+				0.3233
+			],
+			"layer": 1,
+			"model": "sample_tray_1"
+		},
+		{
+			"kind": "camp_sample_case",
+			"at": [
+				3.8996,
+				1.59,
+				0.941
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.5063,
+				0.3196,
+				0.3693
+			],
+			"layer": 1,
+			"model": "sample_case_1"
+		},
+		{
+			"kind": "camp_sample_case",
+			"at": [
+				3.5629,
+				1.59,
+				0.5252
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.5063,
+				0.3196,
+				0.3693
+			],
+			"layer": 1,
+			"model": "sample_case_1"
+		},
+		{
+			"kind": "camp_sample_jar",
+			"at": [
+				3.3521,
+				1.59,
+				0.2649
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.1191,
+				0.1688,
+				0.1183
+			],
+			"layer": 1,
+			"model": "sample_jar_1"
+		},
+		{
+			"kind": "camp_sample_jar",
+			"at": [
+				3.2577,
+				1.59,
+				0.1483
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.1191,
+				0.1688,
+				0.1183
+			],
+			"layer": 1,
+			"model": "sample_jar_1"
+		},
+		{
+			"kind": "camp_case",
+			"at": [
+				3.5847,
+				0.0,
+				1.299
+			],
+			"x": [
+				-0.62932,
+				0.0,
+				-0.77715
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.77715,
+				0.0,
+				-0.62932
+			],
+			"size": [
+				0.528,
+				0.3,
+				0.389
+			],
+			"layer": 1,
+			"model": "shelf_case_1",
+			"row": "shelf_case"
+		},
+		{
+			"kind": "camp_canister",
+			"at": [
+				-0.4915,
+				0.0,
+				-0.5105
+			],
+			"x": [
+				-0.96593,
+				0.0,
+				0.25882
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.25882,
+				0.0,
+				-0.96593
+			],
+			"size": [
+				0.388,
+				0.55,
+				0.3853
+			],
+			"layer": 1,
+			"model": "canister_1"
+		},
+		{
+			"kind": "camp_kiosk_terminal",
+			"at": [
+				2.517,
+				0.0,
+				6.6674
+			],
+			"x": [
+				0.86603,
+				0.0,
+				-0.5
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.5,
+				0.0,
+				0.86603
+			],
+			"size": [
+				0.4498,
+				1.3035,
+				0.5497
+			],
+			"layer": 1,
+			"model": "kiosk_terminal_1"
+		},
+		{
+			"kind": "camp_toaster",
+			"at": [
+				-2.8819,
+				0.95,
+				-7.2684
+			],
+			"x": [
+				-0.0349,
+				0.0,
+				0.99939
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99939,
+				0.0,
+				-0.0349
+			],
+			"size": [
+				0.1742,
+				0.1951,
+				0.2883
+			],
+			"layer": 1,
+			"model": "toaster_1"
 		}
 	]
 }

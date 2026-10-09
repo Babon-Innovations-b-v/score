@@ -1065,8 +1065,7 @@
 			"object": "door_strip_lamp",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"why_code": "the same code-built strip lamp the greenhouse, lab and workshop lay over a door (door_strip_lamp), shorter",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py window_lamps (WINDOW_LAMPS, WINDOW_LAMP_FOOT, BAND_FACE_IN): on the top band over the door dome's window panels nearest the comms desk's and the galley's bearings, as the concept shows a lamp over each window; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v1.w29"
 			]
@@ -1092,8 +1091,7 @@
 			"thing": "prop:camp_toaster",
 			"parent": "galley",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py on_the_galley (GALLEY_TOP, GALLEY_THINGS): on the galley's worktop (its made model's top at 0.95 m) beside the coffee maker, toward the back; laid after the run when its model is made (route.py late-lay)",
 			"box_from": [
 				"v1.240"
 			]
@@ -1120,8 +1118,7 @@
 			"object": "waste_bin",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"why_code": "the same code-built waste bin the greenhouse, habitat and workshop lay (waste_bin)",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py galley_bin (GALLEY_BIN, GALLEY_BIN_OUT): in the gap between the cold store and the galley (data/scene/camp.json ColdStore and GalleyCounter, camp_rooms.gd's spots), its back to the lining; the concept shows it on the cold store's other side, where the game's crate stack (CrateStack) stands; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v1.w12"
 			]
@@ -1146,8 +1143,7 @@
 			"count": 1,
 			"thing": "prop:camp_kiosk_terminal",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py kiosk (KIOSK): on the far dome's floor against its lining at 60 degrees from its middle, between Oona's and Sefa's bedside crates at the bunks' end, where the concept shows it by the wall below the bunks; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v2.34"
 			]
@@ -1174,8 +1170,7 @@
 			"reuse": "lab:sample_jar",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"why_take": "the lab's steel sample jar with its lid, laid at a drum's size (the owner: reuse a model before making a new one)",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py canister (CANISTER): on the far dome's floor at 255 degrees and 3.8 m from its middle, between the growth chamber and the way through, where the concept shows a lidded drum right of the chamber; the lab's sample jar model scaled evenly to a drum's height; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v2.91"
 			]
@@ -1202,8 +1197,7 @@
 			"parent": "sample_shelf",
 			"reuse": "lab:sample_jar",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py by_the_sample_shelf (SHELF_THINGS): two on the sample shelf's 0.63 m board and two on its 1.59 m board (the boards the game's cases leave free), as the concept shows jars on the shelf; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v2.341",
 				"v2.477"
@@ -1231,8 +1225,7 @@
 			"parent": "sample_shelf",
 			"reuse": "lab:sample_tray",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py by_the_sample_shelf (SHELF_THINGS): on the sample shelf's 0.63 m board beside the jars; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v2.216",
 				"v2.328",
@@ -1262,8 +1255,7 @@
 			"parent": "sample_shelf",
 			"reuse": "campgrounds:sample_case",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py by_the_sample_shelf (SHELF_THINGS): on the sample shelf's top board (1.59 m), as the concept shows two small cases on the shelf's top; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v2.274"
 			]
@@ -1289,8 +1281,7 @@
 			"thing": "prop:camp_coffee_maker",
 			"parent": "galley",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py on_the_galley (GALLEY_TOP, GALLEY_THINGS): on the galley's worktop beside the toaster, toward the back; laid after the run when its model is made (route.py late-lay)",
 			"box_from": [
 				"v1.91"
 			]
@@ -1317,8 +1308,7 @@
 			"object": "case",
 			"why_code": "the camp's own code-built case (its `case` row), laid once more",
 			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)",
+			"from": "tools/props/scene/camp_kit.py by_the_sample_shelf (SHELF_CASE, SHELF_CASE_ACROSS, SHELF_DEEP, GAP): on the floor in front of the sample shelf's end (data/scene/camp.json SampleShelf) toward the dome's larger bearings, the concept's left of it; laid after the run (route.py late-lay)",
 			"box_from": [
 				"v2.113"
 			]
