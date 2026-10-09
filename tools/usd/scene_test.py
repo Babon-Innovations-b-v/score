@@ -81,6 +81,7 @@ def check_lights_and_structure(folder):
     assert math.isclose(omni.GetColorAttr().Get()[0], 1.0, rel_tol=1e-6)  # #ffd29a's red is full
     spot = stage.GetPrimAtPath(f"/{PLACE}/Lights/light_2")
     assert spot.HasAPI(UsdLux.ShapingAPI) and UsdLux.ShapingAPI(spot).GetShapingConeAngleAttr().Get() == 42.0
+    assert UsdLux.ShapingAPI(spot).GetShapingConeSoftnessAttr().Get() == 1.0  # dimmed across its whole cone, as Godot
     shine = UsdGeom.Xformable(spot).ComputeLocalToWorldTransform(Usd.TimeCode.Default()).TransformDir((0, 0, -1))
     expected = np.array([0.0, -2.0, -5.0]) / math.sqrt(29.0)
     assert np.allclose(np.asarray(shine) / np.linalg.norm(shine), expected, atol=1e-5), shine

@@ -364,8 +364,8 @@
   {
    "type": "omni",
    "at": [
-    6.65,
-    2.53,
+    6.8,
+    2.7,
     -1.6
    ],
    "colour": "#ffd29a",
@@ -373,21 +373,21 @@
    "range": 6.0,
    "attenuation": 2.2,
    "shadows": true,
-   "from": "street_fittings.gd:226-236 canopy lamp"
+   "from": "street_fittings.gd:24,29-30,77-85 DOOR_LAMP_AT (6.8, 2.7, -1.6), strength 0.3 (energy 12 x 0.3), LAMP_RANGE 6 (the launch-kit branch, #130: the lamp under the kit's canopy and its lens)"
   },
   {
    "type": "omni",
    "at": [
     13.6,
     2.4,
-    2.5
+    2.0
    ],
    "colour": "#ffc47e",
    "energy": 0.8,
    "range": 5.0,
    "attenuation": 1.0,
    "shadows": false,
-   "from": "street_fittings.gd:266-272 barber's glow"
+   "from": "street_fittings.gd:32,88-96 OPEN_SHOP_LIGHT (13.6, 2.4, 2.0), WINDOW_LIT, energy 0.8, range 5 (the launch-kit branch, #130)"
   },
   {
    "type": "sun",
@@ -546,10 +546,8 @@
   }
  ],
  "game_only": [
-  "the tenements' roofs (parapets, tanks, stair huts, aerials)",
-  "the car (its driver and the guard are in the scene as people)",
-  "the street lamps' glowing heads",
-  "the lit windows' night glow",
+  "the water tanks, stair huts and aerials on the tenements' roofs (their parapets and roof tops are in the stage, though no view sees them): the game deals their spots from its seeded random numbers after every window it dresses (tenement.gd:243-259), which the record cannot copy without running the game; no street view sees a roof",
+  "the stairwell seen through the street door: the street's stage cannot show the stairwell's, which shows the street's",
   "the stars",
   "the ink outline pass"
  ]
