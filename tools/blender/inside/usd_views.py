@@ -142,7 +142,7 @@ def import_report(stage, objects):
         "meshes": len(meshes),
         "triangles": sum(sum(len(polygon.vertices) - 2 for polygon in item.data.polygons) for item in meshes),
         "materials": sorted({slot.material.name for item in meshes for slot in item.material_slots if slot.material}),
-        "properties": {item.name: score_properties(item) for item in objects if score_properties(item)},
+        "properties": {item.name: found for item in objects if (found := score_properties(item))},
         "slots": {item.name: [slot.material.name for slot in item.material_slots if slot.material] for item in meshes},
         "placed": {item.name: [round(value, 4) for value in item.matrix_world.translation] for item in objects},
     }
@@ -246,23 +246,13 @@ def renderer(scene, size):
     elif os.environ.get("FARM_CYCLES_CPU"):
         cycles_on_processor(scene)
     else:
-        for engine in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT"):
-            try:
-                scene.render.engine = engine
-                break
-            except TypeError:
-                continue
+        scene.render.engine = "BLENDER_EEVEE"
         scene.eevee.taa_render_samples = SAMPLES
     scene.render.resolution_x, scene.render.resolution_y = size
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
-    for transform in ("AgX", "Filmic", "Standard"):  # the film's tone curve, as the game's tonemap; the first known
-        try:
-            scene.view_settings.view_transform = transform
-            break
-        except TypeError:
-            continue
+    scene.view_settings.view_transform = "AgX"  # the film's tone curve, as the game's tonemap
 
 
 def stage_point(values):
@@ -283,7 +273,6 @@ def camera(scene, view):
     across = up.cross(back).normalized()
     item.matrix_world = Matrix.Translation(eye) @ Matrix((across, back.cross(across), back)).transposed().to_4x4()
     scene.camera = item
-    return item
 
 
 def clear_eye(scene, view):
@@ -377,6 +366,23 @@ def stage_lights(stage):
             entry["size"] = float(light.GetAngleAttr().Get() or 0.5)
         found.append(entry)
     return found, environment
+
+
+def lit(scene, stage, fill=False):
+    """The stage's own lights and sky, or the fixed sun and fill when it has no lights (one exported before its scene
+    record); `fill` adds the weak fill to one that has them. Returns the stage's environment, or None."""
+    lights, environment = stage_lights(stage)
+    for number, entry in enumerate(lights):
+        place_light(scene, number, entry)
+    if environment is not None:
+        stage_sky(scene, environment)
+    else:
+        black_sky(scene)
+    if not lights:
+        sun(scene, "sun", SUN_STRENGTH, SUN_ELEVATION, SUN_HEADING)
+    if not lights or fill:
+        sun(scene, "fill", FILL_STRENGTH, FILL_ELEVATION, SUN_HEADING + 180.0)
+    return environment
 
 
 def place_light(scene, number, entry):
@@ -678,12 +684,6 @@ def effect_material(name, look, near_fade, colour):
     return material
 
 
-def see_through_deep(scene):
-    """Enough see-through bounces for a cloud of thin particles one behind another (Cycles stops at its default 8)."""
-    if scene.render.engine == "CYCLES":
-        scene.cycles.transparent_max_bounces = EFFECT_BOUNCES
-
-
 def textured(item):
     """Whether an object is drawn from a picture (a made model's baked maps): the game inks those thinner."""
     return item.type == "MESH" and any(
@@ -695,30 +695,20 @@ def pass_render(scene, path):
     """The view rendered once more in Cycles at one sample with its distance and object index kept, to a multilayer
     EXR; the render settings put back after."""
     settings = scene.render.image_settings
-    kept = {"engine": scene.render.engine, "format": settings.file_format,
-            "media": getattr(settings, "media_type", None),
-            "mode": scene.render.image_settings.color_mode, "depth": scene.render.image_settings.color_depth}
-    if scene.render.engine != "CYCLES":
+    engine, samples, denoise = scene.render.engine, scene.cycles.samples, scene.cycles.use_denoising
+    kept = (settings.media_type, settings.file_format, settings.color_mode, settings.color_depth)
+    if engine != "CYCLES":
         scene.render.engine = "CYCLES"
         scene.cycles.device = "CPU"
-    samples, denoise = scene.cycles.samples, scene.cycles.use_denoising
     scene.cycles.samples, scene.cycles.use_denoising = 1, False
     layer = scene.view_layers[0]
-    layer.use_pass_z = True
-    layer.use_pass_object_index = True
-    layer.use_pass_normal = True
-    if kept["media"] is not None:  # Blender 5: a multilayer EXR is a media type of its own
-        settings.media_type = "MULTI_LAYER_IMAGE"
+    layer.use_pass_z = layer.use_pass_object_index = layer.use_pass_normal = True
+    settings.media_type = "MULTI_LAYER_IMAGE"  # Blender 5: a multilayer EXR is a media type of its own
     settings.file_format = "OPEN_EXR_MULTILAYER"
     settings.color_depth = "32"
     render(scene, path, transparent=False)
-    scene.cycles.samples, scene.cycles.use_denoising = samples, denoise
-    scene.render.engine = kept["engine"]
-    if kept["media"] is not None:
-        settings.media_type = kept["media"]
-    settings.file_format = kept["format"]
-    settings.color_mode = kept["mode"]
-    settings.color_depth = kept["depth"]
+    scene.render.engine, scene.cycles.samples, scene.cycles.use_denoising = engine, samples, denoise
+    settings.media_type, settings.file_format, settings.color_mode, settings.color_depth = kept
 
 
 def exr_channels(path):
@@ -876,21 +866,9 @@ def main():
     objects = [item for item in objects if not item.hide_render]  # what the stage makes invisible stays so
     effects = effect_points(stage, objects)
     renderer(scene, views["size"])
-    if effects:
-        see_through_deep(scene)
-    lights, environment = stage_lights(stage)
-    for number, entry in enumerate(lights):
-        place_light(scene, number, entry)
-    if environment is not None:
-        stage_sky(scene, environment)
-    else:
-        black_sky(scene)
-    # A stage with no lights of its own (one exported before its scene record) gets the fixed sun and fill; a weak
-    # fill is an option for one that has them (views' "fill").
-    if not lights:
-        sun(scene, "sun", SUN_STRENGTH, SUN_ELEVATION, SUN_HEADING)
-    if not lights or views.get("fill"):
-        sun(scene, "fill", FILL_STRENGTH, FILL_ELEVATION, SUN_HEADING + 180.0)
+    if effects and scene.render.engine == "CYCLES":  # thin particles one behind another: Cycles stops at 8 by default
+        scene.cycles.transparent_max_bounces = EFFECT_BOUNCES
+    environment = lit(scene, stage, views.get("fill"))
     plane = stage_ground(objects)
     if plane is None and (environment is None or environment["ground_plane"]):
         plane = ground(scene)
