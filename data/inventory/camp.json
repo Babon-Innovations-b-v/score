@@ -1072,10 +1072,10 @@
 			"id": "toaster",
 			"view": "v1",
 			"box": [
-				2140,
-				690,
-				2265,
-				810
+				2231,
+				735,
+				2380,
+				864
 			],
 			"name": "a stainless two-slot toaster on the galley worktop",
 			"kind": "generate",
@@ -1087,30 +1087,6 @@
 			],
 			"count": 1,
 			"thing": "prop:camp_toaster",
-			"parent": "galley",
-			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
-			"at": [],
-			"from": "laid by the scene agent's final export from the concept (no game code places it)"
-		},
-		{
-			"id": "microwave",
-			"view": "v1",
-			"box": [
-				2140,
-				690,
-				2265,
-				810
-			],
-			"name": "a small stainless microwave oven on the galley worktop",
-			"kind": "generate",
-			"anchor": "on:galley",
-			"size": [
-				0.5,
-				0.38,
-				0.3
-			],
-			"count": 1,
-			"thing": "prop:camp_microwave",
 			"parent": "galley",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
 			"at": [],
@@ -1168,10 +1144,10 @@
 			"id": "canister",
 			"view": "v2",
 			"box": [
-				2280,
-				815,
-				2365,
-				930
+				2395,
+				656,
+				2491,
+				864
 			],
 			"name": "a small lidded steel drum on the floor",
 			"kind": "generate",
@@ -1261,6 +1237,55 @@
 			"parent": "sample_shelf",
 			"reuse": "campgrounds:sample_case",
 			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "coffee_maker",
+			"view": "v1",
+			"box": [
+				2231,
+				735,
+				2380,
+				864
+			],
+			"name": "a drip coffee maker with a glass carafe on the galley worktop",
+			"kind": "generate",
+			"anchor": "on:galley",
+			"size": [
+				0.25,
+				0.3,
+				0.38
+			],
+			"count": 1,
+			"thing": "prop:camp_coffee_maker",
+			"parent": "galley",
+			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "shelf_case",
+			"view": "v2",
+			"box": [
+				1552,
+				1375,
+				1669,
+				1482
+			],
+			"name": "a small white case on the floor beside the sample shelf",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.5,
+				0.34,
+				0.3
+			],
+			"count": 1,
+			"thing": "prop:camp_shelf_case",
+			"object": "case",
+			"why_code": "the camp's own code-built case (its `case` row), laid once more",
+			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
 			"at": [],
 			"from": "laid by the scene agent's final export from the concept (no game code places it)"
 		}

@@ -2525,6 +2525,31 @@
 				"v1.158",
 				"v1.308"
 			]
+		},
+		{
+			"id": "control_cabinet",
+			"view": "v1",
+			"box": [
+				2010,
+				455,
+				2160,
+				690
+			],
+			"name": "a tall steel cabinet with a screen and readouts beside the work desk",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.6,
+				0.5,
+				1.5
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_control_cabinet",
+			"reuse": "garage:control_cabinet",
+			"why_take": "the garage's made control cabinet, placed again",
+			"needed": "the partition audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/missed.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
 		}
 	]
 }

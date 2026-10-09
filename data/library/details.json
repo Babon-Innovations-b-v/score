@@ -5012,27 +5012,6 @@
 		"cuts": [],
 		"decals": []
 	},
-	"camp_microwave": {
-		"materials": [
-			"brushed_steel_fine",
-			"glass",
-			"plastic_white"
-		],
-		"turn": [
-			-0.84805,
-			0.0,
-			0.52992,
-			0.0,
-			1.0,
-			0.0,
-			-0.52992,
-			0.0,
-			-0.84805
-		],
-		"screens": [],
-		"cuts": [],
-		"decals": []
-	},
 	"camp_kiosk_terminal": {
 		"materials": [
 			"dust_coated_paint",
@@ -5121,5 +5100,24 @@
 		"screens": [],
 		"cuts": [],
 		"decals": []
+	},
+	"greenhouse_control_cabinet": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"painted_panel",
+			"screen"
+		]
 	}
 }
