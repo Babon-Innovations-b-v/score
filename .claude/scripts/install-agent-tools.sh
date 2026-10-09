@@ -10,7 +10,7 @@
 # - Bun, which claude-mem's worker runs on: the release zip pinned below, checked the same way,
 #   into ~/.bun/bin (where claude-mem looks for it).
 # - claude-mem's settings in ~/.claude-mem: telemetry off, no Chroma, no read gate, only decisions
-#   and fixes injected at session start, sub-agent observations kept.
+#   and fixes injected at session start, sub-agent observations kept, every worktree one project.
 # - ponytail's one-time status line offer marked as seen, so it never asks to edit ~/.claude/settings.json.
 # - The vendored claude-mem plugin installed into Claude Code for this project (not globally).
 # - The repo indexed once into the code graph.
@@ -30,6 +30,11 @@ CLAUDE_MEM_DIR="${CLAUDE_MEM_DATA_DIR:-$HOME/.claude-mem}"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 say() { printf '%s\n' "$*"; }
+
+# The repo's main checkout, also when this script runs from one of its worktrees.
+main_checkout_path() {
+  dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)"
+}
 
 # Download `url` into the empty folder `dir` as `name` and stop unless its SHA-256 is `sha`.
 download_checked() {
@@ -91,6 +96,28 @@ PY
   say "claude-mem: settings in $CLAUDE_MEM_DIR/settings.json"
 }
 
+# Key every checkout under the main one (its .claude/worktrees/ included) as one claude-mem
+# project, "score", through a named environment (CLAUDE_MEM_PROJECT_ENVIRONMENTS). Without it each
+# worktree is its own project ("score/<worktree>"), so a lesson one sub-agent records never
+# reaches a sibling's session start. Other environments already in the file are kept.
+write_claude_mem_project_environment() {
+  local main_checkout
+  main_checkout="$(main_checkout_path)"
+  python3 -I - "$CLAUDE_MEM_DIR/settings.json" "$main_checkout" <<'PY'
+import json, pathlib, sys
+path, main_checkout = pathlib.Path(sys.argv[1]), sys.argv[2]
+settings = json.loads(path.read_text()) if path.exists() else {}
+environments = settings.get("CLAUDE_MEM_PROJECT_ENVIRONMENTS") or []
+if isinstance(environments, str):
+    environments = json.loads(environments) if environments.strip() else []
+environments = [entry for entry in environments if entry.get("name") != "score"]
+environments.append({"name": "score", "patterns": [f"{main_checkout}/**"]})
+settings["CLAUDE_MEM_PROJECT_ENVIRONMENTS"] = environments
+path.write_text(json.dumps(settings, indent=2) + "\n")
+PY
+  say "claude-mem: every checkout under $main_checkout is the project \"score\""
+}
+
 # Record telemetry as declined in ~/.claude-mem/telemetry.json, so it stays off even for a
 # worker started without this repo's DO_NOT_TRACK in its environment.
 write_claude_mem_telemetry_off() {
@@ -116,17 +143,21 @@ mark_ponytail_statusline_seen() {
 
 # Install the vendored claude-mem plugin into Claude Code's plugin cache for this project. The
 # repo's .claude/settings.json declares the marketplace by a relative path, which a headless
-# session cannot install from, so the marketplace is added here by its absolute path; the CLI then
-# writes that absolute path into .claude/settings.json, and the committed file is put back.
+# session cannot install from, so the marketplace is added here by its absolute path in the main
+# checkout (a worktree's copy would vanish with the worktree; this one's is used only while the
+# main checkout has none yet); the CLI writes that path into .claude/settings.json, and the
+# committed file is put back.
 install_claude_mem_plugin() {
-  local settings="$REPO/.claude/settings.json" saved
+  local settings="$REPO/.claude/settings.json" source saved
+  source="$(main_checkout_path)/vendor/claude-mem"
+  [ -d "$source" ] || source="$REPO/vendor/claude-mem"
   saved="$(mktemp)"
   cp "$settings" "$saved"
-  (cd "$REPO" && claude plugin marketplace add "$REPO/vendor/claude-mem" --scope project >/dev/null \
+  (cd "$REPO" && claude plugin marketplace add "$source" --scope project >/dev/null \
     && claude plugin install claude-mem@thedotmack --scope project >/dev/null)
   cp "$saved" "$settings"
   rm -f "$saved"
-  say "claude-mem: plugin installed for this project from vendor/claude-mem"
+  say "claude-mem: plugin installed for this project from $source"
 }
 
 index_repo() {
@@ -137,6 +168,7 @@ index_repo() {
 install_codebase_memory
 install_bun
 write_claude_mem_settings
+write_claude_mem_project_environment
 write_claude_mem_telemetry_off
 mark_ponytail_statusline_seen
 install_claude_mem_plugin
