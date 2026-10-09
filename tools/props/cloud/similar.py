@@ -31,11 +31,13 @@ KIND = "similar"
 WEIGHTS = "facebook/dinov2-base"
 SETUP_MINUTES = 8
 MINUTES_A_PAIR = 0.02
+# After the cards: processor machines, which run DINOv2 in minutes for a few hundred pairs when no card is in stock.
+PROCESSORS = ("cpu-16c-64gb", "cpu-32c-64gb", "cpu-32c-128gb")
 
 
 def price(pairs, account):
     """Print the estimate and refuse what passes the owner's limits; the offers and the minutes allowed."""
-    found = batch.offers(list(capacity.classes_for(KIND)))
+    found = batch.offers(list(capacity.classes_for(KIND)) + list(PROCESSORS))
     if not found:
         raise SystemExit("no machine for DINOv2 is sold by the backend")
     minutes = SETUP_MINUTES + len(pairs) * MINUTES_A_PAIR
