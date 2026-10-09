@@ -262,7 +262,8 @@ def merged(cells):
 
 def rise_faces(found_rises, kinds):
     """A face panel on every side of a rise that stands over what is beside it, from that height to the rise's top,
-    set in so its front is flush with the rise's side; never against a wall."""
+    set in so its front is flush with the rise's side; never against a wall. Each is labelled with its rise's part
+    (`rise`: dais, dais_step, ledge, ledge_step, door_step)."""
     laid = []
     deep = FACE_DEEP
     for rise in found_rises:
@@ -278,8 +279,12 @@ def rise_faces(found_rises, kinds):
                     middle = np.asarray(start) + along * length * (index + 0.5) / count
                     origin = np.array([middle[0], below, middle[1]]) - np.array([outward[0], 0.0, outward[1]]) * deep / 2
                     front = np.array([outward[0], 0.0, outward[1]])
-                    laid.append(piece(ROOM, "wall_lower_plain", origin, room_kit.frame_facing(front, (0, 1, 0)),
-                                      (length / count, high, deep)))
+                    face = piece(ROOM, "wall_lower_plain", origin, room_kit.frame_facing(front, (0, 1, 0)),
+                                 (length / count, high, deep))
+                    # Labelled with its rise: a wall panel's model, standing on the floor as the rise's own face, never
+                    # hung on a wall (the checks judged the 24 faces as wall gear off their walls).
+                    face["rise"] = rise["part"]
+                    laid.append(face)
     return laid
 
 

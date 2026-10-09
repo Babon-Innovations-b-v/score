@@ -779,20 +779,20 @@
 				},
 				{
 					"wall": "south",
-					"across": -4.6,
+					"across": -4.3,
 					"bottom": 0.62,
 					"size": [
-						5.6,
+						5.0,
 						0.1,
 						0.1
 					]
 				},
 				{
 					"wall": "south",
-					"across": 4.6,
+					"across": 4.3,
 					"bottom": 0.62,
 					"size": [
-						5.6,
+						5.0,
 						0.1,
 						0.1
 					]

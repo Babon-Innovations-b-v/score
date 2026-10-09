@@ -113,6 +113,19 @@ def test_the_tube_bay_spans_one_hoop_spacing_and_stands_on_its_deck():
         assert corners[:, 1].min() >= -0.05 and corners[:, 1].max() <= tube_kit.AXIS_HIGH + tube_kit.RADIUS, laid["kind"]
 
 
+def test_every_roof_row_meets_the_roof_plate_it_hangs_from():
+    """A row hung from the roof (a ceiling lamp) has its head on the underside of the roof plate over it, as the
+    surface check judges it: the lab's lamps were set 0.2 m under the dome's sheet less ROOF_UNDER, forgetting the
+    plates' 5 cm, and stood up into the plates (2026-10-09)."""
+    sys.path.insert(0, str(HERE.parent / "gates"))
+    import surface
+    for room in ROOMS:
+        layout = {"room": room, "kinds": room_kit.kinds_table(room, INVENTORIES[room]), "pieces": LAID[room]}
+        hung = [(index, laid["kind"], problems) for index, laid, problems in
+                ((index, laid, surface.plate_faults(laid, surface.shell.roof_plates(layout)))
+                 for index, laid in enumerate(LAID[room]) if "ceiling_" in laid["kind"]) if problems]
+        assert not hung, (room, hung)
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:

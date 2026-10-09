@@ -84,6 +84,21 @@ def test_the_hangar_s_trolley_stands_on_its_bridge_on_the_rails():
     assert abs(trolley["x"][2]) > 0.9, "its drum across the girders, so its wheels run along them"
 
 
+def test_the_installed_garage_header_is_as_tall_as_its_posts_are_wide_and_clear_of_the_opening():
+    """The installed kit lays each piece at its made model's own box: the header's model had its three bolts laid up
+    a 0.2 m beam, so it came out 0.42 m tall and hung 11 cm into the opening (2026-10-09)."""
+    layout = INVENTORIES["garage"]["room"]["layout"]
+    big = layout["big_door"]
+    post = room_kit.size_of({row["id"]: row for row in INVENTORIES["garage"]["rows"]}, "wall_corner_post")
+    installed = json.loads((bay_kit.REPO / "data/kit/garage.json").read_text())
+    headers = [laid for laid in installed["pieces"]
+               if laid["kind"] == "garage_wall_corner_post" and laid["size"][0] >= big["wide"] - 1e-3]
+    assert len(headers) == 1
+    corners = room_kit.box_corners(headers[0])
+    assert abs(corners[:, 1].max() - corners[:, 1].min() - post[0]) < 0.01
+    assert corners[:, 1].min() >= big["high"] - 1e-3
+
+
 def test_every_kind_laid_is_a_row_of_the_inventory():
     for room in ROOMS:
         rows = {f"{room}_{row['id']}" for row in INVENTORIES[room]["rows"]}

@@ -102,5 +102,34 @@ def main():
     print(f"{len(tests)} greenhouse kit checks pass")
 
 
+def test_every_wall_row_stays_on_its_main_wall_s_straight_run():
+    """A row laid against a main wall ends where the wall turns into its rounded corner (the south wall's pipe runs,
+    copied from the longer east and west walls, ran 0.6 m on into the corners and their end brackets stood on the
+    corner's steps, 2026-10-09)."""
+    layout = INVENTORY["room"]["layout"]
+    for row in INVENTORY["rows"]:
+        for spot in row.get("at", []):
+            if "wall" not in spot or spot["wall"] not in ("north", "south", "east", "west"):
+                continue
+            side = kit.room_kit.side_named(layout, spot["wall"])
+            half = float(np.linalg.norm(side["end"] - side["start"])) / 2
+            wide = spot.get("size", row["size"])[0]
+            assert abs(spot["across"]) + wide / 2 <= half + 1e-6, f"{row['id']} on the {spot['wall']} wall past its run"
+
+
+def test_the_surface_and_opening_checks_pass_the_layout():
+    """The rise faces are labelled as a rise's (`rise`), so the surface check never judges them as wall gear, and the
+    door step's faces stand in the east doorway as the game's threshold (SteppedFloor's door step)."""
+    sys.path.insert(0, str(HERE.parent / "gates"))
+    import placement
+    import surface
+    layout = {"room": kit.ROOM, "kinds": kit.kinds_table(INVENTORY), "pieces": PIECES}
+    faces = [laid for laid in PIECES if "rise" in laid]
+    assert faces and all(own(laid) == "wall_lower_plain" for laid in faces)
+    assert {laid["rise"] for laid in faces} == {"dais", "dais_step", "ledge", "ledge_step", "door_step"}
+    assert surface.faults(layout) == []
+    assert placement.clashes(layout) == []
+
+
 if __name__ == "__main__":
     main()
