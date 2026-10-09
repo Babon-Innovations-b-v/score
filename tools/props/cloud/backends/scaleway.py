@@ -12,6 +12,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
@@ -248,3 +249,112 @@ def delete(server_id, zone):
         if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
             return False  # it went while the terminate was refused (another run's sweep, its own self-delete)
     raise RuntimeError(f"deleting {server_id} failed: {done.stderr.strip()}")
+
+
+# The container path (tools/cloud/): one private image registry and one bucket in the project, region fr-par, and the
+# key the runtime reaches both with. Their names carry the project's name, never its id.
+REGION = "fr-par"
+REGISTRY_NAMESPACE = os.environ.get("SCORE_REGISTRY_NAMESPACE", f"score-{PROJECT_NAME}")
+BUCKET = os.environ.get("SCORE_STORE_BUCKET", f"score-{PROJECT_NAME}-cache")
+# The secret holding {"access_key", "secret_key"} of an IAM application that may use the project's object storage
+# and container registry and nothing else; made by make_runtime_key the first time it is missing.
+RUNTIME_KEY_SECRET = "score-cloud-runtime-key"
+RUNTIME_APPLICATION = "score-cloud-runtime"
+RUNTIME_PERMISSIONS = ("ObjectStorageFullAccess", "ContainerRegistryFullAccess")
+# Scaleway's registry takes any user name with the key's secret half as the password.
+REGISTRY_USER = "nologin"
+
+
+def registry():
+    """The project's private image registry: its endpoint and the runtime key to log in with."""
+    key = runtime_key(account())
+    return {"endpoint": registry_namespace(account()), "username": REGISTRY_USER, "password": key["secret_key"]}
+
+
+def registry_namespace(project):
+    """The endpoint (<host>/<namespace>) of the project's private registry namespace, made if missing. A namespace is
+    taken only when its own record names the project, and a public one is refused."""
+    listed = scw("registry", "namespace", "list", f"region={REGION}", f"project-id={project}",
+                 f"name={REGISTRY_NAMESPACE}") or []
+    found = [space for space in listed
+             if space["name"] == REGISTRY_NAMESPACE and space.get("project_id") == project]
+    if not found:
+        found = [scw("registry", "namespace", "create", f"name={REGISTRY_NAMESPACE}", f"project-id={project}",
+                     f"region={REGION}", "is-public=false")]
+    if found[0].get("is_public"):
+        raise SystemExit(f"the registry namespace {REGISTRY_NAMESPACE} is public; the job images must stay private")
+    return found[0]["endpoint"]
+
+
+def object_store():
+    """The project's bucket for the container path, made if missing, with the runtime key to reach it."""
+    key = runtime_key(account())
+    store = {"endpoint": f"https://s3.{REGION}.scw.cloud", "region": REGION, "bucket": BUCKET,
+             "access_key": key["access_key"], "secret_key": key["secret_key"]}
+    make_bucket(store)
+    return store
+
+
+def make_bucket(store):
+    """Make the store's bucket if it is not there. The runtime key's default project is this project, so a bucket it
+    makes lands there; a bucket name held by anyone else is refused (403) and stops here."""
+    import boto3
+    import botocore.exceptions
+
+    client = boto3.client("s3", endpoint_url=store["endpoint"], region_name=store["region"],
+                          aws_access_key_id=store["access_key"], aws_secret_access_key=store["secret_key"])
+    try:
+        client.head_bucket(Bucket=store["bucket"])
+    except botocore.exceptions.ClientError as error:
+        if error.response["Error"]["Code"] not in ("404", "NoSuchBucket"):
+            raise SystemExit(f"the bucket {store['bucket']} is not ours to use ({error.response['Error']['Code']})")
+        try:
+            client.create_bucket(Bucket=store["bucket"], ACL="private")
+        except client.exceptions.BucketAlreadyOwnedByYou:
+            pass  # a retried create whose first try went through (seen on the first make, 2026-10-09)
+
+
+def runtime_key(project):
+    """The runtime key, {"access_key", "secret_key"}, from its secret; made first if the project has none."""
+    listed = scw("secret", "secret", "list", f"region={REGION}", f"project-id={project}",
+                 f"name={RUNTIME_KEY_SECRET}") or []
+    if not any(item["name"] == RUNTIME_KEY_SECRET and item.get("project_id") == project for item in listed):
+        make_runtime_key(project)
+    return json.loads(secret(RUNTIME_KEY_SECRET))
+
+
+def runtime_application():
+    """The id of the IAM application the runtime key belongs to, made if missing."""
+    listed = scw("iam", "application", "list", f"name={RUNTIME_APPLICATION}") or []
+    found = [application for application in listed if application["name"] == RUNTIME_APPLICATION]
+    if found:
+        return found[0]["id"]
+    return scw("iam", "application", "create", f"name={RUNTIME_APPLICATION}",
+               "description=SCORE container runtime: the project's object storage and registry only")["id"]
+
+
+def allow_runtime_application(application, project):
+    """Give the application the project's object storage and registry, scoped to the project alone, once."""
+    listed = scw("iam", "policy", "list", f"application-ids.0={application}") or []
+    if any(policy["name"] == RUNTIME_APPLICATION for policy in listed):
+        return
+    scw("iam", "policy", "create", f"name={RUNTIME_APPLICATION}", f"application-id={application}",
+        f"rules.0.project-ids.0={project}",
+        *[f"rules.0.permission-set-names.{index}={name}" for index, name in enumerate(RUNTIME_PERMISSIONS)])
+
+
+def make_runtime_key(project):
+    """Make the runtime key (an API key of the runtime application, its default project this one) and keep it only in
+    the secret RUNTIME_KEY_SECRET; it is never printed or left on disk."""
+    application = runtime_application()
+    allow_runtime_application(application, project)
+    made = scw("iam", "api-key", "create", f"application-id={application}", f"default-project-id={project}",
+               "description=SCORE container runtime")
+    value = json.dumps({"access_key": made["access_key"], "secret_key": made["secret_key"]})
+    held = scw("secret", "secret", "create", f"name={RUNTIME_KEY_SECRET}", f"project-id={project}",
+               f"region={REGION}")
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "value"
+        path.touch(mode=0o600)
+        path.write_text(value)
+        scw("secret", "version", "create", held["id"], f"region={REGION}", f"data=@{path}")

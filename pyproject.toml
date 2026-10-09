@@ -22,6 +22,7 @@ dependencies = [
     "requests>=2.34",
     "usd-core>=25.5",
     "python-fcl>=0.7.0.11",
+    "boto3>=1.43.110",
 ]
 
 [dependency-groups]
