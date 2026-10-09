@@ -41,7 +41,6 @@ import importlib.util
 import json
 import os
 import pathlib
-import subprocess
 import sys
 import time
 
@@ -52,6 +51,7 @@ sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(HERE))
 
 import capacity  # noqa: E402
+from kube import Kubectl  # noqa: E402
 import ledger  # noqa: E402
 import manifests  # noqa: E402
 import provider  # noqa: E402
@@ -110,29 +110,6 @@ def cluster_module(name=None):
 def kubeconfig(cluster):
     """The kubeconfig kubectl uses: KUBECONFIG when set, else the cluster module's fetched one."""
     return os.environ.get("KUBECONFIG") or str(cluster.KUBECONFIG)
-
-
-class Kubectl:
-    """kubectl against one kubeconfig; every call fails loudly."""
-
-    def __init__(self, config):
-        self.config = config
-
-    def run(self, *arguments, stdin=None):
-        done = subprocess.run(["kubectl", "--kubeconfig", self.config, *arguments], input=stdin, check=True,
-                              capture_output=True, text=True)
-        return done.stdout
-
-    def json(self, *arguments):
-        return json.loads(self.run(*arguments, "-o", "json"))
-
-    def apply(self, objects):
-        """Apply objects through stdin, so a Secret's value is never on disk or in a command line."""
-        return self.run("apply", "-f", "-", stdin=json.dumps(manifests.as_list(objects)))
-
-    def delete_job(self, name):
-        self.run("delete", "job", name, "-n", manifests.NAMESPACE, "--ignore-not-found", "--wait=false",
-                 "--cascade=background")
 
 
 # The order of classes.
