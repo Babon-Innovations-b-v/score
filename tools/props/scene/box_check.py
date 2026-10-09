@@ -179,7 +179,8 @@ def measured_problems(found, sizes):
         rows = boxed_rows(found, view)
         for row in rows:
             problems.extend(box_problems(row, size))
-        problems.extend(spread_problems(view, [row["box"] for row in rows if not is_whole(row["box"], size)], size))
+        if not all(row.get("box_from") for row in rows):  # boxes measured from proposals sit where the things are
+            problems.extend(spread_problems(view, [row["box"] for row in rows if not is_whole(row["box"], size)], size))
     return problems
 
 

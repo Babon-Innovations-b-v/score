@@ -46,6 +46,12 @@ def test_guessed_boxes_crowded_into_one_corner_fail():
     assert any("span only" in problem for problem in problems), problems
 
 
+def test_measured_boxes_are_not_held_to_spread():
+    rows = [a_row(f"r{index}", [100 + 100 * (index % 6), 100 + 100 * (index // 6), 600 + 150 * (index % 6),
+                                400 + 100 * (index // 6)], box_from=[f"v1.{index}"]) for index in range(24)]
+    assert box_check.measured_problems(an_inventory(rows), {"v1": SIZE}) == []
+
+
 def test_too_little_covered_for_its_rows_fails():
     rows = [a_row(f"r{index}", [200 + 400 * index, 700, 240 + 400 * index, 740]) for index in range(6)]
     problems = box_check.measured_problems(an_inventory(rows), {"v1": SIZE})

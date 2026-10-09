@@ -77,13 +77,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				908,
+				1157,
+				1472,
+				1314
 			],
 			"thing": "prop:garage_wall_lower_plain",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.80"
+			]
 		},
 		{
 			"id": "wall_upper_plain",
@@ -101,13 +104,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				470,
+				611,
+				784,
+				864
 			],
 			"thing": "prop:garage_wall_upper_plain",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.35"
+			]
 		},
 		{
 			"id": "wall_skirting",
@@ -124,14 +130,10 @@
 			"made": "kit piece",
 			"at": [],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"thing": "prop:garage_wall_skirting",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the skirting band is hidden behind the room's furniture and is too thin to make out in the concept"
 		},
 		{
 			"id": "wall_cornice",
@@ -149,13 +151,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				943,
+				139,
+				1180,
+				268
 			],
 			"thing": "prop:garage_wall_cornice",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.113"
+			]
 		},
 		{
 			"id": "wall_corner_post",
@@ -173,13 +178,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				2198,
+				1013,
+				2255,
+				1221
 			],
 			"thing": "prop:garage_wall_corner_post",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w27"
+			]
 		},
 		{
 			"id": "ring_floor_plate",
@@ -197,13 +205,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1030,
+				896,
+				1290,
+				1045
 			],
 			"thing": "prop:garage_ring_floor_plate",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.53"
+			]
 		},
 		{
 			"id": "roof_face_panel",
@@ -220,14 +231,10 @@
 			"made": "kit piece",
 			"at": [],
 			"view": "v1",
-			"box": [
-				0,
-				0,
-				2752,
-				1536
-			],
+			"box": null,
 			"thing": "prop:garage_roof_face_panel",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the concept is cut away above the walls, so no roof plate shows"
 		},
 		{
 			"id": "lattice_ring_rib",
@@ -245,13 +252,41 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1237,
+				294,
+				1705,
+				552
 			],
 			"thing": "prop:garage_lattice_ring_rib",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.56",
+				"v1.93",
+				"v1.176",
+				"v1.177",
+				"v1.190",
+				"v1.226",
+				"v1.230",
+				"v1.242",
+				"v1.243",
+				"v1.245",
+				"v1.246",
+				"v1.248",
+				"v1.249",
+				"v1.260",
+				"v1.266",
+				"v1.282",
+				"v1.302",
+				"v1.311",
+				"v1.360",
+				"v1.400",
+				"v1.402",
+				"v1.409",
+				"v1.418",
+				"v1.439",
+				"v1.w29",
+				"v1.w42"
+			]
 		},
 		{
 			"id": "hatch_frame",
@@ -276,12 +311,26 @@
 			],
 			"view": "v1",
 			"box": [
-				550,
-				845,
-				860,
-				1375
+				553,
+				869,
+				842,
+				1385
 			],
-			"thing": "prop:garage_hatch_frame"
+			"thing": "prop:garage_hatch_frame",
+			"box_from": [
+				"v1.w18",
+				"v1.34",
+				"v1.175",
+				"v1.247",
+				"v1.319",
+				"v1.333",
+				"v1.373",
+				"v1.375",
+				"v1.404",
+				"v1.w1",
+				"v1.w8",
+				"v1.w71"
+			]
 		},
 		{
 			"id": "hatch_leaf",
@@ -306,12 +355,15 @@
 			],
 			"view": "v1",
 			"box": [
-				645,
-				990,
-				800,
-				1360
+				650,
+				1009,
+				806,
+				1315
 			],
-			"thing": "prop:garage_hatch_leaf"
+			"thing": "prop:garage_hatch_leaf",
+			"box_from": [
+				"v1.w18"
+			]
 		},
 		{
 			"id": "hatch_wheel",
@@ -336,12 +388,15 @@
 			],
 			"view": "v1",
 			"box": [
-				695,
-				1100,
-				765,
-				1185
+				707,
+				1118,
+				755,
+				1178
 			],
-			"thing": "prop:garage_hatch_wheel"
+			"thing": "prop:garage_hatch_wheel",
+			"box_from": [
+				"v1.247"
+			]
 		},
 		{
 			"id": "hatch_hinge",
@@ -411,13 +466,16 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1272,
+				98,
+				1472,
+				185
 			],
 			"thing": "prop:garage_pipe_bracket",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.151"
+			]
 		},
 		{
 			"id": "tread_mat",
@@ -452,13 +510,16 @@
 			"lies": "floor",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1710,
+				493,
+				1949,
+				625
 			],
 			"thing": "prop:garage_tread_mat",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w31"
+			]
 		},
 		{
 			"id": "machine_bay_plate",
@@ -483,13 +544,19 @@
 			"lies": "floor",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1293,
+				836,
+				1599,
+				995
 			],
 			"thing": "prop:garage_machine_bay_plate",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.60",
+				"v1.215",
+				"v1.220",
+				"v1.376"
+			]
 		},
 		{
 			"id": "pipe_straight",
@@ -538,13 +605,16 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1272,
+				98,
+				1472,
+				185
 			],
 			"thing": "prop:garage_pipe_straight",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.151"
+			]
 		},
 		{
 			"id": "pipe_valve",
@@ -568,13 +638,16 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				864,
+				1357,
+				897,
+				1400
 			],
 			"thing": "prop:garage_pipe_valve",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.347"
+			]
 		},
 		{
 			"id": "cable_bundle",
@@ -623,13 +696,16 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				898,
+				1223,
+				1757,
+				1389
 			],
 			"thing": "prop:garage_cable_bundle",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w28"
+			]
 		},
 		{
 			"id": "cable_drop",
@@ -688,13 +764,16 @@
 			],
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1240,
+				182,
+				1297,
+				256
 			],
 			"thing": "prop:garage_cable_drop",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.185"
+			]
 		},
 		{
 			"id": "door_control_box",
@@ -728,12 +807,16 @@
 			],
 			"view": "v1",
 			"box": [
-				458,
-				954,
+				455,
+				952,
 				535,
 				1072
 			],
-			"thing": "prop:garage_door_control_box"
+			"thing": "prop:garage_door_control_box",
+			"box_from": [
+				"v1.137",
+				"v1.w54"
+			]
 		},
 		{
 			"id": "small_readout",
@@ -790,12 +873,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1238,
-				289,
-				1720,
-				881
+				1239,
+				295,
+				1688,
+				900
 			],
-			"thing": "prop:garage_rover_lift"
+			"thing": "prop:garage_rover_lift",
+			"box_from": [
+				"v1.w41"
+			]
 		},
 		{
 			"id": "chain_hoist",
@@ -821,13 +907,21 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/chain_hoist.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1328,
+				378,
+				1420,
+				576
 			],
 			"thing": "prop:garage_chain_hoist",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.176",
+				"v1.360",
+				"v1.439",
+				"v1.w42",
+				"v1.350",
+				"v1.353"
+			]
 		},
 		{
 			"id": "workbench",
@@ -854,12 +948,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				936,
-				151,
-				1238,
-				495
+				946,
+				285,
+				1242,
+				523
 			],
-			"thing": "prop:garage_workbench"
+			"thing": "prop:garage_workbench",
+			"box_from": [
+				"v1.w43"
+			]
 		},
 		{
 			"id": "bench_vise",
@@ -879,12 +976,15 @@
 			"parent": "workbench",
 			"view": "v1",
 			"box": [
-				1128,
-				296,
-				1197,
-				358
+				1184,
+				297,
+				1227,
+				329
 			],
-			"thing": "prop:garage_bench_vise"
+			"thing": "prop:garage_bench_vise",
+			"box_from": [
+				"v1.341"
+			]
 		},
 		{
 			"id": "toolbox",
@@ -904,12 +1004,15 @@
 			"parent": "workbench",
 			"view": "v1",
 			"box": [
-				963,
-				330,
-				1046,
-				385
+				956,
+				341,
+				1013,
+				389
 			],
-			"thing": "prop:garage_toolbox"
+			"thing": "prop:garage_toolbox",
+			"box_from": [
+				"v1.w46"
+			]
 		},
 		{
 			"id": "task_lamp",
@@ -939,12 +1042,15 @@
 			},
 			"view": "v1",
 			"box": [
-				1183,
+				1194,
 				165,
-				1238,
-				220
+				1242,
+				228
 			],
-			"thing": "prop:garage_task_lamp"
+			"thing": "prop:garage_task_lamp",
+			"box_from": [
+				"v1.w48"
+			]
 		},
 		{
 			"id": "tyre_shelving",
@@ -971,12 +1077,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1431,
-				179,
-				1734,
-				482
+				1432,
+				182,
+				1739,
+				496
 			],
-			"thing": "prop:garage_tyre_shelving"
+			"thing": "prop:garage_tyre_shelving",
+			"box_from": [
+				"v1.w51"
+			]
 		},
 		{
 			"id": "spares_shelf",
@@ -1003,12 +1112,22 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				344,
-				537,
-				509,
-				826
+				378,
+				554,
+				491,
+				827
 			],
-			"thing": "prop:garage_spares_shelf"
+			"thing": "prop:garage_spares_shelf",
+			"box_from": [
+				"v1.209",
+				"v1.234",
+				"v1.292",
+				"v1.315",
+				"v1.321",
+				"v1.355",
+				"v1.377",
+				"v1.410"
+			]
 		},
 		{
 			"id": "fluid_shelves",
@@ -1035,12 +1154,15 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1940,
-				399,
-				2257,
-				771
+				1948,
+				401,
+				2264,
+				778
 			],
-			"thing": "prop:garage_fluid_shelves"
+			"thing": "prop:garage_fluid_shelves",
+			"box_from": [
+				"v1.w56"
+			]
 		},
 		{
 			"id": "breaker_panel",
@@ -1066,13 +1188,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/breaker_panel.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1312,
+				157,
+				1422,
+				336
 			],
 			"thing": "prop:garage_breaker_panel",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.108"
+			]
 		},
 		{
 			"id": "junction_box",
@@ -1098,13 +1223,18 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/junction_box.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1240,
+				180,
+				1300,
+				256
 			],
 			"thing": "prop:garage_junction_box",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.185",
+				"v1.318",
+				"v1.w67"
+			]
 		},
 		{
 			"id": "pressure_gauge",
@@ -1148,13 +1278,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/pressure_gauge.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				571,
+				464,
+				678,
+				688
 			],
 			"thing": "prop:garage_pressure_gauge",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w50"
+			]
 		},
 		{
 			"id": "control_cabinet",
@@ -1187,12 +1320,19 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				564,
-				468,
-				674,
-				688
+				571,
+				464,
+				678,
+				690
 			],
-			"thing": "prop:garage_control_cabinet"
+			"thing": "prop:garage_control_cabinet",
+			"box_from": [
+				"v1.w50",
+				"v1.180",
+				"v1.218",
+				"v1.372",
+				"v1.399"
+			]
 		},
 		{
 			"id": "rover_charger",
@@ -1219,12 +1359,17 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				1692,
-				798,
-				1789,
-				1004
+				1695,
+				791,
+				1779,
+				1014
 			],
-			"thing": "prop:garage_rover_charger"
+			"thing": "prop:garage_rover_charger",
+			"box_from": [
+				"v1.145",
+				"v1.273",
+				"v1.298"
+			]
 		},
 		{
 			"id": "parts_trolley",
@@ -1251,12 +1396,20 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				991,
-				509,
+				992,
+				521,
 				1170,
-				716
+				714
 			],
-			"thing": "prop:garage_parts_trolley"
+			"thing": "prop:garage_parts_trolley",
+			"box_from": [
+				"v1.59",
+				"v1.339",
+				"v1.346",
+				"v1.366",
+				"v1.435",
+				"v1.w44"
+			]
 		},
 		{
 			"id": "wheel_stand",
@@ -1283,12 +1436,22 @@
 			"solid": true,
 			"view": "v1",
 			"box": [
-				771,
-				633,
-				922,
-				839
+				774,
+				665,
+				937,
+				832
 			],
-			"thing": "prop:garage_wheel_stand"
+			"thing": "prop:garage_wheel_stand",
+			"box_from": [
+				"v1.68",
+				"v1.79",
+				"v1.217",
+				"v1.453",
+				"v1.w22",
+				"v1.w34",
+				"v1.w64",
+				"v1.w65"
+			]
 		},
 		{
 			"id": "bay_panel",
@@ -1320,13 +1483,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/bay_panel.png",
 			"view": "v1",
 			"box": [
-				0,
-				0,
-				2752,
-				1536
+				1756,
+				1209,
+				1829,
+				1334
 			],
 			"thing": "prop:garage_bay_panel",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.134"
+			]
 		},
 		{
 			"id": "bracket_beacon",
@@ -1376,12 +1542,16 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/garage/beacon.png",
 			"view": "v1",
 			"box": [
-				1968,
-				839,
-				2023,
-				894
+				1972,
+				848,
+				2008,
+				899
 			],
-			"thing": "prop:garage_bracket_beacon"
+			"thing": "prop:garage_bracket_beacon",
+			"box_from": [
+				"v1.291",
+				"v1.w69"
+			]
 		},
 		{
 			"id": "ceiling_lamp",

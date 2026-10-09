@@ -35,9 +35,9 @@
 			"id": "ring_floor_plate",
 			"view": "v1",
 			"box": [
-				826,
-				1073,
-				1582,
+				786,
+				1057,
+				1578,
 				1536
 			],
 			"name": "deck plate, bolted",
@@ -53,16 +53,34 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.336",
+				"v1.356",
+				"v1.28",
+				"v1.29",
+				"v1.30",
+				"v1.40",
+				"v1.43",
+				"v1.74",
+				"v1.75",
+				"v1.76",
+				"v1.83",
+				"v1.84",
+				"v1.161",
+				"v1.268",
+				"v1.318",
+				"v1.w10"
+			]
 		},
 		{
 			"id": "hull_plate",
 			"view": "v1",
 			"box": [
-				537,
-				55,
-				894,
-				358
+				1662,
+				903,
+				2085,
+				1494
 			],
 			"name": "curved hull plate of the tube's section, and the rails along the glass band's edges",
 			"kind": "code",
@@ -77,16 +95,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.20"
+			]
 		},
 		{
 			"id": "hoop",
 			"view": "v1",
 			"box": [
-				1046,
-				413,
-				1761,
-				1032
+				1064,
+				411,
+				1754,
+				1074
 			],
 			"name": "steel hoop round the tube's section; the collar at each end a heavier one",
 			"kind": "code",
@@ -101,16 +122,93 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w17",
+				"v1.31",
+				"v1.33",
+				"v1.39",
+				"v1.44",
+				"v1.66",
+				"v1.68",
+				"v1.101",
+				"v1.111",
+				"v1.128",
+				"v1.140",
+				"v1.162",
+				"v1.172",
+				"v1.175",
+				"v1.176",
+				"v1.182",
+				"v1.188",
+				"v1.189",
+				"v1.190",
+				"v1.191",
+				"v1.192",
+				"v1.193",
+				"v1.199",
+				"v1.210",
+				"v1.213",
+				"v1.214",
+				"v1.217",
+				"v1.220",
+				"v1.221",
+				"v1.226",
+				"v1.229",
+				"v1.233",
+				"v1.234",
+				"v1.236",
+				"v1.237",
+				"v1.241",
+				"v1.243",
+				"v1.246",
+				"v1.248",
+				"v1.255",
+				"v1.256",
+				"v1.261",
+				"v1.273",
+				"v1.275",
+				"v1.283",
+				"v1.284",
+				"v1.286",
+				"v1.288",
+				"v1.294",
+				"v1.297",
+				"v1.298",
+				"v1.300",
+				"v1.303",
+				"v1.307",
+				"v1.312",
+				"v1.317",
+				"v1.321",
+				"v1.322",
+				"v1.324",
+				"v1.330",
+				"v1.332",
+				"v1.335",
+				"v1.337",
+				"v1.339",
+				"v1.341",
+				"v1.342",
+				"v1.346",
+				"v1.347",
+				"v1.348",
+				"v1.352",
+				"v1.353",
+				"v1.355",
+				"v1.w9",
+				"v1.w16",
+				"v1.w19"
+			]
 		},
 		{
 			"id": "pipe_straight",
 			"view": "v1",
 			"box": [
-				330,
-				963,
-				1101,
-				1376
+				356,
+				1131,
+				905,
+				1366
 			],
 			"name": "handrail and pipe runs along the tube",
 			"kind": "code",
@@ -125,16 +223,28 @@
 			"made": "kit piece",
 			"group": "kit: pipe",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.131",
+				"v1.139",
+				"v1.265",
+				"v1.272",
+				"v1.278",
+				"v1.281",
+				"v1.336",
+				"v1.340",
+				"v1.345",
+				"v1.356"
+			]
 		},
 		{
 			"id": "cable_bundle",
 			"view": "v1",
 			"box": [
-				1555,
-				55,
-				2257,
-				523
+				1549,
+				0,
+				2262,
+				552
 			],
 			"name": "cable run along the crown",
 			"kind": "code",
@@ -149,16 +259,43 @@
 			"made": "kit piece",
 			"group": "kit: pipe",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.42",
+				"v1.48",
+				"v1.64",
+				"v1.73",
+				"v1.130",
+				"v1.148",
+				"v1.152",
+				"v1.227",
+				"v1.228",
+				"v1.235",
+				"v1.239",
+				"v1.280",
+				"v1.282",
+				"v1.285",
+				"v1.290",
+				"v1.291",
+				"v1.302",
+				"v1.305",
+				"v1.327",
+				"v1.349",
+				"v1.350",
+				"v1.351",
+				"v1.w3",
+				"v1.w18",
+				"v1.w21"
+			]
 		},
 		{
 			"id": "crown_strip_lamp",
 			"view": "v1",
 			"box": [
-				1342,
+				1349,
 				0,
-				1424,
-				385
+				1405,
+				379
 			],
 			"name": "long ceiling strip light along the crown",
 			"kind": "code",
@@ -177,16 +314,19 @@
 				"strength": 0.15,
 				"reach": 3.5,
 				"high": 0.5
-			}
+			},
+			"box_from": [
+				"v1.w8"
+			]
 		},
 		{
 			"id": "hull_patch",
 			"view": "v1",
 			"box": [
-				537,
-				55,
-				894,
-				358
+				2126,
+				1039,
+				2416,
+				1179
 			],
 			"name": "welded repair patch on a hull plate, taped",
 			"kind": "code",
@@ -201,16 +341,20 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.98",
+				"v1.244"
+			]
 		},
 		{
 			"id": "sign_plate",
 			"view": "v1",
 			"box": [
-				1225,
-				406,
-				1307,
-				461
+				1235,
+				411,
+				1299,
+				458
 			],
 			"name": "small yellow sign plate reading PRESSURE HATCH",
 			"kind": "code",
@@ -224,16 +368,19 @@
 			"thing": "prop:tube_sign_plate",
 			"made": "kit piece",
 			"group": "kit: sign",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w17"
+			]
 		},
 		{
 			"id": "end_mat",
 			"view": "v1",
 			"box": [
-				881,
-				1238,
-				1238,
-				1404
+				917,
+				1262,
+				1214,
+				1403
 			],
 			"name": "grated deck dust strip at the tube's end",
 			"kind": "code",
@@ -248,16 +395,21 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.74",
+				"v1.76",
+				"v1.w10"
+			]
 		},
 		{
 			"id": "rail_bracket",
 			"view": "v1",
 			"box": [
-				660,
-				900,
-				760,
-				1000
+				663,
+				921,
+				784,
+				1129
 			],
 			"name": "a handrail bracket: a foot plate bolted to the hull, a bent bar arm and a cradle ring round the rail",
 			"kind": "code",
@@ -271,16 +423,19 @@
 			"thing": "prop:tube_rail_bracket",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.89"
+			]
 		},
 		{
 			"id": "pipe_bracket",
 			"view": "v1",
 			"box": [
-				729,
-				1100,
-				790,
-				1160
+				712,
+				1131,
+				743,
+				1164
 			],
 			"name": "a steel wall bracket clamping a pipe (the hub's)",
 			"kind": "code",
@@ -294,16 +449,19 @@
 			"thing": "prop:tube_pipe_bracket",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.345"
+			]
 		},
 		{
 			"id": "small_readout",
 			"view": "v1",
 			"box": [
-				950,
-				502,
-				1025,
-				598
+				955,
+				515,
+				1022,
+				597
 			],
 			"name": "a small square wall readout screen with buttons beside it (the hub's)",
 			"kind": "code",
@@ -316,16 +474,19 @@
 			"count": 1,
 			"thing": "prop:tube_small_readout",
 			"group": "kit: screen",
-			"made": "kit piece"
+			"made": "kit piece",
+			"box_from": [
+				"v1.w22"
+			]
 		},
 		{
 			"id": "conduit_box",
 			"view": "v1",
 			"box": [
-				819,
-				461,
-				881,
-				530
+				822,
+				459,
+				879,
+				523
 			],
 			"name": "a small steel conduit junction box with cable glands (the hub's)",
 			"kind": "code",
@@ -339,7 +500,11 @@
 			"thing": "prop:tube_conduit_box",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.224",
+				"v1.w15"
+			]
 		}
 	],
 	"concept_elements": [

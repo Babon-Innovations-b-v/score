@@ -51,10 +51,10 @@
    "id": "wall_lower_plain",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1519,
+    370,
+    1558,
+    792
    ],
    "name": "plain lower wall panel, bolted",
    "kind": "code",
@@ -69,16 +69,19 @@
    "made": "kit piece",
    "group": "kit: wall",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.143"
+   ]
   },
   {
    "id": "wall_upper_plain",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1519,
+    251,
+    1557,
+    647
    ],
    "name": "plain upper wall panel, bolted",
    "kind": "code",
@@ -93,16 +96,19 @@
    "made": "kit piece",
    "group": "kit: wall",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.141"
+   ]
   },
   {
    "id": "wall_upper_pipes",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    2087,
+    451,
+    2193,
+    478
    ],
    "name": "upper wall panel with three pipes on brackets running across it (the hub's)",
    "kind": "code",
@@ -117,16 +123,19 @@
    "made": "kit piece",
    "group": "kit: wall",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.533"
+   ]
   },
   {
    "id": "wall_upper_cables",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    184,
+    139,
+    533,
+    864
    ],
    "name": "upper wall panel with bundled cables in clips running across it (the hub's)",
    "kind": "code",
@@ -141,17 +150,15 @@
    "made": "kit piece",
    "group": "kit: wall",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.16"
+   ]
   },
   {
    "id": "wall_skirting",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "rubber skirting at the wall's foot",
    "kind": "code",
    "anchor": "wall",
@@ -165,17 +172,13 @@
    "made": "kit piece",
    "group": "kit: wall",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "unseen": "the skirting is hidden behind the cabinets and the hatch frames"
   },
   {
    "id": "wall_cornice",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "cornice along the wall's top",
    "kind": "code",
    "anchor": "wall",
@@ -189,16 +192,17 @@
    "made": "kit piece",
    "group": "kit: wall",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "unseen": "the concept is cut away at the walls' top"
   },
   {
    "id": "ring_floor_plate",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1122,
+    1044,
+    1472,
+    1300
    ],
    "name": "deck plate, bolted",
    "kind": "code",
@@ -213,17 +217,15 @@
    "made": "kit piece",
    "group": "kit: floor",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.26"
+   ]
   },
   {
    "id": "roof_face_panel",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "dome plate",
    "kind": "code",
    "anchor": "ceiling",
@@ -237,16 +239,17 @@
    "made": "kit piece",
    "group": "kit: ceiling",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "unseen": "the concept's roof is cut away"
   },
   {
    "id": "hatch_frame",
    "view": "v1",
    "box": [
-    1555,
-    265,
-    1835,
-    900
+    1585,
+    284,
+    1848,
+    777
    ],
    "name": "the heavy steel frame round a tube hatch opening, bolted (the hub's door kit)",
    "kind": "code",
@@ -267,15 +270,18 @@
     "hatch_wheel",
     "hatch_hinge",
     "hatch_window"
+   ],
+   "box_from": [
+    "v1.w9"
    ]
   },
   {
    "id": "hatch_leaf",
    "view": "v1",
    "box": [
-    640,
-    1310,
-    1000,
+    637,
+    1339,
+    957,
     1536
    ],
    "name": "a thick steel pressure hatch door leaf (the hub's door kit)",
@@ -297,6 +303,18 @@
     "hatch_wheel",
     "hatch_hinge",
     "hatch_window"
+   ],
+   "box_from": [
+    "v1.47",
+    "v1.54",
+    "v1.98",
+    "v1.256",
+    "v1.310",
+    "v1.313",
+    "v1.481",
+    "v1.488",
+    "v1.591",
+    "v1.599"
    ]
   },
   {
@@ -355,9 +373,9 @@
    "id": "hatch_window",
    "view": "v1",
    "box": [
-    750,
-    1480,
-    865,
+    765,
+    1488,
+    862,
     1536
    ],
    "name": "a small round window in a hatch leaf (the hub's door kit)",
@@ -379,6 +397,11 @@
     "hatch_wheel",
     "hatch_hinge",
     "hatch_window"
+   ],
+   "box_from": [
+    "v1.313",
+    "v1.488",
+    "v1.599"
    ]
   },
   {
@@ -422,10 +445,10 @@
    "id": "door_control_box",
    "view": "v1",
    "box": [
-    360,
-    1245,
-    430,
-    1380
+    366,
+    1279,
+    422,
+    1375
    ],
    "name": "a steel door control box with a keypad and a status light (the hub's)",
    "kind": "code",
@@ -450,16 +473,20 @@
      "across": 0.0,
      "bottom": 1.1
     }
+   ],
+   "box_from": [
+    "v1.402",
+    "v1.431"
    ]
   },
   {
    "id": "intercom_panel",
    "view": "v1",
    "box": [
-    1865,
-    485,
-    1900,
-    575
+    1867,
+    495,
+    1892,
+    574
    ],
    "name": "a wall call box with a speaker grille and a call button (the hub's)",
    "kind": "code",
@@ -479,16 +506,20 @@
      "across": 0.0,
      "bottom": 1.0
     }
+   ],
+   "box_from": [
+    "v1.584",
+    "v1.648"
    ]
   },
   {
    "id": "grab_bar",
    "view": "v1",
    "box": [
-    660,
-    1170,
-    1210,
-    1350
+    657,
+    1171,
+    985,
+    1261
    ],
    "name": "a U-shaped steel grab rail on two brackets by hatch S (the hub's)",
    "kind": "code",
@@ -508,16 +539,23 @@
      "across": 0.0,
      "bottom": 1.0
     }
+   ],
+   "box_from": [
+    "v1.300",
+    "v1.303",
+    "v1.427",
+    "v1.494",
+    "v1.582"
    ]
   },
   {
    "id": "tread_mat",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1454,
+    825,
+    1756,
+    1001
    ],
    "name": "a tread-plate mat before a hatch (the hub's)",
    "kind": "code",
@@ -544,16 +582,19 @@
     }
    ],
    "lies": "floor",
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.78"
+   ]
   },
   {
    "id": "pipe_straight",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    2129,
+    631,
+    2334,
+    686
    ],
    "name": "gas line with flanges",
    "kind": "code",
@@ -689,16 +730,19 @@
      ]
     }
    ],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.396"
+   ]
   },
   {
    "id": "pipe_valve",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    2303,
+    527,
+    2361,
+    597
    ],
    "name": "an inline gas valve with a red hand wheel (the hub's)",
    "kind": "code",
@@ -734,17 +778,15 @@
      "bottom": 2.04
     }
    ],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.w17"
+   ]
   },
   {
    "id": "pipe_bracket",
    "view": "v1",
-   "box": [
-    0,
-    0,
-    2752,
-    1536
-   ],
+   "box": null,
    "name": "a steel wall bracket clamping a pipe (the hub's)",
    "kind": "code",
    "anchor": "wall",
@@ -758,16 +800,17 @@
    "made": "kit piece",
    "group": "kit: pipe",
    "at": [],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "unseen": "the pipe brackets are too small to make out"
   },
   {
    "id": "cable_drop",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    245,
+    672,
+    407,
+    1134
    ],
    "name": "a vertical run of cables dropping from the top of the wall into a box (the hub's)",
    "kind": "code",
@@ -808,16 +851,19 @@
      "bottom": 1.2
     }
    ],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.20"
+   ]
   },
   {
    "id": "cable_bundle",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    2337,
+    901,
+    2515,
+    1173
    ],
    "name": "a bundle of black and grey cables in clips along the foot of the wall (the hub's)",
    "kind": "code",
@@ -853,16 +899,19 @@
      "bottom": 0.14
     }
    ],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.85"
+   ]
   },
   {
    "id": "conduit_box",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    292,
+    940,
+    374,
+    1090
    ],
    "name": "a small steel conduit box with cable glands (the hub's)",
    "kind": "code",
@@ -903,16 +952,19 @@
      "bottom": 1.0
     }
    ],
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.237"
+   ]
   },
   {
    "id": "small_readout",
    "view": "v1",
    "box": [
-    700,
-    600,
-    805,
-    710
+    722,
+    609,
+    806,
+    716
    ],
    "name": "a small wall readout screen with buttons beside it (the hub's)",
    "kind": "code",
@@ -947,6 +999,11 @@
      "across": 0.0,
      "bottom": 1.2
     }
+   ],
+   "box_from": [
+    "v1.224",
+    "v1.404",
+    "v1.479"
    ]
   },
   {
@@ -954,9 +1011,9 @@
    "view": "v1",
    "box": [
     770,
-    420,
+    409,
     1480,
-    930
+    955
    ],
    "name": "lab desk: a pale grey steel top on a three-drawer pedestal and two legs",
    "kind": "generate",
@@ -985,16 +1042,107 @@
     }
    ],
    "solid": true,
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/lab_desk.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/lab_desk.png",
+   "box_from": [
+    "v1.w44",
+    "v1.w47",
+    "v1.29",
+    "v1.31",
+    "v1.40",
+    "v1.51",
+    "v1.52",
+    "v1.53",
+    "v1.65",
+    "v1.67",
+    "v1.72",
+    "v1.77",
+    "v1.80",
+    "v1.82",
+    "v1.119",
+    "v1.120",
+    "v1.137",
+    "v1.155",
+    "v1.160",
+    "v1.162",
+    "v1.187",
+    "v1.192",
+    "v1.193",
+    "v1.217",
+    "v1.218",
+    "v1.219",
+    "v1.231",
+    "v1.269",
+    "v1.276",
+    "v1.281",
+    "v1.295",
+    "v1.301",
+    "v1.325",
+    "v1.332",
+    "v1.335",
+    "v1.337",
+    "v1.341",
+    "v1.342",
+    "v1.350",
+    "v1.384",
+    "v1.388",
+    "v1.399",
+    "v1.400",
+    "v1.403",
+    "v1.405",
+    "v1.414",
+    "v1.423",
+    "v1.438",
+    "v1.447",
+    "v1.455",
+    "v1.466",
+    "v1.477",
+    "v1.485",
+    "v1.499",
+    "v1.501",
+    "v1.509",
+    "v1.513",
+    "v1.523",
+    "v1.524",
+    "v1.530",
+    "v1.545",
+    "v1.550",
+    "v1.555",
+    "v1.557",
+    "v1.567",
+    "v1.568",
+    "v1.569",
+    "v1.586",
+    "v1.587",
+    "v1.593",
+    "v1.603",
+    "v1.612",
+    "v1.614",
+    "v1.623",
+    "v1.626",
+    "v1.641",
+    "v1.644",
+    "v1.649",
+    "v1.w10",
+    "v1.w11",
+    "v1.w26",
+    "v1.w29",
+    "v1.w33",
+    "v1.w41",
+    "v1.w45",
+    "v1.w46",
+    "v1.w48",
+    "v1.w49",
+    "v1.w56"
+   ]
   },
   {
    "id": "desk_chair",
    "view": "v1",
    "box": [
-    910,
-    740,
-    1210,
-    1050
+    993,
+    757,
+    1195,
+    1051
    ],
    "name": "office swivel chair, grey padded seat and back, five-wheel base",
    "kind": "generate",
@@ -1022,16 +1170,19 @@
      "facing": 0
     }
    ],
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_chair.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_chair.png",
+   "box_from": [
+    "v1.w34"
+   ]
   },
   {
    "id": "sample_store",
    "view": "v1",
    "box": [
-    360,
-    700,
-    800,
-    1110
+    364,
+    672,
+    797,
+    1157
    ],
    "name": "sample store: riveted steel drawer cabinet with meters on top",
    "kind": "generate",
@@ -1054,16 +1205,58 @@
     }
    ],
    "solid": true,
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_store.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_store.png",
+   "box_from": [
+    "v1.w52",
+    "v1.22",
+    "v1.135",
+    "v1.142",
+    "v1.144",
+    "v1.152",
+    "v1.195",
+    "v1.227",
+    "v1.236",
+    "v1.238",
+    "v1.240",
+    "v1.257",
+    "v1.262",
+    "v1.268",
+    "v1.274",
+    "v1.289",
+    "v1.293",
+    "v1.320",
+    "v1.321",
+    "v1.323",
+    "v1.338",
+    "v1.352",
+    "v1.366",
+    "v1.373",
+    "v1.386",
+    "v1.412",
+    "v1.443",
+    "v1.475",
+    "v1.506",
+    "v1.510",
+    "v1.511",
+    "v1.539",
+    "v1.561",
+    "v1.581",
+    "v1.613",
+    "v1.638",
+    "v1.w13",
+    "v1.w14",
+    "v1.w15",
+    "v1.w50"
+   ]
   },
   {
    "id": "glovebox_cabinet",
    "view": "v1",
    "box": [
-    1760,
-    880,
-    2290,
-    1390
+    1750,
+    872,
+    2268,
+    1410
    ],
    "name": "glovebox cabinet: sealed box with a sloped window and two glove ports on a cabinet",
    "kind": "generate",
@@ -1086,16 +1279,53 @@
     }
    ],
    "solid": true,
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/glovebox_cabinet.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/glovebox_cabinet.png",
+   "box_from": [
+    "v1.13",
+    "v1.42",
+    "v1.50",
+    "v1.56",
+    "v1.103",
+    "v1.203",
+    "v1.210",
+    "v1.220",
+    "v1.222",
+    "v1.233",
+    "v1.258",
+    "v1.270",
+    "v1.279",
+    "v1.297",
+    "v1.317",
+    "v1.326",
+    "v1.327",
+    "v1.344",
+    "v1.368",
+    "v1.378",
+    "v1.417",
+    "v1.424",
+    "v1.471",
+    "v1.489",
+    "v1.514",
+    "v1.546",
+    "v1.551",
+    "v1.585",
+    "v1.595",
+    "v1.607",
+    "v1.615",
+    "v1.w53",
+    "v1.w54",
+    "v1.w55",
+    "v1.w57"
+   ]
   },
   {
    "id": "microscope",
    "view": "v1",
    "box": [
-    785,
-    320,
-    1010,
-    690
+    784,
+    323,
+    1012,
+    729
    ],
    "name": "large white research microscope on its stand",
    "kind": "generate",
@@ -1112,16 +1342,19 @@
    "at": [],
    "parent": "desk",
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/microscope.png",
-   "own_model": "a different object of the same name: the lab's large white research microscope on its stand, not the hub's small one with its side screen"
+   "own_model": "a different object of the same name: the lab's large white research microscope on its stand, not the hub's small one with its side screen",
+   "box_from": [
+    "v1.w36"
+   ]
   },
   {
    "id": "desk_monitor",
    "view": "v1",
    "box": [
     950,
-    485,
+    483,
     1065,
-    580
+    655
    ],
    "name": "small beige computer monitor with a green screen",
    "kind": "generate",
@@ -1137,15 +1370,18 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "desk",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_monitor.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_monitor.png",
+   "box_from": [
+    "v1.160"
+   ]
   },
   {
    "id": "instrument_unit",
    "view": "v1",
    "box": [
-    1225,
-    435,
-    1450,
+    1219,
+    444,
+    1472,
     690
    ],
    "name": "beige benchtop analyser with a small screen, knobs and meters",
@@ -1162,16 +1398,29 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "desk",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/instrument_unit.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/instrument_unit.png",
+   "box_from": [
+    "v1.40",
+    "v1.51",
+    "v1.67",
+    "v1.269",
+    "v1.384",
+    "v1.466",
+    "v1.524",
+    "v1.567",
+    "v1.612",
+    "v1.w11",
+    "v1.w26"
+   ]
   },
   {
    "id": "desk_keyboard",
    "view": "v1",
    "box": [
-    1180,
-    670,
+    1185,
+    667,
     1290,
-    712
+    715
    ],
    "name": "beige computer keyboard",
    "kind": "generate",
@@ -1187,16 +1436,19 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "desk",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_keyboard.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_keyboard.png",
+   "box_from": [
+    "v1.w44"
+   ]
   },
   {
    "id": "desk_mouse",
    "view": "v1",
    "box": [
     1280,
-    690,
-    1320,
-    720
+    693,
+    1310,
+    715
    ],
    "name": "computer mouse",
    "kind": "generate",
@@ -1212,16 +1464,19 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "desk",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_mouse.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_mouse.png",
+   "box_from": [
+    "v1.w47"
+   ]
   },
   {
    "id": "desk_keypad",
    "view": "v1",
    "box": [
-    800,
-    700,
-    915,
-    800
+    835,
+    706,
+    917,
+    805
    ],
    "name": "beige keypad unit with a small readout",
    "kind": "generate",
@@ -1237,16 +1492,21 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "desk",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_keypad.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/desk_keypad.png",
+   "box_from": [
+    "v1.403",
+    "v1.438",
+    "v1.w46"
+   ]
   },
   {
    "id": "sample_jar",
    "view": "v1",
    "box": [
-    1945,
-    790,
-    2005,
-    890
+    1947,
+    797,
+    2007,
+    887
    ],
    "name": "steel sample jar with a lid and a label",
    "kind": "generate",
@@ -1262,16 +1522,20 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "desk",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_jar.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_jar.png",
+   "box_from": [
+    "v1.324",
+    "v1.348"
+   ]
   },
   {
    "id": "sample_tray",
    "view": "v1",
    "box": [
-    405,
-    790,
-    585,
-    845
+    401,
+    779,
+    584,
+    864
    ],
    "name": "shallow steel tray of moon rock chips",
    "kind": "generate",
@@ -1287,16 +1551,19 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "sample_store",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_tray.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_tray.png",
+   "box_from": [
+    "v1.w52"
+   ]
   },
   {
    "id": "sample_scanner",
    "view": "v1",
    "box": [
-    515,
-    740,
-    645,
-    800
+    525,
+    739,
+    644,
+    806
    ],
    "name": "handheld sample scanner with a keypad and a small screen",
    "kind": "generate",
@@ -1312,15 +1579,19 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "sample_store",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_scanner.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/sample_scanner.png",
+   "box_from": [
+    "v1.412",
+    "v1.506"
+   ]
   },
   {
    "id": "hanging_glove",
    "view": "v1",
    "box": [
-    1780,
-    1150,
-    1945,
+    1777,
+    1153,
+    1930,
     1310
    ],
    "name": "a worn work glove hanging from a hook",
@@ -1337,16 +1608,23 @@
    "group": "kit: furniture",
    "at": [],
    "parent": "glovebox_cabinet",
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/hanging_glove.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/hanging_glove.png",
+   "box_from": [
+    "v1.220",
+    "v1.222",
+    "v1.270",
+    "v1.w53",
+    "v1.w54"
+   ]
   },
   {
    "id": "gauge_panel",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1175,
+    257,
+    1444,
+    406
    ],
    "name": "wall gas control panel: two junction boxes and a pressure gauge",
    "kind": "generate",
@@ -1373,16 +1651,30 @@
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/gauge_panel.png",
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.182",
+    "v1.184",
+    "v1.207",
+    "v1.209",
+    "v1.416",
+    "v1.474",
+    "v1.484",
+    "v1.556",
+    "v1.605",
+    "v1.616",
+    "v1.634",
+    "v1.w59"
+   ]
   },
   {
    "id": "switch_panel",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    485,
+    406,
+    622,
+    602
    ],
    "name": "wall control box with indicator lights and toggle switches",
    "kind": "generate",
@@ -1404,16 +1696,19 @@
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/switch_panel.png",
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.w12"
+   ]
   },
   {
    "id": "junction_box",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    356,
+    528,
+    465,
+    660
    ],
    "name": "steel junction box with two switches and conduits",
    "kind": "generate",
@@ -1445,16 +1740,19 @@
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/junction_box.png",
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.118"
+   ]
   },
   {
    "id": "hose_loop",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    1953,
+    401,
+    2028,
+    603
    ],
    "name": "copper and red hoses looping between two wall fittings",
    "kind": "generate",
@@ -1481,7 +1779,10 @@
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/hose_loop.png",
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.242"
+   ]
   },
   {
    "id": "wall_monitor",
@@ -1526,16 +1827,19 @@
      "bottom": 1.5
     }
    ],
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/wall_monitor.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/wall_monitor.png",
+   "box_from": [
+    "v1.w39"
+   ]
   },
   {
    "id": "fire_extinguisher",
    "view": "v1",
    "box": [
-    0,
-    0,
-    2752,
-    1536
+    383,
+    1074,
+    456,
+    1130
    ],
    "name": "red fire extinguisher in a wall bracket",
    "kind": "generate",
@@ -1562,16 +1866,19 @@
     }
    ],
    "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/fire_extinguisher.png",
-   "repeats": "across the room"
+   "repeats": "across the room",
+   "box_from": [
+    "v1.398"
+   ]
   },
   {
    "id": "task_lamp",
    "view": "v1",
    "box": [
-    970,
-    220,
-    1090,
-    310
+    994,
+    215,
+    1051,
+    288
    ],
    "name": "wall task lamp: a cone shade on a jointed arm",
    "kind": "generate",
@@ -1607,7 +1914,11 @@
     "reach": 3.0,
     "high": 0.1
    },
-   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/task_lamp.png"
+   "closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-lab/closeups/lab/task_lamp.png",
+   "box_from": [
+    "v1.370",
+    "v1.w66"
+   ]
   },
   {
    "id": "ceiling_lamp",

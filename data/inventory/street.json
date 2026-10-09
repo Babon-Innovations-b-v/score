@@ -32,9 +32,9 @@
 			"id": "ground_asphalt",
 			"view": "v1",
 			"box": [
-				600,
-				1100,
-				2100,
+				588,
+				1095,
+				2089,
 				1536
 			],
 			"name": "wet asphalt road",
@@ -49,15 +49,58 @@
 			"thing": "kit:street_ground_asphalt",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/ground_asphalt.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.171",
+				"v1.63",
+				"v1.64",
+				"v1.65",
+				"v1.66",
+				"v1.94",
+				"v1.165",
+				"v1.205",
+				"v1.239",
+				"v1.258",
+				"v1.261",
+				"v1.277",
+				"v1.302",
+				"v1.312",
+				"v1.330",
+				"v1.347",
+				"v1.358",
+				"v1.403",
+				"v1.406",
+				"v1.408",
+				"v1.422",
+				"v1.426",
+				"v1.436",
+				"v1.444",
+				"v1.462",
+				"v1.468",
+				"v1.470",
+				"v1.472",
+				"v1.473",
+				"v1.477",
+				"v1.478",
+				"v1.495",
+				"v1.532",
+				"v1.614",
+				"v1.615",
+				"v1.620",
+				"v1.625",
+				"v1.634",
+				"v1.639",
+				"v1.645",
+				"v1.648"
+			]
 		},
 		{
 			"id": "ground_paving",
 			"view": "v1",
 			"box": [
-				0,
-				1100,
-				600,
+				2,
+				1097,
+				563,
 				1536
 			],
 			"name": "concrete paving slabs of the pavements",
@@ -72,16 +115,34 @@
 			"thing": "kit:street_ground_paving",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/ground_paving.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.101",
+				"v1.383",
+				"v1.11",
+				"v1.58",
+				"v1.59",
+				"v1.108",
+				"v1.111",
+				"v1.139",
+				"v1.217",
+				"v1.420",
+				"v1.476",
+				"v1.528",
+				"v1.584",
+				"v1.586",
+				"v1.642",
+				"v1.w6"
+			]
 		},
 		{
 			"id": "kerb_stone",
-			"view": "v1",
+			"view": "v2",
 			"box": [
-				300,
-				1050,
-				1100,
-				1300
+				1728,
+				1136,
+				2160,
+				1534
 			],
 			"name": "concrete kerb",
 			"kind": "code",
@@ -95,16 +156,19 @@
 			"thing": "kit:street_kerb_stone",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/kerb_stone.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.129"
+			]
 		},
 		{
 			"id": "render_upper",
-			"view": "v2",
+			"view": "v1",
 			"box": [
-				0,
-				0,
-				700,
-				900
+				268,
+				113,
+				392,
+				257
 			],
 			"name": "rendered wall of a storey's bay",
 			"kind": "code",
@@ -118,16 +182,19 @@
 			"thing": "kit:street_render_upper",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_upper.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.124"
+			]
 		},
 		{
 			"id": "render_lower",
 			"view": "v1",
 			"box": [
 				0,
-				450,
+				288,
 				400,
-				1100
+				1232
 			],
 			"name": "rendered wall of the stairwell's bay",
 			"kind": "code",
@@ -141,16 +208,19 @@
 			"thing": "kit:street_render_lower",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_lower.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w8"
+			]
 		},
 		{
 			"id": "render_shop",
 			"view": "v2",
 			"box": [
-				1900,
-				700,
+				1919,
+				635,
 				2752,
-				1200
+				1221
 			],
 			"name": "ground floor wall round a shop",
 			"kind": "code",
@@ -164,16 +234,94 @@
 			"thing": "kit:street_render_shop",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/render_shop.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.w29",
+				"v2.w30",
+				"v2.17",
+				"v2.18",
+				"v2.53",
+				"v2.54",
+				"v2.55",
+				"v2.74",
+				"v2.116",
+				"v2.124",
+				"v2.130",
+				"v2.134",
+				"v2.138",
+				"v2.143",
+				"v2.155",
+				"v2.184",
+				"v2.185",
+				"v2.210",
+				"v2.224",
+				"v2.226",
+				"v2.234",
+				"v2.239",
+				"v2.247",
+				"v2.261",
+				"v2.263",
+				"v2.267",
+				"v2.273",
+				"v2.276",
+				"v2.281",
+				"v2.294",
+				"v2.329",
+				"v2.334",
+				"v2.341",
+				"v2.363",
+				"v2.385",
+				"v2.386",
+				"v2.389",
+				"v2.395",
+				"v2.396",
+				"v2.411",
+				"v2.422",
+				"v2.438",
+				"v2.441",
+				"v2.461",
+				"v2.462",
+				"v2.465",
+				"v2.467",
+				"v2.468",
+				"v2.474",
+				"v2.476",
+				"v2.480",
+				"v2.490",
+				"v2.492",
+				"v2.494",
+				"v2.500",
+				"v2.508",
+				"v2.516",
+				"v2.579",
+				"v2.590",
+				"v2.614",
+				"v2.636",
+				"v2.640",
+				"v2.647",
+				"v2.683",
+				"v2.685",
+				"v2.687",
+				"v2.705",
+				"v2.718",
+				"v2.724",
+				"v2.736",
+				"v2.737",
+				"v2.744",
+				"v2.758",
+				"v2.777",
+				"v2.788",
+				"v2.w4"
+			]
 		},
 		{
 			"id": "facade_band",
 			"view": "v2",
 			"box": [
-				1400,
-				400,
+				2510,
+				507,
 				2752,
-				600
+				589
 			],
 			"name": "render band along a floor",
 			"kind": "code",
@@ -187,16 +335,19 @@
 			"thing": "kit:street_facade_band",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/facade_band.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.64"
+			]
 		},
 		{
 			"id": "drainpipe",
 			"view": "v2",
 			"box": [
-				380,
+				370,
 				0,
-				480,
-				1200
+				488,
+				1206
 			],
 			"name": "drainpipe down a facade",
 			"kind": "code",
@@ -210,16 +361,36 @@
 			"thing": "kit:street_drainpipe",
 			"group": "kit: pipe",
 			"close_up": "place-ssl/pics/drainpipe.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.76",
+				"v2.112",
+				"v2.275",
+				"v2.343",
+				"v2.361",
+				"v2.445",
+				"v2.457",
+				"v2.464",
+				"v2.479",
+				"v2.482",
+				"v2.509",
+				"v2.510",
+				"v2.591",
+				"v2.596",
+				"v2.672",
+				"v2.679",
+				"v2.719",
+				"v2.768"
+			]
 		},
 		{
 			"id": "window_dark",
 			"view": "v2",
 			"box": [
-				2050,
-				120,
-				2550,
-				420
+				2029,
+				146,
+				2482,
+				313
 			],
 			"name": "tenement window, dark",
 			"kind": "code",
@@ -233,16 +404,28 @@
 			"thing": "kit:street_window_dark",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.111",
+				"v2.148",
+				"v2.186",
+				"v2.202",
+				"v2.204",
+				"v2.271",
+				"v2.285",
+				"v2.437",
+				"v2.738",
+				"v2.w19"
+			]
 		},
 		{
 			"id": "window_lit",
 			"view": "v2",
 			"box": [
-				2050,
-				120,
-				2550,
-				420
+				2029,
+				146,
+				2482,
+				313
 			],
 			"name": "tenement window, lit from inside",
 			"kind": "code",
@@ -256,16 +439,28 @@
 			"thing": "kit:street_window_lit",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.111",
+				"v2.148",
+				"v2.186",
+				"v2.202",
+				"v2.204",
+				"v2.271",
+				"v2.285",
+				"v2.437",
+				"v2.738",
+				"v2.w19"
+			]
 		},
 		{
 			"id": "ac_unit",
 			"view": "v2",
 			"box": [
-				2300,
-				180,
-				2580,
-				330
+				2336,
+				208,
+				2479,
+				289
 			],
 			"name": "window air conditioner on its brackets",
 			"kind": "code",
@@ -279,16 +474,22 @@
 			"thing": "kit:street_ac_unit",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/ac_unit.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.111",
+				"v2.285",
+				"v2.437",
+				"v2.w19"
+			]
 		},
 		{
 			"id": "window_cage",
 			"view": "v1",
 			"box": [
-				620,
+				607,
 				0,
-				1240,
-				420
+				1239,
+				424
 			],
 			"name": "steel window cage",
 			"kind": "code",
@@ -302,16 +503,63 @@
 			"thing": "kit:street_window_cage",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window_cage.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.131",
+				"v1.29",
+				"v1.30",
+				"v1.49",
+				"v1.77",
+				"v1.85",
+				"v1.158",
+				"v1.197",
+				"v1.199",
+				"v1.200",
+				"v1.230",
+				"v1.235",
+				"v1.257",
+				"v1.278",
+				"v1.294",
+				"v1.319",
+				"v1.334",
+				"v1.359",
+				"v1.366",
+				"v1.373",
+				"v1.378",
+				"v1.388",
+				"v1.391",
+				"v1.399",
+				"v1.414",
+				"v1.415",
+				"v1.423",
+				"v1.429",
+				"v1.431",
+				"v1.439",
+				"v1.469",
+				"v1.480",
+				"v1.483",
+				"v1.504",
+				"v1.506",
+				"v1.507",
+				"v1.516",
+				"v1.533",
+				"v1.562",
+				"v1.577",
+				"v1.641",
+				"v1.651",
+				"v1.653",
+				"v1.w34",
+				"v1.w37"
+			]
 		},
 		{
 			"id": "shop_shutter",
 			"view": "v1",
 			"box": [
-				2370,
-				540,
-				2710,
-				1030
+				2390,
+				559,
+				2695,
+				961
 			],
 			"name": "roller shutter pulled down over a shop",
 			"kind": "code",
@@ -325,16 +573,19 @@
 			"thing": "kit:street_shop_shutter",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/shop_shutter.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w11"
+			]
 		},
 		{
 			"id": "shop_open",
 			"view": "v2",
 			"box": [
-				1940,
-				760,
-				2260,
-				1190
+				1938,
+				761,
+				2270,
+				1221
 			],
 			"name": "the barber's lit shop window and door",
 			"kind": "code",
@@ -348,16 +599,61 @@
 			"thing": "kit:street_shop_open",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/tea_front.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.54",
+				"v2.74",
+				"v2.130",
+				"v2.134",
+				"v2.138",
+				"v2.143",
+				"v2.155",
+				"v2.184",
+				"v2.185",
+				"v2.247",
+				"v2.263",
+				"v2.273",
+				"v2.276",
+				"v2.329",
+				"v2.334",
+				"v2.341",
+				"v2.389",
+				"v2.395",
+				"v2.396",
+				"v2.411",
+				"v2.441",
+				"v2.461",
+				"v2.462",
+				"v2.465",
+				"v2.467",
+				"v2.468",
+				"v2.474",
+				"v2.476",
+				"v2.480",
+				"v2.490",
+				"v2.492",
+				"v2.494",
+				"v2.500",
+				"v2.516",
+				"v2.579",
+				"v2.590",
+				"v2.640",
+				"v2.683",
+				"v2.685",
+				"v2.687",
+				"v2.705",
+				"v2.737",
+				"v2.744"
+			]
 		},
 		{
 			"id": "tea_front",
 			"view": "v2",
 			"box": [
-				1940,
-				760,
-				2260,
-				1190
+				1921,
+				635,
+				2216,
+				1158
 			],
 			"name": "the tea restaurant's lit front",
 			"kind": "code",
@@ -371,7 +667,10 @@
 			"thing": "kit:street_tea_front",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/tea_front.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.w29"
+			]
 		},
 		{
 			"id": "shop_sign",
@@ -393,16 +692,19 @@
 			"count": 1,
 			"thing": "kit:street_shop_sign",
 			"group": "kit: sign",
-			"close_up": "place-ssl/pics/shop_sign.png"
+			"close_up": "place-ssl/pics/shop_sign.png",
+			"box_from": [
+				"v2.w30"
+			]
 		},
 		{
 			"id": "neon_sign",
 			"view": "v1",
 			"box": [
-				2280,
-				290,
-				2670,
-				620
+				2293,
+				299,
+				2647,
+				619
 			],
 			"name": "the tea restaurant's neon sign",
 			"kind": "code",
@@ -415,16 +717,19 @@
 			"count": 1,
 			"thing": "kit:street_neon_sign",
 			"group": "kit: sign",
-			"close_up": "place-ssl/pics/neon_sign.png"
+			"close_up": "place-ssl/pics/neon_sign.png",
+			"box_from": [
+				"v1.w14"
+			]
 		},
 		{
 			"id": "door_canopy",
 			"view": "v1",
 			"box": [
-				380,
-				360,
-				1200,
-				560
+				364,
+				357,
+				1204,
+				563
 			],
 			"name": "concrete canopy over the street door with its lamp",
 			"kind": "code",
@@ -438,15 +743,34 @@
 			"thing": "kit:street_door_canopy",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/door_canopy.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.334",
+				"v1.107",
+				"v1.170",
+				"v1.193",
+				"v1.266",
+				"v1.268",
+				"v1.269",
+				"v1.289",
+				"v1.298",
+				"v1.387",
+				"v1.417",
+				"v1.418",
+				"v1.433",
+				"v1.503",
+				"v1.526",
+				"v1.552",
+				"v1.w23"
+			]
 		},
 		{
 			"id": "street_lamp",
 			"view": "v1",
 			"box": [
-				1720,
-				235,
-				1959,
+				1719,
+				233,
+				1963,
 				981
 			],
 			"name": "street lamp",
@@ -460,16 +784,38 @@
 			"count": 1,
 			"thing": "kit:street_street_lamp",
 			"group": "kit: light",
-			"close_up": "place-ssl/pics/street_lamp.png"
+			"close_up": "place-ssl/pics/street_lamp.png",
+			"box_from": [
+				"v1.126",
+				"v1.135",
+				"v1.155",
+				"v1.226",
+				"v1.251",
+				"v1.287",
+				"v1.290",
+				"v1.309",
+				"v1.345",
+				"v1.404",
+				"v1.416",
+				"v1.434",
+				"v1.452",
+				"v1.463",
+				"v1.518",
+				"v1.541",
+				"v1.555",
+				"v1.569",
+				"v1.602",
+				"v1.w20"
+			]
 		},
 		{
 			"id": "notice_case",
 			"view": "v1",
 			"box": [
-				40,
-				670,
-				380,
-				980
+				60,
+				687,
+				363,
+				971
 			],
 			"name": "neighbourhood notice board on its posts",
 			"kind": "code",
@@ -482,16 +828,19 @@
 			"count": 1,
 			"thing": "kit:street_notice_case",
 			"group": "kit: sign",
-			"close_up": "place-ssl/pics/notice_case.png"
+			"close_up": "place-ssl/pics/notice_case.png",
+			"box_from": [
+				"v1.w24"
+			]
 		},
 		{
 			"id": "poster_stand",
 			"view": "v1",
 			"box": [
-				370,
-				1050,
-				710,
-				1460
+				372,
+				1062,
+				698,
+				1526
 			],
 			"name": "A-frame poster stand",
 			"kind": "code",
@@ -504,17 +853,15 @@
 			"count": 1,
 			"thing": "kit:street_poster_stand",
 			"group": "kit: sign",
-			"close_up": "place-ssl/pics/poster_stand.png"
+			"close_up": "place-ssl/pics/poster_stand.png",
+			"box_from": [
+				"v1.w29"
+			]
 		},
 		{
 			"id": "road_line",
-			"view": "v1",
-			"box": [
-				300,
-				1100,
-				900,
-				1536
-			],
+			"view": "v2",
+			"box": null,
 			"name": "yellow line painted on the road by each kerb",
 			"kind": "code",
 			"anchor": "floor",
@@ -527,16 +874,17 @@
 			"thing": "kit:street_road_line",
 			"group": "kit: floor",
 			"close_up": "place-ssl/pics/road_line.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "a thin painted line that SAM gives no mask of its own on either concept; it lies along the kerbs"
 		},
 		{
 			"id": "facade_pipe",
 			"view": "v2",
 			"box": [
-				1900,
-				300,
+				1899,
+				277,
 				2752,
-				600
+				602
 			],
 			"name": "gas pipe along a face over the shop signs",
 			"kind": "code",
@@ -550,16 +898,48 @@
 			"thing": "kit:street_facade_pipe",
 			"group": "kit: pipe",
 			"close_up": "place-ssl/pics/facade_pipe.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.64",
+				"v2.102",
+				"v2.115",
+				"v2.119",
+				"v2.121",
+				"v2.132",
+				"v2.144",
+				"v2.150",
+				"v2.164",
+				"v2.167",
+				"v2.175",
+				"v2.193",
+				"v2.207",
+				"v2.223",
+				"v2.238",
+				"v2.289",
+				"v2.304",
+				"v2.326",
+				"v2.332",
+				"v2.333",
+				"v2.355",
+				"v2.357",
+				"v2.367",
+				"v2.372",
+				"v2.378",
+				"v2.408",
+				"v2.463",
+				"v2.549",
+				"v2.722",
+				"v2.723"
+			]
 		},
 		{
 			"id": "end_wall",
 			"view": "v2",
 			"box": [
-				700,
-				520,
-				1450,
-				700
+				704,
+				518,
+				1462,
+				693
 			],
 			"name": "harbour wall across the street's end",
 			"kind": "code",
@@ -572,7 +952,22 @@
 			"count": 1,
 			"thing": "kit:street_end_wall",
 			"group": "kit: street",
-			"close_up": "place-ssl/pics/end_wall.png"
+			"close_up": "place-ssl/pics/end_wall.png",
+			"box_from": [
+				"v2.w37",
+				"v2.78",
+				"v2.251",
+				"v2.252",
+				"v2.253",
+				"v2.282",
+				"v2.286",
+				"v2.288",
+				"v2.681",
+				"v2.709",
+				"v2.742",
+				"v2.765",
+				"v2.w1"
+			]
 		},
 		{
 			"id": "end_fence",
@@ -594,16 +989,19 @@
 			"count": 1,
 			"thing": "kit:street_end_fence",
 			"group": "kit: street",
-			"close_up": "place-ssl/pics/end_fence.png"
+			"close_up": "place-ssl/pics/end_fence.png",
+			"box_from": [
+				"v2.w37"
+			]
 		},
 		{
 			"id": "window_awning",
 			"view": "v1",
 			"box": [
-				780,
+				799,
 				0,
-				1300,
-				300
+				969,
+				126
 			],
 			"name": "sheet-metal awning over a window",
 			"kind": "code",
@@ -617,16 +1015,19 @@
 			"thing": "kit:street_window_awning",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/window_awning.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.131"
+			]
 		},
 		{
 			"id": "drying_rack",
 			"view": "v1",
 			"box": [
-				780,
-				250,
-				1100,
-				560
+				819,
+				239,
+				1111,
+				563
 			],
 			"name": "drying rack out from a window",
 			"kind": "code",
@@ -640,16 +1041,30 @@
 			"thing": "kit:street_drying_rack",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/drying_rack.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.158",
+				"v1.257",
+				"v1.414",
+				"v1.415",
+				"v1.429",
+				"v1.533",
+				"v1.170",
+				"v1.269",
+				"v1.503",
+				"v1.552",
+				"v1.121",
+				"v1.245"
+			]
 		},
 		{
 			"id": "vent_louvre",
 			"view": "v1",
 			"box": [
-				180,
-				420,
-				320,
-				600
+				194,
+				435,
+				306,
+				597
 			],
 			"name": "louvred vent in the bay's wall",
 			"kind": "code",
@@ -663,16 +1078,19 @@
 			"thing": "kit:street_vent_louvre",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/vent_louvre.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.75"
+			]
 		},
 		{
 			"id": "meter_box",
 			"view": "v1",
 			"box": [
-				2300,
-				720,
-				2500,
-				900
+				2315,
+				672,
+				2392,
+				1054
 			],
 			"name": "electricity meter box by a shop",
 			"kind": "code",
@@ -686,16 +1104,19 @@
 			"thing": "kit:street_meter_box",
 			"group": "kit: wall",
 			"close_up": "place-ssl/pics/meter_box.png",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.70"
+			]
 		},
 		{
 			"id": "barber_pole",
-			"view": "v2",
+			"view": "v1",
 			"box": [
-				1990,
-				560,
-				2120,
-				760
+				2062,
+				562,
+				2097,
+				678
 			],
 			"name": "the barber's pole",
 			"kind": "code",
@@ -708,16 +1129,19 @@
 			"count": 1,
 			"thing": "kit:street_barber_pole",
 			"group": "kit: sign",
-			"close_up": "place-ssl/pics/barber_pole.png"
+			"close_up": "place-ssl/pics/barber_pole.png",
+			"box_from": [
+				"v1.247"
+			]
 		},
 		{
 			"id": "menu_board",
 			"view": "v1",
 			"box": [
-				380,
-				1050,
-				710,
-				1460
+				441,
+				1059,
+				702,
+				1455
 			],
 			"name": "the tea restaurant's menu board",
 			"kind": "code",
@@ -730,16 +1154,24 @@
 			"count": 1,
 			"thing": "kit:street_menu_board",
 			"group": "kit: sign",
-			"close_up": "place-ssl/pics/menu_board.png"
+			"close_up": "place-ssl/pics/menu_board.png",
+			"box_from": [
+				"v1.39",
+				"v1.101",
+				"v1.114",
+				"v1.123",
+				"v1.171",
+				"v1.383"
+			]
 		},
 		{
 			"id": "water_barrier_red",
 			"view": "v1",
 			"box": [
-				2120,
-				1080,
-				2730,
-				1500
+				2140,
+				1115,
+				2707,
+				1482
 			],
 			"name": "red water-filled road barrier",
 			"kind": "generate",
@@ -752,16 +1184,19 @@
 			"count": 1,
 			"thing": "kit:street_water_barrier_red",
 			"group": "kit: street",
-			"close_up": "place-ssl/pics/water_barrier_red.png"
+			"close_up": "place-ssl/pics/water_barrier_red.png",
+			"box_from": [
+				"v1.w42"
+			]
 		},
 		{
 			"id": "water_barrier_white",
 			"view": "v2",
 			"box": [
-				1450,
-				1230,
-				2000,
-				1500
+				1467,
+				1254,
+				1988,
+				1474
 			],
 			"name": "white water-filled road barrier",
 			"kind": "generate",
@@ -774,7 +1209,10 @@
 			"count": 1,
 			"thing": "kit:street_water_barrier_white",
 			"group": "kit: street",
-			"close_up": "place-ssl/pics/water_barrier_white.png"
+			"close_up": "place-ssl/pics/water_barrier_white.png",
+			"box_from": [
+				"v2.w44"
+			]
 		}
 	]
 }

@@ -70,10 +70,10 @@
 			"id": "console",
 			"view": "v4",
 			"box": [
-				960,
-				539,
-				1280,
-				859
+				629,
+				598,
+				1051,
+				795
 			],
 			"name": "operations console: desk with five screens and two keyboards",
 			"kind": "mechanic",
@@ -100,16 +100,46 @@
 				}
 			],
 			"sound": "console_hum",
-			"prop": "hub_console"
+			"prop": "hub_console",
+			"box_from": [
+				"v4.13",
+				"v4.14",
+				"v4.26",
+				"v4.44",
+				"v4.55",
+				"v4.94",
+				"v4.115",
+				"v4.122",
+				"v4.160",
+				"v4.164",
+				"v4.188",
+				"v4.197",
+				"v4.198",
+				"v4.205",
+				"v4.210",
+				"v4.218",
+				"v4.224",
+				"v4.225",
+				"v4.228",
+				"v4.229",
+				"v4.238",
+				"v4.240",
+				"v4.247",
+				"v4.250",
+				"v4.255",
+				"v4.w5",
+				"v4.w24",
+				"v4.w25"
+			]
 		},
 		{
 			"id": "labbench",
 			"view": "v3",
 			"box": [
-				880,
-				352,
-				1200,
-				672
+				883,
+				337,
+				1206,
+				634
 			],
 			"name": "lab bench with a glovebox and a microscope on it",
 			"kind": "mechanic",
@@ -138,15 +168,40 @@
 			],
 			"sound": "glovebox_hum",
 			"made": "made by the route",
-			"why_code": "2026-10-06, after the owner's in-game test: the old labbench (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
+			"why_code": "2026-10-06, after the owner's in-game test: the old labbench (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
+			"box_from": [
+				"v3.146",
+				"v3.204",
+				"v3.154",
+				"v3.205",
+				"v3.33",
+				"v3.42",
+				"v3.63",
+				"v3.74",
+				"v3.142",
+				"v3.147",
+				"v3.151",
+				"v3.169",
+				"v3.171",
+				"v3.176",
+				"v3.177",
+				"v3.181",
+				"v3.209",
+				"v3.210",
+				"v3.230",
+				"v3.247",
+				"v3.w1",
+				"v3.w7",
+				"v3.w10"
+			]
 		},
 		{
 			"id": "chair",
 			"view": "v4",
 			"box": [
-				832,
+				842,
 				699,
-				1152,
+				1066,
 				900
 			],
 			"name": "operations chair",
@@ -172,16 +227,27 @@
 				}
 			],
 			"made": "made by the route",
-			"why_code": "2026-10-06, after the owner's in-game test: the old chair (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
+			"why_code": "2026-10-06, after the owner's in-game test: the old chair (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
+			"box_from": [
+				"v4.188",
+				"v4.197",
+				"v4.210",
+				"v4.218",
+				"v4.255",
+				"v4.169",
+				"v4.203",
+				"v4.246",
+				"v4.249"
+			]
 		},
 		{
 			"id": "talllocker",
 			"view": "v4",
 			"box": [
-				96,
-				219,
-				416,
-				539
+				92,
+				268,
+				371,
+				524
 			],
 			"name": "tall double locker",
 			"kind": "generate",
@@ -208,16 +274,24 @@
 					"across": -0.303,
 					"fit": "painted"
 				}
+			],
+			"box_from": [
+				"v4.54",
+				"v4.133",
+				"v4.154",
+				"v4.165",
+				"v4.204",
+				"v4.222"
 			]
 		},
 		{
 			"id": "rack",
 			"view": "v5",
 			"box": [
-				48,
-				219,
-				368,
-				539
+				131,
+				261,
+				328,
+				442
 			],
 			"name": "single steel locker (the plan painted lockers where the list said equipment racks)",
 			"kind": "generate",
@@ -254,16 +328,24 @@
 					"across": -0.035,
 					"fit": "painted"
 				}
+			],
+			"box_from": [
+				"v5.87",
+				"v5.105",
+				"v5.107",
+				"v5.124",
+				"v5.146",
+				"v5.161"
 			]
 		},
 		{
 			"id": "comms",
 			"view": "v5",
 			"box": [
-				1120,
-				331,
-				1440,
-				651
+				1069,
+				440,
+				1494,
+				642
 			],
 			"name": "comms desk with two radios, a headset on a hook and a desk lamp",
 			"kind": "generate",
@@ -290,16 +372,19 @@
 				}
 			],
 			"made": "made by the route",
-			"why_code": "2026-10-06, after the owner's in-game test: the old comms (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
+			"why_code": "2026-10-06, after the owner's in-game test: the old comms (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
+			"box_from": [
+				"v5.w4"
+			]
 		},
 		{
 			"id": "toolboard",
 			"view": "v1",
 			"box": [
-				1016,
-				232,
-				1336,
-				552
+				1019,
+				242,
+				1295,
+				522
 			],
 			"name": "tool board with its hand tools",
 			"kind": "generate",
@@ -326,16 +411,70 @@
 				}
 			],
 			"made": "made by the route",
-			"why_code": "2026-10-06, after the owner's in-game test: the old toolboard (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room"
+			"why_code": "2026-10-06, after the owner's in-game test: the old toolboard (a Pixal3D model) was still in the hub; remade by the route like every visible thing in the room",
+			"box_from": [
+				"v1.125",
+				"v1.205",
+				"v1.219",
+				"v1.177",
+				"v1.w16",
+				"v1.18",
+				"v1.48",
+				"v1.61",
+				"v1.83",
+				"v1.111",
+				"v1.115",
+				"v1.137",
+				"v1.139",
+				"v1.151",
+				"v1.152",
+				"v1.153",
+				"v1.157",
+				"v1.161",
+				"v1.162",
+				"v1.166",
+				"v1.172",
+				"v1.175",
+				"v1.182",
+				"v1.183",
+				"v1.187",
+				"v1.188",
+				"v1.190",
+				"v1.191",
+				"v1.194",
+				"v1.196",
+				"v1.198",
+				"v1.199",
+				"v1.201",
+				"v1.202",
+				"v1.203",
+				"v1.204",
+				"v1.206",
+				"v1.207",
+				"v1.208",
+				"v1.209",
+				"v1.210",
+				"v1.211",
+				"v1.212",
+				"v1.213",
+				"v1.214",
+				"v1.215",
+				"v1.216",
+				"v1.217",
+				"v1.218",
+				"v1.220",
+				"v1.w1",
+				"v1.w2"
+			]
 		},
 		{
 			"id": "wall_lower_plain",
 			"view": "v4",
 			"box": [
-				355,
-				399,
-				584,
-				628
+				406,
+				413,
+				545,
+				592
 			],
 			"name": "a worn bolted steel wall panel, lower half of a wall, plain with a kick plate",
 			"kind": "generate",
@@ -349,17 +488,18 @@
 			"thing": "prop:hub_wall_lower_plain",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v4.58",
+				"v4.189",
+				"v4.195",
+				"v4.243"
+			]
 		},
 		{
 			"id": "wall_lower_vent",
 			"view": "v2",
-			"box": [
-				793,
-				399,
-				1013,
-				619
-			],
+			"box": null,
 			"name": "a worn bolted steel lower wall panel with a louvred air vent grille",
 			"kind": "generate",
 			"anchor": "wall",
@@ -373,16 +513,17 @@
 			"group": "kit: wall",
 			"made": "kit piece",
 			"sound": "vent_air",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no vented lower panel can be told apart in the Marble views"
 		},
 		{
 			"id": "wall_lower_patched",
 			"view": "v4",
 			"box": [
-				1015,
-				399,
-				1244,
-				628
+				999,
+				376,
+				1207,
+				585
 			],
 			"name": "a lower wall panel patched with a riveted plate over old damage",
 			"kind": "generate",
@@ -396,16 +537,32 @@
 			"thing": "prop:hub_wall_lower_patched",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v4.29",
+				"v4.46",
+				"v4.47",
+				"v4.69",
+				"v4.105",
+				"v4.135",
+				"v4.136",
+				"v4.146",
+				"v4.149",
+				"v4.196",
+				"v4.217",
+				"v4.231",
+				"v4.w10",
+				"v4.w15"
+			]
 		},
 		{
 			"id": "wall_upper_plain",
 			"view": "v4",
 			"box": [
-				355,
-				104,
-				584,
-				332
+				1262,
+				251,
+				1402,
+				424
 			],
 			"name": "a worn bolted steel upper wall panel with seams and rivets",
 			"kind": "generate",
@@ -419,16 +576,19 @@
 			"thing": "prop:hub_wall_upper_plain",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v4.16"
+			]
 		},
 		{
 			"id": "wall_upper_pipes",
 			"view": "v4",
 			"box": [
-				1282,
-				46,
-				1549,
-				313
+				1419,
+				129,
+				1526,
+				325
 			],
 			"name": "an upper wall panel with three pipes running across it on brackets",
 			"kind": "generate",
@@ -442,16 +602,20 @@
 			"thing": "prop:hub_wall_upper_pipes",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v4.51",
+				"v4.257"
+			]
 		},
 		{
 			"id": "wall_upper_cables",
 			"view": "v1",
 			"box": [
-				1015,
-				104,
-				1244,
-				332
+				1019,
+				212,
+				1233,
+				323
 			],
 			"name": "an upper wall panel with bundled cables in clips running across it",
 			"kind": "generate",
@@ -465,16 +629,26 @@
 			"thing": "prop:hub_wall_upper_cables",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.111",
+				"v1.115",
+				"v1.137",
+				"v1.161",
+				"v1.214",
+				"v1.93",
+				"v1.95",
+				"v1.146"
+			]
 		},
 		{
 			"id": "wall_upper_screen_recess",
 			"view": "v3",
 			"box": [
-				1282,
-				90,
-				1549,
-				357
+				948,
+				271,
+				1215,
+				389
 			],
 			"name": "an upper wall panel with a recessed bay holding a small readout screen",
 			"kind": "generate",
@@ -488,16 +662,26 @@
 			"thing": "prop:hub_wall_upper_screen_recess",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v3.80",
+				"v3.81",
+				"v3.94",
+				"v3.104",
+				"v3.120",
+				"v3.146",
+				"v3.159",
+				"v3.204"
+			]
 		},
 		{
 			"id": "wall_upper_patched",
 			"view": "v5",
 			"box": [
-				355,
-				104,
-				584,
-				332
+				376,
+				139,
+				512,
+				338
 			],
 			"name": "an upper wall panel with a mismatched replacement plate bolted over it",
 			"kind": "generate",
@@ -511,16 +695,21 @@
 			"thing": "prop:hub_wall_upper_patched",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v5.62",
+				"v5.100",
+				"v5.110"
+			]
 		},
 		{
 			"id": "wall_corner_post",
 			"view": "v2",
 			"box": [
-				690,
-				230,
-				910,
-				450
+				595,
+				506,
+				675,
+				632
 			],
 			"name": "a square steel corner post with bolts, where two wall panels meet",
 			"kind": "generate",
@@ -534,17 +723,15 @@
 			"thing": "prop:hub_wall_corner_post",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v2.66"
+			]
 		},
 		{
 			"id": "wall_cornice",
 			"view": "v4",
-			"box": [
-				214,
-				0,
-				461,
-				138
-			],
+			"box": null,
 			"name": "a steel cornice band with a cable channel along the top of a wall",
 			"kind": "generate",
 			"anchor": "wall",
@@ -557,17 +744,13 @@
 			"thing": "prop:hub_wall_cornice",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the wall tops are hidden behind the pipe runs in every view"
 		},
 		{
 			"id": "wall_skirting",
 			"view": "v4",
-			"box": [
-				214,
-				496,
-				461,
-				742
-			],
+			"box": null,
 			"name": "a scuffed steel skirting band with a drain slot along the foot of a wall",
 			"kind": "generate",
 			"anchor": "wall",
@@ -580,16 +763,17 @@
 			"thing": "prop:hub_wall_skirting",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the skirting is hidden behind the railing and the consoles in every view"
 		},
 		{
 			"id": "hatch_wall_surround",
 			"view": "v1",
 			"box": [
-				690,
-				230,
-				910,
-				450
+				709,
+				340,
+				853,
+				430
 			],
 			"name": "a wall panel around a door opening, heavier plating with bolted edges",
 			"kind": "generate",
@@ -603,16 +787,21 @@
 			"thing": "prop:hub_hatch_wall_surround",
 			"group": "kit: wall",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.116",
+				"v1.127",
+				"v1.147"
+			]
 		},
 		{
 			"id": "roof_face_panel",
-			"view": "v4",
+			"view": "v3",
 			"box": [
-				300,
+				235,
 				0,
-				1300,
-				160
+				475,
+				175
 			],
 			"name": "a triangular ceiling panel of the pyramid roof, ribbed steel plate",
 			"kind": "code",
@@ -626,16 +815,19 @@
 			"thing": "prop:hub_roof_face_panel",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v3.20"
+			]
 		},
 		{
 			"id": "lattice_hip_rib",
-			"view": "v4",
+			"view": "v3",
 			"box": [
-				300,
+				503,
 				0,
-				1300,
-				160
+				699,
+				216
 			],
 			"name": "a steel I-beam rib running from a roof corner up to the top",
 			"kind": "generate",
@@ -649,16 +841,19 @@
 			"thing": "prop:hub_lattice_hip_rib",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v3.11"
+			]
 		},
 		{
 			"id": "lattice_ring_rib",
-			"view": "v4",
+			"view": "v3",
 			"box": [
-				300,
-				0,
-				1300,
-				160
+				825,
+				139,
+				1005,
+				224
 			],
 			"name": "a short straight steel ring beam of the roof lattice",
 			"kind": "generate",
@@ -672,16 +867,19 @@
 			"thing": "prop:hub_lattice_ring_rib",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v3.97"
+			]
 		},
 		{
 			"id": "lattice_diamond_strut",
-			"view": "v4",
+			"view": "v3",
 			"box": [
-				300,
+				855,
 				0,
-				1300,
-				160
+				932,
+				225
 			],
 			"name": "a diagonal steel strut of the roof's diamond lattice",
 			"kind": "generate",
@@ -695,16 +893,19 @@
 			"thing": "prop:hub_lattice_diamond_strut",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v3.65"
+			]
 		},
 		{
 			"id": "lattice_node_plate",
 			"view": "v4",
 			"box": [
-				300,
+				289,
 				0,
-				1300,
-				160
+				1350,
+				83
 			],
 			"name": "a bolted gusset plate where roof lattice beams meet",
 			"kind": "generate",
@@ -718,17 +919,15 @@
 			"thing": "prop:hub_lattice_node_plate",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v4.w21"
+			]
 		},
 		{
 			"id": "roof_apex_hub",
 			"view": "v4",
-			"box": [
-				300,
-				0,
-				1300,
-				160
-			],
+			"box": null,
 			"name": "the round steel hub at the top of the roof where every rib meets",
 			"kind": "generate",
 			"anchor": "ceiling",
@@ -741,17 +940,13 @@
 			"thing": "prop:hub_roof_apex_hub",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the roof's top is out of every view"
 		},
 		{
 			"id": "ceiling_cable_tray",
 			"view": "v3",
-			"box": [
-				300,
-				0,
-				1300,
-				160
-			],
+			"box": null,
 			"name": "a perforated cable tray hung from the roof with cables in it",
 			"kind": "generate",
 			"anchor": "ceiling",
@@ -764,16 +959,17 @@
 			"thing": "prop:hub_ceiling_cable_tray",
 			"group": "kit: ceiling",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no cable tray can be made out under the roof in the Marble views"
 		},
 		{
 			"id": "ceiling_duct",
 			"view": "v5",
 			"box": [
-				300,
-				0,
-				1300,
-				160
+				330,
+				68,
+				574,
+				138
 			],
 			"name": "a rectangular air duct with flanged joints hung under the roof",
 			"kind": "generate",
@@ -788,16 +984,19 @@
 			"group": "kit: ceiling",
 			"made": "kit piece",
 			"sound": "vent_air",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v5.58"
+			]
 		},
 		{
 			"id": "roof_light_fixture",
 			"view": "v2",
 			"box": [
-				300,
-				0,
-				1300,
-				160
+				472,
+				60,
+				494,
+				93
 			],
 			"name": "a caged industrial ceiling flood lamp fixture hung from the lattice",
 			"kind": "generate",
@@ -811,16 +1010,19 @@
 			"thing": "prop:hub_roof_light_fixture",
 			"group": "kit: light",
 			"made": "kit piece",
-			"sound": "lamp_buzz"
+			"sound": "lamp_buzz",
+			"box_from": [
+				"v2.183"
+			]
 		},
 		{
 			"id": "ring_floor_plate",
-			"view": "v4",
+			"view": "v1",
 			"box": [
-				175,
-				527,
-				501,
-				853
+				704,
+				644,
+				964,
+				675
 			],
 			"name": "a trapezoid steel deck plate of the floor around the pit, diamond tread, worn",
 			"kind": "generate",
@@ -834,17 +1036,15 @@
 			"thing": "prop:hub_ring_floor_plate",
 			"group": "kit: floor",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.45"
+			]
 		},
 		{
 			"id": "floor_grating",
 			"view": "v3",
-			"box": [
-				1117,
-				561,
-				1406,
-				849
-			],
+			"box": null,
 			"name": "a square steel floor grating with a drain underneath",
 			"kind": "generate",
 			"anchor": "floor",
@@ -857,17 +1057,13 @@
 			"thing": "prop:hub_floor_grating",
 			"group": "kit: floor",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no grating can be told apart from the deck plates in the Marble views"
 		},
 		{
 			"id": "floor_access_hatch",
 			"view": "v2",
-			"box": [
-				903,
-				583,
-				1124,
-				804
-			],
+			"box": null,
 			"name": "a bolted square access cover plate set in the deck with a lift ring",
 			"kind": "generate",
 			"anchor": "floor",
@@ -880,16 +1076,17 @@
 			"thing": "prop:hub_floor_access_hatch",
 			"group": "kit: floor",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no access cover can be told apart from the deck plates in the Marble views"
 		},
 		{
 			"id": "tread_mat",
 			"view": "v1",
 			"box": [
-				676,
-				508,
-				923,
-				754
+				704,
+				559,
+				950,
+				649
 			],
 			"name": "a tread-plate mat in front of a hatch, worn in the middle",
 			"kind": "generate",
@@ -941,15 +1138,19 @@
 					"across": 0.0
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.24",
+				"v1.174"
+			]
 		},
 		{
 			"id": "pit_wall_panel",
 			"view": "v3",
 			"box": [
-				300,
-				740,
-				1300,
+				204,
+				835,
+				896,
 				900
 			],
 			"name": "a curved steel panel of the sunken pit's wall, bolted, with a seam",
@@ -963,15 +1164,18 @@
 			"count": 10,
 			"thing": "prop:hub_pit_wall_panel",
 			"group": "kit: pit",
-			"made": "kit piece"
+			"made": "kit piece",
+			"box_from": [
+				"v3.10"
+			]
 		},
 		{
 			"id": "pit_floor_plate",
 			"view": "v3",
 			"box": [
-				300,
-				740,
-				1300,
+				204,
+				835,
+				896,
 				900
 			],
 			"name": "a square steel floor plate of the sunken pit, worn tread",
@@ -985,15 +1189,18 @@
 			"count": 29,
 			"thing": "prop:hub_pit_floor_plate",
 			"group": "kit: pit",
-			"made": "kit piece"
+			"made": "kit piece",
+			"box_from": [
+				"v3.10"
+			]
 		},
 		{
 			"id": "stair_stringer",
 			"view": "v3",
 			"box": [
-				300,
-				740,
-				1300,
+				204,
+				835,
+				896,
 				900
 			],
 			"name": "a stepped steel side plate of a stair down into the pit",
@@ -1007,17 +1214,15 @@
 			"count": 2,
 			"thing": "prop:hub_stair_stringer",
 			"group": "kit: pit",
-			"made": "kit piece"
+			"made": "kit piece",
+			"box_from": [
+				"v3.10"
+			]
 		},
 		{
 			"id": "under_floor_box",
 			"view": "v3",
-			"box": [
-				300,
-				740,
-				1300,
-				900
-			],
+			"box": null,
 			"name": "an open box of dark steel plates under a floor grating or access hatch: the duct or cable trough below it",
 			"kind": "code",
 			"anchor": "floor",
@@ -1029,15 +1234,16 @@
 			"count": 5,
 			"thing": "prop:hub_under_floor_box",
 			"group": "kit: under floor",
-			"made": "kit piece"
+			"made": "kit piece",
+			"unseen": "it lies under the floor grating, out of sight"
 		},
 		{
 			"id": "pit_junction_box",
 			"view": "v2",
 			"box": [
-				300,
-				740,
-				1300,
+				316,
+				728,
+				1001,
 				900
 			],
 			"name": "a steel junction box with a hinged lid on the pit's wall",
@@ -1052,17 +1258,32 @@
 			"thing": "prop:hub_pit_junction_box",
 			"group": "kit: pit",
 			"made": "kit piece",
-			"sound": "junction_hum"
+			"sound": "junction_hum",
+			"box_from": [
+				"v2.59",
+				"v2.61",
+				"v2.62",
+				"v2.64",
+				"v2.67",
+				"v2.88",
+				"v2.97",
+				"v2.117",
+				"v2.130",
+				"v2.136",
+				"v2.139",
+				"v2.144",
+				"v2.145",
+				"v2.159",
+				"v2.164",
+				"v2.175",
+				"v2.179",
+				"v2.180"
+			]
 		},
 		{
 			"id": "machine_bay_plate",
 			"view": "v3",
-			"box": [
-				300,
-				740,
-				1300,
-				900
-			],
+			"box": null,
 			"name": "a heavy floor plate with tie-down points marking a machine bay",
 			"kind": "generate",
 			"anchor": "floor",
@@ -1074,7 +1295,8 @@
 			"count": 2,
 			"thing": "prop:hub_machine_bay_plate",
 			"group": "kit: pit",
-			"made": "kit piece"
+			"made": "kit piece",
+			"unseen": "no machine bay plate can be made out on the floor"
 		},
 		{
 			"id": "hatch_frame",
@@ -1103,16 +1325,19 @@
 				"hatch_wheel",
 				"hatch_hinge",
 				"hatch_window"
+			],
+			"box_from": [
+				"v1.w9"
 			]
 		},
 		{
 			"id": "hatch_leaf",
 			"view": "v1",
 			"box": [
-				690,
-				264,
-				910,
-				484
+				698,
+				275,
+				957,
+				574
 			],
 			"name": "a thick steel pressure hatch door leaf with rounded corners and a round window",
 			"kind": "generate",
@@ -1132,16 +1357,19 @@
 				"hatch_wheel",
 				"hatch_hinge",
 				"hatch_window"
+			],
+			"box_from": [
+				"v1.w12"
 			]
 		},
 		{
 			"id": "hatch_wheel",
 			"view": "v1",
 			"box": [
-				690,
-				291,
-				910,
-				511
+				709,
+				340,
+				861,
+				476
 			],
 			"name": "a steel locking hand wheel with four spokes on a hub, for a pressure hatch",
 			"kind": "generate",
@@ -1161,17 +1389,19 @@
 				"hatch_wheel",
 				"hatch_hinge",
 				"hatch_window"
+			],
+			"box_from": [
+				"v1.w9",
+				"v1.116",
+				"v1.127",
+				"v1.147",
+				"v1.75"
 			]
 		},
 		{
 			"id": "hatch_hinge",
 			"view": "v1",
-			"box": [
-				508,
-				155,
-				728,
-				375
-			],
+			"box": null,
 			"name": "a heavy steel door hinge knuckle with a pin",
 			"kind": "generate",
 			"anchor": "wall",
@@ -1190,7 +1420,8 @@
 				"hatch_wheel",
 				"hatch_hinge",
 				"hatch_window"
-			]
+			],
+			"unseen": "the hatches' hinges are hidden in their frames"
 		},
 		{
 			"id": "hatch_window",
@@ -1219,16 +1450,19 @@
 				"hatch_wheel",
 				"hatch_hinge",
 				"hatch_window"
+			],
+			"box_from": [
+				"v1.w13"
 			]
 		},
 		{
 			"id": "door_strip_lamp",
 			"view": "v6",
 			"box": [
-				1122,
-				170,
-				1296,
-				212
+				1124,
+				176,
+				1291,
+				211
 			],
 			"name": "a strip lamp in a steel housing with a frosted lens, over a door",
 			"kind": "generate",
@@ -1289,16 +1523,19 @@
 					"across": 0.0
 				}
 			],
-			"sound": "lamp_buzz"
+			"sound": "lamp_buzz",
+			"box_from": [
+				"v6.115"
+			]
 		},
 		{
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				973,
-				233,
-				1193,
-				453
+				997,
+				217,
+				1032,
+				275
 			],
 			"name": "a steel door control box with a keypad, a status light and a label",
 			"kind": "generate",
@@ -1358,17 +1595,15 @@
 					"facet": 300,
 					"across": 0.82
 				}
+			],
+			"box_from": [
+				"v1.114"
 			]
 		},
 		{
 			"id": "grab_bar",
 			"view": "v2",
-			"box": [
-				376,
-				269,
-				596,
-				489
-			],
+			"box": null,
 			"name": "a U-shaped steel grab bar on two wall brackets",
 			"kind": "generate",
 			"anchor": "wall",
@@ -1418,16 +1653,17 @@
 					"facet": 240,
 					"across": 0.5
 				}
-			]
+			],
+			"unseen": "no grab bar can be made out beside the hatches"
 		},
 		{
 			"id": "porthole_panel",
 			"view": "v6",
 			"box": [
-				300,
-				0,
-				1300,
-				160
+				526,
+				97,
+				643,
+				215
 			],
 			"name": "a square steel wall panel with a round bolted porthole window in its middle, Earth seen far away through the thick glass",
 			"kind": "generate",
@@ -1453,16 +1689,19 @@
 					"fit": "painted"
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v6.33"
+			]
 		},
 		{
 			"id": "pipe_straight",
 			"view": "v6",
 			"box": [
-				362,
-				385,
-				406,
-				598
+				361,
+				41,
+				419,
+				243
 			],
 			"name": "a straight steel pipe section with flanges at both ends",
 			"kind": "generate",
@@ -1476,16 +1715,21 @@
 			"thing": "prop:hub_pipe_straight",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v6.53",
+				"v6.132",
+				"v6.w10"
+			]
 		},
 		{
 			"id": "pipe_elbow",
 			"view": "v6",
 			"box": [
-				739,
-				103,
-				795,
-				160
+				727,
+				95,
+				796,
+				347
 			],
 			"name": "a ninety degree steel pipe elbow with flanges",
 			"kind": "generate",
@@ -1499,15 +1743,19 @@
 			"thing": "prop:hub_pipe_elbow",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v6.55",
+				"v6.100"
+			]
 		},
 		{
 			"id": "pipe_valve",
 			"view": "v6",
 			"box": [
-				808,
-				330,
-				830,
+				806,
+				334,
+				833,
 				363
 			],
 			"name": "an inline pipe valve with a red hand wheel",
@@ -1522,16 +1770,19 @@
 			"thing": "prop:hub_pipe_valve",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v6.w12"
+			]
 		},
 		{
 			"id": "pipe_bracket",
 			"view": "v5",
 			"box": [
-				1462,
-				115,
-				1512,
-				142
+				1468,
+				0,
+				1526,
+				314
 			],
 			"name": "a steel wall bracket clamping a pipe",
 			"kind": "generate",
@@ -1545,16 +1796,19 @@
 			"thing": "prop:hub_pipe_bracket",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v5.39"
+			]
 		},
 		{
 			"id": "cable_bundle",
 			"view": "v5",
 			"box": [
-				19,
-				144,
-				77,
-				306
+				0,
+				60,
+				75,
+				305
 			],
 			"name": "a bundle of black and grey cables held by clips, a straight run",
 			"kind": "generate",
@@ -1568,16 +1822,22 @@
 			"thing": "prop:hub_cable_bundle",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v5.25",
+				"v5.79",
+				"v5.141",
+				"v5.158"
+			]
 		},
 		{
 			"id": "cable_drop",
 			"view": "v5",
 			"box": [
-				19,
-				144,
-				77,
-				306
+				0,
+				60,
+				75,
+				305
 			],
 			"name": "a vertical run of cables dropping from the ceiling into a wall box",
 			"kind": "generate",
@@ -1591,16 +1851,22 @@
 			"thing": "prop:hub_cable_drop",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v5.25",
+				"v5.79",
+				"v5.141",
+				"v5.158"
+			]
 		},
 		{
 			"id": "conduit_box",
 			"view": "v1",
 			"box": [
 				992,
-				391,
-				1037,
-				440
+				390,
+				1036,
+				439
 			],
 			"name": "a small steel conduit junction box with cable glands",
 			"kind": "generate",
@@ -1614,15 +1880,18 @@
 			"thing": "prop:hub_conduit_box",
 			"group": "kit: pipe",
 			"made": "kit piece",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.108"
+			]
 		},
 		{
 			"id": "wall_cage_lamp",
 			"view": "v1",
 			"box": [
-				16,
-				285,
-				56,
+				19,
+				289,
+				59,
 				329
 			],
 			"name": "a small caged bulkhead lamp on a wall",
@@ -1637,7 +1906,10 @@
 			"thing": "prop:hub_wall_cage_lamp",
 			"group": "kit: light",
 			"made": "kit piece",
-			"sound": "lamp_buzz"
+			"sound": "lamp_buzz",
+			"box_from": [
+				"v1.132"
+			]
 		},
 		{
 			"id": "status_display",
@@ -1671,16 +1943,19 @@
 					"across": 0.196,
 					"fit": "lifted above what is under it"
 				}
+			],
+			"box_from": [
+				"v2.w15"
 			]
 		},
 		{
 			"id": "wall_screen_cluster",
 			"view": "v3",
 			"box": [
-				1012,
-				138,
-				1243,
-				370
+				1021,
+				271,
+				1215,
+				369
 			],
 			"name": "a cluster of four small wall screens and readouts in one steel bracket",
 			"kind": "generate",
@@ -1705,16 +1980,22 @@
 					"across": -0.596,
 					"fit": "lifted above what is under it"
 				}
+			],
+			"box_from": [
+				"v3.80",
+				"v3.94",
+				"v3.159",
+				"v3.204"
 			]
 		},
 		{
 			"id": "small_readout",
 			"view": "v6",
 			"box": [
-				378,
-				276,
-				435,
-				328
+				383,
+				283,
+				433,
+				316
 			],
 			"name": "a small square wall readout screen with buttons beside it",
 			"kind": "generate",
@@ -1727,16 +2008,19 @@
 			"count": 2,
 			"thing": "prop:hub_small_readout",
 			"group": "kit: screen",
-			"made": "kit piece"
+			"made": "kit piece",
+			"box_from": [
+				"v6.w13"
+			]
 		},
 		{
 			"id": "intercom_panel",
 			"view": "v1",
 			"box": [
-				995,
-				451,
-				1043,
-				504
+				989,
+				453,
+				1047,
+				607
 			],
 			"name": "a wall intercom panel with a speaker grille and a call button",
 			"kind": "generate",
@@ -1749,16 +2033,20 @@
 			"count": 1,
 			"thing": "prop:hub_intercom_panel",
 			"group": "kit: screen",
-			"made": "kit piece"
+			"made": "kit piece",
+			"box_from": [
+				"v1.37",
+				"v1.189"
+			]
 		},
 		{
 			"id": "notice_board",
 			"view": "v5",
 			"box": [
 				1144,
-				237,
+				219,
 				1421,
-				337
+				415
 			],
 			"name": "a flat cork notice board in a steel frame with pinned papers",
 			"kind": "generate",
@@ -1783,6 +2071,9 @@
 					"across": -0.02,
 					"fit": "painted"
 				}
+			],
+			"box_from": [
+				"v5.w18"
 			]
 		},
 		{
@@ -1790,8 +2081,8 @@
 			"view": "v5",
 			"box": [
 				1267,
-				554,
-				1325,
+				556,
+				1322,
 				622
 			],
 			"name": "a small steel waste bin with a pedal lid",
@@ -1805,16 +2096,19 @@
 			"count": 1,
 			"thing": "prop:hub_waste_bin",
 			"group": "kit: dressing",
-			"made": "kit piece"
+			"made": "kit piece",
+			"box_from": [
+				"v5.w20"
+			]
 		},
 		{
 			"id": "radio",
 			"view": "v5",
 			"box": [
-				1120,
-				331,
-				1440,
-				651
+				1300,
+				402,
+				1344,
+				440
 			],
 			"name": "field radio set with its handset on the side",
 			"kind": "code",
@@ -1828,17 +2122,15 @@
 			"thing": "prop:hub_radio",
 			"parent": "comms",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v5.111"
+			]
 		},
 		{
 			"id": "telephone",
 			"view": "v5",
-			"box": [
-				1120,
-				331,
-				1440,
-				651
-			],
+			"box": null,
 			"name": "black rotary desk telephone",
 			"kind": "generate",
 			"anchor": "on:comms",
@@ -1851,17 +2143,13 @@
 			"thing": "prop:hub_telephone",
 			"parent": "comms",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"unseen": "too small to make out on the comms desk in the Marble view"
 		},
 		{
 			"id": "desklamp",
 			"view": "v5",
-			"box": [
-				1120,
-				331,
-				1440,
-				651
-			],
+			"box": null,
 			"name": "angled desk lamp",
 			"kind": "generate",
 			"anchor": "on:comms",
@@ -1874,17 +2162,13 @@
 			"thing": "prop:hub_desklamp",
 			"parent": "comms",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"unseen": "no desk lamp can be made out on the comms desk"
 		},
 		{
 			"id": "headset",
 			"view": "v5",
-			"box": [
-				1120,
-				331,
-				1440,
-				651
-			],
+			"box": null,
 			"name": "headset on its wall hook",
 			"kind": "generate",
 			"anchor": "on:comms",
@@ -1897,16 +2181,17 @@
 			"thing": "prop:hub_headset",
 			"parent": "comms",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"unseen": "too small to make out by the comms desk in the Marble view"
 		},
 		{
 			"id": "monitor",
 			"view": "v4",
 			"box": [
-				960,
-				539,
-				1280,
-				859
+				970,
+				512,
+				1284,
+				812
 			],
 			"name": "console monitor on its stand",
 			"kind": "code",
@@ -1920,16 +2205,32 @@
 			"thing": "prop:hub_monitor",
 			"parent": "console",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v4.160",
+				"v4.224",
+				"v4.229",
+				"v4.255",
+				"v4.169",
+				"v4.246",
+				"v4.105",
+				"v4.146",
+				"v4.149",
+				"v4.10",
+				"v4.202",
+				"v4.215",
+				"v4.258",
+				"v4.w3"
+			]
 		},
 		{
 			"id": "keyboard",
 			"view": "v4",
 			"box": [
-				960,
-				539,
-				1280,
-				859
+				702,
+				757,
+				766,
+				783
 			],
 			"name": "console keyboard",
 			"kind": "code",
@@ -1943,16 +2244,19 @@
 			"thing": "prop:hub_keyboard",
 			"parent": "console",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v4.164"
+			]
 		},
 		{
 			"id": "glovebox",
 			"view": "v3",
 			"box": [
-				880,
-				352,
-				1200,
-				672
+				941,
+				446,
+				1015,
+				507
 			],
 			"name": "glovebox with a sloped window and two glove ports",
 			"kind": "code",
@@ -1966,17 +2270,16 @@
 			"thing": "prop:hub_glovebox",
 			"parent": "labbench",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v3.154",
+				"v3.205"
+			]
 		},
 		{
 			"id": "microscope",
 			"view": "v3",
-			"box": [
-				880,
-				352,
-				1200,
-				672
-			],
+			"box": null,
 			"name": "lab microscope with its side screen",
 			"kind": "generate",
 			"anchor": "on:labbench",
@@ -1989,16 +2292,17 @@
 			"thing": "prop:hub_microscope",
 			"parent": "labbench",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"unseen": "too small to make out on the lab bench in the Marble view"
 		},
 		{
 			"id": "wrench",
 			"view": "v1",
 			"box": [
-				1016,
-				232,
-				1336,
-				552
+				1089,
+				341,
+				1131,
+				383
 			],
 			"name": "open-end wrench",
 			"kind": "generate",
@@ -2012,16 +2316,19 @@
 			"thing": "prop:hub_wrench",
 			"parent": "toolboard",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v1.125"
+			]
 		},
 		{
 			"id": "hammer",
 			"view": "v1",
 			"box": [
-				1016,
-				232,
-				1336,
-				552
+				1089,
+				341,
+				1131,
+				383
 			],
 			"name": "claw hammer",
 			"kind": "generate",
@@ -2035,16 +2342,19 @@
 			"thing": "prop:hub_hammer",
 			"parent": "toolboard",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v1.125"
+			]
 		},
 		{
 			"id": "pump_pliers",
 			"view": "v1",
 			"box": [
-				1016,
-				232,
-				1336,
-				552
+				1219,
+				368,
+				1245,
+				386
 			],
 			"name": "water pump pliers",
 			"kind": "generate",
@@ -2058,16 +2368,19 @@
 			"thing": "prop:hub_pump_pliers",
 			"parent": "toolboard",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v1.177"
+			]
 		},
 		{
 			"id": "pliers",
 			"view": "v1",
 			"box": [
-				1016,
-				232,
-				1336,
-				552
+				1160,
+				346,
+				1169,
+				379
 			],
 			"name": "combination pliers",
 			"kind": "generate",
@@ -2081,16 +2394,20 @@
 			"thing": "prop:hub_pliers",
 			"parent": "toolboard",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v1.205",
+				"v1.219"
+			]
 		},
 		{
 			"id": "screwdriver",
 			"view": "v1",
 			"box": [
-				1016,
-				232,
-				1336,
-				552
+				1245,
+				341,
+				1273,
+				387
 			],
 			"name": "flat screwdriver",
 			"kind": "code",
@@ -2104,7 +2421,10 @@
 			"thing": "prop:hub_screwdriver",
 			"parent": "toolboard",
 			"made": "made by the route",
-			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent"
+			"why_code": "round six (2026-10-07): the composite split, one model per real-world object, placed on purpose on its parent",
+			"box_from": [
+				"v1.w16"
+			]
 		}
 	]
 }

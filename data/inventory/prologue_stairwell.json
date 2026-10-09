@@ -27,10 +27,10 @@
 			"id": "plaster_wall",
 			"view": "v1",
 			"box": [
-				300,
-				60,
-				1750,
-				1100
+				281,
+				0,
+				1788,
+				1115
 			],
 			"name": "whitewashed wall with a green gloss lower band",
 			"kind": "code",
@@ -41,16 +41,151 @@
 				3.0
 			],
 			"count": 30,
-			"thing": "prop:stairwell_plaster_wall"
+			"thing": "prop:stairwell_plaster_wall",
+			"box_from": [
+				"v1.w31",
+				"v1.w40",
+				"v1.w48",
+				"v1.121",
+				"v1.183",
+				"v1.288",
+				"v1.289",
+				"v1.558",
+				"v1.578",
+				"v1.595",
+				"v1.10",
+				"v1.12",
+				"v1.15",
+				"v1.23",
+				"v1.24",
+				"v1.27",
+				"v1.31",
+				"v1.33",
+				"v1.34",
+				"v1.44",
+				"v1.45",
+				"v1.50",
+				"v1.51",
+				"v1.53",
+				"v1.60",
+				"v1.64",
+				"v1.65",
+				"v1.66",
+				"v1.67",
+				"v1.69",
+				"v1.70",
+				"v1.71",
+				"v1.74",
+				"v1.78",
+				"v1.82",
+				"v1.83",
+				"v1.87",
+				"v1.97",
+				"v1.100",
+				"v1.103",
+				"v1.104",
+				"v1.105",
+				"v1.109",
+				"v1.110",
+				"v1.111",
+				"v1.115",
+				"v1.117",
+				"v1.120",
+				"v1.145",
+				"v1.164",
+				"v1.165",
+				"v1.173",
+				"v1.175",
+				"v1.177",
+				"v1.187",
+				"v1.189",
+				"v1.196",
+				"v1.197",
+				"v1.201",
+				"v1.202",
+				"v1.204",
+				"v1.206",
+				"v1.216",
+				"v1.219",
+				"v1.223",
+				"v1.224",
+				"v1.226",
+				"v1.227",
+				"v1.230",
+				"v1.233",
+				"v1.234",
+				"v1.236",
+				"v1.237",
+				"v1.243",
+				"v1.253",
+				"v1.254",
+				"v1.255",
+				"v1.256",
+				"v1.257",
+				"v1.264",
+				"v1.284",
+				"v1.290",
+				"v1.300",
+				"v1.304",
+				"v1.308",
+				"v1.322",
+				"v1.324",
+				"v1.326",
+				"v1.333",
+				"v1.394",
+				"v1.425",
+				"v1.429",
+				"v1.431",
+				"v1.433",
+				"v1.441",
+				"v1.444",
+				"v1.451",
+				"v1.455",
+				"v1.468",
+				"v1.476",
+				"v1.485",
+				"v1.487",
+				"v1.488",
+				"v1.503",
+				"v1.509",
+				"v1.513",
+				"v1.520",
+				"v1.521",
+				"v1.524",
+				"v1.529",
+				"v1.534",
+				"v1.537",
+				"v1.538",
+				"v1.539",
+				"v1.541",
+				"v1.542",
+				"v1.552",
+				"v1.553",
+				"v1.561",
+				"v1.567",
+				"v1.572",
+				"v1.580",
+				"v1.582",
+				"v1.585",
+				"v1.588",
+				"v1.591",
+				"v1.596",
+				"v1.w7",
+				"v1.w8",
+				"v1.w14",
+				"v1.w18",
+				"v1.w41",
+				"v1.w43"
+			]
 		},
 		{
 			"id": "plaster_ceiling",
 			"view": "v1",
 			"box": [
-				300,
-				40,
-				1750,
-				100
+				592,
+				0,
+				1472,
+				110
 			],
 			"name": "whitewashed ceiling",
 			"kind": "code",
@@ -61,15 +196,18 @@
 				0.03
 			],
 			"count": 1,
-			"thing": "prop:stairwell_plaster_ceiling"
+			"thing": "prop:stairwell_plaster_ceiling",
+			"box_from": [
+				"v1.13"
+			]
 		},
 		{
 			"id": "stair_flight",
 			"view": "v1",
 			"box": [
-				911,
-				120,
-				1647,
+				887,
+				112,
+				1696,
 				793
 			],
 			"name": "terrazzo stair flight",
@@ -81,7 +219,25 @@
 				1.5
 			],
 			"count": 6,
-			"thing": "prop:stairwell_stair_flight"
+			"thing": "prop:stairwell_stair_flight",
+			"box_from": [
+				"v1.595",
+				"v1.10",
+				"v1.27",
+				"v1.51",
+				"v1.64",
+				"v1.65",
+				"v1.66",
+				"v1.100",
+				"v1.256",
+				"v1.333",
+				"v1.429",
+				"v1.441",
+				"v1.542",
+				"v1.580",
+				"v1.w8",
+				"v1.w18"
+			]
 		},
 		{
 			"id": "landing",
@@ -101,16 +257,19 @@
 				0.25
 			],
 			"count": 7,
-			"thing": "prop:stairwell_landing"
+			"thing": "prop:stairwell_landing",
+			"box_from": [
+				"v1.w10"
+			]
 		},
 		{
 			"id": "stair_rail",
 			"view": "v1",
 			"box": [
-				620,
-				370,
-				1250,
-				870
+				858,
+				511,
+				1192,
+				743
 			],
 			"name": "wall handrail up a flight",
 			"kind": "code",
@@ -121,7 +280,14 @@
 				2.45
 			],
 			"count": 6,
-			"thing": "prop:stairwell_stair_rail"
+			"thing": "prop:stairwell_stair_rail",
+			"box_from": [
+				"v1.288",
+				"v1.289",
+				"v1.558",
+				"v1.578",
+				"v1.595"
+			]
 		},
 		{
 			"id": "balcony_rail",
@@ -129,7 +295,7 @@
 			"box": [
 				832,
 				1237,
-				1214,
+				1213,
 				1536
 			],
 			"name": "rail at the head of the stairs",
@@ -141,16 +307,19 @@
 				1.1
 			],
 			"count": 1,
-			"thing": "prop:stairwell_balcony_rail"
+			"thing": "prop:stairwell_balcony_rail",
+			"box_from": [
+				"v1.w17"
+			]
 		},
 		{
 			"id": "timber_door_frame",
 			"view": "v1",
 			"box": [
-				1300,
-				210,
-				1420,
-				540
+				1789,
+				298,
+				1943,
+				743
 			],
 			"name": "flat door frame",
 			"kind": "code",
@@ -161,7 +330,16 @@
 				2.28
 			],
 			"count": 3,
-			"thing": "prop:stairwell_timber_door_frame"
+			"thing": "prop:stairwell_timber_door_frame",
+			"box_from": [
+				"v1.w21",
+				"v1.22",
+				"v1.138",
+				"v1.240",
+				"v1.480",
+				"v1.543",
+				"v1.w23"
+			]
 		},
 		{
 			"id": "timber_door_leaf",
@@ -181,7 +359,10 @@
 				2.17
 			],
 			"count": 3,
-			"thing": "prop:stairwell_timber_door_leaf"
+			"thing": "prop:stairwell_timber_door_leaf",
+			"box_from": [
+				"v1.w21"
+			]
 		},
 		{
 			"id": "security_gate",
@@ -201,16 +382,19 @@
 				2.1
 			],
 			"count": 2,
-			"thing": "prop:stairwell_security_gate"
+			"thing": "prop:stairwell_security_gate",
+			"box_from": [
+				"v1.w26"
+			]
 		},
 		{
 			"id": "wall_print",
 			"view": "v1",
 			"box": [
-				1270,
-				180,
-				1560,
-				380
+				1754,
+				341,
+				1786,
+				502
 			],
 			"name": "couplets, posters, floor names",
 			"kind": "code",
@@ -221,7 +405,10 @@
 				1.5
 			],
 			"count": 16,
-			"thing": "prop:stairwell_wall_print"
+			"thing": "prop:stairwell_wall_print",
+			"box_from": [
+				"v1.192"
+			]
 		},
 		{
 			"id": "cage_bulkhead",
@@ -241,16 +428,19 @@
 				0.2
 			],
 			"count": 7,
-			"thing": "prop:stairwell_cage_bulkhead"
+			"thing": "prop:stairwell_cage_bulkhead",
+			"box_from": [
+				"v1.w31"
+			]
 		},
 		{
 			"id": "meter_cabinet",
 			"view": "v1",
 			"box": [
-				300,
-				190,
-				420,
-				330
+				425,
+				276,
+				509,
+				431
 			],
 			"name": "electricity meter cabinet",
 			"kind": "code",
@@ -261,7 +451,11 @@
 				0.7
 			],
 			"count": 4,
-			"thing": "prop:stairwell_meter_cabinet"
+			"thing": "prop:stairwell_meter_cabinet",
+			"box_from": [
+				"v1.121",
+				"v1.183"
+			]
 		},
 		{
 			"id": "letterboxes",
@@ -281,7 +475,10 @@
 				0.75
 			],
 			"count": 1,
-			"thing": "prop:stairwell_letterboxes"
+			"thing": "prop:stairwell_letterboxes",
+			"box_from": [
+				"v1.w35"
+			]
 		},
 		{
 			"id": "lobby_notice",
@@ -301,7 +498,10 @@
 				0.7
 			],
 			"count": 1,
-			"thing": "prop:stairwell_lobby_notice"
+			"thing": "prop:stairwell_lobby_notice",
+			"box_from": [
+				"v1.w40"
+			]
 		},
 		{
 			"id": "exit_sign",
@@ -321,16 +521,19 @@
 				0.14
 			],
 			"count": 1,
-			"thing": "prop:stairwell_exit_sign"
+			"thing": "prop:stairwell_exit_sign",
+			"box_from": [
+				"v1.w45"
+			]
 		},
 		{
 			"id": "street_gate",
 			"view": "v1",
 			"box": [
-				1580,
-				680,
-				1700,
-				1060
+				2196,
+				957,
+				2294,
+				1133
 			],
 			"name": "steel street door gate",
 			"kind": "code",
@@ -341,7 +544,10 @@
 				2.2
 			],
 			"count": 1,
-			"thing": "prop:stairwell_street_gate"
+			"thing": "prop:stairwell_street_gate",
+			"box_from": [
+				"v1.98"
+			]
 		},
 		{
 			"id": "extinguisher",
@@ -361,16 +567,19 @@
 				0.6
 			],
 			"count": 2,
-			"thing": "prop:stairwell_extinguisher"
+			"thing": "prop:stairwell_extinguisher",
+			"box_from": [
+				"v1.w48"
+			]
 		},
 		{
 			"id": "pipe_straight",
 			"view": "v1",
 			"box": [
-				1520,
-				140,
-				1550,
-				560
+				425,
+				276,
+				509,
+				431
 			],
 			"name": "conduit up the wall",
 			"kind": "code",
@@ -381,16 +590,19 @@
 				3.0
 			],
 			"count": 4,
-			"thing": "prop:stairwell_pipe_straight"
+			"thing": "prop:stairwell_pipe_straight",
+			"box_from": [
+				"v1.121"
+			]
 		},
 		{
 			"id": "fire_hose_cabinet",
 			"view": "v1",
 			"box": [
-				468,
-				1004,
-				571,
-				1163
+				480,
+				1019,
+				554,
+				1152
 			],
 			"name": "red fire hose cabinet",
 			"kind": "code",
@@ -401,16 +613,21 @@
 				0.7
 			],
 			"count": 2,
-			"thing": "prop:stairwell_fire_hose_cabinet"
+			"thing": "prop:stairwell_fire_hose_cabinet",
+			"box_from": [
+				"v1.146",
+				"v1.247",
+				"v1.w49"
+			]
 		},
 		{
 			"id": "wiring_box",
 			"view": "v1",
 			"box": [
 				1720,
-				261,
-				1789,
-				323
+				273,
+				1790,
+				318
 			],
 			"name": "junction box by the meters",
 			"kind": "code",
@@ -421,16 +638,20 @@
 				0.22
 			],
 			"count": 3,
-			"thing": "prop:stairwell_wiring_box"
+			"thing": "prop:stairwell_wiring_box",
+			"box_from": [
+				"v1.538",
+				"v1.271"
+			]
 		},
 		{
 			"id": "cable_drop",
 			"view": "v1",
 			"box": [
-				592,
-				193,
-				633,
-				770
+				603,
+				190,
+				638,
+				862
 			],
 			"name": "cables down the wall",
 			"kind": "code",
@@ -441,7 +662,10 @@
 				11.7
 			],
 			"count": 1,
-			"thing": "prop:stairwell_cable_drop"
+			"thing": "prop:stairwell_cable_drop",
+			"box_from": [
+				"v1.82"
+			]
 		}
 	]
 }

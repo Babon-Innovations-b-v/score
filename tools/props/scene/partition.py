@@ -4,16 +4,18 @@ a reason. No box is typed: a row's box is its proposals' box, and it records whi
 (`box_from`), so the box gate (box_check.py) can tell a measured box from a typed one.
 
     .venv/bin/python tools/props/scene/partition.py tiles <scene> <work folder>
+    .venv/bin/python tools/props/scene/partition.py zoom <scene> <work folder> --zoom <view>,<l>,<t>,<r>,<b>,<scale>
     .venv/bin/python tools/props/cloud/segment.py <work folder>/tiles --who <session>      # SAM 2.1, a rented card
-    .venv/bin/python tools/props/scene/partition.py proposals <scene> <work folder>
+    .venv/bin/python tools/props/scene/box_check.py <scene> --masks <masks folder>          # SAM 3, the rows' words
+    .venv/bin/python tools/props/scene/partition.py proposals <scene> <work folder> --words <masks folder>
     .venv/bin/python tools/props/scene/partition.py apply <scene> <work folder> <mapping.json>
 
 `tiles` writes each view's picture as overlapping tiles (tiles/<view>__<row><column>.png) and where each lies
 (tiles.json). `proposals` reads segment.py's masks back, puts every mask's box on the whole picture, drops specks and
 masks that take most of a tile, merges the same element found on two tiles, and writes proposals.json:
 [{"id": "<view>.<n>", "view", "box", "area"}]. The mapping is {"<proposal id>": {"row": "<row id>"} |
-{"drop": "<why>"} | {"new": "<words for a row the inventory lacks>"}}; a proposal lying inside a mapped one is a part
-of it (PART) and needs no entry; `apply` refuses a mapping that leaves a
+{"rows": [<row ids sharing it>]} | {"drop": "<why>"} | {"new": "<words for a row the inventory lacks>"}}; a proposal lying inside a mapped one is a part
+of it (PART) and one under DETAIL of the picture a detail, and neither needs an entry; `apply` refuses a mapping that leaves a
 proposal unmapped, names a row the inventory has not got, or leaves a boxed row with no proposal and no `unseen`
 reason, and otherwise sets each mapped row's box to the box round its proposals (for a row that `repeats`, its first
 proposal: one clear example) and its `box_from`. The new elements are written to new-rows.json for the scene agent.
@@ -36,10 +38,16 @@ import inventory  # noqa: E402
 TILE = 720
 OVERLAP = 96
 # A proposal smaller than SPECK of its picture is a speck; one over MOST of its tile is the background.
-SPECK = 0.0004
+SPECK = 0.0001
 MOST = 0.6
 # Two proposals from neighbouring tiles with boxes overlapping this much (over their union) are one element.
 SAME = 0.6
+# The proposals lying in a pointer must cover this share of it; less means the pointer was at a surface (a stretch
+# of wall with a gauge on it) and the proposal matching the pointer best is taken instead.
+FILLED = 0.25
+# An unmapped proposal under this share of its picture is a detail of a surface (a bolt, a stain, a label), not an
+# element, and needs no entry; an element that small is still mapped when it is a row.
+DETAIL = 0.002
 # A proposal lying this much inside a mapped row's box, and smaller than it, is a part of that row (a drawer of a
 # desk, a screen on a console) and needs no mapping of its own.
 PART = 0.85
@@ -67,6 +75,21 @@ def write_tiles(found, folder):
             placed[name] = {"view": view["id"], "box": list(box)}
     (folder / "tiles.json").write_text(json.dumps(placed, indent=1))
     return placed
+
+
+def write_zoom(found, folder, view, box, scale):
+    """One region of a view cut out and enlarged `scale` times as an extra tile (tiles/<view>__z<n>.png), for things
+    too small to be found on the ordinary tiles (the tools on a tool board); its place in tiles.json; the tile's name."""
+    placed = json.loads((folder / "tiles.json").read_text())
+    picture = Image.open(box_check.picture_path(next(item["picture"] for item in found["plan"]["views"]
+                                                     if item["id"] == view))).convert("RGB")
+    number = sum(name.startswith(f"{view}__z") for name in placed) + 1
+    name = f"{view}__z{number}"
+    cut = picture.crop(tuple(box))
+    cut.resize((cut.width * scale, cut.height * scale), Image.LANCZOS).save(folder / "tiles" / f"{name}.png")
+    placed[name] = {"view": view, "box": list(box), "scale": scale}
+    (folder / "tiles.json").write_text(json.dumps(placed, indent=1))
+    return name
 
 
 def mask_boxes(npz):
@@ -101,12 +124,18 @@ def tile_proposals(placed, masks_folder, sizes):
             continue
         shape, boxes = mask_boxes(np.load(path))
         wide, tall = sizes[place["view"]]
+        scale = place.get("scale", 1)
         for box, area in boxes:
-            if area < SPECK * wide * tall or area > MOST * shape[0] * shape[1]:
+            if area > MOST * shape[0] * shape[1]:
+                continue
+            area = area / (scale * scale)
+            if area < SPECK * wide * tall / (scale * scale):  # a zoomed tile is for the small things
                 continue
             left, top = place["box"][:2]
-            found.append({"view": place["view"], "box": [box[0] + left, box[1] + top, box[2] + left, box[3] + top],
-                          "area": area})
+            found.append({"view": place["view"], "area": round(area),
+                          "box": [left + round(box[0] / scale), top + round(box[1] / scale),
+                                  left + round(box[2] / scale), top + round(box[3] / scale)],
+                          "share": round(area / (wide * tall), 6)})
     return found
 
 
@@ -121,6 +150,40 @@ def merged(found):
         counts[proposal["view"]] = counts.get(proposal["view"], 0) + 1
         proposal["id"] = f"{proposal['view']}.{counts[proposal['view']]}"
     return kept
+
+
+def entry_rows(entry):
+    """The rows a mapping entry names: {"row": name} or {"rows": [names]} (one element two rows share, a hatch's frame
+    and its leaf on one mask)."""
+    return [entry["row"]] if "row" in entry else list(entry.get("rows", []))
+
+
+def word_proposals(scene, found, folder, sizes):
+    """SAM 3's masks of the rows' own words (box_check.py --masks: mask-jobs.json and masks.json in `folder`) as
+    proposals too, numbered "<view>.w<n>": SAM 2.1 cuts a big thing (a door in its frame) into parts, SAM 3 asked for
+    it by name finds it whole."""
+    views = {}
+    for job in json.loads((folder / "mask-jobs.json").read_text()):
+        for row in job["rows"]:
+            views[row["key"]] = job["picture"]
+    by_picture = {str(box_check.picture_path(view["picture"])): view["id"] for view in found["plan"]["views"]}
+    found_masks = json.loads((folder / "masks.json").read_text())
+    proposals, counts = [], {}
+    for key, instances in found_masks.items():
+        if not key.startswith(f"{scene}.") or views.get(key) not in by_picture:
+            continue
+        view = by_picture[views[key]]
+        wide, tall = sizes[view]
+        for instance in instances:
+            box = instance["box"]
+            area = (box[2] - box[0]) * (box[3] - box[1])
+            if area > box_check.BROAD * wide * tall or any(item["view"] == view and item["box"] == box
+                                                           for item in proposals):
+                continue
+            counts[view] = counts.get(view, 0) + 1
+            proposals.append({"id": f"{view}.w{counts[view]}", "view": view, "box": box, "area": area,
+                              "share": round(area / (wide * tall), 6), "words": key.split(".", 1)[1]})
+    return proposals
 
 
 def union_box(boxes):
@@ -139,7 +202,7 @@ def inside(small, big):
 def parts(proposals, mapping):
     """The unmapped proposals that are parts of a mapped one (lying PART inside it and smaller): {id: its id}."""
     by_id = {proposal["id"]: proposal for proposal in proposals}
-    mapped = [by_id[key] for key, entry in mapping.items() if "row" in entry and key in by_id]
+    mapped = [by_id[key] for key, entry in mapping.items() if entry_rows(entry) and key in by_id]
     found = {}
     for proposal in proposals:
         if proposal["id"] in mapping:
@@ -156,15 +219,16 @@ def mapping_problems(found, proposals, mapping):
     rows = {row["id"]: row for row in found["rows"]}
     held = parts(proposals, mapping)
     problems = [f"proposal {proposal['id']} is neither mapped to a row nor dropped with a reason"
-                for proposal in proposals if proposal["id"] not in mapping and proposal["id"] not in held]
+                for proposal in proposals if proposal["id"] not in mapping and proposal["id"] not in held
+                and proposal.get("share", 1) >= DETAIL]
     for key, entry in mapping.items():
-        if "row" in entry and entry["row"] not in rows:
-            problems.append(f"proposal {key} names the row '{entry['row']}', which the inventory has not got")
+        problems.extend(f"proposal {key} names the row '{name}', which the inventory has not got"
+                        for name in entry_rows(entry) if name not in rows)
         if "drop" in entry and not str(entry["drop"]).strip():
             problems.append(f"proposal {key} is dropped without a reason")
-        if not {"row", "drop", "new"} & set(entry):
+        if not {"row", "rows", "drop", "new"} & set(entry):
             problems.append(f"proposal {key} is neither a row, a drop nor a new element")
-    mapped = {entry["row"] for entry in mapping.values() if "row" in entry}
+    mapped = {name for entry in mapping.values() for name in entry_rows(entry)}
     problems.extend(f"row {name} has no proposal and no 'unseen' reason" for name, row in rows.items()
                     if name not in mapped and not row.get("unseen"))
     return problems
@@ -175,17 +239,43 @@ def apply(found, proposals, mapping):
     by_id = {proposal["id"]: proposal for proposal in proposals}
     chosen = {}
     for key, entry in mapping.items():
-        if "row" in entry:
-            chosen.setdefault(entry["row"], []).append(by_id[key])
+        for name in entry_rows(entry):
+            chosen.setdefault(name, []).append(by_id[key])
     for row in found["rows"]:
         picked = chosen.get(row["id"])
         if not picked:
             continue
-        picked = picked[:1] if row.get("repeats") else picked
         row["view"], row["box"] = picked[0]["view"], union_box([proposal["box"] for proposal in picked])
         row["box_from"] = [proposal["id"] for proposal in picked]
         row.pop("unseen", None)
     return [dict(by_id[key], words=entry["new"]) for key, entry in mapping.items() if "new" in entry]
+
+
+def snap(found, proposals, pointed):
+    """The agent points at each row's element with a rough box on its view ({row: [left, top, right, bottom]}); the
+    row is mapped to the proposals lying in that box (PART of each inside it, none bigger than the box), so the row's
+    box is the box round their pixels; where none lies in it, to the one proposal overlapping it most. The rough box
+    is only a pointer and is never kept. Returns the mapping entries and, per row, its proposals and how well their
+    box matches the pointer."""
+    rows = {row["id"]: row for row in found["rows"]}
+    mapping, matched = {}, {}
+    for name, rough in pointed.items():
+        same = [proposal for proposal in proposals if proposal["view"] == rows[name]["view"]]
+        area = (rough[2] - rough[0]) * (rough[3] - rough[1])
+        within = [proposal for proposal in same if inside(proposal["box"], rough) >= PART
+                  and (proposal["box"][2] - proposal["box"][0]) * (proposal["box"][3] - proposal["box"][1]) <= area]
+        covered = union_box([proposal["box"] for proposal in within]) if within else None
+        if covered and (covered[2] - covered[0]) * (covered[3] - covered[1]) < FILLED * area:
+            within = []  # only small things inside a pointer at a stretch of wall or floor: the surface itself
+        picked = within or [max(same, key=lambda proposal: overlap(proposal["box"], rough))] if same else []
+        if not picked:
+            continue
+        for proposal in picked:
+            entry = mapping.setdefault(proposal["id"], {"rows": []})
+            entry["rows"].append(name)
+        matched[name] = {"proposals": [proposal["id"] for proposal in picked],
+                         "overlap": round(overlap(union_box([proposal["box"] for proposal in picked]), rough), 2)}
+    return mapping, matched
 
 
 def save_inventory(path, found):
@@ -198,18 +288,27 @@ def save_inventory(path, found):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("step", choices=("tiles", "proposals", "apply"))
+    parser.add_argument("step", choices=("tiles", "zoom", "proposals", "apply"))
     parser.add_argument("scene")
     parser.add_argument("folder", type=pathlib.Path)
     parser.add_argument("mapping", nargs="?", type=pathlib.Path)
+    parser.add_argument("--zoom", help="zoom: <view>,<left>,<top>,<right>,<bottom>,<scale>")
+    parser.add_argument("--words", type=pathlib.Path, help="box_check.py --masks's folder: SAM 3's masks of the "
+                        "rows' words, added as proposals")
     options = parser.parse_args()
     path = inventory.path_of(options.scene)
     found = json.loads(path.read_text())
     if options.step == "tiles":
         print(f"{len(write_tiles(found, options.folder))} tiles in {options.folder / 'tiles'}")
+    elif options.step == "zoom":
+        view, *numbers = options.zoom.split(",")
+        print(write_zoom(found, options.folder, view, [int(value) for value in numbers[:4]], int(numbers[4])))
     elif options.step == "proposals":
         placed = json.loads((options.folder / "tiles.json").read_text())
-        proposals = merged(tile_proposals(placed, options.folder / "tiles" / "masks", box_check.view_sizes(found)))
+        sizes = box_check.view_sizes(found)
+        proposals = merged(tile_proposals(placed, options.folder / "tiles" / "masks", sizes))
+        if options.words:
+            proposals += word_proposals(options.scene, found, options.words, sizes)
         (options.folder / "proposals.json").write_text(json.dumps(proposals, indent=1))
         print(f"{len(proposals)} proposals in {options.folder / 'proposals.json'}")
     else:

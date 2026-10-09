@@ -64,10 +64,10 @@
 			"id": "wall_lower_plain",
 			"view": "v1",
 			"box": [
-				1514,
-				881,
-				2064,
-				1046
+				224,
+				805,
+				329,
+				864
 			],
 			"name": "plain lower wall panel, bolted",
 			"kind": "code",
@@ -82,16 +82,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.256"
+			]
 		},
 		{
 			"id": "wall_upper_plain",
 			"view": "v1",
 			"box": [
-				1514,
-				881,
-				2064,
-				1046
+				124,
+				438,
+				247,
+				652
 			],
 			"name": "plain upper wall panel, bolted",
 			"kind": "code",
@@ -106,16 +109,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.123"
+			]
 		},
 		{
 			"id": "wall_upper_cables",
 			"view": "v1",
 			"box": [
-				2064,
-				179,
-				2339,
-				413
+				2025,
+				200,
+				2313,
+				399
 			],
 			"name": "upper wall panel with cable bundles clipped along it",
 			"kind": "code",
@@ -130,17 +136,17 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.289",
+				"v1.102",
+				"v1.536"
+			]
 		},
 		{
 			"id": "wall_lower_vent",
 			"view": "v1",
-			"box": [
-				1514,
-				881,
-				2064,
-				1046
-			],
+			"box": null,
 			"name": "lower wall panel with an air vent",
 			"kind": "code",
 			"anchor": "wall",
@@ -154,17 +160,13 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no vented lower panel can be made out in the concept"
 		},
 		{
 			"id": "wall_skirting",
 			"view": "v1",
-			"box": [
-				1514,
-				881,
-				2064,
-				1046
-			],
+			"box": null,
 			"name": "rubber skirting at the wall's foot",
 			"kind": "code",
 			"anchor": "wall",
@@ -178,16 +180,17 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the skirting is hidden behind the plot's curb and the benches"
 		},
 		{
 			"id": "wall_cornice",
 			"view": "v1",
 			"box": [
-				413,
-				206,
-				1376,
-				344
+				289,
+				183,
+				454,
+				405
 			],
 			"name": "cornice along the wall's top, where the glass dome starts",
 			"kind": "code",
@@ -202,16 +205,19 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.61"
+			]
 		},
 		{
 			"id": "lattice_hip_rib",
 			"view": "v1",
 			"box": [
-				275,
+				283,
 				0,
-				2683,
-				454
+				2468,
+				430
 			],
 			"name": "dome rib running up the glass dome",
 			"kind": "code",
@@ -226,16 +232,19 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w13"
+			]
 		},
 		{
 			"id": "lattice_ring_rib",
 			"view": "v1",
 			"box": [
-				275,
-				0,
-				2683,
-				454
+				1456,
+				89,
+				1732,
+				182
 			],
 			"name": "dome hoop running round the glass dome",
 			"kind": "code",
@@ -250,16 +259,19 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.270"
+			]
 		},
 		{
 			"id": "lattice_node_plate",
 			"view": "v1",
 			"box": [
-				275,
-				0,
-				2683,
-				454
+				1452,
+				85,
+				1481,
+				168
 			],
 			"name": "node plate where the dome's ribs and hoops meet",
 			"kind": "code",
@@ -274,16 +286,19 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.370"
+			]
 		},
 		{
 			"id": "ring_floor_plate",
 			"view": "v1",
 			"box": [
-				771,
-				605,
+				791,
+				607,
 				1101,
-				716
+				706
 			],
 			"name": "deck plate, bolted",
 			"kind": "code",
@@ -298,16 +313,29 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.326",
+				"v1.343",
+				"v1.436",
+				"v1.453",
+				"v1.468",
+				"v1.490",
+				"v1.492",
+				"v1.495",
+				"v1.508",
+				"v1.595",
+				"v1.716"
+			]
 		},
 		{
 			"id": "ledge_cover",
 			"view": "v1",
 			"box": [
-				206,
-				743,
-				716,
-				1046
+				191,
+				729,
+				701,
+				1090
 			],
 			"name": "service ledge cover: a long steel lid with a recessed bar handle",
 			"kind": "code",
@@ -322,16 +350,42 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.256",
+				"v1.13",
+				"v1.32",
+				"v1.48",
+				"v1.60",
+				"v1.176",
+				"v1.184",
+				"v1.209",
+				"v1.217",
+				"v1.229",
+				"v1.352",
+				"v1.397",
+				"v1.398",
+				"v1.399",
+				"v1.400",
+				"v1.434",
+				"v1.456",
+				"v1.545",
+				"v1.550",
+				"v1.576",
+				"v1.615",
+				"v1.652",
+				"v1.653",
+				"v1.660"
+			]
 		},
 		{
 			"id": "hatch_frame",
 			"view": "v1",
 			"box": [
-				729,
-				268,
-				915,
-				454
+				740,
+				267,
+				861,
+				460
 			],
 			"name": "tube hatch frame round the doorway",
 			"kind": "code",
@@ -345,16 +399,23 @@
 			"thing": "prop:greenhouse_hatch_frame",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.226",
+				"v1.303",
+				"v1.600",
+				"v1.611",
+				"v1.w30"
+			]
 		},
 		{
 			"id": "hatch_leaf",
 			"view": "v1",
 			"box": [
-				729,
-				268,
-				915,
-				454
+				740,
+				267,
+				861,
+				460
 			],
 			"name": "tube hatch door leaf",
 			"kind": "code",
@@ -368,17 +429,19 @@
 			"thing": "prop:greenhouse_hatch_leaf",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.226",
+				"v1.303",
+				"v1.600",
+				"v1.611",
+				"v1.w30"
+			]
 		},
 		{
 			"id": "hatch_wheel",
 			"view": "v1",
-			"box": [
-				729,
-				268,
-				915,
-				454
-			],
+			"box": null,
 			"name": "tube hatch locking hand wheel",
 			"kind": "code",
 			"anchor": "wall",
@@ -391,17 +454,13 @@
 			"thing": "prop:greenhouse_hatch_wheel",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"unseen": "the hatch stands open and shows no hand wheel"
 		},
 		{
 			"id": "hatch_hinge",
 			"view": "v1",
-			"box": [
-				729,
-				268,
-				915,
-				454
-			],
+			"box": null,
 			"name": "tube hatch hinge",
 			"kind": "code",
 			"anchor": "wall",
@@ -414,17 +473,13 @@
 			"thing": "prop:greenhouse_hatch_hinge",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"unseen": "the hatch's hinges are hidden in its frame"
 		},
 		{
 			"id": "hatch_window",
 			"view": "v1",
-			"box": [
-				729,
-				268,
-				915,
-				454
-			],
+			"box": null,
 			"name": "tube hatch round window",
 			"kind": "code",
 			"anchor": "wall",
@@ -437,16 +492,17 @@
 			"thing": "prop:greenhouse_hatch_window",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": []
+			"at": [],
+			"unseen": "no round window shows in the hatch leaf"
 		},
 		{
 			"id": "door_strip_lamp",
 			"view": "v1",
 			"box": [
-				1004,
-				193,
-				1183,
-				227
+				1003,
+				192,
+				1096,
+				229
 			],
 			"name": "strip light over a hatch",
 			"kind": "code",
@@ -490,16 +546,22 @@
 				"strength": 0.2,
 				"reach": 5.0,
 				"high": 0.5
-			}
+			},
+			"box_from": [
+				"v1.621",
+				"v1.w29",
+				"v1.w31",
+				"v1.w45"
+			]
 		},
 		{
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				881,
-				495,
-				922,
-				550
+				841,
+				539,
+				970,
+				596
 			],
 			"name": "hatch control box with lit buttons",
 			"kind": "code",
@@ -534,17 +596,15 @@
 					"across": 1.55,
 					"bottom": 1.25
 				}
+			],
+			"box_from": [
+				"v1.223"
 			]
 		},
 		{
 			"id": "grab_bar",
 			"view": "v1",
-			"box": [
-				881,
-				495,
-				922,
-				550
-			],
+			"box": null,
 			"name": "grab bar beside a hatch",
 			"kind": "code",
 			"anchor": "wall",
@@ -578,16 +638,17 @@
 					"across": -1.55,
 					"bottom": 0.95
 				}
-			]
+			],
+			"unseen": "no grab bar shows beside the hatches"
 		},
 		{
 			"id": "wall_cage_lamp",
 			"view": "v1",
 			"box": [
-				2243,
+				2246,
 				523,
-				2312,
-				619
+				2315,
+				629
 			],
 			"name": "work lamp in a wire cage on the wall",
 			"kind": "code",
@@ -647,16 +708,19 @@
 				"strength": 0.35,
 				"reach": 6.0,
 				"high": 0.5
-			}
+			},
+			"box_from": [
+				"v1.w37"
+			]
 		},
 		{
 			"id": "pipe_straight",
 			"view": "v1",
 			"box": [
-				344,
-				275,
-				963,
-				454
+				415,
+				252,
+				706,
+				356
 			],
 			"name": "pipe run with flanges",
 			"kind": "code",
@@ -812,16 +876,19 @@
 					]
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.147"
+			]
 		},
 		{
 			"id": "pipe_valve",
 			"view": "v1",
 			"box": [
-				275,
-				523,
-				372,
-				771
+				288,
+				555,
+				355,
+				730
 			],
 			"name": "valve on a pipe with a red hand wheel",
 			"kind": "code",
@@ -857,17 +924,17 @@
 					"bottom": 0.52
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.129",
+				"v1.301",
+				"v1.722"
+			]
 		},
 		{
 			"id": "pipe_bracket",
 			"view": "v1",
-			"box": [
-				344,
-				275,
-				963,
-				454
-			],
+			"box": null,
 			"name": "a steel wall bracket clamping a pipe",
 			"kind": "code",
 			"anchor": "wall",
@@ -882,16 +949,17 @@
 			"group": "kit: pipe",
 			"at": [],
 			"why": "laid by room_kit.py from the room's pipe runs",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "the pipe brackets are too small to make out in the concept"
 		},
 		{
 			"id": "conduit_box",
 			"view": "v1",
 			"box": [
-				2064,
-				179,
-				2339,
-				413
+				2057,
+				301,
+				2160,
+				359
 			],
 			"name": "small grey conduit junction box",
 			"kind": "code",
@@ -922,16 +990,19 @@
 					"bottom": 1.6
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.289"
+			]
 		},
 		{
 			"id": "small_readout",
 			"view": "v1",
 			"box": [
-				2504,
-				344,
-				2587,
-				454
+				2162,
+				15,
+				2752,
+				768
 			],
 			"name": "small wall readout of the room's air and water",
 			"kind": "code",
@@ -956,16 +1027,19 @@
 					"across": 2.4,
 					"bottom": 0.8
 				}
+			],
+			"box_from": [
+				"v1.4"
 			]
 		},
 		{
 			"id": "notice_board",
 			"view": "v1",
 			"box": [
-				2325,
-				385,
-				2477,
-				523
+				2413,
+				425,
+				2456,
+				457
 			],
 			"name": "notice board of grow logs and rotas",
 			"kind": "code",
@@ -985,17 +1059,15 @@
 					"across": -4.2,
 					"bottom": 1.6
 				}
+			],
+			"box_from": [
+				"v1.552"
 			]
 		},
 		{
 			"id": "intercom_panel",
 			"view": "v1",
-			"box": [
-				881,
-				495,
-				922,
-				550
-			],
+			"box": null,
 			"name": "intercom panel beside the hatch",
 			"kind": "code",
 			"anchor": "wall",
@@ -1015,16 +1087,17 @@
 					"bottom": 0.62
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no intercom panel shows beside the hatch"
 		},
 		{
 			"id": "tread_mat",
 			"view": "v1",
 			"box": [
-				771,
-				605,
-				1101,
-				716
+				727,
+				297,
+				897,
+				560
 			],
 			"name": "grated dust mat before a hatch",
 			"kind": "code",
@@ -1046,16 +1119,19 @@
 				}
 			],
 			"lies": "floor",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w15"
+			]
 		},
 		{
 			"id": "grow_light_bar",
 			"view": "v1",
 			"box": [
-				771,
-				454,
-				1459,
-				771
+				757,
+				440,
+				1472,
+				773
 			],
 			"name": "LED grow-light bar housing over the plot",
 			"kind": "code",
@@ -1069,7 +1145,77 @@
 			"thing": "prop:greenhouse_grow_light_bar",
 			"made": "kit piece",
 			"group": "kit: light",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.592",
+				"v1.326",
+				"v1.343",
+				"v1.436",
+				"v1.453",
+				"v1.468",
+				"v1.490",
+				"v1.492",
+				"v1.495",
+				"v1.508",
+				"v1.595",
+				"v1.716",
+				"v1.223",
+				"v1.62",
+				"v1.78",
+				"v1.116",
+				"v1.136",
+				"v1.137",
+				"v1.145",
+				"v1.154",
+				"v1.181",
+				"v1.250",
+				"v1.252",
+				"v1.254",
+				"v1.260",
+				"v1.292",
+				"v1.353",
+				"v1.389",
+				"v1.396",
+				"v1.402",
+				"v1.417",
+				"v1.419",
+				"v1.449",
+				"v1.452",
+				"v1.461",
+				"v1.469",
+				"v1.471",
+				"v1.472",
+				"v1.473",
+				"v1.479",
+				"v1.486",
+				"v1.489",
+				"v1.491",
+				"v1.496",
+				"v1.498",
+				"v1.503",
+				"v1.510",
+				"v1.514",
+				"v1.521",
+				"v1.526",
+				"v1.530",
+				"v1.537",
+				"v1.539",
+				"v1.541",
+				"v1.546",
+				"v1.572",
+				"v1.574",
+				"v1.584",
+				"v1.627",
+				"v1.639",
+				"v1.666",
+				"v1.680",
+				"v1.686",
+				"v1.695",
+				"v1.697",
+				"v1.719",
+				"v1.746",
+				"v1.w48"
+			]
 		},
 		{
 			"id": "grow_light_glow",
@@ -1092,16 +1238,19 @@
 			"thing": "prop:greenhouse_grow_light_glow",
 			"made": "kit piece",
 			"group": "kit: light",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.w28"
+			]
 		},
 		{
 			"id": "rig_rail",
 			"view": "v1",
 			"box": [
-				743,
-				248,
-				2009,
-				771
+				909,
+				453,
+				1652,
+				511
 			],
 			"name": "steel frame rail of the grow-light gantry",
 			"kind": "code",
@@ -1116,16 +1265,20 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.592",
+				"v1.w59"
+			]
 		},
 		{
 			"id": "rig_hanger",
 			"view": "v1",
 			"box": [
-				826,
+				811,
 				0,
-				1046,
-				578
+				1051,
+				539
 			],
 			"name": "wire rope hanger from the dome to the gantry",
 			"kind": "code",
@@ -1140,16 +1293,30 @@
 			"made": "kit piece",
 			"group": "kit: ceiling",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.592",
+				"v1.254",
+				"v1.695",
+				"v1.75",
+				"v1.128",
+				"v1.192",
+				"v1.284",
+				"v1.294",
+				"v1.429",
+				"v1.522",
+				"v1.565",
+				"v1.w26"
+			]
 		},
 		{
 			"id": "irrigation_boom",
 			"view": "v1",
 			"box": [
-				743,
-				248,
-				2009,
-				771
+				727,
+				244,
+				1995,
+				773
 			],
 			"name": "irrigation boom with drip emitters beside a light bar",
 			"kind": "code",
@@ -1164,16 +1331,208 @@
 			"made": "kit piece",
 			"group": "kit: pipe",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.w15",
+				"v1.592",
+				"v1.w59",
+				"v1.606",
+				"v1.326",
+				"v1.343",
+				"v1.436",
+				"v1.453",
+				"v1.468",
+				"v1.490",
+				"v1.492",
+				"v1.495",
+				"v1.508",
+				"v1.595",
+				"v1.716",
+				"v1.226",
+				"v1.303",
+				"v1.600",
+				"v1.611",
+				"v1.w30",
+				"v1.223",
+				"v1.62",
+				"v1.78",
+				"v1.116",
+				"v1.136",
+				"v1.137",
+				"v1.145",
+				"v1.154",
+				"v1.181",
+				"v1.250",
+				"v1.252",
+				"v1.254",
+				"v1.260",
+				"v1.292",
+				"v1.353",
+				"v1.389",
+				"v1.396",
+				"v1.402",
+				"v1.417",
+				"v1.419",
+				"v1.449",
+				"v1.452",
+				"v1.461",
+				"v1.469",
+				"v1.471",
+				"v1.472",
+				"v1.473",
+				"v1.479",
+				"v1.486",
+				"v1.489",
+				"v1.491",
+				"v1.496",
+				"v1.498",
+				"v1.503",
+				"v1.510",
+				"v1.514",
+				"v1.521",
+				"v1.526",
+				"v1.530",
+				"v1.537",
+				"v1.539",
+				"v1.541",
+				"v1.546",
+				"v1.572",
+				"v1.574",
+				"v1.584",
+				"v1.627",
+				"v1.639",
+				"v1.666",
+				"v1.680",
+				"v1.686",
+				"v1.695",
+				"v1.697",
+				"v1.719",
+				"v1.746",
+				"v1.w48",
+				"v1.192",
+				"v1.294",
+				"v1.522",
+				"v1.565",
+				"v1.21",
+				"v1.126",
+				"v1.131",
+				"v1.135",
+				"v1.138",
+				"v1.148",
+				"v1.153",
+				"v1.156",
+				"v1.157",
+				"v1.158",
+				"v1.164",
+				"v1.166",
+				"v1.169",
+				"v1.171",
+				"v1.186",
+				"v1.188",
+				"v1.190",
+				"v1.199",
+				"v1.210",
+				"v1.234",
+				"v1.243",
+				"v1.266",
+				"v1.307",
+				"v1.308",
+				"v1.316",
+				"v1.318",
+				"v1.319",
+				"v1.345",
+				"v1.347",
+				"v1.355",
+				"v1.357",
+				"v1.358",
+				"v1.369",
+				"v1.378",
+				"v1.379",
+				"v1.380",
+				"v1.383",
+				"v1.388",
+				"v1.392",
+				"v1.395",
+				"v1.422",
+				"v1.424",
+				"v1.437",
+				"v1.439",
+				"v1.441",
+				"v1.450",
+				"v1.464",
+				"v1.466",
+				"v1.478",
+				"v1.481",
+				"v1.483",
+				"v1.493",
+				"v1.494",
+				"v1.502",
+				"v1.506",
+				"v1.507",
+				"v1.509",
+				"v1.513",
+				"v1.515",
+				"v1.517",
+				"v1.523",
+				"v1.524",
+				"v1.531",
+				"v1.532",
+				"v1.534",
+				"v1.535",
+				"v1.538",
+				"v1.542",
+				"v1.556",
+				"v1.558",
+				"v1.561",
+				"v1.568",
+				"v1.569",
+				"v1.579",
+				"v1.585",
+				"v1.593",
+				"v1.599",
+				"v1.601",
+				"v1.612",
+				"v1.624",
+				"v1.632",
+				"v1.640",
+				"v1.664",
+				"v1.671",
+				"v1.673",
+				"v1.676",
+				"v1.678",
+				"v1.684",
+				"v1.692",
+				"v1.705",
+				"v1.715",
+				"v1.720",
+				"v1.726",
+				"v1.727",
+				"v1.730",
+				"v1.739",
+				"v1.747",
+				"v1.748",
+				"v1.753",
+				"v1.755",
+				"v1.w47",
+				"v1.w49",
+				"v1.w50",
+				"v1.w51",
+				"v1.w56",
+				"v1.w60",
+				"v1.w72",
+				"v1.w73",
+				"v1.w74",
+				"v1.w75"
+			]
 		},
 		{
 			"id": "water_tank",
 			"view": "v1",
 			"box": [
-				399,
-				509,
-				633,
-				729
+				405,
+				496,
+				622,
+				717
 			],
 			"name": "square water tank on a steel stand, the irrigation main's source",
 			"kind": "generate",
@@ -1197,7 +1556,23 @@
 			],
 			"solid": true,
 			"close_up": "closeup/world1-needs/pro/greenhouse-water_tank.png",
-			"why": "the parts check (2026-10-09): its close-up shows an open tank holding water, a corner overflow lip, a band round its middle, a hatch low on its front and a four-legged stand; its code build has a closed lid with a round hatch, a sight tube, a valve and a cross-braced cage, with no open top, water, overflow lip or legged stand, so the prop pipeline makes it"
+			"why": "the parts check (2026-10-09): its close-up shows an open tank holding water, a corner overflow lip, a band round its middle, a hatch low on its front and a four-legged stand; its code build has a closed lid with a round hatch, a sight tube, a valve and a cross-braced cage, with no open top, water, overflow lip or legged stand, so the prop pipeline makes it",
+			"box_from": [
+				"v1.w53",
+				"v1.40",
+				"v1.74",
+				"v1.240",
+				"v1.381",
+				"v1.403",
+				"v1.603",
+				"v1.w33",
+				"v1.w36",
+				"v1.w52",
+				"v1.w61",
+				"v1.w68",
+				"v1.w70",
+				"v1.w71"
+			]
 		},
 		{
 			"id": "dosing_unit",
@@ -1228,16 +1603,19 @@
 					"facing": 180
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w53"
+			]
 		},
 		{
 			"id": "control_console",
 			"view": "v1",
 			"box": [
-				1527,
-				234,
-				2036,
-				592
+				1523,
+				222,
+				2033,
+				593
 			],
 			"name": "grow control console with a bank of small screens",
 			"kind": "code",
@@ -1259,16 +1637,73 @@
 					"facing": 180
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w59",
+				"v1.606",
+				"v1.138",
+				"v1.164",
+				"v1.166",
+				"v1.307",
+				"v1.357",
+				"v1.369",
+				"v1.378",
+				"v1.379",
+				"v1.383",
+				"v1.388",
+				"v1.422",
+				"v1.424",
+				"v1.437",
+				"v1.439",
+				"v1.441",
+				"v1.450",
+				"v1.464",
+				"v1.466",
+				"v1.478",
+				"v1.507",
+				"v1.509",
+				"v1.515",
+				"v1.531",
+				"v1.558",
+				"v1.561",
+				"v1.568",
+				"v1.593",
+				"v1.599",
+				"v1.601",
+				"v1.612",
+				"v1.632",
+				"v1.640",
+				"v1.671",
+				"v1.676",
+				"v1.678",
+				"v1.684",
+				"v1.692",
+				"v1.715",
+				"v1.727",
+				"v1.730",
+				"v1.747",
+				"v1.w72",
+				"v1.w73",
+				"v1.w74",
+				"v1.w75",
+				"v1.54",
+				"v1.143",
+				"v1.373",
+				"v1.391",
+				"v1.497",
+				"v1.516",
+				"v1.602",
+				"v1.w76"
+			]
 		},
 		{
 			"id": "work_desk",
 			"view": "v1",
 			"box": [
-				2147,
-				454,
-				2367,
-				716
+				2175,
+				487,
+				2351,
+				694
 			],
 			"name": "steel writing desk with a drawer pedestal",
 			"kind": "code",
@@ -1290,16 +1725,31 @@
 					"facing": 180
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w37",
+				"v1.302",
+				"v1.359",
+				"v1.367",
+				"v1.408",
+				"v1.582",
+				"v1.620",
+				"v1.644",
+				"v1.645",
+				"v1.682",
+				"v1.694",
+				"v1.736",
+				"v1.751"
+			]
 		},
 		{
 			"id": "chair",
 			"view": "v1",
 			"box": [
-				2064,
-				647,
-				2174,
-				757
+				2083,
+				662,
+				2179,
+				766
 			],
 			"name": "swivel work chair",
 			"kind": "generate",
@@ -1327,16 +1777,19 @@
 					"facing": 10
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w57"
+			]
 		},
 		{
 			"id": "seedling_shelf",
 			"view": "v1",
 			"box": [
-				949,
-				248,
-				1266,
-				468
+				959,
+				251,
+				1258,
+				449
 			],
 			"name": "seedling rack: open steel shelves with a grow-light tube under each",
 			"kind": "code",
@@ -1364,16 +1817,26 @@
 					"facing": 270
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.192",
+				"v1.522",
+				"v1.157",
+				"v1.158",
+				"v1.308",
+				"v1.345",
+				"v1.395",
+				"v1.673"
+			]
 		},
 		{
 			"id": "humidifier",
 			"view": "v1",
 			"box": [
-				399,
-				509,
-				633,
-				729
+				405,
+				496,
+				622,
+				717
 			],
 			"name": "ultrasonic humidifier: the room's damp air for mycelium (shown while one is fitted)",
 			"kind": "code",
@@ -1395,16 +1858,32 @@
 					"facing": 90
 				}
 			],
-			"solid": true
+			"solid": true,
+			"box_from": [
+				"v1.w53",
+				"v1.40",
+				"v1.74",
+				"v1.240",
+				"v1.381",
+				"v1.403",
+				"v1.603",
+				"v1.w33",
+				"v1.w36",
+				"v1.w52",
+				"v1.w61",
+				"v1.w68",
+				"v1.w70",
+				"v1.w71"
+			]
 		},
 		{
 			"id": "dock_pad_one",
 			"view": "v1",
 			"box": [
-				1362,
-				1073,
-				1789,
-				1321
+				1394,
+				1185,
+				1472,
+				1338
 			],
 			"name": "robot dock pad, bay one's stripe",
 			"kind": "code",
@@ -1419,16 +1898,19 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.140"
+			]
 		},
 		{
 			"id": "dock_pad_two",
 			"view": "v1",
 			"box": [
-				1362,
-				1073,
-				1789,
-				1321
+				1542,
+				1186,
+				1666,
+				1277
 			],
 			"name": "robot dock pad, bay two's stripe",
 			"kind": "code",
@@ -1443,16 +1925,19 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.195"
+			]
 		},
 		{
 			"id": "dock_pad_three",
 			"view": "v1",
 			"box": [
-				1362,
-				1073,
-				1789,
-				1321
+				1644,
+				1135,
+				1761,
+				1219
 			],
 			"name": "robot dock pad, bay three's stripe",
 			"kind": "code",
@@ -1467,16 +1952,19 @@
 			"made": "kit piece",
 			"group": "kit: floor",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.206"
+			]
 		},
 		{
 			"id": "charge_post",
 			"view": "v1",
 			"box": [
-				1362,
-				1073,
-				1789,
-				1321
+				1394,
+				1070,
+				1761,
+				1338
 			],
 			"name": "robot charging post with its charge bar's window",
 			"kind": "code",
@@ -1490,16 +1978,32 @@
 			"thing": "prop:greenhouse_charge_post",
 			"made": "kit piece",
 			"group": "kit: furniture",
-			"at": []
+			"at": [],
+			"box_from": [
+				"v1.140",
+				"v1.195",
+				"v1.206",
+				"v1.52",
+				"v1.67",
+				"v1.110",
+				"v1.111",
+				"v1.124",
+				"v1.304",
+				"v1.426",
+				"v1.575",
+				"v1.597",
+				"v1.689",
+				"v1.w21"
+			]
 		},
 		{
 			"id": "seed_bin",
 			"view": "v1",
 			"box": [
-				1968,
-				771,
-				2339,
-				991
+				2026,
+				795,
+				2275,
+				1013
 			],
 			"name": "the station's seed bin, open topped",
 			"kind": "generate",
@@ -1515,7 +2019,10 @@
 			"group": "kit: furniture",
 			"at": [],
 			"close_up": "closeup/world1-needs/pro-room/greenhouse-seed_bin.png",
-			"why": "the parts check (2026-10-09): its close-up shows a hopper with sloped side cheeks, a recessed front pull, a front panel and an open plinth at its foot; its code build is a straight-walled bin with a rim, a bead and end handles, with none of those parts, so the prop pipeline makes it"
+			"why": "the parts check (2026-10-09): its close-up shows a hopper with sloped side cheeks, a recessed front pull, a front panel and an open plinth at its foot; its code build is a straight-walled bin with a rim, a bead and end handles, with none of those parts, so the prop pipeline makes it",
+			"box_from": [
+				"v1.w64"
+			]
 		},
 		{
 			"id": "soil_bin",
@@ -1540,16 +2047,19 @@
 			"group": "kit: furniture",
 			"at": [],
 			"close_up": "closeup/world1-needs/pro/greenhouse-soil_bin.png",
-			"why": "the parts check (2026-10-09): its close-up shows a pressed rib across its end walls that its code build lacks, so the prop pipeline makes it"
+			"why": "the parts check (2026-10-09): its close-up shows a pressed rib across its end walls that its code build lacks, so the prop pipeline makes it",
+			"box_from": [
+				"v1.w67"
+			]
 		},
 		{
 			"id": "crop_crate",
 			"view": "v1",
 			"box": [
-				1968,
-				771,
-				2339,
-				991
+				2026,
+				796,
+				2275,
+				1013
 			],
 			"name": "the station's slatted crop crate",
 			"kind": "generate",
@@ -1565,16 +2075,19 @@
 			"group": "kit: furniture",
 			"at": [],
 			"close_up": "closeup/world1-needs/pro-room/greenhouse-crop_crate.png",
-			"why": "the parts check (2026-10-09): its close-up shows wooden slats in a steel angle frame with rivet rows, a slatted floor, and a white steel end panel with a recessed grip and a hinged hatch; its code build has no steel end panel, grip, hatch or rivets, so the prop pipeline makes it"
+			"why": "the parts check (2026-10-09): its close-up shows wooden slats in a steel angle frame with rivet rows, a slatted floor, and a white steel end panel with a recessed grip and a hinged hatch; its code build has no steel end panel, grip, hatch or rivets, so the prop pipeline makes it",
+			"box_from": [
+				"v1.w34"
+			]
 		},
 		{
 			"id": "wall_screen_cluster",
 			"view": "v1",
 			"box": [
-				2083,
-				469,
-				2169,
-				528
+				2085,
+				471,
+				2160,
+				529
 			],
 			"name": "cluster of small screens on a bracket over the desk",
 			"kind": "code",
@@ -1594,16 +2107,20 @@
 					"across": -5.55,
 					"bottom": 1.9
 				}
+			],
+			"box_from": [
+				"v1.529",
+				"v1.581"
 			]
 		},
 		{
 			"id": "status_display",
 			"view": "v1",
 			"box": [
-				1527,
-				234,
-				2036,
-				413
+				1523,
+				222,
+				2026,
+				422
 			],
 			"name": "grow status display over the robot station",
 			"kind": "code",
@@ -1623,16 +2140,50 @@
 					"across": 4.2,
 					"bottom": 1.45
 				}
+			],
+			"box_from": [
+				"v1.138",
+				"v1.307",
+				"v1.357",
+				"v1.369",
+				"v1.378",
+				"v1.379",
+				"v1.383",
+				"v1.388",
+				"v1.422",
+				"v1.441",
+				"v1.450",
+				"v1.464",
+				"v1.466",
+				"v1.478",
+				"v1.507",
+				"v1.515",
+				"v1.558",
+				"v1.561",
+				"v1.678",
+				"v1.684",
+				"v1.692",
+				"v1.715",
+				"v1.730",
+				"v1.w72",
+				"v1.w73",
+				"v1.w74",
+				"v1.w75",
+				"v1.143",
+				"v1.373",
+				"v1.391",
+				"v1.516",
+				"v1.w76"
 			]
 		},
 		{
 			"id": "cable_bundle",
 			"view": "v1",
 			"box": [
-				2064,
-				179,
-				2339,
-				413
+				2025,
+				200,
+				2313,
+				399
 			],
 			"name": "cable run clipped along the wall's top",
 			"kind": "code",
@@ -1688,16 +2239,21 @@
 					]
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.289",
+				"v1.102",
+				"v1.536"
+			]
 		},
 		{
 			"id": "cable_drop",
 			"view": "v1",
 			"box": [
-				2339,
-				179,
-				2422,
-				413
+				2311,
+				339,
+				2354,
+				432
 			],
 			"name": "cable drop from the wall's top run down to a box",
 			"kind": "code",
@@ -1723,17 +2279,15 @@
 					]
 				}
 			],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.313"
+			]
 		},
 		{
 			"id": "wall_lower_patched",
 			"view": "v1",
-			"box": [
-				1514,
-				881,
-				2064,
-				1046
-			],
+			"box": null,
 			"name": "lower wall panel with a welded patch and taped repairs",
 			"kind": "code",
 			"anchor": "wall",
@@ -1747,17 +2301,13 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no patched lower panel can be told apart in the concept"
 		},
 		{
 			"id": "wall_upper_patched",
 			"view": "v1",
-			"box": [
-				1514,
-				881,
-				2064,
-				1046
-			],
+			"box": null,
 			"name": "upper wall panel with a welded patch",
 			"kind": "code",
 			"anchor": "wall",
@@ -1771,16 +2321,17 @@
 			"made": "kit piece",
 			"group": "kit: wall",
 			"at": [],
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"unseen": "no patched upper panel can be told apart in the concept"
 		},
 		{
 			"id": "waste_bin",
 			"view": "v1",
 			"box": [
-				2257,
-				619,
-				2339,
-				716
+				2131,
+				584,
+				2341,
+				744
 			],
 			"name": "waste bin by the desk",
 			"kind": "code",
@@ -1801,16 +2352,19 @@
 					"z": -7.55,
 					"facing": 270
 				}
+			],
+			"box_from": [
+				"v1.w54"
 			]
 		},
 		{
 			"id": "floor_grating",
 			"view": "v1",
 			"box": [
-				771,
-				605,
+				791,
+				607,
 				1101,
-				716
+				706
 			],
 			"name": "floor grating over the drain duct",
 			"kind": "code",
@@ -1837,16 +2391,29 @@
 				}
 			],
 			"lies": "floor",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.326",
+				"v1.343",
+				"v1.436",
+				"v1.453",
+				"v1.468",
+				"v1.490",
+				"v1.492",
+				"v1.495",
+				"v1.508",
+				"v1.595",
+				"v1.716"
+			]
 		},
 		{
 			"id": "under_floor_box",
 			"view": "v1",
 			"box": [
-				771,
-				605,
+				791,
+				607,
 				1101,
-				716
+				706
 			],
 			"name": "duct box under a floor grating",
 			"kind": "code",
@@ -1862,16 +2429,29 @@
 			"group": "kit: floor",
 			"at": [],
 			"why": "laid by room_kit.py under every set-in grating",
-			"repeats": "across the room"
+			"repeats": "across the room",
+			"box_from": [
+				"v1.326",
+				"v1.343",
+				"v1.436",
+				"v1.453",
+				"v1.468",
+				"v1.490",
+				"v1.492",
+				"v1.495",
+				"v1.508",
+				"v1.595",
+				"v1.716"
+			]
 		},
 		{
 			"id": "keyboard",
 			"view": "v1",
 			"box": [
-				1527,
-				234,
-				2036,
-				592
+				1778,
+				494,
+				1860,
+				547
 			],
 			"name": "keyboard on the console's desk",
 			"kind": "code",
@@ -1886,16 +2466,19 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"at": [],
-			"parent": "control_console"
+			"parent": "control_console",
+			"box_from": [
+				"v1.606"
+			]
 		},
 		{
 			"id": "desklamp",
 			"view": "v1",
 			"box": [
-				2243,
+				2246,
 				523,
-				2312,
-				626
+				2315,
+				629
 			],
 			"name": "desk lamp",
 			"kind": "generate",
@@ -1910,16 +2493,19 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"at": [],
-			"parent": "work_desk"
+			"parent": "work_desk",
+			"box_from": [
+				"v1.w37"
+			]
 		},
 		{
 			"id": "seed_tray",
 			"view": "v1",
 			"box": [
-				965,
-				293,
-				1145,
-				369
+				959,
+				289,
+				1139,
+				371
 			],
 			"name": "seedling tray of young plants",
 			"kind": "generate",
@@ -1934,7 +2520,11 @@
 			"made": "kit piece",
 			"group": "kit: furniture",
 			"at": [],
-			"parent": "seedling_shelf"
+			"parent": "seedling_shelf",
+			"box_from": [
+				"v1.158",
+				"v1.308"
+			]
 		}
 	]
 }

@@ -32,9 +32,9 @@
    "view": "v1",
    "box": [
     1534,
-    255,
-    2470,
-    970
+    268,
+    2461,
+    969
    ],
    "name": "the rocket's aft section on its side: engine end and tanks, torn open at the break, steel engine bell, one leg crushed under it and one standing up",
    "kind": "generate",
@@ -61,16 +61,93 @@
      ]
     }
    ],
-   "why": "E1"
+   "why": "E1",
+   "box_from": [
+    "v1.5",
+    "v1.17",
+    "v1.18",
+    "v1.22",
+    "v1.25",
+    "v1.29",
+    "v1.36",
+    "v1.37",
+    "v1.38",
+    "v1.41",
+    "v1.43",
+    "v1.63",
+    "v1.64",
+    "v1.68",
+    "v1.69",
+    "v1.71",
+    "v1.75",
+    "v1.78",
+    "v1.79",
+    "v1.82",
+    "v1.86",
+    "v1.87",
+    "v1.93",
+    "v1.99",
+    "v1.101",
+    "v1.102",
+    "v1.106",
+    "v1.109",
+    "v1.110",
+    "v1.116",
+    "v1.126",
+    "v1.129",
+    "v1.130",
+    "v1.133",
+    "v1.135",
+    "v1.137",
+    "v1.141",
+    "v1.142",
+    "v1.143",
+    "v1.144",
+    "v1.145",
+    "v1.152",
+    "v1.153",
+    "v1.155",
+    "v1.156",
+    "v1.158",
+    "v1.159",
+    "v1.163",
+    "v1.164",
+    "v1.165",
+    "v1.169",
+    "v1.171",
+    "v1.173",
+    "v1.176",
+    "v1.177",
+    "v1.190",
+    "v1.196",
+    "v1.198",
+    "v1.199",
+    "v1.200",
+    "v1.201",
+    "v1.203",
+    "v1.209",
+    "v1.221",
+    "v1.224",
+    "v1.229",
+    "v1.234",
+    "v1.238",
+    "v1.239",
+    "v1.w1",
+    "v1.w3",
+    "v1.w5",
+    "v1.w6",
+    "v1.w17",
+    "v1.w18"
+   ]
   },
   {
    "id": "forward_section",
    "view": "v1",
    "box": [
-    846,
-    378,
-    1355,
-    970
+    854,
+    396,
+    1335,
+    957
    ],
    "name": "the crew capsule and nose on its side, torn off and turned, its hatch open to the sky",
    "kind": "generate",
@@ -97,16 +174,44 @@
      ]
     }
    ],
-   "why": "E2"
+   "why": "E2",
+   "box_from": [
+    "v1.4",
+    "v1.14",
+    "v1.20",
+    "v1.31",
+    "v1.47",
+    "v1.54",
+    "v1.65",
+    "v1.66",
+    "v1.77",
+    "v1.80",
+    "v1.85",
+    "v1.92",
+    "v1.139",
+    "v1.148",
+    "v1.149",
+    "v1.151",
+    "v1.154",
+    "v1.175",
+    "v1.181",
+    "v1.184",
+    "v1.188",
+    "v1.204",
+    "v1.215",
+    "v1.220",
+    "v1.225",
+    "v1.w16"
+   ]
   },
   {
    "id": "work_lamp",
    "view": "v1",
    "box": [
-    1486,
-    771,
-    1582,
-    894
+    1312,
+    797,
+    1584,
+    864
    ],
    "name": "work lamp still burning in the break",
    "kind": "generate",
@@ -133,16 +238,19 @@
      ]
     }
    ],
-   "why": "E4"
+   "why": "E4",
+   "box_from": [
+    "v1.62"
+   ]
   },
   {
    "id": "hull_panel",
    "view": "v1",
    "box": [
-    110,
-    901,
-    420,
-    1039
+    115,
+    915,
+    411,
+    1035
    ],
    "name": "large torn curved hull panel",
    "kind": "generate",
@@ -196,16 +304,22 @@
      ]
     }
    ],
-   "why": "E6"
+   "why": "E6",
+   "box_from": [
+    "v1.46",
+    "v1.128",
+    "v1.w12",
+    "v1.w19"
+   ]
   },
   {
    "id": "small_panel",
    "view": "v1",
    "box": [
-    1039,
-    1094,
-    1218,
-    1176
+    1038,
+    1098,
+    1206,
+    1173
    ],
    "name": "small torn hull panel",
    "kind": "generate",
@@ -246,16 +360,20 @@
      ]
     }
    ],
-   "why": "E7"
+   "why": "E7",
+   "box_from": [
+    "v1.95",
+    "v1.w13"
+   ]
   },
   {
    "id": "pressure_sphere",
    "view": "v1",
    "box": [
-    688,
-    929,
-    874,
-    1066
+    698,
+    939,
+    822,
+    1051
    ],
    "name": "helium pressure sphere, dented",
    "kind": "generate",
@@ -294,16 +412,19 @@
      ]
     }
    ],
-   "why": "E8"
+   "why": "E8",
+   "box_from": [
+    "v1.w8"
+   ]
   },
   {
    "id": "foil_blanket",
    "view": "v1",
    "box": [
-    475,
-    1149,
-    819,
-    1300
+    478,
+    1141,
+    812,
+    1296
    ],
    "name": "torn gold foil blanket lying flat",
    "kind": "generate",
@@ -330,16 +451,19 @@
      ]
     }
    ],
-   "why": "E9"
+   "why": "E9",
+   "box_from": [
+    "v1.w10"
+   ]
   },
   {
    "id": "access_cover",
    "view": "v1",
    "box": [
-    1232,
-    1259,
-    1465,
-    1355
+    1271,
+    1269,
+    1452,
+    1349
    ],
    "name": "round access cover",
    "kind": "generate",
@@ -366,16 +490,19 @@
      ]
     }
    ],
-   "why": "E10"
+   "why": "E10",
+   "box_from": [
+    "v1.w11"
+   ]
   },
   {
    "id": "leg_strut",
    "view": "v1",
    "box": [
-    1460,
-    1055,
-    1810,
-    1245
+    1473,
+    1065,
+    1809,
+    1259
    ],
    "name": "torn-off landing leg, its strut half",
    "kind": "generate",
@@ -402,16 +529,23 @@
      ]
     }
    ],
-   "why": "E11, split in two (the game's 1.4 m piece limit)"
+   "why": "E11, split in two (the game's 1.4 m piece limit)",
+   "box_from": [
+    "v1.112",
+    "v1.122",
+    "v1.228",
+    "v1.236",
+    "v1.w14"
+   ]
   },
   {
    "id": "leg_foot",
    "view": "v1",
    "box": [
-    1700,
-    1165,
-    1810,
-    1250
+    1473,
+    1065,
+    1796,
+    1259
    ],
    "name": "torn-off landing leg, its footpad half",
    "kind": "generate",
@@ -438,16 +572,19 @@
      ]
     }
    ],
-   "why": "E11, split in two (the game's 1.4 m piece limit)"
+   "why": "E11, split in two (the game's 1.4 m piece limit)",
+   "box_from": [
+    "v1.w14"
+   ]
   },
   {
    "id": "ring_frame",
    "view": "v1",
    "box": [
-    1101,
-    454,
-    1342,
-    963
+    1125,
+    489,
+    1335,
+    922
    ],
    "name": "torn ring frame segment standing on its ends",
    "kind": "generate",
@@ -474,16 +611,28 @@
      ]
     }
    ],
-   "why": "E12 (code had no plain arc; pipeline)"
+   "why": "E12 (code had no plain arc; pipeline)",
+   "box_from": [
+    "v1.20",
+    "v1.31",
+    "v1.54",
+    "v1.66",
+    "v1.85",
+    "v1.175",
+    "v1.181",
+    "v1.184",
+    "v1.204",
+    "v1.220"
+   ]
   },
   {
    "id": "tank_dome",
    "view": "v1",
    "box": [
-    1925,
-    1030,
-    2125,
-    1110
+    1975,
+    1038,
+    2122,
+    1111
    ],
    "name": "torn tank dome lying on its back",
    "kind": "generate",
@@ -510,16 +659,20 @@
      ]
     }
    ],
-   "why": "E14"
+   "why": "E14",
+   "box_from": [
+    "v1.90",
+    "v1.213"
+   ]
   },
   {
    "id": "fragment",
    "view": "v1",
    "box": [
-    1397,
-    626,
-    1493,
-    702
+    1400,
+    634,
+    1478,
+    698
    ],
    "name": "small twisted fragment",
    "kind": "generate",
@@ -573,16 +726,21 @@
      ]
     }
    ],
-   "why": "E15"
+   "why": "E15",
+   "box_from": [
+    "v1.108",
+    "v1.146",
+    "v1.216"
+   ]
   },
   {
    "id": "cable_run",
    "view": "v1",
    "box": [
-    1325,
-    515,
-    1555,
-    595
+    1271,
+    517,
+    1599,
+    629
    ],
    "name": "cables across the gap and a loose cable bundle",
    "kind": "code",
@@ -619,7 +777,10 @@
     }
    ],
    "why": "E3, E13 (cable_bundle laid on its back)",
-   "fixed": true
+   "fixed": true,
+   "box_from": [
+    "v1.w22"
+   ]
   }
  ],
  "layout_decision": "2026-10-08, coordinator's layout decision (owner may change): follow concept C2, the rocket lying broken in two on the ground. The aft section is re-laid on its side by eye from C2 (rolled 90 degrees about its length, then its settled pose, 6 degrees off) and both sections are settled within 15 degrees and 30 cm; the forward section rests in a 2.5 m wide dent 30 cm deep where it struck, the two pressure spheres in shallow dents (data/ground/moon.json, dents); small debris (no side over 1.4 m) settles freely, any turn and up to 1 m; the work lamp moved 40 cm off the cables it stood in."
