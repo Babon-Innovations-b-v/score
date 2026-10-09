@@ -93,5 +93,5 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends build-e
  && /root/envs/motion/bin/python -c "import soma, kimodo, pxr, cv2; print('motion ok')" \
  && mkdir -p /root/motion-home && ln -s /root/envs/motion /root/motion-home/env
 
-COPY run.sh /usr/local/bin/characters-run
+COPY --chmod=755 run.sh /usr/local/bin/characters-run
 ENV LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64
