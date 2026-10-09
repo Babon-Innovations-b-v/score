@@ -79,6 +79,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   first, a 48 GB one at a third of the pace; vLLM's DeepGEMM and FlashInfer sampler are
   off because the GPU image has no CUDA toolkit), and Pro draws only what fails. `--model klein` stays the
   default for other pictures.
+- **Close-up regions** (`segment.py`, `segment_setup.sh`, `segment_worker.py`; job repaint, 2026-10-08): SAM 2.1's
+  automatic masks (facebookresearch/sam2 at a pinned commit, code and weights Apache-2.0) of every clean close-up,
+  spread over cards (`spread.py`); 73 close-ups took 6 minutes on three L4s, €0.24.
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its
   non-commercial background remover patched out and never fetched; the parts only say where a model's part
   boundaries are (`../library/labels.py --parts`).

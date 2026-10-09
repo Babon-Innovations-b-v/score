@@ -68,6 +68,11 @@ from palette tokens, baked to the maps the game draws. Bible: `workflow/bootstra
   every part ONE material from the kind's allowed list (`details.json` `materials`) by its lit colour; never per
   face. A split that does not register is reported and painted whole. `patchy.py` measures patchy paint (stray
   islands, mixed faces, soft seams; on a baked model also unbaked black) and `route.py plan` refuses patchy labels.
+- **The picture's regions are the painting unit** (`labels.py --regions`, job repaint, 2026-10-08): SAM 2.1's masks of
+  the clean close-up (`../cloud/segment.py`) become regions and looks (`regions.py`: the smallest mask over a pixel,
+  like colours one look), carried onto the model through the corrected camera; the judge names each look's material
+  (with each allowed material's colour here in words). PartCrafter's parts stay for moving pieces and bound where an
+  unseen face's paint is taken from. PartCrafter's parts alone did not follow finishes (the lander's foil patches).
 - **A part's material is what the part is** (job repaint, 2026-10-08): `labels.py --ask` writes each seen part
   outlined on the clean close-up with the object's name and the kind's allowed list (`part_judge.py`), the open judge
   (`../cloud/judge.py`, Qwen3.8-27B) answers, `--answers` paints by it; colour picks only where the judge gave no usable

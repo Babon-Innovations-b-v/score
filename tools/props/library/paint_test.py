@@ -26,7 +26,9 @@ except ImportError:
 
 sys.path.insert(0, str(HERE))
 import labels  # noqa: E402
+import part_judge  # noqa: E402
 import patchy  # noqa: E402
+import regions  # noqa: E402
 import route  # noqa: E402
 
 
@@ -140,6 +142,29 @@ def test_a_worn_edge_is_wear_not_a_second_material():
     # the top's and bottom's edges
     distances[edge] = [6.0, 2.0]  # nearer the second material, yet within the first's reach
     assert (patchy.worn_as_around(mesh, distances) == 0).all()
+
+
+def test_a_patch_on_a_panel_is_its_own_region():
+    """The smallest mask over a pixel wins (a patch on a panel is the patch); a mask over most of the object is not a
+    region; an object pixel no mask covers takes the nearest region."""
+    inside = np.zeros((40, 40), dtype=bool)
+    inside[5:35, 5:35] = True
+    panel = inside.copy()
+    panel[5:35, 20:35] = False  # the left half
+    patch = np.zeros_like(inside)
+    patch[8:14, 8:14] = True
+    found = regions.region_map(np.array([inside, panel, patch]), inside)
+    assert len(np.unique(found[inside])) == 2 and (found[~inside] == -1).all()
+    assert found[10, 10] != found[20, 20] and found[20, 30] == found[20, 20]
+    colours = np.zeros((40, 40, 3))
+    colours[patch] = [55.0, 5.0, 30.0]
+    assert regions.medians(found, colours)[found[10, 10]].tolist() == [55.0, 5.0, 30.0]
+
+
+def test_a_material_s_colour_is_put_in_words():
+    assert part_judge.colour_words([0.03, 0.012, 0.004]) == "dark brown"
+    assert part_judge.colour_words([0.2, 0.2, 0.2]) == "grey"
+    assert part_judge.colour_words([0.9, 0.9, 0.9]) == "white"
 
 
 def test_the_route_refuses_patchy_labels():
