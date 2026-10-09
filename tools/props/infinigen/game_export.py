@@ -12,8 +12,11 @@ import math
 
 import bpy
 import numpy as np
-from mathutils import Matrix, Vector
+from mathutils import Matrix
 from mathutils.bvhtree import BVHTree
+
+import ground
+import life
 
 # Blender (z up) to glTF and Godot (y up): x stays, y becomes -z, z becomes y.
 TO_GODOT = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, -1, 0, 0), (0, 0, 0, 1)))
@@ -157,11 +160,10 @@ def ground_model(high, side, cell, size, folder, cover=False):
     """The game's ground: a grid at `cell` metres laid on the full ground, the full ground's look baked onto it.
     With `cover`, its colour is instead the patch seen from straight above, grass and moss included, so the
     cover the game thins out still colours the ground (the meadow's 6.3 M moss clumps are kept as 60 k)."""
-    import ground
     tree = evaluated_bvh(high)
 
     def height_of(x, y):
-        return np.array([_hit_z(tree, px - side / 2, py - side / 2) for px, py in zip(x, y)])
+        return np.array([life.ground_height(tree, px - side / 2, py - side / 2) for px, py in zip(x, y)])
 
     low = ground.grid_object("ground-game", side, cell, height_of)
     maps = bake_onto(low, high, size, folder, reach=0.6)
@@ -206,11 +208,6 @@ def from_above(side, size, path):
         obj.hide_render = False
 
 
-def _hit_z(tree, x, y):
-    hit = tree.ray_cast(Vector((x, y, 1e4)), Vector((0, 0, -1)))
-    return hit[0].z if hit[0] is not None else 0.0
-
-
 def _drawn_triangles(obj):
     depsgraph = bpy.context.evaluated_depsgraph_get()
     mesh = obj.evaluated_get(depsgraph).to_mesh()
@@ -236,7 +233,6 @@ def scatter_copies(scatter_objs):
 
 def realized_source(name):
     """A plain mesh copy of a scatter's source object, everything it draws realized; for baking from."""
-    import life
     source = bpy.data.objects[name]
     copy = source.copy()
     copy.data = source.data.copy() if source.data else None
@@ -398,7 +394,6 @@ def write(folder, spec, ground_entry, models, placements, extra):
 
 def fish_model(armature, meshes, game, folder):
     """The fish for the game: its body at close-up detail (armature kept, weights carried), baked, with its swim."""
-    import life
     for mesh in meshes:
         for modifier in mesh.modifiers:
             if modifier.type == "ARMATURE":

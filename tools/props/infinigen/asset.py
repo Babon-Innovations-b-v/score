@@ -79,6 +79,11 @@ def part_object(source, name):
     return obj
 
 
+def extent(corners):
+    """(lowest corner, highest corner) of the points."""
+    return Vector(tuple(map(min, zip(*corners)))), Vector(tuple(map(max, zip(*corners))))
+
+
 def instanced_bounds(direct, copies):
     """(lowest, highest) corner over the direct mesh and every instance's box."""
     corners = [Vector(corner) for corner in direct.bound_box]
@@ -86,9 +91,7 @@ def instanced_bounds(direct, copies):
         box = [Vector(corner) for corner in source.bound_box]
         for matrix in matrices:
             corners += [matrix @ box[0], matrix @ box[6]]
-    low = Vector((min(c.x for c in corners), min(c.y for c in corners), min(c.z for c in corners)))
-    high = Vector((max(c.x for c in corners), max(c.y for c in corners), max(c.z for c in corners)))
-    return low, high
+    return extent(corners)
 
 
 def export_instanced(spawned, spec, folder):
@@ -122,9 +125,7 @@ def world_bounds(objects):
     for obj in objects:
         evaluated = obj.evaluated_get(depsgraph)
         corners += [evaluated.matrix_world @ Vector(corner) for corner in evaluated.bound_box]
-    low = Vector((min(c.x for c in corners), min(c.y for c in corners), min(c.z for c in corners)))
-    high = Vector((max(c.x for c in corners), max(c.y for c in corners), max(c.z for c in corners)))
-    return low, high
+    return extent(corners)
 
 
 def framing(low, high, aspect=16 / 9, turn_deg=TURN_DEG, lift_deg=LIFT_DEG):

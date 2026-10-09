@@ -12,8 +12,7 @@ import bpy
 import numpy as np
 from mathutils import Euler, Matrix, Vector
 
-# The game's word for each zone scatter, and the Infinigen scatter that makes it.
-VARIANTS = 4
+VARIANTS = 4  # made-once meshes a spot kind's copies share
 
 
 def scatter(kind, ground, zone):

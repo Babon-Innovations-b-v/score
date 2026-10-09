@@ -150,7 +150,6 @@ def walk_around(spec, side):
         if shot.get("ortho_m"):
             cam.data.type = "ORTHO"
             cam.data.ortho_scale = shot["ortho_m"]
-        bpy.context.scene.camera = cam
         bpy.context.scene.render.filepath = str(spec["_out"] / f"view-{name}.png")
         bpy.ops.render.render(write_still=True)
 
@@ -190,7 +189,7 @@ def patch(spec, folder, steps):
     zones = np.load(spec["_folder"] / spec["zones"]) if "zones" in spec else None
     cam = camera(spec, side)
     if spec["kind"] == "moon":
-        high, _ = ground.crater_ground(spec)
+        high = ground.crater_ground(spec)
         high.data.materials.append(ground.regolith())
     else:
         high = ground.heightfield(heights, side, RENDER_CELL_M[spec["kind"]])
@@ -241,7 +240,7 @@ def patch(spec, folder, steps):
 
 def infinigen_kind(kind):
     """The Infinigen scatter behind a game scatter kind."""
-    return {"rock": "pebbles", "rubble": "rubble"}.get(kind, kind)
+    return {"rock": "pebbles"}.get(kind, kind)
 
 
 def fish(spec, folder, steps):
