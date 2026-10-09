@@ -1921,6 +1921,10 @@
 			"tray_plastic": {
 				"token": "rubber",
 				"library": "rubber"
+			},
+			"crate_wood": {
+				"token": "deck",
+				"library": "wood_board"
 			}
 		},
 		"light": {

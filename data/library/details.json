@@ -4359,5 +4359,204 @@
 		],
 		"screens": [],
 		"cuts": []
+	},
+	"greenhouse_water_tank": {
+		"materials": [
+			"painted_panel",
+			"bare_steel",
+			"glass"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					-0.3,
+					1.2
+				],
+				"size": [
+					0.24,
+					0.08
+				],
+				"variant": "label_water"
+			}
+		],
+		"regions": [
+			{
+				"box": [
+					-0.8,
+					0.0,
+					-0.8,
+					0.8,
+					0.53,
+					0.8
+				],
+				"variant": "bare_steel"
+			},
+			{
+				"box": [
+					-0.58,
+					1.38,
+					-0.58,
+					0.58,
+					1.52,
+					0.58
+				],
+				"variant": "glass"
+			}
+		]
+	},
+	"greenhouse_seed_bin": {
+		"materials": [
+			"bare_steel",
+			"potting_soil"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.08,
+					0.5
+				],
+				"size": [
+					0.13,
+					0.055
+				],
+				"variant": "label_seed"
+			}
+		],
+		"regions": [
+			{
+				"box": [
+					0.245,
+					0.0,
+					-0.32,
+					0.3,
+					0.8,
+					0.32
+				],
+				"variant": "bare_steel"
+			},
+			{
+				"box": [
+					-0.3,
+					0.0,
+					-0.32,
+					-0.245,
+					0.8,
+					0.32
+				],
+				"variant": "bare_steel"
+			},
+			{
+				"box": [
+					-0.3,
+					0.0,
+					0.235,
+					0.3,
+					0.8,
+					0.32
+				],
+				"variant": "bare_steel"
+			},
+			{
+				"box": [
+					-0.3,
+					0.0,
+					-0.32,
+					0.3,
+					0.8,
+					-0.235
+				],
+				"variant": "bare_steel"
+			}
+		]
+	},
+	"greenhouse_soil_bin": {
+		"materials": [
+			"bare_steel",
+			"potting_soil"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.25,
+					0.25
+				],
+				"size": [
+					0.12,
+					0.05
+				],
+				"variant": "label_soil"
+			}
+		]
+	},
+	"greenhouse_crop_crate": {
+		"materials": [
+			"crate_wood",
+			"painted_panel"
+		],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.15,
+					0.3
+				],
+				"size": [
+					0.16,
+					0.07
+				],
+				"variant": "label_crops"
+			}
+		]
 	}
 }
