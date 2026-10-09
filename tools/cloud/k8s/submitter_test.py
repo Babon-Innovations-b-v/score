@@ -121,3 +121,87 @@ def test_resume_takes_up_the_newest_generation():
     assert run.jobs["bake"]["generation"] == 2 and run.jobs["bake"]["submitted"]
     assert run.jobs["other"]["submitted"] is None
     assert run.allowed("other") == ["gpu-24gb", "gpu-48gb"]
+
+
+class LiveKubectl:
+    """A cluster's Jobs as kubectl sees them: what the submitter applies is there, pods and events are set by the
+    test."""
+
+    def __init__(self):
+        self.jobs, self.pods, self.events, self.deleted = {}, [], [], []
+
+    def json(self, *arguments):
+        if arguments[1] == "jobs,pods":
+            return {"items": list(self.jobs.values()) + self.pods}
+        return {"items": self.events if arguments[1] == "events" else []}
+
+    def apply(self, objects):
+        for item in objects:
+            self.jobs[item["metadata"]["name"]] = item
+
+    def delete_job(self, name):
+        self.deleted.append(name)
+        self.jobs.pop(name, None)
+
+
+def waiting_pod(job_name, job_label, since):
+    return {"kind": "Pod", "metadata": {"name": f"{job_name}-pod", "labels": {"score.dev/job": job_label}},
+            "spec": {}, "status": {"conditions": [{"type": "PodScheduled", "status": "False",
+                                                   "lastTransitionTime": since}]}}
+
+
+def no_stock(pod_name, when):
+    return {"reason": "NotTriggerScaleUp", "involvedObject": {"name": pod_name}, "lastTimestamp": when,
+            "message": "pod didn't trigger scale-up: 1 in backoff after failed scale-up"}
+
+
+def test_a_run_never_settles_and_takes_stock_that_comes_back(monkeypatch):
+    """The first class is out of stock, then the second; the kind widens one class at a time and keeps the earlier
+    ones, a Job that waited past its deadline is made again rather than failed, and when the first class's stock
+    comes back the waiting job runs there."""
+    clock = [submit.parse_time("2026-10-09T14:00:00Z")]
+    monkeypatch.setattr(submit.time, "time", lambda: clock[0])
+    kubectl = LiveKubectl()
+    spec = {"kind": "meshparts", "image": "image", "minutes": 10}
+    run = submit.Run("r1", {"part": spec}, kubectl, PoolCluster(0))
+    order, _late = submit.class_order("meshparts", spec, POOLS)
+    assert order == ["gpu-80gb", "gpu-48gb", "gpu-24gb"]
+    run.make("part")
+
+    def poll_with_no_stock(minutes):
+        name = submit.manifests.job_name("r1", "part", run.jobs["part"]["generation"])
+        stamp = time_text(clock[0])
+        kubectl.pods = [waiting_pod(name, "part", stamp)]
+        clock[0] += minutes * 60
+        kubectl.events = [no_stock(f"{name}-pod", stamp)]
+        jobs, pods, no_grow = run.read()
+        run.update_job("part", run.current("part", jobs), pods.get("part", []))
+        run.widen(pods, no_grow)
+
+    poll_with_no_stock(2)
+    assert run.allowed("part") == ["gpu-80gb", "gpu-48gb"] and run.jobs["part"]["generation"] == 1
+    poll_with_no_stock(2)
+    assert run.allowed("part") == order and run.jobs["part"]["generation"] == 2
+    poll_with_no_stock(2)
+    assert run.allowed("part") == order and run.jobs["part"]["generation"] == 2
+
+    current = kubectl.jobs[submit.manifests.job_name("r1", "part", 2)]
+    current["status"] = {"conditions": [{"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}
+    jobs, pods, _no_grow = run.read()
+    run.update_job("part", run.current("part", jobs), [])
+    assert run.jobs["part"]["state"] == "waiting" and run.jobs["part"]["generation"] == 3
+    remade = kubectl.jobs[submit.manifests.job_name("r1", "part", 3)]
+    assert remade["metadata"]["annotations"]["score.dev/classes"] == ",".join(order)
+
+    started = time_text(clock[0])
+    kubectl.pods = [{"kind": "Pod", "metadata": {"name": "p", "labels": {"score.dev/job": "part"}},
+                     "spec": {"nodeName": "node-80gb"},
+                     "status": {"containerStatuses": [{"state": {"running": {"startedAt": started}}}]}}]
+    remade["status"] = {"conditions": [{"type": "Complete", "status": "True"}]}
+    jobs, pods, _no_grow = run.read()
+    run.update_job("part", run.current("part", jobs), pods["part"])
+    assert run.jobs["part"]["state"] == "done" and run.jobs["part"]["node"] == "node-80gb"
+
+
+def time_text(seconds):
+    return submit.datetime.datetime.fromtimestamp(seconds, submit.datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
