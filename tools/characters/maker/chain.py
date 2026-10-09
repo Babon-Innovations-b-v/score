@@ -21,6 +21,7 @@ The steps, each a program in its own environment:
   face      a first build's head as a depth view (face_depth.py), the face drawn on it (klein base 4B with the
             refcontrol depth LoRA), the first seed kept (face_pick.py)
   build     the person built (people/body.py), then made a UsdSkel asset (skel_usd.py)
+  review    turntables of each outfit and frames through a few clips, rendered by Cycles (blender_review.py)
 """
 import json
 import os
@@ -60,6 +61,9 @@ class Chain:
         for place in (self.work, self.out / "steps", self.look, self.work / "pics", self.work / "motionwork"):
             place.mkdir(parents=True, exist_ok=True)
         self.record = {"name": self.spec["name"], "card": card_name(), "steps": []}
+        # A chain run again for some steps (mending one on a held machine) keeps the steps run before.
+        if (self.out / "make.json").exists():
+            self.record["steps"] = json.loads((self.out / "make.json").read_text())["steps"]
 
     def file(self, relative):
         """A file the spec names, as it lies in the make folder."""
@@ -90,12 +94,15 @@ class Chain:
             raise
         finally:
             entry["minutes"] = round((time.time() - began) / 60, 2)
+            entry["card"] = self.record["card"]
+            entry["ended"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             self.record["steps"].append(entry)
             self.write_record()
             print(f"== {name}: {'ok' if entry.get('ok') else 'FAILED'} in {entry['minutes']} min", flush=True)
 
     def write_record(self):
-        self.record["minutes"] = round(sum(entry["minutes"] for entry in self.record["steps"]), 2)
+        latest = {entry["step"]: entry["minutes"] for entry in self.record["steps"]}
+        self.record["minutes"] = round(sum(latest.values()), 2)
         (self.out / "make.json").write_text(json.dumps(self.record, indent=1))
 
     def keep(self, path, name=None):
@@ -261,8 +268,23 @@ def build(chain):
     chain.run([MOTION, MAKER.parent / "skel_usd.py", chain.out / f"{name}.glb", "--out", chain.out / "usd"])
 
 
+# The clips the review page shows moving, where the make has them.
+REVIEW_CLIPS = ("standing", "walking", "bench", "waiting", "suit")
+
+
+def review(chain):
+    """The review pictures: a turntable of each outfit and frames through a few clips (blender_review.py)."""
+    sys.path.insert(0, str(PEOPLE))
+    import clips as sentences
+    made = chain.spec.get("clips") or list(sentences.SENTENCES)
+    shown = [sentences.in_game(name) for name in made if sentences.in_game(name) in REVIEW_CLIPS]
+    chain.run([BLENDER, "-b", "-P", MAKER / "blender_review.py", "--", chain.out / f"{chain.spec['name']}.glb",
+               chain.out / "review", "--clips", *shown, "--angles", "8", "--frames", "4", "--size", "448"])
+    return f"turntables and {len(shown)} clips"
+
+
 STEPS = (("picture", picture), ("body", body), ("rest", rest), ("clips", clips), ("drapes", drapes), ("head", head),
-         ("hair", hair), ("face", face), ("build", build))
+         ("hair", hair), ("face", face), ("build", build), ("review", review))
 
 
 def main():
