@@ -176,5 +176,8 @@
  },
  "launch": {
   "far_rocket_1": "wf-launch-rocket-2"
+ },
+ "square": {
+  "guard_hut_1": "guard_hut-rr1"
  }
 }

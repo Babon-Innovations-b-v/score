@@ -47,7 +47,8 @@
 		"square_far_neon_column": 2,
 		"square_bay_balcony_slab": 6,
 		"square_bay_balcony_rail": 18,
-		"square_crowd_banner": 6
+		"square_crowd_banner": 6,
+		"square_guard_hut": 1
 	},
 	"kinds": {
 		"square_far_paving": {
@@ -178,7 +179,8 @@
 		},
 		"square_crowd_banner": {
 			"night_glow": 0.3
-		}
+		},
+		"square_guard_hut": {}
 	},
 	"models": {
 		"far_paving_1": {
@@ -567,6 +569,10 @@
 		"crowd_banner_2": {
 			"glows": false,
 			"route": "code"
+		},
+		"guard_hut_1": {
+			"glows": false,
+			"route": "model"
 		}
 	},
 	"pieces": [
@@ -131489,6 +131495,36 @@
 			"layer": 1,
 			"label": "banner_first",
 			"model": "crowd_banner_2"
+		},
+		{
+			"kind": "square_guard_hut",
+			"at": [
+				-47.0,
+				0.0,
+				10.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.122,
+				2.6,
+				2.194
+			],
+			"layer": 1,
+			"model": "guard_hut_1"
 		}
 	]
 }

@@ -5114,5 +5114,27 @@
 			"painted_panel",
 			"screen"
 		]
+	},
+	"square_guard_hut": {
+		"materials": [
+			"concrete",
+			"post_dark",
+			"gate_grey"
+		],
+		"turn": [
+			-0.6122,
+			0.0,
+			0.7907,
+			0.0,
+			1.0,
+			0.0,
+			-0.7907,
+			0.0,
+			-0.6122
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [],
+		"square": true
 	}
 }

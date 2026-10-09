@@ -569,7 +569,7 @@ CROWD_BANNERS = (((-12.0, 22.0), "banner_crowd"), ((-10.0, -24.0), "banner_first
 # balcony. No game code places it; the spot is read off the concept against the stage's own ground. Its size is the
 # made model's own (wide, tall, deep).
 GUARD_HUT_AT = (-47.0, 10.6)
-GUARD_HUT = (2.0, 2.6, 2.0)
+GUARD_HUT = (2.122, 2.6, 2.194)
 
 
 def square_blocks(numbers):
