@@ -23,7 +23,7 @@
 		"garage_wall_upper_plain": 76,
 		"garage_wall_skirting": 24,
 		"garage_wall_cornice": 20,
-		"garage_ring_floor_plate": 104,
+		"garage_ring_floor_plate": 98,
 		"garage_hatch_frame": 3,
 		"garage_hatch_hinge": 6,
 		"garage_hatch_leaf": 2,
@@ -316,6 +316,26 @@
 			"route": "code"
 		},
 		"ring_floor_plate_15": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_16": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_17": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_18": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_19": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_20": {
 			"glows": false,
 			"route": "code"
 		},
@@ -5714,7 +5734,7 @@
 		{
 			"kind": "garage_ring_floor_plate",
 			"at": [
-				-1.75,
+				-1.9687,
 				-0.02,
 				-3.0
 			],
@@ -5734,20 +5754,106 @@
 				0.0
 			],
 			"size": [
-				1.1667,
+				0.7294,
 				1.2,
 				0.04
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_1"
+			"openings": [
+				[
+					0.146,
+					0.0,
+					0.5834,
+					1.2
+				]
+			],
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "garage_ring_floor_plate",
+			"at": [
+				-1.9687,
+				-0.02,
+				-1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7294,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					0.146,
+					0.0,
+					0.5834,
+					1.2
+				]
+			],
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "garage_ring_floor_plate",
+			"at": [
+				-1.9687,
+				-0.02,
+				-0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7294,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					0.146,
+					0.0,
+					0.5834,
+					1.2
+				]
+			],
+			"model": "ring_floor_plate_5"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
 			"at": [
 				-1.75,
 				-0.02,
-				-1.8
+				0.6
 			],
 			"x": [
 				1.0,
@@ -5774,172 +5880,9 @@
 			"openings": [
 				[
 					0.146,
-					0.871,
+					0.0,
 					0.5834,
-					0.929
-				]
-			],
-			"model": "ring_floor_plate_5"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				-1.75,
-				-0.02,
-				-0.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				-1.75,
-				-0.02,
-				0.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				-1.75,
-				-0.02,
-				1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				-0.5833,
-				-0.02,
-				-3.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				-0.5833,
-				-0.02,
-				-1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"openings": [
-				[
-					-0.5834,
-					0.871,
-					0.5834,
-					0.929
+					0.804
 				]
 			],
 			"model": "ring_floor_plate_6"
@@ -5947,69 +5890,7 @@
 		{
 			"kind": "garage_ring_floor_plate",
 			"at": [
-				-0.5833,
-				-0.02,
-				-0.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				-0.5833,
-				-0.02,
-				0.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				-0.5833,
+				-1.75,
 				-0.02,
 				1.8
 			],
@@ -6040,9 +5921,9 @@
 		{
 			"kind": "garage_ring_floor_plate",
 			"at": [
-				0.5833,
+				-0.5833,
 				-0.02,
-				-3.0
+				1.404
 			],
 			"x": [
 				1.0,
@@ -6061,38 +5942,7 @@
 			],
 			"size": [
 				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				0.5833,
-				-0.02,
-				-1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
+				0.396,
 				0.04
 			],
 			"layer": 1,
@@ -6100,172 +5950,9 @@
 			"openings": [
 				[
 					-0.5834,
-					0.871,
+					0.0,
 					0.5834,
-					0.929
-				]
-			],
-			"model": "ring_floor_plate_6"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				0.5833,
-				-0.02,
-				-0.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				0.5833,
-				-0.02,
-				0.6
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				0.5833,
-				-0.02,
-				1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				1.75,
-				-0.02,
-				-3.0
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"model": "ring_floor_plate_1"
-		},
-		{
-			"kind": "garage_ring_floor_plate",
-			"at": [
-				1.75,
-				-0.02,
-				-1.8
-			],
-			"x": [
-				1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"z": [
-				0.0,
-				-1.0,
-				0.0
-			],
-			"size": [
-				1.1667,
-				1.2,
-				0.04
-			],
-			"layer": 1,
-			"taper": 1.0,
-			"openings": [
-				[
-					-0.5834,
-					0.871,
-					-0.146,
-					0.929
+					0.804
 				]
 			],
 			"model": "ring_floor_plate_7"
@@ -6273,9 +5960,9 @@
 		{
 			"kind": "garage_ring_floor_plate",
 			"at": [
-				1.75,
+				-0.5833,
 				-0.02,
-				-0.6
+				1.8
 			],
 			"x": [
 				1.0,
@@ -6300,6 +5987,193 @@
 			"layer": 1,
 			"taper": 1.0,
 			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "garage_ring_floor_plate",
+			"at": [
+				0.5833,
+				-0.02,
+				1.404
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.1667,
+				0.396,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.5834,
+					0.0,
+					0.5834,
+					0.804
+				]
+			],
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "garage_ring_floor_plate",
+			"at": [
+				0.5833,
+				-0.02,
+				1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.1667,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "garage_ring_floor_plate",
+			"at": [
+				1.9687,
+				-0.02,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7294,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.5834,
+					0.0,
+					-0.146,
+					1.2
+				]
+			],
+			"model": "ring_floor_plate_8"
+		},
+		{
+			"kind": "garage_ring_floor_plate",
+			"at": [
+				1.9687,
+				-0.02,
+				-1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7294,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.5834,
+					0.0,
+					-0.146,
+					1.2
+				]
+			],
+			"model": "ring_floor_plate_8"
+		},
+		{
+			"kind": "garage_ring_floor_plate",
+			"at": [
+				1.9687,
+				-0.02,
+				-0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.7294,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.5834,
+					0.0,
+					-0.146,
+					1.2
+				]
+			],
+			"model": "ring_floor_plate_8"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -6330,7 +6204,15 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_1"
+			"openings": [
+				[
+					-0.5834,
+					0.0,
+					-0.146,
+					0.804
+				]
+			],
+			"model": "ring_floor_plate_9"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -6896,7 +6778,7 @@
 					1.2
 				]
 			],
-			"model": "ring_floor_plate_8"
+			"model": "ring_floor_plate_10"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -6935,7 +6817,7 @@
 					1.2
 				]
 			],
-			"model": "ring_floor_plate_9"
+			"model": "ring_floor_plate_11"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -6974,7 +6856,7 @@
 					0.104
 				]
 			],
-			"model": "ring_floor_plate_10"
+			"model": "ring_floor_plate_12"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7036,7 +6918,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7067,7 +6949,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7098,7 +6980,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7129,7 +7011,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7168,7 +7050,7 @@
 					1.004
 				]
 			],
-			"model": "ring_floor_plate_12"
+			"model": "ring_floor_plate_14"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7199,7 +7081,15 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"openings": [
+				[
+					-0.4611,
+					1.296,
+					0.5715,
+					1.5
+				]
+			],
+			"model": "ring_floor_plate_15"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7238,7 +7128,7 @@
 					1.004
 				]
 			],
-			"model": "ring_floor_plate_13"
+			"model": "ring_floor_plate_16"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7264,12 +7154,20 @@
 			],
 			"size": [
 				1.1429,
-				1.5,
+				1.296,
 				0.04
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"openings": [
+				[
+					-0.5715,
+					1.296,
+					0.5715,
+					1.5
+				]
+			],
+			"model": "ring_floor_plate_17"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7308,7 +7206,7 @@
 					1.004
 				]
 			],
-			"model": "ring_floor_plate_14"
+			"model": "ring_floor_plate_18"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7339,7 +7237,15 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"openings": [
+				[
+					-0.5715,
+					1.296,
+					0.4611,
+					1.5
+				]
+			],
+			"model": "ring_floor_plate_19"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7370,7 +7276,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7401,7 +7307,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7432,7 +7338,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7463,7 +7369,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7494,7 +7400,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7525,7 +7431,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7556,7 +7462,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7587,7 +7493,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7618,7 +7524,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7649,7 +7555,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7680,7 +7586,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7711,7 +7617,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7742,7 +7648,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7773,7 +7679,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7804,7 +7710,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7835,7 +7741,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7866,7 +7772,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7897,7 +7803,7 @@
 			],
 			"layer": 1,
 			"taper": 1.0,
-			"model": "ring_floor_plate_11"
+			"model": "ring_floor_plate_13"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7928,7 +7834,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7959,7 +7865,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -7990,7 +7896,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8021,7 +7927,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8052,7 +7958,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8083,7 +7989,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8114,7 +8020,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8145,7 +8051,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8176,7 +8082,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8207,7 +8113,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8238,7 +8144,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8269,7 +8175,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8300,7 +8206,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8331,7 +8237,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8362,7 +8268,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_ring_floor_plate",
@@ -8393,7 +8299,7 @@
 			],
 			"layer": 1,
 			"taper": 0.0,
-			"model": "ring_floor_plate_15"
+			"model": "ring_floor_plate_20"
 		},
 		{
 			"kind": "garage_hatch_frame",
@@ -18509,8 +18415,8 @@
 			"kind": "garage_machine_bay_plate",
 			"at": [
 				0.0,
-				-2.295,
-				-0.685
+				-0.02,
+				1.4
 			],
 			"x": [
 				-1.0,
@@ -18529,8 +18435,8 @@
 			],
 			"size": [
 				3.2,
-				0.43,
-				4.61
+				4.6,
+				0.06
 			],
 			"layer": 1,
 			"set_in": true,
