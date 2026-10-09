@@ -406,6 +406,36 @@ def check_dust(folder):
     assert np.isclose(np.ptp(built["points"][:6, 0]), 0.03)
 
 
+def check_shared_paint(folder):
+    """A game model whose surfaces are named after the game's shared materials is drawn in them (a hull surface in
+    hull's flat colour), its children too; a surface named nothing shared keeps its own look."""
+    import trimesh
+    world = folder / "world"
+    (world / "models").mkdir(parents=True)
+    hull = trimesh.creation.box((0.2, 0.2, 0.2))
+    hull.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(name="hull"))
+    own = trimesh.creation.box((0.1, 0.1, 0.1))
+    own.apply_translation((0.0, 0.3, 0.0))
+    own.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
+        name="decal", baseColorFactor=[255, 0, 0, 255]))
+    trimesh.Scene({"hull": hull, "own": own}).export(world / "models/robot.glb")
+    record = {"objects": [{"name": "robot", "model": "models/robot.glb", "at": [0.0, 0.0, 0.0], "shared_paint": True,
+                           "children": [{"model": "models/robot.glb", "at": [1.0, 0.0, 0.0]}]}]}
+    (folder / "layers").mkdir()
+    stage = Usd.Stage.CreateNew(str(folder / "layers/paint.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    scene.write(stage, PLACE, record, folder, world=world)
+    hull_colour = json.loads(scene.SHARED_PAINT.read_text())["paints"]["hull"]["colour"]
+    looks = {}
+    for prim in Usd.PrimRange(stage.GetPrimAtPath(f"/{PLACE}/Fixtures/robot")):
+        if prim.IsA(UsdGeom.Mesh):
+            bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
+            colour = UsdShade.Shader(stage.GetPrimAtPath(f"{bound.GetPath()}/surface")).GetInput("diffuseColor").Get()
+            looks.setdefault(round(float(colour[0]), 3), []).append(str(prim.GetPath()))
+    painted = round(hull_colour[0] ** 2.2, 3)
+    assert len(looks.get(painted, [])) == 2 and len(looks.get(1.0, [])) == 2, looks
+
+
 def check_labels_and_glow(folder):
     """A gameplay object worn in the glow the game paints over it, and a label on it (a Label3D's words drawn in the
     world's font, as large as its pixel size makes them), written into a stage."""
@@ -483,6 +513,8 @@ def main():
         check_sky(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_labels_and_glow(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_shared_paint(pathlib.Path(folder))
     check_kit_lamps()
     check_tube()
     check_moved()

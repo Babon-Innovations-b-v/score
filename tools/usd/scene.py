@@ -65,6 +65,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools/assets"))
 import world as world_assets  # noqa: E402
 SCENES = REPO / "data/scene"
+SHARED_PAINT = REPO / "data/library/shared_paint.json"
 # A game directional light of energy 1 as a sun in W/m^2: a white surface it faces then reads about as bright as in
 # the game (the game draws diffuse light without the 1/pi a physical renderer divides by).
 SUN_PER_ENERGY = math.pi
@@ -279,7 +280,8 @@ def turn(xform, entry):
 
 def fixture(stage, path, entry, out, world, boxes):
     """One gameplay object where the game stands it: its model at `at`, turned (`turn`), scaled by `scale` or to
-    `height` metres tall, worn in a `glow` the game paints over it when it has one; the things standing on it
+    `height` metres tall, worn in a `glow` the game paints over it when it has one, in the game's shared paints by
+    its surfaces' names when `shared_paint` (its children too); the things standing on it
     (`children`, each the same in its parent's frame, or a `label`) under it. A `stretch` (x, y, z) presses it
     unevenly after that, as the game draws a model pressed to other proportions."""
     if "label" in entry:
@@ -303,9 +305,49 @@ def fixture(stage, path, entry, out, world, boxes):
         for prim in Usd.PrimRange(xform.GetPrim()):
             if prim.IsA(UsdGeom.Mesh):
                 UsdShade.MaterialBindingAPI.Apply(prim).Bind(glow)
+    if entry.get("shared_paint"):
+        shared_paint(stage, xform.GetPrim(), path)
     for number, child in enumerate(entry.get("children", []), start=1):
         stem = "label" if "label" in child else pathlib.Path(child["model"]).stem
-        fixture(stage, f"{path}/{stem}_{number}", dict(child, scale=child.get("scale", 1.0)), out, world, boxes)
+        child = dict(child, scale=child.get("scale", 1.0),
+                     shared_paint=child.get("shared_paint", entry.get("shared_paint")))
+        fixture(stage, f"{path}/{stem}_{number}", child, out, world, boxes)
+
+
+def shared_paint_material(stage, path, paint):
+    """One of the game's shared paints (data/library/shared_paint.json) as a UsdPreviewSurface: its flat colour, its
+    roughness and metal, given off as light when the game draws it unshaded."""
+    material = UsdShade.Material.Define(stage, path)
+    shader = UsdShade.Shader.Define(stage, f"{path}/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    linear = Gf.Vec3f(*(channel ** 2.2 for channel in paint["colour"]))
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(linear)
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(paint.get("roughness", 0.7)))
+    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(paint.get("metal", 0.0)))
+    if paint.get("unshaded"):
+        shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(linear)
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    material.GetPrim().CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(paint["from"])
+    return material
+
+
+def shared_paint(stage, prim, path):
+    """Paint a game model as the game does (part_model.gd: a surface named after one of its shared materials is drawn
+    in that material, which takes its colour from the tokens): each of the model's meshes whose own material carries
+    a shared paint's name is bound to that paint; a surface named nothing shared keeps the model's own look."""
+    paints = json.loads(SHARED_PAINT.read_text())["paints"]
+    made = {}
+    for part in Usd.PrimRange(prim):
+        if not part.IsA(UsdGeom.Mesh):
+            continue
+        own = UsdShade.MaterialBindingAPI(part).ComputeBoundMaterial()[0]
+        name = own.GetPrim().GetAttribute("score:material").Get() if own and own.GetPrim().HasAttribute(
+            "score:material") else None
+        if name not in paints:
+            continue
+        if name not in made:
+            made[name] = shared_paint_material(stage, f"{path}_paint/{name}", paints[name])
+        UsdShade.MaterialBindingAPI.Apply(part).Bind(made[name])
 
 
 def write_objects(stage, place, entries, out, world):
