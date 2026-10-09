@@ -1,19 +1,19 @@
 {
  "place": "launch",
- "about": "The launch view across the harbour as the game draws it beyond its kit: the rocket (the made model the game kept for it, earth_launch_rocket), the harbour, the far ground, the rocket's floodlight, the moonlight and the night sky. Frame: EarthSite's own.",
+ "about": "The launch view across the harbour as the game draws it beyond its kit: the rocket (the game's kept model earth_launch_rocket, made again on the route with library surfaces), the harbour, the far ground, the rocket's floodlight, the moonlight and the night sky. Frame: EarthSite's own.",
  "objects": [
   {
    "name": "rocket",
-   "model": "models/earth_launch_rocket/earth_launch_rocket.glb",
+   "model": "models/launch_rocket/far_rocket_1.gltf",
    "at": [
     -270.0,
-    1.2,
+    1.05,
     -60.0
    ],
    "yaw": 90.0,
    "height": 60.0,
    "kind": "rocket",
-   "from": "earth_site.gd:260-262 ROCKET_AT (-270, 0, -60) and ROCKET_HEIGHT, stood on the top of the stage's launch pad pieces (1.2 m up; the game's deck lies on the ground), 1282-1285 _stand_the_rocket_up (turned PI / 2); launch_rocket.gd:14-15 TALL 60 m; the made model (data/definitions/prop.json earth_launch_rocket, a Pixal3D mesh the game kept, retired there on 2026-10-04 for the code rocket) stands in place of the code rocket at the owner's word (2026-10-09); it is 60 m tall as made, scaled by 1.0"
+   "from": "earth_site.gd:260-262 ROCKET_AT (-270, 0, -60) and ROCKET_HEIGHT, 1282-1285 _stand_the_rocket_up (turned PI / 2); launch_rocket.gd:14-15 TALL 60 m. The rocket is the game's kept model earth_launch_rocket (data/definitions/prop.json; Pixal3D take wf-launch-rocket-2) made again on the route: painted by its close-up's SAM regions with the judge's materials (hull_white_gloss, dark_panel, bare_steel; data/parts/wf-launch-rocket-2.npz) and baked from the library (make_chunky, 60k triangles), past the model gate, kept in the world's release as models/launch_rocket; its foot stands on the top of the stage's pad pieces (1.2 m up; the game's deck lies on the ground). Its baked box is 59.72 m tall, so it is scaled by 1.005 to 60 m."
   }
  ],
  "ground": [

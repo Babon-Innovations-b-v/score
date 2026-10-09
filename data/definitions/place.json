@@ -2389,6 +2389,26 @@
 			"cable_grey": {
 				"token": "cabin-seam",
 				"library": "cable_grey"
+			},
+			"hull_white_gloss": {
+				"token": "hull",
+				"library": "hull_white_gloss"
+			},
+			"dark_panel": {
+				"token": "cabin-seam",
+				"library": "dark_panel"
+			},
+			"facade_paint": {
+				"token": "flat-wall",
+				"library": "facade_paint"
+			},
+			"wall_tile_white": {
+				"token": "tile",
+				"library": "wall_tile_white"
+			},
+			"sign_lit": {
+				"token": "sign-lit",
+				"library": "sign_lit"
 			}
 		},
 		"wear": {
