@@ -243,6 +243,7 @@
   }
  ],
  "game_only": [
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)",
+  "the large DOC lettering on the wall beside the pods (pods and south-door-across views)"
  ]
 }
