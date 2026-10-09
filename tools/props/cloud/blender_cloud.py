@@ -3,7 +3,10 @@ delete the machine. The generic Blender job (2026-10-08, BLENDER IN THE CLOUD): 
 Blender run on the owner's PC at a time, so renders, settling and review pages run here, many machines at once.
 
     ~/.farm-factory-props/env/bin/python tools/props/cloud/blender_cloud.py <job.json> [<job.json> ...] \
-        --who "<session>" [--classes cpu-32c-128gb[,...]] [--dry-run]
+        --who "<session>" [--classes cpu-32c-128gb[,...]] [--dry-run] [--detach]
+
+--detach runs the same call with its progress in a log and prints one result line at the end (detached.py): start it
+with run_in_background and never poll it.
 
 A tool on this PC calls `run_elsewhere` for one job (tools/usd/settle.py --cloud), or holds one machine for a chain
 of jobs with `Machine` (tools/review/page.py --cloud: model shots, every stage's views and the walk on one machine):
@@ -48,6 +51,7 @@ sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
 import capacity  # noqa: E402
+import detached  # noqa: E402
 import ledger  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
@@ -353,8 +357,11 @@ def main():
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     parser.add_argument("--classes", help="capability classes in the order to try, comma separated")
+    parser.add_argument(detached.FLAG, action="store_true", help="progress to a log, one result line at the end")
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs] or [{"minutes": options.minutes}]
+    if options.detach:
+        detached.relaunch(sys.argv, "blender-cloud", [output for job in jobs for output in job.get("outputs", [])])
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
     if provider.on_cluster():
         main_on_cluster(options, jobs, classes)

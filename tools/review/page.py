@@ -11,6 +11,7 @@ is.
         [--no-render]                               # reuse the Blender renders already in <out>
         [--plain]                                   # debug: the scene in one plain grey instead of its materials
         [--cloud]                                   # render on rented cards (tools/props/cloud/blender_cloud.py)
+        [--detach]                                  # progress to a log, one result line (start in the background)
 
 What each folder holds is in records.py. The pictures no stage drew (each model and its parts, the assembled scene from
 fixed cameras and a walk round it) are rendered by headless Blender (renders.py); the scene comes from the place's
@@ -713,6 +714,8 @@ def arguments():
     parser.add_argument("--no-resting", action="store_true", help="leave the resting check out (a stage too big for "
                         "this machine's memory)")
     parser.add_argument("--cloud", action="store_true", help="render on rented cards, not this PC's Blender")
+    parser.add_argument("--detach", action="store_true", help="progress to a log, one result line at the end "
+                        "(tools/props/cloud/detached.py): start it with run_in_background, never poll it")
     return parser.parse_args()
 
 
@@ -798,8 +801,18 @@ def stamp(out, stage, rendered):
                                 "rendered": current if rendered else before.get("rendered")}, indent=1) + "\n")
 
 
+def detach(options):
+    """Rerun this call detached (tools/props/cloud/detached.py); its output is the page."""
+    sys.path.insert(0, str(HERE.parents[1] / "tools/props/cloud"))
+    import detached
+    detached.relaunch(sys.argv, "review-page", [options.out / "index.html"])
+
+
 def main():
-    print(build(arguments()))
+    options = arguments()
+    if options.detach:
+        detach(options)
+    print(build(options))
 
 
 if __name__ == "__main__":

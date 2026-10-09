@@ -1,6 +1,6 @@
 """Settle a place's loose objects with physics and write where they came to rest into its layout.
 
-    .venv/bin/python tools/usd/settle.py <stage.usda> [--dry-run] [--cloud] [--reuse]
+    .venv/bin/python tools/usd/settle.py <stage.usda> [--dry-run] [--cloud] [--reuse] [--detach]
 
 --dry-run simulates and writes nothing to the layout; its result (settle/settled.json beside the stage) is what the
 resting triage (triage.py --settled) reads for SAGE's stability rule (unstable: over SAGE_MOVE or SAGE_TURN).
@@ -196,14 +196,27 @@ def write_layout(settled, ground, inventory_path, kit_path):
     return moved
 
 
+def detach(stage_path):
+    """Rerun this call detached (tools/props/cloud/detached.py); its outputs are the settle folder and the layout."""
+    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    import detached
+    place = Usd.Stage.Open(str(stage_path)).GetDefaultPrim().GetName()
+    detached.relaunch(sys.argv, "settle", [stage_path.parent / "settle", INVENTORIES / f"{place}.json",
+                                           KITS / f"{place}.json"])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("stage", type=pathlib.Path)
     parser.add_argument("--dry-run", action="store_true", help="simulate and print, write nothing")
     parser.add_argument("--cloud", action="store_true", help="simulate on a rented processor machine")
     parser.add_argument("--reuse", action="store_true", help="write back the last run's result (settle/settled.json)")
+    parser.add_argument("--detach", action="store_true", help="progress to a log, one result line at the end "
+                        "(tools/props/cloud/detached.py): start it with run_in_background, never poll it")
     arguments = parser.parse_args()
     stage_path = arguments.stage.resolve()
+    if arguments.detach:
+        detach(stage_path)
     stage = Usd.Stage.Open(str(stage_path))
     place = stage.GetDefaultPrim().GetName()
     inventory_path, kit_path = INVENTORIES / f"{place}.json", KITS / f"{place}.json"

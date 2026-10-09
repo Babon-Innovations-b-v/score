@@ -1,4 +1,6 @@
 {
+  "promptCacheTtl": "1h",
+  "subagentPromptCacheTtl": "1h",
   "env": {
     "PONYTAIL_MAP": "0",
     "PONYTAIL_QUIET_STARTUP": "1",
@@ -83,6 +85,11 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/md_guard.py\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/wait_guard.py\"",
             "timeout": 5
           }
         ]
