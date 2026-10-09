@@ -163,6 +163,33 @@ The machines keep their safety on every backend: each deletes itself when the ru
 quiet or the batch's time limit passes (`self_delete.py`), every run deletes its machines when it ends,
 and nothing is deleted before its own record is checked to belong to the configured account.
 
+### Run in the cloud from container images, on Kubernetes
+
+Every kind of model job also has a pinned container image (`tools/cloud/images/<kind>/`: a Dockerfile and the
+`models.json` that lists each model's source, pinned revision, hash and licence). No weights are in an image: a job
+reads each model once per node from the backend's object storage into a cache on the node, and the first node that
+needs a model seeds the storage from its source. `python3 tools/cloud/images/build.py <kind> [...]` builds and pushes
+images on a rented processor machine, never on this PC, and writes their digests into `tools/cloud/images/images.json`.
+
+The same images run on any Kubernetes cluster whose pools label their nodes `score.dev/class=<capability class>`,
+scale from zero and expose `nvidia.com/gpu`. With the Scaleway backend:
+
+```bash
+python3 tools/cloud/k8s/clusters/scaleway.py up      # the cluster (free control plane) and a pool per class and zone, all at 0 nodes
+SCORE_CLOUD=k8s $py tools/props/cloud/parts.py ...   # a runner sends its jobs to the cluster instead of renting machines
+python3 tools/cloud/k8s/clusters/scaleway.py down    # delete the cluster when the work is done
+```
+
+`SCORE_CLOUD=k8s` sends the jobs of the runners that have an image (Pixal3D, PartCrafter, the part splitters, SAM 3
+and the scene steps, the judge, the picture models, MOSS, Blender renders and library bakes) to the cluster;
+`SCORE_K8S_PROVIDER` names the cluster's backend (Scaleway by default), and `SCORE_K8S_TYPE=multicloud` makes a cluster
+that also reaches Warsaw's cards. A job tries its kind's capability classes in `capacity.py`'s order and is widened to
+the next class when no pool can get a node, a node without work is removed after about 5 minutes, and the month's
+ceiling caps every pool's size. The machine runners stay the default: a cold cluster node needs about 2.5 minutes of
+NVIDIA driver setup on top of a machine's start, so one job alone finishes sooner on a rented machine, and the
+cluster pays off on runs of many jobs and on warm nodes. The character chain stays on machines until it is split by
+image. `tools/cloud/k8s/CLAUDE.md` says how AWS EKS and Google GKE plug in.
+
 ### Add a cloud backend
 
 1. Write `tools/props/cloud/backends/<name>.py` with everything `provider.py`'s docstring lists: `NAME`,
