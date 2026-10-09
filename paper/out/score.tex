@@ -1025,26 +1025,38 @@ multi-purpose {N}-body code for collisional dynamics,''} \emph{Astronomy
 \CSLRightInline{{O. Siméoni, H. V. Vo, M. Seitzer, \emph{et al.}},
 {``{DINOv3},''} \emph{arXiv preprint arXiv:2508.10104}, 2025.}
 
-\bibitem[\citeproctext]{ref-marble_terms}
+\bibitem[\citeproctext]{ref-li2026segvigen}
 \CSLLeftMargin{{[}43{]} }%
+\CSLRightInline{L. Li \emph{et al.}, {``{SegviGen}: Repurposing {3D}
+generative model for part segmentation,''} \emph{arXiv preprint
+arXiv:2603.16869}, 2026.}
+
+\bibitem[\citeproctext]{ref-deng2025geosam2}
+\CSLLeftMargin{{[}44{]} }%
+\CSLRightInline{K. Deng \emph{et al.}, {``{GeoSAM2}: Unleashing the
+power of {SAM2} for {3D} part segmentation,''} \emph{arXiv preprint
+arXiv:2508.14036}, 2025.}
+
+\bibitem[\citeproctext]{ref-marble_terms}
+\CSLLeftMargin{{[}45{]} }%
 \CSLRightInline{World Labs, {``{Terms of Service}.''} 2026. Available:
 \url{https://docs.worldlabs.ai/terms-of-service}}
 
 \bibitem[\citeproctext]{ref-behnamghader2024llm2vec}
-\CSLLeftMargin{{[}44{]} }%
+\CSLLeftMargin{{[}46{]} }%
 \CSLRightInline{P. BehnamGhader, V. Adlakha, M. Mosbach, D. Bahdanau, N.
 Chapados, and S. Reddy, {``{LLM2Vec}: Large language models are secretly
 powerful text encoders,''} in \emph{Conference on language modeling
 (COLM)}, 2024.}
 
 \bibitem[\citeproctext]{ref-grattafiori2024llama3}
-\CSLLeftMargin{{[}45{]} }%
+\CSLLeftMargin{{[}47{]} }%
 \CSLRightInline{{A. Grattafiori, A. Dubey, A. Jauhri, \emph{et al.}},
 {``The {Llama 3} herd of models,''} \emph{arXiv preprint
 arXiv:2407.21783}, 2024.}
 
 \bibitem[\citeproctext]{ref-claudecode}
-\CSLLeftMargin{{[}46{]} }%
+\CSLLeftMargin{{[}48{]} }%
 \CSLRightInline{Anthropic, {``{Claude Code}.''} 2026. Available:
 \url{https://www.anthropic.com/claude-code}}
 
@@ -1392,10 +1404,15 @@ Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}42{]} for its
 encoder \\
 PartCrafter {[}21{]} & parts & MIT; its non-commercial background
 remover not used \\
+SegviGen {[}43{]} & parts of our own model (trial) & MIT, on TRELLIS.2
+(MIT); DINOv3 licence for its encoder; its non-commercial background
+remover and nvdiffrast not used \\
+GeoSAM2 {[}44{]} & parts of our own model, seeded by the close-up's
+regions (trial) & Apache-2.0 \\
 Depth Anything V2 Small {[}20{]} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
-World Labs Marble {[}43{]} & optional world step & paid; outputs owned
+World Labs Marble {[}45{]} & optional world step & paid; outputs owned
 by paid users \\
 FLUX.2 klein 4B {[}33{]} & earlier prop pictures; the characters' A-pose
 pictures from words and their hair's clay pictures & Apache-2.0 \\
@@ -1404,7 +1421,7 @@ pictures & MIT; SAM Licence \\
 Kimodo {[}23{]} & the characters' motion from sentences & Apache-2.0
 code; NVIDIA Open Model License for the Kimodo-SOMA-RP-v1.1 weights,
 commercial use allowed \\
-LLM2Vec {[}44{]} on Meta-Llama-3-8B-Instruct {[}45{]} & Kimodo's text
+LLM2Vec {[}46{]} on Meta-Llama-3-8B-Instruct {[}47{]} & Kimodo's text
 encoder, used only while clips are made; nothing from it ships & Llama 3
 Community License: commercial use allowed, the 700 million monthly users
 clause does not apply, ``Built with Meta Llama 3'' shown, no exclusion
@@ -1516,7 +1533,7 @@ World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 &
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound
 generation, all checks and the assembly run automatically. Coding agents
-(Claude Code {[}46{]}) write the plans, the inventories and every code
+(Claude Code {[}48{]}) write the plans, the inventories and every code
 builder; in the hub's final round, 86 of its 98 models were built in
 code. Some steps were still done by hand: some generated objects were
 turned to face the right way by eye, and a few labels were placed by

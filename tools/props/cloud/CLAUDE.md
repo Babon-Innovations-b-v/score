@@ -95,6 +95,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **Part splitting** (`parts.py`, `parts_setup.sh`): PartCrafter (MIT code and weights) on one card, its
   non-commercial background remover patched out and never fetched; the parts only say where a model's part
   boundaries are (`../library/labels.py --parts`).
+- **Splitting our own model** (`meshparts.py`, `meshparts_setup.sh`, `segvigen_worker.py`, `geosam2_worker.py`; job
+  parts-test, 2026-10-09): SegviGen (MIT, on TRELLIS.2's published wheels; nvdiffrast never installed, RMBG-2.0 never
+  loaded, DINOv3 from an open copy checked by sha256) and GeoSAM2 (Apache-2.0, Blender 4.0.2 under xvfb, the model cut
+  to 150,000 faces: its label completion is a Python loop) on the spread runner, every pin in `PINS`. About 1 min
+  (SegviGen) and 4 min (GeoSAM2, mostly processor) an object on an L4. The spread runner does not keep asking for stock
+  during a batch: a slot whose claim finds nothing in stock gives up (six of seven did, 2026-10-09).
 - **The game's sound is generated on a card** (`moss_sound.py`, `moss_setup.sh`, `moss_generate.py`; job soundtool,
   2026-10-06): every sound briefed in `data/sound/sounds.json` through MOSS-SoundEffect v2.0 (Apache-2.0, code and
   weights pinned), each take scored against its prompt with CLAP up there, the takes back to the picker's cache.

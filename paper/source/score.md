@@ -327,6 +327,8 @@ Every model in the framework must allow commercial use of its output (Table E1).
 | Qwen3.8-27B [@qwen38] | the close-ups' shape check; each part's material | Apache-2.0 |
 | Pixal3D [@li2026pixal3d] | picture to 3D | MIT; DINOv3 licence [@simeoni2025dinov3] for its encoder |
 | PartCrafter [@lin2025partcrafter] | parts | MIT; its non-commercial background remover not used |
+| SegviGen [@li2026segvigen] | parts of our own model (trial) | MIT, on TRELLIS.2 (MIT); DINOv3 licence for its encoder; its non-commercial background remover and nvdiffrast not used |
+| GeoSAM2 [@deng2025geosam2] | parts of our own model, seeded by the close-up's regions (trial) | Apache-2.0 |
 | Depth Anything V2 Small [@yang2024dav2] | ground relief | Apache-2.0 |
 | ProcFunc, Infinigen shaders | surfaces | BSD-3-Clause |
 | MOSS-SoundEffect v2.0, CLAP | sound | Apache-2.0 |
