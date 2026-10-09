@@ -226,6 +226,15 @@ def test_the_judge_may_not_put_a_saturated_finish_on_a_colourless_region():
     assert found.tolist() == [0, 1] and set_aside == [0]
 
 
+def test_a_baked_colour_two_materials_share_reads_as_the_one_used():
+    """Two materials whose baked colours meet (paint worn to its bare steel) are read as the one the labels use."""
+    grey, other = np.array([[60.0, 0.0, 0.0]]), np.array([[30.0, 20.0, 20.0]])
+    palettes = [grey, grey + 1.0, other]
+    names = ["bare_steel", "painted_panel", "rubber"]
+    assert patchy.twins_left_out(palettes, names, {"bare_steel": 0.001, "painted_panel": 0.99, "rubber": 0.01}) == [0]
+    assert patchy.twins_left_out(palettes, names, None) == []
+
+
 def test_the_route_refuses_patchy_labels():
     with tempfile.TemporaryDirectory() as folder:
         clean, patchy_folder = pathlib.Path(folder) / "clean", pathlib.Path(folder) / "patchy"

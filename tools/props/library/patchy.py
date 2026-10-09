@@ -247,7 +247,7 @@ def material_colours(place, names):
     return found
 
 
-def baked_model(path, place, names):
+def baked_model(path, place, names, shares=None):
     """A baked game model as one welded mesh, each face's material index among `names` (the material whose baked
     colours lie nearest the median of the face's colour at its middle and halfway to each corner) and whether the
     face is unbaked (black: no bake ray reached it)."""
@@ -269,6 +269,7 @@ def baked_model(path, place, names):
     palettes = material_colours(place, names)
     distances = np.stack([np.min(np.linalg.norm(colours[:, None, :] - palette[None], axis=2), axis=1)
                           for palette in palettes], axis=1)
+    distances[:, twins_left_out(palettes, names, shares)] = np.inf
     mesh = trimesh.Trimesh(geometry.vertices, geometry.faces, process=True)
     # A black face one of the materials bakes to (a screen that is off is ink black) is that material, not unbaked:
     # the CRT television's screen read 15% unbaked (job repaint, 2026-10-08).
@@ -294,6 +295,23 @@ def worn_as_around(mesh, distances):
         worn = (borders.sum(1) > 0) & (share >= WORN_SHARE)
         labels = np.where(worn[island], around[island], labels)
     return labels
+
+
+def twins_left_out(palettes, names, shares):
+    """The materials a baked colour cannot tell from another (some of their baked colours within WORN_REACH) that the
+    labels use less (`shares`, name to share of the labelled model): a baked face is read as the one used more. The
+    power unit's dark panel bakes to the colours of its galvanized steel and the lab desk's paint wears to its bare
+    steel; with a crumb of each in the labels, half of each model read as the other (job repaint, 2026-10-09)."""
+    if not shares:
+        return []
+    out = []
+    for first in range(len(names)):
+        for second in range(len(names)):
+            near = np.min(np.linalg.norm(palettes[first][:, None] - palettes[second][None], axis=2)) <= WORN_REACH
+            if first != second and near and shares.get(names[first], 0.0) < shares.get(names[second], 0.0):
+                out.append(first)
+                break
+    return out
 
 
 def with_unbaked(found, mesh, unbaked):
