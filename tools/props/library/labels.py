@@ -45,6 +45,7 @@ from scipy.spatial import cKDTree
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
+import finish_split  # noqa: E402
 import glb_file  # noqa: E402
 import library  # noqa: E402
 import part_judge  # noqa: E402
@@ -52,6 +53,7 @@ import patchy  # noqa: E402
 import regions  # noqa: E402
 import register  # noqa: E402
 import stored_parts  # noqa: E402
+import surface_check  # noqa: E402
 from paths import REPO, WORK  # noqa: E402
 
 PIXAL = WORK / "pixal"
@@ -493,6 +495,23 @@ def painted_by_regions(mesh, view, pixel_regions, region_paint, part_of):
     return without_crumbs(mesh, smoothed_parts(scores, neighbour_matrix(mesh))), face_region
 
 
+def surfaces_held(arguments, view, painted, materials):
+    """The surface check (surface_check.py) on the painted raw model, its unlit drawing written beside the labels
+    (surfaces.png)."""
+    picture = view[0]
+    inside = np.asarray(picture)[..., 3] > 127
+    pixel_regions = regions.region_map(regions.masks_of(arguments.regions), inside)
+    drawn, landed = surface_check.drawn_surfaces(painted, view, inside)
+    surface_check.picture(drawn, [srgb(np.array(spec["colour"])) for spec in materials.values()]).save(
+        arguments.out / "surfaces.png")
+    found = surface_check.check(drawn, landed, pixel_regions, regions.medians(pixel_regions, picture_lab(picture)),
+                                anchors_of(materials)[1], list(materials))
+    white = Image.new("RGBA", picture.size, (255, 255, 255, 255))
+    surface_check.outlined(Image.alpha_composite(white, picture), pixel_regions, found["regions"]).save(
+        arguments.out / "surfaces-check.png")
+    return found
+
+
 def bare_metals(names):
     """Of the library materials named, the bare metals (their family is unpainted metal): paint shown as bare metal
     is a stripped model."""
@@ -597,6 +616,10 @@ def main():
     parser.add_argument("--ask", type=pathlib.Path, help="write each seen part's outlined picture and question here "
                         "(part_judge.py), for ../cloud/judge.py")
     parser.add_argument("--answers", type=pathlib.Path, help="the judge's answers: each part takes the material named")
+    parser.add_argument("--split", action="store_true", help="with --regions and --answers: split the parts in 3D "
+                        "along the close-up's finishes (finish_split.py), each new part one surface")
+    parser.add_argument("--ask-parts", type=pathlib.Path, help="--split: write each new part's question here")
+    parser.add_argument("--part-answers", type=pathlib.Path, help="--split: the judge's answers for the new parts")
     parser.add_argument("--regions", type=pathlib.Path, help="the close-up's SAM 2.1 masks (../cloud/segment.py): "
                         "paint by the picture's regions (regions.py), the parts kept for moving pieces and as a hint")
     arguments = parser.parse_args()
@@ -632,12 +655,16 @@ def main():
     else:
         part_of = np.zeros(len(mesh.faces), dtype=int)
         report.update(way="whole")
-    if arguments.regions:
+    if arguments.split:
+        painted, names, face_region, named = paint_by_split_parts(arguments, mesh, view, part_of, materials, report)
+    elif arguments.regions:
         painted, names, face_region, named = paint_by_regions(arguments, mesh, view, part_of, materials, report)
     else:
         painted, names, face_region, named = paint_by_parts(arguments, mesh, view, colours, part_of, materials, report)
     report["stripped"] = patchy.stripped(colours, painted, photo_palettes(arguments.place, names), names, named,
                                          bare_metals(names))
+    if arguments.regions:
+        report["surfaces"] = surfaces_held(arguments, view, painted, materials)
     order = sorted({names[index] for index in np.unique(painted)})
     labels = np.array([order.index(name) if name in order else -1 for name in names])[painted]
     report["upright_gap"] = round(gap, 4)
@@ -677,6 +704,76 @@ def paint_by_regions(arguments, mesh, view, part_of, materials, report):
     named[face_region >= 0] = np.isin(face_region[face_region >= 0], [region for region in judged
                                                                       if region not in set_aside])
     return painted, names, face_region, named
+
+
+def paint_by_split_parts(arguments, mesh, view, part_of, materials, report):
+    """Each face's surface from 3D parts: the splitter's parts split along the finishes the close-up's judged regions
+    show (finish_split.py), each new part one library surface, the one the judge names for it outlined on the
+    close-up (else its finish's); (painted, names, new parts, named)."""
+    picture, seen, row, column = view
+    inside = np.asarray(picture)[..., 3] > 127
+    colours = picture_lab(picture)
+    asked_regions = regions.region_map(regions.masks_of(arguments.regions), inside)
+    pixel_regions, origin = regions.split_by_colour(asked_regions, colours)
+    centres = regions.medians(pixel_regions, colours)
+    asked = part_judge.judged(arguments.answers, arguments.take, int(asked_regions.max()) + 1, list(materials))
+    anchors = anchors_of(materials)[1]
+    judged = inherited_answers(asked, origin, centres, anchors, list(materials))
+    region_paint, _ = region_materials(centres, regions.vivid(pixel_regions, colours), judged, materials)
+    finish = np.full(len(mesh.faces), -1)
+    on_object = seen & (pixel_regions[row, column] >= 0)
+    finish[on_object] = region_paint[pixel_regions[row[on_object], column[on_object]]]
+    new_parts, pair_of = finish_split.split(mesh, part_of, finish, smooth_regions(mesh), np.hypot(*anchors[:, 1:].T),
+                                            [surface_check.surface_family(anchor) for anchor in anchors])
+    if (new_parts < 0).any():  # a part no seen face reached: the nearest new part's
+        known = new_parts >= 0
+        new_parts[~known] = new_parts[known][cKDTree(mesh.triangles_center[known]).query(
+            mesh.triangles_center[~known])[1]]
+    new_parts = without_crumbs(mesh, new_parts)
+    count = len(pair_of)
+    pixel_parts = part_judge.part_pixels(new_parts, seen, row, column, inside.shape)
+    asked = [part for part in range(count) if ((new_parts == part) & seen).sum() >= SEEN_LEAST]
+    if arguments.ask_parts:
+        report["asked"] = part_judge.write_questions(arguments.ask_parts, arguments.take, picture, pixel_parts, asked,
+                                                     arguments.object or arguments.kind, materials)
+    named_parts = part_judge.judged(arguments.part_answers, arguments.take, count, list(materials)) \
+        if arguments.part_answers else {}
+    names = list(materials)
+    surface, set_aside = region_materials(np.array([anchors[finish_of] for _, finish_of in pair_of]),
+                                          part_vividness(pixel_parts, colours, count), named_parts, materials)
+    surface = np.where(np.isin(np.arange(count), list(named_parts)), surface,
+                       np.array([finish_of for _, finish_of in pair_of]))
+    areas = mesh.area_faces
+    report.update(way=report["way"] + ", parts split along the close-up's finishes", judge_set_aside=set_aside,
+                  judged_parts=len(named_parts),
+                  split_parts=[{"part": int(old), "finish": names[finish_of], "surface": names[surface[number]],
+                                "judged": named_parts.get(number, (None, None))[1],
+                                "share": round(float(areas[new_parts == number].sum() / areas.sum()), 3)}
+                               for number, (old, finish_of) in enumerate(pair_of)])
+    named = np.isin(new_parts, [part for part in named_parts if part not in set_aside])
+    return surface[new_parts], names, new_parts, named
+
+
+def inherited_answers(asked, origin, centres, anchors, names):
+    """The judge's answers for regions split by colour (regions.split_by_colour): a region not split keeps its
+    region's answer; of a split one, the half whose colour family is the answered surface's keeps it (the gold pixels
+    a gold blanket), the other half has none and takes the allowed surface nearest its colour."""
+    split = {region for region in set(origin.tolist()) if (origin == region).sum() > 1}
+    found = {}
+    for region, source in enumerate(origin):
+        if source not in asked:
+            continue
+        fits = surface_check.family(centres[region]) == surface_check.family(anchors[names.index(asked[source][0])])
+        if source not in split or fits:
+            found[region] = asked[source]
+    return found
+
+
+def part_vividness(pixel_parts, colours, count):
+    """Each new part's chroma at its most colourful tenth on the close-up (0 where the camera shows none of it)."""
+    chroma = np.hypot(colours[..., 1], colours[..., 2])
+    return np.array([np.quantile(chroma[pixel_parts == part], 0.9) if (pixel_parts == part).any() else 0.0
+                     for part in range(count)])
 
 
 def paint_by_parts(arguments, mesh, view, colours, part_of, materials, report):

@@ -14,6 +14,10 @@ from scipy import ndimage
 
 REGION_LEAST = 0.01
 REGION_MOST = 0.6
+# A region is split by colour (split_by_colour) when its coloured pixels (chroma past COLOURED) and the rest each hold
+# MIXED_LEAST of it.
+COLOURED = 12.0
+MIXED_LEAST = 0.2
 
 
 def masks_of(path):
@@ -51,3 +55,22 @@ def vivid(regions, colours, share=0.9):
 def medians(regions, colours):
     """Each region's median colour (Lab, `colours` per pixel)."""
     return np.array([np.median(colours[regions == region], axis=0) for region in range(int(regions.max()) + 1)])
+
+
+def split_by_colour(pixel_regions, colours, least=MIXED_LEAST):
+    """Regions that hold two finishes, a neutral one and a coloured one (tape patches inside a panel's mask, SAM
+    joining silver and gold foil), split in two by pixel: the coloured pixels (chroma past COLOURED) cleaned of specks
+    become a region of their own when they and the rest each hold `least` of the region. (new regions, the original
+    region of each new one)."""
+    chroma = np.hypot(colours[..., 1], colours[..., 2])
+    found = pixel_regions.copy()
+    origin = list(range(int(pixel_regions.max()) + 1))
+    for region in range(len(origin)):
+        pixels = pixel_regions == region
+        coloured = ndimage.binary_opening(pixels & (chroma > COLOURED), iterations=2)
+        coloured = ndimage.binary_closing(coloured, iterations=2) & pixels
+        share = coloured.sum() / max(pixels.sum(), 1)
+        if least <= share <= 1 - least:
+            found[coloured] = len(origin)
+            origin.append(region)
+    return found, np.array(origin)
