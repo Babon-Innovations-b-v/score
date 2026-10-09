@@ -54,9 +54,6 @@ class Candidate:
     seed: int = 0
     clap: float | None = None
 
-    def to_json(self):
-        return dataclasses.asdict(self)
-
 
 ## The least time between two requests to one site, in seconds, and how often a request told to slow down
 ## (429) is tried again: Freesound turns away a picker in a hurry.
@@ -216,10 +213,9 @@ class Moss:
     LICENCE = "made for this game with MOSS-SoundEffect v2.0 (Apache-2.0)"
 
     def __init__(self, page):
-        folder = self.FOLDER / page
-        self.folder = folder
-        self.made = json.loads((folder / "manifest.json").read_text()) if (folder / "manifest.json").exists() else []
-        scores = folder / "scores.json"
+        self.folder = self.FOLDER / page
+        manifest, scores = self.folder / "manifest.json", self.folder / "scores.json"
+        self.made = json.loads(manifest.read_text()) if manifest.exists() else []
         self.scores = json.loads(scores.read_text()) if scores.exists() else {}
 
     def search(self, need, count):

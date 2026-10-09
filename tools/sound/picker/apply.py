@@ -47,11 +47,6 @@ def chosen_with_swaps(record, swaps):
     return picks
 
 
-def generated_folder(world, need):
-    """The folder a need's generated files go in."""
-    return world / "sound" / "generated" / FOLDERS[need["category"]]
-
-
 def world_files_for(need, take):
     """Where a take's files go in the world's files, as (page file, name) pairs: several steps, or one file."""
     folder = f"sound/generated/{FOLDERS[need['category']]}"
@@ -106,8 +101,8 @@ def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICE
         if take is None:
             continue
         entry = sounds.setdefault(need["name"], {})
-        already = entry.get("pick", {}).get("chosen", {}).get("take") == key and in_place(entry, world)
         before = entry.get("pick", {}).get("chosen", {})
+        already = before.get("take") == key and in_place(entry, world)
         entry.setdefault("pick", {})["chosen"] = {"take": key, "by": "owner" if need["name"] in swapped else "scoring"}
         if before.get("decided") and before.get("take") == key:  # the owner's written decision stays with its take
             entry["pick"]["chosen"]["decided"] = before["decided"]
@@ -146,14 +141,13 @@ def back_to_the_recording(entry, need):
 def in_place(entry, world):
     """Whether every file an entry names is on disk: a take already put in is left as it is (an Ogg file comes out
     with new bytes each time it is written, so writing it again would only churn the repository)."""
-    named = entry.get("file") or []
-    files = [named] if isinstance(named, str) else named
+    files = needs.file_list(entry.get("file"))
     return bool(files) and all((world / path).exists() for path in files)
 
 
 def remove_generated(need, listed, world):
     """Takes a need's generated files out of the game and off the licence list."""
-    folder = generated_folder(world, need)
+    folder = world / "sound" / "generated" / FOLDERS[need["category"]]
     olds = [path for path in folder.glob(f"{need['name']}*") if path.suffix in (".ogg", ".wav")
             and (path.stem == need["name"] or path.stem.removeprefix(need["name"] + "_").isdigit())]
     for old in olds:

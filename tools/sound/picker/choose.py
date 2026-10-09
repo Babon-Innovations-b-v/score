@@ -47,14 +47,9 @@ def clipped_share(samples):
     return sum(1 for value in samples if abs(value) >= FULL_SCALE) / len(samples)
 
 
-def window_levels(samples, seconds):
-    """The RMS level of each window, in dB."""
-    return takes.envelope_db(samples, max(1, int(seconds * takes.RATE)))
-
-
 def unsteadiness(samples):
     """How far a loop's level wanders, as the spread of its half-second levels in dB."""
-    levels = [level for level in window_levels(samples, STEADY_WINDOW) if level > -90.0]
+    levels = [level for level in takes.envelope_db(samples, int(STEADY_WINDOW * takes.RATE)) if level > -90.0]
     if len(levels) < 3:
         return 0.0
     middle = sum(levels) / len(levels)

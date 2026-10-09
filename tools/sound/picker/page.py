@@ -4,6 +4,7 @@ the page is for listening and swapping. It is built into a folder outside the re
 its takes beside it, and keeps the owner's swaps in the Artifact's own store (collection `picks`, one document a
 need: `{take, more, at}`), which apply.py reads back over the chosen takes.
 """
+import dataclasses
 import html
 import json
 import pathlib
@@ -82,7 +83,7 @@ def made_safe(need, candidates, folder):
 def page_take(need, candidate, made, relative):
     """One take as the page and apply.py read it."""
     preview = made["measures"][made["preview"]]
-    return {**candidate.to_json(), "preview": (relative / made["preview"]).as_posix(),
+    return {**dataclasses.asdict(candidate), "preview": (relative / made["preview"]).as_posix(),
             "files": [(relative / name).as_posix() for name in made["takes"]],
             "measures": {(relative / name).as_posix(): measure for name, measure in made["measures"].items()},
             "peaks": made["peaks"], "seconds": made["seconds"], "loop": need["loop"],
