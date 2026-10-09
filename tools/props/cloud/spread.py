@@ -171,7 +171,7 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
         if shares.queued() <= 0 and not shares.open:
             return
         machine = batch.claim(run, account, found, f"{number}{'abcdefgh'[attempt - 1] if attempt else ''}", kind,
-                              disk_gb)
+                              disk_gb, wanted=lambda: shares.queued() > 0 or shares.open)
         if machine is None or tend(run, machine, kind, shares, prepare, do, at_once):
             return
 

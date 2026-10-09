@@ -43,7 +43,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   class that holds the job), and gets its machine through `batch.claim` (a fleet through `rent_fleet`), which
   takes the best stocked offer in `SPEED_ORDER` (price barely matters: owner, 2026-10-08), drops an
   offer that is refused, out of stock for a minute or whose machine does not answer within
-  `START_MINUTES`, and spreads a run's machines over the zones. A big card runs as many jobs at once
+  `START_MINUTES`, and spreads a run's machines over the zones. A dropped offer is dropped for one round only: a claim that finds
+  nothing in stock asks every class and zone again every `STOCK_RETRY_MINUTES` (3) until its run has no work for it,
+  its deadline or the month's ceiling (2026-10-09: six of seven spread slots gave up on their first round and one L4
+  did all the work), and a signal (`STOPPING`) ends every claim and deletes a machine that answers after it. A big card runs as many jobs at once
   as `capacity.runs_at_once` says (measured kinds only). A new runner does the same and
   records its machines with `ledger.machines_record`, so `capacity.py report` can compare cards.
 - **Every kind spreads a batch over many machines** (`spread.py`, 2026-10-08, after the provider granted quotas

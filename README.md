@@ -137,7 +137,10 @@ order that waits least, and is never tied to one card or one zone.
   since one runs ten takes at once. Bakes in Cycles take cards with ray-tracing cores first and an
   80 GB card without them only after 5 minutes with nothing else to be had (`KIND_ORDER`, `LATE`). An offer that is refused, says "out of stock" for a minute, or gives a
   machine that does not answer within `START_MINUTES` (5, in `batch.py`) is dropped and the next one
-  tried. In a Pixal3D fleet, a machine that never answers is replaced from the remaining offers.
+  tried. When a round finds no machine in stock anywhere, the slot asks again every 3 minutes
+  (`STOCK_RETRY_MINUTES` in `batch.py`), with the offers read afresh across every class and zone the kind fits, until
+  its run has no work left for it or reaches its deadline or the month's ceiling; a Pixal3D fleet short of cards rents
+  more the same way as stock comes up. No slot settles for the one card it found first. In a Pixal3D fleet, a machine that never answers is replaced from the remaining offers.
 - **Several jobs on one big card.** A card runs as many Pixal3D jobs at once as its memory holds:
   three for every 24 GB (`RUNS_PER_24GB`), so an 80 GB card runs ten. `batch.py --per-card` overrides it.
   Other kinds run one job at a time until their memory per job is measured.

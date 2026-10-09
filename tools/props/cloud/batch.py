@@ -92,6 +92,12 @@ POLL_SECONDS = 15
 # A machine that has not answered over ssh this long after its order is given back and the next offer tried (24 GB
 # cards answered in about 2 min, 2026-09-29; on 2026-10-08 machines in one zone never started at all).
 START_MINUTES = 5
+# How often a claim or a fleet short of machines asks every class and zone again when none was in stock (owner,
+# 2026-10-09: keep retrying every few minutes, never settle for one card).
+STOCK_RETRY_MINUTES = 3
+# Set when the runner is stopped by a signal: claims still asking in other threads stop, and a machine one of them
+# rents after the main thread's last delete is deleted at once (a builder outlived its runner's SIGTERM, 2026-10-09).
+STOPPING = threading.Event()
 # How long after an order the runner asks the machine to start, to learn whether the zone has a card.
 START_CHECK_SECONDS = 5
 # A booted machine that still refuses the key this long never will (measured 2026-09-29: up and
@@ -337,10 +343,51 @@ def boot(machine):
     return machine["host"]
 
 
-def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB):
-    """One machine that answers, for a job of `kind`, with a root disk of `disk_gb`; None when none does. The
-    kind's late classes (capacity.late_for) are taken only after capacity.LATE_MINUTES in which no other offer gave a
-    machine, the others asked again each minute meanwhile."""
+def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None):
+    """One machine that answers, for a job of `kind`, with a root disk of `disk_gb`; None only when the run no longer
+    wants one. A round that finds no stock anywhere is tried again every STOCK_RETRY_MINUTES with the backend's
+    offers read afresh, across every class the offers named and every zone, for as long as `still_wanted` (the run's
+    deadline, the month's ceiling and the caller's `wanted`) says: a slot never gives up on its first round (six of
+    seven spread slots did on 2026-10-09 and one L4 did all the work)."""
+    machine = claim_round(run, account, offers, number, kind, disk_gb)
+    while machine is None and still_wanted(run, account, wanted):
+        say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again in "
+            f"{STOCK_RETRY_MINUTES} min")
+        STOPPING.wait(STOCK_RETRY_MINUTES * 60)
+        if not still_wanted(run, account, wanted):
+            break
+        offers = fresh_offers(run, offers)
+        machine = claim_round(run, account, offers, number, kind, disk_gb)
+    return machine
+
+
+def still_wanted(run, account, wanted=None):
+    """Whether a claim that found no stock should ask again: the run has a deadline still ahead, the month's ceiling
+    is not reached, and the caller still has work for the machine (`wanted()`, when given). A claim with no run (a
+    check) asks once."""
+    if STOPPING.is_set() or run is None or not getattr(run, "deadline", None) or time.time() >= run.deadline:
+        return False
+    if wanted is not None and not wanted():
+        return False
+    return account is None or month_spent(account) < ledger.MONTH_EUROS
+
+
+def fresh_offers(run, offers):
+    """The backend's offers for the same capability classes, read again since stock moves, and the run's dropped
+    offers forgotten so each is tried once more."""
+    classes = sorted({offer.machine_class for offer in offers})
+    found = cloud.offers(classes) or list(offers)
+    dropped = getattr(run, "dropped", None)
+    if dropped is not None:
+        with getattr(run, "choosing", None) or contextlib.nullcontext():
+            dropped.difference_update({(offer.type, offer.zone) for offer in found})
+    return found
+
+
+def claim_round(run, account, offers, number, kind=None, disk_gb=DISK_GB):
+    """One round of a claim: one machine that answers from `offers`, or None. The kind's late classes
+    (capacity.late_for) are taken only after capacity.LATE_MINUTES in which no other offer gave a machine, the others
+    asked again each minute meanwhile."""
     late = capacity.late_for(kind)
     first = [offer for offer in offers if offer.machine_class not in late]
     began = time.time()
@@ -388,8 +435,14 @@ def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
                     run.machines.append(machine)
         if machine is None:
             continue
+        if STOPPING.is_set():
+            delete_machine(machine)
+            return None
         try:
             boot(machine)
+            if STOPPING.is_set():
+                delete_machine(machine)
+                return None
             return machine
         except (TimeoutError, PermissionError) as error:
             say(f"{machine['folder'].name}: {machine['type']} in {machine['zone']} did not start ({error}); "
@@ -643,6 +696,26 @@ def rent_fleet(fleet, cards):
         return added
 
 
+def keep_the_fleet(fleet, found, cards):
+    """Wait while the fleet works, and while it runs fewer than `cards` cards with work left, ask the backend again
+    every STOCK_RETRY_MINUTES for the machine types of `found` (the affordable ones) in every zone and rent what has
+    come into stock; returns when the work is done and every machine is deleted, or at the deadline."""
+    types = {offer.type for offer in found}
+    asked = time.time()
+    while not fleet.stop.is_set() and time.time() < fleet.deadline:
+        alive = [machine for machine in list(fleet.machines) if not machine["deleted"]]
+        if not alive and fleet.no_more_work():
+            return
+        short = cards - sum(machine["cards"] for machine in alive)
+        if short > 0 and not fleet.no_more_work() and time.time() - asked >= STOCK_RETRY_MINUTES * 60:
+            asked = time.time()
+            with fleet.renting:
+                fleet.offers = [offer for offer in fresh_offers(None, found) if offer.type in types]
+            added = rent_fleet(fleet, short)
+            say(f"{short} card{'s' if short != 1 else ''} short; {added} more rented as stock came up")
+        time.sleep(5)
+
+
 def replace(fleet, machine):
     """Rent another machine for one that never answered, from any offer but its type in its zone."""
     with fleet.renting:
@@ -744,6 +817,7 @@ def watchdog(server_id, zone, deadline):
 def stop_on_signals():
     """Turn Ctrl-C, a closed terminal and a kill into an exit, so the machines are deleted."""
     def leave(number, _frame):
+        STOPPING.set()
         raise SystemExit(f"stopped by signal {number}")
     for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(number, leave)
@@ -831,8 +905,7 @@ def run(models, options, account, found, cards, allowed_minutes):
         queue(fleet, models)
         fleet.account, fleet.offers = account, list(found)
         say(f"{rent_fleet(fleet, cards)} of {cards} cards rented")
-        while any(not machine["deleted"] for machine in list(fleet.machines)):
-            time.sleep(5)
+        keep_the_fleet(fleet, found, cards)
     finally:
         fleet.stop.set()
         for machine in fleet.machines:
