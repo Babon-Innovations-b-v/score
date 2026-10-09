@@ -31,6 +31,9 @@ RUN apt-get update -qq \
 
 # SegviGen.
 COPY segvigen.txt /opt/sv/requirements.txt
+# Its compiled packages start triton, which needs a card, at import; here they are only checked as present (and
+# nvdiffrast as absent). The GPU proof run imports them.
+ARG SEGVIGEN_PRESENT="import importlib.util as util; missing = [m for m in ('o_voxel', 'cumesh', 'flex_gemm', 'xformers', 'bpy', 'trellis2') if not util.find_spec(m)]; assert not missing, missing; assert not util.find_spec('nvdiffrast'), 'nvdiffrast must not be installed'; print('segvigen packages present')"
 RUN mkdir -p /opt/sv \
  && curl -fsSL "https://codeload.github.com/Nelipot-Lee/SegviGen/tar.gz/${SEGVIGEN}" | tar -xz -C /opt/sv \
  && mv "/opt/sv/SegviGen-${SEGVIGEN}" /opt/sv/SegviGen \
@@ -42,9 +45,8 @@ RUN mkdir -p /opt/sv \
  && OVOXEL=$(/opt/sv/venv/bin/python -c "import importlib.util, os; print(os.path.dirname(importlib.util.find_spec('o_voxel').origin))") \
  && sed -i -e 's/^\(\s*\)postprocess,\s*$/\1# postprocess (needs the non-commercial nvdiffrast): not imported/' "$OVOXEL/__init__.py" \
  && grep -n "postprocess" "$OVOXEL/__init__.py" \
- && if /opt/sv/venv/bin/python -c "import nvdiffrast" 2>/dev/null; then echo "nvdiffrast must not be installed"; exit 1; fi \
  && cd /opt/sv/SegviGen \
- && /opt/sv/venv/bin/python -c "import o_voxel, cumesh, flex_gemm, xformers, bpy, trellis2; print('segvigen imports ok')"
+ && /opt/sv/venv/bin/python -c "$SEGVIGEN_PRESENT"
 
 # GeoSAM2.
 COPY geosam2.txt /opt/gs/requirements.txt
