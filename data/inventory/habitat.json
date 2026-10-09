@@ -2406,5 +2406,11 @@
 			"dropped": "outside the shell: the cutaway view's own, not the room's inside"
 		}
 	],
-	"concept": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/habitat/concepts/K03.png"
+	"concept": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/habitat/concepts/K03.png",
+	"concept_pick": {
+		"concept": "K03",
+		"picture": "jobs/3326150f/tmp/concepts-world1/habitat/concepts/K03.png",
+		"sha256": "29a4572690a469c53f855275e721f08eff53efcacdc91b6e82e39f868533a7ff",
+		"decided": "owner, 2026-10-07 16:48 UTC, on the Moon modules concept page (claude.ai/artifact/3SrCRmxLoxX3AM4AuX4TL7): approved the module concepts as the coordinator had picked them, correcting only the garage (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #343); the pick and its reasons: jobs/3326150f/tmp/concepts-world1/habitat/picks.json"
+	}
 }

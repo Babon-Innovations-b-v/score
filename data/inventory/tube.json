@@ -683,5 +683,11 @@
 			"dropped": "people, not part of the room"
 		}
 	],
-	"concept": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/tubes/concepts/K12.png"
+	"concept": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/tubes/concepts/K12.png",
+	"concept_pick": {
+		"concept": "K12",
+		"picture": "jobs/3326150f/tmp/concepts-world1/tubes/concepts/K12.png",
+		"sha256": "3f44d8f137306213f4226feb0fd1a2a0c3f8cedec3640708aa2bd2b234da95ef",
+		"decided": "owner, 2026-10-07 16:48 UTC, on the Moon modules concept page (claude.ai/artifact/3SrCRmxLoxX3AM4AuX4TL7): approved the module concepts as the coordinator had picked them, correcting only the garage (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #343); the pick and its reasons: jobs/3326150f/tmp/concepts-world1/tubes/picks.json (round two)"
+	}
 }

@@ -493,8 +493,8 @@ def laid_object(stage, path, piece, row, asset, sound, ground=None, sha256=None)
               "score:name": row.get("name", ""), "score:anchor": row.get("anchor", "")}
     if sha256:
         values["score:model_sha256"] = sha256
-    if (row.get("pick") or {}).get("sha256"):
-        values["score:pick_sha256"] = row["pick"]["sha256"]
+    if picks.picked(row) is not None and picks.pick_sha256(row["pick"], piece["model"]):
+        values["score:pick_sha256"] = picks.pick_sha256(row["pick"], piece["model"])
     if "layer" in piece:  # a kit room's draw layer: 2 is its roof, left out of a cutaway look
         values["score:layer"] = str(piece["layer"])
     if sound is not None:
@@ -747,7 +747,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds, glows.get(model))
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
     hashes = {model: complete.model_hash(model_file(models, model)) for model in assets}
-    lock_picks(place, kit, children, inventory, hashes)
+    lock_picks(place, kit, children, inventory, hashes, scene_shown((scene or {}).get("objects", []), world))
     write_base(place, kit, inventory, assets, out, children, ground, scene, world, hashes)
     ensure_edit(out)
     stage = write_root(place, out)
@@ -755,9 +755,20 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     return stage
 
 
-def lock_picks(place, kit, children, inventory, hashes):
-    """Refuse the export when a row the owner picked a model for would show another (picks.py), naming each."""
+def scene_shown(objects, world):
+    """The scene record's objects that stand for an inventory row (their `row`): {row: [(object, model, hash)]}."""
     shown = {}
+    for entry in objects:
+        if "row" in entry:
+            shown.setdefault(entry["row"], []).append((f"Fixtures/{entry['name']}", entry["model"], complete.model_hash(
+                scene_record.world_file(world, entry["model"]))))
+    return shown
+
+
+def lock_picks(place, kit, children, inventory, hashes, from_scene=None):
+    """Refuse the export when a row the owner picked a model for would show another (picks.py), naming each; the
+    scene record's objects that stand for a row (`from_scene`, scene_shown) count as that row's."""
+    shown = {row: list(objects) for row, objects in (from_scene or {}).items()}
     for name, piece in zip(object_names(kit["pieces"]), kit["pieces"]):
         shown.setdefault(piece["row"], []).append((name, piece["model"], hashes.get(piece["model"])))
         on_it = children.get(piece["row"], [])

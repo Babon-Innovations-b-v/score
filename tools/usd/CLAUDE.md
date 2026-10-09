@@ -86,9 +86,14 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `annotate.py` (Blender side `../blender/inside/annotate_stage.py`) is the one annotate step: from any camera the look,
   per-pixel object ids, depth and normals, and from them masks and occlusion boundaries. Checks call it; never write a
   second renderer for a check.
-- `picks.py` is the pick lock: a row's `pick` (model, hash, the decision in words) is written on its objects at export
-  (`score:pick_sha256` beside `score:model_sha256`); export refuses a picked row showing another model or none unless
-  the row has `pick_replaced` (the owner's written decision). Never write a pick or a replacement the owner did not make.
+- `picks.py` is the pick lock: a row's `pick` (model, hash, the decision in words; `models` {name: hash} for a row
+  drawn by several models) is written on its objects at export (`score:pick_sha256` beside `score:model_sha256`);
+  export refuses a picked row showing another model or none unless the row has `pick_replaced` (the owner's written
+  decision). A scene record object that stands for a row names it (`row`) and is locked the same way (the launch's
+  rocket). Never write a pick or a replacement the owner did not make; each `decided` names its source (the owner's
+  message and date, the page, the log line). An inventory's `concept_pick` records the concept the owner approved
+  (picture, hash, source); the lock does not read it. The hash covers a model's .gltf and buffers, not its texture
+  files, so a repaint that keeps the file names is not caught.
 - `compare.py` is the render-and-compare: each object with a close-up rendered alone from 8 ways round it, the best
   outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../props/cloud/similar.py`).
 - `made_only.py` is the made-only check on the stage: every drawn mesh says what made it (score:model, score:builder,
