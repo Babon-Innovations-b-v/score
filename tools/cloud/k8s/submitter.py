@@ -374,10 +374,17 @@ class Run:
             if name not in present and seen["deleted"] is None:
                 seen["deleted"] = seen["last_seen"]
 
-    def our_nodes(self):
+    def used_nodes(self):
         """The nodes a job of this run ran on."""
-        used = {record["node"] for record in self.jobs.values() if record["node"]}
-        return {name: seen for name, seen in self.nodes.items() if name in used}
+        return {record["node"] for record in self.jobs.values() if record["node"]}
+
+    def our_nodes(self):
+        """The nodes this run pays for: those its jobs ran on, and those the autoscaler made during the run that ran
+        none of them (it grows a node for each waiting pod, and a faster node may take the pod first: a second L4
+        came up unused on 2026-10-09). With two runs on one cluster an unused node is counted by both."""
+        used = self.used_nodes()
+        return {name: seen for name, seen in self.nodes.items()
+                if name in used or (seen["created"] or 0) >= self.started}
 
     def live_euros(self):
         """What the run's nodes have cost so far."""
@@ -503,13 +510,18 @@ def job_rows(run, kind, timings):
 
 
 def node_machines(run, kind):
-    """The kind's nodes as ledger machine records (the first kind that ran on a node owns it)."""
+    """The kind's nodes as ledger machine records: the first kind that ran on a node owns it, and a node that ran
+    none of the run's jobs belongs to the first kind whose classes hold it (marked unused)."""
     owner = {}
     for job_id, record in sorted(run.jobs.items(), key=lambda item: item[1]["ran"] or 0):
         if record["node"]:
             owner.setdefault(record["node"], run.specs[job_id]["kind"])
+    used = run.used_nodes()
     machines = []
     for name, seen in run.our_nodes().items():
+        if name not in used:
+            owner[name] = next((run.specs[job_id]["kind"] for job_id in run.specs
+                                if seen["class"] in run.orders[job_id][0]), None)
         if owner.get(name) != kind:
             continue
         per_minute, unit = run.cluster.price(seen["type"], seen["zone"])
@@ -519,7 +531,7 @@ def node_machines(run, kind):
         machines.append({"type": seen["type"], "zone": seen["zone"], "cards": seen["cards"], "created": created,
                          "ready": max(seen["ready"], created) if seen["ready"] else None,
                          "deleted": seen["deleted"] or time.time(), "price": per_minute,
-                         "unit_minutes": unit, "class": seen["class"], "node": name})
+                         "unit_minutes": unit, "class": seen["class"], "node": name, "unused": name not in used})
     return machines
 
 
@@ -530,7 +542,7 @@ def ledger_entries(run, timings):
         machines = node_machines(run, kind)
         record = ledger.machines_record(machines, [], run.started)
         for row, machine in zip(record["machines"], machines):
-            row.update({"class": machine["class"], "node": machine["node"]})
+            row.update({"class": machine["class"], "node": machine["node"], "unused": machine["unused"]})
         jobs = job_rows(run, kind, timings)
         entries.append({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(run.started)),
                         "batch": run.run_id, "kind": kind, "path": "k8s", **record, "jobs": jobs,
@@ -542,7 +554,8 @@ def ledger_entries(run, timings):
 def report(run, entries):
     for entry in entries:
         say(f"{entry['kind']}: {entry['jobs_done']} of {len(entry['jobs'])} jobs done in {entry['wall_minutes']:.0f} "
-            f"min on {len(entry['machines'])} nodes, {entry['machine_minutes']:.0f} node minutes, €{entry['euros']:.2f}")
+            f"min on {len(entry['machines'])} nodes, {entry['machine_minutes']:.0f} node minutes, "
+            f"€{entry['euros']:.2f}")
 
 
 def main():

@@ -34,13 +34,26 @@ runners in `tools/props/cloud/` stay as they are.
 - **Secrets only by name.** The store and registry credentials come from the provider at submit time and go to the
   cluster through kubectl's stdin; no kubeconfig, key or id is committed (the kubeconfig lives under
   `~/.farm-factory-props/cloud/`).
+- **Warm nodes.** A run puts all its jobs on the cluster at once, so its nodes stay busy while any of its jobs
+  wait; a node is removed 5 min after its last pod (measured 5.5 to 6.5 min). A runner that sends a run's stages
+  one after another keeps its nodes if the next stage comes within those 5 min; a pod on a warm node starts in
+  about 1 s, against about 5 min from zero.
+- **Kapsule or Kosmos.** Both control planes are free. Kapsule reaches one region's zones (fr-par-1, fr-par-2);
+  Kosmos (`SCORE_K8S_TYPE=multicloud`) also reaches pl-waw-2, which on 2026-10-09 gave the only processor machine
+  after 20 min of fr-par being out of stock. Kosmos nodes lack the zone and instance-type labels and wait about
+  40 s for their network.
+- **The GPU operator's own setup is about 2.5 min a cold card node** (Scaleway installs NVIDIA's GPU operator;
+  the measurements are in `clusters/scaleway.py`). The precompiled driver and a shorter driver probe did not cut it;
+  its images mirrored into the project's registry (ClusterPolicy `repository` and `imagePullSecrets`) cut node Ready
+  to card usable from about 160 s to 146 s on one run. Change the ClusterPolicy only with no card node running: a
+  change reinstalls the driver on live nodes and their pods fail.
 - Tests: `pytest tools/cloud/k8s` with scw and kubectl stubbed; nothing is rented by a test.
 
 ## Another provider
 
 A provider is one `clusters/<name>.py` with `KUBECONFIG`, `up()`, `idle()`, `down()`, `class_pools()` (name, class,
-type, zone, max, euros a minute, billing unit), `cap_pools(euros_left, hours)`, `nodes()` (name, pool, type, zone, status,
-billed creation time), `price(type, zone)` and `month_spend()`; `SCORE_K8S_PROVIDER=<name>` picks it. The
+type, zone, max, euros a minute, billing unit), `cap_pools(euros_left, hours)`, `nodes()` (name, pool, type, zone,
+status, billed creation time), `price(type, zone)` and `month_spend()`; `SCORE_K8S_PROVIDER=<name>` picks it. The
 manifests and the submitter do not change.
 
 - **AWS EKS.** One managed node group per class and zone (EKS managed node groups scale from zero; the cluster
