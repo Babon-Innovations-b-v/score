@@ -1042,6 +1042,227 @@
 			"box_from": [
 				"v2.w18"
 			]
+		},
+		{
+			"id": "window_strip_lamp",
+			"view": "v1",
+			"box": [
+				640,
+				355,
+				710,
+				415
+			],
+			"name": "a short orange strip lamp on the wall over a window",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				0.6,
+				0.08,
+				0.06
+			],
+			"count": 2,
+			"thing": "prop:camp_window_strip_lamp",
+			"object": "door_strip_lamp",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"why_code": "the same code-built strip lamp the greenhouse, lab and workshop lay over a door (door_strip_lamp), shorter",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "toaster",
+			"view": "v1",
+			"box": [
+				2140,
+				690,
+				2265,
+				810
+			],
+			"name": "a stainless two-slot toaster on the galley worktop",
+			"kind": "generate",
+			"anchor": "on:galley",
+			"size": [
+				0.28,
+				0.18,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:camp_toaster",
+			"parent": "galley",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "microwave",
+			"view": "v1",
+			"box": [
+				2140,
+				690,
+				2265,
+				810
+			],
+			"name": "a small stainless microwave oven on the galley worktop",
+			"kind": "generate",
+			"anchor": "on:galley",
+			"size": [
+				0.5,
+				0.38,
+				0.3
+			],
+			"count": 1,
+			"thing": "prop:camp_microwave",
+			"parent": "galley",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "galley_bin",
+			"view": "v1",
+			"box": [
+				1625,
+				605,
+				1685,
+				740
+			],
+			"name": "a small stainless waste bin beside the cold store",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				0.3,
+				0.3,
+				0.45
+			],
+			"count": 1,
+			"thing": "prop:camp_galley_bin",
+			"object": "waste_bin",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"why_code": "the same code-built waste bin the greenhouse, habitat and workshop lay (waste_bin)",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "kiosk_terminal",
+			"view": "v2",
+			"box": [
+				350,
+				945,
+				535,
+				1205
+			],
+			"name": "a small terminal screen on a pedestal",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.45,
+				0.4,
+				1.3
+			],
+			"count": 1,
+			"thing": "prop:camp_kiosk_terminal",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "canister",
+			"view": "v2",
+			"box": [
+				2280,
+				815,
+				2365,
+				930
+			],
+			"name": "a small lidded steel drum on the floor",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.4,
+				0.4,
+				0.55
+			],
+			"count": 1,
+			"thing": "prop:camp_canister",
+			"reuse": "lab:sample_jar",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"why_take": "the lab's steel sample jar with its lid, laid at a drum's size (the owner: reuse a model before making a new one)",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "sample_jar",
+			"view": "v2",
+			"box": [
+				1660,
+				1080,
+				2030,
+				1240
+			],
+			"name": "steel sample jars on the sample shelf",
+			"kind": "generate",
+			"anchor": "on:sample_shelf",
+			"size": [
+				0.11,
+				0.11,
+				0.16
+			],
+			"count": 4,
+			"thing": "prop:camp_sample_jar",
+			"parent": "sample_shelf",
+			"reuse": "lab:sample_jar",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "sample_tray",
+			"view": "v2",
+			"box": [
+				1660,
+				1080,
+				2030,
+				1240
+			],
+			"name": "shallow trays of rock samples on the sample shelf",
+			"kind": "generate",
+			"anchor": "on:sample_shelf",
+			"size": [
+				0.45,
+				0.32,
+				0.07
+			],
+			"count": 2,
+			"thing": "prop:camp_sample_tray",
+			"parent": "sample_shelf",
+			"reuse": "lab:sample_tray",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
+		},
+		{
+			"id": "sample_case",
+			"view": "v2",
+			"box": [
+				1660,
+				1080,
+				2030,
+				1240
+			],
+			"name": "small hard sample cases on the sample shelf",
+			"kind": "generate",
+			"anchor": "on:sample_shelf",
+			"size": [
+				0.5,
+				0.34,
+				0.2
+			],
+			"count": 2,
+			"thing": "prop:camp_sample_case",
+			"parent": "sample_shelf",
+			"reuse": "campgrounds:sample_case",
+			"needed": "the inventory audit of the concept (job partition-audit, 2026-10-09, playtest3/partition-audit/elements/camp.json): the concept shows it and no row held it",
+			"at": [],
+			"from": "laid by the scene agent's final export from the concept (no game code places it)"
 		}
 	]
 }

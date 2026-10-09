@@ -897,6 +897,60 @@
    "why": "on the parts rack",
    "parent": "parts_rack",
    "unseen": "the concept C4 does not show the gas bottle on the rack; the row is the plan's"
+  },
+  {
+   "id": "supply_rocket",
+   "view": "v1",
+   "box": null,
+   "unseen": "this place's plan view does not reach the base's landing pad; the game stands a supply rocket there while one is down, with the cargo lift beside it",
+   "name": "a small uncrewed cargo supply rocket on four landing legs, white with a red band, its cargo bay hatch open",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    1.2,
+    1.2,
+    4.5
+   ],
+   "count": 1,
+   "thing": "model:supply_rocket_small",
+   "at": [
+    {
+     "x": 96.128,
+     "y": 0.2,
+     "z": 24.875,
+     "facing": 132.29
+    }
+   ],
+   "needed": "the story and the game's economy: supply rockets bring every load the base gets (the game's bible, the rocket calendar), and one stands on the pad while its cargo waits; the game draws it there (game/world/supply_rockets)",
+   "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/old_station.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base",
+   "reuse": "wreck:supply_rocket"
+  },
+  {
+   "id": "cargo_lift",
+   "view": "v1",
+   "box": null,
+   "unseen": "this place's plan view does not reach the base's landing pad; the game stands a supply rocket there while one is down, with the cargo lift beside it",
+   "name": "the landing pad's cargo lift: a railed steel basket under a gantry with two sheaves",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    1.0,
+    1.0,
+    1.34
+   ],
+   "count": 1,
+   "thing": "model:cargo_lift",
+   "at": [
+    {
+     "x": 95.494,
+     "y": 0.2,
+     "z": 24.297,
+     "facing": 132.29
+    }
+   ],
+   "needed": "the story: the player rides it to unload each rocket's cargo (game/base/landing_pad), and it stands beside the rocket on the pad",
+   "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/old_station.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base",
+   "reuse": "wreck:cargo_lift"
   }
  ]
 }

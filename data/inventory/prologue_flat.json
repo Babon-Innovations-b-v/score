@@ -1777,6 +1777,87 @@
 				"v1.485",
 				"v1.w80"
 			]
+		},
+		{
+			"id": "balcony_rubber_plant",
+			"view": "v1",
+			"box": null,
+			"name": "a potted rubber plant with broad glossy leaves in a round glazed pot",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.39,
+				0.46,
+				0.6
+			],
+			"count": 1,
+			"thing": "prop:balcony_rubber_plant",
+			"at": [
+				{
+					"x": -4.85,
+					"y": 0.02,
+					"z": -1.85,
+					"facing": 0
+				}
+			],
+			"close_up": "WORK/pictures/balcony_rubber_plant.png",
+			"needed": "the launch concepts K01 and K04 show potted plants along the balcony's rail, seen from where the player smokes at it",
+			"from": "game repo earth_site.gd at 1f6b7681^ (FURNITURE rows 15-16 and ON_TOP row 4), the last state before the retired models were taken out",
+			"unseen": "the flat's concept K06 looks into the room; the launch concept K01, drawn from this balcony, shows the potted plants by the rail (left foreground, about x 680 to 1040, y 1075 to 1470 of its 2752 by 1536)"
+		},
+		{
+			"id": "balcony_fern_pot",
+			"view": "v1",
+			"box": null,
+			"name": "a potted fern with long fronds in a round glazed pot",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.5,
+				0.55,
+				0.55
+			],
+			"count": 1,
+			"thing": "prop:balcony_fern_pot",
+			"at": [
+				{
+					"x": -4.85,
+					"y": 0.02,
+					"z": -5.15,
+					"facing": 0
+				}
+			],
+			"close_up": "WORK/pictures/balcony_fern_pot.png",
+			"needed": "the launch concepts K01 and K04 show potted plants along the balcony's rail, seen from where the player smokes at it",
+			"from": "game repo earth_site.gd at 1f6b7681^ (FURNITURE rows 15-16 and ON_TOP row 4), the last state before the retired models were taken out",
+			"unseen": "the flat's concept K06 looks into the room; the launch concept K01, drawn from this balcony, shows the potted plants by the rail (left foreground, about x 680 to 1040, y 1075 to 1470 of its 2752 by 1536)"
+		},
+		{
+			"id": "ashtray",
+			"view": "v1",
+			"box": null,
+			"unseen": "the concepts do not show it: it stands on the balcony's floor by the door, for the cigarette the player smokes at the rail in the opening (game/prologue/cigarette)",
+			"name": "a round dark grey metal ashtray with two cigarette butts",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.12,
+				0.12,
+				0.05
+			],
+			"count": 1,
+			"thing": "prop:flat_ashtray",
+			"at": [
+				{
+					"x": -3.5,
+					"y": 0.02,
+					"z": -5.05,
+					"facing": 0
+				}
+			],
+			"close_up": "WORK/pictures/flat_ashtray.png",
+			"needed": "the story: the game opens with a cigarette on this balcony (game/prologue/CLAUDE.md)",
+			"from": "game repo earth_site.gd at 1f6b7681^ (FURNITURE rows 15-16 and ON_TOP row 4), the last state before the retired models were taken out; the stool it stood on is not needed, so it stands on the balcony's floor at the stool's spot"
 		}
 	]
 }

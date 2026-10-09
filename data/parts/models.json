@@ -4,7 +4,11 @@
   "cold_store_1": "cold_store-m1",
   "galley_1": "galley-m1",
   "growth_chamber_1": "growth_chamber-m1",
-  "lockers_1": "lockers-m1"
+  "lockers_1": "lockers-m1",
+  "canister_1": "sample_jar-lab1",
+  "sample_jar_1": "sample_jar-lab1",
+  "sample_tray_1": "sample_tray-lab1",
+  "sample_case_1": "sample_case-g1"
  },
  "campgrounds": {
   "cargo_case": "cargo_case-r1",
@@ -29,7 +33,10 @@
   "kettle_1": "flat_kettle-pb",
   "quilt_1": "flat_quilt-pb",
   "sauce_bottle_1": "flat_sauce_bottle-pb",
-  "thermos_1": "flat_thermos-pb"
+  "thermos_1": "flat_thermos-pb",
+  "ashtray_1": "ashtray-rr1",
+  "balcony_fern_pot_1": "balcony_fern_pot-rr1",
+  "balcony_rubber_plant_1": "balcony_rubber_plant-rr1"
  },
  "greenhouse": {
   "chair_1": "chair-b",
@@ -92,7 +99,9 @@
   "rover": "rover-r1",
   "solar_mast": "solar_mast-r1",
   "solar_mast_dead": "solar_mast_dead-r1",
-  "spare_wheel": "spare_wheel-r1"
+  "spare_wheel": "spare_wheel-r1",
+  "supply_rocket": "supply_rocket-rr1",
+  "cargo_lift": "cargo_lift-rr1"
  },
  "stairwell": {
   "extinguisher_1": "stairwell_extinguisher-pb"
@@ -105,7 +114,8 @@
   "wrench_1": "wrench-r6",
   "wrench_2": "wrench-r6",
   "wrench_3": "wrench-r6",
-  "wrench_4": "wrench-r6"
+  "wrench_4": "wrench-r6",
+  "bench_lamp_1": "desklamp-r6"
  },
  "wreck": {
   "access_cover": "access_cover-r1",
@@ -120,7 +130,9 @@
   "ring_frame": "ring_frame-r1",
   "small_panel": "small_panel-r1",
   "tank_dome": "tank_dome-r1",
-  "work_lamp": "work_lamp-r1"
+  "work_lamp": "work_lamp-r1",
+  "supply_rocket": "supply_rocket-rr1",
+  "cargo_lift": "cargo_lift-rr1"
  },
  "garage": {
   "rover_lift_1": "rover_lift-g1",

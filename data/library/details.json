@@ -4771,5 +4771,355 @@
 		],
 		"screens": [],
 		"cuts": []
+	},
+	"camp_canister": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"glass",
+			"bare_steel"
+		]
+	},
+	"camp_sample_jar": {
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		],
+		"materials": [
+			"glass",
+			"bare_steel"
+		]
+	},
+	"camp_sample_tray": {
+		"materials": [
+			"bare_steel",
+			"cast_steel"
+		],
+		"screens": [],
+		"cuts": [],
+		"turn": [
+			0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0
+		]
+	},
+	"camp_sample_case": {
+		"materials": [
+			"dust_coated_paint",
+			"anodized_natural",
+			"rubber"
+		],
+		"turn": [
+			0.15899,
+			0.0,
+			-0.98728,
+			0.0,
+			1.0,
+			0.0,
+			0.98728,
+			0.0,
+			0.15899
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": [
+			{
+				"at": [
+					0.0,
+					0.1
+				],
+				"size": [
+					0.2,
+					0.05
+				],
+				"variant": "stencil_samples_bt"
+			}
+		],
+		"square": true
+	},
+	"workshop_bench_lamp": {
+		"materials": [
+			"bare_steel",
+			"pipe_steel"
+		],
+		"turn": [
+			-0.0,
+			0.0,
+			-1.0,
+			0.0,
+			1.0,
+			0.0,
+			1.0,
+			0.0,
+			-0.0
+		],
+		"screens": [],
+		"cuts": []
+	},
+	"flat_ashtray": {
+		"materials": [
+			"gate_grey",
+			"cotton_white"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_balcony_fern_pot": {
+		"materials": [
+			"enamel_white",
+			"enamel_blue",
+			"foliage_leaf",
+			"potting_soil"
+		],
+		"turn": [
+			0.0,
+			1.0,
+			0.0,
+			-1.0,
+			0.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"flat_balcony_rubber_plant": {
+		"materials": [
+			"enamel_white",
+			"enamel_blue",
+			"foliage_leaf",
+			"potting_soil"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"wreck_supply_rocket": {
+		"materials": [
+			"hull_white_old",
+			"warning_paint",
+			"bare_steel",
+			"cast_iron_dark",
+			"dark_panel"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"wreck_cargo_lift": {
+		"materials": [
+			"galvanized_steel",
+			"bare_steel",
+			"chequer_plate_steel",
+			"cable_black"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"camp_toaster": {
+		"materials": [
+			"brushed_steel_fine",
+			"plastic_white",
+			"rubber"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"camp_microwave": {
+		"materials": [
+			"brushed_steel_fine",
+			"glass",
+			"plastic_white"
+		],
+		"turn": [
+			-0.84805,
+			0.0,
+			0.52992,
+			0.0,
+			1.0,
+			0.0,
+			-0.52992,
+			0.0,
+			-0.84805
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"camp_kiosk_terminal": {
+		"materials": [
+			"dust_coated_paint",
+			"screen",
+			"rubber",
+			"brushed_steel_fine"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"wreck_probe_lander": {
+		"materials": [
+			"mli_silver",
+			"mli_gold",
+			"bare_steel",
+			"solar_cell"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"old_station_supply_rocket": {
+		"materials": [
+			"hull_white_old",
+			"warning_paint",
+			"bare_steel",
+			"cast_iron_dark",
+			"dark_panel"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
+	},
+	"old_station_cargo_lift": {
+		"materials": [
+			"galvanized_steel",
+			"bare_steel",
+			"chequer_plate_steel",
+			"cable_black"
+		],
+		"turn": [
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0,
+			0.0,
+			0.0,
+			0.0,
+			1.0
+		],
+		"screens": [],
+		"cuts": [],
+		"decals": []
 	}
 }
