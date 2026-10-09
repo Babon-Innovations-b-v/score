@@ -114,61 +114,21 @@
    "plain": "plate"
   },
   {
-   "name": "ship_body",
-   "builder": "lathe",
-   "profile": [
-    [
-     0.8,
-     5.8,
-     1.6,
-     1.6
-    ]
-   ],
+   "name": "ship",
+   "builder": "ship_hull",
    "centre": [
     0.0,
     0.5,
     8.9
    ],
    "surface": "hull_white_gloss",
-   "from": "game/craft/ship/ship.tscn (body r 1.6 h 5 at 3.3; on its legs 0.5)"
-  },
-  {
-   "name": "ship_nose",
-   "builder": "lathe",
-   "profile": [
-    [
-     5.8,
-     7.8,
-     1.6,
-     0.0
-    ]
-   ],
-   "centre": [
-    0.0,
-    0.5,
-    8.9
-   ],
-   "surface": "painted_panel",
-   "from": "ship.tscn nose cone"
-  },
-  {
-   "name": "ship_band",
-   "builder": "lathe",
-   "profile": [
-    [
-     1.05,
-     1.35,
-     1.62,
-     1.62
-    ]
-   ],
-   "centre": [
-    0.0,
-    0.5,
-    8.9
-   ],
-   "surface": "hazard_paint",
-   "from": "ship.tscn band"
+   "nose_surface": "painted_panel",
+   "band_surface": "hazard_paint",
+   "stripe_surface": "dark_panel",
+   "seam_surface": "bare_steel",
+   "steel_surface": "bare_steel",
+   "glass_surface": "glass",
+   "from": "game/craft/ship/ship.tscn (body r 1.6 h 5 at 3.3; on its legs 0.5); the hull's own parts (its panels and seams, the service windows, the nose's panels and tip, the band's chevrons and the foot ring) from its clean close-up (job r2-placeholders, 2026-10-09), built in code (tools/usd/builders.py ship_hull) as the shared rule says ships are"
   }
  ],
  "lights": [

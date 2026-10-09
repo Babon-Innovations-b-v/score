@@ -133,54 +133,21 @@
    "plain": "trim"
   },
   {
-   "name": "ship_body",
-   "builder": "lathe",
-   "profile": [
-    [
-     0.8,
-     5.8,
-     1.6,
-     1.6
-    ]
-   ],
+   "name": "ship",
+   "builder": "ship_hull",
    "centre": [
     0.0,
     0.0,
     0.0
    ],
-   "sides": 64,
    "surface": "hull_white_gloss",
-   "placed_at": [
-    47.717,
-    -6.253,
-    23.08
-   ],
-   "placed_turn": [
-    0.05914,
-    0.058564,
-    -0.105838,
-    0.990894
-   ],
-   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none"
-  },
-  {
-   "name": "ship_nose",
-   "builder": "lathe",
-   "profile": [
-    [
-     5.8,
-     7.8,
-     1.6,
-     0.0
-    ]
-   ],
-   "centre": [
-    0.0,
-    0.0,
-    0.0
-   ],
+   "nose_surface": "painted_panel",
+   "band_surface": "hazard_paint",
+   "stripe_surface": "dark_panel",
+   "seam_surface": "bare_steel",
+   "steel_surface": "bare_steel",
+   "glass_surface": "glass",
    "sides": 64,
-   "surface": "painted_panel",
    "placed_at": [
     47.717,
     -6.253,
@@ -192,38 +159,7 @@
     -0.105838,
     0.990894
    ],
-   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none"
-  },
-  {
-   "name": "ship_band",
-   "builder": "lathe",
-   "profile": [
-    [
-     1.05,
-     1.35,
-     1.62,
-     1.62
-    ]
-   ],
-   "centre": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "sides": 64,
-   "surface": "hazard_paint",
-   "placed_at": [
-    47.717,
-    -6.253,
-    23.08
-   ],
-   "placed_turn": [
-    0.05914,
-    0.058564,
-    -0.105838,
-    0.990894
-   ],
-   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none"
+   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none; the hull's own parts (its panels and seams, the service windows, the nose's panels and tip, the band's chevrons and the foot ring) from its clean close-up (job r2-placeholders, 2026-10-09), built in code (tools/usd/builders.py ship_hull) as the shared rule says ships are"
   }
  ],
  "places": [

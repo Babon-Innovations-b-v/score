@@ -500,3 +500,136 @@ def torus(inner, outer, height, surface, sides=32, ring_sides=8, flatten=1.0, ce
             following = first + ring_sides + 1
             triangles += [[first, following, first + 1], [first + 1, following, following + 1]]
     return mesh(points, triangles, uvs, surface)
+
+
+# The ship's bare hull (game/craft/ship/ship.tscn: Body r 1.6 from 0.8 to 5.8, Nose cone to 7.8, Band r 1.62 from 1.05
+# to 1.35, in the ship's own frame) with the parts its clean close-up shows (job r2-placeholders, 2026-10-09, Qwen-
+# Image-Edit from the hangar's stage: four hull panels round and two high with seams between, a small framed service
+# window with four bolts on each panel, six nose panels with a seam ring, a tip cap, the band's black chevrons and a
+# steel foot ring). The close-up's own proportions set the parts the game's numbers do not.
+SHIP_BODY = (0.8, 5.8, 1.6)
+SHIP_NOSE_TOP = 7.8
+SHIP_BAND = (1.05, 1.35, 1.62)
+SHIP_PANELS_ROUND = 4
+SHIP_PANEL_SPLIT = 3.8
+SHIP_SEAM = 0.02
+SHIP_SEAM_DEPTH = 0.015
+SHIP_WINDOWS_AT = (2.37, 4.55)
+SHIP_WINDOW = (0.4, 0.22, 0.05)
+SHIP_NOSE_PANELS = 6
+SHIP_NOSE_SEAM_AT = 6.78
+SHIP_TIP_FROM = 7.6
+SHIP_STRIPES = 40
+SHIP_FOOT_RING = (0.8, 0.9, 1.66)
+
+
+def cone_arc(low, high, bottom, top, surface, start=0.0, sweep=360.0, segments=24, centre=(0.0, 0.0, 0.0)):
+    """Part of a turned frustum's side from `low` (radius `bottom`) to `high` (radius `top`), from bearing `start`
+    over `sweep` degrees, standing on `centre`."""
+    points, uvs = [], []
+    for segment in range(segments + 1):
+        angle = math.radians(start + sweep * segment / segments)
+        for height, radius in ((low, bottom), (high, top)):
+            points.append([centre[0] + radius * math.sin(angle), centre[1] + height,
+                           centre[2] - radius * math.cos(angle)])
+            uvs.append([max(bottom, top) * math.radians(sweep * segment / segments), height - low])
+    triangles = []
+    for segment in range(segments):
+        first = 2 * segment
+        triangles += [[first, first + 2, first + 1], [first + 1, first + 2, first + 3]]
+    return mesh(points, triangles, uvs, surface)
+
+
+def on_hull(bearing, height, radius, size, surface, centre):
+    """A box standing flat on a round hull: its middle `radius` out at `bearing` degrees and `height`, its depth
+    (size z) straight out from the hull."""
+    angle = math.radians(bearing)
+    at = [centre[0] + radius * math.sin(angle), centre[1] + height, centre[2] - radius * math.cos(angle)]
+    return box(at, size, surface, -bearing)
+
+
+def ship_hull_panels(centre, surface, seam_surface, sides):
+    """The hull's panels round and up, a seam's gap between each, over a core set in by the seams' depth."""
+    low, high, radius = SHIP_BODY
+    core = joined([cone_arc(bottom, top, radius - SHIP_SEAM_DEPTH, radius - SHIP_SEAM_DEPTH, seam_surface,
+                            segments=sides, centre=centre) for bottom, top in ((low, SHIP_PANEL_SPLIT),
+                                                                               (SHIP_PANEL_SPLIT, high))])
+    gap = math.degrees(SHIP_SEAM / radius)
+    span = 360.0 / SHIP_PANELS_ROUND
+    panels = [cone_arc(bottom + SHIP_SEAM / 2 * (bottom > low), top - SHIP_SEAM / 2 * (top < high), radius, radius,
+                       surface, number * span + gap / 2, span - gap, sides // SHIP_PANELS_ROUND, centre)
+              for number in range(SHIP_PANELS_ROUND) for bottom, top in ((low, SHIP_PANEL_SPLIT), (SHIP_PANEL_SPLIT, high))]
+    return [core, joined(panels)]
+
+
+def ship_windows(centre, frame_surface, glass_surface, bolt_surface):
+    """A framed service window with a bolt at each corner in the middle of every hull panel."""
+    outer, inner, deep = SHIP_WINDOW
+    radius = SHIP_BODY[2]
+    bar = (outer - inner) / 2
+    frames, glass, bolts = [], [], []
+    for number in range(SHIP_PANELS_ROUND):
+        bearing = (number + 0.5) * 360.0 / SHIP_PANELS_ROUND
+        for height in SHIP_WINDOWS_AT:
+            reach = math.degrees((inner + bar) / 2 / radius)
+            frames += [on_hull(bearing, height + side * (inner + bar) / 2, radius + deep / 2, (outer, bar, deep),
+                               frame_surface, centre) for side in (-1, 1)]
+            frames += [on_hull(bearing + side * reach, height, radius + deep / 2, (bar, inner, deep), frame_surface,
+                               centre) for side in (-1, 1)]
+            glass.append(on_hull(bearing, height, radius + deep / 4, (inner, inner, deep / 2), glass_surface, centre))
+            corner = math.degrees((outer / 2 - bar / 2) / radius)
+            bolts += [on_hull(bearing + across * corner, height + up * (outer / 2 - bar / 2), radius + deep + 0.01,
+                              (0.03, 0.03, 0.02), bolt_surface, centre) for across in (-1, 1) for up in (-1, 1)]
+    return [joined(frames), joined(glass), joined(bolts)]
+
+
+def ship_nose(centre, surface, seam_surface, sides):
+    """The nose cone's panels round and up to a seam ring, over a core set in by the seams' depth, and its tip cap."""
+    low, radius = SHIP_BODY[1], SHIP_BODY[2]
+
+    def radius_at(height):
+        return radius * (SHIP_NOSE_TOP - height) / (SHIP_NOSE_TOP - low)
+
+    core = cone_arc(low, SHIP_TIP_FROM, radius - SHIP_SEAM_DEPTH, radius_at(SHIP_TIP_FROM) - SHIP_SEAM_DEPTH,
+                    seam_surface, segments=sides, centre=centre)
+    gap = math.degrees(SHIP_SEAM / radius)
+    span = 360.0 / SHIP_NOSE_PANELS
+    panels = []
+    for bottom, top in ((low, SHIP_NOSE_SEAM_AT - SHIP_SEAM / 2), (SHIP_NOSE_SEAM_AT + SHIP_SEAM / 2, SHIP_TIP_FROM)):
+        panels += [cone_arc(bottom, top, radius_at(bottom), radius_at(top), surface, number * span + gap / 2,
+                            span - gap, sides // SHIP_NOSE_PANELS, centre) for number in range(SHIP_NOSE_PANELS)]
+    tip = cone_arc(SHIP_TIP_FROM, SHIP_NOSE_TOP, radius_at(SHIP_TIP_FROM) + 0.005, 0.0, surface, segments=sides,
+                   centre=centre)
+    return [core, joined(panels + [tip])]
+
+
+def ship_band(centre, surface, stripe_surface, sides):
+    """The hazard band round the hull's foot and its black chevrons, each leaning a stripe's width over the band."""
+    low, high, radius = SHIP_BAND
+    band = cone_arc(low, high, radius, radius, surface, segments=sides, centre=centre)
+    stripes = []
+    step = 360.0 / SHIP_STRIPES
+    for number in range(SHIP_STRIPES):
+        start = number * step
+        corners = []
+        for bearing, height in ((start, low), (start + step / 2, low), (start + step, high), (start + step / 2, high)):
+            angle = math.radians(bearing)
+            corners.append([centre[0] + (radius + 0.004) * math.sin(angle), centre[1] + height,
+                            centre[2] - (radius + 0.004) * math.cos(angle)])
+        stripes.append(quad(corners, stripe_surface))
+    return [band, joined(stripes)]
+
+
+def ship_hull(centre, surface, nose_surface, band_surface, stripe_surface, seam_surface, steel_surface,
+              glass_surface, sides=64):
+    """The ship's bare hull standing on `centre` (its own frame's origin, the game's Ship node): the hull's panels and
+    seams in `surface`, the nose's in `nose_surface`, the band and its chevrons, the framed service windows and their
+    bolts, and the steel foot ring, each part a mesh painted with its own library surface."""
+    low, high, radius = SHIP_FOOT_RING
+    foot = cone_arc(low, high, radius, radius, steel_surface, segments=sides, centre=centre)
+    foot_floor = disc(radius, centre[1] + low, steel_surface, sides, (centre[0], centre[2]))
+    return (ship_hull_panels(centre, surface, seam_surface, sides)
+            + ship_windows(centre, nose_surface, glass_surface, steel_surface)
+            + ship_nose(centre, nose_surface, seam_surface, sides)
+            + ship_band(centre, band_surface, stripe_surface, sides)
+            + [joined([foot, foot_floor])])
