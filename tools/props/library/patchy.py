@@ -75,6 +75,11 @@ LOST_REACH = 14.0
 # chroma alone.
 DARK_LIGHTNESS = 30.0
 LOST_LIMIT = 0.08
+# Points of a labelled model's regions laid on a baked model, at most.
+BAKED_REGION_POINTS = 400_000
+# Stripped: a main colour is paint (not bare metal) past PAINT_CHROMA; two main colours are distinct past DISTINCT.
+PAINT_CHROMA = 12.0
+DISTINCT = 20.0
 # A labelled raw model is large (up to a million faces); its vertices are welded at this many decimals.
 WELD_DIGITS = 6
 
@@ -116,9 +121,11 @@ def whole_parts(island, parts):
     return found
 
 
-def score(mesh, labels, parts=None):
+def score(mesh, labels, parts=None, regions=None):
     """The patchiness numbers of a mesh whose faces each name a material (`labels`, ints), and pass or fail; `parts`,
-    each face's part where the labels have them."""
+    each face's part where the labels have them; `regions`, each face's finish region of the close-up where the model
+    was painted by them (labels.py --regions): a material edge along a region's edge is the paint the close-up shows
+    (the power unit's tape patches), so only edges and faces within one region are judged."""
     labels = np.asarray(labels)
     areas = mesh.area_faces
     total = float(areas.sum())
@@ -133,10 +140,15 @@ def score(mesh, labels, parts=None):
     whole_piece = np.isclose(island_area, piece_area[piece_of_island])
     if parts is not None:
         whole_piece |= whole_parts(island, np.asarray(parts))
+    within = np.ones(len(pairs), dtype=bool)
+    if regions is not None:
+        regions = np.asarray(regions)
+        whole_piece |= whole_parts(island, regions)
+        within = regions[pairs[:, 0]] == regions[pairs[:, 1]]
     small = (island_area < STRAY_ISLAND * total) & ~whole_piece
     stray = float(island_area[small].sum() / total)
-    mixed = float(areas[mixed_faces(labels, pairs)].sum() / total)
-    seam = labels[pairs[:, 0]] != labels[pairs[:, 1]]
+    mixed = float(areas[mixed_faces(labels, pairs[within])].sum() / total)
+    seam = (labels[pairs[:, 0]] != labels[pairs[:, 1]]) & within
     edges = mesh.face_adjacency_edges
     lengths = np.linalg.norm(mesh.vertices[edges[:, 0]] - mesh.vertices[edges[:, 1]], axis=1)
     soft = float(lengths[seam & (angles < SOFT_DEGREES)].sum() / np.sqrt(total))
@@ -180,6 +192,38 @@ def labelled_parts(folder):
         owner = np.concatenate([np.full(len(part.faces), index) for index, part in enumerate(part_meshes)])
         parts = owner[cKDTree(middles).query(mesh.triangles_center)[1]]
     return mesh, labels[keep], names, parts
+
+
+def labelled_regions(folder, mesh):
+    """Each face's finish region where a labels.py folder has regions/region_XX.ply (painted by the close-up's
+    regions), else None."""
+    import trimesh
+    from scipy.spatial import cKDTree
+    files = sorted(pathlib.Path(folder).glob("regions/region_*.ply"))
+    if not files:
+        return None
+    meshes = [trimesh.load(path, force="mesh", process=False) for path in files]
+    middles = np.vstack([found.triangles_center for found in meshes])
+    owner = np.concatenate([np.full(len(found.faces), index) for index, found in enumerate(meshes)])
+    return owner[cKDTree(middles).query(mesh.triangles_center)[1]]
+
+
+def baked_regions(mesh, folder, turn, size):
+    """Each face of a baked model's finish region: the labelled folder's regions laid in the kit frame the model
+    stands in (stored_parts.kit_frame), each face the region of the nearest; None without regions."""
+    import trimesh
+    from scipy.spatial import cKDTree
+    import stored_parts
+    files = sorted(pathlib.Path(folder).glob("regions/region_*.ply"))
+    if not files:
+        return None
+    meshes = [trimesh.load(path, force="mesh", process=False) for path in files]
+    total = sum(len(found.faces) for found in meshes)
+    stride = max(1, total // BAKED_REGION_POINTS)
+    middles = [found.triangles_center[::stride] for found in meshes]
+    points = np.vstack(middles)
+    owner = np.concatenate([np.full(len(found), index) for index, found in enumerate(middles)])
+    return owner[cKDTree(stored_parts.kit_frame(points, turn, size)).query(mesh.triangles_center)[1]]
 
 
 def material_colours(place, names):
@@ -271,31 +315,46 @@ def colour_clusters(colours):
     return cluster, centres / scale
 
 
-def stripped(colours, painted, palettes, names):
+def stripped(colours, painted, palettes, names, judged=None, bare=()):
     """The stripped check (module docstring) on a labelled raw model: each face's picture colour (Lab, NaN where
-    unseen), its material (an index into `palettes` and `names`) and every colour each material bakes to (Lab, as a
-    picture shows it)."""
+    unseen), its material (an index into `palettes` and `names`), every colour each material bakes to (Lab, as a
+    picture shows it), `judged` (each face's material named by the judge, where it was) and the `bare` metals.
+
+    A main colour is lost when it is paint (chroma past PAINT_CHROMA) painted with a bare metal no colour of which
+    reaches it; or when its material, not named by the judge for it, holds another main colour and not this one. A
+    material the judge named keeps the place's own colour for it (the lab's vinyl is blue where a close-up shows
+    grey). A model of one material where the close-up shows distinct main colours is flat and fails too."""
     seen = ~np.isnan(colours[:, 0])
     if seen.sum() < STRIPPED_COLOURS:
-        return {"main_colours": 0, "materials_seen": 0, "lost": [], "lost_share": 0.0, "pass": True}
+        return {"main_colours": 0, "materials_seen": 0, "lost": [], "lost_share": 0.0, "flat": False, "pass": True}
+    judged = np.zeros(len(colours), dtype=bool) if judged is None else np.asarray(judged)
     cluster, centres = colour_clusters(colours[seen])
     shares = np.bincount(cluster, minlength=len(centres)) / len(cluster)
     main = np.nonzero(shares >= MAIN_SHARE)[0]
     material = {index: int(np.bincount(painted[seen][cluster == index]).argmax()) for index in main}
     reach = {index: colour_reach(palettes[material[index]], centres[index]) for index in main}
+    named = {index: judged[seen][cluster == index].mean() >= 0.5 for index in main}
     lost = []
     for index in main:
-        # Lost: painted with a material that holds another main colour, not this one (two colours collapsed into
-        # one material). A main colour no allowed material reaches is the place's palette, not a stripped model.
+        paint_bare = (np.hypot(*centres[index][1:]) > PAINT_CHROMA and names[material[index]] in bare
+                      and reach[index] > LOST_REACH)
         held_elsewhere = any(material[other] == material[index] and reach[other] <= LOST_REACH
                              for other in main if other != index)
-        if reach[index] > LOST_REACH and held_elsewhere:
+        collapsed = reach[index] > LOST_REACH and held_elsewhere and not named[index]
+        if paint_bare or collapsed:
             lost.append({"share": round(float(shares[index]), 3), "colour": np.round(centres[index], 1).tolist(),
-                         "painted": names[material[index]], "reach": round(reach[index], 1)})
+                         "painted": names[material[index]], "reach": round(reach[index], 1),
+                         "why": "bare where the close-up shows paint" if paint_bare else "two colours in one material"})
     used = np.bincount(painted[seen], minlength=len(palettes)) / seen.sum()
+    distinct = []
+    for index in main:
+        if all(colour_reach(centres[other][None], centres[index]) > DISTINCT for other in distinct):
+            distinct.append(index)
+    flat = int((used >= MAIN_SHARE).sum()) == 1 and len(distinct) >= 2
     lost_share = round(min(1.0, sum(entry["share"] for entry in lost)), 3)
-    return {"main_colours": int(len(main)), "materials_seen": int((used >= MAIN_SHARE).sum()), "lost": lost,
-            "lost_share": lost_share, "pass": lost_share <= LOST_LIMIT}
+    return {"main_colours": int(len(main)), "distinct_colours": len(distinct),
+            "materials_seen": int((used >= MAIN_SHARE).sum()), "lost": lost, "lost_share": lost_share, "flat": flat,
+            "pass": lost_share <= LOST_LIMIT and not flat}
 
 
 def colour_reach(palette, colour):
@@ -314,10 +373,11 @@ def main():
     parts = None
     if arguments.way == "labels":
         mesh, labels, names, parts = labelled_parts(arguments.path)
+        regions = labelled_regions(arguments.path, mesh)
     else:
         names = [name for name in arguments.materials.split(",") if name]
         mesh, labels, unbaked = baked_model(arguments.path, arguments.place, names)
-    found = score(mesh, labels, parts)
+    found = score(mesh, labels, parts, regions if arguments.way == "labels" else None)
     if arguments.way == "baked":
         found = with_unbaked(found, mesh, unbaked)
     found["names"] = names

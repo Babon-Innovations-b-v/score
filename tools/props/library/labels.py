@@ -88,6 +88,10 @@ PHOTO_SPAN = 0.6
 # (smoothed_parts) and its islands under PART_CRUMB join their neighbours. One material per part stripped the old
 # station's lander of its gold foil and yellow paint (the owner, 2026-10-08).
 FINISH_MARGIN = 8.0
+# The judge's pick of a material more saturated than SATURATED (Lab chroma, as a picture shows it) is set aside on a
+# region of the close-up less saturated than NEUTRAL (region_materials).
+SATURATED = 25.0
+NEUTRAL = 10.0
 # A part's colour: the median of the lighter LIT_SHARE of its seen faces; under SEEN_LEAST seen faces it borrows.
 LIT_SHARE = 0.3
 SEEN_LEAST = 30
@@ -337,6 +341,16 @@ def part_faces(mesh, moved, owner):
     return part_of.reshape(-1), clear, scores
 
 
+def part_hint(folder, mesh, finished, to_finished):
+    """The splitter's parts as a hint for painting by regions: every face's part as split_on_model lays them, not
+    merged, used when the fit's gap is within GAP_LIMIT (where they are clear does not matter: the regions paint, the
+    parts only keep an unseen face's paint within its own part). Merged to one part, the shared-take chair took the
+    paint of its nearest seen face, its grey frame's, on its seat's unseen back (job repaint, 2026-10-08)."""
+    moved, owner, gap = split_on_model(folder, mesh, finished, to_finished)
+    part_of, clear, _ = part_faces(mesh, moved, owner)
+    return part_of, dict(registration(mesh, moved, gap), splitter_parts=int(owner.max()) + 1, clear=round(clear, 3))
+
+
 def parts_on_model(folder, mesh, finished, to_finished):
     """Every face's part from a splitter's parts laid onto the model, and the registration report. A split whose parts
     do not clearly hold CLEAR_LEAST of the model is tried again with the parts that share its unclear surfaces merged
@@ -433,33 +447,59 @@ def with_finishes(mesh, colours, part_paint, anchors):
     return without_crumbs(mesh, painted)
 
 
-def region_materials(centres, judged, materials):
-    """Each region's material index: the judge's (part_judge.judged), else the allowed material nearest its colour."""
+def region_materials(centres, vivid, judged, materials):
+    """Each region's material index: the judge's (part_judge.judged), else the allowed material nearest its colour.
+    The judge's pick is set aside for a strongly coloured material (chroma past SATURATED) on a region the close-up
+    shows colourless (`vivid`, the chroma of its most colourful tenth, under NEUTRAL): it called the aft section's white
+    band a thermal blanket and the only blanket allowed is gold (job repaint, 2026-10-08). (indices, the regions whose
+    pick was set aside)"""
     names, anchors = anchors_of(materials)
-    return np.array([names.index(judged[region][0]) if region in judged
-                     else int(np.argmin([weighted(centre, anchor) for anchor in anchors]))
-                     for region, centre in enumerate(centres)])
+    found, set_aside = [], []
+    for region, centre in enumerate(centres):
+        nearest = int(np.argmin([weighted(centre, anchor) for anchor in anchors]))
+        pick = names.index(judged[region][0]) if region in judged else nearest
+        if region in judged and np.hypot(*anchors[pick][1:]) > SATURATED and vivid[region] < NEUTRAL:
+            pick = nearest
+            set_aside.append(region)
+        found.append(pick)
+    return np.array(found), set_aside
 
 
 def painted_by_regions(mesh, view, pixel_regions, region_paint, part_of):
-    """Each face's material from the picture's regions: a seen face the material of the region under it; an unseen face
-    that of the nearest seen face of its own part (the part splitter's boundary hint), of any part when its part has
-    none seen; then smoothed over the surface and without crumbs."""
+    """Each face's material and finish region from the picture's regions: a seen face the material and region of the
+    pixel it lands on; an unseen face its part's paint (the material most of its part's seen area has) and a region
+    of its own per part (count of regions + part); of any part when its part has no seen face; the materials then
+    smoothed over the surface and without crumbs. (painted, regions)"""
     _, seen, row, column = view
     face_region = np.full(len(mesh.faces), -1)
     face_region[seen] = pixel_regions[row[seen], column[seen]]
     known = face_region >= 0
     painted = np.full(len(mesh.faces), -1)
     painted[known] = region_paint[face_region[known]]
-    middles = mesh.triangles_center
+    areas = mesh.area_faces
+    count = int(region_paint.max()) + 1
+    everywhere = int(np.bincount(painted[known], weights=areas[known], minlength=count).argmax())
+    first_unseen = int(pixel_regions.max()) + 1
     for part in np.unique(part_of):
         members = part_of == part
-        source = members & known if (members & known).any() else known
         missing = members & ~known
-        if missing.any():
-            painted[missing] = painted[source][cKDTree(middles[source]).query(middles[missing])[1]]
+        if not missing.any():
+            continue
+        source = members & known
+        painted[missing] = (int(np.bincount(painted[source], weights=areas[source], minlength=count).argmax())
+                            if source.any() else everywhere)
+        face_region[missing] = first_unseen + part
     scores = np.eye(int(painted.max()) + 1)[painted]
-    return without_crumbs(mesh, smoothed_parts(scores, neighbour_matrix(mesh)))
+    return without_crumbs(mesh, smoothed_parts(scores, neighbour_matrix(mesh))), face_region
+
+
+def bare_metals(names):
+    """Of the library materials named, the bare metals (their family is unpainted metal): paint shown as bare metal
+    is a stripped model."""
+    variants = library.variants(library.theme_library())
+    families = library.theme_library()["families"]
+    return [name for name in names if name in variants
+            and families[variants[name]["family"]]["is"].lower().startswith("unpainted")]
 
 
 def photo_palettes(place, names):
@@ -520,9 +560,10 @@ def onto_finished(points, target, turn):
     return refined @ start, gap
 
 
-def write_parts(mesh, labels, order, part_of, final_bounds, out):
-    """The model (already on its finished model) cut to that box: one .ply per material and parts/part_XX.ply per
-    part; the material shares and the faces kept."""
+def write_parts(mesh, labels, order, part_of, face_region, final_bounds, out):
+    """The model (already on its finished model) cut to that box: one .ply per material, parts/part_XX.ply per part
+    and, where it was painted by the close-up's regions, regions/region_XX.ply per finish region; the material shares
+    and the faces kept."""
     middles = mesh.triangles_center
     inside = np.all((middles >= final_bounds[0] - 0.02) & (middles <= final_bounds[1] + 0.02), axis=1)
     shares = {}
@@ -535,6 +576,11 @@ def write_parts(mesh, labels, order, part_of, final_bounds, out):
     (out / "parts").mkdir(exist_ok=True)
     for part in np.unique(part_of[inside]):
         mesh.submesh([np.nonzero(inside & (part_of == part))[0]], append=True).export(out / "parts" / f"part_{part:02d}.ply")
+    if face_region is not None:
+        (out / "regions").mkdir(exist_ok=True)
+        for region in np.unique(face_region[inside & (face_region >= 0)]):
+            chosen = np.nonzero(inside & (face_region == region))[0]
+            mesh.submesh([chosen], append=True).export(out / "regions" / f"region_{region:03d}.ply")
     return shares, inside
 
 
@@ -555,7 +601,8 @@ def main():
                         "paint by the picture's regions (regions.py), the parts kept for moving pieces and as a hint")
     arguments = parser.parse_args()
     arguments.out.mkdir(parents=True, exist_ok=True)
-    for old in list(arguments.out.glob("*.ply")) + list(arguments.out.glob("parts/*.ply")):
+    for old in (list(arguments.out.glob("*.ply")) + list(arguments.out.glob("parts/*.ply"))
+                + list(arguments.out.glob("regions/*.ply"))):
         old.unlink()  # a material or part the new labels no longer have must not reach the bake
     materials = allowed_materials(arguments.place, arguments.kind,
                                   [name for name in arguments.without.split(",") if name])
@@ -570,7 +617,13 @@ def main():
     final = trimesh.load(PIXAL / f"{arguments.take}-final.glb", force="mesh")
     matrix, gap = onto_finished(mesh.sample(SAMPLED, seed=1), final.sample(SAMPLED, seed=2),
                                 finish_turn(arguments.take))
-    if arguments.parts:
+    if arguments.parts and arguments.regions:
+        part_of, report["registration"] = part_hint(arguments.parts, mesh, final.sample(SAMPLED, seed=3), matrix)
+        report.update(way="parts", parts_folder=str(arguments.parts))
+        if not report["registration"]["registered"]:
+            part_of = np.zeros(len(mesh.faces), dtype=int)
+            report["way"] = "whole: its split did not register"
+    elif arguments.parts:
         part_of, report["registration"] = parts_on_model(arguments.parts, mesh, final.sample(SAMPLED, seed=3), matrix)
         report.update(way="parts", parts_folder=str(arguments.parts))
         if not report["registration"]["registered"]:  # reported, and painted whole rather than in blotches
@@ -580,18 +633,19 @@ def main():
         part_of = np.zeros(len(mesh.faces), dtype=int)
         report.update(way="whole")
     if arguments.regions:
-        painted, names = paint_by_regions(arguments, mesh, view, part_of, materials, report)
+        painted, names, face_region, named = paint_by_regions(arguments, mesh, view, part_of, materials, report)
     else:
-        painted, names = paint_by_parts(arguments, mesh, view, colours, part_of, materials, report)
-    report["stripped"] = patchy.stripped(colours, painted, photo_palettes(arguments.place, names), names)
+        painted, names, face_region, named = paint_by_parts(arguments, mesh, view, colours, part_of, materials, report)
+    report["stripped"] = patchy.stripped(colours, painted, photo_palettes(arguments.place, names), names, named,
+                                         bare_metals(names))
     order = sorted({names[index] for index in np.unique(painted)})
     labels = np.array([order.index(name) if name in order else -1 for name in names])[painted]
     report["upright_gap"] = round(gap, 4)
     mesh.apply_transform(matrix)
-    report["shares"], inside = write_parts(mesh, labels, order, part_of, final.bounds, arguments.out)
+    report["shares"], inside = write_parts(mesh, labels, order, part_of, face_region, final.bounds, arguments.out)
     report["faces_kept"] = int(inside.sum())
     kept, kept_labels, _, kept_parts = patchy.labelled_parts(arguments.out)
-    report["patchy"] = patchy.score(kept, kept_labels, kept_parts)
+    report["patchy"] = patchy.score(kept, kept_labels, kept_parts, patchy.labelled_regions(arguments.out, kept))
     (arguments.out / "labels.json").write_text(json.dumps(report, indent=1))
     stored_parts.write(arguments.out, arguments.take)
     print(json.dumps({key: report[key] for key in ("take", "way", "shares", "patchy") + (
@@ -603,21 +657,26 @@ def paint_by_regions(arguments, mesh, view, part_of, materials, report):
     picture = view[0]
     inside = np.asarray(picture)[..., 3] > 127
     pixel_regions = regions.region_map(regions.masks_of(arguments.regions), inside)
-    centres = regions.medians(pixel_regions, picture_lab(picture))
+    colours = picture_lab(picture)
+    centres = regions.medians(pixel_regions, colours)
     if arguments.ask:
         report["asked"] = part_judge.write_questions(arguments.ask, arguments.take, picture, pixel_regions,
                                                      list(range(len(centres))), arguments.object or arguments.kind,
                                                      materials)
     judged = part_judge.judged(arguments.answers, arguments.take, len(centres), list(materials)) \
         if arguments.answers else {}
-    region_paint = region_materials(centres, judged, materials)
+    region_paint, set_aside = region_materials(centres, regions.vivid(pixel_regions, colours), judged, materials)
     names = list(materials)
     painted_regions = [{"material": names[region_paint[number]], "judged": judged.get(number, (None, None))[1],
                         "share": round(float((pixel_regions == number).sum() / inside.sum()), 3)}
                        for number in range(len(centres))]
     report.update(way=report["way"] + ", painted by the picture's regions", regions=painted_regions,
-                  judged_parts=len(judged))
-    return painted_by_regions(mesh, view, pixel_regions, region_paint, part_of), names
+                  judged_parts=len(judged), judge_set_aside=set_aside)
+    painted, face_region = painted_by_regions(mesh, view, pixel_regions, region_paint, part_of)
+    named = np.zeros(len(mesh.faces), dtype=bool)
+    named[face_region >= 0] = np.isin(face_region[face_region >= 0], [region for region in judged
+                                                                      if region not in set_aside])
+    return painted, names, face_region, named
 
 
 def paint_by_parts(arguments, mesh, view, colours, part_of, materials, report):
@@ -635,7 +694,8 @@ def paint_by_parts(arguments, mesh, view, colours, part_of, materials, report):
     for part, entry in enumerate(about):
         entry["share"] = round(float(areas[part_of == part].sum() / areas.sum()), 3)
     report["parts"] = about
-    return with_finishes(mesh, colours, chosen[part_of], anchors_of(materials)[1]), names
+    named = np.isin(part_of, list(judged))
+    return with_finishes(mesh, colours, chosen[part_of], anchors_of(materials)[1]), names, None, named
 
 
 if __name__ == "__main__":

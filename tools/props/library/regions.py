@@ -41,6 +41,13 @@ def region_map(masks, inside):
     return found
 
 
+def vivid(regions, colours, share=0.9):
+    """Each region's chroma at its `share` quantile (Lab, `colours` per pixel): how colourful its most colourful
+    tenth is (the power unit's gold tape regions are mostly grey at the median and gold at the top)."""
+    chroma = np.hypot(colours[..., 1], colours[..., 2])
+    return np.array([np.quantile(chroma[regions == region], share) for region in range(int(regions.max()) + 1)])
+
+
 def medians(regions, colours):
     """Each region's median colour (Lab, `colours` per pixel)."""
     return np.array([np.median(colours[regions == region], axis=0) for region in range(int(regions.max()) + 1)])

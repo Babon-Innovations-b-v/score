@@ -167,6 +167,65 @@ def test_a_material_s_colour_is_put_in_words():
     assert part_judge.colour_words([0.9, 0.9, 0.9]) == "white"
 
 
+def patched_panel():
+    """A panel with tape patches on it, as the power unit's side: the panel one material, each patch another, each
+    patch a finish region of the close-up; and its faces' regions."""
+    mesh = seat()
+    middles = mesh.triangles_center
+    regions = np.zeros(len(mesh.faces), dtype=int)
+    corners = [(x, z) for x in (-0.18, -0.06, 0.06, 0.18) for z in (-0.18, -0.06, 0.06, 0.18)]
+    for number, (x, z) in enumerate(corners, start=1):
+        patch = (np.abs(middles[:, 0] - x) < 0.035) & (np.abs(middles[:, 2] - z) < 0.025) & (middles[:, 1] > 0.04)
+        regions[patch] = number
+    return mesh, regions
+
+
+def test_tape_patches_along_their_regions_pass():
+    """The power unit's tape patches: material edges along the close-up's regions are the paint it shows."""
+    mesh, regions = patched_panel()
+    painted = (regions > 0).astype(int)
+    assert not patchy.score(mesh, painted)["pass"]  # without the regions, small patches read as stray paint
+    assert patchy.score(mesh, painted, regions=regions)["pass"]
+
+
+def test_blotches_inside_one_region_still_fail():
+    """Round two's patchy paint: blotches scattered through one region of the close-up still fail."""
+    mesh, regions = patched_panel()
+    painted = np.zeros(len(mesh.faces), dtype=int)
+    rng = np.random.default_rng(1)
+    for middle in mesh.triangles_center[rng.choice(len(mesh.faces), 40, replace=False)]:
+        painted[np.linalg.norm(mesh.triangles_center - middle, axis=1) < 0.02] = 1
+    found = patchy.score(mesh, painted, regions=np.zeros(len(mesh.faces), dtype=int))
+    assert not found["pass"], found
+
+
+def test_a_judged_material_keeps_the_place_s_colour_but_flat_fails():
+    """A grey seat the judge named vinyl, which is blue in this place, passes; one material over a gold and a white
+    half (one flat colour) fails; gold paint shown as bare steel fails."""
+    mesh = seat()
+    gold, white, grey = np.array([60.0, 5.0, 40.0]), np.array([78.0, 0.0, 1.0]), np.array([55.0, 0.0, 0.0])
+    blue = np.array([45.0, -2.0, -20.0])
+    half = mesh.triangles_center[:, 0] < 0
+    seat_and_base = patchy.stripped(np.where(half[:, None], grey, white), half.astype(int), [blue[None], white[None]],
+                                    ["vinyl", "steel"], judged=half)
+    assert seat_and_base["pass"], seat_and_base
+    flat = patchy.stripped(np.where(half[:, None], gold, white), np.zeros(len(mesh.faces), dtype=int),
+                           [white[None], gold[None]], ["white", "gold"], judged=np.ones(len(mesh.faces), dtype=bool))
+    assert flat["flat"] and not flat["pass"], flat
+    bare = patchy.stripped(np.where(half[:, None], gold, white), half.astype(int), [white[None], grey[None]],
+                           ["white", "bare_steel"], judged=np.ones(len(mesh.faces), dtype=bool), bare=["bare_steel"])
+    assert not bare["pass"] and bare["lost"][0]["why"] == "bare where the close-up shows paint", bare
+
+
+def test_the_judge_may_not_put_a_saturated_finish_on_a_colourless_region():
+    """The aft section's white band, called a thermal blanket, may not take the gold one; a gold region may."""
+    materials = {"white": {"colour": [0.8, 0.8, 0.8]}, "gold": {"colour": [0.6, 0.35, 0.05]}}
+    centres = np.array([[70.0, 0.0, 2.0], [60.0, 5.0, 40.0]])
+    found, set_aside = labels.region_materials(centres, np.array([3.0, 40.0]),
+                                               {0: ("gold", "blanket"), 1: ("gold", "foil")}, materials)
+    assert found.tolist() == [0, 1] and set_aside == [0]
+
+
 def test_the_route_refuses_patchy_labels():
     with tempfile.TemporaryDirectory() as folder:
         clean, patchy_folder = pathlib.Path(folder) / "clean", pathlib.Path(folder) / "patchy"

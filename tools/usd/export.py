@@ -186,10 +186,7 @@ def part_points(take, turn, size):
     """Each labelled part's points in the kit frame the made model stands in: turned by the kind's turn and fitted
     to its laid size on the middle of its foot, as the route's make_chunky does; (points, variant of each point)."""
     points, names = take_points(take)
-    points = points @ np.asarray(turn).reshape(3, 3).T
-    low, high = points.min(axis=0), points.max(axis=0)
-    foot = np.array([(low[0] + high[0]) / 2, low[1], (low[2] + high[2]) / 2])
-    return (points - foot) * (np.asarray(size, dtype=np.float64) / (high - low)), names
+    return stored_parts.kit_frame(points, turn, size), names
 
 
 def face_surfaces(geometry, points, names):
