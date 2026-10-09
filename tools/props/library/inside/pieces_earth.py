@@ -648,6 +648,26 @@ def far_banner(size, laid):
     return parts
 
 
+# A banner held up in the crowd on two poles (the square's concept K06): its cloth across the poles' tops, under it
+# the arms of the people holding it.
+CROWD_CLOTH = 0.75
+CROWD_POLE = 0.025
+
+
+def crowd_banner(size, laid):
+    """A red cloth banner held up in the crowd between two steel poles, its gold words printed across it (`label`)."""
+    wide, tall, deep = size
+    pole_x = wide / 2 - CROWD_POLE
+    cloth_top, cloth_low = tall - 0.05, tall - 0.05 - CROWD_CLOTH
+    parts = [shapes.cylinder((side * pole_x, 0.0, 0.0), (side * pole_x, tall, 0.0), CROWD_POLE, "galvanized_dull", 10,
+                             "poles") for side in (-1.0, 1.0)]
+    parts.append(shapes.box((-pole_x + CROWD_POLE, cloth_low, -0.01), (pole_x - CROWD_POLE, cloth_top, 0.01), "flag_red",
+                            "cloth"))
+    parts.append(pieces.label(0.0, (cloth_top + cloth_low) / 2, (wide - 4 * CROWD_POLE) * 0.9, CROWD_CLOTH * 0.8, -0.01,
+                              laid.get("label", "banner_crowd"), 0.0, 0.005, "label"))
+    return parts
+
+
 def lattice_mast(wide, tall, deep, material, spike, top_width_share=1.0):
     """A square steel lattice mast: four legs, a horizontal ring and crossed braces every bay, tapering to
     `top_width_share` of its foot at the top, a spike over it."""
@@ -990,7 +1010,8 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "street_lamp", "notice_case", "poster_stand", "far_paving", "far_terrace", "far_road",
     "far_promenade", "far_pad", "bay_balcony_slab", "far_cable", "far_promenade_rail", "bay_balcony_rail",
     "far_render_upper", "far_render_lower", "far_render_shop", "far_facade_band", "far_drainpipe", "far_stage",
-    "far_backdrop", "far_podium", "far_lectern", "far_banner", "far_floodlight_tower", "far_square_lamp",
+    "far_backdrop", "far_podium", "far_lectern", "far_banner", "crowd_banner", "far_floodlight_tower",
+    "far_square_lamp",
     "far_lantern", "far_neon_column", "far_lightning_mast", "far_pad_floodlight", "far_window_dark", "far_window_lit",
     "far_ac_unit", "far_window_cage", "far_shop_shutter", "far_shop_sign", "road_line", "facade_pipe", "end_wall", "end_fence", "window_awning", "drying_rack", "vent_louvre",
     "meter_box", "barber_pole", "menu_board")}

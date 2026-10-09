@@ -46,7 +46,8 @@
 		"square_drainpipe": 5,
 		"square_far_neon_column": 2,
 		"square_bay_balcony_slab": 6,
-		"square_bay_balcony_rail": 18
+		"square_bay_balcony_rail": 18,
+		"square_crowd_banner": 6
 	},
 	"kinds": {
 		"square_far_paving": {
@@ -174,6 +175,9 @@
 		},
 		"square_bay_balcony_rail": {
 			"group": "hangs"
+		},
+		"square_crowd_banner": {
+			"night_glow": 0.3
 		}
 	},
 	"models": {
@@ -553,6 +557,14 @@
 			"route": "code"
 		},
 		"shop_shutter_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"crowd_banner_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"crowd_banner_2": {
 			"glows": false,
 			"route": "code"
 		}
@@ -131291,6 +131303,192 @@
 			],
 			"layer": 1,
 			"model": "shop_shutter_2"
+		},
+		{
+			"kind": "square_crowd_banner",
+			"at": [
+				-12.0,
+				0.0,
+				22.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.9976,
+				2.4,
+				0.05
+			],
+			"layer": 1,
+			"label": "banner_crowd",
+			"model": "crowd_banner_1"
+		},
+		{
+			"kind": "square_crowd_banner",
+			"at": [
+				-10.0,
+				0.0,
+				-24.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.9976,
+				2.4,
+				0.05
+			],
+			"layer": 1,
+			"label": "banner_first",
+			"model": "crowd_banner_2"
+		},
+		{
+			"kind": "square_crowd_banner",
+			"at": [
+				-24.0,
+				1.6,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.9976,
+				2.4,
+				0.05
+			],
+			"layer": 1,
+			"label": "banner_crowd",
+			"model": "crowd_banner_1"
+		},
+		{
+			"kind": "square_crowd_banner",
+			"at": [
+				-30.0,
+				2.4,
+				10.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.9976,
+				2.4,
+				0.05
+			],
+			"layer": 1,
+			"label": "banner_first",
+			"model": "crowd_banner_2"
+		},
+		{
+			"kind": "square_crowd_banner",
+			"at": [
+				-30.0,
+				0.0,
+				-48.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.9976,
+				2.4,
+				0.05
+			],
+			"layer": 1,
+			"label": "banner_crowd",
+			"model": "crowd_banner_1"
+		},
+		{
+			"kind": "square_crowd_banner",
+			"at": [
+				-18.0,
+				0.0,
+				40.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.9976,
+				2.4,
+				0.05
+			],
+			"layer": 1,
+			"label": "banner_first",
+			"model": "crowd_banner_2"
 		}
 	]
 }

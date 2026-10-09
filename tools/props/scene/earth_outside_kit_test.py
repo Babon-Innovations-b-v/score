@@ -73,6 +73,34 @@ def test_the_square_s_lanterns_hang_under_their_strings_and_over_the_crowd():
     assert lanterns and all(laid["at"][1] > 3.0 for laid in lanterns)
 
 
+def test_each_crowd_banner_stands_both_poles_on_one_level_of_the_crowd():
+    pieces = [laid for laid in kit.layout_of("square")["pieces"] if laid["kind"] == "square_crowd_banner"]
+    assert len(pieces) == len(kit.CROWD_BANNERS) == 6
+    levels = kit.terraces(NUMBERS)
+    spread = NUMBERS["CROWD_SPREAD"]
+    for laid in pieces:
+        at, along = np.asarray(laid["at"]), np.asarray(laid["x"])
+        assert spread[0] <= at[0] <= spread[0] + spread[2] and spread[1] <= at[2] <= spread[1] + spread[3], laid
+        for pole in (at - along * laid["size"][0] / 2, at + along * laid["size"][0] / 2):
+            under = max([high[1] for low, high in levels if low[0] <= pole[0] <= high[0] and low[2] <= pole[2] <= high[2]],
+                        default=kit.ROAD_TOP - 0.02)
+            assert abs(under - at[1]) < 1e-6, laid
+
+
+def test_the_guard_hut_stands_on_the_paving_clear_of_the_stage_and_the_banners_down_their_poles():
+    pieces = kit.layout_of("square")["pieces"]
+    huts = [laid for laid in pieces if laid["kind"] == "square_guard_hut"]
+    assert len(huts) == 1
+    x, y, z = huts[0]["at"]
+    half = max(kit.GUARD_HUT[0], kit.GUARD_HUT[2]) / 2
+    stage = NUMBERS["BIG_STAGE_GROUND"]
+    assert y == kit.ROAD_TOP - 0.02
+    assert z - half > stage[1] + stage[3] + 1.0  # left of the stage as the balcony sees it, clear of its side
+    for laid in pieces:
+        if laid["kind"] == "square_far_banner":
+            assert abs(laid["at"][2] - z) > half + kit.BANNER[0] / 2 or abs(laid["at"][0] - x) > half + 0.5, laid
+
+
 def main():
     tests = [value for name, value in globals().items() if name.startswith("test_")]
     for test in tests:

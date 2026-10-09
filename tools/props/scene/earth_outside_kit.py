@@ -557,6 +557,19 @@ NEON_COLUMN = (1.8, 4.6, 0.3)
 NEON_WORDS = ("sign_column_restaurant", "sign_column_store")
 BALCONY_SLAB = 0.2
 BALCONY_RAIL_HIGH = 1.1
+# The banners held up in the crowd (the square's concept K06, the inventory row crowd_banner: six, 3.0 wide and 2.4
+# tall on their poles), facing the balcony: two near the balcony, two in the middle on the terraces, two at the back
+# by the stage, spread across the crowd as the concept spreads them. No game code places them; the spots are ours,
+# each clear of a terrace's edge so both poles stand on one level.
+CROWD_BANNER = (3.0, 2.4, 0.1)
+CROWD_BANNERS = (((-12.0, 22.0), "banner_crowd"), ((-10.0, -24.0), "banner_first"), ((-24.0, 0.0), "banner_crowd"),
+                 ((-30.0, 10.0), "banner_first"), ((-30.0, -48.0), "banner_crowd"), ((-18.0, 40.0), "banner_first"))
+# The guard hut at the square's left edge as the balcony sees it (concept K04's box [469, 816, 640, 924]: left of the
+# stage, a little in front of its backdrop, about three metres clear of the stage's side), its door toward the
+# balcony. No game code places it; the spot is read off the concept against the stage's own ground. Its size is the
+# made model's own (wide, tall, deep).
+GUARD_HUT_AT = (-47.0, 10.6)
+GUARD_HUT = (2.0, 2.6, 2.0)
 
 
 def square_blocks(numbers):
@@ -675,7 +688,8 @@ def stage(room, numbers):
 
 def square_furniture(room, numbers):
     """The floodlight towers behind the stage, the lamps down both long sides of the square, the rows of flags along
-    its edges and the strings of lanterns hung across it from lamp to lamp."""
+    its edges, the strings of lanterns hung across it from lamp to lamp, the crowd's flags, rail and banners, and the
+    guard hut at its edge."""
     found = []
     for at in numbers["FLOODLIGHT_TOWERS"]:
         found.append(piece(room, "far_floodlight_tower", (at[0], 0.0, at[2]), frame_facing((1.0, 0.0, 0.0), UP),
@@ -700,7 +714,8 @@ def square_furniture(room, numbers):
     for x in lamps:
         found += lantern_string(room, x, square[1] - numbers["LAMP_OFF_THE_PAVING"],
                                 square[1] + square[3] + numbers["LAMP_OFF_THE_PAVING"])
-    return found + crowd_flags(room, numbers) + crowd_rail(room, numbers)
+    return (found + crowd_flags(room, numbers) + crowd_rail(room, numbers) + crowd_banners(room, numbers)
+            + guard_hut(room))
 
 
 def crowd_flags(room, numbers):
@@ -720,6 +735,24 @@ def crowd_flags(room, numbers):
         found.append(piece(room, "far_flag_pole", (x, foot, z), frame_facing((1.0, 0.0, rng.uniform(-0.3, 0.3)), UP),
                            FLAG))
     return found
+
+
+def crowd_banners(room, numbers):
+    """The banners held up through the crowd (the concept K06), each standing on the terrace it falls on, facing the
+    balcony, its words printed across it."""
+    found = []
+    for (x, z), words in CROWD_BANNERS:
+        foot = max([high[1] for low, high in terraces(numbers) if low[0] <= x <= high[0] and low[2] <= z <= high[2]],
+                   default=ROAD_TOP - 0.02)
+        found.append(piece(room, "crowd_banner", (x, foot, z), frame_facing((1.0, 0.0, 0.0), UP), CROWD_BANNER,
+                           label=words))
+    return found
+
+
+def guard_hut(room):
+    """The guard hut at the square's left edge (the concept K04), on the paving, its door toward the balcony."""
+    return [piece(room, "guard_hut", (GUARD_HUT_AT[0], ROAD_TOP - 0.02, GUARD_HUT_AT[1]),
+                  frame_facing((1.0, 0.0, 0.0), UP), GUARD_HUT)]
 
 
 def crowd_rail(room, numbers):
@@ -876,14 +909,15 @@ FLOORS = ("ground_asphalt", "ground_paving", "kerb_stone", "road_line", "far_pav
 STANDING = ("water_barrier_red", "water_barrier_white", "street_lamp", "notice_case", "poster_stand", "menu_board",
             "end_wall", "end_fence", "far_palm",
             "far_flag_pole", "far_floodlight_tower", "far_square_lamp", "far_stage", "far_backdrop", "far_podium",
-            "far_lectern", "far_banner", "far_lightning_mast", "far_pad_floodlight", "far_ferry", "far_promenade_rail")
+            "far_lectern", "far_banner", "crowd_banner", "guard_hut", "far_lightning_mast", "far_pad_floodlight", "far_ferry", "far_promenade_rail")
 
 
 # What glows at night, by own name (EarthNight reads `night_glow`): the parts of its picture at least this bright, in
 # linear light as the shader reads it, give off their own colour (a sign's white board and a lit window, never a grey
 # frame; a banner's gold words at 0.49, never its red cloth at 0.15; a lantern's red paper).
 NIGHT_GLOW = {"shop_sign": 0.5, "far_shop_sign": 0.5, "neon_sign": 0.2, "far_neon_column": 0.2, "far_backdrop": 0.3,
-              "far_banner": 0.3, "window_lit": 0.4, "far_window_lit": 0.4, "tea_front": 0.4, "shop_open": 0.4,
+              "far_banner": 0.3, "crowd_banner": 0.3, "window_lit": 0.4, "far_window_lit": 0.4, "tea_front": 0.4,
+              "shop_open": 0.4,
               "far_lantern": 0.2, "street_lamp": 0.5, "far_square_lamp": 0.5, "far_floodlight_tower": 0.5,
               "far_pad_floodlight": 0.5, "door_canopy": 0.5}
 
