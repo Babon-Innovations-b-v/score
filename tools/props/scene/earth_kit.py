@@ -153,7 +153,18 @@ def balcony(room):
         # The sliding leaf is drawn by the game's own moving door (EarthSite.balcony_door), not the kit.
         piece(room, "sliding_glass_leaf", (FLAT_GROUND[0] + 0.05, FLOOR_TOP, BALCONY_SPOT_Z), WEST, (1.44, 2.2, 0.04),
               node="BalconyDoor"),
-    ]
+    ] + [piece(room, own, at, back, size) for own, at, back, size in ON_BALCONY]
+
+
+# What stands on the balcony's floor (job remake-retired, 2026-10-09): the potted plants the launch concepts show by
+# its rail, in its two far corners, and the ashtray for the opening's cigarette, where EarthSite stood them before the
+# retired models went (earth_site.gd at 1f6b7681^, FURNITURE rows 15 and 16, ON_TOP row 4; the ashtray's stool is not
+# needed, so it stands on the floor at the stool's spot). Sizes are the made models' own (wide, tall, deep).
+ON_BALCONY = [
+    ("balcony_fern_pot", (-4.85, FLOOR_TOP, -5.15), WEST, (0.542, 0.482, 0.55)),
+    ("balcony_rubber_plant", (-4.85, FLOOR_TOP, -1.85), WEST, (0.368, 0.6, 0.46)),
+    ("ashtray", (-3.5, FLOOR_TOP, -5.05), WEST, (0.12, 0.047, 0.12)),
+]
 
 
 def front_door(room):
