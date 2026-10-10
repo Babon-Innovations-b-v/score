@@ -133,6 +133,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   inventory row's piece names it (`row`: a structure's code-built piece, an object's made model), so the rows check
   and the pick lock find it. Every entry says where in the game its numbers came from (`from`), and what the game
   draws that the record does not carry is listed in `game_only`.
+  What the owner took out for good is `owner_rejected` ({what, names, date, why}); `scene.refuse_rejected` keeps
+  those names out of the record, the kit's rows and the effects record, so a later port from the game cannot bring
+  them back. Never take a name off that list without the owner's word, and never put on it what the owner did not
+  reject: what the coordinator takes out with it (it stood on a rejected thing) is `coordinator_removed`, not refused.
 - **Light units.** The stage's lights are in Blender's USD reader's units (a sphere light's watts its intensity times
   pi, a distant light's strength its intensity times 4), from the game's energies by `scene.SUN_PER_ENERGY` and
   `OMNI_PER_ENERGY`, and a lamp's energy matched halfway out to its range for its own fall-off (`reach_matched`); change those, never a record's energies, when the brightness check against the game's shots says

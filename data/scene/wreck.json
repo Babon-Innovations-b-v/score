@@ -19,147 +19,6 @@
    "surface": "earth_face",
    "from": "game/world/earth (radius 220 at 1302 m: about 20 degrees across), Orbits/LunarCycle",
    "plain": "sky"
-  },
-  {
-   "name": "landing_pad",
-   "builder": "lathe",
-   "profile": [
-    [
-     -0.6,
-     0.2,
-     16.5,
-     15.0
-    ]
-   ],
-   "centre": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "sides": 32,
-   "surface": "deck",
-   "placed_at": [
-    -42.869,
-    -5.613,
-    18.126
-   ],
-   "placed_turn": [
-    -0.103832,
-    0.980272,
-    0.024519,
-    -0.166385
-   ],
-   "from": "world.tscn:11-38 LandingPad (CylinderMesh 15/16.5, 0.8 high, at y -0.2) and PadRing (CSGTorus3D 13.6/14.2, y scale 0.2, at y 0.2) at 32 across, 48 along, stood on the ground under it (world.gd:137-140, Space.stand_on_the_ground)",
-   "plain": "plate"
-  },
-  {
-   "name": "landing_pad_ring",
-   "builder": "torus",
-   "inner": 13.6,
-   "outer": 14.2,
-   "height": 0.2,
-   "flatten": 0.2,
-   "sides": 32,
-   "ring_sides": 8,
-   "surface": "hazard_paint",
-   "placed_at": [
-    -42.869,
-    -5.613,
-    18.126
-   ],
-   "placed_turn": [
-    -0.103832,
-    0.980272,
-    0.024519,
-    -0.166385
-   ],
-   "from": "world.tscn:11-38 LandingPad (CylinderMesh 15/16.5, 0.8 high, at y -0.2) and PadRing (CSGTorus3D 13.6/14.2, y scale 0.2, at y 0.2) at 32 across, 48 along, stood on the ground under it (world.gd:137-140, Space.stand_on_the_ground)",
-   "plain": "trim"
-  },
-  {
-   "name": "ship_pad",
-   "builder": "lathe",
-   "profile": [
-    [
-     -0.57,
-     0.03,
-     3.6,
-     3.4
-    ]
-   ],
-   "centre": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "sides": 32,
-   "surface": "painted_panel",
-   "placed_at": [
-    10.384,
-    -1.504,
-    20.716
-   ],
-   "placed_turn": [
-    0.017638,
-    0.990924,
-    0.049774,
-    -0.123618
-   ],
-   "from": "ship_pad.tscn (Deck: CylinderMesh 3.4/3.6, 0.6 high, at y -0.27; Ring: TorusMesh 2.95/3.2, y scale 0.2, at y 0.03), laid at ShipDomain.PAD_ACROSS -20, PAD_ALONG 30 and stood on the ground (main.gd:378-380)",
-   "plain": "plate"
-  },
-  {
-   "name": "ship_pad_ring",
-   "builder": "torus",
-   "inner": 2.95,
-   "outer": 3.2,
-   "height": 0.03,
-   "flatten": 0.2,
-   "sides": 48,
-   "ring_sides": 8,
-   "surface": "hazard_paint",
-   "placed_at": [
-    10.384,
-    -1.504,
-    20.716
-   ],
-   "placed_turn": [
-    0.017638,
-    0.990924,
-    0.049774,
-    -0.123618
-   ],
-   "from": "ship_pad.tscn (Deck: CylinderMesh 3.4/3.6, 0.6 high, at y -0.27; Ring: TorusMesh 2.95/3.2, y scale 0.2, at y 0.03), laid at ShipDomain.PAD_ACROSS -20, PAD_ALONG 30 and stood on the ground (main.gd:378-380)",
-   "plain": "trim"
-  },
-  {
-   "name": "ship",
-   "builder": "ship_hull",
-   "centre": [
-    0.0,
-    0.0,
-    0.0
-   ],
-   "surface": "hull_white_gloss",
-   "nose_surface": "painted_panel",
-   "band_surface": "hazard_paint",
-   "stripe_surface": "dark_panel",
-   "seam_surface": "bare_steel",
-   "steel_surface": "bare_steel",
-   "glass_surface": "glass",
-   "sides": 64,
-   "placed_at": [
-    10.408,
-    -1.007,
-    20.763
-   ],
-   "placed_turn": [
-    0.017638,
-    0.990924,
-    0.049774,
-    -0.123618
-   ],
-   "from": "ship.tscn Body (CylinderMesh r 1.6, 5 high, at y 3.3), Nose (cone r 1.6, 2 high, at y 6.8) and Band (r 1.62, 0.3 high, at y 1.2), standing on its pad half a metre over the ground (ship.gd:987, FlightRunner.ON_ITS_LEGS); its engine, legs and hatch are drawn only with their parts fitted (ship.gd:62, MOUNT_LOOKS) and the wake shot shows none; the hull's own parts (its panels and seams, the service windows, the nose's panels and tip, the band's chevrons and the foot ring) from its clean close-up (job r2-placeholders, 2026-10-09), built in code (tools/usd/builders.py ship_hull) as the shared rule says ships are"
   }
  ],
  "places": [
@@ -487,6 +346,32 @@
     0.30980393
    ],
    "from": "wreck.gd:97-115,190-238 (SCORCH_MIDDLE, SCORCH_RADIUS 11, SCORCH_SOLID 0.35, 13 rays of up to 0.55 from seed 23, painted in regolith_dark.tres's flat colour)"
+  }
+ ],
+ "owner_rejected": [
+  {
+   "what": "the base's landing pad and its ring, and the old ship standing on its own pad with that pad's ring: the game draws them all",
+   "names": [
+    "landing_pad",
+    "landing_pad_ring",
+    "ship_pad",
+    "ship_pad_ring",
+    "ship"
+   ],
+   "date": "2026-10-04",
+   "why": "the owner, playtesting on 2026-10-04, asked for the landing pad left beside the broken rocket and the old rocket still standing there to be deleted (the owner's playtest notes of 2026-10-04)"
+  }
+ ],
+ "coordinator_removed": [
+  {
+   "what": "the supply rocket and cargo lift laid on the landing pad, and the landing dust thrown across it",
+   "names": [
+    "supply_rocket",
+    "cargo_lift",
+    "landing_dust"
+   ],
+   "date": "2026-10-10",
+   "why": "the coordinator's call, not the owner's: they stood on the landing pad the owner rejected, and without it they would float over bare ground; the owner may bring them back"
   }
  ]
 }

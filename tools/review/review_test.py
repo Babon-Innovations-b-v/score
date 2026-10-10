@@ -236,10 +236,23 @@ def only_the_places_drawn_are_sent():
     return []
 
 
+def the_owner_and_the_coordinator_are_told_apart():
+    """What the owner rejected and what the coordinator took out with it read as two sentences, each under its name."""
+    record = {"owner_rejected": [{"what": "the pad", "names": ["pad"], "date": "2026-10-04", "why": "playtest"}],
+              "coordinator_removed": [{"what": "the rocket on it", "names": ["rocket"], "date": "2026-10-10",
+                                       "why": "it stood on the pad"}]}
+    said = page.rejected_sentence(record)
+    owner, _, coordinator = said.partition("Left out by the coordinator: ")
+    if "Left out by the owner: the pad" not in owner or "rocket" in owner or not coordinator.startswith("the rocket"):
+        return [f"the left-out sentences read {said!r}"]
+    return []
+
+
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
           the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, every_view_a_place_is_inked,
           an_overlap_reads_in_the_resting_table, the_plans_an_inventory_names_are_shown,
-          a_before_stage_stands_beside_the_game, only_the_places_drawn_are_sent)
+          a_before_stage_stands_beside_the_game, only_the_places_drawn_are_sent,
+          the_owner_and_the_coordinator_are_told_apart)
 
 
 if __name__ == "__main__":

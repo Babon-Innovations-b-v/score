@@ -563,6 +563,23 @@ def check_records():
                 assert left["prim"] and left.get("why"), (path.name, entry["name"])
 
 
+def check_rejected():
+    """A record that holds again a thing its owner_rejected names is refused, and so are a kit piece's row and an
+    effect of that name; an owner_rejected entry in words alone names nothing."""
+    rejected = {"place": "here", "owner_rejected": ["the market, in words", {"what": "the pad", "names": ["pad"],
+                                                                              "date": "2026-10-04", "why": "owner"}]}
+    assert scene.rejected_names(rejected) == {"pad"}
+    scene.refuse_rejected(rejected, ["deck", "the market, in words"], "the kit")
+    try:
+        scene.refuse_rejected(rejected, ["deck", "pad"], "the kit")
+    except ValueError as error:
+        assert "['pad']" in str(error) and "the kit" in str(error), error
+    else:
+        raise AssertionError("a rejected name came back unrefused")
+    for path in sorted(scene.SCENES.glob("*.json")):
+        scene.record(path.stem)  # every real record keeps out what its owner rejected
+
+
 def main():
     check_builders()
     check_sky_builders()
@@ -591,6 +608,7 @@ def main():
     with tempfile.TemporaryDirectory() as folder:
         check_dust(pathlib.Path(folder))
     check_records()
+    check_rejected()
     print("scene_test: ok")
 
 
