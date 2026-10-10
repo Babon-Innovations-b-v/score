@@ -50,8 +50,9 @@ DECAL_PROUD = 0.002
 WALL = 0.005
 VOXEL_SHARE = 1 / 300
 # A piece whose job names no wall of its own is thickened by WALL_VOXELS of its voxels where that is more than WALL, as
-# place_route.py's jobs do (its WALL_SHARE): a shell thinner than a voxel falls between the grid's samples and comes
-# back as lace. The 60 m launch rocket, baked from a job that named no wall, came back at 5 mm under 0.2 m voxels full
+# place_route.py's jobs do for all but its THIN_WALLED masts (its WALL_SHARE): a shell thinner than a voxel falls
+# between the grid's samples and comes back as lace. route.py's room jobs name their wall (route.ROOM_WALL, 5 mm as
+# accepted in hub round six), so this default reaches only jobs written without one. The 60 m launch rocket, baked from a job that named no wall, came back at 5 mm under 0.2 m voxels full
 # of holes, its lumpy feet, seen plain grey with no maps at all; at two voxels its shape came back whole (2026-10-10).
 WALL_VOXELS = 2
 VOXEL_FINEST = 0.0012
