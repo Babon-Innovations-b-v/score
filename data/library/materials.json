@@ -110,6 +110,20 @@
 			"breakup_scale": 6.0,
 			"dirt_reach": 0.1
 		},
+		"weathered_render": {
+			"bare": "concrete",
+			"roughness": 0.85,
+			"bare_roughness": 0.9,
+			"bump": 0.0005,
+			"bump_size": 0.03,
+			"edge_width": 0.008,
+			"breakup_scale": 3.0,
+			"dirt_reach": 0.1,
+			"peel": 0.5,
+			"streaks": 0.6,
+			"streak_length": 0.8,
+			"mottle": 0.3
+		},
 		"tiles": {
 			"second": "concrete",
 			"roughness": 0.25,
@@ -1994,6 +2008,28 @@
 					"roughness": 0.9,
 					"bump": 0.0006,
 					"bump_size": 0.02
+				},
+				"facade_render": {
+					"recipe": "weathered_render",
+					"token": "flat-wall",
+					"bare": "concrete",
+					"roughness": 0.85,
+					"breakup_scale": 3.0,
+					"peel": 0.6,
+					"streaks": 0.7,
+					"streak_length": 0.9,
+					"mottle": 0.35
+				},
+				"roof_render": {
+					"recipe": "weathered_render",
+					"token": "flat-wall",
+					"bare": "concrete",
+					"roughness": 0.9,
+					"breakup_scale": 2.0,
+					"peel": 0.4,
+					"streaks": 0.0,
+					"streak_length": 0.9,
+					"mottle": 0.5
 				}
 			}
 		},
@@ -2075,6 +2111,18 @@
 					"recipe": "rusted_metal",
 					"token": "line",
 					"wear_scale": 0.7
+				},
+				"shutter_paint": {
+					"recipe": "rusted_metal",
+					"token": "roof-steel",
+					"wear_scale": 0.55,
+					"breakup_scale": 14.0
+				},
+				"meter_grey": {
+					"recipe": "rusted_metal",
+					"token": "hull-trim",
+					"wear_scale": 0.5,
+					"breakup_scale": 14.0
 				}
 			}
 		},

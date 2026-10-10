@@ -311,6 +311,46 @@ def painted_plaster(colour, bare, dirt_colour, roughness, bare_roughness, bump, 
     return Channels(base, rough, shine, BLACK, lumpy_relief(vector, bump, bump_size, seed) + chipped)
 
 
+def rain_streaks(vector, streaks, streak_length, seed):
+    """Where rain running down a wall has left dirt: thin streaks hanging down the surface's own plane, each a few
+    centimetres across and about `streak_length` long, on upright faces only (a sill's top or a roof gathers dirt
+    in its cavities instead); `streaks` scales how many."""
+    across, upward = face_plane(vector)
+    stretched = pf.nodes.math.combine_xyz(x=across / 0.06, y=upward / streak_length, z=0.0)
+    runs = pf.nodes.texture.noise(vector=stretched, scale=1.0, detail=3.0, noise_dimensions="4D", w=seed + 41.0)
+    streak = pf.nodes.math.map_range(value=runs.fac, from_min=0.68 - 0.2 * streaks, from_max=0.78 - 0.2 * streaks,
+                                     interpolation_type="SMOOTHSTEP")
+    upright = pf.nodes.math.map_range(value=pf.nodes.math.absolute(
+        pf.nodes.math.separate_xyz(pf.nodes.shader.geometry().normal).z), from_min=0.5, from_max=0.2)
+    return pf.nodes.math.clamp(streak * upright * pf.nodes.math.greater_than(streaks, 0.001))
+
+
+def weathered_render(colour, bare, dirt_colour, roughness, bare_roughness, bump, bump_size, edge_width, breakup_scale,
+                     dirt_reach, peel, streaks, streak_length, mottle, wear, dirt, seed, foot):
+    """Painted render on an old block's outside walls (the street's tenements, 2026-10-10: the flat plates read as
+    new paint up close): painted_plaster's chips and kicks, the paint peeled off the render in patches as far as the
+    place's wear (`peel`), rain streaks down the upright faces as dirty as the place (`streaks`), and the paint's
+    shade mottled by patches of fading and repainting (`mottle`)."""
+    vector = coordinates()
+    kicked = kick_mask(vector, foot, wear, breakup_scale, seed)
+    patches = pf.nodes.texture.noise(vector=vector, scale=breakup_scale, detail=5.0, noise_dimensions="4D",
+                                     w=seed + 23.0)
+    peeled = pf.nodes.math.map_range(value=patches.fac, from_min=0.74 - 0.25 * wear * peel,
+                                     from_max=0.77 - 0.25 * wear * peel,
+                                     interpolation_type="SMOOTHSTEP") * pf.nodes.math.greater_than(peel * wear, 0.001)
+    wear_mask = pf.nodes.math.maximum(pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale,
+                                                                           seed), kicked), peeled)
+    streaked = rain_streaks(vector, streaks, streak_length, seed) * dirt
+    dirty = pf.nodes.math.maximum(pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5),
+                                  streaked)
+    shades = pf.nodes.texture.noise(vector=vector, scale=0.7, detail=2.0, noise_dimensions="4D", w=seed + 29.0)
+    faded = pf.nodes.math.map_range(value=shades.fac, from_min=0.4, from_max=0.65) * mottle
+    painted = pf.nodes.color.mix_rgb(factor=faded, a=colour, b=bare)
+    base, rough, shine = layered((painted, roughness, 0.0), (bare, bare_roughness, 0.0), wear_mask, dirt_colour, dirty)
+    chipped = pf.nodes.shader.displacement(height=wear_mask * -0.0006, midlevel=0.0)
+    return Channels(base, rough, shine, BLACK, lumpy_relief(vector, bump, bump_size, seed) + chipped)
+
+
 def face_joints(vector, across_pitch, up_pitch, joint):
     """Where a grid of `across_pitch` by `up_pitch` cells on the surface's own plane has its joints, `joint` metres
     wide: 1 in a joint, 0 on a cell."""
@@ -400,8 +440,8 @@ RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
            "anodized": anodized, "rubber": rubber, "quilted": quilted, "composite": composite, "glass": glass,
            "glowing": glowing, "screen": screen, "printed": printed, "wood": wood,
-           "painted_plaster": painted_plaster, "tiles": tiles, "terrazzo": terrazzo, "boards": boards,
-           "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt}
+           "painted_plaster": painted_plaster, "weathered_render": weathered_render, "tiles": tiles,
+           "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt}
 # Where each recipe starts from, for the page and the paper (the coordinator, 2026-10-06).
 SOURCES = {
     "painted_metal": "infinigen2 paint.py (relief, BSD-3) + edgewear.py's bevel test (ported, new threshold band)"
@@ -422,6 +462,7 @@ SOURCES = {
     "wood": "written new (soft stretched-noise relief, flat colour) + the library's dirt; its grain comes from the "
             "piece's picture layer",
     "painted_plaster": "painted_metal's edge wear, kick wear and layering over a bare render + new lumpy relief",
+    "weathered_render": "painted_plaster + rusted_metal's blooms as peeled patches + new rain streaks and mottled shade",
     "tiles": "written new (joint grid on the surface's plane) + the library's dirt",
     "terrazzo": "written new (voronoi chips) + the library's dirt",
     "boards": "written new (board gaps, foot-worn patches stretched along the boards) + the library's layering",
@@ -446,6 +487,8 @@ PARTS = {
     "printed": (printed, picture_on),
     "wood": (wood, coordinates, dirty_flat, dirt_mask),
     "painted_plaster": (painted_plaster, coordinates, edge_wear_mask, kick_mask, dirt_mask, lumpy_relief, layered),
+    "weathered_render": (weathered_render, coordinates, edge_wear_mask, kick_mask, dirt_mask, rain_streaks, face_plane,
+                         lumpy_relief, layered),
     "tiles": (tiles, coordinates, face_plane, face_joints, dirty_flat, dirt_mask),
     "terrazzo": (terrazzo, coordinates, dirty_flat, dirt_mask),
     "boards": (boards, coordinates, face_plane, dirt_mask, layered),

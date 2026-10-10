@@ -64,6 +64,9 @@ PLAIN = frozenset((
     "far_drainpipe",
     # the street's density pass: its yellow lines, the pipes and cables along its faces, the harbour wall and fence
     "road_line", "facade_pipe", "end_wall", "end_fence",
+    # the street's blocks up close (2026-10-10): their roofs' decks and parapets with their coping, which were the
+    # scene record's plain whitewash boxes
+    "block_roof", "parapet",
 ))
 
 
