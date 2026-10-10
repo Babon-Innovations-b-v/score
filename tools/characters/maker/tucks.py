@@ -27,7 +27,7 @@ TUCK_LENGTH = 0.04
 # A tuck's band is drawn in towards its bone by this share of its distance from it, under the garment round it.
 TUCK_SHRINK = 0.2
 # And at least this far inside the garment's distance from the bone.
-TUCK_GAP = 0.005
+TUCK_GAP = 0.012
 GARMENT_NEAR = 0.01
 GARMENT_SHARE = 0.5
 

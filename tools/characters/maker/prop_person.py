@@ -269,6 +269,14 @@ def build(spec, outfit, who, held, dry_run):
 CHECKS_TABLE = pathlib.Path.home() / ".farm-factory-props/score-coordinator/prop-people"
 
 
+def materials_line(parts):
+    """The parts' surface shares summed by material, largest first, as one line."""
+    shares = {}
+    for part in parts["parts"]:
+        shares[part["material"]] = shares.get(part["material"], 0.0) + part["share"]
+    return ", ".join(f"{name} {share:.1%}" for name, share in sorted(shares.items(), key=lambda item: -item[1]))
+
+
 def table_rows(spec, outfit, folder, take):
     """The checks' rows: (check, measure, value, gate, verdict)."""
     rig = json.loads((folder / "fit" / "rig.json").read_text())
@@ -279,8 +287,7 @@ def table_rows(spec, outfit, folder, take):
     rows = [("rig", "limbs apart (crotch, armpit found)", f"crotch {rig['fit']['crotch']:.3f} m, armpit "
              f"{rig['fit']['armpit']:.3f} m", "found", "pass"),
             ("rig", "mesh vertices matched by RSWT", f"{rig['matched_share']:.1%} (rest inpainted)", "record", "-"),
-            ("parts", "GeoSAM2 parts on the finished model", ", ".join(f"{part['name']}:{part['material']}"
-                                                                       for part in parts["parts"]), "record", "-")]
+            ("parts", "GeoSAM2 parts by material, share of the surface", materials_line(parts), "record", "-")]
     for kind in ("wrist", "ankle"):
         value = joined.get(kind)
         rows.append(("joins.py", f"{kind} worst overlap over every clip",
@@ -291,7 +298,7 @@ def table_rows(spec, outfit, folder, take):
                  "0.55 to 1.2", "none" if stance is None else "pass" if stance["pass"] else "FAIL"))
     worst = max(clip["worst_tuck_out_mm"] for clip in poked["clips"].values())
     over = sum(clip["frames_tuck_over"] for clip in poked["clips"].values())
-    rows.append(("pokes.py", "tuck outside its garment, worst frame", f"{worst:.1f} mm ({over} frames over)",
+    rows.append(("pokes.py", "tuck outside the person's surface, worst frame", f"{worst:.1f} mm ({over} frames over)",
                  f"<= {5.0} mm every frame", "pass" if poked["verdict"]["tucks"] else "FAIL"))
     crossing = max(clip["most_crossings"] for clip in poked["clips"].values())
     shipped = json.loads((folder / "checks" / "pokes_shipped.json").read_text())
@@ -316,7 +323,8 @@ def checks(spec, outfit, who, held, dry_run):
     (folder / "checks").mkdir(exist_ok=True)
     body = folder / "out" / f"{spec['name']}.glb"
     shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
-    local("pokes.py", shipped, "--out", folder / "checks" / "pokes_shipped.json")
+    if not (folder / "checks" / "pokes_shipped.json").exists():
+        local("pokes.py", shipped, "--out", folder / "checks" / "pokes_shipped.json")
     local("pokes.py", body, "--out", folder / "checks" / "pokes.json", "--against",
           folder / "checks" / "pokes_shipped.json")
     local("outline.py", take, folder / "fit" / "rig.npz", body, "--out", folder / "checks" / "outline.json")
