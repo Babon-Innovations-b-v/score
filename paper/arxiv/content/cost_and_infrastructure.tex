@@ -80,7 +80,7 @@ Qwen-Image-Edit, 16 close-ups & 3 H100 & 11 min & €1.53 & 26 min, €1.24 \\
 \end{longtable}
 }
 
-Table G3 sums the cloud ledger, in which every runner records each machine it rents, by type of machine, from the first batch on 29 September to the end of 8 October 2026. It holds the game 2099's own test and benchmark machines as well as the framework's batches, and the machines of the earliest batches, worth €34.69, were recorded without their type.
+Table G3 sums the cloud ledger, in which every runner records each machine it rents, by type of machine, from the first batch on 29 September to the end of 8 October 2026. It holds the game 2099's own test and benchmark machines as well as the framework's batches. €35.68 has no type: the machines of the earliest batches were recorded without one (€34.69), and some rows hold €0.99 more than the machines they list.
 
 \textbf{Table G3.} Rented machines by type, 29 September to 8 October 2026.
 
@@ -102,7 +102,7 @@ two L4, 24 GB each & 3 & 3.4 h & €5.38 \\
 L40S, 48 GB & 6 & 2.7 h & €4.07 \\
 P100, 16 GB & 2 & 0.1 h & €2.44 \\
 16-core processor, 128 GB & 2 & 1.6 h & €1.36 \\
-type not recorded & & & €34.69 \\
+type not recorded & & & €35.68 \\
 total & & & €366.76 \\
 \end{longtable}
 }
@@ -269,8 +269,196 @@ Cost of card time
 \end{longtable}
 }
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+Tables G8 to G11 give the cost and time of October 2026 up to the provider's bill read on 10 October at 01:36 UTC. ``Per stage'' means here per kind of batch. The ledger records each batch's kind, its machines, their minutes and their price, but not the world, the place or the stage of a place's route that the batch served, so neither the cost of a world nor the cost of each stage of a place's route is recorded yet; only world 1 has been built, and Appendix B attributes its batches to places by their work folders. The tables cover October only, because the bill is read per month.
 
-\textbf{Gap: cost tables.} These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds and on the bill; the figures per place so far (Appendix B) are lower bounds taken from the build logs.
+Up to the read, the ledger holds €547.31 of the bill's €627.74. Of the €80.43 between them, €51.87 is not compute: block storage for the machines' disks and one kept snapshot (€32.77), public IP addresses (€15.09), the image registry and the cluster control plane (€3.50), and object storage and secrets (€0.51). The other €28.56 is compute, and Table G11 traces it. €26.01 is processor machines that the ledger priced by the minute while the provider bills them by the started hour, almost all in rows written before the runner began pricing them by the hour on 8 October; €0.24 is two small machines that no batch rented; and the remaining €2.31 is the card types' bill and ledger differing by a few euros either way, because the bill lags the ledger by some hours. The ledger's rows are never rewritten: a reconciliation file kept beside it tags as Pixal3D the 55 October rows (€91.68) written before that runner named its kind.
 
-\end{minipage}}\end{center}
+Table G8 adds the €80.43 to each kind of batch in proportion to its share of the ledger, since disks and addresses come with every machine and scale with its rented time; this is an allocation, not a measurement. Blender work and Pixal3D were about half of the month's spend, and the open judge a tenth. By what the work was for, €112.41 of the ledger was research and development on the framework itself: the game's engine runs, the container images and their proofs, the method experiments, and the benchmarks and comparisons that the rows name as such, among them the scale test of Table G7. The other €434.90 was production, the route's work on world 1. Production is an upper bound, because the route's own batches carry no mark when they were reruns made while the method changed, such as the hub's six rounds (Table C1).
+
+\textbf{Table G8.} Cost and time per kind of batch, 1 to 10 October 2026. Batches and machine time from the cloud ledger; the column ``with the rest of the bill'' adds the €80.43 that the ledger does not hold in proportion to each kind's share. The median batch is the median wall time of the kind's batches.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 14\tabcolsep) * \real{0.1250}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Kind of batch
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Batches
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Machine time
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Ledger
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Share
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+With the rest of the bill
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Median batch
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Main card types
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Blender: settling, renders, review pages, close-ups & 299 & 140.9 h & €155.42 & 28.4\% & €178.26 & 12 min & L4 52\%, 16-core processor 14\% \\
+Pixal3D models & 83 & 154.2 h & €130.98 & 23.9\% & €150.23 & 40 min & L4 93\%, H100 PCIe 3\% \\
+Open judge & 82 & 16.1 h & €55.75 & 10.2\% & €63.95 & 11 min & H100 PCIe 55\%, two H100 SXM 37\% \\
+Library bake & 238 & 50.7 h & €46.30 & 8.5\% & €53.11 & 8 min & L4 84\%, 16-core processor 8\% \\
+Characters: chain, rigging, drapes & 16 & 35.3 h & €35.31 & 6.5\% & €40.50 & 45 min & L4 72\%, H100 PCIe 28\% \\
+Parts and segments & 119 & 26.3 h & €33.27 & 6.1\% & €38.16 & 8 min & L4 53\%, H100 PCIe 35\% \\
+Engine runs: tests, shots, benchmarks, warm pool & 142 & 39.3 h & €32.63 & 6.0\% & €37.42 & 9 min & L4 70\%, 32-core processor, 64 GB 30\%, read from their price \\
+Container images, proofs, kernel warm-up & 48 & 10.8 h & €24.06 & 4.4\% & €27.60 & 10 min & 16-core processor 44\%, H100 PCIe 38\% \\
+Open picture models: FLUX.2 klein, Qwen-Image-Edit & 63 & 6.0 h & €15.96 & 2.9\% & €18.31 & 3 min & two H100 SXM 46\%, H100 PCIe 38\% \\
+Method experiments: terrain, plants, clay, Infinigen & 32 & 14.2 h & €15.74 & 2.9\% & €18.05 & 33 min & L4 35\%, 32-core processor 28\% \\
+Sound & 5 & 2.1 h & €1.88 & 0.3\% & €2.16 & 5 min & L4 86\%, H100 PCIe 10\% \\
+All & 1,127 & 495.9 h & €547.31 & 100\% & €627.74 & & \\
+\end{longtable}
+}
+
+\textbf{Table G9.} Rented machines by type, 1 to 10 October 2026, against the price the provider bills an hour. Rentals count the failed starts that were billed. The engine runs' rows name no machine; each is counted under the type whose price gives its cost by the minute (95 under the L4 and 47 under the 32-core 64 GB processor machine).
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Machine
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Rentals
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Machine time
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cost
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Per hour used
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Billed an hour
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Billed by
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+L4, 24 GB & 1,080 & 396.3 h & €319.37 & €0.81 & €0.79 & minute \\
+H100 PCIe, 80 GB & 148 & 26.0 h & €78.06 & €3.00 & €2.87 & minute \\
+16-core processor, 64 GB & 64 & 20.5 h & €38.44 & €1.87 & €0.59 & started hour \\
+32-core processor, 64 GB & 70 & 21.9 h & €31.79 & €1.45 & €0.85 & started hour \\
+two H100 SXM, 80 GB each & 32 & 4.5 h & €31.55 & €7.04 & €6.62 & minute \\
+32-core processor, 128 GB & 38 & 14.8 h & €28.73 & €1.95 & €1.18 & started hour \\
+L40S, 48 GB & 45 & 10.3 h & €15.56 & €1.52 & €1.47 & minute \\
+P100, 16 GB & 2 & 0.1 h & €2.44 & €17.05 & €1.23 & started hour \\
+16-core processor, 128 GB & 2 & 1.6 h & €1.36 & €0.84 & €0.82 & started hour \\
+total & & 495.9 h & €547.31 & & & \\
+\end{longtable}
+}
+
+The L4 carried 58 percent of the ledger at about its billed price. The processor machines cost 1.6 to 3.2 times their hourly price for each hour they were used, because the provider bills each started hour and their median rental in Blender batches was 12 to 33 minutes. Keeping such a machine for the next batch within the hour already paid, or sending a short batch to a type billed by the minute, would cut this waste. Table G10 gives the cost per unit of work for each kind of batch and card type.
+
+\textbf{Table G10.} Cost per unit of work by kind of batch and card type, 1 to 10 October 2026, as the capacity report computes it from the same ledger. A unit is one take, render, question, part or picture; seconds a unit is the median, and the cost of a unit is the whole rental of the machines that counted units, setup included, over those units. Rows written before 8 October record no units and are left out of the last three columns.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Kind
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Card
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Machines
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Failed starts
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Units
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Seconds a unit
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cost a unit
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Pixal3D & L4 & 251 & 32 & 52 & 1,358 & €0.143 \\
+Pixal3D & H100 PCIe & 4 & 14 & 19 & 867 & €0.206 \\
+Blender & L4 & 220 & 35 & 486 & 116 & €0.159 \\
+Blender & 16-core processor & 32 & 0 & 66 & 64 & €0.304 \\
+Blender & 32-core processor, 64 GB & 19 & 90 & 34 & 117 & €0.476 \\
+Library bake & L4 & 230 & 37 & 208 & 60 & €0.061 \\
+Open judge & H100 PCIe & 48 & 89 & 41 & 603 & €0.597 \\
+Open judge & L40S & 7 & 64 & 5 & 551 & €0.299 \\
+Open judge & two H100 SXM & 19 & 22 & 10 & 416 & €1.357 \\
+Parts & L4 & 44 & 113 & 52 & 213 & €0.056 \\
+Mesh parts & L4 & 5 & 15 & 7 & 1,059 & €0.291 \\
+Mesh parts & H100 PCIe & 4 & 25 & 8 & 1,080 & €0.896 \\
+Segments & L4 & 28 & 22 & 63 & 58 & €0.039 \\
+Pictures, FLUX.2 klein & L4 & 48 & 2 & 244 & 4 & €0.002 \\
+Pictures, Qwen-Image-Edit & H100 PCIe & 7 & 16 & 34 & 85 & €0.093 \\
+Characters & L4 & 36 & 3 & 37 & 2,001 & €0.625 \\
+Characters & H100 PCIe & 2 & 1 & 1 & 1,285 & €1.768 \\
+Rigging (UniRig) & L4 & 2 & 7 & 2 & 68 & €0.033 \\
+\end{longtable}
+}
+
+\textbf{Table G11.} The provider's bill for October 2026, read on 10 October at 01:36 UTC, against the cloud ledger. The last column prices the ledger's processor machines again by the started hour, as the provider bills them; the engine runs' rows name no machine and are not priced again.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Bill line
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Bill
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Ledger
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Ledger, processor machines by the started hour
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+L4, 24 GB & €324.34 & €319.37 & €319.37 \\
+H100 PCIe, 80 GB & €73.64 & €78.06 & €78.06 \\
+32-core processor, 128 GB & €50.74 & €28.73 & €50.74 \\
+16-core processor, 64 GB & €41.30 & €38.44 & €41.30 \\
+32-core processor, 64 GB & €34.91 & €31.79 & €32.63 \\
+two H100 SXM, 80 GB each & €32.33 & €31.55 & €31.55 \\
+L40S, 48 GB & €14.27 & €15.56 & €15.56 \\
+P100, 16 GB & €2.45 & €2.44 & €2.45 \\
+16-core processor, 128 GB & €1.65 & €1.36 & €1.65 \\
+two small processor machines, no batch & €0.24 & & \\
+compute & €575.87 & €547.31 & €573.32 \\
+block storage: machines' disks, one kept snapshot & €32.77 & & \\
+public IP addresses & €15.09 & & \\
+image registry, cluster control plane & €3.50 & & \\
+object storage, secrets & €0.51 & & \\
+all & €627.74 & €547.31 & \\
+\end{longtable}
+}

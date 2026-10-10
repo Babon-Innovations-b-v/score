@@ -1,0 +1,565 @@
+{
+ "about": "Reconciliation of ledger.jsonl with the provider's bill. ledger.jsonl is never rewritten: 'kinds' tags rows that carry no kind (by batch name), 'bill' is the provider's month bill as read, 'not_in_ledger' its euros that no ledger row holds (storage, IP addresses, registry, clusters, object storage, secrets, and compute the ledger misses).",
+ "made": "2026-10-10T01:36Z",
+ "ledger_rows": 1164,
+ "ledger_last_started": "2026-10-10T01:28:07Z",
+ "kinds": {
+  "batch-20260929-120709": {
+   "kind": "pixal",
+   "euros": 0.21,
+   "started": "2026-09-29T10:07:55Z",
+   "inferred": true,
+   "evidence": "an earlier Pixal3D batch entry (models, models_done, at_once, generate_minutes, peak_gb); inferred from its fields, no commit found"
+  },
+  "batch-20260929-122339": {
+   "kind": "pixal",
+   "euros": 0.21,
+   "started": "2026-09-29T10:24:18Z",
+   "inferred": true,
+   "evidence": "an earlier Pixal3D batch entry (models, models_done, at_once, generate_minutes, peak_gb); inferred from its fields, no commit found"
+  },
+  "batch-20260929-124252": {
+   "kind": "pixal",
+   "euros": 0.301875,
+   "started": "2026-09-29T10:43:31Z",
+   "inferred": true,
+   "evidence": "an earlier Pixal3D batch entry (models, models_done, at_once, generate_minutes, peak_gb); inferred from its fields, no commit found"
+  },
+  "batch-20260929-133357-1808746": {
+   "kind": "pixal",
+   "euros": 0.931875,
+   "started": "2026-09-29T11:33:57Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260929-163749-1895072": {
+   "kind": "pixal",
+   "euros": 2.0737499999999995,
+   "started": "2026-09-29T14:37:49Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260929-202509-38730": {
+   "kind": "pixal",
+   "euros": 40.845,
+   "started": "2026-09-29T18:25:09Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260929-211804-128718": {
+   "kind": "pixal",
+   "euros": 2.8218750000000004,
+   "started": "2026-09-29T19:18:04Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260929-221728-259411": {
+   "kind": "pixal",
+   "euros": 22.745625,
+   "started": "2026-09-29T20:17:28Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260930-150416-5221": {
+   "kind": "pixal",
+   "euros": 1.6931249999999998,
+   "started": "2026-09-30T13:04:16Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260930-150510-9436": {
+   "kind": "pixal",
+   "euros": 16.747500000000002,
+   "started": "2026-09-30T13:05:10Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260930-180407-445511": {
+   "kind": "pixal",
+   "euros": 11.025,
+   "started": "2026-09-30T16:04:07Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260930-195647-1711249": {
+   "kind": "pixal",
+   "euros": 0.380625,
+   "started": "2026-09-30T17:56:47Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20260930-193547-1147136": {
+   "kind": "pixal",
+   "euros": 5.158124999999999,
+   "started": "2026-09-30T17:35:47Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261001-154206-24121": {
+   "kind": "pixal",
+   "euros": 0.18375,
+   "started": "2026-10-01T13:42:06Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261001-155721-28408": {
+   "kind": "pixal",
+   "euros": 0.170625,
+   "started": "2026-10-01T13:57:21Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261002-175200-2131308": {
+   "kind": "pixal",
+   "euros": 0,
+   "started": "2026-10-02T15:52:00Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261002-175318-2133068": {
+   "kind": "pixal",
+   "euros": 0,
+   "started": "2026-10-02T15:53:18Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261002-174711-2124965": {
+   "kind": "pixal",
+   "euros": 2.730000000000001,
+   "started": "2026-10-02T15:47:11Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-122553-3279114": {
+   "kind": "pixal",
+   "euros": 0.21,
+   "started": "2026-10-03T10:25:53Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-123152-3484166": {
+   "kind": "pixal",
+   "euros": 0.1575,
+   "started": "2026-10-03T10:31:52Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-115435-2513321": {
+   "kind": "pixal",
+   "euros": 2.9006250000000002,
+   "started": "2026-10-03T09:54:35Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-121325-2956562": {
+   "kind": "pixal",
+   "euros": 1.575,
+   "started": "2026-10-03T10:13:25Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-120409-2745499": {
+   "kind": "pixal",
+   "euros": 5.368125,
+   "started": "2026-10-03T10:04:09Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-125239-3881391": {
+   "kind": "pixal",
+   "euros": 1.456875,
+   "started": "2026-10-03T10:52:39Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-132921-368934": {
+   "kind": "pixal",
+   "euros": 0.24937499999999999,
+   "started": "2026-10-03T11:29:21Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-131648-313658": {
+   "kind": "pixal",
+   "euros": 0.406875,
+   "started": "2026-10-03T11:16:48Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-130837-105543": {
+   "kind": "pixal",
+   "euros": 0.91875,
+   "started": "2026-10-03T11:08:37Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-124820-3781546": {
+   "kind": "pixal",
+   "euros": 3.976875,
+   "started": "2026-10-03T10:48:20Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-120512-2750550": {
+   "kind": "pixal",
+   "euros": 4.095,
+   "started": "2026-10-03T10:05:12Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-122054-3111084": {
+   "kind": "pixal",
+   "euros": 4.7775,
+   "started": "2026-10-03T10:20:54Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-130357-4187547": {
+   "kind": "pixal",
+   "euros": 2.5593749999999997,
+   "started": "2026-10-03T11:03:57Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-143332-25476": {
+   "kind": "pixal",
+   "euros": 0.7875,
+   "started": "2026-10-03T12:33:32Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-170332-887340": {
+   "kind": "pixal",
+   "euros": 0.616875,
+   "started": "2026-10-03T15:03:32Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-164437-775914": {
+   "kind": "pixal",
+   "euros": 0.931875,
+   "started": "2026-10-03T14:44:37Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-191825-1663919": {
+   "kind": "pixal",
+   "euros": 1.68,
+   "started": "2026-10-03T17:18:25Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-210832-2231157": {
+   "kind": "pixal",
+   "euros": 1.6275,
+   "started": "2026-10-03T19:08:32Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261003-211542-2357353": {
+   "kind": "pixal",
+   "euros": 2.0212499999999998,
+   "started": "2026-10-03T19:15:42Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261004-142051-916903": {
+   "kind": "pixal",
+   "euros": 1.96875,
+   "started": "2026-10-04T12:20:51Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261004-162946-542327": {
+   "kind": "pixal",
+   "euros": 1.036875,
+   "started": "2026-10-04T14:29:46Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261005-125420-1045227": {
+   "kind": "pixal",
+   "euros": 1.86375,
+   "started": "2026-10-05T10:54:20Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261005-140912-1079333": {
+   "kind": "pixal",
+   "euros": 0,
+   "started": "2026-10-05T12:09:12Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261005-141117-1082827": {
+   "kind": "pixal",
+   "euros": 0.945,
+   "started": "2026-10-05T12:11:17Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261005-151713-1109018": {
+   "kind": "pixal",
+   "euros": 1.05,
+   "started": "2026-10-05T13:17:13Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261005-204331-79507": {
+   "kind": "pixal",
+   "euros": 11.313749999999999,
+   "started": "2026-10-05T18:43:31Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261005-223118-268581": {
+   "kind": "pixal",
+   "euros": 2.7693749999999997,
+   "started": "2026-10-05T20:31:18Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-010744-1953159": {
+   "kind": "pixal",
+   "euros": 0.5775,
+   "started": "2026-10-06T23:07:44Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-015944-1969006": {
+   "kind": "pixal",
+   "euros": 0.695625,
+   "started": "2026-10-06T23:59:44Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-032324-2530147": {
+   "kind": "pixal",
+   "euros": 4.396875,
+   "started": "2026-10-07T01:23:24Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-080428-3288412": {
+   "kind": "pixal",
+   "euros": 4.41,
+   "started": "2026-10-07T06:04:28Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-134051-1102817": {
+   "kind": "pixal",
+   "euros": 1.168125,
+   "started": "2026-10-07T11:40:51Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-191241-3178259": {
+   "kind": "pixal",
+   "euros": 0.144375,
+   "started": "2026-10-07T17:12:41Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-190222-2874129": {
+   "kind": "pixal",
+   "euros": 0.3675,
+   "started": "2026-10-07T17:02:22Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-190641-2994804": {
+   "kind": "pixal",
+   "euros": 1.68,
+   "started": "2026-10-07T17:06:41Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-190954-3160776": {
+   "kind": "pixal",
+   "euros": 2.835000000000001,
+   "started": "2026-10-07T17:09:54Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-192215-3203693": {
+   "kind": "pixal",
+   "euros": 0.945,
+   "started": "2026-10-07T17:22:15Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-190246-2876392": {
+   "kind": "pixal",
+   "euros": 2.8349999999999995,
+   "started": "2026-10-07T17:02:46Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-200236-3772752": {
+   "kind": "pixal",
+   "euros": 0.538125,
+   "started": "2026-10-07T18:02:36Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-200742-3793582": {
+   "kind": "pixal",
+   "euros": 0.18375,
+   "started": "2026-10-07T18:07:42Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-190229-2875014": {
+   "kind": "pixal",
+   "euros": 3.7537499999999993,
+   "started": "2026-10-07T17:02:29Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-202917-4189888": {
+   "kind": "pixal",
+   "euros": 0.18375,
+   "started": "2026-10-07T18:29:17Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-202920-4190222": {
+   "kind": "pixal",
+   "euros": 0.196875,
+   "started": "2026-10-07T18:29:20Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-202914-4188628": {
+   "kind": "pixal",
+   "euros": 0.24937499999999999,
+   "started": "2026-10-07T18:29:14Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-191238-3178089": {
+   "kind": "pixal",
+   "euros": 1.785,
+   "started": "2026-10-07T17:12:38Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261007-211659-980854": {
+   "kind": "pixal",
+   "euros": 0.63,
+   "started": "2026-10-07T19:16:59Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261008-031527-1206564": {
+   "kind": "pixal",
+   "euros": 0.39375,
+   "started": "2026-10-08T01:15:27Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261008-105318-1593937": {
+   "kind": "pixal",
+   "euros": 1.3124999999999998,
+   "started": "2026-10-08T08:53:18Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261008-130602-1809230": {
+   "kind": "pixal",
+   "euros": 1.4306249999999998,
+   "started": "2026-10-08T11:06:02Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  },
+  "batch-20261008-142533-1872842": {
+   "kind": "pixal",
+   "euros": 0.616875,
+   "started": "2026-10-08T12:25:33Z",
+   "evidence": "the exact fields of batch.py's Pixal3D ledger entry before commit 423c229 (2026-10-08 11:41Z) added \"kind\": \"pixal\"; the first tagged pixal row is 11:42:44Z"
+  }
+ },
+ "kinds_euros": {
+  "all": 196.82,
+  "2026-10": 91.68
+ },
+ "bill": {
+  "month": "2026-10",
+  "read": "2026-10-10T01:36Z",
+  "total": 627.74,
+  "compute": 575.87,
+  "lines": [
+   {
+    "category": "Compute",
+    "product": "L4",
+    "euros": 324.34
+   },
+   {
+    "category": "Compute",
+    "product": "H100",
+    "euros": 105.97
+   },
+   {
+    "category": "Compute",
+    "product": "POP2-32C-128G",
+    "euros": 50.74
+   },
+   {
+    "category": "Compute",
+    "product": "POP2-16C-64G",
+    "euros": 41.3
+   },
+   {
+    "category": "Compute",
+    "product": "POP2-HC-32C-64G",
+    "euros": 34.91
+   },
+   {
+    "category": "Storage",
+    "product": "Block Storage Volume",
+    "euros": 32.54
+   },
+   {
+    "category": "Network",
+    "product": "Zonal Flexible IP",
+    "euros": 15.09
+   },
+   {
+    "category": "Compute",
+    "product": "L40S-1-48G",
+    "euros": 14.27
+   },
+   {
+    "category": "Containers",
+    "product": "Registry - External bandwidth",
+    "euros": 2.58
+   },
+   {
+    "category": "Compute",
+    "product": "RENDER-S",
+    "euros": 2.45
+   },
+   {
+    "category": "Compute",
+    "product": "POP2-HM-16C-128G",
+    "euros": 1.65
+   },
+   {
+    "category": "Object Storage",
+    "product": "Internal Bandwidth",
+    "euros": 1.18
+   },
+   {
+    "category": "Containers",
+    "product": "Kubernetes Kosmos",
+    "euros": 0.87
+   },
+   {
+    "category": "Object Storage",
+    "product": "External Bandwidth",
+    "euros": 0.34
+   },
+   {
+    "category": "Storage",
+    "product": "Block Snapshot",
+    "euros": 0.22
+   },
+   {
+    "category": "Compute",
+    "product": "DEV1-M",
+    "euros": 0.19
+   },
+   {
+    "category": "Object Storage",
+    "product": "Standard Multi-AZ",
+    "euros": 0.05
+   },
+   {
+    "category": "Containers",
+    "product": "Registry - Storage",
+    "euros": 0.05
+   },
+   {
+    "category": "Compute",
+    "product": "PLAY2-PICO",
+    "euros": 0.05
+   },
+   {
+    "category": "Security and Identity",
+    "product": "Secret Manager",
+    "euros": 0.03
+   },
+   {
+    "category": "Storage",
+    "product": "Local SSD",
+    "euros": 0.01
+   },
+   {
+    "category": "Containers",
+    "product": "Kubernetes Kapsule",
+    "euros": 0.0
+   },
+   {
+    "category": "Object Storage",
+    "product": "Outgoing bandwidth free tier",
+    "euros": -0.34
+   },
+   {
+    "category": "Object Storage",
+    "product": "Internal Bandwidth Pack",
+    "euros": -0.75
+   }
+  ],
+  "note": "the bill lags by hours; ledger rows that started after its last hour make the compute gap look smaller than it is"
+ },
+ "ledger_month": 547.31,
+ "not_in_ledger": {
+  "storage": 32.77,
+  "ip-addresses": 15.09,
+  "registry-and-clusters": 3.5,
+  "object-storage": 0.48,
+  "secrets": 0.03,
+  "compute-not-in-ledger": 28.56
+ },
+ "check": {
+  "ledger_month + not_in_ledger": 627.74,
+  "bill": 627.74
+ }
+}

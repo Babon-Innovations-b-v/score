@@ -1,0 +1,97 @@
+kind                               type machines   failed wait min      min work min    euros    units   s/unit   €/unit
+base                           L4-1-24G        2        0      0.3      7.8      7.4     0.21        0        -        -
+blender                      H100-1-80G        1       26      0.6     42.5     41.9     2.96        6      107    0.342
+blender                        L4-1-24G      220       35      0.4     15.4     15.1    79.47      486      116    0.159
+blender                      L40S-1-48G        5        9      0.7     49.2     48.5     6.93       15      112    0.441
+blender                    POP2-16C-64G       32        0      0.4     12.1     11.7    22.42       66       64    0.304
+blender                   POP2-32C-128G       13       78      0.4     32.7     32.3    21.24       35      239    0.472
+blender                 POP2-HC-32C-64G       19       90      0.4     21.1     20.7    21.28       34      117    0.476
+characters                   H100-1-80G        2        1      0.6     99.1     98.5     9.55        1     1285    1.768
+characters                     L4-1-24G       36        3      0.4     52.3     51.9    23.49       37     2001    0.625
+characters                   L40S-1-48G        0        2        -        -        -     0.00        0        -        -
+closeups                       L4-1-24G       10        0        -      6.7        -     1.12        0        -        -
+drapes-setup-lens              L4-1-24G        1        0      0.4     31.9     31.5     0.42        0        -        -
+drapes-sim                     L4-1-24G        1        0      0.4     98.0     97.6     1.30        0        -        -
+experiment clay3d              L4-1-24G        3        0        -     34.2        -     1.50        0        -        -
+experiment clay3d            L40S-1-48G        1        0        -     13.5        -     0.34        0        -        -
+experiment infinigen (P        L4-1-24G        1        0        -     25.4        -     0.34        0        -        -
+experiment moonground (        L4-1-24G        2        0        -      1.2        -     0.05        0        -        -
+experiment moonground2         L4-1-24G        2        0        -      2.5        -     0.08        0        -        -
+experiment plants (Pixa        L4-1-24G        1        0        -     12.8        -     0.17        0        -        -
+experiment plants (Pixa        L4-1-24G        1        0        -     46.9        -     0.62        0        -        -
+experiment plants (Pixa        L4-1-24G        1        0        -     11.9        -     0.16        0        -        -
+experiment plants (Pixa        L4-1-24G        1        0        -     56.6        -     0.75        0        -        -
+experiment terrain (Pix        L4-1-24G        1        0        -     31.8        -     0.42        0        -        -
+experiment terrain (Pix      L40S-1-48G        1        0        -      5.7        -     0.15        0        -        -
+experiment terrain (Pix      H100-1-80G        1        0        -     17.8        -     0.86        0        -        -
+experiment terrain (clo      L40S-1-48G        1        0        -     42.7        -     1.05        0        -        -
+experiment terrain (rou      H100-1-80G        1        0        -     42.0        -     2.05        0        -        -
+experiment terrain (rou        L4-1-24G        1        0        -     35.3        -     0.47        0        -        -
+experiment terrain (rou        L4-1-24G        1        0        -     66.5        -     0.88        0        -        -
+finish-masks                   L4-1-24G        2        0      0.4      3.1      2.7     0.09        6       24    0.015
+hold                           L4-1-24G        1        0      0.4      1.5      1.1     0.03        0        -        -
+images                     POP2-16C-64G       17        3      0.4      9.0      8.7    10.03        0        -        -
+images                    POP2-32C-128G        1        0      0.4     29.6     29.2     1.18        0        -        -
+images                  POP2-HC-32C-64G        1        1        -      1.0        -     0.01        0        -        -
+images-proof                 H100-1-80G        0        1        -        -        -     0.00        0        -        -
+images-proof                   L4-1-24G        2        0      0.4     27.6     39.3     0.73        0        -        -
+images-proof               POP2-16C-64G        1        0      0.4      1.4      1.0     0.59        0        -        -
+images-prove                 H100-1-80G        1        1      0.6     37.2     36.6     1.82        0        -        -
+images-prove                   L4-1-24G        3        3      0.4     10.7     10.3     1.00        0        -        -
+infinigen                 POP2-32C-128G        6        0        -     36.9        -     4.46        0        -        -
+infinigen               POP2-HM-16C-128G        2        0        -     48.8        -     1.36        0        -        -
+judge                        H100-1-80G       48       89      0.6     12.3     11.7    30.48       41      603    0.597
+judge                        H100-2-80G        0       44        -        -        -     0.00        0        -        -
+judge                    H100-SXM-2-80G       19       22      0.7      8.2      7.5    20.74       10      416    1.357
+judge                        L40S-1-48G        7       64      0.7     13.6     13.0     4.53        5      551    0.299
+library                      H100-1-80G        1        8      0.6      7.5      6.9     0.57        1      360    0.382
+library                        L4-1-24G      230       37      0.4      9.9     10.1    38.84      208       60    0.061
+library                        L4-2-24G        0       21        -        -        -     0.00        0        -        -
+library                      L40S-1-48G        0       21        -        -        -     0.20        0        -        -
+library                    POP2-16C-64G       11        0      0.4      2.8      4.9     3.63        7       75    0.421
+library                   POP2-32C-128G       17        0        -      5.0        -     1.85        0        -        -
+library                        RENDER-S        1        1      4.1      5.6      1.5     1.22        0        -        -
+mars-build ground (skin        L4-1-24G        1        0        -      1.2        -     0.03        0        -        -
+meshparts                    H100-1-80G        4       25      0.6     35.5     34.9     9.36        8     1080    0.896
+meshparts                      L4-1-24G        5       15      0.9     23.3     22.1     2.53        7     1059    0.291
+meshparts                    L40S-1-48G        1       21      0.7     48.2     47.5     1.42        2     1278    0.600
+moss-sound                     L4-1-24G        1        0        -    122.9        -     1.61        0        -        -
+parts                        H100-1-80G        3       66      0.6      6.5      5.1     1.86       10       66    0.091
+parts                          L4-1-24G       44      113      0.4     17.6     18.3    12.14       52      213    0.056
+parts                        L40S-1-48G        0       68        -        -        -     0.07        0        -        -
+pictures                     H100-1-80G        2        0        -     12.9        -     1.29        0        -        -
+pictures                 H100-SXM-2-80G        4        0        -      5.5        -     3.09        0        -        -
+pictures                       L4-1-24G       48        2      0.4      2.6      4.1     2.43      244        4    0.002
+pictures-20b                 H100-1-80G        7       16      0.6      9.9      9.3     4.73       34       85    0.093
+pictures-20b                 H100-2-80G        0        8        -        -        -     0.00        0        -        -
+pictures-20b             H100-SXM-2-80G        5        4      0.7      6.7      6.0     4.19       15       57    0.154
+pictures-20b                 L40S-1-48G        0        8        -        -        -     0.05        0        -        -
+pixal                        H100-1-80G        4       14      0.6     18.6     17.9     4.35       19      867    0.206
+pixal                        H100-2-80G        0       10        -        -        -     0.00        0        -        -
+pixal                    H100-SXM-2-80G        2        5      0.7     15.4     14.7     3.53        5      526    0.706
+pixal                          L4-1-24G      251       32      0.6     29.8     52.9   121.51       52     1358    0.143
+pixal                          L4-2-24G        0        3        -        -        -     0.00        0        -        -
+pixal                        L40S-1-48G        1       25      0.7     11.2     10.5     0.37        2      402    0.147
+pixal                          RENDER-S        1        1      2.8      3.0      0.2     1.22        0        -        -
+prove                        H100-1-80G        5        7      0.6     19.8     19.1     5.92        0        -        -
+prove                        H100-2-80G        0        6        -        -        -     0.00        0        -        -
+prove                    H100-SXM-2-80G        0        3        -        -        -     0.00        0        -        -
+prove                          L4-1-24G        4        0      0.4     16.3     15.9     0.89        0        -        -
+prove                        L40S-1-48G        1        0      0.6     10.0      9.4     0.27        0        -        -
+segment                      H100-1-80G        0        9        -        -        -     0.43        0        -        -
+segment                        L4-1-24G       28       22      0.4      3.8      3.5     2.61       63       58    0.039
+segment                      L40S-1-48G        0        6        -        -        -     0.00        0        -        -
+sfx-trial                    H100-1-80G        1        0        -      3.5        -     0.19        0        -        -
+sfx-trial                    L40S-1-48G        1        0        -      2.2        -     0.07        0        -        -
+similar                      H100-1-80G        0        2        -        -        -     0.00        0        -        -
+similar                        L4-1-24G        3        3      0.4      2.6      2.2     0.12        0        -        -
+similar                      L40S-1-48G        0        2        -        -        -     0.00        0        -        -
+similar                    POP2-16C-64G        3        1      0.4      2.7      2.3     1.77        0        -        -
+similar                 POP2-HC-32C-64G        1        0      0.4      2.0      1.7     0.85        0        -        -
+unirig                       H100-1-80G        1        3      0.7      3.5      2.8     0.33        2       39    0.096
+unirig                         L4-1-24G        2        7      0.4      3.9      3.5     0.16        2       68    0.033
+unirig                       L40S-1-48G        0        4        -        -        -     0.05        0        -        -
+unlit                          L4-1-24G        3        0      0.4      4.0      3.6     0.18        0        -        -
+warm                         H100-1-80G        2       26      0.6      6.8      6.3     1.29        0        -        -
+warm                           L4-1-24G        2        0      0.4      1.1      0.7     0.04        0        -        -
+warm                         L40S-1-48G        1        6      0.6      1.6      1.0     0.05        0        -        -

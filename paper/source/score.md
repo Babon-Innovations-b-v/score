@@ -446,7 +446,7 @@ Since 8 October, every kind of batch is spread over many machines at once: each 
 
 <!-- progress-fleet.txt: "spread runs done" and "Baselines (SCORE_MAX_MACHINES=all=1)" lines; code score bf6688b (spread.py). -->
 
-Table G3 sums the cloud ledger, in which every runner records each machine it rents, by type of machine, from the first batch on 29 September to the end of 8 October 2026. It holds the game 2099's own test and benchmark machines as well as the framework's batches, and the machines of the earliest batches, worth €34.69, were recorded without their type.
+Table G3 sums the cloud ledger, in which every runner records each machine it rents, by type of machine, from the first batch on 29 September to the end of 8 October 2026. It holds the game 2099's own test and benchmark machines as well as the framework's batches. €35.68 has no type: the machines of the earliest batches were recorded without one (€34.69), and some rows hold €0.99 more than the machines they list.
 
 **Table G3.** Rented machines by type, 29 September to 8 October 2026.
 
@@ -462,10 +462,10 @@ Table G3 sums the cloud ledger, in which every runner records each machine it re
 | L40S, 48 GB | 6 | 2.7 h | €4.07 |
 | P100, 16 GB | 2 | 0.1 h | €2.44 |
 | 16-core processor, 128 GB | 2 | 1.6 h | €1.36 |
-| type not recorded | | | €34.69 |
+| type not recorded | | | €35.68 |
 | total | | | €366.76 |
 
-<!-- paper/evidence/cloud/ledger.jsonl, rows started before 2026-10-08T22:00Z (midnight CEST), 746 rows from 2026-09-29T10:07Z; machines[].type, minutes, euros summed; rows without machines[] summed as "type not recorded". Types: L4-1-24G, H100-1-80G, H100-SXM-2-80G, POP2-32C-128G, L4-2-24G, POP2-16C-64G, POP2-HC-32C-64G, L40S-1-48G, RENDER-S, POP2-HM-16C-128G. -->
+<!-- paper/evidence/cloud/ledger.jsonl, its first 746 rows (those written by the end of 8 October, all started before 2026-10-08T22:00Z, midnight CEST, from 2026-09-29T10:07Z); machines[].type, minutes, euros summed; rows without machines[] (EUR 34.69) and the euros of rows beyond their machines (EUR 0.99) summed as "type not recorded": python3 tools/costs/costs.py types paper/evidence/cloud/ledger.jsonl 746 2026-10-08T22:00Z. Types: L4-1-24G, H100-1-80G, H100-SXM-2-80G, POP2-32C-128G, L4-2-24G, POP2-16C-64G, POP2-HC-32C-64G, L40S-1-48G, RENDER-S, POP2-HM-16C-128G. -->
 
 The character maker runs a person's whole chain on one card (Table G4). Its machine is set up once with six environments side by side, after the CUDA 12.6 toolkit that SAM3DBody-cpp needs: 11.0 minutes on an H100 and 21 to 25 minutes on an L4. On an H100, SAM3DBody-cpp's network takes 1.3 s and its whole call about 4 s once warm, 44 s cold. Against the Python SAM 3D Body on the same picture, its shape parameters correlate at 0.98, and its body at rest is 23 mm shorter (1.548 m against 1.571 m), with a mean gap of 17.6 mm between vertices and joints 19 mm apart on average and 25 mm at worst. The difference comes from the person box: SAM3DBody-cpp finds its own with YOLO, while the Python run was given the whole picture. Kimodo with its text encoder on the same card writes a clip in 30 s once warm, and the first in 82 s, which includes downloading the Llama 3 encoder. Nev's 19 clips had been made already, so her rebuild wrote none. On her walk, the built character's skinning, with 27 joints and thinned weights as an engine plays it, keeps within 6.8 mm of the body model's own posed points on average and 52.6 mm at worst (4.9 mm on average off the hands), and its file is 5.05 MB. Her far body has 612 vertices and 1,220 triangles, her work suit 31,260 triangles and her space suit 44,846. The development machine on which the chain was built and Nev was rebuilt ran for 163 billed minutes and cost €7.79 in all. On an L4, the same chain made the player from the creator's drawing of him, on his own body 1.742 m tall, in 26.2 minutes, for about €0.35 of the card at €0.79 an hour. The face is the slow step on an L4: klein base 4B with the LoRA, 50 steps and two seeds, took 13.6 of those minutes against 2.7 on the H100. The L4 was set up in 24.8 minutes. A new person made from words alone, an engineer, first reached the build on a second L4 and failed at the arm stripe of her space suit, because the drape had left her upper arm bare; the drape now tries again when a sleeve does not cover the upper arm. The batch of both people cost €1.50 for 60 minutes on three L4 machines, one of which failed its setup after 25 minutes because Kimodo's C++ extension was built while the CUDA toolkit installed beside it; the toolkit now installs first. Made again on an H100, the engineer took 20.9 minutes: klein drew her picture in 0.27 minutes, the drapes took 6.65 and the review renders 5.96, because a fresh H100 first compiles Cycles' kernels. On a 16-core processor machine, Blender drapes the work suit in 1.5 minutes and the space suit in 0.6 minutes, with every seam within 3 cm and no cloth inside the body. Newton drapes a garment in 2 to 4 minutes on an L4 (Table G6). Draping the 16 crew and cast bodies again with Newton and building them cost €19.31 on L4 machines over three rounds; the first took 12 machines for 64 minutes and €7.38, and the other two mended the trousers' waist hold and the boots.
 
@@ -533,6 +533,96 @@ Table G7 shows how a batch's time falls with the number of cards on the cluster.
 
 <!-- k8s agent's final report and tmp/playtest3/progress-cloud-k8s.txt (scale test lines): cluster score-jobs-kosmos, runs scale.py 1/2/4/8 (pixal runs 20261009-1750xx and 1751xx), wreck rows x seeds 1-3, names <row>-scale<N>-s<seed>, 96 of 96 takes made; work per job 20 to 38 min; 12 L4 nodes came, all in fr-par-2, 28 orders to fr-par-1 and pl-waw-2 out of stock; all scale-test nodes EUR 13.27 for 1011 node minutes, of which EUR 11.29 card time (the rest idle tails and cold boots). The uploads from the PC (13 min, four runs at once) and the bringing back of outputs are outside the times. -->
 
-::: gap
-**Gap: cost tables.** These tables will give the cost per kind of batch and per world, reconciled with the cloud provider's bill. They wait on the worlds and on the bill; the figures per place so far (Appendix B) are lower bounds taken from the build logs.
-:::
+Tables G8 to G11 give the cost and time of October 2026 up to the provider's bill read on 10 October at 01:36 UTC. "Per stage" means here per kind of batch. The ledger records each batch's kind, its machines, their minutes and their price, but not the world, the place or the stage of a place's route that the batch served, so neither the cost of a world nor the cost of each stage of a place's route is recorded yet; only world 1 has been built, and Appendix B attributes its batches to places by their work folders. The tables cover October only, because the bill is read per month.
+
+Up to the read, the ledger holds €547.31 of the bill's €627.74. Of the €80.43 between them, €51.87 is not compute: block storage for the machines' disks and one kept snapshot (€32.77), public IP addresses (€15.09), the image registry and the cluster control plane (€3.50), and object storage and secrets (€0.51). The other €28.56 is compute, and Table G11 traces it. €26.01 is processor machines that the ledger priced by the minute while the provider bills them by the started hour, almost all in rows written before the runner began pricing them by the hour on 8 October; €0.24 is two small machines that no batch rented; and the remaining €2.31 is the card types' bill and ledger differing by a few euros either way, because the bill lags the ledger by some hours. The ledger's rows are never rewritten: a reconciliation file kept beside it tags as Pixal3D the 55 October rows (€91.68) written before that runner named its kind.
+
+Table G8 adds the €80.43 to each kind of batch in proportion to its share of the ledger, since disks and addresses come with every machine and scale with its rented time; this is an allocation, not a measurement. Blender work and Pixal3D were about half of the month's spend, and the open judge a tenth. By what the work was for, €112.41 of the ledger was research and development on the framework itself: the game's engine runs, the container images and their proofs, the method experiments, and the benchmarks and comparisons that the rows name as such, among them the scale test of Table G7. The other €434.90 was production, the route's work on world 1. Production is an upper bound, because the route's own batches carry no mark when they were reruns made while the method changed, such as the hub's six rounds (Table C1).
+
+**Table G8.** Cost and time per kind of batch, 1 to 10 October 2026. Batches and machine time from the cloud ledger; the column "with the rest of the bill" adds the €80.43 that the ledger does not hold in proportion to each kind's share. The median batch is the median wall time of the kind's batches.
+
+| Kind of batch | Batches | Machine time | Ledger | Share | With the rest of the bill | Median batch | Main card types |
+|---|---|---|---|---|---|---|---|
+| Blender: settling, renders, review pages, close-ups | 299 | 140.9 h | €155.42 | 28.4% | €178.26 | 12 min | L4 52%, 16-core processor 14% |
+| Pixal3D models | 83 | 154.2 h | €130.98 | 23.9% | €150.23 | 40 min | L4 93%, H100 PCIe 3% |
+| Open judge | 82 | 16.1 h | €55.75 | 10.2% | €63.95 | 11 min | H100 PCIe 55%, two H100 SXM 37% |
+| Library bake | 238 | 50.7 h | €46.30 | 8.5% | €53.11 | 8 min | L4 84%, 16-core processor 8% |
+| Characters: chain, rigging, drapes | 16 | 35.3 h | €35.31 | 6.5% | €40.50 | 45 min | L4 72%, H100 PCIe 28% |
+| Parts and segments | 119 | 26.3 h | €33.27 | 6.1% | €38.16 | 8 min | L4 53%, H100 PCIe 35% |
+| Engine runs: tests, shots, benchmarks, warm pool | 142 | 39.3 h | €32.63 | 6.0% | €37.42 | 9 min | L4 70%, 32-core processor, 64 GB 30%, read from their price |
+| Container images, proofs, kernel warm-up | 48 | 10.8 h | €24.06 | 4.4% | €27.60 | 10 min | 16-core processor 44%, H100 PCIe 38% |
+| Open picture models: FLUX.2 klein, Qwen-Image-Edit | 63 | 6.0 h | €15.96 | 2.9% | €18.31 | 3 min | two H100 SXM 46%, H100 PCIe 38% |
+| Method experiments: terrain, plants, clay, Infinigen | 32 | 14.2 h | €15.74 | 2.9% | €18.05 | 33 min | L4 35%, 32-core processor 28% |
+| Sound | 5 | 2.1 h | €1.88 | 0.3% | €2.16 | 5 min | L4 86%, H100 PCIe 10% |
+| All | 1,127 | 495.9 h | €547.31 | 100% | €627.74 | | |
+
+<!-- All four tables: python3 tools/costs/costs.py tables paper/evidence/cloud/ledger.jsonl paper/evidence/cloud/ledger-reconciliation.json paper/evidence/cloud/bill-2026-10-10T0136Z.json <out>, saved as paper/evidence/cloud/cost-tables-2026-10.txt (Table G10 excepted). The ledger copy is the ledger's first 1,164 rows, those written by the bill read (costs.py scrub); its October rows started before 2026-10-10T01:36Z are 1,127. The reconciliation file (costs.py reconcile on the same ledger and bill) tags the 55 October rows without a kind by their fields, the exact fields of batch.py's Pixal3D row before score 423c229. Kinds of batch and the R&D rule: tools/costs/costs.py GROUPS, RND_GROUPS, RND_KINDS, RND_WHO; R&D EUR 112.41 and production EUR 434.90 in cost-tables-2026-10.txt. Main card types: the kind's euros by machine type, failed starts that were billed included. The game's engine runs record no machine (machines: []); their types are read from their price as in Table G9 (EUR 22.98 L4, EUR 9.65 POP2-HC-32C-64G). -->
+
+**Table G9.** Rented machines by type, 1 to 10 October 2026, against the price the provider bills an hour. Rentals count the failed starts that were billed. The engine runs' rows name no machine; each is counted under the type whose price gives its cost by the minute (95 under the L4 and 47 under the 32-core 64 GB processor machine).
+
+| Machine | Rentals | Machine time | Cost | Per hour used | Billed an hour | Billed by |
+|---|---|---|---|---|---|---|
+| L4, 24 GB | 1,080 | 396.3 h | €319.37 | €0.81 | €0.79 | minute |
+| H100 PCIe, 80 GB | 148 | 26.0 h | €78.06 | €3.00 | €2.87 | minute |
+| 16-core processor, 64 GB | 64 | 20.5 h | €38.44 | €1.87 | €0.59 | started hour |
+| 32-core processor, 64 GB | 70 | 21.9 h | €31.79 | €1.45 | €0.85 | started hour |
+| two H100 SXM, 80 GB each | 32 | 4.5 h | €31.55 | €7.04 | €6.62 | minute |
+| 32-core processor, 128 GB | 38 | 14.8 h | €28.73 | €1.95 | €1.18 | started hour |
+| L40S, 48 GB | 45 | 10.3 h | €15.56 | €1.52 | €1.47 | minute |
+| P100, 16 GB | 2 | 0.1 h | €2.44 | €17.05 | €1.23 | started hour |
+| 16-core processor, 128 GB | 2 | 1.6 h | €1.36 | €0.84 | €0.82 | started hour |
+| total | | 495.9 h | €547.31 | | | |
+
+<!-- cost-tables-2026-10.txt, second table: machines[] and billed attempts[] per type (minutes, euros); engine rows typed by costs.engine_type (ceil(minutes) x the bill's price an hour / 60 matches the row's euros: 95 L4-1-24G, 47 POP2-HC-32C-64G). Billed an hour: the bill's euros over its billed quantity per line (paper/evidence/cloud/bill-2026-10-10T0136Z.json), lowest over zones; billed by: tools/props/cloud/backends/scaleway.py price() (cards by the minute, POP2 and RENDER-S by the started hour), and the processor lines' billed quantities equal the ledger's started hours (Table G11). Types: L4-1-24G, H100-1-80G, POP2-16C-64G, POP2-HC-32C-64G, H100-SXM-2-80G, POP2-32C-128G, L40S-1-48G, RENDER-S, POP2-HM-16C-128G. Machine time sums the rows' machine_minutes for the total. -->
+
+The L4 carried 58 percent of the ledger at about its billed price. The processor machines cost 1.6 to 3.2 times their hourly price for each hour they were used, because the provider bills each started hour and their median rental in Blender batches was 12 to 33 minutes. Keeping such a machine for the next batch within the hour already paid, or sending a short batch to a type billed by the minute, would cut this waste. Table G10 gives the cost per unit of work for each kind of batch and card type.
+
+<!-- 58 percent: 319.37 / 547.31. Median rentals: paper/evidence/cloud/capacity-2026-10.txt, "min" column (median minutes a machine was rented) of blender POP2-16C-64G 12.1, POP2-HC-32C-64G 21.1, POP2-32C-128G 32.7. Ratios: 1.87 / 0.59 = 3.2, 1.45 / 0.85 = 1.7, 1.95 / 1.18 = 1.65. -->
+
+**Table G10.** Cost per unit of work by kind of batch and card type, 1 to 10 October 2026, as the capacity report computes it from the same ledger. A unit is one take, render, question, part or picture; seconds a unit is the median, and the cost of a unit is the whole rental of the machines that counted units, setup included, over those units. Rows written before 8 October record no units and are left out of the last three columns.
+
+| Kind | Card | Machines | Failed starts | Units | Seconds a unit | Cost a unit |
+|---|---|---|---|---|---|---|
+| Pixal3D | L4 | 251 | 32 | 52 | 1,358 | €0.143 |
+| Pixal3D | H100 PCIe | 4 | 14 | 19 | 867 | €0.206 |
+| Blender | L4 | 220 | 35 | 486 | 116 | €0.159 |
+| Blender | 16-core processor | 32 | 0 | 66 | 64 | €0.304 |
+| Blender | 32-core processor, 64 GB | 19 | 90 | 34 | 117 | €0.476 |
+| Library bake | L4 | 230 | 37 | 208 | 60 | €0.061 |
+| Open judge | H100 PCIe | 48 | 89 | 41 | 603 | €0.597 |
+| Open judge | L40S | 7 | 64 | 5 | 551 | €0.299 |
+| Open judge | two H100 SXM | 19 | 22 | 10 | 416 | €1.357 |
+| Parts | L4 | 44 | 113 | 52 | 213 | €0.056 |
+| Mesh parts | L4 | 5 | 15 | 7 | 1,059 | €0.291 |
+| Mesh parts | H100 PCIe | 4 | 25 | 8 | 1,080 | €0.896 |
+| Segments | L4 | 28 | 22 | 63 | 58 | €0.039 |
+| Pictures, FLUX.2 klein | L4 | 48 | 2 | 244 | 4 | €0.002 |
+| Pictures, Qwen-Image-Edit | H100 PCIe | 7 | 16 | 34 | 85 | €0.093 |
+| Characters | L4 | 36 | 3 | 37 | 2,001 | €0.625 |
+| Characters | H100 PCIe | 2 | 1 | 1 | 1,285 | €1.768 |
+| Rigging (UniRig) | L4 | 2 | 7 | 2 | 68 | €0.033 |
+
+<!-- paper/evidence/cloud/capacity-2026-10.txt: PROPS_HOME=<a folder holding cloud/ledger.jsonl, the evidence copy> python3 tools/props/cloud/capacity.py report --since 2026-10-01, whose table it is (identical to the run of 2026-10-10 01:40Z over the live ledger). capacity.py counts rows without a kind as pixal, as the reconciliation file does. Units per row: models_done, jobs, questions, pictures, takes, makes as each runner records them (unit_seconds, from 2026-10-08 on); euros a unit = euros of the machines with unit_seconds / units, seconds a unit = median. Pixal3D's 52 L4 units come from the rows since 8 October, while its machine count covers all 251. Kinds pictures (FLUX.2-klein-4B) and pictures-20b (Qwen-Image-Edit-2511): tools/props/cloud/pictures.py MODELS. -->
+
+**Table G11.** The provider's bill for October 2026, read on 10 October at 01:36 UTC, against the cloud ledger. The last column prices the ledger's processor machines again by the started hour, as the provider bills them; the engine runs' rows name no machine and are not priced again.
+
+| Bill line | Bill | Ledger | Ledger, processor machines by the started hour |
+|---|---|---|---|
+| L4, 24 GB | €324.34 | €319.37 | €319.37 |
+| H100 PCIe, 80 GB | €73.64 | €78.06 | €78.06 |
+| 32-core processor, 128 GB | €50.74 | €28.73 | €50.74 |
+| 16-core processor, 64 GB | €41.30 | €38.44 | €41.30 |
+| 32-core processor, 64 GB | €34.91 | €31.79 | €32.63 |
+| two H100 SXM, 80 GB each | €32.33 | €31.55 | €31.55 |
+| L40S, 48 GB | €14.27 | €15.56 | €15.56 |
+| P100, 16 GB | €2.45 | €2.44 | €2.45 |
+| 16-core processor, 128 GB | €1.65 | €1.36 | €1.65 |
+| two small processor machines, no batch | €0.24 | | |
+| compute | €575.87 | €547.31 | €573.32 |
+| block storage: machines' disks, one kept snapshot | €32.77 | | |
+| public IP addresses | €15.09 | | |
+| image registry, cluster control plane | €3.50 | | |
+| object storage, secrets | €0.51 | | |
+| all | €627.74 | €547.31 | |
+
+<!-- Bill: the provider's consumption lines for the month, read 2026-10-10T01:36Z by tools/props/cloud/backends/scaleway.py (the call month_spend() sums), saved without account or project ids as paper/evidence/cloud/bill-2026-10-10T0136Z.json (category, product, sku, unit, billed quantity, euros); not-in-ledger sums: paper/evidence/cloud/ledger-reconciliation.json; per machine type: the last table but one of cost-tables-2026-10.txt (costs.per_product). The processor lines' billed quantities are started hours, and equal the ledger's started hours for POP2-32C-128G (43), POP2-16C-64G (68 in pl-waw-2, 2 in fr-par-2) and POP2-HM-16C-128G (2). The EUR 28.56: 26.01 = 573.32 - 547.31, the repricing (25.16 in rows started before score 423c229, 2026-10-08 11:41Z, and 0.84 in one image build of 2026-10-09); 0.24 = DEV1-M 0.19 + PLAY2-PICO 0.05, with no ledger row; 2.31 = 575.87 - 573.32 - 0.24 (L4 +4.97, H100 PCIe -4.42, two H100 SXM +0.78, 32-core 64 GB +2.28, L40S -1.29). Two small processor machines: DEV1-M and PLAY2-PICO. -->
