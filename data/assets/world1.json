@@ -2,18 +2,18 @@
 	"is": "the first world's heavy files (made models and sounds), kept as a release of this repository and named by the records with the names below; tools/assets/world.py fetches, checks and packs them",
 	"release": {
 		"repository": "Babon-Innovations-b-v/score",
-		"tag": "world1-assets-4"
+		"tag": "world1-assets-5"
 	},
 	"archives": [
 		{
 			"name": "models.tar.gz",
-			"bytes": 256202028,
-			"sha256": "b433e637a7d7917c4daff8a0dbc9143f8dc5bb886d3bf25639d839630cf89737"
+			"bytes": 275050753,
+			"sha256": "57ff6858c5ec5f71178ba4af8f2c99da7b7b7d00e790c004f99e4574bf678981"
 		},
 		{
 			"name": "sound.tar.gz",
 			"bytes": 35733292,
-			"sha256": "ff3087663a2b3717625bbce2c990e20206daac92fd542bd2fb4b2b51db2cdc4e"
+			"sha256": "34db4cd4246619b056fdf032bfdf1dba5cdc1cd55474d5a021c7da69e8020fd0"
 		}
 	],
 	"licences": [
@@ -105,6 +105,12 @@
 			"match": "models/camp_boot_rock/",
 			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
 			"source": "FLUX.2 picture, Pixal3D via image-to-3dlab, finished with maps",
+			"author": "the 2099 project"
+		},
+		{
+			"match": "models/launch_rocket_solid/",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2), rebaked with a two-voxel wall",
 			"author": "the 2099 project"
 		}
 	],
@@ -1661,6 +1667,41 @@
 			"sha256": "121c38e6f3e152ce9b20f2731816a866ec7bf5ddc47028b667e287214da3fadb",
 			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
 			"source": "made for the first world by this framework: code-built pieces baked with the surface library, or Pixal3D models from generated close-ups",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket_solid/far_rocket_1.bin": {
+			"bytes": 3103164,
+			"sha256": "0fc3a1cad1cc3475100af5bc60d96814aa293ab25bdd88cd8bd4f1596b4ad779",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2), rebaked with a two-voxel wall",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket_solid/far_rocket_1.gltf": {
+			"bytes": 2289,
+			"sha256": "8a12d54f02835a656b55e1352960b61b8effbeeeefbf8ac16314a248c0883cfe",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2), rebaked with a two-voxel wall",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket_solid/textures/far_rocket_1_base_color.png": {
+			"bytes": 653315,
+			"sha256": "7e020df02b400f34056e53629f3afba2d9ca5e7545618f9fbe4eb29e5fe09bcb",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2), rebaked with a two-voxel wall",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket_solid/textures/far_rocket_1_metal_roughness.png": {
+			"bytes": 573019,
+			"sha256": "8f7bea3b277aa113b90ed65409ad005991235c476e518774770d06f4318c4f75",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2), rebaked with a two-voxel wall",
+			"author": "the 2099 project"
+		},
+		"models/launch_rocket_solid/textures/far_rocket_1_normal.png": {
+			"bytes": 16641413,
+			"sha256": "cdf04f78aec92f580dca8da8e6581f000b7051e5133bac0f92e6e43fa8698385",
+			"licence": "made for the first world (the game 2099) by this framework's routes; released with the repository under MIT, though whether a model made with AI tools can carry copyright at all is an open question",
+			"source": "FLUX.2-klein-4B picture, Pixal3D mesh (take wf-launch-rocket-2), rebaked with a two-voxel wall",
 			"author": "the 2099 project"
 		},
 		"models/mars_boulder_basalt/mars_boulder_basalt.glb": {

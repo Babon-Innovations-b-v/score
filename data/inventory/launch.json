@@ -372,7 +372,8 @@
 				"model": "far_rocket_1",
 				"sha256": "8300eab742d810cb7e2e6010f15b1f8fe0a4e6c86f87d1593659560db9f6abe3",
 				"decided": "owner, 2026-10-09 10:33 UTC: the launch view shows the made rocket model (2099's earth_launch_rocket), not the rocket built in code (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #437); 10:53 to 10:54 UTC: retired models keep their idea and close-up and are made again on today's route where the scene needs them (#445, #446). This is that remake: earth_launch_rocket's Pixal3D take wf-launch-rocket-2 painted by its close-up's regions and baked from the library (score 70aa816, the release's models/launch_rocket/far_rocket_1.gltf); the remade model itself has not been shown to the owner"
-			}
+			},
+			"pick_replaced": "the owner's open fault on this pick (session 3326150f, 2026-10-09/10: the made rocket is lumpy at its feet; issue #1's task 'fix its lumpy feet'): the same model with the same paint, rebaked with a solid wall of two voxels (2026-10-10, sha256 9a5de51b1f8873e6ba66b6b304d1c67d2b63e5b771a4d9b3af1bf2b4c13faddd); not yet shown to the owner"
 		}
 	]
 }
