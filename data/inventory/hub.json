@@ -7,27 +7,27 @@
 		"views": [
 			{
 				"id": "v1",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-north.png"
+				"picture": "WORK/scene/hub/views/M3-north.png"
 			},
 			{
 				"id": "v2",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-northeast.png"
+				"picture": "WORK/scene/hub/views/M3-northeast.png"
 			},
 			{
 				"id": "v3",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-east.png"
+				"picture": "WORK/scene/hub/views/M3-east.png"
 			},
 			{
 				"id": "v4",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-south.png"
+				"picture": "WORK/scene/hub/views/M3-south.png"
 			},
 			{
 				"id": "v5",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-west.png"
+				"picture": "WORK/scene/hub/views/M3-west.png"
 			},
 			{
 				"id": "v6",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/hubrefs/c12/marble/M3/views/M3-northwest.png"
+				"picture": "WORK/scene/hub/views/M3-northwest.png"
 			}
 		],
 		"dimensioned": [
