@@ -1,4 +1,4 @@
-\begin{thebibliography}{54}
+\begin{thebibliography}{55}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -373,6 +373,12 @@ Parishad BehnamGhader, Vaibhav Adlakha, Marius Mosbach, Dzmitry Bahdanau,
 Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, et~al.
 \newblock The {Llama 3} herd of models.
 \newblock \emph{arXiv preprint arXiv:2407.21783}, 2024.
+
+\bibitem[Abdrashitov et~al.(2023)Abdrashitov, Raichstat, Monsen, and
+  Hill]{abdrashitov2023rswt}
+Rinat Abdrashitov, Kim Raichstat, Jared Monsen, and David Hill.
+\newblock Robust skin weights transfer via weight inpainting.
+\newblock In \emph{SIGGRAPH Asia 2023 Technical Communications}, 2023.
 
 \bibitem[{Anthropic}(2026)]{claudecode}
 {Anthropic}.

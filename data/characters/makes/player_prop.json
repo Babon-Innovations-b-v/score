@@ -1,0 +1,24 @@
+{
+ "name": "player",
+ "kind": "person",
+ "route": "prop",
+ "approved": "owner, 2026-10-10 (#5): soma is for the rig, not the mesh; fit the prop pipeline's mesh to the rig, split it into parts and settle the clothing; pilot on the player",
+ "why": "Take C, the player's first astronaut, on the prop route: his mesh made by Pixal3D from one close-up, as the animals' were, with SOMA-X fitted inside it so Kimodo's clips play unchanged",
+ "references": [
+  "~/.farm-factory-props/work/pictures/crew-work-1.png"
+ ],
+ "description": "a Chinese man in his thirties, an astronaut of a Moon base, a slim athletic build, short black hair swept up and over to one side, clean shaven",
+ "outfit_words": {
+  "work": "a dark navy one-piece work suit: a stand collar, a front zip, light grey shoulder panels, thin red piping down the arms and the outer legs, a red flag patch with a yellow star on the left chest pocket, a black belt with a steel buckle at the waist, cuffed sleeves ending at the wrists, trouser legs gathered over black lace-up boots"
+ },
+ "hair": "short black hair with a side part on his right, the top swept up and over to his left, short tidy sides and back, ears uncovered, clean shaven face",
+ "face": "his face, short black hair swept up and to one side",
+ "outfits": [
+  "work"
+ ],
+ "garment_body": "mean_male",
+ "look": {
+  "work": "chinese",
+  "space": "chinese"
+ }
+}

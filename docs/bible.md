@@ -42,7 +42,10 @@ the current backend). No model runs on the coordinating machine.
   person or an animal from a picture or a few words (`data/characters/makes/<name>.json`): a person's whole chain
   (picture, body by SAM3DBody-cpp, clips by Kimodo, drapes, head, hair by Hi3DGen, face by klein with a depth LoRA,
   build, UsdSkel, review renders) runs on one rented card (`tools/props/cloud/characters.py`), an animal's through
-  `animals/`. `skel_usd.py` turns a body into a UsdSkel asset;
+  `animals/`. A person spec with `"route": "prop"` takes the prop route instead (`maker/prop_person.py`, a trial whose
+  takes stay in `~/.farm-factory-motion/candidates/prop-people/`): Pixal3D's mesh, SOMA-X's skeleton placed inside it
+  and its weights moved on by Robust Skin Weights Transfer (MIT reference code, ported without libigl, whose
+  bindings carry GPL-3.0). `skel_usd.py` turns a body into a UsdSkel asset;
   `cast.py` writes a place's characters layer (`<stage>/layers/characters.usda`, between the edit layer and the
   base) from its cast in `data/characters/<place>.json`: named people, kit groups mixed by seed, and a crowd as one
   PointInstancer. The review page draws them (`tools/review/characters.py`).
