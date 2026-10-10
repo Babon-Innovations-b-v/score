@@ -44,7 +44,9 @@ import tucks  # noqa: E402
 
 JOINTS_A_VERTEX = 4
 TRAVELLING_JOINT = 1
-# How far from a hard part a garment's weights are eased towards its joint (eased_to_hard).
+# How far from a hard part a garment's weights are eased towards its joint (eased_to_hard); within EASE_HOLD it rides
+# that joint wholly, over the hard part's tuck.
+EASE_HOLD = 0.04
 EASE_REACH = 0.06
 # A boot's shaft rides its foot up the shin (the player's to 29 cm): the trouser over it follows it further, or the
 # rigid shaft's top and its tuck swing out through the trouser leg as the ankle bends (20 mm when he sat, 2026-10-10).
@@ -117,17 +119,32 @@ def rigid_joint(name, points, weights, names):
     return names[int(weights.sum(0).argmax())]
 
 
-def eased_to_hard(points, weights, hard_points, hard_joints, names):
-    """A garment's weights eased towards the joint of the hard part next to it: a point within the reach of a hard
-    point (EASE_REACH, a foot's EASE_REACH_FOOT) takes that point's joint by 1 - distance / reach, so a trouser leg
-    goes with the boot it covers and the cloth by the belt with the belt."""
+def eased_to_hard(points, weights, hard_points, hard_joints, names, parents):
+    """A garment's weights eased towards the joint of the hard part next to it: a point within EASE_HOLD of a hard
+    point rides that point's joint, and on to the reach (EASE_REACH, a foot's EASE_REACH_FOOT) less and less, so a
+    trouser leg goes with the boot it covers and the cloth by the belt with the belt. Only a hard part on the point's
+    own limb counts (its strongest joint's family: the hard joint, its parent, grandparent or child): between Nev's
+    knees the left trouser leg's inside took the right boot's foot and opened over the left boot's tuck."""
     if not len(hard_points):
         return weights
-    distance, nearest = cKDTree(hard_points).query(points)
-    reach = np.where([str(joint).endswith("Foot") for joint in hard_joints[nearest]], EASE_REACH_FOOT, EASE_REACH)
-    share = np.clip(1.0 - distance / reach, 0.0, 1.0)[:, None]
-    target = np.zeros_like(weights)
-    target[np.arange(len(points)), [names.index(joint) for joint in hard_joints[nearest]]] = 1.0
+    strongest = weights.argmax(1)
+    distance, target = np.full(len(points), np.inf), np.zeros_like(weights)
+    for joint in np.unique(hard_joints):
+        number = names.index(joint)
+        family = [number, parents[number], parents[parents[number]] if parents[number] >= 0 else -1]
+        family += np.flatnonzero(parents == number).tolist()
+        mine = np.isin(strongest, family)
+        if not mine.any():
+            continue
+        found = np.full(len(points), np.inf)
+        found[mine] = cKDTree(hard_points[hard_joints == joint]).query(points[mine])[0]
+        closer = found < distance
+        distance[closer] = found[closer]
+        target[closer] = 0.0
+        target[closer, number] = 1.0
+    reach = np.where(target[:, [names.index(name) for name in names if name.endswith("Foot")]].any(1),
+                     EASE_REACH_FOOT, EASE_REACH)
+    share = np.clip(1.0 - (distance - EASE_HOLD) / (reach - EASE_HOLD), 0.0, 1.0)[:, None]
     return weights * (1 - share) + target * share
 
 
@@ -207,7 +224,8 @@ def surfaces(fit_rig, parts, prints=None):
     hard_points, hard_joints = np.concatenate(hard_points), np.concatenate(hard_joints)
     for key, (points, faces, weights, used) in list(pieces.items()):
         if role_of[key] == "garment":
-            pieces[key] = (points, faces, eased_to_hard(points, weights, hard_points, hard_joints, names), used)
+            pieces[key] = (points, faces, eased_to_hard(points, weights, hard_points, hard_joints, names,
+                                                        np.asarray(fit_rig["parents"])), used)
     garment = [piece for key, piece in pieces.items() if role_of[key] == "garment"]
     whole = trimesh.Trimesh(fit_rig["points"], fit_rig["faces"], process=False)
     garment_points = np.concatenate([piece[0] for piece in garment])
@@ -219,7 +237,8 @@ def surfaces(fit_rig, parts, prints=None):
         if role == "skin" or name.startswith(SIDED):
             tuck_from = len(points)
             points, faces, weights = tucks.tucked(points, faces, weights, garment_points, garment_weights,
-                                                  bones_of(fit_rig), whole, np.asarray(fit_rig["parents"]))
+                                                  bones_of(fit_rig), whole, np.asarray(fit_rig["parents"]),
+                                                  rigid=name.startswith(SIDED))
         uv = printed_uv(prints, part, used, len(points))
         picture = None if uv is None else prints[f"image_{part}"].tobytes()
         found.append((name, role, parts["colours"][index[part]], points, faces, weights, tuck_from, uv, picture))

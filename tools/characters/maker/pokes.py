@@ -127,13 +127,35 @@ def outer_surface(posed, found, welding):
     return trimesh.Trimesh(places, faces, process=False)
 
 
+def winding(points, mesh):
+    """The generalized winding number of a closed surface at each point (the solid angle its triangles span over
+    4 pi, Van Oosterom and Strackee's formula): 1 inside, 0 outside, 2 inside two overlapping parts of it."""
+    found = np.zeros(len(points))
+    for index, point in enumerate(points):
+        corners = mesh.triangles - point
+        lengths = np.linalg.norm(corners, axis=2)
+        first, second, third = corners[:, 0], corners[:, 1], corners[:, 2]
+        top = np.einsum("ij,ij->i", first, np.cross(second, third))
+        bottom = (lengths[:, 0] * lengths[:, 1] * lengths[:, 2] + np.einsum("ij,ij->i", first, second) * lengths[:, 2]
+                  + np.einsum("ij,ij->i", second, third) * lengths[:, 0]
+                  + np.einsum("ij,ij->i", third, first) * lengths[:, 1])
+        found[index] = 2 * np.arctan2(top, bottom).sum() / (4 * np.pi)
+    return found
+
+
 def tuck_out(tuck_points, outer):
     """Each tuck point's distance outside the person's closed surface, in metres (negative: inside it, by its
-    distance from it)."""
+    distance from it). Inside is inside any part of the surface: where a posed sleeve passes into the torso the two
+    overlap, and a ray's even crossings (trimesh's contains) read a band under both as outside; such points are
+    asked again by the winding number, and one inside either part is hidden (2026-10-10)."""
     if not len(tuck_points):
         return np.zeros(0)
     _, distance, _ = trimesh.proximity.closest_point(outer, tuck_points)
-    return np.where(outer.contains(tuck_points), -distance, distance)
+    inside = outer.contains(tuck_points)
+    doubted = np.flatnonzero(~inside & (distance > POKE_MM / 1000))
+    if len(doubted):
+        inside[doubted] = np.abs(winding(tuck_points[doubted], outer)) >= 0.5
+    return np.where(inside, -distance, distance)
 
 
 def hard_edges(found):
