@@ -10,6 +10,8 @@ quantised to 16 bits over the model's box (a fifteen-thousandth of the box: unde
 `data/parts/<take>.npz` holds `points` (uint16, n x 3), `low` and `high` (the box), `surface` (uint8 per point) and
 `names` (the library material of each surface number). `data/parts/models.json` says which take each place's made
 model was painted from ({place: {model: take}}).
+Where a take's .ply files are gone, its parts were sampled the same way from an accepted stage's own subsets (the
+street's water barriers, `*-b`, from usd-r2-final, 2026-10-10; export reproduces them within 1 to 2% per surface).
 """
 import json
 import pathlib
