@@ -60,6 +60,8 @@ LOOSE_ANCHORS = {"floor", "ground", ""}
 # more (degrees) when dropped does not rest as laid; the resting triage (triage.py) counts it a real fault.
 # How far a fixture's footprint may reach past the loose object it lies on (metres) and still count as lying on it.
 FOOTPRINT_SLACK = 0.02
+# The scene record's groups whose pieces may lie on a loose object.
+RECORD_GROUPS = ("Fixtures", "Structure")
 SAGE_MOVE = 0.2
 SAGE_TURN = 8.0
 
@@ -112,20 +114,19 @@ def held_on_loose(stage, place, inventory, loose):
 
 
 def fixtures_on_loose(stage, place, loose):
-    """The scene record's Fixtures lying on a loose object (the workshop's robot and parts trays on its robot bench):
+    """The scene record's pieces (Fixtures, Structure) lying on a loose object (the workshop's robot, parts trays and
+    tray tiles on its robot bench):
     each whose footprint lies within a loose object's and whose foot stands over that object's middle height. The drop
     leaves them out of its statics, as it does what is held on a loose object (held_on_loose): the holder raised by the
     nudge meets them, and a holder whose hull closes over them is thrown off them."""
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
-    root = stage.GetPrimAtPath(f"/{place}/Fixtures")
-    if not root.IsValid():
-        return []
     boxes = {}
     for name in loose:
         box = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange()
         boxes[name] = (np.asarray(box.GetMin()), np.asarray(box.GetMax()))
     found = []
-    for prim in root.GetChildren():
+    for prim in (child for group in RECORD_GROUPS if stage.GetPrimAtPath(f"/{place}/{group}").IsValid()
+                 for child in stage.GetPrimAtPath(f"/{place}/{group}").GetChildren()):
         box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
         if box.IsEmpty():
             continue
