@@ -33,16 +33,16 @@
 				1.065
 			],
 			"at": [
-				-12.5,
-				-0.094,
-				-13.5
+				-12.5256,
+				-0.0961,
+				-13.5214
 			],
-			"facing": 300.0,
+			"facing": 301.77,
 			"rotation": [
-				0.103274,
-				-0.495958,
-				0.073729,
-				-0.859025
+				-0.092843,
+				0.487088,
+				-0.081616,
+				0.86456
 			]
 		},
 		{
@@ -54,77 +54,101 @@
 				1.2,
 				0.151,
 				0.886
+			],
+			"at": [
+				-19.2047,
+				-0.0055,
+				-4.6014
+			],
+			"facing": 272.73,
+			"rotation": [
+				0.014072,
+				0.690071,
+				-0.000474,
+				0.723605
+			]
+		},
+		{
+			"prop": "campgrounds_cargo_pallet",
+			"kind": "campgrounds_cargo_pallet",
+			"model": "cargo_pallet",
+			"row": "cargo_pallet",
+			"size": [
+				1.2,
+				0.151,
+				0.886
+			],
+			"at": [
+				-17.8017,
+				-0.0056,
+				-4.6005
+			],
+			"facing": 275.01,
+			"rotation": [
+				0.013546,
+				0.675508,
+				0.000619,
+				0.737228
+			]
+		},
+		{
+			"prop": "campgrounds_cargo_pallet",
+			"kind": "campgrounds_cargo_pallet",
+			"model": "cargo_pallet",
+			"row": "cargo_pallet",
+			"size": [
+				1.2,
+				0.151,
+				0.886
+			],
+			"at": [
+				-16.4024,
+				-0.0055,
+				-4.5998
+			],
+			"facing": 276.78,
+			"rotation": [
+				0.012582,
+				0.664046,
+				0.001992,
+				0.747583
+			]
+		},
+		{
+			"prop": "campgrounds_cargo_pallet",
+			"kind": "campgrounds_cargo_pallet",
+			"model": "cargo_pallet",
+			"row": "cargo_pallet",
+			"size": [
+				1.2,
+				0.151,
+				0.886
+			],
+			"at": [
+				-15.0099,
+				-0.0054,
+				-4.6023
+			],
+			"facing": 272.35,
+			"rotation": [
+				0.013061,
+				0.692475,
+				-0.002063,
+				0.721321
+			]
+		},
+		{
+			"prop": "campgrounds_cargo_case_open",
+			"kind": "campgrounds_cargo_case_open",
+			"model": "cargo_case_open",
+			"row": "cargo_case_open",
+			"size": [
+				1.1,
+				0.914,
+				0.681
 			],
 			"at": [
 				-19.2,
-				0.0,
-				-4.6
-			],
-			"facing": 270.0
-		},
-		{
-			"prop": "campgrounds_cargo_pallet",
-			"kind": "campgrounds_cargo_pallet",
-			"model": "cargo_pallet",
-			"row": "cargo_pallet",
-			"size": [
-				1.2,
-				0.151,
-				0.886
-			],
-			"at": [
-				-17.8,
-				0.0,
-				-4.6
-			],
-			"facing": 270.0
-		},
-		{
-			"prop": "campgrounds_cargo_pallet",
-			"kind": "campgrounds_cargo_pallet",
-			"model": "cargo_pallet",
-			"row": "cargo_pallet",
-			"size": [
-				1.2,
-				0.151,
-				0.886
-			],
-			"at": [
-				-16.4,
-				0.0,
-				-4.6
-			],
-			"facing": 270.0
-		},
-		{
-			"prop": "campgrounds_cargo_pallet",
-			"kind": "campgrounds_cargo_pallet",
-			"model": "cargo_pallet",
-			"row": "cargo_pallet",
-			"size": [
-				1.2,
-				0.151,
-				0.886
-			],
-			"at": [
-				-15.0,
-				0.0,
-				-4.6
-			],
-			"facing": 270.0
-		},
-		{
-			"prop": "campgrounds_cargo_case_open",
-			"kind": "campgrounds_cargo_case_open",
-			"model": "cargo_case_open",
-			"row": "cargo_case_open",
-			"size": [
-				1.1,
-				0.914,
-				0.681
-			],
-			"at": [
-				-19.2,
 				0.1295,
 				-4.6
 			],
@@ -193,11 +217,17 @@
 				0.817
 			],
 			"at": [
-				-17.8,
-				0.155,
-				-4.6
+				-17.8328,
+				0.0103,
+				-4.6219
 			],
-			"facing": 270.0
+			"facing": 262.36,
+			"rotation": [
+				-0.00418,
+				0.752624,
+				0.003313,
+				0.658429
+			]
 		},
 		{
 			"prop": "campgrounds_cargo_case",
@@ -210,11 +240,17 @@
 				0.817
 			],
 			"at": [
-				8.6,
-				0.0,
-				13.6
+				8.5868,
+				0.0102,
+				13.6206
 			],
-			"facing": 160.0
+			"facing": 149.57,
+			"rotation": [
+				-0.000934,
+				0.964924,
+				0.007744,
+				-0.262415
+			]
 		},
 		{
 			"prop": "campgrounds_cargo_case",
@@ -227,11 +263,17 @@
 				0.817
 			],
 			"at": [
-				-19.3,
-				0.0,
-				3.6
+				-19.3085,
+				0.0103,
+				3.5836
 			],
-			"facing": 320.0
+			"facing": 304.88,
+			"rotation": [
+				-0.006137,
+				0.462685,
+				0.00068,
+				0.886501
+			]
 		},
 		{
 			"prop": "campgrounds_cargo_case",
@@ -244,11 +286,17 @@
 				0.817
 			],
 			"at": [
-				-4.3,
-				0.0,
-				10.3
+				-4.3044,
+				0.0103,
+				10.3162
 			],
-			"facing": 345.0
+			"facing": 345.67,
+			"rotation": [
+				-0.005551,
+				0.124736,
+				0.0001,
+				0.992174
+			]
 		},
 		{
 			"prop": "campgrounds_cargo_case",
@@ -261,11 +309,17 @@
 				0.817
 			],
 			"at": [
-				-3.5,
-				0.0,
-				11.2
+				-3.5042,
+				0.0103,
+				11.1943
 			],
-			"facing": 280.0
+			"facing": 270.93,
+			"rotation": [
+				-0.004275,
+				0.701358,
+				0.00225,
+				0.712793
+			]
 		},
 		{
 			"prop": "campgrounds_reactor",
@@ -278,11 +332,17 @@
 				2.27
 			],
 			"at": [
-				15.0,
-				0.0,
-				-19.0
+				15.1397,
+				0.0444,
+				-18.9984
 			],
-			"facing": 150.0
+			"facing": 154.57,
+			"rotation": [
+				-0.009602,
+				0.975195,
+				-0.023472,
+				-0.219891
+			]
 		},
 		{
 			"prop": "campgrounds_ice_drill",
@@ -295,16 +355,16 @@
 				2.491
 			],
 			"at": [
-				-21.0235,
-				-0.0666,
-				0.9717
+				-21.0259,
+				-0.0659,
+				0.9718
 			],
-			"facing": 68.73,
+			"facing": 68.39,
 			"rotation": [
-				0.034086,
-				-0.564596,
-				-0.002674,
-				0.824659
+				0.034547,
+				-0.562115,
+				-0.001434,
+				0.826336
 			]
 		},
 		{
@@ -556,11 +616,17 @@
 				0.736
 			],
 			"at": [
-				-15.4,
-				0.0,
-				-9.6
+				-15.4118,
+				0.007,
+				-9.6003
 			],
-			"facing": 30.0
+			"facing": 29.34,
+			"rotation": [
+				-0.008012,
+				-0.253266,
+				0.00926,
+				0.967319
+			]
 		},
 		{
 			"prop": "campgrounds_coiled_cable",
@@ -573,11 +639,17 @@
 				1.2
 			],
 			"at": [
-				15.0,
-				0.0,
-				5.0
+				15.0148,
+				-0.0139,
+				5.0085
 			],
-			"facing": 0.0
+			"facing": 359.83,
+			"rotation": [
+				0.013659,
+				0.001738,
+				0.017056,
+				0.99976
+			]
 		},
 		{
 			"prop": "campgrounds_sample_case",
@@ -613,11 +685,17 @@
 				1.333
 			],
 			"at": [
-				-13.0,
-				0.0,
-				9.4
+				-13.0109,
+				0.0011,
+				9.4001
 			],
-			"facing": 0.0
+			"facing": 1.78,
+			"rotation": [
+				0.004321,
+				-0.015505,
+				-0.002034,
+				0.999868
+			]
 		}
 	],
 	"lamps": [],

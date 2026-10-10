@@ -119,17 +119,17 @@
 			"prop": "campgrounds_crane",
 			"at": [
 				{
-					"x": -12.5,
-					"y": -0.094,
-					"z": -13.5,
-					"facing": 300.0,
+					"x": -12.5256,
+					"y": -0.0961,
+					"z": -13.5214,
+					"facing": 301.77,
 					"level": "ground",
 					"fit": "seat across/along",
 					"rotation": [
-						0.103274,
-						-0.495958,
-						0.073729,
-						-0.859025
+						-0.092843,
+						0.487088,
+						-0.081616,
+						0.86456
 					]
 				}
 			],
@@ -163,36 +163,60 @@
 			"prop": "campgrounds_cargo_pallet",
 			"at": [
 				{
-					"x": -19.2,
-					"y": 0.0,
-					"z": -4.6,
-					"facing": 270.0,
+					"x": -19.2047,
+					"y": -0.0055,
+					"z": -4.6014,
+					"facing": 272.73,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.014072,
+						0.690071,
+						-0.000474,
+						0.723605
+					]
 				},
 				{
-					"x": -17.8,
-					"y": 0.0,
-					"z": -4.6,
-					"facing": 270.0,
+					"x": -17.8017,
+					"y": -0.0056,
+					"z": -4.6005,
+					"facing": 275.01,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.013546,
+						0.675508,
+						0.000619,
+						0.737228
+					]
 				},
 				{
-					"x": -16.4,
-					"y": 0.0,
-					"z": -4.6,
-					"facing": 270.0,
+					"x": -16.4024,
+					"y": -0.0055,
+					"z": -4.5998,
+					"facing": 276.78,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.012582,
+						0.664046,
+						0.001992,
+						0.747583
+					]
 				},
 				{
-					"x": -15.0,
-					"y": 0.0,
-					"z": -4.6,
-					"facing": 270.0,
+					"x": -15.0099,
+					"y": -0.0054,
+					"z": -4.6023,
+					"facing": 272.35,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.013061,
+						0.692475,
+						-0.002063,
+						0.721321
+					]
 				}
 			],
 			"box_from": [
@@ -323,44 +347,74 @@
 			"prop": "campgrounds_cargo_case",
 			"at": [
 				{
-					"x": -17.8,
-					"y": 0.155,
-					"z": -4.6,
-					"facing": 270.0,
+					"x": -17.8328,
+					"y": 0.0103,
+					"z": -4.6219,
+					"facing": 262.36,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						-0.00418,
+						0.752624,
+						0.003313,
+						0.658429
+					]
 				},
 				{
-					"x": 8.6,
-					"y": 0.0,
-					"z": 13.6,
-					"facing": 160.0,
+					"x": 8.5868,
+					"y": 0.0102,
+					"z": 13.6206,
+					"facing": 149.57,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						-0.000934,
+						0.964924,
+						0.007744,
+						-0.262415
+					]
 				},
 				{
-					"x": -19.3,
-					"y": 0.0,
-					"z": 3.6,
-					"facing": 320.0,
+					"x": -19.3085,
+					"y": 0.0103,
+					"z": 3.5836,
+					"facing": 304.88,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						-0.006137,
+						0.462685,
+						0.00068,
+						0.886501
+					]
 				},
 				{
-					"x": -4.3,
-					"y": 0.0,
-					"z": 10.3,
-					"facing": 345.0,
+					"x": -4.3044,
+					"y": 0.0103,
+					"z": 10.3162,
+					"facing": 345.67,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						-0.005551,
+						0.124736,
+						0.0001,
+						0.992174
+					]
 				},
 				{
-					"x": -3.5,
-					"y": 0.0,
-					"z": 11.2,
-					"facing": 280.0,
+					"x": -3.5042,
+					"y": 0.0103,
+					"z": 11.1943,
+					"facing": 270.93,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						-0.004275,
+						0.701358,
+						0.00225,
+						0.712793
+					]
 				}
 			],
 			"box_from": [
@@ -392,12 +446,18 @@
 			"prop": "campgrounds_reactor",
 			"at": [
 				{
-					"x": 15.0,
-					"y": 0.0,
-					"z": -19.0,
-					"facing": 150.0,
+					"x": 15.1397,
+					"y": 0.0444,
+					"z": -18.9984,
+					"facing": 154.57,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						-0.009602,
+						0.975195,
+						-0.023472,
+						-0.219891
+					]
 				}
 			],
 			"box_from": [
@@ -434,17 +494,17 @@
 			"prop": "campgrounds_ice_drill",
 			"at": [
 				{
-					"x": -21.0235,
-					"y": -0.0666,
-					"z": 0.9717,
-					"facing": 68.73,
+					"x": -21.0259,
+					"y": -0.0659,
+					"z": 0.9718,
+					"facing": 68.39,
 					"level": "ground",
 					"fit": "seat across/along",
 					"rotation": [
-						0.034086,
-						-0.564596,
-						-0.002674,
-						0.824659
+						0.034547,
+						-0.562115,
+						-0.001434,
+						0.826336
 					]
 				}
 			],
@@ -691,12 +751,18 @@
 			"prop": "campgrounds_power_unit",
 			"at": [
 				{
-					"x": -15.4,
-					"y": 0.0,
-					"z": -9.6,
-					"facing": 30.0,
+					"x": -15.4118,
+					"y": 0.007,
+					"z": -9.6003,
+					"facing": 29.34,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						-0.008012,
+						-0.253266,
+						0.00926,
+						0.967319
+					]
 				}
 			],
 			"box_from": [
@@ -729,12 +795,18 @@
 			"prop": "campgrounds_coiled_cable",
 			"at": [
 				{
-					"x": 15.0,
-					"y": 0.0,
-					"z": 5.0,
-					"facing": 0.0,
+					"x": 15.0148,
+					"y": -0.0139,
+					"z": 5.0085,
+					"facing": 359.83,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.013659,
+						0.001738,
+						0.017056,
+						0.99976
+					]
 				}
 			],
 			"name_why": "not cable_coil: that own name is the habitat's code-built coil (names.py)",
@@ -807,12 +879,18 @@
 			"prop": "campgrounds_drift",
 			"at": [
 				{
-					"x": -13.0,
-					"y": 0.0,
-					"z": 9.4,
-					"facing": 0.0,
+					"x": -13.0109,
+					"y": 0.0011,
+					"z": 9.4001,
+					"facing": 1.78,
 					"level": "ground",
-					"fit": "seat across/along"
+					"fit": "seat across/along",
+					"rotation": [
+						0.004321,
+						-0.015505,
+						-0.002034,
+						0.999868
+					]
 				}
 			],
 			"unseen": "the concept shows no one lying at the camp's edge, so no drift over his legs"
