@@ -63,13 +63,16 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   finish regions named by the judge in one run (three seeds; an unnamed part takes its mirror image's answers; a
   region's answer far from its own colour is not believed), tucks under the joins (`tucks.py`), built by
   `prop_build.py` (every hard thing on one joint, the cloth next to it eased onto that joint; the face cut from the
-  close-up and the flag drawn are the only pictures, `prop_prints.py`), the garments settled through every clip by
-  Newton against the person's own posed surface (`garment_settle.py`) and baked as corrective shapes each clip keys
-  (`garment_bake.py`; glTF morph targets, which `joins.py` and `pokes.py` read), and checked by `joins.py`, `pokes.py`
+  close-up and the flag drawn are the only pictures, `prop_prints.py`; piping cut in as thin strips down the outside
+  of the sleeves and trouser legs, `piping.py`), the garments settled through every clip by Newton against the
+  person's own posed surface with the cloth over each tuck held on its skinned place (`garment_settle.py`) and baked
+  on the card as corrective shapes each clip keys, as many as keep every point within 4 mm of the settle, a frame's
+  shapes eased off where they would put the cloth through the body more than unsettled (`garment_bake.py`; glTF morph
+  targets, which `joins.py` and `pokes.py` read, and UsdSkel blend shapes), and checked by `joins.py`, `pokes.py`
   (tucks, cloth through cloth against the shipped body's record, hard parts' stretch), `outline.py` and the
   reviewer's skin-through-cloth count; `blender_shots.py` renders it beside today's body. No SAM3DBody-cpp and no SOMA
   surface: nothing but Pixal3D's mesh is drawn or shapes it. Takes land only in
   `~/.farm-factory-motion/candidates/prop-people/`; every other person keeps the shipped route. Its numbers are
   `checks.txt` beside each take. A held machine keeps each make under its folder's name, so make folders carry the
-  person and outfit (`make_place`). `skel_usd.py` does not carry the corrective shapes yet: the UsdSkel asset plays
-  the unsettled garments.
+  person and outfit (`make_place`). A close-up whose arms touch the body is refused before Pixal3D (`arm_gap_share`);
+  klein copies a reference's pose over the words, so a spec may give a `pose_picture` to take the pose from.
