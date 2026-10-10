@@ -2,17 +2,22 @@
 read from the built glTF as the engine skins it (people/joins.py's reader). Measures; it does not judge by eye.
 
     ~/.farm-factory-props/env/bin/python tools/characters/maker/pokes.py <body.glb> --out <pokes.json> [--every 1]
+        [--against <the shipped body's pokes.json>]
 
-- tuck_out_mm: each tuck (a skin or hard part's band run on under a garment, tucks.py; its points from the material's
-  `tuck_from`) point's height outside the nearest garment surface, along that surface's normal: a tuck showing
-  through its sleeve, collar or trouser leg. Per clip the worst frame and how many frames have a point over POKE_MM.
+- tuck_out_mm: each tuck (a band run on under a garment from a skin part, a boot or a mitt, tucks.py; its points from
+  the material's `tuck_from`) point's height outside the person's outer surface (every surface but the bands), along
+  the face normal at the nearest place on it: a tuck showing through its sleeve, collar or trouser leg. Signed by the
+  nearest garment point's averaged normal instead, a collar's rim read a tuck under it as 2 cm out. Per clip the worst frame and how many frames have a point over POKE_MM.
 - cloth_crossings: how many garment edges pass through a garment triangle they share no corner with
   (drape_measure.self_crossings, the garment parts welded where their borders meet), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
   default): cloth gone through cloth. A Pixal3D surface may cross itself at rest; a frame is counted as poking where
   it crosses more than the rest does.
 - A body built by the shipped route (no roles in its materials) is read the same way, its garments by joins.py's names
   and no tucks, so a candidate's crossings can be set beside the shipped body's.
-- verdict: pass when no frame has a tuck point over POKE_MM outside and no frame crosses more than the rest.
+- verdict: pass when no frame has a tuck point over POKE_MM outside, and (with `--against`, the shipped body's record)
+  no clip's garments cross more often than the shipped body's in the same clip; without it, than at rest. The shipped
+  player's garments cross 4,427 times at rest and 5,443 in a median clip's worst frame (its pockets and patches lie
+  through its cloth), so "no more than at rest" fails every body; the shipped record is the bar.
 """
 import argparse
 import json
@@ -20,6 +25,7 @@ import pathlib
 import sys
 
 import numpy as np
+import trimesh
 from scipy.spatial import cKDTree
 
 MAKER = pathlib.Path(__file__).resolve().parent
@@ -88,12 +94,24 @@ def crossings(points, faces, welded):
     return drape_measure.self_crossings(places, welded[faces])
 
 
-def tuck_out(tuck_points, cloth_points, cloth_normals):
-    """Each tuck point's height outside the nearest cloth point along its normal, in metres (negative: under it)."""
+def outer_surface(posed, found):
+    """The person's outer surface in a pose: every surface's triangles but its tuck band's, as one mesh."""
+    points, faces, offset = [], [], 0
+    for part, _, tuck_from in found:
+        mine = part.faces if tuck_from is None else part.faces[(part.faces < tuck_from).all(1)]
+        points.append(posed[id(part)])
+        faces.append(mine + offset)
+        offset += len(part.points)
+    return trimesh.Trimesh(np.concatenate(points), np.concatenate(faces), process=False)
+
+
+def tuck_out(tuck_points, outer):
+    """Each tuck point's height outside the person's outer surface, in metres (negative: under it): along the face
+    normal at the nearest place on it."""
     if not len(tuck_points):
         return np.zeros(0)
-    _, nearest = cKDTree(cloth_points).query(tuck_points)
-    return ((tuck_points - cloth_points[nearest]) * cloth_normals[nearest]).sum(1)
+    nearest, _, triangle = trimesh.proximity.closest_point(outer, tuck_points)
+    return ((tuck_points - nearest) * outer.face_normals[triangle]).sum(1)
 
 
 def posed_all(found, joint_worlds, inverse_bind):
@@ -122,8 +140,9 @@ def measure(path, every):
         for frame in range(len(rotations)):
             world = joins.world_matrices(rotations[frame], translations[frame], scales, parent)
             posed = posed_all(found, world[skin["joints"]], inverse_bind)
-            cloth, faces, normals = garment_surface(posed, garments)
-            outside = np.concatenate([tuck_out(posed[id(part)][start:], cloth, normals) for part, start in tucked]) \
+            cloth, faces, _ = garment_surface(posed, garments)
+            outer = outer_surface(posed, found) if tucked else None
+            outside = np.concatenate([tuck_out(posed[id(part)][start:], outer) for part, start in tucked]) \
                 if tucked else np.zeros(0)
             height = float(outside.max()) * 1000 if len(outside) else 0.0
             worst = max(worst, height)
@@ -137,7 +156,17 @@ def measure(path, every):
     clips = record["clips"].values()
     record["verdict"] = {"tucks": all(clip["frames_tuck_over"] == 0 for clip in clips),
                          "cloth_through_cloth": all(clip["frames_crossing_more_than_rest"] == 0 for clip in clips)}
-    record["pass"] = all(record["verdict"].values())
+    return record
+
+
+def against(record, shipped):
+    """The cloth verdict set against the shipped body's record: no clip crosses more than the shipped body's same
+    clip (a clip the shipped body has not is held to the rest)."""
+    worse = [name for name, clip in record["clips"].items()
+             if clip["most_crossings"] > shipped["clips"].get(name, {}).get("most_crossings", record["rest_crossings"])]
+    record["verdict"]["cloth_through_cloth"] = not worse
+    record["cloth_worse_than_shipped"] = worse
+    record["shipped"] = shipped["body"]
     return record
 
 
@@ -146,8 +175,12 @@ def main():
     parser.add_argument("body", type=pathlib.Path)
     parser.add_argument("--out", required=True, type=pathlib.Path)
     parser.add_argument("--every", type=int, default=CROSSING_EVERY)
+    parser.add_argument("--against", type=pathlib.Path, help="the shipped body's pokes record")
     options = parser.parse_args()
     record = measure(options.body, options.every)
+    if options.against:
+        against(record, json.loads(options.against.read_text()))
+    record["pass"] = all(record["verdict"].values())
     options.out.write_text(json.dumps(record, indent=1))
     print(f"pokes: {'pass' if record['pass'] else 'FAIL'} {record['verdict']}; {options.out}")
 

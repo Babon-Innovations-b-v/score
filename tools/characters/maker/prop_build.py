@@ -33,6 +33,7 @@ PEOPLE = MAKER.parent / "people"
 sys.path.insert(0, str(MAKER))
 sys.path.insert(0, str(PEOPLE))
 
+import trimesh  # noqa: E402
 import tucks  # noqa: E402
 
 JOINTS_A_VERTEX = 4
@@ -110,18 +111,23 @@ SIDED = ("boot", "mitt")
 
 
 def boot_names(pieces, names_of):
-    """The boot and mitt parts split by side, each triangle's side by x: boot_l and boot_r, mitt_l and mitt_r."""
-    found = {}
+    """The boot parts and the mitt parts gathered by side, each triangle's side by x: one boot_l, boot_r, mitt_l and
+    mitt_r each (a GeoSAM2 part can hold a piece of the other boot, whose own middle sent its tuck the wrong way)."""
+    found, sided = {}, {}
     for part, (points, faces, weights) in pieces.items():
         if names_of[part] not in SIDED:
             found[(part, names_of[part])] = (points, faces, weights)
             continue
         for side, sign in ((names_of[part] + "_l", 1.0), (names_of[part] + "_r", -1.0)):
             keep = (sign * points[faces].mean(1)[:, 0]) > 0
-            if not keep.any():
-                continue
-            used, renumbered = np.unique(faces[keep], return_inverse=True)
-            found[(part, side)] = (points[used], renumbered.reshape(-1, 3), weights[used])
+            if keep.any():
+                used, renumbered = np.unique(faces[keep], return_inverse=True)
+                sided.setdefault(side, []).append((part, points[used], renumbered.reshape(-1, 3), weights[used]))
+    for side, bits in sided.items():
+        offsets = np.cumsum([0] + [len(bit[1]) for bit in bits])
+        found[(bits[0][0], side)] = (np.concatenate([bit[1] for bit in bits]),
+                                     np.concatenate([bit[2] + offset for bit, offset in zip(bits, offsets)]),
+                                     np.concatenate([bit[3] for bit in bits]))
     return found
 
 
@@ -133,6 +139,7 @@ def surfaces(fit_rig, parts):
     names_of = {part: str(parts["names"][number]) for part, number in index.items()}
     pieces = boot_names(split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"], parts), names_of)
     garment = [piece for (part, _), piece in pieces.items() if parts["roles"][index[part]] == "garment"]
+    whole = trimesh.Trimesh(fit_rig["points"], fit_rig["faces"], process=False)
     garment_points = np.concatenate([piece[0] for piece in garment])
     garment_weights = np.concatenate([piece[2] for piece in garment])
     found = []
@@ -144,7 +151,7 @@ def surfaces(fit_rig, parts):
         if role == "skin" or name.startswith(SIDED):
             tuck_from = len(points)
             points, faces, weights = tucks.tucked(points, faces, weights, garment_points, garment_weights,
-                                                  bones_of(fit_rig))
+                                                  bones_of(fit_rig), whole)
         found.append((name, role, parts["colours"][index[part]], points, faces, weights, tuck_from))
     return found
 
