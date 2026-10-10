@@ -8,7 +8,7 @@
   "canister_1": "sample_jar-lab1",
   "sample_jar_1": "sample_jar-lab1",
   "sample_tray_1": "sample_tray-lab1",
-  "sample_case_1": "sample_case-g1",
+  "sample_case_1": "sample_case-g1-geosam2",
   "toaster_1": "toaster-rr1",
   "kiosk_terminal_1": "kiosk_terminal-rr1",
   "coffee_maker_1": "coffee_maker-rr2"
@@ -25,7 +25,7 @@
   "mast_cabinet": "mast_cabinet-r1",
   "power_unit": "power_unit-g1",
   "reactor": "reactor-r1",
-  "sample_case": "sample_case-g1"
+  "sample_case": "sample_case-g1-geosam2"
  },
  "flat": {
   "bedside_lamp_1": "flat_bedside_lamp-pb",
