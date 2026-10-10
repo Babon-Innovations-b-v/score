@@ -89,7 +89,8 @@ Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next t
 
 **Which stages are current.** Every round of stages is a new folder of the work folder, never written over:
 world 1's canonical set is `WORK/usd-r3/<place>` with its review pages in `WORK/review-r3/<place>` (the completion
-gate's round 1, 2026-10-10; `usd-r3/inputs.json` names the commit and each place's model folders). The earlier sets
+gate's rounds 1 and 2, 2026-10-10: round 2 exported again, into the same folders, only the places whose inputs it
+changed; `usd-r3/inputs.json` names each place's commit and model folders). The earlier sets
 (`usd`, `usd-complete`, `usd-r2-final`, `usd-rr`, the night's group sets) are kept beside it as they were. A later
 round exports into a new folder and moves this line.
 
