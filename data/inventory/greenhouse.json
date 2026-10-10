@@ -1913,6 +1913,8 @@
 			"name": "robot charging post with its charge bar's window",
 			"kind": "code",
 			"anchor": "floor",
+			"fixed": true,
+			"fixed_why": "a robot charging post bolted to the deck at the end of its dock pad, as charge posts are set: anchored, not loose (the drop run tipped its 0.7 m post 21 to 24 degrees off its 14 cm foot plate)",
 			"size": [
 				0.14,
 				0.1,
