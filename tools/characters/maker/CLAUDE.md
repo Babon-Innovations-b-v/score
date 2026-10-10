@@ -46,3 +46,11 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   (each drape again from its own kept pattern on the look's rest body, the people built, old and new rendered with the
   same cameras), and `rebuild.py land` copies it into `~/.farm-factory-motion/rebuild/`. It never writes the kept
   looks or bodies; whoever judges the pictures swaps them.
+- **The prop route** (`prop_person.py`, a spec's `"route": "prop"`; a trial, #5, owner 2026-10-10: "soma is for the
+  rig, not the mesh"): Pixal3D's mesh from a klein close-up drawn in SOMA-X's bind pose (`batch.py --characters`, as
+  the animals'), SOMA-X's skeleton placed inside it from the mesh's limbs at the mean bone lengths times the look's
+  scale (`prop_rig.py`; its weights moved on by RSWT), GeoSAM2 parts named by the judge (three seeds; an unnamed part
+  takes its mirror image's answers), tucks under the joins (`tucks.py`), built by `prop_build.py` and checked by
+  `joins.py`, `pokes.py` (against the shipped body's record) and `outline.py`. No SAM3DBody-cpp and no SOMA surface:
+  nothing but Pixal3D's mesh is drawn or shapes it. Takes land only in `~/.farm-factory-motion/candidates/prop-people/`;
+  every other person keeps the shipped route. Its numbers are `checks.txt` beside each take.
