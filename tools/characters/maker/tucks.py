@@ -6,22 +6,23 @@ edge-to-edge seam never does. Plain numpy and scipy.
 
 A part's border loops are its edges used by one of its triangles; only a loop most of whose points lie within
 GARMENT_NEAR of a garment is tucked (a boot's sole or a cut between two pieces of one part is not). Each point of the
-loop is carried TUCK_LENGTH on along the part's own surface (away from its neighbours inside the part, averaged
-along the loop, the surface's normal taken out) and TUCK_INSET under it (against its normal), and the loop is joined to the band by triangles wound
-as the part's own. Run on from the part's middle instead, a flat patch's tuck stuck out of the hip (2026-10-10). The
+loop is carried TUCK_LENGTH along the bone nearest it (of those touching its strongest joint: the forearm at a wrist,
+the shin at a boot top, the neck at the collar), away from the part, and drawn in TUCK_SHRINK of the way to the bone's
+line, so the band lies inside whatever garment goes round that limb; the loop is joined to the band by triangles
+wound as the part's own. Run on from the part's middle, a flat patch's tuck stood out of the player's hip; run on
+along the part's own surface, Pixal3D's jagged borders sent spikes out of his collar and wrist (2026-10-10). The
 band's points take the weights of the nearest garment points, so it moves with the cloth over it.
 """
 import numpy as np
-import trimesh
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
 TUCK_LENGTH = 0.04
-TUCK_INSET = 0.003
+# A tuck's band is drawn in towards its bone by this share of its distance from it, under the garment round it.
+TUCK_SHRINK = 0.2
 GARMENT_NEAR = 0.01
 GARMENT_SHARE = 0.5
-LOOP_SMOOTHING = 4
 
 
 def border_edges(faces):
@@ -39,46 +40,39 @@ def loops(edges, count):
     return [edges[label[edges[:, 0]] == number] for number in np.unique(label[edges[:, 0]])]
 
 
-def onward(points, faces, ring, normals):
-    """Each ring point's way on along the surface: from the mean of its neighbours off the ring to it, the normal's
-    part taken out, unit length."""
-    edges = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]])
-    edges = np.concatenate([edges, edges[:, ::-1]])
-    on_ring = np.zeros(len(points), bool)
-    on_ring[ring] = True
-    inner = edges[on_ring[edges[:, 0]] & ~on_ring[edges[:, 1]]]
-    total = np.zeros((len(points), 3))
-    count = np.zeros(len(points))
-    np.add.at(total, inner[:, 0], points[inner[:, 1]])
-    np.add.at(count, inner[:, 0], 1)
-    behind = np.where(count[ring, None] > 0, total[ring] / np.maximum(count[ring, None], 1), points[ring] - normals[ring])
-    way = points[ring] - behind
-    way -= (way * normals[ring]).sum(1, keepdims=True) * normals[ring]
-    return way / np.maximum(np.linalg.norm(way, axis=1, keepdims=True), 1e-9)
+def nearest_bones(places, joints, bones):
+    """Each point's nearest bone among those touching its joint (`bones`: each joint's bones as (start, end) places):
+    the bone's start and unit direction."""
+    starts, directions = np.zeros((len(places), 3)), np.zeros((len(places), 3))
+    for index, (place, joint) in enumerate(zip(places, joints)):
+        best = None
+        for start, end in bones[joint]:
+            line = end - start
+            share = np.clip((place - start) @ line / max(line @ line, 1e-12), 0.0, 1.0)
+            gap = np.linalg.norm(place - (start + share * line))
+            if best is None or gap < best[0]:
+                best = (gap, start, line / max(np.linalg.norm(line), 1e-12))
+        starts[index], directions[index] = best[1], best[2]
+    return starts, directions
 
 
-def along_the_loop(ways, loop, ring, normals, rounds=LOOP_SMOOTHING):
-    """The ring points' ways averaged with their neighbours' along the loop `rounds` times (a jagged border gives a
-    point a way sideways), the normal's part taken out again, unit length."""
-    place = {vertex: index for index, vertex in enumerate(ring)}
-    first = np.array([place[vertex] for vertex in loop[:, 0]])
-    second = np.array([place[vertex] for vertex in loop[:, 1]])
-    for _ in range(rounds):
-        total, count = ways.copy(), np.ones(len(ways))
-        np.add.at(total, first, ways[second])
-        np.add.at(total, second, ways[first])
-        np.add.at(count, first, 1)
-        np.add.at(count, second, 1)
-        ways = total / count[:, None]
-    ways -= (ways * normals).sum(1, keepdims=True) * normals
-    return ways / np.maximum(np.linalg.norm(ways, axis=1, keepdims=True), 1e-9)
+def tucked_ring(places, middle, starts, directions):
+    """A ring carried TUCK_LENGTH along its bones, away from the part's middle, and drawn in towards the bones' lines
+    by TUCK_SHRINK of its distance from them."""
+    away = np.sign(((places - middle) * directions).sum(1, keepdims=True))
+    away[away == 0] = 1.0
+    moved = places + away * directions * TUCK_LENGTH
+    along = ((moved - starts) * directions).sum(1, keepdims=True)
+    across = moved - (starts + along * directions)
+    return moved - across * TUCK_SHRINK
 
 
-def tucked(points, faces, weights, garment_points, garment_weights, least_edges=6):
+def tucked(points, faces, weights, garment_points, garment_weights, bones, least_edges=6):
     """The part with a tuck under every border loop of at least `least_edges` edges that meets a garment: (points,
-    faces, weights), the band's points appended after the part's own."""
+    faces, weights), the band's points appended after the part's own. `bones` gives each joint's bones as (start,
+    end) places."""
     tree = cKDTree(garment_points)
-    normals = trimesh.Trimesh(points, faces, process=False).vertex_normals
+    middle = points.mean(0)
     new_points, new_faces, new_weights = [points], [faces], [weights]
     total = len(points)
     for loop in loops(border_edges(faces), len(points)):
@@ -88,8 +82,8 @@ def tucked(points, faces, weights, garment_points, garment_weights, least_edges=
         near, _ = tree.query(points[ring], distance_upper_bound=GARMENT_NEAR)
         if np.isfinite(near).mean() < GARMENT_SHARE:
             continue
-        way = along_the_loop(onward(points, faces, ring, normals), loop, ring, normals[ring])
-        moved = points[ring] + way * TUCK_LENGTH - normals[ring] * TUCK_INSET
+        starts, directions = nearest_bones(points[ring], weights[ring].argmax(1), bones)
+        moved = tucked_ring(points[ring], middle, starts, directions)
         number = {vertex: total + index for index, vertex in enumerate(ring)}
         first, second = loop[:, 0], loop[:, 1]
         far_first = np.array([number[vertex] for vertex in first])

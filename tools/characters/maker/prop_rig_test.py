@@ -2,7 +2,7 @@
 and weights are known: placed into itself the skeleton and the weights come back; placed into the same body with
 the arms held lower the arm bones turn onto the new arms at their own lengths, with their offsets against their
 parents as the mean skeleton's (so the clips play unchanged); RSWT's inpainting fills an unmatched strip between two matched sides with
-a blend of both; a tuck runs a part's open border on along its surface under the garment, and a border with no garment by it gets
+a blend of both; a tuck runs a part's open border on along its bone, drawn in under the garment, and a border with no garment by it gets
 none; the poke check reads a tuck under its cloth as
 hidden and one over it as showing.
 
@@ -141,13 +141,16 @@ def test_tuck_runs_under_the_garment():
     turns = np.linspace(0, 2 * np.pi, 48, endpoint=False)
     cuff = np.concatenate([np.stack([0.055 * np.cos(turns), np.full(48, height), 0.055 * np.sin(turns)], 1)
                            for height in np.linspace(-0.1, 0.0, 11)])
-    out_points, out_faces, out_weights = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)))
+    bones = {0: [(np.array([0.0, -0.3, 0.0]), np.zeros(3))], 1: [(np.zeros(3), np.array([0.0, 0.3, 0.0]))]}
+    out_points, out_faces, out_weights = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)),
+                                                      bones)
     band = out_points[len(points):]
     ring = np.unique(tucks.border_edges(faces))
-    assert len(band) and abs(band[:, 1].mean() - (points[ring, 1].mean() + tucks.TUCK_LENGTH)) < 0.005
-    assert np.linalg.norm(band[:, [0, 2]], axis=1).max() < 0.05
+    assert len(band) and abs(band[:, 1].mean() - (points[ring, 1].mean() + tucks.TUCK_LENGTH)) < 0.002
+    assert np.linalg.norm(band[:, [0, 2]], axis=1).max() < 0.05 * (1 - tucks.TUCK_SHRINK) + 1e-6
     assert np.allclose(out_weights[len(points):], [0.0, 1.0])
-    alone, _, _ = tucks.tucked(points, faces, weights, cuff + [0.0, 1.0, 0.0], np.tile([0.0, 1.0], (len(cuff), 1)))
+    alone, _, _ = tucks.tucked(points, faces, weights, cuff + [0.0, 1.0, 0.0], np.tile([0.0, 1.0], (len(cuff), 1)),
+                               bones)
     assert len(alone) == len(points)
 
 

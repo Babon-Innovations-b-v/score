@@ -10,6 +10,8 @@ read from the built glTF as the engine skins it (people/joins.py's reader). Meas
   (drape_measure.self_crossings, the garment parts welded where their borders meet), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
   default): cloth gone through cloth. A Pixal3D surface may cross itself at rest; a frame is counted as poking where
   it crosses more than the rest does.
+- A body built by the shipped route (no roles in its materials) is read the same way, its garments by joins.py's names
+  and no tucks, so a candidate's crossings can be set beside the shipped body's.
 - verdict: pass when no frame has a tuck point over POKE_MM outside and no frame crosses more than the rest.
 """
 import argparse
@@ -47,8 +49,14 @@ def surfaces(document, blob):
                               joins.accessor(document, blob, attributes["JOINTS_0"]),
                               joins.accessor(document, blob, attributes["WEIGHTS_0"]),
                               joins.accessor(document, blob, primitive["indices"]).astype(int).reshape(-1, 3))
-            found.append((part, extras.get("role"), extras.get("tuck_from")))
+            found.append((part, extras.get("role") or role_by_name(part.name), extras.get("tuck_from")))
     return found
+
+
+def role_by_name(name):
+    """A surface's role where its material names none (a body the shipped route built): a garment when joins.py takes
+    it for a sleeve or a trouser leg."""
+    return GARMENT if name in joins.SLEEVES + joins.TROUSERS else None
 
 
 def garment_surface(posed, garments):
