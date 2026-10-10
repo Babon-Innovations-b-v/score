@@ -262,9 +262,11 @@ def lay_all(run, take):
     mesh = raw_model(take)
     view = dict(np.load(folder / "view.npz"))
     notes = json.loads((folder / "laid.json").read_text()) if (folder / "laid.json").exists() else {}
-    if not (folder / "parts_partcrafter.npy").exists():
+    if not (folder / "parts_partcrafter.npy").exists() and (LABELS / take / "labels.json").exists():
         part_of, notes["partcrafter"] = partcrafter_parts(mesh, take)
         np.save(folder / "parts_partcrafter.npy", part_of.astype(np.int32))
+    elif not (folder / "parts_partcrafter.npy").exists():  # a take labelled in its place's run, not by the repaint
+        notes["partcrafter"] = f"no repaint labels: {LABELS / take / 'labels.json'}"
     for method, make in (("segvigen", lambda: segvigen_parts(mesh, folder, "auto")),
                          ("segvigen_guided", lambda: segvigen_parts(mesh, folder, "guided")),
                          ("geosam2_guided", lambda: geosam2_parts(mesh, folder, view))):
