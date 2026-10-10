@@ -22,7 +22,9 @@ readings, each per place:
   DINOv2 sees what an object is as well as how it looks, so the same pairs are compared again as plain silhouettes
   (black on white, the shape alone); the style gap is the colour renders' within-minus-across less the silhouettes'.
 
-A place with one model has no pair within it and reads as None. Nothing here judges a model good or bad: the numbers
+A model a place reuses from another (the hub's tools in the workshop) is the same render twice: such copies
+(COPY_TOLERANCE) are left out of the likeness, which would otherwise count one model as two places agreeing. A place
+with one model has no pair within it and reads as None. Nothing here judges a model good or bad: the numbers
 are what the renders show, to be read beside the creator's reviews.
 """
 import argparse
@@ -48,6 +50,8 @@ BACKGROUND_TOLERANCE = 12.0
 CHROMATIC = 8.0
 MIN_CHROMATIC = 100
 SAMPLE = 3000
+# Two renders whose greys (64 x 64) differ by less than this on average (0..255) are one model shown twice.
+COPY_TOLERANCE = 0.5
 ACROSS = 8
 SEED = 7
 
@@ -177,6 +181,20 @@ def write_pairs(root, work):
     return pairs
 
 
+def copies(renders):
+    """The pairs of "place/model" names whose renders are one model shown twice, as a set of sorted pairs."""
+    greys = {f"{place}/{model}": np.asarray(Image.open(path).convert("L").resize((64, 64)), dtype=np.float64)
+             for place, models in renders.items() for model, path in models.items()}
+    names = sorted(greys)
+    return {(first, second) for index, first in enumerate(names) for second in names[index + 1:]
+            if np.abs(greys[first] - greys[second]).mean() < COPY_TOLERANCE}
+
+
+def without_copies(likeness, copied):
+    """The likenesses with every pair of copies left out."""
+    return {name: value for name, value in likeness.items() if tuple(sorted(name.split("|")[1:])) not in copied}
+
+
 def likeness_split(likeness, place, kind):
     """The likenesses of one kind ("colour" or "shape") of the pairs within a place and of its pairs across."""
     within, across = [], []
@@ -233,13 +251,15 @@ def report(root, work):
     colours = {place: {model: model_colour(path, shaded(palettes[place])) for model, path in models.items()}
                for place, models in renders.items()}
     likeness_path = work / "likeness.json"
-    likeness = json.loads(likeness_path.read_text()) if likeness_path.exists() else None
+    copied = copies(renders)
+    likeness = without_copies(json.loads(likeness_path.read_text()), copied) if likeness_path.exists() else None
     places = {place: dict(place_colour(colours[place]),
                           **({"features": place_features(likeness, place)} if likeness else {}))
               for place in renders}
     every_lightness = [entry["lightness"] for models in colours.values() for entry in models.values()]
     found = {"places": places, "world_lightness_spread": round(float(np.std(every_lightness)), 1),
-             "palette_overlap": palette_overlap(palettes), "models": len(every_lightness), "likeness": bool(likeness),
+             "palette_overlap": palette_overlap(palettes), "models": len(every_lightness),
+             "copies": sorted(copied), "likeness": bool(likeness),
              "features": world_features(likeness) if likeness else None}
     (work / "style.json").write_text(json.dumps(found, indent=1))
     (work / "style-models.json").write_text(json.dumps(colours, indent=1))
@@ -262,7 +282,7 @@ def table(found):
         lines.append(f"{place:12} {entry['models']:>3} {cell(entry['coloured']):>6} {entry['fitted']:>6} "
                      f"{cell(entry['fit']):>6} {cell(entry['lightness_spread'], 1):>6} "
                      + " ".join(f"{cell(value):>6}" for value in cells))
-    lines.append(f"world: {found['models']} models, L* sd {found['world_lightness_spread']}, coloured palettes shared "
+    lines.append(f"world: {found['models']} models ({len(found['copies'])} pairs of copies left out), L* sd {found['world_lightness_spread']}, coloured palettes shared "
                  f"{found['palette_overlap']}")
     if found["features"]:
         world = found["features"]
