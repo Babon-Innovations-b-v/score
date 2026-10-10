@@ -1,7 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; a
+marked, while 1 m debris may turn so; only floor pieces are dropped, not a kit's floor plate; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -125,7 +125,22 @@ def a_dent_is_a_shallow_bowl():
         return problems
 
 
-CHECKS = (a_settled_pose_round_trips_through_the_layout, a_big_turn_is_marked_not_made,
+def only_floor_pieces_are_dropped():
+    """A crate on the floor is dropped; a kit's floor plate (a shell group the triage holds fixed) and a row on the wall
+    are not."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("crate", "box", (0, 0, 0)), ("plate", "box", (3, 0, 0)),
+                                                ("panel", "box", (6, 0, 0))],
+                                       [("crate", "floor"), ("plate", "floor"), ("panel", "wall")])
+        inventory = json.loads((folder / "inventory.json").read_text())
+        inventory["rows"][1]["group"] = "kit: floor"
+        loose = settle.loose_objects(Usd.Stage.Open(str(path)), PLACE, inventory)
+        return [] if set(loose) == {"crate_1"} else [f"the drop takes {sorted(loose)}, not the crate alone"]
+
+
+CHECKS = (a_settled_pose_round_trips_through_the_layout, only_floor_pieces_are_dropped, a_big_turn_is_marked_not_made,
           a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl)
 
 

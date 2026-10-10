@@ -3,7 +3,7 @@
     python3 tools/blender/session.py batch tools/blender/inside/settle_stage.py -- <stage.usda> <job.json> <out.json>
 
 job.json: {"loose": [object name, ...], "lift": {object name: metres}}. The stage is brought in whole; its ground
-(`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision).
+(`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision), but the sky (NOT_SOLID).
 Each loose object is lifted by its `lift` (just clear of the ground, from tools/usd/settle.py), given its convex hull
 as collision and its weight at the middle of its surface (the resting check's weight), and dropped. Loose objects
 collide with the ground and the static objects, not with each other: a convex hull spans a hollow, so one hull section
@@ -35,6 +35,10 @@ DAMPING_ANGULAR = 0.95
 # static one.
 GROUPS = 20
 MARGIN = 0.004
+# What a stage draws that nothing stands on or against: its sky (the haze round the place, the stars, the moon's and
+# the halo's squares), whose meshes would otherwise be static and enclose every object (2026-10-10: every object of
+# usd-r3 started "inside" the haze and was dropped on the bare ground alone).
+NOT_SOLID = {"Sky"}
 # A room's stage has no Ground: the floor is y = 0 (resting.py's flat place), a plane this many metres across.
 FLAT_SIDE = 400.0
 SUBSTEPS = 20
@@ -167,7 +171,7 @@ def main():
     statics, moving, inside = {}, {}, {}
     for name, holder in holders.items():
         meshes = [child for child in holder.children if child.type == "MESH"]
-        if not meshes:
+        if not meshes or name.split(".")[0] in NOT_SOLID:
             continue
         if name in loose:
             moving[name] = unparented(drawn_mesh(holder))
