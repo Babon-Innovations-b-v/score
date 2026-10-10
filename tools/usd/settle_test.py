@@ -1,7 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece is a static of the drop; a
+marked, while 1 m debris may turn so; a kit room's piece (the game's kit) moves with its object, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece is a static of the drop; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -166,7 +166,27 @@ def what_lies_on_a_dropped_piece_is_no_static_of_the_drop():
         return [] if ignored == ["tray_1"] else [f"the drop leaves out {ignored}, not the tray alone"]
 
 
-CHECKS = (a_settled_pose_round_trips_through_the_layout, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
+def a_kit_room_piece_moves_with_its_object():
+    """A kit room's piece (the game's kit: axes and a foot `at`, no inventory spot) moved by a settle's small turn and
+    drift stands, by package.kit_matrix, exactly where its object came to rest; a name finds its piece by kind."""
+    sys.path.insert(0, str(HERE.parents[1] / "tools/props/library"))
+    import package
+    low, high = np.array([-0.3, 0.0, -0.2]), np.array([0.5, 0.9, 0.4])
+    piece = {"kind": "lab_desk", "at": [1.0, 0.0, -2.0], "x": [0.0, 0.0, 1.0], "y": [0.0, 1.0, 0.0],
+             "z": [-1.0, 0.0, 0.0], "size": [1.2, 0.75, 0.6], "model": "desk_1"}
+    before, _ = package.kit_matrix(piece, low, high)
+    motion = np.eye(4)
+    motion[:3, :3] = Rotation.from_euler("xz", [4.0, -3.0], degrees=True).as_matrix()
+    motion[:3, 3] = [0.05, -0.01, 0.12]
+    after = motion @ before
+    moved, _ = package.kit_matrix(settle.moved_piece(piece, before, after), low, high)
+    problems = [] if np.allclose(moved, after, atol=1e-4) else [f"the moved piece stands at {moved}, not {after}"]
+    kit = {"room": "lab", "pieces": [piece, dict(piece), dict(piece, kind="lab_desk_lamp", part="glow")]}
+    names = sorted(settle.kit_room_pieces(kit, "lab"))
+    return problems + ([] if names == ["desk_1", "desk_2", "desk_lamp_glow_1"] else [f"the room's names are {names}"])
+
+
+CHECKS = (a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop, a_big_turn_is_marked_not_made,
           a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl)
 

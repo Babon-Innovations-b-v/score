@@ -198,8 +198,10 @@ def write_layout(settled, ground, inventory_path, kit_path):
     and its piece when coming to rest is a small correction (at most TURN_MOST and DRIFT_MOST); one that would move
     more keeps its laid pose and is marked `unrested` with what it would do, for the layout to be put right (a support,
     a laid pose that rests, a bed in the ground). The objects, with what each did."""
-    inventory = json.loads(inventory_path.read_text())
     kit = json.loads(kit_path.read_text())
+    if any("row" not in piece for piece in kit["pieces"]):
+        return write_kit_room(settled, kit, kit_path)
+    inventory = json.loads(inventory_path.read_text())
     spots = {row["id"]: row["at"] for row in inventory["rows"]}
     pieces = {}
     for piece in kit["pieces"]:
@@ -224,6 +226,56 @@ def write_layout(settled, ground, inventory_path, kit_path):
         pieces[row][index].pop("tilt", None)
         moved[name] = said
     inventory_path.write_text(json.dumps(inventory, indent=1, ensure_ascii=False) + "\n")
+    kit_path.write_text(json.dumps(kit, indent="\t", ensure_ascii=False) + "\n")
+    return moved
+
+
+def kit_room_pieces(kit, place):
+    """A kit room's pieces (the game's kit: each its kind's row, as export.kit_room_pieces names them) by object name
+    (`<row>_<n>` in the layout's order; a glowing part `<row>_<part>_<n>`)."""
+    import export
+    counts, found = {}, {}
+    for piece in kit["pieces"]:
+        row = piece.get("row", export.kind_row(piece["kind"], (kit.get("room", ""), place)))
+        row = f"{row}_{piece['part']}" if "part" in piece else row
+        counts[row] = counts.get(row, 0) + 1
+        found[f"{row}_{counts[row]}"] = piece
+    return found
+
+
+def moved_piece(piece, before, after):
+    """A kit room piece moved as its object moved from `before` to `after` (stage frame, which is the room's): its
+    axes turned and its foot `at` carried by the motion (package.kit_matrix stands the model's foot on `at`)."""
+    motion = np.asarray(after) @ np.linalg.inv(np.asarray(before))
+    turn = motion[:3, :3] / np.cbrt(np.linalg.det(motion[:3, :3]))
+    axes = {axis: turn @ np.asarray(piece[axis], dtype=float) for axis in ("x", "y", "z")}
+    at = motion[:3, :3] @ np.asarray(piece["at"], dtype=float) + motion[:3, 3]
+    return dict(piece, at=[round(float(value), 4) for value in at],
+                **{axis: [round(float(value), 6) for value in way / np.linalg.norm(way)] for axis, way in axes.items()})
+
+
+def write_kit_room(settled, kit, kit_path):
+    """write_layout for a kit room (data/kit/<room>.json laid in the stage's own frame, no inventory spots): each piece
+    whose object came to rest by a small correction turned and carried with it, the others marked `unrested`. A piece
+    whose axes are not its object's as the stage lays it (another frame) is refused."""
+    pieces = kit_room_pieces(kit, kit_path.stem)
+    moved = {}
+    for name, found in settled.items():
+        piece = pieces[name]
+        laid = np.asarray(found["before"])[:3, :3]
+        laid = laid / np.linalg.norm(laid, axis=0)
+        if not np.allclose(laid, np.column_stack([piece[axis] for axis in ("x", "y", "z")]), atol=1e-3):
+            raise ValueError(f"{name}: its kit piece is not laid in the stage's frame; the room cannot be written back")
+        turned, drift = correction(found)
+        said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
+        debris = max(piece["size"]) <= DEBRIS_SIZE
+        if (not debris and turned > TURN_MOST) or drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
+            piece["unrested"] = said
+            moved[name] = f"would not rest as laid: {said}"
+            continue
+        piece.pop("unrested", None)
+        piece.update(moved_piece(piece, found["before"], found["after"]))
+        moved[name] = said
     kit_path.write_text(json.dumps(kit, indent="\t", ensure_ascii=False) + "\n")
     return moved
 
