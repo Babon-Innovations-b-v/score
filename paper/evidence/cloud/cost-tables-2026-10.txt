@@ -8,7 +8,7 @@ Ledger 2026-10 up to the bill read 2026-10-10T01:36Z: 1,127 rows, €547.31; bil
 | Library bake | 238 | 50.7 h | €46.30 | 8.5% | €53.11 | 8 min | L4-1-24G 84%, POP2-16C-64G 8% |
 | Characters: chain, rigging, drapes | 16 | 35.3 h | €35.31 | 6.5% | €40.50 | 45 min | L4-1-24G 72%, H100-1-80G 28% |
 | Parts and segments | 119 | 26.3 h | €33.27 | 6.1% | €38.16 | 8 min | L4-1-24G 53%, H100-1-80G 35% |
-| Engine runs: tests, shots, benchmarks, warm pool | 142 | 39.3 h | €32.63 | 6.0% | €37.42 | 9 min | not recorded |
+| Engine runs: tests, shots, benchmarks, warm pool | 142 | 39.3 h | €32.63 | 6.0% | €37.42 | 9 min | L4-1-24G 70%, POP2-HC-32C-64G 30% |
 | Container images, proofs, kernel warm-up | 48 | 10.8 h | €24.06 | 4.4% | €27.60 | 10 min | POP2-16C-64G 44%, H100-1-80G 38% |
 | Open picture models: FLUX.2 klein, Qwen-Image-Edit | 63 | 6.0 h | €15.96 | 2.9% | €18.31 | 3 min | H100-SXM-2-80G 46%, H100-1-80G 38% |
 | Method experiments: terrain, plants, clay, Infinigen | 32 | 14.2 h | €15.74 | 2.9% | €18.05 | 33 min | L4-1-24G 35%, POP2-32C-128G 28% |

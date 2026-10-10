@@ -218,7 +218,7 @@ def typed_euros(row, prices):
     return euros
 
 
-def per_group(rows, tags, not_in_ledger):
+def per_group(rows, tags, not_in_ledger, prices):
     """Per kind of batch: batches, machine hours, ledger euros, share, with the bill's rest, median wall, main cards."""
     groups = collections.defaultdict(lambda: {"rows": 0, "minutes": 0.0, "euros": 0.0, "walls": [],
                                               "cards": collections.Counter()})
@@ -229,14 +229,14 @@ def per_group(rows, tags, not_in_ledger):
         group["euros"] += row["euros"]
         if row.get("wall_minutes") is not None and row["euros"] > 0:
             group["walls"].append(row["wall_minutes"])
-        for entry in rentals(row):
-            group["cards"][entry["type"]] += entry.get("euros", 0)
+        group["cards"].update(typed_euros(row, prices))
     ledger = sum(group["euros"] for group in groups.values())
     rest = sum(not_in_ledger.values())
     table = []
     for name, group in sorted(groups.items(), key=lambda item: -item[1]["euros"]):
         share = group["euros"] / ledger
-        cards = ", ".join(f"{card} {euros / group['euros']:.0%}" for card, euros in group["cards"].most_common(2))
+        cards = ", ".join(f"{card or 'not recorded'} {euros / group['euros']:.0%}"
+                          for card, euros in group["cards"].most_common(2))
         table.append({"group": name, "batches": group["rows"], "hours": group["minutes"] / 60,
                       "euros": group["euros"], "share": share, "with_rest": group["euros"] + rest * share,
                       "median_wall": statistics.median(group["walls"]) if group["walls"] else None,
@@ -343,7 +343,7 @@ def tables(rows, reconciliation, bill):
     split = split_rnd(month, tags)
     text = [f"Ledger {read[:7]} up to the bill read {read}: {len(month):,} rows, {euro(sum(r['euros'] for r in month))};"
             f" bill {euro(reconciliation['bill']['total'])}; not in the ledger {euro(sum(rest.values()))}.", ""]
-    text += group_table(per_group(month, tags, rest)) + [""]
+    text += group_table(per_group(month, tags, rest, prices)) + [""]
     text += type_table(per_type(month, prices), prices) + [""]
     text += ["| Ledger part | Cost |", "|---|---|"]
     text += [f"| {name} | {euro(euros)} |" for name, euros in split.items()] + [""]

@@ -72,6 +72,14 @@ def an_engine_run_is_typed_by_its_price():
     return [] if found == "L4-1-24G" else [f"typed {found}"]
 
 
+def an_engine_run_group_names_its_card_type():
+    """The kinds-of-batch table types an engine run by its price, as the machine-type table does."""
+    rows = costs.month_rows(ROWS, "2026-10", READ)
+    table = costs.per_group(rows, costs.untyped_kinds(ROWS), {}, costs.unit_prices(BILL))
+    engine = [group for group in table if group["group"] == costs.group_of("game-gate")]
+    return [] if engine and engine[0]["cards"] == "L4-1-24G 100%" else [f"engine runs {engine}"]
+
+
 def processor_machines_are_priced_again_by_the_started_hour():
     """A processor machine the ledger priced by the minute costs its started hours at the bill's price."""
     rows = costs.month_rows(ROWS, "2026-10", READ)
@@ -105,7 +113,8 @@ def euros_beyond_the_machines_are_not_split():
 def main():
     """Run every check; exit 1 on any problem."""
     checks = [local_roots_leave_the_copy, a_row_without_kind_is_tagged_pixal, the_bill_is_the_ledger_and_what_it_misses,
-              an_engine_run_is_typed_by_its_price, processor_machines_are_priced_again_by_the_started_hour,
+              an_engine_run_is_typed_by_its_price, an_engine_run_group_names_its_card_type,
+              processor_machines_are_priced_again_by_the_started_hour,
               rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split]
     problems = [f"{check.__name__}: {problem}" for check in checks for problem in check()]
     for problem in problems:
