@@ -1,6 +1,6 @@
 {
  "place": "tube",
- "about": "A walkway tube between two rooms, 4.35 m long as the base's east and west tubes are (ModuleFloors), laid bay by bay as the game's TubeKit lays it, with the hull's dark backing and its deck, and (as the west tube) the hub and the greenhouse at its ends. Frame: x across, y up from the deck, z along it from its greenhouse end.",
+ "about": "A walkway tube between two rooms, 4.35 m long as the base's east and west tubes are (ModuleFloors), laid bay by bay as the game's TubeKit lays it, with the hull's dark backing and its deck, and (as the west tube) the hub and the greenhouse at its ends, with the east tube and the workshop past the hub. Frame: x across, y up from the deck, z along it from its greenhouse end.",
  "tube_length": 4.35,
  "floor": [
   [
@@ -36,6 +36,28 @@
    ],
    "yaw": -90.0,
    "from": "main.tscn:81-158 (the base's modules on the base seat)"
+  },
+  {
+   "name": "east_tube",
+   "stage": "tube",
+   "at": [
+    0.0,
+    0.0,
+    13.65
+   ],
+   "yaw": 0.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat: CorridorEast at 6.825 and the Workshop at 17 past the Habitat, as the hub record stands them), carried into this tube's frame through the hub's; seen through the hub's far hatch"
+  },
+  {
+   "name": "workshop",
+   "stage": "workshop",
+   "at": [
+    0.0,
+    0.0,
+    26.0
+   ],
+   "yaw": -90.0,
+   "from": "main.tscn:81-158 (the base's modules on the base seat: CorridorEast at 6.825 and the Workshop at 17 past the Habitat, as the hub record stands them), carried into this tube's frame through the hub's; seen through the hub's far hatch and the east tube"
   }
  ],
  "structure": [
@@ -215,7 +237,6 @@
   }
  ],
  "game_only": [
-  "the hub's far hatch (along-east view): the game shows the next tube and the lab through it; the stage shows black space there",
   "the rover and the module beside it outside the glass (glass-side view)"
  ],
  "planned_ground": {

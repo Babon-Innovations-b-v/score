@@ -348,10 +348,11 @@ def record_walk(scene):
 def places_shown(scene):
     """The other places a scene record shows, by stage name, each once. The places those show are not among them:
     the stage turns a shown place's own Places off (tools/usd/scene.py write_places), so they are never drawn and
-    need not be sent with it (the camp's tube would otherwise send the hub, the greenhouse and the workshop)."""
+    need not be sent with it (the camp's tube would otherwise send the hub, the greenhouse and the workshop); nor is
+    the place itself when it shows itself (sent as the stage)."""
     found = []
     for entry in (scene or {}).get("places", []):
-        if entry["stage"] not in found:
+        if entry["stage"] not in found and entry["stage"] != scene.get("place"):
             found.append(entry["stage"])
     return found
 
