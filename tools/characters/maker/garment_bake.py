@@ -35,6 +35,8 @@ import joins  # noqa: E402
 
 SHAPES_A_CLIP = 8
 KEPT = 0.0002
+# A bind offset longer than this many times its world offset is taken as folded (bind_offsets).
+FOLDED = 1.5
 
 
 def bind_offsets(data, settled, clip):
@@ -44,7 +46,13 @@ def bind_offsets(data, settled, clip):
     count = min(len(moves), len(offsets))
     turns = moves[:count, :, :3, :3][:, data["cloth_joints"]]  # frames, points, 4, 3, 3
     blended = np.einsum("ps,fpsab->fpab", data["cloth_weights"], turns)
-    return np.linalg.solve(blended, offsets[:count][..., None])[..., 0]
+    carried = np.linalg.solve(blended, offsets[:count][..., None])[..., 0]
+    # Where the blend of turns all but folds (two joints turned far apart: the solve gave Nev's suit offsets of
+    # 0.7 m), the point's strongest joint's turn alone carries it back.
+    strongest = turns[:, np.arange(turns.shape[1]), data["cloth_weights"].argmax(1)]
+    plain = np.einsum("fpba,fpb->fpa", strongest, offsets[:count])
+    folded = np.linalg.norm(carried, axis=2) > FOLDED * np.linalg.norm(offsets[:count], axis=2) + 1e-9
+    return np.where(folded[..., None], plain, carried)
 
 
 def clip_shapes(offsets):
