@@ -39,11 +39,14 @@ STRIP_FRAMES = 6
 VIEW_ROOM = 1.15
 WALK_OUT = 1.35
 # Inside a room: how far in from a wall a view stands, how far round the middle the walk goes (a share of the half
-# floor), the roof's draw layer a cutaway leaves out, and a lamp's watts in Blender for each unit of the game's
-# strength over each metre of its reach.
+# floor), the roof's draw layer a cutaway leaves out, how far under a recorded room's ceiling what the cutaway also
+# leaves out may start (its ceiling and what stands on it, for a room whose roof has no layer of its own: the
+# stairwell under the block over it), and a lamp's watts in Blender for each unit of the game's strength over each
+# metre of its reach.
 WALL_IN = 0.6
 ROOM_WALK = 0.45
 ROOF_LAYER = 2
+CEILING_CUT = 0.01
 LAMP_WATTS = 60.0
 # A player's eye over the floor he stands on (2099: the head 1.65 m over the body's feet), for the walk inside a room.
 STANDING = 1.6
@@ -305,13 +308,16 @@ def effect_views(place):
 
 
 def cutaway(scene):
-    """A room's cutaway: from high over one corner of its floor looking down across it, its roof left out."""
+    """A room's cutaway: from high over one corner of its floor looking down across it, its roof left out (its draw
+    layer, and every mesh wholly over its ceiling standing over its floor)."""
     low, high = np.asarray(scene["floor"][0], dtype=float), np.asarray(scene["floor"][1], dtype=float)
     middle = (low + high) / 2
     reach = float(np.linalg.norm(high - low))
     eye = [low[0] + (high[0] - low[0]) * 0.1, float(scene.get("ceiling", 3.0)) + reach * 0.35,
            low[1] + (high[1] - low[1]) * 0.1]
-    return dict(looking("cutaway", eye, [middle[0], 0.0, middle[1]], fov=70.0), hide_layers=[ROOF_LAYER])
+    over = {"above": float(scene.get("ceiling", 3.0)) - CEILING_CUT, "low": low.tolist(), "high": high.tolist()}
+    return dict(looking("cutaway", eye, [middle[0], 0.0, middle[1]], fov=70.0), hide_layers=[ROOF_LAYER],
+                hide_over=over)
 
 
 def record_walk(scene):
