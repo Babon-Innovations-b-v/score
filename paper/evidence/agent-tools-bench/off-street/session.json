@@ -1,0 +1,106 @@
+{
+ "arm": "off",
+ "place": "street",
+ "wall_minutes": 37.9,
+ "exit": 0,
+ "claude": {
+  "duration_api_ms": 378266,
+  "stop_reason": "end_turn",
+  "session_id": "<id>",
+  "total_cost_usd": 2.403479799999999,
+  "usage": {
+   "input_tokens": 132,
+   "cache_creation_input_tokens": 104323,
+   "cache_read_input_tokens": 4845339,
+   "output_tokens": 29965,
+   "output_tokens_details": {
+    "thinking_tokens": 14287
+   },
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 104323,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "global",
+   "iterations": [
+    {
+     "input_tokens": 2,
+     "output_tokens": 1113,
+     "cache_read_input_tokens": 115019,
+     "cache_creation_input_tokens": 1453,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 1453
+     },
+     "type": "message"
+    }
+   ],
+   "speed": "standard",
+   "fallback_credit": null
+  },
+  "modelUsage": {
+   "claude-opus-5-5": {
+    "inputTokens": 132,
+    "outputTokens": 29965,
+    "cacheReadInputTokens": 4845339,
+    "cacheCreationInputTokens": 104323,
+    "webSearchRequests": 0,
+    "costUSD": 2.403479799999999,
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "thinkingTokens": 14287,
+    "canonicalModel": "claude-opus-5-5",
+    "provider": "firstParty",
+    "costBasis": "list"
+   }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+   "spawned": 0,
+   "requested": {
+    "background": 0,
+    "foreground": 0,
+    "unset": 0
+   },
+   "started_in_background": 0,
+   "max_depth": 0,
+   "spawned_by_subagents": 0,
+   "completed": 0,
+   "failed": 0,
+   "killed": {
+    "parent": 0,
+    "user": 0,
+    "system": 0
+   },
+   "refused": {
+    "depth_limit": 0,
+    "concurrency_limit": 0,
+    "budget": 0
+   },
+   "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 67,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "By the repository's own checks, the street is complete: all 1198 objects pass the resting check, the placeholder check finds nothing, and all 41 inventory rows have objects on the stage, so none needed a drop reason. The review page is built at `.../off/street/review/street/index.html`.\n\n**What I changed** (only `data/inventory/street.json` and `data/kit/street.json`):\n- **Glow parts:** the lit parts of signs, windows, the barber pole, the canopy and the lamps had no inventory row, so the check treated them as loose objects on the floor. That gave false faults, such as the neon sign's glow floating 2.4 m up. I gave each its own row with its host's anchor, as the greenhouse already does.\n- **Marked `fixed`:** the facade and everything fixed to it, the lamp posts, and the harbour wall and fence. These are building parts that may touch each other on purpose.\n- **Street lamps:** moved 34 cm out; their posts stood inside the facade.\n- **Notice board:** moved 5 cm along the street, clear of the meter box beside it.\n- **Road barriers:** re-spaced so none overlaps the next, with the middle three between the kerbs. The owner's models are unchanged.\n- **Harbour wall and fence:** shortened to fit between the two facades, and the fence lowered (1.6 to 1.48 m) so it passes under the shop signs.\n- **Road surface:** now runs kerb to kerb (there was a 15 cm strip of bare ground on each side) as a thin slab on the ground. It had been 6 cm into the ground; its top is unchanged.\n- **Pavements:** now end at the back of the kerb instead of lying over it, and rest on the ground. Their top is unchanged.\n\n**What is left, and things to check:**\n- **Your export command fails as given.** The street's scene file names the car model as `models/earth_state_car/...` (an uncommitted change already in the worktree, not mine). The export then needs the game's asset folder, so I exported with `--world ~/.cache/score-stage/tree`.\n- **Lamp lights not moved:** the scene file's street-lamp lights stay at the game's positions, now 34 cm from the lamp heads.\n- **One judgement call to review:** marking every wall-mounted row `fixed` means the check no longer looks for overlaps between facade pieces. Wall-mounted pieces, such as a sign or vent set into the render wall, now count as joined to it, not as overlapping.\n- **One test error:** `placeholders_test.py::test_stage` errors because a helper is named like a test; my changes did not cause it. The other 125 tests I ran pass.\n- **Cloud: about \u20ac0.65 in total.** The first page build was cut off by my 10-minute command limit after its renders ran (about \u20ac0.30). Its machine shuts itself down after 15 idle minutes, but I did not confirm it was gone. The full rerun cost \u20ac0.32 and its machine was deleted. The first build also deleted a machine that another run had left; that is the tool's normal cleanup, so check another arm wasn't using it.\n\nNothing was committed or pushed.",
+  "ttft_ms": 1696,
+  "type": "result",
+  "duration_ms": 2270804,
+  "uuid": "<id>",
+  "ttft_stream_ms": 1308,
+  "time_to_request_ms": 135,
+  "first_content_frame_ms": 1309,
+  "queued_turn_count": 0,
+  "result_index": 0
+ },
+ "stderr_tail": ""
+}

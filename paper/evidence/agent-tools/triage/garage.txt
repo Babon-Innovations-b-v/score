@@ -1,0 +1,18 @@
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:550: RuntimeWarning: divide by zero encountered in divide
+  inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:553: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:554: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:555: RuntimeWarning: invalid value encountered in subtract
+  barycentric[:, 0] = 1 - barycentric[:, 1] - barycentric[:, 2]
+   1 overlaps   1 to 5 cm      bench_vise_1: worst /garage/Objects/bench_vise_1 (30 mm; still inside after the nudge)
+   1 tips       20 to 100 cm   fluid_shelves_1: worst /garage/Objects/fluid_shelves_1 (261 mm; its weight falls outside what it touches)
+   1 unstable   over 100 cm    fluid_shelves_1: worst /garage/Objects/fluid_shelves_1 (1246 mm; moves 1.25 m and turns 90 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 tips       20 to 100 cm   parts_trolley_1: worst /garage/Objects/parts_trolley_1 (348 mm; its weight falls outside what it touches)
+   1 unstable   over 100 cm    rover_charger_1: worst /garage/Objects/rover_charger_1 (1186 mm; moves 1.19 m and turns 119 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 tips       20 to 100 cm   spares_shelf_1: worst /garage/Objects/spares_shelf_1 (784 mm; its weight falls outside what it touches)
+   1 floats     5 to 20 cm     toolbox_1: worst /garage/Objects/toolbox_1 (51 mm; nothing under it within the tolerance)
+   1 overlaps   1 to 5 cm      tyre_shelving_1: worst /garage/Objects/tyre_shelving_1 (31 mm; still inside after the nudge)
+   1 overlaps   1 to 5 cm      workbench_1: worst /garage/Objects/workbench_1 (30 mm; still inside after the nudge)
+596 objects, 149 flagged: 8 real, 141 false alarms

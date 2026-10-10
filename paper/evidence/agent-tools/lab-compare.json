@@ -1,0 +1,200 @@
+[
+ {
+  "row": "desk_mouse",
+  "object": "/lab/Objects/desk_mouse_1",
+  "view": "desk_mouse-yaw6",
+  "outline": 0.566,
+  "likeness": 0.278,
+  "render": "/tmp/at/compare/lab-b/cuts/desk_mouse-yaw6.png",
+  "closeup": "tmp/place-lab/closeups/lab/desk_mouse.png"
+ },
+ {
+  "row": "ceiling_lamp",
+  "object": "/lab/Objects/ceiling_lamp_1",
+  "view": "ceiling_lamp-yaw3",
+  "outline": 0.412,
+  "likeness": 0.289,
+  "render": "/tmp/at/compare/lab-b/cuts/ceiling_lamp-yaw3.png",
+  "closeup": "tmp/place-lab/closeups/lab/ceiling_lamp.png"
+ },
+ {
+  "row": "sample_scanner",
+  "object": "/lab/Objects/sample_scanner_1",
+  "view": "sample_scanner-yaw3",
+  "outline": 0.694,
+  "likeness": 0.339,
+  "render": "/tmp/at/compare/lab-b/cuts/sample_scanner-yaw3.png",
+  "closeup": "tmp/place-lab/closeups/lab/sample_scanner.png"
+ },
+ {
+  "row": "wall_monitor",
+  "object": "/lab/Objects/wall_monitor_1",
+  "view": "wall_monitor-yaw1",
+  "outline": 0.698,
+  "likeness": 0.436,
+  "render": "/tmp/at/compare/lab-b/cuts/wall_monitor-yaw1.png",
+  "closeup": "tmp/place-lab/closeups/lab/wall_monitor.png"
+ },
+ {
+  "row": "desk_monitor",
+  "object": "/lab/Objects/desk_monitor_1",
+  "view": "desk_monitor-yaw1",
+  "outline": 0.559,
+  "likeness": 0.446,
+  "render": "/tmp/at/compare/lab-b/cuts/desk_monitor-yaw1.png",
+  "closeup": "tmp/place-lab/closeups/lab/desk_monitor.png"
+ },
+ {
+  "row": "sample_jar",
+  "object": "/lab/Objects/sample_jar_1",
+  "view": "sample_jar-yaw5",
+  "outline": 0.453,
+  "likeness": 0.469,
+  "render": "/tmp/at/compare/lab-b/cuts/sample_jar-yaw5.png",
+  "closeup": "tmp/place-lab/closeups/lab/sample_jar.png"
+ },
+ {
+  "row": "desk_keypad",
+  "object": "/lab/Objects/desk_keypad_1",
+  "view": "desk_keypad-yaw7",
+  "outline": 0.811,
+  "likeness": 0.488,
+  "render": "/tmp/at/compare/lab-b/cuts/desk_keypad-yaw7.png",
+  "closeup": "tmp/place-lab/closeups/lab/desk_keypad.png"
+ },
+ {
+  "row": "hose_loop",
+  "object": "/lab/Objects/hose_loop_1",
+  "view": "hose_loop-yaw1",
+  "outline": 0.549,
+  "likeness": 0.539,
+  "render": "/tmp/at/compare/lab-b/cuts/hose_loop-yaw1.png",
+  "closeup": "tmp/place-lab/closeups/lab/hose_loop.png"
+ },
+ {
+  "row": "gauge_panel",
+  "object": "/lab/Objects/gauge_panel_1",
+  "view": "gauge_panel-yaw5",
+  "outline": 0.838,
+  "likeness": 0.597,
+  "render": "/tmp/at/compare/lab-b/cuts/gauge_panel-yaw5.png",
+  "closeup": "tmp/place-lab/closeups/lab/gauge_panel.png"
+ },
+ {
+  "row": "sample_tray",
+  "object": "/lab/Objects/sample_tray_1",
+  "view": "sample_tray-yaw1",
+  "outline": 0.874,
+  "likeness": 0.611,
+  "render": "/tmp/at/compare/lab-b/cuts/sample_tray-yaw1.png",
+  "closeup": "tmp/place-lab/closeups/lab/sample_tray.png"
+ },
+ {
+  "row": "fire_extinguisher",
+  "object": "/lab/Objects/fire_extinguisher_1",
+  "view": "fire_extinguisher-yaw2",
+  "outline": 0.749,
+  "likeness": 0.677,
+  "render": "/tmp/at/compare/lab-b/cuts/fire_extinguisher-yaw2.png",
+  "closeup": "tmp/place-lab/closeups/lab/fire_extinguisher.png"
+ },
+ {
+  "row": "junction_box",
+  "object": "/lab/Objects/junction_box_1",
+  "view": "junction_box-yaw2",
+  "outline": 0.89,
+  "likeness": 0.678,
+  "render": "/tmp/at/compare/lab-b/cuts/junction_box-yaw2.png",
+  "closeup": "tmp/place-lab/closeups/lab/junction_box.png"
+ },
+ {
+  "row": "task_lamp",
+  "object": "/lab/Objects/task_lamp_1",
+  "view": "task_lamp-yaw6",
+  "outline": 0.429,
+  "likeness": 0.712,
+  "render": "/tmp/at/compare/lab-b/cuts/task_lamp-yaw6.png",
+  "closeup": "tmp/place-lab/closeups/lab/task_lamp.png"
+ },
+ {
+  "row": "instrument_unit",
+  "object": "/lab/Objects/instrument_unit_1",
+  "view": "instrument_unit-yaw0",
+  "outline": 0.859,
+  "likeness": 0.721,
+  "render": "/tmp/at/compare/lab-b/cuts/instrument_unit-yaw0.png",
+  "closeup": "tmp/place-lab/closeups/lab/instrument_unit.png"
+ },
+ {
+  "row": "switch_panel",
+  "object": "/lab/Objects/switch_panel_1",
+  "view": "switch_panel-yaw2",
+  "outline": 0.886,
+  "likeness": 0.728,
+  "render": "/tmp/at/compare/lab-b/cuts/switch_panel-yaw2.png",
+  "closeup": "tmp/place-lab/closeups/lab/switch_panel.png"
+ },
+ {
+  "row": "sample_store",
+  "object": "/lab/Objects/sample_store_1",
+  "view": "sample_store-yaw3",
+  "outline": 0.773,
+  "likeness": 0.737,
+  "render": "/tmp/at/compare/lab-b/cuts/sample_store-yaw3.png",
+  "closeup": "tmp/place-lab/closeups/lab/sample_store.png"
+ },
+ {
+  "row": "hanging_glove",
+  "object": "/lab/Objects/hanging_glove_1",
+  "view": "hanging_glove-yaw0",
+  "outline": 0.428,
+  "likeness": 0.738,
+  "render": "/tmp/at/compare/lab-b/cuts/hanging_glove-yaw0.png",
+  "closeup": "tmp/place-lab/closeups/lab/hanging_glove.png"
+ },
+ {
+  "row": "desk",
+  "object": "/lab/Objects/desk_1",
+  "view": "desk-yaw1",
+  "outline": 0.411,
+  "likeness": 0.743,
+  "render": "/tmp/at/compare/lab-b/cuts/desk-yaw1.png",
+  "closeup": "tmp/place-lab/closeups/lab/lab_desk.png"
+ },
+ {
+  "row": "desk_keyboard",
+  "object": "/lab/Objects/desk_keyboard_1",
+  "view": "desk_keyboard-yaw4",
+  "outline": 0.575,
+  "likeness": 0.743,
+  "render": "/tmp/at/compare/lab-b/cuts/desk_keyboard-yaw4.png",
+  "closeup": "tmp/place-lab/closeups/lab/desk_keyboard.png"
+ },
+ {
+  "row": "glovebox_cabinet",
+  "object": "/lab/Objects/glovebox_cabinet_1",
+  "view": "glovebox_cabinet-yaw7",
+  "outline": 0.77,
+  "likeness": 0.751,
+  "render": "/tmp/at/compare/lab-b/cuts/glovebox_cabinet-yaw7.png",
+  "closeup": "tmp/place-lab/closeups/lab/glovebox_cabinet.png"
+ },
+ {
+  "row": "microscope",
+  "object": "/lab/Objects/microscope_1",
+  "view": "microscope-yaw7",
+  "outline": 0.632,
+  "likeness": 0.783,
+  "render": "/tmp/at/compare/lab-b/cuts/microscope-yaw7.png",
+  "closeup": "tmp/place-lab/closeups/lab/microscope.png"
+ },
+ {
+  "row": "desk_chair",
+  "object": "/lab/Objects/desk_chair_1",
+  "view": "desk_chair-yaw5",
+  "outline": 0.273,
+  "likeness": 0.87,
+  "render": "/tmp/at/compare/lab-b/cuts/desk_chair-yaw5.png",
+  "closeup": "tmp/place-lab/closeups/lab/desk_chair.png"
+ }
+]

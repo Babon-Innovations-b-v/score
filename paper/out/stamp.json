@@ -14,7 +14,7 @@
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "d20c367d7e9ac9ddd69eb80bf24143519be5a69ca65afa27335e6bf8f3f45d9d",
     "paper/source/refs.bib": "69683adde93914ac9ee6dc7a9ceccb7aee128c1bdbef076afa4df950679a57f9",
-    "paper/source/score.md": "e93fb9ee640b1053affdc2299428405432a74371967e8e044f9bab62fbb3ab38"
+    "paper/source/score.md": "45f2214196b84f6cf9de167fa972928bf9e78438ce357eb182a0a0aad7f6b773"
   },
   "outputs": {
     "paper/arxiv/content/abstract.tex": "1a0c0d79ea980ff7a0c7ed48d38e978251db6877b8177a08f796b0c6f9f28cd7",
@@ -45,10 +45,10 @@
     "paper/arxiv/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
     "paper/arxiv/figures/fig-world1.jpg": "6ce4cca2102938b1c2c3c409911ad9672de3219fd81dae169e3ab3f24876fadb",
     "paper/arxiv/main.bbl": "5585fc07aafb456c9d4395240c9c4e1a1fd7eab1a186bcf4ed0d665065640604",
-    "paper/arxiv/main.pdf": "e5db31d1baf6c2611d493d9e436517a6529f6ecc73c771eb84e3116f06d467f0",
+    "paper/arxiv/main.pdf": "19ea8bbe47499d37a2f04cd17af731529233c95eb7e38a1a51137fa42277efcb",
     "paper/arxiv/main.tex": "74c8ff18344e55b01083d201cb9e84ed13b26af5c92e6ee909e1c182f12a64d2",
     "paper/arxiv/refs.bib": "69683adde93914ac9ee6dc7a9ceccb7aee128c1bdbef076afa4df950679a57f9",
-    "paper/out/score.pdf": "36bbf66bf0fe86a2ddb80cb004fecb10ed869ac8218ed0bb500b8c41cdf3dedd",
+    "paper/out/score.pdf": "b277a58c73803040769b329565c2f4059febae8e4ed0c5861d30ffb0bd9fb8a1",
     "paper/out/score.tex": "bd742956101bac07733e8087371c9f3a5fbbc59ee22e2d579bb8778dc33b0dab"
   }
 }

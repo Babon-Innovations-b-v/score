@@ -1,0 +1,3 @@
+   1 floats     over 100 cm    hose_reel_1: worst /airlock/Objects/hose_reel_1 (1100 mm; nothing under it within the tolerance)
+   1 overlaps   1 to 5 cm      suit_bench_1: worst /airlock/Objects/suit_bench_1 (48 mm; still inside after the nudge)
+330 objects, 58 flagged: 2 real, 56 false alarms

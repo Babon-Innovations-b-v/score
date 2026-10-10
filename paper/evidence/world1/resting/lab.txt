@@ -1,0 +1,42 @@
+Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): one floating over what is under it, one whose weight stands outside what it touches (it tips, one end in the air), or one sunk into the ground below its own contact points, each by more than 3 cm, fails; a hung object is not checked, and a fixed one (a building, a mast) is not judged for tipping. now: 373 of 412 objects rest.
+
+stage	object	gap, cm	depth, cm	result	caught
+now	ring_floor_plate_1	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_2	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_3	-2.7	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_4	-2.5	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_5	-2.5	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_6	-2.5	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_7	-9.6	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_8	-2.7	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_9	-9.5	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_10	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_11	-7.2	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_12	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_13	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_14	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_15	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_16	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_17	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_18	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_19	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_20	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_21	-9.9	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_22	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_23	-9.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_24	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_25	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_26	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_27	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_28	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_29	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_30	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	desk_chair_1	0.0	0.2	caught	tips: its weight is 9 cm outside what it stands on
+now	desk_chair_2	0.0	0.2	caught	tips: its weight is 9 cm outside what it stands on
+now	wall_monitor_screen_1	0.0	0.0	caught	tips: its weight is 11 cm outside what it stands on
+now	wall_monitor_screen_2	0.0	0.0	caught	tips: its weight is 11 cm outside what it stands on
+now	wall_monitor_screen_3	0.0	0.0	caught	tips: its weight is 11 cm outside what it stands on
+now	wall_monitor_screen_4	0.0	0.0	caught	tips: its weight is 11 cm outside what it stands on
+now	desk_monitor_screen_1	-0.3	0.0	caught	tips: its weight is 13 cm outside what it stands on
+now	desk_monitor_screen_2	-0.3	0.0	caught	tips: its weight is 13 cm outside what it stands on
+now	hanging_glove_2	31.6	0.0	caught	floats 31.6 cm over what is under it

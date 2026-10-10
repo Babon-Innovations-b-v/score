@@ -1,0 +1,513 @@
+{
+ "bram": {
+  "build_ok": true,
+  "flags": [],
+  "measures_worse": [
+   "space_drape crumple_deg 4.043->5.565",
+   "space_drape waist_crumple_deg 4.699->6.969"
+  ],
+  "joins": {
+   "wrist": {
+    "old": 0.0025,
+    "new": 0.0555,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0868,
+    "new": 0.0974,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 1.882,
+    "new": 0.999,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/bram/sheet.png",
+  "result": "$MOTION/rebuild/results/bram.json"
+ },
+ "driver": {
+  "build_ok": true,
+  "flags": [],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.404->3.229",
+   "jacket_drape crumple_deg 3.059->4.127",
+   "work_drape hem 18.57->14.78 cm"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0318,
+    "new": 0.1211,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0463,
+    "new": 0.0484,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.086,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/driver/sheet.png",
+  "result": "$MOTION/rebuild/results/driver.json"
+ },
+ "guard": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.352->3.213",
+   "jacket_drape crumple_deg 3.001->4.19",
+   "space_drape waist_crumple_deg 5.335->6.802",
+   "work_drape hem 17.62->15.61 cm"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0256,
+    "new": 0.119,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0736,
+    "new": 0.0758,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.022,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/guard/sheet.png",
+  "result": "$MOTION/rebuild/results/guard.json"
+ },
+ "kit_m_avg": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.352->3.213",
+   "jacket_drape crumple_deg 3.001->4.19",
+   "space_drape waist_crumple_deg 5.335->6.802",
+   "work_drape hem 17.62->15.61 cm"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0761,
+    "new": 0.0329,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0442,
+    "new": 0.0452,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.022,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/kit_m_avg/sheet.png",
+  "result": "$MOTION/rebuild/results/kit_m_avg.json"
+ },
+ "kit_m_broad": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.443->3.335",
+   "coat_drape waist_crumple_deg 2.038->2.776",
+   "jacket_drape crumple_deg 3.076->4.154",
+   "space_drape crumple_deg 4.65->6.478",
+   "space_drape waist_crumple_deg 4.894->9.78",
+   "work_drape crumple_deg 2.525->3.157"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0013,
+    "new": 0.0569,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0688,
+    "new": 0.0605,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 1.878,
+    "new": 0.999,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/kit_m_broad/sheet.png",
+  "result": "$MOTION/rebuild/results/kit_m_broad.json"
+ },
+ "kit_m_slim": {
+  "build_ok": true,
+  "flags": [],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.404->3.229",
+   "jacket_drape crumple_deg 3.059->4.127",
+   "work_drape hem 18.57->14.78 cm"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0348,
+    "new": 0.0083,
+    "pass_old": false,
+    "pass_new": false
+   },
+   "ankle": {
+    "old": 0.0364,
+    "new": 0.0484,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.086,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/kit_m_slim/sheet.png",
+  "result": "$MOTION/rebuild/results/kit_m_slim.json"
+ },
+ "kit_w_avg": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.468->3.519",
+   "jacket_drape crumple_deg 3.242->4.563",
+   "space_drape waist_crumple_deg 5.507->7.056"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0241,
+    "new": 0.0449,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0454,
+    "new": 0.0447,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 1.972,
+    "new": 0.999,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/kit_w_avg/sheet.png",
+  "result": "$MOTION/rebuild/results/kit_w_avg.json"
+ },
+ "kit_w_broad": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.48->3.748",
+   "coat_drape waist_crumple_deg 2.16->3.135",
+   "jacket_drape crumple_deg 3.306->4.432",
+   "space_drape crumple_deg 4.599->6.765",
+   "space_drape waist_crumple_deg 4.783->11.029",
+   "work_drape crumple_deg 2.603->3.344"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0113,
+    "new": 0.032,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0563,
+    "new": 0.0634,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 1.798,
+    "new": 0.999,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/kit_w_broad/sheet.png",
+  "result": "$MOTION/rebuild/results/kit_w_broad.json"
+ },
+ "kit_w_slim": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body",
+   "work_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.68->3.542",
+   "jacket_drape crumple_deg 3.326->4.58",
+   "work_drape hem 17.55->15.08 cm"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0327,
+    "new": 0.0278,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0337,
+    "new": 0.0473,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.102,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/kit_w_slim/sheet.png",
+  "result": "$MOTION/rebuild/results/kit_w_slim.json"
+ },
+ "leader": {
+  "build_ok": true,
+  "flags": [],
+  "measures_worse": [
+   "jacket_drape crumple_deg 3.037->4.287"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0053,
+    "new": 0.1154,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0223,
+    "new": 0.021,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 1.908,
+    "new": 0.999,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/leader/sheet.png",
+  "result": "$MOTION/rebuild/results/leader.json"
+ },
+ "nev": {
+  "build_ok": true,
+  "flags": [],
+  "measures_worse": [],
+  "joins": {
+   "wrist": {
+    "old": -0.1684,
+    "new": 0.0355,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": -0.0166,
+    "new": 0.0462,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.095,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/nev/sheet.png",
+  "result": "$MOTION/rebuild/results/nev.json"
+ },
+ "oona": {
+  "build_ok": true,
+  "flags": [],
+  "measures_worse": [],
+  "joins": {
+   "wrist": {
+    "old": -0.0327,
+    "new": 0.023,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0287,
+    "new": 0.0475,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.081,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/oona/sheet.png",
+  "result": "$MOTION/rebuild/results/oona.json"
+ },
+ "sefa": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "space_drape crumple_deg 4.594->6.858",
+   "space_drape waist_crumple_deg 5.128->11.735",
+   "work_drape crumple_deg 2.457->3.055"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0142,
+    "new": 0.0381,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0696,
+    "new": 0.0756,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 1.89,
+    "new": 0.999,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/sefa/sheet.png",
+  "result": "$MOTION/rebuild/results/sefa.json"
+ },
+ "take_c": {
+  "build_ok": true,
+  "flags": [],
+  "measures_worse": [
+   "work_drape hem 20.45->18.35 cm"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.044,
+    "new": 0.0065,
+    "pass_old": false,
+    "pass_new": false
+   },
+   "ankle": {
+    "old": -0.0177,
+    "new": 0.0483,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.087,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/take_c/sheet.png",
+  "result": "$MOTION/rebuild/results/take_c.json"
+ },
+ "tech_man": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.352->3.213",
+   "jacket_drape crumple_deg 3.001->4.19",
+   "space_drape waist_crumple_deg 5.335->6.802",
+   "work_drape hem 17.62->15.61 cm"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.027,
+    "new": 0.1191,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0442,
+    "new": 0.0648,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 2.022,
+    "new": 0.998,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/tech_man/sheet.png",
+  "result": "$MOTION/rebuild/results/tech_man.json"
+ },
+ "tech_woman": {
+  "build_ok": true,
+  "flags": [
+   "space_drape did not hold on the body"
+  ],
+  "measures_worse": [
+   "coat_drape crumple_deg 2.468->3.519",
+   "jacket_drape crumple_deg 3.242->4.563",
+   "space_drape waist_crumple_deg 5.507->7.056"
+  ],
+  "joins": {
+   "wrist": {
+    "old": -0.0156,
+    "new": 0.1129,
+    "pass_old": false,
+    "pass_new": true
+   },
+   "ankle": {
+    "old": 0.0489,
+    "new": 0.0625,
+    "pass_old": true,
+    "pass_new": true
+   },
+   "stance": {
+    "old": 1.972,
+    "new": 0.999,
+    "pass_old": false,
+    "pass_new": true
+   }
+  },
+  "sheet": "$MOTION/rebuild/review/tech_woman/sheet.png",
+  "result": "$MOTION/rebuild/results/tech_woman.json"
+ }
+}

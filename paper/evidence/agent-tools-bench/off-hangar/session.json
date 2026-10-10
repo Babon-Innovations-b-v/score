@@ -1,0 +1,111 @@
+{
+ "arm": "off",
+ "place": "hangar",
+ "wall_minutes": 47.2,
+ "exit": 0,
+ "claude": {
+  "duration_api_ms": 280427,
+  "stop_reason": "end_turn",
+  "session_id": "<id>",
+  "total_cost_usd": 2.0108364000000005,
+  "usage": {
+   "input_tokens": 4,
+   "cache_creation_input_tokens": 3562,
+   "cache_read_input_tokens": 224801,
+   "output_tokens": 1216,
+   "output_tokens_details": {
+    "thinking_tokens": 82
+   },
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 3562,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "global",
+   "iterations": [
+    {
+     "input_tokens": 2,
+     "output_tokens": 968,
+     "cache_read_input_tokens": 112948,
+     "cache_creation_input_tokens": 2467,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 2467
+     },
+     "type": "message"
+    }
+   ],
+   "speed": "standard",
+   "fallback_credit": null
+  },
+  "modelUsage": {
+   "claude-opus-5-5": {
+    "inputTokens": 86,
+    "outputTokens": 26628,
+    "cacheReadInputTokens": 3259022,
+    "cacheCreationInputTokens": 103266,
+    "webSearchRequests": 0,
+    "costUSD": 2.0108364000000005,
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "thinkingTokens": 12395,
+    "canonicalModel": "claude-opus-5-5",
+    "provider": "firstParty",
+    "costBasis": "list"
+   }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "origin": {
+   "kind": "task-notification",
+   "producer": "session-task",
+   "runId": "0mv11x77g-22e77b8a"
+  },
+  "subagent_stats": {
+   "spawned": 0,
+   "requested": {
+    "background": 0,
+    "foreground": 0,
+    "unset": 0
+   },
+   "started_in_background": 0,
+   "max_depth": 0,
+   "spawned_by_subagents": 0,
+   "completed": 0,
+   "failed": 0,
+   "killed": {
+    "parent": 0,
+    "user": 0,
+    "system": 0
+   },
+   "refused": {
+    "depth_limit": 0,
+    "concurrency_limit": 0,
+    "budget": 0
+   },
+   "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 2,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "The hangar is not complete: two floor pieces still fail the resting check. The review page didn't get built either. Its cloud render ran for 20 minutes and hit the time limit, leaving only empty `img/` and `scene/` folders and no page. I didn't restart it because the time budget was used up.\n\n**Changed** (layout data only; nothing committed):\n- **`data/kit/hangar.json` and `data/inventory/hangar.json`:**\n  - The three keyboards were moved 17 cm back from the control desk's sloped front onto its flat top, each standing on the desk surface below it. They no longer tip.\n  - The access stair was turned 1.7\u00b0 so it stands on all four castors; the model's castors are not the same height. It no longer tips.\n  - Parts shelving 1 was moved 40 cm along the wall so it no longer stands 11 cm inside corner post 6.\n  - The pallet rack row now has a `dropped` reason and its 4 kit pieces are removed. The concept shows no pallet rack, and the made rack's legs stop 25 to 45 cm above the floor, so it can't stand anywhere as made. This also clears rack 2 standing inside corner post 4.\n- **`data/scene/hangar.json`:** I took out the plain slabs standing in for the two roof leaves and the shapes standing in for the ship. Both are now listed in `game_only` with the reason, so the roof opening is left open in this stage. The placeholder check now reports \"no placeholder\".\n- The owner's kept models (ship bench, fuel pump) were not touched.\n\n**Checks after the last export:**\n- `scene_test` and `resting_test` pass.\n- In the resting check, the inventory pieces went from 16 faults to 2.\n- The kit's wall, floor and roof pieces and the wall-mounted pieces are still flagged as before: the floor plates as sunk, and small overlaps between wall pieces. I left those alone.\n- I didn't use the settle tool. It reads a `row` field that this kit's pieces don't have, so it would fail before writing anything back. Changing it would have meant editing framework code. I worked out the stair's resting pose in plain Python from its own mesh instead.\n- No cloud money was spent apart from the review page run.\n\n**Left:**\n- **`hose_reel_1` tips.** It is a code-built piece whose reel hangs about 43 cm off the floor, held by a stand on one side only. Moving it can't fix that; the piece has to be rebuilt.\n- **`parts_crate_4` tips.** It is the crate stacked on crate 1, and both crates' tops and bottoms are a few centimetres uneven. A search for a stacking pose that rests ran out of time.\n- **The roof leaves and the ship are missing.** The roof leaves need the hdoor kit's stage brought into this stage, and the ship needs a made model.",
+  "ttft_ms": 2205,
+  "type": "result",
+  "duration_ms": 13975,
+  "uuid": "<id>",
+  "ttft_stream_ms": 1185,
+  "time_to_request_ms": 85,
+  "first_content_frame_ms": 1185,
+  "queued_turn_count": 0,
+  "result_index": 1
+ },
+ "stderr_tail": ""
+}

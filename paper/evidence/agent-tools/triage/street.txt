@@ -1,0 +1,6 @@
+   8 overlaps   1 to 5 cm      street_lamp_1: worst /street/Objects/street_lamp_2 (46 mm; still inside after the nudge)
+   3 overlaps   5 to 20 cm     street_lamp_1: worst /street/Objects/street_lamp_2 (67 mm; still inside after the nudge)
+   1 overlaps   1 to 5 cm      notice_case_1: worst /street/Objects/notice_case_1 (38 mm; still inside after the nudge)
+   1 unstable   over 100 cm    notice_case_1: worst /street/Objects/notice_case_1 (1778 mm; moves 1.78 m and turns 89 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 unstable   over 100 cm    street_lamp_1: worst /street/Objects/street_lamp_1 (3724 mm; moves 3.72 m and turns 82 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+1198 objects, 463 flagged: 4 real, 459 false alarms

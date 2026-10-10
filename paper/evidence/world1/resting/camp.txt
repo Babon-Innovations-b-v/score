@@ -1,0 +1,94 @@
+Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): one floating over what is under it, one whose weight stands outside what it touches (it tips, one end in the air), or one sunk into the ground below its own contact points, each by more than 3 cm, fails; a hung object is not checked, and a fixed one (a building, a mast) is not judged for tipping. now: 127 of 218 objects rest.
+
+stage	object	gap, cm	depth, cm	result	caught
+now	dome_deck_wedge_1	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_2	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_3	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_4	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_5	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_6	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_7	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_8	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_9	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_10	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_11	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_12	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_13	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_14	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_15	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_16	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	shell_gore_window_1	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_1	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_2	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_2	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_3	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_3	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_4	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_4	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_1	-9.2	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_5	-9.9	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_2	-2.9	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_6	-10.0	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_5	-3.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_7	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_6	-2.9	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_8	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_7	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_9	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_8	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_10	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_9	-2.9	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_11	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_3	-4.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_12	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_10	-3.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_13	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_11	-3.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_14	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	ring_lamp_glow_1	501.9	0.0	caught	floats 501.9 cm over what is under it
+now	ring_lamp_glow_2	0.0	0.0	caught	tips: its weight is 33 cm outside what it stands on
+now	ring_lamp_glow_3	503.9	0.0	caught	floats 503.9 cm over what is under it
+now	dome_deck_wedge_17	0.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_18	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_19	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_20	0.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_21	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_22	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_23	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_24	-2.2	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_25	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_26	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_27	0.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_28	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_29	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	dome_deck_wedge_30	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	shell_gore_4	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_15	-10.0	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_5	-10.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_16	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_12	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_17	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_13	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_18	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_14	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_19	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_15	-0.2	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_20	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_6	-0.2	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_21	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_16	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_22	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_17	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_23	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_18	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_24	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_19	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_25	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_window_20	-8.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_26	-5.6	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	shell_gore_7	-10.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points
+now	foot_ring_27	-10.0	106.2	caught	sunk 106.2 cm into the ground, below its own contact points
+now	ring_lamp_glow_4	197.9	0.0	caught	floats 197.9 cm over what is under it
+now	ring_lamp_glow_5	197.9	0.0	caught	floats 197.9 cm over what is under it
+now	ring_lamp_glow_6	503.9	0.0	caught	floats 503.9 cm over what is under it
+now	passage_hull_1	-10.0	70.0	caught	sunk 70.0 cm into the ground, below its own contact points

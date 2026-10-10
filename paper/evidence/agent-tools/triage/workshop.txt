@@ -1,0 +1,22 @@
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:550: RuntimeWarning: divide by zero encountered in divide
+  inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:553: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:554: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:555: RuntimeWarning: invalid value encountered in subtract
+  barycentric[:, 0] = 1 - barycentric[:, 1] - barycentric[:, 2]
+   3 floats     5 to 20 cm     wrench_1: worst /workshop/Objects/wrench_2 (138 mm; nothing under it within the tolerance)
+   2 tips       5 to 20 cm     arm_monitor_1: worst /workshop/Objects/arm_monitor_2 (56 mm; its weight falls outside what it touches)
+   2 floats     5 to 20 cm     hammer_1: worst /workshop/Objects/hammer_2 (170 mm; nothing under it within the tolerance)
+   2 floats     5 to 20 cm     wrench_2: worst /workshop/Objects/wrench_4 (176 mm; nothing under it within the tolerance)
+   1 floats     1 to 5 cm      hammer_1: worst /workshop/Objects/hammer_1 (36 mm; nothing under it within the tolerance)
+   1 overlaps   1 to 5 cm      low_cabinet_1: worst /workshop/Objects/low_cabinet_1 (38 mm; still inside after the nudge)
+   1 overlaps   1 to 5 cm      parts_drawers_1: worst /workshop/Objects/parts_drawers_1 (40 mm; still inside after the nudge)
+   1 floats     5 to 20 cm     pump_pliers_1: worst /workshop/Objects/pump_pliers_1 (191 mm; nothing under it within the tolerance)
+   1 overlaps   1 to 5 cm      rack_1: worst /workshop/Objects/rack_1 (39 mm; still inside after the nudge)
+   1 overlaps   5 to 20 cm     rack_1: worst /workshop/Objects/rack_1 (76 mm; still inside after the nudge)
+   1 overlaps   1 to 5 cm      waste_bin_1: worst /workshop/Objects/waste_bin_2 (39 mm; still inside after the nudge)
+   1 floats     20 to 100 cm   wrench_2: worst /workshop/Objects/wrench_6 (222 mm; nothing under it within the tolerance)
+   1 floats     5 to 20 cm     wrench_4: worst /workshop/Objects/wrench_11 (87 mm; nothing under it within the tolerance)
+814 objects, 230 flagged: 17 real, 213 false alarms

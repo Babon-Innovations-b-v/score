@@ -1,0 +1,17 @@
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:550: RuntimeWarning: divide by zero encountered in divide
+  inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:553: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:554: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:555: RuntimeWarning: invalid value encountered in subtract
+  barycentric[:, 0] = 1 - barycentric[:, 1] - barycentric[:, 2]
+   4 overlaps   5 to 20 cm     food_jug_1: worst /habitat/Objects/food_jug_1 (170 mm; still inside after the nudge)
+   4 overlaps   5 to 20 cm     food_shelf_1: worst /habitat/Objects/food_shelf_1 (170 mm; still inside after the nudge)
+   3 overlaps   5 to 20 cm     med_cabinet_1: worst /habitat/Objects/med_cabinet_1 (108 mm; still inside after the nudge)
+   2 overlaps   1 to 5 cm      locker_bank_1: worst /habitat/Objects/locker_bank_1 (48 mm; still inside after the nudge)
+   1 overlaps   1 to 5 cm      galley_counter_1: worst /habitat/Objects/galley_counter_1 (40 mm; still inside after the nudge)
+   1 overlaps   1 to 5 cm      hygiene_cubicle_1: worst /habitat/Objects/hygiene_cubicle_1 (40 mm; still inside after the nudge)
+   1 unstable   over 100 cm    hygiene_cubicle_1: worst /habitat/Objects/hygiene_cubicle_1 (29823 mm; moves 29.82 m and turns 95 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 overlaps   1 to 5 cm      med_cabinet_1: worst /habitat/Objects/med_cabinet_1 (33 mm; still inside after the nudge)
+637 objects, 157 flagged: 9 real, 148 false alarms
