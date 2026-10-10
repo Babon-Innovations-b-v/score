@@ -2146,6 +2146,22 @@
 			"cable_grey": {
 				"token": "cabin-seam",
 				"library": "cable_grey"
+			},
+			"facade_render": {
+				"token": "flat-wall",
+				"library": "facade_render"
+			},
+			"roof_render": {
+				"token": "flat-wall",
+				"library": "roof_render"
+			},
+			"shutter_paint": {
+				"token": "roof-steel",
+				"library": "shutter_paint"
+			},
+			"meter_grey": {
+				"token": "hull-trim",
+				"library": "meter_grey"
 			}
 		},
 		"wear": {

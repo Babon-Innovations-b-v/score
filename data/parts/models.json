@@ -180,5 +180,9 @@
  },
  "square": {
   "guard_hut_1": "guard_hut-rr1"
+ },
+ "street": {
+  "water_barrier_red_1": "water_barrier_red-b",
+  "water_barrier_white_1": "water_barrier_white-b"
  }
 }
