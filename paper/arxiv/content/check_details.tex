@@ -7,7 +7,7 @@
 \item
   \textbf{Door check:} every door must stand in a wall or partition that fully separates its two sides. The check tests this by walking a grid from one side to the other.
 \item
-  \textbf{Concept-density check:} the concept picture is cut into crops, and every visible element must have an inventory row or a written reason for leaving it out. After the build, the place is rendered from the concept's camera and shown beside the concept.
+  \textbf{Concept-density check:} the concept picture is cut into crops, and every visible element must have an inventory row or a written reason for leaving it out.
 \item
   \textbf{Parts check:} in the code build, every part shown in the close-up picture must be at least 10 percent visible from the front, and no label may cover a part.
 \item
@@ -17,11 +17,11 @@
 \item
   \textbf{Scene check and made-only check:} in the engine, these checks find anything that floats, sinks or overlaps, and any visible mesh that the framework did not make. A made-only finding can never be waived.
 \item
-  \textbf{Close-up shape check:} the picture must have a plain border all round, one object filling a sensible share of the frame, and an outline within a set proportion of the inventory row's box; the judge's seven questions must pass by a majority of three sampled answers. A close-up passes only when both halves pass.
+  \textbf{Close-up shape check:} the outline must lie within a set proportion of the inventory row's box, and each of the judge's seven questions must pass by a majority of three sampled answers. A close-up passes only when both halves pass.
 \item
   \textbf{Settling and resting check:} on the OpenUSD stage, loose objects are dropped with their own triangles onto the ground and the fixed objects. An object that would turn more than 15 degrees or drift more than 30 cm keeps its laid pose and is marked as not resting; small debris, with no side over 1.4 m, may turn freely and drift up to 1 m. The resting check then fails anything floating, tipping, sunk below its contact points, lying inside another piece or marked as not resting. Hung objects are exempt by their inventory anchor, and fixed objects are not judged for tipping.
 \item
-  \textbf{Resting triage:} each object's support comes from its inventory row: a glowing part or screen is judged with its host; a fixed row stands as laid but may not float unless joined to another piece; a kit's shell pieces stand in the kit's frame; a hanging row and a wall or ceiling row need one contact with anything; a floor row and a row standing on another need four points of their footing (the points within 10 cm of their lowest) within 3 cm of a surface under them, with their weight within 5 cm of the area those points span. An overlap deeper than 3 cm counts only if the two still meet after the loose one moves 5 mm away. Cables may sink 6 cm, cloths 8 cm and ground debris 30 cm. From a drop run, an object that moves more than 0.2 m or turns more than 8 degrees is a real fault.
+  \textbf{Resting triage:} each object's support comes from its inventory row: a glowing part or screen is judged with its host; a fixed row stands as laid but may not float unless joined to another piece; a kit's shell pieces stand in the kit's frame; a hanging row and a wall or ceiling row need one contact with anything; a floor row and a row standing on another need four points of their footing (the points within 10 cm of their lowest) within 3 cm of a surface under them, with their weight within 5 cm of the area those points span. An overlap deeper than 3 cm counts only if the two still meet after the loose one moves 5 mm away. Cables may sink 6 cm, cloths 8 cm and ground debris 30 cm. From a drop run, SAGE's stability rule of Section 2 marks a real fault.
 \item
   \textbf{Completion gate:} the requirements given in Section 2 under the canonical scene, each with its result tied to a fingerprint of the stage's files and inputs; a result made on another stage counts as unknown.
 \item
