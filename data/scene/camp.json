@@ -600,7 +600,13 @@
     -0.036575,
     0.418721
    ],
-   "from": "camp_habitat.gd:88-117,168-185 (the airlock out along the doorway at -40.5 degrees, 10.55 m from the door dome's middle), expedition_camp.gd:208-210,330-333,671-701 (set down 0.3 m over the ground there, turned to the ground's facing with its along kept along the seat), in this frame through the habitat's own set-down (0.55 m, turned -130.5 degrees): the Moon's airlock stage stands in for the camp's, a room of the same 4 m by 5 m shell (camp_airlock.gd:1-13), which the game draws in the shell's code look with boxes for its doors and locker"
+   "from": "camp_habitat.gd:88-117,168-185 (the airlock out along the doorway at -40.5 degrees, 10.55 m from the door dome's middle), expedition_camp.gd:208-210,330-333,671-701 (set down 0.3 m over the ground there, turned to the ground's facing with its along kept along the seat), in this frame through the habitat's own set-down (0.55 m, turned -130.5 degrees): the Moon's airlock stage stands in for the camp's, a room of the same 4 m by 5 m shell (camp_airlock.gd:1-13), which the game draws in the shell's code look with boxes for its doors and locker",
+   "leave_out": [
+    {
+     "prim": "Structure/outer_ramp",
+     "why": "the Moon airlock's ramp, laid from its outer door's sill down to the Moon's flat ground (airlock.tscn:27-33, airlock.gd:18-24,70-87); the camp's airlock brings no such ramp and lays its own ramp and footing for Mars's ground (camp_airlock.gd:1-13,63-96, its game/world/mars/expedition_camp/camp_airlock/CLAUDE.md: the Moon's scene brings a plug post and a flat-ground ramp that do not belong here), which this record draws (camp_airlock_ramp, camp_airlock_footing); the two ramps stood in the same box"
+    }
+   ]
   },
   {
    "name": "camp_tube",
@@ -780,7 +786,30 @@
    "colour": "#e16e48",
    "seed": 116,
    "from": "game/outside/dust/mars_wind.gd:17-52,190-220,294-312 (the calm day's drift: no wisps, DRIFT_GRAINS_CALM_SHARE 0.06 of DRIFT_GRAINS_A_CELL 20,000 grains on each 14 m cell, CELLS_OUT 2 so five by five cells round the player, DRIFT_HIGH_CALM 0.4 m, DRIFT_GRAIN_M 0.03, DRIFT_GRAIN_THICKNESS 0.7 faded in and out over each grain's life, three quarters on the whole), game/outside/dust/dust_grains.gd:24-38,106-117 (the unshaded speck in MARS_DUST #b4583a lifted by GRAIN_LIFT 1.25); the game's grains are thrown at random by the card each frame and follow the player, so the stage hangs one moment's worth at random from its own fixed seed over the 70 m square round the camp's middle, standing still"
-  }
+  },
+  "beams": [
+   {
+    "name": "mast_beam",
+    "foot": [
+     -14.406,
+     -1.036,
+     -1.133
+    ],
+    "way": [
+     -0.065507,
+     0.997839,
+     -0.005152
+    ],
+    "low": 12.0,
+    "high": 2500.0,
+    "radius": 0.8,
+    "sides": 8,
+    "least_half_angle": 0.0035,
+    "colour": "#74b9ea",
+    "glow": 0.6,
+    "from": "camp_mast.gd:11-23,26-45,121-145 (the beam: an open CylinderMesh of 8 sides, BEAM_WIDE_M 1.6 across, from the mast's top MAST_HEIGHT_M 12 to BEAM_HEIGHT_M 2,500 m over its foot along the mast's own up, never thinner than LEAST_HALF_ANGLE 0.0035 either side seen from the eye), camp_beam.gdshader (unshaded, added over what is behind it, both sides, Palette.CAMP_BEACON #74b9ea times GLOW 0.6), expedition_camp.gd:17,112,311 (the mast stands straight out from Mars at the camp seat's (10, -10)); its foot here the made mast's own (the foot of the column of campgrounds' mast_1 as this stage stands it through its `grounds` place, its column 12.0 m tall), its up straight out from Mars's middle under this frame (tools/usd/ground.py)"
+   }
+  ]
  },
  "floor": [
   [
@@ -919,8 +948,6 @@
   "the cairn (held back for the ending), and the striped stand-in the game draws 1.4 m beside the boot rock only while its find is on show",
   "the camp airlock's own look: the game draws the camp's airlock in the module shell's code look (white roof on struts, grey walls, dark red inside, boxes for its doors and locker), where the stage shows the Moon base's made airlock room of the same size in its place",
   "the dust's life over time: the game blows the drift along round the player, sends its dust devils wandering the plain and brings a storm in and out with the weather; the stage carries the effects layer (data/effects/camp.json): the drift blowing along on the five by five cells round the camp's middle, two dust devils (grains and veil) standing about 21 and 32 m from the camp's middle where the outside cameras see them, and a dust storm as the variant weather = storm (the drift thick, fast and head high, no devils)",
-  "the domes' insides kept clear of dust: the game blows its drift only outdoors round the player, while the stage's drift cells also cover the domes' insides, so the inside views (door_galley, door_from_doorway, passage) show orange grains in the air and a mottled veil over floors, walls and the passage, and the view from above shows the drift as a dark ring round the camp",
-  "the mast's light beam",
   "Mars's seeded rocks past the plan's square (they come from the run's world seed and lie past the stage's 130 m)"
  ],
  "structure": [

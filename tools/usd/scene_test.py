@@ -6,8 +6,9 @@ placed, a place shown turned and stretched, the game's lights in the stage's uni
 a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay along its length, a kit piece the
 game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit light's night glow kept to its
 picture's bright parts, the engine's seeded random numbers, the planned rocks lying as the game lays them, the ground
-shader's detail baked with a decal, and every real record in data/scene naming only builders, surfaces, plain kinds
-and fields that exist.
+shader's detail baked with a decal, the stars turned at the record's minute, a water's lit columns, the night's glow, a
+column of light and a shown place's left-out piece, and every real record in data/scene naming only builders,
+surfaces, plain kinds and fields that exist.
 
 Run: .venv/bin/python tools/usd/scene_test.py   (make tests runs it with the framework's environment)
 """
@@ -30,6 +31,7 @@ import export  # noqa: E402
 import ground  # noqa: E402
 import ground_detail  # noqa: E402
 import library  # noqa: E402
+import orbits  # noqa: E402
 import placeholders  # noqa: E402
 import rocks  # noqa: E402
 import scene  # noqa: E402
@@ -190,6 +192,55 @@ def check_sky(folder):
     UsdGeom.Xform.Define(shown, "/flat")
     scene.write_places(shown, "flat", [{"name": "hub", "stage": "hub", "at": [0, 0, 0]}])
     assert not shown.GetPrimAtPath("/flat/Places/hub/Sky").IsActive()
+
+
+def check_light_pieces(folder):
+    """The stars turned as the game turns them at the record's minute, a water's lit columns, the sky's glow and a
+    column of light written where a renderer reads them, and a shown place's piece the game does not draw here left
+    out."""
+    stars = {"count": 10, "seed": 9, "sky_distance": 700.0, "distance": 1900.0, "radius": 0.7, "size": [0.4, 1.3],
+             "colour": "#eef2ff", "turn": {"minute": 60.0, "axes": "site"}}
+    lit = {"name": "rocket", "at": [-270.0, -60.0], "low": 0.0, "high": 60.0, "half_width": 9.48, "colour": "#f3f1ea",
+           "strength": 1.6}
+    record = {
+        "water": [{"name": "harbour", "builder": "grid", "low": [-10, -10], "high": [10, 10], "height": 0.0,
+                   "step": 5.0, "surface": "harbour_water",
+                   "mirror": {"along": 0.65, "down": 0.2, "ripple_tip": 0.03, "ripple_size": 0.2, "lit": [lit],
+                              "column_smear": 0.35, "column_soft": 0.6}}],
+        "environment": {"background": "#030409", "ambient": {"colour": "#9fb8e6", "energy": 0.1}, "exposure": 0.85,
+                        "stars": stars,
+                        "glow": {"threshold": 0.85, "intensity": 0.8, "hdr_scale": 2.0, "levels": [3, 5]},
+                        "beams": [{"name": "beam", "foot": [1.0, 0.0, 2.0], "way": [0.0, 1.0, 0.1], "low": 12.0,
+                                   "high": 100.0, "radius": 0.8, "sides": 8, "least_half_angle": 0.0035,
+                                   "colour": "#74b9ea", "glow": 0.6}]}}
+    stage = Usd.Stage.CreateNew(str(folder / "light.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    export.library_materials(stage, PLACE, f"/{PLACE}")
+    scene.write(stage, PLACE, record, folder)
+    points = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Sky/Stars")).GetPointsAttr().Get())
+    unturned = builders.stars(10, 9, 700.0, 1900.0, 0.7, 0.4, 1.3, None)["points"]
+    assert np.allclose(points, unturned @ orbits.stars_turn(60.0, np.eye(3)).T, atol=1e-2)
+    assert not np.allclose(points, unturned, atol=1.0)
+    water = stage.GetPrimAtPath(f"/{PLACE}/Water/harbour")
+    assert np.allclose(water.GetAttribute("score:mirror_lit_columns").Get()[0], [-270.0, -60.0, 0.0, 60.0])
+    assert np.allclose(water.GetAttribute("score:mirror_lit_lights").Get()[0],
+                       [channel * 1.6 for channel in scene.colour("#f3f1ea")], atol=1e-6)
+    sky = stage.GetPrimAtPath(f"/{PLACE}/Environment")
+    assert math.isclose(sky.GetAttribute("score:glow_threshold").Get(), 0.85, rel_tol=1e-6)
+    assert list(sky.GetAttribute("score:glow_levels").Get()) == [3, 5]
+    beam = stage.GetPrimAtPath(f"/{PLACE}/Sky/beam")
+    beam_points = np.asarray(UsdGeom.Mesh(beam).GetPointsAttr().Get())
+    way = np.array([0.0, 1.0, 0.1]) / np.linalg.norm([0.0, 1.0, 0.1])
+    along = (beam_points - [1.0, 0.0, 2.0]) @ way
+    aside = np.linalg.norm(beam_points - [1.0, 0.0, 2.0] - np.outer(along, way), axis=1)
+    assert np.isclose(along.min(), 12.0, atol=1e-3) and np.isclose(along.max(), 100.0, atol=1e-3)
+    assert np.allclose(aside, 0.8, atol=1e-3) and beam.GetAttribute("score:kind").Get() == "beam"
+    assert placeholders.plain_fault(beam) is None
+    shown = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(shown, "/camp")
+    scene.write_places(shown, "camp", [{"name": "lock", "stage": "airlock", "at": [0, 0, 0],
+                                        "leave_out": [{"prim": "Structure/outer_ramp", "why": "made in the test"}]}])
+    assert not shown.GetPrimAtPath("/camp/Places/lock/Structure/outer_ramp").IsActive()
 
 
 def check_kit_lamps():
@@ -498,6 +549,18 @@ def check_records():
                 builders.haze_volume(haze["shape"], [0.0, 0.0, 0.0], haze["size"], None)
         if environment.get("stars"):
             assert environment["stars"].get("from") and environment["stars"]["distance"] < 2000.0, path.name
+            turn = environment["stars"].get("turn")
+            assert turn is None or (turn["axes"] in ("site", "seat") and turn.get("from")), path.name
+            assert turn is None or turn["axes"] != "seat" or record.get("planned_ground"), path.name
+        for beam in environment.get("beams", []):
+            assert beam.get("from") and beam["high"] > beam["low"] and beam["radius"] > 0.0, (path.name, beam)
+        assert not environment.get("glow") or environment["glow"].get("from"), path.name
+        for entry in record.get("water", []):
+            for lit in entry.get("mirror", {}).get("lit", []):
+                assert lit.get("from") and lit["high"] > lit["low"] and lit["half_width"] > 0.0, (path.name, lit)
+        for entry in record.get("places", []):
+            for left in entry.get("leave_out", []):
+                assert left["prim"] and left.get("why"), (path.name, entry["name"])
 
 
 def main():
@@ -510,6 +573,8 @@ def main():
         check_stretched_fixture(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_sky(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_light_pieces(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_labels_and_glow(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:

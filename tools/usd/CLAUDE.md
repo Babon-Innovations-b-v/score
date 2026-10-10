@@ -38,6 +38,12 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   trademark clause; commercial use allowed.
 - Blender only through `../blender/session.py batch` (no window, the machine's lock, the memory floor). A heavy local
   step runs under `systemd-run --user --scope -q -p MemoryMax=16G`.
+- **The sky is the game's arithmetic, repeated.** `orbits.py` is 2099's Orbits (the Moon's and Earth's middles, the
+  Moon's facing at a base minute); a record's stars `turn` (a minute, and the `site` or the place's `seat` axes) turns
+  the field as sky.gd's `_stars_turn` does. The minute is measured on the game's own shots (`star_turn.py`: the field
+  identified on each and its turn fitted to the facing), never typed by eye: on the Moon the stars wheel round once in
+  under seven real minutes, so each shot holds its own moment. `orbits_test.py` checks the orbits against the game's
+  measured Earth heights, `star_turn_test.py` the measure on a shot made in the test.
 - **The ground is the game's arithmetic, repeated.** `ground.py` stands each object as 2099's MadePlace does (a seat
   of its own under its spot on the 220 m ball, lifted by its `at` y off the planned ground there) and makes the
   `/<place>/Ground` mesh; the plan and each place's seat are `data/ground/<ground>.json` (the heights and skin copied
