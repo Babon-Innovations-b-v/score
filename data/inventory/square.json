@@ -319,6 +319,8 @@
 		},
 		{
 			"id": "far_square_lamp",
+			"fixed": true,
+			"fixed_why": "a 6 m lamp post set in the square's paving, as the square's kit lays it: anchored, not loose (the static triage read its weight outside its foot)",
 			"view": "v1",
 			"box": [
 				148,
