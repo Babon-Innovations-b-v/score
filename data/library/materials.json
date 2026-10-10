@@ -2014,11 +2014,12 @@
 					"token": "flat-wall",
 					"bare": "concrete",
 					"roughness": 0.85,
-					"breakup_scale": 3.0,
-					"peel": 0.6,
+					"edge_width": 0.002,
+					"breakup_scale": 2.5,
+					"peel": 0.5,
 					"streaks": 0.7,
-					"streak_length": 0.9,
-					"mottle": 0.35
+					"streak_length": 1.5,
+					"mottle": 0.4
 				},
 				"roof_render": {
 					"recipe": "weathered_render",

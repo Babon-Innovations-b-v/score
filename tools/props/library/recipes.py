@@ -311,14 +311,20 @@ def painted_plaster(colour, bare, dirt_colour, roughness, bare_roughness, bump, 
     return Channels(base, rough, shine, BLACK, lumpy_relief(vector, bump, bump_size, seed) + chipped)
 
 
+# How wide a rain streak runs, and how dark it is against the place's dirt (2026-10-10: thin, hard, dark streaks 6 cm
+# wide read as wood grain on the street's render; soft ones 10 cm wide read as rain).
+STREAK_WIDE = 0.1
+STREAK_DARK = 0.85
+
+
 def rain_streaks(vector, streaks, streak_length, seed):
     """Where rain running down a wall has left dirt: thin streaks hanging down the surface's own plane, each a few
     centimetres across and about `streak_length` long, on upright faces only (a sill's top or a roof gathers dirt
     in its cavities instead); `streaks` scales how many."""
     across, upward = face_plane(vector)
-    stretched = pf.nodes.math.combine_xyz(x=across / 0.06, y=upward / streak_length, z=0.0)
-    runs = pf.nodes.texture.noise(vector=stretched, scale=1.0, detail=3.0, noise_dimensions="4D", w=seed + 41.0)
-    streak = pf.nodes.math.map_range(value=runs.fac, from_min=0.68 - 0.2 * streaks, from_max=0.78 - 0.2 * streaks,
+    stretched = pf.nodes.math.combine_xyz(x=across / STREAK_WIDE, y=upward / streak_length, z=0.0)
+    runs = pf.nodes.texture.noise(vector=stretched, scale=1.0, detail=2.0, noise_dimensions="4D", w=seed + 41.0)
+    streak = pf.nodes.math.map_range(value=runs.fac, from_min=0.6 - 0.15 * streaks, from_max=0.8 - 0.15 * streaks,
                                      interpolation_type="SMOOTHSTEP")
     upright = pf.nodes.math.map_range(value=pf.nodes.math.absolute(
         pf.nodes.math.separate_xyz(pf.nodes.shader.geometry().normal).z), from_min=0.5, from_max=0.2)
@@ -340,7 +346,7 @@ def weathered_render(colour, bare, dirt_colour, roughness, bare_roughness, bump,
                                      interpolation_type="SMOOTHSTEP") * pf.nodes.math.greater_than(peel * wear, 0.001)
     wear_mask = pf.nodes.math.maximum(pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale,
                                                                            seed), kicked), peeled)
-    streaked = rain_streaks(vector, streaks, streak_length, seed) * dirt
+    streaked = rain_streaks(vector, streaks, streak_length, seed) * dirt * STREAK_DARK
     dirty = pf.nodes.math.maximum(pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5),
                                   streaked)
     shades = pf.nodes.texture.noise(vector=vector, scale=0.7, detail=2.0, noise_dimensions="4D", w=seed + 29.0)
