@@ -82,14 +82,17 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   proposed pose; `--write` writes it into the layout with settle.py's pose helpers (no settle limits: a snap is a new
   laid pose, and a stale `unrested` mark goes). Export again and run the checks after. `snap_test.py` checks it.
 - `camera_paths.py` is a review walkthrough camera's path: RRT* at eye height (1.6 m over the first surface under each
-  point: ground, Structure, Fixtures or an object such as a kit room's floor plate; the place's people block it as
-  boxes where they stand at the stage's first moment; a step rising or dropping more
-  than a stair's 0.6 m is not taken) from a start to a goal or round a loop of waypoints, an edge valid only when its ray and four rays
-  offset by the clearance (0.25 m) meet nothing, seeded, cut short where straight edges are clear, and laid out as
-  the review walk's views (renders.py's format: `walk-NNN`, eye, aim, up, fov, look_only). renders.py does not read
-  it; a caller hands the views to `renders.render_stage` and `walk_video`. The demo's place films
-  (`../review/demo.py`) walk every shot with its `leg` (a clear straight edge, else RRT*). `camera_paths_test.py` checks a path
-  between two rooms goes through the doorway only.
+  point: ground, Structure, Fixtures or an object such as a kit room's floor plate, never a person; a step rising or
+  dropping more than a stair's 0.6 m is not taken) from a start to a goal or round a loop of waypoints, an edge valid
+  only when every point of it, its ends too, keeps the clearance (0.25 m) from the meshes and the place's people (a
+  ball swept along it in FCL; the people as solid boxes where they stand at the moments asked for, so one who walks is
+  followed), seeded, cut short where straight edges are clear, and laid out as the review walk's views (renders.py's
+  format: `walk-NNN`, eye, aim, up, fov, look_only). FCL drops a triangle with no area from its tree: it takes any
+  eye to touch one. `clearances` measures an eye's distance from the meshes and the people; the demo's film checks
+  use it on every frame. renders.py does not read it; a caller hands the views to `renders.render_stage` and
+  `walk_video`. The demo's place films (`../review/demo.py`) walk every shot with its `leg` (a clear straight edge,
+  else RRT*). `camera_paths_test.py` checks a path between two rooms goes through the doorway only, a walking person
+  is followed, and the clearance is measured on every side.
 - `reach.py` is the gate's reach check, the automatic playtest (owner, 2026-10-05; the interact press waits for
   interactable assets): the cast check's walker (body radius, knee, head) on a Recast-style heightfield of the stage
   (spans from upward faces, cleared overhead, eroded by the body, joined by climbable steps), its floor the part the

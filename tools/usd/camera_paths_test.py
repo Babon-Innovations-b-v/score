@@ -1,8 +1,9 @@
 """Check the walkthrough camera's path on a place made here: two rooms side by side, the wall between them with one
 doorway, and a path from a corner of one to the far corner of the other (the straight line between them meets the
 wall) goes through the doorway and nowhere else, at eye height, clear of everything along every step; the same seed
-gives the same path; a loop through both rooms closes on itself; the views are in the review walk's format; and a
-place's characters, one alone and a crowd's instances, stand in the way as boxes where they stand.
+gives the same path; a loop through both rooms closes on itself; the views are in the review walk's format; a
+place's characters, one alone and a crowd's instances, stand in the way as boxes where they stand, and one who walks
+where they stand at each moment; and an eye's clearance is its true distance from walls and people.
 
 Run: .venv/bin/python tools/usd/camera_paths_test.py   (make tests runs it with the framework's environment)
 """
@@ -65,7 +66,7 @@ def through_the_doorway_only(views, scenes, closed=False):
     walls = [z for z in crossings(eyes) if abs(z) > DOOR_HALF - camera_paths.CLEARANCE + 1e-6]
     if walls or not crossings(eyes):
         problems.append(f"the path crosses the middle wall at z = {crossings(eyes)}, not only in the doorway")
-    clear = camera_paths.edges_clear(scenes["blocking"], eyes[:-1], eyes[1:], 0.0)
+    clear = camera_paths.edges_clear(scenes, eyes[:-1], eyes[1:], 0.0)
     if not clear.all():
         problems.append(f"steps {np.flatnonzero(~clear).tolist()} pass through something")
     return problems
@@ -118,7 +119,72 @@ def people_stand_in_the_way():
     return [] if found == expected else [f"people boxes stand at {found}, not {expected}"]
 
 
-CHECKS = (a_path_between_rooms_goes_through_the_doorway, a_loop_round_both_rooms_closes, people_stand_in_the_way)
+def add_person(stage_path, name, size, at, later=None):
+    """A person of a box's size standing at `at` in a place's stage, or walking from it to `later` = (time code,
+    spot)."""
+    from pxr import Gf, Usd, UsdGeom, UsdSkel, Vt
+    stage = Usd.Stage.Open(str(stage_path))
+    root = UsdSkel.Root.Define(stage, f"{stage.GetDefaultPrim().GetPath()}/Characters/{name}")
+    half = np.asarray(size, dtype=float) / 2.0
+    root.CreateExtentAttr().Set(Vt.Vec3fArray([tuple(-half), tuple(half)]))  # no skeleton here, so the bound is given
+    move = UsdGeom.Xformable(root).AddTranslateOp()
+    move.Set(Gf.Vec3d(*at), 0.0)
+    if later is not None:
+        move.Set(Gf.Vec3d(*later[1]), later[0])
+    stage.GetRootLayer().Save()
+
+
+def a_walking_person_is_followed():
+    """A person who walks is a box where they stand at each moment asked for, and a point's distance from a box is
+    measured to its nearest face (0 inside)."""
+    with tempfile.TemporaryDirectory() as temporary:
+        stage = rooms_stage(pathlib.Path(temporary))
+        add_person(stage, "walker", (0.6, 1.8, 0.6), (-3.0, 0.9, -2.0), later=(48.0, (-1.0, 0.9, -2.0)))
+        found = camera_paths.people_corners(stage, [0.0, 24.0, 48.0])
+        boxes = camera_paths.people(stage, [0.0, 48.0])
+    middles = [float(found[time][0].mean(axis=0)[0]) for time in (0.0, 24.0, 48.0)]
+    problems = [] if np.allclose(middles, [-3.0, -2.0, -1.0]) else [f"the walker stands at x = {middles}"]
+    if len(boxes) != 2:
+        problems.append(f"{len(boxes)} boxes over two moments of one walker, not 2")
+    distances = camera_paths.box_distances(found[0.0], [-3.0, 0.9, 0.0])
+    if not np.isclose(distances[0], 1.7):  # 2 m away from its middle, its half 0.3 m deep
+        problems.append(f"a point 2 m from the walker's middle measures {distances[0]:.3f} m from its box, not 1.7")
+    if camera_paths.box_distances(found[0.0], [-3.0, 1.6, -2.0])[0] != 0.0:
+        problems.append("a point inside the walker's box is not 0 from it")
+    return problems
+
+
+def clearance_is_measured_on_every_side():
+    """An eye's clearance is its true distance from the nearest wall, wherever the wall lies (behind the way it goes
+    too), a mesh's triangles with no area left out of FCL's tree, and a person's box counts from inside; an edge
+    is clear only when every point of it, its ends too, keeps the clearance."""
+    with tempfile.TemporaryDirectory() as temporary:
+        stage = rooms_stage(pathlib.Path(temporary))
+        add_person(stage, "stander", (0.6, 1.8, 0.6), (2.0, 0.9, 2.0))
+        scenes = camera_paths.place_scenes(stage)
+    problems = []
+    walls, persons = camera_paths.clearances(scenes, [[-3.9, 1.6, 2.0], [2.0, 1.6, 2.0]])
+    if not np.isclose(walls[0], 0.1, atol=1e-6):
+        problems.append(f"an eye 0.1 m from the west wall measures {walls[0]:.4f} m")
+    if persons[1] != 0.0 or camera_paths.stands_clear(walls[1], persons[1]):
+        problems.append(f"an eye inside a person's box measures {persons[1]} m from it and stands clear")
+    sliver = trimesh.Trimesh([[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 0, 5], [5, 0, 5]], [[0, 1, 2], [0, 3, 4]],
+                             process=False)
+    alone = dict(scenes, tree=camera_paths.mesh_tree(sliver), boxes=np.zeros((0, 8, 3)))
+    if not np.isclose(camera_paths.clearances(alone, [1.0, 1.0, 1.0])[0][0], 1.0):
+        problems.append("a mesh with a triangle of no area measures wrong")
+    away = [[-3.9, 1.6, 2.0], [-2.0, 1.6, 2.0]]  # starts by the wall and walks away from it: its rays never meet it
+    along = [[-3.8, 1.6, -2.0], [-3.8, 1.6, 2.0]]
+    clear = camera_paths.edges_clear(scenes, [away[0], along[0]], [away[1], along[1]], camera_paths.CLEARANCE)
+    if clear.any():
+        problems.append(f"edges starting 0.1 m and running 0.2 m from a wall are clear: {clear}")
+    if not camera_paths.edges_clear(scenes, [-3.6, 1.6, -2.0], [-3.6, 1.6, 2.0], camera_paths.CLEARANCE)[0]:
+        problems.append("an edge 0.4 m from the wall is not clear")
+    return problems
+
+
+CHECKS = (a_path_between_rooms_goes_through_the_doorway, a_loop_round_both_rooms_closes, people_stand_in_the_way,
+          a_walking_person_is_followed, clearance_is_measured_on_every_side)
 
 
 if __name__ == "__main__":
