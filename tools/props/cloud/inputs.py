@@ -86,13 +86,16 @@ def write_tar(local, target):
 
 
 class Hasher:
-    """A write-only file that keeps the sha256 of what is written to it."""
+    """A write-only file that keeps the sha256 of what is written to it, passing it on to `target` when one is given."""
 
-    def __init__(self):
+    def __init__(self, target=None):
         self.digest = hashlib.sha256()
+        self.target = target
 
     def write(self, data):
         self.digest.update(data)
+        if self.target is not None:
+            self.target.write(data)
         return len(data)
 
 
@@ -120,14 +123,18 @@ def held(key):
 
 
 def uploaded(store, local, key):
-    """The input's tar into the store under `key` unless it is there; whether it was sent now."""
+    """The input's tar into the store under `key` unless it is there; whether it was sent now. A tar whose bytes no
+    longer hash to `key` (the files changed, or the quick-check memo is stale) is refused, never stored under it."""
     with held(key):
         if store.exists(key):
             return False
         partial = FOLDER / f"{key.rsplit('/', 1)[-1]}.{os.getpid()}.partial"
         try:
             with open(partial, "wb") as target:
-                write_tar(local, target)
+                written = Hasher(target)
+                write_tar(local, written)
+            if f"{PREFIX}{written.digest.hexdigest()}.tar" != key:
+                raise ValueError(f"{local} changed since its key {key} was taken; not uploaded")
             store.upload(partial, key)
         finally:
             partial.unlink(missing_ok=True)

@@ -1,7 +1,8 @@
 """Check job inputs through the object store without renting anything: the same files give the same key from any
 run, a changed file a new one, an input goes up once however often it is staged, the machine's fetch reads it in byte
-ranges from a signed link, checks it, keeps it and unpacks it where it lay, a corrupt object is refused, and the
-Blender runner sends directly whatever the store path did not bring.
+ranges from a signed link, checks it, keeps it and unpacks it where it lay, a corrupt object is refused, an input
+changed after its key was taken is never stored under it, and the Blender runner sends directly whatever the store
+path did not bring.
 
 Run: .venv/bin/python tools/props/cloud/inputs_test.py   (make tests runs it)
 """
@@ -193,9 +194,23 @@ def a_failed_staging_falls_back():
         return problems
 
 
+def a_changed_input_is_not_stored_under_its_old_key():
+    with tempfile.TemporaryDirectory() as temporary:
+        root = pathlib.Path(temporary)
+        store = stores.FolderStore(root / "store")
+        folder = an_input(root)
+        key = inputs.content_key(folder)
+        (folder / "a.glb").write_bytes(b"changed after the key was taken")
+        try:
+            inputs.uploaded(store, folder, key)
+        except ValueError:
+            return [] if not store.exists(key) else ["the refused tar is in the store anyway"]
+        return ["a tar that no longer matches its key was stored under it"]
+
+
 CHECKS = (the_key_follows_the_content, an_input_goes_up_once, the_machine_pulls_ranges_and_unpacks,
           a_corrupt_object_is_refused, small_or_switched_off_inputs_go_directly, the_runner_sends_the_rest_directly,
-          a_failed_staging_falls_back)
+          a_failed_staging_falls_back, a_changed_input_is_not_stored_under_its_old_key)
 
 
 if __name__ == "__main__":
