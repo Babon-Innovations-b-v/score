@@ -7,11 +7,11 @@
 		"views": [
 			{
 				"id": "v1",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/launch/concepts/K01.png"
+				"picture": "WORK/scene/launch/views/K01.png"
 			},
 			{
 				"id": "v2",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/launch/concepts/K04.png"
+				"picture": "WORK/scene/launch/views/K04.png"
 			}
 		],
 		"concept": "concepts-world1/launch: the coordinator's pick (owner may change)",
