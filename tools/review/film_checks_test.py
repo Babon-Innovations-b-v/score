@@ -1,7 +1,8 @@
 """Check the film checks on films made here: a short video with a tone passes the video checks and fails them when too
 short or silent; on two rooms with a person standing in one (tools/usd/camera_paths_test.py) a shot whose eye walks
 through the person fails, as the square's first take walked through its crowd, and so does one that passes 0.1 m from
-a wall, while a shot clear of both passes; a frame with no ink lines, or lines that ink nothing, fails; and the
+a wall, while a shot clear of both passes; a frame with no ink lines fails, and so does a shot whose lines touch
+nothing in any frame, while a frame whose lines are faint or empty (a far view) is counted; and the
 summary adds up each cloud batch's own cost line. ffmpeg on the path; no Blender, no cloud.
 
 Run: .venv/bin/python tools/review/film_checks_test.py   (make tests runs it with the framework's environment)
@@ -61,15 +62,16 @@ def check_clearance(folder):
 def check_ink(folder):
     frames = folder / "frames"
     frames.mkdir()
-    views = [{"name": f"shot0-{index:03d}"} for index in range(3)]
-    for index, ink in ((0, 255), (1, 0)):
+    names = ["shot0-000", "shot0-001", "shot0-002", "shot0-003", "shot1-000"]
+    for name, ink in (("shot0-000", 255), ("shot0-001", 0), ("shot0-003", 10), ("shot1-000", 0)):
         lines = Image.new("RGBA", (8, 4), (10, 9, 8, 0))
         lines.putpixel((2, 2), (10, 9, 8, ink))
-        lines.save(frames / f"shot0-{index:03d}-lines.png")
-        Image.new("RGB", (8, 4)).save(frames / f"shot0-{index:03d}-ink.png")
-    found, failures = film_checks.ink_checks(frames, views)
-    assert found == {"missing": 1, "empty": 1, "fewest_inked_pixels": 0}, found
-    assert failures == ["1 frames with no ink (first shot0-002)", "1 frames inked nowhere (first shot0-001)"], failures
+        lines.save(frames / f"{name}-lines.png")
+        Image.new("RGB", (8, 4)).save(frames / f"{name}-ink.png")
+    found, failures = film_checks.ink_checks(frames, [{"name": name} for name in names])
+    assert found == {"missing": 1, "empty": 2, "faint": 1, "fewest_inked_pixels": 0}, found
+    assert failures == ["1 frames with no ink (first shot0-002)", "shot1: the ink touches no pixel in any frame"], \
+        failures
 
 
 def check_report(folder):

@@ -51,5 +51,6 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   clear spot near it is left out, never filmed from inside something. The views file keeps every shot's move and the
   planner's commit; `--keep` keeps an earlier take's clear shots as they were. `film_checks.py` is the film's measured
   checks (ffmpeg's size, sound, black, frozen and length; the clearance on every frame from meshes and from people at
-  the frame's own moment; ink on every frame): a film that fails is not shown. `showcase.py` cuts the showcase and the
+  the frame's own moment; the ink pass drawn on every frame, a frame that sees only what lies past the ink's fade
+counted, not failed): a film that fails is not shown. `showcase.py` cuts the showcase and the
   figure from the films. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.

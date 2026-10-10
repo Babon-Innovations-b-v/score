@@ -10,8 +10,9 @@ not silent (volumedetect), no black stretch after the title card (blackdetect), 
 length between FILM_SECONDS; and on every frame of its views (<out>/views/<film>.json) the camera's eye at least the
 planner's clearance (tools/usd/camera_paths.py CLEARANCE) from every mesh of the stage and outside and as far from
 every person's box where that person stands at the frame's own moment of the stage's time, and the game's ink lines
-drawn (its <name>-lines.png holds inked pixels). It writes every number to <out>/checks/<film>.json and prints one
-line a film. `video` runs the video checks alone (the showcase: its title card is not skipped). `report` writes the
+drawn (its <name>-lines.png and <name>-ink.png there, and every shot's lines touching some pixel; a frame whose lines
+are faint or touch nothing, everything it sees past the ink's fade, is counted, not failed). It writes every number
+to <out>/checks/<film>.json and prints one line a film. `video` runs the video checks alone (the showcase: its title card is not skipped). `report` writes the
 demo's summary: every film's and the showcase's checks, and the cloud cost of each batch from its detached log's
 last summary line.
 """
@@ -128,26 +129,32 @@ def clearance_checks(stage, views):
 
 
 def inked_pixels(lines):
-    """How many pixels of a lines picture (usd_views.py's <name>-lines.png) are inked."""
+    """How many pixels of a lines picture (usd_views.py's <name>-lines.png) the ink touches at all, and how many it
+    inks at least half."""
     with Image.open(lines) as picture:
-        return int((np.asarray(picture.getchannel("A")) >= INKED_ALPHA).sum())
+        alpha = np.asarray(picture.getchannel("A"))
+    return int((alpha > 0).sum()), int((alpha >= INKED_ALPHA).sum())
 
 
 def ink_checks(frames, views):
-    """Every frame's ink: the frames whose lines are missing or hold no inked pixel, and the fewest inked pixels."""
-    missing, empty, fewest = [], [], None
+    """Every frame's ink: the frames whose lines or inked picture are missing and the shots whose lines touch no pixel
+    in any frame (failures); the frames the ink touches nowhere and those with no line at half strength or more
+    (everything they see lies past the game's ink fade, 60 to 120 m, as the launch's far harbour view: counted, not
+    failed), with the fewest pixels inked at half strength."""
+    missing, empty, faint, fewest, touched_shots = [], [], [], None, {}
     for view in views:
         lines = frames / f"{view['name']}-lines.png"
         if not lines.exists() or not (frames / f"{view['name']}-ink.png").exists():
             missing.append(view["name"])
             continue
-        count = inked_pixels(lines)
-        fewest = count if fewest is None else min(fewest, count)
-        if count == 0:
-            empty.append(view["name"])
+        touched, inked = inked_pixels(lines)
+        fewest = inked if fewest is None else min(fewest, inked)
+        touched_shots[demo.shot_of(view)] = touched_shots.get(demo.shot_of(view), 0) + touched
+        (empty if touched == 0 else faint if inked == 0 else []).append(view["name"])
+    blank = [shot for shot, touched in touched_shots.items() if touched == 0]
     failures = [f"{len(missing)} frames with no ink (first {missing[0]})"] if missing else []
-    failures += [f"{len(empty)} frames inked nowhere (first {empty[0]})"] if empty else []
-    return {"missing": len(missing), "empty": len(empty), "fewest_inked_pixels": fewest}, failures
+    failures += [f"{shot}: the ink touches no pixel in any frame" for shot in blank]
+    return {"missing": len(missing), "empty": len(empty), "faint": len(faint), "fewest_inked_pixels": fewest}, failures
 
 
 def film_checks(out, film):
