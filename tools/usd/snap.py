@@ -12,7 +12,8 @@ ones it carries: its child prims move with it), and the scene record's Structure
     down   drops the object straight down until its lowest point rests CLEARANCE over the first surface under its
            footprint (an object sunk a little into its support is lifted the same way).
     to     slides it along each horizontal way in turn (front to back, then side to side) until it stops CLEARANCE short
-           of a wall or a neighbour; the ground is not in its way and its height is kept.
+           of a wall or a neighbour (one laid a little into it, up to RAY_BACK, is slid back out the same way); the
+           ground is not in its way and its height is kept.
     free   tries seeded random spots in the rectangle, the object's middle on each, dropped as `down` does, and keeps
            the first that collides with nothing (collide.py) and passes the floor support rule (triage.py: four contacts
            and its weight inside them); its turn is kept.
@@ -164,7 +165,7 @@ def snap_down(laid, name):
 
 def snap_to(laid, name, ways):
     """The shift that slides the object along each horizontal way (x, z) in turn until it stops CLEARANCE short of a
-    wall or a neighbour."""
+    wall or a neighbour, backing out of one it was laid a little into."""
     obstacles = Obstacles(obstacles_of(laid, name, with_ground=False))
     mesh, total = laid["objects"][name], np.zeros(3)
     for across, along in ways:
@@ -173,7 +174,7 @@ def snap_to(laid, name, ways):
         run = free_run(shifted(mesh, total), obstacles, way)
         if not np.isfinite(run):
             raise ValueError(f"nothing along the way ({across}, {along}) to slide against")
-        total = total + way * max(0.0, run - CLEARANCE)
+        total = total + way * (run - CLEARANCE)
     return total
 
 
@@ -303,7 +304,7 @@ def main():
     laid = read_place(options.stage)
     if options.object not in laid["objects"]:
         raise SystemExit(f"{options.object}: no such object in {options.stage}")
-    kit_path, inventory_path = settle.KITS / f"{laid['place']}.json", settle.INVENTORIES / f"{laid['place']}.json"
+    kit_path, inventory_path = settle.KITS / f"{laid['place']}.json", settle.complete.inventory_path(laid["place"])
     kit = json.loads(kit_path.read_text()) if kit_path.exists() else {}
     ground = grounds.place_ground(laid["place"], kit.get("on_seat", [0.0, 0.0])) if kit else None
     try:
