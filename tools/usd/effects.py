@@ -175,7 +175,7 @@ def place_wind(ground, across, along, wind):
     world's own space as the game does it, then turned into the place's."""
     if ground is None:
         return np.array([1.0, 0.0, 0.0])
-    out = ground.direction(ground.frame, ground.frame[1], across, along)
+    out = ground.direction(ground.frame, ground.origin, across, along)
     return ground.frame @ wind_along(out, float(wind["minute"]), float(wind["turn_a_day"]))
 
 

@@ -2,7 +2,8 @@
 where they can reach, thin at birth and death, a burst's dead ones gone), repeat exactly over their loop and from
 their seed; Godot's spread and flatness; the effects layer composes between the edit layer and the base, loops its
 clip over the stage's time, puts a variant's entries in its variant and makes a replaced prim inactive; a travelling
-emitter moves downwind; every real record's entry names the game file it came from and lays out on its place.
+emitter moves downwind; on a place's ball the wind lies along the ground at every spot; every real record's entry
+names the game file it came from and lays out on its place.
 
 Run: .venv/bin/python tools/usd/effects_test.py   (make tests runs it with the framework's environment)
 """
@@ -152,6 +153,15 @@ def test_a_devil_wanders_downwind():
         effects.stood(xform, emitter)
         moved = xform.ComputeLocalToWorldTransform(30.0 * effects.RATE).ExtractTranslation()
         assert np.allclose(moved, [10.0 + 1.4 * 30.0, 0.0, 0.0], atol=1e-6)
+
+
+def test_the_wind_lies_along_the_ground():
+    ground = effects.place_ground("camp")
+    wind = json.loads((effects.RECORDS / "camp.json").read_text())["wind"]
+    for across, along in [(0.0, 0.0), (0.0, 14.0), (14.0, 0.0), (-28.0, 28.0), (28.0, -28.0)]:
+        _, up = effects.on_ground(ground, across, along, 0.0)
+        way = effects.place_wind(ground, across, along, wind)
+        assert abs(float(np.dot(way, up))) < 1e-6, (across, along, float(np.dot(way, up)))
 
 
 def test_every_record_names_its_game_source_and_lays_out():
