@@ -1,0 +1,7 @@
+copies: [('greenhouse/chair_1', 'hub/chair_1'), ('hub/desklamp_1', 'workshop/desklamp_1'), ('hub/hammer_1', 'workshop/hammer_1'), ('hub/pliers_1', 'workshop/pliers_1'), ('hub/pump_pliers_1', 'workshop/pump_pliers_1'), ('hub/wrench_1', 'workshop/wrench_1'), ('hub/wrench_2', 'workshop/wrench_2'), ('hub/wrench_3', 'workshop/wrench_3'), ('hub/wrench_4', 'workshop/wrench_4'), ('old_station/cable_run_4p79', 'old_station/cable_run_5p55'), ('old_station/cable_run_5p55', 'old_station/cable_run_7')]
+models with pairs within: 137
+colour within-minus-across, mean [95% CI]: [0.073 0.058 0.089]
+shape within-minus-across, mean [95% CI]: [0.064 0.048 0.079]
+style gap, mean [95% CI]: [0.009 0.003 0.015]
+share of models with positive style gap: 0.613
+pairs: 2107 corr(colour, shape): 0.839

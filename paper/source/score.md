@@ -197,9 +197,13 @@ The tools made building cheaper more often than they made the scene better. On t
 **Gap: ablations.** This section will compare the framework with and without the optional world step, and with the checks before spending switched off, on the same places (the agent tools are compared above). It will measure how much of the concept is covered, how dense the built place is, the cost, the faults found after spending, and the creator's review. It waits until every stage runs from the framework repository.
 :::
 
-::: gap
-**Gap: style coherence.** This section will measure whether a place keeps one style, using rendered frames: the colour distance to the palette for each kind of source, the spread of lightness, and the density of ink lines, validated against the creator's reviews. The measure is designed but not yet built.
-:::
+## Style coherence
+
+Whether a place keeps one style is read from the review pages' renders of its generated models, which draw every model under the same light, against the same background and by the same camera rule, so that two renders differ only by the model. Three readings come from the pixels: how well the coloured pixels fit the place's palette, how much the models' lightness varies, and how blotchy their surfaces are, as the 75th percentile of the lightness spread within small tiles. A fourth comes from DINOv2 [@oquab2023dinov2]: how alike two models of one place are, against two models of different places, with the same pairs compared again as plain silhouettes and that difference subtracted, so that what an object is does not count as its style. Over world 1's 140 generated models in 16 places, DINOv2 finds models of one place more alike than models of different places, but almost all of that is shape: the silhouettes show nearly the same difference, and what is left for the look is 0.009 on the cosine scale, as a mean over models (95 percent bootstrap interval 0.003 to 0.015). Every place of world 1 draws on one surface library, so this reading shows how distinct the places are rather than how consistent each one is. The palette reading says almost nothing on renders: most models are greys, steels and dark panels, the places' palettes overlap almost entirely, and even the generator's own colours fit them.
+
+The surface reading does respond to the method. On the 54 generated models of the garage, the hangar and the lab, each rendered once painted from the library and once with the colours of the picture it was generated from, the painted render was less blotchy for 43 of the 54 and more even from model to model, the difference that Figure 4b shows by eye. The two renders differ in geometry as well as paint, because the picture-coloured one is the generator's own mesh, so this does not isolate the paint (Appendix B). None of the readings has yet been checked against the creator's reviews: since its first room, the hub, which the creator accepted (Table C1), world 1 has not been reviewed, so there is nothing yet for a reading to separate, and the most weathered place, the old station, reads the most blotchy because its wear is intended. Until reviews of both kinds exist, these are measurements of renders, not a measure of style.
+
+<!-- Tool: tools/review/style.py and its test style_test.py (score d859e5d, 7a8ec4b, 2ca5ba4, 453e06d). Input: world 1's review pages of 2026-10-09, 140 made-model renders (Blender Workbench, one studio light). DINOv2 facebook/dinov2-base (Apache-2.0) through tools/props/cloud/similar.py on rented L4 cards. Readings: paper/evidence/style/style.txt (140 models, 16 places; pooled gap 0.014 over 1,020 pairs within and 1,087 across, 11 pairs of copies left out; 34 of 140 models with enough coloured pixels, fit 1.000 except the greenhouse 0.992; coloured palettes shared 0.982) and paper/evidence/style/bootstrap.txt (per-model style gap 0.009 [0.003, 0.015] over 137 models; colour 0.073 and silhouettes 0.064 within less across). The picture's colours fit as well: paper/evidence/style/picture-coloured-style.txt. Paired: paper/evidence/style/paired.txt (painted less blotchy for 43 of 54, mean -1.09 L* [-1.50, -0.71]; spread over models 1.37 against 1.75). Reviews: Table C1 (the hub's round six) and Appendix B (world 1 not reviewed since its first room). Cloud: EUR 0.24, ledger rows similar-20261010-025514-908976, -030112-958530, -030718-1000812 and blender-20261010-030055-954867 in paper/evidence/cloud/ledger.jsonl. -->
 
 ::: gap
 **Gap: robots in the simulation world.** This section will show a rigged robot loaded together with the simulation world in a robotics simulator, with masses, friction and joints written into the scene, and with motion from the framework's motion models. It waits on world 3.
@@ -293,6 +297,29 @@ Table B1 gives the records of world 1's 17 places as the build logs and the clou
 | World 1 | 611 | 12,066 | 981 / 127 | €54.71 | | | 10,082 of 12,066 |
 
 <!-- Rows: data/inventory/<place>.json (flat and stairwell: prologue_flat.json, prologue_stairwell.json). Pieces and models: data/kit/<place>.json (pieces; models[*].route code or model), glow parts left out. Cloud: paper/evidence/cloud/ledger.jsonl rows from 2026-10-07T00:00Z, attributed by work folder and take name (bakes split per job entry, Pixal3D by job seconds, PartCrafter by folder; the hub's round six only, rows 219-236 and 239); unattributed sums the same way. Pictures and faults: playtest3/scaling-world1.tsv columns gemini_usd, faults_caught_before_spend, faults_after (lab rows 6 and 21 added: $2.68 + $1.47, faults 9/9 + 4/3); hub pictures progress-hub-r5.txt; the hub's faults are not tabulated in the tsv. Resting: the "Resting on the ground" tables of the places' review pages, 2026-10-08 17:05 to 23:25, copied to paper/evidence/world1/resting/<place>.txt; wreck and old station progress-usd.txt 23:27. The world's resting total over 12,066 pieces: the per-place counts summed (the old station's 29 objects include a child piece). -->
+
+## Style readings
+
+Table B2 gives the style readings for every place of world 1 with more than two generated models. The lightness spread is the standard deviation of the models' median lightness (L\*); over all 140 models it is 15.0. Marks is the median over the models of the 75th percentile of the L\* spread within tiles of 8 by 8 pixels on the model. Likeness is the mean DINOv2 class-token cosine of pairs within the place and across places, for the renders and for their silhouettes, and the gap is the renders' difference less the silhouettes'. The airlock, the launch view and the stairwell have one generated model each and the tube none; the habitat, the square and the street have two, too few to read.
+
+**Table B2.** Style readings of world 1's generated models, per place.
+
+| Place | Models | Lightness spread | Marks | Likeness within / across | Silhouettes within / across | Gap |
+|---|---|---|---|---|---|---|
+| Camp | 5 | 8.3 | 4.55 | 0.345 / 0.136 | 0.378 / 0.164 | −0.005 |
+| Flat | 9 | 16.7 | 4.83 | 0.186 / 0.122 | 0.243 / 0.176 | −0.003 |
+| Garage | 19 | 12.6 | 2.80 | 0.185 / 0.159 | 0.199 / 0.177 | 0.004 |
+| Greenhouse | 3 | 4.5 | 6.12 | 0.071 / 0.140 | 0.140 / 0.174 | −0.035 |
+| Hangar | 13 | 9.5 | 2.99 | 0.185 / 0.151 | 0.231 / 0.174 | −0.023 |
+| Hub | 12 | 3.8 | 5.96 | 0.243 / 0.151 | 0.243 / 0.160 | 0.009 |
+| Lab | 22 | 14.4 | 1.96 | 0.203 / 0.162 | 0.195 / 0.174 | 0.020 |
+| Old station | 24 | 12.7 | 8.96 | 0.221 / 0.156 | 0.217 / 0.175 | 0.023 |
+| Workshop | 8 | 3.8 | 7.28 | 0.402 / 0.158 | 0.400 / 0.178 | 0.022 |
+| Wreck | 16 | 12.8 | 3.98 | 0.241 / 0.161 | 0.257 / 0.175 | −0.002 |
+
+For the comparison with the pictures' own colours, each generated model of the garage, the hangar and the lab was rendered a second time as the take it came from, with the colours the picture model gave it. Painted from the library, the median marks fell from 2.99 to 2.80 in the garage, from 3.53 to 2.99 in the hangar and from 2.79 to 1.96 in the lab. The lightness spread rose, from 7.9, 6.4 and 8.7 to 12.6, 9.5 and 14.4, because the library gives a place dark and light panels on purpose while the generator's colours stay in the middle tones. The DINOv2 gap read 0.007 painted against 0.000 with the picture's colours, a difference for which no interval was computed. The take is the generator's own mesh, at its own pose and density, while the made model is rebuilt from its parts, so the difference in marks mixes the paint with the geometry. The workshop's models are the hub's tools, reused under the rule against duplicates; any two renders of one model, in two places or within one, are left out of the likeness, which would otherwise count one model as two that agree.
+
+<!-- Table B2: paper/evidence/style/style.txt (world 1, 2026-10-10), places with three models or more. Paired numbers: paper/evidence/style/paired.txt, painted-style.txt and picture-coloured-style.txt; the takes are the Pixal3D takes named by each made model's labels.json, rendered by tools/blender/inside/review_models.py on 3 rented L4 cards (EUR 0.12, ledger row blender-20261010-030055-954867). Copies left out: 11 pairs, listed in style.txt. -->
 
 # Development history
 

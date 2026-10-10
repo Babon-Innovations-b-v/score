@@ -1,0 +1,6 @@
+models: 54
+marks painted minus picture-coloured, mean [95% CI]: [-1.09 -1.5  -0.71] ; painted lower in 43 of 54
+garage: marks median 2.80 vs 2.99, sd 1.50 vs 1.68; L* sd 12.6 vs 7.9; coloured models 6 vs 13
+hangar: marks median 2.99 vs 3.53, sd 1.62 vs 1.87; L* sd 9.5 vs 6.4; coloured models 5 vs 6
+lab: marks median 1.96 vs 2.79, sd 0.94 vs 1.69; L* sd 14.4 vs 8.7; coloured models 4 vs 8
+all: marks sd over models 1.37 vs 1.75
