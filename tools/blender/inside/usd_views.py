@@ -38,7 +38,9 @@ widens it, and over the look the game's glow (score:glow_* on the sky: Blender's
 threshold, added over the picture; not over the masks).
 A view with `"ink": true` also gets <name>-ink.png: its look with the game's ink lines over it (ink_edges.gdshader's
 rule, worked out on the depth Cycles gives in a second, one-sample render), an option beside the look and never
-baked into the stage.
+baked into the stage, and <name>-lines.png, the lines alone (RGBA: the ink's colour, its share as the alpha), which
+laid over the look gives the ink picture to within a level of 255. A view with `"lines_only": true` gets its lines
+alone and no look: the ink for a look rendered before (tools/review/demo.py lays it over the film's frames).
 """
 import json
 import math
@@ -1106,11 +1108,9 @@ def ink_lines(depth, normal, index, fov):
     return numpy.maximum(depth_edge, crease_edge) * (1.0 - smoothstep(INK_FADE[0], INK_FADE[1], depth))
 
 
-def ink_view(scene, view, out, objects, sky):
-    """The view's look with the game's ink lines laid over it: <name>-ink.png beside <name>-look.png. The haze is
+def ink_share(scene, view, out, objects, sky):
+    """How strongly each pixel of the view is inked, 0 to 1 (ink_lines), from a pass render of its depth. The haze is
     left out of the pass render, where it would scatter the distances (the game's ink reads the surfaces' depth)."""
-    import numpy
-    import OpenImageIO
     for item in objects:
         item.pass_index = 1 if textured(item) else 0
     passes = out / f"{view['name']}-passes.exr"
@@ -1119,15 +1119,38 @@ def ink_view(scene, view, out, objects, sky):
     set_hidden(sky, False)
     depth, normal, index = exr_channels(passes)
     passes.unlink()
+    return ink_lines(depth, normal, index, float(view["fov"]))
+
+
+def write_picture(pixels, path, kind):
+    """Float pixels (rows, columns, channels) to a PNG of the given OpenImageIO type, an alpha written as it is (not
+    taken for premultiplied and divided out)."""
+    import numpy
+    import OpenImageIO
+    spec = OpenImageIO.ImageSpec(pixels.shape[1], pixels.shape[0], pixels.shape[2], kind)
+    spec.attribute("oiio:UnassociatedAlpha", 1)
+    picture = OpenImageIO.ImageBuf(spec)
+    picture.set_pixels(OpenImageIO.ROI(), numpy.ascontiguousarray(pixels, dtype=numpy.float32))
+    if not picture.write(str(path)):
+        raise RuntimeError(f"{path} was not written: {picture.geterror()}")
+
+
+def write_lines(share, path):
+    """The ink lines alone: the ink's colour, the share as the alpha."""
+    import numpy
+    import OpenImageIO
+    colour = numpy.broadcast_to(numpy.asarray(INK_COLOUR), (*share.shape, 3))
+    write_picture(numpy.dstack([colour, share]), path, OpenImageIO.UINT8)
+
+
+def ink_view(view, out, share):
+    """The view's look with the game's ink lines laid over it: <name>-ink.png beside <name>-look.png."""
+    import numpy
+    import OpenImageIO
     look = OpenImageIO.ImageBuf(str(out / f"{view['name']}-look.png"))
     pixels = numpy.asarray(look.get_pixels(OpenImageIO.FLOAT))
-    share = ink_lines(depth, normal, index, float(view["fov"]))[..., None]
-    pixels[..., :3] = pixels[..., :3] * (1.0 - share) + numpy.asarray(INK_COLOUR) * share
-    inked = OpenImageIO.ImageBuf(OpenImageIO.ImageSpec(pixels.shape[1], pixels.shape[0], pixels.shape[2],
-                                                       OpenImageIO.UINT8))
-    inked.set_pixels(OpenImageIO.ROI(), numpy.ascontiguousarray(pixels, dtype=numpy.float32))
-    if not inked.write(str(out / f"{view['name']}-ink.png")):
-        raise RuntimeError(f"the ink view {view['name']} was not written: {inked.geterror()}")
+    pixels[..., :3] = pixels[..., :3] * (1.0 - share[..., None]) + numpy.asarray(INK_COLOUR) * share[..., None]
+    write_picture(pixels, out / f"{view['name']}-ink.png", OpenImageIO.UINT8)
 
 
 def main():
@@ -1177,15 +1200,19 @@ def main():
         hidden = [item for item in objects if layers[item.name] in view.get("hide_layers", [])]
         hidden += over_room(objects, view["hide_over"]) if "hide_over" in view else []
         set_hidden(hidden, True)
-        scene.render.use_compositing = scene.compositing_node_group is not None
-        render(scene, out / f"{view['name']}-look.png", transparent=False)
-        scene.render.use_compositing = False
-        if view.get("ink"):
-            ink_view(scene, view, out, objects, sky)
+        if not view.get("lines_only"):
+            scene.render.use_compositing = scene.compositing_node_group is not None
+            render(scene, out / f"{view['name']}-look.png", transparent=False)
+            scene.render.use_compositing = False
+        if view.get("ink") or view.get("lines_only"):
+            share = ink_share(scene, view, out, objects, sky)
+            write_lines(share, out / f"{view['name']}-lines.png")
+            if view.get("ink"):
+                ink_view(view, out, share)
         set_hidden(hidden, False)
         for item in crowds:
             item.hide_render = item.hide_viewport = False
-        if view.get("look_only"):
+        if view.get("look_only") or view.get("lines_only"):
             continue
         plane.hide_render = True
         set_hidden(sky, True)  # the haze and the stars are air and sky, not the place's objects

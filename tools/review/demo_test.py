@@ -2,16 +2,19 @@
 list; on two rooms made here (tools/usd/camera_paths_test.py) a shot whose camera looks through the wall into the
 other room walks towards it only as far as is clear, at eye height, every step clear, and keeps looking that way; a
 view held near level; a walk in a room keeps to its recorded floor; a camera held far over every floor stands at its
-own eye; a standing shot turns in place; and the frames run at consecutive moments of the stage's time. No Blender,
-no cloud.
+own eye; a standing shot turns in place; the frames run at consecutive moments of the stage's time; a shot starts
+where it keeps the clearance from walls and people, or is left out; an earlier take's clear shots are kept; and a
+frame's ink lines drawn alone are laid over its look. No Blender, no cloud.
 
 Run: .venv/bin/python tools/review/demo_test.py   (make tests runs it with the framework's environment)
 """
+import json
 import pathlib
 import sys
 import tempfile
 
 import numpy as np
+from PIL import Image
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -47,7 +50,7 @@ def check_walk(scenes):
     assert np.abs(eyes[:, 1] - camera_paths.EYE_HEIGHT).max() < 1e-6, eyes[:, 1]
     assert eyes[:, 0].max() < -camera_paths.CLEARANCE, f"the walk reaches x = {eyes[:, 0].max():.2f}, the wall"
     assert np.linalg.norm(eyes[-1] - eyes[0]) > demo.SHORTEST_WALK, "the walk does not move"
-    assert camera_paths.edges_clear(scenes["blocking"], eyes[:-1], eyes[1:], 0.0).all(), "a step meets something"
+    assert camera_paths.edges_clear(scenes, eyes[:-1], eyes[1:], 0.0).all(), "a step meets something"
     looks = np.array([frame["aim"] for frame in frames]) - eyes
     assert (looks[:, 0] > 0).all(), "the walk looks away from what its camera looks at"
 
@@ -97,16 +100,73 @@ def check_level():
         assert abs(pitch - expected) < 1e-6, (aim, pitch)
 
 
-def check_time(scenes):
+def check_time(stage, scenes):
+    """A film's shots follow one another at consecutive moments of the stage's time, and each records its move."""
     record = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("b", [-1, 1.6, 0], [-3, 1.2, 0])],
               "inside": True, "floor": [[-4.0, -3.0], [4.0, 3.0]]}
-    cameras = demo.shot_cameras(record)
-    moves = demo.place_moves(record, scenes, cameras)
-    views = demo.place_views(cameras, moves, 30.0)
+    moves, shots = demo.film_shots(record, stage, scenes, demo.shot_cameras(record), {})
+    views = [view for shot, _ in shots for view in shot]
     per_shot = round(demo.SHOT_SECONDS * demo.RATE)
     assert len(views) == 2 * per_shot and [move["camera"] for move in moves] == ["a", "b"], moves
-    assert [view["frame"] for view in views[:3]] == [0, 1, 2]  # 30 time codes a second at 24 frames: 0, 1.25, 2.5
+    assert all(fresh for _, fresh in shots) and all("path" in move or "eye" in move for move in moves), moves
+    assert [view["frame"] for view in views[:3]] == [0, 1, 2]  # 24 time codes a second at 24 frames
     assert views[per_shot]["name"] == "shot1-000" and views[per_shot]["frame"] > views[per_shot - 1]["frame"]
+    return moves, shots
+
+
+def check_clear_start(scenes):
+    """A camera 0.1 m from a wall starts its shot from the nearest spot that keeps the clearance, and every frame of
+    its walk keeps it."""
+    view = camera("by-the-wall", [-3.9, 1.6, 2.0], [-3.9, 1.2, -2.0])
+    move = demo.shot_move(scenes, view, [[-4.0, -3.0], [4.0, 3.0]], seed=0)
+    eyes = np.array([frame["eye"] for frame in demo.shot_frames(move, view, 0, 30)])
+    walls, _ = camera_paths.clearances(scenes, eyes)
+    assert move["moved"] > 0.1 and walls.min() >= camera_paths.CLEARANCE - camera_paths.KEPT_TO, (move, walls.min())
+
+
+def check_people(stage, scenes):
+    """A camera standing inside a person's box (a balcony camera the stage draws no floor under, as the square's
+    stage-near) is moved out of it to keep the clearance, at its own height; one walled in by people is left out."""
+    camera_paths_test.add_person(stage, "stander", (0.6, 1.8, 0.6), (2.0, 8.5, 2.0))
+    crowded = camera_paths.with_people(scenes, camera_paths.people_boxes(stage))
+    view = camera("among-people", [2.0, 9.0, 2.0], [2.0, 8.0, -2.0])
+    move = demo.shot_move(crowded, view, None, seed=0)
+    walls, persons = camera_paths.clearances(crowded, move["eye"])
+    assert move["move"] == "stand" and move["eye"][1] == 9.0, move
+    assert camera_paths.stands_clear(walls, persons).all() and move["moved"] > 0.3, (move, persons)
+    boxed = camera_paths.with_people(scenes, np.array([camera_paths.box_corners([-1.0, 7.5, -1.0], [5.0, 9.5, 5.0])]))
+    assert demo.shot_move(boxed, view, None, seed=0) is None, "a camera deep inside a person's box is not left out"
+
+
+def check_kept(stage, scenes, moves, shots):
+    """With an earlier take, a shot whose every frame stands clear is kept as it was (its move marked with the take);
+    one that comes nearer a wall than the clearance is planned anew."""
+    with tempfile.TemporaryDirectory() as temporary:
+        keep = pathlib.Path(temporary)
+        (keep / "views").mkdir()
+        views = [view for shot, _ in shots for view in shot]
+        near = [dict(view, eye=[-3.9, 1.6, 2.0]) if demo.shot_of(view) == "shot1" else view for view in views]
+        (keep / "views" / "rooms.json").write_text(json.dumps({"views": near, "moves": moves}))
+        kept = demo.kept_shots(keep, "rooms", scenes, stage)
+    assert list(kept) == [0] and kept[0][0]["kept"] == str(keep) and kept[0][1] == shots[0][0], list(kept)
+    record = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("b", [-1, 1.6, 0], [-3, 1.2, 0])],
+              "inside": True, "floor": [[-4.0, -3.0], [4.0, 3.0]]}
+    _, again = demo.film_shots(record, stage, scenes, demo.shot_cameras(record), kept)
+    assert [fresh for _, fresh in again] == [False, True] and again[0][0] == shots[0][0], again[0][0][:1]
+
+
+def check_inked():
+    """A frame whose cloud job drew its ink lines alone gets them laid over its look; a frame inked already is kept."""
+    with tempfile.TemporaryDirectory() as temporary:
+        frames = pathlib.Path(temporary)
+        Image.new("RGB", (4, 3), (200, 150, 100)).save(frames / "shot0-000-look.png")
+        lines = Image.new("RGBA", (4, 3), (10, 9, 8, 0))
+        lines.putpixel((1, 1), (10, 9, 8, 255))
+        lines.putpixel((2, 1), (10, 9, 8, 128))
+        lines.save(frames / "shot0-000-lines.png")
+        found = np.asarray(Image.open(demo.inked(frames, "shot0-000")))
+    assert tuple(found[1, 1]) == (10, 9, 8) and tuple(found[0, 0]) == (200, 150, 100), found[:2, :2]
+    assert np.abs(found[1, 2].astype(int) - [105, 79, 54]).max() <= 1, found[1, 2]
 
 
 def check_names():
@@ -115,12 +175,15 @@ def check_names():
 
 
 if __name__ == "__main__":
-    for check in (check_cameras, check_stand, check_level, check_names):
+    for check in (check_cameras, check_stand, check_level, check_names, check_inked):
         check()
     with tempfile.TemporaryDirectory() as temporary:
-        rooms = camera_paths.place_scenes(camera_paths_test.rooms_stage(pathlib.Path(temporary)))
+        stage = camera_paths_test.rooms_stage(pathlib.Path(temporary))
+        rooms = camera_paths.place_scenes(stage)
         check_walk(rooms)
         check_floor(rooms)
         check_held(rooms)
-        check_time(rooms)
+        check_clear_start(rooms)
+        check_kept(stage, rooms, *check_time(stage, rooms))
+        check_people(stage, rooms)
     print("demo_test: ok")
