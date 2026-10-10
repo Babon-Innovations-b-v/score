@@ -56,12 +56,18 @@ LAND_FRONT = 20.0
 WATER_HIGH = -0.02
 # The lit windows: a storey's height, a bay's width along a face, a window's size (wide, tall), how far proud of the
 # face it stands, the share of bays lit at night, which faces count as upright (the up part of their normal) and the
-# surface they glow with.
+# surface they glow with. WINDOW and LIT are set by measurement, never by eye (tools/review/brightness.py, the towers'
+# pixels in linear light against the game's shots from the launch's five cameras, 2026-10-10): at 1.4 x 1.2 m and 15%
+# lit the towers showed 0.013 against the game's 0.048 to 0.140 (11% to 26% of it); the towers' light rises in step
+# with window area times LIT (0.0007 + 0.42 of it), and at 2.2 x 1.8 m and 45% they show 0.079, the game's mean over
+# the five (0.079); with the low block laid, the launch's five and the square's three balcony views read 0.58 to 1.53
+# of their game shots, against 0.11 to 0.41 before. The flat's balcony camera frames the skyline lower than its game
+# shot, so its pixels do not match and it is not counted.
 FLOOR = 3.2
 BAY = 3.0
-WINDOW = (1.4, 1.2)
+WINDOW = (2.2, 1.8)
 PROUD = 0.15
-LIT = 0.15
+LIT = 0.45
 UPRIGHT = 0.3
 WINDOW_SURFACE = "window_lit"
 

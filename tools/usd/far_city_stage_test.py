@@ -60,7 +60,7 @@ def check_windows_light_a_tower_s_sides_floor_by_floor():
         assert windows["surface"] == far_city_stage.WINDOW_SURFACE
         count = len(windows["points"]) // 4
         bays = 4 * 20.0 * 60.0 / (far_city_stage.FLOOR * far_city_stage.BAY)
-        assert 0.08 * bays < count < 0.25 * bays, (count, bays)
+        assert 0.5 * far_city_stage.LIT * bays < count < 1.5 * far_city_stage.LIT * bays, (count, bays)
         middles = windows["points"].reshape(-1, 4, 3).mean(axis=1)
         floors = (middles[:, 1] / far_city_stage.FLOOR) - 0.5
         assert np.allclose(floors, np.round(floors), atol=1e-6)
