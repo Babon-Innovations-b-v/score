@@ -16,7 +16,9 @@ same way. The machine runners in `tools/props/cloud/` stay the default; this pat
 - **No weights in an image, ever.** The images are public-safe and the weights' licences differ: each image folder's
   `models.json` lists its models with source, pinned revision, sha256, licence and `commercial_use`, and the runtime
   fetches them once per node into `/cache` (hostPath `/var/lib/score-cache`) under a file lock. A model not for
-  commercial use runs only in a job marked `tool_only`.
+  commercial use runs only in a job marked `tool_only`. The tar is read from the bucket in ranges side by side and
+  unpacked and checked in one pass, never written whole to the disk; when the disk is short, the least recently used
+  models no running job holds are evicted first.
 - **`images/<kind>/`**: a Dockerfile pinned by digest with pinned versions, `models.json`, and any small file it
   copies. `images/build.py` builds and pushes them on a rented processor machine (never on this PC: its upload is
   about 3 MB/s) through `batch.claim`, so the watchdog, the self-delete, the ledger row and the delete are

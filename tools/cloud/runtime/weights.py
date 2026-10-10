@@ -14,7 +14,9 @@ is seeded (the seeding prints it and keeps it beside the tar as `<tar>.sha256` m
 commercial_use is false is refused unless the job says its output is a tool's, never shipped (job.json `tool_only`).
 
 On the node the model lands in <cache>/weights/<name>@<revision>/, the job's command sees it as SCORE_MODEL_<NAME>
-(the name in capitals, other characters as _).
+(the name in capitals, other characters as _). The tar is read from the store in ranges side by side and unpacked and
+checked in the same pass, so it never lands on the disk. When the disk lacks room for a model, the least recently used
+models that no job on the node holds are deleted first (a job holds its models until its process ends).
 """
 import fcntl
 import fnmatch
@@ -32,6 +34,10 @@ CACHE = pathlib.Path(os.environ.get("SCORE_CACHE", "/cache"))
 HF_ENDPOINT = os.environ.get("HF_ENDPOINT", "https://huggingface.co")
 CHUNK = 1 << 22
 READY = ".ready"
+## Kept free on the cache's disk beside a model being fetched.
+RESERVE = 2 * 1024 ** 3
+## The use marks (shared locks) this process holds on its models, kept open until it ends.
+IN_USE = []
 
 
 def manifest(path):
@@ -66,44 +72,105 @@ def sha256_of(path):
 
 def ready(store, entry, cache=CACHE):
     """The model's folder in the node cache, fetched (or seeded) first if this node lacks it; the fetch runs once
-    per node, whichever job asks first, the others waiting on its lock."""
+    per node, whichever job asks first, the others waiting on its lock. The model stays in use, so no other job's
+    eviction takes it, until this process ends."""
     folder = cache / "weights" / f"{entry['name']}@{entry['revision']}"
     (cache / "locks").mkdir(parents=True, exist_ok=True)
     with open(cache / "locks" / f"{folder.name}.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        hold_in_use(cache, folder.name)
         if (folder / READY).exists():
+            (folder / READY).touch()
             return folder
         work = cache / "partial" / f"{folder.name}-{os.getpid()}-{time.time_ns()}"
         work.mkdir(parents=True)
         try:
-            tar = fetched(store, entry, work)
-            unpack(tar, folder, work)
+            fetch_into(store, entry, folder, work, cache)
         finally:
             shutil.rmtree(work, ignore_errors=True)
     return folder
 
 
-def fetched(store, entry, work):
-    """The model's tar in `work`, from the store, else seeded from its source; checked against its sha256."""
+def hold_in_use(cache, name):
+    """Mark the model in use by this process (a shared lock held until it ends)."""
+    use = open(cache / "locks" / f"{name}.use", "w")
+    fcntl.flock(use, fcntl.LOCK_SH)
+    IN_USE.append(use)
+
+
+def make_room(cache, needed, free=None):
+    """Delete the node's least recently used models that no job is using until `needed` bytes and the reserve are
+    free on the cache's disk; what cannot be freed is left to the fetch to report."""
+    free = free or (lambda: shutil.disk_usage(cache).free)
+    models = sorted((cache / "weights").glob(f"*/{READY}"),
+                    key=lambda mark: mark.stat().st_mtime if mark.exists() else 0)
+    for mark in models:
+        if free() >= needed + RESERVE:
+            return
+        evict(cache, mark.parent)
+
+
+def evict(cache, folder):
+    """Delete a model's folder if no job holds it or is fetching it; True when it went."""
+    with open(cache / "locks" / f"{folder.name}.lock", "w") as lock, \
+            open(cache / "locks" / f"{folder.name}.use", "w") as use:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(use, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        if not (folder / READY).exists():
+            return False
+        (folder / READY).unlink()
+        shutil.rmtree(folder)
+        print(f"[weights] evicted {folder.name} to make room", flush=True)
+        return True
+
+
+def fetch_into(store, entry, folder, work, cache):
+    """The model unpacked into its folder, from the store's tar (read in ranges side by side, no tar on the disk),
+    else seeded from its source first and unpacked from the seeded tar; refused unless the tar's sha256 is the
+    expected one. Room for the unpacked model is made just before the unpack, beside the seeded tar when there is
+    one; a seed's own download is not covered, its size being unknown until it is packed."""
     key = tar_key(entry)
-    tar = work / "model.tar"
-    if store.exists(key):
-        store.download(key, tar)
-    else:
-        seed(store, entry, work, tar)
+    seeded = work / "model.tar"
+    if not store.exists(key):
+        seed(store, entry, work, seeded)
     expected = entry.get("sha256") or store.read_bytes(key + ".sha256").decode().strip()
-    found = sha256_of(tar)
+    make_room(cache, store.size(key))
+    with (open(seeded, "rb") if seeded.exists() else store.reader(key)) as source:
+        found = unpacked(source, work / "unpacked")
     if found != expected:
         raise RuntimeError(f"{key}: sha256 {found} is not the expected {expected}")
-    return tar
+    publish(work / "unpacked", folder)
 
 
-def unpack(tar, folder, work):
-    """Unpack the tar into the model's folder whole: into a scratch folder first, renamed into place, marked ready."""
-    scratch = work / "unpacked"
-    with tarfile.open(tar) as archive:
+class Hashing:
+    """A file read through, its bytes counted into a sha256 as they pass."""
+
+    def __init__(self, source):
+        self.source = source
+        self.digest = hashlib.sha256()
+
+    def read(self, size=-1):
+        data = self.source.read(size)
+        self.digest.update(data)
+        return data
+
+
+def unpacked(source, scratch):
+    """Unpack a tar read front to back into `scratch` in one pass; the sha256 of every byte read, to the end."""
+    hashing = Hashing(source)
+    ## copybufsize: a member is copied out in CHUNK reads; tarfile's 16 KB reads off a stream were 3.6 times slower.
+    with tarfile.open(fileobj=hashing, mode="r|", bufsize=CHUNK, copybufsize=CHUNK) as archive:
         archive.extractall(scratch, filter="data")
-    tar.unlink()
+    while hashing.read(CHUNK):
+        pass
+    return hashing.digest.hexdigest()
+
+
+def publish(scratch, folder):
+    """Put an unpacked model in place whole: renamed into its folder, marked ready."""
     if folder.exists():
         shutil.rmtree(folder)
     folder.parent.mkdir(parents=True, exist_ok=True)
