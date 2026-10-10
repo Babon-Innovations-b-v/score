@@ -154,22 +154,51 @@ def bordering(mesh, part_of, part, answered):
 
 
 def materials_of_parts(run, take, part_of, materials, mesh):
-    """Each part's material name: the judge's answer by most seeds; a part it gave no usable answer for takes the
-    material of the answered part it borders most (labels.py's rule for a part the camera hardly saw), and only a
-    part bordering none the allowed colour nearest its own. The close-up's colours are a poor guide on a dark suit:
-    the player's navy reads L* 18 to 33, nearer the hair's and the belt's anchors than the navy's (on his left
-    forearm and hand, one part every seed thought about past its limit, the colour pick painted hair)."""
+    """The split and each part's material name: the judge's answer by most seeds; a part it gave no usable answer for
+    is cut by its mirror image and each piece takes its mirror part's answer (the player's left forearm and hand, one
+    part every seed thought about past its limit, take his right cuff's navy and his right hand's skin); a piece with
+    no answered mirror takes the answered part it borders most (labels.py's rule for a part the camera hardly saw),
+    and only one bordering none the allowed colour nearest its own. The close-up's colours are a poor guide on a dark
+    suit: the player's navy reads L* 18 to 33, nearer the hair's and the belt's anchors than the navy's (the colour
+    pick painted that forearm hair). (split, {part: material})"""
     judged = judged_by_most(run / "answers", take, int(part_of.max()) + 1, list(materials))
+    unanswered = [int(part) for part in np.unique(part_of) if part not in judged]
+    part_of, mirror_of = mirrored(part_of, unanswered, judged, mesh.triangles_center)
     found = dict(judged)
+    found.update({piece: judged[mirror] for piece, mirror in mirror_of.items()})
     for part in np.unique(part_of):
-        if part not in judged:
+        if int(part) not in found:
             neighbour = bordering(mesh, part_of, part, judged)
             found[int(part)] = judged[neighbour] if neighbour is not None else None
     if any(name is None for name in found.values()):
         colours = labels.face_colours(mesh, labels.picture_view(mesh, take))
         names, anchors = labels.anchors_of(materials)
         found = {part: name or colour_pick(part_of, part, colours, names, anchors) for part, name in found.items()}
-    return found
+    return part_of, found
+
+
+def mirrored(part_of, unanswered, judged, middles):
+    """The unanswered parts cut by their mirror image: each of their faces takes the part of the face nearest its
+    mirror across the figure's middle (the raw model's x is the close-up's across, the figure stands in a symmetric
+    A-pose), where that part is answered. The new split (pieces numbered after the last) and each piece's mirror
+    part."""
+    part_of = part_of.copy()
+    middle = np.median(middles[:, 0])
+    flipped = middles * [-1.0, 1.0, 1.0] + [2 * middle, 0.0, 0.0]
+    answered = np.isin(part_of, list(judged))
+    if not answered.any():
+        return part_of, {}
+    tree = cKDTree(middles[answered])
+    answered_parts = part_of[answered]
+    following, mirror_of = int(part_of.max()) + 1, {}
+    for part in unanswered:
+        faces = np.flatnonzero(part_of == part)
+        mirrors = answered_parts[tree.query(flipped[faces])[1]]
+        for mirror in np.unique(mirrors):
+            part_of[faces[mirrors == mirror]] = following
+            mirror_of[following] = int(mirror)
+            following += 1
+    return part_of, mirror_of
 
 
 def onto_final(take, mesh):
@@ -206,8 +235,7 @@ def parts(run, take, spec, outfit):
     """The split on the finished model with each part's material, role and name: <run>/<take>/parts.npz and .json."""
     mesh = split_compare.raw_model(take)
     materials = person_materials(spec, outfit)
-    raw = raw_parts(run, take)
-    chosen = materials_of_parts(run, take, raw, materials, mesh)
+    raw, chosen = materials_of_parts(run, take, raw_parts(run, take), materials, mesh)
     raw_of_final, final, gap = onto_final(take, mesh)
     part_of = raw[raw_of_final]
     used = sorted(set(part_of.tolist()))
