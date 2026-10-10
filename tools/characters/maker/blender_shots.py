@@ -56,6 +56,20 @@ def shape_keys_follow(meshes, clip):
     return taken
 
 
+def play(armature, clip):
+    """The clip's action that turns bones, on the armature (blender_review.play keys clips by the action's name
+    before its last "_", which a shape key action named after the outfit, "sitting_work", takes over); its first and
+    last frames."""
+    action = next(action for action in bpy.data.actions if action.name.startswith(f"{clip}_")
+                  and any("pose.bones" in curve.data_path for curve in fcurves_of(action)))
+    armature.animation_data_create()
+    armature.animation_data.action = action
+    for track in list(armature.animation_data.nla_tracks):
+        armature.animation_data.nla_tracks.remove(track)
+    start, end = action.frame_range
+    return int(start), int(end)
+
+
 def fcurves_of(action):
     """An action's curves, in Blender 5's layered actions (layers, strips, channel bags) or a legacy one."""
     found = list(getattr(action, "fcurves", []) or [])
@@ -98,7 +112,7 @@ def main():
     armature.data.pose_position = "POSE"
     blender_review.camera(scene, 35, HEIGHT)
     for name, clip, share in SHOTS:
-        start, end = blender_review.play(armature, clip)
+        start, end = play(armature, clip)
         shaped = shape_keys_follow(meshes, clip)
         frame = start + round((end - start) * share)
         scene.frame_set(frame)

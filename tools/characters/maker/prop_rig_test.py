@@ -171,6 +171,14 @@ def test_pokes_read_inside_and_outside():
     assert heights[0] < 0 < heights[1]
 
 
+def test_pokes_read_a_band_under_two_overlapping_parts_as_hidden():
+    first = trimesh.creation.box(extents=(0.2, 0.1, 0.1))
+    second = trimesh.creation.box(extents=(0.1, 0.1, 0.3))
+    overlapping = trimesh.util.concatenate([first, second])
+    heights = pokes.tuck_out(np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.3]]), overlapping)
+    assert heights[0] < 0 < heights[1]
+
+
 def test_pokes_hold_cloth_to_the_shipped_bodys_record():
     record = {"rest_crossings": 20, "verdict": {}, "clips": {"walking": {"most_crossings": 400},
                                                             "new": {"most_crossings": 30}}}
@@ -214,7 +222,7 @@ def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows():
     assert prop_build.rigid_joint("boot_l", boot, np.ones((2, 3)), names) == "LeftFoot"
     cloth = np.array([[0.1, 0.21, 0.0], [0.1, 0.5, 0.0]])
     eased = prop_build.eased_to_hard(cloth, np.array([[0, 1.0, 0], [0, 1.0, 0]]), boot,
-                                     np.array(["LeftFoot", "LeftFoot"], dtype=object), names)
+                                     np.array(["LeftFoot", "LeftFoot"], dtype=object), names, np.array([-1, 0, 1]))
     assert eased[0, 2] > 0.6 and eased[1, 2] == 0.0
 
 

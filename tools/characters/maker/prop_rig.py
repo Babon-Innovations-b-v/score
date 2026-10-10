@@ -76,6 +76,9 @@ ARM_SHORT = 0.5
 HANDS = ("skin_hands", "mitt")
 # `decimated` tightens its share this many times when the kept borders leave it over the target.
 DECIMATE_ROUNDS = 4
+# A part whose thinning folds an edge is thinned again this many times, each at this share of the last reduction.
+FOLD_RETRIES = 6
+FOLD_EASING = 0.8
 ARM = ("Arm", "ForeArm", "Hand")
 LEG = ("Leg", "Shin", "Foot", "ToeBase", "ToeEnd")
 
@@ -619,12 +622,25 @@ def plain(found):
             for key, value in found.items() if key not in ("torso", "samples", "limbs")}
 
 
+def thinned_part(points, faces, reduction):
+    """One part thinned with its border kept; thinned less, in steps, where the thinning folds an edge into three
+    triangles (one on Nev's suit left her surface open to the inside test), and left whole if it still does."""
+    import fast_simplification
+    for _ in range(FOLD_RETRIES):
+        thin_points, thin_faces = fast_simplification.simplify(points, faces, target_reduction=reduction,
+                                                               preserve_border=True)
+        edges = np.sort(np.concatenate([thin_faces[:, [0, 1]], thin_faces[:, [1, 2]], thin_faces[:, [2, 0]]]), 1)
+        if np.unique(edges, axis=0, return_counts=True)[1].max() <= 2:
+            return thin_points, thin_faces
+        reduction *= FOLD_EASING
+    return points, faces
+
+
 def decimated(mesh, part_of, target):
     """The mesh thinned to about `target` triangles part by part, each part's border kept as it is
     (fast-simplification's preserve_border, MIT), so the parts still meet edge to edge and weld back into one surface:
     the thinned mesh and each of its faces' part. The shipped player's outfit is 29,849 triangles; Pixal3D's finished
     take is 40,000 (review, 2026-10-10)."""
-    import fast_simplification
     parts = np.unique(part_of)
     reduction = max(0.0, 1.0 - target / len(mesh.faces))
     for _ in range(DECIMATE_ROUNDS):
@@ -632,8 +648,7 @@ def decimated(mesh, part_of, target):
         offset = 0
         for part in parts:
             used, renumbered = np.unique(mesh.faces[part_of == part], return_inverse=True)
-            thin_points, thin_faces = fast_simplification.simplify(mesh.vertices[used], renumbered.reshape(-1, 3),
-                                                                   target_reduction=reduction, preserve_border=True)
+            thin_points, thin_faces = thinned_part(mesh.vertices[used], renumbered.reshape(-1, 3), reduction)
             points.append(thin_points)
             faces.append(thin_faces + offset)
             labels.append(np.full(len(thin_faces), part))

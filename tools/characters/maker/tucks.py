@@ -107,11 +107,14 @@ def limb_weights(moved, ring_joints, garment_points, garment_weights, parents):
     return found
 
 
-def tucked(points, faces, weights, garment_points, garment_weights, bones, outer, parents, least_edges=6):
+def tucked(points, faces, weights, garment_points, garment_weights, bones, outer, parents, rigid=False,
+           least_edges=6):
     """The part with a tuck under every border loop of at least `least_edges` edges that meets a garment: (points,
     faces, weights), the band's points appended after the part's own. `bones` gives each joint's bones as (start,
     end) places and `parents` each joint's parent; `outer` is the whole person at rest, which a band edge must lie
-    under to be kept."""
+    under to be kept. A `rigid` part's band (a boot's, a mitt's) rides its ring's own joint, as the part does: the
+    garment over it is held to that joint near it (prop_build.eased_to_hard), and a band weighted from the garment
+    stood 26 mm out of Nev's trouser leg as she stood (2026-10-10)."""
     tree = cKDTree(garment_points)
     # The band takes the weights of the garment over it, never of the seam it starts from: a boot riding its foot
     # gives the trouser hem on its seam the foot's weights, and a band weighted so stood out of the trouser leg's back
@@ -146,7 +149,8 @@ def tucked(points, faces, weights, garment_points, garment_weights, bones, outer
         new_faces.append(np.concatenate([np.stack([second, first, far_first], 1),
                                          np.stack([second, far_first, far_second], 1)]))
         new_points.append(moved)
-        new_weights.append(limb_weights(moved, weights[ring].argmax(1), garment_points[off_seam],
-                                        garment_weights[off_seam], parents))
+        new_weights.append(weights[ring] if rigid else limb_weights(moved, weights[ring].argmax(1),
+                                                                    garment_points[off_seam],
+                                                                    garment_weights[off_seam], parents))
         total += len(ring)
     return np.concatenate(new_points), np.concatenate(new_faces), np.concatenate(new_weights)
