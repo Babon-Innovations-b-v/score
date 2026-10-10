@@ -218,7 +218,6 @@
   }
  ],
  "game_only": [
-  "the leader who walks down beside the player in the game shots (the stage's cast places nobody in the stairwell), his spoken line and the player's cigarette",
-  "the cutaway view: it renders black, as it did on the earlier pages"
+  "the leader's line as the subtitle on the player's screen (his speech is given from the square: Cast.LEADER_AT_THE_LAUNCH, earth_site.gd LEADER_ON_THE_STAGE) and the cigarette in the player's mouth (prologue.gd, CigaretteView): both the player's own view, not the place. The uniformed man at the street door in the game shots (stairs, stairs-out) is the street's guard (data/characters/street.json `guard`), on this stage through the street place; nobody stands in the stairwell itself (data/characters/stairwell.json)"
  ]
 }
