@@ -2053,7 +2053,7 @@
 			"made": "made by the route",
 			"group": "kit: furniture",
 			"at": [],
-			"why": "placed by the game's EquipmentBench node (shown only once built), not by the kit",
+			"why": "placed by the game's EquipmentBench node (shown only once built), not by the game's kit: main.tscn:134-135 stands it unturned at (20.5, 0, 6.55) on the base seat, the workshop at (17, 0, 0) (main.tscn:112-113), so the stage lays its made model there (route.py late-plan and late-lay, 2026-10-10)",
 			"box_from": [
 				"v1.216",
 				"v1.259",

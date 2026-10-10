@@ -425,9 +425,7 @@
    "game": "place-workshop/shots/now/corner-ne.png"
   }
  ],
- "game_only": [
-  "the equipment maker's workbench (the game's EquipmentBench node, shown once built): its row has no made model yet, so the stage leaves it out"
- ],
+ "game_only": [],
  "objects": [
   {
    "name": "robot_p1",

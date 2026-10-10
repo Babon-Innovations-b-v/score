@@ -54,7 +54,8 @@
 		"workshop_oscilloscope": 1,
 		"workshop_bench_meter": 1,
 		"workshop_soldering_station": 1,
-		"workshop_spares_box": 4
+		"workshop_spares_box": 4,
+		"workshop_equipment_bench": 1
 	},
 	"kinds": {
 		"workshop_wall_lower_plain": {
@@ -174,7 +175,8 @@
 		"workshop_oscilloscope": {},
 		"workshop_bench_meter": {},
 		"workshop_soldering_station": {},
-		"workshop_spares_box": {}
+		"workshop_spares_box": {},
+		"workshop_equipment_bench": {}
 	},
 	"models": {
 		"wall_lower_plain_1": {
@@ -25894,6 +25896,67 @@
 			"layer": 1,
 			"child_of": "workshop_spares_shelves",
 			"model": "spares_crate_1"
+		},
+		{
+			"kind": "workshop_equipment_bench",
+			"model": "equipment_bench_1",
+			"at": [
+				3.5,
+				0.0,
+				6.542
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				1.8,
+				1.4,
+				0.716
+			],
+			"layer": 1
+		},
+		{
+			"kind": "workshop_equipment_bench",
+			"model": "equipment_bench_1_glow",
+			"at": [
+				2.8,
+				0.977,
+				6.788
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"size": [
+				0.216,
+				0.076,
+				0.004
+			],
+			"layer": 1,
+			"part": "glow"
 		}
 	]
 }
