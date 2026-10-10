@@ -1,6 +1,7 @@
 """Check the reach check on places made here: two rooms joined by a doorway, a row in each, are both reached; a crate
 shut in a pen with no gap is not, and fails the place; a crate on a raised block 2.4 m high is not reached until a
-stair of 0.2 m steps leads up to it; a row with no object is unknown, which blocks; a dropped row is not walked to;
+stair of 0.2 m steps leads up to it; a place's own door leaves are walked to, the places it shows not; a row with no
+object is unknown, which blocks; a dropped row is not walked to;
 and the gate runs it as the `reach` check.
 
 Run: .venv/bin/python tools/usd/reach_test.py   (make tests runs it with the framework's environment)
@@ -135,7 +136,22 @@ def the_gate_runs_it():
         return [] if said == complete.FAIL else [f"the gate's reach requirement reads {said}"]
 
 
-CHECKS = (rooms_joined_by_a_doorway_are_both_reached, a_crate_shut_in_a_pen_fails,
+def a_place_s_own_door_leaves_are_walked_to_and_shown_places_not():
+    """The garage's big door leaves (kit gdoor, whose `place` is the garage) are its own pieces, so its rows there are
+    walked to; the hub and greenhouse a tube shows are other places, never walked to from the tube."""
+    problems, empty = [], reach.SCENES
+    reach.SCENES = reach.REPO / "data/scene"  # the real records, for once
+    try:
+        if reach.own_places("garage") != {"big_door_west", "big_door_east"}:
+            problems.append(f"the garage's own places read {reach.own_places('garage')}")
+        if reach.own_places("tube"):
+            problems.append(f"the tube's shown places read as its own: {reach.own_places('tube')}")
+    finally:
+        reach.SCENES = empty
+    return problems
+
+
+CHECKS = (rooms_joined_by_a_doorway_are_both_reached, a_place_s_own_door_leaves_are_walked_to_and_shown_places_not, a_crate_shut_in_a_pen_fails,
           a_raised_crate_is_reached_by_its_stair_only, a_row_with_no_object_is_unknown_and_a_dropped_one_not_walked,
           the_gate_runs_it)
 
