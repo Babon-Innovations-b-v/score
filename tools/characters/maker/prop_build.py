@@ -87,7 +87,9 @@ def on_one_joint(count, names, joint):
 
 
 def rigid(name, points, weights, names):
-    """A hard part's weights: the hair on the head, a boot on its side's foot, a mitt on its side's hand, any other
+    """A hard part's weights: the hair on the head, a mitt on its side's hand, a boot its transferred weights (a
+    Pixal3D boot reaches up the calf: held on the foot joint its shaft swung through the trouser leg, and the split
+    by side carried a piece of one boot with the other foot, 2026-10-10), any other
     (a helmet, a pack, a box, a buckle) on the joint its transferred weights favour, when that joint holds RIGID_SHARE
     of them; a hard part spread over several joints (a belt round the waist, or a split that took a sleeve with it)
     keeps its transferred weights."""
@@ -95,7 +97,7 @@ def rigid(name, points, weights, names):
     if name == "hair":
         return on_one_joint(len(points), names, "Head")
     if name.startswith("boot"):
-        return on_one_joint(len(points), names, side + "Foot")
+        return weights
     if name.startswith("mitt"):
         return on_one_joint(len(points), names, side + "Hand")
     totals = weights.sum(0)
@@ -231,8 +233,10 @@ def build(fit_path, mean_path, parts_path, far_path, out, outfit):
     for name, role, colour, points, faces, weights, tuck_from in surfaces(fit_rig, parts):
         document["materials"].append(material(name, role, colour, tuck_from))
         near.append(primitive(contents, body, glb, points, faces, weights, len(document["materials"]) - 1))
-        report["surfaces"][name] = {"role": role, "triangles": int(len(faces)),
-                                    "tuck_points": 0 if tuck_from is None else int(len(points) - tuck_from)}
+        entry = report["surfaces"].setdefault(name, {"role": role, "triangles": 0, "tuck_points": 0, "pieces": 0})
+        entry["triangles"] += int(len(faces))
+        entry["tuck_points"] += 0 if tuck_from is None else int(len(points) - tuck_from)
+        entry["pieces"] += 1
     document["meshes"].append({"primitives": near})
     document["nodes"].append({"name": outfit, "mesh": len(document["meshes"]) - 1, "skin": 0})
     document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
