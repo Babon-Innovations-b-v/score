@@ -1,20 +1,25 @@
 """A world's demo: a walk-through video of each place from its OpenUSD stage, and one video of the world in story order.
 
-    .venv/bin/python tools/review/demo.py plan <out> --stages <stage root> [--jobs-each N] <place>[=<camera>,...] [...]
+    .venv/bin/python tools/review/demo.py plan <out> --stages <stage root> [--jobs-each N] \
+        <film>[@<place>][=<camera>,...] [...]
     ~/.farm-factory-props/env/bin/python tools/props/cloud/blender_cloud.py <out>/jobs/*.json --who <session> \
         --classes gpu-24gb,gpu-48gb,gpu-80gb
-    .venv/bin/python tools/review/demo.py cut <out> <place>[:<Title>] [...]
+    .venv/bin/python tools/review/demo.py cut <out> <film>[:<Title>] [...]
 
-`plan` writes, per place, the views of its shots (`<out>/views/<place>.json`) and one cloud Blender job that renders
-them with the review's scene script (`../blender/inside/usd_views.py`, Cycles on a card), its stage folder and every
-place its stage shows as inputs. A shot starts at one of the scene record's own cameras (the player's spots, inside a
-room at standing height; the cameras named, else a few spread over the record, none looking up at a roof) and moves slowly from there: the eye goes a little
-way towards what it looks at while the view turns a few degrees, so no shot passes through a wall. The frames follow
-the stage's own time, one shot after the other, so its characters move through the whole video. `cut` makes each
-place's video from its frames (the shots joined by short cross-fades, opened by a title card with the place's plain
-name, given as `place:Title`) and, given more than one place, the world's video with the places in the order given.
-A place whose stage has a sound layer (tools/usd/sound.py) is heard too: each shot's sound is what its camera hears
-along its frames (sound.soundtrack), cross-faded with the pictures.
+`plan` writes, per film, the views of its shots (`<out>/views/<film>.json`) and its cloud Blender jobs that render them
+with the review's scene script (`../blender/inside/usd_views.py`, Cycles on a card), its stage folder and every place
+its stage shows as inputs. A film is a place's, or one of its own from a place's stage (`film@place`: the Mars camp's
+grounds from the camp's outside cameras). A shot starts at one of the scene record's own cameras (the player's spots;
+the cameras named, else a few spread over the record, none looking up at a roof) and walks from there at the player's
+eye height, as the game is seen: a walk-through path (tools/usd/camera_paths.py: RRT* on the stage's own floors, every
+step clear of walls and objects; in a room, on its recorded floor) from the camera's spot towards what it looks at,
+stopping well short of it, while the view keeps on that thing, held near level. Where no clear path goes forward the
+walk goes sideways, still looking at it; where none goes either way, or the camera stands on no floor of the stage, the
+eye stands and the view turns a few degrees. The frames follow the stage's own time, one shot after the other, so its
+characters move through the whole video. `cut` makes each film's video from its frames (the shots joined by short cross-
+fades, opened by a title card with its plain name, given as `film:Title`) and, given more than one, the world's video
+with the films in the order given. A film whose stage has a sound layer (tools/usd/sound.py) is heard too: each shot's
+sound is what its camera hears along its frames (sound.soundtrack), cross-faded with the pictures.
 
 The videos are made outside the repo, like the review pages; nothing they make is committed.
 """
@@ -33,18 +38,32 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import renders  # noqa: E402  (puts tools/usd on the path)
+import camera_paths  # noqa: E402  (tools/usd)
 import scene as scene_record  # noqa: E402  (tools/usd)
 
-SIZE = (1280, 720)
+SIZE = (1920, 1080)
 RATE = 24
-SHOT_SECONDS = 3.5
+SHOT_SECONDS = 8.0
 SHOTS = 4
 FADE_SECONDS = 0.5
 TITLE_SECONDS = 2.0
-# How far a shot's eye moves towards its aim (a share of the distance, at most the cap) and how far the view turns.
-DOLLY_SHARE = 0.12
-DOLLY_CAP_INSIDE = 0.8
-DOLLY_CAP_OUTSIDE = 6.0
+# A walk's pace (metres a second: slow inside a room, a walker's outside), the share of the way to what it looks at
+# it may go at most (it stops well short of it), the shorter walks tried when the whole one is blocked, the share of the
+# reach a sideways walk goes, the shortest
+# walk worth taking and how far round its start and end the path may wander (metres).
+PACE_INSIDE = 0.45
+PACE_OUTSIDE = 1.1
+WALK_SHARE = 0.5
+WALK_TRIES = (1.0, 0.5)
+SIDE_SHARE = 0.5
+SHORTEST_WALK = 0.5
+WANDER = 2.0
+# How far the view may look up or down from level (degrees): the eye reads the place, not its ceiling or its feet.
+LOOK_UP = 8.0
+LOOK_DOWN = 25.0
+# How far over or under the walker's eye a record's camera may be held and still stand on the floor under it (metres).
+HELD = 1.0
+# How far a standing shot's view turns (degrees), where no walk is clear.
 TURN_DEGREES = 10.0
 # A camera this steep (its aim over its eye by more than this share of the distance) looks at a roof: not a shot.
 STEEPEST = 0.6
@@ -84,31 +103,123 @@ def turned(eye, aim, degrees):
     return eye + np.array([cosine * offset[0] + sine * offset[2], offset[1], -sine * offset[0] + cosine * offset[2]])
 
 
-def shot_frames(view, number, frames, inside):
-    """One shot's frames from a camera: the eye eased towards the aim, the view eased through its turn (each shot
+def eased(frames):
+    """A shot's progress at each of its frames, from 0 to 1, starting and ending slowly."""
+    shares = np.linspace(0.0, 1.0, frames)
+    return 0.5 - 0.5 * np.cos(np.pi * shares)
+
+
+def levelled(eye, aim):
+    """The aim moved up or down about the eye so the view looks no more than LOOK_UP above level or LOOK_DOWN below."""
+    offset = np.asarray(aim, dtype=float) - eye
+    across = max(float(np.linalg.norm(offset[[0, 2]])), 1e-6)
+    pitch = min(max(math.degrees(math.atan2(offset[1], across)), -LOOK_DOWN), LOOK_UP)
+    return eye + np.array([offset[0], across * math.tan(math.radians(pitch)), offset[2]])
+
+
+def start_eye(scenes, view):
+    """Where a shot's walk starts: the camera's spot at eye height over the floor under it, or None when no floor of
+    the stage lies within HELD of the camera's own eye height under it (a camera on a balcony the stage does not
+    draw). The floor is looked for from STEP_RISE over where the camera's own eye height puts it, so from under a desk
+    top or a table."""
+    spot = np.asarray(view["eye"], dtype=float)
+    top = spot[1] - camera_paths.EYE_HEIGHT + camera_paths.STEP_RISE - camera_paths.CLIMB
+    found = camera_paths.eyes_over(scenes, [spot[[0, 2]]], camera_paths.EYE_HEIGHT, [top])[0]
+    return found if np.isfinite(found[1]) and abs(found[1] - spot[1]) <= HELD else None
+
+
+def walk_goals(eye, aim, reach):
+    """Where a walk may go, in the order tried: towards the aim (the whole reach, then shorter), then sideways either
+    way, (x, z) each."""
+    towards = (np.asarray(aim, dtype=float) - eye)[[0, 2]]
+    way = towards / max(float(np.linalg.norm(towards)), 1e-6)
+    forward = min(reach, WALK_SHARE * float(np.linalg.norm(towards)))
+    side = np.array([-way[1], way[0]]) * reach * SIDE_SHARE
+    return [eye[[0, 2]] + way * forward * share for share in WALK_TRIES] + [eye[[0, 2]] + side, eye[[0, 2]] - side]
+
+
+def on_floor(goal, floor):
+    """Whether (x, z) lies on a room's floor (its corners), or anywhere when there is none."""
+    return floor is None or bool(np.all(goal >= floor[0]) and np.all(goal <= floor[1]))
+
+
+def walk_path(scenes, eye, view, room, seed):
+    """A shot's walk from its start eye: a walkable path of eyes (camera_paths.leg), or None where none is. In a room
+    (`room`: the scene record's `floor`, its (x, z) corners) the walk keeps to its floor: a stage may run a room's floor
+    on past its walls (a flat with no ground of its own stands on y = 0 everywhere)."""
+    floor = np.asarray(room, dtype=float) if room is not None else None
+    reach = (PACE_OUTSIDE if floor is None else PACE_INSIDE) * SHOT_SECONDS
+    for goal in walk_goals(eye, view["aim"], reach):
+        if np.linalg.norm(goal - eye[[0, 2]]) < SHORTEST_WALK or not on_floor(goal, floor):
+            continue
+        end = camera_paths.eyes_over(scenes, [goal], camera_paths.EYE_HEIGHT, [eye[1]])[0]
+        if not np.isfinite(end[1]) or abs(eye[1] - end[1]) > camera_paths.STEP_RISE:
+            continue
+        low = np.minimum(eye[[0, 2]], end[[0, 2]]) - WANDER
+        high = np.maximum(eye[[0, 2]], end[[0, 2]]) + WANDER
+        if floor is not None:
+            low = np.maximum(low, np.minimum(floor[0], eye[[0, 2]]))
+            high = np.minimum(high, np.maximum(floor[1], eye[[0, 2]]))
+        path = camera_paths.leg(scenes, eye, end, (*low, *high), seed)
+        if path is not None:
+            return path
+    return None
+
+
+def shot_move(scenes, view, room, seed):
+    """How a shot moves from its camera: {"camera", "move": "walk", "path"} where a walk is clear (in a room, on its
+    `floor`), else {"camera", "move": "stand", "eye", "level"}: on the floor under the camera, its view held near level,
+    or at the camera's own eye looking where it looks when it stands on no floor of the stage."""
+    eye = start_eye(scenes, view)
+    path = walk_path(scenes, eye, view, room, seed) if eye is not None else None
+    if path is not None:
+        return {"camera": view["name"], "move": "walk", "path": [point.tolist() for point in path]}
+    if eye is None:
+        return {"camera": view["name"], "move": "stand", "eye": view["eye"], "level": False}
+    return {"camera": view["name"], "move": "stand", "eye": eye.tolist(), "level": True}
+
+
+def walked_frames(path, view, number, frames):
+    """A walk's frames: eyes along the path, eased at both ends, each looking at the camera's aim held near level."""
+    corners = np.array(path)
+    along = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(corners, axis=0), axis=1))])
+    spots = eased(frames) * along[-1]
+    eyes = np.column_stack([np.interp(spots, along, corners[:, axis]) for axis in range(3)])
+    return [renders.looking(f"shot{number}-{frame:03d}", eye, levelled(eye, view["aim"]),
+                            fov=float(view.get("fov", 75.0)), look_only=True) for frame, eye in enumerate(eyes)]
+
+
+def standing_frames(eye, aim, view, number, frames):
+    """A standing shot's frames: the eye still, the view eased through a turn of TURN_DEGREES about the aim (each shot
     turns the other way from the one before)."""
-    eye, aim = np.asarray(view["eye"], dtype=float), np.asarray(view["aim"], dtype=float)
-    towards = aim - eye
-    reach = min(DOLLY_SHARE * np.linalg.norm(towards), DOLLY_CAP_INSIDE if inside else DOLLY_CAP_OUTSIDE)
-    step = towards / np.linalg.norm(towards) * reach
+    eye = np.asarray(eye, dtype=float)
     side = 1.0 if number % 2 == 0 else -1.0
-    views = []
-    for frame in range(frames):
-        share = frame / max(frames - 1, 1)
-        eased = 0.5 - 0.5 * math.cos(math.pi * share)
-        moved = eye + step * eased
-        looked = turned(moved, aim + step * eased, side * TURN_DEGREES * (eased - 0.5))
-        views.append(renders.looking(f"shot{number}-{frame:03d}", moved, looked, fov=float(view.get("fov", 75.0)),
-                                     look_only=True))
-    return views
+    return [renders.looking(f"shot{number}-{frame:03d}", eye, turned(eye, aim, side * TURN_DEGREES * (share - 0.5)),
+                            fov=float(view.get("fov", 75.0)), look_only=True)
+            for frame, share in enumerate(eased(frames))]
 
 
-def place_views(record, time_rate, names=()):
-    """Every frame of a place's video as usd_views views, at consecutive moments of the stage's time."""
+def shot_frames(move, view, number, frames):
+    """One shot's frames from its camera, as its move says."""
+    if move["move"] == "walk":
+        return walked_frames(move["path"], view, number, frames)
+    eye = np.asarray(move["eye"], dtype=float)
+    aim = levelled(eye, view["aim"]) if move["level"] else np.asarray(view["aim"], dtype=float)
+    return standing_frames(eye, aim, view, number, frames)
+
+
+def place_moves(record, scenes, cameras):
+    """Each camera's shot move (shot_move), seeded by its place in the film."""
+    room = record.get("floor") if record.get("inside") else None
+    return [shot_move(scenes, view, room, seed=number) for number, view in enumerate(cameras)]
+
+
+def place_views(cameras, moves, time_rate):
+    """Every frame of a film as usd_views views, its shots one after the other, at consecutive moments of the stage's
+    time."""
     frames = round(SHOT_SECONDS * RATE)
-    views = []
-    for number, view in enumerate(shot_cameras(record, names=names)):
-        views += shot_frames(view, number, frames, bool(record.get("inside")))
+    views = [view for number, (camera, move) in enumerate(zip(cameras, moves))
+             for view in shot_frames(move, camera, number, frames)]
     return [dict(view, frame=round(index * time_rate / RATE)) for index, view in enumerate(views)]
 
 
@@ -117,40 +228,47 @@ def stage_of(stages, place):
 
 
 def chosen(given):
-    """A place as given to plan, `place` or `place=camera,camera`: (place, the cameras named)."""
-    place, _, names = given.partition("=")
-    return place, [name for name in names.split(",") if name]
+    """A film as given to plan, `place`, `place=camera,camera` or `film@place=camera,...` (a film of its own from a
+    place's stage and record: the Mars camp's grounds from the camp's outside cameras): (film, place, the cameras
+    named)."""
+    film, _, names = given.partition("=")
+    film, _, place = film.partition("@")
+    return film, place or film, [name for name in names.split(",") if name]
 
 
 def plan(out, stages, places, jobs_each=1):
-    """Each place's views and its cloud jobs (`jobs_each` a place, its shots shared between them); the job files."""
+    """Each place's views and its cloud jobs (`jobs_each` a place, its frames dealt out between them in turn, so each
+    job has as many); the job files."""
     (out / "views").mkdir(parents=True, exist_ok=True)
     (out / "jobs").mkdir(parents=True, exist_ok=True)
     written = []
     for given in places:
-        place, names = chosen(given)
+        film, place, names = chosen(given)
+        stage = stage_of(stages, place)
         record = scene_record.record(place)
         if not record or not record.get("views"):
             raise SystemExit(f"{place} has no scene record with cameras (data/scene/{place}.json)")
-        stage = stage_of(stages, place)
-        views = place_views(record, renders.stage_rate(stage), names)
-        (out / "views" / f"{place}.json").write_text(json.dumps({"size": list(SIZE), "views": views,
+        cameras = shot_cameras(record, names=names)
+        moves = place_moves(record, camera_paths.place_scenes(stage), cameras)
+        views = place_views(cameras, moves, renders.stage_rate(stage))
+        kept = [{"camera": move["camera"], "move": move["move"]} for move in moves]
+        (out / "views" / f"{film}.json").write_text(json.dumps({"size": list(SIZE), "views": views, "moves": kept,
                                                                   "stage": str(stage)}, indent=1))
-        frames = out / "frames" / place
+        frames = out / "frames" / film
         shown = [stages / name for name in renders.places_shown(record) if name != place]
-        shots = sorted({view["name"].split("-")[0] for view in views}, key=lambda name: int(name[4:]))
-        for part in range(min(jobs_each, len(shots))):
-            mine = set(shots[part::jobs_each])
-            share = [view for view in views if view["name"].split("-")[0] in mine]
-            path = out / "views" / f"{place}-{part}.json"
+        jobs = min(jobs_each, len(views))
+        for part in range(jobs):
+            share = views[part::jobs]
+            path = out / "views" / f"{film}-{part}.json"
             path.write_text(json.dumps({"size": list(SIZE), "views": share}, indent=1))
             job = {"script": str((REPO / "tools/blender/inside/usd_views.py").relative_to(REPO)),
                    "args": [str(stage), str(path), str(frames)],
                    "inputs": [str(stage.parent), *map(str, shown), str(path)], "outputs": [str(frames)],
                    "minutes": round(10 + FRAME_MINUTES * len(share))}
-            (out / "jobs" / f"{place}-{part}.json").write_text(json.dumps(job, indent=1))
-            written.append(out / "jobs" / f"{place}-{part}.json")
-        print(f"{place}: {len(views)} frames in {min(jobs_each, len(shots))} jobs")
+            (out / "jobs" / f"{film}-{part}.json").write_text(json.dumps(job, indent=1))
+            written.append(out / "jobs" / f"{film}-{part}.json")
+        walked = sum(move["move"] == "walk" for move in moves)
+        print(f"{film}: {len(views)} frames in {jobs} jobs, {walked} of {len(moves)} shots walk")
     return written
 
 
@@ -158,9 +276,9 @@ def title_card(name, path):
     """A plain card: the place's name, white on black."""
     card = Image.new("RGB", SIZE, (0, 0, 0))
     draw = ImageDraw.Draw(card)
-    font = ImageFont.truetype(str(FONT), 54)
+    font = ImageFont.truetype(str(FONT), SIZE[1] // 13)
     width = draw.textlength(name, font=font)
-    draw.text(((SIZE[0] - width) / 2, SIZE[1] / 2 - 32), name, font=font, fill=(235, 235, 235))
+    draw.text(((SIZE[0] - width) / 2, SIZE[1] / 2 - SIZE[1] // 22), name, font=font, fill=(235, 235, 235))
     card.save(path)
 
 
@@ -210,6 +328,10 @@ def cut_place(out, place, title):
     frames = out / "frames" / place
     planned = json.loads((out / "views" / f"{place}.json").read_text())
     views = planned["views"]
+    missing = [view["name"] for view in views if not (frames / f"{view['name']}-look.png").exists()]
+    if missing:
+        raise SystemExit(f"{place}: {len(missing)} of {len(views)} frames not rendered (first {missing[0]}); "
+                         "render its jobs again")
     stage = planned.get("stage")
     voiced = bool(stage) and (pathlib.Path(stage).parent / "layers/sound.usda").exists()
     shots = sorted({view["name"].split("-")[0] for view in views}, key=lambda name: int(name[4:]))
@@ -247,7 +369,7 @@ def main():
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("places", nargs="+")
     parser.add_argument("--stages", type=pathlib.Path, help="plan: the folder holding each place's stage folder")
-    parser.add_argument("--jobs-each", type=int, default=1, help="plan: cloud jobs a place, its shots shared out")
+    parser.add_argument("--jobs-each", type=int, default=1, help="plan: cloud jobs a place, its frames dealt out")
     options = parser.parse_args()
     if options.step == "plan":
         if not options.stages:
