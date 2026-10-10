@@ -39,9 +39,7 @@ def template_body():
         parents = layer.output_joint_parent_ids.detach().numpy().astype(int)
         kept_joints, _, carries = builder.joints_worth_keeping(names, parents)
         world, points = builder.average_bind_pose(layer)
-        weights = builder.merge_weights(
-            layer.public_skinning_weights().detach().numpy().astype(np.float64), carries,
-            len(kept_joints))
+        weights = builder.kept_weights(layer, carries, len(kept_joints))
         DRESSING.mkdir(parents=True, exist_ok=True)
         np.savez(kept, points=points, faces=layer.faces.detach().numpy(), weights=weights,
                  joint_names=np.array([names[old] for old in kept_joints]),
@@ -59,11 +57,6 @@ def head_share(template):
     low, high = BLEND
     rise = np.clip((template.points[:, 1] - low) / (high - low), 0.0, 1.0)
     return np.where(on_head, rise * rise * (3 - 2 * rise), 0.0)
-
-
-def face_on_template(face_body, template):
-    """A face's points stood on the template's Head joint: the face as its drawing sees it."""
-    return face_body.points - face_body.joints["Head"] + template.joints["Head"]
 
 
 def transplanted(build, face_body, template):

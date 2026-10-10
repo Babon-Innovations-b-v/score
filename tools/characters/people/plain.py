@@ -21,6 +21,7 @@ import boots
 import drape
 import fit
 import numpy as np
+from face import joined
 import shapes
 import skin
 import trimesh
@@ -44,20 +45,13 @@ OVER_SHOES = 0.02
 JACKET_COLLAR_GAP = 0.004
 # A shoe is the boot cut this high over the floor (on the template; carried to the build).
 SHOE_TOP = 0.085
-# A cap's crown: how far above the brows its band starts, the band's height, the crown's height
-# over the band, how much wider its top is, and the peak's reach and droop.
+# A cap: how far above the brows its band starts, the band's height, the peak's reach and droop, and
+# how far the crown clears the head.
 CAP_ABOVE_BROWS = 0.012
 CAP_BAND = 0.028
-CAP_CROWN = 0.045
-CAP_TOP_FLARE = 0.028
 CAP_PEAK = 0.062
 CAP_PEAK_DROOP = 0.018
 CAP_CLEAR = 0.006
-
-
-def thin(folder):
-    """A drape thinned, as the work suit's: trimesh, panels, limbs."""
-    return work_suit.thin_cloth(folder)
 
 
 def over_the_trousers(jacket, trousers, body):
@@ -90,7 +84,6 @@ def over_the_trousers(jacket, trousers, body):
 def low_shoes(body):
     """Both shoes, left then right, as (points, faces): the work boot cut off below the ankle,
     open at the top, under the trouser hem."""
-
     left, right, faces = boots.fitted(body)
     height = float(fit.y(SHOE_TOP))
     cut = []
@@ -119,7 +112,7 @@ def trousers(body, folder, shoes, into_boots=False, lines=None):
     """The trousers on the body, their legs gathered just outside the shoes and cut off just over
     them, or, `into_boots`, gathered over the boots' tops and cut off a little below them, as if
     tucked in: points, faces, weights."""
-    mesh, _, limbs = thin(folder)
+    mesh, _, limbs = work_suit.thin_cloth(folder)
     faces = np.asarray(mesh.faces)
     before = np.asarray(mesh.vertices)
     points = before
@@ -192,7 +185,7 @@ def straight_hem(points, faces, limbs, cut, hem):
 def jacket(body, folder, under=None):
     """A jacket or coat and its stand collar: {name: (points, faces, weights)}, and the numbers
     the rest of it is laid out by (the cloth as a mesh, the collar's front height)."""
-    mesh, panels, limbs = thin(folder)
+    mesh, panels, limbs = work_suit.thin_cloth(folder)
     thinned = np.asarray(mesh.vertices).copy()
     mesh = trimesh.Trimesh(work_suit.sleeves_to_the_wrists(thinned, limbs, body), mesh.faces, process=False)
     body_mesh = trimesh.Trimesh(body.points, body.faces, process=False)
@@ -204,9 +197,7 @@ def jacket(body, folder, under=None):
     neck_front = bottom[np.argmin(np.abs(angles))] - work_suit.COLLAR_OVERLAP
     points, faces = np.asarray(mesh.vertices), np.asarray(mesh.faces)
     weights = skin.of_a_drape(points, faces, limbs, body)
-    open_gap, work_suit.COLLAR_GAP = work_suit.COLLAR_GAP, JACKET_COLLAR_GAP
-    collar_points, collar_faces = work_suit.collar(mesh, line)
-    work_suit.COLLAR_GAP = open_gap
+    collar_points, collar_faces = work_suit.collar(mesh, line, JACKET_COLLAR_GAP)
     shaped = {"cloth": (points, faces, weights),
               "collar": (collar_points, collar_faces, skin.averaged(
                   skin.from_the_body(collar_points, body), collar_faces, work_suit.COLLAR_SMOOTHING))}
@@ -309,15 +300,6 @@ def buttons(made, heights, x=0.0, radius=BUTTON_RADIUS):
     return joined(pieces)
 
 
-def joined(pieces):
-    points, faces, count = [], [], 0
-    for piece_points, piece_faces in pieces:
-        points.append(piece_points)
-        faces.append(np.asarray(piece_faces) + count)
-        count += len(piece_points)
-    return np.vstack(points), np.vstack(faces)
-
-
 def flaps(made, places, size, proud=0.004):
     """Pocket flaps: small plates on the cloth's front, each centred at an (x, y) on the build,
     `size` (width, height). One mesh."""
@@ -330,7 +312,7 @@ def flaps(made, places, size, proud=0.004):
     return joined(pieces)
 
 
-def shoulder_boards(made, body, length=0.11, width=0.045, proud=0.005):
+def shoulder_boards(made, body, width=0.045, proud=0.005):
     """A flat board on top of each shoulder, from the collar out along the shoulder."""
     pieces = []
     mesh = made["mesh"]
@@ -407,8 +389,6 @@ def cap(head_points, brow_height, peaked=True):
         lid_height = dome
     rings = [ring(add, base + height, lift) for add, height, lift in profile]
     lid_centre = np.array([centre[0], base + lid_height, centre[1]])
-    if not peaked:
-        lid_centre[1] = base + lid_height
     points = np.vstack(rings + [lid_centre[None]])
     faces = []
     for level in range(len(rings) - 1):

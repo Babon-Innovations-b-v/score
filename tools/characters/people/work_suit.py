@@ -201,11 +201,11 @@ def tailored_neckline(mesh, body_mesh, line):
     return trimesh.Trimesh(points, mesh.faces, process=False)
 
 
-def collar(mesh, line):
-    """The stand collar: an open band round the neck, its front gap COLLAR_GAP each side of the
+def collar(mesh, line, gap=COLLAR_GAP):
+    """The stand collar: an open band round the neck, its front gap `gap` each side of the
     middle, its foot spread to stay outside the cloth it covers. Points, faces."""
     angles, bottom, radius_bottom, radius_top = line
-    keep = np.abs(np.angle(np.exp(1j * angles))) > COLLAR_GAP / radius_bottom.mean()
+    keep = np.abs(np.angle(np.exp(1j * angles))) > gap / radius_bottom.mean()
     # Start the open band just past the gap on one side and run round to the other.
     start = np.argmax(keep & ~np.roll(keep, 1))
     order = np.roll(np.arange(ANGLES), -start)
@@ -409,7 +409,7 @@ def pieces(body, folder):
     waist_height = float(mesh.vertices[np.char.startswith(panels, "wb_")][:, 1].mean())
     left_boot, right_boot, boot_faces = boots.fitted(body)
     cloth_points = boots.tucked(np.asarray(mesh.vertices), mesh.faces, limbs,
-                                {"Left": left_boot, "Right": right_boot}, boot_faces, body)
+                                {"Left": left_boot, "Right": right_boot}, boot_faces)
     cloth_faces = np.asarray(mesh.faces)
     cloth_weights = skin.of_a_drape(cloth_points, cloth_faces, limbs, body)
     boot_weights = {}

@@ -1,7 +1,7 @@
 """The sentences the crew's movement is written from, and the clips they made.
 
-    bash tools/crew/run.sh --clips            # make whatever is missing
-    bash tools/crew/run.sh --clips --again shouting   # make one again, whatever is there
+    bash tools/characters/people/run.sh --clips            # make whatever is missing
+    bash tools/characters/people/run.sh --clips --again shouting   # make one again, whatever is there
 
 A text to motion model turns a sentence into a piece of skeletal animation. The sentences are
 here rather than in somebody's shell history, because the sentence *is* the animation: changing a
@@ -13,6 +13,8 @@ fifth wider than a plain walk, and the owner called it too wide (#36, 2026-09-20
 fixed it was dropping "arms held away from the body" from the sentence.
 """
 import argparse
+import importlib.util
+import os
 import pathlib
 import subprocess
 import sys
@@ -47,7 +49,6 @@ def _card_lock():
 
 def _module_at(name, path):
     """A module loaded from a file under a name of its own."""
-    import importlib.util
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
@@ -137,11 +138,11 @@ def missing():
     return [name for name in SENTENCES if not (MOTIONS / f"{name}.npz").exists()]
 
 
-def generate(name, say=print):
+def generate(name):
     """Ask the model for one clip, and leave it beside the others."""
     sentence, seconds = SENTENCES[name]
     MOTIONS.mkdir(parents=True, exist_ok=True)
-    say(f"\n== {name}: \"{sentence}\"")
+    print(f"\n== {name}: \"{sentence}\"")
     command = [
         str(VENV_PYTHON.parent / "kimodo_gen"), sentence,
         "--model", MODEL,
@@ -149,16 +150,11 @@ def generate(name, say=print):
         "--output", str(MOTIONS / name),
         "--bvh", "--bvh_standard_tpose",
     ]
-    environment = dict(**ON_THE_PROCESSOR)
-    finished = subprocess.run(command, env={**_environment(), **environment}, check=False)
+    environment = dict(os.environ, PATH=f"{VENV_PYTHON.parent}:{os.environ.get('PATH', '')}", **ON_THE_PROCESSOR)
+    finished = subprocess.run(command, env=environment, check=False)
     if finished.returncode:
         raise SystemExit(f"generating {name} failed with {finished.returncode}")
     return MOTIONS / f"{name}.npz"
-
-
-def _environment():
-    import os
-    return dict(os.environ, PATH=f"{VENV_PYTHON.parent}:{os.environ.get('PATH', '')}")
 
 
 def main():

@@ -6,10 +6,8 @@ surface is what a material goes on. So overalls, bare hands and boots cost nothi
 and changing what the crew wear is a material swap rather than new geometry.
 
 That only works because the look is flat colour. In a realistic style the seam between two
-surfaces would need a hem to hide it.
-
-There is no suit here. A suit is bulkier than the body underneath it, so it is its own mesh with
-these same weights transferred onto it, and it is not built yet.
+surfaces would need a hem to hide it. The outfits are meshes of their own (`dress.py`); this is the
+bare distant body's.
 """
 
 SKIN = "skin"

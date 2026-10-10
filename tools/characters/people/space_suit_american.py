@@ -57,7 +57,6 @@ class AmericanSuit(space_suit.SpaceSuit):
         rim = shapes.loft(rim_centre, [1, 0, 0], ahead, (rim_radius, rim_radius),
                           lambda angle: shapes.circle(0.006, 8), 64)
         self.rigid("helmet_rim", rim, "Head")
-        self.helmet_centre = centre
 
     def the_chest(self):
         wide = fit.hard_part_share(1.24)

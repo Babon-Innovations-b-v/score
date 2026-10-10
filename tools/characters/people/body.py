@@ -1,13 +1,13 @@
 """Build a person: the SOMA body mesh, its skeleton, and the Kimodo clips that move it.
 
-    bash tools/crew/run.sh
+    bash tools/characters/people/run.sh
 
 Everything this needs was installed for #36 and #100 and is clear for a game that may one day be
 sold: the body and the skeleton come from `nvidia/soma-x` (Apache 2.0) shaped to the crew's build
 through Meta's MHR body (Apache 2.0), and the movement from Kimodo clips generated on this box.
 Both are written onto the same skeleton by the same vendor, so there is no retargeting step
 anywhere in here. The outfits are `dress.py`'s; the licences of what they are made from are in
-`tools/crew/CLAUDE.md`.
+this folder's `CLAUDE.md`.
 
 Five things this does that are easy to leave out and expensive to leave out:
 
@@ -198,6 +198,11 @@ def merge_weights(weights, carries, kept_count):
     for old in range(weights.shape[1]):
         merged[:, carries[old]] += weights[:, old]
     return merged
+
+
+def kept_weights(layer, carries, kept_count):
+    """The body model's skinning weights on the kept joints."""
+    return merge_weights(layer.public_skinning_weights().detach().numpy().astype(np.float64), carries, kept_count)
 
 
 def against_parent(world, parents):
@@ -445,9 +450,7 @@ def the_body_at(layer, carries, kept_count):
     """The body at its bind pose: vertices in metres, triangles, and weights on the kept joints."""
     _, vertices = bind_pose(layer)
     faces = layer.faces.detach().numpy().astype(np.uint32)
-    weights = merge_weights(layer.public_skinning_weights().detach().numpy().astype(np.float64),
-                            carries, kept_count)
-    return vertices, faces, weights
+    return vertices, faces, kept_weights(layer, carries, kept_count)
 
 
 def add_outfit(contents, document, parts):
@@ -590,20 +593,17 @@ def build(out_path, clip_names, identity):
     report = {"joints": len(joint_names), "surfaces": {}, "levels": {}, "clips": {},
               "drapes": cloth_licence.drapes_of(paths.LOOK)}
     # The distant body stays bare, in its three colour zones: nobody reads a belt at twelve metres.
-    for level, layer in (("far", layers["far"]),):
-        _, vertices = bind_pose(layer, None if WHO["average_body"] else floor_lift(near))
-        faces = layer.faces.detach().numpy().astype(np.uint32)
-        weights = merge_weights(layer.public_skinning_weights().detach().numpy().astype(np.float64),
-                                carries, len(joint_names))
-        mesh, counts, lost = add_mesh(contents, document, vertices, faces, weights,
-                                      joint_names, surface_names)
-        document["nodes"].append({"name": level, "mesh": mesh, "skin": 0})
-        document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
-        report["levels"][level] = {"vertices": len(vertices), "triangles": len(faces),
-                                   "weightLost": round(lost, 5)}
-        report["surfaces"][level] = counts
-        print(f"{level:5s}: {len(vertices):5d} vertices, {len(faces):5d} triangles, {counts}, "
-              f"worst vertex loses {lost*100:.2f}% of its weight")
+    far = layers["far"]
+    _, vertices = bind_pose(far, None if WHO["average_body"] else floor_lift(near))
+    faces = far.faces.detach().numpy().astype(np.uint32)
+    mesh, counts, lost = add_mesh(contents, document, vertices, faces, kept_weights(far, carries, len(joint_names)),
+                                  joint_names, surface_names)
+    document["nodes"].append({"name": "far", "mesh": mesh, "skin": 0})
+    document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
+    report["levels"]["far"] = {"vertices": len(vertices), "triangles": len(faces), "weightLost": round(lost, 5)}
+    report["surfaces"]["far"] = counts
+    print(f"far  : {len(vertices):5d} vertices, {len(faces):5d} triangles, {counts}, "
+          f"worst vertex loses {lost*100:.2f}% of its weight")
 
     for outfit, parts in outfits.items():
         mesh, counts = add_outfit(contents, document, parts)
@@ -613,8 +613,8 @@ def build(out_path, clip_names, identity):
         report["surfaces"][outfit] = counts
         print(f"{outfit:5s}: {sum(counts.values()):5d} triangles over {len(counts)} surfaces")
 
+    import clips
     for name in clip_names:
-        import clips
         world, _ = posed_by_the_model(near, MOTIONS / f"{name}.npz")
         world = world[:, kept]
         if name not in clips.OFF_THEIR_FEET:
@@ -629,10 +629,6 @@ def build(out_path, clip_names, identity):
               f"moved back {notes['movedBackMetres']} m over the node, "
               f"loop gap {notes['loopGapWhole']} -> {notes['loopGapCut']}")
 
-    _, near_vertices = bind_pose(near)
-    near_weights = merge_weights(
-        near.public_skinning_weights().detach().numpy().astype(np.float64), carries,
-        len(joint_names))
     world, theirs = posed_by_the_model(near, MOTIONS / "walking.npz")
     thinned = as_the_engine_sees_them(near_weights)
     step = max(1, world.shape[0] // 12)
