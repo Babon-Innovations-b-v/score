@@ -86,7 +86,8 @@ MOVE_HEADINGS = 16
 # While a shot's move is planned its people stand where they are at every this many of its frames and its last, so a
 # walking person's box is swept over the shot (the checks measure every frame).
 PEOPLE_EVERY = 6
-# Minutes a frame's ink lines alone take on a 24 GB card (a one-sample pass render and the ink rule), the import aside.
+# Minutes a frame's ink lines alone take on a 24 GB card (a one-sample pass render and the ink rule), the import aside
+# (2026-10-10: 9 to 17 s a frame; a hub frame with its look and its ink took about 0.95 min, look and lines together).
 LINES_MINUTES = 0.25
 # Minutes a frame takes on a 24 GB card, the import aside (the hub at 1920x1080 on an L4, 2026-10-10: 42 s; at
 # 1280x720 the square and the hub took 14 to 20 s).
@@ -365,7 +366,8 @@ def linked_frames(keep, out, film, views):
 def film_jobs(out, film, stage, shown, views, kind, jobs_each):
     """Cloud jobs for a film's frames of one kind ("look": rendered with their ink; "lines": the ink lines alone over
     looks rendered before), `jobs_each` at most, the frames dealt out between them in turn: the job files."""
-    flags, minutes = ({"ink": True}, FRAME_MINUTES) if kind == "look" else ({"lines_only": True}, LINES_MINUTES)
+    flags, minutes = (({"ink": True}, FRAME_MINUTES + LINES_MINUTES) if kind == "look"
+                      else ({"lines_only": True}, LINES_MINUTES))
     frames = out / "frames" / film
     count = min(jobs_each, len(views))
     written = []
