@@ -20,7 +20,7 @@ import tempfile
 import numpy as np
 import trimesh
 from PIL import Image
-from pxr import Usd, UsdGeom, UsdLux, UsdShade
+from pxr import Sdf, Usd, UsdGeom, UsdLux, UsdShade
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -301,6 +301,27 @@ def check_ring_and_placing(folder):
     matrix = UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Places/tube")).ComputeLocalToWorldTransform(
         Usd.TimeCode.Default())
     assert np.allclose(np.asarray(matrix.Transform((0.0, 0.0, 2.0))), [2.0, 0.0, 0.0], atol=1e-6)
+    check_shown_in_itself(folder)
+
+
+def check_shown_in_itself(folder):
+    """A place shown in itself (the tube's twin past the hub) is its own base layer referenced: it composes with no
+    cycle, where the place's frame puts it, and the copy's own Places stay off."""
+    (folder / "self/layers").mkdir(parents=True)
+    base = Usd.Stage.CreateNew(str(folder / "self/layers/base.usda"))
+    UsdGeom.Xform.Define(base, "/tube")
+    UsdGeom.Cube.Define(base, "/tube/Structure/hull")
+    scene.write_places(base, "tube", [{"name": "twin", "stage": "tube", "at": [0.0, 0.0, 5.0]}])
+    base.GetRootLayer().Save()
+    root = Sdf.Layer.CreateNew(str(folder / "self/tube.usda"))
+    root.subLayerPaths.append("./layers/base.usda")
+    root.Save()
+    stage = Usd.Stage.Open(str(folder / "self/tube.usda"))
+    twin = stage.GetPrimAtPath("/tube/Places/twin/Structure/hull")
+    assert twin.IsValid(), "the place's twin is not composed"
+    matrix = UsdGeom.Xformable(twin).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    assert np.allclose(np.asarray(matrix.ExtractTranslation()), [0.0, 0.0, 5.0])
+    assert not stage.GetPrimAtPath("/tube/Places/twin/Places").IsActive()
 
 
 def flat_ground(folder, skin=(128, 128, 128)):

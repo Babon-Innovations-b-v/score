@@ -371,13 +371,19 @@ def write_objects(stage, place, entries, out, world):
 def write_places(stage, place, entries):
     """Other places seen from this one (the base on the wreck's horizon, the square and the launch view past the
     flat's balcony): each the other place's own stage referenced, as exported beside this one (`../../<stage>/`),
-    where the game stands it in this place's frame, turned as `turn` says."""
+    where the game stands it in this place's frame, turned as `turn` says. A place shown in itself (the walkway tube's
+    twin seen through the hub's far hatch) is its own base layer referenced, since its whole stage would reference
+    itself: the creator's edit layer is not in that copy. The export's own stage, opened on the base layer alone,
+    reports that reference as a cycle and leaves it out; the place's root stage composes it."""
     if not entries:
         return
     UsdGeom.Scope.Define(stage, f"/{place}/Places")
     for entry in entries:
         xform = UsdGeom.Xform.Define(stage, f"/{place}/Places/{entry['name']}")
-        xform.GetPrim().GetReferences().AddReference(f"../../{entry['stage']}/{entry['stage']}.usda")
+        if entry["stage"] == place:
+            xform.GetPrim().GetReferences().AddReference("./base.usda", f"/{place}")
+        else:
+            xform.GetPrim().GetReferences().AddReference(f"../../{entry['stage']}/{entry['stage']}.usda")
         xform.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry["at"])))
         turn(xform, entry)
         if "scale" in entry:  # a stage laid for one length, shown at another (a walkway tube's run)
