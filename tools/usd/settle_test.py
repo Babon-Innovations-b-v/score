@@ -1,7 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; only floor pieces are dropped, not a kit's floor plate, and a glow is no static of the drop; a
+marked, while 1 m debris may turn so; only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece is a static of the drop; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -152,7 +152,22 @@ def a_glowing_part_is_no_static_of_the_drop():
         return [] if ignored == ["lamp_glow_1"] else [f"the drop leaves out {ignored}, not the glow alone"]
 
 
-CHECKS = (a_settled_pose_round_trips_through_the_layout, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop, a_big_turn_is_marked_not_made,
+def what_lies_on_a_dropped_piece_is_no_static_of_the_drop():
+    """A tray held on a shelf that is dropped (`on:shelf`) is left out of the drop's statics; a lamp on the wall is not."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("shelf", "box", (0, 0, 0)), ("tray", "box", (0, 1, 0)),
+                                                ("lamp", "box", (3, 1, 0))],
+                                       [("shelf", "floor"), ("tray", "on:shelf"), ("lamp", "wall")])
+        inventory = json.loads((folder / "inventory.json").read_text())
+        stage = Usd.Stage.Open(str(path))
+        ignored = settle.held_on_loose(stage, PLACE, inventory, settle.loose_objects(stage, PLACE, inventory))
+        return [] if ignored == ["tray_1"] else [f"the drop leaves out {ignored}, not the tray alone"]
+
+
+CHECKS = (a_settled_pose_round_trips_through_the_layout, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
+          what_lies_on_a_dropped_piece_is_no_static_of_the_drop, a_big_turn_is_marked_not_made,
           a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl)
 
 
