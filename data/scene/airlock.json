@@ -85,13 +85,15 @@
     0.984804
    ],
    "from": "airlock.tscn:27-33,96-103 (the ramp's 2.4 m by 0.2 m slab in deck.tres) re-laid by airlock.gd:18-24,70-87 from the outer door's sill at z 2.5 down at 20 degrees to 5 cm into the ground: a 0.46 m drop over a 1.25 m run, the ground under its foot 0.41 m below the floor on the base seat's planned ground (data/ground/moon.json through tools/usd/ground.py, the airlock where main.tscn:120-121 stands it on the seat)",
-   "plain": "plate"
+   "plain": "plate",
+   "row": "outer_ramp"
   }
  ],
  "objects": [
   {
    "name": "outer_door",
    "model": "models/airlock_kit/door_leaf_1.gltf",
+   "row": "door_leaf",
    "at": [
     0.0,
     0.0,
