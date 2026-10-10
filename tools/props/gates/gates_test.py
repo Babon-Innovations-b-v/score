@@ -4,6 +4,7 @@ The gates need numpy and trimesh, which only the prop environment has. Run by th
 hands itself to the prop environment when the box has one, and says it skipped when it does not.
 Run: python3 tools/props/gates/gates_test.py
 """
+import json
 import os
 import pathlib
 import sys
@@ -160,6 +161,38 @@ def test_a_door_in_a_partition_that_stops_short_has_a_way_round_and_one_wall_to_
     assert len(doors.check({"pieces": short})) == 1
     screen = walls + [partition(-1.8, 2.4)]  # a screen with no door is not judged
     assert doors.check({"pieces": screen}) == []
+
+
+def raised(laid, up):
+    return dict(laid, at=[laid["at"][0], laid["at"][1] + up, laid["at"][2]])
+
+
+def test_an_upper_floor_s_door_is_judged_on_its_own_floor_and_not_on_the_walls_below_it():
+    """The same 6 m room twice, the second 3 m up: its door wall to wall below, its partition stopping short above."""
+    walls = [{"kind": "mars_wall_lower_plain", "at": at, "x": x, "y": [0.0, 1.0, 0.0], "z": z, "size": [6.0, 2.6, 0.08]}
+             for at, x, z in (([3.0, 0.0, 0.0], [0.0, 0.0, 1.0], [-1.0, 0.0, 0.0]),
+                              ([-3.0, 0.0, 0.0], [0.0, 0.0, -1.0], [1.0, 0.0, 0.0]),
+                              ([0.0, 0.0, 3.0], [-1.0, 0.0, 0.0], [0.0, 0.0, -1.0]),
+                              ([0.0, 0.0, -3.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]))]
+    ground = walls + [partition(0.0, 1.2, "mars_hatch_frame"), partition(-1.8, 2.4), partition(1.8, 2.4)]
+    upper = [raised(laid, 3.0) for laid in walls + [partition(0.0, 1.2, "mars_hatch_frame"), partition(-1.8, 2.4),
+                                                    partition(1.5, 1.2)]]
+    found = doors.check({"pieces": ground + upper})
+    assert [at[1] for _, at, _ in found] == [3.0]
+
+
+def test_a_door_whose_sides_both_stand_in_walls_is_unknown_and_fails():
+    door = partition(0.0, 1.2, "mars_hatch_frame")
+    block = {"kind": "mars_wall_block", "at": [0.0, 0.0, 0.0], "x": [1.0, 0.0, 0.0], "y": [0.0, 1.0, 0.0],
+             "z": [0.0, 0.0, 1.0], "size": [4.0, 2.6, 6.0]}
+    found = doors.check({"pieces": [door, block]})
+    assert len(found) == 1 and found[0][2].startswith("unknown")
+
+
+def test_every_kit_layout_s_doors_part_their_two_sides():
+    """The gate runs the door check on every installed kit layout (data/kit), not only by hand."""
+    for path in sorted((HERE.parents[2] / "data/kit").glob("*.json")):
+        assert doors.check(json.loads(path.read_text())) == [], path.name
 
 
 def test_a_model_under_another_kind_s_name_and_a_name_on_two_routes_fail_before_install():

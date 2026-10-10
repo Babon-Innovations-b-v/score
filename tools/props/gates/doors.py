@@ -7,10 +7,12 @@ place.
 
 The walk is read on a grid over the layout's floor at walking height: a cell is shut where a wall-like piece (its
 kind's own name holds one of WALLING: wall panels, partitions, door frames and leaves, the porthole's panel, glass)
-crosses the band WALK_LOW to WALK_HIGH over the floor. Every door (a frame of a hatch or a door, DOORS) is shut, and so
+crosses the band WALK_LOW to WALK_HIGH over the door's own floor (the foot of its frame: a stairwell's landing doors
+stand 3 m and 6 m up, and the ground floor's walls part nothing there). Every door (a frame of a hatch or a door, DOORS) is shut, and so
 is every doorway the layout lists without a door of its own (`doorways`: a joined module's doorway in the hub's wall).
 From a spot SIDE in front of a door to the spot SIDE behind it there must then be no path on the grid (four ways,
-cell to cell). A screen or partition without a door is not judged.
+cell to cell); a door whose spots both stand in a wall, even a step further out, is unknown and fails too. A screen
+or partition without a door is not judged.
 """
 import json
 import pathlib
@@ -50,9 +52,10 @@ def is_door(laid):
 
 
 class Grid:
-    """The floor's cells, shut where a wall-like box crosses the walking band."""
+    """One floor's cells, shut where a wall-like box crosses the walking band over that floor."""
 
-    def __init__(self, pieces):
+    def __init__(self, pieces, floor=0.0):
+        self.band = (floor + WALK_LOW, floor + WALK_HIGH)
         points = np.concatenate([corners(laid) for laid in pieces])
         self.low = points[:, [0, 2]].min(axis=0) - MARGIN
         high = points[:, [0, 2]].max(axis=0) + MARGIN
@@ -67,7 +70,7 @@ class Grid:
         """Shut every cell whose middle, at some height in the walking band, lies inside the piece's box (grown by
         half a cell, so a thin panel still shuts the cells it crosses)."""
         box = corners(laid)
-        if box[:, 1].max() < WALK_LOW or box[:, 1].min() > WALK_HIGH:
+        if box[:, 1].max() < self.band[0] or box[:, 1].min() > self.band[1]:
             return
         origin = np.asarray(laid["at"], dtype=float)
         axes = [np.asarray(laid[axis], dtype=float) for axis in ("x", "y", "z")]
@@ -77,7 +80,7 @@ class Grid:
         flat = box[:, [0, 2]]
         start = np.floor((flat.min(axis=0) - self.low) / CELL).astype(int)
         end = np.ceil((flat.max(axis=0) - self.low) / CELL).astype(int)
-        heights = np.linspace(max(WALK_LOW, box[:, 1].min()), min(WALK_HIGH, box[:, 1].max()), 5)
+        heights = np.linspace(max(self.band[0], box[:, 1].min()), min(self.band[1], box[:, 1].max()), 5)
         for row in range(max(start[0], 0), min(end[0] + 1, self.shape[0])):
             for column in range(max(start[1], 0), min(end[1] + 1, self.shape[1])):
                 for high in heights:
@@ -115,17 +118,31 @@ def doorway_piece(doorway):
             "z": normal.tolist(), "size": [doorway["wide"] + 0.2, doorway.get("tall", 2.6), doorway.get("deep", 0.4)]}
 
 
+def floors(doors_laid):
+    """The doors by the floor they stand on (their frame's foot, to the centimetre)."""
+    found = {}
+    for door in doors_laid:
+        found.setdefault(round(float(door["at"][1]), 2), []).append(door)
+    return found
+
+
 def check(layout):
-    """Every door that does not part its two sides: [(kind, at, why)]."""
+    """Every door that does not part its two sides, each judged on its own floor: [(kind, at, why)]."""
     pieces = [laid for laid in layout["pieces"] if walling(laid)]
     pieces += [doorway_piece(doorway) for doorway in layout.get("doorways", [])]
-    if not pieces:
-        return []
-    grid = Grid(pieces)
+    found = []
+    for floor, standing in floors(filter(is_door, pieces)).items():
+        found += ways_round(pieces, floor, standing)
+    return found
+
+
+def ways_round(pieces, floor, standing):
+    """The doors of one floor with a way round them on that floor's grid."""
+    grid = Grid(pieces, floor)
     for laid in pieces:
         grid.close_box(laid)
     found = []
-    for door in filter(is_door, pieces):
+    for door in standing:
         middle = np.asarray(door["at"], dtype=float) + np.asarray(door["y"]) * 1.0
         back = np.asarray(door["z"], dtype=float)
         back = back - np.array([0.0, back[1], 0.0])
@@ -136,7 +153,11 @@ def check(layout):
         if walked is None:
             # A side's spot stands in a wall (a door in a thick wall): step further out.
             walked = grid.reaches(middle - back * (reach + SIDE), middle + back * (reach + SIDE))
-        if walked:
+        if walked is None:
+            # Unknown blocks: a door whose sides cannot be stood on is not passed.
+            found.append((door["kind"], [round(value, 2) for value in door["at"]],
+                          "unknown: a spot on each side of it stands in a wall"))
+        elif walked:
             found.append((door["kind"], [round(value, 2) for value in door["at"]],
                           "a way round it: its wall does not part its two sides"))
     return found
