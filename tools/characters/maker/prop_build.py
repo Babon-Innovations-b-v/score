@@ -14,9 +14,10 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   clip is lifted so the standing clip's first frame puts the feet where the bind does. Then body.py's steps: the feet
   brought in (stance.narrowed), the clip cut to a loop and stood over the node (prepare_clip), keyed (add_clip).
 - **Each part is a surface of its own** with one flat material: its name (joins.py's names), its library family's
-  colour for this person (no picture colour), its family and material in `extras`. A skin or hard part gets a tuck
-  under every border it shares with a garment (tucks.py). Hard parts ride one joint: the hair the head, a boot its
-  side's foot.
+  colour for this person (no picture colour), its family and material in `extras`. A skin part, a boot and a mitt
+  get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
+  hard part elsewhere (a belt, a pack) sits on the cloth and needs none. The hair rides the head, a mitt its hand, a
+  compact hard part its strongest joint (`rigid`); a boot keeps its transferred weights.
 - **The far body** is prop_far.py's (the whole mesh thinned to 1,220 triangles, thinned on the processor where it is
   made), in three surfaces (skin, clothes, boots) of the parts' colours, as body.py's far body is named.
 """
@@ -36,7 +37,6 @@ import tucks  # noqa: E402
 
 JOINTS_A_VERTEX = 4
 TRAVELLING_JOINT = 1
-TUCKED_ROLES = ("skin", "hard")
 RIGID_SHARE = 0.6
 FEET = ("LeftFoot", "RightFoot")
 
@@ -141,11 +141,24 @@ def surfaces(fit_rig, parts):
         if role == "hard" or name == "hair":
             weights = rigid(name, points, weights, names)
         tuck_from = None
-        if role in TUCKED_ROLES and name != "hair":
+        if role == "skin" or name.startswith(SIDED):
             tuck_from = len(points)
-            points, faces, weights = tucks.tucked(points, faces, weights, garment_points, garment_weights)
+            points, faces, weights = tucks.tucked(points, faces, weights, garment_points, garment_weights,
+                                                  bones_of(fit_rig))
         found.append((name, role, parts["colours"][index[part]], points, faces, weights, tuck_from))
     return found
+
+
+def bones_of(fit_rig):
+    """Each joint's bones at the bind pose, as (start, end) places: the bone into it from its parent and those out of
+    it to its children."""
+    places, parents = fit_rig["bind"][:, :3, 3], fit_rig["parents"]
+    bones = {joint: [] for joint in range(len(parents))}
+    for joint, parent in enumerate(parents):
+        if parent >= 0:
+            bones[joint].append((places[parent], places[joint]))
+            bones[parent].append((places[parent], places[joint]))
+    return {joint: found or [(places[joint], places[joint] + [0.0, 1e-3, 0.0])] for joint, found in bones.items()}
 
 
 def material(name, role, colour, tuck_from=None):
