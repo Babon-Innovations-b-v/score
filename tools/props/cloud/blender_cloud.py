@@ -53,6 +53,7 @@ import batch  # noqa: E402
 import capacity  # noqa: E402
 import detached  # noqa: E402
 import ledger  # noqa: E402
+import park  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
 from paths import HOME, REPO  # noqa: E402
@@ -152,6 +153,22 @@ def run_job(log_folder, host, number, job, card):
     return round(time.time() - began, 1)
 
 
+def touched(machine, job):
+    """Note the job's inputs and outputs on the machine, for its clean-up before it is parked."""
+    machine.setdefault("paths", set()).update(str(pathlib.Path(local).resolve())
+                                              for local in (*job.get("inputs", ()), *job.get("outputs", ())))
+
+
+def cleanup(machine):
+    """The command that removes a run's own files from its machine before it is parked (park.py): every job's inputs
+    and outputs at their paths. Blender and the shipped repo folders stay (rsync sends only what changed)."""
+    paths = sorted(path for path in machine.get("paths", ()) if path != "/" and not path.startswith("/root"))
+    return f"rm -rf {shlex.join(paths)}"
+
+
+park.CLEANUPS[KIND] = cleanup
+
+
 def waiting_jobs(queue):
     """The job files in a --serve queue not yet done or failed, in the order they were written."""
     return sorted((path for path in queue.glob("*.json") if not path.with_suffix(".done").exists()
@@ -178,6 +195,7 @@ def serve(run, machine, queue, idle_minutes):
             try:
                 # Every job's folders go up again, so a script edited during a chain runs as it is now.
                 ship(log_folder, host, [job])
+                touched(machine, job)
                 seconds = run_job(log_folder, host, int(waiting[0].stem), job, card)
                 machine.setdefault("unit_seconds", []).append(seconds)
                 waiting[0].with_suffix(".done").write_text(str(seconds))
@@ -191,6 +209,7 @@ def one_job(machine, share, card):
     answering a ConnectionError."""
     number, job = share
     log_folder, host = machine["folder"], machine["host"]
+    touched(machine, job)
     try:
         machine.setdefault("unit_seconds", []).append(run_job(log_folder, host, number, job, card is not None))
     except subprocess.CalledProcessError as failed:

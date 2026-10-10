@@ -148,6 +148,7 @@ def tended(run, machine):
         batch.arm_self_delete(machine["folder"], host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(machine["folder"], host, stop), daemon=True).start()
         yield host
+        machine["healthy"] = True  # the block ended well: the machine may be parked (park.py)
     finally:
         stop.set()
         batch.delete_machine(machine)
@@ -167,12 +168,13 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
         machine["taking"] = True
         cards = slots(kind, machine, at_once)
         batch.say(f"{folder.name} ({machine['type']}, {machine['zone']}) ready after "
-                  f"{(time.time() - machine['created']) / 60:.1f} min, {len(cards)} at once")
+                  f"{(time.time() - (machine.get('adopted') or machine['created'])) / 60:.1f} min, {len(cards)} at once")
         workers = [threading.Thread(target=work_slot, args=(machine, shares, do, card, broken)) for card in cards]
         for worker in workers:
             worker.start()
         for worker in workers:
             worker.join()
+        machine["healthy"] = not broken.is_set()  # may be parked for the next run of its kind (park.py)
         return True
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the others
         batch.say(f"{folder.name} failed while setting up: {error}")

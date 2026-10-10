@@ -4,6 +4,13 @@
 # ProcFunc in a folder of its own beside Blender (tools/props/library/inside/runtime.py reads it from PROPS_HOME).
 set -euo pipefail
 
+# A machine parked by an earlier run of its kind (park.py) is set up already: this file wrote the mark last.
+done_mark=/root/.library-setup-done
+if [ -f "$done_mark" ]; then
+  echo "set up already (a parked machine)"
+  exit 0
+fi
+
 # A processor machine (--processor) has no card; Cycles then bakes on its processor.
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader || nproc
 export DEBIAN_FRONTEND=noninteractive
@@ -25,3 +32,4 @@ rm "$tarball" "$tarball.sha256"
 /root/blender/5.0/python/bin/python3.11 -m pip install --quiet --target /root/props/blender-mcp/pf-site \
   "pandas>=1.5,<2.3" "numpy==1.26.4"
 /root/blender/blender -b -setaudio None --python-expr "import bpy; print('blender ok', bpy.app.version_string)"
+touch "$done_mark"
