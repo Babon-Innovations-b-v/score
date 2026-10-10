@@ -62,7 +62,11 @@ SAGE_TURN = 8.0
 
 
 def loose_objects(stage, place, inventory):
-    """The stage's top-level objects whose row lies loose on the ground: {object name: its lift for the drop}."""
+    """The stage's top-level objects whose row lies loose on the ground: {object name: its lift for the drop}. Loose
+    is what the resting triage judges as standing on the floor (triage.support_type): a kit's shell piece (a floor
+    plate, data/checks/resting.json `fixed_in_kit`) and a glowing part judged with its host are not dropped."""
+    import triage
+    data, groups = triage.rules(), triage.kit_groups(place)
     rows = {row["id"]: row for row in inventory["rows"]}
     height = resting.ground_height(stage, place)
     found = {}
@@ -70,6 +74,8 @@ def loose_objects(stage, place, inventory):
         name = path.removeprefix(f"/{place}/Objects/")
         row = rows.get(prim.GetAttribute("score:row").Get(), {})
         if "/" in name or row.get("fixed") or row.get("anchor", "") not in LOOSE_ANCHORS:
+            continue
+        if triage.support_type(row, prim, data, groups) != "floor":
             continue
         points, _ = resting.in_stage(prim.GetChild("geo"))
         clearance = points[:, 1] - height(points[:, [0, 2]])
