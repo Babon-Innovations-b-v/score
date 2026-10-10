@@ -44,7 +44,7 @@
     "name": "birefnet-general-lite",
     "source": "url:https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx",
     "revision": "v0.0.0",
-    "sha256": "",
+    "sha256": "23fc61ecda575609160d2641fa438d5d680778f7d0ee7736d6f2b5836a56c022",
     "licence": "MIT",
     "licence_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE",
     "commercial_use": true,
