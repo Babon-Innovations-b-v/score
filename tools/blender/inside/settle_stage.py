@@ -3,7 +3,8 @@
     python3 tools/blender/session.py batch tools/blender/inside/settle_stage.py -- <stage.usda> <job.json> <out.json>
 
 job.json: {"loose": [object name, ...], "lift": {object name: metres}, "ignore": [object name, ...]} (glowing parts, left out of the statics). The stage is brought in whole; its ground
-(`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision), but the sky (NOT_SOLID).
+(`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision), but the sky (NOT_SOLID) and what lies past every
+loose object's reach (NEAR).
 Each loose object is lifted by its `lift` (just clear of the ground, from tools/usd/settle.py), given its convex hull
 as collision and its weight at the middle of its surface (the resting check's weight), and dropped. Loose objects
 collide with the ground and the static objects, not with each other: a convex hull spans a hollow, so one hull section
@@ -42,6 +43,9 @@ NOT_SOLID = {"Sky"}
 # How far a loose object is raised for the test of whether it starts inside a static (metres): what it only touches,
 # the deck under it, is not "inside" (the resting triage's nudge is the same 5 mm).
 NUDGE = 0.005
+# How far past a loose object's bounds a static is kept in the simulation (metres): a drop of a few centimetres that
+# may tip a piece over its own height never reaches further; statics past every loose object's reach are left out.
+NEAR = 3.0
 # A room's stage has no Ground: the floor is y = 0 (resting.py's flat place), a plane this many metres across.
 FLAT_SIDE = 400.0
 SUBSTEPS = 20
@@ -127,6 +131,18 @@ def away(mine, other):
     return way.normalized() * NUDGE if way.length > 1e-9 else Vector((0.0, 0.0, NUDGE))
 
 
+def world_box(item, margin=0.0):
+    """The object's world bounds (low and high corners, Blender's z up), grown by `margin` metres each way."""
+    corners = [item.matrix_world @ Vector(corner) for corner in item.bound_box]
+    return (Vector([min(corner[axis] for corner in corners) - margin for axis in range(3)]),
+            Vector([max(corner[axis] for corner in corners) + margin for axis in range(3)]))
+
+
+def boxes_meet(one, other):
+    """Whether two world bounds overlap."""
+    return all(one[0][axis] <= other[1][axis] and other[0][axis] <= one[1][axis] for axis in range(3))
+
+
 def left_out(holder, ignore):
     """Whether a holder, or a holder it lies under (a fixture's own parts), is one the job leaves out of the statics."""
     while holder is not None:
@@ -207,6 +223,7 @@ def main():
     rigid(unparented(ground), "PASSIVE", "MESH", range(GROUPS))
     statics, lows, middles, moving, inside = {}, {}, {}, {}, {}
     ignore = set(job.get("ignore", []))
+    reach = [world_box(drawn_mesh(holders[name]), NEAR) for name in loose if name in holders]
     for name, holder in holders.items():
         meshes = [child for child in holder.children if child.type == "MESH"]
         if not meshes or name.split(".")[0] in NOT_SOLID or left_out(holder, ignore):
@@ -215,6 +232,8 @@ def main():
             moving[name] = unparented(drawn_mesh(holder))
             continue
         for item in meshes:  # a static holder may draw several meshes (a character's body and clothes)
+            if not any(boxes_meet(world_box(item), box) for box in reach):
+                continue  # out of every loose object's reach: nothing it can meet (the square's crowd of 10,000)
             item = unparented(item)
             static = name if len(meshes) == 1 else f"{name}/{item.name}"
             statics[static], lows[static], middles[static] = tree(item), heights(item)[0], box_middle(item)
