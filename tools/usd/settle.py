@@ -200,7 +200,8 @@ def detach(stage_path):
     """Rerun this call detached (tools/props/cloud/detached.py); its outputs are the settle folder and the layout."""
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import detached
-    place = Usd.Stage.Open(str(stage_path)).GetDefaultPrim().GetName()
+    stage = Usd.Stage.Open(str(stage_path))  # held: a prim of a stage nothing holds expires at once
+    place = stage.GetDefaultPrim().GetName()
     detached.relaunch(sys.argv, "settle", [stage_path.parent / "settle", INVENTORIES / f"{place}.json",
                                            KITS / f"{place}.json"])
 
