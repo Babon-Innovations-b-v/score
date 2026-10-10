@@ -11,6 +11,9 @@ taught (memory: picture levers): shapes said positively, every part that must co
 between arms and body and between the legs), the outfit named by its parts, and a level front camera with a narrow
 lens, which Pixal3D assumes. References (the owner's drawing of the person) go in as image references.
 
+`--pose-picture` adds a picture of someone standing in that pose as the last reference, named in the words: klein
+copied the arms-down pose of Nev's drawing over the words twice, and Pixal3D fused her arms to her torso (2026-10-10).
+
 Writes one picture a seed, `<out stem>_s<seed>.png`.
 """
 import argparse
@@ -27,10 +30,19 @@ POSE = ("full body seen straight from the front by a level telephoto camera at c
         "the whole figure in the picture with space around it")
 
 
-def wording(who, outfit, pose, referenced):
-    """The close-up's words: the person, the outfit by its parts, the measured pose and drawings.py's form."""
-    lead = f"the same person as in the reference: {who}" if referenced else who
+# Said when a pose picture is the last reference: only its pose is taken.
+POSE_PICTURE = ("standing in exactly the pose of the figure in the last reference picture, with its arms held out "
+                "at the same wide angle and open background between each arm and the body, but with her own face, "
+                "body and outfit")
+
+
+def wording(who, outfit, pose, referenced, pose_picture=False):
+    """The close-up's words: the person, the outfit by its parts, the measured pose (and the pose picture's, when one
+    is given) and drawings.py's form."""
+    lead = f"the same person as in the first reference: {who}" if referenced else who
     posed = POSE.format(arm=pose["arm_degrees"], forward=pose["hands_forward_m"] * 100, ankles=pose["ankles_m"] * 100)
+    if pose_picture:
+        posed = f"{POSE_PICTURE}, {posed}"
     return f"{lead}, wearing {outfit}, {posed}, {drawings.FORM}"
 
 
@@ -42,11 +54,13 @@ def main():
     parser.add_argument("outfit")
     parser.add_argument("references", nargs="*", type=pathlib.Path)
     parser.add_argument("--seeds", nargs="+", type=int, default=[1, 2])
+    parser.add_argument("--pose-picture", type=pathlib.Path, help="someone standing in the pose, the last reference")
     options = parser.parse_args()
     pose = json.loads(options.pose.read_text())
-    prompt = wording(options.who, options.outfit, pose, bool(options.references))
+    prompt = wording(options.who, options.outfit, pose, bool(options.references), bool(options.pose_picture))
     print(prompt, flush=True)
-    settings = {"image": drawings.pictures(options.references) or None, "num_inference_steps": 4,
+    references = options.references + ([options.pose_picture] if options.pose_picture else [])
+    settings = {"image": drawings.pictures(references) or None, "num_inference_steps": 4,
                 "guidance_scale": 1.0, "prompt": prompt, "height": 1152, "width": 896}
     drawings.draw(drawings.klein(), options.out.with_name(options.out.stem + "_s{seed}.png"), options.seeds, settings)
 

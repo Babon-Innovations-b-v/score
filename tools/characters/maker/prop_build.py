@@ -21,6 +21,9 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   rigidly (`rigid_joint`: a boot its foot, a mitt its hand, the hair the head, a belt, buckle, helmet or pack the joint
   its weights favour), and a garment within EASE_REACH of a hard part is eased onto that part's joint, so the trouser
   hem goes with the boot it covers.
+- **Piping is cut in, not found** (piping.py): where the parts name a piping material, thin strips down the outside
+  of each sleeve and trouser leg are cut into the garment's triangles and drawn in its colour, and the patches the
+  parts found are drawn in the cloth's.
 - **The mesh is the thinned one** where prop_rig.py thinned it part by part (`part_of` in the fit rig), so the outfit
   stays within the shipped player's triangles.
 - **The far body** is prop_far.py's (the whole mesh thinned to 1,220 triangles, thinned on the processor where it is
@@ -38,6 +41,7 @@ PEOPLE = MAKER.parent / "people"
 sys.path.insert(0, str(MAKER))
 sys.path.insert(0, str(PEOPLE))
 
+import piping  # noqa: E402
 import trimesh  # noqa: E402
 from scipy.spatial import cKDTree  # noqa: E402
 import tucks  # noqa: E402
@@ -226,7 +230,9 @@ def surfaces(fit_rig, parts, prints=None):
         if role_of[key] == "garment":
             pieces[key] = (points, faces, eased_to_hard(points, weights, hard_points, hard_joints, names,
                                                         np.asarray(fit_rig["parents"])), used)
-    garment = [piece for key, piece in pieces.items() if role_of[key] == "garment"]
+    colour_of = {key: parts["colours"][index[key[0]]] for key in pieces}
+    strips = piped(pieces, role_of, colour_of, parts, index, prints, fit_rig)
+    garment = [piece for key, piece in pieces.items() if role_of[key] == "garment"] + [strip[3:6] for strip in strips]
     whole = trimesh.Trimesh(fit_rig["points"], fit_rig["faces"], process=False)
     garment_points = np.concatenate([piece[0] for piece in garment])
     garment_weights = np.concatenate([piece[2] for piece in garment])
@@ -241,8 +247,47 @@ def surfaces(fit_rig, parts, prints=None):
                                                   rigid=name.startswith(SIDED))
         uv = printed_uv(prints, part, used, len(points))
         picture = None if uv is None else prints[f"image_{part}"].tobytes()
-        found.append((name, role, parts["colours"][index[part]], points, faces, weights, tuck_from, uv, picture))
-    return found
+        found.append((name, role, colour_of[(part, name)], points, faces, weights, tuck_from, uv, picture))
+    return found + strips
+
+
+PIPING = "piping"
+
+
+def piped(pieces, role_of, colour_of, parts, index, prints, fit_rig):
+    """The piping cut into the garment pieces as thin strips (piping.py) where the parts name a piping material: each
+    piece left without its strips, the patches the parts found painted the cloth's colour (the largest garment
+    piece's), and the strips as surfaces of the piping's colour [(name, role, colour, points, faces, weights, None,
+    None, None)]. A printed piece (the flag) is left whole."""
+    materials = [str(material) for material in parts["materials"]]
+    piping_parts = [int(part) for part, material in zip(parts["parts"], materials) if PIPING in material]
+    if not piping_parts:
+        return []
+    colour = parts["colours"][index[piping_parts[0]]]
+    garments = [key for key in pieces if role_of[key] == "garment"]
+    cloth = max((key for key in garments if key[0] not in piping_parts), key=lambda key: len(pieces[key][1]))
+    places = dict(zip([str(name) for name in fit_rig["names"]], fit_rig["bind"][:, :3, 3]))
+    strips = []
+    for key in garments:
+        if prints is not None and f"uv_{key[0]}" in prints.files:
+            continue
+        if key[0] in piping_parts:
+            colour_of[key] = colour_of[cloth]
+        points, faces, weights, strip = piping.cut_piping(*pieces[key][:3], places)
+        if not strip.any():
+            continue
+        if strip.all():
+            del pieces[key]
+        else:
+            pieces[key] = own_points(points, faces[~strip], weights) + (pieces[key][3],)
+        strips.append((key[1], "garment", colour, *own_points(points, faces[strip], weights), None, None, None))
+    return strips
+
+
+def own_points(points, faces, weights):
+    """A piece of a surface with only the points its faces use, renumbered: (points, faces, weights)."""
+    used, renumbered = np.unique(faces, return_inverse=True)
+    return points[used], renumbered.reshape(-1, 3), weights[used]
 
 
 def bones_of(fit_rig):

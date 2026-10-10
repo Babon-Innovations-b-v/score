@@ -8,6 +8,8 @@
  "references": [
   "~/.farm-factory-motion/rnd/people/nev_mars/refs/nev_suit.png"
  ],
+ "pose_picture": "~/.farm-factory-motion/candidates/prop-people/player/work/closeup/pp-player-work-s1.png",
+ "closeup_seeds": [3, 4, 5, 6],
  "description": "a Chinese woman in her thirties, a botanist of a Moon base, a small slim build, a short black pixie cut, thin round glasses",
  "outfit_words": {
   "space": "a white one-piece space suit: a round white helmet with a gold rim and its clear visor raised so her face shows, a light grey neck ring, a light grey chest box with a red flag with a yellow star and two dark knobs, green straps over the shoulders and down the front, a light grey waist box on a grey belt, a white backpack, a gold band and a red band round each upper arm, grey mittens, dark grey knee pads, red bands below the knees, chunky grey moon boots"

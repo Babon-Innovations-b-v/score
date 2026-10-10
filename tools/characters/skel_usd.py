@@ -11,7 +11,11 @@ The asset `<out>/<character>.usdc`, its maps in `<out>/textures/`:
         Body/<node>/<part>     one skinned mesh per primitive of each mesh node of the file (`far`, `person`,
                                `work_navy`, `head_f2`, ...), every one bound to the Skeleton; the cast shows the
                                nodes a character wears and hides the rest
-      Animations/<clip>        one SkelAnimation per clip of the file, at the file's 30 frames a second
+        Body/<node>/<part>/<shape>  a part's morph targets (the prop route's settled garments, garment_bake.py) as
+                               UsdSkel blend shapes, only the points each moves, named as the mesh's
+                               `extras.targetNames` (`<clip>.<number>`)
+      Animations/<clip>        one SkelAnimation per clip of the file, at the file's 30 frames a second, with the
+                               weights of the blend shapes it keys (its own, `<clip>.*`), as the glTF plays them
       Looks/<material>         UsdPreviewSurface per material of the file: its picture, or its flat colour
 
 A clip that runs round is repeated to fill `--seconds`, so a character the cast starts part-way into its clip (a
@@ -132,12 +136,14 @@ def clip_keys(document, blob, animation, joints):
     return times, rotation_keys, translation_keys
 
 
-def repeated(times, keys, seconds, once):
+def repeated(times, keys, seconds, once, turns=None):
     """The clip's frames laid end to end to fill `seconds` (a clip that runs round drops its last frame, which is its
-    first), or once as it is; with the time of each in frames at RATE."""
+    first, read from `turns` when given, so other keys repeat as the turns do), or once as it is; with the time of
+    each in frames at RATE."""
     if once:
         return np.round(times * RATE), keys
-    cycle = keys[:-1] if len(keys) > 2 and np.allclose(keys[0], keys[-1], atol=1e-4) else keys
+    turns = keys if turns is None else turns
+    cycle = keys[:-1] if len(keys) > 2 and np.allclose(turns[0], turns[-1], atol=1e-4) else keys
     frames = int(np.ceil(seconds * RATE)) + 1
     picks = np.arange(frames) % len(cycle)
     return np.arange(frames, dtype=np.float64), cycle[picks]
@@ -149,12 +155,43 @@ def write_clips(stage, document, blob, joints, joint_names, seconds):
     lengths = {}
     for animation in document.get("animations", []):
         times, rotations, translations = clip_keys(document, blob, animation, joints)
-        frames, turns = repeated(times, rotations, seconds, animation["name"] in ONCE)
-        _, places = repeated(times, translations, seconds, animation["name"] in ONCE)
+        once = animation["name"] in ONCE
+        frames, turns = repeated(times, rotations, seconds, once)
+        _, places = repeated(times, translations, seconds, once)
         name = prim_name(animation["name"])
-        write_clip(stage, f"/Character/Animations/{name}", joint_names, frames, turns, places)
+        clip = write_clip(stage, f"/Character/Animations/{name}", joint_names, frames, turns, places)
+        shapes, weights = shape_keys(document, blob, animation)
+        if shapes:
+            write_shape_weights(clip, shapes, frames, repeated(times, weights, seconds, once, rotations)[1])
         lengths[name] = float(times[-1] - times[0])
     return lengths
+
+
+def target_names(document, mesh):
+    """A mesh's morph targets' names (`extras.targetNames`), or None."""
+    return document["meshes"][mesh].get("extras", {}).get("targetNames")
+
+
+def shape_keys(document, blob, animation):
+    """The blend shapes a clip keys (its own: `<clip>.*` of the mesh whose weights it keys) and their weights frame
+    by frame; ([], None) where it keys none."""
+    for channel in animation["channels"]:
+        node = document["nodes"][channel["target"]["node"]]
+        if channel["target"]["path"] != "weights" or not target_names(document, node["mesh"]):
+            continue
+        names = target_names(document, node["mesh"])
+        values = accessor(document, blob, animation["samplers"][channel["sampler"]]["output"]).reshape(-1, len(names))
+        own = [number for number, name in enumerate(names) if name.startswith(animation["name"] + ".")]
+        return [prim_name(names[number]) for number in own], values[:, own].astype(np.float64)
+    return [], None
+
+
+def write_shape_weights(clip, shapes, times, weights):
+    """A SkelAnimation's blend shapes and their weights at every frame."""
+    clip.CreateBlendShapesAttr(Vt.TokenArray(shapes))
+    attribute = clip.CreateBlendShapeWeightsAttr()
+    for frame, values in zip(times, weights):
+        attribute.Set(Vt.FloatArray.FromNumpy(np.ascontiguousarray(values, np.float32)), float(frame))
 
 
 def write_clip(stage, path, joint_names, times, rotations, translations):
@@ -168,6 +205,7 @@ def write_clip(stage, path, joint_names, times, rotations, translations):
         turn_attribute.Set(Vt.QuatfArray([Gf.Quatf(float(w), float(x), float(y), float(z)) for x, y, z, w in turns]),
                            float(frame))
         place_attribute.Set(Vt.Vec3fArray([Gf.Vec3f(*map(float, place)) for place in places]), float(frame))
+    return animation
 
 
 # --- the body -----------------------------------------------------------------------------------------------------
@@ -247,13 +285,13 @@ def write_body(stage, document, blob, skeleton, looks, worn):
         for number, primitive in enumerate(document["meshes"][node["mesh"]]["primitives"]):
             part = document["materials"][primitive["material"]].get("name", "") if "material" in primitive else ""
             write_part(stage, f"/Character/Turned/Body/{name}/{prim_name(part)}_{number}", document, blob, primitive,
-                       skeleton, looks[primitive.get("material", 0)])
+                       skeleton, looks[primitive.get("material", 0)], target_names(document, node["mesh"]))
     return shown
 
 
-def write_part(stage, path, document, blob, primitive, skeleton, look):
+def write_part(stage, path, document, blob, primitive, skeleton, look, shape_names=None):
     """One primitive as a skinned mesh: points, normals, texture coordinates, triangles and four joint weights a
-    point, bound to the skeleton and its look."""
+    point, bound to the skeleton and its look, with its morph targets (named `shape_names`) as blend shapes."""
     attributes = primitive["attributes"]
     points = accessor(document, blob, attributes["POSITION"])
     count = len(points)
@@ -284,7 +322,42 @@ def write_part(stage, path, document, blob, primitive, skeleton, look):
     binding.CreateJointIndicesPrimvar(False, 4).Set(Vt.IntArray.FromNumpy(joints.reshape(-1)))
     binding.CreateJointWeightsPrimvar(False, 4).Set(Vt.FloatArray.FromNumpy(weights.reshape(-1)))
     binding.CreateGeomBindTransformAttr(Gf.Matrix4d(1))
+    if shape_names:
+        write_blend_shapes(stage, path, document, blob, primitive, binding, shape_names)
     UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(look)
+
+
+def sparse_values(document, blob, index):
+    """A sparse morph target accessor's moved points and their offsets ((n,), (n, 3)); none where it holds no data."""
+    found = document["accessors"][index]
+    if "bufferView" in found:
+        raise ValueError(f"accessor {index}: only sparse morph targets on zeros are read")
+    if "sparse" not in found:
+        return np.zeros(0, np.int64), np.zeros((0, 3), np.float32)
+    sparse = found["sparse"]
+    read = {name: {"bufferView": sparse[name]["bufferView"], "byteOffset": sparse[name].get("byteOffset", 0),
+                   "componentType": sparse[name].get("componentType", 5126), "count": sparse["count"],
+                   "type": "SCALAR" if name == "indices" else "VEC3"} for name in ("indices", "values")}
+    pretend = dict(document, accessors=[read["indices"], read["values"]])
+    return accessor(pretend, blob, 0).astype(np.int64), accessor(pretend, blob, 1)
+
+
+def write_blend_shapes(stage, path, document, blob, primitive, binding, shape_names):
+    """The primitive's morph targets that move any of its points as UsdSkel blend shapes under its mesh, bound to it
+    by name."""
+    names, targets = [], []
+    for name, target in zip(shape_names, primitive.get("targets", [])):
+        indices, offsets = sparse_values(document, blob, target["POSITION"])
+        if not len(indices):
+            continue
+        shape = UsdSkel.BlendShape.Define(stage, f"{path}/{prim_name(name)}")
+        shape.CreateOffsetsAttr(Vt.Vec3fArray.FromNumpy(np.ascontiguousarray(offsets, np.float32)))
+        shape.CreatePointIndicesAttr(Vt.IntArray.FromNumpy(indices.astype(np.int32)))
+        names.append(prim_name(name))
+        targets.append(shape.GetPath())
+    if names:
+        binding.CreateBlendShapesAttr(Vt.TokenArray(names))
+        binding.CreateBlendShapeTargetsRel().SetTargets(targets)
 
 
 def prim_name(text):
