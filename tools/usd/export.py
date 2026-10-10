@@ -409,16 +409,24 @@ def tube_spots(laid, length, bay):
     return [np.eye(4), turned]
 
 
-def kit_room_pieces(kit, models, tube_length=None):
-    """A kit room's pieces as objects: each its kind's own name as its row (or the row it names, `row`: a piece laid
-    as another row's kind, the airlock's hose unit built as a hose reel), and its transform (`matrix`, the game's,
-    package.kit_matrix) from its model's box; the layout's other fields as they are. A walkway tube's kit (its layout
-    has a `bay`) is laid along a way `tube_length` long (tube_spots), as the game lays it between two rooms."""
+def kind_row(kind, prefixes):
+    """A kit kind's inventory row: the kind without the first of `prefixes` (`<prefix>_`) it starts with."""
+    prefix = next((f"{name}_" for name in prefixes if name and kind.startswith(f"{name}_")), "")
+    return kind.removeprefix(prefix)
+
+
+def kit_room_pieces(kit, models, tube_length=None, place=None):
+    """A kit room's pieces as objects: each its kind's own name as its row (the kind without its room's name, or
+    without the kit's own `place` name: a door leaf's kit gdoor names its kinds gdoor_<row> for the garage's rows), or
+    the row it names (`row`: a piece laid as another row's kind, the airlock's hose unit built as a hose reel), and its
+    transform (`matrix`, the game's, package.kit_matrix) from its model's box; the layout's other fields as they are.
+    A walkway tube's kit (its layout has a `bay`) is laid along a way `tube_length` long (tube_spots), as the game lays
+    it between two rooms."""
     room = kit.get("room", "")
     found = []
     for laid in kit["pieces"]:
         matrix, _ = package.kit_matrix(laid, *package.model_box(model_file(models, laid['model'])))
-        own = laid.get("row", laid["kind"].removeprefix(f"{room}_"))
+        own = laid.get("row", kind_row(laid["kind"], (room, place)))
         # A glowing part (a lamp's lens, a screen) is an object of its own, named apart from its host's.
         row = f"{own}_{laid['part']}" if "part" in laid else own
         spots = tube_spots(laid, tube_length, float(kit["bay"])) if "bay" in kit and tube_length else [np.eye(4)]
@@ -719,7 +727,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         parts = {**stored_parts.takes_of(place), **parts}
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
     if kit["pieces"] and "x" in kit["pieces"][0]:
-        kit = dict(kit, pieces=kit_room_pieces(kit, models, (scene or {}).get("tube_length")))
+        kit = dict(kit, pieces=kit_room_pieces(kit, models, (scene or {}).get("tube_length"), place))
     if (scene or {}).get("moved"):  # the pieces the game moves in its own code (a door it slides open)
         kit = dict(kit, pieces=scene_record.moved_pieces(kit["pieces"], scene["moved"]))
     glows = night_glows(kit, (scene or {}).get("kit_glow"))
