@@ -1,7 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; a kit room's piece (the game's kit) moves with its object, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
+marked, while 1 m debris may turn so; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -185,6 +185,32 @@ def a_fixture_on_a_dropped_piece_is_no_static_of_the_drop():
         return [] if ignored == ["tray"] else [f"the drop leaves out the fixtures {ignored}, not the tray alone"]
 
 
+def what_lies_on_a_settled_piece_moves_with_it():
+    """A tray held on a crate (`on:crate`) is carried by the crate's settled motion; a crate that would turn too far
+    to be written carries nothing."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("crate", "box", (0, 0, 0)), ("tray", "box", (0, 1, 0)),
+                                                ("crate", "box", (3, 0, 0)), ("tray", "box", (3, 1, 0))],
+                                       [("crate", "floor"), ("tray", "on:crate")])
+        inventory = json.loads((folder / "inventory.json").read_text())
+        stage = Usd.Stage.Open(str(path))
+        small, large = np.eye(4), np.eye(4)
+        small[:3, :3] = Rotation.from_euler("z", 3.0, degrees=True).as_matrix()
+        small[:3, 3] = [0.02, 0.0, 0.01]
+        large[:3, :3] = Rotation.from_euler("z", 60.0, degrees=True).as_matrix()
+        settled = {}
+        for name, motion in (("crate_1", small), ("crate_2", large)):
+            before = settle.laid_matrix(stage, PLACE, name)
+            settled[name] = {"before": before, "after": motion @ before, "middle": settle.object_middle(stage, PLACE, name)}
+        carried = settle.carried_with(stage, PLACE, inventory, settled)
+        problems = [] if sorted(carried) == ["tray_1"] else [f"carried {sorted(carried)}, not the first tray alone"]
+        if "tray_1" in carried and not np.allclose(carried["tray_1"]["after"], small @ carried["tray_1"]["before"]):
+            problems.append("the tray did not move as its crate moved")
+        return problems
+
+
 def a_kit_room_piece_moves_with_its_object():
     """A kit room's piece (the game's kit: axes and a foot `at`, no inventory spot) moved by a settle's small turn and
     drift stands, by package.kit_matrix, exactly where its object came to rest; a name finds its piece by kind."""
@@ -207,7 +233,7 @@ def a_kit_room_piece_moves_with_its_object():
 
 CHECKS = (a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
-          a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, a_big_turn_is_marked_not_made,
+          a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, what_lies_on_a_settled_piece_moves_with_it, a_big_turn_is_marked_not_made,
           a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl)
 
 
