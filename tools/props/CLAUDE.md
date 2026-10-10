@@ -1,9 +1,8 @@
 # tools/props/
 
 The prop tool chain: a picture made from a sentence, a model made from the picture, and the import
-that brings it into the game. The heavy runtime lives outside the repo, under `~/.farm-factory-props`
-(`paths.py` says where). Skill: `make-prop`. Bible: `workflow/bootstrap` (the runtime) and
-`build/release` (the asset gate a prop must pass).
+that brings it into a place. The heavy runtime lives outside the repo, under `~/.farm-factory-props`
+(`paths.py` says where). Bible: `workflow/bootstrap` (the runtime); the checks a prop must pass are `gates/`.
 
 - **No model runs on this PC.** The owner, 2026-10-03: "My GPU is only for game tests; do all
   model stuff in batches in the cloud." The same day WSL died twice of running out of memory,
@@ -12,8 +11,8 @@ that brings it into the game. The heavy runtime lives outside the repo, under `~
   `local_models.refuse_here()` first and is refused here with the cloud command that does it:
   `cloud/pictures.py` for pictures, `cloud/batch.py` for models (one or a hundred), and
   `cloud/scene.py` for a scene's steps. What stays here has no model in it: the finish
-  (`pixal.py --finish-only`, Blender and the processor), the import, the review page, snapshots
-  and the Godot shots. Anything new that loads a model calls `refuse_here()` before it loads.
+  (`pixal.py --finish-only`, Blender and the processor), the import, the review page and
+  snapshots. Anything new that loads a model calls `refuse_here()` before it loads.
   `FARM_LOCAL_MODELS=1` (set by the cloud runners on their machines) is an emergency switch on
   this PC for the owner to throw, never a session.
 - **Pixal3D runs only through `pixal.py`.** Never call image-to-3dlab's `pixal3d_generate.py` or

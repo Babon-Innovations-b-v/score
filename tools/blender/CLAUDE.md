@@ -1,8 +1,8 @@
 # tools/blender/
 
-The Blender coding agents build scenes in (#128): our framework in Blender, as LEGO-Anything
-(arXiv 2609.36380) drives it, so our scenes can be scored on LEGO-Bench. Bible chapter:
-`workflow/bootstrap` (the runtime, `bash setup.sh`). Entry: `session.py`; its docstring has every
+The Blender coding agents build scenes in (JoeyKardolus/2099#128): our framework in Blender, as LEGO-Anything
+(arXiv 2609.36380) drives it, so our scenes can be scored on LEGO-Bench. Its runtime:
+`bash setup.sh`. Entry: `session.py`; its docstring has every
 command.
 
 - **No Blender window on the owner's screen, ever.** WSL shows every Linux window on the Windows
@@ -16,11 +16,12 @@ command.
 - **Drawing is on the processor.** System Mesa's llvmpipe on the Xvfb screen and Cycles on the CPU.
   The graphics card is for game tests only. (Blender's own `blender-softwaregl` Mesa crashes in LLVM
   on this processor; do not switch to it.)
-- **One heavy local job at a time on the machine**: the launch holds `flock` on the test gate's
-  lock `/tmp/farm-factory-gate.lock` (`tools/test/lock/`) for Blender's whole life, so a Blender, a
-  gate and a game shot never overlap (WSL ran out of memory twice on 2026-10-05 with them side by
-  side); it waits 30 minutes for it (`--wait`). A gate waits for a started Blender, so stop it
-  before running the gate. It starts only with 18 GB free (16 GB kept spare, as the gate keeps,
+- **Renders, settling and review pages run in the cloud**, never on the owner's PC (the PC is the coordinator,
+  2026-10-07): `../props/cloud/blender_cloud.py` (`--detach`), or a tool's own `--cloud`.
+- **One heavy local job at a time on the machine**: the launch holds `flock` on
+  `/tmp/farm-factory-gate.lock` (`GATE_LOCK`, the lock the game 2099's test gate took; this repo's `make check` does
+  not take it) for Blender's whole life (WSL ran out of memory twice on 2026-10-05 with a Blender, a gate and a game
+  shot side by side); it waits 30 minutes for it (`--wait`). It starts only with 18 GB free (16 GB kept spare, as the gate keeps,
   `FARM_MIN_FREE_GB`), a watchdog ends it after 3 hours, and `stop` ends only the session `start`
   recorded. Stop it when you are done: `python3 tools/blender/session.py stop`.
 - **How an agent drives it.** `session.py start`, then either the `blender` MCP server in
