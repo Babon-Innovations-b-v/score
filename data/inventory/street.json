@@ -423,6 +423,42 @@
 			]
 		},
 		{
+			"id": "parapet",
+			"view": "v1",
+			"box": null,
+			"name": "parapet with its concrete coping round a block's roof",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				3.97,
+				0.39,
+				1.0
+			],
+			"count": 1,
+			"thing": "kit:street_parapet",
+			"group": "kit: wall",
+			"repeats": "across the room",
+			"unseen": "both concepts' frames end under the blocks' roofline; the game's tenements stand a 1.0 m parapet round every roof (tenement.gd PARAPET), the scene record's whitewash boxes before 2026-10-10"
+		},
+		{
+			"id": "block_roof",
+			"view": "v1",
+			"box": null,
+			"name": "whitewashed concrete roof deck of a block",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.97,
+				3.65,
+				0.2
+			],
+			"count": 1,
+			"thing": "kit:street_block_roof",
+			"group": "kit: floor",
+			"repeats": "across the room",
+			"unseen": "no concept or street view sees the blocks' roofs; the game's tenements have a flat deck under their parapets (tenement.gd), the scene record's whitewash boxes before 2026-10-10"
+		},
+		{
 			"id": "window_dark",
 			"view": "v2",
 			"box": [

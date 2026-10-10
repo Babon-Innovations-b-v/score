@@ -67,6 +67,57 @@ def test_the_street_s_facade_pieces_stand_on_their_block_s_face():
         assert min(abs(back[0] - plane) for plane in planes) < 1e-3, laid
 
 
+def front_and_back_off(laid, plane):
+    """How far a piece's front and back stand out from its face's plane, along the face's outward normal."""
+    middle = np.asarray(laid["at"]) + np.asarray(laid["y"]) * laid["size"][1] / 2
+    out = -np.asarray(laid["z"])
+    off = float((middle - plane) @ out)
+    return off + laid["size"][2] / 2, off - laid["size"][2] / 2
+
+
+def test_the_street_s_windows_sit_in_their_reveals_with_their_sills_out_of_the_face():
+    faces = kit.street_faces(NUMBERS)
+    for laid in kit.layout_of("street")["pieces"]:
+        if not laid["kind"].endswith(("window_dark", "window_lit")):
+            continue
+        face = min((face for face in faces.values() if abs(laid["at"][2] - face.middle[2]) < face.length / 2),
+                   key=lambda face: abs(laid["at"][0] - face.middle[0]))
+        front, back = front_and_back_off(laid, face.middle)
+        assert abs(front - (kit.PLATE_DEEP + kit.SILL_OUT)) < 1e-3, laid
+        assert back < 0.0, laid  # its frame stands back in the plate's reveal, behind the face
+
+
+def test_every_close_face_is_dealt_as_before_and_weathered():
+    pieces = kit.layout_of("street")["pieces"]
+    counts = {own: sum(1 for laid in pieces if laid["kind"] == f"street_{own}") for own in
+              ("window_lit", "window_dark", "ac_unit", "window_cage", "window_awning", "drying_rack")}
+    assert counts == {"window_lit": 56, "window_dark": 137, "ac_unit": 102, "window_cage": 34, "window_awning": 53,
+                      "drying_rack": 44}, counts  # the faces' first dealing (2026-10-07) stands
+    for own, weathers in kit.WEATHERS.items():
+        dealt = {laid.get("weather") for laid in pieces if laid["kind"] == f"street_{own}"}
+        assert dealt == set(range(weathers)), (own, dealt)
+
+
+def test_each_block_s_roof_is_decked_whole_and_its_parapet_stands_on_its_top():
+    pieces = kit.layout_of("street")["pieces"]
+    decked = sum(laid["size"][0] * laid["size"][1] for laid in pieces if laid["kind"] == "street_block_roof")
+    blocks = sum(size[0] * size[2] for _, size in kit.blocks_seen(NUMBERS))
+    assert abs(decked - blocks) < 1e-3 * blocks, (decked, blocks)
+    top = NUMBERS["BUILDING_TOP"]
+    planes = [float(face.middle[0]) for face in kit.street_faces(NUMBERS).values()]
+    for laid in pieces:
+        if laid["kind"] != "street_parapet":
+            continue
+        assert abs(laid["at"][1] - top) < 1e-6, laid
+        out = -np.asarray(laid["z"])
+        if abs(out[0]) > 0.5:  # a long side: on a street face its wall is flush with the plates under it
+            back = np.asarray(laid["at"]) - out * laid["size"][2] / 2
+            plane = float(back[0] + out[0] * kit.PARAPET[1])
+            plated = min(abs(plane - other) for other in planes) < 1e-3
+            front = laid["size"][2] - kit.PARAPET[1] - kit.COPING_OUT
+            assert abs(front - (kit.PLATE_DEEP if plated else 0.0)) < 1e-6, laid
+
+
 def test_the_square_s_lanterns_hang_under_their_strings_and_over_the_crowd():
     pieces = kit.layout_of("square")["pieces"]
     lanterns = [laid for laid in pieces if laid["kind"].endswith("far_lantern")]

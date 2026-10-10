@@ -95,7 +95,7 @@ SHOP_WORDS = ("sign_grain_oil", "sign_barber", "sign_hardware", "sign_pharmacy",
 SHOPS = {"across": {-4.0: "sign_grain_oil", 2.5: "sign_barber", 8.5: "sign_hardware"},
          "own_south": {5.2: "tea"}}
 OPEN_SHOPS = {"across": (2.5,)}
-SEEDS = {"own_north": 104, "own_south": 105, "across": 103, "bay": 106}
+SEEDS = {"own_north": 104, "own_south": 105, "across": 103, "bay": 106, "roof": 107}
 # The density pass (the owner's concept density rule, 2026-10-08; concepts K03 and K06): awnings and drying racks at the
 # uncaged windows of the street's faces (their shares and boxes), the gas pipe along each face over the shop signs, the
 # meter box beside each shop, the vent and the barber's pole, the menu board, the road's yellow lines, the harbour wall
@@ -116,6 +116,32 @@ MENU = (0.55, 1.0, 0.55)
 LINE = (0.12, 0.004)
 END_WALL = (1.0, 0.35)
 END_FENCE = 1.6
+# Up close (the owner, 2026-10-04: the side buildings and the block you come out of look bad up close; their faces
+# measured from 1 to 3 m at eye height on 2026-10-10): every bay's plate was one model in new paint, its stains the
+# same bay after bay, every shutter the same rust, every air conditioner one unit, and the windows stood proud of
+# their plates. The faces the street sees are dressed for that distance:
+# - their surfaces in the library's weathered variants (CLOSE_PAINT): render peeled and streaked by rain, shutters and
+#   meter boxes rusting in fine spots;
+# - each kind in a few weathers (WEATHERS: a model each, baked from a seed of its own), dealt from a generator of the
+#   face's own, so what the faces' first dealing put where stands;
+# - the windows set back in their plates' reveal, their sills standing out of the face (STOREY_WINDOW, SILL_OUT);
+# - air conditioners of a few real outdoor units' sizes (AC_SIZES);
+# - the blocks' roofs and parapets as made pieces (roofs()), where the scene record had plain whitewash boxes.
+CLOSE_PAINT = {"render_upper": "facade_render", "render_lower": "facade_render", "render_shop": "facade_render",
+               "facade_band": "facade_render", "parapet": "facade_render", "block_roof": "roof_render",
+               "shop_shutter": "shutter_paint", "meter_box": "meter_grey"}
+WEATHERS = {"render_upper": 4, "render_shop": 3, "render_lower": 2, "facade_band": 2, "parapet": 3, "block_roof": 2,
+            "shop_shutter": 3, "meter_box": 2, "ac_unit": 2, "window_cage": 2}
+WEATHER_SEED = 7  # added to a face's seed for its weathers' generator
+STOREY_WINDOW = (WINDOW[0], WINDOW[1], 0.3)
+SILL_OUT = 0.05
+AC_SIZES = ((0.8, 0.55, 0.32), (0.7, 0.5, 0.28), (0.9, 0.65, 0.34))
+# A block's parapet round its roof (tenement.gd PARAPET: 1.0 high, 0.2 thick, standing on BUILDING_TOP), in stretches
+# about a bay long, and its roof deck (the record's 0.2 thick top of the block's body) in tiles about ROOF_TILE across.
+PARAPET = (1.0, 0.2)
+COPING_OUT = 0.04  # how far a parapet's coping stands out over its face (pieces_earth.COPING)
+ROOF_DECK = 0.2
+ROOF_TILE = 4.0
 
 
 # --- the site's own numbers ----------------------------------------------------------------------------------------
@@ -257,31 +283,50 @@ def flat(room, kind, middle, along, size, top):
 
 # --- the tenement faces ---------------------------------------------------------------------------------------------
 
-def storeys(room, face, rng, from_storey=1, prefix=""):
+def weathered(own, weathers):
+    """How a piece of a close face is dressed (CLOSE_PAINT, WEATHERS): its library variant and one of its kind's
+    weathers, dealt from `weathers`; nothing for a far face (`weathers` None) or a kind with neither."""
+    if weathers is None:
+        return {}
+    found = {"material": CLOSE_PAINT[own]} if own in CLOSE_PAINT else {}
+    if own in WEATHERS:
+        found["weather"] = weathers.randrange(WEATHERS[own])
+    return found
+
+
+def storeys(room, face, rng, from_storey=1, prefix="", weathers=None):
     """A face's storeys over the ground floor (from `from_storey`), Tenement's way: a render plate per bay and storey
     with its window's opening, the window (dark or lit) set in it, an air conditioner beside some and a cage round
-    others, a band along each floor; on the street's own faces an awning or a drying rack at some uncaged windows."""
+    others, a band along each floor; on the street's own faces an awning or a drying rack at some uncaged windows.
+    A close face (`weathers`, its own generator) has its pieces weathered, its windows set back in their reveals with
+    their sills out of the face, and its air conditioners of AC_SIZES."""
     found = []
     gear = random.Random(round(float(np.abs(face.middle).sum()) * 1000))
+    window = STOREY_WINDOW if weathers is not None else WINDOW
+    window_proud = PLATE_DEEP + SILL_OUT - window[2] if weathers is not None else 0.0
     for along, wide in face.bays():
         for storey in range(from_storey, int(face.tall // STOREY)):
             floor = storey * STOREY
             found.append(face.on(room, f"{prefix}render_upper", along, floor, (wide, STOREY, PLATE_DEEP),
-                                 openings=[cut(-WINDOW[0] / 2, WINDOW_FOOT, WINDOW[0], WINDOW[1])]))
+                                 openings=[cut(-WINDOW[0] / 2, WINDOW_FOOT, WINDOW[0], WINDOW[1])],
+                                 **weathered("render_upper", weathers)))
             lit = rng.random() < LIT_SHARE
             found.append(face.on(room, f"{prefix}window_lit" if lit else f"{prefix}window_dark", along,
-                                 floor + WINDOW_FOOT, WINDOW))
+                                 floor + WINDOW_FOOT, window, proud=window_proud))
             middle = floor + WINDOW_FOOT + 0.08 + (WINDOW[1] - 0.08) / 2
             room_beside = (wide - WINDOW[0]) / 2
-            if rng.random() < AC_SHARE and room_beside > AC[0] + AC_GAP:
+            unit = AC_SIZES[weathers.randrange(len(AC_SIZES))] if weathers is not None else AC
+            if rng.random() < AC_SHARE and room_beside > unit[0] + AC_GAP:
                 side = 1.0 if rng.random() < 0.5 else -1.0
-                found.append(face.on(room, f"{prefix}ac_unit", along + side * (WINDOW[0] / 2 + AC_GAP + AC[0] / 2),
-                                     middle - AC_UNDER - AC[1] / 2, AC, proud=PLATE_DEEP))
+                found.append(face.on(room, f"{prefix}ac_unit", along + side * (WINDOW[0] / 2 + AC_GAP + unit[0] / 2),
+                                     middle - AC_UNDER - unit[1] / 2, unit, proud=PLATE_DEEP,
+                                     **weathered("ac_unit", weathers)))
             caged = rng.random() < CAGE_SHARE
             if caged:
-                found.append(face.on(room, f"{prefix}window_cage", along, middle - CAGE[1] / 2, CAGE, proud=PLATE_DEEP))
+                found.append(face.on(room, f"{prefix}window_cage", along, middle - CAGE[1] / 2, CAGE, proud=PLATE_DEEP,
+                                     **weathered("window_cage", weathers)))
             found.append(face.on(room, f"{prefix}facade_band", along, floor - BAND[0] / 2, (wide, BAND[0], BAND[1]),
-                                 proud=PLATE_DEEP))
+                                 proud=PLATE_DEEP, **weathered("facade_band", weathers)))
             if not prefix and not caged:
                 found += window_gear(room, face, along, floor, gear)
     return found
@@ -308,12 +353,13 @@ def drainpipes(room, face, foot=PIPE_FOOT, prefix=""):
             for index in range(PIPE_EVERY, len(bays), PIPE_EVERY)]
 
 
-def shop_front(room, face, along, wide, named, is_open, prefix=""):
+def shop_front(room, face, along, wide, named, is_open, prefix="", weathers=None):
     """A bay's shop on the ground floor: its plate with the shop's opening, the shutter pulled down (or the tea
     restaurant's lit front, or an open shop's lit window) and the sign over it (the tea restaurant's in neon)."""
     ground = face.ground
     found = [face.on(room, f"{prefix}render_shop", along, ground, (wide, STOREY - ground, PLATE_DEEP),
-                     openings=[cut(-SHOP_OPENING[0] / 2, 0.0, SHOP_OPENING[0], SHOP_OPENING[1])])]
+                     openings=[cut(-SHOP_OPENING[0] / 2, 0.0, SHOP_OPENING[0], SHOP_OPENING[1])],
+                     **weathered("render_shop", weathers))]
     sign_foot = ground + SHOP_OPENING[1] + SIGN_GAP
     if named == "tea":
         found.append(face.on(room, "tea_front", along, ground, (SHOP_OPENING[0], SHOP_OPENING[1], FRONT_DEEP)))
@@ -324,27 +370,28 @@ def shop_front(room, face, along, wide, named, is_open, prefix=""):
         found.append(face.on(room, f"{prefix}shop_open", along, ground, (SHOP_OPENING[0], SHOP_OPENING[1], FRONT_DEEP)))
     else:
         found.append(face.on(room, f"{prefix}shop_shutter", along, ground, (SHOP_OPENING[0], SHOP_OPENING[1],
-                                                                   SHUTTER_DEEP)))
+                                                                   SHUTTER_DEEP), **weathered("shop_shutter", weathers)))
     found.append(face.on(room, f"{prefix}shop_sign", along, sign_foot, SIGN, proud=PLATE_DEEP + BAND[1], label=named))
     return found
 
 
-def shop_face(room, face, seed, shops, open_shops, prefix=""):
+def shop_face(room, face, seed, shops, open_shops, prefix="", close=False):
     """A tenement face with a shop in every ground floor bay (`shops`: z -> its sign, or "tea"; `open_shops`: the z of
-    the ones still open), its storeys and its drainpipes."""
+    the ones still open), its storeys and its drainpipes; a face the street sees `close` is weathered (weathered())."""
     found = []
+    weathers = random.Random(seed + WEATHER_SEED) if close else None
     for index, (along, wide) in enumerate(face.bays()):
         named = next((what for at, what in shops.items() if abs(face.along_of(at) - along) < wide / 2), None)
         is_open = any(abs(face.along_of(at) - along) < wide / 2 for at in open_shops)
         found += shop_front(room, face, along, wide, named or SHOP_WORDS[(seed + index * 4) % len(SHOP_WORDS)],
-                            is_open, prefix)
-    found += storeys(room, face, random.Random(seed), prefix=prefix)
+                            is_open, prefix, weathers)
+    found += storeys(room, face, random.Random(seed), prefix=prefix, weathers=weathers)
     if not prefix:
-        found += shop_gear(room, face, open_shops)
+        found += shop_gear(room, face, open_shops, weathers)
     return found + drainpipes(room, face, prefix=prefix)
 
 
-def shop_gear(room, face, open_shops):
+def shop_gear(room, face, open_shops, weathers=None):
     """Along a street face's shops: the gas pipe over the signs, a meter box beside each shop's opening, and the
     barber's pole beside the open shop's door (the concept's K06)."""
     found = []
@@ -352,7 +399,7 @@ def shop_gear(room, face, open_shops):
         found.append(face.on(room, "facade_pipe", along, GAS_PIPE_HIGH, (wide, GAS_PIPE[0], GAS_PIPE[1]),
                              proud=PLATE_DEEP))
         found.append(face.on(room, "meter_box", along + SHOP_OPENING[0] / 2 + 0.3, face.ground + 1.1, METER,
-                             proud=PLATE_DEEP))
+                             proud=PLATE_DEEP, **weathered("meter_box", weathers)))
         if any(abs(face.along_of(at) - along) < wide / 2 for at in open_shops):
             found.append(face.on(room, "barber_pole", along - SHOP_OPENING[0] / 2 - 0.3, face.ground + 1.6,
                                  BARBER_POLE, proud=PLATE_DEEP))
@@ -445,19 +492,22 @@ def bay_face(room, numbers, face):
     openings = [cut(door_along - door[0] / 2, 0.0, door[0], door[1] - face.ground)]
     # In storeys' plates, cut at each half landing's height, so no one plate takes a whole picture set.
     found = []
+    weathers = random.Random(SEEDS["bay"] + WEATHER_SEED)
     bands = [face.ground] + [level + BAY_AC_HIGH for level in half_landings] + [stair_top]
     for low, high in zip(bands, bands[1:]):
         own = [[x0, y0 - (low - face.ground), x1, y1 - (low - face.ground)] for x0, y0, x1, y1 in openings
                if y0 + face.ground < high and y1 + face.ground > low]
         found.append(face.on(room, "render_lower", 0.0, low, (face.length, high - low, PLATE_DEEP),
-                             **({"openings": own} if own else {})))
+                             **({"openings": own} if own else {}), **weathered("render_lower", weathers)))
     for level in half_landings:
-        found.append(face.on(room, "ac_unit", ac_along, level + BAY_AC_HIGH - 0.15 - AC[1], AC, proud=PLATE_DEEP))
+        found.append(face.on(room, "ac_unit", ac_along, level + BAY_AC_HIGH - 0.15 - AC[1], AC, proud=PLATE_DEEP,
+                             **weathered("ac_unit", weathers)))
     found.append(face.on(room, "door_canopy", door_along, CANOPY_HIGH, CANOPY, proud=PLATE_DEEP))
     found.append(face.on(room, "vent_louvre", door_along + 1.6, face.ground + 1.2, VENT, proud=PLATE_DEEP))
     found.append(face.on(room, "shop_sign", door_along, CANOPY_HIGH + CANOPY[1] + 0.1, SIGN, proud=PLATE_DEEP,
                          label="sign_block_name"))
-    found += storeys(room, face, random.Random(SEEDS["bay"]), from_storey=int(round(stair_top / STOREY)))
+    found += storeys(room, face, random.Random(SEEDS["bay"]), from_storey=int(round(stair_top / STOREY)),
+                     weathers=weathers)
     return found
 
 
@@ -515,10 +565,51 @@ def street(numbers):
     found = street_ground(room, numbers, faces)
     found += street_barriers(room, numbers, faces)
     for name in ("own_north", "own_south", "across"):
-        found += shop_face(room, faces[name], SEEDS[name], SHOPS.get(name, {}), OPEN_SHOPS.get(name, ()))
+        found += shop_face(room, faces[name], SEEDS[name], SHOPS.get(name, {}), OPEN_SHOPS.get(name, ()), close=True)
     found += bay_face(room, numbers, faces["bay"])
     found += street_furniture(room, numbers, faces)
     found += street_ends(room, numbers, faces)
+    return found + roofs(room, numbers)
+
+
+def blocks_seen(numbers):
+    """The blocks the street stands between, each as its middle on the ground and its size (across x, along z): the
+    player's own block either side of the stairwell's bay and the block across the road."""
+    found = [(np.array([at[0], 0.0, at[2]]), numbers["OWN_BLOCK_SIZE"]) for at in numbers["OWN_BLOCKS_AT"]]
+    across = numbers["ACROSS_BLOCK_AT"]
+    return found + [(np.array([across[0], 0.0, across[2]]), numbers["BLOCK_SIZE"])]
+
+
+def roofs(room, numbers):
+    """Each block's roof (the record's whitewash boxes before): its deck in tiles, its top on BUILDING_TOP, and its
+    parapet round all four sides in stretches about a bay long; on a side the street sees, the parapet's face stands
+    flush with the render plates under it, its coping out over them. The long sides run the block's whole length,
+    the ends between their backs."""
+    top = numbers["BUILDING_TOP"]
+    street_x = [float(face.middle[0]) for face in street_faces(numbers).values()]
+    weathers = random.Random(SEEDS["roof"])
+    found = []
+    for middle, size in blocks_seen(numbers):
+        wide, long = size[0], size[2]
+        across = max(1, round(wide / ROOF_TILE))
+        down = max(1, round(long / ROOF_TILE))
+        for column in range(across):
+            for row in range(down):
+                spot = (middle[0] - wide / 2 + wide * (column + 0.5) / across,
+                        middle[2] - long / 2 + long * (row + 0.5) / down)
+                laid = flat(room, "block_roof", spot, np.array([0.0, 0.0, 1.0]), (long / down, wide / across,
+                                                                                    ROOF_DECK), top)
+                found.append(dict(laid, **weathered("block_roof", weathers)))
+        sides = [(np.array([side, 0.0, 0.0]), long, wide / 2) for side in (1.0, -1.0)]
+        sides += [(np.array([0.0, 0.0, side]), wide - 2 * PARAPET[1], long / 2) for side in (1.0, -1.0)]
+        for out, length, reach in sides:
+            edge = middle + out * reach
+            plated = out[0] != 0.0 and min(abs(float(edge[0]) - x) for x in street_x) < 1e-3
+            face = Face(edge, out, length, PARAPET[0])
+            front = PLATE_DEEP + COPING_OUT if plated else COPING_OUT
+            for along, stretch in face.bays():
+                found.append(face.on(room, "parapet", along, top, (stretch, PARAPET[0], PARAPET[1] + front),
+                                     proud=-PARAPET[1], **weathered("parapet", weathers)))
     return found
 
 
@@ -906,7 +997,7 @@ def launch(numbers):
 
 PLACES = {"street": street, "square": square, "launch": launch}
 FLOORS = ("ground_asphalt", "ground_paving", "kerb_stone", "road_line", "far_paving", "far_terrace", "far_road", "far_promenade",
-          "bay_balcony_slab", "far_pad")
+          "bay_balcony_slab", "far_pad", "block_roof")
 STANDING = ("water_barrier_red", "water_barrier_white", "street_lamp", "notice_case", "poster_stand", "menu_board",
             "end_wall", "end_fence", "far_palm",
             "far_flag_pole", "far_floodlight_tower", "far_square_lamp", "far_stage", "far_backdrop", "far_podium",

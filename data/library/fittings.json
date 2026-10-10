@@ -3932,11 +3932,11 @@
 				"handle"
 			],
 			"built": {
-				"casement": 0.711,
+				"casement": 0.702,
 				"frame": 0.525,
 				"glass": 0.924,
 				"handle": 1.0,
-				"sill": 0.706,
+				"sill": 0.753,
 				"transom": 0.206
 			},
 			"prints_off": []
@@ -3952,11 +3952,11 @@
 				"handle"
 			],
 			"built": {
-				"casement": 0.727,
+				"casement": 0.702,
 				"frame": 0.525,
 				"glass": 0.924,
 				"handle": 1.0,
-				"sill": 0.706,
+				"sill": 0.753,
 				"transom": 0.206
 			},
 			"prints_off": []
@@ -3973,11 +3973,11 @@
 			],
 			"built": {
 				"bracket": 0.721,
-				"casing": 0.82,
-				"fan": 0.875,
-				"fan_grille": 0.907,
-				"louvre": 1.0,
-				"pipe": 0.622
+				"casing": 0.817,
+				"fan": 0.854,
+				"fan_grille": 0.888,
+				"louvre": 0.976,
+				"pipe": 0.607
 			},
 			"prints_off": []
 		},
@@ -4012,7 +4012,7 @@
 				"padlock"
 			],
 			"built": {
-				"bottom_bar": 0.818,
+				"bottom_bar": 0.836,
 				"curtain": 0.775,
 				"guide": 0.738,
 				"handle": 0.839,
