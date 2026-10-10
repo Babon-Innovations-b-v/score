@@ -15,12 +15,17 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
            finished here as every batch model is; the gaps between arms and body and between the legs checked on
            its cut-out; the take with the most of its figure separated is kept
   parts    SAM 2.1's regions of the close-up (segment.py), GeoSAM2 seeded with them on the raw model (meshparts.py),
-           the judge naming each part's material (judge.py), laid onto the finished model (prop_parts.py)
+           the judge naming each part's and each finish region's material (judge.py), the regions carried onto the
+           faces the camera sees, laid onto the finished model (prop_parts.py)
   build    on a characters machine (prop_chain.py): SOMA-X's skeleton placed inside the Pixal3D mesh (its bone
            lengths and rest pose fitted to the mesh's limbs; no SOMA surface is shown or shapes the mesh), its skin
-           weights moved onto the mesh, the glTF with Kimodo's clips, UsdSkel, joins.py, and the review renders
-  checks   the per-frame pokes (pokes.py), the A-pose outline (outline.py) and drape_measure.py where a Warp drape
-           is kept, written with joins.py's record to checks.txt
+           weights moved onto the mesh, the glTF with Kimodo's clips, UsdSkel and joins.py
+  settle   the garment parts settled through every clip (garment_settle.py, Newton on a characters machine), baked
+           here into corrective shapes each clip keys (garment_bake.py): <candidate>/settle/<name>.glb
+  checks   the per-frame pokes (pokes.py), the A-pose outline (outline.py) and the reviewer's skin through cloth count,
+           written with joins.py's record to checks.txt
+  shots    the settled body rendered on a characters machine (blender_shots.py) beside today's body in the same five
+           views, into the coordinator's renders-r2/
 `--held` runs the characters stages on a machine characters.py --hold keeps (its run folder), as a step is tried.
 """
 import argparse
@@ -42,7 +47,7 @@ MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
 CANDIDATES = MOTION_HOME / "candidates" / "prop-people"
 PROPS_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
 MOTIONS = MOTION_HOME / "work" / "motions"
-STAGES = ("closeup", "rig", "mesh", "parts", "build", "checks")
+STAGES = ("closeup", "rig", "mesh", "parts", "build", "settle", "checks", "shots")
 POLL_SECONDS = 30
 
 
@@ -54,6 +59,13 @@ def folder_of(spec, outfit):
 def take_name(spec, outfit, seed):
     """A close-up's name, which is also its Pixal3D model's name under the props' work folder."""
     return f"pp-{spec['name']}-{outfit}-s{seed}"
+
+
+def make_place(folder, stage):
+    """A stage's make folder in the candidate's folder, named for the person, the outfit and the stage, since a held
+    machine keeps each make under its folder's name (two people's settles in one "settle-make" ran over each other,
+    2026-10-10)."""
+    return folder / f"{folder.parent.name}-{folder.name}-{stage}"
 
 
 def make_folder(place, spec, steps, files):
@@ -123,7 +135,7 @@ def on_held(place, run):
 def closeup(spec, outfit, who, held, dry_run):
     """The close-ups and their checks, into <candidate>/closeup/."""
     folder = folder_of(spec, outfit)
-    make = folder / "closeup-make"
+    make = make_place(folder, "closeup")
     machine_spec = dict(spec, name=f"{spec['name']}-{outfit}", outfit=outfit, who=spec["description"],
                         outfit_words=spec["outfit_words"][outfit])
     references = {f"reference_{number}": pathlib.Path(path).expanduser()
@@ -155,6 +167,9 @@ def rig(spec, outfit, who, held, dry_run):
 
 
 PIXAL = pathlib.Path.home() / ".farm-factory-props/work/pixal"
+# The welded mesh is thinned part by part to this many triangles before the rig (prop_rig.py --faces), so the outfit
+# with its tucks stays within the shipped player's 29,849.
+NEAR_FACES = 28500
 REVIEW_CLIPS = ("standing", "walking", "bench", "waiting", "suit")
 
 
@@ -164,7 +179,8 @@ def cloud(tool, *arguments):
 
 
 def local(script, *arguments):
-    """A CPU step of this folder under the memory cap, in the props environment; raises when it fails."""
+    """A CPU step (a script of this folder, or one by its own path) under the memory cap, in the props environment;
+    raises when it fails."""
     subprocess.run(["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=16G", str(PROPS_PYTHON),
                     str(HERE / script), *map(str, arguments)], check=True)
 
@@ -236,6 +252,7 @@ def parts(spec, outfit, who, held, dry_run):
     spec_file = folder / "spec.json"
     spec_file.write_text(json.dumps(spec, indent=1))
     local("prop_parts.py", "questions", run, take, spec_file, "--outfit", outfit)
+    local("prop_parts.py", "regions", run, take, spec_file, "--outfit", outfit)
     cloud("judge.py", run / "questions" / "questions.json", run / "answers")
     local("prop_parts.py", "parts", run, take, spec_file, "--outfit", outfit)
     return json.loads((run / take / "parts.json").read_text())
@@ -244,20 +261,21 @@ def parts(spec, outfit, who, held, dry_run):
 def build(spec, outfit, who, held, dry_run):
     """The rig fitted into the kept take (prop_rig.py, here) and its far body (prop_far.py, here), then the person built
     on a characters machine
-    (prop_chain.py build and review): <candidate>/out/."""
+    (prop_chain.py build): <candidate>/out/. The pictures are the settled person's, made after the settle."""
     folder = folder_of(spec, outfit)
     take = (folder / "take.txt").read_text().strip()
     rig_file = CANDIDATES / spec["name"] / "rig.npz"
-    local("prop_rig.py", PIXAL / f"{take}-final.glb", rig_file, folder / "fit", "--size",
-          spec.get("look", {}).get("scale", 1.0))
     parts_file = folder / "parts" / take / "parts.npz"
+    local("prop_rig.py", PIXAL / f"{take}-final.glb", rig_file, folder / "fit", "--size",
+          spec.get("look", {}).get("scale", 1.0), "--parts", parts_file, "--faces", NEAR_FACES)
     local("prop_far.py", folder / "fit" / "rig.npz", parts_file, folder / "fit" / "far.npz")
-    make = folder / "build-make"
+    local("prop_prints.py", take, folder / "fit" / "rig.npz", parts_file, folder / "fit" / "prints.npz")
+    make = make_place(folder, "build")
     machine_spec = dict(spec, name=f"{spec['name']}-{outfit}-build", person=spec["name"], outfit=outfit,
                         review_clips=list(REVIEW_CLIPS))
-    make_folder(make, machine_spec, ("build", "review"),
+    make_folder(make, machine_spec, ("build",),
                 {"fit": folder / "fit" / "rig.npz", "mean": rig_file, "parts": parts_file,
-                 "far": folder / "fit" / "far.npz"})
+                 "far": folder / "fit" / "far.npz", "prints": folder / "fit" / "prints.npz"})
     on_characters(make, who, held, dry_run)
     if not dry_run:
         if (folder / "out").exists():
@@ -266,7 +284,39 @@ def build(spec, outfit, who, held, dry_run):
     return json.loads((folder / "fit" / "rig.json").read_text())["matched_share"]
 
 
+def settle(spec, outfit, who, held, dry_run):
+    """The garment settle (garment_settle.py): its input from the built person here, Newton on a characters machine,
+    its offsets into <candidate>/settle/, baked here into corrective shapes per clip (garment_bake.py):
+    <candidate>/settle/<name>.glb."""
+    folder = folder_of(spec, outfit)
+    (folder / "settle").mkdir(exist_ok=True)
+    settle_in = folder / "settle" / "settle_in.npz"
+    local("garment_settle.py", "inputs", folder / "out" / f"{spec['name']}.glb", settle_in)
+    make = make_place(folder, "settle")
+    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-settle"), ("settle",), {"settle_in": settle_in})
+    on_characters(make, who, held, dry_run)
+    if dry_run:
+        return None
+    for name in ("settle_out.npz", "settle_out.json"):
+        shutil.copy2(make / "out" / name, folder / "settle" / name)
+    settled = folder / "settle" / f"{spec['name']}.glb"
+    local("garment_bake.py", folder / "out" / f"{spec['name']}.glb", settle_in, folder / "settle" / "settle_out.npz",
+          settled)
+    return json.loads(settled.with_suffix(".bake.json").read_text())
+
+
 CHECKS_TABLE = pathlib.Path.home() / ".farm-factory-props/score-coordinator/prop-people"
+RENDERS = CHECKS_TABLE / "renders-r2"
+# Today's bodies as the review of 2026-10-10 rendered them, with the same stage, light and cameras.
+TODAY = CHECKS_TABLE / "renders" / "raw"
+VIEWS = (("apose_front", "A-pose, front"), ("apose_side", "A-pose, side"), ("walk_a", "walking, 1/4"),
+         ("walk_b", "walking, 3/4"), ("sit", "sitting, 2/3"))
+# The reviewer's independent count of skin and hard parts through cloth (2026-10-10), kept beside the checks.
+BODYCLOTH = CHECKS_TABLE / "check" / "bodycloth.py"
+RIGID_MOST = 1.2
+SHIPPED_TRIANGLES = 29849
+LEAN_MOST_CM = 1.5
+FEET_MIRROR_CM = 3.0
 
 
 def materials_line(parts):
@@ -287,6 +337,7 @@ def table_rows(spec, outfit, folder, take):
     rows = [("rig", "limbs apart (crotch, armpit found)", f"crotch {rig['fit']['crotch']:.3f} m, armpit "
              f"{rig['fit']['armpit']:.3f} m", "found", "pass"),
             ("rig", "mesh vertices matched by RSWT", f"{rig['matched_share']:.1%} (rest inpainted)", "record", "-"),
+            level_row(rig), feet_row(rig),
             ("parts", "GeoSAM2 parts by material, share of the surface", materials_line(parts), "record", "-")]
     for kind in ("wrist", "ankle"):
         value = joined.get(kind)
@@ -306,6 +357,13 @@ def table_rows(spec, outfit, folder, take):
     rows.append(("pokes.py", "cloth through cloth (crossings), rest / worst frame; shipped body's",
                  f"{poked['rest_crossings']} / {crossing}; shipped {shipped['rest_crossings']} / {shipped_worst}",
                  "no clip above the shipped body's", "pass" if poked["verdict"]["cloth_through_cloth"] else "FAIL"))
+    stretched = max(clip["rigid_stretch"] for clip in poked["clips"].values())
+    rows.append(("pokes.py", "hard parts' edges at their longest against the bind, worst frame", f"{stretched:.3f}x",
+                 f"<= {RIGID_MOST}x", "pass" if poked["verdict"]["rigid"] else "FAIL"))
+    triangles = json.loads((folder / "out" / f"{spec['name']}.json").read_text())["levels"][outfit]["triangles"]
+    rows.append(("build", "outfit triangles (tucks and prints in)", f"{triangles:,}", f"<= {SHIPPED_TRIANGLES:,}",
+                 "pass" if triangles <= SHIPPED_TRIANGLES else "FAIL"))
+    rows += bodycloth_rows(folder)
     rows.append(("outline.py", "A-pose IoU against the cut-out, raw / built",
                  f"{outlined['iou_raw']} / {outlined['iou_built']} (drop {outlined['iou_drop']})",
                  "drop <= 0.01, bands <= 1 %", "pass" if outlined["pass"] else "FAIL"))
@@ -315,19 +373,93 @@ def table_rows(spec, outfit, folder, take):
     return rows
 
 
+def shots(spec, outfit, who, held, dry_run):
+    """The settled body's comparison pictures (blender_shots.py on a characters machine), each set beside today's body
+    in the same view, and one sheet: <coordinator>/renders-r2/."""
+    folder = folder_of(spec, outfit)
+    make = make_place(folder, "shots")
+    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-shots", outfit=outfit), ("shots",),
+                {"body": folder / "settle" / f"{spec['name']}.glb"})
+    on_characters(make, who, held, dry_run)
+    if dry_run:
+        return None
+    raw = RENDERS / "raw" / f"{spec['name']}_prop"
+    if raw.exists():
+        shutil.rmtree(raw)
+    shutil.copytree(make / "out" / "shots", raw)
+    return [str(path) for path in side_by_side(spec["name"], raw)]
+
+
+def side_by_side(person, raw):
+    """Today's body (left) and the prop route's (right) in each view, labelled, and the sheet of all views."""
+    from PIL import Image, ImageDraw
+    pictures = []
+    for view, title in VIEWS:
+        left, right = (Image.open(folder / f"{view}.png").convert("RGB") for folder in (TODAY / f"{person}_today", raw))
+        width, height = left.size
+        pair = Image.new("RGB", (width * 2, height + 44), "white")
+        pair.paste(left, (0, 44))
+        pair.paste(right, (width, 44))
+        pen = ImageDraw.Draw(pair)
+        pen.text((10, 14), f"today - {title}", fill="black")
+        pen.text((width + 10, 14), f"prop route, settled - {title}", fill="black")
+        pen.line([(width, 0), (width, height + 44)], fill="black", width=2)
+        pair.save(RENDERS / f"{person}_{view}.png")
+        pictures.append(pair)
+    sheet = Image.new("RGB", (pictures[0].width, sum(picture.height for picture in pictures)), "white")
+    for number, picture in enumerate(pictures):
+        sheet.paste(picture, (0, number * picture.height))
+    sheet.save(RENDERS / f"{person}_sheet.png")
+    return [RENDERS / f"{person}_{view}.png" for view, _ in VIEWS] + [RENDERS / f"{person}_sheet.png"]
+
+
+def level_row(rig):
+    """The head joint over the hips joint across the body at the bind (the review found 8.7 cm before levelling)."""
+    lean = (rig["joints"]["Head"][0] - rig["joints"]["Hips"][0]) * 100
+    return ("rig", "head joint over the hips joint, across, at the bind", f"{lean:+.1f} cm", "within 1.5 cm",
+            "pass" if abs(lean) <= LEAN_MOST_CM else "FAIL")
+
+
+def feet_row(rig):
+    """Each foot joint across from the hips joint at the bind (the review found +27.8 and -3.2 cm before levelling)."""
+    left, right = ((rig["joints"][side + "Foot"][0] - rig["joints"]["Hips"][0]) * 100 for side in ("Left", "Right"))
+    return ("rig", "feet across from the hips at the bind, left / right", f"{left:+.1f} / {right:+.1f} cm",
+            "mirror within 3 cm", "pass" if abs(left + right) <= FEET_MIRROR_CM else "FAIL")
+
+
+def bodycloth_rows(folder):
+    """The reviewer's skin-and-hard-through-cloth count (BODYCLOTH, outside the repo): as the engine draws the body
+    (bodycloth_shaped.py, the corrective shapes in) and as the reviewer's reader takes it (without them)."""
+    rows = []
+    for name, how in (("bodycloth.json", "with the settle's shapes"), ("bodycloth_plain.json", "garments unsettled")):
+        found = json.loads((folder / "checks" / name).read_text())
+        clips = list(found["clips"].values())
+        for kind in ("skin", "hard"):
+            worst = max(clip[kind]["worst"] for clip in clips)
+            frames = sum(clip[kind]["frames_with_any"] for clip in clips)
+            total = sum(clip["frames"] for clip in clips)
+            rows.append(("bodycloth.py", f"{kind} edges through cloth, {how}: bind / worst frame / frames with any",
+                         f"{found['bind'][kind]} / {worst} / {frames} of {total}", "record", "-"))
+    return rows
+
+
 def checks(spec, outfit, who, held, dry_run):
     """Every check of the plan on the built candidate (pokes.py, outline.py here; joins.py's record from the build)
     and the table, <candidate>/checks/checks.txt and the coordinator's copy."""
     folder = folder_of(spec, outfit)
     take = (folder / "take.txt").read_text().strip()
     (folder / "checks").mkdir(exist_ok=True)
-    body = folder / "out" / f"{spec['name']}.glb"
+    body = folder / "settle" / f"{spec['name']}.glb"
+    if not body.exists():
+        body = folder / "out" / f"{spec['name']}.glb"
     shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
     if not (folder / "checks" / "pokes_shipped.json").exists():
         local("pokes.py", shipped, "--out", folder / "checks" / "pokes_shipped.json")
     local("pokes.py", body, "--out", folder / "checks" / "pokes.json", "--against",
           folder / "checks" / "pokes_shipped.json")
     local("outline.py", take, folder / "fit" / "rig.npz", body, "--out", folder / "checks" / "outline.json")
+    local(BODYCLOTH, body, "--outfit", outfit, "--out", folder / "checks" / "bodycloth_plain.json")
+    local("bodycloth_shaped.py", BODYCLOTH, body, "--outfit", outfit, "--out", folder / "checks" / "bodycloth.json")
     rows = table_rows(spec, outfit, folder, take)
     widths = [max(len(str(row[column])) for row in rows) for column in range(4)]
     lines = [f"PROP PEOPLE CHECKS: {spec['name']} ({outfit}), take {take}, "
@@ -372,7 +504,8 @@ def record_stage(folder, stage, began, result):
     print(f"== {stage}: {result}", flush=True)
 
 
-STAGE_WORK = {"closeup": closeup, "rig": rig, "mesh": mesh, "parts": parts, "build": build, "checks": checks}
+STAGE_WORK = {"closeup": closeup, "rig": rig, "mesh": mesh, "parts": parts, "build": build, "settle": settle,
+              "checks": checks, "shots": shots}
 
 
 if __name__ == "__main__":

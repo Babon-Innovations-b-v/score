@@ -9,12 +9,16 @@ batch's cut-out), split_compare.py `inputs` (<run>/<take>/up/), GeoSAM2 seeded w
 (../../props/cloud/meshparts.py --methods geosam2) and the split laid on the raw model (split_spread.lay_geosam2).
 
 `questions` writes each GeoSAM2 part outlined on the close-up with the person's allowed materials (part_judge.py) to
-<run>/questions/ for ../../props/cloud/judge.py, each asked with three seeds. `parts` reads the answers
-(<run>/answers/), names each part's material (most of its seeds' usable answers, else the nearest allowed colour), gives each part its role in the
-body (skin, hair, garment, hard) and the name joins.py knows it by (skin_head, skin_hands, hair, cloth, a boot or a
-mitt, split by side in the build, and any other hard part by its material), carries the split from the raw model onto the finished one (the finish's own
-turn, refined: labels.finish_turn and onto_finished) and writes <run>/<take>/parts.npz (each finished face's part,
-the parts' names, roles, materials and linear colours) and parts.json.
+<run>/questions/ for ../../props/cloud/judge.py, each asked with three seeds; `regions` adds each finish region of the
+close-up (`finish_regions`: SAM 2.1's smaller masks, a shoulder panel, the flag, the belt's front, the piping) to the
+same list, so one judge run answers both. `parts` reads the answers (<run>/answers/), names each part's material (most
+of its seeds' usable answers, else the nearest allowed colour), gives each part its role in the body (skin, hair,
+garment, hard) and the name joins.py knows it by (skin_head, skin_hands, hair, cloth, a boot or a mitt, split by side in
+the build, and any other hard part by its material), gives each judged finish region's seen faces a part of its own
+where its material differs from theirs (`with_regions`; an answer whose colour lies far from the region's own on the
+close-up is not believed), carries the split from the raw model onto the finished one (the finish's own turn, refined:
+labels.finish_turn and onto_finished) and writes <run>/<take>/parts.npz (each finished face's part, the parts' names,
+roles, materials and linear colours) and parts.json.
 
 The person's materials (`person_materials`, the outfit's palette) are library families with this person's own colours: the outfit's from
 people/paint.py's palette for its design (the shipped people's colours), the skin and hair from its look
@@ -28,6 +32,7 @@ import sys
 
 import numpy as np
 import trimesh
+from PIL import Image
 from scipy.spatial import cKDTree
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -44,7 +49,7 @@ import split_compare  # noqa: E402
 # has a paths.py of its own that shadows the props library's.
 TAKE_C_SKIN, TAKE_C_HAIR = (226, 172, 138), (24, 24, 28)
 WORK_CHINESE = {"navy fabric": ("fabric", (50, 57, 78)), "light grey fabric": ("fabric", (138, 136, 132)),
-                "red piping fabric": ("fabric", (178, 58, 44)), "black leather belt": ("rubber", (30, 31, 34)),
+                "red piping print": ("print", (178, 58, 44)), "black leather belt": ("rubber", (30, 31, 34)),
                 "steel buckle": ("steel", (150, 152, 156)), "black rubber boot": ("rubber", (32, 34, 34)),
                 "printed flag patch": ("print", (184, 48, 38))}
 SPACE_CHINESE = {"white suit fabric": ("fabric", (228, 224, 212)), "white backpack plastic": ("plastic", (220, 216, 202)),
@@ -72,6 +77,13 @@ ROLES = {"skin": "skin", "hair": "hair", "fabric": "garment", "print": "garment"
 SEEDS = (7, 8, 9)
 # A skin part above this share of the height is the head's.
 HEAD_SHARE = 0.8
+# A finish region (finish_regions) is a SAM 2.1 mask of at least REGION_FLOOR pixels and at most FINISH_MOST of the
+# figure (the player's piping on one upper arm is 1,007 pixels, his flag 1,863, his suit's front 73,000); it takes
+# faces from its parts only where at least REGION_FACES_LEAST seen faces change material.
+REGION_FLOOR = 150
+FINISH_MOST = 0.06
+REGION_FACES_LEAST = 20
+REGION_COLOUR_MOST = 50.0
 
 
 def linear(srgb):
@@ -117,6 +129,74 @@ def seeded(listing, asked):
             kept += [dict(job, name=f"{job['name']}-s{seed}", seed=seed) for seed in SEEDS]
     listing.write_text(json.dumps(kept, indent=1))
     return [f"{name}-s{seed}" for name in asked for seed in SEEDS]
+
+
+def finish_regions(run, take):
+    """The close-up's finishes as regions: each pixel's smallest SAM 2.1 mask (segment.py's, of the batch's
+    cut-out) holding between REGION_FLOOR pixels and FINISH_MOST of the figure, -1 elsewhere. The grey shoulder
+    panels, the flag, the belt's front and the piping on the player's upper arms are masks of their own there, where
+    GeoSAM2's parts kept one panel, no flag, no piping and the belt only at the back (review, 2026-10-10)."""
+    import regions
+    masks = regions.masks_of(run / "pictures" / "masks" / f"{take}.npz")
+    figure = np.asarray(Image.open(labels.PIXAL / f"{take}.svviews" / "input.png").convert("RGBA"))[..., 3] > 127
+    area = (masks & figure).sum(axis=(1, 2))
+    found = np.full(figure.shape, -1)
+    for index in np.argsort(-area):  # largest first, so the smallest over a pixel is laid last
+        if REGION_FLOOR <= area[index] <= FINISH_MOST * figure.sum():
+            found[masks[index] & figure] = index
+    return found
+
+
+def region_questions(run, take, spec, outfit):
+    """Each finish region outlined on the close-up with its question, into <run>/questions/ beside the parts'; the
+    names."""
+    found = finish_regions(run, take)
+    picture = Image.open(labels.PIXAL / f"{take}.svviews" / "input.png")
+    words = f"a person: {spec['description']}, wearing {spec['outfit_words'][outfit]}"
+    asked = part_judge.write_questions(run / "questions", region_take(take), picture, found,
+                                       [int(region) for region in np.unique(found) if region >= 0], words,
+                                       person_materials(spec, outfit))
+    return seeded(run / "questions" / part_judge.QUESTIONS, asked)
+
+
+def region_take(take):
+    """The name a take's region questions go by, beside its part questions in one list for one judge run."""
+    return f"{take}-region"
+
+
+def with_regions(run, take, mesh, part_of, chosen, materials):
+    """The split with each judged finish region carried onto the raw model's faces the close-up's camera sees: a seen
+    face whose pixel lies in a region judged a material other than its part's goes to that region's own part
+    (numbered after the last). The new split and every part's material."""
+    found = finish_regions(run, take)
+    judged = judged_by_most(run / "answers", region_take(take), int(found.max()) + 1, list(materials))
+    if not judged:
+        return part_of, chosen
+    picture, seen, row, column = labels.picture_view(mesh, take)
+    judged = believable(judged, found, np.asarray(picture.convert("RGB")) / 255, materials)
+    region = np.where(seen, found[row, column], -1)
+    part_of, chosen = part_of.copy(), dict(chosen)
+    following = int(part_of.max()) + 1
+    for number, material in sorted(judged.items()):
+        moved = (region == number) & (np.array([chosen.get(int(part)) for part in part_of]) != material)
+        if moved.sum() >= REGION_FACES_LEAST:
+            part_of[moved] = following
+            chosen[following] = material
+            following += 1
+    return part_of, chosen
+
+
+def believable(judged, found, picture, materials):
+    """The judged regions whose median colour on the close-up lies within REGION_COLOUR_MOST (Lab) of their material's
+    colour: the judge called the player's white sleeve stripe red piping (66 apart), while the thin piping itself,
+    mixed with the navy round it, reads 45 apart."""
+    kept = {}
+    for region, material in judged.items():
+        pixels = picture[found == region]
+        colour = labels.lab(labels.srgb(np.asarray(materials[material]["colour"])))
+        if len(pixels) and np.linalg.norm(labels.lab(np.median(pixels, 0)) - colour) <= REGION_COLOUR_MOST:
+            kept[region] = material
+    return kept
 
 
 def judged_by_most(folder, take, count, names):
@@ -236,6 +316,7 @@ def parts(run, take, spec, outfit):
     mesh = split_compare.raw_model(take)
     materials = person_materials(spec, outfit)
     raw, chosen = materials_of_parts(run, take, raw_parts(run, take), materials, mesh)
+    raw, chosen = with_regions(run, take, mesh, raw, chosen, materials)
     raw_of_final, final, gap = onto_final(take, mesh)
     part_of = raw[raw_of_final]
     used = sorted(set(part_of.tolist()))
@@ -247,6 +328,7 @@ def parts(run, take, spec, outfit):
                          "share": round(float((part_of == part).mean()), 4)} for part in used]}
     np.savez_compressed(run / take / "parts.npz", part_of=part_of, names=np.array([names[part] for part in used]),
                         parts=np.array(used), roles=np.array([roles[part] for part in used]),
+                        materials=np.array([chosen[part] for part in used]),
                         colours=np.array([materials[chosen[part]]["colour"] for part in used]))
     (run / take / "parts.json").write_text(json.dumps(record, indent=1))
     return record
@@ -254,7 +336,7 @@ def parts(run, take, spec, outfit):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("what", choices=("questions", "parts"))
+    parser.add_argument("what", choices=("questions", "regions", "parts"))
     parser.add_argument("run", type=pathlib.Path)
     parser.add_argument("take")
     parser.add_argument("more", help="the prop route spec (data/characters/makes/<name>.json)")
@@ -263,6 +345,9 @@ def main():
     spec = json.loads(pathlib.Path(options.more).read_text())
     if options.what == "questions":
         print(f"{len(questions(options.run, options.take, spec, options.outfit))} questions in {options.run / 'questions'}")
+    elif options.what == "regions":
+        print(f"{len(region_questions(options.run, options.take, spec, options.outfit))} questions in "
+              f"{options.run / 'questions'}")
     else:
         record = parts(options.run, options.take, spec, options.outfit)
         print(json.dumps(record["parts"]))

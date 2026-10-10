@@ -27,7 +27,8 @@ def far(fit_rig, parts):
     thin = whole.simplify_quadric_decimation(face_count=FAR_TRIANGLES)
     nearest_face = cKDTree(whole.triangles_center).query(thin.triangles_center)[1]
     of_part = surface_of_parts(parts)
-    face_surface = np.array([SURFACES.index(of_part[int(part)]) for part in parts["part_of"][nearest_face]])
+    part_of = fit_rig["part_of"] if "part_of" in fit_rig.files else parts["part_of"]
+    face_surface = np.array([SURFACES.index(of_part[int(part)]) for part in part_of[nearest_face]])
     colours = []
     for surface in SURFACES:
         members = [number for number, part in enumerate(parts["parts"]) if of_part[int(part)] == surface]

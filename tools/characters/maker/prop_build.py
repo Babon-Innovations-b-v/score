@@ -3,7 +3,7 @@ Kimodo's clips, on the rented card in the motion environment (people/body.py's o
 stood over the node and narrowed exactly as the shipped route's):
 
     /root/envs/motion/bin/python prop_build.py <fit rig.npz> <mean rig.npz> <parts.npz> <far.npz> <out.glb> <report.json>
-        [--outfit work]
+        [--outfit work] [--prints prints.npz]
 
 `fit rig.npz` is prop_rig.py's (the fitted bind, every joint's offset against its parent, the mesh in the skeleton's
 frame and its weights); `mean rig.npz` prop_skeleton.py's (the mean bind and each clip's joint transforms against their
@@ -14,10 +14,15 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   clip is lifted so the standing clip's first frame puts the feet where the bind does. Then body.py's steps: the feet
   brought in (stance.narrowed), the clip cut to a loop and stood over the node (prepare_clip), keyed (add_clip).
 - **Each part is a surface of its own** with one flat material: its name (joins.py's names), its library family's
-  colour for this person (no picture colour), its family and material in `extras`. A skin part, a boot and a mitt
-  get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
-  hard part elsewhere (a belt, a pack) sits on the cloth and needs none. The hair rides the head, a mitt its hand, a
-  compact hard part its strongest joint (`rigid`); a boot keeps its transferred weights.
+  colour for this person (no picture colour), its family and material in `extras`; the two printed plates
+  (prop_prints.py: the face from the close-up, the flag patch drawn) are the only pictures. A skin part, a boot and a
+  mitt get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
+  hard part elsewhere (a belt, a pack) sits on the cloth and needs none. Every hard part and the hair ride one joint
+  rigidly (`rigid_joint`: a boot its foot, a mitt its hand, the hair the head, a belt, buckle, helmet or pack the joint
+  its weights favour), and a garment within EASE_REACH of a hard part is eased onto that part's joint, so the trouser
+  hem goes with the boot it covers.
+- **The mesh is the thinned one** where prop_rig.py thinned it part by part (`part_of` in the fit rig), so the outfit
+  stays within the shipped player's triangles.
 - **The far body** is prop_far.py's (the whole mesh thinned to 1,220 triangles, thinned on the processor where it is
   made), in three surfaces (skin, clothes, boots) of the parts' colours, as body.py's far body is named.
 """
@@ -34,11 +39,13 @@ sys.path.insert(0, str(MAKER))
 sys.path.insert(0, str(PEOPLE))
 
 import trimesh  # noqa: E402
+from scipy.spatial import cKDTree  # noqa: E402
 import tucks  # noqa: E402
 
 JOINTS_A_VERTEX = 4
 TRAVELLING_JOINT = 1
-RIGID_SHARE = 0.6
+# How far from a hard part a garment's weights are eased towards its joint (eased_to_hard).
+EASE_REACH = 0.06
 FEET = ("LeftFoot", "RightFoot")
 
 
@@ -71,13 +78,19 @@ def floor_lift(mean_rig, fit_rig, names, scale):
     return float(fit_rig["bind"][feet, 1, 3].min() - world[0, feet, 1, 3].min())
 
 
-def split_parts(points, faces, weights, parts):
-    """The mesh cut into its parts, each with its own copies of its points: {part index: (points, faces, weights)}."""
+def face_parts(fit_rig, parts):
+    """Each fit face's part: the thinned mesh's own (prop_rig.py --parts) where it has one, else parts.npz's."""
+    return fit_rig["part_of"] if "part_of" in fit_rig.files else parts["part_of"]
+
+
+def split_parts(points, faces, weights, part_of):
+    """The mesh cut into its parts, each with its own copies of its points: {part index: (points, faces, weights,
+    the copied points' numbers in the whole mesh)}."""
     found = {}
-    for part in np.unique(parts["part_of"]):
-        mine = faces[parts["part_of"] == part]
+    for part in np.unique(part_of):
+        mine = faces[part_of == part]
         used, renumbered = np.unique(mine, return_inverse=True)
-        found[int(part)] = (points[used], renumbered.reshape(-1, 3), weights[used])
+        found[int(part)] = (points[used], renumbered.reshape(-1, 3), weights[used], used)
     return found
 
 
@@ -87,24 +100,31 @@ def on_one_joint(count, names, joint):
     return weights
 
 
-def rigid(name, points, weights, names):
-    """A hard part's weights: the hair on the head, a mitt on its side's hand, a boot its transferred weights (a
-    Pixal3D boot reaches up the calf: held on the foot joint its shaft swung through the trouser leg, and the split
-    by side carried a piece of one boot with the other foot, 2026-10-10), any other
-    (a helmet, a pack, a box, a buckle) on the joint its transferred weights favour, when that joint holds RIGID_SHARE
-    of them; a hard part spread over several joints (a belt round the waist, or a split that took a sleeve with it)
-    keeps its transferred weights."""
+def rigid_joint(name, points, weights, names):
+    """The one joint a hard part or the hair rides (plan step 3: boots, buckles, helmets, packs ride one joint
+    rigidly; the review found the boots stretched 6.7 to 8.2 times on three joints, 2026-10-10): the hair the head, a
+    boot its side's foot, a mitt its side's hand, any other the joint its transferred weights favour."""
     side = "Left" if points[:, 0].mean() > 0 else "Right"
     if name == "hair":
-        return on_one_joint(len(points), names, "Head")
+        return "Head"
     if name.startswith("boot"):
-        return weights
+        return side + "Foot"
     if name.startswith("mitt"):
-        return on_one_joint(len(points), names, side + "Hand")
-    totals = weights.sum(0)
-    if totals.max() < RIGID_SHARE * totals.sum():
+        return side + "Hand"
+    return names[int(weights.sum(0).argmax())]
+
+
+def eased_to_hard(points, weights, hard_points, hard_joints, names):
+    """A garment's weights eased towards the joint of the hard part next to it: a point within EASE_REACH of a hard
+    point takes that point's joint by 1 - distance / EASE_REACH, so a trouser leg's hem goes with the boot it covers
+    and the cloth by the belt with the belt."""
+    if not len(hard_points):
         return weights
-    return on_one_joint(len(points), names, names[int(totals.argmax())])
+    distance, nearest = cKDTree(hard_points).query(points)
+    share = np.clip(1.0 - distance / EASE_REACH, 0.0, 1.0)[:, None]
+    target = np.zeros_like(weights)
+    target[np.arange(len(points)), [names.index(joint) for joint in hard_joints[nearest]]] = 1.0
+    return weights * (1 - share) + target * share
 
 
 SIDED = ("boot", "mitt")
@@ -114,45 +134,91 @@ def boot_names(pieces, names_of):
     """The boot parts and the mitt parts gathered by side, each triangle's side by x: one boot_l, boot_r, mitt_l and
     mitt_r each (a GeoSAM2 part can hold a piece of the other boot, whose own middle sent its tuck the wrong way)."""
     found, sided = {}, {}
-    for part, (points, faces, weights) in pieces.items():
+    for part, (points, faces, weights, used) in pieces.items():
         if names_of[part] not in SIDED:
-            found[(part, names_of[part])] = (points, faces, weights)
+            found[(part, names_of[part])] = (points, faces, weights, used)
             continue
         for side, sign in ((names_of[part] + "_l", 1.0), (names_of[part] + "_r", -1.0)):
             keep = (sign * points[faces].mean(1)[:, 0]) > 0
             if keep.any():
-                used, renumbered = np.unique(faces[keep], return_inverse=True)
-                sided.setdefault(side, []).append((part, points[used], renumbered.reshape(-1, 3), weights[used]))
+                kept, renumbered = np.unique(faces[keep], return_inverse=True)
+                sided.setdefault(side, []).append((part, points[kept], renumbered.reshape(-1, 3), weights[kept],
+                                                   used[kept]))
     for side, bits in sided.items():
         offsets = np.cumsum([0] + [len(bit[1]) for bit in bits])
         found[(bits[0][0], side)] = (np.concatenate([bit[1] for bit in bits]),
                                      np.concatenate([bit[2] + offset for bit, offset in zip(bits, offsets)]),
-                                     np.concatenate([bit[3] for bit in bits]))
+                                     np.concatenate([bit[3] for bit in bits]), np.concatenate([bit[4] for bit in bits]))
     return found
 
 
-def surfaces(fit_rig, parts):
-    """Every surface of the outfit: [(name, role, colour, points, faces, weights, tuck_from)], tucks added after a
-    part's own points (`tuck_from` its first tuck point, None where it has no tuck)."""
+def hard_things(rigid, pieces):
+    """The rigid pieces grouped into things: pieces of one name that touch (share a point of the mesh) are one thing
+    and ride one joint, so they never part (a belt's back from the split and its front from the close-up's region);
+    pieces of one name apart (Nev's chest box and waist box) stay apart."""
+    groups = []
+    for key in rigid:
+        joined = [group for group in groups if group[0][1] == key[1]
+                  and any(np.intersect1d(pieces[other][3], pieces[key][3]).size for other in group)]
+        merged = [key] + [other for group in joined for other in group]
+        groups = [group for group in groups if group not in joined] + [merged]
+    return groups
+
+
+def printed_uv(prints, part, used, count):
+    """A printed part's texture places for its points (`used`, their numbers in the whole mesh) and `count` points
+    after them (its tucks): the print's own where the camera saw the point, else the plain texel's. None for a part
+    not printed."""
+    if prints is None or f"uv_{part}" not in prints.files:
+        return None
+    uv = prints[f"uv_{part}"][used]
+    uv = np.where(np.isnan(uv), prints[f"plain_uv_{part}"], uv)
+    return np.concatenate([uv, np.tile(prints[f"plain_uv_{part}"], (count - len(used), 1))])
+
+
+def surfaces(fit_rig, parts, prints=None):
+    """Every surface of the outfit: [(name, role, colour, points, faces, weights, tuck_from, uv, picture)], tucks
+    added after a part's own points (`tuck_from` its first tuck point, None where it has no tuck); `uv` and `picture`
+    (PNG bytes) for a printed part (prop_prints.py), else None."""
     names = list(fit_rig["names"])
     index = {int(part): number for number, part in enumerate(parts["parts"])}
     names_of = {part: str(parts["names"][number]) for part, number in index.items()}
-    pieces = boot_names(split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"], parts), names_of)
-    garment = [piece for (part, _), piece in pieces.items() if parts["roles"][index[part]] == "garment"]
+    pieces = boot_names(split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"],
+                                    face_parts(fit_rig, parts)), names_of)
+    role_of = {key: str(parts["roles"][index[key[0]]]) for key in pieces}
+    hard_points, hard_joints = [np.zeros((0, 3))], [np.zeros(0, dtype=object)]
+    rigid = [key for key in pieces if role_of[key] == "hard" or key[1] == "hair"]
+    joint_of = {}
+    for group in hard_things(rigid, pieces):
+        joint = rigid_joint(group[0][1], np.concatenate([pieces[key][0] for key in group]),
+                            np.concatenate([pieces[key][2] for key in group]), names)
+        joint_of.update({key: joint for key in group})
+    for key in rigid:
+        points, faces, weights, used = pieces[key]
+        joint = joint_of[key]
+        pieces[key] = (points, faces, on_one_joint(len(points), names, joint), used)
+        if role_of[key] == "hard":
+            hard_points.append(points)
+            hard_joints.append(np.full(len(points), joint, dtype=object))
+    hard_points, hard_joints = np.concatenate(hard_points), np.concatenate(hard_joints)
+    for key, (points, faces, weights, used) in list(pieces.items()):
+        if role_of[key] == "garment":
+            pieces[key] = (points, faces, eased_to_hard(points, weights, hard_points, hard_joints, names), used)
+    garment = [piece for key, piece in pieces.items() if role_of[key] == "garment"]
     whole = trimesh.Trimesh(fit_rig["points"], fit_rig["faces"], process=False)
     garment_points = np.concatenate([piece[0] for piece in garment])
     garment_weights = np.concatenate([piece[2] for piece in garment])
     found = []
-    for (part, name), (points, faces, weights) in sorted(pieces.items(), key=lambda item: item[0][1]):
-        role = str(parts["roles"][index[part]])
-        if role == "hard" or name == "hair":
-            weights = rigid(name, points, weights, names)
+    for (part, name), (points, faces, weights, used) in sorted(pieces.items(), key=lambda item: item[0][1]):
+        role = role_of[(part, name)]
         tuck_from = None
         if role == "skin" or name.startswith(SIDED):
             tuck_from = len(points)
             points, faces, weights = tucks.tucked(points, faces, weights, garment_points, garment_weights,
                                                   bones_of(fit_rig), whole)
-        found.append((name, role, parts["colours"][index[part]], points, faces, weights, tuck_from))
+        uv = printed_uv(prints, part, used, len(points))
+        picture = None if uv is None else prints[f"image_{part}"].tobytes()
+        found.append((name, role, parts["colours"][index[part]], points, faces, weights, tuck_from, uv, picture))
     return found
 
 
@@ -168,19 +234,31 @@ def bones_of(fit_rig):
     return {joint: found or [(places[joint], places[joint] + [0.0, 1e-3, 0.0])] for joint, found in bones.items()}
 
 
-def material(name, role, colour, tuck_from=None):
-    """A surface's flat material: its name, role (and first tuck point) in `extras`, its colour."""
+def material(name, role, colour, tuck_from=None, texture=None):
+    """A surface's material: its name, role (and first tuck point) in `extras`, its flat colour, or its printed
+    picture (`texture`, the document's texture number) over white."""
     extras = {"role": role} if tuck_from is None else {"role": role, "tuck_from": int(tuck_from)}
-    return {"name": name, "extras": extras,
-            "pbrMetallicRoughness": {"baseColorFactor": [float(value) for value in colour] + [1.0],
-                                     "metallicFactor": 0.0, "roughnessFactor": 0.85}}
+    shading = {"baseColorFactor": [float(value) for value in colour] + [1.0], "metallicFactor": 0.0,
+               "roughnessFactor": 0.85}
+    if texture is not None:
+        shading.update(baseColorFactor=[1.0, 1.0, 1.0, 1.0], baseColorTexture={"index": texture})
+        extras["print"] = True
+    return {"name": name, "extras": extras, "pbrMetallicRoughness": shading}
 
 
-def primitive(contents, body, glb, points, faces, weights, material_index):
-    """One surface as a glTF primitive with four joints a point."""
+def texture_of(contents, document, picture):
+    """A printed picture (PNG bytes) as the document's next texture; its number."""
+    image = contents.picture(picture)
+    document.setdefault("samplers", [{"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071}])
+    document.setdefault("textures", []).append({"source": image, "sampler": 0})
+    return len(document["textures"]) - 1
+
+
+def primitive(contents, body, glb, points, faces, weights, material_index, uv=None):
+    """One surface as a glTF primitive with four joints a point (and its texture places, for a print)."""
     order, kept, _ = body.strongest_joints(weights, JOINTS_A_VERTEX)
     normals = body.smooth_normals(points, faces)
-    return {"attributes": {
+    found = {"attributes": {
         "POSITION": contents.reading(points.astype(np.float32).ravel().tolist(), "VEC3", glb.FLOAT, glb.ARRAY_BUFFER,
                                      with_bounds=True),
         "NORMAL": contents.reading(normals.astype(np.float32).ravel().tolist(), "VEC3", glb.FLOAT, glb.ARRAY_BUFFER),
@@ -191,6 +269,10 @@ def primitive(contents, body, glb, points, faces, weights, material_index):
         "indices": contents.reading(faces.reshape(-1).astype(np.uint32).tolist(), "SCALAR", glb.UNSIGNED_INT,
                                     glb.ELEMENT_ARRAY_BUFFER),
         "material": material_index}
+    if uv is not None:
+        found["attributes"]["TEXCOORD_0"] = contents.reading(uv.astype(np.float32).ravel().tolist(), "VEC2",
+                                                             glb.FLOAT, glb.ARRAY_BUFFER)
+    return found
 
 
 def far_body(far_path):
@@ -205,7 +287,7 @@ def far_body(far_path):
     return found
 
 
-def build(fit_path, mean_path, parts_path, far_path, out, outfit):
+def build(fit_path, mean_path, parts_path, far_path, out, outfit, prints_path=None):
     """The glTF and its report."""
     import body
     import clips
@@ -213,6 +295,7 @@ def build(fit_path, mean_path, parts_path, far_path, out, outfit):
     import stance
     from scipy.spatial.transform import Rotation
     fit_rig, mean_rig, parts = np.load(fit_path), np.load(mean_path), np.load(parts_path)
+    prints = np.load(prints_path) if prints_path else None
     names, parents = [str(name) for name in fit_rig["names"]], np.array(fit_rig["parents"])
     scale = float(fit_rig["bind"][TRAVELLING_JOINT, 1, 3] / mean_rig["bind"][TRAVELLING_JOINT, 1, 3])
     lift = floor_lift(mean_rig, fit_rig, names, scale)
@@ -250,9 +333,10 @@ def build(fit_path, mean_path, parts_path, far_path, out, outfit):
     document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
     report["levels"]["far"] = {"triangles": int(sum(len(item[3]) for item in far))}
     near = []
-    for name, role, colour, points, faces, weights, tuck_from in surfaces(fit_rig, parts):
-        document["materials"].append(material(name, role, colour, tuck_from))
-        near.append(primitive(contents, body, glb, points, faces, weights, len(document["materials"]) - 1))
+    for name, role, colour, points, faces, weights, tuck_from, uv, picture in surfaces(fit_rig, parts, prints):
+        texture = None if picture is None else texture_of(contents, document, picture)
+        document["materials"].append(material(name, role, colour, tuck_from, texture))
+        near.append(primitive(contents, body, glb, points, faces, weights, len(document["materials"]) - 1, uv))
         entry = report["surfaces"].setdefault(name, {"role": role, "triangles": 0, "tuck_points": 0, "pieces": 0})
         entry["triangles"] += int(len(faces))
         entry["tuck_points"] += 0 if tuck_from is None else int(len(points) - tuck_from)
@@ -284,9 +368,11 @@ def main():
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("report", type=pathlib.Path)
     parser.add_argument("--outfit", default="work")
+    parser.add_argument("--prints", type=pathlib.Path, help="prop_prints.py's printed plates")
     options = parser.parse_args()
     sys.argv = sys.argv[:1]
-    report = build(options.fit, options.mean, options.parts, options.far, options.out, options.outfit)
+    report = build(options.fit, options.mean, options.parts, options.far, options.out, options.outfit,
+                   options.prints)
     options.report.write_text(json.dumps(report, indent=1))
     print(f"built {options.out}: {report['levels']}, {len(report['clips'])} clips", flush=True)
 

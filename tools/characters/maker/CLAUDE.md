@@ -48,9 +48,20 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   looks or bodies; whoever judges the pictures swaps them.
 - **The prop route** (`prop_person.py`, a spec's `"route": "prop"`; a trial, #5, owner 2026-10-10: "soma is for the
   rig, not the mesh"): Pixal3D's mesh from a klein close-up drawn in SOMA-X's bind pose (`batch.py --characters`, as
-  the animals'), SOMA-X's skeleton placed inside it from the mesh's limbs at the mean bone lengths times the look's
-  scale (`prop_rig.py`; its weights moved on by RSWT), GeoSAM2 parts named by the judge (three seeds; an unnamed part
-  takes its mirror image's answers), tucks under the joins (`tucks.py`), built by `prop_build.py` and checked by
-  `joins.py`, `pokes.py` (against the shipped body's record) and `outline.py`. No SAM3DBody-cpp and no SOMA surface:
-  nothing but Pixal3D's mesh is drawn or shapes it. Takes land only in `~/.farm-factory-motion/candidates/prop-people/`;
-  every other person keeps the shipped route. Its numbers are `checks.txt` beside each take.
+  the animals'), stood level (head over the feet), thinned part by part to the shipped outfit's triangles (borders
+  kept, so the parts stay shut), SOMA-X's skeleton placed inside it from the mesh's limbs at the mean bone lengths
+  times the look's scale (an arm the slices barely find is laid from its shoulder to its hand part; `prop_rig.py`; its
+  weights moved on by RSWT, the SOMA surface only their hidden source), GeoSAM2 parts and the close-up's SAM 2.1
+  finish regions named by the judge in one run (three seeds; an unnamed part takes its mirror image's answers; a
+  region's answer far from its own colour is not believed), tucks under the joins (`tucks.py`), built by
+  `prop_build.py` (every hard thing on one joint, the cloth next to it eased onto that joint; the face cut from the
+  close-up and the flag drawn are the only pictures, `prop_prints.py`), the garments settled through every clip by
+  Newton against the person's own posed surface (`garment_settle.py`) and baked as corrective shapes each clip keys
+  (`garment_bake.py`; glTF morph targets, which `joins.py` and `pokes.py` read), and checked by `joins.py`, `pokes.py`
+  (tucks, cloth through cloth against the shipped body's record, hard parts' stretch), `outline.py` and the
+  reviewer's skin-through-cloth count; `blender_shots.py` renders it beside today's body. No SAM3DBody-cpp and no SOMA
+  surface: nothing but Pixal3D's mesh is drawn or shapes it. Takes land only in
+  `~/.farm-factory-motion/candidates/prop-people/`; every other person keeps the shipped route. Its numbers are
+  `checks.txt` beside each take. A held machine keeps each make under its folder's name, so make folders carry the
+  person and outfit (`make_place`). `skel_usd.py` does not carry the corrective shapes yet: the UsdSkel asset plays
+  the unsettled garments.

@@ -14,6 +14,11 @@ read from the built glTF as the engine skins it (people/joins.py's reader). Meas
   (drape_measure.self_crossings, the garment parts welded where their borders meet), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
   default): cloth gone through cloth. A Pixal3D surface may cross itself at rest; a frame is counted as poking where
   it crosses more than the rest does.
+- rigid_stretch: each hard part's own edges (boots, belt, buckle, helmet, pack: role "hard", its tuck left out) at
+  their longest against the bind pose, per clip the worst frame's largest ratio: a hard part riding one joint stays at
+  1.0; the gate is RIGID_MOST (plan step 3; the review found the boots at 6.7 and 8.2, 2026-10-10).
+- A settled body's garments carry morph targets keyed per clip (garment_bake.py); every frame is posed with them, as
+  the engine plays it.
 - A body built by the shipped route (no roles in its materials) is read the same way, its garments by joins.py's names
   and no tucks, so a candidate's crossings can be set beside the shipped body's.
 - verdict: pass when no frame has a tuck point over POKE_MM outside, and (with `--against`, the shipped body's record)
@@ -28,7 +33,6 @@ import sys
 
 import numpy as np
 import trimesh
-from scipy.spatial import cKDTree
 
 MAKER = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(MAKER))
@@ -38,6 +42,8 @@ import drape_measure  # noqa: E402
 import joins  # noqa: E402
 
 POKE_MM = 5.0
+RIGID_MOST = 1.2
+HARD = "hard"
 WELD_DIGITS = 6
 CROSSING_EVERY = 5
 GARMENT = "garment"
@@ -46,17 +52,18 @@ GARMENT = "garment"
 def surfaces(document, blob):
     """The outfit's surfaces with their role and first tuck point: [(Part, role, tuck_from)]."""
     found = []
-    for node in document["nodes"]:
+    for number, node in enumerate(document["nodes"]):
         if "mesh" not in node or node.get("name") == "far":
             continue
         for primitive in document["meshes"][node["mesh"]]["primitives"]:
             extras = document["materials"][primitive["material"]].get("extras", {})
             attributes = primitive["attributes"]
-            part = joins.Part(document["materials"][primitive["material"]]["name"],
-                              joins.accessor(document, blob, attributes["POSITION"]),
+            points = joins.accessor(document, blob, attributes["POSITION"])
+            part = joins.Part(document["materials"][primitive["material"]]["name"], points,
                               joins.accessor(document, blob, attributes["JOINTS_0"]),
                               joins.accessor(document, blob, attributes["WEIGHTS_0"]),
-                              joins.accessor(document, blob, primitive["indices"]).astype(int).reshape(-1, 3))
+                              joins.accessor(document, blob, primitive["indices"]).astype(int).reshape(-1, 3),
+                              joins.morph_targets(document, blob, primitive, len(points)), number)
             found.append((part, extras.get("role") or role_by_name(part.name), extras.get("tuck_from")))
     return found
 
@@ -128,9 +135,45 @@ def tuck_out(tuck_points, outer):
     return np.where(outer.contains(tuck_points), -distance, distance)
 
 
-def posed_all(found, joint_worlds, inverse_bind):
-    return {id(part): joins.skinned(part.points, part.joints, part.weights, joint_worlds, inverse_bind)
-            for part, _, _ in found}
+def hard_edges(found):
+    """Each hard part's own edges (its tuck left out) and their lengths at the bind pose: [(part, edges, lengths)]."""
+    edges = []
+    for part, role, tuck_from in found:
+        if role != HARD:
+            continue
+        own = len(part.points) if tuck_from is None else tuck_from
+        faces = part.faces[(part.faces < own).all(1)]
+        pairs = np.unique(np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), 1), axis=0)
+        lengths = np.linalg.norm(part.points[pairs[:, 0]] - part.points[pairs[:, 1]], axis=1)
+        keep = lengths > 1e-6
+        edges.append((part, pairs[keep], lengths[keep]))
+    return edges
+
+
+def stretch(posed, edges):
+    """The largest ratio of a hard edge's posed length to its bind length in one frame (1.0 with no hard part)."""
+    worst = 1.0
+    for part, pairs, lengths in edges:
+        places = posed[id(part)]
+        worst = max(worst, float((np.linalg.norm(places[pairs[:, 0]] - places[pairs[:, 1]], axis=1) / lengths).max()))
+    return worst
+
+
+def posed_all(found, joint_worlds, inverse_bind, shapes=None, frame=0):
+    """Every part posed in one frame, its morph targets (the settled garments) at the frame's keyed weights
+    (`shapes`: each node's weights frame by frame, from keyed_shapes)."""
+    posed = {}
+    for part, _, _ in found:
+        keyed = (shapes or {}).get(part.node)
+        points = joins.morphed(part, None if keyed is None else keyed[min(frame, len(keyed) - 1)])
+        posed[id(part)] = joins.skinned(points, part.joints, part.weights, joint_worlds, inverse_bind)
+    return posed
+
+
+def keyed_shapes(document, blob, animation, found):
+    """Each part's node's morph target weights in the clip, frame by frame ({node: (frames, targets)})."""
+    nodes = {part.node for part, _, _ in found if part.targets is not None}
+    return {node: joins.morph_weights(document, blob, animation, node) for node in nodes}
 
 
 def measure(path, every):
@@ -148,13 +191,15 @@ def measure(path, every):
     welded = weld_map(rest_points)
     rest_crossings = crossings(rest_points, rest_faces, welded)
     welding = outer_welding(found) if tucked else None
+    rigid = hard_edges(found)
     record = {"body": str(path), "rest_crossings": rest_crossings, "clips": {}}
     for animation in document.get("animations", []):
         rotations, translations = joins.clip_frames(document, blob, animation)
-        worst, poking, counts = 0.0, 0, []
+        shapes = keyed_shapes(document, blob, animation, found)
+        worst, poking, counts, stretched = 0.0, 0, [], 1.0
         for frame in range(len(rotations)):
             world = joins.world_matrices(rotations[frame], translations[frame], scales, parent)
-            posed = posed_all(found, world[skin["joints"]], inverse_bind)
+            posed = posed_all(found, world[skin["joints"]], inverse_bind, shapes, frame)
             cloth, faces, _ = garment_surface(posed, garments)
             outer = outer_surface(posed, found, welding) if tucked else None
             outside = np.concatenate([tuck_out(posed[id(part)][start:], outer) for part, start in tucked]) \
@@ -162,14 +207,17 @@ def measure(path, every):
             height = float(outside.max()) * 1000 if len(outside) else 0.0
             worst = max(worst, height)
             poking += height > POKE_MM
+            stretched = max(stretched, stretch(posed, rigid))
             if frame % every == 0:
                 counts.append(crossings(cloth, faces, welded))
         record["clips"][animation["name"]] = {
             "frames": len(rotations), "worst_tuck_out_mm": round(worst, 2), "frames_tuck_over": int(poking),
+            "rigid_stretch": round(stretched, 3),
             "most_crossings": int(max(counts)), "frames_crossing_more_than_rest":
                 int(sum(count > rest_crossings for count in counts)), "frames_crossings_read": len(counts)}
     clips = record["clips"].values()
     record["verdict"] = {"tucks": all(clip["frames_tuck_over"] == 0 for clip in clips),
+                         "rigid": all(clip["rigid_stretch"] <= RIGID_MOST for clip in clips),
                          "cloth_through_cloth": all(clip["frames_crossing_more_than_rest"] == 0 for clip in clips)}
     return record
 

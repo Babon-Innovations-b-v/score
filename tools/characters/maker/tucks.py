@@ -15,10 +15,9 @@ whatever garment goes round that limb (run down the neck from the jaw, a fixed s
 throat); the loop is joined to the band by triangles
 wound as the part's own. Run on from the part's middle, a flat patch's tuck stood out of the player's hip; run on
 along the part's own surface, Pixal3D's jagged borders sent spikes out of his collar and wrist (2026-10-10). The
-band's points take the weights of the nearest garment points, so it moves with the cloth over it.
+band's points take the weights of the nearest garment points off the seam, so it moves with the cloth over it.
 """
 import numpy as np
-import trimesh
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
@@ -31,6 +30,8 @@ TUCK_SHRINK = 0.2
 # And at least this far inside the garment's distance from the bone.
 TUCK_GAP = 0.012
 GARMENT_NEAR = 0.01
+# A garment point this close to the part's own points is on their seam.
+SEAM = 1e-4
 GARMENT_SHARE = 0.5
 
 
@@ -95,6 +96,12 @@ def tucked(points, faces, weights, garment_points, garment_weights, bones, outer
     faces, weights), the band's points appended after the part's own. `bones` gives each joint's bones as (start,
     end) places; `outer` is the whole person at rest, which a band edge must lie under to be kept."""
     tree = cKDTree(garment_points)
+    # The band takes the weights of the garment over it, never of the seam it starts from: a boot riding its foot
+    # gives the trouser hem on its seam the foot's weights, and a band weighted so stood out of the trouser leg's back
+    # by 29 mm when the player sat (2026-10-10).
+    off_seam = np.flatnonzero(~np.isfinite(cKDTree(points).query(garment_points, distance_upper_bound=SEAM)[0]))
+    inner_tree = cKDTree(garment_points[off_seam])
+    garment_weights = garment_weights[off_seam]
     middle = points.mean(0)
     by_cloth = np.isfinite(tree.query(points, distance_upper_bound=GARMENT_NEAR)[0])
     new_points, new_faces, new_weights = [points], [faces], [weights]
@@ -124,6 +131,6 @@ def tucked(points, faces, weights, garment_points, garment_weights, bones, outer
         new_faces.append(np.concatenate([np.stack([second, first, far_first], 1),
                                          np.stack([second, far_first, far_second], 1)]))
         new_points.append(moved)
-        new_weights.append(garment_weights[tree.query(moved)[1]])
+        new_weights.append(garment_weights[inner_tree.query(moved)[1]])
         total += len(ring)
     return np.concatenate(new_points), np.concatenate(new_faces), np.concatenate(new_weights)

@@ -4,7 +4,10 @@ the arms held lower the arm bones turn onto the new arms at their own lengths, w
 parents as the mean skeleton's (so the clips play unchanged); RSWT's inpainting fills an unmatched strip between two matched sides with
 a blend of both; a tuck runs a part's open border on along its bone, drawn in under the garment, and a border with no garment by it gets
 none; the poke check reads a tuck under its cloth as
-hidden and one over it as showing.
+hidden and one over it as showing; a body leaning sideways is stood level; thinning part by part keeps the parts
+shut along their borders; a hard part rides one joint and the cloth next to it eases onto that joint; the poke check
+reads a hard part's stretch; the settle's offsets go into the bind pose and back out of the bake's shapes, and a
+sparse morph target reads back.
 
 Run: .venv/bin/python tools/characters/maker/prop_rig_test.py   (make tests runs it with the framework's environment)
 """
@@ -15,7 +18,9 @@ import numpy as np
 import trimesh
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import garment_bake  # noqa: E402
 import pokes  # noqa: E402
+import prop_build  # noqa: E402
 import prop_rig  # noqa: E402
 import tucks  # noqa: E402
 
@@ -169,6 +174,67 @@ def test_pokes_hold_cloth_to_the_shipped_bodys_record():
                                                             "new": {"most_crossings": 30}}}
     pokes.against(record, {"body": "shipped.glb", "clips": {"walking": {"most_crossings": 5000}}})
     assert record["cloth_worse_than_shipped"] == ["new"] and not record["verdict"]["cloth_through_cloth"]
+
+
+def test_a_leaning_body_is_stood_level():
+    angle = np.radians(7.0)
+    lean = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+    points = prop_rig.sampled(body(), 60000) @ lean.T
+    turn, scale, shift = prop_rig.stood(points, 1.75)
+    stood = points @ turn.T * scale + shift
+    head = stood[stood[:, 1] > 1.75 - 0.06 * 1.75].mean(0)
+    feet = stood[stood[:, 1] < 0.08 * 1.75]
+    assert abs(head[0] - (feet[feet[:, 0] > 0].mean(0)[0] + feet[feet[:, 0] < 0].mean(0)[0]) / 2) < 0.005
+
+
+def test_thinning_keeps_the_parts_shut():
+    sphere = trimesh.creation.icosphere(4, 0.2)
+    part_of = (sphere.triangles_center[:, 1] > 0).astype(int)
+    thin, thin_parts = prop_rig.decimated(sphere, part_of, 1500)
+    assert thin.is_watertight and len(thin.faces) <= 1500
+    border = sphere.vertices[np.intersect1d(sphere.faces[part_of == 0], sphere.faces[part_of == 1])]
+    kept = thin.vertices[np.intersect1d(thin.faces[thin_parts == 0], thin.faces[thin_parts == 1])]
+    assert len(border) == len(kept) and np.allclose(np.sort(border, 0), np.sort(kept, 0))
+
+
+def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows():
+    names = ["Hips", "LeftShin", "LeftFoot"]
+    boot = np.array([[0.1, 0.05, 0.0], [0.1, 0.2, 0.0]])
+    assert prop_build.rigid_joint("boot_l", boot, np.ones((2, 3)), names) == "LeftFoot"
+    cloth = np.array([[0.1, 0.21, 0.0], [0.1, 0.5, 0.0]])
+    eased = prop_build.eased_to_hard(cloth, np.array([[0, 1.0, 0], [0, 1.0, 0]]), boot,
+                                     np.array(["LeftFoot", "LeftFoot"], dtype=object), names)
+    assert eased[0, 2] > 0.6 and eased[1, 2] == 0.0
+
+
+def test_pokes_read_a_hard_parts_stretch():
+    part = pokes.joins.Part("boot_l", np.array([[0, 0, 0], [1.0, 0, 0], [0, 1.0, 0]]), np.zeros((3, 4)),
+                            np.eye(4)[:3], np.array([[0, 1, 2]]))
+    edges = pokes.hard_edges([(part, "hard", None)])
+    assert abs(pokes.stretch({id(part): part.points * 1.5}, edges) - 1.5) < 1e-9
+
+
+def test_the_bake_carries_offsets_into_the_bind_pose_and_keeps_them():
+    turn = np.eye(4)
+    turn[:3, :3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
+    frames = np.linspace(0, 1, 6)
+    wanted = np.stack([np.outer(np.ones(5), [0.01 * share, 0.0, 0.0]) for share in frames])
+    data = {"moves_walking": np.tile(turn, (6, 1, 1, 1)), "lead_in": 0, "cloth_joints": np.zeros((5, 4), int),
+            "cloth_weights": np.tile([1.0, 0, 0, 0], (5, 1))}
+    offsets = np.einsum("ab,fpb->fpa", turn[:3, :3], wanted)
+    carried = garment_bake.bind_offsets(data, {"offset_walking": offsets}, "walking")
+    assert np.allclose(carried, wanted)
+    shapes, weights, missed = garment_bake.clip_shapes(carried)
+    assert missed < 1e-9 and np.allclose(np.einsum("fs,spa->fpa", weights, shapes), wanted)
+
+
+def test_a_sparse_morph_target_reads_back():
+    contents = garment_bake.glb.Contents()
+    values = np.zeros((6, 3))
+    values[[1, 4]] = [[0.01, 0.0, 0.0], [0.0, -0.02, 0.0]]
+    index = garment_bake.sparse_target(contents, values)
+    document = {"accessors": contents.accessors, "bufferViews": contents.views}
+    assert np.allclose(garment_bake.joins.target_values(document, contents.blob(), index, 6), values, atol=1e-7)
 
 
 if __name__ == "__main__":

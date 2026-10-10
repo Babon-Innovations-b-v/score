@@ -25,8 +25,9 @@ on average with 14 degrees between the feet. This skeleton's hip joints are 0.20
 ratio of about 0.85; `RELAXED_STANCE` keeps 0.55 to 1.2 (heels 0.11 to 0.24 m apart). The crew bodies the owner
 approved are no reference here: they play the same Kimodo clips, and stand at 2.1.
 
-The file is read as the engine reads it (the skin's own joints, inverse bind matrices and four weights a point), so
-what this measures is what the game and the review renders draw.
+The file is read as the engine reads it (the skin's own joints, inverse bind matrices and four weights a point, and
+the morph targets a clip keys, added before skinning: the prop route's settled garments), so what this measures is
+what the game and the review renders draw.
 """
 import argparse
 import json
@@ -89,6 +90,49 @@ def accessor(document, blob, index):
     if found.get("normalized"):
         values = values / np.iinfo(kind).max
     return values.reshape(found["count"], width) if width > 1 else values
+
+
+def target_values(document, blob, index, count):
+    """One morph target's values (count, 3): zeros where its accessor has no slice, its sparse entries laid over."""
+    found = document["accessors"][index]
+    values = accessor(document, blob, index) if "bufferView" in found else np.zeros((count, 3))
+    sparse = found.get("sparse")
+    if sparse:
+        indices = sparse["indices"]
+        view = document["bufferViews"][indices["bufferView"]]
+        places = np.frombuffer(blob, np.dtype(_COMPONENTS[indices["componentType"]]), sparse["count"],
+                               view.get("byteOffset", 0) + indices.get("byteOffset", 0)).astype(int)
+        view = document["bufferViews"][sparse["values"]["bufferView"]]
+        values = values.copy()
+        values[places] = np.frombuffer(blob, np.float32, sparse["count"] * 3,
+                                       view.get("byteOffset", 0) + sparse["values"].get("byteOffset", 0)
+                                       ).reshape(-1, 3)
+    return values
+
+
+def morph_targets(document, blob, primitive, count):
+    """A surface's morph targets' point offsets (targets, count, 3), or None when it has none."""
+    targets = primitive.get("targets")
+    if not targets:
+        return None
+    return np.stack([target_values(document, blob, target["POSITION"], count) for target in targets])
+
+
+def morph_weights(document, blob, animation, node):
+    """A clip's weights for the node's morph targets frame by frame (frames, targets), or None when it keys none."""
+    for channel in animation["channels"]:
+        if channel["target"].get("node") == node and channel["target"]["path"] == "weights":
+            values = accessor(document, blob, animation["samplers"][channel["sampler"]]["output"])
+            count = len(document["meshes"][document["nodes"][node]["mesh"]].get("weights", []))
+            return values.reshape(-1, count)
+    return None
+
+
+def morphed(part, frame_weights):
+    """A part's points with its morph targets at one frame's weights (glTF applies them before skinning)."""
+    if part.targets is None or frame_weights is None:
+        return part.points
+    return part.points + np.tensordot(frame_weights, part.targets, axes=1)
 
 
 # --- posing ---------------------------------------------------------------------------------------------------------
@@ -179,9 +223,11 @@ class Part:
     """One drawn surface of an outfit: its name, points, each point's four joints and weights (skin indices), its
     strongest joint, and its triangles."""
 
-    def __init__(self, name, points, joints, weights, faces):
+    def __init__(self, name, points, joints, weights, faces, targets=None, node=None):
         self.name = name
         self.points = points
+        self.targets = targets
+        self.node = node
         self.joints = joints.astype(int)
         self.weights = weights
         self.strongest = joints[np.arange(len(joints)), weights.argmax(axis=1)].astype(int)
@@ -191,7 +237,7 @@ class Part:
 def outfits(document, blob):
     """Every skinned node that is an outfit (not the bare distant body) with its parts: {node name: [Part]}."""
     found = {}
-    for node in document["nodes"]:
+    for number, node in enumerate(document["nodes"]):
         if "mesh" not in node or "skin" not in node or node.get("name") == "far":
             continue
         parts = []
@@ -199,11 +245,12 @@ def outfits(document, blob):
             attributes = primitive["attributes"]
             if "JOINTS_0" not in attributes or "material" not in primitive:
                 continue
-            parts.append(Part(document["materials"][primitive["material"]]["name"],
-                              accessor(document, blob, attributes["POSITION"]),
+            points = accessor(document, blob, attributes["POSITION"])
+            parts.append(Part(document["materials"][primitive["material"]]["name"], points,
                               accessor(document, blob, attributes["JOINTS_0"]),
                               accessor(document, blob, attributes["WEIGHTS_0"]),
-                              accessor(document, blob, primitive["indices"]).astype(int).reshape(-1, 3)))
+                              accessor(document, blob, primitive["indices"]).astype(int).reshape(-1, 3),
+                              morph_targets(document, blob, primitive, len(points)), number))
         if parts:
             found[node["name"]] = parts
     return found
@@ -377,6 +424,7 @@ def measure_body(path):
     record = {"body": str(path), "outfits": {outfit: {} for outfit in dressed}, "stance": None}
     for animation in document.get("animations", []):
         rotations, translations = clip_frames(document, blob, animation)
+        keyed = {outfit: morph_weights(document, blob, animation, parts[0].node) for outfit, parts in dressed.items()}
         worst = {outfit: {} for outfit in dressed}
         ratios = []
         for frame in range(len(rotations)):
@@ -386,7 +434,9 @@ def measure_body(path):
             if animation.get("name") == STANDING:
                 ratios.append(stance_ratio(joint_worlds, joint_names))
             for outfit, parts in dressed.items():
-                part_points = {id(part): skinned(part.points, part.joints, part.weights, joint_worlds, inverse_bind)
+                shaped = None if keyed[outfit] is None else keyed[outfit][min(frame, len(keyed[outfit]) - 1)]
+                part_points = {id(part): skinned(morphed(part, shaped), part.joints, part.weights, joint_worlds,
+                                                 inverse_bind)
                                for part in parts if part.name in AT_A_JOIN}
                 for join, value in joins_of_a_frame(parts, part_points, joint_places, joint_names).items():
                     if not np.isnan(value):

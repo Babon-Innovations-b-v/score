@@ -1,0 +1,60 @@
+{
+ "name": "nev",
+ "kind": "person",
+ "route": "prop",
+ "approved": "owner, 2026-10-10 (#5): soma is for the rig, not the mesh; fit the prop pipeline's mesh to the rig; after the player, Nev in the space suit",
+ "why": "Nev, the botanist, in her space suit on the prop route: her mesh made by Pixal3D from one close-up, as the animals' were, with SOMA-X's skeleton placed inside it so Kimodo's clips play unchanged",
+ "references": [
+  "~/.farm-factory-motion/rnd/people/nev_mars/refs/nev_suit.png"
+ ],
+ "description": "a Chinese woman in her thirties, a botanist of a Moon base, a small slim build, a short black pixie cut, thin round glasses",
+ "outfit_words": {
+  "space": "a white one-piece space suit: a round white helmet with a gold rim and its clear visor raised so her face shows, a light grey neck ring, a light grey chest box with a red flag with a yellow star and two dark knobs, green straps over the shoulders and down the front, a light grey waist box on a grey belt, a white backpack, a gold band and a red band round each upper arm, grey mittens, dark grey knee pads, red bands below the knees, chunky grey moon boots"
+ },
+ "hair": "short black pixie cut: short cropped sides and back close to the head, a short soft fringe swept to one side over the forehead, a little volume on top, ears uncovered",
+ "face": "her face, short black hair and thin round glasses",
+ "outfits": [
+  "space"
+ ],
+ "garment_body": "mean_female",
+ "look": {
+  "scale": 0.933,
+  "work": "chinese",
+  "space": "chinese",
+  "botanist": true,
+  "glasses": true,
+  "skin": [
+   224,
+   176,
+   142
+  ],
+  "hair": [
+   74,
+   76,
+   82
+  ],
+  "hair_shine": [
+   146,
+   150,
+   158
+  ],
+  "brow": [
+   34,
+   30,
+   30
+  ],
+  "iris": [
+   52,
+   38,
+   30
+  ],
+  "brow_weight": 0.62,
+  "line": [
+   52,
+   34,
+   30
+  ],
+  "brow_lift": 0.0065,
+  "painted_mouth": true
+ }
+}

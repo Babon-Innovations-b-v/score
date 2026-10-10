@@ -66,6 +66,16 @@ SIDES = {"Left": 1.0, "Right": -1.0}
 LEG_LIKENESS = 0.4
 # Where the figure is centred: its chest, this share of the way up (above the hands, the arms held out either side).
 CHEST_SHARE = 0.72
+# Levelling (`levelled`): the feet are the lowest share of the height, the head's top the highest; two rounds settle it
+# to under 0.1 degree on the player.
+FEET_SHARE = 0.08
+HEAD_TOP_SHARE = 0.06
+LEVEL_ROUNDS = 2
+# An arm whose slices run under this share of the mean arm's is laid from its shoulder to its hand (with_hands).
+ARM_SHORT = 0.5
+HANDS = ("skin_hands", "mitt")
+# `decimated` tightens its share this many times when the kept borders leave it over the target.
+DECIMATE_ROUNDS = 4
 ARM = ("Arm", "ForeArm", "Hand")
 LEG = ("Leg", "Shin", "Foot", "ToeBase", "ToeEnd")
 
@@ -92,12 +102,31 @@ def stood(points, height):
     if toes_forward(turned) < 0:
         turn = np.diag([-1.0, 1.0, -1.0]) @ turn
         turned = points @ turn.T
+    for _ in range(LEVEL_ROUNDS):
+        turn = levelled(turned) @ turn
+        turned = points @ turn.T
     scale = height / float(turned[:, 1].max() - turned[:, 1].min())
     turned = turned * scale
     chest = turned[:, 1].min() + CHEST_SHARE * (turned[:, 1].max() - turned[:, 1].min())
     middle = turned[np.abs(turned[:, 1] - chest) < 0.02]
     shift = np.array([-np.median(middle[:, 0]), -turned[:, 1].min(), -np.median(middle[:, 2])])
     return turn, scale, shift
+
+
+def levelled(points):
+    """The turn about the front axis (z) that stands the top of the head over the middle of the two feet: Pixal3D's
+    finished player leant 7.5 degrees to his right, his head 8.7 cm off his hips and his feet 28 and 3 cm left of the
+    middle (review, 2026-10-10). The feet are the lowest FEET_SHARE of the height, cut in two at the widest gap
+    across."""
+    low, high = points[:, 1].min(), points[:, 1].max()
+    feet = points[points[:, 1] < low + FEET_SHARE * (high - low)]
+    across = np.sort(feet[:, 0])
+    cut = across[np.argmax(np.diff(across))]
+    middle = (feet[feet[:, 0] <= cut].mean(0) + feet[feet[:, 0] > cut].mean(0)) / 2
+    head = points[points[:, 1] > high - HEAD_TOP_SHARE * (high - low)].mean(0)
+    angle = np.arctan2(head[0] - middle[0], head[1] - middle[1])
+    cosine, sine = np.cos(angle), np.sin(angle)
+    return np.array([[cosine, -sine, 0.0], [sine, cosine, 0.0], [0.0, 0.0, 1.0]])
 
 
 def across_x(points):
@@ -385,6 +414,36 @@ def skinned_source(points, weights, bind, fitted):
     return np.einsum("pj,jab,pb->pa", weights, moves, homogeneous)[:, :3]
 
 
+def hands_of(mesh, part_of, parts):
+    """Each side's hand, where the split names one: the middle of the skin_hands or mitt faces on that side
+    ({"Left": place, ...})."""
+    hand_parts = [int(part) for part, name in zip(parts["parts"], parts["names"]) if str(name) in HANDS]
+    middles = mesh.triangles_center[np.isin(part_of, hand_parts)]
+    found = {}
+    for side, sign in SIDES.items():
+        mine = middles[sign * middles[:, 0] > 0]
+        if len(mine):
+            found[side] = mine.mean(0)
+    return found
+
+
+def with_hands(fit, mean, bind, names, size, hands):
+    """The landmarks with an arm the slices barely found (its run under ARM_SHORT of the mean arm's, as where a thick
+    suit's arms touch its sides down to the mitts: Nev's space suit's arms leave her torso only at 0.76 m) laid from its
+    shoulder to the hand the split names. (Nev's arm axes from the mitts alone turned 65 and 69 degrees off the mean
+    pose, 2026-10-10.)"""
+    found = dict(fit)
+    for side in SIDES:
+        chain = side + "Arm"
+        if side not in hands or fit[chain]["length"] >= ARM_SHORT * mean[chain]["length"]:
+            continue
+        shoulder = on_trunk(bind[names.index(chain), :3, 3], mean, fit, size)
+        reach = hands[side] - shoulder
+        found[chain] = {"start": shoulder, "direction": reach / np.linalg.norm(reach),
+                        "length": float(np.linalg.norm(reach)), "radius": fit[chain]["radius"], "from_hand": True}
+    return found
+
+
 # --- the weights (RSWT) ---------------------------------------------------------------------------------------------
 
 def cotangent_laplacian(points, faces):
@@ -560,18 +619,59 @@ def plain(found):
             for key, value in found.items() if key not in ("torso", "samples", "limbs")}
 
 
-def rig(mesh_path, rig_path, out, size):
-    """The fitted skeleton and the mesh's weights into `out` (rig.npz, rig.json); the record."""
+def decimated(mesh, part_of, target):
+    """The mesh thinned to about `target` triangles part by part, each part's border kept as it is
+    (fast-simplification's preserve_border, MIT), so the parts still meet edge to edge and weld back into one surface:
+    the thinned mesh and each of its faces' part. The shipped player's outfit is 29,849 triangles; Pixal3D's finished
+    take is 40,000 (review, 2026-10-10)."""
+    import fast_simplification
+    parts = np.unique(part_of)
+    reduction = max(0.0, 1.0 - target / len(mesh.faces))
+    for _ in range(DECIMATE_ROUNDS):
+        points, faces, labels = [], [], []
+        offset = 0
+        for part in parts:
+            used, renumbered = np.unique(mesh.faces[part_of == part], return_inverse=True)
+            thin_points, thin_faces = fast_simplification.simplify(mesh.vertices[used], renumbered.reshape(-1, 3),
+                                                                   target_reduction=reduction, preserve_border=True)
+            points.append(thin_points)
+            faces.append(thin_faces + offset)
+            labels.append(np.full(len(thin_faces), part))
+            offset += len(thin_points)
+        count = sum(len(item) for item in faces)
+        if count <= target:
+            break
+        reduction = 1.0 - (1.0 - reduction) * target / count
+    joined = welded(trimesh.Trimesh(np.concatenate(points), np.concatenate(faces), process=False))
+    labels = np.concatenate(labels)
+    # A fold the thinning leaves (a triangle and its mirror on the same three points; one on the player's boot) is
+    # taken out whole, so the surface stays closed and two-sided nowhere.
+    _, inverse, counts = np.unique(np.sort(joined.faces, axis=1), axis=0, return_inverse=True, return_counts=True)
+    single = counts[inverse.reshape(-1)] == 1
+    return trimesh.Trimesh(joined.vertices, joined.faces[single], process=False), labels[single]
+
+
+def rig(mesh_path, rig_path, out, size, parts_path=None, target=None):
+    """The fitted skeleton and the mesh's weights into `out` (rig.npz, rig.json); the record. With `parts_path`
+    (prop_parts.py's parts.npz) and `target`, the mesh is thinned part by part first (`decimated`) and each thinned
+    face's part is saved as `part_of`."""
     mean_rig = np.load(rig_path)
     names, parents, bind = list(mean_rig["names"]), mean_rig["parents"], mean_rig["bind"]
     source = trimesh.Trimesh(mean_rig["points"], mean_rig["faces"], process=False)
     mean = landmarks(sampled(source))
     raw = welded(trimesh.load(mesh_path, force="mesh", process=False))
+    part_of = None
+    if parts_path is not None:
+        part_of = np.load(parts_path)["part_of"]
+        if target:
+            raw, part_of = decimated(raw, part_of, target)
     turn, scale, shift = stood(raw.vertices, mean["height"] * size)
     mesh = trimesh.Trimesh(raw.vertices @ turn.T * scale + shift, raw.faces, process=False)
     if mesh.volume < 0:
         mesh.invert()
     fit = landmarks(sampled(mesh))
+    if part_of is not None:
+        fit = with_hands(fit, mean, bind, names, size, hands_of(mesh, part_of, np.load(parts_path)))
     fitted, offsets = fitted_bind(bind, names, parents, mean, fit, size)
     carried_source = trimesh.Trimesh(skinned_source(source.vertices, mean_rig["weights"], bind, fitted),
                                      source.faces, process=False)
@@ -581,8 +681,9 @@ def rig(mesh_path, rig_path, out, size):
     np.savez_compressed(out / "rig.npz", names=np.array(names), parents=parents, bind=fitted, offsets=offsets,
                         mean_bind=bind, points=mesh.vertices, faces=mesh.faces, weights=weights,
                         source_points=carried_source.vertices, source_faces=source.faces, turn=turn, scale=scale,
-                        shift=shift)
-    record = {"mesh": str(mesh_path), "size": size, "height": round(fit["height"], 4), "scale": scale, "vertices": len(mesh.vertices),
+                        shift=shift, **({} if part_of is None else {"part_of": part_of}))
+    record = {"mesh": str(mesh_path), "size": size, "faces": len(mesh.faces), "height": round(fit["height"], 4),
+              "scale": scale, "vertices": len(mesh.vertices),
               "matched_share": round(matched_share, 4), "smoothed_share": round(smoothed_share, 4),
               "mean": plain(mean), "fit": plain(fit),
               "joints": {name: np.round(fitted[joint, :3, 3], 4).tolist() for joint, name in enumerate(names)},
@@ -600,8 +701,10 @@ def main():
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("--size", type=float, default=1.0, help="the person's size against the mean body (a look's "
                         "`scale`)")
+    parser.add_argument("--parts", type=pathlib.Path, help="prop_parts.py's parts.npz, carried onto the thinned mesh")
+    parser.add_argument("--faces", type=int, help="thin the mesh part by part to about this many triangles")
     options = parser.parse_args()
-    record = rig(options.mesh, options.rig, options.out, options.size)
+    record = rig(options.mesh, options.rig, options.out, options.size, options.parts, options.faces)
     print(f"rig: {record['vertices']} vertices, {record['matched_share']:.0%} matched, limb turns "
           f"{record['limb_turn_degrees']}; {options.out / 'rig.json'}", flush=True)
 
