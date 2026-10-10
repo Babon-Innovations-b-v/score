@@ -41,14 +41,7 @@ def price(pairs, account):
     if not found:
         raise SystemExit("no machine for DINOv2 is sold by the backend")
     minutes = SETUP_MINUTES + len(pairs) * MINUTES_A_PAIR
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(pairs)} pairs on one machine: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
-              f"€{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, batch.priced(found, minutes, 1, f"{len(pairs)} pairs on one machine", account)
 
 
 def set_up(machine):

@@ -17,7 +17,6 @@ import json
 import pathlib
 import subprocess
 import sys
-import threading
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -74,14 +73,8 @@ def price(jobs, machine_class, account, hold, at_once):
         raise SystemExit(f"no {machine_class} machine is in stock with the {cloud.NAME} backend")
     count = machines_for(jobs, hold, at_once)
     minutes = estimate(jobs, hold, at_once, count)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} Infinigen jobs on {count} {machine_class} machine{'s' if count > 1 else ''}: about "
-              f"{minutes:.0f} min, €{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{len(jobs)} Infinigen jobs on {count} {machine_class} machine{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def set_up(folder, host):
@@ -174,11 +167,7 @@ def hold(run, host):
 def work_on(run, machine, jobs, holding, at_once):
     """One machine from boot to delete; the jobs' exit codes."""
     folder = machine["folder"]
-    stop = threading.Event()
-    try:
-        host = machine["host"]
-        batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
+    with spread.tended(run, machine) as host:
         (run.folder / "host").write_text(host)
         try:
             set_up(folder, host)
@@ -193,9 +182,6 @@ def work_on(run, machine, jobs, holding, at_once):
         if holding:
             hold(run, host)
         return ended
-    finally:
-        stop.set()
-        batch.delete_machine(machine)
 
 
 def record(run, jobs, ended):

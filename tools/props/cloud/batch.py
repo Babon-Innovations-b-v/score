@@ -666,6 +666,18 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     return machine
 
 
+def priced(found, minutes, count, what, account):
+    """Say what `count` machines of the dearest of `found` cost for about `minutes` (`what` names the work and the
+    machines) and refuse what passes the owner's limits; the minutes the machines may run."""
+    dearest = max(offer.per_card for offer in found)
+    spent = month_spent(account)
+    say(f"{what}: about {minutes:.0f} min, €{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
+    refused = ledger.refusal(minutes, dearest * count, spent)
+    if refused:
+        raise SystemExit(f"refused: {refused}")
+    return ledger.minutes_allowed(dearest * count, spent)
+
+
 def month_spent(account):
     """What the month has cost so far: the provider's bill or the ledger's sum, whichever is higher (the bill lags)."""
     return max(cloud.month_spend(account), ledger.month_total(ledger.this_month(), ledger.entries()))
@@ -793,10 +805,8 @@ def delete_machine(machine):
         return
     cloud.delete(machine["id"], machine["zone"])
     machine["deleted"] = time.time()
-    try:
+    with contextlib.suppress(ProcessLookupError):
         os.kill(machine["watchdog"], signal.SIGTERM)
-    except ProcessLookupError:
-        pass
     say(f"{machine['folder'].name} deleted after {(machine['deleted'] - machine['created']) / 60:.1f} min")
 
 
@@ -916,6 +926,11 @@ def run(models, options, account, found, cards, allowed_minutes):
         ledger.record(entry)
         report(entry)
         fleet.finishers.shutdown(wait=True)
+    say_what_failed(fleet, folder)
+
+
+def say_what_failed(fleet, folder):
+    """Name the models a batch did not make or could not finish, and where their logs are."""
     missing = sorted(set(fleet.models) - set(fleet.done))
     if missing:
         say(f"not made: {', '.join(missing)} (logs under {folder})")
@@ -979,11 +994,7 @@ def run_on_cluster(models, options, parallel=None):
                     fleet.arrived(folder / f"group{number}", take.name)
     finally:
         fleet.finishers.shutdown(wait=True)
-    missing = sorted(set(fleet.models) - set(fleet.done))
-    if missing:
-        say(f"not made: {', '.join(missing)} (logs under {folder})")
-    if fleet.finish_failed:
-        say(f"finishing failed: {', '.join(fleet.finish_failed)} (see {folder / 'finish.log'})")
+    say_what_failed(fleet, folder)
 
 
 def main():

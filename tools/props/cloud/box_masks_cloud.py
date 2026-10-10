@@ -43,14 +43,7 @@ def price(jobs, account):
     if not found:
         raise SystemExit("no card for SAM 3 is sold in the zones used")
     minutes = SETUP_MINUTES + len(jobs) * SECONDS_A_PICTURE / 60
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} pictures on 1 card: about {minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; "
-              f"€{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, batch.priced(found, minutes, 1, f"{len(jobs)} pictures on 1 card", account)
 
 
 def set_up(machine):

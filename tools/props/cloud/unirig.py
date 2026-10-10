@@ -52,14 +52,8 @@ def price(count_models, account):
         raise SystemExit("no card that holds UniRig is sold by the backend")
     count = capacity.machines_for(count_models, MINUTES_A_MODEL, SETUP_MINUTES)
     minutes = capacity.spread_minutes(count_models, MINUTES_A_MODEL, SETUP_MINUTES, count)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{count_models} models on {count} machine{'s' if count > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{count_models} models on {count} machine{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def set_up(machine):

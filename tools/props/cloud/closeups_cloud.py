@@ -48,14 +48,8 @@ def price(cameras, account, mattes=0):
         raise SystemExit("no card that holds this job is sold in the zones used")
     count = capacity.machines_for(cameras, SECONDS_A_CAMERA / 60, SETUP_MINUTES, capacity.slots_for("closeups"))
     minutes = capacity.spread_minutes(cameras, SECONDS_A_CAMERA / 60, SETUP_MINUTES, count) + mattes * SECONDS_A_MATTE / 60
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{cameras} close-ups on {count} card{'s' if count > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{cameras} close-ups on {count} card{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def step_line(python, arguments):
@@ -63,7 +57,7 @@ def step_line(python, arguments):
     return f"cd {REMOTE}/repo && env {environment} {python} {shlex.join(arguments)}"
 
 
-def set_up(machine, splats, pictures_folder=None):
+def set_up(machine, splats):
     """The scripts, the splats, the lab's remover and the models onto one machine."""
     log_folder, host = machine["folder"], machine["host"]
     batch.remote(log_folder, host, f"mkdir -p {REMOTE}/repo/tools {REMOTE}/out", check=True)
@@ -157,7 +151,7 @@ def main():
     shares = spread.Shares(shares_of(plan, count, options.matte), deadline=run.deadline)
     try:
         spread.on_machines(run, account, found, count, "closeups", shares,
-                           lambda machine: set_up(machine, options.splats, options.matte),
+                           lambda machine: set_up(machine, options.splats),
                            lambda machine, share, card: do_share(machine, share, card, options.folder, options.splats,
                                                                  options.matte))
         if not run.machines:

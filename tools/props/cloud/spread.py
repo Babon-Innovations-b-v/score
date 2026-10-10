@@ -16,6 +16,7 @@ minute, and is deleted when it has no more work; the run's ledger rows are the r
 run.attempts, as for one machine).
 """
 import collections
+import contextlib
 import threading
 import time
 
@@ -133,6 +134,23 @@ def work_slot(machine, shares, do, card, broken):
             again = shares.give_back(share)
             batch.say(f"{machine['folder'].name} failed ({error}); its share "
                       f"{'goes to another machine' if again else 'failed twice and is given up'}")
+
+
+@contextlib.contextmanager
+def tended(run, machine):
+    """A machine a runner works itself, armed to delete itself if this PC goes quiet and hearing its heartbeat while
+    the block runs (its host), deleted after whatever happens."""
+    import pictures
+
+    stop = threading.Event()
+    try:
+        host = machine["host"]
+        batch.arm_self_delete(machine["folder"], host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        threading.Thread(target=pictures.keep_beating, args=(machine["folder"], host, stop), daemon=True).start()
+        yield host
+    finally:
+        stop.set()
+        batch.delete_machine(machine)
 
 
 def tend(run, machine, kind, shares, prepare, do, at_once=None):

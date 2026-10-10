@@ -46,14 +46,8 @@ def price(runs, account):
         raise SystemExit("no card that holds this job is sold in the zones used")
     count = capacity.machines_for(runs, MINUTES_A_RUN, SETUP_MINUTES, capacity.slots_for("parts"))
     minutes = capacity.spread_minutes(runs, MINUTES_A_RUN, SETUP_MINUTES, count, capacity.slots_for("parts"))
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{runs} PartCrafter runs on {count} card{'s' if count > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{runs} PartCrafter runs on {count} card{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def run_line(picture, parts, card=0):

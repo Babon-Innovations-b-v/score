@@ -73,14 +73,8 @@ def price(jobs, account, processor, classes):
     each = [card_minutes(job) * slower for job in jobs]
     count = capacity.machines_for(len(jobs), sum(each) / len(each), SETUP_MINUTES)
     minutes = SETUP_MINUTES + max(max(each), sum(each) / count)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} library jobs on {count} machine{'s' if count > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{len(jobs)} library jobs on {count} machine{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def remote_job(job, number):
@@ -105,6 +99,13 @@ def remote_job(job, number):
             sends.append((sorted(set(files)), place))
             moved["rows"].append(dict(row, models=[str(place / pathlib.Path(path).name) for path in row["models"]]))
     return moved, sends
+
+
+def files_of(local):
+    """The files one of remote_job's sends puts up: a row's list as it is, a parts folder's files but its labels."""
+    if isinstance(local, list):
+        return local
+    return sorted(found for found in local.iterdir() if found.is_file() and found.name != "labels.json")
 
 
 def run_line(script, job_path, card):
@@ -135,9 +136,7 @@ def bake(machine, number, job, card):
     moved, sends = remote_job(job, number)
     for local, place in sends:
         batch.remote(log_folder, host, f"mkdir -p {place}", check=True)
-        files = local if isinstance(local, list) else sorted(
-            found for found in local.iterdir() if found.is_file() and found.name != "labels.json")
-        batch.copy(log_folder, files, f"root@{host}:{place}/")
+        batch.copy(log_folder, files_of(local), f"root@{host}:{place}/")
     job_path = REMOTE / f"job{number}.json"
     # Paths into this checkout (a variant's picture) point into the machine's copy of it.
     (log_folder / f"job{number}.json").write_text(json.dumps(moved).replace(str(REPO), str(REMOTE / "repo")))
@@ -179,9 +178,7 @@ def cluster_job(job, number, card, job_file):
     job_file.write_text(json.dumps(moved).replace(str(REPO), CLUSTER_REPO))
     inputs = [{"local": str(job_file), "path": str(job_path)}]
     for local, place in sends:
-        files = local if isinstance(local, list) else sorted(
-            found for found in local.iterdir() if found.is_file() and found.name != "labels.json")
-        inputs += [{"local": str(file), "path": str(place / pathlib.Path(file).name)} for file in files]
+        inputs += [{"local": str(file), "path": str(place / pathlib.Path(file).name)} for file in files_of(local)]
     blender = ["/opt/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
                f"tools/props/library/inside/{job['script']}", "--", str(job_path)]
     found = {"command": ["sh", "-c", f"mkdir -p {moved['out']} && {shlex.join(blender)}"], "code": list(SHIPPED),

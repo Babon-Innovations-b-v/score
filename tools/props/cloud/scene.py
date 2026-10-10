@@ -40,7 +40,6 @@ import pathlib
 import shlex
 import subprocess
 import sys
-import threading
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -53,6 +52,7 @@ import inventory as inventories  # noqa: E402
 import ledger  # noqa: E402
 import place  # noqa: E402
 import provider  # noqa: E402
+import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from local_models import ALLOW  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
@@ -67,7 +67,6 @@ SAM3_WEIGHTS = os.environ.get("SAM3_WEIGHTS", "jetjodh/sam3")
 # each step on an L4.
 SETUP_MINUTES = 15
 STEP_MINUTES = {"target": 3, "cutout": 3, "depth": 2, "redraw": 1}
-SCENE_STEPS = ("target", "cutout", "depth", "redraw")
 
 
 def local_room(room):
@@ -241,13 +240,8 @@ def run_steps(folder, host, plan):
 
 def work_on(run, machine, plan):
     """One machine from boot to delete: set it up, run the steps, bring the room's folder back."""
-    import pictures  # its picture module loads torch, which the gate's plain python lacks
     folder = machine["folder"]
-    stop = threading.Event()
-    try:
-        host = machine["host"]
-        batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
+    with spread.tended(run, machine) as host:
         set_up(folder, host, plan)
         batch.say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min")
         try:
@@ -255,9 +249,6 @@ def work_on(run, machine, plan):
         finally:
             local_room(plan["room"]).mkdir(parents=True, exist_ok=True)
             batch.copy(folder, [f"root@{host}:{remote_room(plan['room'])}/"], f"{local_room(plan['room'])}/")
-    finally:
-        stop.set()
-        batch.delete_machine(machine)
 
 
 def record(run, machines, plan, started):
@@ -351,7 +342,6 @@ def main():
     folder = batch.BATCHES / time.strftime(f"scene-{plan['room']}-%Y%m%d-%H%M%S-{os.getpid()}")
     folder.mkdir(parents=True)
     run = pictures.Run(folder, started + allowed_minutes * 60)
-    machines = []
     try:
         machines = pictures.rent_machines(run, account, found, 1)
         if not machines:
