@@ -94,6 +94,65 @@ def test_the_context_keeps_each_files_mode():
     in_a_copy(check)
 
 
+def renting(machine_class, work):
+    """Stand in for the cloud: batch, the provider and spread.on_machines, one machine of `machine_class` that runs
+    `work(machine, share)` on each share; what was deleted and recorded."""
+    seen = {"deleted": [], "ledger": [], "said": []}
+    folder = pathlib.Path(tempfile.mkdtemp())
+
+    def on_machines(run, _account, _found, _count, _kind, shares, prepare, do, disk_gb=None):
+        machine = {"folder": run.folder / "m1", "host": "h", "class": machine_class, "type": "T", "zone": "z",
+                   "created": 0.0}
+        machine["folder"].mkdir(parents=True)
+        run.machines.append(machine)
+        prepare(machine)
+        while shares.waiting:
+            share = shares.waiting.popleft()
+            try:
+                do(machine, share, None)
+            except RuntimeError:
+                shares.failed.append(share)
+
+    class Offer:
+        price = 0.01
+
+    stubs = {(build.batch, "BATCHES"): folder, (build.batch, "offers"): lambda classes: [Offer()],
+             (build.batch, "month_spent"): lambda account: 0.0, (build.batch, "sweep"): lambda account: None,
+             (build.batch, "ssh_key"): lambda: "key", (build.batch, "stop_on_signals"): lambda: None,
+             (build.batch, "remote"): lambda *arguments, **keywords: None,
+             (build.batch, "delete_machine"): seen["deleted"].append, (build.batch, "say"): seen["said"].append,
+             (build.ledger, "record"): seen["ledger"].append,
+             (build.ledger, "machines_record"): lambda machines, attempts, started: {"euros": 0.5},
+             (build.spread, "on_machines"): on_machines, (build.cloud, "account"): lambda: "account",
+             (build.cloud, "registry"): lambda: {"endpoint": "reg/ns", "username": "u", "password": "p"},
+             (build.cloud, "allow_key"): lambda account, name, key: None,
+             (build, "build_one"): lambda machine, kind, registry, built: work(machine, kind)}
+    kept = {key: getattr(*key) for key in stubs}
+    for (owner, name), value in stubs.items():
+        setattr(owner, name, value)
+    return seen, lambda: [setattr(owner, name, value) for (owner, name), value in kept.items()]
+
+
+def test_a_failed_build_still_deletes_its_machine_and_records_the_run():
+    def work(_machine, kind):
+        if kind == "child":
+            raise RuntimeError("buildx exited with 1")
+
+    seen, restore = renting("cpu-16c-64gb", work)
+    try:
+        build.build(["base", "child"], "tester", smoke_test=False)
+        raise AssertionError("a failed build must stop the run")
+    except SystemExit as stop:
+        assert "did not finish" in str(stop)
+    finally:
+        restore()
+    assert [machine["class"] for machine in seen["deleted"]] == ["cpu-16c-64gb"]
+    entry = seen["ledger"][0]
+    assert entry["kind"] == "images" and entry["who"] == "tester" and entry["images"] == ["base", "child"]
+    assert entry["batch"].startswith("images-") and entry["euros"] == 0.5
+    assert seen["said"][-1].startswith("images: ")
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
