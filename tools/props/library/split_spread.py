@@ -183,11 +183,11 @@ def table(run):
                   spread_line("regions whole", [scores["whole"] for scores in several.values()]),
                   spread_line("needless cuts", [scores["needless"] for scores in several.values()]),
                   spread_line("parts", [scores["parts"] for scores in several.values()]),
-                  f"  owned under half: {sum(owned_share(scores) < 0.5 for scores in several.values())} models; "
+                  f"  owned under half: {sum((owned_share(scores) or 0) < 0.5 for scores in several.values())} models; "
                   f"none owned: {sum(not scores['owned'] for scores in several.values())}",
                   "  worst (owned, pure):"]
-        worst = sorted(several, key=lambda take: (owned_share(several[take]), several[take]["pure"]))[:WORST]
-        lines += [f"    {take:<26} {owned_share(several[take]):.2f}  {several[take]['pure']:.2f}  "
+        worst = sorted(several, key=lambda take: (owned_share(several[take]) or 0, several[take]["pure"]))[:WORST]
+        lines += [f"    {take:<26} {owned_share(several[take]) or 0:.2f}  {several[take]['pure']:.2f}  "
                   f"{','.join(takes[take]['places'])}" for take in worst]
         lines.append("")
     lines.append(f"{'take':<26} {'places':<26} fin  geosam2 owned/pure/cuts/parts   partcrafter owned/pure/cuts/parts")
