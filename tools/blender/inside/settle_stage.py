@@ -2,7 +2,7 @@
 
     python3 tools/blender/session.py batch tools/blender/inside/settle_stage.py -- <stage.usda> <job.json> <out.json>
 
-job.json: {"loose": [object name, ...], "lift": {object name: metres}}. The stage is brought in whole; its ground
+job.json: {"loose": [object name, ...], "lift": {object name: metres}, "ignore": [object name, ...]} (glowing parts, left out of the statics). The stage is brought in whole; its ground
 (`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision), but the sky (NOT_SOLID).
 Each loose object is lifted by its `lift` (just clear of the ground, from tools/usd/settle.py), given its convex hull
 as collision and its weight at the middle of its surface (the resting check's weight), and dropped. Loose objects
@@ -39,6 +39,9 @@ MARGIN = 0.004
 # the halo's squares), whose meshes would otherwise be static and enclose every object (2026-10-10: every object of
 # usd-r3 started "inside" the haze and was dropped on the bare ground alone).
 NOT_SOLID = {"Sky"}
+# How far a loose object is raised for the test of whether it starts inside a static (metres): what it only touches,
+# the deck under it, is not "inside" (the resting triage's nudge is the same 5 mm).
+NUDGE = 0.005
 # A room's stage has no Ground: the floor is y = 0 (resting.py's flat place), a plane this many metres across.
 FLAT_SIDE = 400.0
 SUBSTEPS = 20
@@ -85,18 +88,28 @@ def stage_motion(blender):
     return [list(row) for row in found]
 
 
-def tree(item):
-    """The object's triangles in world space, for overlap tests."""
+def tree(item, lift=0.0):
+    """The object's triangles in world space (raised by `lift` metres), for overlap tests."""
     from mathutils.bvhtree import BVHTree
-    placed = item.matrix_world
+    placed = Matrix.Translation(Vector((0.0, 0.0, lift))) @ item.matrix_world
     return BVHTree.FromPolygons([placed @ vertex.co for vertex in item.data.vertices],
                                 [polygon.vertices[:] for polygon in item.data.polygons])
 
 
-def inside_statics(item, statics):
-    """The static objects this one starts overlapping."""
-    mine = tree(item)
-    return [name for name, other in statics.items() if mine.overlap(other)]
+def heights(item):
+    """The lowest and highest world height of the object's vertices."""
+    found = [(item.matrix_world @ vertex.co).z for vertex in item.data.vertices]
+    return min(found), max(found)
+
+
+def inside_statics(item, statics, lows):
+    """The static objects this one starts inside: an overlap that survives raising it by NUDGE (so the deck or plate
+    it stands on, which it touches, does not count) with a static that reaches below its middle (so a thing standing
+    on it does not count either), as the resting triage's overlap survives its nudge."""
+    mine = tree(item, NUDGE)
+    low, high = heights(item)
+    middle = (low + high) / 2
+    return [name for name, other in statics.items() if lows[name] < middle and mine.overlap(other)]
 
 
 def weight_at_middle(item):
@@ -168,22 +181,24 @@ def main():
     ground = next((item for item in bpy.data.objects if item.type == "MESH" and item.name.split(".")[0] == "Ground"),
                   None) or flat_ground(scene)
     rigid(unparented(ground), "PASSIVE", "MESH", range(GROUPS))
-    statics, moving, inside = {}, {}, {}
+    statics, lows, moving, inside = {}, {}, {}, {}
+    ignore = set(job.get("ignore", []))
     for name, holder in holders.items():
         meshes = [child for child in holder.children if child.type == "MESH"]
-        if not meshes or name.split(".")[0] in NOT_SOLID:
+        if not meshes or name.split(".")[0] in NOT_SOLID or name.split(".")[0] in ignore:
             continue
         if name in loose:
             moving[name] = unparented(drawn_mesh(holder))
             continue
         for item in meshes:  # a static holder may draw several meshes (a character's body and clothes)
             item = unparented(item)
-            statics[name if len(meshes) == 1 else f"{name}/{item.name}"] = tree(item)
+            static = name if len(meshes) == 1 else f"{name}/{item.name}"
+            statics[static], lows[static] = tree(item), heights(item)[0]
             rigid(item, "PASSIVE", "MESH", range(GROUPS))
             item.rigid_body.collision_collections = [False] + [True] * (GROUPS - 1)
     lifts = {name: Matrix.Translation(Vector((0.0, 0.0, float(job["lift"].get(name, 0.0))))) for name in moving}
     for number, (name, item) in enumerate(moving.items()):
-        inside[name] = inside_statics(item, statics)
+        inside[name] = inside_statics(item, statics, lows)
         weight_at_middle(item)
         item.matrix_world = lifts[name] @ item.matrix_world
         rigid(item, "ACTIVE", "CONVEX_HULL", [0] if inside[name] else [own_group(number)])
