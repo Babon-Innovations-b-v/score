@@ -68,6 +68,7 @@ another project; nothing here lists clusters by anything but this project and na
 without that check.
 """
 import argparse
+import datetime
 import json
 import math
 import os
@@ -85,7 +86,6 @@ sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve
 sys.path.insert(0, str(CLOUD.parent))
 sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(CLOUD / "backends"))
-
 sys.path.insert(0, str(HERE.parent))
 
 import gpu_operator  # noqa: E402
@@ -201,11 +201,6 @@ def system_pool_arguments(machine_type, zone):
             f"pools.0.root-volume-size={ROOT_GB['system']}GB", f"pools.0.tags.0={TAG}"]
 
 
-def update_cluster(found):
-    """Keep an existing cluster's autoscaler settings to AUTOSCALER."""
-    return scw("k8s", "cluster", "update", found["id"], *autoscaler_arguments())
-
-
 def pool_name(machine_class, machine_type, zone):
     """A class pool's name: the class, the machine type and the zone, all a node's labels need to say."""
     return f"{machine_class}-{machine_type}-{zone}".lower()
@@ -277,7 +272,7 @@ def up():
     project = backend.account()
     found = cluster(project) or create_cluster(project)
     if found.get("status") != "creating":
-        update_cluster(found)
+        scw("k8s", "cluster", "update", found["id"], *autoscaler_arguments())
     wait_ready(found["id"])
     ensure_pools(found["id"])
     config = write_kubeconfig(found["id"])
@@ -311,7 +306,7 @@ def affordable_nodes(euros_left, euros_a_minute, hours, most=POOL_MAX):
     """How many nodes of a pool the month's remaining euros pay for `hours` each, at most `most`."""
     if euros_left <= 0:
         return 0
-    return max(0, min(most, math.floor(euros_left / (euros_a_minute * 60 * hours))))
+    return min(most, math.floor(euros_left / (euros_a_minute * 60 * hours)))
 
 
 def node_share(pool_count):
@@ -367,8 +362,6 @@ def month_spend():
 
 def parse_time(text):
     """An RFC 3339 time from the API as epoch seconds."""
-    import datetime
-
     return datetime.datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
 
 

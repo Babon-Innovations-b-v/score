@@ -108,14 +108,12 @@ def cluster_module(name=None):
     return module
 
 
-# kubectl.
-
-def kubeconfig(cluster):
-    """The kubeconfig kubectl uses: KUBECONFIG when set, else the cluster module's fetched one."""
-    return os.environ.get("KUBECONFIG") or str(cluster.KUBECONFIG)
-
-
 # The order of classes.
+
+def kind_classes(kind):
+    """capacity's classes for a job kind, in the kind's order."""
+    return sorted(capacity.classes_for(kind), key=lambda name: capacity.speed_rank(name, kind))
+
 
 def job_kind(spec):
     """The job kind capacity.py and the ledger know a job by: its `capacity_kind` when the runner names one (a
@@ -126,10 +124,7 @@ def job_kind(spec):
 def class_order(kind, spec, pool_classes):
     """The classes a job may take, in the order to take them, and which of them only after LATE_MINUTES: the spec's
     own `classes`, else capacity's for its kind in the kind's order; only classes the cluster has pools for."""
-    if spec.get("classes"):
-        wanted = list(spec["classes"])
-    else:
-        wanted = sorted(capacity.classes_for(kind), key=lambda name: capacity.speed_rank(name, kind))
+    wanted = list(spec["classes"]) if spec.get("classes") else kind_classes(kind)
     order = [name for name in wanted if name in pool_classes]
     if not order:
         raise SystemExit(f"the cluster has no pool for any class of the job kind '{kind}' ({', '.join(wanted)})")
@@ -248,7 +243,7 @@ class Run:
                 continue
             record = self.jobs[job_id]
             record["generation"] = max(record["generation"], int(notes.get("score.dev/generation", 0)))
-            record["submitted"] = record["submitted"] or self.started
+            record["submitted"] = self.started
             kind = self.kinds[job_kind(self.specs[job_id])]
             kind["step"] = max(kind["step"], len(notes.get("score.dev/classes", "").split(",")))
 
@@ -274,7 +269,7 @@ class Run:
 
     def read(self):
         """The run's Jobs by name, its pods by job label, and the autoscaler's events on its pods."""
-        selector = f"score.dev/run={manifests.name_part(self.run_id)[:63]}"
+        selector = f"score.dev/run={manifests.label_value(self.run_id)}"
         listed = self.kubectl.json("get", "jobs,pods", "-n", manifests.NAMESPACE, "-l", selector)["items"]
         jobs, pods = {}, collections.defaultdict(list)
         for item in listed:
@@ -311,7 +306,7 @@ class Run:
         for job_id, spec in self.specs.items():
             if job_kind(spec) != kind or self.jobs[job_id]["state"] != "waiting":
                 continue
-            for pod in pods.get(manifests.name_part(job_id)[:63], []):
+            for pod in pods.get(manifests.label_value(job_id), []):
                 since = unscheduled_since(pod)
                 if since is not None:
                     waiting.append((since, no_grow.get(pod["metadata"]["name"])))
@@ -441,7 +436,7 @@ def poll(run):
         if found is None:
             run.make(job_id)
             continue
-        run.update_job(job_id, found, pods.get(manifests.name_part(job_id)[:63], []))
+        run.update_job(job_id, found, pods.get(manifests.label_value(job_id), []))
     run.widen(pods, no_grow)
     run.watch_nodes()
 
@@ -465,7 +460,7 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
     IDLE_ESTIMATE_MINUTES, marked estimated; `who` is the session asking, kept in the ledger; `parallel` holds the
     run to that many jobs on the cluster at once (submit_more)."""
     cluster = cluster or cluster_module()
-    kubectl = kubectl or Kubectl(kubeconfig(cluster))
+    kubectl = kubectl or Kubectl(os.environ.get("KUBECONFIG") or str(cluster.KUBECONFIG))
     helper = runtime()
     finished = [job_id for job_id in specs if helper.state(store, run_id, job_id) == "done"]
     if finished:

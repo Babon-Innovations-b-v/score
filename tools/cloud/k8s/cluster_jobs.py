@@ -103,8 +103,7 @@ def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
     helper = submitter.runtime()
     store = helper.cloud_store()
     image = image or kind
-    classes = classes or sorted(submitter.capacity.classes_for(kind),
-                                key=lambda name: submitter.capacity.speed_rank(name, kind))
+    classes = classes or submitter.kind_classes(kind)
     run_name = name or run_id(kind)
     specs, backs = {}, {}
     for number, job in enumerate(jobs):

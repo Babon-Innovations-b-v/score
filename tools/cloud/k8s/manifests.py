@@ -47,6 +47,11 @@ def name_part(text):
     return re.sub(r"[^a-z0-9-]+", "-", text.lower()).strip("-")
 
 
+def label_value(text):
+    """`text` as a label value: a name piece of at most NAME_LIMIT characters."""
+    return name_part(text)[:NAME_LIMIT]
+
+
 def job_name(run_id, job_id, generation):
     """The Job's name for one job and generation (the submitter makes a new generation when it widens a job's
     classes); a long name keeps its end, where the job id and generation are."""
@@ -56,8 +61,8 @@ def job_name(run_id, job_id, generation):
 
 def labels(run_id, job_id, kind):
     """The labels every object of a job carries, so the submitter finds them by run."""
-    return {"app.kubernetes.io/part-of": "score", "score.dev/run": name_part(run_id)[:63],
-            "score.dev/job": name_part(job_id)[:63], "score.dev/kind": name_part(kind)[:63]}
+    return {"app.kubernetes.io/part-of": "score", "score.dev/run": label_value(run_id),
+            "score.dev/job": label_value(job_id), "score.dev/kind": label_value(kind)}
 
 
 def deadline_seconds(spec):
