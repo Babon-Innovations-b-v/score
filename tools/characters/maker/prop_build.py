@@ -38,6 +38,7 @@ FAR_TRIANGLES = 1220
 JOINTS_A_VERTEX = 4
 TRAVELLING_JOINT = 1
 TUCKED_ROLES = ("skin", "hard")
+RIGID_SHARE = 0.6
 FEET = ("LeftFoot", "RightFoot")
 
 
@@ -88,7 +89,9 @@ def on_one_joint(count, names, joint):
 
 def rigid(name, points, weights, names):
     """A hard part's weights: the hair on the head, a boot on its side's foot, a mitt on its side's hand, any other
-    (a helmet, a pack, a box, a buckle) on the joint its transferred weights favour most."""
+    (a helmet, a pack, a box, a buckle) on the joint its transferred weights favour, when that joint holds RIGID_SHARE
+    of them; a hard part spread over several joints (a belt round the waist, or a split that took a sleeve with it)
+    keeps its transferred weights."""
     side = "Left" if points[:, 0].mean() > 0 else "Right"
     if name == "hair":
         return on_one_joint(len(points), names, "Head")
@@ -96,7 +99,10 @@ def rigid(name, points, weights, names):
         return on_one_joint(len(points), names, side + "Foot")
     if name.startswith("mitt"):
         return on_one_joint(len(points), names, side + "Hand")
-    return on_one_joint(len(points), names, names[int(weights.sum(0).argmax())])
+    totals = weights.sum(0)
+    if totals.max() < RIGID_SHARE * totals.sum():
+        return weights
+    return on_one_joint(len(points), names, names[int(totals.argmax())])
 
 
 SIDED = ("boot", "mitt")

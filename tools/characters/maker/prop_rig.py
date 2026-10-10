@@ -8,23 +8,24 @@ trimesh); no model runs, and no SOMA or SAM 3D Body surface is ever drawn or sha
 `rig.npz` is prop_skeleton.py's (the mean skeleton's kept joints at their bind pose, the mean surface with its
 weights). The steps:
 
-1. The mesh is stood in the skeleton's frame: up +y, facing +z with +x its left (the way the toes point decides
-   front), its soles on the floor, centred on its torso, scaled so its armpit stands at the mean body's armpit times
-   `--size` (the look's `scale`; a helmet or boots change a figure's height, hardly its armpit).
+1. The mesh is stood in the skeleton's frame: up +y, its widest spread across the floor along x, facing +z with +x
+   its left (the way the toes point decides front), its soles on the floor, centred on its chest, as tall as the mean
+   body times `--size` (the look's `scale`).
 2. Both bodies are measured the same way (`landmarks`): horizontal slices 1 cm apart, each cut into its separate
    pieces on a 1.5 cm grid; the crotch is where the two legs meet, the armpit where the arms leave the torso; each
-   arm's and leg's axis is a line through its slices' centres, with its length and its median radius; the torso's
-   centre, width and depth at every height. A mesh whose legs or arms never separate is refused.
-3. Every joint is carried from the mean body into the mesh by those landmarks (`carried`): an arm or leg joint by
-   its share along the limb's axis and its offset across it (scaled by the limbs' radii); a trunk joint by its height
-   between the landmarks and its offset from the torso's centre (scaled by the torso's width and depth). The bind
-   pose keeps the mean skeleton's rotations, each limb turned by the turn from the mean limb's axis to the mesh's, so
-   the mesh is bound where it stands and Kimodo's clips (rotations against the parents) play unchanged.
+   arm's and leg's axis is a line through its slices' centres; the torso's centre at every height. A mesh whose legs
+   or arms never separate is refused. Clothes move the crotch and the armpit (a suit's crotch hangs low, its full
+   sleeves leave the torso low: on the player's work suit 35 % and 62 % of his height against the mean body's 40 % and
+   72 %), so they only find the limbs; they never set a joint's height.
+3. Every joint is placed (`placed`): the trunk's at the mean body's height times `--size`, centred in the torso's
+   slice there (the shoulders and hips too); the knee and ankle, the elbow and wrist down their limb's
+   axis at the mean bone's length times `--size`; the toes turned with the leg. The bind pose keeps the mean
+   skeleton's rotations, each limb joint's turned onto its placed bone, so the mesh is bound where it stands and
+   Kimodo's clips (rotations against the parents) play on bones of the mean lengths times the size.
 4. The weights (Robust Skin Weights Transfer via Weight Inpainting, Abdrashitov, Raichstat, Monsen and Hill, SIGGRAPH
    Asia 2023 Technical Communications; reference code github.com/rin-23/RobustSkinWeightsTransferCode, MIT, Copyright
    (c) 2024 Rinat Abdrashitov; ported here with trimesh and scipy in place of libigl, whose bindings carry GPL-3.0):
-   the mean surface is carried into the mesh the same way (`carried`, blended by each point's limb weights) as the
-   source; a mesh vertex copies the source's weights where the closest source point lies within MATCH_DISTANCE and
+   the mean surface moved onto the fitted skeleton by its own weights (`skinned_source`) is the source; a mesh vertex copies the source's weights where the closest source point lies within MATCH_DISTANCE and
    its normal within MATCH_DEGREES (an arm or leg vertex only from its own limb's source triangles); the rest is
    inpainted (the weights minimising the squared Laplacian energy with the matched ones fixed), then smoothed
    SMOOTH_STEPS times at SMOOTH_ALPHA within MATCH_DISTANCE of the unmatched ones. Loose cloth between the legs takes
@@ -32,8 +33,8 @@ weights). The steps:
    (the shoulder or the hips) at the end.
 
 Writes rig.npz into the out folder (the joints' names, parents, fitted bind 4x4s and offsets against their parents,
-the mesh's points and faces in the skeleton's frame, its weights, the carried mean surface, the frame's turn and
-scale) and rig.json (the landmarks of both bodies, the share matched, and each limb's turn).
+the mesh's points and faces in the skeleton's frame, its weights, the moved mean surface, the frame's turn and
+scale) and rig.json (the landmarks of both bodies, the joints' places, the share matched, and each limb's turn).
 """
 import argparse
 import json
@@ -54,8 +55,12 @@ MATCH_DEGREES = 45.0
 SMOOTH_STEPS = 10
 SMOOTH_ALPHA = 0.2
 SAMPLES = 200000
-# How far a carried joint's offset across a limb or from the torso's centre may grow or shrink.
-RATIO_RANGE = (0.5, 2.0)
+# The share of a limb's slices left off at each end before its axis is fitted.
+AXIS_TRIM = 0.15
+# The slices the torso's centre is a running median over.
+CENTRE_SLICES = 9
+# The torso's slices start this far over the crotch.
+TORSO_ABOVE = 0.03
 SIDES = {"Left": 1.0, "Right": -1.0}
 # A slice's two largest pieces are the legs when the smaller has at least this share of the larger's points.
 LEG_LIKENESS = 0.4
@@ -63,9 +68,6 @@ LEG_LIKENESS = 0.4
 CHEST_SHARE = 0.72
 ARM = ("Arm", "ForeArm", "Hand")
 LEG = ("Leg", "Shin", "Foot", "ToeBase", "ToeEnd")
-# The hip joints sit in the pelvis, above where the legs part: they are placed by the trunk's map (their height
-# between the crotch and the armpit), turned with their leg.
-LIMB_ROOTS = ("LeftLeg", "RightLeg")
 
 
 class RigError(ValueError):
@@ -194,9 +196,12 @@ def axis_through(centres):
 
 
 def limb(points, centres, members, start_height):
-    """A limb's axis from its slices' centres: its point at `start_height`, its direction (down), its length to the
+    """A limb's axis from its slices' centres (the middle of the run: AXIS_TRIM of it left off at each end, where the
+    limb's end and its join to the trunk pull the centres off its line): its point at `start_height`, its direction (down), its length to the
     farthest of its points along it and its median radius."""
-    middle, direction = axis_through(np.array(centres))
+    centres = np.array(centres)
+    trim = int(len(centres) * AXIS_TRIM)
+    middle, direction = axis_through(centres[trim:len(centres) - trim] if len(centres) - 2 * trim >= 3 else centres)
     start = middle + direction * (start_height - middle[1]) / direction[1]
     offsets = points[members] - start
     along = offsets @ direction
@@ -217,15 +222,25 @@ def limb_slices(cuts, low, high, pick):
 
 
 def torso_profile(points, cuts, crotch):
-    """The torso's centre x and z, width and depth at each slice from the crotch up (the slice's largest piece)."""
-    rows = []
+    """The torso's centre x and z, width and depth at each slice from TORSO_ABOVE over the crotch up (the slice's
+    largest piece; at the crotch itself that is still one leg). The centre is the middle of the piece's points within
+    half the torso's median width of the run's median centre, then a running median over CENTRE_SLICES: where an arm
+    touches the torso the slice's piece takes it in, and its plain middle moved aside (the player's at 1.11 m by
+    11 cm, over several slices)."""
+    torsos = []
     for level, cut in cuts:
-        if level < crotch:
-            continue
-        torso = max(cut, key=lambda piece: len(piece[0]))
-        mine = points[torso[0]]
-        rows.append((level, torso[1], torso[2], np.ptp(mine[:, 0]), np.ptp(mine[:, 2])))
-    return np.array(rows)
+        if level >= crotch + TORSO_ABOVE:
+            torsos.append((level, points[max(cut, key=lambda piece: len(piece[0]))[0]]))
+    middle_x = np.median([np.median(mine[:, 0]) for _, mine in torsos])
+    half = np.median([np.ptp(mine[:, 0]) for _, mine in torsos]) / 2
+    rows = []
+    for level, mine in torsos:
+        core = mine[np.abs(mine[:, 0] - middle_x) <= half]
+        core = core if len(core) else mine
+        rows.append((level, core[:, 0].mean(), core[:, 2].mean(), np.ptp(mine[:, 0]), np.ptp(mine[:, 2])))
+    rows = np.array(rows)
+    rows[:, 1:3] = ndimage.median_filter(rows[:, 1:3], size=(CENTRE_SLICES, 1), mode="nearest")
+    return rows
 
 
 def landmarks(points):
@@ -248,10 +263,11 @@ def landmarks(points):
     return found
 
 
-# --- carrying the mean body into the mesh ---------------------------------------------------------------------------
+# --- the skeleton placed in the mesh -------------------------------------------------------------------------------
 
 def turn_between(first, second):
     """The rotation taking unit vector `first` onto `second`."""
+    first, second = first / np.linalg.norm(first), second / np.linalg.norm(second)
     cross = np.cross(first, second)
     sine, cosine = np.linalg.norm(cross), float(first @ second)
     if sine < 1e-9:
@@ -259,42 +275,6 @@ def turn_between(first, second):
     axis = cross / sine
     skew = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
     return np.eye(3) + sine * skew + (1 - cosine) * skew @ skew
-
-
-def ratio(new, old):
-    return float(np.clip(new / old, *RATIO_RANGE))
-
-
-def carried_on_limb(points, mean, fit):
-    """Points carried along a limb: their share along the mean limb's axis onto the mesh limb's, their offset across
-    it turned with the limb and scaled by the radii."""
-    offsets = points - mean["start"]
-    along = offsets @ mean["direction"]
-    across = offsets - along[:, None] * mean["direction"]
-    turn = turn_between(mean["direction"], fit["direction"])
-    share = along / mean["length"]
-    return (fit["start"] + (share * fit["length"])[:, None] * fit["direction"]
-            + across @ turn.T * ratio(fit["radius"], mean["radius"]))
-
-
-def height_knots(body):
-    return np.array([0.0, body["crotch"], body["armpit"], body["height"]])
-
-
-def carried_on_trunk(points, mean, fit):
-    """Points carried on the trunk: their height between the landmarks, their offset from the torso's centre scaled
-    by its width and depth there."""
-    height = np.interp(points[:, 1], height_knots(mean), height_knots(fit))
-    carried = np.empty_like(points)
-    carried[:, 1] = height
-    for axis, (centre_column, size_column) in ((0, (1, 3)), (2, (2, 4))):
-        old_centre = np.interp(points[:, 1], mean["torso"][:, 0], mean["torso"][:, centre_column])
-        new_centre = np.interp(height, fit["torso"][:, 0], fit["torso"][:, centre_column])
-        old_size = np.interp(points[:, 1], mean["torso"][:, 0], mean["torso"][:, size_column])
-        new_size = np.interp(height, fit["torso"][:, 0], fit["torso"][:, size_column])
-        scale = np.clip(new_size / np.maximum(old_size, 1e-6), *RATIO_RANGE)
-        carried[:, axis] = new_centre + (points[:, axis] - old_centre) * scale
-    return carried
 
 
 def chains(names):
@@ -311,45 +291,98 @@ def chains(names):
     return found
 
 
-def carried(points, chain_shares, chain_names, mean, fit):
-    """Points carried by each chain's map, blended by their shares of each chain (rows summing to one)."""
-    out = np.zeros_like(points)
-    for column, chain in enumerate(chain_names):
-        mine = chain_shares[:, column] > 1e-6
-        if not mine.any():
-            continue
-        moved = (carried_on_trunk(points[mine], mean, fit) if chain == "trunk"
-                 else carried_on_limb(points[mine], mean[chain], fit[chain]))
-        out[mine] += chain_shares[mine, column, None] * moved
-    return out
+def on_trunk(place, mean, fit, size):
+    """A trunk joint's place: its height times `size`, its offset from the torso's centre at that height the mean
+    body's times `size` (the torso's slices give the centre; their width is the clothes', not the body's)."""
+    height = place[1] * size
+    found = np.array([0.0, height, 0.0])
+    for axis, column in ((0, 1), (2, 2)):
+        old_centre = np.interp(place[1], mean["torso"][:, 0], mean["torso"][:, column])
+        new_centre = np.interp(height, fit["torso"][:, 0], fit["torso"][:, column])
+        found[axis] = new_centre + (place[axis] - old_centre) * size
+    return found
 
 
-def chain_shares(weights, joint_chains, chain_names):
-    """Each point's share of each chain, from its weights."""
-    shares = np.zeros((len(weights), len(chain_names)))
-    for joint, chain in enumerate(joint_chains):
-        shares[:, chain_names.index(chain)] += weights[:, joint]
-    return shares / np.maximum(shares.sum(1, keepdims=True), 1e-12)
+def along_axis(parent_place, limb_axis, length):
+    """The point of a limb's axis `length` from the parent joint, further down the axis; the point of the axis
+    nearest the parent and on by `length` where the axis passes farther off than that."""
+    direction, start = limb_axis["direction"], limb_axis["start"]
+    middle = (parent_place - start) @ direction
+    nearest = start + middle * direction
+    off = np.linalg.norm(parent_place - nearest)
+    return nearest + direction * np.sqrt(max(length ** 2 - off ** 2, 0.0)) if off < length else \
+        nearest + direction * length
 
 
-def fitted_bind(bind, names, parents, mean, fit):
-    """The fitted skeleton: every joint carried by its own chain, each limb's rotations turned with its axis. The
-    bind 4x4s and every joint's offset against its parent's bind frame."""
+def placed(bind, names, parents, mean, fit, size):
+    """Every joint's place in the mesh: the trunk's, each shoulder's and each hip's by on_trunk (a thigh's axis drawn
+    up past the crotch misses the hip by up to 9 cm), the knee, ankle, elbow and wrist down their limb's axis at the
+    mean bone's length times `size`, off the axis as far as the mean body's joint lies off the mean body's axis
+    (turned with the limb, times `size`), the toes' offsets from the ankle turned with the leg."""
     joint_chains = chains(names)
-    chain_names = sorted(set(joint_chains))
-    placed_by = ["trunk" if name in LIMB_ROOTS else chain for name, chain in zip(names, joint_chains)]
-    shares = np.zeros((len(names), len(chain_names)))
-    shares[np.arange(len(names)), [chain_names.index(chain) for chain in placed_by]] = 1.0
-    places = carried(bind[:, :3, 3], shares, chain_names, mean, fit)
+    places = np.zeros((len(names), 3))
+    for joint, name in enumerate(names):
+        chain, mean_place = joint_chains[joint], bind[joint, :3, 3]
+        parent = parents[joint]
+        part = name[4:] if name.startswith("Left") else name[5:]
+        if chain == "trunk" or part in ("Arm", "Leg"):
+            places[joint] = on_trunk(mean_place, mean, fit, size)
+        elif part in ("ToeBase", "ToeEnd"):
+            turn = turn_between(mean[chain]["direction"], fit[chain]["direction"])
+            places[joint] = places[parent] + turn @ (mean_place - bind[parent, :3, 3]) * size
+        else:
+            length = np.linalg.norm(mean_place - bind[parent, :3, 3]) * size
+            turn = turn_between(mean[chain]["direction"], fit[chain]["direction"])
+            places[joint] = along_axis(places[parent], fit[chain], length) \
+                + turn @ off_axis(mean_place, mean[chain]) * size
+    return places
+
+
+def off_axis(place, limb_axis):
+    """How far a joint lies off its limb's axis, across it (SOMA's ankle lies behind the line through the shin's
+    slices, which the calf pulls back)."""
+    offset = place - limb_axis["start"]
+    return offset - (offset @ limb_axis["direction"]) * limb_axis["direction"]
+
+
+def bone_turns(bind, places, names, parents):
+    """Each limb joint's turn from the mean bone to the placed one (its bone to its child in the chain; an end joint
+    takes its parent's); the trunk's joints keep the mean rotations."""
+    joint_chains = chains(names)
+    turns = np.tile(np.eye(3), (len(names), 1, 1))
+    for joint in range(len(names)):
+        if joint_chains[joint] == "trunk":
+            continue
+        children = [child for child in range(len(names)) if parents[child] == joint
+                    and joint_chains[child] == joint_chains[joint]]
+        if children:
+            child = children[0]
+            turns[joint] = turn_between(bind[child, :3, 3] - bind[joint, :3, 3], places[child] - places[joint])
+        else:
+            turns[joint] = turns[parents[joint]]
+    return turns
+
+
+def fitted_bind(bind, names, parents, mean, fit, size=1.0):
+    """The fitted skeleton: the joints placed in the mesh (`placed`), each limb joint's rotation turned onto its placed
+    bone. The bind 4x4s and every joint's offset against its parent's bind frame."""
+    places = placed(bind, names, parents, mean, fit, size)
+    turns = bone_turns(bind, places, names, parents)
     out = bind.copy()
     out[:, :3, 3] = places
-    for joint, chain in enumerate(joint_chains):
-        if chain != "trunk":
-            out[joint, :3, :3] = turn_between(mean[chain]["direction"], fit[chain]["direction"]) @ bind[joint, :3, :3]
+    out[:, :3, :3] = turns @ bind[:, :3, :3]
     offsets = np.array([places[joint] if parents[joint] < 0
                         else out[parents[joint], :3, :3].T @ (places[joint] - places[parents[joint]])
                         for joint in range(len(names))])
     return out, offsets
+
+
+def skinned_source(points, weights, bind, fitted):
+    """The mean surface moved onto the fitted skeleton by its own weights (linear blend skinning): the source the
+    weights are moved from, never drawn."""
+    moves = fitted @ np.linalg.inv(bind)
+    homogeneous = np.concatenate([points, np.ones((len(points), 1))], axis=1)
+    return np.einsum("pj,jab,pb->pa", weights, moves, homogeneous)[:, :3]
 
 
 # --- the weights (RSWT) ---------------------------------------------------------------------------------------------
@@ -527,33 +560,21 @@ def plain(found):
             for key, value in found.items() if key not in ("torso", "samples", "limbs")}
 
 
-def sized(raw, mean, size):
-    """The mesh stood in the skeleton's frame and scaled so its armpit stands at the mean body's armpit times `size`
-    (a look's `scale`): a helmet or boots change a figure's height, hardly its armpit. (mesh, turn, scale, shift)."""
-    turn, scale, shift = stood(raw.vertices, mean["height"])
-    first = trimesh.Trimesh(raw.vertices @ turn.T * scale + shift, raw.faces, process=False)
-    factor = mean["armpit"] * size / landmarks(sampled(first))["armpit"]
-    scale, shift = scale * factor, shift * factor
-    mesh = trimesh.Trimesh(raw.vertices @ turn.T * scale + shift, raw.faces, process=False)
-    if mesh.volume < 0:
-        mesh.invert()
-    return mesh, turn, scale, shift
-
-
 def rig(mesh_path, rig_path, out, size):
     """The fitted skeleton and the mesh's weights into `out` (rig.npz, rig.json); the record."""
     mean_rig = np.load(rig_path)
     names, parents, bind = list(mean_rig["names"]), mean_rig["parents"], mean_rig["bind"]
     source = trimesh.Trimesh(mean_rig["points"], mean_rig["faces"], process=False)
     mean = landmarks(sampled(source))
-    mesh, turn, scale, shift = sized(welded(trimesh.load(mesh_path, force="mesh", process=False)), mean, size)
+    raw = welded(trimesh.load(mesh_path, force="mesh", process=False))
+    turn, scale, shift = stood(raw.vertices, mean["height"] * size)
+    mesh = trimesh.Trimesh(raw.vertices @ turn.T * scale + shift, raw.faces, process=False)
+    if mesh.volume < 0:
+        mesh.invert()
     fit = landmarks(sampled(mesh))
-    fitted, offsets = fitted_bind(bind, names, parents, mean, fit)
-    joint_chains = chains(names)
-    chain_names = sorted(set(joint_chains))
-    shares = chain_shares(mean_rig["weights"], joint_chains, chain_names)
-    carried_source = trimesh.Trimesh(carried(source.vertices, shares, chain_names, mean, fit), source.faces,
-                                     process=False)
+    fitted, offsets = fitted_bind(bind, names, parents, mean, fit, size)
+    carried_source = trimesh.Trimesh(skinned_source(source.vertices, mean_rig["weights"], bind, fitted),
+                                     source.faces, process=False)
     weights, matched_share, smoothed_share = transferred(carried_source, mean_rig["weights"], mesh, np.array(names),
                                                          fit)
     out.mkdir(parents=True, exist_ok=True)
@@ -564,9 +585,10 @@ def rig(mesh_path, rig_path, out, size):
     record = {"mesh": str(mesh_path), "size": size, "height": round(fit["height"], 4), "scale": scale, "vertices": len(mesh.vertices),
               "matched_share": round(matched_share, 4), "smoothed_share": round(smoothed_share, 4),
               "mean": plain(mean), "fit": plain(fit),
+              "joints": {name: np.round(fitted[joint, :3, 3], 4).tolist() for joint, name in enumerate(names)},
               "limb_turn_degrees": {chain: round(float(np.degrees(np.arccos(np.clip(
                   mean[chain]["direction"] @ fit[chain]["direction"], -1, 1)))), 2)
-                  for chain in chain_names if chain != "trunk"}}
+                  for chain in sorted(set(chains(names))) if chain != "trunk"}}
     (out / "rig.json").write_text(json.dumps(record, indent=1))
     return record
 
@@ -577,7 +599,7 @@ def main():
     parser.add_argument("rig", type=pathlib.Path)
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("--size", type=float, default=1.0, help="the person's size against the mean body (a look's "
-                        "`scale`), read at the armpit")
+                        "`scale`)")
     options = parser.parse_args()
     record = rig(options.mesh, options.rig, options.out, options.size)
     print(f"rig: {record['vertices']} vertices, {record['matched_share']:.0%} matched, limb turns "

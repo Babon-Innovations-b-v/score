@@ -1,6 +1,7 @@
 """Check the prop route's rig on a made-up body of tubes (a torso, a head, arms held down and out, legs) whose joints
 and weights are known: placed into itself the skeleton and the weights come back; placed into the same body with
-longer arms the hands move to the new hands; RSWT's inpainting fills an unmatched strip between two matched sides with
+the arms held lower the arm bones turn onto the new arms at their own lengths, with their offsets against their
+parents as the mean skeleton's (so the clips play unchanged); RSWT's inpainting fills an unmatched strip between two matched sides with
 a blend of both; a tuck runs a part's open border on under the garment; the poke check reads a tuck under its cloth as
 hidden and one over it as showing.
 
@@ -37,13 +38,13 @@ def tube(start, end, radius, sections=24):
     return trimesh.creation.cylinder(radius=radius, segment=[start, end], sections=sections)
 
 
-def body(arm_reach=1.0):
-    """The tube body, its arms' hands `arm_reach` times as far from the shoulders."""
+def body(arm_reach=1.0, hand_at=(0.55, 1.05)):
+    """The tube body, its arms reaching from the shoulders towards `hand_at` (x, height), `arm_reach` times as far."""
     parts = [tube((0, 0.85, 0), (0, 1.45, 0), 0.15), trimesh.creation.icosphere(3, 0.1).apply_translation((0, 1.6, 0)),
              tube((0, 1.42, 0), (0, 1.52, 0), 0.05)]
     for sign in (1.0, -1.0):
         shoulder = np.array([sign * 0.2, 1.4, 0])
-        hand = shoulder + arm_reach * (np.array([sign * 0.55, 1.0, 0]) - shoulder)
+        hand = shoulder + arm_reach * (np.array([sign * hand_at[0], hand_at[1], 0]) - shoulder)
         parts += [tube(shoulder, hand, 0.04), tube((sign * 0.1, 0.0, 0), (sign * 0.1, 0.9, 0), 0.07)]
     mesh = trimesh.util.concatenate(parts)
     return trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(mesh.vertices, mesh.faces, 0.02), process=False)
@@ -100,12 +101,19 @@ def test_weights_into_itself_come_back():
     assert (moved.argmax(1) == weights.argmax(1)).mean() > 0.99
 
 
-def test_longer_arms_move_the_hands():
-    _, mean, fit = fitted(body(arm_reach=1.2))
-    out, _ = prop_rig.fitted_bind(bind(), NAMES, parents(), mean, fit)
-    shoulder = np.array(JOINTS["LeftArm"])
-    wanted = shoulder + 1.2 * (np.array(JOINTS["LeftHand"]) - shoulder)
-    assert np.linalg.norm(out[NAMES.index("LeftHand"), :3, 3] - wanted) < 0.03
+def test_lowered_arms_turn_the_arm_bones():
+    lowered = (0.42, 0.92)
+    _, mean, fit = fitted(body(hand_at=lowered))
+    out, offsets = prop_rig.fitted_bind(bind(), NAMES, parents(), mean, fit)
+    shoulder = np.array([0.2, 1.4, 0.0])
+    line = np.array([lowered[0], lowered[1], 0.0]) - shoulder
+    line /= np.linalg.norm(line)
+    for name in ("LeftForeArm", "LeftHand"):
+        place = out[NAMES.index(name), :3, 3] - shoulder
+        assert np.linalg.norm(place - (place @ line) * line) < 0.02, name
+    forearm = np.subtract(JOINTS["LeftHand"], JOINTS["LeftForeArm"])
+    assert abs(np.linalg.norm(offsets[NAMES.index("LeftHand")]) - np.linalg.norm(forearm)) < 0.005
+    assert np.allclose(offsets[NAMES.index("LeftHand")], forearm, atol=0.005)
 
 
 def test_inpainting_blends_the_unmatched_strip():
