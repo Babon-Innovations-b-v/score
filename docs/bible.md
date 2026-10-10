@@ -229,15 +229,18 @@ Getting a fresh machine, or a wiped one, back to working.
    `.claude/scripts/install-agent-tools.sh` (the agent tools in root `CLAUDE.md`: the pinned
    codebase-memory-mcp binary and Bun, each checked against its SHA-256; claude-mem's settings in
    `~/.claude-mem`; the vendored claude-mem plugin installed for this project; the repo indexed into
-   `~/.cache/codebase-memory-mcp`), and reports anything else that is missing. It needs `node`,
-   `python3`, `curl` and the `claude` CLI. It is safe to re-run; every step skips what is already done.
+   `~/.cache/codebase-memory-mcp`), builds the framework's Python from `uv.lock` (`.venv`, and
+   `PROPS_HOME/env` when missing, below), and reports anything else that is missing. It needs `node`,
+   `python3`, `curl`, `uv` and the `claude` CLI. It is safe to re-run; every step skips what is already done.
 3. `python3 .claude/scripts/setup-github.py --board` on a fresh repo only. Labels and the board are
    GitHub-side state and are not copied by "Use this template", so a repo spawned from the template
    starts without them.
 
 **The framework's runtime** lives outside the repo, under `PROPS_HOME` (default `~/.farm-factory-props`, the first
 world's name, kept so the cloud ledger, keys and work carry over): `cloud/` (the runner's ssh key, the self-delete
-key, the spend ledger), `work/` (`PROPS_WORK`: takes, pictures, places' runs). The machines need `uv`, `make env`,
+key, the spend ledger), `work/` (`PROPS_WORK`: takes, pictures, places' runs), `env/` (the interpreter the cloud
+machine runner, `blender_cloud.py`'s `CLOUD_PYTHON`, and the animal route call: `bootstrap.sh` builds it from
+`uv.lock` without dev tools when it is missing; no model runs in it). The machines need `uv`, `make env`,
 and the cloud backend's tools: for Scaleway, the current backend, the `scw` CLI logged in to the project named by
 `SCORE_SCALEWAY_PROJECT` (by name, never an id).
 
