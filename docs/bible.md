@@ -171,6 +171,17 @@ unpredictable.
   `md_guard` and `issue_guard` on `PreToolUse`, and the memory commit-and-push on `Stop`.
 - **GitHub issues** hold the durable backlog. Anything that must survive the chat lives there.
 
+**Sub-agents.** Independent steps go to sub-agents, and a sub-agent may split its own work over
+sub-agents again (owner, 2026-10-09; heavy work runs in the cloud, so the old local-load cap is
+gone). The parent writes each brief (task, scope, the rules that apply, where the result goes),
+checks what comes back against the brief, and merges it; a sub-agent's word is never taken as
+done. Each agent is short and scoped: one job, a clean context, and it ends when the job ends.
+Waits run in the background, never as an idle agent. The coordinator watches every agent's age
+and tokens and restarts, splits or stops a stale one without being asked (an agent alive for hours
+or at hundreds of thousands of tokens on a small job is stale). Checked 2026-10-10: a session's
+sub-agent spawned its own sub-agent and got its answer back; a sub-agent started by a workflow
+script is not given the Agent tool and cannot nest.
+
 **The board.** One GitHub project, created by `.claude/scripts/setup-github.py --board`. Status is
 a board column, never a label: `LowPriority`, `Not started`, `In Progress`, `Review`, `Done`. Set it
 with `python3 .claude/scripts/board-status.py <issue> "In Progress"`. Triage state is a label
