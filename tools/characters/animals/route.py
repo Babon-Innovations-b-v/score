@@ -28,9 +28,9 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent.parent / "props"))
 sys.path.insert(0, str(HERE.parent.parent / "props" / "cloud"))
 
-from paths import WORK  # noqa: E402
+from paths import HOME, WORK  # noqa: E402
 
-CLOUD_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
+CLOUD_PYTHON = HOME / "env/bin/python"
 CLOUD = HERE.parent.parent / "props" / "cloud"
 # The review renders want a card (Cycles), else a 32-core processor machine when no card is in stock; the rig job
 # runs on the same machine first.

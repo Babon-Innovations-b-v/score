@@ -1,6 +1,10 @@
-"""Checks for the animal route's plain-Python pieces: the fish's spine rig and the walk's legs, without Blender."""
+"""Checks for the animal route's plain-Python pieces: the fish's spine rig, the walk's legs and the runner's Python the
+route calls, without Blender."""
+import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 
 import numpy as np
 
@@ -131,6 +135,19 @@ def test_a_foot_slides_back_evenly_on_the_ground_and_swings_forward_in_the_air()
     assert np.isclose(middle[1], lift) and abs(middle[0]) < 1e-9
     assert np.isclose(legs.foot_path(0.9999, stride, lift)[0], stride / 2, atol=1e-3)
     assert sorted(legs.PHASES.values()) == [0.0, 0.25, 0.5, 0.75]
+
+
+def routes_runner_python(props_home):
+    """route.CLOUD_PYTHON as a fresh import sees it with PROPS_HOME at `props_home`."""
+    environment = {**os.environ, "PROPS_HOME": str(props_home)}
+    line = "import route; print(route.CLOUD_PYTHON)"
+    return subprocess.run([sys.executable, "-c", line], cwd=pathlib.Path(__file__).resolve().parent, env=environment,
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def test_the_route_calls_the_runner_python_under_props_home():
+    with tempfile.TemporaryDirectory() as temporary:
+        assert routes_runner_python(temporary) == f"{temporary}/env/bin/python"
 
 
 if __name__ == "__main__":
