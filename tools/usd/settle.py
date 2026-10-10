@@ -18,8 +18,9 @@ turn in its own seat's frame as a unit quaternion `rotation` [x, y, z, w] (x acr
 dropped). Settling only corrects a laid pose: an object that would turn more than TURN_MOST or whose middle would drift
 more than DRIFT_MOST to come to rest (small debris: any turn, DEBRIS_DRIFT) keeps its laid pose and is marked `"unrested"` in its spot and piece (what it
 would do), which the resting check fails as "would not rest as laid"; the layout is put right instead (a support piece,
-a laid pose that rests, or a bed in the ground under it). Export the stage again after, and
-run the resting check (tools/usd/resting.py).
+a laid pose that rests, or a bed in the ground under it). A piece the drop found laid inside a static one was dropped
+on the bare ground alone, so its result is no rest pose and is not written: its layout is put right first. Export the
+stage again after, and run the resting check (tools/usd/resting.py).
 """
 import argparse
 import json
