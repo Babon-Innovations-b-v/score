@@ -235,9 +235,9 @@ def parts(spec, outfit, who, held, dry_run):
     split_spread.lay_geosam2(run, take)
     spec_file = folder / "spec.json"
     spec_file.write_text(json.dumps(spec, indent=1))
-    local("prop_parts.py", "questions", run, take, spec_file)
+    local("prop_parts.py", "questions", run, take, spec_file, "--outfit", outfit)
     cloud("judge.py", run / "questions" / "questions.json", run / "answers")
-    local("prop_parts.py", "parts", run, take, spec_file)
+    local("prop_parts.py", "parts", run, take, spec_file, "--outfit", outfit)
     return json.loads((run / take / "parts.json").read_text())
 
 

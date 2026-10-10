@@ -87,23 +87,29 @@ def on_one_joint(count, names, joint):
 
 
 def rigid(name, points, weights, names):
-    """A hard part's weights: the hair on the head, a boot on its side's foot, any other on its strongest joint."""
+    """A hard part's weights: the hair on the head, a boot on its side's foot, a mitt on its side's hand, any other
+    (a helmet, a pack, a box, a buckle) on the joint its transferred weights favour most."""
+    side = "Left" if points[:, 0].mean() > 0 else "Right"
     if name == "hair":
         return on_one_joint(len(points), names, "Head")
     if name.startswith("boot"):
-        side = "Left" if points[:, 0].mean() > 0 else "Right"
         return on_one_joint(len(points), names, side + "Foot")
+    if name.startswith("mitt"):
+        return on_one_joint(len(points), names, side + "Hand")
     return on_one_joint(len(points), names, names[int(weights.sum(0).argmax())])
 
 
+SIDED = ("boot", "mitt")
+
+
 def boot_names(pieces, names_of):
-    """The boot part split by side: each boot point's side by x, as boot_l and boot_r."""
+    """The boot and mitt parts split by side, each triangle's side by x: boot_l and boot_r, mitt_l and mitt_r."""
     found = {}
     for part, (points, faces, weights) in pieces.items():
-        if names_of[part] != "boot":
+        if names_of[part] not in SIDED:
             found[(part, names_of[part])] = (points, faces, weights)
             continue
-        for side, sign in (("boot_l", 1.0), ("boot_r", -1.0)):
+        for side, sign in ((names_of[part] + "_l", 1.0), (names_of[part] + "_r", -1.0)):
             keep = (sign * points[faces].mean(1)[:, 0]) > 0
             used, renumbered = np.unique(faces[keep], return_inverse=True)
             found[(part, side)] = (points[used], renumbered.reshape(-1, 3), weights[used])
@@ -168,7 +174,7 @@ def far_body(fit_rig, parts):
     weights = fit_rig["weights"][cKDTree(whole.vertices).query(thin.vertices)[1]]
     names = [str(name) for name in parts["names"]]
     index = {int(part): number for number, part in enumerate(parts["parts"])}
-    surface_of_part = {part: ("skin" if parts["roles"][number] in ("skin", "hair") and names[number] != "hair"
+    surface_of_part = {part: ("skin" if parts["roles"][number] == "skin"
                               else "boots" if names[number] == "boot" else "clothes")
                        for part, number in index.items()}
     face_surface = np.array([surface_of_part[int(part)] for part in parts["part_of"][nearest_face]])
