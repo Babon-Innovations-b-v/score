@@ -554,7 +554,7 @@ solver, a fork of NVIDIA Warp that we cannot use because its licence
 allows non-commercial research only: on three bodies, the work suit's
 mean bend between neighbouring cloth triangles is 3.3 to 3.9 degrees,
 against 2.9 to 3.3 for Warp and 13.8 to 19.8 for Blender's cloth (Table
-G7). Every crew and cast body was draped again this way, and the cast
+G6). Every crew and cast body was draped again this way, and the cast
 writer refuses a body whose drapes come from a simulator that does not
 allow commercial use. Kimodo stands people 1.6 to 2.2 hip widths apart,
 so the build brings the feet in to hip width; the hands run up under the
@@ -726,10 +726,10 @@ exported stage and the same inventory, and the same agent (Claude Opus
 complete as it can in about 50 minutes, through the place's layout data
 only. One arm had the framework as it was before these tools; the other
 had them. Both arms were measured afterwards with the same instruments
-(Table 1). Each arm ran once, so the table shows what happened, not an
+(Table 2). Each arm ran once, so the table shows what happened, not an
 average.
 
-\textbf{Table 1.} One session per arm and place. Faults are the resting
+\textbf{Table 2.} One session per arm and place. Faults are the resting
 triage's real faults left on the final stage, measured against the arm's
 own data; placeholders by the placeholder check; rows are inventory rows
 with no object and no written reason. Agent cost is the session's model
@@ -1960,7 +1960,7 @@ picture in 0.27 minutes, the drapes took 6.65 and the review renders
 processor machine, Blender drapes the work suit in 1.5 minutes and the
 space suit in 0.6 minutes, with every seam within 3 cm and no cloth
 inside the body. Newton drapes a garment in 2 to 4 minutes on an L4
-(Table G7). Draping the 16 crew and cast bodies again with Newton and
+(Table G6). Draping the 16 crew and cast bodies again with Newton and
 building them cost €19.31 on L4 machines over three rounds; the first
 took 12 machines for 64 minutes and €7.38, and the other two mended the
 trousers' waist hold and the boots.
@@ -2117,7 +2117,7 @@ When an L4 zone was out of stock the autoscaler moved to the next zone
 within a minute, and when processor machines were out of stock in both
 Paris zones for 20 minutes, a cluster spanning Warsaw took one there.
 
-\textbf{Table G7.} Drapes of the same GarmentCode patterns on the same
+\textbf{Table G6.} Drapes of the same GarmentCode patterns on the same
 three bodies by three simulators, 9 October 2026, measured by
 tools/characters/maker/drape\_measure.py: the trousers' hem above the
 floor, the mean bend between neighbouring cloth triangles over the whole
@@ -2161,7 +2161,7 @@ The player, space suit & 19.7 cm, 5.10°, 5.52°, 0.11 cm & 21.5 cm,
 \end{longtable}
 }
 
-Table G6 shows how a batch's time falls with the number of cards on the
+Table G7 shows how a batch's time falls with the number of cards on the
 cluster. The same 24 Pixal3D takes, three at once on each L4, were run
 on one, two, four and eight nodes side by side. Every run used about the
 same card time, 210 to 221 minutes, and so cost about the same, while
@@ -2172,7 +2172,7 @@ the order while the autoscaler kept retrying the other two zones, and
 eight nodes ran only eight jobs, so the run ended with its slowest job
 of 38 minutes.
 
-\textbf{Table G6.} One batch on more cards: 24 Pixal3D takes, three at
+\textbf{Table G7.} One batch on more cards: 24 Pixal3D takes, three at
 once on each L4, on a Scaleway cluster spanning Paris and Warsaw, 9
 October 2026. Time runs from the submit to the last result; card time is
 the minutes the run's jobs held a card.
