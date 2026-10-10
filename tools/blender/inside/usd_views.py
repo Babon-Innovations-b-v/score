@@ -12,7 +12,9 @@ report.json with what came in: objects, materials, each object's score:* propert
 Blender's own USD library composed them. A view with `"look_only": true` (a walkthrough's frame) gets its look alone.
 `"plain": true` draws every object in one plain grey instead of its materials: a debug view of shape alone.
 `"lights": [{"at", "energy", "radius"}]` adds point lights (a room's lamps, watts); a view with `"hide_layers": [2]`
-leaves out every object whose `score:layer` is one of them (a room's roof, for a cutaway look in). A view with
+leaves out every object whose `score:layer` is one of them (a room's roof, for a cutaway look in), and one with
+`"hide_over": {"above", "low", "high"}` every mesh wholly over that height standing over that floor (a room whose roof
+has no layer of its own, and the building on top of it). A view with
 `"frame": <n>` is drawn at that time code of the stage, so its characters (tools/characters/cast.py) stand in that
 moment of their clips; a walkthrough's frames give consecutive ones, so they move. A view with `"eyes": [...]` in place
 of one eye is seen from the first of them with a clear line to its aim (a character's views, where a wall may stand
@@ -317,6 +319,24 @@ def layer_of(item):
                     return int(value)
         item = item.parent
     return None
+
+
+def over_room(objects, over):
+    """The meshes wholly over a room and standing over its floor, a cutaway's `hide_over` ({"above": y, "low": [x, z],
+    "high": [x, z]} in the stage's frame): its ceiling and whatever is built on top of it, kit layer or not."""
+    to_stage = Y_UP_TO_Z_UP.inverted()
+    found = []
+    for item in objects:
+        if item.type != "MESH":
+            continue
+        corners = [to_stage @ (item.matrix_world @ Vector(corner)) for corner in item.bound_box]
+        if min(corner.y for corner in corners) < over["above"]:
+            continue
+        if (max(corner.x for corner in corners) > over["low"][0] and min(corner.x for corner in corners) < over["high"][0]
+                and max(corner.z for corner in corners) > over["low"][1]
+                and min(corner.z for corner in corners) < over["high"][1]):
+            found.append(item)
+    return found
 
 
 def set_hidden(objects, hidden):
@@ -898,6 +918,7 @@ def main():
         camera(scene, view)
         plane.hide_render = False
         hidden = [item for item in objects if layers[item.name] in view.get("hide_layers", [])]
+        hidden += over_room(objects, view["hide_over"]) if "hide_over" in view else []
         set_hidden(hidden, True)
         render(scene, out / f"{view['name']}-look.png", transparent=False)
         if view.get("ink"):

@@ -113,6 +113,20 @@ def the_cameras_stand_outside_looking_in():
     return problems
 
 
+def cut_covers(over, entry):
+    """Whether a cutaway's `hide_over` leaves a structure box out: wholly over its height, over its floor."""
+    low = np.array(entry["centre"]) - np.array(entry["size"]) / 2
+    high = np.array(entry["centre"]) + np.array(entry["size"]) / 2
+    return bool(low[1] >= over["above"] and high[0] > over["low"][0] and low[0] < over["high"][0]
+                and high[2] > over["low"][1] and low[2] < over["high"][1])
+
+
+def box_contains(entry, point):
+    """Whether a point lies inside a structure box."""
+    offset = np.abs(np.array(point) - np.array(entry["centre"]))
+    return bool(np.all(offset < np.array(entry["size"]) / 2))
+
+
 def a_room_is_seen_from_inside():
     """Every room's scene record puts its cameras inside its floor (never outside a closed room), its walk at
     standing height inside it, and its cutaway over it with the roof left out."""
@@ -130,6 +144,11 @@ def a_room_is_seen_from_inside():
         cut = renders.cutaway(record)
         if cut["hide_layers"] != [renders.ROOF_LAYER] or cut["eye"][1] <= record.get("ceiling", 3.0):
             problems.append(f"{path.stem}: the cutaway is not over the room with its roof left out")
+        for entry in record.get("structure", []):
+            if entry["builder"] == "box" and cut_covers(cut["hide_over"], entry):
+                continue
+            if entry["builder"] == "box" and box_contains(entry, cut["eye"]):
+                problems.append(f"{path.stem}: the cutaway's eye is inside {entry['name']}, which it does not leave out")
         walk = renders.record_walk(record)
         if any(frame["eye"][1] != renders.STANDING for frame in walk):
             problems.append(f"{path.stem}: the walk is not at standing height")
