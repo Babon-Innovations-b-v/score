@@ -35,7 +35,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   and what it lists as game only.
 - **The style measure** (`style.py`, `style_test.py`; the paper's style-coherence gap): per place, from the review
   pages' made-model renders only, the coloured pixels' fit to the place's library palette, the spread of the models'
-  lightness, how blotchy their surfaces look (surface marks), and DINOv2's likeness within the place against across places, with the same pairs as silhouettes
-  subtracted so what an object is does not count as its style. DINOv2 runs on a rented machine through
-  `../props/cloud/similar.py`, never here. It reports numbers, never a verdict; validating it needs the creator's
-  reviews.
+  lightness, how blotchy their surfaces look (surface marks), and DINOv2's likeness within the place against across
+  places, with the same pairs as silhouettes subtracted so what an object is does not count as its style. DINOv2
+  runs on a rented machine through `../props/cloud/similar.py`, never here. It reports numbers, never a verdict;
+  validating it needs the creator's reviews.

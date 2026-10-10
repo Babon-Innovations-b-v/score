@@ -77,7 +77,8 @@ def pairs_cover_within_and_draw_across():
 
 
 def the_style_gap_takes_the_shapes_away():
-    """The gap is the colour renders' within-minus-across less the silhouettes'; a place with no pair within has none."""
+    """The gap is the colour renders' within-minus-across less the silhouettes'; a place with no pair within has
+    none."""
     likeness = {"colour|hub/a|hub/b": 0.9, "colour|hub/a|lab/c": 0.5, "shape|hub/a|hub/b": 0.7,
                 "shape|hub/a|lab/c": 0.6, "colour|camp/a|lab/c": 0.4, "shape|camp/a|lab/c": 0.4}
     problems = []
@@ -134,7 +135,8 @@ def stains_read_as_marks():
     return problems
 
 
-CHECKS = (stains_read_as_marks, a_model_shown_twice_is_left_out, the_model_is_told_from_the_grey, lab_goes_back_to_linear, a_palette_colour_fits_at_any_brightness,
+CHECKS = (stains_read_as_marks, a_model_shown_twice_is_left_out, the_model_is_told_from_the_grey,
+          lab_goes_back_to_linear, a_palette_colour_fits_at_any_brightness,
           pairs_cover_within_and_draw_across, the_style_gap_takes_the_shapes_away, the_renders_are_found_by_place)
 
 
