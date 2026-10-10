@@ -7,11 +7,11 @@
 		"views": [
 			{
 				"id": "v1",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/door_dome/concepts/K01.png"
+				"picture": "WORK/scene/camp/views/K01.png"
 			},
 			{
 				"id": "v2",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/mars-build/far_dome/concepts/K08.png"
+				"picture": "WORK/scene/camp/views/K08.png"
 			}
 		],
 		"dimensioned": [

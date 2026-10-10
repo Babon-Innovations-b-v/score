@@ -7,11 +7,11 @@
 		"views": [
 			{
 				"id": "v1",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/street/concepts/K03.png"
+				"picture": "WORK/scene/street/views/K03.png"
 			},
 			{
 				"id": "v2",
-				"picture": "/home/dupe/.claude/jobs/3326150f/tmp/concepts-world1/street/concepts/K06.png"
+				"picture": "WORK/scene/street/views/K06.png"
 			}
 		],
 		"concept": "concepts-world1/street: the coordinator's pick K03, runner-up K06 (owner may change)",
