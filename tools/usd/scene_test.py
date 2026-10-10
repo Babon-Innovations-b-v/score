@@ -58,6 +58,9 @@ def check_builders():
     window = next(part for part in ship if part["surface"] == "glass")["points"]
     reach = np.hypot(window[:, 0], window[:, 2])
     assert reach.min() > 1.6 - 1e-6 and reach.max() < 1.6 + 0.05, "a service window does not lie flat on the hull"
+    legs, feet = builders.ship_legs([0.0, 0.5, 0.0], "steel", "trim")
+    assert np.isclose(feet["points"][:, 1].min(), 0.0), "the ship's feet do not reach the ground it stands half a metre over"
+    assert np.isclose(legs["points"][:, 1].max(), 0.5 + 0.9) and np.isclose(np.abs(legs["points"][:, 0]).max(), 1.99)
     facets = builders.walls(12, 4.5, 0.0, 3.1, "x", 15.0, [(0.0, 2.2, 2.6)])
     assert np.isclose(np.hypot(facets["points"][:, 0], facets["points"][:, 2]).min(), 4.5 / math.cos(math.pi / 12),
                       atol=1.2), "a facet's corners stand out on its corner radius"

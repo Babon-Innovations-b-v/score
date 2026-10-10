@@ -624,3 +624,28 @@ def ship_hull(centre, surface, nose_surface, band_surface, stripe_surface, seam_
             + ship_nose(centre, nose_surface, seam_surface, sides)
             + ship_band(centre, band_surface, stripe_surface, sides)
             + [joined([foot, foot_floor])])
+
+
+# The ship's legs as the game draws them once its legs mount holds a part (ship.gd MOUNT_LOOKS "legs";
+# ship.tscn leg_mesh: a steel cylinder r 0.09, 1.4 high, its middle 0.2 up at (+-1.9, +-1.9); foot_mesh: a trim box
+# 0.6 x 0.08 x 0.6, its middle 0.46 down), in the ship's own frame: the feet's soles reach 0.5 down, the ground the
+# game's ship stands on (FlightRunner.ON_ITS_LEGS).
+SHIP_LEG = (0.09, -0.5, 0.9)
+SHIP_LEG_AT = 1.9
+SHIP_FOOT = (0.6, 0.08, 0.6)
+SHIP_FOOT_MIDDLE = -0.46
+
+
+def ship_legs(centre, surface, foot_surface, sides=16):
+    """The ship's four legs standing on `centre` (the game's Ship node, as `ship_hull`): each a capped round leg in
+    `surface` and a flat foot under it in `foot_surface`."""
+    radius, low, high = SHIP_LEG
+    legs, feet = [], []
+    for across in (-SHIP_LEG_AT, SHIP_LEG_AT):
+        for along in (-SHIP_LEG_AT, SHIP_LEG_AT):
+            middle = (centre[0] + across, centre[2] + along)
+            legs += [cone_arc(low, high, radius, radius, surface, segments=sides,
+                              centre=(middle[0], centre[1], middle[1])),
+                     disc(radius, centre[1] + high, surface, sides, middle)]
+            feet.append(box([middle[0], centre[1] + SHIP_FOOT_MIDDLE, middle[1]], SHIP_FOOT, foot_surface))
+    return [joined(legs), joined(feet)]

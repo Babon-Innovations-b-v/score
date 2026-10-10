@@ -87,7 +87,7 @@ TUBE_LIGHT_EVERY = 2
 # The code builders a scene record may name.
 BUILDERS = ("quad", "box", "annulus", "walls", "wall_strip", "pyramid_roof", "dome", "cylinder_wall", "disc", "stairs",
             "grid", "heightfield", "room_walls", "room_deck", "dome_roof", "lathe", "sphere", "tube_arc", "stars",
-            "haze_volume", "torus", "specks", "ship_hull")
+            "haze_volume", "torus", "specks", "ship_hull", "ship_legs")
 
 
 def record(place):
