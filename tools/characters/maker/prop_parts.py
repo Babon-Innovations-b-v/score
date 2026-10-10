@@ -9,8 +9,8 @@ batch's cut-out), split_compare.py `inputs` (<run>/<take>/up/), GeoSAM2 seeded w
 (../../props/cloud/meshparts.py --methods geosam2) and the split laid on the raw model (split_spread.lay_geosam2).
 
 `questions` writes each GeoSAM2 part outlined on the close-up with the person's allowed materials (part_judge.py) to
-<run>/questions/ for ../../props/cloud/judge.py. `parts` reads the answers (<run>/answers/), names each part's material
-(the judge's, else the nearest allowed colour, as labels.region_materials picks), gives each part its role in the
+<run>/questions/ for ../../props/cloud/judge.py, each asked with three seeds. `parts` reads the answers
+(<run>/answers/), names each part's material (most of its seeds' usable answers, else the nearest allowed colour), gives each part its role in the
 body (skin, hair, garment, hard) and the name joins.py knows it by (skin_head, skin_hands, hair, cloth, a boot or a
 mitt, split by side in the build, and any other hard part by its material), carries the split from the raw model onto the finished one (the finish's own
 turn, refined: labels.finish_turn and onto_finished) and writes <run>/<take>/parts.npz (each finished face's part,
@@ -63,6 +63,9 @@ MITTS = ("grey mitten rubber",)
 # A part's role in the body, by its material's family.
 ROLES = {"skin": "skin", "hair": "hair", "fabric": "garment", "print": "garment", "rubber": "hard", "steel": "hard",
          "plastic": "hard", "glass": "hard"}
+# Each part is asked with these seeds and most of the usable answers decide (closeup/check.py's rule: one answer alone
+# called a pocket a steel buckle, and another ran out of thinking before it answered).
+SEEDS = (7, 8, 9)
 # A skin part above this share of the height is the head's.
 HEAD_SHARE = 0.8
 
@@ -96,8 +99,37 @@ def questions(run, take, spec, outfit):
     pixels = part_judge.part_pixels(part_of, seen, row, column, np.asarray(picture).shape[:2])
     parts = [int(part) for part in np.unique(pixels) if part >= 0]
     words = f"a person: {spec['description']}, wearing {spec['outfit_words'][outfit]}"
-    return part_judge.write_questions(run / "questions", take, picture, pixels, parts, words,
-                                      person_materials(spec, outfit))
+    asked = part_judge.write_questions(run / "questions", take, picture, pixels, parts, words,
+                                       person_materials(spec, outfit))
+    return seeded(run / "questions" / part_judge.QUESTIONS, asked)
+
+
+def seeded(listing, asked):
+    """Each question in `asked` asked with every one of SEEDS (its name ending -s<seed>), in the questions file."""
+    jobs = json.loads(listing.read_text())
+    kept = [job for job in jobs if job["name"] not in asked]
+    for job in jobs:
+        if job["name"] in asked:
+            kept += [dict(job, name=f"{job['name']}-s{seed}", seed=seed) for seed in SEEDS]
+    listing.write_text(json.dumps(kept, indent=1))
+    return [f"{name}-s{seed}" for name in asked for seed in SEEDS]
+
+
+def judged_by_most(folder, take, count, names):
+    """Each part's material by most of its seeds' usable answers ({part: material}); a tie goes to the lowest seed's."""
+    found = {}
+    for part in range(count):
+        picks = []
+        for seed in SEEDS:
+            path = pathlib.Path(folder) / f"{take}-part{part:02d}-s{seed}.txt"
+            answer = part_judge.answer_of(path.read_text()) if path.exists() else None
+            code = str((answer or {}).get("material", "")).strip().upper()
+            codes = {part_judge.code(index): name for index, name in enumerate(names)}
+            if code in codes:
+                picks.append(codes[code])
+        if picks:
+            found[part] = max(picks, key=lambda name: (picks.count(name), -picks.index(name)))
+    return found
 
 
 def materials_of_parts(run, take, part_of, materials, mesh):
@@ -105,12 +137,12 @@ def materials_of_parts(run, take, part_of, materials, mesh):
     view = labels.picture_view(mesh, take)
     colours = labels.face_colours(mesh, view)
     count = int(part_of.max()) + 1
-    judged = part_judge.judged(run / "answers", take, count, list(materials))
+    judged = judged_by_most(run / "answers", take, count, list(materials))
     names, anchors = labels.anchors_of(materials)
     found = {}
     for part in range(count):
         if part in judged:
-            found[part] = judged[part][0]
+            found[part] = judged[part]
             continue
         seen = colours[part_of == part]
         seen = seen[~np.isnan(seen).any(1)]
