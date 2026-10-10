@@ -45,6 +45,8 @@ SETTINGS = {
     "self_margin": 0.003,   # contact distance between triangles
     "self_gap": 0.006,      # detection beyond the margin: VBD's step bound grows with it
     "rest_exclusion": 0.002,  # pairs this close in the bind pose never push (Pixal3D's surface touches itself there)
+    "topology_filter": 1,   # contacts dropped only between triangles sharing a point: at the default 2 a tuck's band
+                            # (one ring of triangles off its seam) never met the trouser over it
     "lost": 0.08,           # a cloth point this far from its skinned place is put back on it (caught, not settled)
 }
 
@@ -221,7 +223,8 @@ class Settle:
         self.solver = newton.solvers.SolverVBD(
             self.model, iterations=settings["iterations"], particle_enable_self_contact=True,
             particle_self_contact_margin=settings["self_margin"], particle_self_contact_gap=settings["self_gap"],
-            particle_rest_shape_contact_exclusion_radius=settings["rest_exclusion"])
+            particle_rest_shape_contact_exclusion_radius=settings["rest_exclusion"],
+            particle_topological_contact_filter_threshold=settings["topology_filter"])
         self.states = [self.model.state(), self.model.state()]
         self.control = self.model.control()
         self.step_seconds = 1.0 / settings["fps"] / settings["substeps"]

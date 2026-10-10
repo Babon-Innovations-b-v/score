@@ -148,18 +148,20 @@ def test_tuck_runs_under_the_garment():
                            for height in np.linspace(-0.13, 0.0, 14)])
     bones = {0: [(np.array([0.0, -0.3, 0.0]), np.zeros(3))], 1: [(np.zeros(3), np.array([0.0, 0.3, 0.0]))]}
     whole = trimesh.creation.cylinder(radius=0.056, segment=[(0, -0.3, 0), (0, 0.0, 0)], sections=48)
+    parents = np.array([1, -1])
     out_points, out_faces, out_weights = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)),
-                                                      bones, whole)
+                                                      bones, whole, parents)
     band = out_points[len(points):]
     ring = np.unique(tucks.border_edges(faces))
     assert len(band) and abs(band[:, 1].mean() - (points[ring, 1].mean() + tucks.TUCK_LENGTH)) < 0.002
     assert np.linalg.norm(band[:, [0, 2]], axis=1).max() < 0.05 * (1 - tucks.TUCK_SHRINK) + 1e-6
     assert np.allclose(out_weights[len(points):], [0.0, 1.0])
     alone, _, _ = tucks.tucked(points, faces, weights, cuff + [0.0, 1.0, 0.0], np.tile([0.0, 1.0], (len(cuff), 1)),
-                               bones, whole)
+                               bones, whole, parents)
     assert len(alone) == len(points)
     short = trimesh.creation.cylinder(radius=0.056, segment=[(0, -0.3, 0), (0, -0.09, 0)], sections=48)
-    alone, _, _ = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)), bones, short)
+    alone, _, _ = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)), bones, short,
+                               parents)
     assert len(alone) == len(points)
 
 
@@ -195,6 +197,15 @@ def test_thinning_keeps_the_parts_shut():
     border = sphere.vertices[np.intersect1d(sphere.faces[part_of == 0], sphere.faces[part_of == 1])]
     kept = thin.vertices[np.intersect1d(thin.faces[thin_parts == 0], thin.faces[thin_parts == 1])]
     assert len(border) == len(kept) and np.allclose(np.sort(border, 0), np.sort(kept, 0))
+
+
+def test_a_band_takes_its_own_limbs_weights():
+    parents = np.array([-1, 0, 0, 1, 2])  # hips; left and right shin; left and right foot
+    garment = np.array([[0.05, 0.3, 0.0], [-0.02, 0.3, 0.0]])
+    weights = np.zeros((2, 5))
+    weights[0, 1], weights[1, 2] = 1.0, 1.0
+    found = tucks.limb_weights(np.array([[0.0, 0.3, 0.0]]), np.array([3]), garment, weights, parents)
+    assert found[0, 1] == 1.0
 
 
 def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows():
