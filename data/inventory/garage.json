@@ -1328,6 +1328,8 @@
 			"name": "a rover charge post: a blue steel pillar with a small screen, a coiled charging cable and its plug in a holster",
 			"kind": "generate",
 			"anchor": "floor",
+			"fixed": true,
+			"fixed_why": "a rover charge post, a 1.4 m steel pillar bolted to the garage floor, as charge posts are set: anchored, not loose (the drop run threw it over, 119 degrees)",
 			"size": [
 				0.5,
 				0.4,
