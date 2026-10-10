@@ -82,7 +82,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   proposed pose; `--write` writes it into the layout with settle.py's pose helpers (no settle limits: a snap is a new
   laid pose, and a stale `unrested` mark goes). Export again and run the checks after. `snap_test.py` checks it.
 - `camera_paths.py` is a review walkthrough camera's path: RRT* at eye height (1.6 m over the first surface under each
-  point: ground, Structure, Fixtures or an object such as a kit room's floor plate; a step rising or dropping more
+  point: ground, Structure, Fixtures or an object such as a kit room's floor plate; the place's people block it as
+  boxes where they stand at the stage's first moment; a step rising or dropping more
   than a stair's 0.6 m is not taken) from a start to a goal or round a loop of waypoints, an edge valid only when its ray and four rays
   offset by the clearance (0.25 m) meet nothing, seeded, cut short where straight edges are clear, and laid out as
   the review walk's views (renders.py's format: `walk-NNN`, eye, aim, up, fov, look_only). renders.py does not read

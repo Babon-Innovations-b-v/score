@@ -1,7 +1,8 @@
 """Check the walkthrough camera's path on a place made here: two rooms side by side, the wall between them with one
 doorway, and a path from a corner of one to the far corner of the other (the straight line between them meets the
 wall) goes through the doorway and nowhere else, at eye height, clear of everything along every step; the same seed
-gives the same path; a loop through both rooms closes on itself; and the views are in the review walk's format.
+gives the same path; a loop through both rooms closes on itself; the views are in the review walk's format; and a
+place's characters, one alone and a crowd's instances, stand in the way as boxes where they stand.
 
 Run: .venv/bin/python tools/usd/camera_paths_test.py   (make tests runs it with the framework's environment)
 """
@@ -92,7 +93,32 @@ def a_loop_round_both_rooms_closes():
         return problems
 
 
-CHECKS = (a_path_between_rooms_goes_through_the_doorway, a_loop_round_both_rooms_closes)
+def people_stand_in_the_way():
+    """A place's characters block a path: a character's own box and a crowd's instances, each its prototype's box
+    moved where the instancer stands it."""
+    from pxr import Gf, Usd, UsdGeom, UsdSkel, Vt
+    with tempfile.TemporaryDirectory() as temporary:
+        path = pathlib.Path(temporary) / "people.usda"
+        stage = Usd.Stage.CreateNew(str(path))
+        stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/place").GetPrim())
+        root = UsdSkel.Root.Define(stage, "/place/Characters/walker")
+        UsdGeom.Cube.Define(stage, "/place/Characters/walker/body").GetSizeAttr().Set(1.0)
+        UsdGeom.Xformable(root).AddTranslateOp().Set(Gf.Vec3d(2.0, 0.5, 0.0))
+        # No skeleton here, so the character's bound is given.
+        root.CreateExtentAttr().Set(Vt.Vec3fArray([(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]))
+        crowd = UsdGeom.PointInstancer.Define(stage, "/place/Characters/crowd")
+        UsdGeom.Xformable(crowd).AddTranslateOp().Set(Gf.Vec3d(0.0, 1.0, 0.0))
+        UsdGeom.Cube.Define(stage, "/place/Characters/crowd/person").GetSizeAttr().Set(0.5)
+        crowd.CreatePrototypesRel().SetTargets(["/place/Characters/crowd/person"])
+        crowd.CreatePositionsAttr().Set(Vt.Vec3fArray([(-3.0, 0.0, 0.0), (0.0, 0.0, 4.0)]))
+        crowd.CreateProtoIndicesAttr().Set(Vt.IntArray([0, 0]))
+        stage.GetRootLayer().Save()
+        found = sorted(np.round(box.bounds.mean(axis=0), 3).tolist() for box in camera_paths.people(path))
+    expected = [[-3.0, 1.0, 0.0], [0.0, 1.0, 4.0], [2.0, 0.5, 0.0]]
+    return [] if found == expected else [f"people boxes stand at {found}, not {expected}"]
+
+
+CHECKS = (a_path_between_rooms_goes_through_the_doorway, a_loop_round_both_rooms_closes, people_stand_in_the_way)
 
 
 if __name__ == "__main__":
