@@ -232,16 +232,15 @@ def cleaned(mesh, part_of):
     return np.unique(part_of, return_inverse=True)[1].reshape(-1)
 
 
-def partcrafter_parts(mesh, take):
+def partcrafter_parts(mesh, take, folder=None):
     """PartCrafter's split as the repaint lays it (labels.parts_on_model, parts merged where they share an unclear
-    surface), and its registration report."""
-    report = json.loads((LABELS / take / "labels.json").read_text())
+    surface), and its registration report; from `folder`, else the folder its repaint's labels.json names."""
+    folder = folder or pathlib.Path(json.loads((LABELS / take / "labels.json").read_text())["parts_folder"])
     np.random.seed(0)
     final = trimesh.load(labels.PIXAL / f"{take}-final.glb", force="mesh")
     matrix, _ = labels.onto_finished(mesh.sample(labels.SAMPLED, seed=1), final.sample(labels.SAMPLED, seed=2),
                                      labels.finish_turn(take))
-    return labels.parts_on_model(pathlib.Path(report["parts_folder"]), mesh, final.sample(labels.SAMPLED, seed=3),
-                                 matrix)
+    return labels.parts_on_model(folder, mesh, final.sample(labels.SAMPLED, seed=3), matrix)
 
 
 def segvigen_parts(mesh, folder, mode):
@@ -341,7 +340,7 @@ def region_agreement(rendered, pixels, region_finish):
     close-up's regions: how whole each region stays, how pure each part is in finish, their harmonic mean."""
     both = (rendered >= 0) & (pixels >= 0)
     part, region = rendered[both], pixels[both]
-    table = np.zeros((int(part.max()) + 1, int(region.max()) + 1))
+    table = np.zeros((int(part.max()) + 1, len(region_finish)))  # a region the drawn split misses stays a column
     np.add.at(table, (part, region), 1)
     whole = float(table.max(0).sum() / table.sum())
     finish_table = np.zeros((table.shape[0], int(region_finish.max()) + 1))

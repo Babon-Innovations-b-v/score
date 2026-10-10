@@ -114,3 +114,13 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   models GeoSAM2 seeded with the close-up's regions gave 79% of finishes parts of their own against PartCrafter's 34%
   (SegviGen 46% unguided, 68% guided but a median of 30 parts); its weakness is cuts through smooth surfaces where SAM
   cut one finish. Scores: finishes owned, needless cuts, regions whole and parts pure from the close-up's camera.
+- **A splitter is judged by its spread over a world's models, not its mean** (`split_spread.py`, job splits,
+  2026-10-10, after the owner found the split better but inconsistent across models on 10-09): every world 1 take
+  split, each scored against its own close-up's finishes (its regions painting's materials when the regions match,
+  else the judge per region), the spread and the worst models written to `<run>/spread.txt`. It writes no labels and
+  no stored parts. On the 126 world 1 takes (88 with two finishes or more), GeoSAM2 seeded owned a median 100% of
+  finishes but a mean 75%, sd 29%, 10 models under half and 4 none; PartCrafter on its 45: mean 25%, 22 none. A rerun
+  of 22 takes gave identical SAM 2.1 regions and GeoSAM2 splits 88-100% the same by area, one take's score flipping
+  (rover-r1). GeoSAM2 needs only `mesh.glb` and `seed_points.npz` (12 MB a take), so a run folder for it alone keeps
+  `raw.glb` (35 MB a take) out of the uploads: with it, 20 machines sat idle on the home line's uploads for 35
+  minutes (EUR 36) and nothing came back.

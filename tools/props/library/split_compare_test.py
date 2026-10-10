@@ -86,6 +86,13 @@ def test_region_agreement_prefers_the_split_that_follows_the_regions():
     assert following["agreement"] == 1.0 and one_part["pure"] == 0.5
 
 
+def test_region_agreement_takes_a_region_the_drawn_split_misses():
+    pixels = np.repeat(np.array([[0, 0, 1, 2]]), 4, axis=0)
+    rendered = np.where(pixels == 2, -1, 0)  # the last region is never drawn (the hanging glove, 2026-10-10)
+    found = split_compare.region_agreement(rendered, pixels, np.array([0, 0, 0]))
+    assert found == {"whole": 1.0, "pure": 1.0, "agreement": 1.0}
+
+
 if __name__ == "__main__":
     for name, test in sorted(globals().items()):
         if name.startswith("test_"):
