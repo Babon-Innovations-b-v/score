@@ -67,8 +67,9 @@ HELD = 1.0
 TURN_DEGREES = 10.0
 # A camera this steep (its aim over its eye by more than this share of the distance) looks at a roof: not a shot.
 STEEPEST = 0.6
-# Minutes a frame takes on a 24 GB card, the import aside (the square and the hub on an L4, 2026-10-09: 14 to 20 s).
-FRAME_MINUTES = 0.3
+# Minutes a frame takes on a 24 GB card, the import aside (the hub at 1920x1080 on an L4, 2026-10-10: 42 s; at
+# 1280x720 the square and the hub took 14 to 20 s).
+FRAME_MINUTES = 0.7
 FONT = pathlib.Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 # The sound track's sample rate (tools/usd/sound.py's).
 SAMPLE_RATE = 48000
