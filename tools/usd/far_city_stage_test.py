@@ -1,6 +1,7 @@
 """Check the far city's stage (tools/usd/far_city_stage.py) on towers made here: every tower of the plan stands as one
 instance of its kind's model, its foot on the land and its top at the height the plan deals it, facing the ring's
-middle; the land, the mountains and the harbour are painted with library surfaces and say which plain thing they are;
+middle; the stage is laid out as every place's (an edit layer over a base, an inputs record) and each kind names its
+launch inventory row; the land, the mountains and the harbour are painted with library surfaces and say which plain thing they are;
 and a kind with no made model stops the stage rather than standing in for it.
 
 Run: .venv/bin/python tools/usd/far_city_stage_test.py   (make tests runs it with the framework's environment)
@@ -37,6 +38,11 @@ def check_towers_stand_as_planned():
         assert sum(counts.values()) == len(city["towers"]) and len(counts) == len(city["uses"])
         stage = Usd.Stage.Open(str(path))
         assert stage.GetDefaultPrim().GetName() == "far_city"
+        layers = Usd.Stage.Open(str(path)).GetRootLayer().subLayerPaths
+        assert list(layers) == ["./layers/edit.usda", "./layers/base.usda"], layers
+        assert (path.parent / "inputs.json").exists()
+        rows = {prim.GetAttribute("score:row").Get() for prim in stage.Traverse() if prim.HasAttribute("score:row")}
+        assert rows == set(city["uses"]), rows
         instancer = UsdGeom.PointInstancer(stage.GetPrimAtPath("/far_city/Towers"))
         positions = np.array(instancer.GetPositionsAttr().Get())
         scales = np.array(instancer.GetScalesAttr().Get())
