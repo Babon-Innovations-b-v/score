@@ -3,13 +3,14 @@
 trimesh); no model runs, and no SOMA or SAM 3D Body surface is ever drawn or shapes the mesh.
 
     ~/.farm-factory-props/env/bin/python tools/characters/maker/prop_rig.py <mesh.glb> <rig.npz> <out folder>
-        [--height 1.76]
+        [--size 1.0]
 
 `rig.npz` is prop_skeleton.py's (the mean skeleton's kept joints at their bind pose, the mean surface with its
 weights). The steps:
 
 1. The mesh is stood in the skeleton's frame: up +y, facing +z with +x its left (the way the toes point decides
-   front), its soles on the floor, centred on its torso, scaled to `--height`.
+   front), its soles on the floor, centred on its torso, scaled so its armpit stands at the mean body's armpit times
+   `--size` (the look's `scale`; a helmet or boots change a figure's height, hardly its armpit).
 2. Both bodies are measured the same way (`landmarks`): horizontal slices 1 cm apart, each cut into its separate
    pieces on a 1.5 cm grid; the crotch is where the two legs meet, the armpit where the arms leave the torso; each
    arm's and leg's axis is a line through its slices' centres, with its length and its median radius; the torso's
@@ -516,17 +517,26 @@ def plain(found):
             for key, value in found.items() if key not in ("torso", "samples", "limbs")}
 
 
-def rig(mesh_path, rig_path, out, height):
+def sized(raw, mean, size):
+    """The mesh stood in the skeleton's frame and scaled so its armpit stands at the mean body's armpit times `size`
+    (a look's `scale`): a helmet or boots change a figure's height, hardly its armpit. (mesh, turn, scale, shift)."""
+    turn, scale, shift = stood(raw.vertices, mean["height"])
+    first = trimesh.Trimesh(raw.vertices @ turn.T * scale + shift, raw.faces, process=False)
+    factor = mean["armpit"] * size / landmarks(sampled(first))["armpit"]
+    scale, shift = scale * factor, shift * factor
+    mesh = trimesh.Trimesh(raw.vertices @ turn.T * scale + shift, raw.faces, process=False)
+    if mesh.volume < 0:
+        mesh.invert()
+    return mesh, turn, scale, shift
+
+
+def rig(mesh_path, rig_path, out, size):
     """The fitted skeleton and the mesh's weights into `out` (rig.npz, rig.json); the record."""
     mean_rig = np.load(rig_path)
     names, parents, bind = list(mean_rig["names"]), mean_rig["parents"], mean_rig["bind"]
     source = trimesh.Trimesh(mean_rig["points"], mean_rig["faces"], process=False)
-    mesh = welded(trimesh.load(mesh_path, force="mesh", process=False))
-    turn, scale, shift = stood(mesh.vertices, height)
-    mesh = trimesh.Trimesh(mesh.vertices @ turn.T * scale + shift, mesh.faces, process=False)
-    if mesh.volume < 0:
-        mesh.invert()
     mean = landmarks(sampled(source))
+    mesh, turn, scale, shift = sized(welded(trimesh.load(mesh_path, force="mesh", process=False)), mean, size)
     fit = landmarks(sampled(mesh))
     fitted, offsets = fitted_bind(bind, names, parents, mean, fit)
     joint_chains = chains(names)
@@ -541,7 +551,7 @@ def rig(mesh_path, rig_path, out, height):
                         mean_bind=bind, points=mesh.vertices, faces=mesh.faces, weights=weights,
                         source_points=carried_source.vertices, source_faces=source.faces, turn=turn, scale=scale,
                         shift=shift)
-    record = {"mesh": str(mesh_path), "height": height, "scale": scale, "vertices": len(mesh.vertices),
+    record = {"mesh": str(mesh_path), "size": size, "height": round(fit["height"], 4), "scale": scale, "vertices": len(mesh.vertices),
               "matched_share": round(matched_share, 4), "smoothed_share": round(smoothed_share, 4),
               "mean": plain(mean), "fit": plain(fit),
               "limb_turn_degrees": {chain: round(float(np.degrees(np.arccos(np.clip(
@@ -556,10 +566,10 @@ def main():
     parser.add_argument("mesh", type=pathlib.Path)
     parser.add_argument("rig", type=pathlib.Path)
     parser.add_argument("out", type=pathlib.Path)
-    parser.add_argument("--height", type=float, help="the person's height in metres (the mean body's by default)")
+    parser.add_argument("--size", type=float, default=1.0, help="the person's size against the mean body (a look's "
+                        "`scale`), read at the armpit")
     options = parser.parse_args()
-    height = options.height or float(np.ptp(np.load(options.rig)["points"][:, 1]))
-    record = rig(options.mesh, options.rig, options.out, height)
+    record = rig(options.mesh, options.rig, options.out, options.size)
     print(f"rig: {record['vertices']} vertices, {record['matched_share']:.0%} matched, limb turns "
           f"{record['limb_turn_degrees']}; {options.out / 'rig.json'}", flush=True)
 
