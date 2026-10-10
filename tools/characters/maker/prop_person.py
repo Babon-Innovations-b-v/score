@@ -294,9 +294,11 @@ def table_rows(spec, outfit, folder, take):
     rows.append(("pokes.py", "tuck outside its garment, worst frame", f"{worst:.1f} mm ({over} frames over)",
                  f"<= {5.0} mm every frame", "pass" if poked["verdict"]["tucks"] else "FAIL"))
     crossing = max(clip["most_crossings"] for clip in poked["clips"].values())
-    rows.append(("pokes.py", "cloth through cloth (crossings), rest / worst frame",
-                 f"{poked['rest_crossings']} / {crossing}", "no frame above rest",
-                 "pass" if poked["verdict"]["cloth_through_cloth"] else "FAIL"))
+    shipped = json.loads((folder / "checks" / "pokes_shipped.json").read_text())
+    shipped_worst = max(clip["most_crossings"] for clip in shipped["clips"].values())
+    rows.append(("pokes.py", "cloth through cloth (crossings), rest / worst frame; shipped body's",
+                 f"{poked['rest_crossings']} / {crossing}; shipped {shipped['rest_crossings']} / {shipped_worst}",
+                 "no clip above the shipped body's", "pass" if poked["verdict"]["cloth_through_cloth"] else "FAIL"))
     rows.append(("outline.py", "A-pose IoU against the cut-out, raw / built",
                  f"{outlined['iou_raw']} / {outlined['iou_built']} (drop {outlined['iou_drop']})",
                  "drop <= 0.01, bands <= 1 %", "pass" if outlined["pass"] else "FAIL"))
@@ -313,7 +315,10 @@ def checks(spec, outfit, who, held, dry_run):
     take = (folder / "take.txt").read_text().strip()
     (folder / "checks").mkdir(exist_ok=True)
     body = folder / "out" / f"{spec['name']}.glb"
-    local("pokes.py", body, "--out", folder / "checks" / "pokes.json")
+    shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
+    local("pokes.py", shipped, "--out", folder / "checks" / "pokes_shipped.json")
+    local("pokes.py", body, "--out", folder / "checks" / "pokes.json", "--against",
+          folder / "checks" / "pokes_shipped.json")
     local("outline.py", take, folder / "fit" / "rig.npz", body, "--out", folder / "checks" / "outline.json")
     rows = table_rows(spec, outfit, folder, take)
     widths = [max(len(str(row[column])) for row in rows) for column in range(4)]

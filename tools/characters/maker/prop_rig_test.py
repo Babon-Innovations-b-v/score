@@ -140,25 +140,35 @@ def test_tuck_runs_under_the_garment():
     weights = np.tile([1.0, 0.0], (len(points), 1))
     turns = np.linspace(0, 2 * np.pi, 48, endpoint=False)
     cuff = np.concatenate([np.stack([0.055 * np.cos(turns), np.full(48, height), 0.055 * np.sin(turns)], 1)
-                           for height in np.linspace(-0.1, 0.0, 11)])
+                           for height in np.linspace(-0.13, 0.0, 14)])
     bones = {0: [(np.array([0.0, -0.3, 0.0]), np.zeros(3))], 1: [(np.zeros(3), np.array([0.0, 0.3, 0.0]))]}
+    whole = trimesh.creation.cylinder(radius=0.056, segment=[(0, -0.3, 0), (0, 0.0, 0)], sections=48)
     out_points, out_faces, out_weights = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)),
-                                                      bones)
+                                                      bones, whole)
     band = out_points[len(points):]
     ring = np.unique(tucks.border_edges(faces))
     assert len(band) and abs(band[:, 1].mean() - (points[ring, 1].mean() + tucks.TUCK_LENGTH)) < 0.002
     assert np.linalg.norm(band[:, [0, 2]], axis=1).max() < 0.05 * (1 - tucks.TUCK_SHRINK) + 1e-6
     assert np.allclose(out_weights[len(points):], [0.0, 1.0])
     alone, _, _ = tucks.tucked(points, faces, weights, cuff + [0.0, 1.0, 0.0], np.tile([0.0, 1.0], (len(cuff), 1)),
-                               bones)
+                               bones, whole)
+    assert len(alone) == len(points)
+    short = trimesh.creation.cylinder(radius=0.056, segment=[(0, -0.3, 0), (0, -0.09, 0)], sections=48)
+    alone, _, _ = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)), bones, short)
     assert len(alone) == len(points)
 
 
 def test_pokes_read_inside_and_outside():
-    cloth = np.array([[0.0, 0.0, 0.05]])
-    normals = np.array([[0.0, 0.0, 1.0]])
-    heights = pokes.tuck_out(np.array([[0.0, 0.0, 0.04], [0.0, 0.0, 0.06]]), cloth, normals)
+    outer = trimesh.creation.box(extents=(0.1, 0.1, 0.1))
+    heights = pokes.tuck_out(np.array([[0.0, 0.0, 0.04], [0.0, 0.0, 0.06]]), outer)
     assert heights[0] < 0 < heights[1]
+
+
+def test_pokes_hold_cloth_to_the_shipped_bodys_record():
+    record = {"rest_crossings": 20, "verdict": {}, "clips": {"walking": {"most_crossings": 400},
+                                                            "new": {"most_crossings": 30}}}
+    pokes.against(record, {"body": "shipped.glb", "clips": {"walking": {"most_crossings": 5000}}})
+    assert record["cloth_worse_than_shipped"] == ["new"] and not record["verdict"]["cloth_through_cloth"]
 
 
 if __name__ == "__main__":
