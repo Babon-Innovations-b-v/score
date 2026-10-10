@@ -3,7 +3,7 @@ them all into one shared picture set (bake.Atlas), one .gltf each beside the sha
 
 The job: {"out": folder, "atlas": name, "density": px a metre, "wear", "dirt", "seed",
 "specs": {library variant: resolved entry}, "pieces": [{"name", "kind", "size", "laid", "foot": how high its foot
-stands over its floor, for the kick wear}]}. Writes
+stands over its floor, for the kick wear}]}; a piece whose laid `weather` is set is baked from a seed of its own. Writes
 <out>/<name>.gltf (+ .bin), <out>/textures/<atlas>_*.png and <out>/report.json (the atlas's sides, and per piece its
 slots, triangles, bounds in the kit frame and which of its named parts the room can see, pieces.parts_seen).
 
@@ -49,6 +49,17 @@ def glow_split(item, specs):
     return split
 
 
+# How far apart two weathers of one kind are seeded (a laid piece's `weather`): its noise patterns share nothing.
+WEATHER_SEED_STEP = 101
+
+
+def weathered_seed(seed, laid):
+    """The bake's seed for a piece laid in one of its kind's weathers (laid `weather`: the street's tenement faces,
+    2026-10-10, where one model of a plate or a shutter repeated its stains bay after bay): the job's seed for
+    weather 0, a seed of its own for each other."""
+    return seed + WEATHER_SEED_STEP * int(laid.get("weather", 0))
+
+
 def bounds(item):
     """The piece's box in the kit frame (Blender x, -z, y back), as its low and high corners."""
     points = [(vertex.co.x, vertex.co.z, -vertex.co.y) for vertex in item.data.vertices]
@@ -62,7 +73,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     began = time.time()
     scene_setup.empty_scene(256, BAKE_SAMPLES)
-    items, feet, seen = [], {}, {}
+    items, feet, seeds, seen = [], {}, {}, {}
     for entry in job["pieces"]:
         item = pieces.build(entry["kind"], entry["size"], entry.get("laid", {}), entry["name"])
         seen[item.name] = {"parts_seen": json.loads(item.get("parts_seen", "{}")),
@@ -71,10 +82,11 @@ def main():
         items += [item] + ([glow] if glow else [])
         for made in [item] + ([glow] if glow else []):
             feet[made.name] = entry.get("foot")
+            seeds[made.name] = weathered_seed(job["seed"], entry.get("laid", {}))
     slots = {item.name: bake.slot_names(item) for item in items}
     atlas = bake.Atlas(job["atlas"], items, job["density"], job["specs"], one_piece=len(job["pieces"]) == 1)
     for item in items:
-        atlas.bake_self(item, job["specs"], job["wear"], job["dirt"], job["seed"], feet[item.name])
+        atlas.bake_self(item, job["specs"], job["wear"], job["dirt"], seeds[item.name], feet[item.name])
         print("BAKED", item.name, flush=True)
     atlas.finish()
     report = {"atlas": {"normal": atlas.side, "colour": atlas.pictures["base_color"].size[0], "capped": atlas.capped,

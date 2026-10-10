@@ -43,19 +43,19 @@ def kerb_stone(size, laid):
 
 
 def render_upper(size, laid):
-    """A storey's bay of rendered wall, its window's opening cut through it."""
-    return plate(size, "facade_paint", laid, "render")
+    """A storey's bay of rendered wall, its window's opening cut through it, in its face's paint (laid `material`)."""
+    return plate(size, laid.get("material", "facade_paint"), laid, "render")
 
 
 def render_lower(size, laid):
     """A ground floor bay of rendered wall, any door's or window's opening cut through it."""
-    return plate(size, "facade_paint", laid, "render")
+    return plate(size, laid.get("material", "facade_paint"), laid, "render")
 
 
 def render_shop(size, laid):
     """A ground floor bay with its shop's opening: the render, and a concrete pier strip at its foot."""
     wide, tall, deep = size
-    parts = plate(size, "facade_paint", laid, "render")
+    parts = plate(size, laid.get("material", "facade_paint"), laid, "render")
     parts += pieces.with_openings([shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2 - 0.01),
                                                               (wide / 2, 0.25, deep / 2), "concrete", "plinth"),
                                                    0.004)], laid, deep + 0.02)
@@ -65,10 +65,36 @@ def render_shop(size, laid):
 def facade_band(size, laid):
     """The band along a floor: a render string course with a drip under its front edge."""
     wide, tall, deep = size
-    band = shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), "facade_paint",
-                                      "band"), 0.008)
-    drip = shapes.box((-wide / 2, -0.012, -deep / 2), (wide / 2, 0.0, -deep / 2 + 0.02), "facade_paint", "drip")
+    paint = laid.get("material", "facade_paint")
+    band = shapes.bevelled(shapes.box((-wide / 2, 0.0, -deep / 2), (wide / 2, tall, deep / 2), paint, "band"), 0.008)
+    drip = shapes.box((-wide / 2, -0.012, -deep / 2), (wide / 2, 0.0, -deep / 2 + 0.02), paint, "drip")
     return [band, drip]
+
+
+# A parapet's concrete coping: how tall, and how far it stands out over the parapet's face (its drip edge).
+COPING = (0.06, 0.04)
+
+
+def parapet(size, laid):
+    """A stretch of the parapet round a block's roof (tenement.gd's PARAPET), as the street sees it from below: the
+    render wall in its face's paint (laid `material`), flush with the facade's plates under it, and the concrete
+    coping along its top standing out over its face, a drip groove under that edge."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    high, out = COPING
+    wall = shapes.bevelled(shapes.box((-wide / 2, 0.0, front + out), (wide / 2, tall - high, back),
+                                      laid.get("material", "facade_paint"), "wall"), 0.006)
+    coping = shapes.bevelled(shapes.box((-wide / 2, tall - high, front), (wide / 2, tall, back), "concrete",
+                                        "coping"), 0.008)
+    drip = shapes.box((-wide / 2, tall - high - 0.012, front), (wide / 2, tall - high, front + 0.015), "concrete",
+                      "drip")
+    return [wall, coping, drip]
+
+
+def block_roof(size, laid):
+    """A stretch of a block's flat roof: the concrete deck rendered and whitewashed (laid `material`), its top the
+    front."""
+    return plate(size, laid.get("material", "whitewash"), laid, "deck", 0.004)
 
 
 def drainpipe(size, laid):
@@ -95,6 +121,10 @@ def bars_round(left, bottom, right, top, bar, depth_from, depth_to, material, na
             shapes.box((right - bar, bottom + bar, depth_from), (right, top - bar, depth_to), material, name)]
 
 
+# How deep a tenement window's frame is, from its box's back (the frame, its casements and their panes).
+WINDOW_FRAME_DEEP = 0.14
+
+
 def tenement_window(size, laid, pane):
     """An old block's window, as its close-up shows it: a concrete sill along its foot standing out, a steel frame in
     the reveal, two side-hung casements under a fixed top light (a transom between), their panes (`pane`: dark
@@ -105,7 +135,9 @@ def tenement_window(size, laid, pane):
     sill_tall = 0.08
     parts = [shapes.box((-wide / 2, 0.0, front), (wide / 2, sill_tall, back), "concrete", "sill")]
     rim = 0.05
-    frame_front = front + 0.06
+    # The frame takes the box's back WINDOW_FRAME_DEEP: a deeper box sets it further back behind its sill, so a
+    # window laid deep into its plate's reveal shows the reveal and its sill standing out of the face.
+    frame_front = back - WINDOW_FRAME_DEEP
     low, high = sill_tall, tall
     left_edge, right_edge = -wide / 2 + 0.01, wide / 2 - 0.01
     parts += bars_round(left_edge, low, right_edge, high, rim, frame_front, back, "grille_paint", "frame")
@@ -221,8 +253,9 @@ def shop_shutter(size, laid):
     box_tall = 0.3
     guide = 0.07
     curtain_top = tall - box_tall
-    parts = [shapes.bevelled(shapes.box((-wide / 2, curtain_top, front), (wide / 2, tall, back), "grille_paint",
-                                        "roll_box"), 0.01)]
+    paint = laid.get("material", "grille_paint")
+    parts = [shapes.bevelled(shapes.box((-wide / 2, curtain_top, front), (wide / 2, tall, back), paint, "roll_box"),
+                             0.01)]
     for x in (-wide / 2 + guide / 2, wide / 2 - guide / 2):
         parts.append(shapes.bevelled(shapes.box((x - guide / 2, 0.0, front + 0.06), (x + guide / 2, curtain_top,
                                                                                       back), "galvanized_dull",
@@ -232,7 +265,7 @@ def shop_shutter(size, laid):
     for step in range(slats):
         y = 0.08 + step * pitch
         parts.append(shapes.box((-wide / 2 + guide, y + 0.004, front + 0.08),
-                                (wide / 2 - guide, y + pitch - 0.004, front + 0.1), "grille_paint", "curtain"))
+                                (wide / 2 - guide, y + pitch - 0.004, front + 0.1), paint, "curtain"))
     parts.append(shapes.bevelled(shapes.box((-wide / 2 + guide, 0.0, front + 0.065), (wide / 2 - guide, 0.08,
                                                                                        front + 0.11), "gate_grey",
                                             "bottom_bar"), 0.005))
@@ -972,10 +1005,11 @@ def meter_box(size, laid):
     wide, tall, deep = size
     front, back = -deep / 2, deep / 2
     case_top = tall - 0.25
-    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front + 0.01), (wide / 2, case_top, back), "gate_grey",
-                                        "case"), 0.006),
+    paint = laid.get("material", "gate_grey")
+    parts = [shapes.bevelled(shapes.box((-wide / 2, 0.0, front + 0.01), (wide / 2, case_top, back), paint, "case"),
+                             0.006),
              shapes.bevelled(shapes.box((-wide / 2 + 0.015, 0.015, front), (wide / 2 - 0.015, case_top - 0.015,
-                                                                             front + 0.01), "gate_grey", "door"),
+                                                                             front + 0.01), paint, "door"),
                              0.003),
              shapes.box((wide / 2 - 0.05, case_top / 2 - 0.03, front - 0.012), (wide / 2 - 0.035, case_top / 2 + 0.03,
                                                                                front), "bare_steel", "latch"),
@@ -1017,4 +1051,4 @@ BUILDERS = {name: value for name, value in globals().items() if callable(value) 
     "far_square_lamp",
     "far_lantern", "far_neon_column", "far_lightning_mast", "far_pad_floodlight", "far_window_dark", "far_window_lit",
     "far_ac_unit", "far_window_cage", "far_shop_shutter", "far_shop_sign", "road_line", "facade_pipe", "end_wall", "end_fence", "window_awning", "drying_rack", "vent_louvre",
-    "meter_box", "barber_pole", "menu_board")}
+    "meter_box", "barber_pole", "menu_board", "parapet", "block_roof")}

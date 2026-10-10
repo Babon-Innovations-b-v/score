@@ -105,7 +105,8 @@ ATLASES = (("distant", (DISTANT_PREFIX,)),
                              "door_canopy", "notice_case", "poster_stand", "street_lamp", "meter_box", "vent_louvre",
                              "barber_pole", "menu_board", "road_line", "end_wall", "end_fence")),  # Earth, by the walk
            ("facade", ("render_upper", "window_dark", "window_lit", "ac_unit", "window_cage", "facade_band",
-                       "drainpipe", "bay_balcony_", "window_awning", "drying_rack", "facade_pipe")),  # Earth, over it
+                       "drainpipe", "bay_balcony_", "window_awning", "drying_rack", "facade_pipe", "parapet",
+                       "block_roof")),  # Earth, over it
            ("fittings", ("hatch_", "porthole_panel", "wall_lower_vent", "notice_board")),  # method B's room fittings
            ("roof", ("roof_", "lattice_", "ceiling_")),
            ("floor", ("ring_floor", "floor_", "tread_", "pit_", "machine_bay", "stair_", "under_floor")),
@@ -150,8 +151,8 @@ def bearing_of(laid):
 
 
 # What a laid piece shows that its code-built model is made with (a print's picture and frame, a plaster wall's dado
-# band, a rail's rise: the prologue build).
-SHOWN = ("taper", "treads", "openings", "arc", "material", "print", "frame", "dado", "rises_to", "label")
+# band, a rail's rise: the prologue build; its weather, baked from a seed of its own: the street's faces, 2026-10-10).
+SHOWN = ("taper", "treads", "openings", "arc", "material", "print", "frame", "dado", "rises_to", "label", "weather")
 
 
 def shows(kind, laid):
