@@ -320,7 +320,12 @@
     1.3
    ],
    "colour": "#eef2ff",
-   "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned with the place's own axes, where the game turns them with the world's spin and the hour, which the record does not carry"
+   "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned as the game turns them at the base minute in `turn`",
+   "turn": {
+    "minute": 700.75,
+    "axes": "seat",
+    "from": "sky.gd:136-144,455-472 (_stars_turn: Space.frame_basis() transposed, the Moon's facing at the base minute), space.gd:76-80, orbits.gd:128-145,345-356 (Orbits.facing_at, _moon_own_frame), turned onto the place's seat (Seat.frame, tools/usd/ground.py); the Moon turns its stars round once a lap of 4,762.6 base minutes, under seven real minutes, so each game shot holds its own moment: measured by tools/usd/star_turn.py, the field identified on each and its turn matched to the facing, the minute (within the lap) taken from wreck-home (12 stars, 0.43 degrees off the facing); wreck-wake gives 649.5 (8 stars, 0.97), wreck-side 755.0 (7 stars, 0.40); the sun's minute is not measured, and the record's sun, set by eye to the shots' shadows, is off the true Sun's path at every minute"
+   }
   }
  },
  "views": [
@@ -370,9 +375,7 @@
    "game": "playtest3/place-outside/shots2/wreck home.png"
   }
  ],
- "game_only": [
-  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour"
- ],
+ "game_only": [],
  "objects": [
   {
    "name": "SolarRow1",

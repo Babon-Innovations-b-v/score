@@ -18,16 +18,21 @@ as numbers copied from the game (each entry names the game file it came from), a
                 instancer of the world's rock models: /<place>/Rocks
     ground_decals  what the game paints on the ground (the wreck's scorch), mixed into the near ground's baked colour
                 (tools/usd/ground_detail.py, when the place's ground record carries the ground shader's detail)
-    water       a flat surface of the library's water: /<place>/Water/<name>, with how much it mirrors (`mirror`)
+    water       a flat surface of the library's water: /<place>/Water/<name>, with how much it mirrors (`mirror`) and
+                the lit things over it it gives back as streaks (`mirror` `lit`, the harbour's lit columns)
     ground      a ground the game makes in code (a far disc, Mars's plain): structure entries with the ground's surface
     lights      the game's lights, UsdLux (/<place>/Lights): an omni a sphere light, a spot one shaped to its cone, the
                 sun or moon a distant light; the game's own numbers ride on each as `score:game:*`
     environment the sky the camera sees and the ambient light (a dome light, `/<place>/Environment`), the exposure;
-                its `stars` (the game's star field, its own seed's) and its `haze` (a body of fog the game fills a room
-                or Mars's air with, as a see-through shell carrying the fog's numbers; on Earth the haze ring) and
-                its `dust` (the fine grains Mars's wind carries along the ground, at one moment) under /<place>/Sky
+                its `stars` (the game's star field, its own seed's, turned as the game turns it at the base minute
+                its `turn` gives: tools/usd/orbits.py) and its `haze` (a body of fog the game fills a room or Mars's
+                air with, as a see-through shell carrying the fog's numbers; on Earth the haze ring), its `dust` (the
+                fine grains Mars's wind carries along the ground, at one moment) and its `beams` (a column of light
+                the game stands up into the sky) under /<place>/Sky; its `glow` (what the game blooms over the
+                picture) rides on the sky for a renderer
     places      other places seen from this one, their own stages referenced where the game stands them (`yaw` or a
-                whole `rotation`, as objects; `scale` for one shown at another length): /<place>/Places/<name>
+                whole `rotation`, as objects; `scale` for one shown at another length; `leave_out` what of it the game
+                does not draw here, and why): /<place>/Places/<name>
     moon        the Moon on the night sky as the game's sky shader draws it (its face with its seas, and its halo in the
                 city's air), each a picture on a square far out along its way: /<place>/Sky/moon, /<place>/Sky/halo
     moved       kit pieces the game moves in its own code (a door it slides open), by the piece's `node`: shifted `by`
@@ -56,6 +61,7 @@ from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
 import builders
 import glb_asset
 import ground_detail
+import orbits
 import rocks
 import shaders
 
@@ -201,6 +207,26 @@ def write_mirror(prim, mirror):
     for key in ("along", "down", "ripple_tip", "ripple_size"):
         prim.CreateAttribute(f"score:mirror_{key}", Sdf.ValueTypeNames.Float).Set(float(mirror[key]))
     prim.CreateAttribute("score:mirror_from", Sdf.ValueTypeNames.String).Set(mirror.get("from", ""))
+    if mirror.get("lit"):
+        write_lit_columns(prim, mirror)
+
+
+def write_lit_columns(prim, mirror):
+    """The lit things standing over the water, each a column the water gives back as a streak (the game's harbour
+    shader's `lit_columns`): where it stands (x, z) and how far it reaches from and to in height, how wide it is either
+    side and its light (linear colour times its strength), with how far past its top and bottom the ripples smear it
+    and how soft its sides are, as score:mirror_lit_* on the surface."""
+    lit = mirror["lit"]
+    columns = [Gf.Vec4f(*map(float, (*entry["at"], entry["low"], entry["high"]))) for entry in lit]
+    lights = [Gf.Vec3f(*(channel * float(entry["strength"]) for channel in colour(entry["colour"]))) for entry in lit]
+    prim.CreateAttribute("score:mirror_lit_columns", Sdf.ValueTypeNames.Float4Array).Set(columns)
+    prim.CreateAttribute("score:mirror_lit_half_widths", Sdf.ValueTypeNames.FloatArray).Set(
+        [float(entry["half_width"]) for entry in lit])
+    prim.CreateAttribute("score:mirror_lit_lights", Sdf.ValueTypeNames.Color3fArray).Set(lights)
+    for key in ("column_smear", "column_soft"):
+        prim.CreateAttribute(f"score:mirror_{key}", Sdf.ValueTypeNames.Float).Set(float(mirror[key]))
+    prim.CreateAttribute("score:mirror_lit_from", Sdf.ValueTypeNames.String).Set(
+        "; ".join(entry.get("from", "") for entry in lit))
 
 
 def fixture_asset(entry, out, world, boxes):
@@ -373,10 +399,11 @@ def write_objects(stage, place, entries, out, world):
 def write_places(stage, place, entries):
     """Other places seen from this one (the base on the wreck's horizon, the square and the launch view past the
     flat's balcony): each the other place's own stage referenced, as exported beside this one (`../../<stage>/`),
-    where the game stands it in this place's frame, turned as `turn` says. A place shown in itself (the walkway tube's
-    twin seen through the hub's far hatch) is its own base layer referenced, since its whole stage would reference
-    itself: the creator's edit layer is not in that copy. The export's own stage, opened on the base layer alone,
-    reports that reference as a cycle and leaves it out; the place's root stage composes it."""
+    where the game stands it in this place's frame, turned as `turn` says, less what its `leave_out` names (a prim
+    of the shown stage the game does not draw here, and why). A place shown in itself (the walkway tube's twin seen
+    through the hub's far hatch) is its own base layer referenced, since its whole stage would reference itself: the
+    creator's edit layer is not in that copy. The export's own stage, opened on the base layer alone, reports that
+    reference as a cycle and leaves it out; the place's root stage composes it."""
     if not entries:
         return
     UsdGeom.Scope.Define(stage, f"/{place}/Places")
@@ -399,6 +426,9 @@ def write_places(stage, place, entries):
         for name, light in zip(light_names(shown), shown):
             if light["type"] == "sun":
                 stage.OverridePrim(f"/{place}/Places/{entry['name']}/Lights/{name}").SetActive(False)
+        # What the shown stage carries that the game does not draw here (each with why): left out of this one.
+        for left in entry.get("leave_out", []):
+            stage.OverridePrim(f"/{place}/Places/{entry['name']}/{left['prim']}").SetActive(False)
 
 
 def write_rocks(stage, place, entry, out, world, ground):
@@ -685,7 +715,7 @@ def write_lights(stage, place, entries):
 
 def write_environment(stage, place, environment):
     """The place's sky and ambient light: a dome light of the ambient colour and energy (what lights every side), the
-    background the camera sees and the exposure as score:* on it."""
+    background the camera sees, the exposure and the glow (write_glow) as score:* on it."""
     if not environment:
         return
     dome = UsdLux.DomeLight.Define(stage, f"/{place}/Environment")
@@ -699,6 +729,18 @@ def write_environment(stage, place, environment):
     prim.CreateAttribute("score:ground_plane", Sdf.ValueTypeNames.Bool).Set(bool(environment.get("ground_plane", False)))
     prim.CreateAttribute("score:inside", Sdf.ValueTypeNames.Bool).Set(bool(environment.get("inside", False)))
     prim.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(environment.get("from", ""))
+    if environment.get("glow"):
+        write_glow(prim, environment["glow"])
+
+
+def write_glow(prim, glow):
+    """The glow the game blooms over whatever is brighter than its `threshold` (Godot's environment glow, added over
+    the picture): how bright a pixel must be, how strongly its excess blooms (`intensity` times `hdr_scale`) and the
+    blur `levels` it spreads over, as score:glow_* on the sky for a renderer (tools/blender/inside/usd_views.py)."""
+    for key in ("threshold", "intensity", "hdr_scale"):
+        prim.CreateAttribute(f"score:glow_{key}", Sdf.ValueTypeNames.Float).Set(float(glow[key]))
+    prim.CreateAttribute("score:glow_levels", Sdf.ValueTypeNames.IntArray).Set([int(level) for level in glow["levels"]])
+    prim.CreateAttribute("score:glow_from", Sdf.ValueTypeNames.String).Set(glow.get("from", ""))
 
 
 def ground_skin(ground, picture):
@@ -773,11 +815,14 @@ def unlit_material(stage, path, value):
     return material
 
 
-def write_stars(stage, place, entry):
-    """The game's star field (builders.stars) as one mesh, /<place>/Sky/Stars, in the stars' unlit colour."""
+def write_stars(stage, place, entry, ground=None):
+    """The game's star field (builders.stars) as one mesh, /<place>/Sky/Stars, in the stars' unlit colour, turned as
+    the game turns it at the record's base minute (stars_turn)."""
     built = builders.stars(int(entry["count"]), int(entry["seed"]), float(entry["sky_distance"]),
                            float(entry["distance"]), float(entry["radius"]), float(entry["size"][0]),
                            float(entry["size"][1]), None)
+    if "turn" in entry:
+        built["points"] = built["points"] @ stars_turn(entry["turn"], ground).T
     prim = mesh_prim(stage, f"/{place}/Sky/Stars", built)
     UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(
         unlit_material(stage, f"/{place}/Sky/star_look", entry["colour"]))
@@ -910,16 +955,65 @@ def write_dust(stage, place, entry, ground):
         prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
 
 
+def stars_turn(turn, ground):
+    """Which way the game has its stars turned in a place's frame at a base minute (orbits.stars_turn, sky.gd
+    `_stars_turn`): `turn` gives the `minute` and the `axes` the place is drawn in, the Moon's own space turned onto
+    the place's seat (`seat`: the place's ground's frame) or the Earth site's, which hangs off the Moon unturned
+    (`site`)."""
+    if turn["axes"] == "site":
+        frame = np.eye(3)
+    elif turn["axes"] == "seat" and ground is not None:
+        frame = ground.frame
+    else:
+        raise ValueError(f"the stars' turn needs the place's seat, and it has no ground: {turn}")
+    return orbits.stars_turn(float(turn["minute"]), frame)
+
+
+def write_beams(stage, place, entries):
+    """Columns of light standing up into the sky (the camp mast's beam): each an open round wall `radius` metres
+    across from `low` to `high` metres along its `way` from its `foot`, in its colour times its `glow`, lit by nothing,
+    /<place>/Sky/<name>. The game adds its colour over what is behind it and never draws it thinner than
+    `least_half_angle` either side of its middle seen from the eye; both ride on it as score:beam_* (with the colour
+    it adds) for a renderer (tools/blender/inside/usd_views.py)."""
+    for entry in entries:
+        way = np.asarray(entry["way"], dtype=np.float64) / np.linalg.norm(entry["way"])
+        built = builders.cylinder_wall(float(entry["radius"]), float(entry["low"]), float(entry["high"]), None,
+                                       segments=int(entry["sides"]))
+        built["points"] = built["points"] @ turn_up_onto(way).T + np.asarray(entry["foot"], dtype=np.float64)
+        path = f"/{place}/Sky/{entry['name']}"
+        prim = mesh_prim(stage, path, built)
+        glow = [channel * float(entry["glow"]) for channel in colour(entry["colour"])]
+        UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(unlit_material(stage, f"{path}_look", glow))
+        holder = prim.GetPrim()
+        for key, value in (("score:kind", "beam"), ("score:builder", "beam"), ("score:from", entry.get("from", ""))):
+            holder.CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+        holder.CreateAttribute("score:beam_foot", Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(*map(float, entry["foot"])))
+        holder.CreateAttribute("score:beam_way", Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(*map(float, way)))
+        holder.CreateAttribute("score:beam_colour", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*glow))
+        for key in ("radius", "least_half_angle"):
+            holder.CreateAttribute(f"score:beam_{key}", Sdf.ValueTypeNames.Float).Set(float(entry[key]))
+
+
+def turn_up_onto(way):
+    """The least turn taking +y onto a unit `way`, as a 3 x 3 acting on column vectors."""
+    up = np.array([0.0, 1.0, 0.0])
+    axis = np.cross(up, way)
+    if np.linalg.norm(axis) < 1e-9:
+        return np.eye(3) if way[1] > 0 else np.diag([1.0, -1.0, -1.0])
+    return orbits.turn_about(axis, math.acos(float(np.clip(up @ way, -1.0, 1.0))))
+
+
 def write_sky(stage, place, environment, out, ground=None):
     """What the game hangs in the place's air and sky that the camera sees: the stars (environment `stars`), the
-    haze (environment `haze`: a body of fog, or with shape `ring` the Earth site's haze ring) and the wind's dust
-    (environment `dust`), under /<place>/Sky."""
+    haze (environment `haze`: a body of fog, or with shape `ring` the Earth site's haze ring), the wind's dust
+    (environment `dust`) and columns of light (environment `beams`), under /<place>/Sky."""
     environment = environment or {}
-    if not (environment.get("stars") or environment.get("haze") or environment.get("dust")):
+    if not (environment.get("stars") or environment.get("haze") or environment.get("dust") or environment.get("beams")):
         return
     UsdGeom.Scope.Define(stage, f"/{place}/Sky")
     if environment.get("stars"):
-        write_stars(stage, place, environment["stars"])
+        write_stars(stage, place, environment["stars"], ground)
+    write_beams(stage, place, environment.get("beams", []))
     if environment.get("dust"):
         write_dust(stage, place, environment["dust"], ground)
     haze = environment.get("haze")

@@ -30,8 +30,12 @@ the masks, and never hidden as a crowd.
 
 What the stage's sky holds is drawn as the game draws it: a haze body (score:kind "haze" with score:haze_*,
 tools/usd/scene.py) filled with fog of its colour and thickness out to its reach from the eye, lit by the sun and
-the lamps but not by the sky's ambient light, and a water surface with score:mirror_* given back
-as the game's harbour mirrors it (more along it than down into it, its ripples breaking what it mirrors into streaks).
+the lamps but not by the sky's ambient light, a water surface with score:mirror_* given back
+as the game's harbour mirrors it (more along it than down into it, its ripples breaking what it mirrors into streaks),
+with the lit things standing over it (score:mirror_lit_*) laid on it as the harbour's broken streaks of their light, a
+column of light (score:kind "beam") added over what is behind it and widened for each view as the game's beam shader
+widens it, and over the look the game's glow (score:glow_* on the sky: Blender's bloom of what is brighter than the
+threshold, added over the picture; not over the masks).
 A view with `"ink": true` also gets <name>-ink.png: its look with the game's ink lines over it (ink_edges.gdshader's
 rule, worked out on the depth Cycles gives in a second, one-sample render), an option beside the look and never
 baked into the stage.
@@ -362,7 +366,9 @@ def stage_lights(stage):
                 "ambient": [value * dome.GetIntensityAttr().Get() for value in dome.GetColorAttr().Get()],
                 "background": list(attribute("score:background").Get() or (0.0, 0.0, 0.0)),
                 "exposure": float(attribute("score:exposure").Get() or 1.0),
-                "ground_plane": bool(attribute("score:ground_plane").Get())}
+                "ground_plane": bool(attribute("score:ground_plane").Get()),
+                "glow": {key: float(attribute(f"score:glow_{key}").Get()) for key in ("threshold", "intensity")}
+                if prim.HasAttribute("score:glow_threshold") else None}
             continue
         if not (prim.IsA(UsdLux.SphereLight) or prim.IsA(UsdLux.DistantLight)):
             continue
@@ -477,6 +483,89 @@ def stage_sky(scene, environment):
     scene.view_settings.exposure = math.log2(max(environment["exposure"], 1e-3))
 
 
+def glow_pass(scene, glow, exposure):
+    """The game's glow over the look (Godot's environment glow, added over the picture): Blender's bloom of whatever
+    is brighter than the glow's threshold once the exposure is on it, added in full at Blender's strength 1. The
+    record's intensity and hdr scale are not used: Blender's bloom is normalised its own way, and how strong it is
+    against the game's glow is not measured. The compositor runs only while `use_compositing` is on, which the look
+    renders switch on and the masks off."""
+    tree = bpy.data.node_groups.new("glow", "CompositorNodeTree")
+    tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+    layers = tree.nodes.new("CompositorNodeRLayers")
+    glare = tree.nodes.new("CompositorNodeGlare")
+    glare.inputs["Type"].default_value = "Bloom"
+    glare.inputs["Quality"].default_value = "High"
+    glare.inputs["Threshold"].default_value = glow["threshold"] / max(exposure, 1e-3)
+    glare.inputs["Strength"].default_value = 1.0
+    output = tree.nodes.new("NodeGroupOutput")
+    tree.links.new(layers.outputs["Image"], glare.inputs["Image"])
+    tree.links.new(glare.outputs["Image"], output.inputs[0])
+    scene.compositing_node_group = tree
+    scene.render.use_compositing = False
+
+
+def stage_beams(stage):
+    """The stage's columns of light (score:kind "beam", tools/usd/scene.py write_beams), by prim name: foot, way,
+    radius and least half angle in Blender's frame, and the colour it adds, read with the pxr library since Blender's
+    reader brings no vector attributes in."""
+    from pxr import Usd
+    found = {}
+    opened = Usd.Stage.Open(str(stage))  # held while its prims are read
+    for prim in opened.Traverse():
+        if prim.GetAttribute("score:kind").Get() != "beam":
+            continue
+        found[prim.GetName()] = {"foot": stage_point(prim.GetAttribute("score:beam_foot").Get()),
+                                 "way": stage_point(prim.GetAttribute("score:beam_way").Get()).normalized(),
+                                 "radius": float(prim.GetAttribute("score:beam_radius").Get()),
+                                 "least": float(prim.GetAttribute("score:beam_least_half_angle").Get()),
+                                 "colour": tuple(prim.GetAttribute("score:beam_colour").Get())}
+    return found
+
+
+def beam_materials(stage, objects):
+    """Each beam drawn as the game draws it: its colour added over what is behind it (light given off over a fully
+    see-through surface, both sides), lit by nothing and casting nothing. The beams with their own world points kept,
+    to widen them for each view (widen_beams)."""
+    beams = stage_beams(stage)
+    found = []
+    for item in objects:
+        beam = beams.get(item.name.split(".")[0]) if item.type == "MESH" else None
+        if beam is None:
+            continue
+        material = bpy.data.materials.new(f"beam_{item.name}")
+        material.use_nodes = True
+        nodes, links = material.node_tree.nodes, material.node_tree.links
+        for node in list(nodes):
+            nodes.remove(node)
+        glow = nodes.new("ShaderNodeEmission")
+        glow.inputs["Color"].default_value = (*beam["colour"], 1.0)
+        clear = nodes.new("ShaderNodeBsdfTransparent")
+        added = nodes.new("ShaderNodeAddShader")
+        links.new(glow.outputs["Emission"], added.inputs[0])
+        links.new(clear.outputs["BSDF"], added.inputs[1])
+        output = nodes.new("ShaderNodeOutputMaterial")
+        links.new(added.outputs["Shader"], output.inputs["Surface"])
+        material.cycles.emission_sampling = "NONE"  # the beam lights nothing in the game: seen, never a lamp
+        item.data.materials.clear()
+        item.data.materials.append(material)
+        item.visible_shadow = False
+        world = [item.matrix_world @ vertex.co for vertex in item.data.vertices]
+        found.append((item, beam, world))
+    return found
+
+
+def widen_beams(beams, eye):
+    """Each beam never thinner than its least half angle either side of its middle seen from the eye (the game's
+    camp_beam.gdshader): every point pushed out from the beam's middle line to that width where it is further off."""
+    for item, beam, world in beams:
+        back = item.matrix_world.inverted()
+        for vertex, point in zip(item.data.vertices, world):
+            middle = beam["foot"] + beam["way"] * (point - beam["foot"]).dot(beam["way"])
+            radius = max(beam["radius"], (middle - eye).length * beam["least"])
+            vertex.co = back @ (middle + (point - middle) * (radius / beam["radius"]))
+        item.data.update()
+
+
 def score_value(item, name):
     """An imported object's score:<name> (a mesh prim's own attributes come in on its mesh data, an Xform's on the
     object), or None."""
@@ -528,7 +617,7 @@ def haze_volumes(objects):
 def mirror_material(item, along, down, tip, size):
     """The game's harbour on Blender's nodes: its own colour lit as it is, and over it what stands round it mirrored,
     `along` of it looking along the water and `down` looking straight down (the share eased by the square root of how
-    far down the eye looks), its ripples `tip` steep and `size` metres across."""
+    far down the eye looks), its ripples `tip` steep and `size` metres across; the material made."""
     old = item.data.materials[0] if item.data.materials else None
     base = (0.0, 0.0, 0.0, 1.0)
     if old is not None and old.use_nodes:
@@ -581,15 +670,179 @@ def mirror_material(item, along, down, tip, size):
     links.new(added.outputs["Shader"], output.inputs["Surface"])
     item.data.materials.clear()
     item.data.materials.append(material)
+    return material
 
 
-def water_mirrors(objects):
-    """Every water surface the stage gives a mirror (score:mirror_*) drawn as the game's harbour mirrors."""
+def lit_columns(stage):
+    """Each water surface's lit columns (score:mirror_lit_*, tools/usd/scene.py), by its prim's name: a list of
+    (x, z, low, high, half width, linear light) and the smear and softness, read from the stage itself since Blender's
+    reader brings no array attributes in."""
+    from pxr import Usd
+    found = {}
+    opened = Usd.Stage.Open(str(stage))  # held while its prims are read
+    for prim in opened.Traverse():
+        columns = prim.GetAttribute("score:mirror_lit_columns")
+        if not columns or not columns.HasAuthoredValue():
+            continue
+        widths = prim.GetAttribute("score:mirror_lit_half_widths").Get()
+        lights = prim.GetAttribute("score:mirror_lit_lights").Get()
+        found[prim.GetName()] = ([(*tuple(column), float(width), tuple(light))
+                                  for column, width, light in zip(columns.Get(), widths, lights)],
+                                 float(prim.GetAttribute("score:mirror_column_smear").Get()),
+                                 float(prim.GetAttribute("score:mirror_column_soft").Get()))
+    return found
+
+
+def water_mirrors(stage, objects):
+    """Every water surface the stage gives a mirror (score:mirror_*) drawn as the game's harbour mirrors, with the
+    streaks of the lit things standing over it where the stage hands it some."""
+    columns = lit_columns(stage)
     for item in objects:
         along = score_value(item, "mirror_along") if item.type == "MESH" else None
         if along is not None:
-            mirror_material(item, float(along), float(score_value(item, "mirror_down")),
-                            float(score_value(item, "mirror_ripple_tip")), float(score_value(item, "mirror_ripple_size")))
+            material = mirror_material(item, float(along), float(score_value(item, "mirror_down")),
+                                       float(score_value(item, "mirror_ripple_tip")),
+                                       float(score_value(item, "mirror_ripple_size")))
+            lit = columns.get(item.name.split(".")[0]) or columns.get(item.data.name.split(".")[0])
+            if lit is not None:
+                lit_streaks(material, *lit)
+
+
+class Nodes:
+    """A material's node tree with small helpers for arithmetic on sockets and numbers."""
+
+    def __init__(self, material):
+        self.nodes, self.links = material.node_tree.nodes, material.node_tree.links
+
+    def feed(self, socket, value):
+        if isinstance(value, (int, float)):
+            socket.default_value = float(value)
+        else:
+            self.links.new(value, socket)
+
+    def math(self, operation, first, second=None):
+        node = self.nodes.new("ShaderNodeMath")
+        node.operation = operation
+        self.feed(node.inputs[0], first)
+        if second is not None:
+            self.feed(node.inputs[1], second)
+        return node.outputs["Value"]
+
+    def vector(self, operation, first, second=None):
+        node = self.nodes.new("ShaderNodeVectorMath")
+        node.operation = operation
+        self.links.new(first, node.inputs[0])
+        if second is not None:
+            if isinstance(second, tuple):
+                node.inputs[1].default_value = second
+            else:
+                self.links.new(second, node.inputs[1])
+        return node.outputs["Value"] if operation in ("DOT_PRODUCT", "LENGTH", "DISTANCE") else node.outputs["Vector"]
+
+    def split(self, vector):
+        node = self.nodes.new("ShaderNodeSeparateXYZ")
+        self.links.new(vector, node.inputs[0])
+        return node.outputs["X"], node.outputs["Y"], node.outputs["Z"]
+
+    def join(self, x, y, z):
+        node = self.nodes.new("ShaderNodeCombineXYZ")
+        for socket, value in zip(node.inputs, (x, y, z)):
+            self.feed(socket, value)
+        return node.outputs["Vector"]
+
+    def smoothstep(self, low, high, value):
+        """GLSL's smoothstep from `low` to `high` (numbers or sockets)."""
+        share = self.math("DIVIDE", self.math("SUBTRACT", value, low), self.math("SUBTRACT", high, low))
+        share = self.math("MINIMUM", self.math("MAXIMUM", share, 0.0), 1.0)
+        return self.math("MULTIPLY", self.math("MULTIPLY", share, share),
+                         self.math("SUBTRACT", 3.0, self.math("MULTIPLY", share, 2.0)))
+
+    def mix(self, low, high, share):
+        return self.math("ADD", low, self.math("MULTIPLY", self.math("SUBTRACT", high, low), share))
+
+
+def harbour_hash(graph, x, y):
+    """harbour.gdshader's hash of a whole point: fract(sin(dot(at, (127.1, 311.7))) * 43758.5453)."""
+    turned = graph.math("SINE", graph.math("ADD", graph.math("MULTIPLY", x, 127.1), graph.math("MULTIPLY", y, 311.7)))
+    return graph.math("FRACT", graph.math("MULTIPLY", turned, 43758.5453))
+
+
+def harbour_noise(graph, x, y):
+    """harbour.gdshader's value noise at (x, y), -1 to 1: the four corners' hashes blended by a smooth share."""
+    cell_x, cell_y = graph.math("FLOOR", x), graph.math("FLOOR", y)
+    inside_x, inside_y = graph.math("SUBTRACT", x, cell_x), graph.math("SUBTRACT", y, cell_y)
+    blend_x = graph.math("MULTIPLY", graph.math("MULTIPLY", inside_x, inside_x),
+                         graph.math("SUBTRACT", 3.0, graph.math("MULTIPLY", inside_x, 2.0)))
+    blend_y = graph.math("MULTIPLY", graph.math("MULTIPLY", inside_y, inside_y),
+                         graph.math("SUBTRACT", 3.0, graph.math("MULTIPLY", inside_y, 2.0)))
+    next_x, next_y = graph.math("ADD", cell_x, 1.0), graph.math("ADD", cell_y, 1.0)
+    low = graph.mix(harbour_hash(graph, cell_x, cell_y), harbour_hash(graph, next_x, cell_y), blend_x)
+    high = graph.mix(harbour_hash(graph, cell_x, next_y), harbour_hash(graph, next_x, next_y), blend_x)
+    return graph.math("SUBTRACT", graph.math("MULTIPLY", graph.mix(low, high, blend_y), 2.0), 1.0)
+
+
+def through_the_column(graph, start, way, column, smear_share, soft):
+    """harbour.gdshader's through_the_column: how much of one lit column a line from a point on the water passes
+    through, 0 to 1, worked out on the water's plane (the stage's x and z, Blender's x and y) and in height (its z)."""
+    x, z, low, high, half_width, _ = column
+    start_x, start_y, start_up = graph.split(start)
+    way_x, way_y, way_up = graph.split(way)
+    flat_length = graph.math("MAXIMUM", graph.vector("LENGTH", graph.join(way_x, way_y, 0.0)), 1e-4)
+    flat_x, flat_y = graph.math("DIVIDE", way_x, flat_length), graph.math("DIVIDE", way_y, flat_length)
+    to_x, to_y = graph.math("SUBTRACT", float(x), start_x), graph.math("SUBTRACT", -float(z), start_y)
+    along = graph.math("ADD", graph.math("MULTIPLY", to_x, flat_x), graph.math("MULTIPLY", to_y, flat_y))
+    ahead = graph.math("GREATER_THAN", along, 0.0)
+    aside = graph.vector("LENGTH", graph.join(graph.math("SUBTRACT", to_x, graph.math("MULTIPLY", flat_x, along)),
+                                              graph.math("SUBTRACT", to_y, graph.math("MULTIPLY", flat_y, along)), 0.0))
+    height = graph.math("ADD", start_up, graph.math("MULTIPLY", graph.math("DIVIDE", way_up, flat_length), along))
+    smear = (high - low) * smear_share
+    across = graph.math("SUBTRACT", 1.0, graph.smoothstep(half_width * (1.0 - soft), half_width, aside))
+    up = graph.math("MULTIPLY", graph.smoothstep(low - smear, low, height),
+                    graph.math("SUBTRACT", 1.0, graph.smoothstep(high, high + smear, height)))
+    return graph.math("MULTIPLY", graph.math("MULTIPLY", graph.math("MULTIPLY", across, across), up), ahead)
+
+
+def lit_streaks(material, columns, smear, soft):
+    """The lit things over the water given back as the game's harbour does (harbour.gdshader `lit_things`): the eye's
+    line bounced off the rippled water (kept going up) and followed on, each column it passes through adding its light,
+    broken into streaks by the water's own noise, as much of it as the water mirrors there; added to the surface as
+    light of its own."""
+    graph = Nodes(material)
+    nodes = graph.nodes
+    geometry = nodes.new("ShaderNodeNewGeometry")
+    bump = next(node for node in nodes if node.type == "BUMP")
+    share = next(node for node in nodes if node.type == "MAP_RANGE")
+    ray = graph.vector("SCALE", geometry.outputs["Incoming"])
+    ray.node.inputs["Scale"].default_value = -1.0
+    bounced = graph.vector("REFLECT", ray, bump.outputs["Normal"])
+    bounced_x, bounced_y, bounced_up = graph.split(bounced)
+    bounced = graph.join(bounced_x, bounced_y, graph.math("ABSOLUTE", bounced_up))
+    start = geometry.outputs["Position"]
+    start_x, start_y, _ = graph.split(start)
+    # The noise is the game's, over the site's x and z (Blender's x and minus its y), at the shader's time nought.
+    broken = graph.smoothstep(0.0, 0.6, graph.math("ADD", graph.math("MULTIPLY", harbour_noise(
+        graph, graph.math("MULTIPLY", start_x, 1.7), graph.math("MULTIPLY", start_y, -0.35)), 0.5), 0.5))
+    light = None
+    for column in columns:
+        amount = through_the_column(graph, start, bounced, column, smear, soft)
+        tint = nodes.new("ShaderNodeVectorMath")
+        tint.operation = "SCALE"
+        tint.inputs[0].default_value = column[5]
+        graph.links.new(amount, tint.inputs["Scale"])
+        light = tint.outputs["Vector"] if light is None else graph.vector("ADD", light, tint.outputs["Vector"])
+    scaled = nodes.new("ShaderNodeVectorMath")
+    scaled.operation = "SCALE"
+    graph.links.new(light, scaled.inputs[0])
+    graph.links.new(graph.math("MULTIPLY", broken, share.outputs["Result"]), scaled.inputs["Scale"])
+    glow = nodes.new("ShaderNodeEmission")
+    graph.links.new(scaled.outputs["Vector"], glow.inputs["Color"])
+    added = next(node for node in nodes if node.type == "ADD_SHADER")
+    output = next(node for node in nodes if node.type == "OUTPUT_MATERIAL")
+    material.cycles.emission_sampling = "NONE"  # the game's streak lights nothing else: seen, never sampled as a lamp
+    total = nodes.new("ShaderNodeAddShader")
+    graph.links.new(added.outputs["Shader"], total.inputs[0])
+    graph.links.new(glow.outputs["Emission"], total.inputs[1])
+    graph.links.new(total.outputs["Shader"], output.inputs["Surface"])
 
 
 # --- the effects (tools/usd/effects.py) ---------------------------------------------------------------------------
@@ -900,10 +1153,13 @@ def main():
         plain(objects)
     else:
         haze_volumes(objects)
-        water_mirrors(objects)
+        water_mirrors(stage, objects)
+    beams = beam_materials(stage, objects)
+    if environment is not None and environment.get("glow") and not views.get("plain"):
+        glow_pass(scene, environment["glow"], environment["exposure"])
     lamps(scene, views.get("lights", []))
     layers = {item.name: layer_of(item) for item in objects}
-    sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky", "dust")]
+    sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky", "dust", "beam")]
     sky += [cloud for cloud, _, _ in effects]  # effects are air, as the dust is, not the place's objects
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))
@@ -916,11 +1172,14 @@ def main():
         if "eyes" in view:
             view = dict(view, eye=clear_eye(scene, view))
         camera(scene, view)
+        widen_beams(beams, scene.camera.matrix_world.translation)
         plane.hide_render = False
         hidden = [item for item in objects if layers[item.name] in view.get("hide_layers", [])]
         hidden += over_room(objects, view["hide_over"]) if "hide_over" in view else []
         set_hidden(hidden, True)
+        scene.render.use_compositing = scene.compositing_node_group is not None
         render(scene, out / f"{view['name']}-look.png", transparent=False)
+        scene.render.use_compositing = False
         if view.get("ink"):
             ink_view(scene, view, out, objects, sky)
         set_hidden(hidden, False)

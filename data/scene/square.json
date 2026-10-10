@@ -33,7 +33,24 @@
     "down": 0.2,
     "ripple_tip": 0.03,
     "ripple_size": 0.2,
-    "from": "game/art/shaders/harbour.gdshader:38-47,186-202 (MIRROR_ALONG 0.65, MIRROR_DOWN 0.2 eased by the square root of how far down the eye looks, RIPPLE_TIP 0.03, RIPPLE_SIZE 0.2; the water's own colour is sea.tres water_color, the library's harbour_water)"
+    "from": "game/art/shaders/harbour.gdshader:38-47,186-202 (MIRROR_ALONG 0.65, MIRROR_DOWN 0.2 eased by the square root of how far down the eye looks, RIPPLE_TIP 0.03, RIPPLE_SIZE 0.2; the water's own colour is sea.tres water_color, the library's harbour_water); harbour.gdshader:28-33,57-60,155-185 (each lit column's streak: COLUMN_SMEAR 0.35 of its height past its top and bottom, COLUMN_SOFT 0.6 of its half width soft at its sides, broken by the moving water)",
+    "lit": [
+     {
+      "name": "rocket",
+      "at": [
+       -270.0,
+       -60.0
+      ],
+      "low": 0.0,
+      "high": 60.0,
+      "half_width": 9.48,
+      "colour": "#f3f1ea",
+      "strength": 1.6,
+      "from": "night.gd:56-60,281-292,333-351 (the rocket is the one lit thing the harbour is handed: its box in the site's own space as a column, ROCKET_ON_THE_WATER 1.6 times Palette.FLOODLIGHT #f3f1ea, ROCKET_STREAK_WIDTH 0.5 of its longer side either side), launch_rocket.gd:13-49 and earth_site.gd:260-262,1282-1286 (the rocket's box: 60 m tall from its feet at ROCKET_AT (-270, 0, -60), its two boosters' CylinderMesh boxes 7.2 m out either side along its own z at radius 2.28, turned PI / 2 so they lie along x: 18.96 m along x, 7.36 m along z)"
+     }
+    ],
+    "column_smear": 0.35,
+    "column_soft": 0.6
    }
   }
  ],
@@ -384,7 +401,22 @@
     1.3
    ],
    "colour": "#eef2ff",
-   "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned with the place's own axes, where the game turns them with the world's spin and the hour, which the record does not carry"
+   "from": "game/world/sky/sky.gd:19-33,517-544 (SEED 9, STAR_COUNT 1800, SKY_DISTANCE 700: a SphereMesh of radius 0.7 with 4 sides and 2 rings, scaled 0.4 to 1.3, every direction), game/art/materials/star.tres (unshaded #eef2ff); hung here at 1900 m with each star as wide seen from the middle, past everything the stage holds and inside the views' 2000 m reach, as the game hangs them just inside its camera's reach; turned as the game turns them at the base minute in `turn`",
+   "turn": {
+    "minute": 60.25,
+    "axes": "site",
+    "from": "sky.gd:136-144,455-472 (_stars_turn: Space.frame_basis() transposed, the Moon's facing at the base minute, times the Earth night's stage_turn), space.gd:76-80, orbits.gd:128-145,345-356 (Orbits.facing_at, _moon_own_frame), earth_site.gd:44-54 (the block hangs off the Moon unturned, so the site's axes are the Moon's own); the minute measured on the game's shots by tools/usd/star_turn.py --axes site: the field found on 7 of them (launch balcony-rocket, balcony-shore, harbour-edge-rocket, shore-near; square balcony-left, balcony-podium, square-tower-near: 13 to 52 stars each), their turns each within 0.03 to 0.10 degrees of the facing at a minute from 59.75 to 60.75, and this the middle one (the clock held there; minute 0, where a new run opens, is 4.5 degrees off); the flat's and the street's own shots do not measure (the street's show 0 to 13 lone dots, the flat's balcony shot lays 8 stars at most at any field of view tried)"
+   }
+  },
+  "glow": {
+   "threshold": 0.85,
+   "intensity": 0.8,
+   "hdr_scale": 2.0,
+   "levels": [
+    3,
+    5
+   ],
+   "from": "night.gd:35-37,128-138 (NIGHT_GLOW_THRESHOLD 0.85 while the eye is at the site, so the neon and the lit windows bloom a little), lighting.json bounce_tuned (glow_intensity 0.8, the shipped setup, lighting_setup.gd:18), sky.tscn:19-22 (glow on, added over the picture: glow_blend_mode 0), Godot's Environment defaults for the rest (glow_hdr_scale 2.0, glow levels 3 and 5)"
   }
  },
  "views": [
@@ -511,10 +543,7 @@
  ],
  "game_only": [
   "the far city across the harbour is the framework's own, in 3D (the far_city place, tools/usd/far_city_stage.py, seed 7): 2,188 made towers of five kinds rows deep along a far shore 1.3 to 1.8 km off, their windows lit, with code-built mountains behind and water out to the shore; the pencil tower, the low waterfront block and the housing slab are not made yet, so their lots carry the made kinds and the waterfront has no low blocks. The game hangs four photographs of Hong Kong there instead (earth_site.gd:327-335,959-972), which no stage carries",
-  "the crowd's look up close: the game's people are flat-shaded and lit by the stage, the scene's are its own skinned characters",
-  "the neon signs' glow",
-  "the lit columns the game paints onto the water (each lit thing's streak, harbour.gdshader's lit_columns); the water mirrors what stands round it",
-  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour"
+  "the crowd's look up close: the game's people are flat-shaded and lit by the stage, the scene's are its own skinned characters"
  ],
  "owner_rejected": [
   "the night market's stalls and the stage's screens: the game draws both, and the owner rejected them for the scene (2026-10-09)"
