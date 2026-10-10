@@ -83,6 +83,15 @@ Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next t
    when no card is in stock).
 6. The model gate and straightness (`place_route.py check`).
 7. The scene package and its check (`package.py`).
+8. The stage (`tools/usd/export.py`, then the cast, motion, effects and sound layers), the completion gate's checks
+   (`tools/usd/complete.py check`, the resting check after a drop run, `settle.py --dry-run`), the review page
+   (`tools/review/page.py --cloud`) and the place's manifest (`complete.py done`).
+
+**Which stages are current.** Every round of stages is a new folder of the work folder, never written over:
+world 1's canonical set is `WORK/usd-r3/<place>` with its review pages in `WORK/review-r3/<place>` (the completion
+gate's round 1, 2026-10-10; `usd-r3/inputs.json` names the commit and each place's model folders). The earlier sets
+(`usd`, `usd-complete`, `usd-r2-final`, `usd-rr`, the night's group sets) are kept beside it as they were. A later
+round exports into a new folder and moves this line.
 
 ## architecture/trust-boundaries
 
