@@ -156,7 +156,7 @@ def ways_round(pieces, floor, standing):
         if walked is None:
             # Unknown blocks: a door whose sides cannot be stood on is not passed.
             found.append((door["kind"], [round(value, 2) for value in door["at"]],
-                          "unknown: a spot on each side of it stands in a wall"))
+                          "unknown: the spot on one or both sides of it stands in a wall"))
         elif walked:
             found.append((door["kind"], [round(value, 2) for value in door["at"]],
                           "a way round it: its wall does not part its two sides"))
