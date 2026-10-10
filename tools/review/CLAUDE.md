@@ -39,3 +39,8 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   places, with the same pairs as silhouettes subtracted so what an object is does not count as its style. DINOv2
   runs on a rented machine through `../props/cloud/similar.py`, never here. It reports numbers, never a verdict;
   validating it needs the creator's reviews.
+- **Luminance per region** (`brightness.py`): the whole picture's mean hides a dark part behind a bright one (the far
+  city behind the lit square), so a part is measured on its own: the objects whose prim path holds the `--match` words,
+  from the annotate step's ids (`../usd/annotate.py`), and horizontal bands, in linear light against the game's shot
+  from the same camera. A knob tuned to the game's brightness (the far city's lit windows) is set from these numbers,
+  never by eye. `brightness_test.py` checks it on pictures made in the test.
