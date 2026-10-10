@@ -88,10 +88,10 @@ def stage_motion(blender):
     return [list(row) for row in found]
 
 
-def tree(item, lift=0.0):
-    """The object's triangles in world space (raised by `lift` metres), for overlap tests."""
+def tree(item, shift=Vector()):
+    """The object's triangles in world space (moved by `shift`, metres), for overlap tests."""
     from mathutils.bvhtree import BVHTree
-    placed = Matrix.Translation(Vector((0.0, 0.0, lift))) @ item.matrix_world
+    placed = Matrix.Translation(shift) @ item.matrix_world
     return BVHTree.FromPolygons([placed @ vertex.co for vertex in item.data.vertices],
                                 [polygon.vertices[:] for polygon in item.data.polygons])
 
@@ -102,14 +102,29 @@ def heights(item):
     return min(found), max(found)
 
 
-def inside_statics(item, statics, lows):
+def inside_statics(item, statics, lows, middles):
     """The static objects this one starts inside: an overlap that survives raising it by NUDGE (so the deck or plate
-    it stands on, which it touches, does not count) with a static that reaches below its middle (so a thing standing
-    on it does not count either), as the resting triage's overlap survives its nudge."""
-    mine = tree(item, NUDGE)
+    it stands on, which it touches, does not count) and moving it NUDGE away from the static's middle (so a pad or a
+    wall it only stands against does not count), with a static that reaches below its middle (so a thing standing on
+    it does not count either), as the resting triage's overlap survives its nudge."""
+    raised = tree(item, Vector((0.0, 0.0, NUDGE)))
     low, high = heights(item)
     middle = (low + high) / 2
-    return [name for name, other in statics.items() if lows[name] < middle and mine.overlap(other)]
+    mine = box_middle(item)
+    return [name for name, other in statics.items()
+            if lows[name] < middle and raised.overlap(other) and tree(item, away(mine, middles[name])).overlap(other)]
+
+
+def box_middle(item):
+    """The middle of the object's world bounds."""
+    corners = [item.matrix_world @ Vector(corner) for corner in item.bound_box]
+    return sum(corners, Vector()) / len(corners)
+
+
+def away(mine, other):
+    """A NUDGE step from the other's middle toward this one's (up when they share a middle), as the triage's nudge."""
+    way = mine - other
+    return way.normalized() * NUDGE if way.length > 1e-9 else Vector((0.0, 0.0, NUDGE))
 
 
 def weight_at_middle(item):
@@ -181,7 +196,7 @@ def main():
     ground = next((item for item in bpy.data.objects if item.type == "MESH" and item.name.split(".")[0] == "Ground"),
                   None) or flat_ground(scene)
     rigid(unparented(ground), "PASSIVE", "MESH", range(GROUPS))
-    statics, lows, moving, inside = {}, {}, {}, {}
+    statics, lows, middles, moving, inside = {}, {}, {}, {}, {}
     ignore = set(job.get("ignore", []))
     for name, holder in holders.items():
         meshes = [child for child in holder.children if child.type == "MESH"]
@@ -193,12 +208,12 @@ def main():
         for item in meshes:  # a static holder may draw several meshes (a character's body and clothes)
             item = unparented(item)
             static = name if len(meshes) == 1 else f"{name}/{item.name}"
-            statics[static], lows[static] = tree(item), heights(item)[0]
+            statics[static], lows[static], middles[static] = tree(item), heights(item)[0], box_middle(item)
             rigid(item, "PASSIVE", "MESH", range(GROUPS))
             item.rigid_body.collision_collections = [False] + [True] * (GROUPS - 1)
     lifts = {name: Matrix.Translation(Vector((0.0, 0.0, float(job["lift"].get(name, 0.0))))) for name in moving}
     for number, (name, item) in enumerate(moving.items()):
-        inside[name] = inside_statics(item, statics, lows)
+        inside[name] = inside_statics(item, statics, lows, middles)
         weight_at_middle(item)
         item.matrix_world = lifts[name] @ item.matrix_world
         rigid(item, "ACTIVE", "CONVEX_HULL", [0] if inside[name] else [own_group(number)])
