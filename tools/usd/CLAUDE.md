@@ -54,10 +54,12 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   take of any name (`-r1`, `-s1`). Never guess a take name.
 - `resting.py` is the scene check (floating, tipping, sunk below its contact points, one piece inside another; hung
   rows exempt by their inventory `anchor`, fixed rows not judged for tipping, two fixed rows may be joined). Never put a fault right by lowering a piece: settle it.
-- `placeholders.py` is the placeholder check: nothing visible stands in for a made piece. A scene record's box,
-  quad, disc, round wall, lathe, sphere or torus says which plain thing it is (`plain`: plate, pipe, trim, shell,
-  ground, soil, water or sky) or fails; a kit piece built in code must be a kind the sorter sends to code; a mesh
-  with no material or in the default grey, and a proxy, fail. Never mark a thing with detail plain to pass it: make it.
+- `placeholders.py` is the placeholder check: nothing visible stands in for a made piece. Every mesh a scene record's
+  code builder drew says which plain thing it is (`plain`: plate, pipe, trim, shell, ground, soil, water or sky; the
+  ground's and water's groups by their kind) or fails, whatever the builder, a primitive or one that puts a thing
+  together (the hangar's ship_hull, passed by default until 2026-10-11); only the shell builders (`SHELL_BUILDERS`)
+  pass without saying, and a new builder is judged until it is put on that list; a kit piece built in code must be
+  a kind the sorter sends to code; a mesh with no material or in the default grey, and a proxy, fail. Never mark a thing with detail plain to pass it: make it.
 - `complete.py` is the completion gate: `check <place>` runs the checks and keeps each result beside the stage
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
   every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, picks, boxes,

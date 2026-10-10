@@ -2,7 +2,9 @@
 nothing fails, a lathe called a ship fails, a room's own walls pass, a kit piece built in code passes when the sorter
 sends its kind to code and fails when the sorter sends it to the prop pipeline, a mesh with no material or in the
 default grey fails, a clear haze shell passes, a proxy fails, and a guide mesh and another place's stage are not
-judged.
+judged. The hangar's case (the owner's demo of 2026-10-11: the check passed the code-built ship he saw as a
+placeholder): its record's ship_hull and ship_legs fail until a made model stands in their place, and today's hangar
+stage (HANGAR_STAGE, when this machine has it) fails.
 
 Run: .venv/bin/python tools/usd/placeholders_test.py   (make tests runs it with the framework's environment)
 """
@@ -20,6 +22,10 @@ import placeholders  # noqa: E402
 import scene  # noqa: E402
 
 PLACE = "hub"
+REPO = HERE.parents[1]
+# The world 1 demo's hangar stage (r4 was filmed from it), outside the repo: checked when this machine has it.
+HANGAR_STAGE = pathlib.Path.home() / ".farm-factory-props/work/usd-r3/hangar/hangar.usda"
+HANGAR_SHIP = ("ship", "ship_legs")
 RECORD = {"structure": [
     {"name": "walls", "builder": "room_walls", "wide": 4.0, "deep": 5.0, "corner": 0.6, "high": 2.8,
      "surface": "roof_steel_paint", "doors": []},
@@ -107,7 +113,51 @@ def every_rule_catches_its_case():
     return problems
 
 
-CHECKS = (every_rule_catches_its_case,)
+def hangar_stage(folder, ship_made):
+    """A stage with the hangar record's ship: drawn by its code builders, or (ship_made) left out of the record with a
+    made model standing in its place as a kit piece; its path."""
+    record = json.loads((REPO / "data/scene/hangar.json").read_text())
+    entries = [entry for entry in record["structure"] if entry["name"] in HANGAR_SHIP]
+    path = folder / "hangar.usda"
+    stage = Usd.Stage.CreateNew(str(path))
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/hangar").GetPrim())
+    export.library_materials(stage, "hangar", "/hangar")
+    scene.write(stage, "hangar", {"structure": [] if ship_made else entries}, folder)
+    if ship_made:
+        piece = UsdGeom.Xform.Define(stage, "/hangar/Objects/ship_1")
+        piece.GetPrim().CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set("ship_1")
+        piece.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("hangar_ship")
+        library = UsdShade.Material(stage.GetPrimAtPath("/hangar/Library/hull_white_gloss"))
+        painted(stage, "/hangar/Objects/ship_1/geo", library)
+    stage.GetRootLayer().Save()
+    return path
+
+
+def hangar_ship_fails_until_made():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        (folder / "kits").mkdir()
+        (folder / "kits" / "hangar.json").write_text(json.dumps({"models": {"ship_1": {"route": "model"}}}))
+        (folder / "built").mkdir()
+        (folder / "made").mkdir()
+        built = placeholders.check(hangar_stage(folder / "built", ship_made=False), kits=folder / "kits")
+        made = placeholders.check(hangar_stage(folder / "made", ship_made=True), kits=folder / "kits")
+    caught = {fault["prim"].rsplit("/", 1)[-1].rstrip("_0123456789") for fault in built if fault["rule"] == "plain"}
+    problems = [f"the code-built {name} was not caught" for name in HANGAR_SHIP if name not in caught]
+    problems += [f"{fault['prim']} was caught by the {fault['rule']} rule with a made ship" for fault in made]
+    return problems
+
+
+def todays_hangar_fails():
+    if not HANGAR_STAGE.exists():
+        print(f"todays_hangar_fails: skipped, no {HANGAR_STAGE} on this machine")
+        return []
+    caught = {fault["prim"] for fault in placeholders.check(HANGAR_STAGE) if fault["rule"] == "plain"}
+    return [f"/hangar/Structure/{name} on today's hangar stage was not caught" for name in HANGAR_SHIP
+            if f"/hangar/Structure/{name}" not in caught]
+
+
+CHECKS = (every_rule_catches_its_case, hangar_ship_fails_until_made, todays_hangar_fails)
 
 
 if __name__ == "__main__":

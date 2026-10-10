@@ -73,7 +73,8 @@
    "height": -0.025,
    "surface": "roof_steel_paint",
    "rotation": 15.0,
-   "from": "ModuleShell deck cut round the pit (module_shell.gd:649-685)"
+   "from": "ModuleShell deck cut round the pit (module_shell.gd:649-685)",
+   "plain": "shell"
   }
  ],
  "objects": [

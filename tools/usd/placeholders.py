@@ -7,11 +7,15 @@ code may build only plain plates, pipes and trims; everything with detail is a m
 placed, a code piece that passes the parts check, or a model from the prop pipeline. The stage is read as composed,
 and every prim drawn (not a guide, not made invisible) is judged by four rules:
 
-    plain     a structure mesh (/<place>/Structure) built by a primitive builder (PRIMITIVES: a box, a quad, a
-              disc, a round wall, a lathe, a sphere or a torus) must say which plain thing it is: its record entry's
-              `plain`, written as score:plain, one of PLAIN_KINDS. One that does not stands for a thing with detail
-              (a door leaf, a ship, a car, a rocket) and fails. The shell builders (room walls, decks and roofs,
-              stairs, a tube's arcs, the ground, the stars and the haze) draw the place's own shell and pass.
+    plain     a mesh the scene record's code drew (score:builder, in any group) must say which plain thing it
+              is: its record entry's `plain`, written as score:plain, or a record group's own kind when that is plain
+              (the ground's and the water's), one of PLAIN_KINDS. One that does not stands for a thing with detail
+              (a door leaf, a ship, a car, a rocket) and fails, whatever its builder: a box or a lathe, or a builder
+              that puts a thing together from many (the hangar's ship_hull and ship_legs, which this rule passed by
+              default until 2026-10-11 because it judged only a list of primitives). Only the shell builders
+              (SHELL_BUILDERS: room walls, decks and roofs, stairs, a tube's arcs, a heightfield's ground, the stars,
+              specks, the haze and a light's beam) draw the place's own shell and pass without saying; a new builder
+              is judged until it is put on that list.
     sorter    a kit piece (/<place>/Objects) whose model the place's kit built in code (`route` code in
               data/kit/<place>.json) must be a kind the sorter sends to code (tools/props/library/sorter.py: a
               plain plate, pipe or trim, or a fitting whose code build shows every part of its close-up).
@@ -36,8 +40,10 @@ sys.path.insert(0, str(REPO / "tools/props/library"))
 import sorter  # noqa: E402
 
 KITS = REPO / "data/kit"
-# The scene record's builders that draw one plain primitive: each such entry must say which plain thing it is.
-PRIMITIVES = frozenset(("box", "quad", "disc", "cylinder_wall", "lathe", "sphere", "torus"))
+# The scene record's builders that draw the place's own shell and nothing else (scene.BUILDERS, and the sky's beams):
+# every other builder, a primitive or one that puts a thing together, must say which plain thing it drew.
+SHELL_BUILDERS = frozenset(("room_walls", "room_deck", "dome_roof", "walls", "wall_strip", "pyramid_roof", "stairs",
+                            "tube_arc", "heightfield", "stars", "specks", "haze_volume", "beam"))
 # What a primitive may be (the owner's sorter rule, 2026-10-07: plain plates, pipes and trims; and what is not a thing
 # at all: a room's shell, the ground, a field's soil, water and the sky).
 PLAIN_KINDS = frozenset(("plate", "pipe", "trim", "shell", "ground", "soil", "water", "sky"))
@@ -76,16 +82,25 @@ def judged_prims(stage):
 
 
 def plain_fault(prim):
-    """Why a structure mesh fails the plain rule, or None when it passes."""
+    """Why a mesh the scene record's code drew fails the plain rule, or None when it passes (or no builder drew it)."""
     builder = attribute(prim, "score:builder")
-    if builder not in PRIMITIVES:
+    if builder is None or builder in SHELL_BUILDERS:
         return None
-    plain = attribute(prim, "score:plain")
+    plain = attribute(prim, "score:plain") or plain_group_kind(prim)
     if plain is None:
-        return f"a {builder} that does not say which plain thing it is (a made piece's stand-in)"
+        return (f"drawn by the record's {builder} builder without saying which plain thing it is "
+                "(a made piece's stand-in)")
     if plain not in PLAIN_KINDS:
-        return f"a {builder} called '{plain}', which is not a plain plate, pipe, trim, shell, ground, soil, water or sky"
+        return (f"a {builder} called '{plain}', which is not a plain plate, pipe, trim, shell, ground, soil, water "
+                "or sky")
     return None
+
+
+def plain_group_kind(prim):
+    """The plain thing a record group's kind says its meshes are (the ground's `ground`, the water's `water`), or None
+    when the kind is not plain (the structure's `structure`)."""
+    kind = attribute(prim, "score:kind")
+    return kind if kind in PLAIN_KINDS else None
 
 
 def kit_routes(place, kits=KITS):
@@ -151,10 +166,8 @@ def proxy_fault(prim):
 
 def faults_of(prim, routes):
     """Every rule one prim fails, as (rule, why)."""
-    found = [("proxy", proxy_fault(prim)), ("material", material_fault(prim))]
+    found = [("proxy", proxy_fault(prim)), ("material", material_fault(prim)), ("plain", plain_fault(prim))]
     group = prim.GetPath().pathElementCount > 1 and prim.GetPath().GetPrefixes()[1].name
-    if group == "Structure":
-        found.append(("plain", plain_fault(prim)))
     if group == "Objects":
         found.append(("sorter", sorter_fault(prim, routes)))
     return [(rule, why) for rule, why in found if why]
