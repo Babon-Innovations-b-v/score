@@ -27,8 +27,13 @@ def machine(tmp_path, scratch_repo):
     write_tool(tmp_path / "bin", "claude",
                LOGGING_TOOL + 'echo scribbled > "$PWD/.claude/settings.json"\n')
     write_tool(tmp_path / "bin", "gh", '#!/bin/sh\nexit 1\n')
+    # uv logs where it was asked to sync into, and leaves an interpreter there as the real one does.
+    write_tool(tmp_path / "bin", "uv", '#!/bin/sh\necho "uv $* env=$UV_PROJECT_ENVIRONMENT" >> "$TOOL_LOG"\n'
+               '[ -n "$UV_PROJECT_ENVIRONMENT" ] && mkdir -p "$UV_PROJECT_ENVIRONMENT/bin" '
+               '&& printf "#!/bin/sh\\n" > "$UV_PROJECT_ENVIRONMENT/bin/python" '
+               '&& chmod +x "$UV_PROJECT_ENVIRONMENT/bin/python"\nexit 0\n')
     env = {key: value for key, value in os.environ.items()
-           if key not in ("CLAUDE_MEM_DATA_DIR", "CLAUDE_CONFIG_DIR", "CBM_BIN_DIR")}
+           if key not in ("CLAUDE_MEM_DATA_DIR", "CLAUDE_CONFIG_DIR", "CBM_BIN_DIR", "PROPS_HOME")}
     env.update(HOME=str(home), PATH=f"{tmp_path / 'bin'}:{os.environ['PATH']}",
                TOOL_LOG=str(tmp_path / "tools.log"))
     return home, env
@@ -112,3 +117,20 @@ def test_bootstrap_sets_the_hooks_and_reports_what_is_missing(scratch_repo, mach
     assert hooks == ".githooks"
     assert "gh: installed but not logged in. Run: gh auth login" in run.stdout
     assert "project.json: acme/widget" in run.stdout
+
+
+def test_bootstrap_builds_the_runtime_python_from_the_lock_once(scratch_repo, machine, tmp_path):
+    home, env = machine
+    runtime = home / ".farm-factory-props" / "env"
+    run = run_script(scratch_repo, env, "bootstrap.sh")
+    assert run.returncode == 0, run.stderr
+    assert "python: .venv from uv.lock" in run.stdout
+    assert f"runtime python: built at {runtime} from uv.lock" in run.stdout
+    assert (runtime / "bin" / "python").exists()
+
+    again = run_script(scratch_repo, env, "bootstrap.sh")
+    assert f"runtime python: already at {runtime}" in again.stdout
+    syncs = [line for line in (tmp_path / "tools.log").read_text().splitlines() if line.startswith("uv ")]
+    assert syncs == ["uv sync -q --frozen env=",
+                     f"uv sync -q --frozen --no-dev --project {scratch_repo} env={runtime}",
+                     "uv sync -q --frozen env="]

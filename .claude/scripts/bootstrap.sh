@@ -4,8 +4,8 @@
 #   bash .claude/scripts/bootstrap.sh
 #
 # Link Claude's memory folder into the repo (git-ignored: the repo is public), use the
-# repo's git hooks, install the pinned agent tools (install-agent-tools.sh), and report anything
-# else the loop needs that is not here yet.
+# repo's git hooks, install the pinned agent tools (install-agent-tools.sh), build the framework's
+# Python from uv.lock, and report anything else the loop needs that is not here yet.
 # Safe to re-run: every step skips what is already done.
 set -euo pipefail
 
@@ -75,8 +75,29 @@ use_repo_hooks() {
   say "git hooks: .githooks"
 }
 
+# --- 4. The framework's Python, from uv.lock -------------------------------
+# `.venv` is the repo's own (`make env`). The cloud machine runner (blender_cloud.py's CLOUD_PYTHON) and
+# the animal route still call the first world's per-box interpreter, PROPS_HOME/env/bin/python: build
+# that path from the same lock when it is missing, so a fresh box runs them with nothing copied over.
+build_python() {
+  if ! command -v uv >/dev/null 2>&1; then
+    say "uv: NOT INSTALLED. The framework's Python needs it: https://docs.astral.sh/uv/"
+    return
+  fi
+  (cd "$REPO" && uv sync -q --frozen)
+  say "python: .venv from uv.lock"
+  local runtime="${PROPS_HOME:-$HOME/.farm-factory-props}/env"
+  if [ -x "$runtime/bin/python" ]; then
+    say "runtime python: already at $runtime"
+    return
+  fi
+  UV_PROJECT_ENVIRONMENT="$runtime" uv sync -q --frozen --no-dev --project "$REPO"
+  say "runtime python: built at $runtime from uv.lock"
+}
+
 link_memory
 use_repo_hooks
+build_python
 # The agent tools: code graph, Bun for claude-mem, their settings.
 bash "$REPO/.claude/scripts/install-agent-tools.sh"
 check_gh
