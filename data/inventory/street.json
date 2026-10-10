@@ -802,6 +802,8 @@
 		},
 		{
 			"id": "street_lamp",
+			"fixed": true,
+			"fixed_why": "a 5.2 m lamp post set in the pavement, as the street kit lays it: anchored, not loose (the drop run tipped it 82 to 179 degrees)",
 			"view": "v1",
 			"box": [
 				1719,
@@ -846,6 +848,8 @@
 		},
 		{
 			"id": "notice_case",
+			"fixed": true,
+			"fixed_why": "a notice board on its own posts set in the pavement, as the street kit lays it: anchored, not loose (the drop run tipped it 93 degrees)",
 			"view": "v1",
 			"box": [
 				60,
