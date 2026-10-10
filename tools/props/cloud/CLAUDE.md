@@ -92,6 +92,17 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   folder), deleted when the tool closes the queue or after 10 idle minutes; never rent one per step. The PC's own Blender (one at a time,
   the machine lock) is for checks of seconds only. An agent starts a cloud Blender call with `--detach` under `run_in_background`
   (`detached.py`: progress to a log, one result line at the end) and never polls it in the foreground.
+- **A Blender job's big inputs go up once, through the bucket** (`inputs.py`, `input_fetch.py`; 2026-10-10, after two
+  review-page machines waited about 2 hours for inputs while ten agents sent over this PC's ~3 MB/s link, the same
+  438 MB of parts to several machines): an input of 8 MB or more is tarred the same way from the same files, named
+  `inputs/<sha256>.tar` in the provider's `object_store()`, uploaded only when it is not there (a lock per key on
+  this PC, so two sessions do not send it twice), and the machine pulls it in byte ranges from a signed link that
+  reads that one object, checks it and keeps it for its next job. Small inputs, and any the store path fails to bring,
+  go directly as before; `SCORE_INPUTS_DIRECT=1` sends everything directly. Staging runs in the repo's environment
+  (boto3), as the cluster path does. Measured 2026-10-10 on a real review_models batch (two L4 machines sharing the
+  wreck's 631 MB of made models and parts): sent directly, inputs took 28 min on each machine and the batch 30.1 min
+  (EUR 0.79); through the bucket, 3.6 min (the one upload, the second machine waiting on its lock, then 9 and 14 s of
+  pulling) and 5.3 min (EUR 0.16); once in the bucket, 14 and 24 s and 2.2 min (EUR 0.07).
 - **The material library bakes on a card** (`library_bake.py`, `library_setup.sh`; job robust-exp, 2026-10-06):
   Blender 5.0.1 from blender.org, Cycles on OptiX, ProcFunc and infinigen2 from the repo's vendored copies; jobs are
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core
