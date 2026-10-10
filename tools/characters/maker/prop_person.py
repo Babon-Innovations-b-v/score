@@ -185,6 +185,22 @@ def local(script, *arguments):
                     str(HERE / script), *map(str, arguments)], check=True)
 
 
+def fresh(record, body):
+    """Whether a check's record was written after the body it measures (so a rerun of the table does not measure
+    again)."""
+    return record.exists() and record.stat().st_mtime > body.stat().st_mtime
+
+
+def together(*steps):
+    """CPU steps (as `local` takes them) run side by side; raises when one fails (the reviewer's count takes about
+    an hour a body alone)."""
+    running = [subprocess.Popen(["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=16G", str(PROPS_PYTHON),
+                                 str(HERE / step[0]), *map(str, step[1:])]) for step in steps]
+    codes = [process.wait() for process in running]
+    if any(codes):
+        raise SystemExit(f"a step failed: {codes}")
+
+
 def closeups(spec, outfit):
     """The candidate's close-ups: their take names."""
     return sorted(path.stem for path in (folder_of(spec, outfit) / "closeup").glob("pp-*.png"))
@@ -463,11 +479,14 @@ def checks(spec, outfit, who, held, dry_run):
     if not (folder / "checks" / "pokes_shipped.json").exists():
         local("pokes.py", shipped, "--out", folder / "checks" / "pokes_shipped.json", "--outfit",
               SHIPPED_OUTFIT.get(outfit, outfit))
-    local("pokes.py", body, "--out", folder / "checks" / "pokes.json", "--against",
-          folder / "checks" / "pokes_shipped.json")
-    local("outline.py", take, folder / "fit" / "rig.npz", body, "--out", folder / "checks" / "outline.json")
-    local(BODYCLOTH, body, "--outfit", outfit, "--out", folder / "checks" / "bodycloth_plain.json")
-    local("bodycloth_shaped.py", BODYCLOTH, body, "--outfit", outfit, "--out", folder / "checks" / "bodycloth.json")
+    checked = folder / "checks"
+    if not fresh(checked / "pokes.json", body):
+        local("pokes.py", body, "--out", checked / "pokes.json", "--against", checked / "pokes_shipped.json")
+    if not fresh(checked / "outline.json", body):
+        local("outline.py", take, folder / "fit" / "rig.npz", body, "--out", checked / "outline.json")
+    if not (fresh(checked / "bodycloth.json", body) and fresh(checked / "bodycloth_plain.json", body)):
+        together([BODYCLOTH, body, "--outfit", outfit, "--out", checked / "bodycloth_plain.json"],
+                 ["bodycloth_shaped.py", BODYCLOTH, body, "--outfit", outfit, "--out", checked / "bodycloth.json"])
     rows = table_rows(spec, outfit, folder, take)
     widths = [max(len(str(row[column])) for row in rows) for column in range(4)]
     lines = [f"PROP PEOPLE CHECKS: {spec['name']} ({outfit}), take {take}, "
