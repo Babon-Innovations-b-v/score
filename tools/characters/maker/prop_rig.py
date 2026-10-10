@@ -57,6 +57,10 @@ SAMPLES = 200000
 # How far a carried joint's offset across a limb or from the torso's centre may grow or shrink.
 RATIO_RANGE = (0.5, 2.0)
 SIDES = {"Left": 1.0, "Right": -1.0}
+# A slice's two largest pieces are the legs when the smaller has at least this share of the larger's points.
+LEG_LIKENESS = 0.4
+# Where the figure is centred: its chest, this share of the way up (above the hands, the arms held out either side).
+CHEST_SHARE = 0.72
 ARM = ("Arm", "ForeArm", "Hand")
 LEG = ("Leg", "Shin", "Foot", "ToeBase", "ToeEnd")
 # The hip joints sit in the pelvis, above where the legs part: they are placed by the trunk's map (their height
@@ -78,19 +82,29 @@ def welded(mesh):
 
 
 def stood(points, height):
-    """The turn and scale that stand a person mesh in the skeleton's frame, as (turn 3x3, scale, shift): width along
-    x, front +z (where the toes point), soles at y 0, centred over the torso, `height` tall."""
-    extent = points.max(0) - points.min(0)
-    turn = np.eye(3) if extent[0] >= extent[2] else np.array([[0.0, 0, 1], [0, 1, 0], [-1, 0, 0]])
+    """The turn and scale that stand a person mesh in the skeleton's frame, as (turn 3x3, scale, shift): its widest
+    spread across the floor (the arms held out, the A-pose) along x, front +z (where the toes point), soles at y 0,
+    centred over the chest, `height` tall."""
+    turn = across_x(points)
     turned = points @ turn.T
     if toes_forward(turned) < 0:
         turn = np.diag([-1.0, 1.0, -1.0]) @ turn
         turned = points @ turn.T
     scale = height / float(turned[:, 1].max() - turned[:, 1].min())
     turned = turned * scale
-    middle = turned[np.abs(turned[:, 1] - np.percentile(turned[:, 1], 60)) < 0.02]
+    chest = turned[:, 1].min() + CHEST_SHARE * (turned[:, 1].max() - turned[:, 1].min())
+    middle = turned[np.abs(turned[:, 1] - chest) < 0.02]
     shift = np.array([-np.median(middle[:, 0]), -turned[:, 1].min(), -np.median(middle[:, 2])])
     return turn, scale, shift
+
+
+def across_x(points):
+    """The turn about the up axis that lays the points' widest spread across the floor along x."""
+    flat = points[:, [0, 2]] - points[:, [0, 2]].mean(0)
+    widest = np.linalg.eigh(flat.T @ flat)[1][:, -1]
+    angle = np.arctan2(widest[1], widest[0])
+    cosine, sine = np.cos(angle), np.sin(angle)
+    return np.array([[cosine, 0.0, sine], [0.0, 1.0, 0.0], [-sine, 0.0, cosine]])
 
 
 def toes_forward(points):
@@ -131,21 +145,18 @@ def slices(points):
 
 
 def legs_of(cut, height):
-    """The slice's two legs (the largest piece on each side, near the middle), or None."""
-    near = [piece for piece in cut if abs(piece[1]) < 0.2 * height]
-    left = [piece for piece in near if piece[1] > 0]
-    right = [piece for piece in near if piece[1] < 0]
-    if not left or not right:
+    """The slice's two legs: its two largest pieces when they are alike in size (the smaller at least LEG_LIKENESS of
+    the larger) and within a quarter of the height of each other, (left, right) by x; else None."""
+    largest = sorted(cut, key=lambda piece: -len(piece[0]))[:2]
+    if len(largest) < 2 or len(largest[1][0]) < LEG_LIKENESS * len(largest[0][0]) \
+            or abs(largest[0][1] - largest[1][1]) > 0.25 * height:
         return None
-    return max(left, key=lambda piece: len(piece[0])), max(right, key=lambda piece: len(piece[0]))
+    return tuple(sorted(largest, key=lambda piece: -piece[1]))
 
 
 def arms_of(cut):
-    """The slice's torso (the piece over x 0) and an arm on each side of it, or None."""
-    torso = [piece for piece in cut if piece[3] <= 0.0 <= piece[4]]
-    if len(torso) != 1:
-        return None
-    torso = torso[0]
+    """The slice's torso (its largest piece) and an arm on each side of it, or None."""
+    torso = max(cut, key=lambda piece: len(piece[0]))
     left = [piece for piece in cut if piece[3] > torso[4]]
     right = [piece for piece in cut if piece[4] < torso[3]]
     if not left or not right:
@@ -206,15 +217,14 @@ def limb_slices(cuts, low, high, pick):
 
 
 def torso_profile(points, cuts, crotch):
-    """The torso's centre x and z, width and depth at each slice from the crotch up (the piece over x 0)."""
+    """The torso's centre x and z, width and depth at each slice from the crotch up (the slice's largest piece)."""
     rows = []
     for level, cut in cuts:
         if level < crotch:
             continue
-        over = [piece for piece in cut if piece[3] <= 0.0 <= piece[4]]
-        if over:
-            mine = points[over[0][0]]
-            rows.append((level, over[0][1], over[0][2], np.ptp(mine[:, 0]), np.ptp(mine[:, 2])))
+        torso = max(cut, key=lambda piece: len(piece[0]))
+        mine = points[torso[0]]
+        rows.append((level, torso[1], torso[2], np.ptp(mine[:, 0]), np.ptp(mine[:, 2])))
     return np.array(rows)
 
 
