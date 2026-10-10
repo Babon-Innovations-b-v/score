@@ -121,6 +121,8 @@ def test_bootstrap_sets_the_hooks_and_reports_what_is_missing(scratch_repo, mach
 
 def test_bootstrap_builds_the_runtime_python_from_the_lock_once(scratch_repo, machine, tmp_path):
     home, env = machine
+    # The cloud runner hard-codes ~/.farm-factory-props/env, so a moved PROPS_HOME must not move the build.
+    env["PROPS_HOME"] = str(tmp_path / "elsewhere")
     runtime = home / ".farm-factory-props" / "env"
     run = run_script(scratch_repo, env, "bootstrap.sh")
     assert run.returncode == 0, run.stderr
