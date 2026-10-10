@@ -1018,7 +1018,8 @@
    "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/old_station.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base",
    "reuse": "wreck:supply_rocket",
    "fixed": true,
-   "why_fixed": "it stands on its own legs on the pad as the game lays it (a landed rocket, the lift's frame beside it), not loose"
+   "why_fixed": "it stands on its own legs on the pad as the game lays it (a landed rocket, the lift's frame beside it), not loose",
+   "dropped": "the coordinator, 2026-10-10: the landing pad it stood on is gone, rejected by the owner on 2026-10-04 (the scene record's coordinator_removed)"
   },
   {
    "id": "cargo_lift",
@@ -1047,7 +1048,8 @@
    "from": "the game's numbers: sim/base/rockets/supply_fleet.gd PLACES_ON_THE_PAD[0] (0 across, -6 along from the pad's middle), the pad at 32 across and 48 along (world.tscn:11-38) turned into this place's frame by the landing pad's placed_at and placed_turn in data/scene/old_station.json, standing on the pad's deck (0.2 m up); the lift toward the base by the rocket's body and half the lift (landing_pad.gd _stand_beside, LIFT_SCALE small 0.5), both faced toward the base; stood 0.1 m further out than the game's 0.95 m, because the made rocket's feet reach wider than the game's code legs",
    "reuse": "wreck:cargo_lift",
    "fixed": true,
-   "why_fixed": "it stands on its own legs on the pad as the game lays it (a landed rocket, the lift's frame beside it), not loose"
+   "why_fixed": "it stands on its own legs on the pad as the game lays it (a landed rocket, the lift's frame beside it), not loose",
+   "dropped": "the coordinator, 2026-10-10: the landing pad it stood on is gone, rejected by the owner on 2026-10-04 (the scene record's coordinator_removed)"
   }
  ],
  "concept_pick": {

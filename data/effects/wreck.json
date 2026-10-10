@@ -1,17 +1,6 @@
 {
  "place": "wreck",
- "about": "The dust a supply rocket's engine throws off the landing pad as it comes down, as the game 2099 draws it (SupplyRocketView): a flat sheet of fine grains racing out along the ground every way round, barely lifted, falling back under the Moon's pull with no air to hold it. The landing pad is the scene record's; the rocket, built in code in the game, is not on the stage, nor its engine's glow. Real footage checked: the Apollo landing films (Apollo 11 and 12 descent, 16 mm) show the engine's blast as a sheet of dust streaming outward close to the ground, with no billowing cloud, and the Apollo 16 film shows the grains as a veil (2099's #116).",
- "effects": [
-  {"name": "landing_dust", "kind": "landing_dust", "look": "speck",
-   "placement": {"structure": "landing_pad", "offset": [0.0, 0.2, 0.0]},
-   "emitter": {"shape": "ring", "radius": 3.3, "inner": 2.0, "height": 0.1},
-   "count": 40000, "lifetime": 2.0, "direction": [1.0, 0.06, 0.0], "spread": 180.0, "flatness": 0.95,
-   "speed": [8.0, 18.0], "gravity": [0.0, -1.62, 0.0], "size": 0.05, "colour": "#aeaaa4", "opacity": 0.6,
-   "space": "local", "seed": 75,
-   "from": "game/world/supply_rockets/supply_rocket_view.gd:321-334,451-470,502-532 (the big rocket: feet 3.3 and body 2.0 its ring, 0.1 high; LANDING_GRAINS 40,000 at full near the ground, LANDING_GRAIN_M 0.05, lifetime 2, direction (1, 0.06, 0), spread 180, flatness 0.95, 8 to 18 m/s, the Moon's pull down the ground's up, local coordinates), sim/engine/space/worlds.gd:25-27 (the Moon's pull 1.62), game/outside/dust/dust_grains.gd:23-38 (REGOLITH #8b8883 lifted by GRAIN_LIFT 1.25 to #aeaaa4, GRAIN_THICKNESS 0.6), game/world/world.tscn:11-38 via data/scene/wreck.json (the pad's deck top 0.2 m over its middle)"}
- ],
- "views": [
-  {"name": "landing-watch", "eye": [-25.12, 6.03, 10.62], "aim": [-42.87, -3.41, 18.13], "fov": 70, "frame": 24,
-   "from": "game/main/main.gd:1826-1830,2030-2045 (the landing check's camera: CHECK_LANDING_EYE_M 8 up, looking at the dust's middle 2 m up), stood 20 m from the pad toward the wreck on the planned ground"}
- ]
+ "about": "The wreck's particle effects. It held one, the dust a supply rocket's engine throws off the base's landing pad as it comes down (the game 2099's SupplyRocketView: 40,000 fine grains racing out along the ground, checked against the Apollo landing films); the owner rejected the landing pad for the scene on 2026-10-04, and the coordinator removed the dust thrown across it with it on 2026-10-10 (the scene record's owner_rejected and coordinator_removed, data/scene/wreck.json). The record stays so the rejection reads here too; the emitter is in git history (before 2026-10-10).",
+ "effects": [],
+ "views": []
 }

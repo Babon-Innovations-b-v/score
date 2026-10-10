@@ -458,9 +458,17 @@ def complete_line(place, scene, judged, passed):
 
 
 def rejected_sentence(record):
-    """What the game draws that the owner chose to leave out of the scene, said apart from what is missing."""
-    rejected = record.get("owner_rejected", [])
-    return f"Left out by the owner: {escaped('; '.join(rejected))}. " if rejected else ""
+    """What the game draws that the owner chose to leave out of the scene, and what the coordinator took out with it,
+    said apart from what is missing."""
+    return (left_out_sentence("Left out by the owner", record.get("owner_rejected", [])) +
+            left_out_sentence("Left out by the coordinator", record.get("coordinator_removed", [])))
+
+
+def left_out_sentence(lead, entries):
+    """One 'left out' sentence: each entry in words, or as its what with its date and why."""
+    said = [entry if isinstance(entry, str) else f"{entry['what']} ({entry['date']}: {entry['why']})"
+            for entry in entries]
+    return f"{lead}: {escaped('; '.join(said))}. " if said else ""
 
 
 def scene_section(scene, out, place=None, games=None, pictures=None):

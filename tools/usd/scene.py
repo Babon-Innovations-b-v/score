@@ -42,6 +42,10 @@ as numbers copied from the game (each entry names the game file it came from), a
     views       the cameras the place is judged from (the player's own spots; inside a room at standing height), each
                 naming the game's shot from about the same place
     game_only   what the game draws there that the scene does not carry, said plainly (a crowd, the stars)
+    owner_rejected  what the game draws there that the owner took out of the scene: in words, or as {what, names,
+                date, why}, whose names no record, kit piece's row or effect may hold again (refuse_rejected)
+    coordinator_removed  what the coordinator, not the owner, took out with an owner_rejected thing (it stood on it):
+                {what, names, date, why}; not refused, so the owner can bring it back
 
 Light units. The game's energies are unitless (Godot): a directional light of energy E lights a white floor it faces to
 about E, an omni light of energy E about E at a metre, falling off as its distance to the power of its `attenuation`
@@ -97,9 +101,31 @@ BUILDERS = ("quad", "box", "annulus", "walls", "wall_strip", "pyramid_roof", "do
 
 
 def record(place):
-    """The place's scene record, or None when it has none."""
+    """The place's scene record, or None when it has none; one that holds again what the owner rejected is refused."""
     path = SCENES / f"{place}.json"
-    return json.loads(path.read_text()) if path.exists() else None
+    if not path.exists():
+        return None
+    scene = json.loads(path.read_text())
+    refuse_rejected(scene, [entry.get(key) for entries in scene.values() if isinstance(entries, list)
+                            for entry in entries if isinstance(entry, dict) for key in ("name", "row")],
+                    "the scene record")
+    return scene
+
+
+def rejected_names(scene):
+    """The names the owner took out of the place for good (each `owner_rejected` entry's `names`, with its `date` and
+    `why`; an entry in words alone names nothing)."""
+    return {name for entry in (scene or {}).get("owner_rejected", []) if isinstance(entry, dict)
+            for name in entry["names"]}
+
+
+def refuse_rejected(scene, names, holder):
+    """Raise when `holder` (the scene record, the kit, the effects record) lays a thing the owner rejected, so a later
+    port from the game cannot bring it back."""
+    back = sorted(rejected_names(scene) & set(names))
+    if back:
+        raise ValueError(f"{scene['place']}: {holder} holds {back}, which the owner rejected for the scene "
+                         "(owner_rejected in its scene record)")
 
 
 def colour(value):

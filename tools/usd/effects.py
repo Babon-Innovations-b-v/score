@@ -637,6 +637,8 @@ def variant_target(stage, root, variant):
 
 def write_layer(place, effects, out, ground=None, scene=None):
     """The effects layer of the place's stage under `out`, rewritten whole; how many particles each emitter holds."""
+    if scene:
+        scene_record.refuse_rejected(scene, [entry["name"] for entry in effects["effects"]], "the effects record")
     out = pathlib.Path(out)
     path = out / LAYER
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -726,6 +726,8 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     elif isinstance(parts, dict):  # a kit room's run: a model its bake jobs do not name (laid later) by its stored take
         parts = {**stored_parts.takes_of(place), **parts}
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
+    if scene:
+        scene_record.refuse_rejected(scene, [piece.get("row") for piece in kit["pieces"]], "the kit")
     if kit["pieces"] and "x" in kit["pieces"][0]:
         kit = dict(kit, pieces=kit_room_pieces(kit, models, (scene or {}).get("tube_length"), place))
     if (scene or {}).get("moved"):  # the pieces the game moves in its own code (a door it slides open)
