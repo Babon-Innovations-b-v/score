@@ -315,6 +315,9 @@ def main():
         print(f"{first} and {second} came to rest inside each other")
     settled = {}
     for name, found in sorted(simulated["objects"].items()):
+        if found["inside"] and not arguments.dry_run:  # its drop, on the bare ground alone, is no rest pose
+            print(f"{name}: laid inside {', '.join(found['inside'])}; left as laid (put its layout right first)")
+            continue
         if found["inside"]:
             print(f"{name}: laid inside {', '.join(found['inside'])}; settled on the ground alone")
         if found["moving"] > STILL:
