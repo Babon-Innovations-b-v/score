@@ -366,6 +366,10 @@ def table_rows(spec, outfit, folder, take):
     rows.append(("build", "outfit triangles (tucks and prints in)", f"{triangles:,}", f"<= {SHIPPED_TRIANGLES:,}",
                  "pass" if triangles <= SHIPPED_TRIANGLES else "FAIL"))
     rows += bodycloth_rows(folder)
+    baked = json.loads((folder / "settle" / f"{spec['name']}.bake.json").read_text())
+    rows.append(("garment_bake.py", "corrective shapes (8 a clip) / their worst miss of the settle",
+                 f"{baked['targets']} / {max(clip['missed_mm'] for clip in baked['clips'].values()):.1f} mm",
+                 "record", "-"))
     rows.append(("outline.py", "A-pose IoU against the cut-out, raw / built",
                  f"{outlined['iou_raw']} / {outlined['iou_built']} (drop {outlined['iou_drop']})",
                  "drop <= 0.01, bands <= 1 %", "pass" if outlined["pass"] else "FAIL"))
@@ -470,6 +474,8 @@ def checks(spec, outfit, who, held, dry_run):
              f"{time.strftime('%Y-%m-%d %H:%M', time.gmtime())} UTC", ""]
     lines += ["  ".join(str(value).ljust(width) for value, width in zip(row[:4], widths)) + "  " + row[4]
               for row in rows]
+    lines += ["", "The face is a print cut from the close-up (prop_prints.py), the overseer's decision of 2026-10-10 in the "
+              "owner's absence; the owner may veto it, and the head is then the skin colour only."]
     text = "\n".join(lines) + "\n"
     (folder / "checks" / "checks.txt").write_text(text)
     target = CHECKS_TABLE / spec["name"] / "checks.txt"
