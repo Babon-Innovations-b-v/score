@@ -56,3 +56,53 @@ Flat & 38 & 52 & 35 / 9 & €2.44 & with the stairwell & 5 / 6 & 50 of 52 \\
 World 1 & 611 & 12,066 & 981 / 127 & €54.71 & & & 10,082 of 12,066 \\
 \end{longtable}
 }
+
+\subsection{Style readings}\label{style-readings}
+
+Table B2 gives the style readings for every place of world 1 with more than two generated models. The lightness spread is the standard deviation of the models' median lightness (L*); over all 140 models it is 15.0. Marks is the median over the models of the 75th percentile of the L* spread within tiles of 8 by 8 pixels on the model. Likeness is the mean DINOv2 class-token cosine of pairs within the place and across places, for the renders and for their silhouettes, and the gap is the renders' difference less the silhouettes'. The airlock, the launch view and the stairwell have one generated model each and the tube none; the habitat, the square and the street have two, too few to read.
+
+\textbf{Table B2.} Style readings of world 1's generated models, per place.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1429}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Place
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Models
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Lightness spread
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Marks
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Likeness within / across
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Silhouettes within / across
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Gap
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Camp & 5 & 8.3 & 4.55 & 0.345 / 0.136 & 0.378 / 0.164 & −0.005 \\
+Flat & 9 & 16.7 & 4.83 & 0.186 / 0.122 & 0.243 / 0.176 & −0.003 \\
+Garage & 19 & 12.6 & 2.80 & 0.185 / 0.159 & 0.199 / 0.177 & 0.004 \\
+Greenhouse & 3 & 4.5 & 6.12 & 0.071 / 0.140 & 0.140 / 0.174 & −0.035 \\
+Hangar & 13 & 9.5 & 2.99 & 0.185 / 0.151 & 0.231 / 0.174 & −0.023 \\
+Hub & 12 & 3.8 & 5.96 & 0.243 / 0.151 & 0.243 / 0.160 & 0.009 \\
+Lab & 22 & 14.4 & 1.96 & 0.203 / 0.162 & 0.195 / 0.174 & 0.020 \\
+Old station & 24 & 12.7 & 8.96 & 0.221 / 0.156 & 0.217 / 0.175 & 0.023 \\
+Workshop & 8 & 3.8 & 7.28 & 0.402 / 0.158 & 0.400 / 0.178 & 0.022 \\
+Wreck & 16 & 12.8 & 3.98 & 0.241 / 0.161 & 0.257 / 0.175 & −0.002 \\
+\end{longtable}
+}
+
+For the comparison with the pictures' own colours, each generated model of the garage, the hangar and the lab was rendered a second time as the take it came from, with the colours the picture model gave it. Painted from the library, the median marks fell from 2.99 to 2.80 in the garage, from 3.53 to 2.99 in the hangar and from 2.79 to 1.96 in the lab. The lightness spread rose, from 7.9, 6.4 and 8.7 to 12.6, 9.5 and 14.4, because the library gives a place dark and light panels on purpose while the generator's colours stay in the middle tones. The DINOv2 gap read 0.007 painted against 0.000 with the picture's colours, a difference for which no interval was computed. The take is the generator's own mesh, at its own pose and density, while the made model is rebuilt from its parts, so the difference in marks mixes the paint with the geometry. The workshop's models are the hub's tools, reused under the rule against duplicates; any two renders of one model, in two places or within one, are left out of the likeness, which would otherwise count one model as two that agree.

@@ -1,0 +1,6 @@
+place          n  colrd fitted    fit  L* sd  marks  mk sd col in col out shp in shp out    gap
+garage        19  0.069     13  1.000    7.9   2.99   1.68  0.219  0.214  0.288  0.294  0.011
+hangar        13  0.000      6  1.000    6.4   3.53   1.87  0.229  0.208  0.340  0.303 -0.016
+lab           22  0.013      8  1.000    8.7   2.79   1.69  0.237  0.217  0.323  0.295 -0.008
+world: 54 models (0 pairs of copies left out), L* sd 9.0, coloured palettes shared 1.0
+world likeness: colour 0.229 within, 0.213 across; shape 0.313 within, 0.297 across; gap 0.0 (pairs within, across: [480, 380])
