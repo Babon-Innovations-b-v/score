@@ -49,6 +49,11 @@ DECAL_PROUD = 0.002
 # 3 mm and no hole is left open.
 WALL = 0.005
 VOXEL_SHARE = 1 / 300
+# A piece whose job names no wall of its own is thickened by WALL_VOXELS of its voxels where that is more than WALL, as
+# place_route.py's jobs do (its WALL_SHARE): a shell thinner than a voxel falls between the grid's samples and comes
+# back as lace. The 60 m launch rocket, baked from a job that named no wall, came back at 5 mm under 0.2 m voxels full
+# of holes, its lumpy feet, seen plain grey with no maps at all; at two voxels its shape came back whole (2026-10-10).
+WALL_VOXELS = 2
 VOXEL_FINEST = 0.0012
 # How far the solid copy's box may grow past the full model's on any side: a share of the piece's largest side, plus
 # the wall. Thickening a noisy shell with even offset threw spikes tens of metres long (2026-10-06, a 0.6 m roof apex
@@ -141,6 +146,11 @@ def solid_copy(whole, faces, name, size, wall=WALL):
     return copy
 
 
+def default_wall(size):
+    """The wall a piece takes when its job names none: WALL, or WALL_VOXELS of its voxels where those are thicker."""
+    return max(WALL, WALL_VOXELS * max(VOXEL_FINEST, max(size) * VOXEL_SHARE))
+
+
 def surface_at(tree, x, y, size, footprint=(0.0, 0.0)):
     """How far forward (kit z) the model's front comes anywhere under a part's footprint centred at (x, y): rays
     from in front, straight back, over a 3 x 3 grid; the frontmost hit, so no bulge of the model covers the part
@@ -187,7 +197,8 @@ def make_piece(entry, job, out):
     whole = full_model(entry["parts"], entry["name"])
     into_kit_frame(whole, entry["base"], entry["size"])
     regioned(whole, entry.get("regions", []))
-    low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"], entry.get("wall", WALL))
+    low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"],
+                     entry.get("wall", default_wall(entry["size"])))
     opened(low, entry.get("cuts", []), entry["size"])
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
