@@ -4,9 +4,9 @@ of tubes (a torso narrowest at its waist, arms held down and out, legs) dressed 
 it was given and finds the waist where the body is narrowest, and its verdict fails a wider or sagging cloth and a
 sleeve missing where the reference has one, and leaves a cut neither drape reads unknown; the gate is over the torso
 and arm regions only, and over the dense cuts, which find a bulge between the named cuts and a puffed sleeve cap
-between the armpit and the shoulder; a dense cut past both drapes' sleeves is absent and passes; the belt band reads
-unknown where the torso cloth does not reach it, and the verdict lets only pass through; cloth through cloth is
-counted.
+between the armpit and the shoulder and leave out an arm cut whose body chain takes in the spine; a dense cut past
+both drapes' sleeves is absent and passes; the belt band reads unknown where the torso cloth does not reach it, and
+the verdict lets only pass through; cloth through cloth is counted.
 
 Run: .venv/bin/python tools/characters/maker/drape_measure_test.py   (make tests runs it with the framework's environment)
 """
@@ -239,6 +239,18 @@ def test_dense_cuts_step_through_every_band():
     assert shoulder == [f"shoulder_{height}" for height in range(130, 135)]
     arm = [name for name, band, *_ in found if band == "arm"]
     assert len(arm) == 2 * (14 + 1 + 18) and "upper_arm_30" in arm and "forearm_95" in arm and "elbow" in arm
+
+
+def test_an_arm_cut_through_the_torso_is_dropped():
+    # A torso tube round the spine and an arm tube held down and out, apart: the player's upper_arm_30 cut ran
+    # through torso and arm as one 53 cm loop, so a cut round the arm's bone whose body chain is the torso's reads the
+    # torso, not the arm.
+    places = joints()
+    tilted = np.array([1.0, -1.0, 0.0]) / np.sqrt(2.0)
+    torso = tube([0.0, 60.0, 0.0], [0.0, 160.0, 0.0], TORSO_RADIUS, closed=True)
+    assert drape_measure.takes_in_spine(*torso, places, 1, np.array([8.0, 120.0, 0.0]), tilted)
+    arm = tube([30.0, 120.0, 0.0], [50.0, 100.0, 0.0], ARM_RADIUS, closed=True)
+    assert not drape_measure.takes_in_spine(*arm, places, 1, np.array([40.0, 110.0, 0.0]), tilted)
 
 
 def test_a_bulge_between_the_named_cuts_fails_the_dense_gate():

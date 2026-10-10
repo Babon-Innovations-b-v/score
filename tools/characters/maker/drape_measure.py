@@ -198,7 +198,8 @@ GATE_REGIONS = ("chest", "underbust", "waist", "belly", "low_belly", "hip", "upp
 TORSO_STEP_CM = 1.0
 ARM_STEP = 0.05
 # The upper arm is cut from UPPER_ARM_FROM of the bone down (nearer the shoulder a cut square to the bone cuts the
-# torso, and the shoulder band reads there), the forearm from FOREARM_FROM past the elbow (nearer, the cut meets the
+# torso, and the shoulder band reads there; on the player's body it still does at 30 %, one 53 cm loop round torso
+# and arm, so `dense_cuts` drops any arm cut whose body chain takes in the spine), the forearm from FOREARM_FROM past the elbow (nearer, the cut meets the
 # upper sleeve; the elbow cut reads there); both to ARM_TO (the hand starts past it).
 UPPER_ARM_FROM, FOREARM_FROM, ARM_TO = 0.3, 0.1, 0.95
 # The natural waist is looked for between the hip joints and the Chest joint, every WAIST_STEP_CM.
@@ -213,8 +214,8 @@ COVER = 0.9
 # the simulator leaves to chance; Warp itself repeats a drape exactly). Limbs: the left limb's cut against the
 # right's; the torso: its right half against its left (width as each half's stand-off sideways). Measured again with
 # the low-belly cut in drapes-fix round 4 (267 torso halves): the torso's width came to 1.50 (1.51 before). On the
-# dense cuts of the same 48 drapes (2026-10-10: 2,079 torso halves, 1,331 arm pairs) the spread is no larger (torso
-# 1.30, 0.38, 0.54; arm 0.72, 0.30, 0.43), so the torso's and the arm's tolerances stay the named cuts'. The shoulder
+# dense cuts of the same 48 drapes (2026-10-10: 2,079 torso halves, 1,303 arm pairs without the arm cuts that take in
+# the spine) the spread is no larger (torso 1.30, 0.38, 0.54; arm 0.67, 0.29, 0.43), so the torso's and the arm's tolerances stay the named cuts'. The shoulder
 # is measured on its own dense cuts (392 halves: 0.61, 0.24, 0.62), as the sleeve's cap is in its cloth.
 TOLERANCE_CM = {"torso": {"cloth_width": 1.5, "standoff_median": 0.5, "standoff_p90": 0.7},
                 "shoulder": {"cloth_width": 0.7, "standoff_median": 0.3, "standoff_p90": 0.7},
@@ -367,8 +368,10 @@ def arm_band_cuts(joints):
 
 
 def dense_cuts(joints, body):
-    """Every cut the gate reads besides the named ones: the torso's, the shoulder's and the arms' bands."""
-    return torso_band_cuts(joints) + shoulder_band_cuts(joints, body) + arm_band_cuts(joints)
+    """Every cut the gate reads besides the named ones: the torso's, the shoulder's and the arms' bands, without an
+    arm cut whose body chain takes in the spine (`takes_in_spine`)."""
+    arms = [cut for cut in arm_band_cuts(joints) if not takes_in_spine(*body[:2], joints, *cut[2:])]
+    return torso_band_cuts(joints) + shoulder_band_cuts(joints, body) + arms
 
 
 def plane_basis(normal):
@@ -423,19 +426,39 @@ def goes_round(segments, centre):
     return int((crossing > 0).sum()) % 2 == 1
 
 
-def body_outline(points, faces, side, point, normal, limb):
-    """The body's cut (flat points) round the cut's point: the smallest closed chain round it; a leg's only on its own
-    side (the thighs may touch)."""
+def body_chain(points, faces, point, normal):
+    """The body's cut round the cut's point, the smallest closed chain round it, as (segments (n, 2, 3), the same
+    flat (n, 2, 2)); None when no chain goes round it."""
     segments, keys = plane_section(points, faces, point, normal)
     flat = to_plane(segments.reshape(-1, 3), point, normal).reshape(-1, 2, 2)
     round_it = [chain for chain in loops(keys) if goes_round(flat[chain], np.zeros(2))]
     if not round_it:
         return None
     chain = min(round_it, key=len)
-    outline = flat[chain].reshape(-1, 2)
+    return segments[chain], flat[chain]
+
+
+def body_outline(points, faces, side, point, normal, limb):
+    """The body's cut (flat points) round the cut's point (`body_chain`); a leg's only on its own side (the thighs may
+    touch)."""
+    found = body_chain(points, faces, point, normal)
+    if found is None:
+        return None
+    segments, flat = found
+    outline = flat.reshape(-1, 2)
     if limb == "leg":
-        outline = outline[segments[chain].reshape(-1, 3)[:, 0] * side > 0]
+        outline = outline[segments.reshape(-1, 3)[:, 0] * side > 0]
     return outline
+
+
+def takes_in_spine(points, faces, joints, side, point, normal):
+    """Whether the body's chain round an arm cut reaches the spine (`spine_point` at the cut's height): the cut runs
+    through the torso and the arm as one loop, so it reads the torso, not the arm."""
+    found = body_chain(points, faces, point, normal)
+    if found is None:
+        return False
+    ends = found[0].reshape(-1, 3)
+    return bool(((ends[:, 0] - spine_point(joints, point[1])[0]) * side).min() <= 0)
 
 
 def cloth_outline(points, faces, face_kind, side, point, normal, limb):
