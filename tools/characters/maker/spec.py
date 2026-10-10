@@ -11,7 +11,9 @@ anything is rented. Paths are absolute or start from ~ (the creator's own pictur
      "outfits": ["work", "space"],              GarmentCode designs draped on the body (data/characters/garments)
      "garment_body": "mean_male" or "mean_female",   GarmentCode body the measurements are scaled from
      "clips": ["standing", "walking", ...],     sentences of tools/characters/people/clips.py (all when left out)
-     "look": {...}}                             tools/characters/people/person.py's settings (scale, colours, ...)
+     "look": {...},                             tools/characters/people/person.py's settings (scale, colours, ...)
+     "route": "prop"}                           the prop route (prop_person.py) instead of the shipped one; it also
+                                                takes "outfit_words" ({outfit: the outfit by its parts, in words})
 
 An animal's spec is the animal route's (tools/characters/animals/): "kind": "animal" and its "body". Every make must
 say who asked for it in "approved": the maker makes only characters somebody asked for.
@@ -60,6 +62,11 @@ def person_problems(spec):
         problems.append("no hair in words")
     if not spec.get("face"):
         problems.append("no face in words")
+    if spec.get("route") not in (None, "prop"):
+        problems.append(f"route {spec['route']!r} is not prop (or left out for the shipped route)")
+    if spec.get("route") == "prop":
+        problems += [f"no outfit_words for {outfit}" for outfit in spec.get("outfits", ["work"])
+                     if outfit not in spec.get("outfit_words", {})]
     return problems
 
 

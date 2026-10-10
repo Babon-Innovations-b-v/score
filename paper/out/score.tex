@@ -1300,8 +1300,14 @@ powerful text encoders,''} in \emph{Conference on language modeling
 {``The {Llama 3} herd of models,''} \emph{arXiv preprint
 arXiv:2407.21783}, 2024.}
 
-\bibitem[\citeproctext]{ref-claudecode}
+\bibitem[\citeproctext]{ref-abdrashitov2023rswt}
 \CSLLeftMargin{{[}54{]} }%
+\CSLRightInline{R. Abdrashitov, K. Raichstat, J. Monsen, and D. Hill,
+{``Robust skin weights transfer via weight inpainting,''} in
+\emph{SIGGRAPH asia 2023 technical communications}, 2023.}
+
+\bibitem[\citeproctext]{ref-claudecode}
+\CSLLeftMargin{{[}55{]} }%
 \CSLRightInline{Anthropic, {``{Claude Code}.''} 2026. Available:
 \url{https://www.anthropic.com/claude-code}}
 
@@ -1788,6 +1794,10 @@ FLUX.2 klein base 4B {[}43{]} with the refcontrol reference-depth LoRA
 data is not disclosed \\
 UniRig {[}45{]} & the skeleton and skin of a quadruped & MIT code and
 weights \\
+Robust Skin Weights Transfer {[}54{]} & the SOMA-X skeleton's skin
+weights moved onto a Pixal3D person (the prop route of the character
+maker, trial) & MIT reference code, ported with trimesh and SciPy;
+libigl, whose bindings carry GPL-3.0, not used \\
 MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
 }
@@ -1880,7 +1890,7 @@ World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 &
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound
 generation, all checks and the assembly run automatically. Coding agents
-(Claude Code {[}54{]}) write the plans, the inventories and every code
+(Claude Code {[}55{]}) write the plans, the inventories and every code
 builder; in the hub's final round, 86 of its 98 models were built in
 code. Some steps were still done by hand: some generated objects were
 turned to face the right way by eye, and a few labels were placed by

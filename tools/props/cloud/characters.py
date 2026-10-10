@@ -13,9 +13,10 @@ each step did and how long it took. The people are spread over machines (spread.
 time; characters_setup.sh sets each machine up once (about half an hour: six environments side by side).
 
 A make folder whose spec names another maker program (`program`: rebuild.py, which drapes kept looks again and
-builds them) runs that program instead of chain.py, on the same machines.
+builds them; prop_chain.py, the prop route's steps) runs that program instead of chain.py, on the same machines.
 
---hold keeps the first machine after its people, for hands-on work over ssh, until the run folder holds `release`.
+--hold keeps the first machine after its people, for hands-on work over ssh, until the run folder holds `release`
+(or `--minutes`, the run's time limit, has passed).
 The owner's limits, the self-delete, the watchdog, the delete and the ledger are batch.py's.
 """
 import argparse
@@ -51,17 +52,17 @@ PERSON_MINUTES = 60
 DISK_GB = 200
 POLL_SECONDS = 30
 # The programs of tools/characters/maker a make folder may run, by the name its spec gives.
-PROGRAMS = {"chain.py": "chain.py", "rebuild.py": "rebuild.py run"}
+PROGRAMS = {"chain.py": "chain.py", "rebuild.py": "rebuild.py run", "prop_chain.py": "prop_chain.py"}
 
 
-def price(makes, account, classes):
+def price(makes, account, classes, minutes=None):
     """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the minutes
-    allowed."""
+    allowed (`minutes` in place of the estimate, for a held machine)."""
     found = batch.offers(list(classes or capacity.classes_for(KIND)))
     if not found:
         raise SystemExit("no card that holds the character chain is sold by the backend")
     count = capacity.machines_for(len(makes), PERSON_MINUTES, SETUP_MINUTES)
-    minutes = SETUP_MINUTES + max(PERSON_MINUTES, len(makes) * PERSON_MINUTES / count)
+    minutes = minutes or SETUP_MINUTES + max(PERSON_MINUTES, len(makes) * PERSON_MINUTES / count)
     what = f"{len(makes)} people on {count} machine{'s' if count > 1 else ''}"
     return found, count, batch.priced(found, minutes, count, what, account)
 
@@ -178,6 +179,8 @@ def main():
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--classes", help="capability classes to take, comma separated (default: the kind's)")
     parser.add_argument("--hold", action="store_true", help="keep one machine for ssh work until `release`")
+    parser.add_argument("--minutes", type=float, help="the run's time limit in place of the estimate (a held "
+                        "machine's hands-on work)")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     options = parser.parse_args()
     makes = [make.resolve() for make in options.makes]
@@ -188,7 +191,7 @@ def main():
     classes = options.classes.split(",") if options.classes else None
     account = cloud.account()
     batch.sweep(account)
-    found, count, allowed_minutes = price(makes, account, classes)
+    found, count, allowed_minutes = price(makes, account, classes, options.minutes)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())

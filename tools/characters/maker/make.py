@@ -8,7 +8,9 @@ Each spec (spec.py says what it holds) gets a make folder, ~/.farm-factory-motio
 (the spec with its files renamed to where they lie up there, the files, and what every person shares: the boots,
 MakeHuman's eyes, the garment designs and the clips already made), and `out/` comes back from the machine. People go
 to the person chain on rented cards (tools/props/cloud/characters.py, tools/characters/maker/chain.py), one machine a
-person; animals go to the animal route (tools/characters/animals/). Nothing here loads a model.
+person; animals go to the animal route (tools/characters/animals/). A person spec with "route": "prop" goes to the prop
+route instead (prop_person.py: Pixal3D's mesh with SOMA-X's skeleton fitted inside it, candidates only); every other
+person keeps the shipped route. Nothing here loads a model.
 """
 import argparse
 import json
@@ -73,6 +75,12 @@ def make_people(folders, who, classes, dry_run):
     subprocess.run(command, check=True)
 
 
+def make_prop_person(path, who, dry_run):
+    """A person on the prop route (prop_person.py), every stage in turn."""
+    command = [sys.executable, str(HERE / "prop_person.py"), str(path), "--who", who]
+    subprocess.run(command + (["--dry-run"] if dry_run else []), check=True)
+
+
 def make_animals(found, who, dry_run):
     """The animals through the animal route (tools/characters/animals/route.py)."""
     sys.path.insert(0, str(REPO / "tools/characters/animals"))
@@ -89,7 +97,10 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="check, bundle and price, rent nothing")
     options = parser.parse_args()
     found = [specs.read(path) for path in options.specs]
-    people = [bundle(spec) for spec in found if spec["kind"] == "person"]
+    for spec, path in zip(found, options.specs):
+        if spec["kind"] == "person" and spec.get("route") == "prop":
+            make_prop_person(path, options.who, options.dry_run)
+    people = [bundle(spec) for spec in found if spec["kind"] == "person" and spec.get("route") != "prop"]
     if people:
         make_people(people, options.who, options.classes, options.dry_run)
     animals = [spec for spec in found if spec["kind"] == "animal"]
