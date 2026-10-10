@@ -12,11 +12,11 @@ STEP_RISE over or under that eye (a table top, a ledge, a pit) is not taken, nor
 somewhere along it (edges_floored). A start and goal joined by a walkable straight edge are that edge. An edge between
 two eyes is valid only when a ray along it, four more offset by the clearance radius (left, right, up, down), and two
 along the walker's body under it (BODY: its knee and its waist, so it never steps over a railing or a table), meet
-nothing before its end: no object, Structure or Fixtures mesh and no ground in between. The tree is grown by RRT*
-(Karaman and Frazzoli, 2011: each new point joined to the cheapest valid parent near it, then the near points rewired
-through it when that is shorter), seeded, so the same place and seed give the same path. The path found is cut short
-wherever a straight valid edge skips points, then laid out evenly as `--frames` views, each aimed LOOK_AHEAD metres
-further along it.
+nothing before its end: no object, Structure or Fixtures mesh, no person (the place's characters as boxes where they
+stand at the stage's first moment) and no ground in between. The tree is grown by RRT* (Karaman and Frazzoli, 2011: each
+new point joined to the cheapest valid parent near it, then the near points rewired through it when that is shorter),
+seeded, so the same place and seed give the same path. The path found is cut short wherever a straight valid edge skips
+points, then laid out evenly as `--frames` views, each aimed LOOK_AHEAD metres further along it.
 
 The output is a JSON list of views in the review walk's format (tools/review/renders.py: name `walk-NNN`, eye, aim, up,
 fov, look_only), which renders.render_stage and walk_video take as they take the walk renders.py makes; renders.py
@@ -60,14 +60,56 @@ LOOK_AHEAD = 2.0
 FOV = 75.0
 
 
+def people(stage_path):
+    """The place's characters (tools/characters/cast.py) as boxes where they stand at the stage's first moment: each
+    character's own box, and each of a crowd's instances its prototype's box moved to it. A character walking away
+    from its first spot is not followed."""
+    from pxr import Usd, UsdGeom, UsdSkel
+    stage = Usd.Stage.Open(str(stage_path))
+    found = stage.GetDefaultPrim().GetChild("Characters")
+    if not found.IsValid():
+        return []
+    time = Usd.TimeCode(stage.GetStartTimeCode())
+    cache = UsdGeom.BBoxCache(time, [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    boxes, prims = [], iter(Usd.PrimRange(found))
+    for prim in prims:
+        if prim.IsA(UsdGeom.PointInstancer):
+            boxes += crowd_boxes(UsdGeom.PointInstancer(prim), cache, time)
+            prims.PruneChildren()
+        elif prim.IsA(UsdSkel.Root):
+            box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+            if not box.IsEmpty():
+                boxes.append(trimesh.creation.box(bounds=[list(box.GetMin()), list(box.GetMax())]))
+            prims.PruneChildren()
+    return boxes
+
+
+def crowd_boxes(instancer, cache, time):
+    """Each instance of a crowd as its prototype's own box, moved where the instancer stands it."""
+    from pxr import UsdGeom
+    stage = instancer.GetPrim().GetStage()
+    sizes = [cache.ComputeUntransformedBound(stage.GetPrimAtPath(path)).ComputeAlignedRange()
+             for path in instancer.GetPrototypesRel().GetTargets()]
+    world = np.array(UsdGeom.Xformable(instancer.GetPrim()).ComputeLocalToWorldTransform(time))
+    boxes = []
+    for matrix, index in zip(instancer.ComputeInstanceTransformsAtTime(time, time),
+                             instancer.GetProtoIndicesAttr().Get(time)):
+        if sizes[index].IsEmpty():
+            continue
+        box = trimesh.creation.box(bounds=[list(sizes[index].GetMin()), list(sizes[index].GetMax())])
+        box.apply_transform((np.array(matrix) @ world).T)  # USD's matrices act on row vectors
+        boxes.append(box)
+    return boxes
+
+
 def place_scenes(stage_path):
     """A place for the camera: one mesh of everything an edge must not cross and an eye may stand over (the ground, the
-    Structure and Fixtures meshes and the objects, cast at by trimesh's rays: Embree's when embreex is installed, as the
-    framework's environment has it), the ground's height under any (x, z), and the place's extent (x, z) without the
-    ground."""
+    Structure and Fixtures meshes, the objects and the people, cast at by trimesh's rays: Embree's when embreex is
+    installed, as the framework's environment has it), the ground's height under any (x, z), and the place's extent
+    (x, z) without the ground."""
     laid = snap.read_place(stage_path)
     shown = {**laid["objects"], **laid["statics"]}
-    blocking = trimesh.util.concatenate([*shown.values(), laid["ground"]])
+    blocking = trimesh.util.concatenate([*shown.values(), laid["ground"], *people(stage_path)])
     corners = np.vstack([mesh.bounds for mesh in shown.values()]) if shown else np.zeros((2, 3))
     extent = (corners[:, 0].min(), corners[:, 2].min(), corners[:, 0].max(), corners[:, 2].max())
     return {"blocking": blocking, "height": laid["height"], "extent": extent}
