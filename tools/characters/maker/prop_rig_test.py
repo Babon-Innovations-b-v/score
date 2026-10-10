@@ -2,7 +2,8 @@
 and weights are known: placed into itself the skeleton and the weights come back; placed into the same body with
 the arms held lower the arm bones turn onto the new arms at their own lengths, with their offsets against their
 parents as the mean skeleton's (so the clips play unchanged); RSWT's inpainting fills an unmatched strip between two matched sides with
-a blend of both; a tuck runs a part's open border on under the garment; the poke check reads a tuck under its cloth as
+a blend of both; a tuck runs a part's open border on along its surface under the garment, and a border with no garment by it gets
+none; the poke check reads a tuck under its cloth as
 hidden and one over it as showing.
 
 Run: .venv/bin/python tools/characters/maker/prop_rig_test.py   (make tests runs it with the framework's environment)
@@ -132,15 +133,22 @@ def test_inpainting_blends_the_unmatched_strip():
 def test_tuck_runs_under_the_garment():
     sleeve = tube((0, 0, 0), (0, -0.3, 0), 0.05)
     hand = trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(sleeve.vertices, sleeve.faces, 0.02), process=False)
+    hand.merge_vertices()
     open_hand = hand.faces[hand.triangles_center[:, 1] < -0.1]
     used, renumbered = np.unique(open_hand, return_inverse=True)
     points, faces = hand.vertices[used], renumbered.reshape(-1, 3)
     weights = np.tile([1.0, 0.0], (len(points), 1))
-    garment = np.array([[0.0, 0.0, 0.05], [0.0, 0.05, 0.0]])
-    out_points, out_faces, out_weights = tucks.tucked(points, faces, weights, garment, np.array([[0.0, 1.0]] * 2))
+    turns = np.linspace(0, 2 * np.pi, 48, endpoint=False)
+    cuff = np.concatenate([np.stack([0.055 * np.cos(turns), np.full(48, height), 0.055 * np.sin(turns)], 1)
+                           for height in np.linspace(-0.1, 0.0, 11)])
+    out_points, out_faces, out_weights = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)))
     band = out_points[len(points):]
-    assert len(band) and band[:, 1].max() > -0.1 + tucks.TUCK_LENGTH - 0.005
+    ring = np.unique(tucks.border_edges(faces))
+    assert len(band) and abs(band[:, 1].mean() - (points[ring, 1].mean() + tucks.TUCK_LENGTH)) < 0.005
+    assert np.linalg.norm(band[:, [0, 2]], axis=1).max() < 0.05
     assert np.allclose(out_weights[len(points):], [0.0, 1.0])
+    alone, _, _ = tucks.tucked(points, faces, weights, cuff + [0.0, 1.0, 0.0], np.tile([0.0, 1.0], (len(cuff), 1)))
+    assert len(alone) == len(points)
 
 
 def test_pokes_read_inside_and_outside():
