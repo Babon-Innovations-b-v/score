@@ -1,6 +1,7 @@
 """Check the prop route's part questions and answers: every part is asked with each of the three seeds, most of a
 part's usable answers decide its material, an answer with no JSON (the judge thinking past its limit) is not counted,
-and each outfit has its own palette.
+a part with no usable answer is cut by its mirror image and takes its mirror parts' answers, and each outfit has its
+own palette.
 
 Run: .venv/bin/python tools/characters/maker/prop_parts_test.py   (make tests runs it with the framework's environment)
 """
@@ -8,6 +9,8 @@ import json
 import pathlib
 import sys
 import tempfile
+
+import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import prop_parts  # noqa: E402
@@ -41,6 +44,16 @@ def test_most_usable_answers_decide():
         answer(folder, 1, 8, '{"part": "hand", "material": "M1"}')
         found = prop_parts.judged_by_most(folder, "take", 3, NAMES)
         assert found == {0: "navy fabric", 1: "skin"}
+
+
+def test_an_unanswered_part_takes_its_mirror_images_answers():
+    # Faces left and right of x 0: on the right a hand (part 0, answered) and a cuff above it (part 1, answered); on
+    # the left one part (2) the judge gave no answer for.
+    middles = np.array([[-0.5, 1.0, 0.0], [-0.5, 1.2, 0.0], [0.5, 1.0, 0.0], [0.5, 1.2, 0.0]])
+    part_of = np.array([0, 1, 2, 2])
+    split, mirror_of = prop_parts.mirrored(part_of, [2], {0: "skin", 1: "navy fabric"}, middles)
+    assert split[0] == 0 and split[1] == 1 and split[2] != split[3]
+    assert mirror_of[split[2]] == 0 and mirror_of[split[3]] == 1
 
 
 def test_each_outfit_has_its_palette():
