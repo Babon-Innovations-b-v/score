@@ -455,6 +455,10 @@ def bodycloth_rows(folder):
     (bodycloth_shaped.py, the corrective shapes in) and as the reviewer's reader takes it (without them)."""
     rows = []
     for name, how in (("bodycloth.json", "with the settle's shapes"), ("bodycloth_plain.json", "garments unsettled")):
+        if not (folder / "checks" / name).exists():
+            rows.append(("bodycloth.py", f"skin and hard edges through cloth, {how}", "not finished", "record",
+                         "the count did not finish (see the report)"))
+            continue
         found = json.loads((folder / "checks" / name).read_text())
         clips = list(found["clips"].values())
         for kind in ("skin", "hard"):
@@ -487,6 +491,11 @@ def checks(spec, outfit, who, held, dry_run):
     if not (fresh(checked / "bodycloth.json", body) and fresh(checked / "bodycloth_plain.json", body)):
         together([BODYCLOTH, body, "--outfit", outfit, "--out", checked / "bodycloth_plain.json"],
                  ["bodycloth_shaped.py", BODYCLOTH, body, "--outfit", outfit, "--out", checked / "bodycloth.json"])
+    return write_table(spec, outfit, folder, take)
+
+
+def write_table(spec, outfit, folder, take):
+    """The checks' table from their records: <candidate>/checks/checks.txt and the coordinator's copy."""
     rows = table_rows(spec, outfit, folder, take)
     widths = [max(len(str(row[column])) for row in rows) for column in range(4)]
     lines = [f"PROP PEOPLE CHECKS: {spec['name']} ({outfit}), take {take}, "
