@@ -7,7 +7,7 @@ read from the built glTF as the engine skins it (people/joins.py's reader). Meas
   `tuck_from`) point's height outside the nearest garment surface, along that surface's normal: a tuck showing
   through its sleeve, collar or trouser leg. Per clip the worst frame and how many frames have a point over POKE_MM.
 - cloth_crossings: how many garment edges pass through a garment triangle they share no corner with
-  (drape_measure.self_crossings), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
+  (drape_measure.self_crossings, the garment parts welded where their borders meet), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
   default): cloth gone through cloth. A Pixal3D surface may cross itself at rest; a frame is counted as poking where
   it crosses more than the rest does.
 - verdict: pass when no frame has a tuck point over POKE_MM outside and no frame crosses more than the rest.
@@ -28,6 +28,7 @@ import drape_measure  # noqa: E402
 import joins  # noqa: E402
 
 POKE_MM = 5.0
+WELD_DIGITS = 6
 CROSSING_EVERY = 5
 GARMENT = "garment"
 
@@ -65,6 +66,20 @@ def garment_surface(posed, garments):
     return points, faces, normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
 
 
+def weld_map(points):
+    """Each point's number among the points at distinct places (rounded to WELD_DIGITS): the parts' copies along
+    their shared borders are one point, so a seam between two garment parts is not counted as cloth crossing cloth."""
+    return np.unique(np.round(points, WELD_DIGITS), axis=0, return_inverse=True)[1].reshape(-1)
+
+
+def crossings(points, faces, welded):
+    """drape_measure.self_crossings on the garment welded by `welded` (weld_map of its rest points)."""
+    count = int(welded.max()) + 1
+    places = np.zeros((count, 3))
+    places[welded] = points
+    return drape_measure.self_crossings(places, welded[faces])
+
+
 def tuck_out(tuck_points, cloth_points, cloth_normals):
     """Each tuck point's height outside the nearest cloth point along its normal, in metres (negative: under it)."""
     if not len(tuck_points):
@@ -90,11 +105,12 @@ def measure(path, every):
     tucked = [(part, tuck_from) for part, _, tuck_from in found if tuck_from is not None]
     rest = {id(part): part.points for part, _, _ in found}
     rest_points, rest_faces, _ = garment_surface(rest, garments)
-    rest_crossings = drape_measure.self_crossings(rest_points, rest_faces)
+    welded = weld_map(rest_points)
+    rest_crossings = crossings(rest_points, rest_faces, welded)
     record = {"body": str(path), "rest_crossings": rest_crossings, "clips": {}}
     for animation in document.get("animations", []):
         rotations, translations = joins.clip_frames(document, blob, animation)
-        worst, poking, crossings = 0.0, 0, []
+        worst, poking, counts = 0.0, 0, []
         for frame in range(len(rotations)):
             world = joins.world_matrices(rotations[frame], translations[frame], scales, parent)
             posed = posed_all(found, world[skin["joints"]], inverse_bind)
@@ -105,11 +121,11 @@ def measure(path, every):
             worst = max(worst, height)
             poking += height > POKE_MM
             if frame % every == 0:
-                crossings.append(drape_measure.self_crossings(cloth, faces))
+                counts.append(crossings(cloth, faces, welded))
         record["clips"][animation["name"]] = {
             "frames": len(rotations), "worst_tuck_out_mm": round(worst, 2), "frames_tuck_over": int(poking),
-            "most_crossings": int(max(crossings)), "frames_crossing_more_than_rest":
-                int(sum(count > rest_crossings for count in crossings)), "frames_crossings_read": len(crossings)}
+            "most_crossings": int(max(counts)), "frames_crossing_more_than_rest":
+                int(sum(count > rest_crossings for count in counts)), "frames_crossings_read": len(counts)}
     clips = record["clips"].values()
     record["verdict"] = {"tucks": all(clip["frames_tuck_over"] == 0 for clip in clips),
                          "cloth_through_cloth": all(clip["frames_crossing_more_than_rest"] == 0 for clip in clips)}
