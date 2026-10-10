@@ -47,6 +47,27 @@ def test_results_land_under_the_kind_s_proof_by_card():
     assert saved["judge"]["proof"]["nvidia-h100-580"]["type"] == "H100-1-80G"
 
 
+def test_no_offer_is_no_machine_and_a_proof_records_its_run():
+    import build_test
+
+    seen, restore = build_test.renting("gpu-80gb", None)
+    plan = {"classes": ["gpu-80gb"], "minutes": 30, "runs": [{"kind": "judge", "jobs": []}]}
+    proved = []
+    kept = prove.set_up, prove.prove_on, prove.batch.offers
+    prove.set_up = lambda machine, registry, store_spec: None
+    prove.prove_on = lambda machine, plan, store_spec, results: proved.append(machine["class"])
+    try:
+        prove.batch.offers = lambda classes: []
+        assert prove.one_attempt(plan, "account", {}, {}, "tester", {}) is False
+        prove.batch.offers = kept[2]
+        assert prove.one_attempt(plan, "account", {}, {}, "tester", {}) is True
+    finally:
+        prove.set_up, prove.prove_on, prove.batch.offers = kept
+        restore()
+    assert proved == ["gpu-80gb"] and [machine["class"] for machine in seen["deleted"]] == ["gpu-80gb"]
+    assert seen["ledger"][0]["kind"] == "prove" and seen["ledger"][0]["runs"] == ["judge"]
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
