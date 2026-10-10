@@ -127,6 +127,15 @@ def away(mine, other):
     return way.normalized() * NUDGE if way.length > 1e-9 else Vector((0.0, 0.0, NUDGE))
 
 
+def left_out(holder, ignore):
+    """Whether a holder, or a holder it lies under (a fixture's own parts), is one the job leaves out of the statics."""
+    while holder is not None:
+        if holder.name.split(".")[0] in ignore:
+            return True
+        holder = holder.parent
+    return False
+
+
 def weight_at_middle(item):
     """The object's origin moved to the middle of its surface (Blender takes the origin as the centre of mass)."""
     bpy.ops.object.select_all(action="DESELECT")
@@ -200,7 +209,7 @@ def main():
     ignore = set(job.get("ignore", []))
     for name, holder in holders.items():
         meshes = [child for child in holder.children if child.type == "MESH"]
-        if not meshes or name.split(".")[0] in NOT_SOLID or name.split(".")[0] in ignore:
+        if not meshes or name.split(".")[0] in NOT_SOLID or left_out(holder, ignore):
             continue
         if name in loose:
             moving[name] = unparented(drawn_mesh(holder))

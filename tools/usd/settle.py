@@ -58,6 +58,8 @@ DEBRIS_DRIFT = 1.0
 LOOSE_ANCHORS = {"floor", "ground", ""}
 # SAGE's stability rule (NVlabs, arXiv 2602.10116, Apache-2.0): an object that moves further than this (metres) or turns
 # more (degrees) when dropped does not rest as laid; the resting triage (triage.py) counts it a real fault.
+# How far a fixture's footprint may reach past the loose object it lies on (metres) and still count as lying on it.
+FOOTPRINT_SLACK = 0.02
 SAGE_MOVE = 0.2
 SAGE_TURN = 8.0
 
@@ -109,10 +111,36 @@ def held_on_loose(stage, place, inventory, loose):
                   if anchor.startswith("on:") and anchor.removeprefix("on:") in dropped)
 
 
+def fixtures_on_loose(stage, place, loose):
+    """The scene record's Fixtures lying on a loose object (the workshop's robot and parts trays on its robot bench):
+    each whose footprint lies within a loose object's and whose foot stands over that object's middle height. The drop
+    leaves them out of its statics, as it does what is held on a loose object (held_on_loose): the holder raised by the
+    nudge meets them, and a holder whose hull closes over them is thrown off them."""
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    root = stage.GetPrimAtPath(f"/{place}/Fixtures")
+    if not root.IsValid():
+        return []
+    boxes = {}
+    for name in loose:
+        box = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange()
+        boxes[name] = (np.asarray(box.GetMin()), np.asarray(box.GetMax()))
+    found = []
+    for prim in root.GetChildren():
+        box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+        if box.IsEmpty():
+            continue
+        low, high = np.asarray(box.GetMin()), np.asarray(box.GetMax())
+        if any(np.all(low[[0, 2]] >= under[0][[0, 2]] - FOOTPRINT_SLACK)
+               and np.all(high[[0, 2]] <= under[1][[0, 2]] + FOOTPRINT_SLACK)
+               and low[1] >= (under[0][1] + under[1][1]) / 2 for under in boxes.values()):
+            found.append(prim.GetName())
+    return sorted(found)
+
+
 def simulate(stage_path, loose, folder, cloud=False, ignore=()):
     """The Blender run: how each loose object moved from as laid to at rest (stage frame, column vectors), how fast
     it still moved at the end, and the static objects it started inside; `ignore` are objects left out of the
-    statics (part_objects, held_on_loose)."""
+    statics (part_objects, held_on_loose, fixtures_on_loose)."""
     folder.mkdir(parents=True, exist_ok=True)
     job, out = folder / "settle-job.json", folder / "settled.json"
     job.write_text(json.dumps({"loose": sorted(loose), "lift": loose, "ignore": sorted(ignore)}, indent=1))
@@ -309,7 +337,8 @@ def main():
     loose = loose_objects(stage, place, json.loads(inventory_path.read_text()))
     last = stage_path.parent / "settle" / "settled.json"
     inventory = json.loads(inventory_path.read_text())
-    ignore = part_objects(stage, place, inventory) + held_on_loose(stage, place, inventory, loose)
+    ignore = (part_objects(stage, place, inventory) + held_on_loose(stage, place, inventory, loose)
+              + fixtures_on_loose(stage, place, loose))
     simulated = (json.loads(last.read_text()) if arguments.reuse
                  else simulate(stage_path, loose, stage_path.parent / "settle", arguments.cloud, ignore))
     for first, second in simulated["overlaps"]:

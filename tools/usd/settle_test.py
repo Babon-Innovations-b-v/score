@@ -1,7 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; a kit room's piece (the game's kit) moves with its object, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece is a static of the drop; a
+marked, while 1 m debris may turn so; a kit room's piece (the game's kit) moves with its object, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -166,6 +166,25 @@ def what_lies_on_a_dropped_piece_is_no_static_of_the_drop():
         return [] if ignored == ["tray_1"] else [f"the drop leaves out {ignored}, not the tray alone"]
 
 
+def a_fixture_on_a_dropped_piece_is_no_static_of_the_drop():
+    """A scene record fixture lying on a crate that is dropped (a tray on the workshop's bench) is left out of the drop's
+    statics; one standing on the floor beside it is not."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("crate", "box", (0, 0, 0))], [("crate", "floor")])
+        inventory = json.loads((folder / "inventory.json").read_text())
+        stage = Usd.Stage.Open(str(path))
+        top = float(UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]).ComputeWorldBound(
+            stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_1")).ComputeAlignedRange().GetMax()[1])
+        for name, at in (("tray", (0.0, top + 0.05, 0.0)), ("barrel", (3.0, 0.1, 0.0))):
+            holder = UsdGeom.Xform.Define(stage, f"/{PLACE}/Fixtures/{name}")
+            holder.AddTranslateOp().Set(at)
+            UsdGeom.Cube.Define(stage, f"/{PLACE}/Fixtures/{name}/mesh_0").GetSizeAttr().Set(0.1)
+        ignored = settle.fixtures_on_loose(stage, PLACE, settle.loose_objects(stage, PLACE, inventory))
+        return [] if ignored == ["tray"] else [f"the drop leaves out the fixtures {ignored}, not the tray alone"]
+
+
 def a_kit_room_piece_moves_with_its_object():
     """A kit room's piece (the game's kit: axes and a foot `at`, no inventory spot) moved by a settle's small turn and
     drift stands, by package.kit_matrix, exactly where its object came to rest; a name finds its piece by kind."""
@@ -187,7 +206,8 @@ def a_kit_room_piece_moves_with_its_object():
 
 
 CHECKS = (a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
-          what_lies_on_a_dropped_piece_is_no_static_of_the_drop, a_big_turn_is_marked_not_made,
+          what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
+          a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, a_big_turn_is_marked_not_made,
           a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl)
 
 
