@@ -25,8 +25,9 @@ readings, each per place:
   DINOv2 sees what an object is as well as how it looks, so the same pairs are compared again as plain silhouettes
   (black on white, the shape alone); the style gap is the colour renders' within-minus-across less the silhouettes'.
 
-A model a place reuses from another (the hub's tools in the workshop) is the same render twice: such copies
-(COPY_TOLERANCE) are left out of the likeness, which would otherwise count one model as two places agreeing. A place
+Two renders of one model (the hub's tools in the workshop, or one model listed twice in a place) are the same
+picture: every such pair of copies (COPY_TOLERANCE), within a place or across, is left out of the likeness, which
+would otherwise count one model as two models agreeing. A place
 with one model has no pair within it and reads as None. Nothing here judges a model good or bad: the numbers
 are what the renders show, to be read beside the creator's reviews.
 """
@@ -124,7 +125,8 @@ def marks(path):
     mask = foreground(picture)
     lightness = sweep.lab(sweep.linear_of(picture.reshape(-1, 3)))[:, 0].reshape(mask.shape)
     spreads = [lightness[row:row + TILE, column:column + TILE].std()
-               for row in range(0, mask.shape[0] - TILE + 1, TILE) for column in range(0, mask.shape[1] - TILE + 1, TILE)
+               for row in range(0, mask.shape[0] - TILE + 1, TILE)
+               for column in range(0, mask.shape[1] - TILE + 1, TILE)
                if mask[row:row + TILE, column:column + TILE].all()]
     return round(float(np.percentile(spreads, 75)), 2) if spreads else None
 
@@ -133,6 +135,8 @@ def model_colour(path, palette):
     """One render's colour readings: its share of coloured pixels, their fit to the place's shaded palette (None when
     too few), its median L* and its surface marks."""
     points = sweep.lab(sweep.linear_of(sampled(drawn_pixels(path))))
+    if not len(points):
+        raise ValueError(f"{path}: no model pixels on the render")
     coloured = points[chroma(points) >= CHROMATIC]
     fit = round(palette_share(coloured, palette), 3) if len(coloured) >= MIN_CHROMATIC else None
     return {"coloured": round(len(coloured) / len(points), 3), "fit": fit,
@@ -145,7 +149,8 @@ def place_colour(models):
     fits = [entry["fit"] for entry in models.values() if entry["fit"] is not None]
     lightness = [entry["lightness"] for entry in models.values()]
     marked = [entry["marks"] for entry in models.values() if entry["marks"] is not None]
-    return {"models": len(models), "coloured": round(float(np.median([entry["coloured"] for entry in models.values()])), 3),
+    coloured = [entry["coloured"] for entry in models.values()]
+    return {"models": len(models), "coloured": round(float(np.median(coloured)), 3),
             "fitted": len(fits), "fit": round(float(np.median(fits)), 3) if fits else None,
             "lightness_spread": round(float(np.std(lightness)), 1) if len(lightness) > 1 else None,
             "marks": round(float(np.median(marked)), 2) if marked else None,
@@ -175,7 +180,8 @@ def pair_names(renders):
     pairs = set()
     for first in names:
         place = first.split("/")[0]
-        pairs.update(tuple(sorted((first, second))) for second in names if second > first and second.startswith(f"{place}/"))
+        pairs.update(tuple(sorted((first, second)))
+                     for second in names if second > first and second.startswith(f"{place}/"))
         others = [second for second in names if not second.startswith(f"{place}/")]
         pairs.update(tuple(sorted((first, second))) for second in chosen.sample(others, min(ACROSS, len(others))))
     return sorted(pairs)
@@ -302,8 +308,8 @@ def table(found):
                      f"{cell(entry['fit']):>6} {cell(entry['lightness_spread'], 1):>6} {cell(entry['marks'], 2):>6} "
                      f"{cell(entry['marks_spread'], 2):>6} "
                      + " ".join(f"{cell(value):>6}" for value in cells))
-    lines.append(f"world: {found['models']} models ({len(found['copies'])} pairs of copies left out), L* sd {found['world_lightness_spread']}, coloured palettes shared "
-                 f"{found['palette_overlap']}")
+    lines.append(f"world: {found['models']} models ({len(found['copies'])} pairs of copies left out), "
+                 f"L* sd {found['world_lightness_spread']}, coloured palettes shared {found['palette_overlap']}")
     if found["features"]:
         world = found["features"]
         lines.append(f"world likeness: colour {world['colour']['within']} within, {world['colour']['across']} across; "
@@ -326,7 +332,8 @@ def main():
     found = report(options.root, options.work)
     (options.work / "style.txt").write_text("\n".join(table(found)) + "\n")
     print(f"style: {len(found['places'])} places, {found['models']} models, likeness "
-          f"{'in' if found['likeness'] else 'not yet run'}; {options.work / 'style.json'}, {options.work / 'style.txt'}")
+          f"{'in' if found['likeness'] else 'not yet run'}; "
+          f"{options.work / 'style.json'}, {options.work / 'style.txt'}")
 
 
 if __name__ == "__main__":
