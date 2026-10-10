@@ -783,6 +783,8 @@
 			"name": "power cables run loose over the deck with a plug block",
 			"kind": "code",
 			"anchor": "floor",
+			"fixed": true,
+			"fixed_why": "cable lengths laid where they lie over the deck, as the camp's kit lays them (as the camp grounds' cables along their runs): a cable does not tip, and a rigid drop of its hull (it moved 0.6 m out from under a bunk and a partition) does not stand for it",
 			"size": [
 				3.0,
 				0.15,
