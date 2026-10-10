@@ -55,13 +55,19 @@ def machine_row(machine):
     took and how long it worked after; its whole time and cost; and what the runner counted of its work."""
     ended = machine.get("deleted") or time.time()
     ready = machine.get("ready")
-    minutes = (ended - machine["created"]) / 60
+    # A machine taken parked from another run (park.py) is this run's from when it was taken, and costs it only what
+    # it adds past the hours that run already paid.
+    began = machine.get("adopted") or machine["created"]
+    minutes = (ended - began) / 60
+    unit_minutes = machine.get("unit_minutes", 1)
+    euros = (cost((ended - machine["created"]) / 60, machine["price"], unit_minutes)
+             - machine.get("paid_minutes", 0.0) * machine["price"])
     row = {"type": machine["type"], "zone": machine["zone"], "cards": machine.get("cards"),
            "started": ready is not None,
-           "start_wait_minutes": ((ready or ended) - machine["created"]) / 60,
-           "work_minutes": (ended - ready) / 60 if ready else 0.0, "minutes": minutes,
-           "euros": cost(minutes, machine["price"], machine.get("unit_minutes", 1))}
-    row.update({key: machine[key] for key in ("peak_gb", "made", "unit_seconds") if machine.get(key) is not None})
+           "start_wait_minutes": ((ready or ended) - began) / 60,
+           "work_minutes": (ended - ready) / 60 if ready else 0.0, "minutes": minutes, "euros": max(0.0, euros)}
+    row.update({key: machine[key] for key in ("peak_gb", "made", "unit_seconds", "adopted", "parked")
+                if machine.get(key) is not None})
     return row
 
 

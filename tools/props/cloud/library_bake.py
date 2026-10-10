@@ -29,6 +29,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import park  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
@@ -152,6 +153,15 @@ def bake(machine, number, job, card):
         batch.say(f"library job {number} ({job['script']}) on {log_folder.name}: {(time.time() - began) / 60:.1f} min")
     spread.raise_for(done.returncode, f"job {number} ({log_folder / f'job{number}.log'})")
     machine.setdefault("unit_seconds", []).append(round(time.time() - began, 1))
+
+
+def cleanup(_machine):
+    """The command that removes a run's own files from its machine before it is parked (park.py): its inputs,
+    outputs and job files. Blender and the shipped repo folders stay (rsync sends only what changed)."""
+    return f"rm -rf {REMOTE / 'in'} {REMOTE / 'out'} {REMOTE}/job*.json"
+
+
+park.CLEANUPS["library"] = cleanup
 
 
 def record(run, machines, started, jobs):

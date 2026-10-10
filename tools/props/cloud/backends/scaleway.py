@@ -166,6 +166,13 @@ def start_if_stopped(server_id, zone):
     return None if done.returncode == 0 else (done.stderr.strip().splitlines() or ["?"])[0]
 
 
+def retag(server_id, zone, tags):
+    """Give one of the runner's machines new tags (the runner's TAG kept first): a parked machine is held by the
+    process that will delete it, and a taken one by the run that took it (park.py)."""
+    scw("instance", "server", "update", server_id, f"zone={zone}",
+        *[f"tags.{index}={tag}" for index, tag in enumerate([TAG, *tags])])
+
+
 def address(server_id, zone):
     """The machine's public IPv4 address, or None while it has none."""
     server = scw("instance", "server", "get", server_id, f"zone={zone}")

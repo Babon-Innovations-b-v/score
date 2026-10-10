@@ -351,7 +351,7 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
     offers read afresh, across every class the offers named and every zone, for as long as `still_wanted` (the run's
     deadline, the month's ceiling and the caller's `wanted`) says: a slot never gives up on its first round (six of
     seven spread slots did on 2026-10-09 and one L4 did all the work)."""
-    machine = claim_round(run, account, offers, number, kind, disk_gb)
+    machine = park_taken(run, offers, number, kind, disk_gb) or claim_round(run, account, offers, number, kind, disk_gb)
     while machine is None and still_wanted(run, account, wanted):
         say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again in "
             f"{STOCK_RETRY_MINUTES} min")
@@ -361,6 +361,14 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
         offers = fresh_offers(run, offers)
         machine = claim_round(run, account, offers, number, kind, disk_gb)
     return machine
+
+
+def park_taken(run, offers, number, kind, disk_gb):
+    """A machine of `kind` another run parked within its paid hour (park.py), taken for `run`; None when there is
+    none."""
+    import park
+
+    return park.adopt(run, offers, number, kind, disk_gb)
 
 
 def still_wanted(run, account, wanted=None):
@@ -434,6 +442,7 @@ def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
                 if machine is None:
                     dropped.add((offer.type, offer.zone))
                 else:
+                    machine["kind"] = kind
                     run.machines.append(machine)
         if machine is None:
             continue
@@ -455,12 +464,15 @@ def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
     return None
 
 
-def arm_self_delete(folder, host, deadline):
-    """Start the machine's own watcher, which deletes it if this PC goes quiet (self_delete.py)."""
+def arm_self_delete(folder, host, deadline, quiet_minutes=QUIET_MINUTES):
+    """Start the machine's own watcher, which deletes it if this PC goes quiet (self_delete.py), in place of any
+    watcher it had (a parked machine's, park.py)."""
     remote(folder, host, "mkdir -p /root/batch", check=True)
     copy(folder, [SELF_DELETE_KEY, HERE / "self_delete.py"], f"root@{host}:/root/batch/")
+    # The pattern's brackets keep pkill from matching the shell that runs it.
+    remote(folder, host, "pkill -f '[s]elf_delete[.]py' || true", check=True)
     remote(folder, host, f"chmod 600 /root/batch/{SELF_DELETE_KEY.name}; cd /root/batch; setsid -f "
-           f"python3 self_delete.py {deadline:.0f} /root/batch/{SELF_DELETE_KEY.name} {QUIET_MINUTES} {cloud.NAME} "
+           f"python3 self_delete.py {deadline:.0f} /root/batch/{SELF_DELETE_KEY.name} {quiet_minutes:.0f} {cloud.NAME} "
            f"> self_delete.log 2>&1 < /dev/null", check=True)
 
 
@@ -636,8 +648,7 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
         say(f"€{spent:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling: nothing more is rented")
         return None
     name = f"{fleet.folder.name}-{number}"
-    tags = [f"pid={os.getpid()}", f"host={socket.gethostname()}",
-            f"deadline={fleet.deadline + WATCHDOG_GRACE_MINUTES * 60:.0f}"]
+    tags = run_tags(os.getpid(), fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
     server_id, refused = cloud.create(account, offer, name, tags, disk_gb)
     if server_id is None:
         why = refused.splitlines()[-1] if refused else "?"
@@ -658,12 +669,17 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     folder.mkdir(parents=True, exist_ok=True)  # a claim retried under the same number after a machine that never started
     machine = {"id": server_id, "zone": zone, "type": machine_type, "class": offer.machine_class,
                "cards": provider.cards(offer.machine_class), "price": offer.price,
-               "unit_minutes": cloud.price(machine_type, zone)[1], "created": time.time(),
+               "unit_minutes": cloud.price(machine_type, zone)[1], "created": time.time(), "disk_gb": disk_gb,
                "folder": folder, "deleted": None, "ready": None, "generating_began": None, "status": {}}
     machine["watchdog"] = start_watchdog(server_id, zone,
                                          fleet.deadline + WATCHDOG_GRACE_MINUTES * 60, folder)
     say(f"rented {machine_type} in {zone} ({name})")
     return machine
+
+
+def run_tags(pid, deadline):
+    """The tags that say which process on which PC holds a machine, and when it must be gone (is_leftover)."""
+    return [f"pid={pid}", f"host={socket.gethostname()}", f"deadline={deadline:.0f}"]
 
 
 def priced(found, minutes, count, what, account):
@@ -800,14 +816,20 @@ def collect(fleet, folder, host, status, finished, sent):
 
 
 def delete_machine(machine):
-    """Delete a machine once, and stop its watchdog."""
+    """Delete a machine once, or park it for the next run of its kind when its paid hour has time left (park.py),
+    and stop its watchdog."""
+    import park
+
     if machine["deleted"]:
         return
-    cloud.delete(machine["id"], machine["zone"])
+    parked = park.park(machine)
+    if not parked:
+        cloud.delete(machine["id"], machine["zone"])
     machine["deleted"] = time.time()
     with contextlib.suppress(ProcessLookupError):
         os.kill(machine["watchdog"], signal.SIGTERM)
-    say(f"{machine['folder'].name} deleted after {(machine['deleted'] - machine['created']) / 60:.1f} min")
+    say(f"{machine['folder'].name} {'parked' if parked else 'deleted'} after "
+        f"{(machine['deleted'] - (machine.get('adopted') or machine['created'])) / 60:.1f} min")
 
 
 def start_watchdog(server_id, zone, deadline, folder):

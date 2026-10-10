@@ -15,6 +15,7 @@ The backend is chosen by SCORE_CLOUD (default `scaleway`, the backend the framew
     create(account, offer, name, tags, disk_gb)  rent and start one: (its id, None) or (None, the refusal)
     start_if_stopped(machine_id, zone)     start a machine left stopped; the refusal, or None
     address(machine_id, zone)              its public address, or None while it has none
+    retag(machine_id, zone, tags)          replace a machine's tags as create gave them (a parked machine, park.py)
     delete(machine_id, zone)               delete it with its disk and address; True if it was there
     ours(account)                          every machine the runner rented: (id, zone, name, tags), each checked
                                            to belong to the account by its own record

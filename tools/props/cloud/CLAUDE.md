@@ -40,6 +40,14 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   would pass one is refused before anything is rented; raising one is the owner's call.
 - **The machine is always deleted:** at the end, on an error or a signal, by the watchdog at the
   time limit, and by the next run's sweep. Anything new that rents goes through `rent`, which starts its watchdog.
+- **A processor machine is parked, not deleted, while its paid hour has time left** (`park.py`, job hours,
+  2026-10-10): they are billed by the started hour and a Blender run takes 9 to 33 min, so they cost 1.6 to 3.2 times
+  their hourly price (about €48 of €88 in October). A healthy machine of a kind that registered a clean-up
+  (`park.CLEANUPS`: `blender`, `library`) has its run's files removed and is listed in `~/.farm-factory-props/cloud/parked/`;
+  the next `batch.claim` of that kind on this PC takes it, set-up done, and the ledger charges it only what it adds.
+  It is gone 5 min before its paid hour ends, never idle into the next: its `--expire` process deletes it, its own
+  `self_delete.py` is re-armed to that time, and its tags hold that time for any run's sweep. Cards (billed by the
+  minute), failed machines and runs stopped by a signal are deleted as before.
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks
