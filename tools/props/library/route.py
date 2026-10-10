@@ -28,7 +28,8 @@ the room's kit layout that names its `model` is a model placed again from anothe
 (its code-built models in a picture set of their own); `late-lay` puts those pieces into the installed layout at their
 models' own boxes and leaves every other piece as the run laid it.
 
-`install` runs the name check first (gates/names.py: an own name means one thing in every room), copies the made
+`plan` and `late-plan` run the door check first (gates/doors.py: every door parts its two sides, judged on its own
+floor) and write no job for a layout that fails it. `install` runs the name check first (gates/names.py: an own name means one thing in every room), copies the made
 models and their shared pictures into the world's files (`models/<room>_kit/`, tools/assets/world.py), stores the
 pictures compressed and stops a room past its budget (stored.py), and puts the layout in place (data/kit/<room>.json).
 An engine's own scenes for the kit (the game 2099's Godot scenes) are the engine adapter's, not the framework's.
@@ -44,6 +45,7 @@ import numpy as np
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "gates"))
+import doors  # noqa: E402
 import library  # noqa: E402
 import names  # noqa: E402
 import package  # noqa: E402
@@ -655,6 +657,14 @@ def lay_late(room, layout, models):
     return len(pieces), missing
 
 
+def doors_part_their_sides(layout):
+    """Stop a kit layout with a door that does not part its two sides (gates/doors.py), before any job is written."""
+    faults = doors.check(layout)
+    if faults:
+        raise SystemExit("the door check (gates/doors.py) stops the plan:\n  " + "\n  ".join(
+            f"{kind} at {at}: {why}" for kind, at, why in faults))
+
+
 def install(work, room):
     """The made models and their pictures into the world's files (`models/<room>_kit/` in the local copy of the world's
     release, tools/assets/world.py; pack and publish a new release to share them), the layout into
@@ -755,6 +765,7 @@ def main():
     if step == "plan":
         layout = json.loads(pathlib.Path(sys.argv[2]).read_text())
         work = pathlib.Path(sys.argv[3])
+        doors_part_their_sides(layout)
         work.mkdir(parents=True, exist_ok=True)
         takes = labelled_takes(sys.argv[4:])
         inventory = json.loads((REPO / f"data/inventory/{layout.get('room', 'hub')}.json").read_text())
@@ -784,6 +795,7 @@ def main():
     elif step == "late-plan":
         layout = json.loads(pathlib.Path(sys.argv[2]).read_text())
         work = pathlib.Path(sys.argv[3])
+        doors_part_their_sides(layout)
         work.mkdir(parents=True, exist_ok=True)
         made = {path.stem for path in pathlib.Path(sys.argv[4]).glob("*.gltf")} if len(sys.argv) > 4 else set()
         planned = late_plan(layout, made)

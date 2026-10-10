@@ -23,8 +23,11 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
 - `doors.py` (the owner, 2026-10-07, on the Mars concepts: a partition with a door and an open gap beside it): every
   door a kit layout lays must stand in a wall or partition that fully parts its two sides. Read as a walk on a 5 cm
   grid at walking height over the wall-like pieces, every door and every listed doorway (`doorways`) shut: no path
-  from one side of a door to the other. A screen without a door is not judged. Run on the kit layout before any
-  spend; a door with a way round fails the place.
+  from one side of a door to the other. Each door is judged on its own floor (the stairwell's landing doors stand
+  3 m and 6 m up); a door whose sides both stand in a wall is unknown and fails. A screen without a door is not
+  judged. `route.py plan` and `late-plan` run it first and write no job for a failing layout; `gates_test.py` runs
+  it on every installed kit layout (`data/kit/*.json`), so a layout restored from an older round must carry its
+  `doorways` (the hub's: `hub_kit.joined_doorways()`, the joined airlock's wall at 330 degrees).
 - `density.py` (the owner, 2026-10-08, on the lab: "lost a massive amount of detail"): the inventory's
   `concept_elements` list every element the picked concept shows, crop by crop, each a row (or a part of one) or
   dropped with a reason; the kit layout must lay each row as often as the concept shows it. Run before any spend; the
