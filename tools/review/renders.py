@@ -290,11 +290,10 @@ def timed(walk, stage):
 
 def record_views(scene):
     """The scene record's own cameras (data/scene/<place>.json `views`: the player's spots, inside a room at standing
-    height), each naming the game's shot from about the same place; the first also drawn with the game's ink lines
-    over it (`ink`), one extra picture a place."""
+    height), each naming the game's shot from about the same place; every one also drawn with the game's ink lines
+    over it (`ink`), as the game draws them over every frame."""
     return [dict(looking(view["name"], view["eye"], view["aim"], fov=float(view.get("fov", 75.0))),
-                 game=view.get("game"), **({"ink": True} if number == 0 else {}))
-            for number, view in enumerate(scene.get("views", []))]
+                 game=view.get("game"), ink=True) for view in scene.get("views", [])]
 
 
 def effect_views(place):

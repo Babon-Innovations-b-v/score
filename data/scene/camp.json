@@ -874,8 +874,7 @@
   "the dust's life over time: the game blows the drift along round the player, sends its dust devils wandering the plain and brings a storm in and out with the weather; the stage carries the effects layer (data/effects/camp.json): the drift blowing along on the five by five cells round the camp's middle, two dust devils (grains and veil) standing about 21 and 32 m from the camp's middle where the outside cameras see them, and a dust storm as the variant weather = storm (the drift thick, fast and head high, no devils)",
   "the domes' insides kept clear of dust: the game blows its drift only outdoors round the player, while the stage's drift cells also cover the domes' insides, so the inside views (door_galley, door_from_doorway, passage) show orange grains in the air and a mottled veil over floors, walls and the passage, and the view from above shows the drift as a dark ring round the camp",
   "the mast's light beam",
-  "Mars's seeded rocks past the plan's square (they come from the run's world seed and lie past the stage's 130 m)",
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+  "Mars's seeded rocks past the plan's square (they come from the run's world seed and lie past the stage's 130 m)"
  ],
  "structure": [
   {

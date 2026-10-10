@@ -136,24 +136,27 @@ def a_room_is_seen_from_inside():
     return problems
 
 
-def one_view_a_place_is_inked():
-    """A place's first own camera is also drawn with the game's ink lines, and only that one (one extra picture), and
-    the page lays it beside its look."""
+def every_view_a_place_is_inked():
+    """Every one of a place's own cameras is also drawn with the game's ink lines, as the game draws them over every
+    frame, no scene record still lists them as drawn only by the game, and the page lays each inked view beside its
+    look (and none it was not given)."""
     import scene
     problems = []
     for path in sorted(scene.SCENES.glob("*.json")):
-        views = renders.record_views(scene.record(path.stem))
-        if [view["name"] for view in views if view.get("ink")] != [views[0]["name"]]:
-            problems.append(f"{path.stem}: not exactly its first view is inked")
+        record = scene.record(path.stem)
+        if not all(view.get("ink") for view in renders.record_views(record)):
+            problems.append(f"{path.stem}: not every view is inked")
+        if any("ink lines" in entry for entry in record.get("game_only", [])):
+            problems.append(f"{path.stem}: game_only still lists the ink lines")
     with tempfile.TemporaryDirectory() as folder:
         out = pathlib.Path(folder)
         (out / "scene/now").mkdir(parents=True)
-        for name in ("a-look.png", "a-ink.png", "b-look.png"):
+        for name in ("a-look.png", "a-ink.png", "b-look.png", "b-ink.png", "c-look.png"):
             (out / "scene/now" / name).write_bytes(b"")
-        body = page.scene_section({"views": ["a", "b"], "report": {"layers": [], "objects": 0, "triangles": 0,
-                                                                   "materials": []}, "extent": [[0], [1]]}, out)
-        if "scene/now/a-ink.png" not in body or "b-ink.png" in body:
-            problems.append("the page does not lay the inked view beside its look")
+        body = page.scene_section({"views": ["a", "b", "c"], "report": {"layers": [], "objects": 0, "triangles": 0,
+                                                                        "materials": []}, "extent": [[0], [1]]}, out)
+        if "scene/now/a-ink.png" not in body or "scene/now/b-ink.png" not in body or "c-ink.png" in body:
+            problems.append("the page does not lay each inked view beside its look")
     return problems
 
 
@@ -215,7 +218,7 @@ def only_the_places_drawn_are_sent():
 
 
 CHECKS = (a_rerun_shows_before_and_after, a_check_says_what_it_caught, a_stage_that_wrote_nothing_is_not_recorded,
-          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, one_view_a_place_is_inked,
+          the_cameras_stand_outside_looking_in, a_room_is_seen_from_inside, every_view_a_place_is_inked,
           an_overlap_reads_in_the_resting_table, the_plans_an_inventory_names_are_shown,
           a_before_stage_stands_beside_the_game, only_the_places_drawn_are_sent)
 

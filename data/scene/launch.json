@@ -245,8 +245,7 @@
  "game_only": [
   "the far city across the harbour is the framework's own, in 3D (the far_city place, tools/usd/far_city_stage.py, seed 7): 2,188 made towers of five kinds rows deep along a far shore 1.3 to 1.8 km off, their windows lit, with code-built mountains behind and water out to the shore; the pencil tower, the low waterfront block and the housing slab are not made yet, so their lots carry the made kinds and the waterfront has no low blocks. The game hangs four photographs of Hong Kong there instead (earth_site.gd:327-335,959-972), which no stage carries",
   "the lit columns the game paints onto the water (each lit thing's streak, harbour.gdshader's lit_columns); the water mirrors what stands round it",
-  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour",
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour"
  ],
  "places": [
   {

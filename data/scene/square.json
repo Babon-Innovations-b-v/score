@@ -514,8 +514,7 @@
   "the crowd's look up close: the game's people are flat-shaded and lit by the stage, the scene's are its own skinned characters",
   "the neon signs' glow",
   "the lit columns the game paints onto the water (each lit thing's streak, harbour.gdshader's lit_columns); the water mirrors what stands round it",
-  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour",
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour"
  ],
  "owner_rejected": [
   "the night market's stalls and the stage's screens: the game draws both, and the owner rejected them for the scene (2026-10-09)"

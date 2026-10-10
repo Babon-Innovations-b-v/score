@@ -371,8 +371,7 @@
   }
  ],
  "game_only": [
-  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour",
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
+  "the stars' turn: the field is the game's own (its seed, count and sizes), turned with the place's axes, not with the world's spin and the hour"
  ],
  "objects": [
   {

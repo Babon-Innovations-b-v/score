@@ -2350,9 +2350,7 @@
    "game": "place-greenhouse/shots/final/wide-from-dais.png"
   }
  ],
- "game_only": [
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
- ],
+ "game_only": [],
  "planned_ground": {
   "reach": 130.0,
   "step": 2.0,

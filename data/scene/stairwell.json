@@ -218,7 +218,6 @@
   }
  ],
  "game_only": [
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)",
   "the leader who walks down beside the player in the game shots (the stage's cast places nobody in the stairwell), his spoken line and the player's cigarette",
   "the cutaway view: it renders black, as it did on the earlier pages"
  ]
