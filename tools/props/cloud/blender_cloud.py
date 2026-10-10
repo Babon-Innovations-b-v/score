@@ -23,7 +23,9 @@ deletes the machine when the tool closes the queue or after IDLE_MINUTES with no
      "minutes": 5}   about how long it runs on the machine
 
 Every input and output lies at the same absolute path on the machine as here, so a script, its arguments and the paths
-inside its input files (a review page's shots.json names the model files) need no change to run up there. The script's own
+inside its input files (a review page's shots.json names the model files) need no change to run up there. An input of
+8 MB or more goes up once to the object store and the machine pulls it from there (inputs.py); the rest is sent
+directly, as is any input the store path fails to bring. The script's own
 folder and tools/blender/inside go up with it. The jobs of one call are spread over as many machines as finish them
 in about the setup and the longest job (spread.py, capacity.machines_for): one machine for a short list, one a job for
 a long one, each set up once and taking the next job as it ends one.
@@ -52,6 +54,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import detached  # noqa: E402
+import inputs  # noqa: E402
 import ledger  # noqa: E402
 import park  # noqa: E402
 import provider  # noqa: E402
@@ -109,6 +112,18 @@ def send(log_folder, host, local):
     batch.copy(log_folder, [local], f"root@{host}:{local.parent}/")
 
 
+def send_inputs(log_folder, host, locals_):
+    """A job's inputs to their places on the machine: the big ones pulled from the object store (inputs.py), the
+    rest, and any the store path could not bring, sent directly."""
+    began = time.time()
+    arrived = inputs.through_store(log_folder, host, locals_)
+    direct = [local for local in locals_ if str(pathlib.Path(local).resolve()) not in arrived]
+    for local in direct:
+        send(log_folder, host, local)
+    batch.say(f"inputs on {host}: {len(arrived)} from the store, {len(direct)} sent directly, "
+              f"{time.time() - began:.0f} s")
+
+
 def bring_back(log_folder, host, local):
     """One output (file or folder) from the machine to its own place here; a missing one is said, not raised."""
     local = pathlib.Path(local).resolve()
@@ -137,8 +152,7 @@ def set_up(log_folder, host, jobs):
 
 def run_job(log_folder, host, number, job, card):
     """One job: its inputs up, its output folders made, the script run, its outputs back (also when it fails)."""
-    for local in job.get("inputs", ()):
-        send(log_folder, host, local)
+    send_inputs(log_folder, host, job.get("inputs", ()))
     for local in job.get("outputs", ()):
         batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(pathlib.Path(local).resolve().parent))}",
                      check=True)

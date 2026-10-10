@@ -13,6 +13,7 @@ same way. The machine runners in `tools/props/cloud/` stay the default; this pat
 - **Store layout** (the provider's `object_store()`, one bucket): `code/<sha256>.tar.gz`, `weights/<name>@<revision>.tar`
   with `.sha256` beside it, `runs/<run>/<job>/` holding `job.json`, `in/`, `out/`, `log-<attempt>.txt`,
   `failed-<attempt>.json` and `done.json` (written last: a job with it is never run again). Kernel caches: `kernels/<name>/<card>-<driver>.tar`.
+  The machine runners' job inputs: `inputs/<sha256>.tar` (`../props/cloud/inputs.py`).
 - **No weights in an image, ever.** The images are public-safe and the weights' licences differ: each image folder's
   `models.json` lists its models with source, pinned revision, sha256, licence and `commercial_use`, and the runtime
   fetches them once per node into `/cache` (hostPath `/var/lib/score-cache`) under a file lock. A model not for
