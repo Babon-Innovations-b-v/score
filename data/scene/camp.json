@@ -10,6 +10,7 @@
   {
    "name": "GalleyCounter",
    "model": "models/camp_kit/galley_1.gltf",
+   "row": "galley",
    "at": [
     -2.6303,
     0.0,
@@ -22,6 +23,7 @@
   {
    "name": "ColdStore",
    "model": "models/camp_kit/cold_store_1.gltf",
+   "row": "cold_store",
    "at": [
     -2.4258,
     0.0,
@@ -34,6 +36,7 @@
   {
    "name": "MessTable",
    "model": "models/camp_kit/pedestal_table_1.gltf",
+   "row": "pedestal_table",
    "at": [
     -0.3663,
     0.0,
@@ -46,6 +49,7 @@
   {
    "name": "CommsDesk",
    "model": "models/camp_kit/comms_desk_1.gltf",
+   "row": "comms_desk",
    "at": [
     5.153,
     0.0,
@@ -55,6 +59,7 @@
    "children": [
     {
      "model": "models/camp_kit/monitor_1.gltf",
+     "row": "monitor",
      "at": [
       0.5,
       0.74,
@@ -64,6 +69,7 @@
     },
     {
      "model": "models/camp_kit/monitor_1.gltf",
+     "row": "monitor",
      "at": [
       -0.02,
       0.74,
@@ -73,6 +79,7 @@
     },
     {
      "model": "models/camp_kit/radio_1.gltf",
+     "row": "radio",
      "at": [
       -0.56,
       0.74,
@@ -82,6 +89,7 @@
     },
     {
      "model": "models/camp_kit/monitor_1_glow.gltf",
+     "row": "monitor",
      "at": [
       0.5,
       0.74,
@@ -91,6 +99,7 @@
     },
     {
      "model": "models/camp_kit/monitor_1_glow.gltf",
+     "row": "monitor",
      "at": [
       -0.02,
       0.74,
@@ -104,6 +113,7 @@
   {
    "name": "StoresRack",
    "model": "models/camp_kit/stores_rack_1.gltf",
+   "row": "stores_rack",
    "at": [
     -1.0279,
     0.0,
@@ -113,6 +123,7 @@
    "children": [
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       -0.56,
       0.12,
@@ -122,6 +133,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       0.0,
       0.12,
@@ -131,6 +143,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       0.56,
       0.12,
@@ -140,6 +153,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       -0.56,
       0.6,
@@ -149,6 +163,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       0.0,
       0.6,
@@ -158,6 +173,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       0.56,
       0.6,
@@ -167,6 +183,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       -0.3,
       1.08,
@@ -176,6 +193,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       0.3,
       1.08,
@@ -189,6 +207,7 @@
   {
    "name": "Hygiene",
    "model": "models/camp_kit/hygiene_1.gltf",
+   "row": "hygiene",
    "at": [
     -0.2495,
     0.0,
@@ -201,6 +220,7 @@
   {
    "name": "Bunk",
    "model": "models/camp_kit/bunk_1.gltf",
+   "row": "bunk",
    "at": [
     -1.408,
     0.0,
@@ -213,6 +233,7 @@
   {
    "name": "OonaBunk",
    "model": "models/camp_kit/bunk_1.gltf",
+   "row": "bunk",
    "at": [
     -0.228,
     0.0,
@@ -225,6 +246,7 @@
   {
    "name": "BramBunk",
    "model": "models/camp_kit/bunk_1.gltf",
+   "row": "bunk",
    "at": [
     0.942,
     0.0,
@@ -237,6 +259,7 @@
   {
    "name": "Lockers",
    "model": "models/camp_kit/lockers_1.gltf",
+   "row": "lockers",
    "at": [
     -2.6513,
     0.0,
@@ -249,6 +272,7 @@
   {
    "name": "GrowthChamber",
    "model": "models/camp_kit/growth_chamber_1.gltf",
+   "row": "growth_chamber",
    "at": [
     -1.5719,
     0.0,
@@ -261,6 +285,7 @@
   {
    "name": "SampleShelf",
    "model": "models/camp_kit/sample_shelf_1.gltf",
+   "row": "sample_shelf",
    "at": [
     3.6353,
     0.0,
@@ -270,6 +295,7 @@
    "children": [
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       -0.36,
       0.15,
@@ -279,6 +305,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       0.36,
       0.15,
@@ -288,6 +315,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       -0.36,
       1.11,
@@ -297,6 +325,7 @@
     },
     {
      "model": "models/camp_kit/case_1.gltf",
+     "row": "case",
      "at": [
       0.36,
       1.11,
@@ -310,6 +339,7 @@
   {
    "name": "CrateByTheWindow",
    "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
    "at": [
     6.0287,
     0.0,
@@ -322,6 +352,7 @@
   {
    "name": "CrateByTheDesk",
    "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
    "at": [
     3.9538,
     0.0,
@@ -334,6 +365,7 @@
   {
    "name": "CrateByTheGalley",
    "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
    "at": [
     -2.6397,
     0.0,
@@ -346,6 +378,7 @@
   {
    "name": "CrateByTheHygiene",
    "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
    "at": [
     -1.9517,
     0.0,
@@ -358,6 +391,7 @@
   {
    "name": "TerminalDesk",
    "model": "models/camp_kit/comms_desk_1.gltf",
+   "row": "comms_desk",
    "at": [
     -3.3321,
     0.0,
@@ -367,6 +401,7 @@
    "children": [
     {
      "model": "models/camp_kit/monitor_1.gltf",
+     "row": "monitor",
      "at": [
       0.5,
       0.74,
@@ -376,6 +411,7 @@
     },
     {
      "model": "models/camp_kit/monitor_1.gltf",
+     "row": "monitor",
      "at": [
       -0.02,
       0.74,
@@ -385,6 +421,7 @@
     },
     {
      "model": "models/camp_kit/radio_1.gltf",
+     "row": "radio",
      "at": [
       -0.56,
       0.74,
@@ -394,6 +431,7 @@
     },
     {
      "model": "models/camp_kit/monitor_1_glow.gltf",
+     "row": "monitor",
      "at": [
       0.5,
       0.74,
@@ -403,6 +441,7 @@
     },
     {
      "model": "models/camp_kit/monitor_1_glow.gltf",
+     "row": "monitor",
      "at": [
       -0.02,
       0.74,
@@ -416,6 +455,7 @@
   {
    "name": "CrateByTheChamber",
    "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
    "at": [
     -2.8405,
     0.0,
@@ -428,6 +468,7 @@
   {
    "name": "CrateByTheShelf",
    "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
    "at": [
     4.336,
     0.0,
@@ -440,6 +481,7 @@
   {
    "name": "CrateStack",
    "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
    "at": [
     -2.0839,
     0.0,
@@ -452,6 +494,7 @@
   {
    "name": "CrateUnderTheWindow",
    "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
    "at": [
     3.0975,
     0.0,
@@ -464,6 +507,7 @@
   {
    "name": "CrateByTheWay",
    "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
    "at": [
     2.5268,
     0.0,
@@ -476,6 +520,7 @@
   {
    "name": "CrateByTheBunks",
    "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
    "at": [
     3.7847,
     0.0,
@@ -488,6 +533,7 @@
   {
    "name": "SefasBedside",
    "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
    "at": [
     1.792,
     0.0,
@@ -500,6 +546,7 @@
   {
    "name": "OonasBedside",
    "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
    "at": [
     3.1079,
     0.0,

@@ -8,7 +8,7 @@ as numbers copied from the game (each entry names the game file it came from), a
 
     structure   code builders (tools/usd/builders.py) by name with their numbers, each painted with a library surface,
                 built in the place's frame or in its own and placed (`placed_at`, `placed_turn`):
-                /<place>/Structure/<name>
+                /<place>/Structure/<name>; one that is an inventory row's code-built piece names it (`row`)
     objects     a world model file (a gameplay object; tools/usd/glb_asset.py) where the game stands it, turned about up
                 (`yaw`, as the game turns it) or by a whole `rotation` (one on a seat of its own, tipped with the
                 ball's curve), scaled to the height the game gives it, with what stands on it: /<place>/Fixtures/<name>;
@@ -138,13 +138,13 @@ def bind_surface(stage, prim, place, surface, out=None):
 
 
 def built_meshes(entry):
-    """A structure entry's meshes: its builder called with its numbers (every key but name, builder, from, layer, plain
-    and its placing), each placed where the entry stands (`placed`)."""
+    """A structure entry's meshes: its builder called with its numbers (every key but name, builder, from, layer, plain,
+    row and its placing), each placed where the entry stands (`placed`)."""
     if entry["builder"] not in BUILDERS:
         raise ValueError(f"no code builder named {entry['builder']}")
     builder = getattr(builders, entry["builder"])
     numbers = {key: value for key, value in entry.items()
-               if key not in ("name", "builder", "from", "layer", "mirror", "placed_at", "placed_turn", "plain")}
+               if key not in ("name", "builder", "from", "layer", "mirror", "placed_at", "placed_turn", "plain", "row")}
     built = builder(**numbers)
     return [placed(part, entry) for part in (built if isinstance(built, list) else [built])]
 
@@ -184,6 +184,8 @@ def write_structure(stage, place, entries, root="Structure", kind="structure", o
             for key, value in (("score:kind", kind), ("score:builder", entry["builder"]),
                                ("score:from", entry.get("from", ""))):
                 prim.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+            if "row" in entry:  # the inventory row a code-built piece of the record is (complete.py's rows check)
+                prim.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(entry["row"])
             if "plain" in entry:  # which plain thing a primitive is (tools/usd/placeholders.py)
                 prim.GetPrim().CreateAttribute("score:plain", Sdf.ValueTypeNames.String).Set(entry["plain"])
             if "layer" in entry:  # a roof's draw layer, left out of a cutaway look

@@ -67,14 +67,15 @@ def check_builders():
 
 
 def check_lights_and_structure(folder):
-    """A record with one built wall, a roof on layer 2, an omni, a spot and a sun, written into a stage."""
+    """A record with one built wall, a roof on layer 2, a slab that is an inventory row's, an omni, a spot and a sun,
+    written into a stage."""
     record = {
         "structure": [{"name": "walls", "builder": "room_walls", "wide": 4.0, "deep": 5.0, "corner": 0.6, "high": 2.8,
                        "surface": "roof_steel_paint", "doors": []},
                       {"name": "roof", "builder": "dome_roof", "wide": 4.0, "deep": 5.0, "corner": 0.6, "eave": 2.8,
                        "rise": 0.6, "run": 1.1, "surface": "roof_steel_paint", "layer": 2},
                       {"name": "slab", "builder": "box", "centre": [0.0, 0.05, 0.0], "size": [2.0, 0.1, 2.0],
-                       "surface": "roof_steel_paint", "plain": "plate"}],
+                       "surface": "roof_steel_paint", "plain": "plate", "row": "ramp"}],
         "water": [{"name": "harbour", "builder": "grid", "low": [-10, -10], "high": [10, 10], "height": 0.0,
                    "step": 5.0, "surface": "harbour_water"}],
         "lights": [{"type": "omni", "at": [0.0, 2.5, 0.0], "colour": "#ffd29a", "energy": 1.92, "range": 6.0,
@@ -95,6 +96,7 @@ def check_lights_and_structure(folder):
     assert bound.GetPath().name == "roof_steel_paint", bound.GetPath()
     assert stage.GetPrimAtPath(f"/{PLACE}/Structure/roof").GetAttribute("score:layer").Get() == "2"
     assert stage.GetPrimAtPath(f"/{PLACE}/Structure/slab").GetAttribute("score:plain").Get() == "plate"
+    assert stage.GetPrimAtPath(f"/{PLACE}/Structure/slab").GetAttribute("score:row").Get() == "ramp"
     assert stage.GetPrimAtPath(f"/{PLACE}/Water/harbour").IsValid()
     omni = UsdLux.SphereLight(stage.GetPrimAtPath(f"/{PLACE}/Lights/light_1"))
     watts = omni.GetIntensityAttr().Get() * scene.SPHERE_WATTS_PER_INTENSITY
