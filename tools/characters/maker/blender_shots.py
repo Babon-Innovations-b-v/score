@@ -57,13 +57,18 @@ def shape_keys_follow(meshes, clip):
 
 
 def play(armature, clip):
-    """The clip's action that turns bones, on the armature (blender_review.play keys clips by the action's name
-    before its last "_", which a shape key action named after the outfit, "sitting_work", takes over); its first and
-    last frames."""
-    action = next(action for action in bpy.data.actions if action.name.startswith(f"{clip}_")
+    """The clip's action that turns bones, on the armature, in its object slot (blender_review.play keys clips by the
+    action's name before its last "_", which a shape key action named after the outfit, "sitting_work", takes over;
+    another importer names one merged action by the clip alone); its first and last frames."""
+    action = next(action for action in bpy.data.actions
+                  if (action.name == clip or action.name.startswith(f"{clip}_"))
                   and any("pose.bones" in curve.data_path for curve in fcurves_of(action)))
     armature.animation_data_create()
     armature.animation_data.action = action
+    # An importer that merges a clip's armature and shape keys into one action gives each a slot of its own.
+    objects = [slot for slot in getattr(action, "slots", []) if slot.target_id_type == "OBJECT"]
+    if objects:
+        armature.animation_data.action_slot = objects[0]
     for track in list(armature.animation_data.nla_tracks):
         armature.animation_data.nla_tracks.remove(track)
     start, end = action.frame_range
