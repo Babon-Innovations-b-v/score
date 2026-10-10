@@ -63,6 +63,10 @@ MITTS = ("grey mitten rubber",)
 # A part's role in the body, by its material's family.
 ROLES = {"skin": "skin", "hair": "hair", "fabric": "garment", "print": "garment", "rubber": "hard", "steel": "hard",
          "plastic": "hard", "glass": "hard"}
+# Finishes inside a part (labels.with_finishes) are not painted by colour here: on klein's darker render of the
+# player the navy reads L* 18 to 33, nearer the hair's and the belt's anchors (tuned to the props' studio close-ups)
+# than the navy's, and the finish pass turned his judged grey yoke navy (0.69 % of the surface to 0.02 %) while it
+# found the red piping on 0.04 %. A finish gets a part of its own only where the split gives it one.
 # Each part is asked with these seeds and most of the usable answers decide (closeup/check.py's rule: one answer alone
 # called a pocket a steel buckle, and another ran out of thinking before it answered).
 SEEDS = (7, 8, 9)
@@ -132,22 +136,39 @@ def judged_by_most(folder, take, count, names):
     return found
 
 
+def colour_pick(part_of, part, colours, names, anchors):
+    """The allowed material whose colour is nearest the part's seen colour (its median), or None where unseen."""
+    seen = colours[part_of == part]
+    seen = seen[~np.isnan(seen).any(1)]
+    return names[int(np.argmin([labels.weighted(np.median(seen, 0), anchor) for anchor in anchors]))] if len(seen) \
+        else None
+
+
+def bordering(mesh, part_of, part, answered):
+    """The answered part `part` shares the most edges with, or None."""
+    pairs = mesh.face_adjacency
+    sides = part_of[pairs]
+    across = sides[(sides[:, 0] == part) ^ (sides[:, 1] == part)].ravel()
+    across = across[(across != part) & np.isin(across, list(answered))]
+    return int(np.bincount(across).argmax()) if len(across) else None
+
+
 def materials_of_parts(run, take, part_of, materials, mesh):
-    """Each part's material name: the judge's answer, else the allowed colour nearest the part's seen colour."""
-    view = labels.picture_view(mesh, take)
-    colours = labels.face_colours(mesh, view)
-    count = int(part_of.max()) + 1
-    judged = judged_by_most(run / "answers", take, count, list(materials))
-    names, anchors = labels.anchors_of(materials)
-    found = {}
-    for part in range(count):
-        if part in judged:
-            found[part] = judged[part]
-            continue
-        seen = colours[part_of == part]
-        seen = seen[~np.isnan(seen).any(1)]
-        found[part] = names[int(np.argmin(np.linalg.norm(anchors - np.median(seen, 0), axis=1)))] if len(seen) \
-            else None
+    """Each part's material name: the judge's answer by most seeds; a part it gave no usable answer for takes the
+    material of the answered part it borders most (labels.py's rule for a part the camera hardly saw), and only a
+    part bordering none the allowed colour nearest its own. The close-up's colours are a poor guide on a dark suit:
+    the player's navy reads L* 18 to 33, nearer the hair's and the belt's anchors than the navy's (on his left
+    forearm and hand, one part every seed thought about past its limit, the colour pick painted hair)."""
+    judged = judged_by_most(run / "answers", take, int(part_of.max()) + 1, list(materials))
+    found = dict(judged)
+    for part in np.unique(part_of):
+        if part not in judged:
+            neighbour = bordering(mesh, part_of, part, judged)
+            found[int(part)] = judged[neighbour] if neighbour is not None else None
+    if any(name is None for name in found.values()):
+        colours = labels.face_colours(mesh, labels.picture_view(mesh, take))
+        names, anchors = labels.anchors_of(materials)
+        found = {part: name or colour_pick(part_of, part, colours, names, anchors) for part, name in found.items()}
     return found
 
 
@@ -185,21 +206,20 @@ def parts(run, take, spec, outfit):
     """The split on the finished model with each part's material, role and name: <run>/<take>/parts.npz and .json."""
     mesh = split_compare.raw_model(take)
     materials = person_materials(spec, outfit)
-    fallback = next(iter(OUTFIT_PALETTES[outfit]))
     raw = raw_parts(run, take)
     chosen = materials_of_parts(run, take, raw, materials, mesh)
     raw_of_final, final, gap = onto_final(take, mesh)
     part_of = raw[raw_of_final]
-    roles = {part: ROLES[materials[name]["family"]] if name else "garment" for part, name in chosen.items()}
-    names = part_names(final, part_of, roles, {part: name or fallback for part, name in chosen.items()})
     used = sorted(set(part_of.tolist()))
+    roles = {part: ROLES[materials[chosen[part]]["family"]] for part in used}
+    names = part_names(final, part_of, roles, chosen)
     record = {"take": take, "registration_gap_m": round(float(gap), 4), "faces": len(final.faces),
               "parts": [{"part": part, "name": names[part], "role": roles[part], "material": chosen[part],
-                         "family": materials[chosen[part]]["family"] if chosen[part] else None,
+                         "family": materials[chosen[part]]["family"],
                          "share": round(float((part_of == part).mean()), 4)} for part in used]}
     np.savez_compressed(run / take / "parts.npz", part_of=part_of, names=np.array([names[part] for part in used]),
                         parts=np.array(used), roles=np.array([roles[part] for part in used]),
-                        colours=np.array([materials[chosen[part] or fallback]["colour"] for part in used]))
+                        colours=np.array([materials[chosen[part]]["colour"] for part in used]))
     (run / take / "parts.json").write_text(json.dumps(record, indent=1))
     return record
 
