@@ -44,3 +44,12 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   from the annotate step's ids (`../usd/annotate.py`), and horizontal bands, in linear light against the game's shot
   from the same camera. A knob tuned to the game's brightness (the far city's lit windows) is set from these numbers,
   never by eye. `brightness_test.py` checks it on pictures made in the test.
+- **The demo's films** (`demo.py`, PRD #1's world demo): a walk-through film of each place from its stage, rendered on
+  the cloud, every frame with the game's ink lines (usd_views.py's `ink`, or its `lines_only` laid over looks rendered
+  before: the cheap pass, never a re-render for ink alone) and the night glow where the stage carries it. Every shot
+  starts and walks the planner's clearance from walls, objects and people (`../usd/camera_paths.py`); a camera with no
+  clear spot near it is left out, never filmed from inside something. The views file keeps every shot's move and the
+  planner's commit; `--keep` keeps an earlier take's clear shots as they were. `film_checks.py` is the film's measured
+  checks (ffmpeg's size, sound, black, frozen and length; the clearance on every frame from meshes and from people at
+  the frame's own moment; ink on every frame): a film that fails is not shown. `showcase.py` cuts the showcase and the
+  figure from the films. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
