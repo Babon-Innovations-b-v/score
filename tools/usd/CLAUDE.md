@@ -123,8 +123,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   water, the far backdrop, other places seen from this one (their own stages referenced), every light (UsdLux, the
   game's numbers kept as `score:game:*`), the sky and the exposure, and the cameras the place is judged from with the
   game's shot from each. Its geometry comes only from the code builders in `builders.py` (plain numbers in, meshes
-  painted with library surfaces out); add a builder there, never a mesh in a record. Every entry says where in the game
-  its numbers came from (`from`), and what the game draws that the record does not carry is listed in `game_only`.
+  painted with library surfaces out); add a builder there, never a mesh in a record. A record entry that is an
+  inventory row's piece names it (`row`: a structure's code-built piece, an object's made model), so the rows check
+  and the pick lock find it. Every entry says where in the game its numbers came from (`from`), and what the game
+  draws that the record does not carry is listed in `game_only`.
 - **Light units.** The stage's lights are in Blender's USD reader's units (a sphere light's watts its intensity times
   pi, a distant light's strength its intensity times 4), from the game's energies by `scene.SUN_PER_ENERGY` and
   `OMNI_PER_ENERGY`, and a lamp's energy matched halfway out to its range for its own fall-off (`reach_matched`); change those, never a record's energies, when the brightness check against the game's shots says
@@ -137,8 +139,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 
 - `far_city_stage.py` stands the far city up as a place of its own (`<stages>/far_city/far_city.usda`): far_city.py's
   seeded plan with each tower an instance of its kind's made model, the land, the mountains and the harbour out to its
-  shore. The flat, the street, the square and the launch view reference it through a `places` entry; it refuses to
-  write while a tower kind has no made model, so no stand-in tower is ever shown.
+  shore, laid out as every place's stage (`layers/base.usda` rewritten, `layers/edit.usda` kept, `inputs.json`); each
+  kind's prototype names its launch inventory row (`score:row`), so the launch view's rows check finds the made kinds.
+  The flat, the street, the square and the launch view reference it through a `places` entry; it refuses to write
+  while a tower kind has no made model, so no stand-in tower is ever shown.
 - **The sound stage** (`sound.py`) writes `layers/sound.usda` only (UsdMedia.SpatialAudio: room tones from
   `data/sound/places.json`, objects' own sounds from their inventory rows, motions' sounds from `data/motion`, and
   a bank of surface sounds each library surface points at) and copies the files into `assets/sound/`. Levels come
