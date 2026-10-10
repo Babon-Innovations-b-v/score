@@ -273,7 +273,6 @@
   }
  ],
  "game_only": [
-  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)",
-  "the label readouts over the desks"
+  "the ink lines over every view but the first (the page draws the game's ink pass over the first view, as a render option)"
  ]
 }
