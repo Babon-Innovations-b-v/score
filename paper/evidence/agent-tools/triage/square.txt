@@ -1,0 +1,2 @@
+  10 tips       5 to 20 cm     far_square_lamp_1: worst /square/Objects/far_square_lamp_1 (165 mm; its weight falls outside what it touches)
+4135 objects, 1125 flagged: 10 real, 1115 false alarms

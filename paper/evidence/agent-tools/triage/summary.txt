@@ -1,0 +1,17 @@
+flat 52 objects, 11 flagged: 0 real, 11 false alarms drop:no 10s
+hub 460 objects, 357 flagged: 0 real, 357 false alarms drop:no 210s
+stairwell 118 objects, 44 flagged: 0 real, 44 false alarms drop:no 19s
+tube 39 objects, 23 flagged: 0 real, 23 false alarms drop:no 14s
+square 4135 objects, 1125 flagged: 10 real, 1115 false alarms drop:no 338s
+airlock 330 objects, 58 flagged: 2 real, 56 false alarms drop:yes 50s
+camp 218 objects, 167 flagged: 10 real, 157 false alarms drop:yes 45s
+garage 596 objects, 149 flagged: 8 real, 141 false alarms drop:yes 83s
+greenhouse 1248 objects, 229 flagged: 10 real, 219 false alarms drop:yes 296s
+habitat 637 objects, 157 flagged: 9 real, 148 false alarms drop:yes 147s
+hangar 1657 objects, 898 flagged: 14 real, 884 false alarms drop:yes 348s
+lab 412 objects, 90 flagged: 4 real, 86 false alarms drop:yes 84s
+launch 67 objects, 63 flagged: 4 real, 59 false alarms drop:yes 4s
+old_station 29 objects, 2 flagged: 0 real, 2 false alarms drop:yes 8s
+street 1198 objects, 463 flagged: 4 real, 459 false alarms drop:yes 154s
+workshop 814 objects, 230 flagged: 17 real, 213 false alarms drop:yes 112s
+wreck 22 objects, 12 flagged: 12 real, 0 false alarms drop:yes 5s

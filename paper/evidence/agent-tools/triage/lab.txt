@@ -1,0 +1,12 @@
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:550: RuntimeWarning: divide by zero encountered in divide
+  inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:553: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:554: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:555: RuntimeWarning: invalid value encountered in subtract
+  barycentric[:, 0] = 1 - barycentric[:, 1] - barycentric[:, 2]
+   2 tips       5 to 20 cm     desk_chair_1: worst /lab/Objects/desk_chair_1 (110 mm; its weight falls outside what it touches)
+   1 hangs free 0 to 1 cm      hanging_glove_1: worst /lab/Objects/hanging_glove_2 (0 mm; a hanging piece touching nothing)
+   1 overlaps   1 to 5 cm      sample_store_1: worst /lab/Objects/sample_store_1 (46 mm; still inside after the nudge)
+412 objects, 90 flagged: 4 real, 86 false alarms

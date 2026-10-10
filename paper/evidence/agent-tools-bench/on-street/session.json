@@ -1,0 +1,106 @@
+{
+ "arm": "on",
+ "place": "street",
+ "wall_minutes": 39.2,
+ "exit": 0,
+ "claude": {
+  "duration_api_ms": 143591,
+  "stop_reason": "end_turn",
+  "session_id": "<id>",
+  "total_cost_usd": 1.2097742000000002,
+  "usage": {
+   "input_tokens": 70,
+   "cache_creation_input_tokens": 73159,
+   "cache_read_input_tokens": 2083411,
+   "output_tokens": 10377,
+   "output_tokens_details": {
+    "thinking_tokens": 3358
+   },
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 73159,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "global",
+   "iterations": [
+    {
+     "input_tokens": 2,
+     "output_tokens": 600,
+     "cache_read_input_tokens": 84933,
+     "cache_creation_input_tokens": 375,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 375
+     },
+     "type": "message"
+    }
+   ],
+   "speed": "standard",
+   "fallback_credit": null
+  },
+  "modelUsage": {
+   "claude-opus-5-5": {
+    "inputTokens": 70,
+    "outputTokens": 10377,
+    "cacheReadInputTokens": 2083411,
+    "cacheCreationInputTokens": 73159,
+    "webSearchRequests": 0,
+    "costUSD": 1.2097742000000002,
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "thinkingTokens": 3358,
+    "canonicalModel": "claude-opus-5-5",
+    "provider": "firstParty",
+    "costBasis": "list"
+   }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+   "spawned": 0,
+   "requested": {
+    "background": 0,
+    "foreground": 0,
+    "unset": 0
+   },
+   "started_in_background": 0,
+   "max_depth": 0,
+   "spawned_by_subagents": 0,
+   "completed": 0,
+   "failed": 0,
+   "killed": {
+    "parent": 0,
+    "user": 0,
+    "system": 0
+   },
+   "refused": {
+    "depth_limit": 0,
+    "concurrency_limit": 0,
+    "budget": 0
+   },
+   "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 36,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "The street is complete: the completion gate passes on every requirement.\n\n**What I changed** (only `data/kit/street.json`, 7 numbers):\n- I moved the three street lamps 0.3 m out from the facade, toward the kerb. Their poles had been standing inside the shop walls, facade bands, gas pipes, meter boxes, AC units and a lit window. That was 10 of the 11 real faults. They still stand on the pavement, and the game's lamp lights at x 7.2 still sit under the lamp heads.\n- I moved the notice board 0.15 m out, clear of the meter box it was cutting into (the 11th fault).\n- I exported the stage again.\n\n**Gate result**\n- All 33 rows have objects on the stage; none needed dropping.\n- Made-only and placeholders pass: nothing stands in for a made piece.\n- Resting passes: 0 real faults, down from 11 in the gate's count; the earlier triage run listed 12.\n- No row has an owner's pick, so there was nothing to keep.\n- The review page is built: `.../work/on/street/review/street/index.html`.\n\n**What is left**\n- The physics drop test (`settle.py --dry-run --cloud`) failed on the cloud machine. Its script looks for a mesh named `Ground`, and the street has none because its floor is made of kit pieces. So the barriers, lamps and signs have only had the static resting check, not a drop test. The gate doesn't require the drop test, but this is a limit of the tool worth fixing.\n- The working tree also shows changes to `data/inventory/workshop.json` and `data/kit/workshop.json`. I didn't make them and didn't touch them.\n\n**Cloud spend:** about \u20ac0.76 (\u20ac0.59 on the failed drop test, \u20ac0.17 on the review renders). Nothing was committed or pushed.",
+  "ttft_ms": 2113,
+  "type": "result",
+  "duration_ms": 2347097,
+  "uuid": "<id>",
+  "ttft_stream_ms": 1163,
+  "time_to_request_ms": 107,
+  "first_content_frame_ms": 1163,
+  "queued_turn_count": 0,
+  "result_index": 0
+ },
+ "stderr_tail": ""
+}

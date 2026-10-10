@@ -1,0 +1,18 @@
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:550: RuntimeWarning: divide by zero encountered in divide
+  inverse_denominator = 1.0 / (dot00 * dot11 - dot01 * dot01)
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:553: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 2] = (dot00 * dot12 - dot01 * dot02) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:554: RuntimeWarning: invalid value encountered in multiply
+  barycentric[:, 1] = (dot11 * dot02 - dot01 * dot12) * inverse_denominator
+$HOME/score-move/agent-tools/.venv/lib/python3.12/site-packages/trimesh/triangles.py:555: RuntimeWarning: invalid value encountered in subtract
+  barycentric[:, 0] = 1 - barycentric[:, 1] - barycentric[:, 2]
+   2 tips       5 to 20 cm     chair_1: worst /greenhouse/Objects/chair_1 (76 mm; its weight falls outside what it touches)
+   2 overlaps   1 to 5 cm      control_console_1: worst /greenhouse/Objects/control_console_1 (40 mm; still inside after the nudge)
+   2 unstable   20 to 100 cm   seedling_shelf_1: worst /greenhouse/Objects/seedling_shelf_1 (412 mm; moves 0.41 m and turns 2 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 unstable   20 to 100 cm   control_console_1: worst /greenhouse/Objects/control_console_1 (895 mm; moves 0.89 m and turns 0 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 unstable   20 to 100 cm   dosing_unit_1: worst /greenhouse/Objects/dosing_unit_1 (892 mm; moves 0.89 m and turns 0 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 unstable   20 to 100 cm   humidifier_1: worst /greenhouse/Objects/humidifier_1 (418 mm; moves 0.42 m and turns 9 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 unstable   20 to 100 cm   waste_bin_1: worst /greenhouse/Objects/waste_bin_1 (904 mm; moves 0.90 m and turns 45 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+   1 tips       20 to 100 cm   water_tank_1: worst /greenhouse/Objects/water_tank_1 (772 mm; its weight falls outside what it touches)
+   1 unstable   20 to 100 cm   work_desk_1: worst /greenhouse/Objects/work_desk_1 (897 mm; moves 0.90 m and turns 7 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+1248 objects, 229 flagged: 10 real, 219 false alarms

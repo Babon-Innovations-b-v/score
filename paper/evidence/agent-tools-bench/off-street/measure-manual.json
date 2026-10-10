@@ -1,0 +1,16 @@
+{
+ "objects": 1198,
+ "real_objects": 0,
+ "real_faults": 0,
+ "real_by_kind": {
+  "floats": 0,
+  "tips": 0,
+  "sunk": 0,
+  "overlaps": 0,
+  "hangs free": 0
+ },
+ "placeholders": 0,
+ "not_made": 0,
+ "rows": 41,
+ "rows_missing": 0
+}

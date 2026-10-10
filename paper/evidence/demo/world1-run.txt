@@ -1,0 +1,117 @@
+[cloud] 02:05:43 batch-20261009-014450-2375276-1 in pl-waw-2 belongs to a batch still running; left alone
+[cloud] 02:05:43 blender-20261009-013353-2357332-1 in pl-waw-2 belongs to a batch still running; left alone
+[cloud] 02:05:43 batch-20261009-014859-2384269-2 in fr-par-2 belongs to a batch still running; left alone
+[cloud] 02:05:43 blender-20261009-013353-2357467-1 in fr-par-2 belongs to a batch still running; left alone
+[cloud] 02:05:45 gpu-24gb (L4-1-24G) in pl-waw-2: available, €0.79 an hour (scaleway's price list)
+[cloud] 02:05:45 gpu-24gb (L4-1-24G) in fr-par-2: available, €0.79 an hour (scaleway's price list)
+[cloud] 02:05:45 gpu-24gb (L4-1-24G) in fr-par-1: available, €0.79 an hour (scaleway's price list)
+[cloud] 02:05:45 34 Blender jobs on 20 machines: about 104 min, €27.30; €336.05 spent this month
+[cloud] 02:05:52 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-17)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-1 (blender-20261009-020545-2401425-15)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-2)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-1 (blender-20261009-020545-2401425-12)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-1 (blender-20261009-020545-2401425-6)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-1 (blender-20261009-020545-2401425-9)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-14)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-20)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-11)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-5)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-8)
+[cloud] 02:05:52 rented L4-1-24G in fr-par-1 (blender-20261009-020545-2401425-3)
+[cloud] 02:05:53 rented L4-1-24G in fr-par-1 (blender-20261009-020545-2401425-18)
+[cloud] 02:05:53 rented L4-1-24G in pl-waw-2 (blender-20261009-020545-2401425-7)
+[cloud] 02:05:53 rented L4-1-24G in pl-waw-2 (blender-20261009-020545-2401425-10)
+[cloud] 02:05:53 rented L4-1-24G in pl-waw-2 (blender-20261009-020545-2401425-1)
+[cloud] 02:05:53 rented L4-1-24G in pl-waw-2 (blender-20261009-020545-2401425-16)
+[cloud] 02:05:53 rented L4-1-24G in pl-waw-2 (blender-20261009-020545-2401425-4)
+[cloud] 02:05:53 rented L4-1-24G in pl-waw-2 (blender-20261009-020545-2401425-13)
+[cloud] 02:05:53 rented L4-1-24G in pl-waw-2 (blender-20261009-020545-2401425-19)
+[cloud] 02:06:35 blender-20261009-020545-2401425-1 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:06:35 blender-20261009-020545-2401425-13 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:06:55 blender-20261009-020545-2401425-1 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:06:56 blender-20261009-020545-2401425-13 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:06:58 blender-20261009-020545-2401425-9 (L4-1-24G, fr-par-1) ready after 1.1 min, 1 at once
+[cloud] 02:06:58 blender-20261009-020545-2401425-12 (L4-1-24G, fr-par-1) ready after 1.1 min, 1 at once
+[cloud] 02:06:59 blender-20261009-020545-2401425-20 (L4-1-24G, fr-par-2) ready after 1.1 min, 1 at once
+[cloud] 02:06:59 blender-20261009-020545-2401425-19 (L4-1-24G, pl-waw-2) ready after 1.1 min, 1 at once
+[cloud] 02:06:59 blender-20261009-020545-2401425-11 (L4-1-24G, fr-par-2) ready after 1.1 min, 1 at once
+[cloud] 02:06:59 blender-20261009-020545-2401425-16 (L4-1-24G, pl-waw-2) ready after 1.1 min, 1 at once
+[cloud] 02:06:59 blender-20261009-020545-2401425-17 (L4-1-24G, fr-par-2) ready after 1.1 min, 1 at once
+[cloud] 02:06:59 blender-20261009-020545-2401425-7 (L4-1-24G, pl-waw-2) ready after 1.1 min, 1 at once
+[cloud] 02:06:59 blender-20261009-020545-2401425-15 (L4-1-24G, fr-par-1) ready after 1.1 min, 1 at once
+[cloud] 02:07:00 blender-20261009-020545-2401425-4 (L4-1-24G, pl-waw-2) ready after 1.1 min, 1 at once
+[cloud] 02:07:00 blender-20261009-020545-2401425-6 (L4-1-24G, fr-par-1) ready after 1.1 min, 1 at once
+[cloud] 02:07:00 blender-20261009-020545-2401425-8 (L4-1-24G, fr-par-2) ready after 1.1 min, 1 at once
+[cloud] 02:07:01 blender-20261009-020545-2401425-10 (L4-1-24G, pl-waw-2) ready after 1.1 min, 1 at once
+[cloud] 02:07:01 blender-20261009-020545-2401425-5 (L4-1-24G, fr-par-2) ready after 1.1 min, 1 at once
+[cloud] 02:07:02 blender-20261009-020545-2401425-2 (L4-1-24G, fr-par-2) ready after 1.2 min, 1 at once
+[cloud] 02:07:02 blender-20261009-020545-2401425-14 (L4-1-24G, fr-par-2) ready after 1.2 min, 1 at once
+[cloud] 02:07:08 blender-20261009-020545-2401425-3 (L4-1-24G, fr-par-1) ready after 1.3 min, 1 at once
+[cloud] 02:07:09 blender-20261009-020545-2401425-18 (L4-1-24G, fr-par-1) ready after 1.3 min, 1 at once
+[cloud] 02:07:16 blender-20261009-020545-2401425-1 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:07:16 blender-20261009-020545-2401425-13 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:07:36 blender-20261009-020545-2401425-1 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:07:36 blender-20261009-020545-2401425-1: L4-1-24G in pl-waw-2 did not start (out of stock for 60 s); trying the next offer
+[cloud] 02:07:37 blender-20261009-020545-2401425-13 is stopped and would not start yet: Resource out of stock 'L4-1-24G'
+[cloud] 02:07:37 blender-20261009-020545-2401425-13: L4-1-24G in pl-waw-2 did not start (out of stock for 60 s); trying the next offer
+[cloud] 02:07:39 blender-20261009-020545-2401425-1 deleted after 1.8 min
+[cloud] 02:07:39 blender-20261009-020545-2401425-13 deleted after 1.8 min
+[cloud] 02:07:46 rented L4-1-24G in fr-par-2 (blender-20261009-020545-2401425-13)
+[cloud] 02:07:46 rented L4-1-24G in fr-par-1 (blender-20261009-020545-2401425-1)
+[cloud] 02:08:54 blender-20261009-020545-2401425-1 (L4-1-24G, fr-par-1) ready after 1.1 min, 1 at once
+[cloud] 02:08:56 blender-20261009-020545-2401425-13 (L4-1-24G, fr-par-2) ready after 1.2 min, 1 at once
+[cloud] 02:26:47 Blender job 19 (tools/blender/inside/usd_views.py): 16.8 min
+[cloud] 02:27:15 Blender job 18 (tools/blender/inside/usd_views.py): 17.3 min
+[cloud] 02:31:19 Blender job 13 (tools/blender/inside/usd_views.py): 14.7 min
+[cloud] 02:37:09 Blender job 2 (tools/blender/inside/usd_views.py): 23.0 min
+[cloud] 02:37:56 Blender job 3 (tools/blender/inside/usd_views.py): 23.2 min
+[cloud] 02:38:19 Blender job 11 (tools/blender/inside/usd_views.py): 26.8 min
+[cloud] 02:38:31 Blender job 10 (tools/blender/inside/usd_views.py): 27.1 min
+[cloud] 02:41:30 Blender job 17 (tools/blender/inside/usd_views.py): 26.3 min
+[cloud] 02:42:09 Blender job 16 (tools/blender/inside/usd_views.py): 27.1 min
+[cloud] 02:44:01 Blender job 6 (tools/blender/inside/usd_views.py): 26.6 min
+[cloud] 02:45:20 Blender job 7 (tools/blender/inside/usd_views.py): 26.8 min
+[cloud] 02:46:58 Blender job 12 (tools/blender/inside/usd_views.py): 29.7 min
+[cloud] 02:49:23 Blender job 25 (tools/blender/inside/usd_views.py): 10.7 min
+[cloud] 02:50:30 Blender job 8 (tools/blender/inside/usd_views.py): 27.6 min
+[cloud] 02:52:54 Blender job 9 (tools/blender/inside/usd_views.py): 29.7 min
+[cloud] 02:53:01 blender-20261009-020545-2401425-4 deleted after 47.1 min
+[cloud] 02:54:00 Blender job 1 (tools/blender/inside/usd_views.py): 31.1 min
+[cloud] 02:54:07 blender-20261009-020545-2401425-12 deleted after 48.2 min
+[cloud] 02:55:31 Blender job 0 (tools/blender/inside/usd_views.py): 32.7 min
+[cloud] 02:55:37 blender-20261009-020545-2401425-9 deleted after 49.7 min
+[cloud] 02:56:38 Blender job 20 (tools/blender/inside/usd_views.py): 27.5 min
+[cloud] 02:56:44 blender-20261009-020545-2401425-13 deleted after 49.0 min
+[cloud] 02:57:23 Blender job 4 (tools/blender/inside/usd_views.py): 38.6 min
+[cloud] 02:57:29 blender-20261009-020545-2401425-11 deleted after 51.6 min
+[cloud] 02:58:02 Blender job 21 (tools/blender/inside/usd_views.py): 28.5 min
+[cloud] 02:58:09 blender-20261009-020545-2401425-1 deleted after 50.4 min
+[cloud] 02:59:51 Blender job 24 (tools/blender/inside/usd_views.py): 21.5 min
+[cloud] 02:59:58 blender-20261009-020545-2401425-19 deleted after 54.1 min
+[cloud] 03:01:10 Blender job 29 (tools/blender/inside/usd_views.py): 15.3 min
+[cloud] 03:01:12 Blender job 5 (tools/blender/inside/usd_views.py): 41.5 min
+[cloud] 03:01:16 blender-20261009-020545-2401425-17 deleted after 55.4 min
+[cloud] 03:01:19 blender-20261009-020545-2401425-16 deleted after 55.4 min
+[cloud] 03:01:33 Blender job 28 (tools/blender/inside/usd_views.py): 17.8 min
+[cloud] 03:01:39 blender-20261009-020545-2401425-3 deleted after 55.8 min
+[cloud] 03:05:40 Blender job 26 (tools/blender/inside/usd_views.py): 26.7 min
+[cloud] 03:05:47 blender-20261009-020545-2401425-6 deleted after 59.9 min
+[cloud] 03:07:51 Blender job 33 (tools/blender/inside/usd_views.py): 15.7 min
+[cloud] 03:07:57 blender-20261009-020545-2401425-15 deleted after 62.1 min
+[cloud] 03:08:07 Blender job 27 (tools/blender/inside/usd_views.py): 26.3 min
+[cloud] 03:08:13 blender-20261009-020545-2401425-18 deleted after 62.3 min
+[cloud] 03:09:25 Blender job 22 (tools/blender/inside/usd_views.py): 37.0 min
+[cloud] 03:09:31 blender-20261009-020545-2401425-5 deleted after 63.6 min
+[cloud] 03:12:13 Blender job 15 (tools/blender/inside/usd_views.py): 49.4 min
+[cloud] 03:12:18 Blender job 14 (tools/blender/inside/usd_views.py): 49.4 min
+[cloud] 03:12:19 blender-20261009-020545-2401425-14 deleted after 66.5 min
+[cloud] 03:12:24 blender-20261009-020545-2401425-2 deleted after 66.5 min
+[cloud] 03:16:34 Blender job 23 (tools/blender/inside/usd_views.py): 37.8 min
+[cloud] 03:16:40 blender-20261009-020545-2401425-20 deleted after 70.8 min
+[cloud] 03:17:06 Blender job 30 (tools/blender/inside/usd_views.py): 29.8 min
+[cloud] 03:17:13 blender-20261009-020545-2401425-7 deleted after 71.3 min
+[cloud] 03:19:19 Blender job 31 (tools/blender/inside/usd_views.py): 30.5 min
+[cloud] 03:19:26 blender-20261009-020545-2401425-10 deleted after 73.6 min
+[cloud] 03:23:43 Blender job 32 (tools/blender/inside/usd_views.py): 30.5 min
+[cloud] 03:23:50 blender-20261009-020545-2401425-8 deleted after 78.0 min
+[cloud] 03:23:50 blender: 34 jobs in 78.1 min on 20 machines, €15.82

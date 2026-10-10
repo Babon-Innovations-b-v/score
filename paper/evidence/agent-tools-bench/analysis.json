@@ -1,0 +1,195 @@
+[
+ {
+  "arm": "off",
+  "place": "workshop",
+  "wall_minutes": 36.4,
+  "usd": 2.2579896000000006,
+  "cloud_euros": 0.85,
+  "tokens": {
+   "input": 114,
+   "output": 30428,
+   "cache_read": 4447308,
+   "cache_write": 94939
+  },
+  "checks_before_money": 9,
+  "checks_after_money": 0,
+  "fix_rounds": 7,
+  "tool_calls": {
+   "resting": 9,
+   "placeholders": 4,
+   "settle": 1,
+   "export": 7,
+   "review page": 2
+  },
+  "unknown_answers": {},
+  "acted_on": {
+   "placeholders": 2,
+   "resting": 2
+  },
+  "edits": 0,
+  "hook_blocks": 0,
+  "all_calls": 54
+ },
+ {
+  "arm": "on",
+  "place": "workshop",
+  "wall_minutes": 25.8,
+  "usd": 1.4227966,
+  "cloud_euros": 0.85,
+  "tokens": {
+   "input": 68,
+   "output": 14338,
+   "cache_read": 2300343,
+   "cache_write": 84462
+  },
+  "checks_before_money": 6,
+  "checks_after_money": 1,
+  "fix_rounds": 2,
+  "tool_calls": {
+   "complete": 4,
+   "triage": 3,
+   "export": 2,
+   "review page": 2
+  },
+  "unknown_answers": {
+   "complete": 2
+  },
+  "acted_on": {
+   "complete": 1,
+   "triage": 1
+  },
+  "edits": 0,
+  "hook_blocks": 0,
+  "all_calls": 32
+ },
+ {
+  "arm": "off",
+  "place": "street",
+  "wall_minutes": 37.9,
+  "usd": 2.403479799999999,
+  "cloud_euros": 0.32,
+  "tokens": {
+   "input": 132,
+   "output": 29965,
+   "cache_read": 4845339,
+   "cache_write": 104323
+  },
+  "checks_before_money": 9,
+  "checks_after_money": 0,
+  "fix_rounds": 9,
+  "tool_calls": {
+   "resting": 9,
+   "placeholders": 3,
+   "settle": 2,
+   "export": 9,
+   "review page": 6
+  },
+  "unknown_answers": {},
+  "acted_on": {
+   "placeholders": 1,
+   "resting": 2
+  },
+  "edits": 0,
+  "hook_blocks": 0,
+  "all_calls": 66
+ },
+ {
+  "arm": "on",
+  "place": "street",
+  "wall_minutes": 39.2,
+  "usd": 1.2097742000000002,
+  "cloud_euros": 0.76,
+  "tokens": {
+   "input": 70,
+   "output": 10377,
+   "cache_read": 2083411,
+   "cache_write": 73159
+  },
+  "checks_before_money": 6,
+  "checks_after_money": 1,
+  "fix_rounds": 1,
+  "tool_calls": {
+   "complete": 5,
+   "triage": 2,
+   "export": 1,
+   "settle": 3,
+   "review page": 3
+  },
+  "unknown_answers": {},
+  "acted_on": {
+   "complete": 1,
+   "triage": 1
+  },
+  "edits": 0,
+  "hook_blocks": 0,
+  "all_calls": 35
+ },
+ {
+  "arm": "off",
+  "place": "hangar",
+  "wall_minutes": 47.2,
+  "usd": 2.0108364000000005,
+  "cloud_euros": 0,
+  "tokens": {
+   "input": 86,
+   "output": 26628,
+   "cache_read": 3259022,
+   "cache_write": 103266
+  },
+  "checks_before_money": 7,
+  "checks_after_money": 0,
+  "fix_rounds": 7,
+  "tool_calls": {
+   "resting": 6,
+   "placeholders": 3,
+   "settle": 4,
+   "export": 7,
+   "review page": 3
+  },
+  "unknown_answers": {},
+  "acted_on": {
+   "placeholders": 1,
+   "resting": 3
+  },
+  "edits": 0,
+  "hook_blocks": 0,
+  "all_calls": 41
+ },
+ {
+  "arm": "on",
+  "place": "hangar",
+  "wall_minutes": 31.9,
+  "usd": 2.3427880000000005,
+  "cloud_euros": 0.64,
+  "tokens": {
+   "input": 90,
+   "output": 29093,
+   "cache_read": 3922400,
+   "cache_write": 122011
+  },
+  "checks_before_money": 5,
+  "checks_after_money": 9,
+  "fix_rounds": 5,
+  "tool_calls": {
+   "complete": 6,
+   "placeholders": 2,
+   "export": 5,
+   "triage": 3,
+   "settle": 6,
+   "resting": 3,
+   "review page": 1
+  },
+  "unknown_answers": {
+   "complete": 3
+  },
+  "acted_on": {
+   "complete": 2,
+   "placeholders": 2,
+   "triage": 1,
+   "resting": 1
+  },
+  "edits": 0,
+  "hook_blocks": 0,
+  "all_calls": 45
+ }
+]

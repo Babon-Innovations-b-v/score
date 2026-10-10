@@ -1,0 +1,106 @@
+{
+ "arm": "on",
+ "place": "hangar",
+ "wall_minutes": 31.9,
+ "exit": 0,
+ "claude": {
+  "duration_api_ms": 296548,
+  "stop_reason": "end_turn",
+  "session_id": "<id>",
+  "total_cost_usd": 2.3427880000000005,
+  "usage": {
+   "input_tokens": 90,
+   "cache_creation_input_tokens": 122011,
+   "cache_read_input_tokens": 3922400,
+   "output_tokens": 29093,
+   "output_tokens_details": {
+    "thinking_tokens": 14476
+   },
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 122011,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "global",
+   "iterations": [
+    {
+     "input_tokens": 2,
+     "output_tokens": 988,
+     "cache_read_input_tokens": 133617,
+     "cache_creation_input_tokens": 543,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 543
+     },
+     "type": "message"
+    }
+   ],
+   "speed": "standard",
+   "fallback_credit": null
+  },
+  "modelUsage": {
+   "claude-opus-5-5": {
+    "inputTokens": 90,
+    "outputTokens": 29093,
+    "cacheReadInputTokens": 3922400,
+    "cacheCreationInputTokens": 122011,
+    "webSearchRequests": 0,
+    "costUSD": 2.3427880000000005,
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "thinkingTokens": 14476,
+    "canonicalModel": "claude-opus-5-5",
+    "provider": "firstParty",
+    "costBasis": "list"
+   }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+   "spawned": 0,
+   "requested": {
+    "background": 0,
+    "foreground": 0,
+    "unset": 0
+   },
+   "started_in_background": 0,
+   "max_depth": 0,
+   "spawned_by_subagents": 0,
+   "completed": 0,
+   "failed": 0,
+   "killed": {
+    "parent": 0,
+    "user": 0,
+    "system": 0
+   },
+   "refused": {
+    "depth_limit": 0,
+    "concurrency_limit": 0,
+    "budget": 0
+   },
+   "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 46,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "The hangar is **not complete**. The completion check passes every requirement except two: resting (9 objects still fail) and the review page (it didn't get built).\n\n**What I changed** (layout data only):\n- **Roof leaves:** the two plain boxes standing in for the roof leaves are replaced by the leaves' own kit pieces (`hdoor`: 2 \u00d7 309 panels and ribs). I added them at the end of `data/kit/hangar.json`, so no existing object was renamed.\n- **Ship:** no made ship model exists anywhere (the world's files only have its sounds). I took its three plain cylinders out of `data/scene/hangar.json` and wrote the reason in `game_only`. The place now has no ship until one is made.\n- **Overlaps:** I moved the four parts racks 0.22 m off the east wall (rack 2 was cutting into a wall post) and moved shelving 1 sideways clear of the north wall post.\n- **Keyboards:** the three keyboards hung over the desk's sloped switch panel, so they floated or touched at only 2 or 3 points. I moved them onto the desk's flat top in front of the monitors, at its measured height.\n\n**Results:** every inventory row is on the stage, everything visible is a made piece (placeholders went from 5 to 0), and resting faults went from 14 to 9. No row has an owner's pick, so there was nothing to keep or break there. I didn't commit anything.\n\n**What is left:**\n- **9 tipping faults** (hose reel, 4 parts racks, access stair, 2 shelving units, crate 4). In each of the first four models a single stray bit hangs below the feet: the rack's corners stand 0.23 to 0.28 m up while a lump touches the floor. No honest pose fixes that, and lowering the pieces would just sink the lump. Those models need remaking. Crate 4, stacked on crate 1, could probably be fixed by squaring it up on crate 1, but I ran out of time to do it.\n- **The settle can't run on this place.** Its Blender script looks for a `Ground` mesh, and the indoor hangar has none; its floor is the room deck. That needs a change in `tools/blender/inside/settle_stage.py`, which is code, not layout data.\n- **Review page:** the run failed because the rented machine shut down before its render job started. Re-running the same command is the next step; the tool estimated about 68 minutes and \u20ac1.67.\n- **Other places' files:** `data/inventory/workshop.json`, `data/kit/workshop.json` and `data/kit/street.json` show changes in this worktree that I didn't make. I left them alone.\n\nCloud spend was about \u20ac0.64: \u20ac0.59 for the settle attempt and \u20ac0.05 for the review attempt.",
+  "ttft_ms": 3199,
+  "type": "result",
+  "duration_ms": 1910097,
+  "uuid": "<id>",
+  "ttft_stream_ms": 2053,
+  "time_to_request_ms": 88,
+  "first_content_frame_ms": 2053,
+  "queued_turn_count": 0,
+  "result_index": 0
+ },
+ "stderr_tail": ""
+}

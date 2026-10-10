@@ -1,0 +1,5 @@
+Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): one floating over what is under it, one whose weight stands outside what it touches (it tips, one end in the air), or one sunk into the ground below its own contact points, each by more than 3 cm, fails; a hung object is not checked, and a fixed one (a building, a mast) is not judged for tipping. now: 50 of 52 objects rest.
+
+stage	object	gap, cm	depth, cm	result	caught
+now	balcony_slab_1	-2.8	18.0	caught	sunk 18.0 cm into the ground, below its own contact points
+now	crt_tv_screen_1	7.5	0.0	caught	floats 7.5 cm over what is under it

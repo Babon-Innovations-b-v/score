@@ -1,0 +1,2 @@
+  10 unstable   20 to 100 cm   floor_cable_1: worst /camp/Objects/floor_cable_5 (764 mm; moves 0.76 m and turns 3 degrees when dropped (SAGE: over 0.2 m or 8 degrees))
+218 objects, 167 flagged: 10 real, 157 false alarms

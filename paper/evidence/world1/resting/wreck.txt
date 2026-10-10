@@ -1,0 +1,14 @@
+Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): one floating over what is under it, one whose weight stands outside what it touches (it tips, one end in the air), or one sunk into the ground below its own contact points, each by more than 3 cm, fails; a hung object is not checked, and a fixed one (a building, a mast) is not judged for tipping. before: 11 of 22 objects rest; now: 22 of 22 objects rest.
+
+stage	object	gap, cm	depth, cm	result	caught
+before	aft_section_1	0.0	18.8	caught	tips: its weight is 420 cm outside what it stands on; sunk 18.8 cm into the ground, below its own contact points
+before	forward_section_1	0.0	23.8	caught	tips: its weight is 46 cm outside what it stands on; sunk 23.8 cm into the ground, below its own contact points
+before	work_lamp_1	-7.3	0.7	caught	overlaps cable_run_1 by 3 cm
+before	small_panel_1	0.0	0.6	caught	tips: its weight is 7 cm outside what it stands on
+before	pressure_sphere_1	0.0	10.3	caught	sunk 10.4 cm into the ground, below its own contact points
+before	pressure_sphere_2	0.0	10.4	caught	sunk 10.4 cm into the ground, below its own contact points
+before	foil_blanket_1	0.0	0.3	caught	tips: its weight is 19 cm outside what it stands on
+before	leg_strut_1	1.9	0.0	caught	tips: its weight is 36 cm outside what it stands on
+before	leg_foot_1	1.9	0.0	caught	tips: its weight is 73 cm outside what it stands on
+before	tank_dome_1	0.0	5.5	caught	sunk 5.5 cm into the ground, below its own contact points
+before	cable_run_1	-4.8	2.9	caught	overlaps work_lamp_1 by 3 cm

@@ -1,0 +1,22 @@
+Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): one floating over what is under it, one whose weight stands outside what it touches (it tips, one end in the air), or one sunk deeper than it was laid, each by more than 3 cm, fails; a hung object is not checked. now: 1179 of 1198 objects rest.
+
+stage	object	gap, cm	depth, cm	result	caught
+now	ground_asphalt_1	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_2	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_3	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_4	0.0	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_5	0.0	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_6	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_7	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_8	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_9	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_10	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_11	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_12	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_13	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_14	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_15	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_16	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_17	-7.4	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	ground_asphalt_18	-6.7	6.0	caught	sunk 6.0 cm into the ground (laid 0 cm in)
+now	neon_sign_glow_1	242.1	0.0	caught	floats 242.1 cm over what is under it

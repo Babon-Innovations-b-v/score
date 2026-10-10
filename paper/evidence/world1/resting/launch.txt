@@ -1,0 +1,62 @@
+Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): one floating over what is under it, one whose weight stands outside what it touches (it tips, one end in the air), or one sunk into the ground below its own contact points, each by more than 3 cm, fails; a hung object is not checked, and a fixed one (a building, a mast) is not judged for tipping. now: 8 of 67 objects rest.
+
+stage	object	gap, cm	depth, cm	result	caught
+now	far_pad_1	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_2	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_3	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_4	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_5	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_6	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_7	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_8	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_9	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_10	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_11	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_12	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_13	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_14	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_15	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_16	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_17	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_18	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_19	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_20	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_21	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_22	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_23	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_24	-0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_25	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_26	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_27	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_28	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_29	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_30	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_31	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_32	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_33	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_34	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_35	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_36	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_37	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_38	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_39	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_40	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_41	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_42	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_43	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_44	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_45	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_46	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_47	0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_pad_48	-0.0	200.0	caught	sunk 200.0 cm into the ground, below its own contact points
+now	far_lightning_mast_glow_1	2270.7	0.0	caught	floats 2270.7 cm over what is under it
+now	far_lightning_mast_glow_2	2270.7	0.0	caught	floats 2270.7 cm over what is under it
+now	far_lightning_mast_glow_3	2270.7	0.0	caught	floats 2270.7 cm over what is under it
+now	far_lightning_mast_glow_4	2270.7	0.0	caught	floats 2270.7 cm over what is under it
+now	far_pad_floodlight_glow_1	-3.0	0.0	caught	tips: its weight is 30 cm outside what it stands on
+now	far_pad_floodlight_glow_2	-3.0	0.0	caught	tips: its weight is 30 cm outside what it stands on
+now	far_pad_floodlight_glow_3	1010.0	0.0	caught	floats 1010.0 cm over what is under it
+now	far_pad_floodlight_glow_4	1010.0	0.0	caught	floats 1010.0 cm over what is under it
+now	far_ferry_1	0.0	51.8	caught	sunk 51.8 cm into the ground, below its own contact points
+now	far_ferry_2	0.0	51.8	caught	sunk 51.8 cm into the ground, below its own contact points
+now	far_ferry_3	0.0	51.8	caught	sunk 51.8 cm into the ground, below its own contact points

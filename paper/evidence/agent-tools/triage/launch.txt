@@ -1,0 +1,2 @@
+   4 overlaps   1 to 5 cm      far_lightning_mast_1: worst /launch/Objects/far_lightning_mast_1 (45 mm; still inside after the nudge)
+67 objects, 63 flagged: 4 real, 59 false alarms

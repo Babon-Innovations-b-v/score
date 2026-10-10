@@ -1,0 +1,37 @@
+Every object of the stage looked at straight down, on the stage's own ground (tools/usd/resting.py): one floating over what is under it, one whose weight stands outside what it touches (it tips, one end in the air), or one sunk into the ground below its own contact points, each by more than 3 cm, fails; a hung object is not checked, and a fixed one (a building, a mast) is not judged for tipping. now: 296 of 330 objects rest.
+
+stage	object	gap, cm	depth, cm	result	caught
+now	ring_floor_plate_1	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_2	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_3	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_4	-2.5	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_5	-2.5	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_6	-2.5	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_7	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_8	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_9	-8.8	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_10	-7.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_11	-7.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_12	-7.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_13	-7.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_14	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_15	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_16	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_17	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_18	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_19	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_20	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_21	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_22	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_23	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_24	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_25	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_26	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_27	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_28	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	ring_floor_plate_29	-4.0	4.0	caught	sunk 4.0 cm into the ground, below its own contact points
+now	floor_grating_1	0.0	5.0	caught	sunk 5.0 cm into the ground, below its own contact points
+now	floor_grating_2	0.0	5.0	caught	sunk 5.0 cm into the ground, below its own contact points
+now	under_floor_box_1	0.0	22.0	caught	sunk 22.0 cm into the ground, below its own contact points
+now	under_floor_box_2	0.0	22.0	caught	sunk 22.0 cm into the ground, below its own contact points
+now	hose_reel_1	0.0	0.0	caught	tips: its weight is 15 cm outside what it stands on
