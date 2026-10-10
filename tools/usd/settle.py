@@ -83,12 +83,25 @@ def loose_objects(stage, place, inventory):
     return found
 
 
-def simulate(stage_path, loose, folder, cloud=False):
+def part_objects(stage, place, inventory):
+    """The stage's glowing parts (a lamp's lens, a screen: rows the triage judges with their host, support `part`),
+    which the drop leaves out of its statics: a part lies on or in its host by design, so a host would otherwise
+    start "inside" it and be dropped on the bare ground alone."""
+    import triage
+    data, groups = triage.rules(), triage.kit_groups(place)
+    rows = {row["id"]: row for row in inventory["rows"]}
+    return sorted(path.removeprefix(f"/{place}/Objects/") for path, prim in resting.objects_of(stage, place).items()
+                  if triage.support_type(rows.get(prim.GetAttribute("score:row").Get(), {}), prim, data, groups)
+                  == "part")
+
+
+def simulate(stage_path, loose, folder, cloud=False, ignore=()):
     """The Blender run: how each loose object moved from as laid to at rest (stage frame, column vectors), how fast
-    it still moved at the end, and the static objects it started inside."""
+    it still moved at the end, and the static objects it started inside; `ignore` are objects left out of the
+    statics (part_objects)."""
     folder.mkdir(parents=True, exist_ok=True)
     job, out = folder / "settle-job.json", folder / "settled.json"
-    job.write_text(json.dumps({"loose": sorted(loose), "lift": loose}, indent=1))
+    job.write_text(json.dumps({"loose": sorted(loose), "lift": loose, "ignore": sorted(ignore)}, indent=1))
     if out.exists():
         out.unlink()
     if cloud:  # a rented processor machine (tools/props/cloud/blender_cloud.py), not this PC's one Blender
@@ -230,7 +243,8 @@ def main():
     loose = loose_objects(stage, place, json.loads(inventory_path.read_text()))
     last = stage_path.parent / "settle" / "settled.json"
     simulated = (json.loads(last.read_text()) if arguments.reuse
-                 else simulate(stage_path, loose, stage_path.parent / "settle", arguments.cloud))
+                 else simulate(stage_path, loose, stage_path.parent / "settle", arguments.cloud,
+                               part_objects(stage, place, json.loads(inventory_path.read_text()))))
     for first, second in simulated["overlaps"]:
         print(f"{first} and {second} came to rest inside each other")
     settled = {}
