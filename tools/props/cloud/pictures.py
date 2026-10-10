@@ -113,14 +113,8 @@ def price(jobs, machines, account, model="klein"):
     if not found:
         raise SystemExit("no card that holds this job is sold in the zones used")
     minutes = expected_minutes(len(jobs), machines, model)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} pictures on {machines} machine{'s' if machines > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * machines:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * machines, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest * machines, spent)
+    what = f"{len(jobs)} pictures on {machines} machine{'s' if machines > 1 else ''}"
+    return found, batch.priced(found, minutes, machines, what, account)
 
 
 def rent_machines(run, account, found, cards, kind=None, disk_gb=batch.DISK_GB):

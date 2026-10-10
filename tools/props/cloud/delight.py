@@ -23,7 +23,6 @@ sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
 import capacity  # noqa: E402
-import ledger  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import WORK  # noqa: E402
@@ -63,14 +62,8 @@ def price(count, account):
         raise SystemExit("no card that holds this job is sold in the zones used")
     machines = machines_for(count)
     minutes = expected_minutes(count, machines)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{count} unlit copies on {machines} card{'s' if machines > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * machines:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * machines, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, machines, ledger.minutes_allowed(dearest * machines, spent)
+    what = f"{count} unlit copies on {machines} card{'s' if machines > 1 else ''}"
+    return found, machines, batch.priced(found, minutes, machines, what, account)
 
 
 def set_up(machine):

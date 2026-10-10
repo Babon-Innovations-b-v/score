@@ -97,14 +97,8 @@ def price(jobs, account, classes):
     if not found:
         raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend")
     count, minutes = plan(jobs)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def send(log_folder, host, local):
@@ -124,11 +118,16 @@ def bring_back(log_folder, host, local):
         batch.say(f"the machine wrote no {local}")
 
 
-def set_up(log_folder, host, jobs):
+def ship(log_folder, host, jobs):
+    """The repo folders the jobs need, to their places on the machine (rsync sends only what changed)."""
     for folder in shipped(jobs):
         parent = (REMOTE / "repo" / folder).parent
         batch.remote(log_folder, host, f"mkdir -p {parent}", check=True)
         batch.copy(log_folder, [REPO / folder], f"root@{host}:{parent}/", "--exclude", "__pycache__")
+
+
+def set_up(log_folder, host, jobs):
+    ship(log_folder, host, jobs)
     batch.copy(log_folder, [HERE / "library_setup.sh"], f"root@{host}:{REMOTE}/")
     with (log_folder / "setup.log").open("w") as log:
         batch.remote(log_folder, host, f"bash {REMOTE}/library_setup.sh", check=True, stdout=log,
@@ -153,23 +152,23 @@ def run_job(log_folder, host, number, job, card):
     return round(time.time() - began, 1)
 
 
+def waiting_jobs(queue):
+    """The job files in a --serve queue not yet done or failed, in the order they were written."""
+    return sorted((path for path in queue.glob("*.json") if not path.with_suffix(".done").exists()
+                   and not path.with_suffix(".failed").exists()), key=lambda path: int(path.stem))
+
+
 def serve(run, machine, queue, idle_minutes):
     """One machine for a chain: Blender up, then each job file written to `queue` run in turn (`<n>.done` or
     `<n>.failed` beside it), until the queue is closed (`close`) and empty or nothing came for `idle_minutes`."""
-    import pictures
     log_folder = machine["folder"]
-    stop = threading.Event()
-    try:
-        host = machine["host"]
-        batch.arm_self_delete(log_folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(log_folder, host, stop), daemon=True).start()
+    with spread.tended(run, machine) as host:
         set_up(log_folder, host, [])
         (queue / "ready").write_text(machine.get("class", ""))
         card = machine.get("class", "").startswith("gpu")
         last = time.time()
         while time.time() < run.deadline:
-            waiting = sorted((path for path in queue.glob("*.json") if not path.with_suffix(".done").exists()
-                              and not path.with_suffix(".failed").exists()), key=lambda path: int(path.stem))
+            waiting = waiting_jobs(queue)
             if not waiting:
                 if (queue / "close").exists() or time.time() - last > idle_minutes * 60:
                     return
@@ -177,21 +176,14 @@ def serve(run, machine, queue, idle_minutes):
                 continue
             job = json.loads(waiting[0].read_text())
             try:
-                # Every job's folders go up again (rsync sends only what changed), so a script edited during a
-                # chain runs as it is now.
-                for folder in shipped([job]):
-                    parent = (REMOTE / "repo" / folder).parent
-                    batch.remote(log_folder, host, f"mkdir -p {parent}", check=True)
-                    batch.copy(log_folder, [REPO / folder], f"root@{host}:{parent}/", "--exclude", "__pycache__")
+                # Every job's folders go up again, so a script edited during a chain runs as it is now.
+                ship(log_folder, host, [job])
                 seconds = run_job(log_folder, host, int(waiting[0].stem), job, card)
                 machine.setdefault("unit_seconds", []).append(seconds)
                 waiting[0].with_suffix(".done").write_text(str(seconds))
             except subprocess.CalledProcessError as failed:
                 waiting[0].with_suffix(".failed").write_text(f"{failed}; log: {log_folder}/job{waiting[0].stem}.log")
             last = time.time()
-    finally:
-        stop.set()
-        batch.delete_machine(machine)
 
 
 def one_job(machine, share, card):
@@ -321,8 +313,7 @@ def serve_on_cluster(queue, classes, who, idle_minutes):
     (queue / "ready").write_text(",".join(classes))
     last = time.time()
     while True:
-        waiting = sorted((path for path in queue.glob("*.json") if not path.with_suffix(".done").exists()
-                          and not path.with_suffix(".failed").exists()), key=lambda path: int(path.stem))
+        waiting = waiting_jobs(queue)
         if not waiting:
             if (queue / "close").exists() or time.time() - last > idle_minutes * 60:
                 return

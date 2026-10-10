@@ -25,7 +25,6 @@ import pathlib
 import shlex
 import subprocess
 import sys
-import threading
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -63,14 +62,8 @@ def price(makes, account, classes):
         raise SystemExit("no card that holds the character chain is sold by the backend")
     count = capacity.machines_for(len(makes), PERSON_MINUTES, SETUP_MINUTES)
     minutes = SETUP_MINUTES + max(PERSON_MINUTES, len(makes) * PERSON_MINUTES / count)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(makes)} people on {count} machine{'s' if count > 1 else ''}: about {minutes:.0f} min, "
-              f"€{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{len(makes)} people on {count} machine{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def set_up(machine):
@@ -151,12 +144,7 @@ def hold(run, host):
 
 def held(run, machine, makes):
     """One machine kept for hands-on work: set up, its people made in turn, then held until `release`."""
-    folder = machine["folder"]
-    stop = threading.Event()
-    try:
-        host = machine["host"]
-        batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-        threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
+    with spread.tended(run, machine) as host:
         (run.folder / "host").write_text(host)
         try:
             set_up(machine)
@@ -166,11 +154,9 @@ def held(run, machine, makes):
                 except spread.JobFailed as failure:
                     batch.say(f"{make.name} failed: {failure}")
         except subprocess.CalledProcessError as failure:
-            batch.say(f"the setup failed ({failure}; see {folder / 'setup.log'}); holding the machine to mend it")
+            batch.say(f"the setup failed ({failure}; see {machine['folder'] / 'setup.log'}); holding the machine to "
+                      "mend it")
         hold(run, host)
-    finally:
-        stop.set()
-        batch.delete_machine(machine)
 
 
 def record(run, makes):

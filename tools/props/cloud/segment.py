@@ -56,14 +56,8 @@ def price(shares, account, cards=None):
     count = capacity.machines_for(len(shares), each, SETUP_MINUTES)
     count = min(count, cards or count)
     minutes = SETUP_MINUTES + max(each, len(shares) * each / count)
-    dearest = max(offer[0] for offer in found)
-    spent = batch.month_spent(account)
-    batch.say(f"{len(shares)} shares of pictures on {count} machine{'s' if count > 1 else ''}: "
-              f"about {minutes:.0f} min, €{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
-    if refused:
-        raise SystemExit(f"refused: {refused}")
-    return found, count, ledger.minutes_allowed(dearest * count, spent)
+    what = f"{len(shares)} shares of pictures on {count} machine{'s' if count > 1 else ''}"
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def set_up(machine):
