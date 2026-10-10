@@ -1,6 +1,7 @@
 """Check the material library's data (library.py, data/library/) and the sorter (sorter.py): plain python, no Blender.
 Run: python3 tools/props/library/library_test.py
 """
+import ast
 import contextlib
 import io
 import json
@@ -123,6 +124,32 @@ def test_no_generated_piece_keeps_its_picture_s_colours():
     text = (HERE / "route.py").read_text()
     jobs = text[text.index("def jobs("):text.index("def middle_high(")]
     assert '"picture"' not in jobs and "picture.obj" not in jobs
+
+
+def chunky_default_wall():
+    """make_chunky's default_wall with the constants it reads, taken from its text (make_chunky needs Blender)."""
+    tree = ast.parse((HERE / "inside/make_chunky.py").read_text())
+    names = {"WALL", "WALL_VOXELS", "VOXEL_SHARE", "VOXEL_FINEST"}
+    kept = [node for node in tree.body if isinstance(node, ast.Assign) and node.targets[0].id in names
+            or isinstance(node, ast.FunctionDef) and node.name == "default_wall"]
+    space = {}
+    exec(compile(ast.Module(body=kept, type_ignores=[]), "make_chunky", "exec"), space)
+    return space["default_wall"]
+
+
+def test_a_job_naming_no_wall_takes_two_voxels_but_never_under_5_mm():
+    default_wall = chunky_default_wall()
+    assert default_wall([0.4, 0.3, 0.2]) == 0.005  # a prop: its two voxels are under 5 mm
+    assert abs(default_wall([8.0, 8.0, 60.0]) - 0.4) < 1e-9  # the launch rocket: two 0.2 m voxels, not lace
+
+
+def test_every_room_job_names_its_wall():
+    """route.py's room pieces keep the 5 mm wall hub round six was accepted at: each job names it, so make_chunky's
+    two-voxel default never thickens a room piece into a slab."""
+    text = (HERE / "route.py").read_text()
+    jobs = text[text.index("def jobs("):text.index("def density_of(")]
+    assert '"wall": own.get("wall", ROOM_WALL)' in jobs
+    assert re.search(r"^ROOM_WALL = 0\.005$", text, re.M)
 
 
 # Earth's builder modules beside pieces.py: the flat and stairwell, and the outdoor places (world 1).

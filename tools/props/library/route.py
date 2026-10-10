@@ -96,6 +96,11 @@ CHUNKY_FACES = 19000  # triangles: a prop's furniture budget is 20,000 (asset_ch
 # budget by the square of its largest side against a metre, never under SMALLEST_FACES (the owner's check on the tools
 # up close: at 800 to 1,700 the pliers' outline went angular; at 5,000 they match the 19,000 model, baked alike).
 SMALLEST_FACES = 5000
+# A room piece's solid wall, named in its job so make_chunky's two-voxel default (for jobs that name none) never
+# reaches it: the rooms' pieces were baked and accepted at 5 mm (hub round six), and thicker their thin sheets read as
+# slabs (place_route's THIN_WALLED). A kind closed thicker names its own in details.json `wall` (thin rails and
+# hooks, so the solid copy keeps a 3 mm wall).
+ROOM_WALL = 0.005
 SIZE_STEP = 0.005  # two pieces of a kind within this of each other's size share a model
 # Code-built kinds by the picture set they share, by the start of their name; the rest are wall gear and doors.
 ATLASES = (("distant", (DISTANT_PREFIX,)),
@@ -307,9 +312,7 @@ def jobs(planned, takes, work, place):
                        "base": own["turn"], "size": entry["size"], "screens": own.get("screens", []),
                        "cuts": own.get("cuts", []), "density": density_of(entry),
                        "decals": own.get("decals", []), "foot": entry.get("foot"), "faces": faces_for(entry["size"]),
-                       "regions": own.get("regions", [])})
-        if "wall" in own:  # a piece of thin rails and hooks closed thicker, so its solid copy keeps a 3 mm wall
-            chunky[-1]["wall"] = own["wall"]
+                       "regions": own.get("regions", []), "wall": own.get("wall", ROOM_WALL)})
     if chunky:
         found["chunky"] = {"script": "make_chunky.py", "out": str(work / "made"), "report": "report-chunky.json",
                            "density": NEAR,
