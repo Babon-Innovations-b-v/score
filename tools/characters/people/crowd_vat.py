@@ -105,8 +105,7 @@ def main():
     inverse_bind = np.linalg.inv(bind_world)
     _, points = body.bind_pose(far, body.floor_lift(near))
     faces = far.faces.detach().numpy().astype(np.int64)
-    weights = body.as_the_engine_sees_them(body.merge_weights(
-        far.public_skinning_weights().detach().numpy().astype(np.float64), carries, len(kept)))
+    weights = body.as_the_engine_sees_them(body.kept_weights(far, carries, len(kept)))
     joints = {name: bind_world[index, :3, 3] for index, name in enumerate(joint_names)}
     zone = zones_of(points, weights, joint_names, joints)
     # The file is turned half a circle (the body model builds people facing +z, the game faces -z).

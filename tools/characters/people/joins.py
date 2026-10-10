@@ -95,11 +95,11 @@ def accessor(document, blob, index):
 
 def quaternion_matrices(quaternions):
     """Rotation matrices of (n, 4) quaternions given as x y z w."""
-    x, y, z, w = (quaternions / np.linalg.norm(quaternions, axis=1, keepdims=True)).T
+    qx, qy, qz, qw = (quaternions / np.linalg.norm(quaternions, axis=1, keepdims=True)).T
     return np.stack([
-        np.stack([1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], axis=-1),
-        np.stack([2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], axis=-1),
-        np.stack([2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)], axis=-1)], axis=1)
+        np.stack([1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)], axis=-1),
+        np.stack([2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)], axis=-1),
+        np.stack([2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)], axis=-1)], axis=1)
 
 
 def node_rest(document):
@@ -374,9 +374,7 @@ def measure_body(path):
     parent = parents_of(document)
     _, _, scales = node_rest(document)
     dressed = outfits(document, blob)
-    record = {"body": str(path), "outfits": {}, "stance": None}
-    for outfit, parts in dressed.items():
-        record["outfits"][outfit] = {}
+    record = {"body": str(path), "outfits": {outfit: {} for outfit in dressed}, "stance": None}
     for animation in document.get("animations", []):
         rotations, translations = clip_frames(document, blob, animation)
         worst = {outfit: {} for outfit in dressed}

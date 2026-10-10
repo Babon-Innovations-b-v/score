@@ -633,11 +633,16 @@ def far_colour(region):
             "boots": SNEAKER if american else BOOT}[region]
 
 
-def suit_colour(name):
-    for prefix, colour in SUIT_FLAT:
+def first_named(table, name, suit):
+    """The colour of the first entry of `table` that `name` starts with."""
+    for prefix, colour in table:
         if name.startswith(prefix):
             return colour
-    raise ValueError(f"no colour for the space suit's {name}")
+    raise ValueError(f"no colour for {suit}'s {name}")
+
+
+def suit_colour(name):
+    return first_named(SUIT_FLAT, name, "the space suit")
 
 
 # The American suit's colours (#112), picked from Oona, Bram and Sefa's drawings. A part takes
@@ -656,10 +661,7 @@ AMERICAN_FLAT = [("band_blue", SUIT_BLUE), ("helmet_rim", (216, 214, 206)),
 
 
 def american_colour(name):
-    for prefix, colour in AMERICAN_FLAT:
-        if name.startswith(prefix):
-            return colour
-    raise ValueError(f"no colour for the American suit's {name}")
+    return first_named(AMERICAN_FLAT, name, "the American suit")
 
 
 def arm_flag(part, grid):

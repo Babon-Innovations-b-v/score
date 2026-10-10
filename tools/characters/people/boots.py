@@ -225,7 +225,7 @@ def smoothed_moves(before, after, faces):
     return before + delta
 
 
-def tucked(cloth_points, faces, limbs, boots_by_side, left_faces, body):
+def tucked(cloth_points, faces, limbs, boots_by_side, left_faces):
     """The cloth with both trouser legs drawn down into their boots where they end short, and gathered there."""
     faces = np.asarray(faces)
     points = cloth_points

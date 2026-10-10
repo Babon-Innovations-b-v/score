@@ -16,6 +16,7 @@ import numpy as np
 import shapes
 import skin
 import trimesh
+import work_suit
 from paths import SPACE_BOOT
 from person import WHO
 from scipy.spatial import cKDTree
@@ -87,17 +88,7 @@ class SpaceSuit:
         """Where rays from `origins` along one direction first meet the cloth, and the cloth's
         normal there turned back along the ray; a miss falls back to the nearest point."""
         origins = np.asarray(origins, dtype=float)
-        places, rays, triangles = self.cloth.ray.intersects_location(
-            origins, np.tile(direction, (len(origins), 1)), multiple_hits=True)
-        hit = np.full((len(origins), 3), np.nan)
-        normal = np.zeros((len(origins), 3))
-        best = np.full(len(origins), np.inf)
-        for place, ray, triangle in zip(places, rays, triangles):
-            distance = np.dot(place - origins[ray], direction)
-            if distance < best[ray]:
-                best[ray] = distance
-                hit[ray] = place
-                normal[ray] = self.cloth.face_normals[triangle]
+        hit, normal = work_suit.cast(self.cloth, origins, direction)
         missed = np.isnan(hit[:, 0])
         if missed.any():
             closest, _, triangle = trimesh.proximity.closest_point(self.cloth, origins[missed])

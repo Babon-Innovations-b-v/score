@@ -12,6 +12,7 @@ import numpy as np
 import trimesh
 from scipy.spatial import cKDTree
 from person import WHO
+from work_suit import grid_faces, rim_of, walls
 
 # The brow strip in a front view, on his left (x > 0); the right is mirrored. Along the brow:
 # x, the strip's centre height, its full height. As measured on take C, which the crew kit's
@@ -75,20 +76,7 @@ def slab(mesh, front_view, rows, columns):
     ring[:, [0, -1]] = True
     height[ring.ravel()] = BROW_PROUD * BROW_RIM_SHARE
     points = np.vstack([hits + normals * height[:, None], hits - normals * SINK])
-    faces = []
-    for row in range(rows - 1):
-        for column in range(columns - 1):
-            corner = row * columns + column
-            faces += [[corner, corner + 1, corner + columns + 1],
-                      [corner, corner + columns + 1, corner + columns]]
-    rim = ([column for column in range(columns)]
-           + [row * columns + columns - 1 for row in range(1, rows)]
-           + [(rows - 1) * columns + column for column in range(columns - 2, -1, -1)]
-           + [row * columns for row in range(rows - 2, 0, -1)])
-    offset = rows * columns
-    for index in range(len(rim)):
-        here, there = rim[index], rim[(index + 1) % len(rim)]
-        faces += [[here, there + offset, there], [here, here + offset, there + offset]]
+    faces = grid_faces(rows, columns) + walls(rim_of(rows, columns), rows * columns)
     return facing_the_front(points, faces)
 
 
@@ -130,10 +118,11 @@ def disc(mesh, centre):
 
 
 def joined(pieces):
+    """Pieces as (points, faces) made one: points, faces."""
     points, faces, count = [], [], 0
     for piece_points, piece_faces in pieces:
         points.append(piece_points)
-        faces.append(piece_faces + count)
+        faces.append(np.asarray(piece_faces) + count)
         count += len(piece_points)
     return np.vstack(points), np.vstack(faces)
 
