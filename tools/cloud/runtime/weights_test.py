@@ -7,6 +7,7 @@ Run: .venv/bin/python tools/cloud/runtime/weights_test.py   (make tests runs it)
 import hashlib
 import io
 import json
+import os
 import pathlib
 import sys
 import tempfile
@@ -64,6 +65,17 @@ def test_a_tar_that_does_not_match_its_sha256_is_refused():
     assert not (folder / "node" / "weights" / "tiny@v1").exists()
 
 
+def test_a_model_is_unpacked_from_the_store_without_its_tar_on_the_disk():
+    folder = pathlib.Path(tempfile.mkdtemp())
+    store = stores.FolderStore(folder / "store")
+    entry = a_source(folder, "x" * (3 * weights.CHUNK + 5))
+    weights.ready(store, entry, folder / "node-a")
+    store.download = lambda *arguments: (_ for _ in ()).throw(AssertionError("the tar was downloaded to the disk"))
+    second = weights.ready(store, entry, folder / "node-b")
+    assert (second / "model.bin").read_text() == "x" * (3 * weights.CHUNK + 5)
+    let_go()
+
+
 def test_jobs_side_by_side_on_one_node_fetch_once():
     folder = pathlib.Path(tempfile.mkdtemp())
     store = stores.FolderStore(folder / "store")
@@ -80,6 +92,64 @@ def test_jobs_side_by_side_on_one_node_fetch_once():
     finally:
         weights.seed = real_seed
     assert len(seeded) == 1
+
+
+def let_go():
+    """End this process's hold on its models, as a job's end does."""
+    for use in weights.IN_USE:
+        use.close()
+    weights.IN_USE.clear()
+
+
+def test_room_is_made_from_the_least_recently_used_model_no_job_holds():
+    folder = pathlib.Path(tempfile.mkdtemp())
+    store = stores.FolderStore(folder / "store")
+    node = folder / "node"
+    old, held, recent = (dict(a_source(folder), name=name) for name in ("old", "held", "recent"))
+    for entry in (old, recent):
+        weights.ready(store, entry, node)
+    let_go()
+    weights.ready(store, held, node)
+    os.utime(node / "weights" / "old@v1" / weights.READY, (1, 1))
+    os.utime(node / "weights" / "held@v1" / weights.READY, (0, 0))
+    room = lambda: weights.RESERVE if (node / "weights" / "old@v1").exists() else 2 * weights.RESERVE  # noqa: E731
+    weights.make_room(node, weights.RESERVE, free=room)
+    assert not (node / "weights" / "old@v1").exists()
+    assert (node / "weights" / "held@v1" / weights.READY).exists(), "a model a job holds was evicted"
+    assert (node / "weights" / "recent@v1" / weights.READY).exists()
+    let_go()
+
+
+def test_a_seeded_model_has_room_made_for_its_unpack_beside_its_tar():
+    folder = pathlib.Path(tempfile.mkdtemp())
+    store = stores.FolderStore(folder / "store")
+    asked = []
+    make_room = weights.make_room
+    weights.make_room = lambda cache, needed: asked.append((needed, sorted(cache.glob("partial/*/model.tar"))))
+    try:
+        weights.ready(store, a_source(folder), folder / "node")
+    finally:
+        weights.make_room = make_room
+    let_go()
+    [(needed, tars)] = asked
+    assert needed == store.size("weights/tiny@v1.tar") and len(tars) == 1, "room was not made beside the seeded tar"
+
+
+def test_a_missing_sha256_is_reported_before_the_store_is_read():
+    folder = pathlib.Path(tempfile.mkdtemp())
+    store = stores.FolderStore(folder / "store")
+    entry = a_source(folder)
+    weights.ready(store, entry, folder / "node-a")
+    let_go()
+    (folder / "store" / "weights" / "tiny@v1.tar.sha256").unlink()
+    store.reader = lambda key: (_ for _ in ()).throw(AssertionError("the store was read with no sha256 to check"))
+    try:
+        weights.ready(store, entry, folder / "node-b")
+    except FileNotFoundError:
+        pass
+    else:
+        raise AssertionError("a model with no sha256 was taken")
+    let_go()
 
 
 def test_a_model_not_for_commercial_use_serves_only_a_tool():
