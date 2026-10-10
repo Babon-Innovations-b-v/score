@@ -13,7 +13,6 @@ batch.py (the limits, watchdog, self-delete, ledger row and delete).
 """
 import argparse
 import json
-import os
 import pathlib
 import shlex
 import subprocess
@@ -25,7 +24,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import build  # noqa: E402
-from build import batch, ledger, spread, stores, submit  # noqa: E402
+from build import batch, ledger, stores, submit  # noqa: E402
 from provider import cloud  # noqa: E402
 
 KIND = "warm"
@@ -98,35 +97,18 @@ def measure(machine, image, store_spec, results):
 
 def measure_class(machine_class, image, registry, store_spec, who, results):
     """One machine of the class, measured and deleted; its ledger entry recorded."""
-    import pictures as picture_runs
-
     account = cloud.account()
     found = batch.offers([machine_class])
-    minutes = SETUP_MINUTES + RENDER_MINUTES
     spent = batch.month_spent(account)
-    refused = ledger.refusal(minutes, max([offer.price for offer in found] or [0]), spent) if found else "no offer"
+    dearest = max(offer.price for offer in found) if found else 0
+    refused = ledger.refusal(SETUP_MINUTES + RENDER_MINUTES, dearest, spent) if found else "no offer"
     if refused:
         batch.say(f"{machine_class}: refused: {refused}")
         return
-    started = time.time()
-    run_folder = batch.BATCHES / (time.strftime(f"warm-{machine_class}-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
-    run_folder.mkdir(parents=True)
-    run = picture_runs.Run(run_folder, started + ledger.minutes_allowed(max(offer.price for offer in found), spent) * 60)
-    shares = spread.Shares([machine_class], deadline=run.deadline)
-    try:
-        spread.on_machines(run, account, found, 1, KIND, shares,
-                           lambda machine: set_up(machine, registry, store_spec),
-                           lambda machine, _share, _card: measure(machine, image, store_spec, results),
-                           disk_gb=DISK_GB)
-    finally:
-        for machine in run.machines:
-            batch.delete_machine(machine)
-        entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
-                 "kind": KIND, "who": who, "class": machine_class,
-                 **ledger.machines_record(run.machines, run.attempts, started),
-                 "wall_minutes": (time.time() - started) / 60}
-        ledger.record(entry)
-        batch.say(f"{machine_class}: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f} (logs under {run_folder})")
+    build.rent_one(account, found, KIND, f"warm-{machine_class}-%Y%m%d-%H%M%S", ledger.minutes_allowed(dearest, spent),
+                   machine_class, lambda machine: set_up(machine, registry, store_spec),
+                   lambda machine, _share, _card: measure(machine, image, store_spec, results), DISK_GB,
+                   {"who": who, "class": machine_class})
 
 
 def main():

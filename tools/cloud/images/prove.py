@@ -21,9 +21,7 @@ weights for the first time, a used one a warm node. Every job's done.json timing
 image's pull seconds go into images.json under the kind's "proof", by card; the outputs come back to `to`.
 """
 import argparse
-import datetime
 import json
-import os
 import pathlib
 import shlex
 import sys
@@ -34,7 +32,7 @@ sys.path.insert(0, str(HERE))
 
 import build  # noqa: E402
 import warm  # noqa: E402
-from build import batch, ledger, spread, stores, submit  # noqa: E402
+from build import batch, ledger, stores, submit  # noqa: E402
 from provider import cloud  # noqa: E402
 
 KIND = "prove"
@@ -56,10 +54,8 @@ def job_spec(store, run, job_name, image, code, inputs, job):
 
 def seconds_of(timings):
     """Seconds from the container's start to each later mark of its done.json timings."""
-    def parse(value):
-        return datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ").timestamp()
-    start = parse(timings["pod_start"])
-    return {mark: round(parse(value) - start, 1) for mark, value in timings.items()
+    start = build.moment(timings["pod_start"])
+    return {mark: round(build.moment(value) - start, 1) for mark, value in timings.items()
             if mark != "pod_start" and isinstance(value, str) and value.endswith("Z")}
 
 
@@ -121,37 +117,20 @@ def offers_for(plan):
 
 def one_attempt(plan, account, registry, store_spec, who, results):
     """Claim one machine from the plan's classes and prove on it; True when a machine was had."""
-    import pictures as picture_runs
-
     found = offers_for(plan)
     if not found:
         return False
     spent = batch.month_spent(account)
     dearest = max(offer.price for offer in found)
-    refused = ledger.refusal(plan.get("minutes", 90), dearest, spent)
+    minutes = plan.get("minutes", 90)
+    refused = ledger.refusal(minutes, dearest, spent)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    started = time.time()
-    run_folder = batch.BATCHES / (time.strftime("prove-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
-    run_folder.mkdir(parents=True)
-    run = picture_runs.Run(run_folder, started + min(plan.get("minutes", 90), ledger.minutes_allowed(dearest, spent))
-                           * 60)
-    shares = spread.Shares([plan], deadline=run.deadline)
-    try:
-        spread.on_machines(run, account, found, 1, KIND, shares,
-                           lambda machine: set_up(machine, registry, store_spec),
-                           lambda machine, _share, _card: prove_on(machine, plan, store_spec, results),
-                           disk_gb=plan.get("disk_gb", 300))
-    finally:
-        for machine in run.machines:
-            batch.delete_machine(machine)
-        entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
-                 "kind": KIND, "who": who, "runs": [kind_run["kind"] for kind_run in plan["runs"]],
-                 **ledger.machines_record(run.machines, run.attempts, started),
-                 "wall_minutes": (time.time() - started) / 60}
-        ledger.record(entry)
-        (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
-        batch.say(f"prove: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f} (logs under {run_folder})")
+    run, _shares, _entry = build.rent_one(
+        account, found, KIND, "prove-%Y%m%d-%H%M%S", min(minutes, ledger.minutes_allowed(dearest, spent)),
+        plan, lambda machine: set_up(machine, registry, store_spec),
+        lambda machine, _share, _card: prove_on(machine, plan, store_spec, results), plan.get("disk_gb", 300),
+        {"who": who, "runs": [kind_run["kind"] for kind_run in plan["runs"]]})
     return bool(run.machines)
 
 

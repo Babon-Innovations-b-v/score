@@ -236,10 +236,13 @@ def build_one(machine, kind, registry, built):
     return built[kind]
 
 
+def moment(mark):
+    """A done.json timing mark as seconds since the epoch."""
+    return datetime.datetime.strptime(mark, "%Y-%m-%dT%H:%M:%S.%fZ").timestamp()
+
+
 def seconds_between(timings, first, last):
-    def parse(value):
-        return datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ").timestamp()
-    return round(parse(timings[last]) - parse(timings[first]), 1)
+    return round(moment(timings[last]) - moment(timings[first]), 1)
 
 
 def remote_seconds(machine, command):
@@ -313,38 +316,47 @@ def price(kinds, account):
     return found, ledger.minutes_allowed(dearest, spent)
 
 
-def build(kinds, who, smoke_test):
-    """Rent a builder, build and push the kinds, delete it; the ledger's entry."""
+def rent_one(account, found, kind, folder_pattern, minutes, share, set_up, do, disk_gb, record):
+    """Claim one machine of `found`, set it up and run `do` on the share, delete it; the run, its shares and the
+    ledger entry (`record`'s fields after started, batch and kind), which also goes into the run folder's
+    cloud.json."""
     import pictures as picture_runs
 
+    started = time.time()
+    run_folder = batch.BATCHES / (time.strftime(folder_pattern) + f"-{os.getpid()}")
+    run_folder.mkdir(parents=True)
+    run = picture_runs.Run(run_folder, started + minutes * 60)
+    shares = spread.Shares([share], deadline=run.deadline)
+    try:
+        spread.on_machines(run, account, found, 1, kind, shares, set_up, do, disk_gb=disk_gb)
+    finally:
+        for machine in run.machines:
+            batch.delete_machine(machine)
+        entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
+                 "kind": kind, **record, **ledger.machines_record(run.machines, run.attempts, started),
+                 "wall_minutes": (time.time() - started) / 60}
+        ledger.record(entry)
+        (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
+        label = record.get("class", kind)
+        batch.say(f"{label}: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f} (logs under {run_folder})")
+    return run, shares, entry
+
+
+def build(kinds, who, smoke_test):
+    """Rent a builder, build and push the kinds, delete it; the ledger's entry."""
     account = cloud.account()
     batch.sweep(account)
     found, allowed_minutes = price(kinds, account)
     registry, store_spec = cloud.registry(), cloud.object_store() if smoke_test else None
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
     batch.stop_on_signals()
-    started = time.time()
-    run_folder = batch.BATCHES / (time.strftime("images-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
-    run_folder.mkdir(parents=True)
-    run = picture_runs.Run(run_folder, started + allowed_minutes * 60)
     built = saved()
-    shares = spread.Shares([kinds], deadline=run.deadline)  # one share: the kinds in order, on one builder
-    try:
-        spread.on_machines(run, account, found, 1, KIND, shares, lambda machine: set_up(machine, registry),
-                           lambda machine, share, _card: build_all(machine, share, registry, built, store_spec),
-                           disk_gb=DISK_GB)
-    finally:
-        for machine in run.machines:
-            batch.delete_machine(machine)
-        entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
-                 "kind": KIND, "who": who, "images": kinds,
-                 **ledger.machines_record(run.machines, run.attempts, started),
-                 "wall_minutes": (time.time() - started) / 60}
-        ledger.record(entry)
-        (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
-        batch.say(f"images: {entry['wall_minutes']:.0f} min, €{entry['euros']:.2f} (logs under {run_folder})")
+    _run, shares, entry = rent_one(  # one share: the kinds in order, on one builder
+        account, found, KIND, "images-%Y%m%d-%H%M%S", allowed_minutes, kinds, lambda machine: set_up(machine, registry),
+        lambda machine, share, _card: build_all(machine, share, registry, built, store_spec), DISK_GB,
+        {"who": who, "images": kinds})
     if shares.failed or shares.waiting:
-        raise SystemExit(f"the build did not finish (logs under {run_folder})")
+        raise SystemExit(f"the build did not finish (logs under {batch.BATCHES / entry['batch']})")
     return entry
 
 
