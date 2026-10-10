@@ -33,4 +33,9 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   under a room. `--game-shots <folder>` lays each view beside the game's shot it names, with both pictures' mean
   brightness: a scene view under half the game's is caught. The "scene vs game" line says what the record and the cast carry
   and what it lists as game only.
-
+- **The style measure** (`style.py`, `style_test.py`; the paper's style-coherence gap): per place, from the review
+  pages' made-model renders only, the coloured pixels' fit to the place's library palette, the spread of the models'
+  lightness, and DINOv2's likeness within the place against across places, with the same pairs as silhouettes
+  subtracted so what an object is does not count as its style. DINOv2 runs on a rented machine through
+  `../props/cloud/similar.py`, never here. It reports numbers, never a verdict; validating it needs the creator's
+  reviews.
