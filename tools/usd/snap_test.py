@@ -1,5 +1,5 @@
 """Check the snap on places made here: a box lifted 0.3 m drops to rest on the floor within 1 cm, a box on another
-drops onto its top, a box slid toward a wall stops touching it without going in, a free spot is never inside another
+drops onto its top, a box slid toward a wall stops touching it without going in and one laid into it backs out, a free spot is never inside another
 box and stands on the floor, the same seed gives the same spot, and a snapped pose written into the layout is where
 the exported stage lays the box.
 
@@ -81,6 +81,17 @@ def a_box_slid_toward_a_wall_stops_touching_it():
         return problems
 
 
+def a_box_laid_into_a_wall_is_slid_back_out():
+    """A box laid 4 cm into a wall (furniture into a skirting), slid toward it, backs out to stop 2 mm short."""
+    with tempfile.TemporaryDirectory() as temporary:
+        place = laid(pathlib.Path(temporary), [("crate", "box", (2.44, 0, 0.3)), ("wall", "wall", (3, 0, 0))],
+                     [triage_test.row("crate"), triage_test.row("wall", fixed=True)])
+        offset = snap.snap_to(place, "crate_1", [(1.0, 0.0)])
+        wanted = 3 - 0.1 - 0.5 - snap.CLEARANCE - 2.44
+        return [] if abs(offset[0] - wanted) < 1e-3 and np.abs(offset[1:]).max() == 0 else [
+            f"the box laid into the wall moved by {offset}, not {wanted:.3f} m back along x"]
+
+
 def a_free_spot_is_free_and_stands():
     with tempfile.TemporaryDirectory() as temporary:
         crowded = [("crate", "box", (across, 0, along)) for across in (0, 1.6, 3.2) for along in (0, 1.6, 3.2)]
@@ -128,6 +139,7 @@ def a_written_pose_is_where_the_stage_lays_it():
 
 
 CHECKS = (a_lifted_box_drops_onto_the_floor_and_onto_a_box, a_box_slid_toward_a_wall_stops_touching_it,
+          a_box_laid_into_a_wall_is_slid_back_out,
           a_free_spot_is_free_and_stands, a_written_pose_is_where_the_stage_lays_it)
 
 
