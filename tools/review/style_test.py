@@ -115,7 +115,26 @@ def a_model_shown_twice_is_left_out():
     return [] if list(kept) == ["colour|hub/wrench|workshop/vice"] else [f"copies {copied}, kept {kept}"]
 
 
-CHECKS = (a_model_shown_twice_is_left_out, the_model_is_told_from_the_grey, lab_goes_back_to_linear, a_palette_colour_fits_at_any_brightness,
+def stains_read_as_marks():
+    """A model with a stained surface reads more marks than one painted flat; one with no whole tile reads None."""
+    with tempfile.TemporaryDirectory() as folder:
+        root = pathlib.Path(folder)
+        flat = style.marks(render(root / "flat.png", (120, 120, 120)))
+        stained = render(root / "stained.png", (120, 120, 120))
+        picture = np.asarray(Image.open(stained)).copy()
+        picture[16:48:3, 16:48] = (60, 50, 40)
+        Image.fromarray(picture).save(stained)
+        marked = style.marks(stained)
+        tiny = style.marks(render(root / "tiny.png", (120, 120, 120), box=(30, 34)))
+    problems = []
+    if not marked > flat:
+        problems.append(f"the stained model reads {marked}, not above the flat one's {flat}")
+    if tiny is not None:
+        problems.append(f"a model with no whole tile reads {tiny}")
+    return problems
+
+
+CHECKS = (stains_read_as_marks, a_model_shown_twice_is_left_out, the_model_is_told_from_the_grey, lab_goes_back_to_linear, a_palette_colour_fits_at_any_brightness,
           pairs_cover_within_and_draw_across, the_style_gap_takes_the_shapes_away, the_renders_are_found_by_place)
 
 

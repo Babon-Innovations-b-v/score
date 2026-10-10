@@ -17,6 +17,9 @@ readings, each per place:
   fit can tell one place's style from another's at all.
 - **Lightness spread.** The spread (standard deviation) of the models' median L* within a place, against the spread
   over the whole world.
+- **Surface marks.** How blotchy each model's surfaces look: the 75th percentile, over the TILE x TILE tiles wholly on
+  the model, of each tile's L* spread (sweep.py's "blotchy", read on the render rather than the texture), per place its
+  median and its spread over the models. A piece that keeps its own picture's rust and stains reads high.
 - **Feature likeness.** DINOv2's likeness (the cosine of its class tokens, similar.py, run on a rented machine) of
   every pair of models within a place, against pairs across places (ACROSS partners a model, drawn with a fixed seed).
   DINOv2 sees what an object is as well as how it looks, so the same pairs are compared again as plain silhouettes
@@ -53,6 +56,7 @@ SAMPLE = 3000
 # Two renders whose greys (64 x 64) differ by less than this on average (0..255) are one model shown twice.
 COPY_TOLERANCE = 0.5
 ACROSS = 8
+TILE = 8
 SEED = 7
 
 
@@ -113,24 +117,39 @@ def chroma(points):
     return np.hypot(points[:, 1], points[:, 2])
 
 
+def marks(path):
+    """How blotchy the render's model looks: the 75th percentile of the L* spread of its TILE x TILE tiles wholly on
+    the model; None when no tile is."""
+    picture = np.asarray(Image.open(path).convert("RGB"))
+    mask = foreground(picture)
+    lightness = sweep.lab(sweep.linear_of(picture.reshape(-1, 3)))[:, 0].reshape(mask.shape)
+    spreads = [lightness[row:row + TILE, column:column + TILE].std()
+               for row in range(0, mask.shape[0] - TILE + 1, TILE) for column in range(0, mask.shape[1] - TILE + 1, TILE)
+               if mask[row:row + TILE, column:column + TILE].all()]
+    return round(float(np.percentile(spreads, 75)), 2) if spreads else None
+
+
 def model_colour(path, palette):
     """One render's colour readings: its share of coloured pixels, their fit to the place's shaded palette (None when
-    too few) and its median L*."""
+    too few), its median L* and its surface marks."""
     points = sweep.lab(sweep.linear_of(sampled(drawn_pixels(path))))
     coloured = points[chroma(points) >= CHROMATIC]
     fit = round(palette_share(coloured, palette), 3) if len(coloured) >= MIN_CHROMATIC else None
     return {"coloured": round(len(coloured) / len(points), 3), "fit": fit,
-            "lightness": round(float(np.median(points[:, 0])), 1)}
+            "lightness": round(float(np.median(points[:, 0])), 1), "marks": marks(path)}
 
 
 def place_colour(models):
     """A place's colour readings from its models': the median share of coloured pixels, the median fit of those that
-    have enough, and the spread of the models' median L*."""
+    have enough, the spread of the models' median L*, and their surface marks' median and spread."""
     fits = [entry["fit"] for entry in models.values() if entry["fit"] is not None]
     lightness = [entry["lightness"] for entry in models.values()]
+    marked = [entry["marks"] for entry in models.values() if entry["marks"] is not None]
     return {"models": len(models), "coloured": round(float(np.median([entry["coloured"] for entry in models.values()])), 3),
             "fitted": len(fits), "fit": round(float(np.median(fits)), 3) if fits else None,
-            "lightness_spread": round(float(np.std(lightness)), 1) if len(lightness) > 1 else None}
+            "lightness_spread": round(float(np.std(lightness)), 1) if len(lightness) > 1 else None,
+            "marks": round(float(np.median(marked)), 2) if marked else None,
+            "marks_spread": round(float(np.std(marked)), 2) if len(marked) > 1 else None}
 
 
 def palette_overlap(palettes):
@@ -273,14 +292,15 @@ def cell(value, digits=3):
 
 def table(found):
     """The per-place readings as plain text lines."""
-    lines = [f"{'place':12} {'n':>3} {'colrd':>6} {'fitted':>6} {'fit':>6} {'L* sd':>6} "
+    lines = [f"{'place':12} {'n':>3} {'colrd':>6} {'fitted':>6} {'fit':>6} {'L* sd':>6} {'marks':>6} {'mk sd':>6} "
              f"{'col in':>6} {'col out':>7} {'shp in':>6} {'shp out':>7} {'gap':>6}"]
     for place, entry in sorted(found["places"].items()):
         features = entry.get("features", {})
         cells = [features.get(kind, {}).get(side) for kind in ("colour", "shape") for side in ("within", "across")]
         cells.append(features.get("style_gap"))
         lines.append(f"{place:12} {entry['models']:>3} {cell(entry['coloured']):>6} {entry['fitted']:>6} "
-                     f"{cell(entry['fit']):>6} {cell(entry['lightness_spread'], 1):>6} "
+                     f"{cell(entry['fit']):>6} {cell(entry['lightness_spread'], 1):>6} {cell(entry['marks'], 2):>6} "
+                     f"{cell(entry['marks_spread'], 2):>6} "
                      + " ".join(f"{cell(value):>6}" for value in cells))
     lines.append(f"world: {found['models']} models ({len(found['copies'])} pairs of copies left out), L* sd {found['world_lightness_spread']}, coloured palettes shared "
                  f"{found['palette_overlap']}")
