@@ -247,7 +247,8 @@ def build(spec, outfit, who, held, dry_run):
     folder = folder_of(spec, outfit)
     take = (folder / "take.txt").read_text().strip()
     rig_file = CANDIDATES / spec["name"] / "rig.npz"
-    local("prop_rig.py", PIXAL / f"{take}-final.glb", rig_file, folder / "fit")
+    local("prop_rig.py", PIXAL / f"{take}-final.glb", rig_file, folder / "fit", "--size",
+          spec.get("look", {}).get("scale", 1.0))
     make = folder / "build-make"
     machine_spec = dict(spec, name=f"{spec['name']}-{outfit}-build", person=spec["name"], outfit=outfit,
                         review_clips=list(REVIEW_CLIPS))
