@@ -10,7 +10,8 @@ The spec (in/spec.json, written by prop_person.py) names its `steps`, in order, 
   build     the glTF from the fitted rig, the mean rig's clips and the parts (prop_build.py), its UsdSkel asset
             (skel_usd.py) and joins.py's record into out/checks/
   settle    the garment parts settled through every clip against the person's own posed surface (garment_settle.py,
-            Newton on the card), its offsets into out/settle_out.npz
+            Newton on the card), its offsets into out/settle_out.npz, baked into the body as corrective shapes
+            (garment_bake.py) and written as UsdSkel with them (skel_usd.py)
   shots     the comparison pictures of the spec's body (blender_shots.py: A-pose front and side, walking at 1/4 and
             3/4, sitting) into out/shots/
   review    turntables and clip frames rendered by Cycles (blender_review.py), as the shipped route's review
@@ -41,9 +42,12 @@ def closeup(chain):
     target = chain.out / "closeup" / f"{spec['name']}.png"
     target.parent.mkdir(parents=True, exist_ok=True)
     references = [chain.file(path) for path in spec.get("references", [])]
+    seeds = spec.get("seeds", SEEDS)
+    posing = ["--pose-picture", chain.file(spec["files"]["pose_picture"])] if "pose_picture" in spec.get("files", {}) \
+        else []
     chain.run([PICTURE, MAKER / "prop_closeup.py", target, chain.out / "pose.json", spec["who"],
-               spec["outfit_words"], *references, "--seeds", *map(str, SEEDS)])
-    return f"{len(SEEDS)} seeds, {len(references)} references"
+               spec["outfit_words"], *references, "--seeds", *map(str, seeds), *posing])
+    return f"{len(seeds)} seeds, {len(references)} references{', a pose picture' if posing else ''}"
 
 
 def rig(chain):
@@ -70,9 +74,17 @@ def build(chain):
 
 
 def settle(chain):
-    """The garment settle (garment_settle.py run) on the spec's settle_in file, into out/settle_out.npz."""
-    chain.run([ENVS / "newton/bin/python", MAKER / "garment_settle.py", "run",
-               chain.file(chain.spec["files"]["settle_in"]), chain.out / "settle_out.npz"])
+    """The garment settle (garment_settle.py run) on the spec's settle_in file, into out/settle_out.npz; with the
+    built body (`body`) given, baked into it as corrective shapes (garment_bake.py: out/<person>.glb and its
+    .bake.json) and that written as UsdSkel (skel_usd.py, the shapes as blend shapes: out/usd/)."""
+    files = {name: chain.file(path) for name, path in chain.spec["files"].items()}
+    chain.run([ENVS / "newton/bin/python", MAKER / "garment_settle.py", "run", files["settle_in"],
+               chain.out / "settle_out.npz"])
+    if "body" in files:
+        settled = chain.out / f"{chain.spec['person']}.glb"
+        chain.run([MOTION, MAKER / "garment_bake.py", files["body"], files["settle_in"], chain.out / "settle_out.npz",
+                   settled])
+        chain.run([MOTION, MAKER.parent / "skel_usd.py", settled, "--out", chain.out / "usd"])
 
 
 def shots(chain):

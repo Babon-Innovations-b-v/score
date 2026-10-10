@@ -6,8 +6,9 @@ a blend of both; a tuck runs a part's open border on along its bone, drawn in un
 none; the poke check reads a tuck under its cloth as
 hidden and one over it as showing; a body leaning sideways is stood level; thinning part by part keeps the parts
 shut along their borders; a hard part rides one joint and the cloth next to it eases onto that joint; the poke check
-reads a hard part's stretch; the settle's offsets go into the bind pose and back out of the bake's shapes, and a
-sparse morph target reads back.
+reads a hard part's stretch; the settle's offsets go into the bind pose and back out of the bake's shapes, as few as
+miss them by MISS_MOST, a frame whose shapes put the cloth through the body keeps the unsettled cloth, a sparse morph
+target reads back, and piping is cut as a thin strip down the outside of a limb.
 
 Run: .venv/bin/python tools/characters/maker/prop_rig_test.py   (make tests runs it with the framework's environment)
 """
@@ -19,6 +20,7 @@ import trimesh
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import garment_bake  # noqa: E402
+import piping  # noqa: E402
 import pokes  # noqa: E402
 import prop_build  # noqa: E402
 import prop_rig  # noqa: E402
@@ -237,14 +239,47 @@ def test_the_bake_carries_offsets_into_the_bind_pose_and_keeps_them():
     turn = np.eye(4)
     turn[:3, :3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
     frames = np.linspace(0, 1, 6)
-    wanted = np.stack([np.outer(np.ones(5), [0.01 * share, 0.0, 0.0]) for share in frames])
-    data = {"moves_walking": np.tile(turn, (6, 1, 1, 1)), "lead_in": 0, "cloth_joints": np.zeros((5, 4), int),
+    wanted = np.stack([np.outer(np.ones(5), [0.01 * share, 0.002 * share ** 2, 0.0]) for share in frames])
+    data = {"moves_walking": np.tile(turn, (6, 5, 1, 1)), "lead_in": 0, "cloth_joints": np.zeros((5, 4), int),
             "cloth_weights": np.tile([1.0, 0, 0, 0], (5, 1))}
     offsets = np.einsum("ab,fpb->fpa", turn[:3, :3], wanted)
-    carried = garment_bake.bind_offsets(data, {"offset_walking": offsets}, "walking")
-    assert np.allclose(carried, wanted)
-    shapes, weights, missed = garment_bake.clip_shapes(carried)
-    assert missed < 1e-9 and np.allclose(np.einsum("fs,spa->fpa", weights, shapes), wanted)
+    blended = garment_bake.blended_turns(data, "walking")
+    assert np.allclose(garment_bake.bind_offsets(blended, offsets), wanted, atol=1e-6)
+    shapes, weights, missed = garment_bake.clip_shapes(blended, offsets)
+    assert missed <= garment_bake.MISS_MOST and len(shapes) == 1, "one shape is near enough"
+    assert np.abs(np.einsum("fs,spa->fpa", weights, shapes) - wanted).max() <= garment_bake.MISS_MOST
+
+
+def test_a_frame_whose_shape_crosses_the_body_keeps_the_unsettled_cloth():
+    cloth = np.array([[-1.0, 0.0, -1.0], [1.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
+    body = np.array([[0.0, 0.1, 0.0], [0.0, 0.3, 0.0], [0.2, 0.3, 0.0]])
+    data = {"moves_walking": np.tile(np.eye(4), (2, 1, 1, 1)), "lead_in": 0, "cloth_points": cloth,
+            "cloth_faces": np.array([[0, 1, 2]]), "cloth_joints": np.zeros((3, 4), int),
+            "cloth_weights": np.tile([1.0, 0, 0, 0], (3, 1)), "held": np.zeros(3, bool),
+            "held_collider": np.full(3, -1), "collider_points": body, "collider_faces": np.array([[0, 1, 2]]),
+            "collider_joints": np.zeros((3, 4), int), "collider_weights": np.tile([1.0, 0, 0, 0], (3, 1))}
+    blended = garment_bake.blended_turns(data, "walking")
+    up = np.tile([0.0, 0.2, 0.0], (1, 3, 1))
+    shares, plain, kept = garment_bake.frame_shares(data, "walking", blended, up, np.array([[0.0], [1.0]]))
+    assert list(shares) == [1.0, 0.0] and plain == [0, 0] and kept == [0, 0], (shares, plain, kept)
+
+
+def test_piping_is_cut_down_the_outside_of_a_limb():
+    tube = trimesh.creation.cylinder(radius=0.05, height=0.6, sections=24)
+    tube.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0]))
+    tube = tube.subdivide().subdivide()
+    tube.apply_translation([0.1, 0.6, 0.0])
+    places = {name: np.array(place, float) for name, place in JOINTS.items()}
+    places.update(LeftLeg=np.array([0.1, 0.9, 0.0]), LeftShin=np.array([0.1, 0.6, 0.0]),
+                  LeftFoot=np.array([0.1, 0.3, 0.0]))
+    points, faces, weights, strip = piping.cut_piping(tube.vertices, tube.faces, np.ones((len(tube.vertices), 1)),
+                                                      places)
+    width = piping.PIPING_WIDTH
+    middles = points[faces[strip]].mean(1)
+    assert strip.any() and (middles[:, 0] > 0.14).all() and (np.abs(middles[:, 2]) < width / 2).all()
+    area = np.linalg.norm(np.cross(*(points[faces[strip]][:, 1:] - points[faces[strip]][:, :1]).transpose(1, 0, 2)),
+                          axis=1).sum() / 2
+    assert abs(area - width * (0.6 - piping.LEG_RUN[0])) < 0.15 * width * 0.6, area
 
 
 def test_a_sparse_morph_target_reads_back():

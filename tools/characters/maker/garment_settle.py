@@ -9,7 +9,9 @@ surface, so cloth stops going through cloth and through the skin and hard parts.
 welded into one cloth, every other surface (skin, hair, hard parts, and the tucks under the cloth, so the cloth is
 held over them: the tucks showed through where the posed surface crossed itself, review 2026-10-10) welded into the
 collider, a cloth
-point on a border with the collider held as part of it, and every clip's skinning matrices frame by frame, each clip
+point on a border with the collider held as part of it, the cloth within PIN_REACH of a tucked part's border (a cuff,
+a trouser hem, a collar) kept on its skinned place (`pinned`), and every clip's skinning matrices frame by frame, each
+clip
 led in from the bind pose over LEAD_IN frames (each joint's turn against its parent eased from the bind's to the clip's
 first frame's), so the settle starts from the welded surface Pixal3D made, which crosses nothing a clip makes.
 
@@ -31,6 +33,11 @@ import numpy as np
 
 MAKER = pathlib.Path(__file__).resolve().parent
 LEAD_IN = 30
+# Cloth this near a tucked part's border rides its skinned place, never pushed by the settle: the tuck under it was
+# made against the skinned cloth (tucks.py), and the settle moving the cuffs and the trouser hems off it showed the
+# player's wrist and boot tucks by up to 12.5 mm in 179 frames where the unsettled body showed none (2026-10-10). The
+# bands run 2.5 cm under the cloth (tucks.TUCK_LENGTH).
+PIN_REACH = 0.04
 SETTINGS = {
     "fps": 30,              # the clips' frame rate (people/clips.py)
     "substeps": 16,
@@ -146,6 +153,9 @@ def inputs(body_path, out):
     found = pokes.surfaces(document, blob)
     cloth_parts = [part for part, role, _ in found if role == pokes.GARMENT]
     other = [(part, tuck_from) for part, role, tuck_from in found if role != pokes.GARMENT]
+    # The collider's triangles garment_bake.py counts the body's edges through the cloth of (the hair left out).
+    counted = np.concatenate([np.full(len(part.faces), role != "hair") for part, role, _ in found
+                              if role != pokes.GARMENT])
     cloth = welded_surface(cloth_parts, keep=lambda part: len(part.points))
     collider = welded_surface([part for part, _ in other], keep=lambda part: len(part.points))
     welded = pokes.weld_map(np.concatenate([cloth[0], collider[0]]))
@@ -154,8 +164,8 @@ def inputs(body_path, out):
     held = held_collider >= 0
     start = bind_locals(document, inverse_bind, skin["joints"], parent)
     arrays = {"cloth_points": cloth[0], "cloth_faces": cloth[1], "cloth_joints": cloth[2], "cloth_weights": cloth[3],
-              "held": held, "held_collider": held_collider, "collider_points": collider[0],
-              "collider_faces": collider[1],
+              "held": held, "held_collider": held_collider, "pinned": pinned_near_tucks(cloth[0], held, other), "collider_points": collider[0],
+              "collider_faces": collider[1], "collider_counted": counted,
               "collider_joints": collider[2], "collider_weights": collider[3],
               "cloth_names": np.array([part.name for part in cloth_parts])}
     for number, numbers in enumerate(cloth[4]):
@@ -169,8 +179,22 @@ def inputs(body_path, out):
     hips = [document["nodes"][node].get("name") for node in skin["joints"]].index("Hips")
     arrays["anchor_slot"], arrays["anchor_place"] = hips, np.linalg.inv(inverse_bind[hips])[:3, 3]
     np.savez_compressed(out, **arrays)
-    return {"cloth_points": len(cloth[0]), "held": int(held.sum()), "collider_points": len(collider[0]),
+    return {"cloth_points": len(cloth[0]), "held": int(held.sum()), "pinned": int(arrays["pinned"].sum()),
+            "collider_points": len(collider[0]),
             "clips": len(clips), "frames": int(sum(len(arrays[f"moves_{clip}"]) for clip in clips))}
+
+
+def pinned_near_tucks(cloth_points, held, other):
+    """The cloth points (not held) within PIN_REACH of a cloth point on a tucked part's own border."""
+    from scipy.spatial import cKDTree
+    tucked = [part.points[:tuck_from] for part, tuck_from in other if tuck_from is not None]
+    if not tucked:
+        return np.zeros(len(cloth_points), bool)
+    on_seam = np.isfinite(cKDTree(np.concatenate(tucked)).query(cloth_points, distance_upper_bound=1e-5)[0])
+    if not on_seam.any():
+        return np.zeros(len(cloth_points), bool)
+    near = cKDTree(cloth_points[on_seam]).query(cloth_points, distance_upper_bound=PIN_REACH)[0]
+    return np.isfinite(near) & ~held
 
 
 # --- run (on the card) ----------------------------------------------------------------------------------------------
@@ -185,22 +209,26 @@ def skin_points(points, joints, weights, moves):
 
 
 class Settle:
-    """The model and solver: the cloth's free points first, then the collider's, massless (a held cloth point is the
-    collider's point it lies on, so the seam is one point and contact never pushes across it)."""
+    """The model and solver: the cloth's free points first, then its pinned ones and the collider's, massless (a held
+    cloth point is the collider's point it lies on, so the seam is one point and contact never pushes across it)."""
 
     def __init__(self, data, settings):
         import newton
         import warp as wp
         self.wp, self.settings = wp, settings
-        free = np.flatnonzero(~data["held"])
+        kept = still(data)
+        free = np.flatnonzero(~data["held"] & ~kept)
+        pinned = np.flatnonzero(kept & ~data["held"])
         held = np.flatnonzero(data["held"])
-        self.free = free
-        self.order_points = np.concatenate([data["cloth_points"][free], data["collider_points"]])
+        self.free, self.pinned = free, pinned
+        self.order_points = np.concatenate([data["cloth_points"][free], data["cloth_points"][pinned],
+                                            data["collider_points"]])
         number = np.empty(len(data["cloth_points"]), int)
         number[free] = np.arange(len(free))
-        number[held] = len(free) + data["held_collider"][held]
+        number[pinned] = len(free) + np.arange(len(pinned))
+        offset = len(free) + len(pinned)
+        number[held] = offset + data["held_collider"][held]
         self.cloth_number = number
-        offset = len(free)
         builder = newton.ModelBuilder(up_axis=newton.Axis.Y, gravity=0.0)
         masses = [settings["mass"]] * len(free) + [0.0] * (len(self.order_points) - len(free))
         builder.add_particles([tuple(point) for point in self.order_points], [(0.0, 0.0, 0.0)] * len(masses), masses,
@@ -262,6 +290,11 @@ class Settle:
         return got, int(lost.sum())
 
 
+def still(data):
+    """The cloth points that never move off their skinned places: the pinned ones (none in an input made before)."""
+    return data["pinned"] if "pinned" in data else np.zeros(len(data["cloth_points"]), bool)
+
+
 def bending_edges(faces):
     """Each inner edge of the triangles with its two opposite corners, as (opposite, opposite, edge, edge) rows."""
     found = {}
@@ -280,8 +313,9 @@ def placed(data, moves, order):
     cloth = skin_points(data["cloth_points"], data["cloth_joints"], data["cloth_weights"], moves)
     collider = skin_points(data["collider_points"], data["collider_joints"], data["collider_weights"], moves)
     places = np.zeros((len(order.order_points), 3))
-    places[len(order.free):] = collider
+    places[len(order.free) + len(order.pinned):] = collider
     places[order.cloth_number[order.free]] = cloth[order.free]
+    places[order.cloth_number[order.pinned]] = cloth[order.pinned]
     anchor = moves[int(data["anchor_slot"])] @ np.append(data["anchor_place"], 1.0)
     return places - anchor[:3]
 
@@ -308,7 +342,7 @@ def run(in_path, out_path):
             got, caught = settle.frame(before, after)
             before = after
             if frame >= lead:
-                offsets.append(np.where(data["held"][:, None], 0.0, (got - after)[settle.cloth_number]))
+                offsets.append(np.where((data["held"] | still(data))[:, None], 0.0, (got - after)[settle.cloth_number]))
                 lost += caught
         offsets = np.array(offsets, np.float32)
         size = np.linalg.norm(offsets, axis=2)

@@ -15,7 +15,9 @@ anything is rented. Paths are absolute or start from ~ (the creator's own pictur
      "drape_simulator": "newton" or "blender",  the drapes' simulator; experimental, so a person is made only when
                                                 its spec names one (make.py refuses it otherwise)
      "route": "prop"}                           the prop route (prop_person.py) instead of the shipped one; it also
-                                                takes "outfit_words" ({outfit: the outfit by its parts, in words})
+                                                takes "outfit_words" ({outfit: the outfit by its parts, in words}),
+                                                "pose_picture" (someone standing in the bind pose, a last reference
+                                                the close-up takes the pose from) and "closeup_seeds"
 
 An animal's spec is the animal route's (tools/characters/animals/): "kind": "animal" and its "body". Every make must
 say who asked for it in "approved": the maker makes only characters somebody asked for.

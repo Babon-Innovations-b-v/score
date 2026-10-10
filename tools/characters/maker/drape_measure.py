@@ -643,6 +643,12 @@ def self_crossings(points, faces, chunk=4096):
     triangle's radius plus half the edge's length of its centre; candidates are found that way, a chunk of edges at a
     time."""
     edges = np.unique(np.sort(faces[:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2), axis=1), axis=0)
+    return edge_crossings(points, faces, edges, chunk)
+
+
+def edge_crossings(points, faces, edges, chunk=4096):
+    """How many of `edges` pass through a triangle of `faces` they share no corner with (self_crossings' search, for
+    any edges: garment_bake.py counts the body's edges through the cloth)."""
     corners = points[faces]
     centres = corners.mean(axis=1)
     radii = np.linalg.norm(corners - centres[:, None], axis=2).max(axis=1)

@@ -59,7 +59,9 @@ class Blob:
 
 def body_glb(path):
     """A body file shaped as the people tools write one: Person (turned half round) holding Root, and two meshes,
-    `far` and `person`, skinned to Root and Hips; clips `walking` (runs round) and `door` (plays once)."""
+    `far` and `person`, skinned to Root and Hips; clips `walking` (runs round) and `door` (plays once). The person's
+    mesh has one sparse morph target, `walking.0` (its third point 0.1 m along x), which the walk keys to 1 in its
+    second frame only, as garment_bake.py writes a settled garment's."""
     blob = Blob()
     points = np.array([[-0.2, 0.0, 0.0], [0.2, 0.0, 0.0], [-0.2, 1.5, 0.0], [0.2, 1.5, 0.0]], np.float32)
     meshes = []
@@ -72,6 +74,12 @@ def body_glb(path):
         meshes.append({"primitives": [{"attributes": attributes,
                                        "indices": blob.add([0, 1, 2, 2, 1, 3], np.uint32, "SCALAR"),
                                        "material": len(meshes)}]})
+    moved, offset = blob.add([2], np.uint32, "SCALAR"), blob.add([[0.1, 0.0, 0.0]], np.float32, "VEC3")
+    blob.accessors.append({"componentType": 5126, "count": 4, "type": "VEC3", "sparse": {
+        "count": 1, "indices": {"bufferView": blob.accessors[moved]["bufferView"], "componentType": 5125},
+        "values": {"bufferView": blob.accessors[offset]["bufferView"]}}})
+    meshes[1]["primitives"][0]["targets"] = [{"POSITION": len(blob.accessors) - 1}]
+    meshes[1].update(weights=[0.0], extras={"targetNames": ["walking.0"]})
     hips_at = [0.0, 1.0, 0.0]
     inverse_binds = blob.add([np.eye(4).reshape(-1),
                               np.linalg.inv(np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], hips_at + [1]],
@@ -79,6 +87,7 @@ def body_glb(path):
     walk_times = blob.add([0.0, 1 / 30, 2 / 30], np.float32, "SCALAR")
     walk_turns = blob.add([[0, 0, 0, 1], QUARTER, [0, 0, 0, 1]], np.float32, "VEC4")
     walk_places = blob.add([hips_at, [0.0, 1.1, 0.0], hips_at], np.float32, "VEC3")
+    walk_shapes = blob.add([0.0, 1.0, 0.0], np.float32, "SCALAR")
     door_times = blob.add([0.0, 1 / 30], np.float32, "SCALAR")
     door_turns = blob.add([[0, 0, 0, 1], QUARTER], np.float32, "VEC4")
     picture = blob.add_picture()
@@ -94,9 +103,11 @@ def body_glb(path):
         "textures": [{"source": 0}], "images": [{"bufferView": picture, "mimeType": "image/png"}],
         "animations": [
             {"name": "walking", "samplers": [{"input": walk_times, "output": walk_turns},
-                                             {"input": walk_times, "output": walk_places}],
+                                             {"input": walk_times, "output": walk_places},
+                                             {"input": walk_times, "output": walk_shapes}],
              "channels": [{"sampler": 0, "target": {"node": 2, "path": "rotation"}},
-                          {"sampler": 1, "target": {"node": 2, "path": "translation"}}]},
+                          {"sampler": 1, "target": {"node": 2, "path": "translation"}},
+                          {"sampler": 2, "target": {"node": 4, "path": "weights"}}]},
             {"name": "door", "samplers": [{"input": door_times, "output": door_turns}],
              "channels": [{"sampler": 0, "target": {"node": 2, "path": "rotation"}}]}],
     }
@@ -113,15 +124,24 @@ def body_glb(path):
 
 
 def skinned(stage, mesh_path, clip, time):
-    """The mesh's points as UsdSkel skins them with `clip` playing, at `time`."""
+    """The mesh's points as UsdSkel deforms them with `clip` playing, at `time`: its blend shapes at the clip's
+    weights, then skinned."""
     skeleton = stage.GetPrimAtPath("/Character/Turned/Skeleton")
     UsdSkel.BindingAPI(skeleton).GetAnimationSourceRel().SetTargets([f"/Character/Animations/{clip}"])
     cache = UsdSkel.Cache()
     cache.Populate(UsdSkel.Root(stage.GetPrimAtPath("/Character")), Usd.PrimDefaultPredicate)
-    transforms = cache.GetSkelQuery(UsdSkel.Skeleton(skeleton)).ComputeSkinningTransforms(time)
+    query = cache.GetSkelQuery(UsdSkel.Skeleton(skeleton))
+    transforms = query.ComputeSkinningTransforms(time)
     mesh = stage.GetPrimAtPath(mesh_path)
     points = mesh.GetAttribute("points").Get()
-    cache.GetSkinningQuery(mesh).ComputeSkinnedPoints(transforms, points, time)
+    skinning = cache.GetSkinningQuery(mesh)
+    if skinning.HasBlendShapes() and query.GetAnimQuery().GetBlendShapeOrder():
+        weights = skinning.GetBlendShapeMapper().Remap(query.GetAnimQuery().ComputeBlendShapeWeights(time))
+        shapes = UsdSkel.BlendShapeQuery(UsdSkel.BindingAPI(mesh))
+        sub_weights, shape_indices, sub_indices = shapes.ComputeSubShapeWeights(weights)
+        shapes.ComputeDeformedPoints(sub_weights, shape_indices, sub_indices, shapes.ComputeBlendShapePointIndices(),
+                                     shapes.ComputeSubShapePointOffsets(), points)
+    skinning.ComputeSkinnedPoints(transforms, points, time)
     return np.array(points)
 
 
@@ -136,14 +156,19 @@ def test_asset(folder):
     turned = UsdGeom.Xformable(stage.GetPrimAtPath("/Character/Turned")).ComputeLocalToWorldTransform(0)
     assert Gf.IsClose(turned.TransformDir(Gf.Vec3d(0, 0, 1)), Gf.Vec3d(0, 0, -1), 1e-6)
     # At rest the points are the file's; one frame into the walk the hips' points have turned a quarter round z
-    # about the hips and risen 0.1 m, as the file's own skinning does; the root's points never move.
+    # about the hips and risen 0.1 m, as the file's own skinning does, the third one moved 0.1 m along x first by its
+    # morph target (a blend shape here); the root's points never move.
     rest = skinned(stage, "/Character/Turned/Body/person/jacket_0", "walking", 0)
     assert np.allclose(rest[2], [-0.2, 1.5, 0.0], atol=1e-5)
     moved = skinned(stage, "/Character/Turned/Body/person/jacket_0", "walking", 1)
     turn = np.array([[math.cos(math.pi / 4), -math.sin(math.pi / 4)], [math.sin(math.pi / 4), math.cos(math.pi / 4)]])
-    expected = turn @ np.array([-0.2, 0.5]) + [0.0, 1.1]
+    expected = turn @ np.array([-0.1, 0.5]) + [0.0, 1.1]
     assert np.allclose(moved[2][:2], expected, atol=1e-5), (moved[2], expected)
     assert np.allclose(moved[0], [-0.2, 0.0, 0.0], atol=1e-6)
+    assert np.allclose(skinned(stage, "/Character/Turned/Body/far/clothes_0", "walking", 1)[2][:2],
+                       turn @ np.array([-0.2, 0.5]) + [0.0, 1.1], atol=1e-5), "the far body has no shapes"
+    assert np.allclose(skinned(stage, "/Character/Turned/Body/person/jacket_0", "walking", 2)[2],
+                       [-0.2, 1.5, 0.0], atol=1e-5), "the shape is keyed off again"
     # The walk runs round: its two-frame cycle is repeated for the whole length; the door plays once and holds.
     walk = UsdSkel.Animation(stage.GetPrimAtPath("/Character/Animations/walking")).GetRotationsAttr()
     samples = walk.GetTimeSamples()

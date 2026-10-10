@@ -24,7 +24,8 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
            lengths and rest pose fitted to the mesh's limbs; no SOMA surface is shown or shapes the mesh), its skin
            weights moved onto the mesh, the glTF with Kimodo's clips, UsdSkel and joins.py
   settle   the garment parts settled through every clip (garment_settle.py, Newton on a characters machine), baked
-           here into corrective shapes each clip keys (garment_bake.py): <candidate>/settle/<name>.glb
+           there into corrective shapes each clip keys (garment_bake.py): <candidate>/settle/<name>.glb, and its
+           UsdSkel asset with them as blend shapes (<candidate>/settle/usd/)
   checks   the per-frame pokes (pokes.py), the A-pose outline (outline.py) and the reviewer's skin through cloth count,
            written with joins.py's record to checks.txt
   shots    the settled body rendered on a characters machine (blender_shots.py) beside today's body in the same five
@@ -140,10 +141,12 @@ def closeup(spec, outfit, who, held, dry_run):
     folder = folder_of(spec, outfit)
     make = make_place(folder, "closeup")
     machine_spec = dict(spec, name=f"{spec['name']}-{outfit}", outfit=outfit, who=spec["description"],
-                        outfit_words=spec["outfit_words"][outfit])
-    references = {f"reference_{number}": pathlib.Path(path).expanduser()
-                  for number, path in enumerate(spec.get("references", []))}
-    make_folder(make, machine_spec, ("pose", "closeup"), references)
+                        outfit_words=spec["outfit_words"][outfit], seeds=spec.get("closeup_seeds", [1, 2]))
+    files = {f"reference_{number}": pathlib.Path(path).expanduser()
+             for number, path in enumerate(spec.get("references", []))}
+    if "pose_picture" in spec:
+        files["pose_picture"] = pathlib.Path(spec["pose_picture"]).expanduser()
+    make_folder(make, machine_spec, ("pose", "closeup"), files)
     on_characters(make, who, held, dry_run)
     if dry_run:
         return []
@@ -155,7 +158,44 @@ def closeup(spec, outfit, who, held, dry_run):
         name = take_name(spec, outfit, picture.stem.rsplit("_s", 1)[1])
         shutil.copy2(picture, out / f"{name}.png")
         made.append(name)
-    return made
+    return picture_checks(out)
+
+
+# The picture check before any Pixal3D spend: between the armpits and the wrists (ARM_ROWS of the figure's height from
+# its top), a row counts where open background at least ARM_GAP of the figure's height wide lies between each arm and
+# the body; at least ARMS_APART of the rows must. The player's passing close-ups had 0.65 and 0.66 of their rows so,
+# Nev's two fused takes 0.01 and 0.07 (2026-10-10).
+ARM_ROWS = (0.25, 0.47)
+ARM_GAP = 0.01
+ARMS_APART = 0.5
+BACKGROUND_STEP = 18
+
+
+def arm_gap_share(path):
+    """The share of the arm rows (ARM_ROWS) of a close-up with an ARM_GAP gap between each arm and the body; the
+    figure is every pixel off the picture's plain background (its border's median colour) by BACKGROUND_STEP."""
+    import numpy as np
+    from PIL import Image
+    colours = np.asarray(Image.open(path).convert("RGB")).astype(float)
+    border = np.concatenate([colours[:8].reshape(-1, 3), colours[:, :8].reshape(-1, 3), colours[:, -8:].reshape(-1, 3)])
+    figure = np.linalg.norm(colours - np.median(border, 0), axis=2) > BACKGROUND_STEP
+    rows = np.flatnonzero(figure.any(1))
+    top, height = rows[0], rows[-1] - rows[0]
+    apart = []
+    for row in range(int(top + ARM_ROWS[0] * height), int(top + ARM_ROWS[1] * height)):
+        edges = np.flatnonzero(np.diff(np.concatenate([[0], figure[row].astype(int), [0]])))
+        runs = [(start, end) for start, end in zip(edges[::2], edges[1::2]) if end - start >= 3]
+        apart.append(len(runs) >= 3 and min(runs[1][0] - runs[0][1], runs[-1][0] - runs[-2][1]) >= ARM_GAP * height)
+    return float(np.mean(apart))
+
+
+def picture_checks(out):
+    """Every close-up of the folder measured by arm_gap_share, into <out>/checks.json: {take: (share, pass)}."""
+    found = {path.stem: {"arm_rows_apart": round(arm_gap_share(path), 3)} for path in sorted(out.glob("pp-*.png"))}
+    for entry in found.values():
+        entry["pass"] = entry["arm_rows_apart"] >= ARMS_APART
+    (out / "checks.json").write_text(json.dumps(found, indent=1))
+    return found
 
 
 def rig(spec, outfit, who, held, dry_run):
@@ -171,8 +211,9 @@ def rig(spec, outfit, who, held, dry_run):
 
 PIXAL = pathlib.Path.home() / ".farm-factory-props/work/pixal"
 # The welded mesh is thinned part by part to this many triangles before the rig (prop_rig.py --faces), so the outfit
-# with its tucks stays within the shipped player's 29,849.
-NEAR_FACES = 28500
+# with its tucks and its piping's cuts stays within the shipped player's 29,849 (the player: 28,500 made 29,244 with
+# the tucks, and the piping's cuts add about 1,650).
+NEAR_FACES = 27300
 REVIEW_CLIPS = ("standing", "walking", "bench", "waiting", "suit")
 
 
@@ -205,8 +246,10 @@ def together(*steps):
 
 
 def closeups(spec, outfit):
-    """The candidate's close-ups: their take names."""
-    return sorted(path.stem for path in (folder_of(spec, outfit) / "closeup").glob("pp-*.png"))
+    """The candidate's close-ups that pass the picture check (all, where none was made): their take names."""
+    folder = folder_of(spec, outfit) / "closeup"
+    checked = json.loads((folder / "checks.json").read_text()) if (folder / "checks.json").exists() else {}
+    return sorted(path.stem for path in folder.glob("pp-*.png") if checked.get(path.stem, {}).get("pass", True))
 
 
 def mesh(spec, outfit, who, held, dry_run):
@@ -312,16 +355,17 @@ def settle(spec, outfit, who, held, dry_run):
     settle_in = folder / "settle" / "settle_in.npz"
     local("garment_settle.py", "inputs", folder / "out" / f"{spec['name']}.glb", settle_in)
     make = make_place(folder, "settle")
-    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-settle"), ("settle",), {"settle_in": settle_in})
+    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-settle", person=spec["name"]), ("settle",),
+                {"settle_in": settle_in, "body": folder / "out" / f"{spec['name']}.glb"})
     on_characters(make, who, held, dry_run)
     if dry_run:
         return None
-    for name in ("settle_out.npz", "settle_out.json"):
+    for name in ("settle_out.npz", "settle_out.json", f"{spec['name']}.glb", f"{spec['name']}.bake.json"):
         shutil.copy2(make / "out" / name, folder / "settle" / name)
-    settled = folder / "settle" / f"{spec['name']}.glb"
-    local("garment_bake.py", folder / "out" / f"{spec['name']}.glb", settle_in, folder / "settle" / "settle_out.npz",
-          settled)
-    return json.loads(settled.with_suffix(".bake.json").read_text())
+    if (folder / "settle" / "usd").exists():
+        shutil.rmtree(folder / "settle" / "usd")
+    shutil.copytree(make / "out" / "usd", folder / "settle" / "usd")
+    return json.loads((folder / "settle" / f"{spec['name']}.bake.json").read_text())
 
 
 CHECKS_TABLE = pathlib.Path.home() / ".farm-factory-props/score-coordinator/prop-people"
