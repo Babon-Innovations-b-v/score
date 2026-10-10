@@ -91,17 +91,32 @@ def inside(places, outer):
     return outer.contains(places)
 
 
-def tucked(points, faces, weights, garment_points, garment_weights, bones, outer, least_edges=6):
+def limb_weights(moved, ring_joints, garment_points, garment_weights, parents):
+    """Each band point's weights: the nearest garment point's among those whose strongest joint is its ring point's
+    joint or next to it in the skeleton (its parent, grandparent or child): between Nev's knees a moon boot's band
+    took the other leg's trouser's weights and stood 4 cm out of it in the walk (2026-10-10)."""
+    strongest = garment_weights.argmax(1)
+    found = np.zeros((len(moved), garment_weights.shape[1]))
+    for joint in np.unique(ring_joints):
+        family = [joint, parents[joint], parents[parents[joint]] if parents[joint] >= 0 else -1]
+        family += np.flatnonzero(parents == joint).tolist()
+        pool = np.flatnonzero(np.isin(strongest, family))
+        pool = pool if len(pool) else np.arange(len(garment_points))
+        mine = ring_joints == joint
+        found[mine] = garment_weights[pool[cKDTree(garment_points[pool]).query(moved[mine])[1]]]
+    return found
+
+
+def tucked(points, faces, weights, garment_points, garment_weights, bones, outer, parents, least_edges=6):
     """The part with a tuck under every border loop of at least `least_edges` edges that meets a garment: (points,
     faces, weights), the band's points appended after the part's own. `bones` gives each joint's bones as (start,
-    end) places; `outer` is the whole person at rest, which a band edge must lie under to be kept."""
+    end) places and `parents` each joint's parent; `outer` is the whole person at rest, which a band edge must lie
+    under to be kept."""
     tree = cKDTree(garment_points)
     # The band takes the weights of the garment over it, never of the seam it starts from: a boot riding its foot
     # gives the trouser hem on its seam the foot's weights, and a band weighted so stood out of the trouser leg's back
     # by 29 mm when the player sat (2026-10-10).
     off_seam = np.flatnonzero(~np.isfinite(cKDTree(points).query(garment_points, distance_upper_bound=SEAM)[0]))
-    inner_tree = cKDTree(garment_points[off_seam])
-    garment_weights = garment_weights[off_seam]
     middle = points.mean(0)
     by_cloth = np.isfinite(tree.query(points, distance_upper_bound=GARMENT_NEAR)[0])
     new_points, new_faces, new_weights = [points], [faces], [weights]
@@ -131,6 +146,7 @@ def tucked(points, faces, weights, garment_points, garment_weights, bones, outer
         new_faces.append(np.concatenate([np.stack([second, first, far_first], 1),
                                          np.stack([second, far_first, far_second], 1)]))
         new_points.append(moved)
-        new_weights.append(garment_weights[inner_tree.query(moved)[1]])
+        new_weights.append(limb_weights(moved, weights[ring].argmax(1), garment_points[off_seam],
+                                        garment_weights[off_seam], parents))
         total += len(ring)
     return np.concatenate(new_points), np.concatenate(new_faces), np.concatenate(new_weights)

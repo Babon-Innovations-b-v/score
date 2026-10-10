@@ -316,6 +316,8 @@ BODYCLOTH = CHECKS_TABLE / "check" / "bodycloth.py"
 RIGID_MOST = 1.2
 SHIPPED_TRIANGLES = 29849
 LEAN_MOST_CM = 1.5
+# The shipped bodies' outfit nodes by the prop route's outfit names; each is measured alone.
+SHIPPED_OUTFIT = {"space": "suit"}
 FEET_MIRROR_CM = 3.0
 
 
@@ -392,7 +394,8 @@ def shots(spec, outfit, who, held, dry_run):
 
 def side_by_side(person, raw):
     """Today's body (left) and the prop route's (right) in each view, labelled, and the sheet of all views."""
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFont
+    font = ImageFont.truetype("DejaVuSans.ttf", 20)
     pictures = []
     for view, title in VIEWS:
         left, right = (Image.open(folder / f"{view}.png").convert("RGB") for folder in (TODAY / f"{person}_today", raw))
@@ -401,8 +404,8 @@ def side_by_side(person, raw):
         pair.paste(left, (0, 44))
         pair.paste(right, (width, 44))
         pen = ImageDraw.Draw(pair)
-        pen.text((10, 14), f"today - {title}", fill="black")
-        pen.text((width + 10, 14), f"prop route, settled - {title}", fill="black")
+        pen.text((10, 10), f"today - {title}", fill="black", font=font)
+        pen.text((width + 10, 10), f"prop route, settled - {title}", fill="black", font=font)
         pen.line([(width, 0), (width, height + 44)], fill="black", width=2)
         pair.save(RENDERS / f"{person}_{view}.png")
         pictures.append(pair)
@@ -454,7 +457,8 @@ def checks(spec, outfit, who, held, dry_run):
         body = folder / "out" / f"{spec['name']}.glb"
     shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
     if not (folder / "checks" / "pokes_shipped.json").exists():
-        local("pokes.py", shipped, "--out", folder / "checks" / "pokes_shipped.json")
+        local("pokes.py", shipped, "--out", folder / "checks" / "pokes_shipped.json", "--outfit",
+              SHIPPED_OUTFIT.get(outfit, outfit))
     local("pokes.py", body, "--out", folder / "checks" / "pokes.json", "--against",
           folder / "checks" / "pokes_shipped.json")
     local("outline.py", take, folder / "fit" / "rig.npz", body, "--out", folder / "checks" / "outline.json")

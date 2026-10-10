@@ -44,13 +44,26 @@ def shape_keys_follow(meshes, clip):
             continue
         keys.animation_data_create()
         for action in actions:
-            slots = [slot for slot in getattr(action, "slots", []) if slot.target_id_type == "KEY"]
-            if slots:
-                keys.animation_data.action = action
-                keys.animation_data.action_slot = slots[0]
-                taken += 1
-                break
+            slots = list(getattr(action, "slots", []))
+            keyed = [slot for slot in slots if slot.target_id_type == "KEY" or slot.identifier.startswith("KE")]
+            if not any("key_blocks" in curve.data_path for curve in fcurves_of(action)):
+                continue
+            keys.animation_data.action = action
+            if keyed or slots:
+                keys.animation_data.action_slot = (keyed or slots)[0]
+            taken += 1
+            break
     return taken
+
+
+def fcurves_of(action):
+    """An action's curves, in Blender 5's layered actions (layers, strips, channel bags) or a legacy one."""
+    found = list(getattr(action, "fcurves", []) or [])
+    for layer in getattr(action, "layers", []):
+        for strip in layer.strips:
+            for bag in getattr(strip, "channelbags", []):
+                found += list(bag.fcurves)
+    return found
 
 
 def rest_shapes(meshes):
@@ -69,7 +82,9 @@ def main():
     scene.cycles.samples = SAMPLES
     armature, meshes = blender_review.character(options.glb)
     print("MESHES", sorted(meshes), "ACTIONS", sorted(action.name for action in bpy.data.actions), flush=True)
-    blender_review.show_only(meshes, options.outfit)
+    # A body baked before its mesh was named for its outfit imports as "Mesh_1": the one mesh that is not the far body.
+    shown = options.outfit if options.outfit in meshes else next(name for name in meshes if name != "far")
+    blender_review.show_only(meshes, shown)
     armature.animation_data_create()
     armature.animation_data.action = None
     for track in list(armature.animation_data.nla_tracks):

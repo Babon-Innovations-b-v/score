@@ -115,7 +115,10 @@ def write_targets(document, contents, data, shapes):
             garment += 1
         else:
             primitive["targets"] = [{"POSITION": sparse_target(contents, np.zeros((count, 3)))} for _ in shapes]
-    document["meshes"][document["nodes"][node]["mesh"]]["weights"] = [0.0] * len(shapes)
+    mesh = document["meshes"][document["nodes"][node]["mesh"]]
+    mesh["weights"] = [0.0] * len(shapes)
+    # Blender's importer names a mesh object with shape keys by its mesh ("Mesh_1"), not its node ("work").
+    mesh["name"] = document["nodes"][node]["name"]
     return node
 
 

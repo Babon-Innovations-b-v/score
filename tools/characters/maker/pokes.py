@@ -49,11 +49,12 @@ CROSSING_EVERY = 5
 GARMENT = "garment"
 
 
-def surfaces(document, blob):
-    """The outfit's surfaces with their role and first tuck point: [(Part, role, tuck_from)]."""
+def surfaces(document, blob, outfit=None):
+    """The outfit's surfaces with their role and first tuck point: [(Part, role, tuck_from)]; only the node named
+    `outfit` when given (a shipped body holds a work suit and a space suit, which cross each other at rest)."""
     found = []
     for number, node in enumerate(document["nodes"]):
-        if "mesh" not in node or node.get("name") == "far":
+        if "mesh" not in node or node.get("name") == "far" or outfit not in (None, node.get("name")):
             continue
         for primitive in document["meshes"][node["mesh"]]["primitives"]:
             extras = document["materials"][primitive["material"]].get("extras", {})
@@ -176,14 +177,14 @@ def keyed_shapes(document, blob, animation, found):
     return {node: joins.morph_weights(document, blob, animation, node) for node in nodes}
 
 
-def measure(path, every):
-    """The body's poke record."""
+def measure(path, every, outfit=None):
+    """The body's poke record (one outfit's, when named)."""
     document, blob = joins.read_glb(path)
     skin = document["skins"][0]
     inverse_bind = joins.accessor(document, blob, skin["inverseBindMatrices"]).reshape(-1, 4, 4).transpose(0, 2, 1)
     parent = joins.parents_of(document)
     _, _, scales = joins.node_rest(document)
-    found = surfaces(document, blob)
+    found = surfaces(document, blob, outfit)
     garments = [part for part, role, _ in found if role == GARMENT]
     tucked = [(part, tuck_from) for part, _, tuck_from in found if tuck_from is not None]
     rest = {id(part): part.points for part, _, _ in found}
@@ -239,8 +240,9 @@ def main():
     parser.add_argument("--out", required=True, type=pathlib.Path)
     parser.add_argument("--every", type=int, default=CROSSING_EVERY)
     parser.add_argument("--against", type=pathlib.Path, help="the shipped body's pokes record")
+    parser.add_argument("--outfit", help="measure only this outfit's node")
     options = parser.parse_args()
-    record = measure(options.body, options.every)
+    record = measure(options.body, options.every, options.outfit)
     if options.against:
         against(record, json.loads(options.against.read_text()))
     record["pass"] = all(record["verdict"].values())
