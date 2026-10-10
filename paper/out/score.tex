@@ -214,10 +214,15 @@ into a human body {[}22{]}; related models turn a sentence into motion
 {[}23{]} or into sound {[}24{]}. Most of these models pass on pictures,
 masks, depth maps or meshes rather than their internal features, so a
 coding agent can connect them to one another as it would connect tools.
-What none of them provides is one consistent style across objects that
-different models have made. The field names this as an open problem
-{[}25{]}, {[}26{]}, and Hunyuan3D Studio addresses it only by restyling
-the input picture {[}27{]}.
+Chorus goes the other way and distils several 2D foundation models into
+one encoder of 3D Gaussian scenes, whose features serve segmentation and
+question answering {[}25{]}. It reads a scene that already exists, while
+SCORE builds one, and SCORE joins its models only through what they
+output, so that any of them can be replaced. What none of them provides
+is one consistent style across objects that different models have made.
+The field names this as an open problem {[}26{]}, {[}27{]}, and
+Hunyuan3D Studio addresses it only by restyling the input picture
+{[}28{]}.
 
 Studios have always built worlds in stages: concept art, layout, asset
 lists, modelling, surfacing, sound and review. Each stage has a clear
@@ -336,18 +341,18 @@ first}\label{close-ups-the-open-model-first}
 
 Every object is built from a close-up: a picture of the object alone on
 a plain background, drawn from its crop of the concept.
-Qwen-Image-Edit-2511 {[}28{]}, an open model that runs on our own rented
+Qwen-Image-Edit-2511 {[}29{]}, an open model that runs on our own rented
 cards, draws every close-up first. A shape check then decides, without a
 person, whether the picture may go on to the 3D step. Its first half
 measures the picture: a plain border all round, one object filling a
 sensible share of the frame, and an outline in the proportions of the
 inventory row's box. Its second half is an open vision-language model,
-Qwen3.8-27B {[}29{]}, which sees the crop beside the close-up and
+Qwen3.8-27B {[}30{]}, which sees the crop beside the close-up and
 answers set questions (one object, a clean background, the whole object,
 the same object, no parts missing or added, the right proportions); each
 question is asked three times with different seeds and the majority
 decides. Only a close-up that fails is redrawn by Nano Banana Pro
-{[}30{]}, first from the crop alone and then with the whole concept
+{[}31{]}, first from the crop alone and then with the whole concept
 beside it, and its pictures pass the same check. The check leans towards
 failing, because a wrong picture that passes costs a bad 3D model, while
 a good one that fails costs only a picture from the closed model
@@ -393,7 +398,7 @@ same camera and the same build of the game.}
 
 Models and code builders give shape only. Every part of every object
 takes one surface from a shared library of rule-based surfaces, written
-as ProcFunc functions {[}31{]} that are built on Infinigen's shaders
+as ProcFunc functions {[}32{]} that are built on Infinigen's shaders
 {[}9{]} and take their colours from the place's palette (Figure 4a). A
 room has one wear setting, and wear is applied where it has a cause,
 such as edges and the places where feet pass. On a generated model,
@@ -441,13 +446,18 @@ fault costs nothing to fix in the plan but an evening of the creator's
 time once the place is built. The checks look for light leaking out of
 the room, pieces in front of openings or off their surface, doors that
 do not separate their two sides, models that are open, too thin or
-leaning, and surfaces off the palette (Appendix D). Figure 6 shows one
-fault the placement check caught. A failed check sends the work back one
-stage.
+leaning, and surfaces off the palette (Appendix D). A room whose shell
+is laid as a kit of made pieces, such as the hub, is scored as a
+partition of its surfaces, after Point2Part's requirement that parts
+neither overlap nor leave gaps {[}33{]}: every visible surface should
+belong to exactly one piece, and the score gives the share that pieces
+cover, the share that two pieces cover and the largest patch left bare.
+Figure 6 shows one fault the placement check caught. A failed check
+sends the work back one stage.
 
 \subsection{The canonical scene}\label{the-canonical-scene}
 
-Every place is exported as one OpenUSD stage {[}32{]} in which each
+Every place is exported as one OpenUSD stage {[}34{]} in which each
 object carries its kind, its transform in metres, its collision, the
 library surface of each part and that surface's sounds, with the
 generated base layer under an edit layer that belongs to the creator, so
@@ -504,13 +514,13 @@ a session that claims a place is done while its gate does not pass. The
 resting check became a triage. Each object is judged by what holds it
 up, read from its inventory row (the floor, a wall, the ceiling, the
 object it stands on, a hook it hangs from, or the kit's own frame), with
-SceneEval's guards against false alarms {[}33{]}: an overlap counts only
+SceneEval's guards against false alarms {[}35{]}: an overlap counts only
 if it survives moving the object 5 mm away, and a standing object needs
 four contact points with its weight inside them. Cables, cloths and
 rubble may sink into what they lie on by an amount kept as data, and a
 loose object that moves more than 0.2 m or turns more than 8 degrees
 when dropped does not rest as laid, after SAGE's stability rule
-{[}34{]}. The real faults are grouped by cause, each group with one
+{[}36{]}. The real faults are grouped by cause, each group with one
 close-up aimed at its worst case. Over world 1's 17 places, the plain
 check flagged 4,078 of 12,032 objects; the triage kept 104 objects with
 real faults in 85 groups and marked the other 3,974 as false alarms,
@@ -525,7 +535,7 @@ close-up by its outline and by DINOv2 similarity {[}16{]}, and the least
 similar are listed first: in the lab, the four lowest were a mouse drawn
 black, a ceiling lamp without its lens, a scanner without its screen and
 a wall monitor with a blank screen. The collision queries behind these
-checks follow the interface of ProcFunc's scene tools {[}31{]}, whose
+checks follow the interface of ProcFunc's scene tools {[}32{]}, whose
 code is not yet released, built on python-fcl and trimesh, and one
 annotation step gives every check per-object masks, depth, normals and
 occlusion boundaries from any camera, the same labels a robotics world
@@ -547,21 +557,21 @@ entry point. A short spec gives a name and a picture or a few words, and
 the maker returns a rigged, clothed, textured and animated character as
 a glTF file and as UsdSkel, with a far body for crowds and a set of
 clips. A person's whole chain runs on one rented card. The A-pose
-picture is the creator's own, or FLUX.2 klein 4B {[}35{]} draws it from
-the words. SAM3DBody-cpp {[}36{]}, a C++ and ONNX runner of SAM 3D Body
+picture is the creator's own, or FLUX.2 klein 4B {[}37{]} draws it from
+the words. SAM3DBody-cpp {[}38{]}, a C++ and ONNX runner of SAM 3D Body
 {[}22{]}, reads the body off the picture, and the body is fitted to
 SOMA-X through MHR. Kimodo {[}23{]} writes the clips from sentences. The
-clothes are GarmentCode's sewing patterns {[}37{]}, draped on the body
-by the cloth solver of Newton {[}38{]}, an open physics engine on NVIDIA
-Warp {[}39{]}. Hi3DGen {[}40{]} makes the hair from a clay picture of
+clothes are GarmentCode's sewing patterns {[}39{]}, draped on the body
+by the cloth solver of Newton {[}40{]}, an open physics engine on NVIDIA
+Warp {[}41{]}. Hi3DGen {[}42{]} makes the hair from a clay picture of
 the bald head, and the hair is laid on the scalp as a shell. FLUX.2
-klein base 4B {[}41{]} with a reference-depth LoRA {[}42{]} draws the
+klein base 4B {[}43{]} with a reference-depth LoRA {[}44{]} draws the
 face on the head's own depth view. The chain then builds the character,
 converts it to UsdSkel and renders it for review. Rebuilt from her own
 picture, Nev, a crew member of the Moon base, took 11.2 minutes of an
 H100, and a new person made from one sentence took 21 minutes (Appendix
 G). Animals use the same entry point with a route that does not assume a
-human body: Pixal3D makes the mesh from a close-up, UniRig {[}43{]} rigs
+human body: Pixal3D makes the mesh from a close-up, UniRig {[}45{]} rigs
 a quadruped, a fish gets a spine rig made in code, and the clips are
 made in code. Newton's drapes come close to those of GarmentCode's own
 solver, a fork of NVIDIA Warp that we cannot use because its licence
@@ -949,7 +959,7 @@ with motion from the framework's motion models. It waits on world 3.
   often, so that the closed model is needed less.
 \item
   Wrap open solvers as stages for worlds at other scales, starting with
-  orbital dynamics through REBOUND {[}44{]}.
+  orbital dynamics through REBOUND {[}46{]}.
 \item
   Evaluate SCORE on LEGO-Bench {[}15{]}.
 \end{itemize}
@@ -1119,169 +1129,182 @@ generation,''} \emph{arXiv preprint arXiv:2603.15546}, 2026.}
 Face, 2026. Available:
 \url{https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0}}
 
-\bibitem[\citeproctext]{ref-wu2026production}
+\bibitem[\citeproctext]{ref-li2026chorus}
 \CSLLeftMargin{{[}25{]} }%
+\CSLRightInline{Y. Li \emph{et al.}, {``{Chorus}: Multi-teacher
+pretraining for holistic {3D} {Gaussian} scene encoding,''} in
+\emph{Proceedings of the IEEE/CVF conference on computer vision and
+pattern recognition (CVPR)}, 2026.}
+
+\bibitem[\citeproctext]{ref-wu2026production}
+\CSLLeftMargin{{[}26{]} }%
 \CSLRightInline{J. Wu, Z. Lou, J. Liu, D. Du, C. Guo, and S. Guo,
 {``From visual synthesis to interactive worlds: Toward production-ready
 {3D} asset generation,''} \emph{arXiv preprint arXiv:2604.23629}, 2026.}
 
 \bibitem[\citeproctext]{ref-yang2026flowscene}
-\CSLLeftMargin{{[}26{]} }%
+\CSLLeftMargin{{[}27{]} }%
 \CSLRightInline{Z. Yang \emph{et al.}, {``{FlowScene}: Style-consistent
 indoor scene generation with multimodal graph rectified flow,''}
 \emph{arXiv preprint arXiv:2603.19598}, 2026.}
 
 \bibitem[\citeproctext]{ref-lei2025hunyuanstudio}
-\CSLLeftMargin{{[}27{]} }%
+\CSLLeftMargin{{[}28{]} }%
 \CSLRightInline{{B. Lei, Y. Li, X. Liu, \emph{et al.}}, {``{Hunyuan3D
 Studio}: End-to-end {AI} pipeline for game-ready {3D} asset
 generation,''} \emph{arXiv preprint arXiv:2509.12815}, 2025.}
 
 \bibitem[\citeproctext]{ref-qwenimageedit}
-\CSLLeftMargin{{[}28{]} }%
+\CSLLeftMargin{{[}29{]} }%
 \CSLRightInline{Qwen Team, {``{Qwen-Image-Edit-2511} model card.''}
 Hugging Face, 2025. Available:
 \url{https://huggingface.co/Qwen/Qwen-Image-Edit-2511}}
 
 \bibitem[\citeproctext]{ref-qwen38}
-\CSLLeftMargin{{[}29{]} }%
+\CSLLeftMargin{{[}30{]} }%
 \CSLRightInline{Qwen Team, {``{Qwen3.8-27B} model card.''} Hugging Face,
 2026. Available: \url{https://huggingface.co/Qwen/Qwen3.8-27B}}
 
 \bibitem[\citeproctext]{ref-nanobananapro}
-\CSLLeftMargin{{[}30{]} }%
+\CSLLeftMargin{{[}31{]} }%
 \CSLRightInline{Google, {``{Gemini 3 Pro Image ({`Nano Banana Pro'})
 through the Gemini {API}}.''} 2026. Available:
 \url{https://ai.google.dev/}}
 
 \bibitem[\citeproctext]{ref-raistrick2026procfunc}
-\CSLLeftMargin{{[}31{]} }%
+\CSLLeftMargin{{[}32{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``{ProcFunc}:
 Function-oriented abstractions for procedural {3D} generation in
 {Python},''} \emph{arXiv preprint arXiv:2604.26943}, 2026.}
 
+\bibitem[\citeproctext]{ref-tsui2026point2part}
+\CSLLeftMargin{{[}33{]} }%
+\CSLRightInline{H.-T. Tsui, Y.-R. Tuan, X. Ma, N. Ugrinovic, T.
+Shiratori, and K. Kitani, {``{Point2Part}: Unified {3D} partitioning
+from point prompts,''} \emph{arXiv preprint arXiv:2609.38180}, 2026.}
+
 \bibitem[\citeproctext]{ref-openusd}
-\CSLLeftMargin{{[}32{]} }%
+\CSLLeftMargin{{[}34{]} }%
 \CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
 {``{OpenUSD}: Universal scene description.''} 2026. Available:
 \url{https://openusd.org/}}
 
 \bibitem[\citeproctext]{ref-tam2025sceneeval}
-\CSLLeftMargin{{[}33{]} }%
+\CSLLeftMargin{{[}35{]} }%
 \CSLRightInline{H. I. I. Tam, H. I. D. Pun, A. T. Wang, A. X. Chang, and
 M. Savva, {``{SceneEval}: Evaluating semantic coherence in
 text-conditioned {3D} indoor scene synthesis,''} \emph{arXiv preprint
 arXiv:2503.14756}, 2025.}
 
 \bibitem[\citeproctext]{ref-xia2026sage}
-\CSLLeftMargin{{[}34{]} }%
+\CSLLeftMargin{{[}36{]} }%
 \CSLRightInline{H. Xia \emph{et al.}, {``{SAGE}: Scalable agentic {3D}
 scene generation for embodied {AI},''} \emph{arXiv preprint
 arXiv:2602.10116}, 2026.}
 
 \bibitem[\citeproctext]{ref-flux2klein}
-\CSLLeftMargin{{[}35{]} }%
+\CSLLeftMargin{{[}37{]} }%
 \CSLRightInline{Black Forest Labs, {``{FLUX.2 {[}klein{]} 4B} model
 card.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}}
 
 \bibitem[\citeproctext]{ref-sam3dbodycpp}
-\CSLLeftMargin{{[}36{]} }%
+\CSLLeftMargin{{[}38{]} }%
 \CSLRightInline{A. Qammaz, {``{SAM3DBody-cpp}: A standalone {C++}
 inference engine for {SAM 3D Body}.''} GitHub, 2026. Available:
 \url{https://github.com/AmmarkoV/SAM3DBody-cpp}}
 
 \bibitem[\citeproctext]{ref-korosteleva2023garmentcode}
-\CSLLeftMargin{{[}37{]} }%
+\CSLLeftMargin{{[}39{]} }%
 \CSLRightInline{M. Korosteleva and O. Sorkine-Hornung, {``{GarmentCode}:
 Programming parametric sewing patterns,''} \emph{ACM Transactions on
 Graphics}, vol. 42, no. 6, p. 197, 2023.}
 
 \bibitem[\citeproctext]{ref-newton}
-\CSLLeftMargin{{[}38{]} }%
+\CSLLeftMargin{{[}40{]} }%
 \CSLRightInline{The Newton Developers, {``{Newton}: A {GPU}-accelerated
 physics simulation engine.''} 2026. Available:
 \url{https://github.com/newton-physics/newton}}
 
 \bibitem[\citeproctext]{ref-warp}
-\CSLLeftMargin{{[}39{]} }%
+\CSLLeftMargin{{[}41{]} }%
 \CSLRightInline{M. Macklin, {``{Warp}: A high-performance {Python}
 framework for {GPU} simulation and graphics.''} NVIDIA, 2022. Available:
 \url{https://github.com/NVIDIA/warp}}
 
 \bibitem[\citeproctext]{ref-ye2025hi3dgen}
-\CSLLeftMargin{{[}40{]} }%
+\CSLLeftMargin{{[}42{]} }%
 \CSLRightInline{C. Ye \emph{et al.}, {``{Hi3DGen}: High-fidelity {3D}
 geometry generation from images via normal bridging,''} in
 \emph{Proceedings of the IEEE/CVF international conference on computer
 vision (ICCV)}, 2025.}
 
 \bibitem[\citeproctext]{ref-flux2kleinbase}
-\CSLLeftMargin{{[}41{]} }%
+\CSLLeftMargin{{[}43{]} }%
 \CSLRightInline{Black Forest Labs, {``{FLUX.2 {[}klein{]} Base 4B} model
 card.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B}}
 
 \bibitem[\citeproctext]{ref-refcontrol}
-\CSLLeftMargin{{[}42{]} }%
+\CSLLeftMargin{{[}44{]} }%
 \CSLRightInline{{thedeoxen}, {``{refcontrol}: Reference-depth {LoRA} for
 {FLUX.2 {[}klein{]} 4B}.''} Hugging Face, 2026. Available:
 \url{https://huggingface.co/thedeoxen/refcontrol-FLUX.2-klein-4B-reference-depth-lora}}
 
 \bibitem[\citeproctext]{ref-zhang2025unirig}
-\CSLLeftMargin{{[}43{]} }%
+\CSLLeftMargin{{[}45{]} }%
 \CSLRightInline{J.-P. Zhang, C.-F. Pu, M.-H. Guo, Y.-P. Cao, and S.-M.
 Hu, {``One model to rig them all: Diverse skeleton rigging with
 {UniRig},''} \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.}
 
 \bibitem[\citeproctext]{ref-rein2012rebound}
-\CSLLeftMargin{{[}44{]} }%
+\CSLLeftMargin{{[}46{]} }%
 \CSLRightInline{H. Rein and S.-F. Liu, {``{REBOUND}: An open-source
 multi-purpose {N}-body code for collisional dynamics,''} \emph{Astronomy
 \& Astrophysics}, vol. 537, p. A128, 2012.}
 
 \bibitem[\citeproctext]{ref-blender}
-\CSLLeftMargin{{[}45{]} }%
+\CSLLeftMargin{{[}47{]} }%
 \CSLRightInline{Blender Foundation, {``{Blender}.''} 2026. Available:
 \url{https://www.blender.org/}}
 
 \bibitem[\citeproctext]{ref-simeoni2025dinov3}
-\CSLLeftMargin{{[}46{]} }%
+\CSLLeftMargin{{[}48{]} }%
 \CSLRightInline{{O. Siméoni, H. V. Vo, M. Seitzer, \emph{et al.}},
 {``{DINOv3},''} \emph{arXiv preprint arXiv:2508.10104}, 2025.}
 
 \bibitem[\citeproctext]{ref-li2026segvigen}
-\CSLLeftMargin{{[}47{]} }%
+\CSLLeftMargin{{[}49{]} }%
 \CSLRightInline{L. Li \emph{et al.}, {``{SegviGen}: Repurposing {3D}
 generative model for part segmentation,''} \emph{arXiv preprint
 arXiv:2603.16869}, 2026.}
 
 \bibitem[\citeproctext]{ref-deng2025geosam2}
-\CSLLeftMargin{{[}48{]} }%
+\CSLLeftMargin{{[}50{]} }%
 \CSLRightInline{K. Deng \emph{et al.}, {``{GeoSAM2}: Unleashing the
 power of {SAM2} for {3D} part segmentation,''} \emph{arXiv preprint
 arXiv:2508.14036}, 2025.}
 
 \bibitem[\citeproctext]{ref-marble_terms}
-\CSLLeftMargin{{[}49{]} }%
+\CSLLeftMargin{{[}51{]} }%
 \CSLRightInline{World Labs, {``{Terms of Service}.''} 2026. Available:
 \url{https://docs.worldlabs.ai/terms-of-service}}
 
 \bibitem[\citeproctext]{ref-behnamghader2024llm2vec}
-\CSLLeftMargin{{[}50{]} }%
+\CSLLeftMargin{{[}52{]} }%
 \CSLRightInline{P. BehnamGhader, V. Adlakha, M. Mosbach, D. Bahdanau, N.
 Chapados, and S. Reddy, {``{LLM2Vec}: Large language models are secretly
 powerful text encoders,''} in \emph{Conference on language modeling
 (COLM)}, 2024.}
 
 \bibitem[\citeproctext]{ref-grattafiori2024llama3}
-\CSLLeftMargin{{[}51{]} }%
+\CSLLeftMargin{{[}53{]} }%
 \CSLRightInline{{A. Grattafiori, A. Dubey, A. Jauhri, \emph{et al.}},
 {``The {Llama 3} herd of models,''} \emph{arXiv preprint
 arXiv:2407.21783}, 2024.}
 
 \bibitem[\citeproctext]{ref-claudecode}
-\CSLLeftMargin{{[}52{]} }%
+\CSLLeftMargin{{[}54{]} }%
 \CSLRightInline{Anthropic, {``{Claude Code}.''} 2026. Available:
 \url{https://www.anthropic.com/claude-code}}
 
@@ -1701,7 +1724,7 @@ pictures, masks, depth maps or meshes, never one model's internal
 features. The characters' licence check found that GarmentCode's fork of
 NVIDIA Warp, which drapes its patterns, allows non-commercial research
 only, so Newton's cloth solver on upstream Warp, both Apache-2.0,
-replaced it; Blender's cloth simulation {[}45{]} is kept as a second
+replaced it; Blender's cloth simulation {[}47{]} is kept as a second
 route. The one open doubt among the characters' models is the face LoRA,
 whose training data is not disclosed.
 
@@ -1724,52 +1747,52 @@ Licence
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Nano Banana Pro {[}30{]} & concepts, close-ups the open model fails,
+Nano Banana Pro {[}31{]} & concepts, close-ups the open model fails,
 ground skins & paid API \\
-Qwen-Image-Edit-2511 {[}28{]} & close-ups, first & Apache-2.0 \\
-Qwen3.8-27B {[}29{]} & the close-ups' shape check; each part's material
+Qwen-Image-Edit-2511 {[}29{]} & close-ups, first & Apache-2.0 \\
+Qwen3.8-27B {[}30{]} & the close-ups' shape check; each part's material
 & Apache-2.0 \\
-Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}46{]} for its
+Pixal3D {[}17{]} & picture to 3D & MIT; DINOv3 licence {[}48{]} for its
 encoder \\
 PartCrafter {[}21{]} & parts & MIT; its non-commercial background
 remover not used \\
-SegviGen {[}47{]} & parts of our own model (trial) & MIT, on TRELLIS.2
+SegviGen {[}49{]} & parts of our own model (trial) & MIT, on TRELLIS.2
 (MIT); DINOv3 licence for its encoder; its non-commercial background
 remover and nvdiffrast not used \\
-GeoSAM2 {[}48{]} & parts of our own model, seeded by the close-up's
+GeoSAM2 {[}50{]} & parts of our own model, seeded by the close-up's
 regions (trial) & Apache-2.0 \\
 Depth Anything V2 Small {[}20{]} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
-World Labs Marble {[}49{]} & optional world step & paid; outputs owned
+World Labs Marble {[}51{]} & optional world step & paid; outputs owned
 by paid users \\
-FLUX.2 klein 4B {[}35{]} & earlier prop pictures; the characters' A-pose
+FLUX.2 klein 4B {[}37{]} & earlier prop pictures; the characters' A-pose
 pictures from words and their hair's clay pictures & Apache-2.0 \\
 MoGe-2 {[}19{]}, SAM 3 {[}18{]} & measuring and finding objects in
 pictures & MIT; SAM Licence \\
 Kimodo {[}23{]} & the characters' motion from sentences & Apache-2.0
 code; NVIDIA Open Model License for the Kimodo-SOMA-RP-v1.1 weights,
 commercial use allowed \\
-LLM2Vec {[}50{]} on Meta-Llama-3-8B-Instruct {[}51{]} & Kimodo's text
+LLM2Vec {[}52{]} on Meta-Llama-3-8B-Instruct {[}53{]} & Kimodo's text
 encoder, used only while clips are made; nothing from it ships & Llama 3
 Community License: commercial use allowed, the 700 million monthly users
 clause does not apply, ``Built with Meta Llama 3'' shown, no exclusion
 in the European Union for the text-only 8B model \\
-SAM 3D Body {[}22{]}, SAM3DBody-cpp {[}36{]} & body shape from a picture
+SAM 3D Body {[}22{]}, SAM3DBody-cpp {[}38{]} & body shape from a picture
 & SAM Licence for the weights, SAM3DBody-cpp's converted ONNX and GGUF
 weights included whatever their tag says; MIT for SAM3DBody-cpp's
 code \\
 SOMA-X and MHR & the characters' bodies & Apache-2.0 \\
-GarmentCode {[}37{]}, Newton {[}38{]} on Warp {[}39{]}, Blender's cloth
-{[}45{]} & the clothes' sewing patterns and their drape & MIT; Newton
+GarmentCode {[}39{]}, Newton {[}40{]} on Warp {[}41{]}, Blender's cloth
+{[}47{]} & the clothes' sewing patterns and their drape & MIT; Newton
 and Warp Apache-2.0; Blender is GPL and its output is ours;
 GarmentCode's Warp fork (non-commercial research only) not used \\
-Hi3DGen {[}40{]} & the characters' hair & MIT code; MIT and Apache-2.0
+Hi3DGen {[}42{]} & the characters' hair & MIT code; MIT and Apache-2.0
 weights \\
-FLUX.2 klein base 4B {[}41{]} with the refcontrol reference-depth LoRA
-{[}42{]} & the characters' faces & Apache-2.0, both; the LoRA's training
+FLUX.2 klein base 4B {[}43{]} with the refcontrol reference-depth LoRA
+{[}44{]} & the characters' faces & Apache-2.0, both; the LoRA's training
 data is not disclosed \\
-UniRig {[}43{]} & the skeleton and skin of a quadruped & MIT code and
+UniRig {[}45{]} & the skeleton and skin of a quadruped & MIT code and
 weights \\
 MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
@@ -1863,7 +1886,7 @@ World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 &
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound
 generation, all checks and the assembly run automatically. Coding agents
-(Claude Code {[}52{]}) write the plans, the inventories and every code
+(Claude Code {[}54{]}) write the plans, the inventories and every code
 builder; in the hub's final round, 86 of its 98 models were built in
 code. Some steps were still done by hand: some generated objects were
 turned to face the right way by eye, and a few labels were placed by

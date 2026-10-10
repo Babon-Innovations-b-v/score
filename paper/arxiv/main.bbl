@@ -1,4 +1,4 @@
-\begin{thebibliography}{52}
+\begin{thebibliography}{54}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -169,6 +169,16 @@ Davis Rempe, Mathis Petrovich, Ye~Yuan, Haotian Zhang, Xue~Bin Peng, et~al.
 \newblock URL \url{https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0}.
 \newblock Apache-2.0.
 
+\bibitem[Li et~al.(2026{\natexlab{d}})Li, Ma, Yang, Ma, Ren, Popovic, Sebe,
+  Gevers, Van~Gool, Paudel, and Oswald]{li2026chorus}
+Yue Li, Qi~Ma, Runyi Yang, Mengjiao Ma, Bin Ren, Nikola Popovic, Nicu Sebe,
+  Theo Gevers, Luc Van~Gool, Danda~Pani Paudel, and Martin~R. Oswald.
+\newblock {Chorus}: Multi-teacher pretraining for holistic {3D} {Gaussian}
+  scene encoding.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition (CVPR)}, 2026{\natexlab{d}}.
+\newblock arXiv:2512.17817.
+
 \bibitem[Wu et~al.(2026)Wu, Lou, Liu, Du, Guo, and Guo]{wu2026production}
 Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
 \newblock From visual synthesis to interactive worlds: Toward production-ready
@@ -217,6 +227,13 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
 \newblock {ProcFunc}: Function-oriented abstractions for procedural {3D}
   generation in {Python}.
 \newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
+
+\bibitem[Tsui et~al.(2026)Tsui, Tuan, Ma, Ugrinovic, Shiratori, and
+  Kitani]{tsui2026point2part}
+Hao-Tang Tsui, Yu-Rou Tuan, Xiaoxuan Ma, Nicol{\'a}s Ugrinovic, Takaaki
+  Shiratori, and Kris Kitani.
+\newblock {Point2Part}: Unified {3D} partitioning from point prompts.
+\newblock \emph{arXiv preprint arXiv:2609.38180}, 2026.
 
 \bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
 {Pixar Animation Studios} and {Alliance for OpenUSD}.
@@ -323,12 +340,12 @@ Oriane Sim{\'e}oni, Huy~V. Vo, Maximilian Seitzer, et~al.
 \newblock {DINOv3}.
 \newblock \emph{arXiv preprint arXiv:2508.10104}, 2025.
 
-\bibitem[Li et~al.(2026{\natexlab{d}})Li, Feng, Huang, Chen, Nie, Hou, Fan, Hu,
+\bibitem[Li et~al.(2026{\natexlab{e}})Li, Feng, Huang, Chen, Nie, Hou, Fan, Hu,
   Wang, Li, and Sheng]{li2026segvigen}
 Lin Li, Haoran Feng, Zehuan Huang, Haohua Chen, Wenbo Nie, Shaohua Hou, Keqing
   Fan, Pan Hu, Sheng Wang, Buyu Li, and Lu~Sheng.
 \newblock {SegviGen}: Repurposing {3D} generative model for part segmentation.
-\newblock \emph{arXiv preprint arXiv:2603.16869}, 2026{\natexlab{d}}.
+\newblock \emph{arXiv preprint arXiv:2603.16869}, 2026{\natexlab{e}}.
 
 \bibitem[Deng et~al.(2025)Deng, Yang, Sun, Liu, Liu, Liang, and
   Cao]{deng2025geosam2}
