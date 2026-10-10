@@ -29,7 +29,13 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   run did, written anew: the box mesh welded, each triangle and edge resting at its flat panel's shape, so the seams
   sew themselves; no gravity for 10 frames, light gravity (the design's `gravity`, 2 m/s^2) while the waist and
   collars are held, then the earth's 9.81 m/s^2 for the final settle until the cloth is still (the space suit's waist
-  stays held, as its belt holds it). Its record is the drape's `newton_cloth.json`. Never copy or port code from
+  stays held, as its belt holds it). Its record is the drape's `newton_cloth.json`. Judge a drape change by
+  `drape_measure.py --reference <Warp drape>` and its `verdict`, never by looking: the silhouette (width and stand-off
+  against the Warp drape at the named cuts and at dense ones, the torso every centimetre, the shoulder with the
+  sleeves' caps from the armpit up, the arms every 5 %, tolerances from the Warp drapes' own left-right spread) and
+  the belt band; only pass lets a drape through, unknown blocks. The shipped Newton drapes the owner called bloated
+  (2026-10-10) fail it; the Warp drapes pass against themselves, the work suits only as far as the silhouette: their
+  torso ends above the belt band, so their belt reads unknown. Never copy or port code from
   GarmentCode's Warp fork (non-commercial); GarmentCode itself (MIT) may be read. Measured with `drape_measure.py`
   against the Warp drapes on Nev, Ama and the player (2026-10-09): crumples within 0.6 degrees on the work suit and
   1 degree on the space suit (Blender's were 4 to 6 times Warp's), the work suit's trousers 1 to 2 cm longer because

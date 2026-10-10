@@ -15,20 +15,29 @@ tools/characters/people/fit.py, as space_suit.py places it). Numpy and scipy onl
 - balloon_cm: the mean distance from the trouser cloth to the body between the ankle and the knee.
 - waist_crumple_deg: crumple_deg in the band from the hips to the lowest ribs (where a gathered waist shows).
 - torso_low_m, belt_band_m, belt_cloth_cm: the torso panels' lowest point, the belt band space_suit.py cuts
-  (fit.y(1.005) to fit.y(1.062)) and how much of that band's height the torso cloth covers.
+  (fit.y(1.005) to fit.y(1.062)) and how much of that band's height the torso cloth covers; null when the torso
+  cloth does not reach the band (no belt band to read: the work suit, whose torso ends at its waistband above it).
 - self_crossings: how many cloth edges pass through a cloth triangle they share no corner with (cloth through cloth).
 - silhouette (with --reference, another simulator's drape of the same pattern on the same body; the look's
   joints.json places the cuts): what the eye reads as a bloated chest, a sleeve ballooning off the arm or no waist,
   which the numbers above miss (2026-10-10). The cloth and the body are cut at places fixed by the joints and the
   body: chest, underbust, waist (the body's narrowest girth between the hips and the chest), belly (between the
-  Spine1 and Spine2 joints, a few centimetres lower), low belly (halfway from there to the hips) and hip level; upper arm, elbow, forearm and cuff square to the
-  arm's bone; thigh, knee and shin square to the leg's. Per cut, both sides pooled: the cloth's and the body's width (across: the front view's
-  silhouette), depth (front to back: the side view's) and girth (a tape measure's, round the convex outline), and
-  the stand-off (the cloth's outline radius minus the body's in 72 directions round the bone or the spine), median
-  and 90th percentile, cm. Each region is pass, fail (the width or a stand-off larger than the reference's by more
-  than TOLERANCE_CM, chosen from the Warp drapes' own spread, or the reference has cloth round the cut and the drape
-  has not: a sleeve ridden up short of the cuff) or unknown (neither drape read there, or the body's cut not read).
-  `gate` is the verdict over GATE_REGIONS, the torso and the arms, where the owner saw the bloat.
+  Spine1 and Spine2 joints, a few centimetres lower), low belly (halfway from there to the hips) and hip level; upper
+  arm, elbow, forearm and cuff square to the arm's bone; thigh, knee and shin square to the leg's. Per cut, both
+  sides pooled: the cloth's and the body's width (across: the front view's silhouette), depth (front to back: the
+  side view's) and girth (a tape measure's, round the convex outline), and the stand-off (the cloth's outline radius
+  minus the body's in 72 directions round the bone or the spine), median and 90th percentile, cm. Each region is
+  pass, fail (the width or a stand-off larger than the reference's by more than TOLERANCE_CM, chosen from the Warp
+  drapes' own spread, or the reference has cloth round the cut and the drape has not: a sleeve ridden up short of the
+  cuff) or unknown (neither drape read there, or the body's cut not read).
+- dense: the same numbers and verdict at every dense cut (`dense_cuts`): the torso every centimetre from the hips to
+  the shoulders, the shoulder (the cloth with its sleeves' caps) every centimetre from the armpit to the shoulders,
+  each arm every 5 % of its bones and at the elbow; a cut neither drape's cloth goes round is 'absent'. `bands` sums
+  them per band: the cuts failed or unknown and the largest margin over the tolerance.
+- silhouette_gate: the verdict over GATE_REGIONS (the torso and the arms, where the owner saw the bloat) and every
+  dense cut: fail when any fails, unknown when none fails and any is unknown, else pass.
+- belt: the belt band against the reference's (`judge_belt`): unknown when the reference has no belt band to read.
+- verdict: the worst of silhouette_gate and belt; only pass lets a drape through (unknown blocks as fail does).
 """
 import argparse
 import importlib
@@ -130,7 +139,16 @@ def belt_numbers(points, labels, fit):
     low = float(points[torso, 1].min())
     bottom, top = float(fit.y(BELT_BAND[0])), float(fit.y(BELT_BAND[1]))
     return {"torso_low_m": round(low, 4), "belt_band_m": [round(bottom, 4), round(top, 4)],
-            "belt_cloth_cm": round(100.0 * max(0.0, top - max(bottom, low)), 2)}
+            "belt_cloth_cm": belt_cover(low, bottom, top)}
+
+
+def belt_cover(low, bottom, top):
+    """How much of the belt band's height (cm) cloth reaching down to `low` covers; None when it does not reach the
+    band: there is no belt band to read (the work suit's torso ends above it, at its waistband), which a 0.0 hid
+    (drapes-fix round-5 recheck: every work suit, Warp's and Newton's, read 0.0, so the number tested nothing)."""
+    if low >= top:
+        return None
+    return round(100.0 * (top - max(bottom, low)), 2)
 
 
 def measure(folder, body_obj, look):
@@ -162,6 +180,7 @@ def measure(folder, body_obj, look):
 # --- silhouette: the cloth's outline round the body at fixed cuts, against a reference drape ---
 
 ANGLES = np.radians(np.arange(0.0, 360.0, 5.0))
+UP = np.array([0.0, 1.0, 0.0])
 TORSO_REGIONS = ("chest", "underbust", "waist", "belly", "low_belly", "hip")
 ARM_REGIONS = ("upper_arm", "elbow", "forearm", "cuff")
 LEG_REGIONS = ("thigh", "knee", "shin")
@@ -172,6 +191,16 @@ REGIONS = TORSO_REGIONS + ARM_REGIONS + LEG_REGIONS
 # suit's waist seam and belt sit, went unjudged, and a puffy lower belly would have passed (round-3 recheck). The legs
 # are read and judged but not gated: the Newton trousers hang at full gravity where Warp's hung at a hundredth of it.
 GATE_REGIONS = ("chest", "underbust", "waist", "belly", "low_belly", "hip", "upper_arm", "elbow", "forearm", "cuff")
+# The gate also reads the dense cuts (`dense_cuts`): the named cuts are 6 to 9 cm apart, and a drape tuned until they
+# passed still bulged between them (drapes-fix round-5 recheck: a belly pouch 0.7 cm over the tolerance between the
+# low-belly and hip cuts, an underbust 2 cm too wide 2 mm from the underbust cut, nothing cut from the armpit to the
+# shoulder). The torso and the shoulder every TORSO_STEP_CM, each arm bone every ARM_STEP of its length.
+TORSO_STEP_CM = 1.0
+ARM_STEP = 0.05
+# The upper arm is cut from UPPER_ARM_FROM of the bone down (nearer the shoulder a cut square to the bone cuts the
+# torso, and the shoulder band reads there), the forearm from FOREARM_FROM past the elbow (nearer, the cut meets the
+# upper sleeve; the elbow cut reads there); both to ARM_TO (the hand starts past it).
+UPPER_ARM_FROM, FOREARM_FROM, ARM_TO = 0.3, 0.1, 0.95
 # The natural waist is looked for between the hip joints and the Chest joint, every WAIST_STEP_CM.
 WAIST_STEP_CM = 0.5
 # Cloth cut further than this from a limb's bone (cm) belongs to another part of the garment.
@@ -183,10 +212,18 @@ COVER = 0.9
 # difference between a drape's left and right at the same cut (a near-mirrored pattern on a near-mirrored body: what
 # the simulator leaves to chance; Warp itself repeats a drape exactly). Limbs: the left limb's cut against the
 # right's; the torso: its right half against its left (width as each half's stand-off sideways). Measured again with
-# the low-belly cut in drapes-fix round 4 (267 torso halves): the torso's width came to 1.50 (1.51 before).
+# the low-belly cut in drapes-fix round 4 (267 torso halves): the torso's width came to 1.50 (1.51 before). On the
+# dense cuts of the same 48 drapes (2026-10-10: 2,079 torso halves, 1,331 arm pairs) the spread is no larger (torso
+# 1.30, 0.38, 0.54; arm 0.72, 0.30, 0.43), so the torso's and the arm's tolerances stay the named cuts'. The shoulder
+# is measured on its own dense cuts (392 halves: 0.61, 0.24, 0.62), as the sleeve's cap is in its cloth.
 TOLERANCE_CM = {"torso": {"cloth_width": 1.5, "standoff_median": 0.5, "standoff_p90": 0.7},
+                "shoulder": {"cloth_width": 0.7, "standoff_median": 0.3, "standoff_p90": 0.7},
                 "arm": {"cloth_width": 0.8, "standoff_median": 0.4, "standoff_p90": 0.5},
                 "leg": {"cloth_width": 1.0, "standoff_median": 0.5, "standoff_p90": 0.7}}
+# How much less of the belt band (cm) the drape's torso cloth may cover than the reference's, from the same 48 Warp
+# drapes: the 90th percentile, rounded up to a millimetre, of the difference between the band height the left torso
+# panels cover and the right's, on the 24 that read a band (2026-10-10: 0.31).
+BELT_TOLERANCE_CM = 0.4
 
 
 def limb_of(region):
@@ -272,6 +309,68 @@ def cuts(joints, body):
     return found
 
 
+def pair_height(joints, name):
+    """The mean height of a Left and Right joint pair ('Arm': the shoulders, 'Leg': the hips)."""
+    return (joints["Left" + name][1] + joints["Right" + name][1]) / 2
+
+
+def armpit_height(body, joints):
+    """The lowest height, every TORSO_STEP_CM from the Chest joint up to the shoulder joints, where the body's cut
+    round the spine reaches out past both upper arms' bones at that height: where the arms join the torso (past the
+    shoulder joints alone came 1 to 2 cm low on Nev, Ama and the player, under the arms' join)."""
+    for height in np.arange(np.ceil(joints["Chest"][1]), pair_height(joints, "Arm"), TORSO_STEP_CM):
+        point = spine_point(joints, height)
+        outline = body_outline(*body, 0, point, UP, "torso")
+        if outline is None:
+            continue
+        bones = [upper_arm_at(joints, prefix, height)[0] - point[0] for prefix in ("Left", "Right")]
+        if outline[:, 0].min() < min(bones) and outline[:, 0].max() > max(bones):
+            return float(height)
+    raise ValueError("the body's cut round the spine never takes in the upper arms under the shoulders: no armpit")
+
+
+def upper_arm_at(joints, prefix, height):
+    """The point of one upper arm's bone (the Arm joint to the ForeArm joint, straight) at a height."""
+    start, end = (np.asarray(joints[prefix + name], dtype=float) for name in ("Arm", "ForeArm"))
+    return start + (height - start[1]) / (end[1] - start[1]) * (end - start)
+
+
+def torso_band_cuts(joints):
+    """The torso's cuts every TORSO_STEP_CM from the hip joints to the shoulder joints, as (name, 'torso', side,
+    point, normal)."""
+    heights = np.arange(np.ceil(pair_height(joints, "Leg")), pair_height(joints, "Arm"), TORSO_STEP_CM)
+    return [(f"torso_{height:.0f}", "torso", 0, spine_point(joints, height), UP) for height in heights]
+
+
+def shoulder_band_cuts(joints, body):
+    """The shoulder's cuts every TORSO_STEP_CM from the armpit (`armpit_height`) to the shoulder joints, as (name,
+    'shoulder', side, point, normal)."""
+    heights = np.arange(armpit_height(body, joints), pair_height(joints, "Arm"), TORSO_STEP_CM)
+    return [(f"shoulder_{height:.0f}", "shoulder", 0, spine_point(joints, height), UP) for height in heights]
+
+
+def arm_band_cuts(joints):
+    """Each arm's cuts square to the bone every ARM_STEP of the upper arm and the forearm, and at the elbow, as
+    (name, 'arm', side, point, normal); the two arms' cuts share names."""
+    upper = np.arange(UPPER_ARM_FROM, ARM_TO + 1e-9, ARM_STEP)
+    lower = np.arange(FOREARM_FROM, ARM_TO + 1e-9, ARM_STEP)
+    found = []
+    for prefix in ("Left", "Right"):
+        start, middle, end = (np.asarray(joints[prefix + name], dtype=float) for name in ("Arm", "ForeArm", "Hand"))
+        side = 1 if start[0] > 0 else -1
+        found += [(f"upper_arm_{round(100 * share)}", "arm", side, start + share * (middle - start),
+                   unit(middle - start)) for share in upper]
+        found.append(("elbow", "arm", side, *limb_plane("elbow", start, middle, end)))
+        found += [(f"forearm_{round(100 * share)}", "arm", side, middle + share * (end - middle), unit(end - middle))
+                  for share in lower]
+    return found
+
+
+def dense_cuts(joints, body):
+    """Every cut the gate reads besides the named ones: the torso's, the shoulder's and the arms' bands."""
+    return torso_band_cuts(joints) + shoulder_band_cuts(joints, body) + arm_band_cuts(joints)
+
+
 def plane_basis(normal):
     """The cut's (across, front) unit vectors: front is the world's +z laid into the plane."""
     front = unit(np.array([0.0, 0.0, 1.0]) - normal * normal[2])
@@ -340,13 +439,14 @@ def body_outline(points, faces, side, point, normal, limb):
 
 
 def cloth_outline(points, faces, face_kind, side, point, normal, limb):
-    """The cloth's cut (flat points) through the region's panels: the torso cuts everything but the sleeves; a limb
-    cut its side's sleeves or trouser leg within reach of the bone."""
-    keep = face_kind != 1 if limb == "torso" else face_kind == {"arm": 1, "leg": 2}[limb]
+    """The cloth's cut (flat points) through the region's panels: the torso cuts everything but the sleeves, the
+    shoulder everything but the trousers (the sleeve's cap with the torso); a limb cut its side's sleeves or trouser
+    leg within reach of the bone."""
+    keep = {"torso": face_kind != 1, "shoulder": face_kind != 2, "arm": face_kind == 1, "leg": face_kind == 2}[limb]
     segments, _ = plane_section(points, faces[keep], point, normal)
     ends = segments.reshape(-1, 3)
     outline = to_plane(ends, point, normal)
-    if limb != "torso":
+    if limb in LIMB_REACH_CM:
         outline = outline[(ends[:, 0] * side > 0) & (np.linalg.norm(outline, axis=1) < LIMB_REACH_CM[limb])]
     return outline
 
@@ -416,25 +516,79 @@ def silhouette(cloth, body, joints):
     return {region: pooled(pairs) for region, pairs in side_cuts(cloth, body, joints).items()}
 
 
-def judge(mine, reference, region):
-    """One region's verdict against the reference drape's: 'fail' when the cloth's width or its stand-off (median or
-    90th percentile) is larger than the reference's by more than TOLERANCE_CM, or when the reference was read there
-    and the drape was not (no cloth round the cut: a sleeve ridden up short of it); 'unknown' when the reference was
-    not read; else 'pass'; with what failed."""
+def dense_silhouette(cloth, body, joints):
+    """cut name -> (band, pooled numbers or None, whether cloth went round the cut on any side) for every one of
+    `dense_cuts`, the two arms' cuts pooled."""
+    pairs, bands = {}, {}
+    for name, band, side, point, normal in dense_cuts(joints, body):
+        drape = outline_numbers(cloth_outline(*cloth, side, point, normal, band))
+        pairs.setdefault(name, []).append((drape, outline_numbers(body_outline(*body, side, point, normal, band))))
+        bands[name] = band
+    return {name: (bands[name], pooled(found), any(drape is not None for drape, _ in found))
+            for name, found in pairs.items()}
+
+
+def judge_dense(mine, reference, band):
+    """A dense cut's verdict from both drapes' `dense_silhouette` rows: 'absent' when neither drape's cloth goes round
+    it (a cut past both sleeves' ends: nothing to judge, and nothing that differs), else `judge`'s."""
+    if not mine[2] and not reference[2]:
+        return {"verdict": "absent", "over": [], "margin_cm": None}
+    return judge(mine[1], reference[1], band)
+
+
+def judge(mine, reference, group):
+    """One cut's verdict against the reference drape's, with the tolerances of its group (TOLERANCE_CM's 'torso',
+    'shoulder', 'arm' or 'leg'): 'fail' when the cloth's width or its stand-off (median or 90th percentile) is larger
+    than the reference's by more than the tolerance, or when the reference was read there and the drape was not (no
+    cloth round the cut: a sleeve ridden up short of it); 'unknown' when the reference was not read; else 'pass'; with
+    what failed and the margin (cm, the most any number is over its tolerance; below 0 is room left)."""
     if reference is None:
-        return {"verdict": "unknown", "over": []}
+        return {"verdict": "unknown", "over": [], "margin_cm": None}
     if mine is None:
-        return {"verdict": "fail", "over": ["unread"]}
-    over = [number for number, tolerance in TOLERANCE_CM[limb_of(region)].items()
-            if mine[number] > reference[number] + tolerance]
-    return {"verdict": "fail" if over else "pass", "over": over}
+        return {"verdict": "fail", "over": ["unread"], "margin_cm": None}
+    margins = {number: mine[number] - reference[number] - tolerance
+               for number, tolerance in TOLERANCE_CM[group].items()}
+    over = [number for number, margin in margins.items() if margin > 0]
+    return {"verdict": "fail" if over else "pass", "over": over, "margin_cm": round(max(margins.values()), 2)}
 
 
-def gate(verdicts):
-    """The drape's verdict over GATE_REGIONS from its per-region verdicts: 'fail' when any fails, 'unknown' when none
-    fails and any is unknown, else 'pass'."""
-    found = [verdicts[region]["verdict"] for region in GATE_REGIONS]
+def worst(found):
+    """'fail' when any of the verdicts fails, 'unknown' when none fails and any is unknown, else 'pass' (a dense
+    cut 'absent' from both drapes passes)."""
+    found = list(found)
     return "fail" if "fail" in found else "unknown" if "unknown" in found else "pass"
+
+
+def gate(verdicts, dense_verdicts):
+    """The drape's silhouette verdict (`worst`) over GATE_REGIONS' named cuts and every dense cut."""
+    return worst([verdicts[region]["verdict"] for region in GATE_REGIONS] +
+                 [row["verdict"] for row in dense_verdicts.values()])
+
+
+def band_summary(dense_verdicts):
+    """band -> how many dense cuts were judged, the cuts failed and unknown, and the cut with the largest margin."""
+    summary = {}
+    for name, row in dense_verdicts.items():
+        band = summary.setdefault(row["band"], {"cuts": 0, "fail": [], "unknown": [], "worst_cut": None,
+                                                "worst_margin_cm": None})
+        band["cuts"] += 1
+        if row["verdict"] in ("fail", "unknown"):
+            band[row["verdict"]].append(name)
+        if row["margin_cm"] is not None and (band["worst_margin_cm"] is None or
+                                             row["margin_cm"] > band["worst_margin_cm"]):
+            band["worst_cut"], band["worst_margin_cm"] = name, row["margin_cm"]
+    return summary
+
+
+def judge_belt(mine, reference):
+    """The belt band's verdict against the reference drape's (`belt_cover`, cm): 'unknown' when the reference has
+    no belt band to read; 'fail' when the reference reads one and the drape does not (its torso ridden up out of the
+    band) or covers it less than the reference by more than BELT_TOLERANCE_CM; else 'pass'."""
+    if reference is None:
+        return "unknown"
+    if mine is None or mine < reference - BELT_TOLERANCE_CM:
+        return "fail"
+    return "pass"
 
 
 def crossing_pairs(points, faces, edges, edge_index, face_index):
@@ -495,14 +649,37 @@ def read_cloth_cm(folder):
 
 
 def silhouette_against(folder, reference, body_obj, joints_json):
-    """Every region's numbers for the drape and the reference drape and the drape's verdict against it."""
+    """The drape's silhouette against the reference drape's: every named region's numbers and verdict
+    ('silhouette'), every dense cut's ('dense'), each band's summary ('bands') and the gate's verdict
+    ('silhouette_gate')."""
     joints = {name: np.asarray(value, dtype=float) * 100.0
               for name, value in json.loads(pathlib.Path(joints_json).read_text()).items()}
     body = sewing.read_obj(body_obj)
-    mine = silhouette(read_cloth_cm(folder), body, joints)
-    theirs = silhouette(read_cloth_cm(reference), body, joints)
-    return {region: {"drape": mine[region], "reference": theirs[region], **judge(mine[region], theirs[region], region)}
-            for region in REGIONS}
+    cloth, theirs = read_cloth_cm(folder), read_cloth_cm(reference)
+    mine_named, theirs_named = silhouette(cloth, body, joints), silhouette(theirs, body, joints)
+    named = {region: {"drape": mine_named[region], "reference": theirs_named[region],
+                      **judge(mine_named[region], theirs_named[region], limb_of(region))} for region in REGIONS}
+    mine_dense, theirs_dense = dense_silhouette(cloth, body, joints), dense_silhouette(theirs, body, joints)
+    dense = {name: {"band": row[0], "drape": row[1], "reference": theirs_dense[name][1],
+                    **judge_dense(row, theirs_dense[name], row[0])} for name, row in mine_dense.items()}
+    return {"silhouette": named, "dense": dense, "bands": band_summary(dense), "silhouette_gate": gate(named, dense)}
+
+
+def belt_of(folder, look):
+    """`belt_cover` of a drape folder's torso cloth on the look's belt band (None: no band to read)."""
+    cloth, segmentation = drape_files(folder)
+    points, _ = read_obj(cloth)
+    return belt_numbers(points, panel_labels(segmentation), fit_module(look)).get("belt_cloth_cm")
+
+
+def against(folder, reference, body_obj, look, belt_cloth_cm):
+    """Everything judged against the reference drape: the silhouette (`silhouette_against`), the belt band
+    (`judge_belt`) and the drape's verdict (`worst` of the two): only 'pass' lets a drape through."""
+    found = silhouette_against(folder, reference, body_obj, pathlib.Path(look) / "joints.json")
+    reference_belt = belt_of(reference, look)
+    found.update(reference_belt_cloth_cm=reference_belt, belt=judge_belt(belt_cloth_cm, reference_belt))
+    found["verdict"] = worst([found["silhouette_gate"], found["belt"]])
+    return found
 
 
 def main():
@@ -515,9 +692,8 @@ def main():
     options = parser.parse_args()
     result = measure(options.drape, options.body, options.look)
     if options.reference:
-        result["silhouette"] = silhouette_against(options.drape, options.reference, options.body,
-                                                  options.look / "joints.json")
-        result["silhouette_gate"] = gate(result["silhouette"])
+        result.update(against(options.drape, options.reference, options.body, options.look,
+                              result.get("belt_cloth_cm")))
     text = json.dumps(result, indent=1)
     if options.json:
         options.json.write_text(text)
