@@ -102,7 +102,20 @@ def the_renders_are_found_by_place():
     return [] if list(found) == ["hub"] and list(found["hub"]) == ["chair_1"] else [f"found {found}"]
 
 
-CHECKS = (the_model_is_told_from_the_grey, lab_goes_back_to_linear, a_palette_colour_fits_at_any_brightness,
+def a_model_shown_twice_is_left_out():
+    """The same render in two places is a copy, and its pair leaves the likeness; a different model stays."""
+    with tempfile.TemporaryDirectory() as folder:
+        root = pathlib.Path(folder)
+        renders = {"hub": {"wrench": render(root / "hub.png", (90, 90, 90))},
+                   "workshop": {"wrench": render(root / "workshop.png", (90, 90, 90)),
+                                "vice": render(root / "vice.png", (90, 90, 90), box=(8, 56))}}
+        copied = style.copies(renders)
+    likeness = {"colour|hub/wrench|workshop/wrench": 1.0, "colour|hub/wrench|workshop/vice": 0.6}
+    kept = style.without_copies(likeness, copied)
+    return [] if list(kept) == ["colour|hub/wrench|workshop/vice"] else [f"copies {copied}, kept {kept}"]
+
+
+CHECKS = (a_model_shown_twice_is_left_out, the_model_is_told_from_the_grey, lab_goes_back_to_linear, a_palette_colour_fits_at_any_brightness,
           pairs_cover_within_and_draw_across, the_style_gap_takes_the_shapes_away, the_renders_are_found_by_place)
 
 
