@@ -56,6 +56,8 @@
 		},
 		{
 			"id": "far_lightning_mast",
+			"fixed": true,
+			"fixed_why": "a 75 m lightning tower on its own foundation at the pad's corner, as the launch kit lays it: a mast is anchored, not loose (the drop run moved it 1.16 m and turned it 0 to 2 degrees)",
 			"view": "v1",
 			"box": [
 				1577,
@@ -90,6 +92,8 @@
 		},
 		{
 			"id": "far_pad_floodlight",
+			"fixed": true,
+			"fixed_why": "a 12 m floodlight tower on its own foundation by the pad, as the launch kit lays it: anchored, not loose (the drop run moved it 1.19 m and turned it 0 to 2 degrees)",
 			"view": "v1",
 			"box": [
 				1781,
