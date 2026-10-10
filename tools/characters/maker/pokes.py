@@ -5,9 +5,11 @@ read from the built glTF as the engine skins it (people/joins.py's reader). Meas
         [--against <the shipped body's pokes.json>]
 
 - tuck_out_mm: each tuck (a band run on under a garment from a skin part, a boot or a mitt, tucks.py; its points from
-  the material's `tuck_from`) point's height outside the person's outer surface (every surface but the bands), along
-  the face normal at the nearest place on it: a tuck showing through its sleeve, collar or trouser leg. Signed by the
-  nearest garment point's averaged normal instead, a collar's rim read a tuck under it as 2 cm out. Per clip the worst frame and how many frames have a point over POKE_MM.
+  the material's `tuck_from`) point's distance outside the person's closed surface (every surface but the bands,
+  welded back into the one watertight Pixal3D mesh they were cut from, in the frame's pose): a tuck showing through
+  its sleeve, collar or trouser leg. Signed by the nearest face's normal instead, a band under a sleeve next to the
+  bent wrist read out where the nearest face was the hand's own; by the nearest garment point's averaged normal, a
+  collar's rim read a tuck under it as 2 cm out. Per clip the worst frame and how many frames have a point over POKE_MM.
 - cloth_crossings: how many garment edges pass through a garment triangle they share no corner with
   (drape_measure.self_crossings, the garment parts welded where their borders meet), in the bind pose and in every `--every`-th frame (every CROSSING_EVERY-th by
   default): cloth gone through cloth. A Pixal3D surface may cross itself at rest; a frame is counted as poking where
@@ -94,24 +96,36 @@ def crossings(points, faces, welded):
     return drape_measure.self_crossings(places, welded[faces])
 
 
-def outer_surface(posed, found):
-    """The person's outer surface in a pose: every surface's triangles but its tuck band's, as one mesh."""
-    points, faces, offset = [], [], 0
+def outer_welding(found):
+    """How the surfaces' points weld back into the person's one closed surface (their copies along shared borders
+    are one point; every band left out): each surface's own points' numbers, and the closed surface's triangles."""
+    places, faces, offset = [], [], 0
     for part, _, tuck_from in found:
-        mine = part.faces if tuck_from is None else part.faces[(part.faces < tuck_from).all(1)]
-        points.append(posed[id(part)])
-        faces.append(mine + offset)
-        offset += len(part.points)
-    return trimesh.Trimesh(np.concatenate(points), np.concatenate(faces), process=False)
+        own = len(part.points) if tuck_from is None else tuck_from
+        places.append(part.points[:own])
+        faces.append(part.faces[(part.faces < own).all(1)] + offset)
+        offset += own
+    welded = weld_map(np.concatenate(places))
+    return welded, welded[np.concatenate(faces)]
+
+
+def outer_surface(posed, found, welding):
+    """The person's closed surface in a pose (outer_welding's numbering): copies along a border pose alike, as they
+    carry the same weights."""
+    welded, faces = welding
+    places = np.zeros((int(welded.max()) + 1, 3))
+    places[welded] = np.concatenate([posed[id(part)][:len(part.points) if tuck_from is None else tuck_from]
+                                     for part, _, tuck_from in found])
+    return trimesh.Trimesh(places, faces, process=False)
 
 
 def tuck_out(tuck_points, outer):
-    """Each tuck point's height outside the person's outer surface, in metres (negative: under it): along the face
-    normal at the nearest place on it."""
+    """Each tuck point's distance outside the person's closed surface, in metres (negative: inside it, by its
+    distance from it)."""
     if not len(tuck_points):
         return np.zeros(0)
-    nearest, _, triangle = trimesh.proximity.closest_point(outer, tuck_points)
-    return ((tuck_points - nearest) * outer.face_normals[triangle]).sum(1)
+    _, distance, _ = trimesh.proximity.closest_point(outer, tuck_points)
+    return np.where(outer.contains(tuck_points), -distance, distance)
 
 
 def posed_all(found, joint_worlds, inverse_bind):
@@ -133,6 +147,7 @@ def measure(path, every):
     rest_points, rest_faces, _ = garment_surface(rest, garments)
     welded = weld_map(rest_points)
     rest_crossings = crossings(rest_points, rest_faces, welded)
+    welding = outer_welding(found) if tucked else None
     record = {"body": str(path), "rest_crossings": rest_crossings, "clips": {}}
     for animation in document.get("animations", []):
         rotations, translations = joins.clip_frames(document, blob, animation)
@@ -141,7 +156,7 @@ def measure(path, every):
             world = joins.world_matrices(rotations[frame], translations[frame], scales, parent)
             posed = posed_all(found, world[skin["joints"]], inverse_bind)
             cloth, faces, _ = garment_surface(posed, garments)
-            outer = outer_surface(posed, found) if tucked else None
+            outer = outer_surface(posed, found, welding) if tucked else None
             outside = np.concatenate([tuck_out(posed[id(part)][start:], outer) for part, start in tucked]) \
                 if tucked else np.zeros(0)
             height = float(outside.max()) * 1000 if len(outside) else 0.0

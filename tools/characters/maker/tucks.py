@@ -84,10 +84,8 @@ def tucked_ring(places, middle, starts, directions, garment_points, tree):
 
 
 def inside(places, outer):
-    """Whether each place lies under the person's outer surface at rest (the whole mesh, `outer`): behind the face
-    normal at the nearest place on it."""
-    nearest, _, triangle = trimesh.proximity.closest_point(outer, places)
-    return ((places - nearest) * outer.face_normals[triangle]).sum(1) < 0
+    """Whether each place lies inside the person at rest (`outer`, the whole watertight Pixal3D mesh)."""
+    return outer.contains(places)
 
 
 def tucked(points, faces, weights, garment_points, garment_weights, bones, outer, least_edges=6):
