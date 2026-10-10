@@ -23,7 +23,9 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
-TUCK_LENGTH = 0.04
+# How far a band runs on under the garment: joins.py asks 1 cm; on the player 4 cm reached up into the forearm, where
+# the sleeve's weights part from the hand's, and showed in 34 of 485 sampled frames, 2.5 cm in 22 (2026-10-10).
+TUCK_LENGTH = 0.025
 # A tuck's band is drawn in towards its bone by this share of its distance from it, under the garment round it.
 TUCK_SHRINK = 0.2
 # And at least this far inside the garment's distance from the bone.
