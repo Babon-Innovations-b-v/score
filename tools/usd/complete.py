@@ -24,6 +24,8 @@ agent finishing while validations are stale). The requirements:
     placeholders  the placeholder check (placeholders.py): nothing visible stands in for a made piece
     resting       the resting triage (triage.py): no real resting fault left (false alarms are listed, not counted)
     picks         the pick lock (picks.py): no object the owner picked shows another model without a written decision
+    reach         the reach check (reach.py): a walker on the place's floor reaches a standing spot in front of every
+                  row's object (the automatic playtest; the interact press waits for interactable assets)
     current       every check result was made on this stage as it is now (the same fingerprint) and none is unknown
     review        the review page (tools/review/page.py) was built, and its scene rendered, from this stage as it is now
 
@@ -49,7 +51,7 @@ STAGES = WORK / "usd"
 REVIEWS = WORK / "review"
 INVENTORIES = REPO / "data/inventory"
 KITS = REPO / "data/kit"
-CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes")
+CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes", "reach")
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 # What of a stage's folder is the stage: its root file, its layers and its assets (not the checks, the manifest, the
 # inputs record or a settle run kept beside it).
@@ -252,8 +254,16 @@ def boxes_check(place, stage):
                   f"{counts[PASS]} boxes pass, {counts[FAIL]} fail, {counts[UNKNOWN]} unknown")
 
 
+def reach_check(place, stage):
+    """The reach check (reach.py) on the inventory the stage was laid from: every row a walker on the floor cannot
+    reach is a fault; a row with no object is unknown."""
+    import reach
+    overall, rows, note = reach.check(stage, place, json.loads(recorded_inventory(place, stage).read_text()))
+    return result("reach", overall, stage, [row for row in rows if row["result"] != PASS], note)
+
+
 RUNNERS = {"rows": rows_check, "made_only": made_only_check, "placeholders": placeholders_check,
-           "resting": resting_check, "picks": picks_check, "boxes": boxes_check}
+           "resting": resting_check, "picks": picks_check, "boxes": boxes_check, "reach": reach_check}
 
 
 def run_check(check, place, stage):

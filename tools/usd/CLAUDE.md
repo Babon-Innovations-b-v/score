@@ -54,9 +54,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   with no material or in the default grey, and a proxy, fail. Never mark a thing with detail plain to pass it: make it.
 - `complete.py` is the completion gate: `check <place>` runs the checks and keeps each result beside the stage
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
-  every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, every result
-  current, the review page built and rendered from this stage). Unknown blocks like fail. The Stop and SubagentStop hooks
-  (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it worked on unless the gate passes.
+  every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, picks, boxes,
+  reach, every result current, the review page built and rendered from this stage). Unknown blocks like fail. The Stop
+  and SubagentStop hooks (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
+  worked on unless the gate passes.
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
 - `triage.py` is the resting triage over `resting.py`: each object judged by its support from data (row `support`,
   `fixed`, kit shell groups and kit kinds `hangs`/`floors`, `on:` held, hanging words, wall, ceiling, floor;
@@ -80,6 +81,12 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   the review walk's views (renders.py's format: `walk-NNN`, eye, aim, up, fov, look_only). renders.py does not read
   it; a caller hands the views to `renders.render_stage` and `walk_video`. `camera_paths_test.py` checks a path
   between two rooms goes through the doorway only.
+- `reach.py` is the gate's reach check, the automatic playtest (owner, 2026-10-05; the interact press waits for
+  interactable assets): the cast check's walker (body radius, knee, head) on a Recast-style heightfield of the stage
+  (spans from upward faces, cleared overhead, eroded by the body, joined by climbable steps), its floor the part the
+  scene record's views stand on; a row passes when a standing spot lies within body plus arm of one of its objects.
+  A row it cannot reach fails the place; a row with no object is unknown. Measure a fault with it, never move a
+  piece by eye to pass it. `reach_test.py` checks a doorway, a shut pen, a stair and the gate.
 - **Openings in code builders.** When a builder needs a hole in a wall (a door, a window, a hatch), cut it as a cutout
   of the surface itself in its UV layout (ProcFunc's way: the hole is part of the surface, no boolean of two meshes),
   not a boolean. A note for new builders; the builders in `builders.py` are not changed by it.
