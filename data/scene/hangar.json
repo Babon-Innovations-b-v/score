@@ -1,6 +1,6 @@
 {
  "place": "hangar",
- "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 22 x 40 m opening and the two roof leaves shut over it (each its own kit's made plates and ribs, the hdoor stage), the bare ship frame on its pad, the room fill and the indoor sky. Frame: the room's middle on its floor.",
+ "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 22 x 40 m opening and the two roof leaves shut over it (each its own kit's made plates and ribs, the hdoor stage), the ship's hull on its pad, standing on its legs, the room fill and the indoor sky. Frame: the room's middle on its floor.",
  "floor": [
   [
    -13.0,
@@ -129,6 +129,18 @@
    "steel_surface": "bare_steel",
    "glass_surface": "glass",
    "from": "game/craft/ship/ship.tscn (body r 1.6 h 5 at 3.3; on its legs 0.5); the hull's own parts (its panels and seams, the service windows, the nose's panels and tip, the band's chevrons and the foot ring) from its clean close-up (job r2-placeholders, 2026-10-09), built in code (tools/usd/builders.py ship_hull) as the shared rule says ships are"
+  },
+  {
+   "name": "ship_legs",
+   "builder": "ship_legs",
+   "centre": [
+    0.0,
+    0.5,
+    8.9
+   ],
+   "surface": "bare_steel",
+   "foot_surface": "painted_panel",
+   "from": "game/craft/ship/ship.tscn LegFrontLeft..LegBackRight (leg_mesh: steel CylinderMesh r 0.09, 1.4 high, at (+-1.9, 0.2, +-1.9)) and FootFrontLeft..FootBackRight (foot_mesh: trim BoxMesh 0.6 x 0.08 x 0.6 at y -0.46), drawn while the legs mount holds a part (ship.gd MOUNT_LOOKS); their soles reach the pad the hull stands half a metre over (FlightRunner.ON_ITS_LEGS); the steel and the trim in the library surfaces the hull's own steel and nose take"
   }
  ],
  "lights": [
@@ -235,8 +247,7 @@
   }
  ],
  "game_only": [
-  "no game shot exists (the hangar is on an unpushed branch of the game)",
-  "the ship's legs: the stage's hull hangs 0.5 m above the pad on nothing (ship and from-south-door views), where the game's ship stands on its legs"
+  "no game shot exists (the hangar is on an unpushed branch of the game)"
  ],
  "places": [
   {
