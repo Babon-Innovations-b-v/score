@@ -4,8 +4,10 @@ tools/blender/inside, and a card machine runs Cycles on the card, a processor ma
 
 Run: .venv/bin/python tools/props/cloud/blender_cloud_test.py   (make tests runs it)
 """
+import os
 import pathlib
 import shlex
+import subprocess
 import sys
 import tempfile
 import threading
@@ -107,8 +109,30 @@ def a_cluster_job_keeps_the_paths():
     return problems
 
 
+def runner_python_under(props_home):
+    """CLOUD_PYTHON as a fresh import of this file sees it with PROPS_HOME set to `props_home` (None: unset)."""
+    environment = {key: value for key, value in os.environ.items() if key != "PROPS_HOME"}
+    if props_home is not None:
+        environment["PROPS_HOME"] = str(props_home)
+    line = "import blender_cloud; print(blender_cloud.CLOUD_PYTHON)"
+    return subprocess.run([sys.executable, "-c", line], cwd=pathlib.Path(__file__).resolve().parent, env=environment,
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def the_runner_python_follows_props_home():
+    problems = []
+    with tempfile.TemporaryDirectory() as temporary:
+        moved = runner_python_under(temporary)
+        if moved != f"{temporary}/env/bin/python":
+            problems.append(f"with PROPS_HOME at {temporary} the runner's Python is {moved}")
+    default = runner_python_under(None)
+    if default != str(pathlib.Path.home() / ".farm-factory-props/env/bin/python"):
+        problems.append(f"with PROPS_HOME unset the runner's Python is {default}")
+    return problems
+
+
 CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain,
-          a_cluster_job_keeps_the_paths)
+          a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home)
 
 
 if __name__ == "__main__":

@@ -77,9 +77,9 @@ use_repo_hooks() {
 
 # --- 4. The framework's Python, from uv.lock -------------------------------
 # `.venv` is the repo's own (`make env`). The cloud machine runner (blender_cloud.py's CLOUD_PYTHON) and
-# the animal route still call the first world's per-box interpreter at the fixed path
-# ~/.farm-factory-props/env/bin/python (they do not read PROPS_HOME): build that path from the same
-# lock when it is missing, so a fresh box runs them with nothing copied over.
+# the animal route still call the first world's per-box interpreter, PROPS_HOME's env/bin/python (default
+# ~/.farm-factory-props, as tools/props/paths.py reads it): build that path from the same lock when it is
+# missing, so a fresh box runs them with nothing copied over.
 build_python() {
   if ! command -v uv >/dev/null 2>&1; then
     say "uv: NOT INSTALLED. The framework's Python needs it: https://docs.astral.sh/uv/"
@@ -87,7 +87,7 @@ build_python() {
   fi
   (cd "$REPO" && uv sync -q --frozen)
   say "python: .venv from uv.lock"
-  local runtime="$HOME/.farm-factory-props/env"
+  local runtime="${PROPS_HOME:-$HOME/.farm-factory-props}/env"
   if [ -x "$runtime/bin/python" ]; then
     say "runtime python: already at $runtime"
     return

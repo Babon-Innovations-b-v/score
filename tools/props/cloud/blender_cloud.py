@@ -55,7 +55,7 @@ import detached  # noqa: E402
 import ledger  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
-from paths import REPO  # noqa: E402
+from paths import HOME, REPO  # noqa: E402
 from provider import cloud  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/lib")
@@ -206,7 +206,8 @@ def run_spread(run, account, found, count, jobs):
     return sorted(number for number, _ in [*shares.failed, *shares.waiting])
 
 
-CLOUD_PYTHON = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
+# The machine runner's Python: PROPS_HOME's env (default ~/.farm-factory-props), the one bootstrap.sh builds.
+CLOUD_PYTHON = HOME / "env/bin/python"
 
 
 def cloud_python():
