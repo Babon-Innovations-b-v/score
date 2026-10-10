@@ -29,7 +29,7 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
   checks   the per-frame pokes (pokes.py), the A-pose outline (outline.py) and the reviewer's skin through cloth count,
            written with joins.py's record to checks.txt
   shots    the settled body rendered on a characters machine (blender_shots.py) beside today's body in the same five
-           views, into the coordinator's renders-r2/
+           views, into the coordinator's renders-r3/
 `--held` runs the characters stages on a machine characters.py --hold keeps (its run folder), as a step is tried.
 """
 import argparse
@@ -163,22 +163,33 @@ def closeup(spec, outfit, who, held, dry_run):
 
 # The picture check before any Pixal3D spend: between the armpits and the wrists (ARM_ROWS of the figure's height from
 # its top), a row counts where open background at least ARM_GAP of the figure's height wide lies between each arm and
-# the body; at least ARMS_APART of the rows must. The player's passing close-ups had 0.65 and 0.66 of their rows so,
-# Nev's two fused takes 0.01 and 0.07 (2026-10-10).
+# the body; at least ARMS_APART of the rows must. The figure is every pixel off its row's background (the median of
+# the row's two edges, as the backdrop shades from top to floor) by BACKGROUND_STEP, closed, its largest piece with its
+# holes filled (a white suit on a light grey backdrop reads as holes). The player's close-ups had 0.67 of their rows
+# so; Nev's two fused takes none, her four drawn after the pose picture 0.35 to 0.51 (2026-10-11).
 ARM_ROWS = (0.25, 0.47)
 ARM_GAP = 0.01
-ARMS_APART = 0.5
+ARMS_APART = 0.3
 BACKGROUND_STEP = 18
 
 
-def arm_gap_share(path):
-    """The share of the arm rows (ARM_ROWS) of a close-up with an ARM_GAP gap between each arm and the body; the
-    figure is every pixel off the picture's plain background (its border's median colour) by BACKGROUND_STEP."""
+def figure_of(path):
+    """A close-up's figure as a mask (figure_of's rules above)."""
     import numpy as np
     from PIL import Image
+    from scipy import ndimage
     colours = np.asarray(Image.open(path).convert("RGB")).astype(float)
-    border = np.concatenate([colours[:8].reshape(-1, 3), colours[:, :8].reshape(-1, 3), colours[:, -8:].reshape(-1, 3)])
-    figure = np.linalg.norm(colours - np.median(border, 0), axis=2) > BACKGROUND_STEP
+    backdrop = np.median(np.concatenate([colours[:, :8], colours[:, -8:]], 1), 1)
+    figure = ndimage.binary_closing(np.linalg.norm(colours - backdrop[:, None], axis=2) > BACKGROUND_STEP,
+                                    np.ones((3, 3)))
+    label, _ = ndimage.label(figure)
+    return ndimage.binary_fill_holes(label == np.bincount(label.ravel())[1:].argmax() + 1)
+
+
+def arm_gap_share(path):
+    """The share of the arm rows (ARM_ROWS) of a close-up with an ARM_GAP gap between each arm and the body."""
+    import numpy as np
+    figure = figure_of(path)
     rows = np.flatnonzero(figure.any(1))
     top, height = rows[0], rows[-1] - rows[0]
     apart = []
@@ -369,7 +380,7 @@ def settle(spec, outfit, who, held, dry_run):
 
 
 CHECKS_TABLE = pathlib.Path.home() / ".farm-factory-props/score-coordinator/prop-people"
-RENDERS = CHECKS_TABLE / "renders-r2"
+RENDERS = CHECKS_TABLE / "renders-r3"
 # Today's bodies as the review of 2026-10-10 rendered them, with the same stage, light and cameras.
 TODAY = CHECKS_TABLE / "renders" / "raw"
 VIEWS = (("apose_front", "A-pose, front"), ("apose_side", "A-pose, side"), ("walk_a", "walking, 1/4"),
@@ -444,7 +455,7 @@ def table_rows(spec, outfit, folder, take):
 
 def shots(spec, outfit, who, held, dry_run):
     """The settled body's comparison pictures (blender_shots.py on a characters machine), each set beside today's body
-    in the same view, and one sheet: <coordinator>/renders-r2/."""
+    in the same view, and one sheet: <coordinator>/renders-r3/."""
     folder = folder_of(spec, outfit)
     make = make_place(folder, "shots")
     make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-shots", outfit=outfit), ("shots",),
