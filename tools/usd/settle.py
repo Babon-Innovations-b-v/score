@@ -19,7 +19,8 @@ dropped). Settling only corrects a laid pose: an object that would turn more tha
 more than DRIFT_MOST to come to rest (small debris: any turn, DEBRIS_DRIFT) keeps its laid pose and is marked `"unrested"` in its spot and piece (what it
 would do), which the resting check fails as "would not rest as laid"; the layout is put right instead (a support piece,
 a laid pose that rests, or a bed in the ground under it). A piece the drop found laid inside a static one was dropped
-on the bare ground alone, so its result is no rest pose and is not written: its layout is put right first. Export the
+on the bare ground alone, so its result is no rest pose and is not written: its layout is put right first. What lies
+on a written piece (held on its row, or its own glowing part or screen) is carried with it (carried_with). Export the
 stage again after, and run the resting check (tools/usd/resting.py).
 """
 import argparse
@@ -136,6 +137,40 @@ def fixtures_on_loose(stage, place, loose):
                and low[1] >= (under[0][1] + under[1][1]) / 2 for under in boxes.values()):
             found.append(prim.GetName())
     return sorted(found)
+
+
+def carried_with(stage, place, inventory, settled):
+    """What lies on a settled object moves with it: each object held on its row (`on:<row>`) or its own glowing part
+    or screen (triage.py's part suffixes), whose middle lies over the holder's footprint, and in turn what lies on
+    that (a monitor's screen), given the holder's motion: {name: settled entry}, as settle writes the holder's."""
+    import triage
+    suffixes = triage.rules()["parts"]
+    rows = {row["id"]: row for row in inventory["rows"]}
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    boxes = {}
+    for path, prim in resting.objects_of(stage, place).items():
+        box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+        boxes[path.removeprefix(f"/{place}/Objects/")] = (np.asarray(box.GetMin()), np.asarray(box.GetMax()))
+    queue = [(name, found["after"] @ np.linalg.inv(found["before"])) for name, found in settled.items()
+             if correction(found)[0] <= TURN_MOST and correction(found)[1] <= DRIFT_MOST]  # a holder written back
+    found = {}
+    while queue:
+        holder, motion = queue.pop(0)
+        row = holder.rsplit("_", 1)[0]
+        low, high = boxes[holder]
+        for name, (other_low, other_high) in boxes.items():
+            if "/" in name or name in settled or name in found or name == holder:
+                continue
+            own = name.rsplit("_", 1)[0]
+            if rows.get(own, {}).get("anchor", "") != f"on:{row}" and own not in {row + suffix for suffix in suffixes}:
+                continue
+            middle = (other_low + other_high) / 2
+            if np.any(middle[[0, 2]] < low[[0, 2]] - FOOTPRINT_SLACK) or np.any(middle[[0, 2]] > high[[0, 2]] + FOOTPRINT_SLACK):
+                continue
+            before = laid_matrix(stage, place, name)
+            found[name] = {"before": before, "after": motion @ before, "middle": object_middle(stage, place, name)}
+            queue.append((name, motion))
+    return found
 
 
 def simulate(stage_path, loose, folder, cloud=False, ignore=()):
@@ -357,6 +392,8 @@ def main():
         before = laid_matrix(stage, place, name)
         settled[name] = {"before": before, "after": np.asarray(found["motion"]) @ before,
                          "middle": object_middle(stage, place, name)}
+    if not arguments.dry_run:
+        settled.update(carried_with(stage, place, json.loads(inventory_path.read_text()), settled))
     if arguments.dry_run:
         for name, found in settled.items():
             turned, drift = correction(found)
