@@ -242,18 +242,22 @@ def parts(spec, outfit, who, held, dry_run):
 
 
 def build(spec, outfit, who, held, dry_run):
-    """The rig fitted into the kept take (prop_rig.py, here), then the person built on a characters machine
+    """The rig fitted into the kept take (prop_rig.py, here) and its far body (prop_far.py, here), then the person built
+    on a characters machine
     (prop_chain.py build and review): <candidate>/out/."""
     folder = folder_of(spec, outfit)
     take = (folder / "take.txt").read_text().strip()
     rig_file = CANDIDATES / spec["name"] / "rig.npz"
     local("prop_rig.py", PIXAL / f"{take}-final.glb", rig_file, folder / "fit", "--size",
           spec.get("look", {}).get("scale", 1.0))
+    parts_file = folder / "parts" / take / "parts.npz"
+    local("prop_far.py", folder / "fit" / "rig.npz", parts_file, folder / "fit" / "far.npz")
     make = folder / "build-make"
     machine_spec = dict(spec, name=f"{spec['name']}-{outfit}-build", person=spec["name"], outfit=outfit,
                         review_clips=list(REVIEW_CLIPS))
     make_folder(make, machine_spec, ("build", "review"),
-                {"fit": folder / "fit" / "rig.npz", "mean": rig_file, "parts": folder / "parts" / take / "parts.npz"})
+                {"fit": folder / "fit" / "rig.npz", "mean": rig_file, "parts": parts_file,
+                 "far": folder / "fit" / "far.npz"})
     on_characters(make, who, held, dry_run)
     if not dry_run:
         if (folder / "out").exists():

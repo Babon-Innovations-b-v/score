@@ -58,7 +58,7 @@ def build(chain):
     """The person built: out/<name>.glb, its report, out/usd/ and out/checks/."""
     files = {name: chain.file(path) for name, path in chain.spec["files"].items()}
     glb = chain.out / f"{chain.spec['person']}.glb"
-    chain.run([MOTION, MAKER / "prop_build.py", files["fit"], files["mean"], files["parts"], glb,
+    chain.run([MOTION, MAKER / "prop_build.py", files["fit"], files["mean"], files["parts"], files["far"], glb,
                chain.out / f"{chain.spec['person']}.json", "--outfit", chain.spec["outfit"]])
     chain.run([MOTION, MAKER.parent / "skel_usd.py", glb, "--out", chain.out / "usd"])
     chain.run([MOTION, MAKER.parent / "people" / "joins.py", glb, "--out", chain.out / "checks", "--record-only"])

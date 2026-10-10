@@ -2,7 +2,7 @@
 Kimodo's clips, on the rented card in the motion environment (people/body.py's own clip steps, so the clips are cut,
 stood over the node and narrowed exactly as the shipped route's):
 
-    /root/envs/motion/bin/python prop_build.py <fit rig.npz> <mean rig.npz> <parts.npz> <out.glb> <report.json>
+    /root/envs/motion/bin/python prop_build.py <fit rig.npz> <mean rig.npz> <parts.npz> <far.npz> <out.glb> <report.json>
         [--outfit work]
 
 `fit rig.npz` is prop_rig.py's (the fitted bind, every joint's offset against its parent, the mesh in the skeleton's
@@ -17,8 +17,8 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   colour for this person (no picture colour), its family and material in `extras`. A skin or hard part gets a tuck
   under every border it shares with a garment (tucks.py). Hard parts ride one joint: the hair the head, a boot its
   side's foot.
-- **The far body** is the whole mesh thinned to FAR_TRIANGLES, in three surfaces (skin, clothes, boots) of the parts'
-  colours, as body.py's far body is named.
+- **The far body** is prop_far.py's (the whole mesh thinned to 1,220 triangles, thinned on the processor where it is
+  made), in three surfaces (skin, clothes, boots) of the parts' colours, as body.py's far body is named.
 """
 import argparse
 import json
@@ -34,7 +34,6 @@ sys.path.insert(0, str(PEOPLE))
 
 import tucks  # noqa: E402
 
-FAR_TRIANGLES = 1220
 JOINTS_A_VERTEX = 4
 TRAVELLING_JOINT = 1
 TUCKED_ROLES = ("skin", "hard")
@@ -117,6 +116,8 @@ def boot_names(pieces, names_of):
             continue
         for side, sign in ((names_of[part] + "_l", 1.0), (names_of[part] + "_r", -1.0)):
             keep = (sign * points[faces].mean(1)[:, 0]) > 0
+            if not keep.any():
+                continue
             used, renumbered = np.unique(faces[keep], return_inverse=True)
             found[(part, side)] = (points[used], renumbered.reshape(-1, 3), weights[used])
     return found
@@ -170,33 +171,19 @@ def primitive(contents, body, glb, points, faces, weights, material_index):
         "material": material_index}
 
 
-def far_body(fit_rig, parts):
-    """The whole mesh thinned to FAR_TRIANGLES: [(surface, colour, points, faces, weights)] for skin, clothes, boots."""
-    import trimesh
-    from scipy.spatial import cKDTree
-    whole = trimesh.Trimesh(fit_rig["points"], fit_rig["faces"], process=False)
-    thin = whole.simplify_quadric_decimation(face_count=FAR_TRIANGLES)
-    nearest_face = cKDTree(whole.triangles_center).query(thin.triangles_center)[1]
-    weights = fit_rig["weights"][cKDTree(whole.vertices).query(thin.vertices)[1]]
-    names = [str(name) for name in parts["names"]]
-    index = {int(part): number for number, part in enumerate(parts["parts"])}
-    surface_of_part = {part: ("skin" if parts["roles"][number] == "skin"
-                              else "boots" if names[number] == "boot" else "clothes")
-                       for part, number in index.items()}
-    face_surface = np.array([surface_of_part[int(part)] for part in parts["part_of"][nearest_face]])
+def far_body(far_path):
+    """prop_far.py's far body: [(surface, colour, points, faces, weights)] for skin, clothes, boots."""
+    far = np.load(far_path)
     found = []
-    for surface in ("skin", "clothes", "boots"):
-        mine = face_surface == surface
-        if not mine.any():
-            continue
-        members = [index[part] for part, name in surface_of_part.items() if name == surface]
-        colour = np.mean(parts["colours"][members], 0)
-        used, renumbered = np.unique(thin.faces[mine], return_inverse=True)
-        found.append((surface, colour, thin.vertices[used], renumbered.reshape(-1, 3), weights[used]))
+    for number, surface in enumerate(far["surfaces"]):
+        mine = far["surface_of_face"] == number
+        used, renumbered = np.unique(far["faces"][mine], return_inverse=True)
+        found.append((str(surface), far["colours"][number], far["points"][used], renumbered.reshape(-1, 3),
+                      far["weights"][used]))
     return found
 
 
-def build(fit_path, mean_path, parts_path, out, outfit):
+def build(fit_path, mean_path, parts_path, far_path, out, outfit):
     """The glTF and its report."""
     import body
     import clips
@@ -232,13 +219,14 @@ def build(fit_path, mean_path, parts_path, out, outfit):
     report = {"joints": len(names), "hips_scale": round(scale, 4), "floor_lift_m": round(lift, 4), "levels": {},
               "surfaces": {}, "clips": {}, "route": "prop"}
     far_primitives = []
-    for surface, colour, points, faces, weights in far_body(fit_rig, parts):
+    far = far_body(far_path)
+    for surface, colour, points, faces, weights in far:
         document["materials"].append(material(surface, "far", colour))
         far_primitives.append(primitive(contents, body, glb, points, faces, weights, len(document["materials"]) - 1))
     document["meshes"].append({"primitives": far_primitives})
     document["nodes"].append({"name": "far", "mesh": len(document["meshes"]) - 1, "skin": 0})
     document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
-    report["levels"]["far"] = {"triangles": int(sum(len(item[3]) for item in far_body(fit_rig, parts)))}
+    report["levels"]["far"] = {"triangles": int(sum(len(item[3]) for item in far))}
     near = []
     for name, role, colour, points, faces, weights, tuck_from in surfaces(fit_rig, parts):
         document["materials"].append(material(name, role, colour, tuck_from))
@@ -268,12 +256,13 @@ def main():
     parser.add_argument("fit", type=pathlib.Path)
     parser.add_argument("mean", type=pathlib.Path)
     parser.add_argument("parts", type=pathlib.Path)
+    parser.add_argument("far", type=pathlib.Path, help="prop_far.py's far body")
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("report", type=pathlib.Path)
     parser.add_argument("--outfit", default="work")
     options = parser.parse_args()
     sys.argv = sys.argv[:1]
-    report = build(options.fit, options.mean, options.parts, options.out, options.outfit)
+    report = build(options.fit, options.mean, options.parts, options.far, options.out, options.outfit)
     options.report.write_text(json.dumps(report, indent=1))
     print(f"built {options.out}: {report['levels']}, {len(report['clips'])} clips", flush=True)
 
