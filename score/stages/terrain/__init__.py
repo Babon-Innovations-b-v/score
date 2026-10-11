@@ -143,7 +143,7 @@ def place_layers(folder, made, record_plan, inputs):
         seed_stage = gates.seed_stage(inputs["seeds"], place)
         missing = [entry for entry in scene.get("places", [])
                    if not seed_stage.GetPrimAtPath(f"/{place}/Places/{entry['name']}").IsValid()]
-        written[place] = outside.write(stage, place, made, zoned, laid, missing,
+        written[place] = outside.write(stage, place, made, zoned, laid, {**scene, "places": missing},
                                        lambda name: f"../../{name}/{name}.usda")
         layer.Save()
     return written

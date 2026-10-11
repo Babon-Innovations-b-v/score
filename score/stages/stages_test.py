@@ -15,7 +15,7 @@ import tempfile
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from score import graph, review, stages  # noqa: E402
+from score import checks, contracts, graph, review, stages  # noqa: E402
 from score.store import PROPS_HOME, Store  # noqa: E402
 
 SEEDS = PROPS_HOME / "work"
@@ -35,8 +35,22 @@ def world_data_copy(root):
 def scenario(root):
     world = graph.World("world1", 3, {"data": str(world_data_copy(root / "data")), "seeds": str(SEEDS)})
     store = Store.in_folder(root / "store")
-    # The worked example's own stages: terrain (a world node) spends and has its own test beside its module.
-    return world, store, lambda: graph.Runner((stages.ASSEMBLY, stages.COMPLETE), world, store)
+    # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
+    # terrain that made no ground for these places stands in for it.
+    return world, store, lambda: graph.Runner((NO_GROUND, stages.ASSEMBLY, stages.COMPLETE), world, store)
+
+
+def no_ground(inputs, out, seed, params):
+    (out / "none").mkdir()
+
+
+def made(output, inputs, evidence):
+    return checks.Verdict("made", checks.PASS, "no ground made for these places")
+
+
+NO_GROUND = graph.Stage("terrain", "world", no_ground,
+                        contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
+                        (checks.Check("made", made),))
 
 
 def test_the_worked_example_on_world_1s_seeds():

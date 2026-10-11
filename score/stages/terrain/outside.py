@@ -5,7 +5,7 @@ its scene record. Written as OpenUSD under /<place>/Outside and /<place>/Places,
 (/<place>/Ground, /Terrain and /Water are made inactive).
 
     meshes = outside.meshes(made, seat, footprint)       # {name: (points, triangles, zone per triangle)}
-    outside.write(stage, place, made, meshes, record_places, neighbour_path)
+    outside.write(stage, place, made, meshes, laid, scene_record, neighbour_path)
 """
 import sys
 import pathlib
@@ -17,6 +17,7 @@ from pxr import Gf, Sdf, UsdGeom, UsdShade, Vt
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import ground as grounds  # noqa: E402
+import scene as scene_records  # noqa: E402
 
 # The fine patch: this far past the place's footprint, points this far apart (metres).
 NEAR_MARGIN = 60.0
@@ -142,9 +143,14 @@ def write_mesh(stage, path, points, triangles, kind):
     return mesh
 
 
-def write_ground(stage, place, made, zoned, looks):
+def water_mirror(scene):
+    """How the place's own water mirrors (its scene record's first water with a `mirror`), or None."""
+    return next((entry["mirror"] for entry in scene.get("water") or [] if "mirror" in entry), None)
+
+
+def write_ground(stage, place, made, zoned, looks, mirror):
     """The ground's meshes under /<place>/Outside, each split by zone into parts (GeomSubsets named after their
-    library surface), every part bound to its surface's look."""
+    library surface), every part bound to its surface's look; the water mirroring as the place's own did."""
     surfaces = made["surfaces"]
     for name, (points, triangles, zone) in zoned.items():
         if not len(triangles):
@@ -154,6 +160,8 @@ def write_ground(stage, place, made, zoned, looks):
             mesh = write_mesh(stage, path, points, triangles, "water")
             UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(looks[made["water"]["surface"]])
             mesh.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(made["water"]["surface"])
+            if mirror:
+                scene_records.write_mirror(mesh.GetPrim(), mirror)
             continue
         mesh = write_mesh(stage, path, points, triangles, "ground")
         for index in np.unique(zone):
@@ -194,9 +202,10 @@ def write_places(stage, place, places, neighbour_path):
     return added
 
 
-def write(stage, place, made, zoned, laid, places, neighbour_path):
-    """The made ground into the stage (its edit target), over the place's old ground, and the neighbours its scene
-    record names that the stage lacks; the names of the neighbours added."""
+def write(stage, place, made, zoned, laid, scene, neighbour_path):
+    """The made ground into the stage (its edit target), over the place's old ground (its water mirroring as the
+    place's scene record has it), and the neighbours the record names that the stage lacks; the names of those
+    added."""
     for old in OLD_GROUND:
         stage.OverridePrim(f"/{place}/{old}").SetActive(False)
     UsdGeom.Scope.Define(stage, f"/{place}/Outside")
@@ -205,7 +214,7 @@ def write(stage, place, made, zoned, laid, places, neighbour_path):
     if made.get("water"):
         looks[made["water"]["surface"]] = look(stage, f"/{place}/Outside/Looks/{made['water']['surface']}",
                                                made["water"]["surface"], made["water"]["colour"])
-    write_ground(stage, place, made, zoned, looks)
+    write_ground(stage, place, made, zoned, looks, water_mirror(scene))
     if laid.radius < HORIZON:
         write_ball(stage, place, laid, made, looks)
-    return write_places(stage, place, places, neighbour_path)
+    return write_places(stage, place, scene.get("places", []), neighbour_path)

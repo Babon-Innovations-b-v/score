@@ -260,6 +260,18 @@ def test_a_places_own_lines_run_only_the_world_nodes_they_read():
     assert list(runner.lines(["hangar"], whole=False)["world"][1]) == ["ground"]
 
 
+def test_a_line_run_for_one_stage_runs_it_and_what_it_reads_alone():
+    data, world = a_world_of(PLACES)
+    ground = graph.Stage("ground", "world", made_once(data), TEXT, MET)
+    build = graph.Stage("build", "place", make_count_of_ground, TEXT, MET, after={"ground": ("toy-text", 1)})
+    other = graph.Stage("other", "place", meeting(data, "other", ["never"]), TEXT, MET)  # a row the run leaves alone
+    runner = graph.Runner((ground, build, other), world, Store.in_folder(tempfile.mkdtemp()),
+                          model_record=lambda kind: {})
+    found = runner.drive(["hangar"], say=quiet, whole=False, only=["build"])
+    assert set(found) == {"ground", "build@hangar"}, found
+    assert set(runner.lines(["hangar"], whole=False, only=["build"])["hangar"][1]) == {"build@hangar"}
+
+
 def make_count_of_ground(inputs, out, seed, params):
     (out / "built.txt").write_text((inputs["ground"] / "ground.txt").read_text())
 

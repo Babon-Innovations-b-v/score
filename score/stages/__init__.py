@@ -15,6 +15,7 @@ import pathlib
 
 from score import contracts, graph
 from score.stages import assembly, complete, surfaces, terrain
+from score.stages.terrain import look
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -23,10 +24,14 @@ WORLD1 = REPO / "data/definitions/world.json"
 TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain.FILES,
                       paid=True, euros=terrain.EUROS)
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
-                       files=assembly.FILES, gatherers=assembly.GATHERERS)
+                       files=assembly.FILES, gatherers=assembly.GATHERERS, after={"terrain": ("grounds", 1)})
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
                        after={"assembly": ("openusd-stage", 1)})
-STAGES = (TERRAIN, ASSEMBLY, COMPLETE, *surfaces.ROWS)
+# Experimental (PRD #6) until the owner reviews it: the proof place's before and after its made ground, rendered.
+TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.CHECKS, files=look.files,
+                           after={"assembly": ("openusd-stage", 1)}, paid=True, euros=look.EUROS,
+                           applies=lambda place: place in look.LOOKED)
+STAGES = (TERRAIN, ASSEMBLY, COMPLETE, TERRAIN_LOOK, *surfaces.ROWS)
 
 
 def world1():

@@ -23,4 +23,10 @@ from its plan in `data/ground/plan/<ground>.json`. `__init__.py`'s docstring has
   that stood on the old ground with the made one. On a small world the horizon dips with a viewer's height: a ray
   between level and that dip sees sky, not a void.
 - Each ground's `places/<place>.usdc` is the layer a place's stage takes over its old ground (its neighbours reached as
-  a stage folder's `layers/` reaches them); the assembly stage that builds from the layout sublayers it.
+  a stage folder's `layers/` reaches them, its water mirroring as the place's scene record has it); the assembly
+  stage reads the terrain output and sublayers it as `layers/ground.usdc` just over the seed's base (experimental).
+- **`terrain-look@<place>` (`look.py`, experimental, paid)** renders the place before (its seed) and after (the
+  assembly output) on its round-three review cameras and gates on `horizon`: no view looks out under the horizon onto
+  nothing. Only `look.LOOKED` places have the row (the proof place, launch) until the owner has reviewed it. Run it
+  with `python -m score run world1 --place launch --stage terrain-look --detach`, which drives terrain, assembly
+  and the look and leaves the line's surface rows alone.

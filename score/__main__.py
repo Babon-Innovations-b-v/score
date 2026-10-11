@@ -1,10 +1,11 @@
 """SCORE's one command: the runner drives a world's lines to their end, with no agent in the loop.
 
-    .venv/bin/python -m score run <world> [--place P ...] [--jobs N] [--detach]  # every line, or those named
-    .venv/bin/python -m score status [<world>] [--place P ...]                   # every line's state
+    .venv/bin/python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]  # every line, or named
+    .venv/bin/python -m score status [<world>] [--place P ...] [--stage S ...]                   # every line's state
 
 `run` drives the lines side by side (with --place, those places' lines and only the world nodes they read), each node in
-a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time). It starts
+a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time); with
+--stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone). It starts
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
 the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
 (faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It exits 1 when any line
@@ -35,6 +36,7 @@ def parse(argv):
     status.add_argument("world", nargs="?", default="world1", choices=sorted(stages.WORLDS))
     for command in (run, status):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
+        command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
     return parser.parse_args(argv)
 
 
@@ -52,8 +54,9 @@ def main(argv=None):
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places, whole = options.place or stages.places(runner.world), not options.place
     if options.command == "run":
-        runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole)
-    lines = runner.lines(places, whole)
+        runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
+                     only=options.stage)
+    lines = runner.lines(places, whole, options.stage)
     for line, (state, nodes) in lines.items():
         print(f"{line}: {state}")
         if options.command == "status":

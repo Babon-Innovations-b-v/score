@@ -328,10 +328,24 @@ class Runner:
                 if place is None or stage.applies is None or stage.applies(place):
                     yield stage, place
 
-    def line_nodes(self, places, whole):
+    def read_closure(self, only):
+        """The named stages and every stage they read, directly or through another."""
+        kept, reading = set(), list(only)
+        while reading:
+            name = reading.pop()
+            if name not in kept:
+                kept.add(name)
+                reading += list(self.stages[name].after)
+        return kept
+
+    def line_nodes(self, places, whole, only=None):
         """The nodes a drive runs: every one of `nodes` for the whole world, else the places' own and only the world
-        nodes they read (directly or through another world node)."""
+        nodes they read (directly or through another world node); `only` (stage names) keeps those stages and the
+        ones they read."""
         found = list(self.nodes(places))
+        if only:
+            kept = self.read_closure(only)
+            found = [(stage, place) for stage, place in found if stage.name in kept]
         if whole:
             return found
         read, reading = set(), [before for stage, _ in found if stage.grain == "place" for before in stage.after]
@@ -485,14 +499,14 @@ class Runner:
             report.unlink()
         return did, True
 
-    def drive(self, places, say=print, jobs=JOBS, whole=True):
+    def drive(self, places, say=print, jobs=JOBS, whole=True, only=None):
         """Run every line to its end with no one in the loop, the lines side by side: each node starts in a process of
         its own the moment every node it reads stands accepted, at most `jobs` at once, so a line waiting on a cloud
         step holds up no other line, and nodes of one line that read nothing of each other run side by side. A world
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report; {node: what it did}, in table order. `whole` False drives the places'
-        lines alone, with only the world nodes they read."""
-        chosen = self.line_nodes(places, whole)
+        lines alone, with only the world nodes they read; `only` (stage names) those stages and the ones they read."""
+        chosen = self.line_nodes(places, whole, only)
         waiting = list(chosen)
         done, stopped, stood, running = {}, {}, set(), {}
         while waiting or running:
@@ -521,13 +535,13 @@ class Runner:
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
 
-    def lines(self, places, whole=True):
+    def lines(self, places, whole=True, only=None):
         """{line: (its state, {node: state})}, running nothing: the world's own nodes are one line, each place's
         another (`whole` False: only the world nodes the places read). A line is done when every node stands
         accepted, else stopped (a fault report waits) or waiting at its first node that does not stand."""
         found = {}
         states = self.status(places)
-        for stage, place in self.line_nodes(places, whole):
+        for stage, place in self.line_nodes(places, whole, only):
             node, line = node_name(stage, place), place or WORLD_LINE
             summary, nodes = found.get(line, ("done", {}))
             nodes[node] = states[node]

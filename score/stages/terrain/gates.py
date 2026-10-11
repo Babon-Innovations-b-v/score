@@ -72,7 +72,7 @@ def composed(inputs, made, place):
     zoned, laid = outside.meshes(made, made["places"][place], (kit or {}).get("on_seat", [0.0, 0.0]),
                                  footprint(scene, kit))
     seeds = pathlib.Path(inputs["seeds"])
-    added = outside.write(stage, place, made, zoned, laid, scene.get("places", []),
+    added = outside.write(stage, place, made, zoned, laid, scene,
                           lambda name: str(seeds / name / f"{name}.usda"))
     return stage, laid, added
 
