@@ -7,6 +7,7 @@ Run: .venv/bin/python score/graph/graph_test.py
 import json
 import os
 import pathlib
+import shutil
 import sys
 import tempfile
 
@@ -273,6 +274,32 @@ def test_the_code_version_follows_imports_into_functions_and_sys_path_folders():
     found = {path.relative_to(_code.REPO).as_posix() for path in _code.source_files([complete.resting_check])}
     assert {"tools/usd/complete.py", "tools/usd/triage.py", "tools/usd/resting.py"} <= found, found
     assert not any(path.startswith(".venv") for path in found)
+
+
+def test_the_code_version_does_not_depend_on_the_order_of_the_path():
+    """A name two path folders both hold is hashed from both, whichever one a process happened to put first (judge.py
+    puts tools/props first when imported: a row's key moved between two runs with no file changed, 2026-10-11)."""
+    root = pathlib.Path(tempfile.mkdtemp(prefix="_code_order_", dir=_code.REPO / "score/graph"))
+    saved = list(sys.path)
+    try:
+        for name, text in (("first", "import shared_name\n\n\ndef work():\n    return shared_name\n"),
+                           ("one", "VALUE = 1\n"), ("other", "VALUE = 2\n")):
+            (root / name).mkdir()
+            (root / name / ("top_of_order.py" if name == "first" else "shared_name.py")).write_text(text)
+        sys.path[:0] = [str(root / "first")]
+        found = []
+        for order in (("one", "other"), ("other", "one")):
+            sys.path[1:1] = [str(root / name) for name in order]
+            sys.modules.pop("top_of_order", None)
+            import top_of_order
+            found.append(_code.source_files([top_of_order.work]))
+            del sys.path[1:3]
+        assert found[0] == found[1] and len(found[0]) == 3, found
+    finally:
+        sys.path[:] = saved
+        sys.modules.pop("top_of_order", None)
+        sys.modules.pop("shared_name", None)
+        shutil.rmtree(root)
 
 
 if __name__ == "__main__":

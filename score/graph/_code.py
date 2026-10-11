@@ -17,14 +17,24 @@ def in_repo(path):
     return path.is_relative_to(REPO) and not any(path.is_relative_to(folder) for folder in OUTSIDE)
 
 
-def module_file(name):
-    """The source file an import name finds on today's path, or None when it finds none or none of ours."""
+def module_files(name):
+    """Every source file of ours an import name could find: the one it finds on today's path, and the one in each
+    other folder on the path. Hashing all of them keeps the code version the same whatever order a process put the
+    path's folders in (judge.py puts tools/props first when imported; a row's key moved with no file changed)."""
+    found = set()
     try:
         spec = importlib.util.find_spec(name)
     except (ImportError, ValueError):  # a parent package that does not import here: not one of ours to hash
-        return None
+        spec = None
     origin = spec.origin if spec else None
-    return pathlib.Path(origin).resolve() if origin and origin.endswith(".py") and in_repo(origin) else None
+    if origin and origin.endswith(".py") and in_repo(origin):
+        found.add(pathlib.Path(origin).resolve())
+    parts = name.split(".")
+    for folder in {pathlib.Path(entry).resolve() for entry in sys.path if entry}:  # "" (the cwd): find_spec's
+        for path in (folder.joinpath(*parts).with_suffix(".py"), folder.joinpath(*parts, "__init__.py")):
+            if path.is_file() and in_repo(path):
+                found.add(path.resolve())
+    return found
 
 
 def imported_names(path, package):
@@ -60,9 +70,7 @@ def source_files(functions):
             continue
         found.add(path)
         for name in imported_names(path, package_of(path)):
-            module = module_file(name)
-            if module and module not in found:
-                pending.append(module)
+            pending += [module for module in module_files(name) if module not in found]
     return sorted(found)
 
 
