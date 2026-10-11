@@ -97,9 +97,18 @@ def part_labels(mesh, part_of, seen_label, walked_label, count):
     return chosen[part_of]
 
 
+def turned(mesh):
+    """The raw model turned half round about up (labels.VIEW_TURN), as it goes to SegviGen: SegviGen's camera looks
+    at the raw model's back (its own conditioning render showed the lander's back, 2026-10-11), so unturned the
+    close-up's finish map was painted onto the back."""
+    import trimesh
+    return trimesh.Trimesh(mesh.vertices @ labels.VIEW_TURN.T, mesh.faces, process=False)
+
+
 def segvigen_split(mesh, take_folder):
-    """SegviGen's guided split on the faces, laid and cleaned as the parts test laid it (split_compare)."""
-    return split_compare.cleaned(mesh, split_compare.segvigen_parts(mesh, take_folder, "guided"))
+    """SegviGen's guided split on the faces (its voxels laid on the turned model it was given), cleaned as the parts
+    test cleaned it (split_compare)."""
+    return split_compare.cleaned(mesh, split_compare.segvigen_parts(turned(mesh), take_folder, "guided"))
 
 
 def arm_labels(mesh, take, per_pixel, count, segvigen_folder):

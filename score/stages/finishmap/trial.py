@@ -150,16 +150,24 @@ def judge_maps(output, inputs, evidence):
 # --- fm-segvigen ---------------------------------------------------------------------------------------------------
 
 def make_segvigen(inputs, out, seed, params):
-    """SegviGen guided by each passing finish map (in its own part colours) on a rented card; each take's down/ kept
-    (its uploads removed after)."""
+    """SegviGen guided by each passing finish map (in its own part colours) on a rented card, each raw model turned
+    half round so SegviGen's camera sees its close-up side (lay.turned); each take's down/ kept (its uploads removed
+    after)."""
     import numpy as np
+    import trimesh
+    import labels
     import split_compare
     maps_folder = pathlib.Path(inputs["fm-maps"])
     takes = passed_takes(maps_folder)
+    turn = np.eye(4)
+    turn[:3, :3] = labels.VIEW_TURN
     for take in takes:
         up = out / take / "up"
         up.mkdir(parents=True)
-        shutil.copyfile(inputs[f"raw {take}"], up / "raw.glb")
+        scene = trimesh.load(inputs[f"raw {take}"], force="scene")
+        for geometry in scene.geometry.values():  # into the vertices, not a node: every reader then sees it turned
+            geometry.apply_transform(turn)
+        scene.export(up / "raw.glb")
         split_compare.guide_map(np.load(maps_folder / take / "labels.npy").astype(int)).save(up / "map.png")
     command = [sys.executable, str(PROPS / "cloud/meshparts.py"), str(out), "--who", "finishmap trial",
                "--methods", "segvigen", "--takes", ",".join(takes)]
