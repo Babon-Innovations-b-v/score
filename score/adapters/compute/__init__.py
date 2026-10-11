@@ -10,9 +10,10 @@ runner cannot spend. The job carries its node and key, so the finish record and 
 path (tools/props/cloud) is reached the same way, through the engine adapter (score.adapters.engines), which asks
 for clearance first.
 
-Every place that rents (tools/props/cloud/batch.py's `rent`, tools/cloud/k8s/submitter.py's `submit`) asks
-`require_cleared` first, so the old paid entry points (blender_cloud.py, detached.py, the runners, demo.py,
-make_jobs.py) refuse to rent unless they run inside a cleared run:
+Every place that spends (tools/props/cloud/batch.py's `rent`, tools/cloud/k8s/submitter.py's `submit` and
+clusters/scaleway.py's `up`, tools/props/closeup/pro.py's `draw`, tools/props/scene/marble.py's `generate` and
+`paint`) asks `require_cleared` first, so the old paid entry points (blender_cloud.py, detached.py, the runners,
+demo.py, make_jobs.py, the close-up stage) refuse to spend unless they run inside a cleared run:
 
     with compute.spending(ticket):         # SCORE_SPEND_TICKET="<node> <key>" for this process and its children
         ...                                # anything here may rent

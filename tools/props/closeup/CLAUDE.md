@@ -14,5 +14,6 @@ for the creator.
   picture. Its limits were tuned on the 40 hand-scored close-ups of job openpics (2026-10-08); a change to a limit
   or to the judge's question is measured on those again before it lands.
 - **Pro's quota is shared** (250 a day): only `stage.py` calls `pro.py`, and only for rows the check failed.
+  `pro.draw` refuses outside a cleared run (`score.adapters.compute.require_cleared`), as every paid call does.
 - **Print does not matter** on a close-up: labels and print go on the model as decals later.
 - Checks are plain scripts (`*_test.py`) run by `make tests`.

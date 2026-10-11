@@ -2,15 +2,21 @@
 check fails: the same wording and references as the open model's, drawn at 2K. It is a paid, closed service with a
 daily quota (250 pictures a day, 20 a minute on the account's tier, 2026-10-08), so the stage calls it only for
 failures. Its key is the secret `gemini-api-key`, read by name (../cloud/secret_store.py), never written down.
+Nothing is drawn outside a cleared run or the owner's override (score.adapters.compute, `require_cleared`).
 """
 import base64
 import io
 import json
+import pathlib
+import sys
 import time
 import urllib.error
 import urllib.request
 
 from PIL import Image
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+from score.adapters import compute  # noqa: E402
 
 MODEL = "gemini-3-pro-image"
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
@@ -45,7 +51,9 @@ def pictures_in(answer):
 
 def draw(key, wording, crop, concept, path):
     """One close-up into `path`; True when a picture came back, False when the service refused every attempt. A
-    refused request (quota, overload) is tried again after a wait."""
+    refused request (quota, overload) is tried again after a wait. Refused outside a cleared run
+    (compute.require_cleared)."""
+    compute.require_cleared("a Nano Banana Pro close-up")
     body = json.dumps(request_body(wording, crop, concept)).encode()
     for attempt in range(ATTEMPTS):
         request = urllib.request.Request(URL, data=body, method="POST",

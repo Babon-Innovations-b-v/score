@@ -47,6 +47,8 @@ import place  # noqa: E402
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "cloud"))
 import secret_store  # noqa: E402
 from paths import scene_folder as folder  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+from score.adapters import compute  # noqa: E402
 
 API = "https://api.worldlabs.ai/marble/v1"
 KEY_SECRET = "worldlabs-api-key"
@@ -139,7 +141,9 @@ def inline_png(path):
 
 def paint(room, out, depth_png, z_max, text, seed, ledger=None):
     """Paint a depth panorama (pano.py) into a colour one (pano:depth_to_rgb), saved as the room's
-    target picture, so `generate --pano` builds the world from it; what it cost is kept."""
+    target picture, so `generate --pano` builds the world from it; what it cost is kept. Refused outside a cleared
+    run (compute.require_cleared)."""
+    compute.require_cleared(f"a World Labs painting of {room}")
     started = call("POST", "/pano:depth_to_rgb", {
         "depth_pano_image": inline_png(depth_png), "z_min": DEPTH_Z_MIN_M, "z_max": z_max,
         "text_prompt": text, "seed": seed})
@@ -160,7 +164,9 @@ def paint(room, out, depth_png, z_max, text, seed, ledger=None):
 
 def generate(room, out, model, text, pano=False, seed=None, ledger=None):
     """Generate the world from the room's target picture, with words of guidance when given;
-    the world as the API returns it. A panorama (`pano`) is taken as one, with its words as given."""
+    the world as the API returns it. A panorama (`pano`) is taken as one, with its words as given. Refused outside a
+    cleared run (compute.require_cleared)."""
+    compute.require_cleared(f"a World Labs world of {room}")
     prompt = {"type": "image", "is_pano": pano, "image_prompt": inline_png(target_picture(room))}
     if text:
         prompt["text_prompt"] = text
