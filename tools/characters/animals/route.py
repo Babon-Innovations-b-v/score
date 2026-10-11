@@ -3,7 +3,7 @@ every Blender run on rented machines (job characters-full, 2026-10-09). Experime
 make.py sends a spec here only with --experimental (docs/bible.md, architecture/experimental).
 
     import route
-    route.make(spec, folder, who="<session>", dry_run=False)
+    route.make(spec, folder, who="<session>", dry_run=False, experimental=True)
 
 `spec` is a character spec (data/characters/makes/<name>.json, read by ../maker/spec.py) with "kind": "animal", its
 "picture" (a side-on close-up), "body" ("fish" or "quadruped"), "length_m" and "clips"; `folder` is where the make
@@ -149,9 +149,12 @@ def step(record, label, work):
     return result
 
 
-def make(spec, folder, who, dry_run=False):
+def make(spec, folder, who, dry_run=False, experimental=False):
     """Make the animal of `spec` into `folder`: its glTF with skin and clips, lods/, usd/, review/ and make.json.
-    With `dry_run` the cloud steps are only priced. Returns the make's record."""
+    With `dry_run` the cloud steps are only priced. Refused unless `experimental` (make.py --experimental). Returns
+    the make's record."""
+    if not experimental:
+        raise SystemExit(f"{spec['name']}: the animal route is experimental, so only with make.py --experimental")
     folder = pathlib.Path(folder)
     (folder / "work").mkdir(parents=True, exist_ok=True)
     who = f"{who} ({spec['name']})"

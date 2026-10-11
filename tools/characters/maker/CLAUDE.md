@@ -6,7 +6,8 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
 `~/.farm-factory-motion/made/<name>/`. People go through the person chain here; animals through `../animals/`.
 
 - **Experimental, refused unless asked for** (docs/bible.md, `architecture/experimental`): the prop route and the
-  animal route run only with `make.py --experimental`; the drapes have no default simulator, so a person is made
+  animal route run only with `make.py --experimental`, and refuse when started round it (`prop_person.py` wants
+  `--experimental` too, `route.make` its `experimental=True`); the drapes have no default simulator, so a person is made
   only when its spec names `drape_simulator` (`drape_garment.py --simulator` and `rebuild.py bundle --simulator` are
   required). The owner rejected the Newton drapes (2026-10-10) and `drape_measure.py` fails them; the joins and
   stance checks (`rebuild.py`'s old-beside-new renders, the wrist and boot numbers) have no owner-checked before and

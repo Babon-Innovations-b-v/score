@@ -45,7 +45,8 @@ SHARED = {
 MOTIONS = MOTION_HOME / "work" / "motions"
 # The routes that run only with --experimental: each the fault it is for, and why it is not proven yet.
 EXPERIMENTAL_ROUTES = {
-    "prop": "the prop route (#5, bloated clothes on SOMA-made people): the player fails tucks and pokes, Nev is not made",
+    "prop": ("the prop route (#5, bloated clothes on SOMA-made people): the player fails tucks and pokes, Nev is not "
+             "made"),
     "animal": "the animal route (#1, places with no animals): no fish swims in any place yet",
 }
 
@@ -108,7 +109,7 @@ def make_people(folders, who, classes, dry_run):
 
 def make_prop_person(path, who, dry_run):
     """A person on the prop route (prop_person.py), every stage in turn."""
-    command = [sys.executable, str(HERE / "prop_person.py"), str(path), "--who", who]
+    command = [sys.executable, str(HERE / "prop_person.py"), str(path), "--who", who, "--experimental"]
     subprocess.run(command + (["--dry-run"] if dry_run else []), check=True)
 
 
@@ -117,7 +118,7 @@ def make_animals(found, who, dry_run):
     sys.path.insert(0, str(REPO / "tools/characters/animals"))
     import route
     for spec in found:
-        route.make(spec, MADE / spec["name"], who=who, dry_run=dry_run)
+        route.make(spec, MADE / spec["name"], who=who, dry_run=dry_run, experimental=True)
 
 
 def main():

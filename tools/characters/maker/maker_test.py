@@ -95,6 +95,20 @@ def test_experimental_routes_and_drapes_run_only_when_asked_for():
     assert "drape_simulator 'warp'" in spec.problems_of(dict(PERSON, drape_simulator="warp"))[0]
 
 
+def test_the_experimental_routes_refuse_when_started_round_make(tmp_path):
+    """Fault (review of 2026-10-11): --experimental was checked only in make.py, so prop_person.py run by hand and
+    route.make called directly made a prop-route person or an animal without it."""
+    import subprocess
+    started = subprocess.run([sys.executable, str(REPO / "tools/characters/maker/prop_person.py"),
+                              str(REPO / "data/characters/makes/player_prop.json"), "--who", "a check", "--dry-run"],
+                             capture_output=True, text=True)
+    assert started.returncode != 0 and "only with --experimental" in started.stderr
+    sys.path.insert(0, str(REPO / "tools/characters/animals"))
+    import route
+    with pytest.raises(SystemExit, match="only with make.py --experimental"):
+        route.make({"name": "fish_tang"}, tmp_path, "a check", dry_run=True)
+    assert not (tmp_path / "work").exists()
+
 def test_a_drape_has_no_default_simulator(tmp_path):
     """Fault (audit of 2026-10-11, item 1): drape_garment.py and rebuild.py draped with Newton by default, the drapes
     the owner rejected and drape_measure fails."""
