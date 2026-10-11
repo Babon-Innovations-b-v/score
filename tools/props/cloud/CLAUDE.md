@@ -102,7 +102,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   names a repo script, its arguments, its input and output paths (at the same absolute paths up there, so neither
   the script nor the paths inside its input files change) and its minutes; a tool calls `blender_cloud.run_elsewhere`. Physics
   (settling) on a 32-core processor machine by default, renders on a card (`--classes gpu-24gb,...`, Cycles on the card
-  via FARM_CYCLES_GPU). A call's jobs are spread over machines like any batch (spread.py). A tool with a
+  via FARM_CYCLES_GPU, on OptiX since library_setup.sh adds the driver's own libnvidia-gl: the provider's headless
+  driver has no OptiX, and until 2026-10-11 every card render fell back to CUDA). A call's jobs are spread over machines like any batch (spread.py). A tool with a
   chain of jobs (a review page's renders) holds one machine for all of them (`blender_cloud.Machine`, --serve on a queue
   folder), deleted when the tool closes the queue or after 10 idle minutes; never rent one per step. The PC's own Blender (one at a time,
   the machine lock) is for checks of seconds only. An agent starts a cloud Blender call with `--detach` under `run_in_background`
