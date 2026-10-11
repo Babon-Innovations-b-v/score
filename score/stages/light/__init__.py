@@ -248,7 +248,8 @@ def lamp_heads(place):
             if laid["kind"] != kind or laid.get("part") != "glow":
                 continue
             middle = np.asarray(laid["at"]) + np.asarray(laid["y"]) * laid["size"][1] / 2
-            light = min(lights, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - middle))
+            # A lamp with no shaft light of its own (the launch's pad lamps as main has them) is still a head on screen.
+            light = min(lights, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - middle)) if lights else None
             found.append((middle, laid["size"][0] / 2, light, -np.asarray(laid["z"], dtype=np.float64)))
     return found
 
@@ -272,7 +273,7 @@ def head_measures(place, name, out):
             radius = focal * half / depth
             axis = [measure.where(view, size, np.asarray(light["at"]) + (np.asarray(light["aim"]) -
                                                                           np.asarray(light["at"])) * share)
-                    for share in (0.15, 0.3, 0.45)]
+                    for share in (0.15, 0.3, 0.45)] if light else []
             points = [(px, py) for px, py, _, _ in axis if px is not None and 0 <= px < size[0] and 0 <= py < size[1]]
             toward_eye = np.asarray(view["eye"], dtype=np.float64) - middle
             found.append({"view": view["name"], "at_px": [round(x), round(y)],
