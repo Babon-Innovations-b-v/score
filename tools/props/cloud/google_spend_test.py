@@ -1,9 +1,8 @@
-"""Checks for the Google spend guard: the price of a response, the day's cap refusing, and the cache answering.
+"""Checks for the Google spend guard: the price of a response, its ledger line, and the cache answering.
 
 Run: python3 tools/props/cloud/google_spend_test.py
 """
 import json
-import os
 import pathlib
 import sys
 import tempfile
@@ -17,10 +16,9 @@ USAGE = {"promptTokenCount": 1000, "candidatesTokenCount": 100, "thoughtsTokenCo
 
 
 def in_temporary_home():
-    """Point the guard's ledger, cap file and cache at a fresh folder; the posts it would have sent."""
+    """Point the guard's ledger and cache at a fresh folder; the posts it would have sent."""
     folder = pathlib.Path(tempfile.mkdtemp())
-    google_spend.CLOUD, google_spend.LEDGER = folder, folder / "google-ledger.jsonl"
-    google_spend.CAP_FILE, google_spend.CACHE = folder / "google-day-euros.txt", folder / "cache"
+    google_spend.LEDGER, google_spend.CACHE = folder / "google-ledger.jsonl", folder / "cache"
     sent = []
     google_spend.post = lambda model, body, key, timeout: sent.append(body) or {"usageMetadata": USAGE}
     return sent
@@ -33,25 +31,12 @@ def test_prices_tokens_thinking_and_images():
     assert round(google_spend.dollars("gemini-3-pro-image", picture), 4) == round(0.001 + 0.1344, 4)
 
 
-def test_cap_refuses_and_ledger_counts():
-    sent = in_temporary_home()
-    os.environ.pop("SCORE_GOOGLE_DAY_EUROS", None)
-    google_spend.CAP_FILE.write_text("0.1")
+def test_each_call_writes_one_priced_line():
+    in_temporary_home()
     google_spend.generate(JUDGE, {"ask": 1}, "key", 5, caller="test")
     line = json.loads(google_spend.LEDGER.read_text())
     assert line["caller"] == "test" and line["thinking"] == 900 and line["day"] == google_spend.today()
-    try:
-        google_spend.generate(JUDGE, {"ask": 2}, "key", 5, caller="test")
-    except google_spend.SpendCapReached as refusal:
-        assert "day cap" in str(refusal)
-    else:
-        raise AssertionError("a call past the day's cap was sent")
-    assert len(sent) == 1
-    os.environ["SCORE_GOOGLE_DAY_EUROS"] = "100"
-    try:
-        assert google_spend.day_cap() == 100
-    finally:
-        del os.environ["SCORE_GOOGLE_DAY_EUROS"]
+    assert line["euros"] == round(google_spend.dollars(JUDGE, USAGE), 6)
 
 
 def test_cache_answers_the_same_question_once():
@@ -63,14 +48,11 @@ def test_cache_answers_the_same_question_once():
     assert len(google_spend.LEDGER.read_text().splitlines()) == 2
 
 
-def test_unpriced_model_refused():
+
+def test_unpriced_model_recorded_without_a_price():
     in_temporary_home()
-    try:
-        google_spend.generate("gemini-unknown", {}, "key", 5, caller="test")
-    except google_spend.SpendCapReached as refusal:
-        assert "no price" in str(refusal)
-    else:
-        raise AssertionError("an unpriced model was called")
+    google_spend.generate("gemini-unknown", {}, "key", 5, caller="test")
+    assert json.loads(google_spend.LEDGER.read_text())["euros"] is None
 
 
 if __name__ == "__main__":
