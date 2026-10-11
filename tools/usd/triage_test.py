@@ -128,8 +128,29 @@ def occlusion_boundaries():
     return [] if np.array_equal(found, expected) else [f"the boundary is\n{found.astype(int)}"]
 
 
+def the_data_read_is_the_data_given():
+    """Fault (review of step 0, 2026-10-11): the triage read data/checks/resting.json, data/kit/<place>.json and the
+    inventory through the repository whatever files a caller declared, so the assembly stage's key covered files its
+    judge never read and missed the ones it did."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = place_of(folder, [("plate", "box", (6, -0.4, 0)), ("sign", "box", (12, 1.5, 0)),
+                                  ("crate", "box", (0, 0.3, 0))],
+                         [row("plate", group="kit: floor"), row("sign", anchor="wall"), row("crate")])
+        rules = {**triage.rules(), "fixed_in_kit": []}
+        (folder / "rules.json").write_text(json.dumps(rules))
+        (folder / "rows.json").write_text(json.dumps({"rows": [row("plate", group="kit: floor"), row("sign"),
+                                                               row("crate")]}))
+        (folder / "kit_given.json").write_text(json.dumps({"kinds": {"test_crate": {"group": "floors"}}}))
+        said = verdicts(triage.triage(stage, rules_file=folder / "rules.json", kit_file=folder / "kit_given.json",
+                                      inventory_file=folder / "rows.json"))
+        expected = {"plate_1": [("sunk", True)], "sign_1": [("floats", True)], "crate_1": [("floats", False)]}
+        return [f"{name} reads {said.get(name)} on the data given, not {want}" for name, want in expected.items()
+                if said.get(name) != want]
+
+
 CHECKS = (supports_and_guards, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group, the_collision_set,
-          occlusion_boundaries)
+          occlusion_boundaries, the_data_read_is_the_data_given)
 
 
 if __name__ == "__main__":
