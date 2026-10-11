@@ -2,6 +2,7 @@
  "name": "player",
  "kind": "person",
  "route": "prop",
+ "experimental": "trial (#5): the player fails tucks and pokes, Nev is not made; make.py runs it only with --experimental",
  "approved": "owner, 2026-10-10 (#5): soma is for the rig, not the mesh; fit the prop pipeline's mesh to the rig, split it into parts and settle the clothing; pilot on the player",
  "why": "Take C, the player's first astronaut, on the prop route: his mesh made by Pixal3D from one close-up, as the animals' were, with SOMA-X fitted inside it so Kimodo's clips play unchanged",
  "references": [

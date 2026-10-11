@@ -5,6 +5,10 @@ The character maker's animal route (job characters-full, 2026-10-09): one animal
 UsdSkel asset, its lighter copies and its review frames. Entry: `route.make(spec, folder, who,
 dry_run)`, called by `../maker/make.py`; its docstring lists the steps.
 
+**Experimental: not run on any world** (#1's own done-when, a fish swimming in an underwater place and a school as an
+instancer, is not met). `make.py` runs this route only with `--experimental`; it is proven when an animal it made
+moves in a place's stage and the owner has seen it there.
+
 - **Nothing runs here but plain Python.** The mesh (Pixal3D, `../../props/cloud/batch.py
   --characters`), the rig (UniRig, `../../props/cloud/unirig.py`) and every Blender script
   (`blender_rig.py`, `blender_review.py`) run on rented machines; the Blender pair share one held

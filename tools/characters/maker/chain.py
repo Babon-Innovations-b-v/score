@@ -164,12 +164,16 @@ DESIGNS = {"work": "work_suit", "space": "space_suit", "jacket": "jacket", "coat
 
 
 def drapes(chain):
-    """Each outfit's pattern draped on the body (GarmentCode's pattern, Newton's cloth: drape_garment.py)."""
+    """Each outfit's pattern draped on the body by the spec's drape_simulator (GarmentCode's pattern;
+    drape_garment.py). The drapes are experimental: a spec names its simulator to opt in, make.py refuses one that
+    does not."""
     made = []
+    simulator = chain.spec["drape_simulator"]
     reference = chain.spec.get("garment_body", "mean_male")
     for outfit in chain.spec.get("outfits", ["work"]):
         chain.run([sys.executable, MAKER / "drape_garment.py", chain.work / "gc/body", DESIGNS[outfit],
-                   chain.look / f"{outfit}_drape", "--kind", outfit, "--reference", reference, "--blender", BLENDER],
+                   chain.look / f"{outfit}_drape", "--kind", outfit, "--reference", reference, "--blender", BLENDER,
+                   "--simulator", simulator],
                   GARMENTCODE="/root/garmentcode", GARMENTCODE_PYTHON=str(GARMENT))
         made.append(outfit)
     return "draped: " + ", ".join(made)

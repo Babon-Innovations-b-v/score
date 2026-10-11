@@ -5,6 +5,13 @@ rigged, clothed, textured, animated character as glTF and UsdSkel, with its far 
 are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a make produces lives outside the repo in
 `~/.farm-factory-motion/made/<name>/`. People go through the person chain here; animals through `../animals/`.
 
+- **Experimental, refused unless asked for** (docs/bible.md, `architecture/experimental`): the prop route and the
+  animal route run only with `make.py --experimental`; the drapes have no default simulator, so a person is made
+  only when its spec names `drape_simulator` (`drape_garment.py --simulator` and `rebuild.py bundle --simulator` are
+  required). The owner rejected the Newton drapes (2026-10-10) and `drape_measure.py` fails them; the joins and
+  stance checks (`rebuild.py`'s old-beside-new renders, the wrist and boot numbers) have no owner-checked before and
+  after yet. Proven: a drape route passing drape_measure's dense check on all four looks and the owner's eye; the
+  prop route when the player and Nev pass tucks, pokes and skin-through-cloth on every clip and he picks them.
 - **Nothing here runs a model on the owner's PC.** `make.py` bundles a spec's files and hands people to
   `tools/props/cloud/characters.py`, which rents one card a person and runs `chain.py` up there; every other file in
   this folder is a step `chain.py` runs on that machine, each in its own environment (`characters_setup.sh` says
@@ -24,7 +31,7 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   used.
 - **Drapes** (`drape_garment.py`, run by `chain.py` and `rebuild.py`): `garment.py` (GarmentCode's environment)
   sizes a design of `data/characters/garments/` to the body and makes its pattern and box mesh (`--pattern` with
-  `--measurements` drapes a kept look's own sized pattern 1:1 instead). `newton_drape.py` (the default, Newton's
+  `--measurements` drapes a kept look's own sized pattern 1:1 instead). `newton_drape.py` (experimental, as every drape route is; Newton's
   SolverVBD on upstream NVIDIA Warp, both Apache-2.0, the newton environment on a card) drapes it as GarmentCode's own
   run did, written anew: the box mesh welded, each triangle and edge resting at its flat panel's shape, so the seams
   sew themselves; no gravity for 10 frames, light gravity (the design's `gravity`, 2 m/s^2) while the waist and
@@ -46,7 +53,7 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   (each drape again from its own kept pattern on the look's rest body, the people built, old and new rendered with the
   same cameras), and `rebuild.py land` copies it into `~/.farm-factory-motion/rebuild/`. It never writes the kept
   looks or bodies; whoever judges the pictures swaps them.
-- **The prop route** (`prop_person.py`, a spec's `"route": "prop"`; a trial, #5, owner 2026-10-10: "soma is for the
+- **The prop route** (`prop_person.py`, a spec's `"route": "prop"`; experimental, a trial, #5, owner 2026-10-10: "soma is for the
   rig, not the mesh"): Pixal3D's mesh from a klein close-up drawn in SOMA-X's bind pose (`batch.py --characters`, as
   the animals'), stood level (head over the feet), thinned part by part to the shipped outfit's triangles (borders
   kept, so the parts stay shut), SOMA-X's skeleton placed inside it from the mesh's limbs at the mean bone lengths

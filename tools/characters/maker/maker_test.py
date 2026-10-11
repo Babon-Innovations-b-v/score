@@ -75,3 +75,29 @@ def test_the_hair_mesh_closes_every_row():
     assert len(points) == 1 + 4 * 12 + 12
     assert faces.max() == len(points) - 1
     assert len(faces) == 12 + 2 * 12 * 3 + 2 * 12
+
+
+def test_experimental_routes_and_drapes_run_only_when_asked_for():
+    """Fault (audit of 2026-10-11, items 1-3): make.py over data/characters/makes/*.json started paid prop-route runs
+    (the player fails tucks and pokes, Nev is not made), the animal route had never run on a world, and every person
+    was draped by Newton, the drapes the owner rejected, with no one asking."""
+    import make
+
+    prop = dict(PERSON, name="player_prop", route="prop", outfit_words={"work": "a work suit"})
+    animal = {"name": "fish", "kind": "animal", "approved": "the owner", "description": "a fish"}
+    undraped = dict(PERSON, name="nev")
+    draped = dict(PERSON, name="ama", drape_simulator="newton")
+    refused = make.refusals([prop, animal, undraped, draped], experimental=False)
+    assert [line.split(":")[0] for line in refused] == ["player_prop", "fish", "nev"], refused
+    assert [line.split(":")[0] for line in make.refusals([prop, animal, draped], experimental=True)] == []
+    assert "drape_simulator 'warp'" in spec.problems_of(dict(PERSON, drape_simulator="warp"))[0]
+
+
+def test_a_drape_has_no_default_simulator(tmp_path):
+    """Fault (audit of 2026-10-11, item 1): drape_garment.py and rebuild.py draped with Newton by default, the drapes
+    the owner rejected and drape_measure fails."""
+    import drape_garment
+
+    with pytest.raises(ValueError, match="no default simulator"):
+        drape_garment.drape(tmp_path / "body", "work_suit", tmp_path / "out", "work")
+    assert not (tmp_path / "out").exists()

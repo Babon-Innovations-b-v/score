@@ -2,6 +2,7 @@
  "name": "nev",
  "kind": "person",
  "route": "prop",
+ "experimental": "trial (#5): the player fails tucks and pokes, Nev is not made; make.py runs it only with --experimental",
  "approved": "owner, 2026-10-10 (#5): soma is for the rig, not the mesh; fit the prop pipeline's mesh to the rig; after the player, Nev in the space suit",
  "why": "Nev, the botanist, in her space suit on the prop route: her mesh made by Pixal3D from one close-up, as the animals' were, with SOMA-X's skeleton placed inside it so Kimodo's clips play unchanged",
  "references": [

@@ -1,12 +1,15 @@
 """Drape one garment on one body: GarmentCode's pattern and box mesh (`garment.py`, in a GarmentCode environment),
 then a cloth simulator, into a drape folder `people/drape.py` reads as it read GarmentCode's Warp drapes. The simulator
-is Newton (`newton_drape.py`, Apache-2.0, the default: it runs in the newton environment, on a card) or Blender's
-cloth (`cloth_drape.py`, on this machine with --blender or on a rented one through tools/props/cloud/blender_cloud.py).
+is Newton (`newton_drape.py`, Apache-2.0: it runs in the newton environment, on a card) or Blender's cloth
+(`cloth_drape.py`, on this machine with --blender or on a rented one through tools/props/cloud/blender_cloud.py).
+Experimental: there is no default simulator (the owner rejected the Newton drapes, 2026-10-10, and drape_measure fails
+them), so a caller names one; a drape route is proven when it passes drape_measure's dense check on all four looks and
+then the owner's eye.
 
 On the maker's own rented box (characters_setup.sh: GarmentCode, the garment, newton and Blender environments):
     GARMENTCODE=/root/garmentcode GARMENTCODE_PYTHON=/root/envs/garment/bin/python python3 \
         tools/characters/maker/drape_garment.py <body folder> work_suit <drape folder> --kind work \
-        --reference mean_female [--simulator newton|blender] [--blender /root/blender/blender] [key=value ...]
+        --reference mean_female --simulator newton|blender [--blender /root/blender/blender] [key=value ...]
 
 A kept look redraped 1:1 on its body, its own sized pattern rather than the design sized again:
     ... drape_garment.py <body folder> work_suit <drape folder> --kind work --reference mean_female \
@@ -152,7 +155,7 @@ def finish(box, work, out, name):
 
 
 def drape(body, design, out, kind, reference="mean_male", overrides=None, machine=None, classes=None,
-          who="characters maker", blender=None, simulator="newton", pattern=None, measurements=None, work=None):
+          who="characters maker", blender=None, simulator=None, pattern=None, measurements=None, work=None):
     """Drape the design on the body into the folder `out`, its cloth named <kind>_0 as GarmentCode's were (or as the
     kept pattern is named); returns the folder; the work files go to `work` (default <out>.work beside it). `body` is a
     bind-pose body file (points in metres, faces, joint_names, weights) or a folder holding it as ours.npz
@@ -160,9 +163,11 @@ def drape(body, design, out, kind, reference="mean_male", overrides=None, machin
     (mean_female for a woman's build); `pattern` a kept look's <tag>_specification.json to drape as it is, instead of
     the design sized to the body, with `measurements` the body_measurements.yaml it was sized on (else the body is
     measured again). `simulator` is "newton" (here, in NEWTON_PYTHON) or "blender": with `blender` (a Blender binary) on
-    this machine, else on a rented one (`machine`, held by the caller, or one rented for this drape)."""
+    this machine, else on a rented one (`machine`, held by the caller, or one rented for this drape). There is no
+    default: the drapes are experimental (the owner rejected the Newton drapes; drape_measure fails them)."""
     if simulator not in SIMULATORS:
-        raise ValueError(f"simulator {simulator!r} is not one of {SIMULATORS}")
+        raise ValueError(f"simulator {simulator!r} is not one of {SIMULATORS}: the drapes are experimental and have "
+                         "no default simulator, name one to drape")
     if pattern is not None and overrides:
         raise ValueError("a kept pattern is draped as it is: no design changes with it")
     if measurements is not None and pattern is None:
@@ -201,7 +206,8 @@ def main():
     parser.add_argument("--reference", default="mean_male", choices=("mean_male", "mean_female"))
     parser.add_argument("--who", default="characters maker drape")
     parser.add_argument("--classes", help="capability classes in the order to try, comma separated")
-    parser.add_argument("--simulator", choices=SIMULATORS, default="newton")
+    parser.add_argument("--simulator", choices=SIMULATORS, required=True,
+                        help="experimental: no default (the owner rejected the Newton drapes)")
     parser.add_argument("--pattern", type=pathlib.Path,
                         help="a kept look's <tag>_specification.json, draped as it is (no sizing, no changes)")
     parser.add_argument("--measurements", type=pathlib.Path,
