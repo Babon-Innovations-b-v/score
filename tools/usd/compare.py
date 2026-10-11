@@ -16,7 +16,8 @@ one most like the close-up stands for the close-up's camera. Two numbers per obj
 
 The objects are listed worst first (lowest likeness), each with both pictures, in <out>/compare.json. The idea is
 WorldAct's placement by render-and-compare (arXiv 2605.15843: candidate renders ranked by DINOv2 likeness to the
-object's own pixels), used here as a check: nothing is moved.
+object's own pixels), used here as a check: nothing is moved. Experimental, a candidate check: no gate reads it, and
+it has not yet failed a known-bad model (docs/bible.md, architecture/experimental).
 """
 import argparse
 import json

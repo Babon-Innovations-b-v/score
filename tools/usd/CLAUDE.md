@@ -63,7 +63,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `complete.py` is the completion gate: `check <place>` runs the checks and keeps each result beside the stage
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
   every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, picks, boxes,
-  reach, every result current, the review page built and rendered from this stage). Unknown blocks like fail. The Stop
+  every result current, the review page built and rendered from this stage). Unknown blocks like fail. Reach runs and
+  shows on the manifest but is experimental, not counted (`EXPERIMENTAL`): it fails backdrop rows nobody walks to. The Stop
   and SubagentStop hooks (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
   worked on unless the gate passes.
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
@@ -99,7 +100,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   interactable assets): the cast check's walker (body radius, knee, head) on a Recast-style heightfield of the stage
   (spans from upward faces, cleared overhead, eroded by the body, joined by climbable steps), its floor the part the
   scene record's views stand on; a row passes when a standing spot lies within body plus arm of one of its objects.
-  A row it cannot reach fails the place; a row with no object is unknown. Measure a fault with it, never move a
+  Experimental: a row it cannot reach shows as a fault but does not fail the place until the owner sets the scenery
+  rule and it has caught a real unreachable row that was then fixed; a row with no object is unknown. Measure a fault with it, never move a
   piece by eye to pass it. `reach_test.py` checks a doorway, a shut pen, a stair and the gate.
 - **Openings in code builders.** When a builder needs a hole in a wall (a door, a window, a hatch), cut it as a cutout
   of the surface itself in its UV layout (ProcFunc's way: the hole is part of the surface, no boolean of two meshes),
@@ -117,6 +119,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   files, so a repaint that keeps the file names is not caught.
 - `compare.py` is the render-and-compare: each object with a close-up rendered alone from 8 ways round it, the best
   outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../props/cloud/similar.py`).
+  Experimental, a candidate check: no gate reads it and it has not yet failed a known-bad model; it is proven when it
+  ranks a model from the fault corpus worst.
 - `made_only.py` is the made-only check on the stage: every drawn mesh says what made it (score:model, score:builder,
   score:kind) and every object's model loaded.
 - `settle.py` is the physics settle: loose rows dropped in headless Blender (`../blender/inside/settle_stage.py`) on

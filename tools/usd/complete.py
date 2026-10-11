@@ -25,7 +25,8 @@ agent finishing while validations are stale). The requirements:
     resting       the resting triage (triage.py): no real resting fault left (false alarms are listed, not counted)
     picks         the pick lock (picks.py): no object the owner picked shows another model without a written decision
     reach         the reach check (reach.py): a walker on the place's floor reaches a standing spot in front of every
-                  row's object (the automatic playtest; the interact press waits for interactable assets)
+                  row's object (the automatic playtest; the interact press waits for interactable assets).
+                  Experimental: run and shown, not counted in the verdict (EXPERIMENTAL says why)
     current       every check result was made on this stage as it is now (the same fingerprint) and none is unknown
     review        the review page (tools/review/page.py) was built, and its scene rendered, from this stage as it is now
 
@@ -52,6 +53,12 @@ REVIEWS = WORK / "review"
 INVENTORIES = REPO / "data/inventory"
 KITS = REPO / "data/kit"
 CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes", "reach")
+# Checks run and shown on the manifest but not counted in the verdict, each unproven on its end-result fault
+# (docs/bible.md, architecture/experimental): what would prove it.
+EXPERIMENTAL = {
+    "reach": "it fails backdrop rows nobody walks to (far city towers, masts) and has caught no real unreachable row "
+             "that was then fixed; counted once the owner's scenery rule is set and it has",
+}
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 # What of a stage's folder is the stage: its root file, its layers and its assets (not the checks, the manifest, the
 # inputs record or a settle run kept beside it).
@@ -327,16 +334,19 @@ def requirements(place, stage, review=None):
     current = fingerprint(stage)
     found = [("stage", *stage_requirement(stage))]
     found += [(check, *check_requirement(check, stage, current)) for check in CHECKS]
-    stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN]
+    stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN and name not in EXPERIMENTAL]
     found.append(("current", UNKNOWN if stale else PASS,
                   f"not current or unknown: {', '.join(stale)}" if stale else "every result is on this stage"))
     found.append(("review", *review_requirement(place, stage, review, current)))
-    return [{"name": name, "result": verdict, "why": why} for name, verdict, why in found]
+    return [{"name": name, "result": verdict, "why": why, **({"experimental": EXPERIMENTAL[name]}
+                                                             if name in EXPERIMENTAL else {})}
+            for name, verdict, why in found]
 
 
 def verdict_of(found):
-    """The place's verdict: pass when every requirement passes, fail when any fails, else unknown."""
-    results = {requirement["result"] for requirement in found}
+    """The place's verdict: pass when every counted requirement passes, fail when any fails, else unknown. An
+    experimental requirement is shown, not counted."""
+    results = {requirement["result"] for requirement in found if "experimental" not in requirement}
     return PASS if results == {PASS} else FAIL if FAIL in results else UNKNOWN
 
 
@@ -377,7 +387,8 @@ def main():
         return
     written = manifest(options.place, stage, options.review)
     for requirement in written["requirements"]:
-        print(f"{requirement['name']:13} {requirement['result']:8} {requirement['why']}")
+        counted = " (experimental, not counted)" if "experimental" in requirement else ""
+        print(f"{requirement['name']:13} {requirement['result']:8} {requirement['why']}{counted}")
     print(f"{options.place}: {'complete' if written['verdict'] == PASS else 'NOT complete'} ({written['verdict']})")
     sys.exit(0 if written["verdict"] == PASS else 1)
 
