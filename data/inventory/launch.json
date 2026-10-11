@@ -266,14 +266,15 @@
 			"size": [
 				60,
 				22,
-				90
+				66
 			],
 			"count": 1,
 			"thing": "scene:far_city",
 			"group": "far city: towers across the harbour (tools/usd/far_city.py lays hundreds of copies and renders them onto the backdrop arcs)",
 			"box_from": [
 				"v2.45"
-			]
+			],
+			"size_from": "tall 66 m: the concept K04's box (161 x 175 px, its foot on the waterline) gives wide:tall 0.92; the row's 90 m was also outside the kind's own dealt heights (data/definitions/far_city.json, 50 to 80 m). Made 2026-10-11 by the models stage (models@launch.far_city_housing_slab, branch models-w1): spread 0.004, thinnest wall 0.14 m; its paint waits for the surfaces stage"
 		},
 		{
 			"id": "far_city_residential_tower",
