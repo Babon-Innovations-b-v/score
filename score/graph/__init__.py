@@ -3,6 +3,8 @@ record for every output, so a changed input reruns only what it reaches.
 
     runner = Runner(stages, world, store)
     runner.run(places)        # {node: what it did}: made, judged again, fresh, accepted, or blocked and why
+    runner.drive(places)      # every line to its end, evidence gathered; a line that stops leaves a fault report
+    runner.lines(places)      # {line: (its state, {node: state})}, running nothing
     runner.status(places)     # {node: its state and why}, running nothing
     runner.why(node)          # the node's records back through every earlier stage it read
     runner.ticket(node)       # the node's key, only when every prerequisite passed and is accepted (paid runs)
@@ -25,14 +27,26 @@ whose accepted output read the rejected one is stale (`stale`, shown in status):
 accepted before, so its next run makes (or finds) the output that reads that one.
 A paid stage runs cleared by the runner (score.adapters.compute: its inputs pass and the month's ceiling has room for
 its estimate, `Stage.euros`), inside that clearance's ticket.
+
+`drive` is the runner with no agent in the loop: it runs each node in table order once the nodes it reads stand
+accepted, gathers a check's missing evidence itself (`Stage.gatherers`, a paid one cleared like a paid stage; only when
+nothing else blocks the node, so nothing is spent on an output that fails anyway), and waits on every cloud step
+itself. A node that does not end accepted (a gate failed or answered unknown, an input is missing, it errored or waits
+for the owner) stops its own line only: the nodes after it are not run, and it leaves a plain fault report
+(`faults/<node>.txt` beside the store: the node, the cause, every blocking check's reason, measures and findings, and
+the tail of its log, `logs/<node>.log`) for an agent or the owner to be pointed at. A node that stands removes its old
+report.
 """
 import contextlib
 import datetime
 import json
+import os
 import pathlib
 import platform
 import shutil
+import sys
 import time
+import traceback
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -42,6 +56,8 @@ from score.graph import _code
 from score.store import file_hash, listing_hash, text_hash, tree_hash
 
 GRAINS = ("world", "place")
+WORLD_LINE = "world"
+LOG_TAIL = 40
 
 
 class Blocked(Exception):
@@ -59,6 +75,9 @@ class Stage:
     after: {earlier stage: (schema, version) this one was written for}, the stages whose accepted output it reads.
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
     paid, euros: a stage that rents, and its run's estimate in euros, cleared against the month's ceiling.
+    gatherers: {check name: (gather, euros or None)}, how the runner's drive makes a check's missing evidence:
+    gather(output, inputs, folder) writes it and returns its file; a paid one names its estimate in euros. Kept out of
+    score.checks on purpose: every stage's code version hashes that module, so a change there reruns every stage.
     """
     name: str
     grain: str
@@ -71,6 +90,7 @@ class Stage:
     paid: bool = False
     euros: float = None
     models: tuple = ()
+    gatherers: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.grain not in GRAINS:
@@ -106,6 +126,25 @@ def node_seed(world_seed, stage, place):
 
 def node_name(stage, place):
     return stage.name if stage.grain == "world" else f"{stage.name}@{place}"
+
+
+@contextlib.contextmanager
+def logged(path):
+    """This process's and its children's output (file descriptors 1 and 2) into the log file while the block runs."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    saved = os.dup(1), os.dup(2)
+    with open(path, "w") as log:
+        os.dup2(log.fileno(), 1)
+        os.dup2(log.fileno(), 2)
+        try:
+            yield
+        finally:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            for descriptor, copy in zip((1, 2), saved):
+                os.dup2(copy, descriptor)
+                os.close(copy)
 
 
 class Runner:
@@ -195,11 +234,13 @@ class Runner:
 
     def spending(self, stage, node):
         """For a paid stage, its clearance's ticket named for the rent points while it makes; else nothing."""
-        if not stage.paid:
-            return contextlib.nullcontext()
+        return self.cleared(node, stage.euros) if stage.paid else contextlib.nullcontext()
+
+    def cleared(self, node, euros):
+        """The node's clearance at `euros`, named for the rent points while the block runs; Blocked when refused."""
         from score.adapters import compute  # here: compute imports this module for its tickets
         try:
-            return compute.spending(compute.clearance(self, node, stage.euros))
+            return compute.spending(compute.clearance(self, node, euros))
         except compute.Refused as refusal:
             raise Blocked(str(refusal)) from refusal
 
@@ -272,6 +313,146 @@ class Runner:
     def run(self, places):
         """Run every node in table order; {node: what it did}."""
         return {node_name(stage, place): self.run_node(stage, place) for stage, place in self.nodes(places)}
+
+    # --- driving lines -----------------------------------------------------------------------------------------
+
+    def desk(self, area, node, suffix):
+        """A node's file in one of the runner's own areas beside the store (faults, logs)."""
+        return self.store.cache.parent / area / f"{node}{suffix}"
+
+    def earlier(self, stage, place):
+        """The nodes this node reads."""
+        return [node_name(self.stages[before], place) for before in stage.after]
+
+    def gatherable(self, stage, place):
+        """The checks whose missing evidence the runner can gather, when they alone keep the node from passing (none
+        when another check blocks, or the node has no judgement on its current key)."""
+        node = node_name(stage, place)
+        keyed = self.key(stage, place)
+        record = self.store.record(node, keyed["key"])
+        judgement = record and self.store.judgement(node, keyed["key"], self.evidence_state(stage, record["output"]))
+        if not judgement:
+            return []
+        waived = self.store.waivers(node, keyed["key"])
+        blocking = {name for name, verdict in judgement["verdicts"].items()
+                    if checks.blocks(verdict["answer"]) and name not in waived}
+        missing = {name for name in stage.gatherers if self.store.evidence_hash(name, record["output"]) is None}
+        return sorted(blocking) if blocking and blocking <= missing else []
+
+    def gather(self, stage, place, wanted):
+        """Make each wanted check's evidence on the node's output (a paid one inside its clearance) and store it."""
+        node = node_name(stage, place)
+        keyed = self.key(stage, place)
+        output = self.store.record(node, keyed["key"])["output"]
+        for name in wanted:
+            gather, euros = stage.gatherers[name]
+            folder = self.store.making(f"evidence-{name}-{output}")
+            with self.cleared(node, euros) if euros else contextlib.nullcontext():
+                found = gather(self.store.checkout(output), self.input_paths(stage, place, keyed), folder)
+            self.store.put_evidence(name, output, found)
+            shutil.rmtree(folder)
+
+    def drive_node(self, stage, place):
+        """Run one node, gathering the evidence it lacks and judging it again; what it did. Its output, a raised
+        error's traceback included, goes to its log."""
+        log = self.desk("logs", node_name(stage, place), ".log")
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with logged(log):
+            try:
+                did = self.run_node(stage, place)
+                wanted = [] if did.startswith(("blocked", "broken")) else self.gatherable(stage, place)
+                if wanted:
+                    self.gather(stage, place, wanted)
+                    did = f"{did}; gathered {', '.join(wanted)}: {self.run_node(stage, place)}"
+                return did
+            except Exception as error:  # noqa: BLE001 - one node's error stops its line, not the run; kept in its log
+                traceback.print_exc()
+                return f"error: {type(error).__name__}: {error}"
+
+    def standing(self, stage, place):
+        """None when the node's current output passed and stands accepted; else why not."""
+        try:
+            self.usable(stage.name, place, (stage.contract.schema, stage.contract.version))
+        except Blocked as block:
+            return str(block)
+        return None
+
+    def fault_report(self, stage, place, did, cause):
+        """Write the node's plain fault report (what it did, why its line stopped, every blocking check's reason,
+        measures and findings, its log's tail); its path."""
+        node = node_name(stage, place)
+        line = place or WORLD_LINE
+        lines = [f"fault: {node} (line {line}, world {self.world.name}, {now()})", f"what the runner did: {did}",
+                 f"why its line stopped: {cause}", ""]
+        lines += self.blocking_checks(stage, place)
+        log = self.desk("logs", node, ".log")
+        tail = log.read_text(errors="replace").splitlines()[-LOG_TAIL:] if log.exists() else []
+        lines += [f"log: {log} (its last {len(tail)} lines)", *(f"  | {text}" for text in tail), "",
+                  f"its records: python -m score.stages why {node}",
+                  f"to go on once the cause is put right: python -m score run {self.world.name}"
+                  + (f" --place {place}" if place else "")]
+        path = self.desk("faults", node, ".txt")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(lines) + "\n")
+        return path
+
+    def blocking_checks(self, stage, place):
+        """The node's newest judgement's blocking checks as report lines: answer, reason, measures, findings."""
+        node = node_name(stage, place)
+        try:
+            key = self.key(stage, place)["key"]
+        except Blocked:
+            return []
+        judgements = self.store.judgements(node, key)
+        if not judgements:
+            return []
+        waived = self.store.waivers(node, key)
+        lines = [f"checks ({judgements[-1]['answer']}, output {judgements[-1]['output'][:12]}):"]
+        for name, verdict in judgements[-1]["verdicts"].items():
+            if not checks.blocks(verdict["answer"]) or name in waived:
+                continue
+            lines += [f"  {name}: {verdict['answer']}: {verdict['reason']}",
+                      f"    measures: {json.dumps(verdict['measures'], sort_keys=True)}",
+                      *(f"    - {finding}" for finding in verdict["findings"])]
+        return lines + [""]
+
+    def drive(self, places, say=print):
+        """Run every line to its end with no one in the loop: each node once the nodes it reads stand accepted. A
+        node that does not end accepted stops its own line and leaves a fault report; {node: what it did}."""
+        done, stopped = {}, {}
+        for stage, place in self.nodes(places):
+            node = node_name(stage, place)
+            waits = [stopped[before] for before in self.earlier(stage, place) if before in stopped]
+            if waits:
+                stopped[node] = waits[0]
+                done[node] = f"not run: its line stopped at {waits[0]}"
+            else:
+                done[node] = self.drive_node(stage, place)
+                cause = self.standing(stage, place)
+                report = self.desk("faults", node, ".txt")
+                if cause:
+                    stopped[node] = node
+                    done[node] += f"; fault report {self.fault_report(stage, place, done[node], cause)}"
+                elif report.exists():
+                    report.unlink()
+            say(f"{node}: {done[node]}")
+        return done
+
+    def lines(self, places):
+        """{line: (its state, {node: state})}, running nothing: the world's own nodes are one line, each place's
+        another. A line is done when every node stands accepted, else stopped (a fault report waits) or waiting at
+        its first node that does not stand."""
+        found = {}
+        states = self.status(places)
+        for stage, place in self.nodes(places):
+            node, line = node_name(stage, place), place or WORLD_LINE
+            summary, nodes = found.get(line, ("done", {}))
+            nodes[node] = states[node]
+            if summary == "done" and self.standing(stage, place):
+                report = self.desk("faults", node, ".txt")
+                summary = f"stopped at {node}: fault report {report}" if report.exists() else f"waits at {node}"
+            found[line] = (summary, nodes)
+        return found
 
     # --- reading ---------------------------------------------------------------------------------------------
 

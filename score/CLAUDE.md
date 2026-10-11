@@ -20,9 +20,16 @@ stage as each stage is built; nothing moves before.
   rejects, waivers and spend yeses, the runner's clearances. Written once, never overwritten; checkouts are read-only
   copies (never links to the stored bytes), made again when changed; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
+- **`python -m score run <world> [--place P ...] [--detach]`** and **`python -m score status [<world>]`**
+  (`__main__.py`): the runner drives every line (the world's own nodes, then each place's) to its end with no agent
+  in the loop (`Runner.drive`, `Runner.lines`). It starts each node the moment the nodes it reads stand accepted,
+  gathers a gate's missing evidence itself (`Stage.gatherers`; a paid one cleared like a paid stage, and only when
+  nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
+  own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
+  cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`).
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`), `World`,
-  `Runner.run/status/why/ticket/stale`. `run` accepts an output by itself when every gate passed (waivers counted),
-  nothing got worse than the accepted output and the owner never rejected it, and makes a paid stage inside its
+  `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
+  (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid stage inside its
   clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved since. A node's key
   hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too), parameters, seed, pinned models and every input.
@@ -44,6 +51,10 @@ stage as each stage is built; nothing moves before.
 
 Rules:
 
+- **Agents never walk a line by hand.** Start it with `python -m score run <world> [--place P] --detach` under the
+  Bash tool's `run_in_background`, then end the turn or do other work: its one result line wakes you. Never start
+  its steps one by one, never poll a cloud step. Step in only on a fault report (the result line exits 1 and
+  `python -m score status` names it): read that file, put the cause right, run the line again.
 - **Never write a reject, a waiver, a spend yes, a clearance or an accept by hand**, by any route, and never ask the
   owner to accept or to say yes to a spend: run the stages, and the runner accepts what passed and got no worse and
   clears what may spend. The runner and every stage read the accepted output only; a new output that failed, is
