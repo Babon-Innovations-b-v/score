@@ -81,7 +81,7 @@ def read_place(stage_path):
         meshes[name] = trimesh.Trimesh(points, triangles, process=False)
         matrices[name] = settle.laid_matrix(stage, place, name)
     ground_prim = stage.GetPrimAtPath(f"/{place}/Ground")
-    ground_mesh = trimesh.Trimesh(*resting.in_stage(ground_prim), process=False) if ground_prim.IsValid() \
+    ground_mesh = trimesh.Trimesh(*resting.in_stage(ground_prim), process=False) if ground_prim and ground_prim.IsActive() \
         else flat_ground()
     return {"place": place, "objects": meshes, "matrices": matrices, "statics": triage.static_meshes(stage, place),
             "ground": ground_mesh, "height": resting.ground_height(stage, place)}
