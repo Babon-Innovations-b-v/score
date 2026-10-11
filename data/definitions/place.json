@@ -11,7 +11,7 @@
 		},
 		"rules": [
 			"One object per model, reading as what it does, clean up close.",
-			"Modules, ships and moving parts are built in code.",
+			"Modules and moving parts are built in code.",
 			"If it is not boxed on this scene's kept plan, it is not in the room.",
 			"A model is scaled uniformly to its row's size and nothing else; a wrong one is retaken from a better picture.",
 			"No shared kit of parts: a prop belongs to one place; two places share a model only when the owner picks that on page B."
