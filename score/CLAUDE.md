@@ -20,8 +20,11 @@ gives. Today's tools in `tools/` move in here stage by stage as each stage is bu
 - **`graph/`** the runner: `Stage` (the stage table's row), `World`, `Runner.run/status/why/ticket`. A node's key
   hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too), parameters, seed, pinned models and every input.
-- **`review/`** the review page of one output from its own record, and the owner's `accept` and `spend`
-  (`python -m score.review ...`, refused without a terminal; `.claude/hooks/accept_guard.py` blocks agents).
+- **`review/`** the review page of one output from its own record, and the owner's `accept`, `waive` (one check
+  passes for one key, with his reason; it ends when the key changes and shows on the page and in status) and
+  `spend` (a yes at an amount; the compute adapter clears only runs estimated within it). `python -m score.review
+  ...` refuses without a terminal, the store refuses these writes in an agent's process, and
+  `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (the refusal, then
   `tools/cloud/runtime/submit.write_job`), `engines` (Blender: the blender image's job, or
   `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.

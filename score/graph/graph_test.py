@@ -164,6 +164,24 @@ def test_a_paid_stage_does_not_run_without_the_owners_yes():
     assert a_runner(world, store, (CLEAN, COUNT, paid)).run(["hangar"])["render@hangar"] == "made: pass"
 
 
+def test_a_waiver_lets_a_failed_gate_through_for_its_key_only():
+    world, store = a_world({"hangar": "a ship in a very long hall"}), Store.in_folder(tempfile.mkdtemp())
+    runner = a_runner(world, store)
+    runner.run(["hangar"])
+    output = give_evidence(store, runner, "hangar", 2)
+    key = runner.key(CLEAN, "hangar")["key"]
+    store.write_waiver("clean@hangar", key, "words", {"by": "owner", "reason": "a long name", "at": graph.now()})
+    accept(store, "clean@hangar", output)
+    found = a_runner(world, store).run(["hangar"])
+    assert found["count@hangar"] == "made: pass", found
+    assert a_runner(world, store).status(["hangar"])["clean@hangar"] == "fail, waived: words, accepted"
+    (world.roots["data"] / "hangar" / "brief.txt").write_text("a ship in a very long dark hall")
+    runner = a_runner(world, store)
+    runner.run(["hangar"])
+    give_evidence(store, runner, "hangar", 2)
+    found = a_runner(world, store).run(["hangar"])
+    assert found["count@hangar"] == "blocked: clean@hangar answered fail: words: 8 words, limit 2", found
+
 def make_nothing_written(inputs, out, seed, params):
     (out / "notes.md").write_text("no text file")
 

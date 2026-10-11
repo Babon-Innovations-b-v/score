@@ -93,6 +93,29 @@ def test_the_accept_command_refuses_without_the_owners_terminal():
     assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
 
 
+def test_a_waived_gate_lets_its_output_be_accepted_for_that_key_only():
+    """Fault (review of step 0, 2026-10-11): the hook guarded waivers/, but nothing wrote or read a waiver, so the
+    owner had no way to let a gate he judged wrong pass."""
+    store, data, output = made(5)
+    key = review.record_of(store, "tally@hangar", output)["key"]
+    assert "needs a reason" in refusal(lambda: review.waive(store, "tally@hangar", key, "faults", "owner", " "))
+    assert "has no check" in refusal(lambda: review.waive(store, "tally@hangar", key, "tilt", "owner", "why"))
+    review.waive(store, "tally@hangar", key, "faults", "owner", "the five are one fault seen five times")
+    review.accept(store, "tally@hangar", output, "owner")
+    assert store.accepted("tally@hangar") == output
+    text = review.page(store, "tally@hangar").read_text()
+    assert "Waived by owner" in text and "seen five times" in text
+    _, _, later = made(6, store, data)  # a new key: the waiver does not carry over
+    assert "answered fail" in refusal(lambda: review.accept(store, "tally@hangar", later, "owner"))
+
+
+def test_the_waive_command_refuses_without_the_owners_terminal():
+    store, _, output = made(5)
+    found = subprocess.run([sys.executable, "-m", "score.review", "waive", "tally@hangar", "k", "faults",
+                            "--reason", "x"], cwd=REPO, capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                           env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
+    assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
