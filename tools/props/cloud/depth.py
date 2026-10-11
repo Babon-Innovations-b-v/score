@@ -22,6 +22,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import spread  # noqa: E402
+import park  # noqa: E402
 from provider import cloud  # noqa: E402
 
 KIND = "depth"
@@ -54,6 +55,14 @@ def set_up(machine):
     batch.copy(folder, [HERE / "depth_worker.py", HERE / "depth_setup.sh"], f"root@{host}:/root/depth/")
     with (folder / "setup.log").open("w") as log:
         batch.remote(folder, host, "bash /root/depth/depth_setup.sh", check=True, stdout=log, stderr=subprocess.STDOUT)
+
+
+def cleanup(_machine):
+    """The command that removes a run's own files from its card before it is parked for the next run (park.py)."""
+    return "rm -rf /root/depth/in-* /root/depth/out/*"
+
+
+park.CLEANUPS[KIND] = cleanup
 
 
 def share_maker(out):

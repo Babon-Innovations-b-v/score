@@ -52,7 +52,7 @@ def cost(minutes, euros_per_minute, unit_minutes=1):
 
 def machine_row(machine):
     """The ledger's record of one rented machine: its type, zone and cards; whether it answered, how long that
-    took and how long it worked after; its whole time and cost; and what the runner counted of its work."""
+    took, its set-up and how long it worked after; its whole time and cost; and what the runner counted of its work."""
     ended = machine.get("deleted") or time.time()
     ready = machine.get("ready")
     # A machine taken parked from another run (park.py) is this run's from when it was taken, and costs it only what
@@ -66,6 +66,8 @@ def machine_row(machine):
            "started": ready is not None,
            "start_wait_minutes": ((ready or ended) - began) / 60,
            "work_minutes": (ended - ready) / 60 if ready else 0.0, "minutes": minutes, "euros": max(0.0, euros)}
+    if ready and machine.get("set_up"):
+        row["setup_minutes"] = (machine["set_up"] - ready) / 60
     row.update({key: machine[key] for key in ("peak_gb", "made", "unit_seconds", "adopted", "parked")
                 if machine.get(key) is not None})
     return row

@@ -354,17 +354,35 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
     wants one. A round that finds no stock anywhere is tried again every STOCK_RETRY_MINUTES with the backend's
     offers read afresh, across every class the offers named and every zone, for as long as `still_wanted` (the run's
     deadline, the month's ceiling and the caller's `wanted`) says: a slot never gives up on its first round (six of
-    seven spread slots did on 2026-10-09 and one L4 did all the work)."""
-    machine = park_taken(run, offers, number, kind, disk_gb) or claim_round(run, account, offers, number, kind, disk_gb)
-    while machine is None and still_wanted(run, account, wanted):
-        say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again in "
-            f"{STOCK_RETRY_MINUTES} min")
-        STOPPING.wait(STOCK_RETRY_MINUTES * 60)
-        if not still_wanted(run, account, wanted):
-            break
-        offers = fresh_offers(run, offers)
-        machine = claim_round(run, account, offers, number, kind, disk_gb)
+    seven spread slots did on 2026-10-09 and one L4 did all the work). While it waits the claim is on its kind's
+    queue (park.wanting), and a machine of its kind parked meanwhile is taken at once (park.py)."""
+    import park
+
+    with park.wanting(kind):
+        machine = (park_taken(run, offers, number, kind, disk_gb)
+                   or claim_round(run, account, offers, number, kind, disk_gb))
+        while machine is None and still_wanted(run, account, wanted):
+            say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again "
+                f"in {STOCK_RETRY_MINUTES} min")
+            machine = parked_within(run, offers, number, kind, disk_gb, STOCK_RETRY_MINUTES * 60)
+            if machine is not None or not still_wanted(run, account, wanted):
+                break
+            offers = fresh_offers(run, offers)
+            machine = claim_round(run, account, offers, number, kind, disk_gb)
     return machine
+
+
+def parked_within(run, offers, number, kind, disk_gb, seconds):
+    """A machine of `kind` parked within `seconds` (looked for every park.PARKED_POLL_SECONDS), taken for `run`; None
+    when none came or a signal came."""
+    import park
+
+    give_up = time.time() + seconds
+    while not STOPPING.wait(min(park.PARKED_POLL_SECONDS, max(0.0, give_up - time.time()))):
+        machine = park_taken(run, offers, number, kind, disk_gb)
+        if machine is not None or time.time() >= give_up:
+            return machine
+    return None
 
 
 def park_taken(run, offers, number, kind, disk_gb):
@@ -409,8 +427,8 @@ def claim_round(run, account, offers, number, kind=None, disk_gb=DISK_GB):
     while machine is None and len(first) < len(offers) and time.time() - began < capacity.LATE_MINUTES * 60:
         say(f"no {', '.join(sorted({offer.machine_class for offer in first}))} machine yet; asking again in a minute "
             f"before taking {', '.join(late)}")
-        time.sleep(60)
-        machine = claim_from(run, account, first, number, kind, disk_gb)
+        machine = (parked_within(run, offers, number, kind, disk_gb, 60)
+                   or claim_from(run, account, first, number, kind, disk_gb))
     if machine is None and len(first) < len(offers):
         machine = claim_from(run, account, [offer for offer in offers if offer.machine_class in late], number, kind,
                              disk_gb)
