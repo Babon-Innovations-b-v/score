@@ -160,6 +160,26 @@ def test_a_place_stage_that_does_not_apply_has_no_node_for_that_place():
     assert list(found) == ["clean@hangar"], found
 
 
+def make_tally(inputs, out, seed, params):
+    (out / "tally.txt").write_text(json.dumps("read clean" if "clean" in inputs else "read without clean"))
+
+
+TALLY = graph.Stage("tally", "place", make_tally, TEXT, (checks.Check("counted", judge_count),),
+                    after={"clean": ("toy-text", 1)})
+
+
+def test_a_stage_reads_without_an_earlier_one_that_does_not_apply_to_its_place():
+    world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), Store.in_folder(tempfile.mkdtemp())
+    only_hangar = dataclasses.replace(CLEAN, applies=lambda place: place == "hangar")
+    runner = a_runner(world, store, (only_hangar, TALLY))
+    first = runner.run(PLACES)
+    assert first["tally@station"] == "made: pass, accepted automatically", first
+    assert first["tally@hangar"].startswith("blocked: clean@hangar answered unknown"), first
+    assert runner.earlier(TALLY, "station") == [] and runner.earlier(TALLY, "hangar") == ["clean@hangar"]
+    output = store.accepted("tally@station")
+    assert store.read_file(output, "tally.txt") == "read without clean"
+
+
 def test_a_changed_input_reruns_only_what_it_reaches_and_the_accepted_output_stays():
     world, store, outputs = ready_world()
     (world.roots["data"] / "hangar" / "brief.txt").write_text("a ship in a dark hall")

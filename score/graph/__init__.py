@@ -228,12 +228,20 @@ class Runner:
         """The node's key and everything it hashes; raises Blocked when an input is missing or not usable."""
         parts = {"stage": stage.name, "grain": stage.grain, "place": place if stage.grain == "place" else None,
                  "code": self.code(stage), "contract": stage.contract.stamp_of(),
-                 "expects": {before: list(wanted) for before, wanted in stage.after.items()}, "params": stage.params,
+                 "expects": {before: list(wanted) for before, wanted in self.reads(stage, place).items()},
+                 "params": stage.params,
                  "seed": node_seed(self.world.seed, stage.name, place if stage.grain == "place" else None),
                  "files": self.file_keys(stage, place),
-                 "after": {before: self.usable(before, place, wanted) for before, wanted in stage.after.items()},
+                 "after": {before: self.usable(before, place, wanted)
+                           for before, wanted in self.reads(stage, place).items()},
                  "models": {kind: self.model_record(kind) for kind in stage.models}}
         return {**parts, "key": text_hash(json.dumps(parts, sort_keys=True))}
+
+    def reads(self, stage, place):
+        """{earlier stage: (schema, version)} the node reads: its `after`, less a place stage that has nothing to do
+        for this place (its `applies`), which the node then reads without."""
+        return {before: wanted for before, wanted in stage.after.items()
+                if place is None or self.stages[before].applies is None or self.stages[before].applies(place)}
 
     def evidence_state(self, stage, output):
         """The hash of every check's evidence on an output ("none" for a check that needs none)."""
@@ -368,7 +376,7 @@ class Runner:
 
     def earlier(self, stage, place):
         """The nodes this node reads."""
-        return [node_name(self.stages[before], place) for before in stage.after]
+        return [node_name(self.stages[before], place) for before in self.reads(stage, place)]
 
     def gatherable(self, stage, place):
         """The checks whose missing evidence the runner can gather, when they alone keep the node from passing (none
@@ -627,6 +635,6 @@ class Runner:
                  f"{'accepted' if accepted == record['output'] else 'not accepted'}; key {record['key'][:12]}, "
                  f"code {record['code'][:12]}, commit {record['commit'][:8]}, seed {record['seed']}, "
                  f"files {', '.join(f'{name} {sha[:12]}' for name, sha in record['files'].items()) or 'none'}"]
-        for before in self.stages[stage_name].after:
+        for before in self.reads(self.stages[stage_name], place or None):
             lines += self.why(node_name(self.stages[before], place or None), depth + 1)
         return lines

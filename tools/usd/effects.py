@@ -45,7 +45,15 @@ adapter needs to make the effect again with its own particle system, in the game
                                              the emitter as it moves and turns)
     score:effect:seed               int      the seed the bake draws from
     score:effect:loop               float    seconds the bake runs before it repeats exactly
-    score:effect:from               string   the game file and lines every number came from
+    score:effect:brightness         float    how many times its colour a speck gives off (a flame's 1 and more)
+    score:effect:starts             float    the stage's second a looped emitter lights (nothing before; -1: always)
+    score:effect:once               float2   an event's emitter: the stage's seconds it lets its `count` particles
+                                             out between, evenly, each once (0, 0: looped)
+    score:effect:follows            string   the motion (data/motion) whose climb the particles are let out from: each
+                                             leaves from where the moving thing stood at its birth ("" for none)
+    score:effect:from               string   the game file and lines every number came from, or for an effect the
+                                             game never drew, the real footage it was measured on
+                                             (data/effects/footage.json)
 
 Under it a UsdGeomPoints `<emitter>_points` holds the particles baked over the loop, so any USD reader (Blender,
 usdview, Omniverse) shows them without knowing the schema: `points` in the emitter's frame, `widths` (metres across)
@@ -54,6 +62,15 @@ UsdPreviewSurface reading both primvars. The samples are a value clip (`assets/e
 loops over the stage's time (UsdClipsAPI clipTimes, out to HORIZON seconds), so the stage moves for as long as a
 walk-through runs; between samples USD reads them straight. The layer runs at RATE time codes a second, as the
 stage's root does.
+
+An emitter placed `on` a prim of the base (`{"on": "Fixtures/rocket", "offset": [...]}`) is written as that prim's
+child, `/<place>/<prim>/<emitter>`, in the prim's own frame, so it moves with it (the rocket's flame). One that
+`follows` a motion (`{"follows": "rocket_launch", "offset": [...]}`) stands where the motion's prim rests, level, and
+lets each particle out where the prim has climbed to at its birth (the trail a rocket leaves). An event's emitter
+(`once`: [first, last] seconds of the stage) is baked once over its own span at its own `samples` a second and held
+dead before and after; a looped one that `starts` at a second of the stage is dead before it. A record's `lights` are
+UsdLux sphere lights on a prim (`on`, `offset`), their intensity (Blender's units, as scene.py writes lights) keyed
+over the stage's seconds (`intensity`: [[seconds, intensity], ...]), `score:game:shadows` as given: the flame's light.
 
 An emitter that travels (a dust devil wandering downwind) has its translate and its turn sampled at the start and the
 end of its life, which USD reads straight between. A record's `replaces` makes a prim of the base inactive where the
@@ -72,13 +89,14 @@ import pathlib
 import sys
 
 import numpy as np
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, Vt
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import export  # noqa: E402
 import ground as grounds  # noqa: E402
+import motion as motion_record  # noqa: E402
 import scene as scene_record  # noqa: E402
 
 RECORDS = REPO / "data/effects"
@@ -245,13 +263,43 @@ def structure_emitter(entry, scene):
     return dict(entry, origin=origin, basis=basis)
 
 
-def emitters_of(effects, ground, scene):
-    """Every emitter the record lays, each with its `origin` and `basis` (columns: its x, y, z) in the place's frame."""
+def prim_emitter(entry):
+    """An emitter riding a prim of the base (`on`): its `origin` the offset in the prim's own frame, written as the
+    prim's child so it moves and turns with it."""
+    return dict(entry, origin=np.asarray(entry["placement"].get("offset", (0.0, 0.0, 0.0)), dtype=float),
+                basis=np.eye(3), parent=entry["placement"]["on"])
+
+
+def motion_named(motions, name):
+    """The motion record's entry of that name."""
+    found = [motion for motion in (motions or {}).get("motions", []) if motion["name"] == name]
+    if len(found) != 1:
+        raise ValueError(f"the motion record has {len(found)} motions named {name}")
+    return found[0]
+
+
+def following_emitter(entry, scene, motions):
+    """An emitter that lets its particles out where a climbing motion's prim stands at each birth: level, at the
+    prim's rest (the scene record's object of the prim's name) plus `offset`, the climb kept for the bake."""
+    motion = motion_named(motions, entry["placement"]["follows"])
+    name = motion["prim"].rsplit("/", 1)[-1]
+    rest = next(item for item in scene["objects"] if item["name"] == name)
+    origin = np.asarray(rest["at"], dtype=float) + np.asarray(entry["placement"].get("offset", (0.0, 0.0, 0.0)))
+    return dict(entry, origin=origin, basis=np.eye(3), climb=dict(motion["climb"], start=float(motion["start"])))
+
+
+def emitters_of(effects, ground, scene, motions=None):
+    """Every emitter the record lays, each with its `origin` and `basis` (columns: its x, y, z) in the place's frame
+    (one `on` a prim: in that prim's frame)."""
     wind = effects.get("wind")
     emitters = []
     for entry in effects["effects"]:
         placement = entry["placement"]
-        if "cells" in placement:
+        if "on" in placement:
+            emitters.append(prim_emitter(entry))
+        elif "follows" in placement:
+            emitters.append(following_emitter(entry, scene, motions))
+        elif "cells" in placement:
             emitters += cell_emitters(entry, ground, wind)
         elif "ground" in placement:
             emitters.append(ground_emitter(entry, ground, wind))
@@ -396,7 +444,11 @@ def over_life(curve, shares, default=1.0):
 
 
 def loop_of(emitter):
-    """How long the bake runs before it repeats exactly: a burst's period, else its lifetime times `lives`."""
+    """How long the bake runs before it repeats exactly: a burst's period, else its lifetime times `lives`; an event's
+    span (it never repeats) from its first birth to its last death."""
+    if emitter.get("once"):
+        first, last = (float(value) for value in emitter["once"])
+        return last - first + float(emitter["lifetime"])
     if emitter.get("one_shot"):
         return float(emitter["one_shot"]["every"])
     return float(emitter["lifetime"]) * int(emitter.get("lives", 1))
@@ -414,18 +466,63 @@ def births(emitter):
 
 def look_colour(emitter):
     """The colour a reader without the schema draws the particles in (linear): a puff's colour carries its card's
-    tint, as the game's dust material multiplies it in."""
+    tint, as the game's dust material multiplies it in; a speck's is its colour times its brightness."""
     linear = np.asarray(scene_record.colour(emitter["colour"]), dtype=float)
-    return linear * np.asarray(scene_record.colour(list(PUFF_TINT))) if emitter["look"] == "puff" else linear
+    if emitter["look"] == "puff":
+        return linear * np.asarray(scene_record.colour(list(PUFF_TINT)))
+    return linear * float(emitter.get("brightness", 1.0))
 
 
 def look_opacity(emitter):
     return float(emitter["opacity"]) * (PUFF_THICKNESS if emitter["look"] == "puff" else 1.0)
 
 
+def samples_of(emitter):
+    """How often a second the bake samples the emitter's particles: its own `samples`, else SAMPLES."""
+    return float(emitter.get("samples", SAMPLES))
+
+
+def climbed(emitter, born):
+    """How far the followed motion's prim has risen at each birth (seconds of the stage); none for an emitter that
+    follows nothing."""
+    climb = emitter.get("climb")
+    if not climb:
+        return np.zeros(len(born))
+    return np.array([motion_record.climb_height(climb, seconds - climb["start"]) for seconds in born])
+
+
+def bake_once(emitter):
+    """An event's particles, each let out once, evenly between its `once` seconds, from its first second to its last
+    particle's death at its samples a second: spots (samples x count x 3, its frame; a following emitter's lifted by
+    its prim's climb at each birth), widths and opacities (samples x count), nothing alive before birth or after."""
+    count, lifetime = int(emitter["count"]), float(emitter["lifetime"])
+    first, last = (float(value) for value in emitter["once"])
+    draws = np.random.default_rng([int(emitter["seed"]), 0]).random((count, DRAWS))
+    track, scale = flight(emitter, draws, int(emitter["seed"]))
+    born = first + (np.arange(count) + 0.5) / count * (last - first)
+    times = first + np.arange(int(math.ceil(loop_of(emitter) * samples_of(emitter))) + 1) / samples_of(emitter)
+    since = times[:, None] - born[None, :]
+    alive = (since >= 0.0) & (since < lifetime)
+    age = np.clip(since, 0.0, lifetime)
+    step_at = age / STEP
+    lower = np.clip(np.floor(step_at).astype(int), 0, track.shape[0] - 2)
+    part = (step_at - lower)[..., None].astype(np.float32)
+    which = np.broadcast_to(np.arange(count), age.shape)
+    points = track[lower, which] * (1.0 - part) + track[lower + 1, which] * part
+    points[..., 1] += climbed(emitter, born).astype(np.float32)[None, :]
+    share = age / lifetime
+    widths = float(emitter["size"]) * scale[which] * over_life(emitter.get("size_over_life"), share)
+    opacity = look_opacity(emitter) * over_life(emitter.get("opacity_over_life"), share)
+    return (points.astype(np.float32), np.where(alive, widths, 0.0).astype(np.float32),
+            np.where(alive, opacity, 0.0).astype(np.float32))
+
+
 def bake(emitter):
     """The emitter's particles over its loop, SAMPLES a second from 0 to the loop's end (the last sample is the
-    first again): spots (samples x count x 3, its frame), widths and opacities (samples x count)."""
+    first again): spots (samples x count x 3, its frame), widths and opacities (samples x count). An event's
+    (`once`) are bake_once's."""
+    if emitter.get("once"):
+        return bake_once(emitter)
     count, lifetime = int(emitter["count"]), float(emitter["lifetime"])
     loop = loop_of(emitter)
     lives = 1 if emitter.get("one_shot") else int(emitter.get("lives", 1))
@@ -461,8 +558,13 @@ def bake(emitter):
 
 def write_clip(emitter, out):
     """The emitter's baked particles as a clip file of their own (`assets/effects/<emitter>.usdc`, the prim
-    /Effect), sampled every RATE / SAMPLES time codes; its path in the stage folder."""
+    /Effect), sampled every RATE / its samples a second; one that `starts` gets one more sample after its loop, every
+    particle dead, held before it lights; its path in the stage folder and how many samples it holds."""
     points, widths, opacity = bake(emitter)
+    if emitter.get("starts") is not None:
+        points = np.concatenate([points, points[:1]])
+        widths = np.concatenate([widths, np.zeros_like(widths[:1])])
+        opacity = np.concatenate([opacity, np.zeros_like(opacity[:1])])
     path = pathlib.Path(out) / ASSETS / f"{emitter['name']}.usdc"
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(path)) if not path.exists() else Sdf.Layer.FindOrOpen(str(path))
@@ -473,7 +575,7 @@ def write_clip(emitter, out):
     opacity_primvar = UsdGeom.PrimvarsAPI(grains).CreatePrimvar("displayOpacity", Sdf.ValueTypeNames.FloatArray,
                                                                UsdGeom.Tokens.vertex)
     for sample in range(len(points)):
-        time = sample * RATE / SAMPLES
+        time = sample * RATE / samples_of(emitter)
         grains.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(points[sample]), time)
         grains.GetWidthsAttr().Set(Vt.FloatArray.FromNumpy(widths[sample]), time)
         opacity_primvar.Set(Vt.FloatArray.FromNumpy(opacity[sample]), time)
@@ -490,6 +592,20 @@ def looped_times(loop):
     for turn in range(int(math.ceil(HORIZON / loop))):
         pairs += [Gf.Vec2d(turn * span, 0.0), Gf.Vec2d((turn + 1) * span, span)]
     return pairs
+
+
+def clip_times(emitter, samples):
+    """Stage time codes onto the emitter's clip: an event's span laid once from its first second (held dead before
+    and after), a looped one again and again, from the second it `starts` when it has one (its dead last sample
+    held before)."""
+    if emitter.get("once"):
+        first, span = float(emitter["once"][0]) * RATE, (samples - 1) * RATE / samples_of(emitter)
+        return [Gf.Vec2d(first, 0.0), Gf.Vec2d(first + span, span)]
+    looped = looped_times(loop_of(emitter))
+    if emitter.get("starts") is None:
+        return looped
+    start, dead = float(emitter["starts"]) * RATE, (samples - 1) * RATE / samples_of(emitter)
+    return [Gf.Vec2d(0.0, dead), Gf.Vec2d(start, dead)] + [Gf.Vec2d(pair[0] + start, pair[1]) for pair in looped]
 
 
 def effect_look(stage, root, emitter):
@@ -525,7 +641,7 @@ SCHEMA = {  # attribute: (type, how it is read off the emitter)
     "emitter": (Sdf.ValueTypeNames.Token, lambda emitter: emitter["emitter"]["shape"]),
     "emitter_size": (Sdf.ValueTypeNames.Float3, lambda emitter: emitter_size(emitter["emitter"])),
     "count": (Sdf.ValueTypeNames.Int, lambda emitter: int(emitter["count"])),
-    "rate": (Sdf.ValueTypeNames.Float, lambda emitter: float(emitter["count"]) / float(emitter["lifetime"])),
+    "rate": (Sdf.ValueTypeNames.Float, lambda emitter: float(emitter["count"]) / letting_out(emitter)),
     "lifetime": (Sdf.ValueTypeNames.Float, lambda emitter: float(emitter["lifetime"])),
     "explosiveness": (Sdf.ValueTypeNames.Float, lambda emitter: float(emitter.get("explosiveness", 0.0))),
     "trigger_every": (Sdf.ValueTypeNames.Float,
@@ -554,8 +670,19 @@ SCHEMA = {  # attribute: (type, how it is read off the emitter)
     "space": (Sdf.ValueTypeNames.Token, lambda emitter: emitter.get("space", "world")),
     "seed": (Sdf.ValueTypeNames.Int, lambda emitter: int(emitter["seed"])),
     "loop": (Sdf.ValueTypeNames.Float, loop_of),
+    "brightness": (Sdf.ValueTypeNames.Float, lambda emitter: float(emitter.get("brightness", 1.0))),
+    "starts": (Sdf.ValueTypeNames.Float, lambda emitter: float(emitter.get("starts", -1.0))),
+    "once": (Sdf.ValueTypeNames.Float2, lambda emitter: Gf.Vec2f(*emitter.get("once", (0.0, 0.0)))),
+    "follows": (Sdf.ValueTypeNames.String, lambda emitter: emitter["placement"].get("follows", "")),
     "from": (Sdf.ValueTypeNames.String, lambda emitter: emitter["from"]),
 }
+
+
+def letting_out(emitter):
+    """The seconds over which the emitter lets out its count: an event's span of births, else a lifetime."""
+    if emitter.get("once"):
+        return float(emitter["once"][1]) - float(emitter["once"][0])
+    return float(emitter["lifetime"])
 
 
 def emitter_size(shape):
@@ -600,13 +727,15 @@ def stood(xform, emitter):
 
 
 def write_emitter(stage, root, emitter, out):
-    """One emitter: its schema prim and its baked points, looped from their clip; the particles it holds."""
-    xform = UsdGeom.Xform.Define(stage, f"{root}/{emitter['name']}")
+    """One emitter: its schema prim and its baked points, played from their clip; the particles it holds. One `on` a
+    prim of the base is that prim's child, the prims over it left as the base's."""
+    path = emitter_path(stage, root, emitter)
+    xform = UsdGeom.Xform.Define(stage, path)
     stood(xform, emitter)
     for name, (kind, read) in SCHEMA.items():
         xform.GetPrim().CreateAttribute(f"score:effect:{name}", kind).Set(read(emitter))
-    path, samples = write_clip(emitter, out)
-    grains = UsdGeom.Points.Define(stage, f"{root}/{emitter['name']}/{emitter['name']}_points")
+    clip, samples = write_clip(emitter, out)
+    grains = UsdGeom.Points.Define(stage, f"{path}/{emitter['name']}_points")
     prim = grains.GetPrim()
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("effect")
     prim.CreateAttribute("score:effect:look", Sdf.ValueTypeNames.Token).Set(emitter["look"])
@@ -618,13 +747,42 @@ def write_emitter(stage, root, emitter, out):
     grains.CreateWidthsAttr()
     grains.SetWidthsInterpolation(UsdGeom.Tokens.vertex)
     clips = Usd.ClipsAPI(prim)
-    relative = f"../{ASSETS}/{path.name}"
+    relative = f"../{ASSETS}/{clip.name}"
     clips.SetClipAssetPaths([Sdf.AssetPath(relative)])
     clips.SetClipPrimPath("/Effect")
     clips.SetClipActive([Gf.Vec2d(0.0, 0.0)])
-    clips.SetClipTimes(looped_times(loop_of(emitter)))
+    clips.SetClipTimes(clip_times(emitter, samples))
     UsdShade.MaterialBindingAPI.Apply(prim).Bind(effect_look(stage, root, emitter))
     return int(emitter["count"])
+
+
+def emitter_path(stage, root, emitter):
+    """Where the emitter is written: under the effects' root, or as the child of the prim it rides on, every prim
+    between the place and it an over (the base's)."""
+    if not emitter.get("parent"):
+        return f"{root}/{emitter['name']}"
+    parent = Sdf.Path(root).GetParentPath().AppendPath(emitter["parent"])
+    for prefix in parent.GetPrefixes():
+        stage.OverridePrim(prefix)
+    return str(parent.AppendChild(emitter["name"]))
+
+
+def write_light(stage, place, light):
+    """One of the record's lights: a sphere light on a prim of the base (`on`, at `offset` in its frame), its
+    intensity keyed at the record's seconds (Blender's units, as scene.py writes lights)."""
+    parent = Sdf.Path(f"/{place}").AppendPath(light["on"])
+    for prefix in parent.GetPrefixes():
+        stage.OverridePrim(prefix)
+    lamp = UsdLux.SphereLight.Define(stage, parent.AppendChild(light["name"]))
+    lamp.AddTranslateOp().Set(Gf.Vec3d(*map(float, light.get("offset", (0.0, 0.0, 0.0)))))
+    lamp.CreateColorAttr(Gf.Vec3f(*scene_record.colour(light["colour"])))
+    lamp.CreateRadiusAttr(float(light.get("radius", 0.5)))
+    for seconds, intensity in light["intensity"]:
+        lamp.CreateIntensityAttr().Set(float(intensity), float(seconds) * RATE)
+    prim = lamp.GetPrim()
+    prim.CreateAttribute("score:game:shadows", Sdf.ValueTypeNames.Bool).Set(bool(light.get("shadows", True)))
+    prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("effect_light")
+    prim.CreateAttribute("score:effect:from", Sdf.ValueTypeNames.String).Set(light["from"])
 
 
 def variant_target(stage, root, variant):
@@ -635,8 +793,9 @@ def variant_target(stage, root, variant):
     return variant_set.GetVariantEditTarget()
 
 
-def write_layer(place, effects, out, ground=None, scene=None):
-    """The effects layer of the place's stage under `out`, rewritten whole; how many particles each emitter holds."""
+def write_layer(place, effects, out, ground=None, scene=None, motions=None):
+    """The effects layer of the place's stage under `out`, rewritten whole; how many particles each emitter holds.
+    `motions` is the place's motion record (data/motion), which a following emitter reads."""
     if scene:
         scene_record.refuse_rejected(scene, [entry["name"] for entry in effects["effects"]], "the effects record")
     out = pathlib.Path(out)
@@ -654,12 +813,14 @@ def write_layer(place, effects, out, ground=None, scene=None):
     for replaced in effects.get("replaces", []):
         stage.OverridePrim(f"/{place}/{replaced['prim']}").SetActive(False)
     held = {}
-    for emitter in emitters_of(effects, ground, scene):
+    for emitter in emitters_of(effects, ground, scene, motions):
         if emitter.get("variant"):
             with Usd.EditContext(stage, variant_target(stage, root, emitter["variant"])):
                 held[emitter["name"]] = write_emitter(stage, root, emitter, out)
         else:
             held[emitter["name"]] = write_emitter(stage, root, emitter, out)
+    for light in effects.get("lights", []):
+        write_light(stage, place, light)
     for name, choice in effects.get("variants", {}).items():
         stage.GetPrimAtPath(root).GetVariantSets().GetVariantSet(name).SetVariantSelection(choice)
     layer.Save()
@@ -677,7 +838,7 @@ def main():
     if effects is None:
         raise SystemExit(f"{arguments.place} has no effects record (data/effects/{arguments.place}.json)")
     held = write_layer(arguments.place, effects, arguments.stage, place_ground(arguments.place),
-                       scene_record.record(arguments.place))
+                       scene_record.record(arguments.place), motion_record.record(arguments.place))
     print(json.dumps({"emitters": len(held), "particles": sum(held.values()), "layer": str(arguments.stage / LAYER)}))
 
 

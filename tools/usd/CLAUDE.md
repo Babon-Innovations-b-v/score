@@ -26,7 +26,12 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   entry in that variant of `/<place>/Effects` (the camp's `weather`: calm, storm). Blender's reader leaves
   displayOpacity out, so `../blender/inside/usd_views.py` draws the effects itself, frame by frame. Effects are
   fine and many (the owner's rule: real footage first; big or sparse particles read as dots): never thin a record to
-  make it cheaper to draw.
+  make it cheaper to draw. An emitter can ride a prim of the base (`on`: written as its child), follow a motion's
+  climb (`follows`), play once at its own seconds (`once`, its own `samples` a second) or light at a second
+  (`starts`); a record's `lights` ride a prim with keyed intensity (usd_views keys a light on a moving prim where it
+  stands). An entry the game never drew names the real footage it was measured on (`footage: <source id>`, listed
+  in its record's `footage` block). The effects stage (`score/stages/effects`) is the way in for the places it
+  covers.
 - **Converted, not referenced.** glTF geometry becomes UsdGeomMesh with UsdPreviewSurface materials and PNG maps:
   usd-core and Blender read no glTF inside USD. Parts are GeomSubsets named after their library surface.
   The parts come from `data/parts` (`../props/library/stored_parts.py`: a stored sample of each labelled take, by
