@@ -1,11 +1,12 @@
 """The surface stage's world data and the world files each row declares (Stage.files, a function of the place).
 
-data/surfaces/<place>.json: the models a place's line splits and paints, each under its raw take (`takes`: its
-place, kind, object words and the places whose library it may take surfaces from, as the library names them), the
-name the library knows the place by (`library`), and its bake (`bake`: the route's make_chunky job, the model each
-take is baked as, and entries the job lacks: another job's path, or the entry written out); a place with nothing to
-paint lists no takes and says why (`nothing`). A take is split by one
-place's line only. data/surfaces/finish-seed.json: the owner's picked models that seed the finish registry.
+data/surfaces/<place>.json: the models a place's line paints, each under its raw take (`takes`: its place, kind,
+object words and the places whose library it may take surfaces from, as the library names them), the name the
+library knows the place by (`library`), its bake (`bake`: the route's make_chunky job, the model each take is baked
+as, and entries the job lacks: another job's path, or the entry written out), and the models it lays that another
+place claims (`elsewhere`: {model: {take, place}}, read from that place's bake); a place with nothing to paint lists
+no takes and says why (`nothing`). Every model is painted, the owner's picks included (a pick chooses the model,
+never its old paint: owner, 2026-10-12), and each take by one place only: a model is painted once world-wide.
 
 Kept apart from the rows' code on purpose: a paid row's code version hashes this module, so it stays small.
 """
@@ -14,32 +15,30 @@ import pathlib
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FOLDER = REPO / "data/surfaces"
-SEED = "finish-seed"
 PIXAL = "{home}/work/pixal"
-SPLIT_SCRIPTS = {"turntable": {"turntable script": "{repo}/score/stages/surfaces/inside/turntable.py",
-                               "blender runner": "{repo}/tools/props/cloud/blender_cloud.py"},
-                 "unlit": {"delight worker": "{repo}/tools/props/cloud/delight_worker.py",
-                           "delight setup": "{repo}/tools/props/cloud/delight_setup.sh"}}
 
 
 def path(place):
-    """A place's surface data file (the seed's for the seed rows, place None)."""
-    return FOLDER / f"{place or SEED}.json"
+    return FOLDER / f"{place}.json"
 
 
 def pattern(place):
-    return "{data}/surfaces/" + (f"{place}.json" if place else f"{SEED}.json")
+    return "{data}/surfaces/" + f"{place}.json"
+
+
+def record(place):
+    found = path(place)
+    return json.loads(found.read_text()) if found.exists() else {}
 
 
 def takes(place):
     """{take: entry} a place's data lists; none when it has no data (its rows then block on the missing file)."""
-    found = path(place)
-    return json.loads(found.read_text())["takes"] if found.exists() else {}
+    return record(place).get("takes", {})
 
 
 def paints(place):
-    """False for a place whose data lists no takes (its file says why: every model is the owner's pick, split by
-    another place, or none is generated): its line has no surface rows. A place with no file paints, and blocks."""
+    """False for a place whose data lists no takes (its file says why: every model is claimed by another place, or
+    none is generated): its line has no surface rows. A place with no file paints, and blocks."""
     return not path(place).exists() or bool(takes(place))
 
 
@@ -59,26 +58,14 @@ def line_files(place):
     return {"surfaces": pattern(place), **take_files(place), "library": "{data}/library"}
 
 
-def turntable_files(place):
-    return {**SPLIT_SCRIPTS["turntable"], **take_files(place)}
-
-
-def unlit_files(place):
-    return {**SPLIT_SCRIPTS["unlit"], **take_files(place)}
-
-
-def seed_files(place):
-    """The seed rows' world files: the seed's data, each picked take's raw files and its stored paint."""
-    return {**line_files(None), **{f"parts {take}": "{data}/parts/" + f"{take}.npz" for take in takes(None)}}
-
-
 def bake_files(place):
     """The bake row's world files: the place's data, its bake jobs (a place whose data names none blocks here, before
-    anything is cleared), the bake's code and the library."""
-    found = path(place)
-    bake = json.loads(found.read_text()).get("bake") if found.exists() else None
+    anything is cleared), the data of each place that claims a model it lays, the bake's code and the library."""
+    bake = record(place).get("bake")
     jobs = {"bake job": bake["job"]} if bake else {"bake job": pattern(place) + " names no bake job"}
     jobs.update({f"bake job {model}": entry for model, entry in (bake or {}).get("entries", {}).items()
                  if isinstance(entry, str)})
-    return {"surfaces": pattern(place), **jobs, "library bake": "{repo}/tools/props/cloud/library_bake.py",
+    claimed = {f"claimed {claim['place']}": pattern(claim["place"])
+               for claim in record(place).get("elsewhere", {}).values()}
+    return {"surfaces": pattern(place), **jobs, **claimed, "library bake": "{repo}/tools/props/cloud/library_bake.py",
             "bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library"}

@@ -140,8 +140,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **The surface judge asks Gemini, not rented cards** (`gemini_judge.py`, 2026-10-11): judge.py's question list and
   answer files, asked of the models adapter's `gemini-judge` (Gemini 3.1 Pro, temperature 0, the answer an enum of
   the question's codes plus `unknown`), through google_spend with `cache=True`; the key is the secret
-  `gemini-api-key`, refused outside a cleared run like any rent. The surface stage's judge rows call it
-  (`score/stages/surfaces/split_batch_paid.make_judge`); the close-up check stays on judge.py.
+  `gemini-api-key`, refused outside a cleared run like any rent. The surface stage's g-texture judge rows called it
+  until 2026-10-12 (the finish-map method replaced them); the close-up check stays on judge.py.
 - **Close-up regions** (`segment.py`, `segment_setup.sh`, `segment_worker.py`; job repaint, 2026-10-08): SAM 2.1's
   automatic masks (facebookresearch/sam2 at a pinned commit, code and weights Apache-2.0) of every clean close-up,
   spread over cards (`spread.py`); 73 close-ups took 6 minutes on three L4s, €0.24.

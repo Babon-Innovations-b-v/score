@@ -37,9 +37,9 @@ def handover(module, step, inputs, out):
 
 
 def short(inputs):
-    """{step: path} for the rows' inputs (split-<step>, surfaces-<step>, surfaces-seed-<step>); world files keep their
+    """{step: path} for the rows' inputs (surfaces-<step>, the trial's fm-<step>); world files keep their
     names."""
-    return {(name.rsplit("-", 1)[1] if name.startswith(("split-", "surfaces-")) else name): pathlib.Path(path)
+    return {(name.rsplit("-", 1)[1] if name.startswith(("surfaces-", "fm-")) else name): pathlib.Path(path)
             for name, path in inputs.items()}
 
 

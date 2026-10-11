@@ -1,6 +1,5 @@
 """Runs inside Blender (on a rented card, tools/props/cloud/blender_cloud.py): a turntable of a raw Pixal3D model drawn
-with its own texture and no light, for the texture-aware split over several views (../multiview.py; EXPERIMENTAL, the
-surface test of 2026-10-11).
+with its own texture and no light, for the finish-map method's view maps (../turntable_views.py, ../finish_parts.py).
 
     blender -b -P turntable.py -- <job.json>
 
