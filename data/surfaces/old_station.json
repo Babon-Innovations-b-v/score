@@ -1,6 +1,188 @@
 {
  "place": "old_station",
  "library": "old_station",
- "takes": {},
- "nothing": "all 14 models it lays are the owner's picks: each keeps its model and paint, so its line has no surface rows"
+ "takes": {
+  "bag_pile-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_bag_pile",
+   "object": "low pile of regolith sandbags"
+  },
+  "bag_stack-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_bag_stack",
+   "object": "neat stack of filled regolith sandbags"
+  },
+  "comms_mast-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_comms_mast",
+   "object": "comms mast 8 m tall on a braced foot with a 2 m dish antenna and a whip antenna"
+  },
+  "first_module-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_first_module",
+   "object": "the station's first module: a horizontal cylinder 4.2 m across and 6.5 m long on cradles, its foil torn and its hull holed, abandoned"
+  },
+  "gas_bottle-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_gas_bottle",
+   "object": "pressure bottle with a valve, lying"
+  },
+  "hab_lander-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_hab_lander",
+   "object": "lived-in lander module: a vertical cylinder 4.5 m across on four legs, gold and silver foil, bags on its roof, a ladder up to its hatch, two portholes, one lit"
+  },
+  "lab_module-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_lab_module",
+   "object": "shut lab module: a white horizontal cylinder 4.2 m across and 6.5 m long on cradles, dusty, its hatch closed"
+  },
+  "parts_rack-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_parts_rack",
+   "object": "open steel shelf rack 3 m long"
+  },
+  "power_unit-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_power_unit",
+   "object": "battery and power switching cabinet with vents and a door"
+  },
+  "radiator-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_radiator",
+   "object": "flat heat radiator: a 6 m by 2.4 m panel of fins facing the sky on short legs"
+  },
+  "rover-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_rover",
+   "object": "six-wheeled pressurised rover 6 m long, docked tail-first to the walkway tube"
+  },
+  "solar_mast-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_solar_mast",
+   "object": "vertical solar array mast 14 m tall: a lattice mast on a tripod foot with a 2 m by 10 m solar blanket hung from 8 m up"
+  },
+  "solar_mast_dead-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_solar_mast_dead",
+   "object": "dead vertical solar mast 12 m tall: the same mast with its blanket stuck half folded and hanging slack"
+  },
+  "spare_wheel-r1": {
+   "places": [
+    "old_station"
+   ],
+   "library_places": [
+    "old_station"
+   ],
+   "place": "old_station",
+   "kind": "old_station_spare_wheel",
+   "object": "spare rover wheel with a wire-mesh tyre, leaning on the rack"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/old_station-score1/job-chunky1.json",
+  "models": {
+   "solar_mast": "solar_mast-r1",
+   "comms_mast": "comms_mast-r1",
+   "first_module": "first_module-r1",
+   "rover": "rover-r1",
+   "parts_rack": "parts_rack-r1",
+   "bag_stack": "bag_stack-r1",
+   "gas_bottle": "gas_bottle-r1",
+   "solar_mast_dead": "solar_mast_dead-r1",
+   "hab_lander": "hab_lander-r1",
+   "lab_module": "lab_module-r1",
+   "radiator": "radiator-r1",
+   "power_unit": "power_unit-r1",
+   "bag_pile": "bag_pile-r1",
+   "spare_wheel": "spare_wheel-r1"
+  },
+  "entries": {
+   "solar_mast_dead": "{home}/work/place/old_station-score1/job-chunky2.json",
+   "hab_lander": "{home}/work/place/old_station-score1/job-chunky2.json",
+   "lab_module": "{home}/work/place/old_station-score1/job-chunky2.json",
+   "radiator": "{home}/work/place/old_station-score1/job-chunky2.json",
+   "power_unit": "{home}/work/place/old_station-score1/job-chunky2.json",
+   "bag_pile": "{home}/work/place/old_station-score1/job-chunky2.json",
+   "spare_wheel": "{home}/work/place/old_station-score1/job-chunky2.json"
+  }
+ }
 }

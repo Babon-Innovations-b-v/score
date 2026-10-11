@@ -4,9 +4,11 @@
  "takes": {
   "hammer-r6": {
    "places": [
+    "hub",
     "workshop"
    ],
    "library_places": [
+    "hub",
     "workshop"
    ],
    "place": "workshop",
@@ -15,9 +17,11 @@
   },
   "pliers-r6": {
    "places": [
+    "hub",
     "workshop"
    ],
    "library_places": [
+    "hub",
     "workshop"
    ],
    "place": "workshop",
@@ -26,9 +30,11 @@
   },
   "pump_pliers-r6": {
    "places": [
+    "hub",
     "workshop"
    ],
    "library_places": [
+    "hub",
     "workshop"
    ],
    "place": "workshop",
@@ -37,9 +43,11 @@
   },
   "wrench-r6": {
    "places": [
+    "hub",
     "workshop"
    ],
    "library_places": [
+    "hub",
     "workshop"
    ],
    "place": "workshop",
