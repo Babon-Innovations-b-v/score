@@ -37,13 +37,15 @@ the current backend). No model runs on the coordinating machine.
   rooms, `place_route.py` for outdoor places, `package.py` for the scene package), the gates (`gates/`), Infinigen
   grounds and life (`infinigen/`). Each directory's rules are in its overlay.
 - `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body
-  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by Newton's cloth solver;
+  shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by the cloth solver the
+  spec names, the drapes being experimental;
   moved from 2099's `tools/crew` with its history). `maker/` is the character maker, one entry (`make.py`) for a
   person or an animal from a picture or a few words (`data/characters/makes/<name>.json`): a person's whole chain
   (picture, body by SAM3DBody-cpp, clips by Kimodo, drapes, head, hair by Hi3DGen, face by klein with a depth LoRA,
   build, UsdSkel, review renders) runs on one rented card (`tools/props/cloud/characters.py`), an animal's through
-  `animals/`. A person spec with `"route": "prop"` takes the prop route instead (`maker/prop_person.py`, a trial whose
-  takes stay in `~/.farm-factory-motion/candidates/prop-people/`): Pixal3D's mesh, SOMA-X's skeleton placed inside it
+  `animals/` (experimental). A person spec with `"route": "prop"` takes the prop route instead
+  (`maker/prop_person.py`, experimental, a trial whose takes stay in
+  `~/.farm-factory-motion/candidates/prop-people/`): Pixal3D's mesh, SOMA-X's skeleton placed inside it
   and its weights moved on by Robust Skin Weights Transfer (MIT reference code, ported without libigl, whose
   bindings carry GPL-3.0). `skel_usd.py` turns a body into a UsdSkel asset;
   `cast.py` writes a place's characters layer (`<stage>/layers/characters.usda`, between the edit layer and the
@@ -81,10 +83,12 @@ the current backend). No model runs on the coordinating machine.
   no less than the run's estimate. A node runs only on outputs that passed (or whose failed checks he waived) and he
   accepted. Step 0's worked example: `python -m score.stages run hangar hdoor` brings the round-three stages in as
   unverified seeds; the hangar fails on its code-built ship and the door answers unknown with no drop run, so
-  neither completes. Step 0 still lacks: the block on the old paid entry points (blender_cloud.py, the runners,
-  detached.py for paid work), the layout stage's scene-record gates (every drawn mesh a plan shell piece or an
-  inventory row, shell pieces bounded by the plan, a plain tag measured plain), `place.json`'s code rule reworded
-  (the owner's call) and the in-progress directions marked experimental. The overlay `score/CLAUDE.md` has the rules.
+  neither completes. Every place that rents (`batch.rent`, the k8s submitter) refuses unless SCORE_SPEND_TICKET
+  names a node the runner cleared or the owner's override (`compute.require_cleared`), so the old paid entry points
+  (blender_cloud.py, detached.py, the runners, demo.py) cannot spend round the runner. Step 0 still lacks the layout
+  stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces bounded by the
+  plan, a plain tag measured plain). The in-progress directions are in `architecture/experimental`. The overlay
+  `score/CLAUDE.md` has the rules.
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
@@ -112,12 +116,67 @@ Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next t
    (`tools/usd/complete.py check`, the resting check after a drop run, `settle.py --dry-run`), the review page
    (`tools/review/page.py --cloud`) and the place's manifest (`complete.py done`).
 
-**Which stages are current.** Every round of stages is a new folder of the work folder, never written over:
-world 1's canonical set is `WORK/usd-r3/<place>` with its review pages in `WORK/review-r3/<place>` (the completion
-gate's rounds 1 and 2, 2026-10-10: round 2 exported again, into the same folders, only the places whose inputs it
-changed; `usd-r3/inputs.json` names each place's commit and model folders). The earlier sets
-(`usd`, `usd-complete`, `usd-r2-final`, `usd-rr`, the night's group sets) are kept beside it as they were. A later
-round exports into a new folder and moves this line.
+**Which stages are current.** Every round of stages is a new folder of the work folder, never written over. No set
+is canonical: a place's stage becomes canonical only when the owner accepts it on its review page, and none is
+accepted yet. World 1's latest measured set is `WORK/usd-r3/<place>` with its review pages in `WORK/review-r3/<place>`
+(the completion gate's rounds 1 and 2, 2026-10-10: round 2 exported again, into the same folders, only the places
+whose inputs it changed; `usd-r3/inputs.json` names each place's commit and model folders). In it 3 of 18 places
+pass the gate (flat, stairwell, habitat), 14 fail and the tube is unknown, measured with that day's placeholder
+check, which passed the hangar's code-built ship. The owner has reviewed none of them: he reviewed the hub, the old
+station and the wreck on earlier rounds, and on 2026-10-11 the demo built from this set, finding the same painting
+faults and a placeholder. The earlier sets (`usd`, `usd-complete`, `usd-r2-final`, `usd-rr`, the night's group sets)
+are kept beside it as they were. A later round exports into a new folder and moves this line.
+
+## architecture/experimental
+
+The in-progress directions, in one place (PRD #6; the owner, 2026-10-11: nothing is taken out, each stays marked
+experimental until its own phase of research, plan, integration into its stage and proof on its fault proves it).
+Experimental means: the code and its overlay say so, and where it would run or cost money by default it is off until
+a flag or a spec asks for it. Nothing here is a result; the paper's gaps name the same items. Each entry says what it
+is meant to fix, where it is marked, and what proves it.
+
+- **The people prop route** (#5; `tools/characters/maker/prop_person.py`, specs `player_prop.json` and
+  `nev_prop.json`). For bloated clothes on SOMA-made people. Runs only with `make.py --experimental`. Proven when the
+  player and Nev pass tucks, pokes and skin-through-cloth on every clip by the independent checker, the corrective
+  shapes are in UsdSkel, and the owner picks them on a side-by-side page. Today the player fails tucks and pokes and
+  Nev is not made.
+- **The drapes** (`drape_garment.py`, `newton_drape.py`, `cloth_drape.py`, `rebuild.py`; the drapes-fix,
+  drapes-perlook and drapes-uipc branches stay off main). For the non-commercial Warp fork and drapes that slid or
+  left arms bare. No default simulator: a person is made only when its spec names `drape_simulator`. The shipped
+  Newton drapes are rejected by the owner (2026-10-10) and fail `drape_measure` (2 to 6 of 10 cuts; dense cuts 34 to
+  50 of 64 to 69). Proven when a route passes drape_measure's dense check on all four looks, then the owner's eye.
+- **The joins and stance checks** for people (hands under cuffs, boots in trousers). Numbers only so far. Proven by
+  one before and after render pair per joint fault on the player and Nev, owner-checked.
+- **The animal route** (`tools/characters/animals/`). For places with no animals. Runs only with `make.py
+  --experimental`. Proven when an animal it made moves in a place's stage (#1: a fish swimming, a school as an
+  instancer) and the owner has seen it.
+- **The reach check** (`tools/usd/reach.py`). For rows a walker cannot reach. Run and shown on the manifest, not
+  counted in the verdict (`complete.py`'s `EXPERIMENTAL`): it fails backdrop rows nobody walks to. Counted once the
+  owner sets the scenery rule and it has caught a real unreachable row that was then fixed.
+- **The painting after round four, the split spread and the surface check's dark rule** (`tools/props/library`: the
+  two-way split fit, round five's 3D split, `--face-parts` and `finish_masks.py`, `split_spread.py`; 5c66c2e). For
+  black, stripped and one-colour paint. No owner-accepted before and after on a world model. Settled in step 1, the
+  surface stage, on the hangar and the six named models, with numbers and his review.
+- **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
+  model from the fault corpus worst.
+- **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
+  flagged worse than those he accepted.
+- **The films' past-fade ink rule** (0e68b5e, `film_checks.py --ink-past-fade`). For far views the game draws
+  without lines. Off by default, so a frame with no line at half strength fails. Proven by the owner's look at such
+  a shot.
+- **The demo films** (`WORK/demo/world1-r3`, `world1-r4`) and their technical checks. Cited nowhere; nobody reviewed
+  them. They come back as the evidence step, on places the owner accepted.
+- **The Kubernetes path and 06cf411's image pins** (`tools/cloud/`). For setup time and stock. Opt-in
+  (SCORE_CLOUD=k8s), not used for world 1. Proven when a stage's paid node runs through it end to end.
+- **Unreviewed world data**: the far city's towers and lit windows (3 of 5 kinds made, no owner pick), the street
+  blocks (about 81 models only in a local package, not in the release), the rows made fixed so the drop leaves them
+  (square lamp posts, street lamps and notice board, launch masts and floodlights: a count fell, nothing moved), the
+  settled rest poses written back into the kit and scene records, the wreck re-laid after its review (e5d829c), and
+  the coordinator's removal of the supply rocket, the cargo lift and the wreck's landing dust (dc6c284; the pad's
+  removal was the owner's ask). Each enters the new stages as an unverified seed and waits for the owner's look, or
+  his yes or no on the removals.
+- **The motion, sound and effects layers.** Built, not reviewed: nobody has heard the sound. Proven by the owner's
+  review of one place per layer, render and audio.
 
 ## architecture/trust-boundaries
 
