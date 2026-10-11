@@ -6,7 +6,9 @@ then judged by the assembly gates that exist today. No spend: nothing is made, r
     gates    placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
                            code-built ship fails, 12 meshes)
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
-                           settled.json, stored as the check's evidence); with none it answers unknown and blocks
+                           settled.json, stored as the check's evidence); with none it answers unknown and blocks,
+                           and the runner's drive gathers it (gather_drop_run: one drop run on a rented processor
+                           machine, cleared at DROP_EUROS) when nothing else blocks the output
 
 The stage that builds a place from its accepted layout replaces the seed maker in step 3; the gates stay. Both judges
 read only the world files the stage declares (FILES): the resting judge reads the rules, the place's kit and the
@@ -30,6 +32,9 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "inventories": "{data}/inventory"}
 SEED_PARTS = ("layers", "assets", "inputs.json")
 INVENTORY_PREFIX = "data/inventory/"
+# One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
+# runs of 2026-10-10 cost EUR 0 to 0.85).
+DROP_EUROS = 1.0
 SEED_NOTE = ("An old output brought in from world 1's round-three stages, never made by this stage; only its gates "
              "on this page judge it.")
 
@@ -93,5 +98,27 @@ def judge_resting(output, inputs, evidence):
                           {"real faults": "lower", "objects": "lower"}, findings)
 
 
+def gather_drop_run(output, inputs, folder):
+    """The drop run on this very output, as settle.py --dry-run --cloud makes it but on the inventory the seed names
+    in the declared folder: every loose object dropped in headless Blender on a rented processor machine; its
+    settled.json in `folder`."""
+    import settle
+    from pxr import Usd
+    inventory_path = declared_inventory(output, inputs["inventories"])
+    if inventory_path is None or not inventory_path.exists():
+        raise FileNotFoundError(f"{output.name}: the seed names no inventory in the world's inventory folder "
+                                f"({inventory_path or 'none named'}), so nothing can be dropped")
+    stage_path = stage_file(output)
+    stage = Usd.Stage.Open(str(stage_path))
+    place = stage.GetDefaultPrim().GetName()
+    inventory = json.loads(inventory_path.read_text())
+    loose = settle.loose_objects(stage, place, inventory)
+    ignore = (settle.part_objects(stage, place, inventory) + settle.held_on_loose(stage, place, inventory, loose)
+              + settle.fixtures_on_loose(stage, place, loose))
+    settle.simulate(stage_path, loose, folder, cloud=True, ignore=ignore)
+    return folder / "settled.json"
+
+
 CHECKS = (checks.Check("placeholders", judge_placeholders),
           checks.Check("resting", judge_resting, evidence="a drop run (settle.py --dry-run)"))
+GATHERERS = {"resting": (gather_drop_run, DROP_EUROS)}
