@@ -53,6 +53,12 @@ def test_a_model_not_for_commercial_use_needs_a_tool_only_kind():
     assert models.record("kind", tool_only=True, images=folder)["models"][0]["name"] == "m"
 
 
+def test_an_api_model_is_keyed_on_its_id_and_settings():
+    found = models.api_record("gemini-judge")
+    assert found["model"].startswith("gemini-") and found["temperature"] == 0 and found["commercial_use"]
+    assert "no API model" in refused(lambda: models.api_record("other"))
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
