@@ -14,9 +14,9 @@ is made from; these stages make the places again from it and judge the result:
                built in code and baked with the library's surfaces on rented cards (route.py late-plan,
                library_bake.py); gates: the model check on each built piece and the concept's stage parts present
     sweep      (place) the place exported, then one record number tried at several strengths on a few views (a
-               lamp's shaft of light or a day sky's brightness), each measured against the concept; the strength the
-               record should hold is the one whose measure lands nearest the concept (written into the record by
-               hand, from this output, never guessed)
+               lamp's shaft of light or a day sky's brightness), each measured against the concept; the record
+               holds the least strength that meets the light gate's rule for the fault (the shafts), or, where the
+               rule is nearness to the concept, the nearest (the sky), written into the record from this output
     light      (place) the place exported with the worktree's code and data over its round-three stage's other
                layers, rendered on the round-three demo's own views (frames 000 and 128 of each shot) on rented cards,
                and measured against the demo's frames of the same views (before) and the concept; gates: the fault's
