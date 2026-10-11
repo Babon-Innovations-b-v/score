@@ -66,7 +66,7 @@ def in_stage(prim):
 def ground_height(stage, place):
     """The ground's height under any (x, z): read off the stage's ground mesh, or 0 on a flat place."""
     prim = stage.GetPrimAtPath(f"/{place}/Ground")
-    if not prim.IsValid():
+    if not (prim and prim.IsActive()):  # a made ground's layer turns the old Ground off
         return lambda flat: np.zeros(len(flat))
     points, _ = in_stage(prim)
     return LinearNDInterpolator(points[:, [0, 2]], points[:, 1])
