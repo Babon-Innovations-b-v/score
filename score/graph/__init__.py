@@ -79,7 +79,8 @@ class Stage:
     make(inputs, out, seed, params) writes the stage's output into the folder `out`; `inputs` maps each input's
     name to a path (a world file or seed folder in place, an earlier stage's accepted output checked out).
     contract: the output's schema, version and units (score.contracts.Contract); every stage has one.
-    files: {name: path pattern}, formatted with the world's roots and {place}.
+    files: {name: path pattern}, formatted with the world's roots and {place}; or a function of the place giving that
+    map, for a stage whose world files differ by place (the surface stage's takes, listed in each place's data).
     after: {earlier stage: (schema, version) this one was written for}, the stages whose accepted output it reads.
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
     paid, euros: a stage that rents, and its run's estimate in euros, cleared against the month's ceiling.
@@ -92,7 +93,7 @@ class Stage:
     make: Callable
     contract: contracts.Contract
     checks: tuple = ()
-    files: dict = field(default_factory=dict)
+    files: dict | Callable = field(default_factory=dict)
     after: dict = field(default_factory=dict)
     params: dict = field(default_factory=dict)
     paid: bool = False
@@ -171,17 +172,22 @@ class Runner:
     def code(self, stage):
         """The stage's computed code version: its make's and its checks' source files and their imports (once a run)."""
         if stage.name not in self.code_versions:
-            functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks)]
+            functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks),
+                         *([stage.files] if callable(stage.files) else [])]
             self.code_versions[stage.name] = listing_hash(_code.code_version(functions, file_hash))
         return self.code_versions[stage.name]
 
+    def files_of(self, stage, place):
+        """{name: path pattern} of the world files the node reads."""
+        return stage.files(place) if callable(stage.files) else stage.files
+
     def file_path(self, stage, name, place):
-        return pathlib.Path(stage.files[name].format(place=place, **self.world.roots))
+        return pathlib.Path(self.files_of(stage, place)[name].format(place=place, **self.world.roots))
 
     def file_keys(self, stage, place):
         """{name: content hash} of each world file or seed folder the node reads; a missing one blocks."""
         keys = {}
-        for name in stage.files:
+        for name in self.files_of(stage, place):
             path = self.file_path(stage, name, place)
             if not path.exists():
                 raise Blocked(f"{node_name(stage, place)}: its input {name} is missing ({path})")
@@ -236,7 +242,7 @@ class Runner:
 
     def input_paths(self, stage, place, keyed):
         """{name: path} the stage's make reads: world files in place, earlier outputs checked out."""
-        paths = {name: self.file_path(stage, name, place) for name in stage.files}
+        paths = {name: self.file_path(stage, name, place) for name in self.files_of(stage, place)}
         paths.update({before: self.store.checkout(output) for before, output in keyed["after"].items()})
         return paths
 

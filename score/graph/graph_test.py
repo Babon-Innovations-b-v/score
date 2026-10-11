@@ -4,6 +4,7 @@ store of its own.
 
 Run: .venv/bin/python score/graph/graph_test.py
 """
+import functools
 import json
 import os
 import pathlib
@@ -262,6 +263,22 @@ def test_a_missing_input_blocks():
     assert a_runner(world, store).run(["hangar"])["clean@hangar"].startswith("blocked: clean@hangar: its input brief")
 
 
+def place_briefs(place):
+    """A stage's world files as a function of the place: the hangar reads a second file only it has."""
+    return {"brief": "{data}/{place}/brief.txt", **({"notes": "{data}/hangar/notes.txt"} if place == "hangar" else {})}
+
+
+def test_a_stage_whose_files_differ_by_place_keys_each_place_on_its_own_files():
+    world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), Store.in_folder(tempfile.mkdtemp())
+    stage = graph.Stage("clean", "place", make_clean, TEXT, (checks.Check("words", judge_words, evidence="a limit"),),
+                        files=place_briefs)
+    runner = a_runner(world, store, (stage,))
+    assert runner.run(PLACES)["clean@hangar"].startswith("blocked: clean@hangar: its input notes")
+    (pathlib.Path(world.roots["data"]) / "hangar" / "notes.txt").write_text("notes")
+    assert set(runner.key(stage, "hangar")["files"]) == {"brief", "notes"}
+    assert set(runner.key(stage, "station")["files"]) == {"brief"}
+
+
 def test_seeds_differ_by_stage_and_place_and_hold_for_the_same_ones():
     assert graph.node_seed(7, "clean", "hangar") == graph.node_seed(7, "clean", "hangar")
     assert len({graph.node_seed(7, "clean", "hangar"), graph.node_seed(7, "clean", "station"),
@@ -274,6 +291,23 @@ def test_the_code_version_follows_imports_into_functions_and_sys_path_folders():
     found = {path.relative_to(_code.REPO).as_posix() for path in _code.source_files([complete.resting_check])}
     assert {"tools/usd/complete.py", "tools/usd/triage.py", "tools/usd/resting.py"} <= found, found
     assert not any(path.startswith(".venv") for path in found)
+
+
+def test_a_wrapped_judge_s_own_module_is_in_the_code_version():
+    """A check's judge wrapped by a helper elsewhere (functools.wraps) is hashed from its own module too, so a change
+    to it reruns the node (the surface stage's guarded checks)."""
+    root = pathlib.Path(tempfile.mkdtemp(prefix="_code_wrapped_", dir=_code.REPO / "score/graph"))
+    saved = list(sys.path)
+    try:
+        (root / "own_judge.py").write_text("def judge(output, inputs, evidence):\n    return None\n")
+        sys.path.insert(0, str(root))
+        import own_judge
+        wrapped = functools.wraps(own_judge.judge)(lambda output, inputs, evidence: None)
+        assert "own_judge.py" in {path.name for path in _code.source_files([wrapped])}
+    finally:
+        sys.path[:] = saved
+        sys.modules.pop("own_judge", None)
+        shutil.rmtree(root)
 
 
 def test_the_code_version_does_not_depend_on_the_order_of_the_path():
