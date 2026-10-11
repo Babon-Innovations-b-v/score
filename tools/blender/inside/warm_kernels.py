@@ -4,10 +4,10 @@ kernel our jobs use, each render timed, so the first render's compile can be mea
     blender -b -setaudio None --python-exit-code 1 --python warm_kernels.py -- <out.json> [OPTIX|CUDA]
 
 Three scenes in turn on the card, through the asked backend or, by default, the one the jobs take: OptiX when the
-driver gives it, else CUDA (tools/blender/inside/usd_views.py cycles_on_card). The provider's GPU machines carry
-NVIDIA's headless compute driver, which has no OptiX library, so there the jobs render on CUDA. The scenes: plain shading;
-a material with ambient occlusion and bevel nodes (OptiX's shader-raytrace kernels); hair curves. Each is rendered
-twice at a small size, so the second render of the first scene is the render without any compile. out.json holds
+driver gives it, else CUDA (tools/blender/inside/usd_views.py cycles_on_card). The provider's headless compute driver
+has no OptiX library; the blender image and library_setup.sh add the driver's own. The scenes: plain shading; a
+material with ambient occlusion and bevel nodes (OptiX's shader-raytrace kernels); hair curves. Each is rendered twice
+at a small size, so the second render of the first scene is the render without any compile. out.json holds
 the seconds of each render and the card Blender used.
 """
 import json

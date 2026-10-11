@@ -35,7 +35,9 @@ path); it proves itself when a stage's paid node runs through it end to end. `k8
   only); a node gets them as the SCORE_STORE_* variables of a Kubernetes Secret, never from the repo or an image.
 - **First-use GPU compiles are paid once per card and driver, never per job.** Blender 5.0.1 ships no Cycles binary
   for the H100 (sm_90): its first render waited 218 s for the driver's compile, and 0.3 s once the cache was restored
-  (2026-10-09; the L4 and L40S start at once). The provider's GPU driver has no OptiX, so Cycles renders on CUDA.
+  (2026-10-09; the L4 and L40S start at once). The provider's GPU driver (Ubuntu's headless compute set) has no
+  OptiX: the blender image carries the driver's own OptiX files (`images/blender/install-nvidia.sh`), and OptiX's
+  first render with ambient occlusion or bevel nodes compiled for 173 s on an L4 (2026-10-11), so warm it too.
   `images/warm.py --classes ...` renders `tools/blender/inside/warm_kernels.py` on one machine a class (before,
   first node, new node) and leaves the caches in the store; run it after a new Blender or driver. Its numbers go into
   images.json (`first_render`).
