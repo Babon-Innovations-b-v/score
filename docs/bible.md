@@ -123,10 +123,11 @@ accepted yet. World 1's latest measured set is `WORK/usd-r3/<place>` with its re
 (the completion gate's rounds 1 and 2, 2026-10-10: round 2 exported again, into the same folders, only the places
 whose inputs it changed; `usd-r3/inputs.json` names each place's commit and model folders). In it 3 of 18 places
 pass the gate (flat, stairwell, habitat), 14 fail and the tube is unknown, measured with that day's placeholder
-check, which passed the hangar's code-built ship. The owner has reviewed none of them: he reviewed the hub, the old
-station and the wreck on earlier rounds, and on 2026-10-11 the demo built from this set, finding the same painting
-faults and a placeholder. The earlier sets (`usd`, `usd-complete`, `usd-r2-final`, `usd-rr`, the night's group sets)
-are kept beside it as they were. A later round exports into a new folder and moves this line.
+check, which passed the hangar's code-built ship, and with the reach check counted (it failed 8 places). The owner
+has reviewed none of them: he reviewed the hub, the old station and the wreck on earlier rounds, and on 2026-10-11
+the demo built from this set, finding the same painting faults and a placeholder. The earlier sets (`usd`,
+`usd-complete`, `usd-r2-final`, `usd-rr`, the night's group sets) are kept beside it as they were. A later round
+exports into a new folder and moves this line.
 
 ## architecture/experimental
 
