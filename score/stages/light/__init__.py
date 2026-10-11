@@ -234,6 +234,7 @@ def chosen_views(name, only=None):
 
 def view_jobs(stage_root, inputs, views, size, out, label):
     """blender_cloud jobs rendering `views` of a stage, VIEWS_A_JOB a job, each into its own folder of `out`."""
+    out.mkdir(parents=True, exist_ok=True)
     jobs = []
     for start in range(0, len(views), VIEWS_A_JOB):
         part = views[start:start + VIEWS_A_JOB]
@@ -281,7 +282,6 @@ def make_place(inputs, out, seed, params):
         size, views = chosen_views(name)
         stage = place_root(tree, name)
         jobs += view_jobs(stage, [tree / child.name for child in tree.iterdir()], views, size, out / "after", name)
-    (out / "after").mkdir(exist_ok=True)
     render(jobs, out / "after")
     (out / "measures.json").write_text(json.dumps(place_measures(place, out), indent=1) + "\n")
     for child in list(tree.iterdir()):
@@ -528,7 +528,6 @@ def make_sweep(inputs, out, seed, params):
         root = overrides(stage_place, tree / stage_place, share)
         jobs += view_jobs(root, [tree / child.name for child in tree.iterdir()], views, size, out / "after",
                           f"{name}@{share}")
-    (out / "after").mkdir(exist_ok=True)
     render(jobs, out / "after")
     found = {}
     for share in SWEEP:
