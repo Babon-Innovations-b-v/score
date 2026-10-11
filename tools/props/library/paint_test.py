@@ -121,6 +121,22 @@ def test_a_part_the_judge_named_takes_that_material():
     assert names[chosen[0]] == "vinyl" and about[0]["judged"] == "seat cushion"
 
 
+def test_repeated_asks_decide_by_majority_and_no_majority_is_unknown():
+    """Three asks of a part: two naming M1 win; one each for M1 and M2 and a reply cut in its thinking is unknown,
+    neither of the two; a single old ask (no repeats) is taken as before."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    names = ["vinyl", "steel"]
+
+    def reply(code):
+        return f"<think>...</think>{{\"part\": \"seat\", \"material\": \"{code}\"}}" if code else "<think> and on"
+    for part, codes in enumerate((["M1", "M2", "M1"], ["M1", "M2", None], ["M2"])):
+        for number, code in enumerate(codes):
+            (folder / f"t-part{part:02d}{'.r%d' % number if number else ''}.txt").write_text(reply(code))
+    (folder / "t-part010.txt").write_text(reply("M2"))  # another part's file, not a repeat of part 01
+    assert part_judge.judged(folder, "t", 3, names) == {0: ("vinyl", "seat"), 2: ("steel", "seat")}
+    assert part_judge.unknown(folder, "t", 3, names) == [1]
+
+
 def test_a_lost_main_colour_is_stripped():
     """Half the close-up gold, half white: painted all white it is stripped; gold where gold, it passes."""
     mesh = seat()

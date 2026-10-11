@@ -1,0 +1,36 @@
+{
+ "place": "habitat",
+ "library": "habitat",
+ "takes": {
+  "blanket-m6": {
+   "places": [
+    "habitat"
+   ],
+   "library_places": [
+    "habitat"
+   ],
+   "place": "habitat",
+   "kind": "habitat_blanket",
+   "object": "blanket"
+  },
+  "kettle-m6": {
+   "places": [
+    "habitat"
+   ],
+   "library_places": [
+    "habitat"
+   ],
+   "place": "habitat",
+   "kind": "habitat_kettle",
+   "object": "kettle"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/habitat-score1/run/job-chunky.json",
+  "models": {
+   "kettle_1": "kettle-m6",
+   "blanket_1": "blanket-m6"
+  },
+  "entries": {}
+ }
+}

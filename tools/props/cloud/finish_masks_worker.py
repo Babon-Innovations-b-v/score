@@ -2,7 +2,9 @@
 
     /root/venv/bin/python finish_masks_worker.py <weights> <in folder> <out folder>
 
-Each <take>.png (the clean close-up on white) comes with <take>.json, {"phrases": {code: phrase}}; each comes back
+Each <take>.png (the clean close-up on white) comes with <take>.json, {"phrases": {code: phrase}} and, where given,
+{"boxes": {code: [x0, y0, x1, y1]}}, a positive exemplar box (pixels) asked with the phrase (EXPERIMENTAL, the surface
+test of 2026-10-11: a finish followed round a turntable by its own faces' box); each comes back
 as <out>/<take>.npz: per code the union of the instances SAM 3 finds over THRESHOLD (`mask_<code>`, packed bits,
 n x height x ceil(width / 8) with n 1) and their best score (`score_<code>`), and `shape`.
 """
@@ -26,10 +28,12 @@ def main():
     model = Sam3Model.from_pretrained(weights, torch_dtype=torch.float32).to("cuda").eval()
     for path in sorted(source.glob("*.png")):
         image = Image.open(path).convert("RGB")
-        phrases = json.loads(path.with_suffix(".json").read_text())["phrases"]
+        asked = json.loads(path.with_suffix(".json").read_text())
+        phrases, boxes = asked["phrases"], asked.get("boxes", {})
         found = {"shape": np.array(image.size[::-1])}
         for code, phrase in phrases.items():
-            inputs = processor(images=image, text=phrase, return_tensors="pt").to("cuda")
+            boxed = {"input_boxes": [[boxes[code]]], "input_boxes_labels": [[1]]} if code in boxes else {}
+            inputs = processor(images=image, text=phrase, return_tensors="pt", **boxed).to("cuda")
             with torch.no_grad():
                 outputs = model(**inputs)
             result = processor.post_process_instance_segmentation(

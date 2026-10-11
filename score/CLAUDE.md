@@ -17,9 +17,9 @@ stage as each stage is built; nothing moves before.
 - **`store/`** the store over `tools/cloud/runtime/store.py`'s interface (a folder at `$PROPS_HOME/store` by
   default; nothing in the cloud): outputs as content-hashed files and listings, finish records, judgements per
   evidence state, evidence per check and output, accepts (the runner's automatic ones and the owner's), the owner's
-  rejects, waivers and spend yeses, the runner's clearances. Written once, never overwritten, and safe for lines side
-  by side (each write lands whole through a `.partial` file of its own process; a write-once key is linked into
-  place, so a second writer is refused); checkouts are read-only copies (never links to the stored bytes), made again
+  rejects, waivers and spend yeses, the runner's clearances, the world's finish registry (append-only). Written
+  once, never overwritten, and safe for lines side by side (each write lands whole through a `.partial` file of its
+  own process; a write-once key is linked into place, so a second writer is refused); checkouts are read-only copies (never links to the stored bytes), made again
   when changed; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
 - **`python -m score run <world> [--place P ...] [--jobs N] [--detach]`** and **`python -m score status [<world>]`**
@@ -52,7 +52,9 @@ stage as each stage is built; nothing moves before.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `terrain` (one world node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
-  scale, slope, ground under objects and openings (its overlay). World 1's record is `data/definitions/world.json`.
+  scale, slope, ground under objects and openings (its overlay). `surfaces` (step 1) is each place's own line of
+  rows, split to checked bake, beside the world's seed of the finish registry (its overlay; per-place data in
+  `data/surfaces/`). World 1's record is `data/definitions/world.json`.
 
 Rules:
 

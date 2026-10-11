@@ -1,0 +1,140 @@
+{
+ "place": "hangar",
+ "library": "hangar",
+ "takes": {
+  "access_stair-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_access_stair",
+   "object": "a mobile aircraft access stair: steel steps with handrails up to a small railed platform, on four castors"
+  },
+  "bay_panel-h1": {
+   "places": [
+    "garage",
+    "hangar"
+   ],
+   "library_places": [
+    "garage",
+    "hangar"
+   ],
+   "place": "garage",
+   "kind": "garage_bay_panel",
+   "object": "a wall control panel for pumping the room's air out and in: a pressure gauge, a small screen, three big lit push buttons and a key switch, in a steel box"
+  },
+  "beacon-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_bracket_beacon",
+   "object": "a rotating amber warning beacon on a wall bracket"
+  },
+  "control_desk-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_control_desk",
+   "object": "a long steel control desk for the hall's air and roof door, a sloped panel of switches and lit buttons"
+  },
+  "crane_trolley-h2": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_crane_trolley",
+   "object": "a bridge crane's trolley with its hoist drum and a hook block hanging under it"
+  },
+  "crate-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_parts_crate",
+   "object": "a heavy reinforced shipping crate for a ship part, steel corners, stencilled lid"
+  },
+  "floodlight-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_floodlight",
+   "object": "a big rectangular floodlight on a wall bracket, tilted down"
+  },
+  "fuel_pump-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_fuel_pump",
+   "object": "the fuel point: a squat propellant and air pump cabinet with gauges, two hose couplings and a small screen"
+  },
+  "parts_rack-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_parts_rack",
+   "object": "a tall heavy steel pallet rack, three levels, holding crates and big ship parts wrapped in film"
+  },
+  "parts_shelving-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_parts_shelving",
+   "object": "a steel shelving unit of four shelves with labelled cardboard boxes and parts bins"
+  },
+  "ship_bench-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_ship_bench",
+   "object": "the ship bench: a long heavy steel workbench with a screen and keyboard on an arm, clamps and a parts fixture on its top"
+  },
+  "work_desk-h1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_monitor_desk",
+   "object": "a steel desk with three monitors, a keyboard, a control strip and a drawer pedestal"
+  }
+ }
+}
