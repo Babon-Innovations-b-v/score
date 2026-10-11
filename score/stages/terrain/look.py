@@ -75,7 +75,8 @@ def view_jobs(folder, place, views, size, out):
     for start in range(0, len(views), VIEWS_A_JOB):
         part = views[start:start + VIEWS_A_JOB]
         spec = out / f"{start // VIEWS_A_JOB}.views.json"
-        spec.write_text(json.dumps({"size": size, "views": part}))
+        # The demo's views are walk frames (look only); the measure needs each view's mask too.
+        spec.write_text(json.dumps({"size": size, "views": [dict(view, look_only=False) for view in part]}))
         target = out / str(start // VIEWS_A_JOB)
         jobs.append({"script": "tools/blender/inside/usd_views.py",
                      "args": [str(folder / place / f"{place}.usda"), str(spec), str(target)],
