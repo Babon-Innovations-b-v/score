@@ -2,8 +2,8 @@
 short or silent; on two rooms with a person standing in one (tools/usd/camera_paths_test.py) a shot whose eye walks
 through the person fails, as the square's first take walked through its crowd, and so does one that passes 0.1 m from
 a wall, while a shot clear of both passes; a frame with no ink lines fails, and so does a shot whose lines touch
-nothing in any frame, while a frame whose lines are faint or empty (a far view) is counted; and the
-summary adds up each cloud batch's own cost line. ffmpeg on the path; no Blender, no cloud.
+nothing in any frame, and a frame whose lines are faint or empty (a far view) fails unless the experimental
+past-fade rule counts it; and the summary adds up each cloud batch's own cost line. ffmpeg on the path; no Blender, no cloud.
 
 Run: .venv/bin/python tools/review/film_checks_test.py   (make tests runs it with the framework's environment)
 """
@@ -68,10 +68,14 @@ def check_ink(folder):
         lines.putpixel((2, 2), (10, 9, 8, ink))
         lines.save(frames / f"{name}-lines.png")
         Image.new("RGB", (8, 4)).save(frames / f"{name}-ink.png")
-    found, failures = film_checks.ink_checks(frames, [{"name": name} for name in names])
+    found, failures = film_checks.ink_checks(frames, [{"name": name} for name in names], past_fade=True)
     assert found == {"missing": 1, "empty": 2, "faint": 1, "fewest_inked_pixels": 0}, found
     assert failures == ["1 frames with no ink (first shot0-002)", "shot1: the ink touches no pixel in any frame"], \
         failures
+    # Fault (audit of 2026-10-11, item 7): 0e68b5e's rule passed a whole shot with no line at half strength (launch
+    # shot 1); it is experimental, so by default such frames fail.
+    found, failures = film_checks.ink_checks(frames, [{"name": name} for name in names])
+    assert failures[-1] == "3 frames inked nowhere at half strength (first shot0-001)", failures
 
 
 def check_report(folder):

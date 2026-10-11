@@ -1,7 +1,7 @@
 """The demo's measured checks on its films (tools/review/demo.py) and the showcase (showcase.py), never a judgement by
 eye: what ffmpeg measures on the video, and on the film's own frames what the camera stood near and what was drawn.
 
-    .venv/bin/python tools/review/film_checks.py films <out> <film> [<film> ...]
+    .venv/bin/python tools/review/film_checks.py films <out> <film> [<film> ...] [--ink-past-fade]
     .venv/bin/python tools/review/film_checks.py video <video> --least 120 --most 180 [--out <checks.json>]
     .venv/bin/python tools/review/film_checks.py report <out> <summary.txt> <cloud log> [<cloud log> ...]
 
@@ -10,9 +10,10 @@ not silent (volumedetect), no black stretch after the title card (blackdetect), 
 length between FILM_SECONDS; and on every frame of its views (<out>/views/<film>.json) the camera's eye at least the
 planner's clearance (tools/usd/camera_paths.py CLEARANCE) from every mesh of the stage and outside and as far from
 every person's box where that person stands at the frame's own moment of the stage's time, and the game's ink lines
-drawn (its <name>-lines.png and <name>-ink.png there, and every shot's lines touching some pixel; a frame whose lines
-are faint or touch nothing, everything it sees past the ink's fade, is counted, not failed). It writes every number
-to <out>/checks/<film>.json and prints one line a film. `video` runs the video checks alone (the showcase: its title card is not skipped). `report` writes the
+drawn (its <name>-lines.png and <name>-ink.png there, and every frame inked at half strength somewhere). The rule of
+0e68b5e, that a frame whose lines are faint or touch nothing (everything it sees past the ink's fade) is counted, not
+failed, is experimental and on only with --ink-past-fade: it let a whole shot with no line at half strength pass
+(launch shot 1), and no review has shown such a shot is right. It writes every number to <out>/checks/<film>.json and prints one line a film. `video` runs the video checks alone (the showcase: its title card is not skipped). `report` writes the
 demo's summary: every film's and the showcase's checks, and the cloud cost of each batch from its detached log's
 last summary line.
 """
@@ -136,11 +137,12 @@ def inked_pixels(lines):
     return int((alpha > 0).sum()), int((alpha >= INKED_ALPHA).sum())
 
 
-def ink_checks(frames, views):
+def ink_checks(frames, views, past_fade=False):
     """Every frame's ink: the frames whose lines or inked picture are missing and the shots whose lines touch no pixel
-    in any frame (failures); the frames the ink touches nowhere and those with no line at half strength or more
-    (everything they see lies past the game's ink fade, 60 to 120 m, as the launch's far harbour view: counted, not
-    failed), with the fewest pixels inked at half strength."""
+    in any frame (failures); the frames the ink touches nowhere and those with no line at half strength or more,
+    which fail too unless `past_fade` (experimental: everything they see lies past the game's ink fade, 60 to 120 m,
+    as the launch's far harbour view, and they are counted, not failed), with the fewest pixels inked at half
+    strength."""
     missing, empty, faint, fewest, touched_shots = [], [], [], None, {}
     for view in views:
         lines = frames / f"{view['name']}-lines.png"
@@ -154,15 +156,18 @@ def ink_checks(frames, views):
     blank = [shot for shot, touched in touched_shots.items() if touched == 0]
     failures = [f"{len(missing)} frames with no ink (first {missing[0]})"] if missing else []
     failures += [f"{shot}: the ink touches no pixel in any frame" for shot in blank]
+    unlined = empty + faint
+    if unlined and not past_fade:
+        failures.append(f"{len(unlined)} frames inked nowhere at half strength (first {unlined[0]})")
     return {"missing": len(missing), "empty": len(empty), "faint": len(faint), "fewest_inked_pixels": fewest}, failures
 
 
-def film_checks(out, film):
-    """A film's video and frame checks, written to <out>/checks/<film>.json."""
+def film_checks(out, film, past_fade=False):
+    """A film's video and frame checks, written to <out>/checks/<film>.json; `past_fade` as ink_checks."""
     planned = json.loads((out / "views" / f"{film}.json").read_text())
     result = video_checks(out / "videos" / f"{film}.mp4", *FILM_SECONDS, skip_start=demo.TITLE_SECONDS)
     result["clearance"], failures = clearance_checks(planned["stage"], planned["views"])
-    result["ink"], inked = ink_checks(out / "frames" / film, planned["views"])
+    result["ink"], inked = ink_checks(out / "frames" / film, planned["views"], past_fade)
     result["failures"] += failures + inked
     (out / "checks").mkdir(parents=True, exist_ok=True)
     (out / "checks" / f"{film}.json").write_text(json.dumps(result, indent=1))
@@ -225,10 +230,12 @@ def main():
     parser.add_argument("--least", type=float, default=SHOWCASE_SECONDS[0])
     parser.add_argument("--most", type=float, default=SHOWCASE_SECONDS[1])
     parser.add_argument("--out", type=pathlib.Path, help="video: where its checks are written")
+    parser.add_argument("--ink-past-fade", action="store_true",
+                        help="films, experimental: count a frame with no line at half strength rather than fail it")
     options = parser.parse_args()
     if options.step == "films":
         out = pathlib.Path(options.given[0]).resolve()
-        results = [film_checks(out, film) for film in options.given[1:]]
+        results = [film_checks(out, film, options.ink_past_fade) for film in options.given[1:]]
     elif options.step == "video":
         results = [video_checks(pathlib.Path(options.given[0]).resolve(), options.least, options.most)]
         if options.out:

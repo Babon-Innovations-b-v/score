@@ -1,6 +1,8 @@
 """The style measure (PRD #1, the paper's style-coherence gap): do a place's made models share one style? Read from the
 review pages' renders of each made model (Workbench, one studio light, no shadows, on one grey: every model of every
-place is drawn the same way, so what differs between two renders is the model).
+place is drawn the same way, so what differs between two renders is the model). Experimental: not yet checked
+against the creator's reviews (it reported nothing wrong on the paint he rejects); docs/bible.md,
+architecture/experimental.
 
     .venv/bin/python tools/review/style.py pairs <review root> <work folder>      # the silhouettes and pairs.json
     .venv/bin/python tools/props/cloud/similar.py <work>/pairs.json <work>/likeness.json --who "<session>"
