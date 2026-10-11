@@ -132,6 +132,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   first, a 48 GB one at a third of the pace; vLLM's DeepGEMM and FlashInfer sampler are
   off because the GPU image has no CUDA toolkit), and Pro draws only what fails. `--model klein` stays the
   default for other pictures.
+- **Every Gemini API call goes through `google_spend.generate`** (2026-10-11, after a EUR 257 day): it prices the
+  response from its usageMetadata at Google's published prices and appends one line to
+  `~/.farm-factory-props/cloud/google-ledger.jsonl`; with `cache=True` (the judge) the same request is asked once and
+  read back from `google-cache/` by every place line and rerun. No day cap (owner, 2026-10-11). Nothing calls
+  generativelanguage.googleapis.com any other way.
 - **Close-up regions** (`segment.py`, `segment_setup.sh`, `segment_worker.py`; job repaint, 2026-10-08): SAM 2.1's
   automatic masks (facebookresearch/sam2 at a pinned commit, code and weights Apache-2.0) of every clean close-up,
   spread over cards (`spread.py`); 73 close-ups took 6 minutes on three L4s, €0.24.

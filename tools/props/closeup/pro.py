@@ -51,11 +51,11 @@ def pictures_in(answer):
 def draw(key, wording, crop, concept, path):
     """One close-up into `path`; True when a picture came back, False when the service refused every attempt. A
     refused request (quota, overload) is tried again after a wait. Refused outside a cleared run
-    (compute.require_cleared) and past the day's Google cap (google_spend)."""
+    (compute.require_cleared). Each call's cost goes on the Google ledger (google_spend)."""
     compute.require_cleared("a Nano Banana Pro close-up")
     body = request_body(wording, crop, concept)
     for attempt in range(ATTEMPTS):
-        try:  # priced and refused past the day's cap (google_spend.SpendCapReached, never retried)
+        try:  # priced on the Google ledger (google_spend)
             found = pictures_in(google_spend.generate(MODEL, body, key, 400, caller="pro"))
         except urllib.error.HTTPError as error:
             print(f"Nano Banana Pro refused ({error.code}); trying again", flush=True)
