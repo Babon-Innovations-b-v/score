@@ -1,0 +1,5 @@
+{
+ "_comment": "World 1 as the stage runner reads it (score/stages). Every node's seed is derived from this one with its stage and place (score/graph node_seed); 3 is the seed world 1's runs typed by hand until 2026-10-11.",
+ "name": "world1",
+ "seed": 3
+}

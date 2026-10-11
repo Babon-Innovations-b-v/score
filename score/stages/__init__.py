@@ -1,0 +1,31 @@
+"""The stage table: every stage the runner knows, in the paper's order, and world 1 as the runner reads it.
+
+    from score import stages
+    runner = stages.runner()        # world 1, the framework's store on this machine
+    runner.status(["hangar", "hdoor"])
+
+Step 0 holds the worked example only: assembly (P5) on world 1's round-three stages as unverified seeds, and
+complete (P11). Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+"""
+import pathlib
+
+from score import graph
+from score.stages import assembly, complete
+from score.store import PROPS_HOME, Store
+
+REPO = pathlib.Path(__file__).resolve().parents[2]
+WORLD1 = REPO / "data/definitions/world.json"
+
+ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, assembly.CHECKS, files=assembly.FILES)
+COMPLETE = graph.Stage("complete", "place", complete.make_manifest, complete.CHECKS, after=("assembly",))
+STAGES = (ASSEMBLY, COMPLETE)
+
+
+def world1():
+    """World 1: its record, its data in the repository and its old outputs in the work folder."""
+    return graph.World.from_file(WORLD1, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"))
+
+
+def runner(store=None, world=None):
+    """The runner over the stage table, on world 1 and the framework's store unless told otherwise."""
+    return graph.Runner(STAGES, world or world1(), store or Store.default())
