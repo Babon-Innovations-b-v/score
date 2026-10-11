@@ -239,7 +239,7 @@ def render_stage(stage, views, size, folder, plain=False, lights=(), shown=()):
     written before that place existed) is not sent."""
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "views.json").write_text(json.dumps({"size": list(size), "views": views, "plain": plain,
-                                                   "lights": list(lights)}, indent=1))
+                                                   "lights": list(lights), "review": True}, indent=1))
     beside = [pathlib.Path(stage).parent.parent / name for name in shown
               if (pathlib.Path(stage).parent.parent / name).exists()]
     blender(SCENE_VIEWS, stage, folder / "views.json", folder,

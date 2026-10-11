@@ -11,6 +11,7 @@ transparent background: the alpha is where they are), <name>-ground.png (the gro
 report.json with what came in: objects, materials, each object's score:* properties, and the stage's layers as
 Blender's own USD library composed them. A view with `"look_only": true` (a walkthrough's frame) gets its look alone.
 `"plain": true` draws every object in one plain grey instead of its materials: a debug view of shape alone.
+`"review": true` (the review page's pictures, never the films') renders Cycles with REVIEW_SAMPLES.
 `"lights": [{"at", "energy", "radius"}]` adds point lights (a room's lamps, watts); a view with `"hide_layers": [2]`
 leaves out every object whose `score:layer` is one of them (a room's roof, for a cutaway look in), and one with
 `"hide_over": {"above", "low", "high"}` every mesh wholly over that height standing over that floor (a room whose roof
@@ -67,6 +68,10 @@ PLAIN_COLOUR = (0.6, 0.6, 0.6, 1.0)
 EFFECT_BOUNCES = 256
 SAMPLES = 16
 CARD_SAMPLES = 64
+# A review picture's samples (views.json "review": true), denoised as the films' are: on an L4 (2026-10-11) a 1080p
+# film frame of the hangar and the greenhouse took 17.7 to 18.1 s against 25 to 29 s at CARD_SAMPLES, and differed from
+# the final look by 1.0 and 7.6 levels of 255 on average, about what a second seed of the final does (1.0 and 6.5).
+REVIEW_SAMPLES = 16
 # The game's ink lines (2099's ink_edges.gdshader and ink_edges.tres), its numbers as it has them: a pixel is inked
 # where its neighbours `reach` pixels out average further away than it by DEPTH_BREAK (in one over the distance, so a
 # flat floor at any angle is not), or where it turns from a nearer-or-level neighbour past CREASE_BREAK; the reach is
@@ -1162,6 +1167,8 @@ def main():
     objects = [item for item in objects if not item.hide_render]  # what the stage makes invisible stays so
     effects = effect_points(stage, objects)
     renderer(scene, views["size"])
+    if views.get("review") and scene.render.engine == "CYCLES":
+        scene.cycles.samples = REVIEW_SAMPLES
     if effects and scene.render.engine == "CYCLES":  # thin particles one behind another: Cycles stops at 8 by default
         scene.cycles.transparent_max_bounces = EFFECT_BOUNCES
     environment = lit(scene, stage, views.get("fill"))
