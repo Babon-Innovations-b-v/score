@@ -183,7 +183,9 @@ is meant to fix, where it is marked, and what proves it.
   model's own texture, which is shaded and invented on unseen sides: Gemini lists the close-up's finishes as library
   surfaces, Nano Banana Pro redraws the close-up as a finish map, and the map is laid onto the raw model (front
   projection walked over the surface, or SegviGen guided by the map). Runs only through its own rows. Proven when an
-  arm beats round 4's g-texture on the six models by round 4's measures, then the owner's look.
+  arm beats round 4's g-texture on the six models by round 4's measures, then the owner's look. 2026-10-11: its best
+  arm (SegviGen guided) beats today's paint on 5 of 6 to g-texture's 6 (the power unit's maps failed their check, the
+  lander lost two foil finishes); the measures are in the coordinator's `refocus/surface/fm/measured/`.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
