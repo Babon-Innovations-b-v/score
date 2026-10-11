@@ -63,6 +63,8 @@ KINDS = {
     "scene": SINGLE_CARD,
     "closeups": SINGLE_CARD,
     "unlit": SINGLE_CARD,
+    # Depth Anything V2 Small on a ground's diorama pictures (depth.py): a 25M model, any card.
+    "depth": SINGLE_CARD,
     "pictures": SINGLE_CARD,
     # A 20B picture model (Qwen-Image-Edit, pictures.MODELS): 58 GB of weights, held whole on an 80 GB card and
     # moved on and off a 48 GB one part by part; one card of a two-card machine is used.

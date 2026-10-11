@@ -2,10 +2,11 @@
 
     .venv/bin/python -m score.stages status <place> [<place> ...]   # each node: blocked, to run and why, or its answer
     .venv/bin/python -m score.stages run <place> [<place> ...]      # runs only nodes with no output for their key
+    .venv/bin/python -m score.stages run                            # the world's own nodes only (terrain)
     .venv/bin/python -m score.stages why <node>                     # its records back through what it read
 
-No stage in today's table spends. A paid stage runs once the runner clears it (its inputs passed, the month's ceiling
-has room for its estimate: score.adapters.compute); no one is asked. Passing outputs that got no worse are accepted by
+Terrain spends (its pictures and their depth in the cloud). A paid stage runs once the runner clears it (its inputs
+passed, the month's ceiling has room for its estimate: score.adapters.compute); no one is asked. Passing outputs that got no worse are accepted by
 the runner; the owner rejects any from his terminal (score.review reject).
 """
 import argparse
@@ -21,7 +22,7 @@ def parse(argv):
     parser = argparse.ArgumentParser(prog="score.stages", description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("status", "run"):
-        commands.add_parser(name).add_argument("places", nargs="+")
+        commands.add_parser(name).add_argument("places", nargs="*")
     commands.add_parser("why").add_argument("node")
     return parser.parse_args(argv)
 

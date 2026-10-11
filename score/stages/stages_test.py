@@ -35,7 +35,8 @@ def world_data_copy(root):
 def scenario(root):
     world = graph.World("world1", 3, {"data": str(world_data_copy(root / "data")), "seeds": str(SEEDS)})
     store = Store.in_folder(root / "store")
-    return world, store, lambda: stages.runner(store, world)
+    # The worked example's own stages: terrain (a world node) spends and has its own test beside its module.
+    return world, store, lambda: graph.Runner((stages.ASSEMBLY, stages.COMPLETE), world, store)
 
 
 def test_the_worked_example_on_world_1s_seeds():

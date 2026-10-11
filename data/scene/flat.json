@@ -146,6 +146,17 @@
    ],
    "yaw": 0.0,
    "from": "the far city the framework lays itself (tools/usd/far_city.py, far_city_stage.py), in EarthSite's frame like the place (the flat's floor is 9 m up)"
+  },
+  {
+   "name": "stairwell",
+   "stage": "stairwell",
+   "at": [
+    0.0,
+    -9.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "EarthSite: the flat's front door (its +x wall's doorway at z -1.6, the kit's flat_timber_door_frame) opens onto the stairwell's top landing, the stairwell's own frame 9 m down like the square's (its top doorway at x 3.215, 9 m up, data/kit/stairwell.json); without it the door opened onto nothing (the terrain stage's openings gate)"
   }
  ],
  "lights": [

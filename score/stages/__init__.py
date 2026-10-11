@@ -4,23 +4,27 @@
     runner = stages.runner()        # world 1, the framework's store on this machine
     runner.status(["hangar", "hdoor"])
 
-Step 0 holds the worked example only: assembly (P5) on world 1's round-three stages as unverified seeds, and
-complete (P11). Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+Step 0 holds the worked example: assembly (P5) on world 1's round-three stages as unverified seeds, and complete
+(P11). Terrain (the paper's Methods, "Terrain") makes every ground of the world from its plan, one world node, paid
+(pictures and depth in the cloud, cleared by the runner). Each stage joins the table when it is built in its step
+(docs/bible.md, architecture/components).
 """
 import pathlib
 
 from score import contracts, graph
-from score.stages import assembly, complete
+from score.stages import assembly, complete, terrain
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 WORLD1 = REPO / "data/definitions/world.json"
 
+TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain.FILES,
+                      paid=True, euros=terrain.EUROS)
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
                        files=assembly.FILES)
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
                        after={"assembly": ("openusd-stage", 1)})
-STAGES = (ASSEMBLY, COMPLETE)
+STAGES = (TERRAIN, ASSEMBLY, COMPLETE)
 
 
 def world1():
