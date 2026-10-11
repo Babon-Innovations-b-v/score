@@ -795,12 +795,12 @@
    "forward": 0.67,
    "diffuse": 0.25,
    "gain": [
-    2.94,
-    1.89,
-    1.26
+    11.76,
+    7.56,
+    5.04
    ],
    "width": 1024,
-   "from": "the framework's (2026-10-11, paper-vs-world-1 item 17: Mars's sky a flat brown wall with no sun): tools/usd/mars_sky.py's single scattering of a dust layer seen from its floor, lit by this record's sun. Albedo 0.975 in red is Wolff et al. 2009's at 650 nm as Chen-Chen et al. 2019 (MSL Navcam) take it; green and blue lower, as Wolff et al. found the dust takes more blue (0.93 and 0.86 are the framework's, not quoted); forward throw 0.67 is Chen-Chen et al. 2019's Navcam retrieval (0.673 +- 0.081); depth 0.6 the framework's choice for a clear afternoon outside the storm season; diffuse the framework's. The gain is measured: the rendered sky against concept K05's (data/inventory/campgrounds.json's view)"
+   "from": "the framework's (2026-10-11, paper-vs-world-1 item 17: Mars's sky a flat brown wall with no sun): tools/usd/mars_sky.py's single scattering of a dust layer seen from its floor, lit by this record's sun. Albedo 0.975 in red is Wolff et al. 2009's at 650 nm as Chen-Chen et al. 2019 (MSL Navcam) take it; green and blue lower, as Wolff et al. found the dust takes more blue (0.93 and 0.86 are the framework's, not quoted); forward throw 0.67 is Chen-Chen et al. 2019's Navcam retrieval (0.673 +- 0.081); depth 0.6 the framework's choice for a clear afternoon outside the storm season; diffuse the framework's. The gain is measured: the light stage's sweep of the rendered sky against concept K05's, 4 times the first guess (2.94, 1.89, 1.26) nearest it (colour gap 10.7 levels)"
   }
  },
  "floor": [

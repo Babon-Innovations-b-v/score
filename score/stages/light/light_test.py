@@ -1,7 +1,7 @@
 """Check the light stage's measures on pictures made here: a floodlight bank drawn as a grid of lit panes in a dark
 frame has no halo and a low fill, the same bank glowing into the air round it has both; a flat-palette disc covers
 most of itself with its eight commonest colours and a noisy one does not; a sky's colour, its blue to red and its rise
-to the horizon are read on the pixels the flat sky held before; a point straight ahead falls in the picture's middle.
+to the horizon are read on the pixels the flat sky held before; haze over the picture's lower part reads as a veil; a point straight ahead falls in the picture's middle.
 
 Run: .venv/bin/python score/stages/light/light_test.py   (make tests runs it)
 """
@@ -61,6 +61,15 @@ def check_sky():
     assert found["after"]["rise_to_horizon"] > 0 and abs(found["after"]["blue_to_red"] - 0.6) < 0.01
 
 
+def check_veil():
+    before = np.full((100, 100, 3), 40.0)
+    after = before.copy()
+    after[:50] += 100.0  # a lamp's glow up in the sky leaves the place below as it was
+    assert measure.veil(before, after) == 0.0
+    after[60:] += 30.0  # haze laid over the place's lower part
+    assert abs(measure.veil(before, after) - 30.0 / 255.0) < 1e-3
+
+
 def check_where():
     view = {"eye": [0, 0, 0], "aim": [0, 0, -10], "up": [0, 1, 0], "fov": 90}
     x, y, depth, focal = measure.where(view, (200, 100), [0, 0, -5])
@@ -72,6 +81,7 @@ def main():
     check_heads()
     check_discs()
     check_sky()
+    check_veil()
     check_where()
     print("light_test: ok")
 
