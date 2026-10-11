@@ -125,7 +125,24 @@ def a_check_that_cannot_run_is_unknown():
         return problems
 
 
-CHECKS = (a_finished_place_passes, a_row_with_no_object_needs_a_drop_reason, an_edit_after_the_checks_makes_them_stale,
+def a_failing_reach_is_shown_not_counted():
+    """Fault (audit of 2026-10-11, item 5): the reach check failed places on backdrop rows nobody walks to, and its
+    fail counted in the verdict before it had caught one real unreachable row."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = laid(folder)
+        checked_and_reviewed(stage, folder / "review")
+        complete.save(complete.result("reach", complete.FAIL, stage, [{"row": "far_city_tower"}]), stage)
+        written = complete.manifest(resting_test.PLACE, stage, folder / "review")
+        reach = next(requirement for requirement in written["requirements"] if requirement["name"] == "reach")
+        problems = [] if reach["result"] == complete.FAIL and "experimental" in reach else \
+            [f"the reach requirement does not show its fail as experimental: {reach}"]
+        if written["verdict"] != complete.PASS:
+            problems.append(f"an experimental check's fail decided the verdict: {written['verdict']}")
+        return problems
+
+
+CHECKS = (a_finished_place_passes, a_failing_reach_is_shown_not_counted, a_row_with_no_object_needs_a_drop_reason, an_edit_after_the_checks_makes_them_stale,
           a_mesh_from_nowhere_fails_made_only, a_check_that_cannot_run_is_unknown)
 
 
