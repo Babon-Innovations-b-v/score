@@ -4,7 +4,7 @@ rest, by a commercial-OK simulator, into a NEW look copy; the people built again
 the new body taken with the same cameras (job drapes, 2026-10-09: the looks kept before were draped by GarmentCode's
 non-commercial Warp fork).
 
-    .venv/bin/python tools/characters/maker/rebuild.py bundle [<person> ...] [--simulator newton|blender]
+    .venv/bin/python tools/characters/maker/rebuild.py bundle [<person> ...] --simulator newton|blender
     .venv/bin/python tools/props/cloud/characters.py ~/.farm-factory-motion/rebuild/make/<group> ... --who "<session>"
     .venv/bin/python tools/characters/maker/rebuild.py land [<group> ...]
 
@@ -500,7 +500,8 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     bundling = sub.add_parser("bundle", help="write the groups' make folders here")
     bundling.add_argument("people", nargs="*", help="whose groups (default everybody)")
-    bundling.add_argument("--simulator", default="newton", choices=sorted(SIMULATORS))
+    bundling.add_argument("--simulator", required=True, choices=sorted(SIMULATORS),
+                          help="experimental: no default (the owner rejected the Newton drapes)")
     landing = sub.add_parser("land", help="copy the groups' out folders into the rebuild folders here")
     landing.add_argument("groups", nargs="*")
     running = sub.add_parser("run", help="on the machine: rebuild one group")

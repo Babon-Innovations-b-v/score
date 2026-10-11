@@ -1,6 +1,8 @@
 """The character maker's prop route for a person (owner, 2026-10-10: "soma is for the rig, not the mesh ... we should
 fit the prop pipeline mesh to the rig, and maybe on top of that do some part segmentations, and for the clothing parts
 some drape shaping"): a spec with "route": "prop" is made here; every other person spec keeps the shipped route.
+Experimental (#5): the player fails tucks and pokes and Nev is not made, so make.py sends a spec here only with
+--experimental (docs/bible.md, architecture/experimental).
 
     .venv/bin/python tools/characters/maker/prop_person.py data/characters/makes/<name>.json --who "<session>"
         [--outfit work] [--stages closeup,mesh,parts,build,checks] [--held <characters run folder>] [--dry-run]

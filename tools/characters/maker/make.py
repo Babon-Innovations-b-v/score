@@ -2,7 +2,7 @@
 clothed, textured, animated character (glTF and UsdSkel) with its crowd levels and its clips, made in the cloud.
 
     .venv/bin/python tools/characters/maker/make.py data/characters/makes/<name>.json [...] --who "<session>"
-        [--classes gpu-24gb,gpu-80gb] [--dry-run]
+        [--classes gpu-24gb,gpu-80gb] [--dry-run] [--experimental]
 
 Each spec (spec.py says what it holds) gets a make folder, ~/.farm-factory-motion/made/<name>/: `in/` is written here
 (the spec with its files renamed to where they lie up there, the files, and what every person shares: the boots,
@@ -11,6 +11,11 @@ to the person chain on rented cards (tools/props/cloud/characters.py, tools/char
 person; animals go to the animal route (tools/characters/animals/). A person spec with "route": "prop" goes to the prop
 route instead (prop_person.py: Pixal3D's mesh with SOMA-X's skeleton fitted inside it, candidates only); every other
 person keeps the shipped route. Nothing here loads a model.
+
+Experimental, so refused unless asked for (docs/bible.md, architecture/experimental): the prop route and the animal
+route run only with --experimental, and a person's drapes only with the spec's "drape_simulator" (the owner rejected
+the Newton drapes and drape_measure fails them; no drape route passes yet). Every refusal is said before anything is
+bundled or rented.
 """
 import argparse
 import json
@@ -38,6 +43,11 @@ SHARED = {
     "makehuman/eyes/low-poly.obj": MOTION_HOME / "rnd/garmentcode/round3/assets/mh/eyes/low-poly/low-poly.obj",
 }
 MOTIONS = MOTION_HOME / "work" / "motions"
+# The routes that run only with --experimental: each the fault it is for, and why it is not proven yet.
+EXPERIMENTAL_ROUTES = {
+    "prop": "the prop route (#5, bloated clothes on SOMA-made people): the player fails tucks and pokes, Nev is not made",
+    "animal": "the animal route (#1, places with no animals): no fish swims in any place yet",
+}
 
 
 def bundle(spec):
@@ -63,6 +73,27 @@ def bundle(spec):
         shutil.copytree(MOTIONS, inputs / "motions", ignore=shutil.ignore_patterns("*.bvh"))
     (inputs / "spec.json").write_text(json.dumps(machine_spec, indent=1))
     return folder
+
+
+def route_of(spec):
+    """The route a spec takes: "prop", "animal" or "person" (the shipped person chain)."""
+    if spec["kind"] == "animal":
+        return "animal"
+    return "prop" if spec.get("route") == "prop" else "person"
+
+
+def refusals(found, experimental):
+    """Why the specs in `found` may not be made as asked, one line a spec: an experimental route without
+    `experimental`, a person on the shipped chain whose spec names no drape simulator. Empty when all may."""
+    lines = []
+    for spec in found:
+        route = route_of(spec)
+        if route in EXPERIMENTAL_ROUTES and not experimental:
+            lines.append(f"{spec['name']}: {EXPERIMENTAL_ROUTES[route]}; experimental, so only with --experimental")
+        if route == "person" and not spec.get("drape_simulator"):
+            lines.append(f"{spec['name']}: the drapes are experimental (the owner rejected the Newton drapes, "
+                         "drape_measure fails them): name drape_simulator in the spec to drape anyway")
+    return lines
 
 
 def make_people(folders, who, classes, dry_run):
@@ -95,8 +126,12 @@ def main():
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--classes", help="capability classes for the people's cards, comma separated")
     parser.add_argument("--dry-run", action="store_true", help="check, bundle and price, rent nothing")
+    parser.add_argument("--experimental", action="store_true", help="allow the prop and animal routes")
     options = parser.parse_args()
     found = [specs.read(path) for path in options.specs]
+    refused = refusals(found, options.experimental)
+    if refused:
+        raise SystemExit("refused:\n" + "\n".join(refused))
     for spec, path in zip(found, options.specs):
         if spec["kind"] == "person" and spec.get("route") == "prop":
             make_prop_person(path, options.who, options.dry_run)

@@ -12,6 +12,8 @@ anything is rented. Paths are absolute or start from ~ (the creator's own pictur
      "garment_body": "mean_male" or "mean_female",   GarmentCode body the measurements are scaled from
      "clips": ["standing", "walking", ...],     sentences of tools/characters/people/clips.py (all when left out)
      "look": {...},                             tools/characters/people/person.py's settings (scale, colours, ...)
+     "drape_simulator": "newton" or "blender",  the drapes' simulator; experimental, so a person is made only when
+                                                its spec names one (make.py refuses it otherwise)
      "route": "prop"}                           the prop route (prop_person.py) instead of the shipped one; it also
                                                 takes "outfit_words" ({outfit: the outfit by its parts, in words})
 
@@ -24,6 +26,7 @@ import pathlib
 KINDS = ("person", "animal")
 OUTFITS = ("work", "space", "jacket", "coat", "trousers")
 REQUIRED = ("name", "kind", "approved")
+DRAPE_SIMULATORS = ("newton", "blender")
 
 
 class SpecError(ValueError):
@@ -62,6 +65,8 @@ def person_problems(spec):
         problems.append("no hair in words")
     if not spec.get("face"):
         problems.append("no face in words")
+    if spec.get("drape_simulator") not in (None, *DRAPE_SIMULATORS):
+        problems.append(f"drape_simulator {spec['drape_simulator']!r} is not one of {', '.join(DRAPE_SIMULATORS)}")
     if spec.get("route") not in (None, "prop"):
         problems.append(f"route {spec['route']!r} is not prop (or left out for the shipped route)")
     if spec.get("route") == "prop":

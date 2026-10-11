@@ -1,5 +1,6 @@
 """The character maker's animal route: one animal from its spec to a rigged, animated character, every model step and
-every Blender run on rented machines (job characters-full, 2026-10-09).
+every Blender run on rented machines (job characters-full, 2026-10-09). Experimental: not run on any world, so
+make.py sends a spec here only with --experimental (docs/bible.md, architecture/experimental).
 
     import route
     route.make(spec, folder, who="<session>", dry_run=False)
