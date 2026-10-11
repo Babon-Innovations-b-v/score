@@ -143,6 +143,11 @@ class Store:
             self.objects.download(f"blobs/{sha}", destination)
         destination.chmod(0o444)
 
+    def read_file(self, output, name):
+        """One JSON file of a stored output, read from the store without a checkout; None when the output lacks it."""
+        sha = self.listing(output).get(name)
+        return json.loads(self.objects.read_bytes(f"blobs/{sha}")) if sha else None
+
     def checkout(self, output):
         """A read-only folder holding a stored output, made once per output in the cache and made again when its
         files no longer match the output."""

@@ -9,7 +9,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
-from score import graph  # noqa: E402
+from score import contracts, graph  # noqa: E402
 from score.adapters import compute, engines  # noqa: E402
 from score.store import Store  # noqa: E402
 
@@ -20,12 +20,14 @@ def make_nothing(inputs, out, seed, params):
     raise AssertionError("not made in this test")
 
 
-RENDER = graph.Stage("render", "place", make_nothing, paid=True)
+RENDER = graph.Stage("render", "place", make_nothing, contracts.Contract("toy-render", 1, lambda folder: []),
+                     paid=True)
 
 
 def test_a_blender_job_runs_the_pinned_image_headless():
     spec = engines.blender_job("tools/blender/inside/warm_kernels.py", ["/work/out.json"], [], "code/x.tar.gz", 5, 0.4)
-    assert spec["euros"] == 0.4 and spec["image"] == compute.job_contract.image("blender") and "@sha256:" in spec["image"]
+    assert spec["euros"] == 0.4
+    assert spec["image"] == compute.job_contract.image("blender") and "@sha256:" in spec["image"]
     assert spec["command"][:3] == [engines.BLENDER, "-b", "-setaudio"] and spec["command"][-2:] == ["--",
                                                                                                     "/work/out.json"]
 

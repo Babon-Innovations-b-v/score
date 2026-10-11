@@ -9,7 +9,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
-from score import checks, graph  # noqa: E402
+from score import checks, contracts, graph  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.store import Store  # noqa: E402
 
@@ -23,13 +23,16 @@ def judge_brief(output, inputs, evidence):
     return checks.Verdict("said", checks.PASS if text.strip() else checks.FAIL, "a brief was written")
 
 
+TEXT = contracts.Contract("toy-text", 1, lambda folder: [])
+
+
 def make_nothing(inputs, out, seed, params):
     raise AssertionError("a paid stage's make is not run by these tests")
 
 
-BRIEF = graph.Stage("brief", "place", make_brief, (checks.Check("said", judge_brief),),
+BRIEF = graph.Stage("brief", "place", make_brief, TEXT, (checks.Check("said", judge_brief),),
                     files={"brief": "{data}/{place}.txt"})
-RENDER = graph.Stage("render", "place", make_nothing, after=("brief",), paid=True)
+RENDER = graph.Stage("render", "place", make_nothing, TEXT, after={"brief": ("toy-text", 1)}, paid=True)
 
 
 def a_runner(text):

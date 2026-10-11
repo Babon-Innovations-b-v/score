@@ -9,15 +9,17 @@ complete (P11). Each stage joins the table when it is built in its step (docs/bi
 """
 import pathlib
 
-from score import graph
+from score import contracts, graph
 from score.stages import assembly, complete
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 WORLD1 = REPO / "data/definitions/world.json"
 
-ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, assembly.CHECKS, files=assembly.FILES)
-COMPLETE = graph.Stage("complete", "place", complete.make_manifest, complete.CHECKS, after=("assembly",))
+ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
+                       files=assembly.FILES)
+COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
+                       after={"assembly": ("openusd-stage", 1)})
 STAGES = (ASSEMBLY, COMPLETE)
 
 
