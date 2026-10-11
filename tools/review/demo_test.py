@@ -1,10 +1,11 @@
-"""Check the demo's shots: a camera looking up at a roof is left out, the cameras kept are spread over the record's
-list; on two rooms made here (tools/usd/camera_paths_test.py) a shot whose camera looks through the wall into the
-other room walks towards it only as far as is clear, at eye height, every step clear, and keeps looking that way; a
-view held near level; a walk in a room keeps to its recorded floor; a camera held far over every floor stands at its
-own eye; a standing shot turns in place; the frames run at consecutive moments of the stage's time; a shot starts
-where it keeps the clearance from walls and people, or is left out; an earlier take's clear shots are kept; and a
-frame's ink lines drawn alone are laid over its look. No Blender, no cloud.
+"""Check the demo's shots: the owner's picked viewpoints are a film's cameras where he picked any; a camera looking up
+at a roof is left out, the cameras kept are spread over the record's list; on two rooms made here
+(tools/usd/camera_paths_test.py) a shot whose camera looks through the wall into the other room walks towards it only as
+far as is clear, at eye height, every step clear, and keeps looking that way; a view held near level; a walk in a room
+keeps to its recorded floor; a camera held far over every floor stands at its own eye; a standing shot turns in place;
+the frames run at consecutive moments of the stage's time; a shot starts where it keeps the clearance from walls and
+people, or is left out; an earlier take's clear shots are kept; and a frame's ink lines drawn alone are laid over its
+look. No Blender, no cloud.
 
 Run: .venv/bin/python tools/review/demo_test.py   (make tests runs it with the framework's environment)
 """
@@ -75,6 +76,21 @@ def check_held(scenes):
     frame = demo.shot_frames(move, view, 0, 30)[15]
     looked = np.array(frame["aim"]) - frame["eye"]
     assert np.degrees(np.arctan2(looked[1], np.linalg.norm(looked[[0, 2]]))) < -45, frame
+
+
+def check_picked():
+    """The owner's picked viewpoints are a film's cameras in the order he saved them; a name given picks from them
+    and the record's; with none picked the record's spread is used."""
+    record = {"views": [camera(f"spot{number}", [number, 1.6, 0], [number, 1.2, -4]) for number in range(7)]}
+    with tempfile.TemporaryDirectory() as temporary:
+        picks = pathlib.Path(temporary)
+        assert demo.film_cameras("hall", record, picks=picks) == demo.shot_cameras(record)
+        demo.viewpoints.append("hall", dict(camera("by the stair", [2, 1.6, 1], [0, 1.4, -5]), fov=70), picks)
+        demo.viewpoints.append("hall", camera("door", [5, 1.6, 2], [5, 1.4, -2]), picks)
+        assert [view["name"] for view in demo.film_cameras("hall", record, picks=picks)] == ["by the stair", "door"]
+        named = demo.film_cameras("hall", record, ["spot3", "door"], picks=picks)
+        assert [view["name"] for view in named] == ["spot3", "door"]
+        assert demo.film_cameras("hall", record, picks=picks)[0]["fov"] == 70
 
 
 def check_stand():
@@ -175,7 +191,7 @@ def check_names():
 
 
 if __name__ == "__main__":
-    for check in (check_cameras, check_stand, check_level, check_names, check_inked):
+    for check in (check_cameras, check_picked, check_stand, check_level, check_names, check_inked):
         check()
     with tempfile.TemporaryDirectory() as temporary:
         stage = camera_paths_test.rooms_stage(pathlib.Path(temporary))

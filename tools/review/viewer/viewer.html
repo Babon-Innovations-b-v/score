@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SCORE viewer</title>
+<link rel="icon" href="data:,">
+<!-- One place's web copy (tools/review/viewer/export.py), served by serve.py at /view/<place>. -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; font: 14px/1.4 system-ui, sans-serif; background: #111; }
+  canvas { display: block; }
+  #panel { position: fixed; top: 0; left: 0; bottom: 0; width: 270px; overflow-y: auto; box-sizing: border-box;
+           padding: 12px 14px; background: rgba(250, 250, 248, 0.94); color: #222; }
+  #panel h1 { font-size: 18px; margin: 0 0 2px; }
+  #panel h2 { font-size: 13px; margin: 14px 0 4px; text-transform: uppercase; letter-spacing: .05em; color: #555; }
+  #panel button { font: inherit; padding: 3px 8px; margin: 2px 0; cursor: pointer; }
+  #panel label { display: block; margin: 3px 0; }
+  .views button { display: block; width: 100%; text-align: left; }
+  #stats { font: 12px ui-monospace, monospace; white-space: pre; color: #333; }
+  #status { color: #a40; }
+  #hover { position: fixed; pointer-events: none; padding: 2px 6px; background: rgba(0, 0, 0, .75); color: #fff;
+           font: 12px ui-monospace, monospace; border-radius: 3px; }
+  #cross { position: fixed; left: calc(50% + 135px); top: 50%; width: 10px; height: 10px; margin: -5px;
+           border: 1px solid rgba(255, 255, 255, .7); border-radius: 50%; pointer-events: none; }
+  .keys { color: #555; font-size: 12px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+} }
+</script>
+</head>
+<body>
+<div id="panel">
+  <h1 id="title">Loading…</h1>
+  <div id="status"></div>
+  <h2>Move</h2>
+  <label><input type="radio" name="mode" value="orbit" checked> Orbit (drag, wheel)</label>
+  <label><input type="radio" name="mode" value="fly"> Walk / fly (click, then WASD + mouse)</label>
+  <label><input type="checkbox" id="eyeLock"> Hold eye height 1.6 m over the floor (G)</label>
+  <label>Speed <input type="range" id="speed" min="0.5" max="20" step="0.5" value="3"> <span id="speedText">3</span> m/s</label>
+  <h2>Show</h2>
+  <label><input type="checkbox" id="ink"> Ink lines, approximate (I)</label>
+  <label><input type="checkbox" id="names"> Surface names on hover (H)</label>
+  <h2>Save this view</h2>
+  <input id="pickName" placeholder="name (optional)" maxlength="80" style="width: 100%; box-sizing: border-box">
+  <button id="save">Save view (P)</button> <span id="saved"></span>
+  <h2>Picked viewpoints</h2>
+  <div class="views" id="picked"></div>
+  <h2>Proposed viewpoints</h2>
+  <div class="views" id="proposed"></div>
+  <h2>Frame</h2>
+  <div id="stats"></div>
+  <p class="keys">Fly: W A S D, E up, Q down, Shift faster, Esc frees the mouse. A view's fov is the angle across
+    the picture, as the scene record keeps it. <a href="/">All places</a></p>
+</div>
+<div id="hover" hidden></div>
+<div id="cross" hidden></div>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { computeBoundsTree, acceleratedRaycast } from "three-mesh-bvh";
+
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+const PANEL = 270, EYE = 1.6, STEP_UP = 0.6, AIM_FAR = 10, AIM_REACH = 60;
+// The game's ink (tools/blender/inside/usd_views.py): its colour, depth and crease breaks and its fade, in short.
+const INK = { colour: [0.039, 0.035, 0.031], depthBreak: 0.02, crease: 0.5, fade: [60, 120] };
+const place = location.pathname.split("/").filter(Boolean)[1];
+const started = performance.now();
+const stats = { place, loadSeconds: null, fps: null, frames: 0, triangles: 0, drawCalls: 0, hoverReady: false };
+window.viewerStats = stats;
+const $ = (id) => document.getElementById(id);
+const status = (text) => { $("status").textContent = text; };
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.toneMapping = THREE.AgXToneMapping;
+renderer.info.autoReset = false;  // a frame's draws counted over every pass  // the films' tone curve (usd_views.py's AgX)
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 5000);
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true;
+const fly = new PointerLockControls(camera, renderer.domElement);
+let mode = "orbit";
+const raycaster = new THREE.Raycaster();
+raycaster.firstHitOnly = true;
+let sidecar = null, model = null;
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const normals = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+normals.depthTexture = new THREE.DepthTexture(1, 1);
+const normalMaterial = new THREE.MeshNormalMaterial();
+const inkPass = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, tNormal: { value: normals.texture }, tDepth: { value: normals.depthTexture },
+              texel: { value: new THREE.Vector2() }, near: { value: camera.near }, far: { value: camera.far },
+              ink: { value: new THREE.Vector3(...INK.colour) }, depthBreak: { value: INK.depthBreak },
+              crease: { value: INK.crease }, fade: { value: new THREE.Vector2(...INK.fade) } },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    #include <packing>
+    uniform sampler2D tDiffuse, tNormal, tDepth; uniform vec2 texel, fade; uniform float near, far, depthBreak, crease;
+    uniform vec3 ink; varying vec2 vUv;
+    float metres(vec2 at) { return -perspectiveDepthToViewZ(texture2D(tDepth, at).x, near, far); }
+    void main() {
+      vec4 colour = texture2D(tDiffuse, vUv);
+      float here = metres(vUv); vec3 facing = texture2D(tNormal, vUv).xyz * 2.0 - 1.0;
+      float line = 0.0;
+      for (int step = 0; step < 4; step++) {
+        vec2 way = step == 0 ? vec2(1, 0) : step == 1 ? vec2(-1, 0) : step == 2 ? vec2(0, 1) : vec2(0, -1);
+        vec2 at = vUv + way * texel * 1.5;
+        float there = metres(at);
+        vec3 other = texture2D(tNormal, at).xyz * 2.0 - 1.0;
+        if (there - here > depthBreak * here || dot(facing, other) < crease) line = 1.0;
+      }
+      line *= 1.0 - smoothstep(fade.x, fade.y, here);
+      gl_FragColor = vec4(mix(colour.rgb, ink, line), colour.a);
+    }`,
+});
+inkPass.uniforms.tNormal.value = normals.texture;  // a render target's textures are not cloned with the uniforms
+inkPass.uniforms.tDepth.value = normals.depthTexture;
+inkPass.enabled = false;
+composer.addPass(inkPass);
+composer.addPass(new OutputPass());
+
+function resize() {
+  const width = Math.max(window.innerWidth - PANEL, 100), height = window.innerHeight;
+  renderer.setSize(width, height);
+  renderer.domElement.style.marginLeft = PANEL + "px";
+  composer.setSize(width, height);
+  const ratio = renderer.getPixelRatio();
+  normals.setSize(width * ratio, height * ratio);
+  inkPass.uniforms.texel.value.set(1 / (width * ratio), 1 / (height * ratio));
+  const across = horizontalFov();
+  camera.aspect = width / height;
+  setHorizontalFov(across);
+}
+
+// The scene record keeps a camera's fov across the picture; three.js keeps it up and down.
+function horizontalFov() {
+  return THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.aspect));
+}
+function setHorizontalFov(degrees) {
+  camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(degrees) / 2) / camera.aspect));
+  camera.updateProjectionMatrix();
+}
+
+function linear(values) { return new THREE.Color().setRGB(values[0], values[1], values[2], THREE.LinearSRGBColorSpace); }
+
+function light(entry) {
+  const at = new THREE.Vector3(...entry.at), toward = new THREE.Vector3(...entry.toward);
+  let made;
+  if (entry.type === "directional") {
+    made = new THREE.DirectionalLight(linear(entry.colour), entry.intensity);
+    made.position.copy(at).addScaledVector(toward, -100);
+    made.target.position.copy(at);
+  } else if (entry.type === "spot") {
+    made = new THREE.SpotLight(linear(entry.colour), entry.intensity, 0, entry.angle, Math.min(entry.penumbra, 1), 2);
+    made.position.copy(at);
+    made.target.position.copy(at).add(toward);
+  } else {
+    made = new THREE.PointLight(linear(entry.colour), entry.intensity, 0, 2);
+    made.position.copy(at);
+  }
+  made.name = entry.name;
+  scene.add(made);
+  if (made.target) scene.add(made.target);
+}
+
+function aimAt(eye, aim, fov) {
+  camera.position.set(...eye);
+  camera.lookAt(...aim);
+  orbit.target.set(...aim);
+  if (fov) setHorizontalFov(fov);
+}
+
+function viewList(holder, views) {
+  holder.replaceChildren(...views.map((view) => {
+    const button = document.createElement("button");
+    button.textContent = view.name;
+    button.title = `eye ${view.eye.map((value) => value.toFixed(2)).join(", ")}`;
+    button.onclick = () => aimAt(view.eye, view.aim, view.fov);
+    return button;
+  }));
+  if (!views.length) holder.textContent = "None yet.";
+}
+
+async function loadPicks() {
+  const answer = await fetch(`/picks/${place}`);
+  viewList($("picked"), (await answer.json()).viewpoints);
+}
+
+// What the eye looks at: the first surface straight ahead within AIM_REACH, else AIM_FAR ahead.
+function lookedAt() {
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  raycaster.far = AIM_REACH;
+  const hit = model && raycaster.intersectObject(model, true)[0];
+  return hit ? hit.point : camera.position.clone().addScaledVector(camera.getWorldDirection(new THREE.Vector3()), AIM_FAR);
+}
+
+async function saveView() {
+  const aim = lookedAt();
+  const body = { name: $("pickName").value, eye: camera.position.toArray(), aim: aim.toArray(), fov: horizontalFov() };
+  const answer = await fetch(`/picks/${place}`, { method: "POST", headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify(body) });
+  const saved = await answer.json();
+  $("saved").textContent = answer.ok ? `saved as ${saved.name}` : `not saved: ${saved.error}`;
+  if (answer.ok) { $("pickName").value = ""; await loadPicks(); }
+}
+
+// The floor under the eye: the first surface below a point a stair's rise over the feet.
+function floorUnder(position) {
+  raycaster.set(new THREE.Vector3(position.x, position.y - EYE + STEP_UP, position.z), new THREE.Vector3(0, -1, 0));
+  raycaster.far = 50;
+  const hit = raycaster.intersectObject(model, true)[0];
+  return hit ? hit.point.y : null;
+}
+
+const keys = new Set();
+const typing = (event) => event.target.tagName === "INPUT" && event.target.type === "text";
+document.addEventListener("keydown", (event) => {
+  if (typing(event)) { if (event.key === "Enter") saveView(); return; }
+  keys.add(event.code);
+  if (event.code === "KeyP") saveView();
+  if (event.code === "KeyG") { $("eyeLock").checked = !$("eyeLock").checked; }
+  if (event.code === "KeyI") { $("ink").checked = !$("ink").checked; inkPass.enabled = $("ink").checked; }
+  if (event.code === "KeyH") { $("names").checked = !$("names").checked; showNames(); }
+});
+document.addEventListener("keyup", (event) => keys.delete(event.code));
+$("ink").onchange = () => { inkPass.enabled = $("ink").checked; };
+$("names").onchange = () => showNames();
+$("save").onclick = () => saveView();
+$("speed").oninput = () => { $("speedText").textContent = $("speed").value; };
+document.querySelectorAll("input[name=mode]").forEach((input) => input.onchange = () => setMode(input.value));
+renderer.domElement.addEventListener("click", () => { if (mode === "fly") fly.lock(); });
+
+function setMode(chosen) {
+  mode = chosen;
+  orbit.enabled = mode === "orbit";
+  if (mode === "orbit") { fly.unlock(); orbit.target.copy(lookedAt()); }
+  $("cross").hidden = mode !== "fly";
+}
+
+function flyStep(seconds) {
+  const speed = Number($("speed").value) * (keys.has("ShiftLeft") || keys.has("ShiftRight") ? 3 : 1) * seconds;
+  const forward = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
+  const right = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
+  if ($("eyeLock").checked) {
+    fly.moveForward(forward * speed);  // along the ground, as PointerLockControls moves
+    fly.moveRight(right * speed);
+    const floor = stats.hoverReady ? floorUnder(camera.position) : null;
+    if (floor !== null) camera.position.y = floor + EYE;
+    return;
+  }
+  const way = camera.getWorldDirection(new THREE.Vector3());
+  camera.position.addScaledVector(way, forward * speed);
+  fly.moveRight(right * speed);
+  camera.position.y += ((keys.has("KeyE") ? 1 : 0) - (keys.has("KeyQ") ? 1 : 0)) * speed;
+}
+
+// Surface names: the surface the mouse is over (its material's name) and the smallest object box round the hit.
+const pointer = { x: 0, y: 0, moved: false };
+renderer.domElement.addEventListener("pointermove", (event) => {
+  pointer.x = event.clientX; pointer.y = event.clientY; pointer.moved = true;
+});
+function showNames() { if (!$("names").checked) $("hover").hidden = true; else pointer.moved = true; }
+function objectAt(point) {
+  let best = null, smallest = Infinity;
+  for (const box of sidecar.objects) {
+    const inside = [0, 1, 2].every((axis) => point[axis] >= box.low[axis] - 0.01 && point[axis] <= box.high[axis] + 0.01);
+    const size = (box.high[0] - box.low[0]) * (box.high[1] - box.low[1]) * (box.high[2] - box.low[2]);
+    if (inside && size < smallest) { best = box.name; smallest = size; }
+  }
+  return best;
+}
+function hover() {
+  if (!$("names").checked || !stats.hoverReady || !pointer.moved) return;
+  pointer.moved = false;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const atScreen = mode === "fly" && fly.isLocked ? new THREE.Vector2(0, 0)
+    : new THREE.Vector2((pointer.x - rect.left) / rect.width * 2 - 1, -(pointer.y - rect.top) / rect.height * 2 + 1);
+  raycaster.setFromCamera(atScreen, camera);
+  raycaster.far = Infinity;
+  const hit = raycaster.intersectObject(model, true)[0];
+  const label = $("hover");
+  label.hidden = !hit;
+  if (!hit) return;
+  const surface = (Array.isArray(hit.object.material) ? hit.object.material[0] : hit.object.material).name;
+  label.textContent = `${objectAt(hit.point.toArray()) ?? "?"} · ${surface}`;
+  const at = mode === "fly" && fly.isLocked ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : pointer;
+  label.style.left = at.x + 14 + "px"; label.style.top = at.y + 14 + "px";
+}
+fly.addEventListener("change", () => { pointer.moved = true; });
+orbit.addEventListener("change", () => { pointer.moved = true; });
+
+let last = performance.now(), windowStart = last, windowFrames = 0;
+function frame(now) {
+  const seconds = Math.min((now - last) / 1000, 0.1);
+  last = now;
+  renderer.info.reset();
+  if (mode === "fly") flyStep(seconds); else orbit.update();
+  hover();
+  if (inkPass.enabled) {
+    scene.overrideMaterial = normalMaterial;
+    renderer.setRenderTarget(normals);
+    renderer.render(scene, camera);
+    scene.overrideMaterial = null;
+    renderer.setRenderTarget(null);
+  }
+  composer.render();
+  stats.frames += 1; windowFrames += 1;
+  stats.drawCalls = renderer.info.render.calls;
+  if (now - windowStart >= 500) {
+    stats.fps = windowFrames * 1000 / (now - windowStart);
+    windowStart = now; windowFrames = 0;
+    $("stats").textContent = `${stats.fps.toFixed(0)} fps  frame ${stats.frames}\n` +
+      `${stats.triangles.toLocaleString()} triangles, ${stats.drawCalls} draws\n` +
+      `opened in ${stats.loadSeconds?.toFixed(1) ?? "…"} s, ${(sidecar.bytes / 1e6).toFixed(1)} MB\n` +
+      `eye ${camera.position.toArray().map((value) => value.toFixed(2)).join(", ")}`;
+  }
+  requestAnimationFrame(frame);
+}
+
+async function open() {
+  if (!place) { status("No place in the address: /view/<place>"); return; }
+  document.title = `${place}: SCORE viewer`;
+  $("title").textContent = place;
+  sidecar = await (await fetch(`/web/${place}/${place}.json`)).json();
+  resize();
+  window.addEventListener("resize", resize);
+  scene.background = linear(sidecar.sky.background);
+  renderer.toneMappingExposure = sidecar.sky.exposure;
+  scene.add(new THREE.AmbientLight(linear(sidecar.sky.ambient), 1));
+  sidecar.lights.forEach(light);
+  viewList($("proposed"), sidecar.cameras);
+  await loadPicks();
+  status("Loading the place…");
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const gltf = await loader.loadAsync(`/web/${place}/${place}.glb`);
+  model = gltf.scene;
+  scene.add(model);
+  model.traverse((child) => { if (child.isMesh) stats.triangles += child.geometry.index.count / 3; });
+  const first = sidecar.cameras[0];
+  if (first) aimAt(first.eye, first.aim, first.fov);
+  else aimAt([0, 10, 20], [0, 0, 0], 75);
+  renderer.compile(scene, camera);
+  requestAnimationFrame((now) => {
+    last = windowStart = now;
+    frame(now);
+    stats.loadSeconds = (performance.now() - started) / 1000;
+    status("");
+    console.log(`viewer opened ${place} in ${stats.loadSeconds.toFixed(2)} s`);
+    setTimeout(() => console.log(`viewer ${JSON.stringify(stats)}`), 8000);
+    setTimeout(() => {  // the raycast trees, after the first picture is up
+      model.traverse((child) => { if (child.isMesh) child.geometry.computeBoundsTree(); });
+      stats.hoverReady = true;
+    }, 0);
+  });
+}
+open().catch((error) => { status(`Could not open ${place}: ${error.message}`); console.error(error); });
+</script>
+</body>
+</html>
