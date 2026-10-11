@@ -176,19 +176,15 @@ is meant to fix, where it is marked, and what proves it.
   two-way split fit, round five's 3D split, `--face-parts` and `finish_masks.py`, `split_spread.py`; 5c66c2e). For
   black, stripped and one-colour paint. No owner-accepted before and after on a world model. Settled in step 1, the
   surface stage, on the hangar and the six named models, with numbers and his review.
-- **The surface stage's method, g-texture** (`score/stages/surfaces`: split_batch, g_texture, multiview, measure,
-  paint; round 4 of the surface test, 5 of its 6 models passing, the telephone failing every arm). For one finish a
-  part, named by the judge looking at it. On world 1's table, but no place's line has run end to end, and a finish-map
-  method (Gemini's finishes on the concept, a flat-colour finish map painted onto the shape) is tested beside it and
-  may replace it behind the same interface. Proven when a place's line ends accepted at its checks and the owner
-  reviews the baked models.
-- **The finish-map route** (`score/stages/finishmap/`, its overlay; rows in `trial.py`). For parts guessed from a
-  model's own texture, which is shaded and invented on unseen sides: Gemini lists the close-up's finishes as library
-  surfaces, Nano Banana Pro redraws the close-up as a finish map, and the map is laid onto the raw model (front
-  projection walked over the surface, or SegviGen guided by the map). Runs only through its own rows. Proven when an
-  arm beats round 4's g-texture on the six models by round 4's measures, then the owner's look. 2026-10-11: its best
-  arm (SegviGen guided) beats today's paint on 5 of 6 to g-texture's 6 (the power unit's maps failed their check, the
-  lander lost two foil finishes); the measures are in the coordinator's `refocus/surface/fm/measured/`.
+- **The surface stage's method, the finish map** (`score/stages/surfaces`, its overlay; the six-model re-test rows
+  `score/stages/finishmap/trial.py`). The owner chose it on 2026-10-12 ("finish map seed 1 looks great"); it replaced
+  g-texture (its record: branch `surface-first` and main before 6266414). Gemini lists the close-up's finishes as
+  library surfaces, Nano Banana Pro draws the close-up's finish map and then maps of the raw model's sides and back
+  against it, SegviGen is guided by the close-up's map, and every map votes on the faces its view sees. Re-test
+  2026-10-12 on round 4's six models: every close-up map settled (the power unit's on its stricter third draw, 95%
+  on a label colour), agreement with the maps 84 to 99% on the close-up and 89 to 100% on the back (the greenhouse chair's one side map 54%), no part mixing
+  two finishes, 6 to 24 parts a model (the aft section had ~9,600). Proven when a place's line ends accepted at its
+  checks and the owner reviews the baked models.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
   `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
   terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its
