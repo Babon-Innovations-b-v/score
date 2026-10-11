@@ -108,6 +108,14 @@
 		"launch": {
 			"loops": [],
 			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and _earth_place: nothing plays on the walk to the rocket; the rocket's own sounds come with its motion"
+		},
+		"campgrounds": {
+			"loops": [],
+			"heard_through": [
+				"suit_fans",
+				"suit_breathing_calm"
+			],
+			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): outside on Mars no place's loop plays; SuitSounds (the game 2099's game/sound/suit/suit_sounds.gd:3-9, 27-48): out on the Moon or on Mars the suit's fans run and the player breathes, calm while walking"
 		}
 	}
 }

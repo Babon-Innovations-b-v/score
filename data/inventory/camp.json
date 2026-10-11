@@ -1306,6 +1306,101 @@
 			"box_from": [
 				"v2.113"
 			]
+		},
+		{
+			"id": "airlock_tube",
+			"view": null,
+			"box": null,
+			"name": "the airlock tube: quilted lining and strapped soft-goods hull over the 4 m by 5 m chamber",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				4.6,
+				4.0,
+				5.0
+			],
+			"count": 1,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's own airlock in its soft-goods look (2026-10-11), in place of the Moon base's airlock room and walkway tube that stood in for it",
+			"unseen": "the camp's concept views (K01, K08) show the domes inside; the airlock tube with its door and ramp shows on the grounds' concept (K05, its element 'airlock tube and ramp', dropped there to this kit)",
+			"from": "tools/props/scene/camp_kit.py the_airlock (AIRLOCK_AT, AIRLOCK_TURN, CHAMBER): camp_airlock.gd's chamber where camp_habitat.gd sets it down"
+		},
+		{
+			"id": "airlock_end",
+			"view": null,
+			"box": null,
+			"name": "the airlock tube's rigid end wall with its door's frame",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				4.7,
+				0.12,
+				4.1
+			],
+			"count": 2,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's own airlock in its soft-goods look (2026-10-11), in place of the Moon base's airlock room and walkway tube that stood in for it",
+			"unseen": "the camp's concept views (K01, K08) show the domes inside; the airlock tube with its door and ramp shows on the grounds' concept (K05, its element 'airlock tube and ramp', dropped there to this kit)",
+			"from": "tools/props/scene/camp_kit.py airlock_end (AIRLOCK_DOOR, END_THICK): the inner and outer doorways DOOR_OUT 2.5 m out (camp_airlock.gd)"
+		},
+		{
+			"id": "airlock_lamp",
+			"view": null,
+			"box": null,
+			"name": "a pendant lamp in the airlock",
+			"kind": "code",
+			"anchor": "ceiling",
+			"size": [
+				0.36,
+				0.36,
+				0.4
+			],
+			"count": 2,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's own rod lamp (rod_lamp), as the domes hang theirs",
+			"unseen": "the camp's concept views (K01, K08) show the domes inside; the airlock tube with its door and ramp shows on the grounds' concept (K05, its element 'airlock tube and ramp', dropped there to this kit)",
+			"from": "tools/props/scene/camp_kit.py AIRLOCK_LAMPS (camp_airlock.tscn LampInner, LampOuter)"
+		},
+		{
+			"id": "airlock_cycle_lamp",
+			"view": null,
+			"box": null,
+			"name": "the airlock's cycle lamp over the outer door",
+			"kind": "code",
+			"anchor": "wall",
+			"size": [
+				1.2,
+				0.104,
+				0.08
+			],
+			"count": 1,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the same code-built strip lamp the camp lays over its windows (door_strip_lamp)",
+			"unseen": "the camp's concept views (K01, K08) show the domes inside; the airlock tube with its door and ramp shows on the grounds' concept (K05, its element 'airlock tube and ramp', dropped there to this kit)",
+			"from": "tools/props/scene/camp_kit.py CYCLE_LAMP, CYCLE_LAMP_FOOT (camp_airlock.tscn CycleLight)"
+		},
+		{
+			"id": "link_tube",
+			"view": null,
+			"box": null,
+			"name": "the link from the door dome's doorway to the airlock: quilted lining and strapped hull",
+			"kind": "code",
+			"anchor": "floor",
+			"size": [
+				3.0,
+				3.6,
+				3.26
+			],
+			"count": 1,
+			"thing": "fittings:camp_kit",
+			"made": "kit piece",
+			"why_code": "the camp's own airlock in its soft-goods look (2026-10-11), in place of the Moon base's airlock room and walkway tube that stood in for it",
+			"unseen": "the camp's concept views (K01, K08) show the domes inside; the airlock tube with its door and ramp shows on the grounds' concept (K05, its element 'airlock tube and ramp', dropped there to this kit)",
+			"from": "tools/props/scene/camp_kit.py the_airlock (LINK_AT, LINK_TURN, LINK_LONG): link_tube.gd's join from the lining's doorway to the airlock's inner door"
 		}
 	]
 }

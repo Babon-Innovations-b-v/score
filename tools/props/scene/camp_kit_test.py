@@ -28,8 +28,20 @@ def test_every_panel_has_its_piece_inside_and_its_gore_outside():
     assert inside == outside == len(every)
     assert kinds.count("camp_dome_ceiling_gore") == kinds.count("camp_dome_deck_wedge") == len(every)
     assert kinds.count("camp_dome_window_panel") == kinds.count("camp_shell_gore_window")
-    assert kinds.count("camp_rod_lamp") == len(camp_kit.LAMPS)
+    assert kinds.count("camp_rod_lamp") == len(camp_kit.LAMPS) + len(camp_kit.AIRLOCK_LAMPS)
     assert kinds.count("camp_floor_cable") == len(camp_kit.CABLE_RUNS)
+
+
+def test_the_link_meets_the_airlock_and_its_ends_close_the_hull():
+    link = camp_kit.in_frame(camp_kit.LINK_AT, camp_kit.turned_axes(camp_kit.LINK_TURN), (0.0, 0.0, camp_kit.LINK_LONG))
+    axes = camp_kit.turned_axes(camp_kit.AIRLOCK_TURN)
+    inner = camp_kit.in_frame(camp_kit.AIRLOCK_AT, axes, (0.0, 0.0, -camp_kit.CHAMBER[2] / 2))
+    assert float(((link - inner) ** 2).sum()) ** 0.5 < 0.02
+    pieces = {laid["model"]: laid for laid in camp_kit.the_airlock()}
+    hull, end = pieces["airlock_hull_1"]["size"], pieces["airlock_inner_end_1"]["size"]
+    assert end[0] >= hull[0] and end[1] >= hull[1]
+    assert {laid["row"] for laid in pieces.values()} == {"airlock_tube", "airlock_end", "airlock_lamp",
+                                                           "airlock_cycle_lamp", "link_tube"}
 
 
 def test_the_installed_layout_is_the_tool_s():

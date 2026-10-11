@@ -137,6 +137,33 @@ KIOSK = (60.0, 4.05)
 GALLEY_TOP = 0.95
 GALLEY_THINGS = (("toaster", "toaster_1", 0.05, 0.25), ("coffee_maker", "coffee_maker_1", 0.4, 0.22))
 
+# The camp's airlock and the link to it (camp_habitat.gd:88-117,168-185, camp_airlock.gd, link_tube.gd:137-160), in
+# the camp's own soft-goods look as the concept shows them (K05: the airlock tube with its door and ramp, white and
+# strapped like the domes; 2026-10-11, in place of the Moon base's airlock room and walkway tube): where the game sets
+# them down (the habitat's frame; data/scene/camp.json had them as places), the chamber's size and doors, its lamps.
+# Each is a quaternion [x, y, z, w] and the middle of its floor (the airlock) or of its doorway end on the deck (the link).
+AIRLOCK_AT = (9.5456, -0.8695, -13.9885)
+AIRLOCK_TURN = (0.005912, 0.907359, -0.036575, 0.418721)
+LINK_AT = (5.2299, 0.0, -10.3163)
+LINK_TURN = (0.040328, 0.902696, -0.099278, 0.416723)
+# The link's run, 3.26 m (the Moon tube's 4.35 m shown at 0.749), and the chamber inside: ModuleShell's 4 m by 5 m
+# (camp_airlock.tscn inside_size), 3 m high (CHAMBER), its doors DOOR_OUT 2.5 m out along z, 2.2 m wide and 2.6 m tall.
+LINK_LONG = 3.2582
+CHAMBER = (4.0, 3.0, 5.0)
+AIRLOCK_DOOR = (2.2, 2.6)
+END_THICK = 0.12
+# How far under the deck a lining's box reaches (its deck's bevelled underside, make_kit's passage_lining: 0.05 m) and
+# how far over a rod lamp's origin its box starts (the lens, 0.02 m): a piece laid after the run stands on its box.
+LINING_UNDER = 0.05
+LAMP_LENS = 0.02
+# Its two lamps (LampInner, LampOuter: 0.5 across, 2.6 up, 1.1 either way along) and the cycle light over the outer
+# door (CycleLight, 2.7 up) as a strip lamp on the end wall; the suit locker (SuitLocker 1.5 across on the -x side,
+# facing into the chamber) is the camp's lockers in the scene record.
+AIRLOCK_LAMPS = ((0.5, -1.1), (0.5, 1.1))
+AIRLOCK_LAMP_LOW = 2.6
+CYCLE_LAMP = (1.2, 0.08, 0.104)
+CYCLE_LAMP_FOOT = 2.75
+
 KINDS = {"dome_wall_panel": "hangs", "dome_window_panel": "hangs", "dome_rib": "hangs", "dome_ceiling_gore": "hangs",
          "dome_roof_cap": "hangs", "dome_deck_wedge": "floors", "dome_opening_frame": "hangs", "passage_lining": "floors",
          "partition": "hangs", "rod_lamp": "hangs", "shell_gore": "hangs", "shell_gore_window": "hangs",
@@ -497,9 +524,68 @@ def on_the_galley():
             for row, model, across, back in GALLEY_THINGS if stored(model)]
 
 
+def turned_axes(turn):
+    """The x, y and z axes of a quaternion [x, y, z, w] in the habitat's frame."""
+    x, y, z, w = turn
+    matrix = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                       [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                       [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+    return frame(matrix[:, 0], matrix[:, 1], matrix[:, 2])
+
+
+def in_frame(at, axes, local):
+    return np.asarray(at, dtype=np.float64) + sum(axis * value for axis, value in zip(axes, local))
+
+
+def tube_pieces(name, at, axes, wide, tall, length):
+    """A soft-goods tube as the way through is built (way_through): its lining and its hull from `at` along z, both
+    the inventory row `<name>_tube`. A piece laid after the run stands on the middle of its box's foot (route.py
+    late_pieces), so each is laid there: halfway along, at the lining's deck underside or the hull's foot."""
+    return [piece("passage_lining", in_frame(at, axes, (0.0, -LINING_UNDER, length / 2)), axes,
+                  (wide + 2 * SKIN, tall + SKIN, length), model=f"{name}_lining_1",
+                  row=f"{name}_tube", arc=rounded({"length": length, "wide": wide, "tall": tall})),
+            piece("passage_hull", in_frame(at, axes, (0.0, SHELL_FOOT, length / 2)), axes,
+                  (wide + 2 * COVER_OUT, tall + COVER_OUT - SHELL_FOOT, length),
+                  model=f"{name}_hull_1", row=f"{name}_tube",
+                  arc=rounded({"length": length, "half_wide": wide / 2 + COVER_OUT, "top": tall + COVER_OUT,
+                               "foot": SHELL_FOOT}))]
+
+
+def airlock_end(name, at, axes, along):
+    """An end of the airlock tube: a rigid wall across the hull's whole section with the door's frame round its
+    doorway, built as the partition is, from the hull's foot; at `along` metres out on the chamber's z."""
+    half = CHAMBER[0] / 2 + COVER_OUT + 0.05
+    tall = CHAMBER[1] + COVER_OUT + 0.05 - SHELL_FOOT
+    foot = in_frame(at, axes, (0.0, SHELL_FOOT, along))  # the middle of its foot (the partition's origin is its end)
+    return piece("partition", foot, axes, (2 * half, tall, END_THICK), model=f"{name}_1", row="airlock_end",
+                 arc=rounded({"length": 2 * half, "tall": tall, "thick": END_THICK, "door_at": half,
+                              "door": [AIRLOCK_DOOR[0], AIRLOCK_DOOR[1] - SHELL_FOOT]}))
+
+
+def the_airlock():
+    """The camp's own airlock and its link from the door dome's doorway: soft-goods tubes like the way through, the
+    airlock's two end walls with their doorways, its two lamps and the cycle lamp over the outer door."""
+    axes = turned_axes(AIRLOCK_TURN)
+    wide, tall, long = CHAMBER
+    start = in_frame(AIRLOCK_AT, axes, (0.0, 0.0, -long / 2))
+    found = tube_pieces("airlock", start, axes, wide, tall, long)
+    found.append(airlock_end("airlock_inner_end", AIRLOCK_AT, axes, -long / 2))
+    found.append(airlock_end("airlock_outer_end", AIRLOCK_AT, axes, long / 2))
+    for across, along in AIRLOCK_LAMPS:
+        found.append(piece("rod_lamp", in_frame(AIRLOCK_AT, axes, (across, AIRLOCK_LAMP_LOW + LAMP_LENS, along)), axes,
+                           (LAMP_WIDE, round(tall - AIRLOCK_LAMP_LOW, 2), LAMP_WIDE), model="airlock_lamp_1",
+                           row="airlock_lamp"))
+    face = long / 2 - END_THICK / 2 - CYCLE_LAMP[2] / 2  # its back on the outer end wall, as window_lamps lays them
+    found.append(piece("door_strip_lamp", in_frame(AIRLOCK_AT, axes, (0.0, CYCLE_LAMP_FOOT, face)), axes, CYCLE_LAMP,
+                       model="airlock_cycle_lamp_1", row="airlock_cycle_lamp"))
+    link_axes = turned_axes(LINK_TURN)
+    return found + tube_pieces("link", LINK_AT, link_axes, OPENING_WIDE, OPENING_TALL, LINK_LONG)
+
+
 def laid_after_the_run():
     """Every piece laid after the habitat's run (route.py late-lay): each names its made model."""
-    return window_lamps() + galley_bin() + by_the_sample_shelf() + canister() + kiosk() + on_the_galley()
+    return (window_lamps() + galley_bin() + by_the_sample_shelf() + canister() + kiosk() + on_the_galley()
+            + the_airlock())
 
 
 def laid_out():
