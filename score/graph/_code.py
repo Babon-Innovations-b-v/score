@@ -62,7 +62,8 @@ def package_of(path):
 
 def source_files(functions):
     """Every repository file the functions' modules are or import, followed through each import."""
-    pending = [pathlib.Path(inspect.getsourcefile(function)).resolve() for function in functions]
+    pending = [pathlib.Path(inspect.getsourcefile(each)).resolve() for function in functions
+               for each in (function, inspect.unwrap(function))]  # a wrapped judge: the wrapper's and its own
     found = set()
     while pending:
         path = pending.pop()
