@@ -1,0 +1,79 @@
+"""The assembly stage (P5), as step 0 wires it: a place's round-three OpenUSD stage brought in as an unverified seed,
+then judged by the assembly gates that exist today. No spend: nothing is made, rendered or settled.
+
+    make     copies the seed's stage (<place>.usda, layers/, assets/, inputs.json) into the output with origin.json
+             saying where it came from; old check results and manifests beside it are agent verdicts and stay out
+    gates    placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
+                           code-built ship fails, 12 meshes)
+             resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
+                           settled.json, stored as the check's evidence); with none it answers unknown and blocks
+
+The stage that builds a place from its accepted layout replaces the seed maker in step 3; the gates stay. The resting
+judge also reads the inventory the seed's inputs.json names, from the repository: the whole inventory folder is
+therefore an input, so any inventory change makes these nodes run again.
+"""
+import json
+import pathlib
+import shutil
+import sys
+
+from score import checks
+
+REPO = pathlib.Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "tools/usd"))
+import placeholders  # noqa: E402
+import triage  # noqa: E402
+
+FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
+         "fittings": "{data}/library/fittings.json", "resting rules": "{data}/checks/resting.json",
+         "inventories": "{data}/inventory"}
+SEED_PARTS = ("layers", "assets", "inputs.json")
+SEED_NOTE = ("An old output brought in from world 1's round-three stages, never made by this stage; only its gates "
+             "on this page judge it.")
+
+
+def make_from_seed(inputs, out, seed, params):
+    """Copy a seed stage's own files into the output, with its origin."""
+    folder = inputs["seed"]
+    root = folder / f"{folder.name}.usda"
+    shutil.copy2(root, out / root.name)
+    for part in SEED_PARTS:
+        source = folder / part
+        if source.is_dir():
+            shutil.copytree(source, out / part)
+        elif source.exists():
+            shutil.copy2(source, out / part)
+    (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE}, indent=1))
+
+
+def stage_file(output):
+    """The output's root OpenUSD file."""
+    found = list(output.glob("*.usda"))
+    if len(found) != 1:
+        raise FileNotFoundError(f"{output} holds {len(found)} root stages, not one")
+    return found[0]
+
+
+def judge_placeholders(output, inputs, evidence):
+    """Fail on every visible mesh that stands in for a made piece."""
+    faults = placeholders.check(stage_file(output), kits=inputs["kit"].parent)
+    findings = tuple(f"{fault['prim']}: {fault['rule']}: {fault['why']}" for fault in faults)
+    reason = f"{len(faults)} meshes stand in for made pieces" if faults else "nothing stands in for a made piece"
+    return checks.Verdict("placeholders", checks.FAIL if faults else checks.PASS, reason, {"faults": len(faults)},
+                          {"faults": "lower"}, findings)
+
+
+def judge_resting(output, inputs, evidence):
+    """Fail on every real resting fault the drop run and the triage leave."""
+    found = triage.triage(stage_file(output), json.loads(pathlib.Path(evidence).read_text()))
+    real = [fault for fault in found["faults"] if fault["real"]]
+    findings = tuple(f"{fault['object']}: {fault['kind']} {fault['measure']}: {fault['why']}" for fault in real)
+    reason = (f"{found['real_objects']} objects with real resting faults, {found['false_objects']} false alarms "
+              "after the drop run")
+    return checks.Verdict("resting", checks.FAIL if real else checks.PASS, reason,
+                          {"real faults": len(real), "objects": found["real_objects"]},
+                          {"real faults": "lower", "objects": "lower"}, findings)
+
+
+CHECKS = (checks.Check("placeholders", judge_placeholders),
+          checks.Check("resting", judge_resting, evidence="a drop run (settle.py --dry-run)"))
