@@ -186,6 +186,14 @@ is meant to fix, where it is marked, and what proves it.
   arm beats round 4's g-texture on the six models by round 4's measures, then the owner's look. 2026-10-11: its best
   arm (SegviGen guided) beats today's paint on 5 of 6 to g-texture's 6 (the power unit's maps failed their check, the
   lander lost two foil finishes); the measures are in the coordinator's `refocus/surface/fm/measured/`.
+- **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
+  `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
+  terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its
+  seed, and `terrain-look@launch` (paid, only the places in `look.LOOKED`) renders the place before and after on its
+  review cameras, gated on `horizon` (no view looks out under the horizon onto nothing). Run with `python -m score
+  run world1 --place launch --stage terrain-look`. Proven when the owner has seen the launch's before and after;
+  then the other Earth places, and the Moon's and Mars's plans (still the game's plans in `data/ground/plan/`, made by
+  the game's builders moved here) drawn again from their concepts.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
