@@ -1,5 +1,5 @@
-"""Park a finished machine that is billed by the started hour, for the next run of its kind, until its paid hour is
-nearly up (job hours, 2026-10-10).
+"""Park a finished machine for the next run of its kind: one billed by the started hour until its paid hour is nearly
+up (job hours, 2026-10-10), a card for a short idle time measured from the ledger (parked cards, 2026-10-11).
 
 The processor machines are billed by the started hour, while a Blender run on one takes 9 to 33 minutes: in October
 2026 they cost 1.6 to 3.2 times their hourly price for the time used, about €48 of €88. So a healthy machine whose
@@ -14,24 +14,37 @@ the next hour:
 - the machine's tags name the --expire process and that time, so any run's sweep leaves it alone until then and
   deletes it after (or as soon as that process is gone).
 
-A runner opts its kind in by putting a function into CLEANUPS: the machine -> the shell command that removes its
-run's own files (inputs, outputs, job files) and keeps the set-up. A kind without one is deleted as before, and so
-is a machine that failed, a run stopped by a signal, and every machine billed by the minute (the cards).
+A card (billed by the minute) stays parked, its set-up and weights on its disk, for idle_minutes of its kind: the
+median minutes a fresh card of that kind took from its order to its first job (answering and set-up) over its last
+IDLE_SAMPLE runs, at most IDLE_CAP_MINUTES. Idle that long it costs what one cold start of that kind costs, so a card
+nobody takes loses at most one cold start and one that is taken saves one. A claim that is waiting for a machine of
+its kind (`wanting`, the queue of WANTED per kind that every claim of a cleared run joins while it waits) takes it
+within PARKED_POLL_SECONDS; a card parked while a claim waits stays at least LEAST_MINUTES. A card nobody took is
+deleted at its time by the same three means (--expire, self_delete.py, its tags), and --expire writes its idle
+minutes and euros to the ledger as their own entry, so no idle minute goes uncounted.
 
-A run that takes a parked machine is charged in the ledger only for what it adds past the hours already paid
-(ledger.machine_row, `adopted` and `paid_minutes`); the run that parked it was charged its whole hour.
+A runner opts its kind in by putting a function into CLEANUPS: the machine -> the shell command that removes its
+run's own files (inputs, outputs, job files) and keeps the set-up; its set-up script skips a machine it already set
+up (a mark it writes last). A kind without one is deleted as before, and so is a machine that failed and a run
+stopped by a signal.
+
+A run that takes a parked machine is charged in the ledger only for what it adds past what was already charged
+(ledger.machine_row, `adopted` and `paid_minutes`): the run that parked an hourly machine was charged its whole hour,
+the one that parked a card its minutes until then. Taking one is renting: it needs a cleared run like `batch.rent`.
 """
 import contextlib
 import fcntl
 import json
 import math
 import os
+import statistics
 import subprocess
 import sys
 import time
 import uuid
 
 import batch
+import ledger
 from provider import cloud
 
 PARKED = batch.CLOUD / "parked"
@@ -39,10 +52,69 @@ LOCK = batch.CLOUD / "parked.lock"
 # A parked machine is deleted this long before its paid hour ends: a delete takes up to a minute, and the provider's
 # clock starts at the order, a few seconds before the runner's `created`.
 MARGIN_MINUTES = 5
-# A machine is parked, and a parked one taken, only with at least this long left before it must go.
+# A machine is parked only with at least this long left before it must go (a card CARD_LEAST_MINUTES), and taken only
+# with TAKE_MINUTES left: time for the run that takes it to re-arm its self-delete (seconds) before that deadline.
 LEAST_MINUTES = 3
+CARD_LEAST_MINUTES = 1
+TAKE_MINUTES = 0.5
+# A record this long past its time lost its --expire process (the machine went by its self-delete and the sweeps).
+STALE_MINUTES = 10
 # kind -> function(machine) giving the shell command that removes the run's own files from the machine.
 CLEANUPS = {}
+# A card's idle time: the median cold start of its kind's last IDLE_SAMPLE fresh cards, at most IDLE_CAP_MINUTES
+# (short: a card waits minutes, never an hour), IDLE_DEFAULT_MINUTES for a kind never measured.
+IDLE_SAMPLE = 30
+IDLE_CAP_MINUTES = 10
+IDLE_DEFAULT_MINUTES = 3
+# The claims waiting for a machine, a folder per kind; a waiting claim looks for a parked one this often.
+WANTED = batch.CLOUD / "wanted"
+PARKED_POLL_SECONDS = 10
+
+
+def cold_start(row):
+    """A fresh card's minutes from its order to its first job: its wait to answer and its set-up (the minutes it
+    spent outside its jobs where no set-up was recorded); None when the row tells neither."""
+    if row.get("setup_minutes") is not None:
+        return row["start_wait_minutes"] + row["setup_minutes"]
+    if row.get("unit_seconds"):
+        return row["minutes"] - sum(row["unit_seconds"]) / 60
+    return None
+
+
+def idle_minutes(kind, entries=None):
+    """How long a card of `kind` stays parked: its kind's median cold start, at most IDLE_CAP_MINUTES."""
+    rows = [row for entry in (ledger.entries() if entries is None else entries) if entry.get("kind") == kind
+            for row in entry.get("machines", []) if row.get("cards") and row.get("started") and "adopted" not in row
+            and not row.get("parked_idle") and row.get("start_wait_minutes") is not None]
+    starts = [minutes for minutes in map(cold_start, rows) if minutes is not None][-IDLE_SAMPLE:]
+    return min(IDLE_CAP_MINUTES, statistics.median(starts)) if starts else IDLE_DEFAULT_MINUTES
+
+
+@contextlib.contextmanager
+def wanting(kind):
+    """A claim of `kind` waiting for a machine, on the kind's queue while the block runs."""
+    if kind is None:
+        yield
+        return
+    folder = WANTED / kind
+    folder.mkdir(parents=True, exist_ok=True)
+    place = folder / f"{os.getpid()}-{uuid.uuid4().hex}"
+    place.write_text(os.environ.get("SCORE_SPEND_TICKET", ""))
+    try:
+        yield
+    finally:
+        place.unlink(missing_ok=True)
+
+
+def waiting(kind):
+    """How many claims of `kind` wait for a machine now (those of a process that is gone are struck off)."""
+    count = 0
+    for place in (WANTED / kind).glob("*") if kind else ():
+        if batch.process_alive(int(place.name.split("-")[0])):
+            count += 1
+        else:
+            place.unlink(missing_ok=True)
+    return count
 
 
 def paid_until(machine, now):
@@ -52,16 +124,20 @@ def paid_until(machine, now):
 
 
 def leaves_at(machine, now):
-    """When a machine parked now must be gone: MARGIN_MINUTES before its paid hour ends."""
-    return paid_until(machine, now) - MARGIN_MINUTES * 60
+    """When a machine parked now must be gone: MARGIN_MINUTES before its paid hour ends; a card after its kind's idle
+    time (at least LEAST_MINUTES while a claim of its kind waits)."""
+    if machine.get("unit_minutes", 1) > 1:
+        return paid_until(machine, now) - MARGIN_MINUTES * 60
+    idle = idle_minutes(machine.get("kind"))
+    return now + (max(idle, LEAST_MINUTES) if waiting(machine.get("kind")) else idle) * 60
 
 
 def parkable(machine, now):
-    """Whether the machine is worth parking: its run ended well, its kind cleans up, it is billed by the hour and its
-    paid hour has LEAST_MINUTES or more left."""
+    """Whether the machine is worth parking: its run ended well, its kind cleans up, and it has LEAST_MINUTES (a card
+    CARD_LEAST_MINUTES) or more before it must go."""
+    least = LEAST_MINUTES if machine.get("unit_minutes", 1) > 1 else CARD_LEAST_MINUTES
     return (bool(machine.get("healthy")) and machine.get("kind") in CLEANUPS and machine.get("host") is not None
-            and machine.get("unit_minutes", 1) > 1 and not batch.STOPPING.is_set()
-            and leaves_at(machine, now) - now >= LEAST_MINUTES * 60)
+            and not batch.STOPPING.is_set() and leaves_at(machine, now) - now >= least * 60)
 
 
 @contextlib.contextmanager
@@ -107,7 +183,8 @@ def park(machine):
         return False
     machine["parked"] = True
     leaving = time.strftime("%H:%M", time.localtime(until))
-    batch.say(f"{folder.name} parked for the next {machine['kind']} run until {leaving} (its paid hour)")
+    why = "its paid hour" if machine["unit_minutes"] > 1 else "its kind's cold start"
+    batch.say(f"{folder.name} parked for the next {machine['kind']} run until {leaving} ({why})")
     return True
 
 
@@ -118,9 +195,10 @@ def take(kind, places, disk_gb, now):
         found = []
         for path in PARKED.glob("*.json"):
             record = json.loads(path.read_text())
-            if record["until"] - now < LEAST_MINUTES * 60:
-                path.unlink()
-                continue
+            if record["until"] - now < TAKE_MINUTES * 60:
+                if now - record["until"] > STALE_MINUTES * 60:  # its --expire process is long gone
+                    path.unlink()
+                continue  # left to its --expire process, which deletes the machine with the record
             if (record["kind"] == kind and (record["type"], record["zone"]) in places
                     and (record.get("disk_gb") or 0) >= disk_gb):
                 found.append((record["until"], path, record))
@@ -149,6 +227,7 @@ def adopt(run, offers, number, kind, disk_gb):
     when there is none. One that does not answer is deleted and the next tried."""
     if kind not in CLEANUPS or not getattr(run, "deadline", None):
         return None
+    batch.compute.require_cleared(f"a parked machine of {kind}")
     places = {(offer.type, offer.zone) for offer in offers}
     while True:
         now = time.time()
@@ -167,7 +246,7 @@ def adopt(run, offers, number, kind, disk_gb):
         with getattr(run, "choosing", None) or contextlib.nullcontext():
             run.machines.append(machine)
         batch.say(f"took the parked {machine['type']} in {machine['zone']} ({machine['folder'].name}), "
-                  f"{(record['until'] - now) / 60:.0f} min of its paid hour left")
+                  f"{(record['until'] - now) / 60:.0f} min left before it had to go")
         return machine
 
 
@@ -176,11 +255,29 @@ def expire(server_id, zone, token, until):
     time.sleep(max(0.0, until - time.time()))
     path = PARKED / f"{server_id}.json"
     with locked():
-        mine = path.exists() and json.loads(path.read_text()).get("token") == token
+        record = json.loads(path.read_text()) if path.exists() else {}
+        mine = record.get("token") == token
         if mine:
             path.unlink()
-    if mine and cloud.delete(server_id, zone):
-        print(f"{time.strftime('%H:%M:%S')} deleted parked {server_id} at the end of its paid hour", flush=True)
+    if not mine:
+        return
+    if cloud.delete(server_id, zone):
+        print(f"{time.strftime('%H:%M:%S')} deleted parked {server_id} at the end of its time", flush=True)
+    if record["unit_minutes"] == 1:  # its idle minutes were billed even if its self-delete was first
+        ledger.record(idle_entry(record, time.time()))
+
+
+def idle_entry(record, deleted):
+    """The ledger's entry for a card parked until `deleted` that nobody took: its idle minutes and what they cost
+    past what the run that parked it was charged."""
+    minutes = (deleted - record["parked_at"]) / 60
+    euros = max(0.0, ledger.cost((deleted - record["created"]) / 60, record["price"]) - record["paid_minutes"]
+                * record["price"])
+    row = {"type": record["type"], "zone": record["zone"], "cards": record["cards"], "started": True,
+           "start_wait_minutes": 0.0, "work_minutes": 0.0, "minutes": minutes, "euros": euros, "parked_idle": True}
+    return {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(record["parked_at"])),
+            "batch": f"parked-{record['id']}", "kind": record["kind"], "who": "park.py: a parked card nobody took",
+            "machines": [row], "attempts": [], "machine_minutes": minutes, "euros": euros, "wall_minutes": minutes}
 
 
 if __name__ == "__main__" and sys.argv[1:2] == ["--expire"]:

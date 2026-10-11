@@ -4,6 +4,14 @@
 set -euo pipefail
 REVISION=5426e4f0f36572d16453bbda7a8389317b1bef99
 
+# A card parked after an earlier run of its kind (park.py) is set up already: this file wrote the mark last,
+# named for this file's text, so a changed set-up runs again.
+done_mark="/root/.depth-setup-$( (cat "$0"; echo) | sha256sum | cut -c1-16)"
+if [ -f "$done_mark" ]; then
+  echo "set up already (a parked card)"
+  exit 0
+fi
+
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/dev/null
 /root/uv/uv venv --quiet --python 3.12 /root/venv
@@ -12,3 +20,4 @@ curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/de
 /root/venv/bin/python -c "import sys; from huggingface_hub import snapshot_download; \
 snapshot_download('depth-anything/Depth-Anything-V2-Small-hf', revision=sys.argv[1], \
 local_dir='/root/dav2')" "$REVISION"
+touch "$done_mark"

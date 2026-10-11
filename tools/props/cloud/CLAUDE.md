@@ -51,8 +51,18 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (`park.CLEANUPS`: `blender`, `library`) has its run's files removed and is listed in `~/.farm-factory-props/cloud/parked/`;
   the next `batch.claim` of that kind on this PC takes it, set-up done, and the ledger charges it only what it adds.
   It is gone 5 min before its paid hour ends, never idle into the next: its `--expire` process deletes it, its own
-  `self_delete.py` is re-armed to that time, and its tags hold that time for any run's sweep. Cards (billed by the
-  minute), failed machines and runs stopped by a signal are deleted as before.
+  `self_delete.py` is re-armed to that time, and its tags hold that time for any run's sweep. Failed machines and runs
+  stopped by a signal are deleted as before.
+- **A card is parked for its kind's measured cold start, at most 10 min** (`park.idle_minutes`, 2026-10-11): every
+  cloud job waited for a fresh card to answer and set up (blender on cards: median 5.4 min outside its jobs, 40% of
+  what its cards cost, October 2026). A healthy card of a kind in `park.CLEANUPS` (`blender`, `library`, `depth`,
+  `judge`) is parked as above for the median minutes its kind's last 30 fresh cards took from order to first job
+  (the ledger's `start_wait_minutes` + `setup_minutes`), so one nobody takes costs at most one cold start. Every
+  claim of a cleared run waits on its kind's queue (`park.wanting`, `~/.farm-factory-props/cloud/wanted/<kind>/`) and
+  takes a card parked meanwhile within 10 s; taking one needs a cleared run like `rent`. A card nobody took is
+  deleted at its time and `--expire` writes its idle minutes and euros to the ledger (`parked-<id>`). A kind opts in
+  with a clean-up in `park.CLEANUPS` and a set-up script that skips a machine it already set up (a mark named for the
+  script's text, written last).
 - **A machine deletes itself if this PC dies** (`self_delete.py`, armed first thing on every
   machine): when the runner's heartbeat is 15 min stale or the batch's time limit has passed. It
   uses a key that can only read, stop and delete the account's machines, addresses and disks

@@ -165,6 +165,7 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
         batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
         prepare(machine)
+        machine["set_up"] = time.time()  # the ledger's setup_minutes, which park.idle_minutes measures
         machine["taking"] = True
         cards = slots(kind, machine, at_once)
         batch.say(f"{folder.name} ({machine['type']}, {machine['zone']}) ready after "
