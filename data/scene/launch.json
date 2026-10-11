@@ -95,7 +95,7 @@
    "type": "spot",
    "at": [
     -293.502,
-    11.312,
+    12.037,
     -73.71
    ],
    "aim": [
@@ -109,7 +109,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp, on the middle of its lens (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
    "shaft": {
     "near": 0.6,
     "length": 12.0,
@@ -123,7 +123,7 @@
    "type": "spot",
    "at": [
     -293.502,
-    11.312,
+    12.037,
     -46.29
    ],
    "aim": [
@@ -137,7 +137,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp, on the middle of its lens (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
    "shaft": {
     "near": 0.6,
     "length": 12.0,
@@ -151,7 +151,7 @@
    "type": "spot",
    "at": [
     -270.0,
-    11.312,
+    12.037,
     -99.423
    ],
    "aim": [
@@ -165,7 +165,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp, on the middle of its lens (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
    "shaft": {
     "near": 0.6,
     "length": 12.0,
@@ -179,7 +179,7 @@
    "type": "spot",
    "at": [
     -270.0,
-    11.312,
+    12.037,
     -26.577
    ],
    "aim": [
@@ -193,7 +193,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp, on the middle of its lens (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
    "shaft": {
     "near": 0.6,
     "length": 12.0,

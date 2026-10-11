@@ -223,7 +223,7 @@
    "type": "spot",
    "at": [
     -53.235,
-    17.328,
+    18.418,
     -42.0
    ],
    "aim": [
@@ -237,7 +237,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on the middle of its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
     "length": 12.0,
@@ -251,7 +251,7 @@
    "type": "spot",
    "at": [
     -53.235,
-    17.328,
+    18.418,
     38.0
    ],
    "aim": [
@@ -265,7 +265,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on the middle of its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
     "length": 12.0,
@@ -279,7 +279,7 @@
    "type": "spot",
    "at": [
     -67.235,
-    17.328,
+    18.418,
     -30.0
    ],
    "aim": [
@@ -293,7 +293,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on the middle of its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
     "length": 12.0,
@@ -307,7 +307,7 @@
    "type": "spot",
    "at": [
     -67.235,
-    17.328,
+    18.418,
     24.0
    ],
    "aim": [
@@ -321,7 +321,7 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on the middle of its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
     "length": 12.0,
