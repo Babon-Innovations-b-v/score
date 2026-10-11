@@ -1,14 +1,17 @@
 """The framework's half of a place's surface line, after the method's parts (PARTS in __init__.py: per model its
-parts, each with a measured finish and the judge's surface): every part takes the surface of its finish group in the
-world's finish registry (registry.py: the same finish is the same library surface in every place), painted from that
-surface alone, baked and checked. Never a picture's colours: a part whose finish matches no group and that the judge
-named nothing for takes the surface of the part it borders most, else it stays unnamed and the gate fails.
+parts, each with the library surface the method named for it): every part painted from its surface alone, baked and
+checked. Never a picture's colours: a part the method named nothing for takes the surface of the part it borders
+most, else it stays unnamed and the gate fails. A new library surface the method proposed for a part goes into the
+finish registry (registry.py) as proposed, for the owner; until he accepts it, the part keeps the nearest library
+surface the method named.
 
 Rows (place grain, surfaces-<step>@<place>):
-    paint   (free)  per part its surface (the registry's group, the judge's name for a new group, the bordering
-                    part's), the labelled folder written (labels.write_parts) and its gate: one surface a part
+    paint   (free)  per part its surface (the method's, else the bordering part's), the labelled folder written
+                    (labels.write_parts) and its gate: one surface a part
     bake    (paid)  the labelled folders baked onto the place's made models (library_bake.py make_chunky), each by
-                    the entry the place's data names (data/surfaces/<place>.json `bake`)
+                    the entry the place's data names (data/surfaces/<place>.json `bake`); the models the place lays
+                    that another place claims (its data's `elsewhere`) named in elsewhere.json, read from that place's
+                    bake: each model is painted once world-wide
     check   (free)  the baked models: every part's baked base colour lies on its library surface (CIE76 under
                     BAKE_DELTA_E, no near-black blotch), every map there, triangles within the job's budget
 """
@@ -39,6 +42,9 @@ PART_LEAST = 0.01
 PART_POINTS = 60000  # labelled points kept per model to name each baked triangle (export.PART_POINTS)
 CLASSES = "gpu-24gb,gpu-48gb,gpu-80gb"
 BAKE_EUROS = 2.0
+# Two neighbouring parts of one surface join only when their colours lie within this (Lab) (MaPa's merge: same class
+# and same unlit colour, its CIE threshold 2 on albedo is too fine for a picture's).
+MERGE_COLOUR = 12.0
 
 
 def data_of(inputs):
@@ -47,23 +53,20 @@ def data_of(inputs):
 
 # --- paint ---------------------------------------------------------------------------------------------------------
 
-def seeded_groups(inputs):
-    return json.loads((inputs["seed"] / "seed.json").read_text())["groups"]
-
-
-def registry_surfaces(take, place, rows, registry):
-    """Each part's record with its surface where the registry gives one: the group its measured finish belongs to,
-    a new group named by the judge when none matches; a part with nothing measured gets none here."""
-    measured = [row for row in rows if row["finish"]]
-    answers = registry.surfaces_for([((row["finish"]["centre"], row["finish"]["spread"]), row["judge"],
-                                      {"line": place, "take": take, "part": row["part"]}) for row in measured])
-    given = {row["part"]: answer for row, answer in zip(measured, answers) if answer is not None}
+def method_surfaces(take, place, rows, registry):
+    """Each part's record with the surface the method named for it; a new library surface the method proposed for a
+    part goes into the registry as proposed (the standing proposal of its name is recorded on the part), the part
+    keeping the method's nearest library surface meanwhile."""
     found = []
     for row in rows:
         record = dict(row)
-        if row["part"] in given:
-            group, surface, matched, apart = given[row["part"]]
-            record.update(group=group, surface=surface, matched=matched, separation=apart, by="registry")
+        if row["judge"]:
+            record.update(surface=row["judge"], by="the method")
+        if row.get("proposed"):
+            spec = {**row["proposed"], "status": "proposed", "stands_in": row["judge"]}
+            standing = registry.propose_surface(row["proposed"]["name"], spec,
+                                                {"line": place, "take": take, "part": row["part"]})
+            record["proposed"] = standing["spec"]
         found.append(record)
     return found
 
@@ -88,29 +91,66 @@ def bordered(mesh, part_of, records, names):
     return chosen
 
 
+def colour_joined_parts(mesh, part_of, chosen, colours):
+    """labels.joined_parts with MaPa's second condition: neighbouring parts join where one surface is named for both
+    and their colours (labels.part_colour, Lab) lie within MERGE_COLOUR; parts with too few seen faces for a colour
+    (every part of a method that measures none) join on the surface alone."""
+    import numpy as np
+    from scipy import sparse
+    from scipy.sparse.csgraph import connected_components
+    import labels
+    count = len(chosen)
+    seen = ~np.isnan(colours[:, 0])
+    part_colours = np.full((count, 3), np.nan)
+    for part in range(count):
+        members = (part_of == part) & seen
+        if members.sum() >= labels.SEEN_LEAST:
+            part_colours[part] = labels.part_colour(colours[members])
+    pairs = mesh.face_adjacency
+    first, second = part_of[pairs[:, 0]], part_of[pairs[:, 1]]
+    gap = np.linalg.norm(part_colours[first] - part_colours[second], axis=1)
+    near = np.isnan(gap) | (gap <= MERGE_COLOUR)
+    same = (first != second) & (chosen[first] == chosen[second]) & near
+    links = sparse.coo_matrix((np.ones(same.sum()), (first[same], second[same])), shape=(count, count))
+    return connected_components(links + links.T, directed=False)[1][part_of]
+
+
+def finished_frame(mesh, take):
+    """The raw model laid on its finished model (labels.onto_finished, seeded as labels.py seeds it); the matrix,
+    the median gap and the finished model's bounds."""
+    import numpy as np
+    import trimesh
+    import labels
+    np.random.seed(0)
+    final = trimesh.load(labels.PIXAL / f"{take}-final.glb", force="mesh")
+    matrix, gap = labels.onto_finished(mesh.sample(labels.SAMPLED, seed=1), final.sample(labels.SAMPLED, seed=2),
+                                       labels.finish_turn(take))
+    return matrix, gap, final.bounds
+
+
 def paint_take(inputs, out, take, record, registry):
     """One take painted: each part's surface, the labelled folder and faces.npz, its report."""
     import numpy as np
     import labels
-    import paint
     import patchy
+    import split_compare
     import stored_parts
     entry = data_of(inputs)["takes"][take]
     part_of = np.load(inputs["parts"] / take / "parts.npy").astype(int)
     colours = np.load(inputs["parts"] / take / "colours.npy")
-    mesh = paint.raw_mesh(take)
+    mesh = split_compare.raw_model(take)
     names = list(labels.allowed_materials(entry["library_places"][0], entry["kind"], []))
-    records = registry_surfaces(take, entry["place"], record["parts"], registry)
+    records = method_surfaces(take, entry["place"], record["parts"], registry)
     chosen = bordered(mesh, part_of, records, names)
     unnamed = [part for part in range(len(records)) if chosen[part] < 0]
     safe = np.where(chosen < 0, 0, chosen)
-    painted_parts = paint.colour_joined_parts(mesh, part_of, safe, colours)
+    painted_parts = colour_joined_parts(mesh, part_of, safe, colours)
     painted = safe[part_of]
     folder = out / "labelled" / take
     folder.mkdir(parents=True)
     np.savez_compressed(folder / "faces.npz", surface=painted.astype(np.int16), part=part_of.astype(np.int32),
                         painted_part=painted_parts.astype(np.int32), names=np.array(names))
-    matrix, gap, bounds = paint.finished_frame(mesh, take)
+    matrix, gap, bounds = finished_frame(mesh, take)
     order = sorted({names[index] for index in np.unique(painted)})
     face_labels = np.array([order.index(name) if name in order else -1 for name in names])[painted]
     moved = mesh.copy()
@@ -136,7 +176,7 @@ def paint_step(inputs, out):
     method left out)."""
     from registry import Registry
     from score.store import Store
-    registry = Registry(Store.default(), seeded_groups(inputs))
+    registry = Registry(Store.default())
     method = json.loads((inputs["parts"] / "parts.json").read_text())
     found = {take: paint_take(inputs, out, take, record, registry) for take, record in method["takes"].items()}
     (out / "painted.json").write_text(json.dumps({"takes": found, "left_out": method["left_out"]}, indent=1))
@@ -147,8 +187,7 @@ def paint_faults(folder):
 
 
 def judge_one_surface(output, inputs, evidence):
-    """Every part of every painted model has exactly one library surface (the registry's, the judge's or its
-    bordering part's)."""
+    """Every part of every painted model has exactly one library surface (the method's or its bordering part's)."""
     found = json.loads((output / "painted.json").read_text())["takes"]
     failing = [f"{take}: parts {report['unnamed_parts']} unnamed ({report['unnamed_share']:.1%})"
                for take, report in found.items() if report["unnamed_parts"]]
@@ -174,8 +213,8 @@ def bake_entries(inputs, labelled):
 
 
 def baking_specs(library_name, specs, labelled):
-    """The bake job's specs with every surface a labelled folder paints that the job lacks (a surface the registry
-    gave from another place's group), in the place's palette tokens (library.by_library)."""
+    """The bake job's specs with every surface a labelled folder paints that the job lacks (a surface of another
+    library place the take may take from), in the place's palette tokens (library.by_library)."""
     import library
     painted = {path.stem for folder in labelled for path in folder.glob("*.ply")}
     missing = painted - set(specs)
@@ -211,8 +250,22 @@ def make_bake(inputs, out, seed, params):
         raise RuntimeError(f"library_bake.py failed: {done.stderr[-2000:]}")
     (out / "baked.json").write_text(json.dumps({entry["name"]: dict(entry, parts=pathlib.Path(entry["parts"]).name)
                                                 for entry in chunky}, indent=1))
+    (out / "elsewhere.json").write_text(json.dumps(claims(inputs), indent=1))
     for path in jobs:
         pathlib.Path(path).unlink()
+
+
+def claims(inputs):
+    """The models the place lays that another place claims (its data's `elsewhere`), each read from that place's
+    bake: {model: {take, place, node (that place's bake row), baked_as (the model that place bakes the take as, None
+    when it bakes none)}}."""
+    found = {}
+    for model, claim in data_of(inputs).get("elsewhere", {}).items():
+        other = json.loads(inputs[f"claimed {claim['place']}"].read_text())
+        baked_as = sorted(name for name, take in other.get("bake", {}).get("models", {}).items()
+                          if take == claim["take"] and claim["take"] in other["takes"])
+        found[model] = dict(claim, node=f"surfaces-bake@{claim['place']}", baked_as=baked_as[0] if baked_as else None)
+    return found
 
 
 def bake_faults(folder):
@@ -224,12 +277,16 @@ def bake_faults(folder):
 
 
 def judge_baked(output, inputs, evidence):
-    """Every painted model came back baked; one the data names no model for is unknown, never passed."""
+    """Every painted model came back baked, and every model the place lays that another place claims is baked by
+    that place (its claim names a take that place lists and bakes); a model no place bakes fails."""
     baked = json.loads((output / "baked.json").read_text())
     painted = json.loads((prop_env.short(inputs)["paint"] / "painted.json").read_text())["takes"]
     failing = [f"{take}: not baked (no model of the place's data takes it)" for take in painted
                if take not in {entry["parts"] for entry in baked.values()}]
-    return gates.verdict("baked", failing, len(painted), "painted models not baked")
+    claimed = json.loads((output / "elsewhere.json").read_text())
+    failing += [f"{model}: claimed by {claim['place']}, which does not bake {claim['take']}"
+                for model, claim in claimed.items() if claim["baked_as"] is None]
+    return gates.verdict("baked", failing, len(painted) + len(claimed), "models not baked here or by their claim")
 
 
 # --- check ---------------------------------------------------------------------------------------------------------

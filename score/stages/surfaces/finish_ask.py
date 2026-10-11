@@ -1,11 +1,14 @@
-"""EXPERIMENTAL (the finish-map test of 2026-10-11): the two paid Google asks of the finish-map route, both through
-tools/props/cloud/google_spend.generate (priced on the Google ledger, each request cached by its input's hash).
+"""The surface stage's two paid Google asks (the finish-map method), both through google_spend.generate
+(tools/props/cloud; priced on the Google ledger, each request cached by its input's hash).
 
 - finish_list: Gemini 3.1 Pro (temperature 0, structured output) looks at a model's close-up and lists its finishes
   (few, only finishes that truly differ), each mapped to one of the take's allowed library surfaces; where none fits
-  it proposes a new library surface (name, description, why), which is only reported for the owner, never added.
+  it gives the closest and proposes a new library surface (name, description, why), which the paint records in the
+  finish registry as proposed, never in the library.
 - draw_map: Nano Banana Pro redraws the close-up as a finish map, each finish one flat label colour (LABELS) on plain
-  white, with a seed so a failed map can be drawn once more.
+  white, with a seed so a failed map can be drawn again; the last draw is asked more strictly (STRICT).
+- draw_view_map: the same for a turntable view of the raw model (its own texture, unlit), given the close-up and its
+  finish map as the reference, so each finish keeps its label colour on the sides the close-up does not show.
 
 Refused outside a cleared run or the owner's override (score.adapters.compute.require_cleared), as every paid call.
 """
@@ -33,7 +36,6 @@ LABELS = ((230, 25, 25), (20, 170, 40), (30, 70, 235), (245, 215, 0), (215, 0, 2
 LABEL_WORDS = ("pure red", "pure green", "pure blue", "pure yellow", "pure magenta", "pure cyan", "pure orange",
                "pure purple")
 BACKGROUND = (255, 255, 255)
-NEW = "new"
 LIST_QUESTION = """You help paint a 3D model of an object made from this picture.
 The object: {object}.
 List the object's finishes: the distinct surface treatments a painter would give its parts (for example gold foil,
@@ -51,6 +53,17 @@ remove anything. Paint every visible part of the object one solid flat colour by
 {finishes}
 Use only these colours, fully saturated and flat: no shading, no light, no texture, no gradients, no outlines, no
 lines, no text. Every pixel of the object takes one of these colours. The background is plain pure white."""
+STRICT = """
+Not one pixel of the photograph may remain: doors, handles, grilles, louvres, vents, panels and their edges are all
+painted flat in their finish's colour too, with nothing photographic left anywhere on the object."""
+VIEW_WORDING = """The first picture is a photograph of an object. The second is its finish map: the same picture with
+every finish painted one flat colour:
+{finishes}
+The third picture shows the same object from another side. Redraw the third picture as a finish map in exactly the
+same way: keep its outline, pose, size and position in the frame; paint every visible part one solid flat colour by
+its finish, the same colour that finish has in the second picture. Use only these colours, fully saturated and flat:
+no shading, no light, no texture, no gradients, no outlines, no lines, no text. Every pixel of the object takes one of
+these colours; not one pixel of the photograph may remain. The background is plain pure white."""
 
 
 def secret_key():
@@ -127,23 +140,47 @@ def finish_list(picture, object_words, surfaces):
     return parsed_list(reply_text(response), surfaces)
 
 
-def map_body(picture, finishes, seed):
-    """The finish-map request: the close-up and each finish's label colour in words, one square 2K picture back."""
-    lines = "\n".join(f"- {LABEL_WORDS[number]} (RGB {LABELS[number][0]}, {LABELS[number][1]}, {LABELS[number][2]}): "
-                      f"{entry['finish']}, on {entry['parts']}" for number, entry in enumerate(finishes))
-    return {"contents": [{"role": "user", "parts": [{"text": MAP_WORDING.format(finishes=lines)},
-                                                    picture_part(picture, 1600)]}],
+def finish_lines(finishes):
+    """Each finish's label colour in words and its parts, one line each."""
+    return "\n".join(f"- {LABEL_WORDS[number]} (RGB {LABELS[number][0]}, {LABELS[number][1]}, {LABELS[number][2]}): "
+                     f"{entry['finish']}, on {entry['parts']}" for number, entry in enumerate(finishes))
+
+
+def image_body(parts, seed):
+    """A Nano Banana Pro request: its parts, one square 2K picture back."""
+    return {"contents": [{"role": "user", "parts": parts}],
             "generationConfig": {"responseModalities": ["IMAGE"], "seed": seed,
                                  "imageConfig": {"imageSize": "2K", "aspectRatio": "1:1"}}}
 
 
-def draw_map(picture, finishes, seed):
-    """One finish map (RGB), or None when the answer held no picture."""
+def map_body(picture, finishes, seed, strict=False):
+    """The finish-map request: each finish's label colour in words (STRICT added on the last draw), the close-up."""
+    text = MAP_WORDING.format(finishes=finish_lines(finishes)) + (STRICT if strict else "")
+    return image_body([{"text": text}, picture_part(picture, 1600)], seed)
+
+
+def view_body(picture, front_map, view, finishes, seed):
+    """The view-map request: the words, the close-up, its finish map and a turntable view of the raw model."""
+    return image_body([{"text": VIEW_WORDING.format(finishes=finish_lines(finishes))}, picture_part(picture, 1024),
+                       picture_part(front_map, 1024), picture_part(view, 1024)], seed)
+
+
+def drawn(body, what):
+    """One finish map (RGB) from Nano Banana Pro, or None when the answer held no picture."""
     from score.adapters import compute
     import google_spend
-    compute.require_cleared("a Nano Banana Pro finish map")
-    response = google_spend.generate(MAP_MODEL, map_body(picture, finishes, seed), secret_key(), TIMEOUT,
-                                     caller="finishmap-map", cache=True)
+    compute.require_cleared(what)
+    response = google_spend.generate(MAP_MODEL, body, secret_key(), TIMEOUT, caller="finishmap-map", cache=True)
     found = [piece["inlineData"]["data"] for candidate in response.get("candidates", [])
              for piece in candidate.get("content", {}).get("parts", []) if "inlineData" in piece]
     return Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB") if found else None
+
+
+def draw_map(picture, finishes, seed, strict=False):
+    """The close-up's finish map, or None."""
+    return drawn(map_body(picture, finishes, seed, strict), "a Nano Banana Pro finish map")
+
+
+def draw_view_map(picture, front_map, view, finishes, seed):
+    """A turntable view's finish map, or None."""
+    return drawn(view_body(picture, front_map, view, finishes, seed), "a Nano Banana Pro view finish map")

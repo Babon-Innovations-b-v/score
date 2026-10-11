@@ -54,7 +54,7 @@ stage as each stage is built; nothing moves before.
   example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `terrain` (one world node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
   scale, slope, ground under objects and openings (its overlay). `surfaces` (step 1) is each place's own line of
-  rows, split to checked bake, beside the world's seed of the finish registry (its overlay; per-place data in
+  rows, the finish-map method to checked bake (its overlay; per-place data in
   `data/surfaces/`). World 1's record is `data/definitions/world.json`.
 
 Rules:
