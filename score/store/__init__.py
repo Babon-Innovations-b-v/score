@@ -16,6 +16,7 @@ takes the same calls), under these keys:
     judgements/<node>/<key>/<evidence>.json its gates' verdicts on that output under one state of its evidence
     evidence/<check>/<output>               a check's evidence on one output (a drop run's report, say)
     accepts/<node>/<time>.json              each accept the owner gave; the newest is the node's accepted output
+    waivers/<node>/<key>/<check>.json       the owner's waiver of one check for one key; it ends when the key changes
     spend-yes/<node>/<key>.json             the owner's yes to one paid run's estimate
 
 Accepts, waivers and spend yeses are written only by the owner's own commands (score/review). In the framework's store
@@ -257,6 +258,15 @@ class Store:
     def write_accept(self, node, accept):
         """Record one of the owner's accepts (score/review's accept is the only caller)."""
         self.write_once(f"accepts/{node}/{stamp_key(accept['at'])}-{accept['output'][:12]}.json", accept)
+
+    def waivers(self, node, key):
+        """{check: waiver} the owner gave a node under one key."""
+        return {pathlib.PurePosixPath(item).stem: runtime_store.read_json(self.objects, item)
+                for item in self.objects.keys(f"waivers/{node}/{key}/")}
+
+    def write_waiver(self, node, key, check, waiver):
+        """Record the owner's waiver of one check for one key (score/review's waive is the only caller)."""
+        self.write_once(f"waivers/{node}/{key}/{check}.json", waiver)
 
     def spend_yes(self, node, key):
         return self.read(f"spend-yes/{node}/{key}.json")

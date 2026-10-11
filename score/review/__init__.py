@@ -4,13 +4,13 @@ accept only the owner gives.
     path = review.page(store, "assembly@hangar")            # the node's newest output; or key=... for another
     review.accept(store, node, output, by, reason, worse_reason=None)   # the owner's command calls this, no one else
     review.spend(store, node, key, euros, by)                # the owner's yes to one paid run
+    review.waive(store, node, key, check, by, reason)        # the owner lets one check pass for one key
 
 A page shows the node's output, where it came from (an unverified seed says so), every gate's answer with its
 measures, reason and findings, the record (inputs, code version, commit, seed, machine, time, cost), the judgements
 made before, and whether the owner accepted it. Pages are written in the store's cache, never in the repository.
 
-An accept is refused for an output whose newest judgement is not a pass (a waiver is the owner's later call, not this
-one), and for one with a worse scorecard than the accepted output's unless the owner writes why (`worse_reason`). Only
+An accept is refused for an output whose newest judgement is not a pass once the owner's waivers for its key count, and for one with a worse scorecard than the accepted output's unless the owner writes why (`worse_reason`). Only
 `python -m score.review accept` calls it, from the owner's own terminal; a hook blocks agents from running it or
 writing the store's accepts (.claude/hooks/accept_guard.py).
 """
@@ -66,7 +66,7 @@ def accept(store, node, output, by, reason="", worse_reason=None):
     if record is None:
         raise Refused(f"{node} has no output {output}")
     judgement = newest_judgement(store, record)
-    if judgement is None or judgement["answer"] != checks.PASS:
+    if judgement is None or checks.standing(judgement["verdicts"], store.waivers(node, record["key"])) != checks.PASS:
         raise Refused(f"{node}'s output {output[:12]} answered {judgement['answer'] if judgement else 'nothing yet'}; "
                       "only a passing output can be accepted")
     worse = worse_than_accepted(store, node, judgement)
@@ -88,6 +88,22 @@ def worse_than_accepted(store, node, judgement):
     return checks.regressions(judgement["verdicts"], accepted_judgement["verdicts"] if accepted_judgement else {})
 
 
+def waive(store, node, key, check, by, reason):
+    """The owner's waiver of one check of a node's output under one key, with his reason; it ends when the key
+    changes. The waiver, as written."""
+    record = store.record(node, key)
+    if record is None:
+        raise Refused(f"{node} has no finish record under {key[:12]}")
+    if not reason.strip():
+        raise Refused("a waiver needs a reason")
+    judgement = newest_judgement(store, record)
+    if judgement is None or check not in judgement["verdicts"]:
+        raise Refused(f"{node} has no check {check} judged under {key[:12]}")
+    waiver = {"node": node, "key": key, "check": check, "by": by, "at": now(), "reason": reason}
+    store.write_waiver(node, key, check, waiver)
+    return waiver
+
+
 def spend(store, node, key, euros, by):
     """The owner's yes to one paid run of a node at its estimate."""
     yes = {"node": node, "key": key, "euros": euros, "by": by, "at": now()}
@@ -105,8 +121,13 @@ def answer_cell(answer):
     return f'<span class="{escaped(answer)}">{escaped(answer)}</span>'
 
 
-def checks_table(judgement):
-    """Each gate's answer, reason, measures and findings."""
+def waiver_note(waiver):
+    return (f"<p class=unknown>Waived by {escaped(waiver['by'])} at {escaped(waiver['at'])}: "
+            f"{escaped(waiver['reason'])}</p>") if waiver else ""
+
+
+def checks_table(judgement, waived):
+    """Each gate's answer, reason, measures and findings, and the owner's waiver where he gave one."""
     rows = []
     for name, verdict in judgement["verdicts"].items():
         measures = ", ".join(f"{key} {value}" for key, value in verdict["measures"].items())
@@ -115,7 +136,7 @@ def checks_table(judgement):
         listed = "".join(f"<li><code>{escaped(item)}</code></li>" for item in findings)
         listed += f"<li class=soft>and {more} more</li>" if more else ""
         rows.append(f"<tr><td>{escaped(name)}</td><td>{answer_cell(verdict['answer'])}</td>"
-                    f"<td>{escaped(verdict['reason'])}<ul>{listed}</ul></td><td>{escaped(measures)}</td></tr>")
+                    f"<td>{escaped(verdict['reason'])}{waiver_note(waived.get(name))}<ul>{listed}</ul></td><td>{escaped(measures)}</td></tr>")
     return ('<div class=scroll><table><tr><th>Check</th><th>Answer</th><th>Reason and findings</th><th>Measures</th>'
             f"</tr>{''.join(rows)}</table></div>")
 
@@ -148,7 +169,7 @@ def accept_section(store, record, judgement):
     lines = [f"<p>Accepted output: <code>{escaped(accepted or 'none yet')}</code>.</p>"]
     worse = worse_than_accepted(store, node, judgement) if judgement else []
     lines += [f"<p class=fail>Worse than the accepted output: {escaped(line)}</p>" for line in worse]
-    if judgement and judgement["answer"] == checks.PASS:
+    if judgement and checks.standing(judgement["verdicts"], store.waivers(node, record["key"])) == checks.PASS:
         lines.append("<p>Only the owner accepts, in his own terminal: <code>.venv/bin/python -m score.review accept "
                      f"{escaped(node)} {escaped(output)}</code>{' --worse &quot;why&quot;' if worse else ''}</p>")
     else:
@@ -161,12 +182,13 @@ def page_html(store, record):
     judgements = store.judgements(record["node"], record["key"])
     judgement = judgements[-1] if judgements else None
     answer = judgement["answer"] if judgement else "not judged"
+    waived = store.waivers(record["node"], record["key"])
     earlier = "".join(f"<li>{escaped(item['at'])}: {answer_cell(item['answer'])}</li>" for item in judgements[:-1])
     return (f"<title>{escaped(record['node'])}</title><style>{STYLE}</style><main>"
             f"<h1>{escaped(record['node'])}: {answer_cell(answer)}</h1>"
             f"<p class=soft>Output <code>{escaped(record['output'])}</code>, made {escaped(record['finished'])}</p>"
             f"{origin_banner(store, record)}"
-            f"<h2>Gates</h2>{checks_table(judgement) if judgement else '<p>Not judged yet.</p>'}"
+            f"<h2>Gates</h2>{checks_table(judgement, waived) if judgement else '<p>Not judged yet.</p>'}"
             f"<h2>Accept</h2>{accept_section(store, record, judgement)}"
             f"<h2>Earlier judgements of this output</h2><ul>{earlier or '<li class=soft>none</li>'}</ul>"
             f"<h2>Finish record</h2>{record_table(record)}</main>")

@@ -63,7 +63,16 @@ def judge(check, output, inputs, evidence):
 
 def overall(verdicts):
     """The node's answer: fail if any check failed, else unknown if any is unknown or none ran, else pass."""
-    answers = {verdict.answer for verdict in verdicts}
+    return combined({verdict.answer for verdict in verdicts})
+
+
+def standing(scorecard, waived):
+    """A judgement's answer once the owner's waivers count: a waived check's verdict counts as a pass."""
+    return combined({PASS if name in waived else verdict["answer"] for name, verdict in scorecard.items()})
+
+
+def combined(answers):
+    """Fail if any answer is fail, else unknown if any is unknown or there are none, else pass."""
     if FAIL in answers:
         return FAIL
     if UNKNOWN in answers or not answers:

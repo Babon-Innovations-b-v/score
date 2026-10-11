@@ -16,7 +16,8 @@ not made again. Its gates are judged again, without remaking it, when a check's 
 Every output is checked against its stage's contract and stamped with it (score.contracts) before it is stored; one
 off its contract is not stored. A node reads an earlier output only when its stamp is the schema and version the node
 expects, and only when every earlier stage it reads has a finish record for its current key, a judgement on its
-current evidence that passed, and the owner's accept of that very output. A rerun's new output lands beside the
+current evidence that passed (or whose failed checks the owner waived for that key), and the owner's accept of that
+very output. A rerun's new output lands beside the
 accepted one and never replaces it by itself. A paid stage also needs the owner's yes to that run (spend-yes).
 """
 import datetime
@@ -143,9 +144,10 @@ class Runner:
         judgement = self.store.judgement(node, key, self.evidence_state(stage, record["output"]))
         if judgement is None:
             raise Blocked(f"{node} is not judged on its current evidence")
-        if checks.blocks(judgement["answer"]):
+        waived = self.store.waivers(node, key)
+        if checks.blocks(checks.standing(judgement["verdicts"], waived)):
             reasons = "; ".join(f"{name}: {verdict['reason']}" for name, verdict in judgement["verdicts"].items()
-                                if checks.blocks(verdict["answer"]))
+                                if checks.blocks(verdict["answer"]) and name not in waived)
             raise Blocked(f"{node} answered {judgement['answer']}: {reasons}")
         accepted = self.store.accepted(node)
         if accepted != record["output"]:
@@ -278,7 +280,9 @@ class Runner:
         if judgement is None:
             return "to judge: its evidence changed"
         accepted = self.store.accepted(node) == record["output"]
-        return f"{judgement['answer']}, {'accepted' if accepted else 'not accepted'}"
+        waived = sorted(self.store.waivers(node, keyed["key"]))
+        return (f"{judgement['answer']}{', waived: ' + ', '.join(waived) if waived else ''}, "
+                f"{'accepted' if accepted else 'not accepted'}")
 
     def status(self, places):
         return {node_name(stage, place): self.node_status(stage, place) for stage, place in self.nodes(places)}
