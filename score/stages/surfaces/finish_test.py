@@ -140,7 +140,7 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
     saved = labels.allowed_materials
     labels.allowed_materials = lambda place, kind, without: library
     try:
-        light_grey = finish_parts.library_lab(library["grey_plastic"]) + np.array([3.0, 0, 0])
+        light_grey = finish_parts.library_lab(library["grey_plastic"]) + np.array([3.0, 0, 0])  # far from navy and black
         found = finish_parts.checked_finishes(
             {"library_places": ["lab"], "kind": "lab_chair", "object": "desk chair"},
             [{"finish": "grey vinyl", "parts": "seat", "surface": "vinyl_seat", "fits": True},

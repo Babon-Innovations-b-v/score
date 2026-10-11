@@ -45,10 +45,12 @@ MIX_SHARE = 0.2  # a part mixes finishes when its second finish holds this share
 PART_LEAST = 0.01  # parts under this share of the model are not judged for mixing
 ISLAND_LEAST = 0.002  # split_compare.CRUMB: an island under this share of the area joins the nearest larger one
 BORDER = (0, 0, 0)
-# A finish's library surface must lie within this (CIE76, the bake check's scale: wear and dirt move a baked surface
-# about this far, a wrong surface much further) of its colour in the close-up; the power unit's grey steel measured
-# against dark_panel and the lab chair's grey vinyl against navy vinyl_seat were the faults (2026-10-12).
-COLOUR_DELTA_E = 20.0
+# A finish's library surface must lie within this (CIE76) of its colour in the close-up. A photo's light, dirt and
+# muted saturation move a right surface far: on round 4's six models the right ones lay up to dE 29.7 from it (the
+# lander's light paint, its gold foil 29.5, black rubber 29.4), the wrong ones 33.2 to 44.9 (the power unit's grey
+# steel as near-black dark_panel 44.9, the lab chair's grey vinyl as navy vinyl_seat 37.8, the power unit's silver
+# tape as dark galvanized_dull 33.2; 2026-10-12). At the bake check's 20 the gold foil turned silver.
+COLOUR_DELTA_E = 32.0
 
 
 def takes_of(inputs):
