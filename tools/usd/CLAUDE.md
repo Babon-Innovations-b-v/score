@@ -178,12 +178,6 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   the motion's `adds`, the layer's only defs. Animate only what the game moves, at its own speeds and lengths; a rest
   the player's pace decides is the record's and says so. `motion_test.py` checks it without Blender.
 - **Framework shaders** (`shaders.py`): a surface the library's flat colour cannot carry gets a UsdPreviewSurface
-  over a picture the framework bakes (`earth_face`: `earth.py`, NASA's Blue Marble and cloud cover, the real
-  planet), bound under `/<place>/Looks/` when the stage's folder is known; the sun's disc is a ball along each unnamed
-  sun light. Add a shader to `LOOKS`, never a picture by hand.
-- **Lamps' shafts and the day sky** (2026-10-11, experimental until `score/stages/light` passes): a spot light with a
-  `shaft` fills its own cone with haze only the lamps light (`write_shafts`, `/<place>/Shafts`, kept when another
-  place shows this one); a record's environment `sky_dome` is the air past the place's thin haze, `mars_sky.py`'s
-  single scattering of a dust layer for the place's sun, on a ball between the sun's disc and the stars that the eye
-  and mirrors see and nothing is lit by. Their strengths are measured against the concept on rendered views (the
-  light stage's sweep), never set by eye.
+  over a picture the framework bakes (`earth_face`: `earth.py`, NASA's Blue Marble and cloud cover, the real planet), bound under
+  `/<place>/Looks/` when the stage's folder is known; the sun's disc is a ball along each unnamed sun light. Add a
+  shader to `LOOKS`, never a picture by hand.

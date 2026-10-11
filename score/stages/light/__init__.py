@@ -420,6 +420,8 @@ def overrides(place, folder, share):
     swept.subLayerPaths.append(f"./layers/sweep-{share}.usda")
     swept.subLayerPaths.append(f"./{place}.usda")
     swept.defaultPrim = place
+    swept.pseudoRoot.SetInfo("upAxis", "Y")  # the stage's own units, or a reader takes centimetres and z up
+    swept.pseudoRoot.SetInfo("metersPerUnit", 1.0)
     swept.Save()
     return folder / f"{place}-sweep-{share}.usda"
 
