@@ -4,7 +4,9 @@ then judged by the assembly gates that exist today. No spend: nothing is made, r
     make     copies the seed's stage (<place>.usda, layers/, assets/, inputs.json) into the output with origin.json
              saying where it came from; old check results and manifests beside it are agent verdicts and stay out.
              A place on a made ground (the terrain stage's places/<place>.usdc) takes it as layers/ground.usdc,
-             sublayered over the seed's base, so the made ground stands in for the old one (experimental, PRD #6)
+             sublayered over the seed's base, so the made ground stands in for the old one (experimental, PRD #6).
+             A place the effects stage made a layer for (experimental) takes it in place of the seed's own:
+             layers/effects.usda and its baked clips, held by the root between the edit layer and the base
     gates    placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
                            code-built ship fails, 12 meshes)
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
@@ -34,6 +36,8 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "inventories": "{data}/inventory"}
 SEED_PARTS = ("layers", "assets", "inputs.json")
 GROUND_LAYER = "layers/ground.usdc"
+EFFECTS_LAYER = "layers/effects.usda"
+EFFECTS_CLIPS = "assets/effects"
 BASE_LAYER = "./layers/base.usda"
 INVENTORY_PREFIX = "data/inventory/"
 # One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
@@ -55,7 +59,23 @@ def make_from_seed(inputs, out, seed, params):
         elif source.exists():
             shutil.copy2(source, out / part)
     (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE}, indent=1))
+    if "effects" in inputs:
+        take_effects(inputs["effects"], out / root.name)
     take_ground(inputs["terrain"], folder.name, out / root.name)
+
+
+def take_effects(made, root):
+    """The effects stage's layer and its baked clips in place of the seed's, held by the root just over the base."""
+    from pxr import Sdf
+    shutil.rmtree(root.parent / EFFECTS_CLIPS, ignore_errors=True)
+    shutil.copytree(pathlib.Path(made) / EFFECTS_CLIPS, root.parent / EFFECTS_CLIPS)
+    shutil.copy2(pathlib.Path(made) / EFFECTS_LAYER, root.parent / EFFECTS_LAYER)
+    layer = Sdf.Layer.FindOrOpen(str(root))
+    layers = list(layer.subLayerPaths)
+    if f"./{EFFECTS_LAYER}" not in layers:
+        layers.insert(layers.index(BASE_LAYER), f"./{EFFECTS_LAYER}")
+        layer.subLayerPaths = layers
+        layer.Save()
 
 
 def take_ground(grounds, place, root):

@@ -22,7 +22,8 @@ of one eye is seen from the first of them with a clear line to its aim (a charac
 in front of somebody). A view with `"hide_crowds": true` leaves out every instancer (a crowd, tools/characters/cast.py), so
 one of a group standing among thousands is seen close. What the motion stage moves (tools/usd/motion.py) is drawn
 where it stands at the view's `frame`: a moving prim through Blender's own reader, a switched light by its keyed
-energy. Objects the stage makes invisible (the body parts a character does not wear) stay out of every picture.
+energy, a light on a moving prim (the rocket's flame light) keyed where it stands at each of its time codes. Objects
+the stage makes invisible (the body parts a character does not wear) stay out of every picture.
 
 The stage's effects (tools/usd/effects.py: UsdGeomPoints with score:kind "effect", looped from their clips) are drawn
 here at each view's frame, since Blender's reader leaves their displayOpacity out: each particle a sphere, a speck flat
@@ -390,7 +391,8 @@ def stage_lights(stage):
                  "intensity_at": [[code, float(light.GetIntensityAttr().Get(code))]
                                   for code in light.GetIntensityAttr().GetTimeSamples()],
                  "shadows": bool(prim.GetAttribute("score:game:shadows").Get()) if prim.HasAttribute(
-                     "score:game:shadows") else True}
+                     "score:game:shadows") else True,
+                 "matrix_at": carried(prim)}
         if entry["type"] == "sphere":
             entry["radius"] = float(light.GetRadiusAttr().Get() or 0.05)
             shaping = UsdLux.ShapingAPI(prim)
@@ -401,6 +403,19 @@ def stage_lights(stage):
             entry["size"] = float(light.GetAngleAttr().Get() or 0.5)
         found.append(entry)
     return found, environment
+
+
+def carried(prim):
+    """A light on a prim that moves (an effects light riding the rocket, tools/usd/effects.py): its place in the world
+    at each time code its own or an ancestor's transform is sampled at, [[code, matrix]]; [] for one that stands."""
+    from pxr import UsdGeom
+    codes, ancestor = set(), prim
+    while ancestor and not ancestor.IsPseudoRoot():
+        if ancestor.IsA(UsdGeom.Xformable):
+            codes.update(UsdGeom.Xformable(ancestor).GetTimeSamples())
+        ancestor = ancestor.GetParent()
+    return [[code, [list(row) for row in UsdGeom.XformCache(code).GetLocalToWorldTransform(prim)]]
+            for code in sorted(codes)]
 
 
 def lit(scene, stage, fill=False):
@@ -448,6 +463,10 @@ def place_light(scene, number, entry):
     item = bpy.data.objects.new(f"stage_light_{number}", data)
     item.matrix_world = world
     scene.collection.objects.link(item)
+    for code, matrix in entry.get("matrix_at", []):
+        item.matrix_world = Y_UP_TO_Z_UP.to_4x4() @ Matrix(matrix).transposed()
+        item.keyframe_insert("location", frame=code)
+        item.keyframe_insert("rotation_euler", frame=code)
 
 
 def switched(data, entry):

@@ -15,12 +15,13 @@ import sys
 import tempfile
 
 import numpy as np
-from pxr import Sdf, Usd, UsdGeom
+from pxr import Gf, Sdf, Usd, UsdGeom
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import effects  # noqa: E402
 import export  # noqa: E402
+import motion as motion_record  # noqa: E402
 import scene as scene_record  # noqa: E402
 
 
@@ -140,6 +141,47 @@ def test_layer_composes_and_loops():
         assert stage.GetPrimAtPath("/spot/Effects/storm_drift/storm_drift_points")
 
 
+def test_an_event_lets_out_once_where_its_prim_climbs():
+    climb = {"lift": 1.0, "push": 12.0, "pull": 2.0, "start": 2.0}
+    trail = box_emitter(once=[3.0, 5.0], samples=6, lifetime=1.0, speed=[0.0, 0.0], climb=climb)
+    points, widths, _ = effects.bake(trail)
+    assert len(points) == int(round(3.0 * 6)) + 1  # from its first second to its last particle's death
+    assert widths[0].max() == 0.0 and widths[-1].max() == 0.0, "alive before its first birth or after its last death"
+    # Each particle stays where it was let out (no speed): the prim's climb at its birth, within the box.
+    born = 3.0 + (np.arange(300) + 0.5) / 300 * 2.0
+    lift = 0.5 * 10.0 * (born - 3.0) ** 2
+    alive = widths > 0
+    assert np.abs(points[..., 1] - lift[None, :])[alive].max() <= 0.5 + 1e-4
+
+
+def test_a_rider_moves_with_its_prim_and_lights_when_it_starts():
+    record = {"place": "pad", "effects": [dict(box_emitter(name="flame", count=50, lifetime=0.5), starts=1.0,
+                                               placement={"on": "Fixtures/rocket", "offset": [0.0, -1.0, 0.0]})],
+              "lights": [{"name": "glow", "on": "Fixtures/rocket", "colour": "#ffb877", "shadows": False,
+                          "intensity": [[0.0, 0.0], [1.0, 0.0], [1.5, 1000.0]], "from": "made in effects_test.py"}]}
+    with tempfile.TemporaryDirectory() as folder:
+        out = stage_folder("pad", folder)
+        base = Usd.Stage.Open(str(out / "layers/base.usda"))
+        rocket = UsdGeom.Xform.Define(base, "/pad/Fixtures/rocket")
+        rocket.AddTranslateOp().Set(Gf.Vec3d(5.0, 0.0, 0.0), 0.0)
+        rocket.GetOrderedXformOps()[0].Set(Gf.Vec3d(5.0, 100.0, 0.0), 240.0)
+        base.GetRootLayer().Save()
+        effects.write_layer("pad", record, out)
+        stage = Usd.Stage.Open(str(out / "pad.usda"))
+        flame = stage.GetPrimAtPath("/pad/Fixtures/rocket/flame")
+        for code, height in ((0.0, -1.0), (240.0, 99.0)):
+            where = UsdGeom.Xformable(flame).ComputeLocalToWorldTransform(code).ExtractTranslation()
+            assert np.allclose(where, [5.0, height, 0.0]), where
+        grains = UsdGeom.Points(stage.GetPrimAtPath("/pad/Fixtures/rocket/flame/flame_points"))
+        assert max(grains.GetWidthsAttr().Get(12.0)) == 0.0, "the flame burns before it starts"
+        assert max(grains.GetWidthsAttr().Get(36.0)) > 0.0, "the flame does not burn after it starts"
+        glow = stage.GetPrimAtPath("/pad/Fixtures/rocket/glow")
+        assert glow.GetAttribute("inputs:intensity").Get(12.0) == 0.0
+        assert glow.GetAttribute("inputs:intensity").Get(36.0) == 1000.0
+        assert glow.GetAttribute("score:game:shadows").Get() is False
+        assert stage.GetPrimAtPath("/pad/Fixtures").GetSpecifier() == Sdf.SpecifierDef  # the base's, kept
+
+
 def test_a_devil_wanders_downwind():
     entry = dict(box_emitter(name="devil"), placement={"ground": [10.0, 0.0, 0.0]},
                  travel={"downwind": 1.4, "seconds": 80.0, "age": 20.0}, spin=3.0)
@@ -164,15 +206,24 @@ def test_the_wind_lies_along_the_ground():
         assert abs(float(np.dot(way, up))) < 1e-6, (across, along, float(np.dot(way, up)))
 
 
-def test_every_record_names_its_game_source_and_lays_out():
+def names_its_source(entry, footage):
+    """An entry names the game file and lines it came from, or real footage its record's footage block lists."""
+    if re.search(r"(game|sim)/\S+\.(gd|gdshader|tscn):\d", entry.get("from", "")):
+        return True
+    named = re.findall(r"KSC-\d{8}-PH_\w+", entry.get("from", ""))
+    return entry.get("from", "").startswith("footage: ") and bool(named) and set(named) <= set(footage)
+
+
+def test_every_record_names_its_source_and_lays_out():
     places = {path.stem for path in (HERE.parents[1] / "data/scene").glob("*.json")}
     for path in sorted(effects.RECORDS.glob("*.json")):
         found = json.loads(path.read_text())
         assert found["place"] == path.stem and path.stem in places, f"{path.name} is not one of the world's places"
-        for entry in found["effects"]:
-            assert re.search(r"(game|sim)/\S+\.(gd|gdshader|tscn):\d", entry.get("from", "")), \
-                f"{path.name} {entry['name']} names no game file and lines"
-        laid = effects.emitters_of(found, effects.place_ground(path.stem), scene_record.record(path.stem))
+        footage = found.get("footage", {}).get("sources", {})
+        for entry in found["effects"] + found.get("lights", []):
+            assert names_its_source(entry, footage), f"{path.name} {entry['name']} names no game lines or footage"
+        laid = effects.emitters_of(found, effects.place_ground(path.stem), scene_record.record(path.stem),
+                                   motion_record.record(path.stem))
         assert len({emitter["name"] for emitter in laid}) == len(laid), f"{path.name}: two emitters share a name"
         for emitter in laid:
             assert np.allclose(emitter["basis"].T @ emitter["basis"], np.eye(3), atol=1e-6)
