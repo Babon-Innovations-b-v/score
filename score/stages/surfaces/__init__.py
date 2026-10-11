@@ -77,8 +77,10 @@ METHOD = (
                 after=reads("surfaces-inputs", "surfaces-turntable", "surfaces-maps", "surfaces-segvigen"),
                 applies=data.paints))
 LINE = (
-    row("surfaces-paint", place_line.make_paint, place_line.paint_faults, "one surface a part",
-        place_line.judge_one_surface, data.line_files, ("surfaces-parts",)),
+    graph.Stage("surfaces-paint", "place", place_line.make_paint, contract("surfaces-paint", place_line.paint_faults),
+                (guarded("one surface a part", place_line.judge_one_surface),
+                 guarded("colour against the close-up", place_line.judge_concept_colour)),
+                files=data.line_files, after=reads("surfaces-parts"), applies=data.paints),
     row("surfaces-bake", place_line.make_bake, place_line.bake_faults, "baked", place_line.judge_baked,
         data.bake_files, ("surfaces-paint",), paid=True, euros=place_line.BAKE_EUROS),
     graph.Stage("surfaces-check", "place", place_line.make_check, contract("surfaces-check", place_line.check_faults),

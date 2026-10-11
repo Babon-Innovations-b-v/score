@@ -132,6 +132,27 @@ def test_agreement_and_mixing_count_against_the_maps():
     assert mixing and mixing[0][0] == 0, mixing
 
 
+def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged():
+    import labels
+    navy, grey, black = [0.03, 0.06, 0.10], [0.35, 0.35, 0.35], [0.01, 0.01, 0.01]
+    library = {"vinyl_seat": {"family": "plastic", "colour": navy}, "grey_plastic": {"family": "plastic", "colour": grey},
+               "dark_panel": {"family": "steel", "colour": black}}
+    saved = labels.allowed_materials
+    labels.allowed_materials = lambda place, kind, without: library
+    try:
+        light_grey = finish_parts.library_lab(library["grey_plastic"]) + np.array([3.0, 0, 0])
+        found = finish_parts.checked_finishes(
+            {"library_places": ["lab"], "kind": "lab_chair", "object": "desk chair"},
+            [{"finish": "grey vinyl", "parts": "seat", "surface": "vinyl_seat", "fits": True},
+             {"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True}],
+            [light_grey, light_grey])
+    finally:
+        labels.allowed_materials = saved
+    assert found[0]["surface"] == "grey_plastic" and found[0]["by"] == "nearest of its family by colour"
+    assert found[1]["surface"] == "dark_panel" and found[1]["by"] == "off its colour" and not found[1]["fits"]
+    assert found[1]["new_surface"]["lab"] == [round(float(value), 1) for value in light_grey]
+
+
 def test_a_finish_list_reply_is_parsed_to_library_names():
     surfaces = {"mli_gold": {}, "bare_steel": {}}
     reply = json.dumps({"finishes": [{"parts": "foil", "finish": "gold foil", "surface": "M1", "fits": True},
