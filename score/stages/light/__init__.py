@@ -82,18 +82,22 @@ CONCEPT_HEADS = (((663, 532), 49.0), ((1332, 558), 44.5))
 CONCEPT_EARTH = ((719, 262), 53.0)
 CONCEPT_SKY_ROWS = (0, 150)
 # The pass rules, set before any after-picture was made: half the concept's head halo and fill, a beam that lights
-# its air, an Earth disc no flatter than twice the concept's, a sky within 20 levels of the concept's colour, its
+# its air, an Earth disc at most a quarter smooth (the concept's 0.0), a sky within 20 levels of the concept's colour, its
 # blue to red within 0.15 of the concept's.
 HALO_LEAST = 0.08
 FILL_LEAST = 0.28
 BEAM_LEAST = 0.02
-FLAT_MOST = 0.28
+# Added 2026-10-11 after the first shaft sweep, before any light node of a lit place ran: the shafts may not wash the
+# place out (its lower part no more than 0.04 of white lighter than before; the sweep's 0.05 share of the record's
+# density laid a milky veil over the whole square).
+VEIL_MOST = 0.04
+SMOOTH_MOST = 0.25
 SKY_GAP_MOST = 20.0
 BLUE_TO_RED_WITHIN = 0.15
 # A sweep's strengths, as shares of the record's own number: the camp's sky first swept 0.25 to 4 (4 nearest the
-# concept); the square's shafts at 0.25 to 4 of 0.02 a metre fogged the whole square white (2026-10-11), so they are
-# swept far thinner.
-SWEEP = {"square": (0.005, 0.01, 0.02, 0.05, 0.1), "launch": (0.005, 0.01, 0.02, 0.05, 0.1),
+# concept); the square's shafts, first 48 m long (to the ground they light), fogged the whole square at 0.25 to 4 of
+# 0.02 a metre and veiled it at 0.05 and 0.1, so they are 12 m long round each lamp and swept again at 0.25 to 4.
+SWEEP = {"square": (0.25, 0.5, 1.0, 2.0, 4.0), "launch": (0.25, 0.5, 1.0, 2.0, 4.0),
          "camp": (0.25, 0.5, 1.0, 2.0, 4.0)}
 SWEEP_VIEWS = {"square": ("shot0-000", "shot1-000"), "launch": ("shot1-000", "shot2-000"),
                "camp": ("shot0-000", "shot1-000")}
@@ -235,11 +239,13 @@ def head_measures(place, name, out):
     size, views = chosen_views(name)
     found = []
     after = rendered(out, name)
+    veils = {}
     for view in views:
         if view["name"] not in after:
             continue
         before_rgb = measure.picture(DEMO / f"frames/{name}/{view['name']}-look.png")
         after_rgb = measure.picture(after[view["name"]])
+        veils[view["name"]] = measure.veil(before_rgb, after_rgb)
         for middle, half, light in lamp_heads(place):
             x, y, depth, focal = measure.where(view, size, middle)
             if x is None or not (0 <= x < size[0] and 0 <= y < size[1]):
@@ -252,7 +258,7 @@ def head_measures(place, name, out):
             found.append({"view": view["name"], "at_px": [round(x), round(y)],
                           "before": measure.head(before_rgb, x, y, radius), "after": measure.head(after_rgb, x, y, radius),
                           "beam_gain": measure.beam(before_rgb, after_rgb, points, max(radius, 6.0))})
-    return found
+    return {"heads": found, "veil": veils}
 
 
 def earth_measures(place, name, out):
@@ -269,10 +275,11 @@ def earth_measures(place, name, out):
         radius = focal * entry["radius"] / depth
         if x + radius < 0 or x - radius > size[0] or y + radius < 0 or y - radius > size[1]:
             continue
+        before_rgb = measure.picture(DEMO / f"frames/{name}/{view['name']}-look.png")
+        after_rgb = measure.picture(after[view["name"]])
         found.append({"view": view["name"], "disc_px": [round(x), round(y), round(radius)],
-                      "before": measure.disc(measure.picture(DEMO / f"frames/{name}/{view['name']}-look.png"), x, y,
-                                             radius),
-                      "after": measure.disc(measure.picture(after[view["name"]]), x, y, radius)})
+                      "before": measure.disc(before_rgb, x, y, radius), "after": measure.disc(after_rgb, x, y, radius),
+                      "smooth": measure.smooth(before_rgb, after_rgb, x, y, radius)})
     return found
 
 
@@ -309,7 +316,8 @@ def place_measures(place, out):
     found = {"place": place, "concept": concept_measures(),
              "stage_checks": {made: stage_checks(made, out) for made in EXPORTS[place]}}
     if place in ("square", "launch"):
-        found["heads"] = head_measures(place, place, out)
+        heads = head_measures(place, place, out)
+        found["heads"], found["veil"] = heads["heads"], heads["veil"]
     if place in ("old_station", "greenhouse"):
         found["earth"] = earth_measures(place, place, out)
     if place == "camp":
@@ -325,7 +333,8 @@ def measures_of(output):
 
 def judge_heads(output, inputs, evidence):
     """Each floodlight head on screen glows as concept K04's do: halo and fill (medians over the heads after) at
-    least half the concept's, and its beam lighting the air under it."""
+    least half the concept's, its beam lighting the air under it, and no view's lower part washed out by the haze
+    (VEIL_MOST)."""
     found = measures_of(output)
     if "heads" not in found:
         return verdict("heads", True, "no floodlight in this place", {})
@@ -336,29 +345,38 @@ def judge_heads(output, inputs, evidence):
     fill = {side: float(np.median([head[side]["fill"] for head in heads])) for side in ("before", "after")}
     gains = [head["beam_gain"] for head in heads if head["beam_gain"] is not None]
     gain = float(np.median(gains)) if gains else 0.0
-    passed = halo["after"] >= HALO_LEAST and fill["after"] >= FILL_LEAST and gain >= BEAM_LEAST
+    washed = max(found["veil"].values())
+    passed = (halo["after"] >= HALO_LEAST and fill["after"] >= FILL_LEAST and gain >= BEAM_LEAST
+              and washed <= VEIL_MOST)
     return verdict("heads", passed, f"{len(heads)} heads: halo {halo['before']:.3f} -> {halo['after']:.3f} (>= "
                    f"{HALO_LEAST}), fill {fill['before']:.3f} -> {fill['after']:.3f} (>= {FILL_LEAST}), beam gain "
-                   f"{gain:.3f} (>= {BEAM_LEAST})",
-                   {"halo": round(halo["after"], 4), "fill": round(fill["after"], 4), "beam": round(gain, 4)},
-                   {"halo": "higher", "fill": "higher", "beam": "higher"})
+                   f"{gain:.3f} (>= {BEAM_LEAST}), the place washed out by at most {washed:.3f} (<= {VEIL_MOST})",
+                   {"halo": round(halo["after"], 4), "fill": round(fill["after"], 4), "beam": round(gain, 4),
+                    "veil": round(washed, 4)},
+                   {"halo": "higher", "fill": "higher", "beam": "higher", "veil": "lower"})
 
 
 def judge_earth(output, inputs, evidence):
-    """The Earth reads as the real planet: its lit disc's eight commonest colours cover at most FLAT_MOST (twice
-    concept C4's) where the cartoon's covered most of it, and cloud lies over it."""
+    """The Earth reads as the real planet, not a flat-painted disc: at most SMOOTH_MOST of its lit disc smooth
+    (measure.smooth; median over the views showing it), where concept C4's is 0.0.
+
+    The first rule (the disc's eight commonest colours at most twice C4's share) was replaced on 2026-10-11 after the
+    first renders of the turned Earth: it read the render's brightness and what stands in front of the Earth, not its
+    paint (the greenhouse's roof trusses and purple light cross its disc; the real Earth in the old station's half
+    light still scored 0.40 to 0.69). Its numbers stay in measures.json. The replacement's limit was set from the
+    concept alone (0.0) before it was worked out on any render: a quarter of the disc."""
     found = measures_of(output)
     if "earth" not in found:
         return verdict("earth", True, "no Earth in this place", {})
-    discs = [disc for disc in found["earth"] if disc["after"] and disc["before"]]
+    discs = [disc["smooth"] for disc in found["earth"] if disc.get("smooth") and disc["smooth"]["after"] is not None
+             and disc["smooth"]["before"] is not None]
     if not discs:
         return checks.Verdict("earth", checks.UNKNOWN, "the Earth is on screen in no rendered view")
-    flat = {side: float(np.median([disc[side]["flat_share"] for disc in discs])) for side in ("before", "after")}
-    cloud = float(np.median([disc["after"]["cloud_share"] for disc in discs]))
-    passed = flat["after"] <= FLAT_MOST and cloud > 0.05
-    return verdict("earth", passed, f"{len(discs)} views: flat share {flat['before']:.3f} -> {flat['after']:.3f} "
-                   f"(<= {FLAT_MOST}; the concept's {found['concept']['earth']['flat_share']}), cloud {cloud:.3f}",
-                   {"flat_share": round(flat["after"], 4), "cloud_share": round(cloud, 4)}, {"flat_share": "lower"})
+    smooth = {side: float(np.median([disc[side] for disc in discs])) for side in ("before", "after")}
+    passed = smooth["after"] <= SMOOTH_MOST
+    return verdict("earth", passed, f"{len(discs)} views: smooth share of the lit disc {smooth['before']:.3f} -> "
+                   f"{smooth['after']:.3f} (<= {SMOOTH_MOST}; concept C4's 0.0)", {"smooth": round(smooth["after"], 4)},
+                   {"smooth": "lower"})
 
 
 def judge_sky(output, inputs, evidence):
@@ -480,9 +498,10 @@ def sweep_measure(place, name, looks):
         return {"gap": float(np.median([view["after"]["gap_to_concept"] for view in views if view["after"]])),
                 "views": views}
     size, views = chosen_views(name, tuple(looks))
-    heads = []
+    heads, veils = [], []
     for view in views:
         rgb = measure.picture(looks[view["name"]])
+        veils.append(measure.veil(measure.picture(DEMO / f"frames/{name}/{view['name']}-look.png"), rgb))
         for middle, half, _ in lamp_heads(place):
             x, y, depth, focal = measure.where(view, size, middle)
             if x is not None and 0 <= x < size[0] and 0 <= y < size[1]:
@@ -490,7 +509,8 @@ def sweep_measure(place, name, looks):
                 if found:
                     heads.append(found)
     return {"halo": float(np.median([head["halo"] for head in heads])) if heads else None,
-            "fill": float(np.median([head["fill"] for head in heads])) if heads else None, "heads": len(heads)}
+            "fill": float(np.median([head["fill"] for head in heads])) if heads else None, "heads": len(heads),
+            "veil": max(veils) if veils else None}
 
 
 def judge_sweep(output, inputs, evidence):
@@ -500,7 +520,8 @@ def judge_sweep(output, inputs, evidence):
         meeting = [share for share, found in shares.items() if found["gap"] <= SKY_GAP_MOST]
     else:
         meeting = [share for share, found in shares.items()
-                   if found["halo"] is not None and found["halo"] >= HALO_LEAST and found["fill"] >= FILL_LEAST]
+                   if found["halo"] is not None and found["halo"] >= HALO_LEAST and found["fill"] >= FILL_LEAST
+                   and found["veil"] <= VEIL_MOST]
     return verdict("sweep", bool(meeting), f"strengths meeting the rule: {meeting or 'none'} of {sorted(shares)}",
                    {"meeting": len(meeting)})
 

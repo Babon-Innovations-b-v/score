@@ -5,7 +5,9 @@ way on the frame before, the frame after and the place's concept, never judged b
     head(picture, x, y, radius)    a floodlight's head: its halo and how far the gaps between its lamps fill
     beam(before, after, points)    how much a lamp's beam brightens the air along its axis, after against before
     disc(picture, x, y, radius)    the Earth's disc: how flat its colours are (a cartoon's few) and its cloud
+    smooth(before, after, x, y, radius)   the Earth's disc: how much of it is flat paint, on the pixels it changed
     sky(before, after, concept)    a day sky's colour and its rise toward the horizon, on the pixels the sky held before
+    veil(before, after)            how much lighter the picture's lower part got: lamps' haze laid over the whole place
 """
 import math
 
@@ -68,6 +70,17 @@ def head(rgb, x, y, radius):
             "radius_px": round(float(radius), 1)}
 
 
+# The picture's lower share, where the place's ground and people are, for the veil.
+VEIL_ROWS = 0.4
+
+
+def veil(before, after):
+    """How much lighter (0 to 1 of white) the lower VEIL_ROWS of the picture is after than before: a lamp's haze
+    meant to show round the lamp, laid over the whole place instead, washes it out."""
+    low = int(before.shape[0] * (1.0 - VEIL_ROWS))
+    return round(float((lightness(after[low:]).mean() - lightness(before[low:]).mean()) / 255.0), 4)
+
+
 def beam(before, after, points, radius):
     """How much brighter the air is after than before (0 to 1 of white) round points along a lamp's axis."""
     gains = []
@@ -95,6 +108,28 @@ def disc(rgb, x, y, radius):
     return {"lit_px": int(len(lit)), "flat_share": round(float(counts[:8].sum() / len(lit)), 4),
             "cloud_share": round(float(cloud.mean()), 4), "ocean_share": round(float(((blue > red + 15) & ~cloud).mean()), 4),
             "mean_rgb": [round(float(value), 1) for value in lit.mean(axis=0)]}
+
+
+SMOOTH_LEVELS = 2.0
+
+
+def smooth_share(rgb, mask):
+    """The share of the masked pixels whose 5 x 5 neighbourhood varies by under SMOOTH_LEVELS (its lightness's
+    standard deviation): a flat-painted cartoon is mostly smooth, a photograph of the planet hardly at all."""
+    from scipy.ndimage import uniform_filter
+    light = lightness(rgb)
+    mean = uniform_filter(light, 5)
+    spread = np.sqrt(np.maximum(uniform_filter(light * light, 5) - mean * mean, 0.0))
+    return round(float((spread[mask] < SMOOTH_LEVELS).mean()), 4) if mask.any() else None
+
+
+def smooth(before, after, x, y, radius):
+    """The Earth's disc before and after, on its lit pixels the change touched (more than 6 levels in a channel:
+    whatever stands in front of the Earth, a roof's truss or a module, is the same in both and left out)."""
+    rows, columns = np.mgrid[0:before.shape[0], 0:before.shape[1]]
+    earth = (np.hypot(columns - x, rows - y) < radius * 0.92) & (np.abs(after - before).max(axis=-1) > 6)
+    return {"pixels": int(earth.sum()), "before": smooth_share(before, earth & (before.mean(axis=-1) > 30)),
+            "after": smooth_share(after, earth & (after.mean(axis=-1) > 30))}
 
 
 def sky_pixels(before):

@@ -240,11 +240,11 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 48.35,
+    "length": 12.0,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
-    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, 12 m out from the lamp, so its glare and the start of its beam show round it (the whole throw to the ground veiled the square: the light stage's first sweeps); its density measured against concept K04's floodlights (the light stage's sweep)"
    }
   },
   {
@@ -268,11 +268,11 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 49.52,
+    "length": 12.0,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
-    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, 12 m out from the lamp, so its glare and the start of its beam show round it (the whole throw to the ground veiled the square: the light stage's first sweeps); its density measured against concept K04's floodlights (the light stage's sweep)"
    }
   },
   {
@@ -296,11 +296,11 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 57.94,
+    "length": 12.0,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
-    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, 12 m out from the lamp, so its glare and the start of its beam show round it (the whole throw to the ground veiled the square: the light stage's first sweeps); its density measured against concept K04's floodlights (the light stage's sweep)"
    }
   },
   {
@@ -324,11 +324,11 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 58.16,
+    "length": 12.0,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
-    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, 12 m out from the lamp, so its glare and the start of its beam show round it (the whole throw to the ground veiled the square: the light stage's first sweeps); its density measured against concept K04's floodlights (the light stage's sweep)"
    }
   },
   {
