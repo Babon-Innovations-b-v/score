@@ -321,6 +321,13 @@ Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, and Shi-Min Hu.
 \newblock \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.
 \newblock arXiv:2504.12451.
 
+\bibitem[Deng et~al.(2025)Deng, Yang, Sun, Liu, Liu, Liang, and
+  Cao]{deng2025geosam2}
+Ken Deng, Yunhan Yang, Jingxiang Sun, Xihui Liu, Yebin Liu, Ding Liang, and
+  Yan-Pei Cao.
+\newblock {GeoSAM2}: Unleashing the power of {SAM2} for {3D} part segmentation.
+\newblock \emph{arXiv preprint arXiv:2508.14036}, 2025.
+
 \bibitem[Rein and Liu(2012)]{rein2012rebound}
 Hanno Rein and Shang-Fei Liu.
 \newblock {REBOUND}: An open-source multi-purpose {N}-body code for collisional
@@ -346,13 +353,6 @@ Lin Li, Haoran Feng, Zehuan Huang, Haohua Chen, Wenbo Nie, Shaohua Hou, Keqing
   Fan, Pan Hu, Sheng Wang, Buyu Li, and Lu~Sheng.
 \newblock {SegviGen}: Repurposing {3D} generative model for part segmentation.
 \newblock \emph{arXiv preprint arXiv:2603.16869}, 2026{\natexlab{e}}.
-
-\bibitem[Deng et~al.(2025)Deng, Yang, Sun, Liu, Liu, Liang, and
-  Cao]{deng2025geosam2}
-Ken Deng, Yunhan Yang, Jingxiang Sun, Xihui Liu, Yebin Liu, Ding Liang, and
-  Yan-Pei Cao.
-\newblock {GeoSAM2}: Unleashing the power of {SAM2} for {3D} part segmentation.
-\newblock \emph{arXiv preprint arXiv:2508.14036}, 2025.
 
 \bibitem[{World Labs}(2026)]{marble_terms}
 {World Labs}.
