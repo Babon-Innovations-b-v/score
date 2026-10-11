@@ -1309,7 +1309,7 @@
 		},
 		{
 			"id": "airlock_tube",
-			"view": null,
+			"view": "v1",
 			"box": null,
 			"name": "the airlock tube: quilted lining and strapped soft-goods hull over the 4 m by 5 m chamber",
 			"kind": "code",
@@ -1328,7 +1328,7 @@
 		},
 		{
 			"id": "airlock_end",
-			"view": null,
+			"view": "v1",
 			"box": null,
 			"name": "the airlock tube's rigid end wall with its door's frame",
 			"kind": "code",
@@ -1347,7 +1347,7 @@
 		},
 		{
 			"id": "airlock_lamp",
-			"view": null,
+			"view": "v1",
 			"box": null,
 			"name": "a pendant lamp in the airlock",
 			"kind": "code",
@@ -1366,7 +1366,7 @@
 		},
 		{
 			"id": "airlock_cycle_lamp",
-			"view": null,
+			"view": "v1",
 			"box": null,
 			"name": "the airlock's cycle lamp over the outer door",
 			"kind": "code",
@@ -1385,7 +1385,7 @@
 		},
 		{
 			"id": "link_tube",
-			"view": null,
+			"view": "v1",
 			"box": null,
 			"name": "the link from the door dome's doorway to the airlock: quilted lining and strapped hull",
 			"kind": "code",
