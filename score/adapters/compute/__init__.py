@@ -9,14 +9,34 @@ lower than the run's estimate (the spec's `euros`). Without all three, nothing i
 runner cannot spend. The job carries its node and key, so the finish record and the job can be matched. The machine
 path (tools/props/cloud) is reached the same way, through the engine adapter (score.adapters.engines), which asks
 for clearance first.
+
+Every place that rents (tools/props/cloud/batch.py's `rent`, tools/cloud/k8s/submitter.py's `submit`) asks
+`require_cleared` first, so the old paid entry points (blender_cloud.py, detached.py, the runners, demo.py,
+make_jobs.py) refuse to rent unless they run inside a cleared run:
+
+    with compute.spending(ticket):         # SCORE_SPEND_TICKET="<node> <key>" for this process and its children
+        ...                                # anything here may rent
+    compute.require_cleared("a batch")     # at a rent point: Refused unless that node and key carry the owner's yes
+
+The owner's override, for a run outside the runner, is the same yes under the node `override`: he gives it from his
+own terminal for a name of his choosing (the review command's spend, node `override`, key <name>, at his euros), and
+the run carries SCORE_SPEND_TICKET="override <name>". The euros are checked where a node is cleared (`clearance`); a
+rent point checks only that the yes exists, and the ledger's own ceilings still apply. A barrier, not a lock: an
+agent can name a yes the owner gave earlier, and every yes names who gave it and when.
 """
+import contextlib
+import os
 import pathlib
 import sys
 
 from score import graph
+from score.store import Store
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/cloud/runtime"))
 import submit as job_contract  # noqa: E402
+
+TICKET = "SCORE_SPEND_TICKET"
+OVERRIDE = "override"
 
 
 class Refused(Exception):
@@ -45,3 +65,32 @@ def submit(runner, node, job_store, run, job, spec):
     estimate as `euros`."""
     ticket = clearance(runner, node, spec.get("euros"))
     return job_contract.write_job(job_store, run, job, {**spec, "node": node, "node_key": ticket["key"]})
+
+
+@contextlib.contextmanager
+def spending(ticket):
+    """Name a cleared ticket's run in this process and the processes it starts, for the rent points to find."""
+    before = os.environ.get(TICKET)
+    os.environ[TICKET] = f"{ticket['node']} {ticket['key']}"
+    try:
+        yield
+    finally:
+        if before is None:
+            os.environ.pop(TICKET, None)
+        else:
+            os.environ[TICKET] = before
+
+
+def require_cleared(what, store=None):
+    """The owner's yes for the run SCORE_SPEND_TICKET names (a cleared node's key, or his override); Refused when the
+    variable is missing or names no yes. `what` says what was about to be rented."""
+    named = os.environ.get(TICKET, "").split()
+    if len(named) != 2:
+        raise Refused(f"{what}: nothing rents outside a cleared run. Run it through the runner (score.adapters "
+                      f"compute or engines), or ask the owner for an override (his yes under the node {OVERRIDE}, "
+                      f"named here as {TICKET}=\"{OVERRIDE} <name>\")")
+    node, key = named
+    yes = (store or Store.default()).spend_yes(node, key)
+    if yes is None:
+        raise Refused(f"{what}: {TICKET} names {node} {key[:12]}, which the owner has not said yes to")
+    return yes

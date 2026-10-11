@@ -25,7 +25,8 @@ Robustness. A Job's pod is retried by Kubernetes up to attempt_limit (backoffLim
 last and exits at once if it exists, so a Job made again (a lost node, a widened class, a restarted submitter)
 redoes only unfinished work. The submitter finds a run's Jobs by label, so running it again on the same run resumes.
 
-Cost. Nothing is submitted when the month's spend (the provider's bill or the ledger, whichever is higher) has
+Cost. Nothing is submitted outside a run the runner cleared or the owner's override names
+(score.adapters.compute, `require_cleared`), nor when the month's spend (the provider's bill or the ledger, whichever is higher) has
 reached SCORE_MONTH_EUROS. Each pool's max size is what the euros left pay for ledger.BATCH_HOURS a node, and the
 live cost of the run's nodes is checked every poll against the batch cap (ledger.BATCH_EUROS) and the month's
 ceiling: past either, the waiting Jobs are deleted and every pool is capped to zero. Empty nodes go after the
@@ -49,12 +50,14 @@ CLOUD = HERE.parents[1] / "props" / "cloud"
 sys.path.insert(0, str(CLOUD.parent))
 sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parents[2]))
 
 import capacity  # noqa: E402
 from kube import Kubectl  # noqa: E402
 import ledger  # noqa: E402
 import manifests  # noqa: E402
 import provider  # noqa: E402
+from score.adapters import compute  # noqa: E402
 
 POLL_SECONDS = 20
 # How long a class may be tried with a pod still waiting and no word from the autoscaler before the next class is
@@ -415,10 +418,12 @@ def stop_run(run, why):
 
 
 def prepare(kubectl, cluster, spent):
-    """Make the namespace and the Secrets, and cap the pools from the euros left; refuse at the ceiling."""
+    """Make the namespace and the Secrets, and cap the pools from the euros left; refuse at the ceiling, and outside a
+    cleared run (compute.require_cleared raises Refused)."""
     if spent >= ledger.MONTH_EUROS:
         raise SystemExit(f"€{spent:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling: nothing is "
                          "submitted")
+    compute.require_cleared("the cluster's pools")
     kubectl.apply([manifests.namespace()])
     kubectl.apply([manifests.store_secret(provider.cloud.object_store()),
                    manifests.registry_secret(provider.cloud.registry())])

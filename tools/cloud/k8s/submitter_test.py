@@ -91,6 +91,20 @@ def test_refuses_at_the_month_ceiling():
     assert cluster.caps == []
 
 
+def test_nothing_is_submitted_outside_a_cleared_run(monkeypatch):
+    """Fault (design of 2026-10-11, section 6): the submitter grew the cluster's pools for any caller, outside the
+    runner's gate and the owner's yes."""
+    monkeypatch.delenv(submit.compute.TICKET, raising=False)
+    cluster = FakeCluster(0.0)
+    try:
+        submit.prepare(None, cluster, cluster.month_spend())
+    except submit.compute.Refused as refusal:
+        assert "nothing rents outside a cleared run" in str(refusal)
+    else:
+        raise AssertionError("a run outside the runner was submitted")
+    assert cluster.caps == []
+
+
 def test_run_specs_reads_each_job_json(tmp_path):
     store = submit.runtime().stores.FolderStore(tmp_path)
     store.write_bytes("runs/r1/a/job.json", b'{"kind": "pixal"}')

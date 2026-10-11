@@ -7,6 +7,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 import batch  # noqa: E402
 import ledger  # noqa: E402
@@ -177,6 +178,33 @@ def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
     finally:
         batch.rent_fleet, batch.cloud.offers, batch.STOCK_RETRY_MINUTES, batch.time.sleep = kept
     assert rounds == [2, 2, 2] and fleet.offers == found
+
+
+def test_nothing_is_rented_outside_a_cleared_run():
+    """Fault (design of 2026-10-11, section 6): rent ordered a machine for any caller, so blender_cloud.py,
+    detached.py, the runners and demo.py could spend without the runner's gate or the owner's yes."""
+    import time
+    import types
+    import provider
+    from score.adapters import compute
+
+    ordered = []
+    kept = batch.cloud.create, batch.month_spent, os.environ.pop(compute.TICKET, None)
+    batch.cloud.create = lambda *arguments: ordered.append(arguments) or (None, "refused")
+    batch.month_spent = lambda account: 0.0
+    fleet = types.SimpleNamespace(folder=pathlib.Path(tempfile.mkdtemp()), deadline=time.time() + 60, attempts=[])
+    offer = provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")
+    try:
+        batch.rent(fleet, None, offer, 0)
+    except compute.Refused as refusal:
+        assert "nothing rents outside a cleared run" in str(refusal)
+    else:
+        raise AssertionError("a machine was ordered outside a cleared run")
+    finally:
+        batch.cloud.create, batch.month_spent = kept[:2]
+        if kept[2] is not None:
+            os.environ[compute.TICKET] = kept[2]
+    assert ordered == []
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ the owner's yes to that run. No cloud: the job store is a folder.
 
 Run: .venv/bin/python score/adapters/compute/compute_test.py
 """
+import os
 import pathlib
 import sys
 import tempfile
@@ -94,6 +95,26 @@ def test_a_yes_clears_only_runs_estimated_within_it():
     assert "estimated at EUR 5.0" in refused(dearer) and job_store.keys("") == []
     assert "needs its estimate" in refused(a_job(runner, euros=None)[1])
     assert a_job(runner, euros=1.0)[1]()
+
+
+def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
+    """Fault (design of 2026-10-11, section 6): blender_cloud.py, detached.py, the runners and demo.py rented with no
+    gate, so a run that skipped the runner could spend. Every rent point now asks require_cleared first."""
+    runner = a_runner("a hall")
+    accept_brief(runner)
+    os.environ.pop(compute.TICKET, None)
+    assert "nothing rents outside a cleared run" in refused(lambda: compute.require_cleared("a batch", runner.store))
+    ticket = runner.ticket("render@hangar")
+    with compute.spending(ticket):
+        assert os.environ[compute.TICKET] == f"render@hangar {ticket['key']}"
+        assert "has not said yes" in refused(lambda: compute.require_cleared("a batch", runner.store))
+        runner.store.write_spend_yes("render@hangar", ticket["key"], {"euros": 1.0, "at": graph.now()})
+        assert compute.require_cleared("a batch", runner.store)["euros"] == 1.0
+    assert compute.TICKET not in os.environ
+    runner.store.write_spend_yes(compute.OVERRIDE, "repaint-six", {"euros": 3.0, "at": graph.now()})
+    with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
+        assert compute.require_cleared("a batch", runner.store)["euros"] == 3.0
+
 
 if __name__ == "__main__":
     for name, test in list(globals().items()):
