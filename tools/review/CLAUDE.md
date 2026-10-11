@@ -58,3 +58,6 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   once), nobody has reviewed the round-three and round-four films, and they are cited nowhere; they come back as the
   evidence step, on places the owner accepted. `showcase.py` cuts the showcase and the
   figure from the films. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
+- **The viewer** (`viewer/`, its own overlay): a place's stage as a compressed web copy to walk through in the
+  browser before any film is made, and the owner's picked viewpoints, which `demo.py` takes as a film's cameras before
+  its own spread of the record's.

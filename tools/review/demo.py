@@ -10,19 +10,21 @@
 `plan` writes, per film, the views of its shots (`<out>/views/<film>.json`) and its cloud Blender jobs that render them
 with the review's scene script (`../blender/inside/usd_views.py`, Cycles on a card), its stage folder and every place
 its stage shows as inputs. A film is a place's, or one of its own from a place's stage (`film@place`: the Mars camp's
-grounds from the camp's outside cameras). A shot starts at one of the scene record's own cameras (the player's spots;
-the cameras named, else a few spread over the record, none looking up at a roof) and walks from there at the player's
-eye height, as the game is seen: a walk-through path (tools/usd/camera_paths.py: RRT* on the stage's own floors, every
-point of it the clearance from walls, objects and the place's people, a person who walks swept over the shot's
-moments; in a room, on its recorded floor) from the camera's spot towards what it looks at, stopping well short of it,
-while the view keeps on that thing, held near level. Where no clear path goes forward the walk goes sideways, still
-looking at it; where none goes either way, or the camera stands on no floor of the stage, the eye stands and the view
-turns a few degrees. A shot starts, walking or standing, where it keeps the clearance too: at the camera's spot, else
-the nearest clear spot within MOVE_MOST of it; with none, the shot is left out. The frames follow the stage's own
-time, one shot after the other, so its characters move through the whole video. The views file keeps every shot's
-move (its path or spot and its seed) and the planner's commit, so a film can be planned again as it was: with
-`--keep`, a shot of the earlier take whose every frame stands clear (measured at the frame's own moment) is kept as it
-was, its looks linked from that take's frames and only its ink lines rendered; the rest is planned and rendered anew.
+grounds from the camp's outside cameras). A shot starts at one of the owner's picked viewpoints of the place, saved in
+the viewer (tools/review/viewer, data/review/<place>/viewpoints.json), or where he picked none at one of the scene
+record's own cameras (the player's spots; the cameras named, else a few spread over the record, none looking up at a
+roof) and walks from there at the player's eye height, as the game is seen: a walk-through path
+(tools/usd/camera_paths.py: RRT* on the stage's own floors, every point of it the clearance from walls, objects and the
+place's people, a person who walks swept over the shot's moments; in a room, on its recorded floor) from the camera's
+spot towards what it looks at, stopping well short of it, while the view keeps on that thing, held near level. Where no
+clear path goes forward the walk goes sideways, still looking at it; where none goes either way, or the camera stands on
+no floor of the stage, the eye stands and the view turns a few degrees. A shot starts, walking or standing, where it
+keeps the clearance too: at the camera's spot, else the nearest clear spot within MOVE_MOST of it; with none, the shot
+is left out. The frames follow the stage's own time, one shot after the other, so its characters move through the whole
+video. The views file keeps every shot's move (its path or spot and its seed) and the planner's commit, so a film can be
+planned again as it was: with `--keep`, a shot of the earlier take whose every frame stands clear (measured at the
+frame's own moment) is kept as it was, its looks linked from that take's frames and only its ink lines rendered; the
+rest is planned and rendered anew.
 
 Every frame is drawn with the game's ink lines over it, as the game draws them over every frame and the review's
 views draw them (usd_views.py's `ink`); the game's night glow is drawn where the stage carries it (its sky's glow),
@@ -48,7 +50,9 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE / "viewer"))
 import renders  # noqa: E402  (puts tools/usd on the path)
+import viewpoints  # noqa: E402  (tools/review/viewer)
 import camera_paths  # noqa: E402  (tools/usd)
 import scene as scene_record  # noqa: E402  (tools/usd)
 
@@ -111,6 +115,16 @@ def shot_cameras(record, count=SHOTS, names=()):
         return level
     picks = np.linspace(0, len(level) - 1, count).round().astype(int)
     return [level[index] for index in picks]
+
+
+def film_cameras(place, record, names=(), picks=viewpoints.PICKS):
+    """A film's cameras: the ones named (the record's or the owner's picked viewpoints), else the owner's picked
+    viewpoints of the place in the order he saved them (tools/review/viewer: his picks become the shots), else
+    shot_cameras's spread of the record's."""
+    picked = viewpoints.read(place, picks)
+    if picked and not names:
+        return picked
+    return shot_cameras(dict(record, views=[*record.get("views", []), *picked]), names=names)
 
 
 def steep(view):
@@ -399,7 +413,7 @@ def plan(out, stages, places, jobs_each=1, keep=None):
         if not record or not record.get("views"):
             raise SystemExit(f"{place} has no scene record with cameras (data/scene/{place}.json)")
         scenes = camera_paths.place_scenes(stage)
-        moves, shots = film_shots(record, stage, scenes, shot_cameras(record, names=names),
+        moves, shots = film_shots(record, stage, scenes, film_cameras(place, record, names),
                                   kept_shots(keep, film, scenes, stage))
         views = [view for shot, _ in shots for view in shot]
         new = [view for shot, fresh in shots if fresh for view in shot]
