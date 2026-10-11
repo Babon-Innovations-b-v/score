@@ -98,7 +98,7 @@ def stages():
               turntable_row.judge_turntable, ("fm-inputs",)),
         stage("fm-lists", finish_rows.make_lists, finish_rows.lists_faults, "listed", finish_rows.judge_lists,
               ("fm-inputs",), paid=True, euros=finish_rows.LIST_EUROS),
-        stage("fm-maps", finish_rows.make_maps, finish_rows.maps_faults, "maps settled", finish_rows.judge_maps,
+        stage("fm-maps", finish_rows.make_maps, finish_rows.maps_faults, "maps checked", finish_rows.judge_maps,
               ("fm-inputs", "fm-turntable", "fm-lists"), paid=True, euros=finish_rows.MAP_EUROS),
         stage("fm-segvigen", segvigen_row.make_segvigen, segvigen_row.segvigen_faults, "split back",
               segvigen_row.judge_segvigen, ("fm-maps",), {**FILES, **segvigen_row.FILES}, paid=True,
