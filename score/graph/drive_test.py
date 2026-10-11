@@ -246,6 +246,20 @@ def test_a_world_node_every_line_reads_is_made_once_and_each_line_waits_on_it_al
     assert (data / "ground-made.txt").read_text() == "made\n"
 
 
+def test_a_places_own_lines_run_only_the_world_nodes_they_read():
+    data, world = a_world_of(PLACES)
+    ground = graph.Stage("ground", "world", made_once(data), TEXT, MET)
+    sky = graph.Stage("sky", "world", meeting(data, "sky", ["never"]), TEXT, MET)  # no place reads it
+    build = graph.Stage("build", "place", make_count_of_ground, TEXT, MET, after={"ground": ("toy-text", 1)})
+    runner = graph.Runner((ground, sky, build), world, Store.in_folder(tempfile.mkdtemp()),
+                          model_record=lambda kind: {})
+    found = runner.drive(["hangar"], say=quiet, whole=False)
+    assert found == {"ground": "made: pass, accepted automatically",
+                     "build@hangar": "made: pass, accepted automatically"}, found
+    assert set(runner.lines(["hangar"], whole=False)) == {"world", "hangar"}
+    assert list(runner.lines(["hangar"], whole=False)["world"][1]) == ["ground"]
+
+
 def make_count_of_ground(inputs, out, seed, params):
     (out / "built.txt").write_text((inputs["ground"] / "ground.txt").read_text())
 
