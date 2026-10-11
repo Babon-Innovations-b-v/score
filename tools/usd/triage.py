@@ -75,9 +75,9 @@ STATIC_GROUPS = ("Structure", "Fixtures")
 
 # --- reading the stage ------------------------------------------------------------------------------------------
 
-def rules():
-    """The triage's data (data/checks/resting.json)."""
-    return json.loads(RULES.read_text())
+def rules(path=RULES):
+    """The triage's data (data/checks/resting.json, or the file given)."""
+    return json.loads(pathlib.Path(path).read_text())
 
 
 def words_of(row):
@@ -156,17 +156,18 @@ def object_sizes(stage_path):
             for path, prim in resting.objects_of(stage, place).items()}
 
 
-def kit_groups(place):
-    """{kit kind: its group} of the place's kit (data/kit/<place>.json), empty when it has none."""
-    path = REPO / "data/kit" / f"{place}.json"
+def kit_groups(place, path=None):
+    """{kit kind: its group} of the place's kit (data/kit/<place>.json, or the file given), empty when it has none."""
+    path = pathlib.Path(path) if path else REPO / "data/kit" / f"{place}.json"
     kinds = json.loads(path.read_text()).get("kinds", {}) if path.exists() else {}
     return {kind: entry.get("group") for kind, entry in kinds.items()}
 
 
-def inventory_rows(place, stage_path):
-    """The place's inventory rows by id: the one the stage was exported from (complete.py), else none."""
+def inventory_rows(place, stage_path, path=None):
+    """The place's inventory rows by id: the file given, else the one the stage was exported from (complete.py), else
+    none."""
     import complete
-    path = complete.recorded_inventory(place, stage_path)
+    path = pathlib.Path(path) if path else complete.recorded_inventory(place, stage_path)
     return {row["id"]: row for row in json.loads(path.read_text())["rows"]} if path.exists() else {}
 
 
@@ -410,13 +411,15 @@ def groups(faults):
              "objects": [item["object"] for item in items]} for (model, kind, size), items in ordered]
 
 
-def triage(stage_path, settled=None):
-    """The triage of one stage: every fault, real or false, and the real ones grouped by cause."""
+def triage(stage_path, settled=None, rules_file=RULES, kit_file=None, inventory_file=None):
+    """The triage of one stage: every fault, real or false, and the real ones grouped by cause. The rules, the kit
+    and the inventory are the files given, else the repository's for the stage's place (a stage that declares its
+    inputs gives all three)."""
     stage = Usd.Stage.Open(str(stage_path))
     place = stage.GetDefaultPrim().GetName()
-    data = rules()
-    rows = inventory_rows(place, stage_path)
-    groups_of = kit_groups(place)
+    data = rules(rules_file)
+    rows = inventory_rows(place, stage_path, inventory_file)
+    groups_of = kit_groups(place, kit_file)
     entries = {path: object_entry(path, prim, rows, data, groups_of)
                for path, prim in resting.objects_of(stage, place).items()}
     statics = static_meshes(stage, place)

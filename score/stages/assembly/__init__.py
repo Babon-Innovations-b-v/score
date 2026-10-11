@@ -8,9 +8,10 @@ then judged by the assembly gates that exist today. No spend: nothing is made, r
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
                            settled.json, stored as the check's evidence); with none it answers unknown and blocks
 
-The stage that builds a place from its accepted layout replaces the seed maker in step 3; the gates stay. The resting
-judge also reads the inventory the seed's inputs.json names, from the repository: the whole inventory folder is
-therefore an input, so any inventory change makes these nodes run again.
+The stage that builds a place from its accepted layout replaces the seed maker in step 3; the gates stay. Both judges
+read only the world files the stage declares (FILES): the resting judge reads the rules, the place's kit and the
+inventory the seed's inputs.json names, found in the declared inventory folder (the whole folder is therefore an
+input, so any inventory change makes these nodes run again); a seed naming no inventory there answers unknown.
 """
 import json
 import pathlib
@@ -28,6 +29,7 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "fittings": "{data}/library/fittings.json", "resting rules": "{data}/checks/resting.json",
          "inventories": "{data}/inventory"}
 SEED_PARTS = ("layers", "assets", "inputs.json")
+INVENTORY_PREFIX = "data/inventory/"
 SEED_NOTE = ("An old output brought in from world 1's round-three stages, never made by this stage; only its gates "
              "on this page judge it.")
 
@@ -63,9 +65,25 @@ def judge_placeholders(output, inputs, evidence):
                           {"faults": "lower"}, findings)
 
 
+def declared_inventory(output, inventories):
+    """The inventory the seed was laid from (its inputs.json), in the world's declared inventory folder; None when it
+    names none there."""
+    record = output / "inputs.json"
+    named = json.loads(record.read_text()).get("inventory", "") if record.exists() else ""
+    if not named.startswith(INVENTORY_PREFIX):
+        return None
+    return pathlib.Path(inventories) / named.removeprefix(INVENTORY_PREFIX)
+
+
 def judge_resting(output, inputs, evidence):
-    """Fail on every real resting fault the drop run and the triage leave."""
-    found = triage.triage(stage_file(output), json.loads(pathlib.Path(evidence).read_text()))
+    """Fail on every real resting fault the drop run and the triage leave, judged on the world files the stage
+    declares (rules, kit, inventory) and never on the repository's own."""
+    inventory = declared_inventory(output, inputs["inventories"])
+    if inventory is None or not inventory.exists():
+        return checks.Verdict("resting", checks.UNKNOWN, "the seed names no inventory in the world's inventory "
+                              f"folder ({inventory or 'none named'}), so what holds each object up is not known")
+    found = triage.triage(stage_file(output), json.loads(pathlib.Path(evidence).read_text()),
+                          rules_file=inputs["resting rules"], kit_file=inputs["kit"], inventory_file=inventory)
     real = [fault for fault in found["faults"] if fault["real"]]
     findings = tuple(f"{fault['object']}: {fault['kind']} {fault['measure']}: {fault['why']}" for fault in real)
     reason = (f"{found['real_objects']} objects with real resting faults, {found['false_objects']} false alarms "
