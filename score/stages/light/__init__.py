@@ -91,6 +91,11 @@ BEAM_LEAST = 0.02
 # place out (its lower part no more than 0.04 of white lighter than before; the sweep's 0.05 share of the record's
 # density laid a milky veil over the whole square).
 VEIL_MOST = 0.04
+# Set 2026-10-11 after the first launch render, from the audit's own words (the fault is lamps whose faces read as
+# white grids): only heads whose lit face turns toward the eye (the cosine between the lens's front and the way to
+# the eye over FACING_LEAST) are judged; the launch's pad lamps face the rocket, so the balcony sees most of them
+# side-on or from behind, and the square's towers it does see face it (they were not in the launch node's measure).
+FACING_LEAST = 0.2
 SMOOTH_MOST = 0.25
 SKY_GAP_MOST = 20.0
 BLUE_TO_RED_WITHIN = 0.15
@@ -218,19 +223,26 @@ def make_place(inputs, out, seed, params):
 
 # --- the measures ------------------------------------------------------------------------------------------------
 
+# The floodlights each place's views show: its own, and the square's towers seen from the launch view (the audit's
+# "searchlights as white grids" there are the square's towers in front of the camera).
+LAMP_KINDS = {"square": (("square", "square_far_floodlight_tower"),),
+              "launch": (("launch", "launch_far_pad_floodlight"), ("square", "square_far_floodlight_tower"))}
+
+
 def lamp_heads(place):
-    """Each floodlight lamp of the place as (its lens middle, half its bank's width, its light's at and aim): the
-    kit's glow parts of the floodlight kinds and the record's spot light standing on each."""
-    kind = {"square": "square_far_floodlight_tower", "launch": "launch_far_pad_floodlight"}[place]
-    kit = json.loads((REPO / f"data/kit/{place}.json").read_text())
-    lights = [entry for entry in scene_of(place)["lights"] if entry.get("shaft")]
+    """Each floodlight lamp a place's views show as (its lens middle, half its bank's width, its light, its front):
+    the kit's glow parts of the floodlight kinds and the record's spot light standing on each (the places share the
+    Earth site's frame)."""
     found = []
-    for laid in kit["pieces"]:
-        if laid["kind"] != kind or laid.get("part") != "glow":
-            continue
-        middle = np.asarray(laid["at"]) + np.asarray(laid["y"]) * laid["size"][1] / 2
-        light = min(lights, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - middle))
-        found.append((middle, laid["size"][0] / 2, light))
+    for owner, kind in LAMP_KINDS[place]:
+        kit = json.loads((REPO / f"data/kit/{owner}.json").read_text())
+        lights = [entry for entry in scene_of(owner)["lights"] if entry.get("shaft")]
+        for laid in kit["pieces"]:
+            if laid["kind"] != kind or laid.get("part") != "glow":
+                continue
+            middle = np.asarray(laid["at"]) + np.asarray(laid["y"]) * laid["size"][1] / 2
+            light = min(lights, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - middle))
+            found.append((middle, laid["size"][0] / 2, light, -np.asarray(laid["z"], dtype=np.float64)))
     return found
 
 
@@ -246,7 +258,7 @@ def head_measures(place, name, out):
         before_rgb = measure.picture(DEMO / f"frames/{name}/{view['name']}-look.png")
         after_rgb = measure.picture(after[view["name"]])
         veils[view["name"]] = measure.veil(before_rgb, after_rgb)
-        for middle, half, light in lamp_heads(place):
+        for middle, half, light, front in lamp_heads(place):
             x, y, depth, focal = measure.where(view, size, middle)
             if x is None or not (0 <= x < size[0] and 0 <= y < size[1]):
                 continue
@@ -255,7 +267,9 @@ def head_measures(place, name, out):
                                                                           np.asarray(light["at"])) * share)
                     for share in (0.15, 0.3, 0.45)]
             points = [(px, py) for px, py, _, _ in axis if px is not None and 0 <= px < size[0] and 0 <= py < size[1]]
+            toward_eye = np.asarray(view["eye"], dtype=np.float64) - middle
             found.append({"view": view["name"], "at_px": [round(x), round(y)],
+                          "faces_eye": round(float(front @ toward_eye / np.linalg.norm(toward_eye)), 3),
                           "before": measure.head(before_rgb, x, y, radius), "after": measure.head(after_rgb, x, y, radius),
                           "beam_gain": measure.beam(before_rgb, after_rgb, points, max(radius, 6.0))})
     return {"heads": found, "veil": veils}
@@ -332,15 +346,17 @@ def measures_of(output):
 
 
 def judge_heads(output, inputs, evidence):
-    """Each floodlight head on screen glows as concept K04's do: halo and fill (medians over the heads after) at
-    least half the concept's, its beam lighting the air under it, and no view's lower part washed out by the haze
-    (VEIL_MOST)."""
+    """Each floodlight head that can read as a white grid (on screen with its lit face toward the eye: FACING_LEAST;
+    one seen side-on or from behind shows no face) now glows as concept K04's do: halo and fill
+    (medians over those heads after) at least half the concept's, its beam lighting the air under it, and no view's
+    lower part washed out by the haze (VEIL_MOST)."""
     found = measures_of(output)
     if "heads" not in found:
         return verdict("heads", True, "no floodlight in this place", {})
-    heads = [head for head in found["heads"] if head["after"] and head["before"]]
+    heads = [head for head in found["heads"] if head["after"] and head["before"]
+             and head["faces_eye"] >= FACING_LEAST]
     if not heads:
-        return checks.Verdict("heads", checks.UNKNOWN, "no floodlight head on screen in any rendered view")
+        return checks.Verdict("heads", checks.UNKNOWN, "no floodlight head faces the eye in any rendered view")
     halo = {side: float(np.median([head[side]["halo"] for head in heads])) for side in ("before", "after")}
     fill = {side: float(np.median([head[side]["fill"] for head in heads])) for side in ("before", "after")}
     gains = [head["beam_gain"] for head in heads if head["beam_gain"] is not None]
@@ -348,11 +364,12 @@ def judge_heads(output, inputs, evidence):
     washed = max(found["veil"].values())
     passed = (halo["after"] >= HALO_LEAST and fill["after"] >= FILL_LEAST and gain >= BEAM_LEAST
               and washed <= VEIL_MOST)
-    return verdict("heads", passed, f"{len(heads)} heads: halo {halo['before']:.3f} -> {halo['after']:.3f} (>= "
-                   f"{HALO_LEAST}), fill {fill['before']:.3f} -> {fill['after']:.3f} (>= {FILL_LEAST}), beam gain "
-                   f"{gain:.3f} (>= {BEAM_LEAST}), the place washed out by at most {washed:.3f} (<= {VEIL_MOST})",
+    return verdict("heads", passed, f"{len(heads)} heads facing the eye of {len(found['heads'])} on screen: halo "
+                   f"{halo['before']:.3f} -> {halo['after']:.3f} (>= {HALO_LEAST}), fill {fill['before']:.3f} -> "
+                   f"{fill['after']:.3f} (>= {FILL_LEAST}), beam gain {gain:.3f} (>= {BEAM_LEAST}), the place washed "
+                   f"out by at most {washed:.3f} (<= {VEIL_MOST})",
                    {"halo": round(halo["after"], 4), "fill": round(fill["after"], 4), "beam": round(gain, 4),
-                    "veil": round(washed, 4)},
+                    "veil": round(washed, 4), "facing_heads": len(heads)},
                    {"halo": "higher", "fill": "higher", "beam": "higher", "veil": "lower"})
 
 
@@ -502,7 +519,7 @@ def sweep_measure(place, name, looks):
     for view in views:
         rgb = measure.picture(looks[view["name"]])
         veils.append(measure.veil(measure.picture(DEMO / f"frames/{name}/{view['name']}-look.png"), rgb))
-        for middle, half, _ in lamp_heads(place):
+        for middle, half, _, _ in lamp_heads(place):
             x, y, depth, focal = measure.where(view, size, middle)
             if x is not None and 0 <= x < size[0] and 0 <= y < size[1]:
                 found = measure.head(rgb, x, y, focal * half / depth)

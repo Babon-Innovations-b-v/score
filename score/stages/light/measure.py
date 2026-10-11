@@ -54,7 +54,8 @@ def ring(shape, x, y, inner, outer):
 def head(rgb, x, y, radius):
     """A floodlight head of `radius` pixels (half its bank's width) at (x, y): `halo`, how much brighter the air just
     round the bank is than the air further out (0 to 1 of white), and `fill`, the darkest tenth of the bank's square
-    against its brightest tenth (a grid of lit panes in a dark frame is low; lamps that glow into each other high)."""
+    against its brightest tenth (a grid of lit panes in a dark frame is low; lamps that glow into each other high),
+    and `peak`, its brightest pixel (0 to 1): a lamp seen from behind shows no lit face at all."""
     light = lightness(rgb)
     near = ring(light.shape, x, y, radius * 1.3, radius * 2.5)
     far = ring(light.shape, x, y, radius * 4.0, radius * 5.0)
@@ -67,7 +68,7 @@ def head(rgb, x, y, radius):
         return None
     return {"halo": round(float((light[near].mean() - light[far].mean()) / 255.0), 4),
             "fill": round(float(np.percentile(bank, 10) / max(np.percentile(bank, 90), 1.0)), 4),
-            "radius_px": round(float(radius), 1)}
+            "peak": round(float(bank.max() / 255.0), 4), "radius_px": round(float(radius), 1)}
 
 
 # The picture's lower share, where the place's ground and people are, for the veil.
