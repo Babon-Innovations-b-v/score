@@ -6,20 +6,19 @@ Nothing is drawn outside a cleared run or the owner's override (score.adapters.c
 """
 import base64
 import io
-import json
 import pathlib
 import sys
 import time
 import urllib.error
-import urllib.request
 
 from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "cloud"))
+import google_spend  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
 MODEL = "gemini-3-pro-image"
-URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
 KEY_SECRET = "gemini-api-key"
 # The price of one 2K picture (Google's price list, as the close-ups were billed on 2026-10-08).
 DOLLARS_A_PICTURE = 0.134
@@ -52,15 +51,12 @@ def pictures_in(answer):
 def draw(key, wording, crop, concept, path):
     """One close-up into `path`; True when a picture came back, False when the service refused every attempt. A
     refused request (quota, overload) is tried again after a wait. Refused outside a cleared run
-    (compute.require_cleared)."""
+    (compute.require_cleared) and past the day's Google cap (google_spend)."""
     compute.require_cleared("a Nano Banana Pro close-up")
-    body = json.dumps(request_body(wording, crop, concept)).encode()
+    body = request_body(wording, crop, concept)
     for attempt in range(ATTEMPTS):
-        request = urllib.request.Request(URL, data=body, method="POST",
-                                         headers={"x-goog-api-key": key, "Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(request, timeout=400) as response:
-                found = pictures_in(json.loads(response.read()))
+        try:  # priced and refused past the day's cap (google_spend.SpendCapReached, never retried)
+            found = pictures_in(google_spend.generate(MODEL, body, key, 400, caller="pro"))
         except urllib.error.HTTPError as error:
             print(f"Nano Banana Pro refused ({error.code}); trying again", flush=True)
             time.sleep(WAIT_SECONDS * (attempt + 1))
