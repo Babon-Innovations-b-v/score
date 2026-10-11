@@ -223,7 +223,7 @@
    "type": "spot",
    "at": [
     -53.235,
-    17.42,
+    17.328,
     -42.0
    ],
    "aim": [
@@ -240,7 +240,7 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 48.4,
+    "length": 48.35,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
@@ -251,7 +251,7 @@
    "type": "spot",
    "at": [
     -53.235,
-    17.42,
+    17.328,
     38.0
    ],
    "aim": [
@@ -268,7 +268,7 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 49.56,
+    "length": 49.52,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
@@ -279,7 +279,7 @@
    "type": "spot",
    "at": [
     -67.235,
-    17.42,
+    17.328,
     -30.0
    ],
    "aim": [
@@ -296,7 +296,7 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 57.98,
+    "length": 57.94,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
@@ -307,7 +307,7 @@
    "type": "spot",
    "at": [
     -67.235,
-    17.42,
+    17.328,
     24.0
    ],
    "aim": [
@@ -324,7 +324,7 @@
    "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
    "shaft": {
     "near": 0.6,
-    "length": 58.2,
+    "length": 58.16,
     "colour": "#ffffff",
     "density": 0.02,
     "forward": 0.6,
