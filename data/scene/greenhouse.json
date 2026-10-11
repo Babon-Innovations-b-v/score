@@ -2361,13 +2361,24 @@
    "name": "earth",
    "builder": "sphere",
    "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "radius": 220.0,
+   "surface": "earth_face",
+   "from": "the wreck record's Earth (game/world/earth, radius 220; Orbits/LunarCycle) carried into this room's frame on the base seat (data/ground/moon.json); in the ground so a room showing this one draws it once; turned by the framework (2026-10-11) as photographs of the Earth from the Moon show it: its equator square to the way from the place, north up, Africa toward the place",
+   "placed_at": [
     -395.73,
     492.95,
     -843.71
    ],
-   "radius": 220.0,
-   "surface": "earth_face",
-   "from": "the wreck record's Earth (game/world/earth, radius 220; Orbits/LunarCycle) carried into this room's frame on the base seat (data/ground/moon.json); in the ground so a room showing this one draws it once"
+   "placed_turn": [
+    0.217302,
+    -0.007383,
+    -0.103947,
+    0.970526
+   ]
   }
  ]
 }

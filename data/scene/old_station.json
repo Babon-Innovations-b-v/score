@@ -11,14 +11,25 @@
    "name": "earth",
    "builder": "sphere",
    "centre": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "radius": 220.0,
+   "surface": "earth_face",
+   "from": "game/world/earth (radius 220 at 1302 m: about 20 degrees across), Orbits/LunarCycle; turned by the framework (2026-10-11) as photographs of the Earth from the Moon show it: its equator square to the way from the place, north up, Africa toward the place",
+   "plain": "sky",
+   "placed_at": [
     -399.23,
     599.4,
     -831.47
    ],
-   "radius": 220.0,
-   "surface": "earth_face",
-   "from": "game/world/earth (radius 220 at 1302 m: about 20 degrees across), Orbits/LunarCycle",
-   "plain": "sky"
+   "placed_turn": [
+    0.255791,
+    -0.002945,
+    -0.123786,
+    0.95877
+   ]
   }
  ],
  "places": [

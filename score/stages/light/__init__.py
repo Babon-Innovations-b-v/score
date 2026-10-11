@@ -83,15 +83,18 @@ CONCEPT_EARTH = ((719, 262), 53.0)
 CONCEPT_SKY_ROWS = (0, 150)
 # The pass rules, set before any after-picture was made: half the concept's head halo and fill, a beam that lights
 # its air, an Earth disc no flatter than twice the concept's, a sky within 20 levels of the concept's colour, its
-# blue to red within 0.15 of the concept's, and no darker toward the horizon.
+# blue to red within 0.15 of the concept's.
 HALO_LEAST = 0.08
 FILL_LEAST = 0.28
 BEAM_LEAST = 0.02
 FLAT_MOST = 0.28
 SKY_GAP_MOST = 20.0
 BLUE_TO_RED_WITHIN = 0.15
-# A sweep's strengths, as shares of the record's own number.
-SWEEP = (0.25, 0.5, 1.0, 2.0, 4.0)
+# A sweep's strengths, as shares of the record's own number: the camp's sky first swept 0.25 to 4 (4 nearest the
+# concept); the square's shafts at 0.25 to 4 of 0.02 a metre fogged the whole square white (2026-10-11), so they are
+# swept far thinner.
+SWEEP = {"square": (0.005, 0.01, 0.02, 0.05, 0.1), "launch": (0.005, 0.01, 0.02, 0.05, 0.1),
+         "camp": (0.25, 0.5, 1.0, 2.0, 4.0)}
 SWEEP_VIEWS = {"square": ("shot0-000", "shot1-000"), "launch": ("shot1-000", "shot2-000"),
                "camp": ("shot0-000", "shot1-000")}
 
@@ -260,7 +263,7 @@ def earth_measures(place, name, out):
     after = rendered(out, name)
     found = []
     for view in views:
-        x, y, depth, focal = measure.where(view, size, entry["centre"])
+        x, y, depth, focal = measure.where(view, size, entry.get("placed_at", entry["centre"]))
         if x is None or view["name"] not in after:
             continue
         radius = focal * entry["radius"] / depth
@@ -359,8 +362,11 @@ def judge_earth(output, inputs, evidence):
 
 
 def judge_sky(output, inputs, evidence):
-    """Mars's day sky reads as concept K05's: within SKY_GAP_MOST levels of its colour, its blue to red within
-    BLUE_TO_RED_WITHIN, and no darker toward the horizon (medians over the views)."""
+    """Mars's day sky reads as concept K05's: within SKY_GAP_MOST levels of its colour and its blue to red within
+    BLUE_TO_RED_WITHIN (medians over the views). Its rise to the horizon is reported, not judged: the rule first set
+    (no darker toward the horizon) was dropped on 2026-10-11 before any light node judged a sky, because K05's own sky
+    is flat (rise 0.006), the measure moved by 0.03 between the before frames' views on the flat wall alone (its
+    pixels take in the far ground the wall hid), and a sky looked at under the sun is lighter upward."""
     found = measures_of(output)
     if "sky" not in found:
         return verdict("sky", True, "no day sky in this place", {})
@@ -371,10 +377,11 @@ def judge_sky(output, inputs, evidence):
     gap = {side: float(np.median([view[side]["gap_to_concept"] for view in views])) for side in ("before", "after")}
     ratio = float(np.median([view["after"]["blue_to_red"] for view in views]))
     rise = float(np.median([view["after"]["rise_to_horizon"] for view in views]))
-    passed = gap["after"] <= SKY_GAP_MOST and abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN and rise >= 0
+    passed = gap["after"] <= SKY_GAP_MOST and abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN
     return verdict("sky", passed, f"{len(views)} views: colour gap to the concept {gap['before']:.1f} -> "
                    f"{gap['after']:.1f} levels (<= {SKY_GAP_MOST}), blue to red {ratio:.3f} (concept "
-                   f"{concept['blue_to_red']}), rise to the horizon {rise:.4f} (>= 0)",
+                   f"{concept['blue_to_red']}, within {BLUE_TO_RED_WITHIN}), rise to the horizon {rise:.4f} "
+                   f"(the concept's {concept['rise_to_horizon']}; reported, not judged)",
                    {"gap": round(gap["after"], 1), "blue_to_red": round(ratio, 4), "rise": round(rise, 4)},
                    {"gap": "lower"})
 
@@ -450,13 +457,13 @@ def make_sweep(inputs, out, seed, params):
     size, views = chosen_views(name, SWEEP_VIEWS[place])
     stage_place = "camp" if name == "campgrounds" else name
     jobs = []
-    for share in SWEEP:
+    for share in SWEEP[place]:
         root = overrides(stage_place, tree / stage_place, share)
         jobs += view_jobs(root, [tree / child.name for child in tree.iterdir()], views, size, out / "after",
                           f"{name}@{share}")
     render(jobs, out / "after")
     found = {}
-    for share in SWEEP:
+    for share in SWEEP[place]:
         looks = {path.name.removesuffix("-look.png"): path for path in out.glob(f"after/{name}@{share}-*/*-look.png")}
         found[str(share)] = sweep_measure(place, name, looks)
     (out / "measures.json").write_text(json.dumps({"place": place, "shares": found}, indent=1) + "\n")
