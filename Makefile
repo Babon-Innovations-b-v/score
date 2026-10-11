@@ -7,9 +7,9 @@ PYTEST ?= uv run -q --with pytest pytest
 
 # The framework's Python environment (pyproject.toml, uv.lock) in .venv: the plain-Python side, no models.
 PYTHON := $(CURDIR)/.venv/bin/python
-# Every framework check, or only the ones named: make tests TESTS="tools/props/library/paint_test.py ...".
+# Every framework check (tools/ and score/), or only the ones named: make tests TESTS="tools/props/library/paint_test.py ...".
 # Each is a plain script; a heavy one runs under a memory cap so it can never take the machine down.
-TESTS ?= $(shell git ls-files 'tools/*_test.py')
+TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py')
 MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 
 env:
