@@ -21,7 +21,7 @@ import labels  # noqa: E402
 import multiview  # noqa: E402
 import part_judge  # noqa: E402
 
-# Two neighbouring parts named one surface join only when their colours lie within this (Lab), with --merge-colour
+# Two neighbouring parts named one surface join only when their colours lie within this (Lab)
 # (MaPa's merge: same class and same unlit colour, its CIE threshold 2 on albedo is too fine for a picture's).
 MERGE_COLOUR = 12.0
 
