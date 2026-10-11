@@ -5,7 +5,7 @@ folder or tmp.
     output = store.put_tree(folder)                 # the output's hash; its files go in once each
     folder = store.checkout(output)                 # a read-only copy to read it from
     store.write_record(node, key, record)           # a node's finish record, once per key
-    store.accepted(node)                            # the output the owner accepted last, or None
+    store.accepted(node)                            # the node's accepted output (the runner's or the owner's), or None
 
 Objects sit in an object store with tools/cloud/runtime/store.py's interface (its FolderStore here; its BucketStore
 takes the same calls), under these keys:
@@ -15,16 +15,21 @@ takes the same calls), under these keys:
     records/<node>/<key>.json               a node's finish record, written once when its output is made
     judgements/<node>/<key>/<evidence>.json its gates' verdicts on that output under one state of its evidence
     evidence/<check>/<output>               a check's evidence on one output (a drop run's report, say)
-    accepts/<node>/<time>.json              each accept the owner gave; the newest is the node's accepted output
+    accepts/<node>/<time>.json              each accept, the runner's automatic ones (by RUNNER) and the owner's
+    rejects/<node>/<time>.json              each output the owner rejected; it undoes every earlier accept of it
     waivers/<node>/<key>/<check>.json       the owner's waiver of one check for one key; it ends when the key changes
-    spend-yes/<node>/<key>.json             the owner's yes to one paid run's estimate
+    clearances/<node>/<key>/<time>.json     the runner's clearance of one paid run (score.adapters.compute)
+    spend-yes/<node>/<key>.json             the owner's override: his yes to one run outside the runner
 
-Accepts, waivers and spend yeses are written only by the owner's own commands (score/review). In the framework's store
-`write_once` refuses them in any process an agent started (Claude Code marks its shells: AGENT_MARKERS), and a hook
-keeps agents from the other routes (.claude/hooks/accept_guard.py). On one machine under YOLO that is a barrier, not a
-lock: an agent set on getting round it can, and every accept names who gave it and when. Nothing here moves the
-accepted output: a new output lands beside it. The local cache (checkouts, copies of the stored bytes, and the folder
-a stage writes into before its output is stored) sits beside the objects.
+The node's accepted output is the newest accept that no later reject of the same output undid. The runner writes its
+automatic accepts (score/graph: every gate passed, nothing got worse, the owner never rejected that output); the
+owner's accepts, rejects, waivers and spend yeses are written only by his own commands (score/review). In the
+framework's store `write_once` refuses those in any process an agent started (Claude Code marks its shells:
+AGENT_MARKERS), and a hook keeps agents from the other routes and from writing clearances by hand
+(.claude/hooks/accept_guard.py). On one machine under YOLO that is a barrier, not a lock: an agent set on getting
+round it can, and every accept names who gave it and when. Nothing else moves the accepted output: a new output lands
+beside it. The local cache (checkouts, copies of the stored bytes, and the folder a stage writes into before its
+output is stored) sits beside the objects.
 """
 import hashlib
 import json
@@ -39,7 +44,8 @@ import store as runtime_store  # noqa: E402
 PROPS_HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 CHUNK = 1 << 20
 AGENT_MARKERS = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "AI_AGENT")
-OWNER_AREAS = ("accepts/", "waivers/", "spend-yes/")
+OWNER_AREAS = ("accepts/", "rejects/", "waivers/", "spend-yes/")
+RUNNER = "runner"  # who an automatic accept is by
 
 
 def file_hash(path):
@@ -186,10 +192,11 @@ class Store:
 
     def write_once(self, key, value):
         """Write a JSON object that must not exist yet: nothing in the store is overwritten, and an agent never writes
-        the framework store's accepts, waivers or spend yeses."""
-        if key.startswith(OWNER_AREAS) and self.is_framework_store() and running_under_agent():
-            raise PermissionError(f"{key}: only the owner accepts, waives or says yes to a spend, from his own "
-                                  "terminal; an agent's process cannot write it")
+        the framework store's owner areas (the runner's own automatic accepts excepted)."""
+        automatic = key.startswith("accepts/") and value.get("by") == RUNNER
+        if key.startswith(OWNER_AREAS) and not automatic and self.is_framework_store() and running_under_agent():
+            raise PermissionError(f"{key}: only the owner accepts, rejects, waives or says yes to a spend, from his "
+                                  "own terminal; an agent's process cannot write it")
         if self.objects.exists(key):
             raise FileExistsError(f"{key} is already in the store; nothing is overwritten")
         runtime_store.write_json(self.objects, key, value)
@@ -243,21 +250,44 @@ class Store:
             raise FileExistsError(f"{key} is already in the store; nothing is overwritten")
         self.objects.upload(path, key)
 
-    # --- the owner's accepts and spend yeses ------------------------------------------------------------------
+    # --- accepts, rejects, waivers, clearances and spend yeses -------------------------------------------------
+
+    def timed(self, area, node):
+        """Every object of a node in one timed area (accepts/, rejects/), oldest first."""
+        found = [runtime_store.read_json(self.objects, key) for key in self.objects.keys(f"{area}{node}/")]
+        return sorted(found, key=lambda item: item["at"])
 
     def accepts(self, node):
-        """Every accept the owner gave a node, oldest first."""
-        found = [runtime_store.read_json(self.objects, key) for key in self.objects.keys(f"accepts/{node}/")]
-        return sorted(found, key=lambda accept: accept["at"])
+        """Every accept a node was given, the runner's and the owner's, oldest first."""
+        return self.timed("accepts/", node)
+
+    def rejects(self, node):
+        """Every reject the owner gave a node, oldest first."""
+        return self.timed("rejects/", node)
+
+    def current_accept(self, node):
+        """The newest accept that no later reject of the same output undid, or None."""
+        rejected = {reject["output"]: reject["at"] for reject in self.rejects(node)}
+        standing = [accept for accept in self.accepts(node) if accept["at"] > rejected.get(accept["output"], "")]
+        return standing[-1] if standing else None
 
     def accepted(self, node):
-        """The output the owner accepted last for a node, or None when he never did."""
-        found = self.accepts(node)
-        return found[-1]["output"] if found else None
+        """The node's accepted output, or None when nothing stands accepted."""
+        return (self.current_accept(node) or {}).get("output")
+
+    def rejected(self, node, output):
+        """True when the owner rejected an output and it has had no accept since."""
+        rejects = [reject["at"] for reject in self.rejects(node) if reject["output"] == output]
+        accepts = [accept["at"] for accept in self.accepts(node) if accept["output"] == output]
+        return bool(rejects) and max(rejects) > max(accepts, default="")
 
     def write_accept(self, node, accept):
-        """Record one of the owner's accepts (score/review's accept is the only caller)."""
+        """Record one accept: the runner's automatic one (score/graph) or the owner's (score/review)."""
         self.write_once(f"accepts/{node}/{stamp_key(accept['at'])}-{accept['output'][:12]}.json", accept)
+
+    def write_reject(self, node, reject):
+        """Record one of the owner's rejects (score/review's reject is the only caller)."""
+        self.write_once(f"rejects/{node}/{stamp_key(reject['at'])}-{reject['output'][:12]}.json", reject)
 
     def waivers(self, node, key):
         """{check: waiver} the owner gave a node under one key."""
@@ -268,9 +298,17 @@ class Store:
         """Record the owner's waiver of one check for one key (score/review's waive is the only caller)."""
         self.write_once(f"waivers/{node}/{key}/{check}.json", waiver)
 
+    def clearances(self, node, key):
+        """Every clearance the runner gave one paid run of a node."""
+        return [runtime_store.read_json(self.objects, item) for item in self.objects.keys(f"clearances/{node}/{key}/")]
+
+    def write_clearance(self, node, key, clearance):
+        """Record the runner's clearance of one paid run (score.adapters.compute's clearance is the only caller)."""
+        self.write_once(f"clearances/{node}/{key}/{stamp_key(clearance['at'])}.json", clearance)
+
     def spend_yes(self, node, key):
         return self.read(f"spend-yes/{node}/{key}.json")
 
     def write_spend_yes(self, node, key, yes):
-        """Record the owner's yes to one paid run (score/review's spend is the only caller)."""
+        """Record the owner's override, his yes to one run (score/review's spend is the only caller)."""
         self.write_once(f"spend-yes/{node}/{key}.json", yes)

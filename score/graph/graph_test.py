@@ -1,20 +1,24 @@
-"""The runner reruns only what a change reaches, blocks on unknown, waits for the owner's accept, and keeps every
-finish record. A toy table of two stages, two places, in a store of its own.
+"""The runner reruns only what a change reaches, blocks on unknown, accepts by itself only what passed and got no
+worse, goes back on the owner's reject, and keeps every finish record. A toy table of two stages, two places, in a
+store of its own.
 
 Run: .venv/bin/python score/graph/graph_test.py
 """
 import json
+import os
 import pathlib
 import sys
 import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from score import checks, contracts, graph  # noqa: E402
+from score import checks, contracts, graph, review  # noqa: E402
+from score.adapters import compute  # noqa: E402
 from score.graph import _code  # noqa: E402
 from score.store import Store, tree_hash  # noqa: E402
 
 MADE = []
+TICKETS = []
 
 
 def make_clean(inputs, out, seed, params):
@@ -70,19 +74,12 @@ def give_evidence(store, runner, place, limit):
     return output
 
 
-def accept(store, node, output):
-    store.write_accept(node, {"output": output, "at": graph.now()})
-
-
 def ready_world():
-    """Both places made, given evidence and accepted; the world, store and clean outputs."""
+    """Both places made, given evidence and accepted by the runner; the world, store and clean outputs."""
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), Store.in_folder(tempfile.mkdtemp())
     runner = a_runner(world, store)
     runner.run(PLACES)
     outputs = {place: give_evidence(store, runner, place, 10) for place in PLACES}
-    runner.run(PLACES)
-    for place, output in outputs.items():
-        accept(store, f"clean@{place}", output)
     runner.run(PLACES)
     return world, store, outputs
 
@@ -95,11 +92,45 @@ def test_missing_evidence_blocks_what_follows_and_new_evidence_judges_again_with
     assert first["count@hangar"].startswith("blocked: clean@hangar answered unknown: words: no evidence")
     output = give_evidence(store, a_runner(world, store), "hangar", 10)
     second = a_runner(world, store).run(["hangar"])
-    assert second["clean@hangar"] == "judged again, output kept: pass"
-    assert second["count@hangar"] == f"blocked: clean@hangar's output {output[:12]} is not accepted by the owner"
-    assert MADE == ["clean"]
-    accept(store, "clean@hangar", output)
-    assert a_runner(world, store).run(["hangar"]) == {"clean@hangar": "fresh", "count@hangar": "made: pass"}
+    assert second == {"clean@hangar": "judged again, output kept: pass, accepted automatically",
+                      "count@hangar": "made: pass, accepted automatically"}, second
+    assert MADE == ["clean", "count"]
+    assert store.accepts("clean@hangar")[-1]["by"] == "runner" and store.accepted("clean@hangar") == output
+    assert a_runner(world, store).run(["hangar"]) == {"clean@hangar": "fresh", "count@hangar": "fresh"}
+
+
+def test_the_runner_accepts_only_what_passed_and_got_no_worse():
+    """Fault (the owner, 2026-10-11, 'why are you asking this?'): step 0 waited for his typed accept on every output,
+    so work stalled asking him. The runner accepts by the gates now, and never what got worse."""
+    world, store, outputs = ready_world()
+    (world.roots["data"] / "hangar" / "brief.txt").write_text("a ship in a long dark hall")  # 4 words become 6
+    runner = a_runner(world, store)
+    runner.run(PLACES)
+    give_evidence(store, runner, "hangar", 10)
+    found = a_runner(world, store).run(PLACES)
+    assert found["clean@hangar"] == "judged again, output kept: pass", found  # passed, but worse: not accepted
+    assert found["count@hangar"].startswith("blocked: clean@hangar's output") and "is not accepted" in found[
+        "count@hangar"]
+    assert store.accepted("clean@hangar") == outputs["hangar"]
+
+
+def test_an_owners_reject_moves_the_accepted_output_back_and_marks_what_read_it_stale():
+    world, store, outputs = ready_world()
+    (world.roots["data"] / "hangar" / "brief.txt").write_text("a ship")  # fewer words: better, accepted
+    runner = a_runner(world, store)
+    runner.run(PLACES)
+    better = give_evidence(store, runner, "hangar", 10)
+    found = a_runner(world, store).run(PLACES)
+    assert found["clean@hangar"].endswith("accepted automatically") and store.accepted("clean@hangar") == better
+    assert found["count@hangar"] == "made: pass, accepted automatically", found
+    review.reject(store, "clean@hangar", better, "owner", "the hall is gone")
+    assert store.accepted("clean@hangar") == outputs["hangar"]
+    runner = a_runner(world, store)
+    assert runner.stale("count@hangar") == ["clean@hangar"] and runner.stale("count@station") == []
+    assert runner.status(PLACES)["count@hangar"].endswith("its accepted output is stale: clean@hangar moved")
+    found = runner.run(PLACES)
+    assert found["clean@hangar"] == "fresh", found  # the rejected output is not accepted again by the runner
+    assert found["count@hangar"].startswith("blocked: clean@hangar's output")
 
 
 def test_a_failed_gate_blocks_what_follows():
@@ -147,21 +178,30 @@ def test_why_walks_back_to_the_world_file():
     world, store, _ = ready_world()
     brief = tree_hash(world.roots["data"] / "hangar" / "brief.txt")
     lines = a_runner(world, store).why("count@hangar")
-    assert lines[0].startswith("count@hangar: output") and "pass, not accepted" in lines[0]
+    assert lines[0].startswith("count@hangar: output") and "pass, accepted" in lines[0]
     assert lines[1].startswith("  clean@hangar: output") and "pass, accepted" in lines[1]
     assert f"brief {brief[:12]}" in lines[1]
 
 
-def test_a_paid_stage_does_not_run_without_the_owners_yes():
-    paid = graph.Stage("render", "place", make_count, TEXT, (checks.Check("counted", judge_count),),
-                       after={"clean": ("toy-text", 1)}, paid=True)
+def make_paid(inputs, out, seed, params):
+    TICKETS.append(os.environ.get(compute.TICKET))
+    make_count(inputs, out, seed, params)
+
+
+def test_a_paid_stage_runs_cleared_by_the_runner_without_a_typed_yes():
     world, store, _ = ready_world()
+    books = compute.ledger()
+    books.entries = lambda: []
+    unpriced = graph.Stage("render", "place", make_paid, TEXT, (checks.Check("counted", judge_count),),
+                           after={"clean": ("toy-text", 1)}, paid=True)
+    found = a_runner(world, store, (CLEAN, COUNT, unpriced)).run(["hangar"])
+    assert "needs its estimate" in found["render@hangar"] and TICKETS == []
+    paid = graph.Stage("render", "place", make_paid, TEXT, (checks.Check("counted", judge_count),),
+                       after={"clean": ("toy-text", 1)}, paid=True, euros=0.5)
     runner = a_runner(world, store, (CLEAN, COUNT, paid))
-    found = runner.run(["hangar"])
-    assert found["render@hangar"].startswith("blocked: render@hangar is paid and the owner has not said yes")
-    ticket = runner.ticket("render@hangar")
-    store.write_spend_yes("render@hangar", ticket["key"], {"euros": 0, "at": graph.now()})
-    assert a_runner(world, store, (CLEAN, COUNT, paid)).run(["hangar"])["render@hangar"] == "made: pass"
+    assert runner.run(["hangar"])["render@hangar"] == "made: pass, accepted automatically"
+    key = runner.ticket("render@hangar")["key"]
+    assert TICKETS == [f"render@hangar {key}"] and store.spend_yes("render@hangar", key) is None
 
 
 def test_a_waiver_lets_a_failed_gate_through_for_its_key_only():
@@ -171,9 +211,10 @@ def test_a_waiver_lets_a_failed_gate_through_for_its_key_only():
     output = give_evidence(store, runner, "hangar", 2)
     key = runner.key(CLEAN, "hangar")["key"]
     store.write_waiver("clean@hangar", key, "words", {"by": "owner", "reason": "a long name", "at": graph.now()})
-    accept(store, "clean@hangar", output)
     found = a_runner(world, store).run(["hangar"])
-    assert found["count@hangar"] == "made: pass", found
+    assert found["clean@hangar"] == "judged again, output kept: fail, accepted automatically", found
+    assert store.accepted("clean@hangar") == output
+    assert found["count@hangar"] == "made: pass, accepted automatically", found
     assert a_runner(world, store).status(["hangar"])["clean@hangar"] == "fail, waived: words, accepted"
     (world.roots["data"] / "hangar" / "brief.txt").write_text("a ship in a very long dark hall")
     runner = a_runner(world, store)

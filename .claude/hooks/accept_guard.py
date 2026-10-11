@@ -1,30 +1,36 @@
 #!/usr/bin/env python3
-"""PreToolUse guard: only the owner accepts a stage's output, waives a gate or says yes to a spend.
+"""PreToolUse guard: only the owner rejects, accepts, waives or overrides; only the runner accepts automatically and
+clears a paid run.
 
 Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 
 1. Running the owner's commands: Python that names ``score.review`` (or ``score/review``, or its ``__main__.py``)
-   together with the words accept, spend or waive, quoted or not.
+   together with the words accept, reject, spend or waive, quoted or not.
 2. Calling them from Python, or writing a script that does: a shell command that runs Python or writes a file and
-   holds a call to ``accept(``, ``spend(``, ``waive(``, ``write_once(``, ``write_accept(``, ``write_spend_yes(`` or
-   ``write_waiver(``; a Write or Edit outside the framework package (``score/``) with such a call.
+   holds a call to ``accept(``, ``reject(``, ``spend(``, ``waive(``, ``write_once(``, ``write_accept(``,
+   ``write_reject(``, ``write_spend_yes(``, ``write_waiver(`` or ``write_clearance(``; a Write or Edit outside the
+   framework package (``score/``) with such a call.
 3. Taking Claude Code's mark off a process (``unset CLAUDECODE``, ``env -u``, ``env -i``, ``CLAUDECODE=``), or
    faking a terminal (``script -c``, ``unbuffer``) for a ``score`` command: the store refuses an agent's process the
    owner's areas by that mark (score/store ``running_under_agent``), and the review commands want a terminal.
-4. Writing the store's accepts, waivers or spend yeses (``accepts/``, ``waivers/``, ``spend-yes/``): by Write, Edit
-   or NotebookEdit on such a path, or a shell command one of whose parts redirects into such a path or runs a
-   writing command (``tee``, ``cp``, ``mv``, ``ln``, ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``,
-   ``sed -i``, ``find -delete``, Python) that names one.
-5. Writing an artifact database collection or document named accepts, waivers or spend-yes (``Artifact`` with
-   ``write_db``, a batch's writes included).
+4. Writing the store's accepts, rejects, waivers, spend yeses or clearances (``accepts/``, ``rejects/``,
+   ``waivers/``, ``spend-yes/``, ``clearances/``) by hand: by Write, Edit or NotebookEdit on such a path, or a shell
+   command one of whose parts redirects into such a path or runs a writing command (``tee``, ``cp``, ``mv``, ``ln``,
+   ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``, ``sed -i``, ``find -delete``, Python) that names one.
+5. Writing an artifact database collection or document of those names (``Artifact`` with ``write_db``, a batch's
+   writes included).
 
-Reading stays allowed: ``grep``, ``ls`` and ``cat`` of those folders, a redirect to an unrelated file, a review page,
-the tests.
+Running the stages stays allowed, and with it the runner's own automatic accept and clearance (score/graph,
+score.adapters.compute), which this guard does not see: they are written by the framework's code, only when every
+gate passed and nothing got worse, or the inputs passed and the month's ceiling has room. Reading stays allowed:
+``grep``, ``ls`` and ``cat`` of those folders, a redirect to an unrelated file, a review page, the tests.
 
-Why (the layered framework's design, 2026-10-11): agent verdicts stood in for the owner's (a place declared complete
-that he had not seen), and the newest take replaced the accepted one by itself. The accept is his alone. On one
-machine under YOLO this guard and the store's refusal are a barrier, not a lock: an agent set on getting round them
-can (by editing the framework's own code, say), and every accept in the store names who gave it and when.
+Why (the layered framework's design, 2026-10-11, amended the same day): agent verdicts stood in for the owner's (a
+place declared complete that he had not seen), and the newest take replaced the accepted one by itself. Now the
+framework's gates decide, the runner accepts and clears by their answer, and the owner's reject, waiver and override
+stay his alone. On one machine under YOLO this guard and the store's refusal are a barrier, not a lock: an agent set
+on getting round them can (by editing the framework's own code, say), and every accept in the store names who gave
+it and when.
 
 FAILURE POLICY: fail-open. Any parse error, unknown shape or unrelated call exits 0 (allow). Exit 2 + stderr is the
 only block path (the harness feeds stderr back to the model as the block reason).
@@ -36,36 +42,39 @@ import sys
 
 _PYTHON = re.compile(r"\b(python3?(\.\d+)?|uv\s+run)\b|/python\b")
 _REVIEW = re.compile(r"score[./]review|__main__\.py")
-_OWNER_WORD = re.compile(r"\b(accept|spend|waive)\b")
-_OWNER_CALL = re.compile(r"\b(accept|spend|waive|write_once|write_accept|write_spend_yes|write_waiver)\s*\(")
+_OWNER_WORD = re.compile(r"\b(accept|reject|spend|waive)\b")
+_OWNER_CALL = re.compile(r"\b(accept|reject|spend|waive|write_once|write_accept|write_reject|write_spend_yes|"
+                         r"write_waiver|write_clearance)\s*\(")
 _FILE_WRITE = re.compile(r"(^|[^<>&0-9])>>?|\btee\b")
 _AGENT_MARK = re.compile(r"\b(CLAUDECODE|CLAUDE_CODE_ENTRYPOINT|AI_AGENT)\b")
 _UNMARK = re.compile(r"\bunset\b|\benv\s+(-\S+\s+)*(-u|--unset|-i|--ignore-environment)\b|\b(CLAUDECODE|"
                      r"CLAUDE_CODE_ENTRYPOINT|AI_AGENT)=|environ|\bpop\b|\bdel\b")
 _CLEARED_ENV = re.compile(r"\benv\s+(-\S+\s+)*(-i|--ignore-environment|-)\s")
 _FAKE_TERMINAL = re.compile(r"(^|[\s;&|(])(script\s+-\S*c|unbuffer\s)")
-_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|waivers|spend-yes)/")
-_OWNER_NAME = re.compile(r"(^|/)(accepts|waivers|spend-yes)(/|$)")
+_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|rejects|waivers|spend-yes|clearances)/")
+_OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances)(/|$)")
 _SEGMENTS = re.compile(r"\|\||&&|[;|\n]")
-_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|waivers|spend-yes)/")
+_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances)/")
 _WRITER = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
                      r"truncate|python3?(\.\d+)?|uv)\b|\bsed\s+(-\S+\s+)*-i|\bfind\b.*\s-(delete|exec)\b")
 _FRAMEWORK = re.compile(r"(^|/)score/(checks|contracts|store|graph|review|adapters|stages)/|(^|/)\.claude/hooks/")
 
 _MESSAGE = (
-    "Blocked: only the owner accepts a stage's output, waives a gate or says yes to a spend.\n"
+    "Blocked: only the owner accepts or rejects by hand, waives a gate or overrides a spend; the runner accepts and\n"
+    "clears by the gates.\n"
     "  {what}\n"
-    "Build the review page instead (.venv/bin/python -m score.review page <node>) and ask the owner to accept it\n"
-    "from his own terminal. An agent's verdict never stands in for his (docs/bible.md, the layered framework)."
+    "Run the stages (.venv/bin/python -m score.stages run <place>): the runner accepts a passing output that got no\n"
+    "worse and clears a paid run whose inputs passed. An agent's verdict never stands in for the gates or the owner\n"
+    "(docs/bible.md, the layered framework)."
 )
 
 
 def _owner_command(command):
-    """Why a shell command runs or calls the owner's accept, spend or waive, or None."""
+    """Why a shell command runs or calls the owner's accept, reject, spend or waive, or None."""
     if _PYTHON.search(command) and _REVIEW.search(command) and _OWNER_WORD.search(command):
-        return "runs the owner's accept, spend or waive command"
+        return "runs the owner's accept, reject, spend or waive command"
     if _OWNER_CALL.search(command) and (_PYTHON.search(command) or _FILE_WRITE.search(command)):
-        return "calls the owner's accept, spend or waive from Python, or writes a script that does"
+        return "calls the owner's accept, reject, spend or waive from Python, or writes a script that does"
     return None
 
 
@@ -79,12 +88,12 @@ def _unmarking(command):
 
 
 def _owner_area_write(command):
-    """Why a shell command writes the store's accepts, waivers or spend yeses, or None."""
+    """Why a shell command writes the store's accepts, rejects, waivers, spend yeses or clearances, or None."""
     for segment in _SEGMENTS.split(command):
         if _REDIRECT_INTO_OWNER.search(segment):
-            return "redirects into the store's accepts, waivers or spend yeses"
+            return "redirects into the store's accepts, rejects, waivers, spend yeses or clearances"
         if _OWNER_PATH.search(segment) and _WRITER.search(segment):
-            return "writes the store's accepts, waivers or spend yeses"
+            return "writes the store's accepts, rejects, waivers, spend yeses or clearances"
     return None
 
 
@@ -100,7 +109,7 @@ def _file_offence(path, content):
     if _FRAMEWORK.search(path):
         return None
     if _OWNER_CALL.search(content):
-        return f"writes a call to the owner's accept, spend or waive into {path}"
+        return f"writes a call to the owner's accept, reject, spend or waive into {path}"
     if _AGENT_MARK.search(content):
         return f"writes code that touches Claude Code's mark into {path}"
     return None
@@ -114,7 +123,7 @@ def _artifact_offence(tool_input):
     names = [str(write.get(part) or "") for write in writes if isinstance(write, dict)
              for part in ("collection", "doc_id")]
     if any(_OWNER_NAME.search(name) for name in names):
-        return "writes accepts, waivers or spend yeses into an artifact's database"
+        return "writes accepts, rejects, waivers, spend yeses or clearances into an artifact's database"
     return None
 
 

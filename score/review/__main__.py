@@ -1,15 +1,16 @@
-"""The review commands. `page` is anyone's; `accept`, `waive` and `spend` are the owner's alone, typed in his own
-terminal.
+"""The review commands. `page` is anyone's; `reject`, `accept`, `waive` and `spend` are the owner's alone, typed in his
+own terminal. The runner accepts a passing output that got no worse by itself; none of these is needed for a run.
 
     .venv/bin/python -m score.review page <node> [--key <key>]
+    .venv/bin/python -m score.review reject <node> <output> --reason "what is wrong with it"
     .venv/bin/python -m score.review accept <node> <output> [--reason "..."] [--worse "why it may be worse"]
     .venv/bin/python -m score.review waive <node> <key> <check> --reason "why this check is wrong here"
-    .venv/bin/python -m score.review spend <node> <key> <euros>
+    .venv/bin/python -m score.review spend <node> <key> <euros>   # the override, for a run outside the runner
 
-`accept`, `waive` and `spend` refuse to run without a terminal at both ends; the store refuses their writes in any
-process an agent started (score/store), and the accept guard hook (.claude/hooks/accept_guard.py) blocks agents from
-running them or writing the store's accepts by other routes. On one machine under YOLO this is a barrier, not a
-lock: an agent set on getting round it can, and every accept names who gave it and when.
+`reject`, `accept`, `waive` and `spend` refuse to run without a terminal at both ends; the store refuses their writes
+in any process an agent started (score/store), and the accept guard hook (.claude/hooks/accept_guard.py) blocks
+agents from running them or writing those areas of the store by other routes. On one machine under YOLO this is a
+barrier, not a lock: an agent set on getting round it can, and every accept names who gave it and when.
 """
 import argparse
 import getpass
@@ -25,7 +26,7 @@ from score.store import Store  # noqa: E402
 def owner_at_terminal():
     """Refuse unless a person is at a terminal on both ends of this command."""
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        raise SystemExit("only the owner accepts, waives or says yes to a spend, typed in his own terminal")
+        raise SystemExit("only the owner rejects, accepts, waives or says yes to a spend, typed in his own terminal")
 
 
 def parse(argv):
@@ -34,6 +35,10 @@ def parse(argv):
     shown = commands.add_parser("page")
     shown.add_argument("node")
     shown.add_argument("--key")
+    rejecting = commands.add_parser("reject")
+    rejecting.add_argument("node")
+    rejecting.add_argument("output")
+    rejecting.add_argument("--reason", required=True)
     accepting = commands.add_parser("accept")
     accepting.add_argument("node")
     accepting.add_argument("output")
@@ -58,6 +63,13 @@ def main(argv=None):
         print(review.page(store, options.node, options.key))
         return
     owner_at_terminal()
+    if options.command == "reject":
+        try:
+            review.reject(store, options.node, options.output, getpass.getuser(), options.reason)
+        except review.Refused as refusal:
+            raise SystemExit(f"refused: {refusal}")
+        print(f"rejected {options.node} {options.output}; accepted now: {store.accepted(options.node) or 'none'}")
+        return
     if options.command == "accept":
         try:
             written = review.accept(store, options.node, options.output, getpass.getuser(), options.reason,

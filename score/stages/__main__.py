@@ -4,7 +4,9 @@
     .venv/bin/python -m score.stages run <place> [<place> ...]      # runs only nodes with no output for their key
     .venv/bin/python -m score.stages why <node>                     # its records back through what it read
 
-No stage in today's table spends: a paid stage waits for the owner's yes (score.review spend).
+No stage in today's table spends. A paid stage runs once the runner clears it (its inputs passed, the month's ceiling
+has room for its estimate: score.adapters.compute); no one is asked. Passing outputs that got no worse are accepted by
+the runner; the owner rejects any from his terminal (score.review reject).
 """
 import argparse
 import pathlib

@@ -11,7 +11,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from score.store import AGENT_MARKERS, Store, file_hash, tree_hash  # noqa: E402
+from score.store import AGENT_MARKERS, RUNNER, Store, file_hash, tree_hash  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
@@ -64,11 +64,11 @@ def test_a_checked_out_file_made_writable_leaves_the_stored_bytes_alone():
     assert (store.checkout(output) / "a.txt").read_text() == "a", "a changed checkout was handed out again"
 
 
-def owner_write(environment):
-    """Write an accept into the framework's own store from a fresh Python with this environment; its exit and
-    error."""
+def owner_write(environment, area="acc" + "epts", by="owner"):
+    """Write into an owner's area of the framework's own store from a fresh Python with this environment; its exit
+    and error."""
     code = ("from score.store import Store; "
-            "Store.default().write_once('acc' + 'epts/a@b/1.json', {'output': 'o', 'at': '1'})")
+            f"Store.default().write_once('{area}/a@b/{by}.json', {{'output': 'o', 'at': '1', 'by': '{by}'}})")
     done = subprocess.run([sys.executable, "-c", code], cwd=REPO, env=environment, capture_output=True, text=True)
     return done.returncode, done.stderr
 
@@ -82,6 +82,9 @@ def test_an_agent_cannot_write_the_owners_areas_of_the_framework_store():
     status, error = owner_write({**agent, "PROPS_HOME": home})
     assert status != 0 and "only the owner" in error, (status, error)
     assert not list(pathlib.Path(home).rglob("*.json"))
+    assert owner_write({**agent, "PROPS_HOME": home}, "rej" + "ects")[0] != 0
+    assert owner_write({**agent, "PROPS_HOME": home}, "rej" + "ects", RUNNER)[0] != 0  # a reject is never the runner's
+    assert owner_write({**agent, "PROPS_HOME": home}, by=RUNNER)[0] == 0  # the runner's automatic accept
     assert owner_write({**owner, "PROPS_HOME": home})[0] == 0
     test_store = Store.in_folder(tempfile.mkdtemp())  # a test's or trial's own store stays writable
     test_store.write_accept("a@b", {"output": "o", "at": "2026-10-11T10:00:00+00:00"})

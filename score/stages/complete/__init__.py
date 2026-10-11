@@ -1,6 +1,6 @@
 """The complete stage (P11): a place's manifest, made from the store and never from file times.
 
-The runner makes it only once every stage before it passed its gates and the owner accepted that output, so its
+The runner makes it only once every stage before it passed its gates and stands accepted, so its
 manifest names, for each of them, the accepted output it read (an earlier stage's input is a checkout named by its
 output's hash). Its gate checks the manifest names one for every stage it reads.
 """
