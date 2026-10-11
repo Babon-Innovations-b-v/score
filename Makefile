@@ -8,7 +8,8 @@ PYTEST ?= uv run -q --with pytest pytest
 # The framework's Python environment (pyproject.toml, uv.lock) in .venv: the plain-Python side, no models.
 PYTHON := $(CURDIR)/.venv/bin/python
 # Every framework check (tools/ and score/), or only the ones named: make tests TESTS="tools/props/library/paint_test.py ...".
-# Each is a plain script; a heavy one runs under a memory cap so it can never take the machine down.
+# Each is a plain script, or, when it has test_ functions and no __main__ block (it wants pytest's fixtures), a pytest
+# file; a heavy one runs under a memory cap so it can never take the machine down.
 TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py')
 MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 
@@ -17,7 +18,10 @@ env:
 
 tests: env
 	@failed=""; log=$$(mktemp); for test in $(TESTS); do \
-		if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(PYTHON) $$test > $$log 2>&1; then \
+		runner="$(PYTHON)"; \
+		if grep -q '^def test_' $$test && ! grep -q '__main__' $$test; then \
+			runner="$(PYTHON) -m pytest -q -p no:cacheprovider"; fi; \
+		if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $$runner $$test > $$log 2>&1; then \
 			echo "ok    $$test"; \
 		else \
 			echo "FAIL  $$test"; tail -n 15 $$log; failed="$$failed $$test"; \
