@@ -66,7 +66,8 @@ def test_each_take_is_split_by_one_place_and_its_data_is_whole():
             continue
         record = json.loads(path.read_text())
         assert (REPO / "data/kit" / f"{path.stem}.json").exists(), f"{path.stem}: no such place"
-        assert record["takes"], f"{path.stem}: a place with nothing to split has no data file"
+        assert record["takes"] or record.get("nothing"), f"{path.stem}: lists nothing to split and says not why"
+        assert surface_data.paints(path.stem) == bool(record["takes"]), path.stem
         for take, entry in record["takes"].items():
             assert take not in owner, f"{take}: split by {owner.get(take)} and {path.stem}"
             owner[take] = path.stem
@@ -88,20 +89,19 @@ def test_every_place_s_surface_line_is_rows_of_world_one():
     assert rows["surfaces-judge"].params["judge"]["model"].startswith("gemini-")
 
 
-def test_a_place_without_data_or_without_a_bake_job_blocks_before_anything_is_spent():
+def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothing_to_paint_has_no_rows():
     world = graph.World("world1", 1, {"data": str(REPO / "data"), "home": tempfile.mkdtemp(), "repo": str(REPO),
                                       "seeds": tempfile.mkdtemp()})
     runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
     rows = {stage.name: stage for stage in surfaces.ROWS}
-    assert "its input surfaces is missing" in runner.node_status(rows["split-inputs"], "camp")
-    no_bake = next(path.stem for path in surface_data.FOLDER.glob("*.json")
-                   if path.stem != surface_data.SEED and "bake" not in json.loads(path.read_text()))
+    assert "its input surfaces is missing" in runner.node_status(rows["split-inputs"], "nowhere")
+    assert not any(node.endswith("@hub") for node in runner.status(["hub"]))  # every model the owner's pick
     try:
-        runner.file_keys(rows["surfaces-bake"], no_bake)
+        runner.file_keys(rows["surfaces-bake"], "nowhere")
     except graph.Blocked as block:
-        assert "names no bake job" in str(block)
+        assert "nowhere.json" in str(block)
         return
-    raise AssertionError(f"{no_bake}'s bake row did not block on its missing bake job")
+    raise AssertionError("a place with no data did not block at its bake row")
 
 
 def test_a_gate_that_cannot_read_its_evidence_answers_unknown():

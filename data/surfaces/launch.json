@@ -1,0 +1,24 @@
+{
+ "place": "launch",
+ "library": "prologue_launch",
+ "takes": {
+  "far_ferry-s1": {
+   "places": [
+    "launch"
+   ],
+   "library_places": [
+    "prologue_launch"
+   ],
+   "place": "launch",
+   "kind": "launch_far_ferry",
+   "object": "harbour ferry"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/launch-score1/run/job-chunky.json",
+  "models": {
+   "far_ferry_1": "far_ferry-s1"
+  },
+  "entries": {}
+ }
+}

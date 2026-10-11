@@ -32,6 +32,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   split by one place only), the library name, the bake (the route's make_chunky job, model per take, entries the job
   lacks). A place with no file blocks at `split-inputs`; one with no `bake` blocks at `surfaces-bake` before
   anything is cleared. Picked rows (an inventory row with `pick`) are never listed: they keep their model and paint.
+  A place with nothing to paint has a file with no takes and a `nothing` line saying why; its line has no surface
+  rows (`Stage.applies`, `surface_data.paints`). A shared model is listed, split and baked by the place that claims
+  it only (the other place's bake does not have it). Every world-1 place has its file (2026-10-11).
 - **Gates never crash or pass on what is missing** (`surface_gates.guarded`: unknown with the missing file named). A
   model whose split mixes finishes is named in the split's fail and stops its place's line; once the owner waives it,
   the later rows leave that model out.

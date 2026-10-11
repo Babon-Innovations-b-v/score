@@ -4,6 +4,7 @@ store of its own.
 
 Run: .venv/bin/python score/graph/graph_test.py
 """
+import dataclasses
 import functools
 import json
 import os
@@ -150,6 +151,13 @@ def test_nothing_changed_runs_nothing():
     MADE.clear()
     assert set(a_runner(world, store).run(PLACES).values()) == {"fresh"}
     assert MADE == []
+
+
+def test_a_place_stage_that_does_not_apply_has_no_node_for_that_place():
+    world, store = a_world({"hangar": "a ship in a hall"}), Store.in_folder(tempfile.mkdtemp())
+    only_hangar = dataclasses.replace(CLEAN, applies=lambda place: place == "hangar")
+    found = a_runner(world, store, (only_hangar,)).status(PLACES)
+    assert list(found) == ["clean@hangar"], found
 
 
 def test_a_changed_input_reruns_only_what_it_reaches_and_the_accepted_output_stays():

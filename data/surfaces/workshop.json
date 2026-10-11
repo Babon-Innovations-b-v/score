@@ -1,0 +1,63 @@
+{
+ "place": "workshop",
+ "library": "workshop",
+ "takes": {
+  "hammer-r6": {
+   "places": [
+    "workshop"
+   ],
+   "library_places": [
+    "workshop"
+   ],
+   "place": "workshop",
+   "kind": "workshop_hammer",
+   "object": "hammer"
+  },
+  "pliers-r6": {
+   "places": [
+    "workshop"
+   ],
+   "library_places": [
+    "workshop"
+   ],
+   "place": "workshop",
+   "kind": "workshop_pliers",
+   "object": "pliers"
+  },
+  "pump_pliers-r6": {
+   "places": [
+    "workshop"
+   ],
+   "library_places": [
+    "workshop"
+   ],
+   "place": "workshop",
+   "kind": "workshop_pump_pliers",
+   "object": "pump pliers"
+  },
+  "wrench-r6": {
+   "places": [
+    "workshop"
+   ],
+   "library_places": [
+    "workshop"
+   ],
+   "place": "workshop",
+   "kind": "workshop_wrench",
+   "object": "wrench"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/workshop-score1/run/job-chunky.json",
+  "models": {
+   "hammer_1": "hammer-r6",
+   "pliers_1": "pliers-r6",
+   "pump_pliers_1": "pump_pliers-r6",
+   "wrench_1": "wrench-r6",
+   "wrench_2": "wrench-r6",
+   "wrench_3": "wrench-r6",
+   "wrench_4": "wrench-r6"
+  },
+  "entries": {}
+ }
+}
