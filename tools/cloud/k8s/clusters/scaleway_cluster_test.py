@@ -60,6 +60,18 @@ def test_down_deletes_only_this_projects_cluster(monkeypatch, tmp_path):
     assert ("k8s", "cluster", "delete", "c-ours", "with-additional-resources=true") in calls
 
 
+def test_up_makes_nothing_outside_a_cleared_run(monkeypatch):
+    """Fault (design of 2026-10-11, section 6): `up` made the Kapsule cluster and its system pool, billed by the
+    hour, for any caller, outside the runner's gate and the owner's yes."""
+    calls = []
+    monkeypatch.delenv(cluster.compute.TICKET, raising=False)
+    monkeypatch.setattr(cluster.backend, "account", lambda: OURS)
+    monkeypatch.setattr(cluster, "scw", fake_scw([], calls))
+    with pytest.raises(cluster.compute.Refused, match="nothing rents outside a cleared run"):
+        cluster.up()
+    assert calls == []
+
+
 def test_two_clusters_of_one_name_stop(monkeypatch):
     twins = [{"id": f"c{number}", "name": cluster.CLUSTER_NAME, "project_id": OURS} for number in range(2)]
     monkeypatch.setattr(cluster, "scw", fake_scw(twins, []))

@@ -83,12 +83,13 @@ the current backend). No model runs on the coordinating machine.
   no less than the run's estimate. A node runs only on outputs that passed (or whose failed checks he waived) and he
   accepted. Step 0's worked example: `python -m score.stages run hangar hdoor` brings the round-three stages in as
   unverified seeds; the hangar fails on its code-built ship and the door answers unknown with no drop run, so
-  neither completes. Every place that rents (`batch.rent`, the k8s submitter) refuses unless SCORE_SPEND_TICKET
-  names a node the runner cleared or the owner's override (`compute.require_cleared`), so the old paid entry points
-  (blender_cloud.py, detached.py, the runners, demo.py) cannot spend round the runner. Step 0 still lacks the layout
-  stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces bounded by the
-  plan, a plain tag measured plain). The in-progress directions are in `architecture/experimental`. The overlay
-  `score/CLAUDE.md` has the rules.
+  neither completes. Every place that spends (`batch.rent`, the k8s submitter and the cluster's `up`, Nano Banana
+  Pro's `pro.draw`, Marble's `generate` and `paint`) refuses unless SCORE_SPEND_TICKET names a node the runner
+  cleared or the owner's override (`compute.require_cleared`), so the old paid entry points (blender_cloud.py,
+  detached.py, the runners, demo.py, the close-up stage, marble.py) cannot spend round the runner. Step 0 still
+  lacks the layout stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces
+  bounded by the plan, a plain tag measured plain). The in-progress directions are in `architecture/experimental`.
+  The overlay `score/CLAUDE.md` has the rules.
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's

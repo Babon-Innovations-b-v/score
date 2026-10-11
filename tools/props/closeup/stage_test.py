@@ -3,6 +3,7 @@ a batch takes and the record of what each row cost, without a model, a cloud mac
 
 Plain python: python3 tools/props/closeup/stage_test.py
 """
+import os
 import pathlib
 import sys
 import tempfile
@@ -96,6 +97,26 @@ def test_a_step_s_cost_is_kept_for_a_run_that_is_run_again():
     assert stage.kept_entry({"euros": 1.4}, path)["euros"] == 1.4
     assert stage.kept_entry(None, path)["euros"] == 1.4
     assert stage.kept_entry({"euros": 0.6}, path)["euros"] == 2.0
+
+
+def test_pro_draws_nothing_outside_a_cleared_run():
+    """Fault (design of 2026-10-11, section 6): pro.draw sent a paid request (USD 0.134 a picture) for any caller,
+    outside the runner's gate and the owner's yes."""
+    sent = []
+    kept = stage.pro.urllib.request.urlopen
+    ticket = os.environ.pop(stage.pro.compute.TICKET, None)
+    stage.pro.urllib.request.urlopen = lambda *arguments, **options: sent.append(arguments)
+    try:
+        stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, pathlib.Path(tempfile.mkdtemp()) / "a.png")
+    except stage.pro.compute.Refused as refusal:
+        assert "nothing rents outside a cleared run" in str(refusal)
+    else:
+        raise AssertionError("a Nano Banana Pro picture was asked for outside a cleared run")
+    finally:
+        stage.pro.urllib.request.urlopen = kept
+        if ticket is not None:
+            os.environ[stage.pro.compute.TICKET] = ticket
+    assert sent == []
 
 
 if __name__ == "__main__":

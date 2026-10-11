@@ -7,6 +7,7 @@ cut-out whole (`redraw.py`), build each through the cloud batch (`../cloud/batch
 sides (`models.py`), place them by rules (`layout.py`) and draw the result from the target's own
 camera in the game's look (`stage.tscn`). `marble.py` sends a target to World Labs Marble and
 brings back its room as a second measure of the same masks (`boxes.py --depth depth-marble.npz`).
+Its paid calls (`generate`, `paint`) refuse outside a cleared run (`score.adapters.compute.require_cleared`).
 
 Round two goes the other way, from our rooms to Marble: `depth_pano.tscn` renders a 360° depth
 cube at eye height in the real starter base, on the kit's own stepped floors (`--pano-kit` takes

@@ -87,12 +87,14 @@ sys.path.insert(0, str(CLOUD.parent))
 sys.path.insert(0, str(CLOUD))
 sys.path.insert(0, str(CLOUD / "backends"))
 sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parents[3]))
 
 import gpu_operator  # noqa: E402
 import provider  # noqa: E402
 import scaleway as backend  # noqa: E402
 from kube import Kubectl  # noqa: E402
 from paths import HOME  # noqa: E402
+from score.adapters import compute  # noqa: E402
 
 NAME = "scaleway"
 CLUSTER_NAME = os.environ.get("SCORE_K8S_CLUSTER", "score-jobs")
@@ -268,7 +270,9 @@ def write_kubeconfig(cluster_id):
 
 def up():
     """Make the cluster if missing (else keep its autoscaler settings), add its class pools, fetch its kubeconfig
-    and point the GPU operator at the registry's copies of its images (gpu_operator.py); the kubeconfig's path."""
+    and point the GPU operator at the registry's copies of its images (gpu_operator.py); the kubeconfig's path.
+    Refused outside a cleared run (compute.require_cleared): the cluster and its system pool are billed by the hour."""
+    compute.require_cleared("the Kapsule cluster")
     project = backend.account()
     found = cluster(project) or create_cluster(project)
     if found.get("status") != "creating":
