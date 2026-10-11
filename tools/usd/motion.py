@@ -15,13 +15,17 @@ A motion record:
         "name", "prim",                      the moving prim, a path in the place's stage
         "start", "length", "loop",           its cycle in seconds of the stage's time: when it starts, how long one
                                              round is, and whether it runs round again (a one-off event plays once)
-        "slide": {"by", "speed", "starts", "moves": [[seconds, "open" | "shut"], ...]}
+        "slide": {"by", "speed", "starts", "moves": [[seconds, "open" | "shut"], ...], "rests"}
                                              a door: from where the base stands it ("shut") `by` metres ("open"), at
                                              the game's speed in metres a second, toward each end at its moment in
-                                             the round, as the game's move_toward moves it
+                                             the round, as the game's move_toward moves it; `rests` "open" when the
+                                             base stands it open instead (shut is then `by` metres back)
       | "light": {"on": [[from, to], ...]}  a light: at its full intensity between each pair, dark the rest
       | "climb": {"lift", "push", "pull"}   a rocket: standing until `lift`, then rising straight up at its engine's
                                              push less the world's pull (metres a second a second)
+      | "turn": {"speed"}                    a turntable: turning about the prim's own up from where the base turns
+                                             it, at the game's speed in radians a second (positive turns as the
+                                             game's rotation.y grows)
         "adds": {"like": <prim>, "at", "yaw"} | {"light": <a scene record light>}
                                              a thing the base lacks: a copy of another prim stood elsewhere, or a
                                              light written as the scene record writes its lights (tools/usd/scene.py)
@@ -33,7 +37,8 @@ A motion record:
 
 A looping motion's samples are written round after round up to `seconds` (WRITTEN_SECONDS by default); a round must
 end where it starts, so the rounds join. A sample is written only where the motion changes: a slide's ends of travel,
-a light's switching (two samples a hair apart, so it switches rather than fades), a climb every time code. Where the
+a light's switching (two samples a hair apart, so it switches rather than fades), a climb every time code, a turn at
+its start and its end (a steady turn is a straight line in its angle). Where the
 creator's edit layer sets a moving prim's own value, the edit wins and the prim stands still: the edit is stronger.
 """
 import argparse
@@ -144,7 +149,8 @@ def climb_height(climb, seconds):
 # --- where --------------------------------------------------------------------------------------------------------
 
 def rest_translate(stage, path):
-    """Where the base (and any edit) stands a prim, as its translate op's value; zero for a built mesh with none."""
+    """Where the base (and any edit) stands a prim, as its translate op's value; zero for one with none (a built mesh,
+    a kit piece stood by its xformOp:transform)."""
     prim = stage.GetPrimAtPath(path)
     if not prim:
         raise ValueError(f"the stage has no prim {path}")
@@ -156,10 +162,11 @@ def rest_translate(stage, path):
 
 def translate_attribute(stage, path, has_op):
     """The prim's translate attribute in the motion layer; one given its own op where the base has none."""
+    order = list(UsdGeom.Xformable(stage.GetPrimAtPath(path)).GetXformOpOrderAttr().Get() or [])
     prim = stage.OverridePrim(path)
     attribute = prim.CreateAttribute("xformOp:translate", Sdf.ValueTypeNames.Double3)
-    if not has_op:
-        prim.CreateAttribute("xformOpOrder", Sdf.ValueTypeNames.TokenArray).Set(["xformOp:translate"])
+    if not has_op:  # outermost, so a kit piece's own transform (xformOp:transform) is moved, not replaced
+        prim.CreateAttribute("xformOpOrder", Sdf.ValueTypeNames.TokenArray).Set(["xformOp:translate", *order])
     return attribute
 
 
@@ -183,9 +190,10 @@ def write_slide(stage, motion, rate, seconds):
     slide = motion["slide"]
     rest, has_op = rest_translate(stage, motion["prim"])
     by = np.asarray(slide["by"], dtype=np.float64)
+    shut = rest - by if slide.get("rests", SHUT) == OPEN else rest
     attribute = translate_attribute(stage, motion["prim"], has_op)
     for moment, share in rounds(slide_keys(slide), motion, seconds):
-        attribute.Set(Gf.Vec3d(*(rest + by * share)), code(moment, rate))
+        attribute.Set(Gf.Vec3d(*(shut + by * share)), code(moment, rate))
 
 
 def write_light(stage, motion, rate, seconds):
@@ -211,7 +219,24 @@ def write_climb(stage, motion, rate, seconds):
         attribute.Set(Gf.Vec3d(*(rest + np.array([0.0, height, 0.0]))), float(tick))
 
 
-WRITERS = {"slide": write_slide, "light": write_light, "climb": write_climb}
+def rest_turn(stage, path):
+    """How far round the base (and any edit) turns a prim about its up, in degrees: its rotateY op's value."""
+    for operation in UsdGeom.Xformable(stage.GetPrimAtPath(path)).GetOrderedXformOps():
+        if operation.GetOpName() == "xformOp:rotateY":
+            return float(operation.Get())
+    raise ValueError(f"{path} has no xformOp:rotateY to turn")
+
+
+def write_turn(stage, motion, rate, seconds):
+    rest = rest_turn(stage, motion["prim"])
+    speed = np.degrees(float(motion["turn"]["speed"]))
+    start = float(motion.get("start", 0.0))
+    attribute = stage.OverridePrim(motion["prim"]).CreateAttribute("xformOp:rotateY", Sdf.ValueTypeNames.Float)
+    attribute.Set(rest, code(start, rate))
+    attribute.Set(rest + speed * (seconds - start), code(seconds, rate))
+
+
+WRITERS = {"slide": write_slide, "light": write_light, "climb": write_climb, "turn": write_turn}
 
 
 def kind_of(motion):
