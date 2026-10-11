@@ -1,13 +1,15 @@
 """SCORE's one command: the runner drives a world's lines to their end, with no agent in the loop.
 
-    .venv/bin/python -m score run <world> [--place P ...] [--detach]   # every line (or the places named) to its end
-    .venv/bin/python -m score status [<world>] [--place P ...]         # every line's state, running nothing
+    .venv/bin/python -m score run <world> [--place P ...] [--jobs N] [--detach]  # every line, or those named
+    .venv/bin/python -m score status [<world>] [--place P ...]                   # every line's state
 
-`run` starts each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid
-step cleared by the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a
-plain fault report (faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It
-exits 1 when any line stopped. --detach (tools/props/cloud/detached.py) sends its progress to a log and prints one
-result line at the end: start it with the Bash tool's run_in_background and never poll it.
+`run` drives the lines side by side, each node in a process of its own and at most --jobs at once (default
+score.graph.JOBS; --jobs 1 runs one node at a time). It starts each node the moment the nodes it reads stand accepted,
+gathers a gate's missing evidence itself (a paid step cleared by the runner, waited on by the runner), and stops a line
+whose node fails, errors or is blocked, with a plain fault report (faults/<node>.txt beside the store) to point an agent
+or the owner at; the other lines go on. It exits 1 when any line stopped. --detach (tools/props/cloud/detached.py) sends
+its progress to a log and prints one result line at the end: start it with the Bash tool's run_in_background and never
+poll it.
 """
 import argparse
 import pathlib
@@ -16,7 +18,7 @@ import sys
 REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from score import stages  # noqa: E402
+from score import graph, stages  # noqa: E402
 from score.store import Store  # noqa: E402
 
 DETACH = "--detach"
@@ -28,6 +30,7 @@ def parse(argv):
     run = commands.add_parser("run")
     run.add_argument("world", choices=sorted(stages.WORLDS))
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
+    run.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once (default %(default)s)")
     status = commands.add_parser("status")
     status.add_argument("world", nargs="?", default="world1", choices=sorted(stages.WORLDS))
     for command in (run, status):
@@ -49,7 +52,7 @@ def main(argv=None):
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places = options.place or stages.places(runner.world)
     if options.command == "run":
-        runner.drive(places, say=lambda line: print(line, flush=True))
+        runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs)
     lines = runner.lines(places)
     for line, (state, nodes) in lines.items():
         print(f"{line}: {state}")

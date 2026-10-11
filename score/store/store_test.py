@@ -3,6 +3,7 @@ accept.
 
 Run: .venv/bin/python score/store/store_test.py
 """
+import multiprocessing
 import os
 import pathlib
 import subprocess
@@ -11,7 +12,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from score.store import AGENT_MARKERS, RUNNER, Store, file_hash, tree_hash  # noqa: E402
+from score.store import AGENT_MARKERS, RUNNER, Store, file_hash, tree_hash, tree_listing  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
@@ -120,6 +121,56 @@ def test_evidence_is_kept_by_check_and_output_and_missing_is_none():
     assert store.evidence_file("resting", output) is None and store.evidence_hash("resting", output) is None
     store.put_evidence("resting", output, a_folder({"drop.json": "{}"}) / "drop.json")
     assert store.evidence_file("resting", output).read_text() == "{}"
+
+
+def at_once(work, count=8):
+    """Run `work(number)` in `count` forked processes released together; what each sent back, sorted."""
+    fork = multiprocessing.get_context("fork")
+    ready, pipes = fork.Event(), [fork.Pipe(duplex=False) for _ in range(count)]
+
+    def one(number, sending):
+        ready.wait()
+        try:
+            sending.send(work(number))
+        except Exception as error:  # noqa: BLE001 - a process's error is its answer, so the test fails, never hangs
+            sending.send(f"{type(error).__name__}: {error}")
+
+    processes = [fork.Process(target=one, args=(number, sending)) for number, (_, sending) in enumerate(pipes)]
+    for process in processes:
+        process.start()
+    for _, sending in pipes:
+        sending.close()
+    ready.set()
+    found = sorted(receiving.recv() for receiving, _ in pipes)
+    for process in processes:
+        process.join()
+    return found
+
+
+def test_of_processes_writing_one_key_at_once_exactly_one_writes_it():
+    """Fault (the coordinator, 2026-10-11): lines run side by side now; a check-then-write let two processes both
+    write a write-once key, and a reader could read half a file."""
+    store = a_store()
+
+    def write(number):
+        try:
+            store.write_record("clean@hangar", "k1", {"number": number})
+            return "written"
+        except FileExistsError:
+            return "refused"
+
+    assert at_once(write) == ["refused"] * 7 + ["written"]
+    assert store.record("clean@hangar", "k1")["number"] in range(8)
+    assert not list(store.objects.root.rglob("*.partial"))
+
+
+def test_processes_storing_and_checking_out_one_output_at_once_all_find_it_whole():
+    store, folder = a_store(), a_folder({"a.txt": "one", "b/c.txt": "two" * 100000})
+    output = tree_hash(folder)
+    assert at_once(lambda number: store.put_tree(folder)) == [output] * 8
+    listing = store.listing(output)
+    assert at_once(lambda number: str(tree_listing(store.checkout(output)) == listing), 16) == ["True"] * 16
+    assert not list(store.objects.root.rglob("*.partial")) and not list(store.cache.rglob("*.partial"))
 
 
 if __name__ == "__main__":

@@ -17,21 +17,25 @@ stage as each stage is built; nothing moves before.
 - **`store/`** the store over `tools/cloud/runtime/store.py`'s interface (a folder at `$PROPS_HOME/store` by
   default; nothing in the cloud): outputs as content-hashed files and listings, finish records, judgements per
   evidence state, evidence per check and output, accepts (the runner's automatic ones and the owner's), the owner's
-  rejects, waivers and spend yeses, the runner's clearances. Written once, never overwritten; checkouts are read-only
-  copies (never links to the stored bytes), made again when changed; an agent's process cannot write the framework
+  rejects, waivers and spend yeses, the runner's clearances. Written once, never overwritten, and safe for lines side
+  by side (each write lands whole through a `.partial` file of its own process; a write-once key is linked into
+  place, so a second writer is refused); checkouts are read-only copies (never links to the stored bytes), made again
+  when changed; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
-- **`python -m score run <world> [--place P ...] [--detach]`** and **`python -m score status [<world>]`**
+- **`python -m score run <world> [--place P ...] [--jobs N] [--detach]`** and **`python -m score status [<world>]`**
   (`__main__.py`): the runner drives every line (the world's own nodes, then each place's) to its end with no agent
-  in the loop (`Runner.drive`, `Runner.lines`). It starts each node the moment the nodes it reads stand accepted,
+  in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
+  most `--jobs` at once (default 8), so a line waiting on a cloud step holds up no other, and a world node every line
+  reads is made once. It starts each node the moment the nodes it reads stand accepted,
   gathers a gate's missing evidence itself (`Stage.gatherers`; a paid one cleared like a paid stage, and only when
   nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
   own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
   cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`).
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`), `World`,
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
-  (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid stage inside its
-  clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved since. A node's key
-  hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
+  (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
+  stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
+  since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too), parameters, seed, pinned models and every input.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
   `accept_automatically` (the runner's); and the owner's `reject` (the accepted output moves back to the one accepted
@@ -41,8 +45,9 @@ stage as each stage is built; nothing moves before.
   score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
-  ticket for a node whose inputs passed and stand accepted, when the ledger's month ceiling has room for the estimate,
-  kept in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point), `engines`
+  ticket for a node whose inputs passed and stand accepted, when the month's ceiling has room for the estimate over
+  the ledger and every open reservation, cleared under one lock so two lines never both spend the last euros; kept
+  in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point), `engines`
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
