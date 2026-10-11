@@ -74,13 +74,24 @@ ADDRESS_EUROS_AN_HOUR = 0.005
 STOPPING_TRIES = 12
 # How many times, 10 s apart, a failed delete reads the machine again to see whether another run deleted it.
 GONE_TRIES = 3
+# A failed read of the API (scw's verbs below) is asked again this many times in all, waiting 5, 10, 20, 40 s between.
+READS = {"list", "get", "access-by-path"}
+READ_TRIES = 5
+READ_WAIT_SECONDS = 5.0
 
 
 def scw(*arguments):
-    """Run one `scw` command and return its JSON answer, failing loudly."""
-    done = subprocess.run(["scw", *arguments, "-o", "json"], check=True,
-                          capture_output=True, text=True)
-    return json.loads(done.stdout) if done.stdout.strip() else None
+    """Run one `scw` command and return its JSON answer, failing loudly with its error output. A read (list, get,
+    access) that fails is asked again READ_TRIES times, waiting longer each time: with twenty lines renting at once
+    a server list failed once and stopped a paid row (2026-10-11); a write is never repeated, it may have happened."""
+    tries = READ_TRIES if set(arguments) & READS else 1
+    for attempt in range(tries):
+        done = subprocess.run(["scw", *arguments, "-o", "json"], capture_output=True, text=True)
+        if done.returncode == 0:
+            return json.loads(done.stdout) if done.stdout.strip() else None
+        if attempt + 1 < tries:
+            time.sleep(READ_WAIT_SECONDS * 2 ** attempt)
+    raise subprocess.CalledProcessError(done.returncode, ["scw", *arguments], done.stdout, done.stderr)
 
 
 def account():
