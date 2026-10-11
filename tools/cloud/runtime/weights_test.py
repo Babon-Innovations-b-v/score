@@ -19,6 +19,11 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import store as stores  # noqa: E402
 import weights  # noqa: E402
 
+# The tests' own disk: always room to spare, so this machine's /tmp free space (under weights.RESERVE once evicted
+# the models these tests expect to stay) cannot fail them; the eviction test passes its own free space.
+DISK_MAKE_ROOM = weights.make_room
+weights.make_room = lambda cache, needed, free=lambda: 1 << 50: DISK_MAKE_ROOM(cache, needed, free)
+
 
 def a_source(folder, text="weights"):
     """A file to seed from, as a url: entry of its own."""
