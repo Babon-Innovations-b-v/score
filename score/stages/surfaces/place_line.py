@@ -159,6 +159,7 @@ def paint_take(inputs, out, take, record, registry):
     kept, kept_labels, _, kept_parts = patchy.labelled_parts(folder)
     report = {"take": take, "method": record["method"], "kind": entry["kind"], "parts": records, "shares": shares,
               "judge_unknown": record["judge_unknown"], "unnamed_parts": unnamed,
+              "finishes": record.get("finishes", []),
               "unnamed_share": round(sum(row["share"] for row in records if row["part"] in unnamed), 4),
               "painted_parts": int(painted_parts.max()) + 1, "upright_gap": round(gap, 4),
               "patchy": patchy.score(kept, kept_labels, kept_parts, patchy.labelled_regions(folder, kept))}
@@ -192,6 +193,21 @@ def judge_one_surface(output, inputs, evidence):
     failing = [f"{take}: parts {report['unnamed_parts']} unnamed ({report['unnamed_share']:.1%})"
                for take, report in found.items() if report["unnamed_parts"]]
     return gates.verdict("one surface a part", failing, len(found), "models with a part no surface names")
+
+
+def judge_concept_colour(output, inputs, evidence):
+    """Every finish's library surface lies near its colour in the close-up (the method's `finishes`, each with the
+    measured colour and its surface's distance from it): a finish no library surface fits by colour is named, its
+    proposed tinted surface in the registry for the owner."""
+    found = json.loads((output / "painted.json").read_text())["takes"]
+    failing = [f"{take}: {finish['finish']} measured L*a*b* {finish['measured_lab']}, {finish['surface']} dE "
+               f"{finish['delta_e']} (proposed: {finish['new_surface']['name']})"
+               for take, report in found.items() for finish in report.get("finishes", [])
+               if finish.get("by") == "off its colour"]
+    swapped = sum(finish.get("by") == "nearest of its family by colour" for report in found.values()
+                  for finish in report.get("finishes", []))
+    return gates.verdict("colour against the close-up", failing, len(found), "finishes no surface fits by colour",
+                         {"swapped": swapped})
 
 
 # --- bake ----------------------------------------------------------------------------------------------------------

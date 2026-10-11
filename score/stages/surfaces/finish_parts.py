@@ -45,6 +45,10 @@ MIX_SHARE = 0.2  # a part mixes finishes when its second finish holds this share
 PART_LEAST = 0.01  # parts under this share of the model are not judged for mixing
 ISLAND_LEAST = 0.002  # split_compare.CRUMB: an island under this share of the area joins the nearest larger one
 BORDER = (0, 0, 0)
+# A finish's library surface must lie within this (CIE76, the bake check's scale: wear and dirt move a baked surface
+# about this far, a wrong surface much further) of its colour in the close-up; the power unit's grey steel measured
+# against dark_panel and the lab chair's grey vinyl against navy vinyl_seat were the faults (2026-10-12).
+COLOUR_DELTA_E = 20.0
 
 
 def takes_of(inputs):
@@ -283,6 +287,75 @@ def surface_colours(entry, names):
             for name in names}
 
 
+# --- each finish's surface against the close-up's colour -----------------------------------------------------------
+
+def measured_colours(take, front, count):
+    """Each finish's colour in the close-up (CIELAB) over its label's pixels in the close-up's map: the median of the
+    brighter half by L* (the shaded half left out), None for a finish with no pixel."""
+    import numpy as np
+    import labels
+    import split_compare
+    lab = labels.picture_lab(split_compare.picture(take))
+    found = []
+    for label in range(count):
+        pixels = lab[front == label]
+        if not len(pixels):
+            found.append(None)
+            continue
+        bright = pixels[pixels[:, 0] >= np.median(pixels[:, 0])]
+        found.append(np.median(bright, axis=0))
+    return found
+
+
+def library_lab(spec):
+    import labels
+    import numpy as np
+    return labels.lab(labels.srgb(np.array(spec["colour"], dtype=float))[None])[0]
+
+
+def checked_finishes(entry, finishes, measured):
+    """Each finish with its surface checked against the close-up's colour: the listed surface when it lies within
+    COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) the take's
+    library places allow, when within it; else the listed one kept, a new surface tinted to the measured colour
+    proposed, and the finish marked off its colour (the paint's gate fails it)."""
+    import numpy as np
+    import labels
+    every = {}
+    for place in entry["library_places"]:
+        every.update({name: spec for name, spec in labels.allowed_materials(place, None, []).items()
+                      if name not in every})
+    every.update(labels.allowed_materials(entry["library_places"][0], entry["kind"], []))
+    found = []
+    for finish, colour in zip(finishes, measured):
+        record = dict(finish, listed_surface=finish["surface"], measured_lab=None, delta_e=None, by="the list")
+        if colour is None or finish["surface"] not in every:
+            found.append(record)
+            continue
+        listed = every[finish["surface"]]
+        apart = float(np.linalg.norm(library_lab(listed) - colour))
+        record.update(measured_lab=[round(float(value), 1) for value in colour], delta_e=round(apart, 1))
+        if apart > COLOUR_DELTA_E:
+            family = [(float(np.linalg.norm(library_lab(spec) - colour)), name) for name, spec in every.items()
+                      if spec.get("family") == listed.get("family") and "colour" in spec]
+            nearest_apart, nearest = min(family) if family else (float("inf"), None)
+            if nearest_apart <= COLOUR_DELTA_E:
+                record.update(surface=nearest, delta_e=round(nearest_apart, 1), by="nearest of its family by colour")
+            else:
+                record.update(by="off its colour", fits=False, new_surface={
+                    "name": f"{finish['finish']} ({take_words(entry)})",
+                    "description": f"{finish['finish']}, measured in the close-up at L*a*b* "
+                                   f"{[round(float(value), 1) for value in colour]}",
+                    "why": f"no {listed.get('family')} surface lies within dE {COLOUR_DELTA_E:.0f} of the close-up's "
+                           f"colour (nearest {nearest}, dE {nearest_apart:.1f})",
+                    "lab": [round(float(value), 1) for value in colour]})
+        found.append(record)
+    return found
+
+
+def take_words(entry):
+    return entry["object"][:40]
+
+
 # --- parts: the method's interface ---------------------------------------------------------------------------------
 
 def part_rows(mesh, part_of, face_label, finishes):
@@ -304,7 +377,9 @@ def parts_take(inputs, take, entry, out):
     import numpy as np
     import split_compare
     import turntable_views as views
-    finishes = json.loads((inputs["maps"] / take / "map.json").read_text())["finishes"]
+    listed = json.loads((inputs["maps"] / take / "map.json").read_text())["finishes"]
+    front = np.load(inputs["maps"] / take / "front.npy").astype(int)
+    finishes = checked_finishes(entry, listed, measured_colours(take, front, len(listed)))
     mesh = split_compare.raw_model(take)
     part_of, face_label, per_map = laid(mesh, take, inputs, len(finishes))
     rows = part_rows(mesh, part_of, face_label, finishes)
@@ -321,7 +396,7 @@ def parts_take(inputs, take, entry, out):
     measures = {"agreement": agreement(mesh, face_label, per_map),
                 "mixing_parts": mixing_parts(mesh, part_of, face_label, per_map, len(finishes)),
                 "parts": len(rows), "maps": sorted(per_map)}
-    return {"method": "finish-map", "parts": rows, "judge_unknown": [], "measures": measures}
+    return {"method": "finish-map", "parts": rows, "judge_unknown": [], "measures": measures, "finishes": finishes}
 
 
 def make_parts(inputs, out, seed, params):
@@ -357,7 +432,9 @@ def judge_parts(output, inputs, evidence):
     front = [record["measures"]["agreement"].get("front", 0.0) for record in found.values()]
     return gates.verdict("parts", failing, len(takes), "models", {
         "front agreement least": min(front, default=0.0),
-        "parts": sum(record["measures"]["parts"] for record in found.values())})
+        "parts": sum(record["measures"]["parts"] for record in found.values()),
+        "off colour": sum(finish["by"] == "off its colour" for record in found.values()
+                          for finish in record.get("finishes", []))})
 
 
 STEPS = {"inputs": inputs_step, "parts": parts_step}
