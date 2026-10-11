@@ -63,19 +63,28 @@ the current backend). No model runs on the coordinating machine.
   engine's own import of the package (the game 2099's Godot scenes for a kit) is that engine's adapter, kept in the
   engine's repository.
 - `vendor/`: third-party tools as released, each pinned with its licence (ADR-0002).
-- `score/`: the layered framework's core, built from step 0 of PRD #6 (2026-10-11) in Infinigen's run_stage shape;
-  `tools/` moves in stage by stage as each stage is built. A stage table in code (`score/stages`); one runner
+- `score/`: the layered framework's core, its skeleton built in step 0 of PRD #6 (2026-10-11) in Infinigen's run_stage
+  shape; `tools/` moves in stage by stage as each stage is built. A stage table in code (`score/stages`); one runner
   (`score/graph`) that keys every node (a stage for one place, or for the world) on its computed code version,
-  parameters, a seed derived from the world's (`data/definitions/world.json`), pinned models and every input, and
-  makes a node only when its key has no finish record; one store (`score/store`, over `tools/cloud/runtime/store.py`,
-  a folder at `$PROPS_HOME/store`) keeping outputs by content hash, never overwritten; gates (`score/checks`) that
-  answer pass, fail or unknown, unknown on missing evidence, and block on both; a review page per output and the
-  owner's accept (`score/review`), which moves the accepted output only when no score got worse, and which agents
-  cannot give (`.claude/hooks/accept_guard.py`); adapters for models, compute and engines (`score/adapters`) that
-  refuse a paid run without the runner's key and the owner's yes. A node runs only on outputs that passed and he
+  contract, parameters, a seed derived from the world's (`data/definitions/world.json`), pinned models and every
+  input, and makes a node only when its key has no finish record; contracts (`score/contracts`): every output
+  stamped with its schema and version in the house units (metres, seconds, degrees, Y up), nothing off its contract
+  stored, and a reader blocked on an input of another schema or version; one store (`score/store`, over
+  `tools/cloud/runtime/store.py`, a folder at `$PROPS_HOME/store`) keeping outputs by content hash, never
+  overwritten; gates (`score/checks`) that answer pass, fail or unknown, unknown on missing evidence, and block on
+  both; a review page per output and the owner's accept, waiver (one check, one key, with his reason) and spend yes
+  (`score/review`). The accept moves the accepted output only when no score got worse. Agents are kept from giving
+  any of the three by a barrier, not a lock: the commands want his terminal, the store refuses those writes in any
+  process Claude Code started, and `.claude/hooks/accept_guard.py` blocks the other routes; an agent set on getting
+  round them can (by editing the framework's code, say), and every accept names who gave it and when. Adapters for
+  models, compute and engines (`score/adapters`) refuse a paid run without the runner's key and the owner's yes at
+  no less than the run's estimate. A node runs only on outputs that passed (or whose failed checks he waived) and he
   accepted. Step 0's worked example: `python -m score.stages run hangar hdoor` brings the round-three stages in as
   unverified seeds; the hangar fails on its code-built ship and the door answers unknown with no drop run, so
-  neither completes. The overlay `score/CLAUDE.md` has the rules.
+  neither completes. Step 0 still lacks: the block on the old paid entry points (blender_cloud.py, the runners,
+  detached.py for paid work), the layout stage's scene-record gates (every drawn mesh a plan shell piece or an
+  inventory row, shell pieces bounded by the plan, a plain tag measured plain), `place.json`'s code rule reworded
+  (the owner's call) and the in-progress directions marked experimental. The overlay `score/CLAUDE.md` has the rules.
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
@@ -133,8 +142,8 @@ Nothing is released yet but the paper. Commands, run locally (there is no CI and
   the files on disk no longer match the stamp, so a draft changed without a rebuild, or a
   generated file edited by hand, is red. Then the ADR index check.
 - `make env` builds the framework's Python environment (`.venv`, `uv sync`); `make tests` runs every framework
-  check (`tools/**/*_test.py` and `score/**/*_test.py`, plain scripts, each under a 16 GB memory cap), or only the ones named with
-  `TESTS="..."`. `make check` runs them when code changed. While working, run only the checks your change touches.
+  check (`tools/**/*_test.py` and `score/**/*_test.py`, plain scripts, each under a 16 GB memory cap), or only the
+  ones named with `TESTS="..."`. `make check` runs them when code changed. While working, run only the checks your change touches.
   Render checks run Blender headless on a cloud machine, never here; nothing here runs Godot.
 - `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
   any commit that touches `paper/`. A green run means the committed PDF is the draft's.
@@ -194,7 +203,8 @@ unpredictable.
   it is touched. A new code directory gets one without asking; it is the mechanism, not a document.
 - **Hooks** (`.claude/settings.json`) hold automation that must fire on a harness event, not on the
   model remembering. Today: the grill protocol on `SessionStart`, the soul rules on every prompt,
-  `md_guard`, `issue_guard` and `accept_guard` (only the owner accepts, waives or says yes to a spend) on `PreToolUse`, and the memory commit-and-push on `Stop`.
+  `md_guard`, `issue_guard` and `accept_guard` (only the owner accepts, waives or says yes to a spend) on
+  `PreToolUse`, and the memory commit-and-push on `Stop`.
 - **GitHub issues** hold the durable backlog. Anything that must survive the chat lives there.
 
 **Sub-agents.** Independent steps go to sub-agents, and a sub-agent may split its own work over
