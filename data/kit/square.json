@@ -10,11 +10,9 @@
 		"square_far_promenade_rail": 54,
 		"square_far_palm": 20,
 		"square_far_stage": 1,
-		"square_far_backdrop": 1,
 		"square_far_podium": 1,
 		"square_far_lectern": 1,
 		"square_far_banner": 2,
-		"square_far_floodlight_tower": 4,
 		"square_far_square_lamp": 10,
 		"square_far_flag_pole": 64,
 		"square_far_cable": 155,
@@ -48,7 +46,9 @@
 		"square_bay_balcony_slab": 6,
 		"square_bay_balcony_rail": 18,
 		"square_crowd_banner": 6,
-		"square_guard_hut": 1
+		"square_guard_hut": 1,
+		"square_far_backdrop": 1,
+		"square_far_floodlight_tower": 4
 	},
 	"kinds": {
 		"square_far_paving": {
@@ -573,6 +573,20 @@
 		"guard_hut_1": {
 			"glows": false,
 			"route": "model"
+		},
+		"far_backdrop_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"far_backdrop_2_glow": {
+			"glows": true
+		},
+		"far_floodlight_tower_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"far_floodlight_tower_2_glow": {
+			"glows": true
 		}
 	},
 	"pieces": [
@@ -9727,37 +9741,6 @@
 			"model": "far_stage_1"
 		},
 		{
-			"kind": "square_far_backdrop",
-			"at": [
-				-53.855,
-				0.0,
-				-3.5
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				19.9,
-				14.6,
-				0.69
-			],
-			"layer": 1,
-			"label": "banner_first",
-			"model": "far_backdrop_1"
-		},
-		{
 			"kind": "square_far_podium",
 			"at": [
 				-45.4407,
@@ -9878,250 +9861,6 @@
 			"layer": 1,
 			"label": "banner_third",
 			"model": "far_banner_2"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-54.0,
-				-0.018,
-				-42.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.4,
-				19.818,
-				1.6
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-53.335,
-				17.42,
-				-42.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.0267,
-				1.86,
-				0.03
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1_glow",
-			"part": "glow"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-54.0,
-				-0.018,
-				38.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.4,
-				19.818,
-				1.6
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-53.335,
-				17.42,
-				38.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.0267,
-				1.86,
-				0.03
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1_glow",
-			"part": "glow"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-68.0,
-				-0.018,
-				-30.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.4,
-				19.818,
-				1.6
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-67.335,
-				17.42,
-				-30.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.0267,
-				1.86,
-				0.03
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1_glow",
-			"part": "glow"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-68.0,
-				-0.018,
-				24.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.4,
-				19.818,
-				1.6
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1"
-		},
-		{
-			"kind": "square_far_floodlight_tower",
-			"at": [
-				-67.335,
-				17.42,
-				24.0
-			],
-			"x": [
-				0.0,
-				0.0,
-				1.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-1.0,
-				-0.0,
-				-0.0
-			],
-			"size": [
-				3.0267,
-				1.86,
-				0.03
-			],
-			"layer": 1,
-			"model": "far_floodlight_tower_1_glow",
-			"part": "glow"
 		},
 		{
 			"kind": "square_far_square_lamp",
@@ -131525,6 +131264,321 @@
 			],
 			"layer": 1,
 			"model": "guard_hut_1"
+		},
+		{
+			"kind": "square_far_backdrop",
+			"at": [
+				-55.0,
+				0.0,
+				0.25
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				27.01,
+				14.4,
+				2.8369
+			],
+			"layer": 1,
+			"label": "banner_first",
+			"shows": {
+				"deck": 3.3,
+				"wing": 7.5
+			},
+			"model": "far_backdrop_2"
+		},
+		{
+			"kind": "square_far_backdrop",
+			"at": [
+				-53.9734,
+				11.095,
+				-3.505
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				13.3981,
+				0.26,
+				0.03
+			],
+			"layer": 1,
+			"label": "banner_first",
+			"shows": {
+				"deck": 3.3,
+				"wing": 7.5
+			},
+			"model": "far_backdrop_2_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-54.0,
+				0.0,
+				-42.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.4,
+				19.818,
+				1.6
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-53.335,
+				17.328,
+				-42.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.13,
+				2.18,
+				0.03
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-54.0,
+				0.0,
+				38.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.4,
+				19.818,
+				1.6
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-53.335,
+				17.328,
+				38.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.13,
+				2.18,
+				0.03
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-68.0,
+				0.0,
+				-30.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.4,
+				19.818,
+				1.6
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-67.335,
+				17.328,
+				-30.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.13,
+				2.18,
+				0.03
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-68.0,
+				0.0,
+				24.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.4,
+				19.818,
+				1.6
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2"
+		},
+		{
+			"kind": "square_far_floodlight_tower",
+			"at": [
+				-67.335,
+				17.328,
+				24.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				3.13,
+				2.18,
+				0.03
+			],
+			"layer": 1,
+			"model": "far_floodlight_tower_2_glow",
+			"part": "glow"
 		}
 	]
 }
