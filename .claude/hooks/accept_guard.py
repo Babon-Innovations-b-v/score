@@ -3,17 +3,28 @@
 
 Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 
-1. Running the owner's commands: ``score.review accept`` or ``score.review spend`` (``python -m score.review ...``
-   or ``score/review/__main__.py``), or Python that calls ``review.accept(``, ``review.spend(``,
-   ``write_accept(`` or ``write_spend_yes(``.
-2. Writing the store's accepts, waivers or spend yeses (``accepts/``, ``waivers/``, ``spend-yes/``): by Write, Edit
-   or NotebookEdit on such a path, or a shell command that names one and writes (a redirect, ``tee``, ``cp``,
-   ``mv``, ``ln``, ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``sed -i``, ``chmod`` or Python).
-3. Writing accepts, waivers or spend yeses into an artifact's database (``Artifact`` with ``write_db``).
+1. Running the owner's commands: Python that names ``score.review`` (or ``score/review``, or its ``__main__.py``)
+   together with the words accept, spend or waive, quoted or not.
+2. Calling them from Python, or writing a script that does: a shell command that runs Python or writes a file and
+   holds a call to ``accept(``, ``spend(``, ``waive(``, ``write_once(``, ``write_accept(``, ``write_spend_yes(`` or
+   ``write_waiver(``; a Write or Edit outside the framework package (``score/``) with such a call.
+3. Taking Claude Code's mark off a process (``unset CLAUDECODE``, ``env -u``, ``env -i``, ``CLAUDECODE=``), or
+   faking a terminal (``script -c``, ``unbuffer``) for a ``score`` command: the store refuses an agent's process the
+   owner's areas by that mark (score/store ``running_under_agent``), and the review commands want a terminal.
+4. Writing the store's accepts, waivers or spend yeses (``accepts/``, ``waivers/``, ``spend-yes/``): by Write, Edit
+   or NotebookEdit on such a path, or a shell command one of whose parts redirects into such a path or runs a
+   writing command (``tee``, ``cp``, ``mv``, ``ln``, ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``,
+   ``sed -i``, ``find -delete``, Python) that names one.
+5. Writing an artifact database collection or document named accepts, waivers or spend-yes (``Artifact`` with
+   ``write_db``, a batch's writes included).
+
+Reading stays allowed: ``grep``, ``ls`` and ``cat`` of those folders, a redirect to an unrelated file, a review page,
+the tests.
 
 Why (the layered framework's design, 2026-10-11): agent verdicts stood in for the owner's (a place declared complete
-that he had not seen), and the newest take replaced the accepted one by itself. The accept is his alone; on one
-machine under YOLO this guard is a barrier, not a lock, and every accept in the store names who gave it and when.
+that he had not seen), and the newest take replaced the accepted one by itself. The accept is his alone. On one
+machine under YOLO this guard and the store's refusal are a barrier, not a lock: an agent set on getting round them
+can (by editing the framework's own code, say), and every accept in the store names who gave it and when.
 
 FAILURE POLICY: fail-open. Any parse error, unknown shape or unrelated call exits 0 (allow). Exit 2 + stderr is the
 only block path (the harness feeds stderr back to the model as the block reason).
@@ -23,12 +34,23 @@ import json
 import re
 import sys
 
-_OWNER_COMMAND = re.compile(r"(score[./]review(?:/__main__\.py)?)\s+(accept|spend)\b")
-_PYTHON = re.compile(r"\b(python3?|uv\s+run)\b|/python\b")
-_OWNER_CALL = re.compile(r"\b(review\.(accept|spend)|write_accept|write_spend_yes)\s*\(")
-_OWNER_AREA = re.compile(r"(^|[/\s'\"=])(accepts|waivers|spend-yes)/")
-_WRITES = re.compile(r">|\b(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod)\b|\bsed\s+-i|\bpython3?\b|/python\b")
-_OWNER_WORDS = re.compile(r"accept|waive|spend", re.IGNORECASE)
+_PYTHON = re.compile(r"\b(python3?(\.\d+)?|uv\s+run)\b|/python\b")
+_REVIEW = re.compile(r"score[./]review|__main__\.py")
+_OWNER_WORD = re.compile(r"\b(accept|spend|waive)\b")
+_OWNER_CALL = re.compile(r"\b(accept|spend|waive|write_once|write_accept|write_spend_yes|write_waiver)\s*\(")
+_FILE_WRITE = re.compile(r"(^|[^<>&0-9])>>?|\btee\b")
+_AGENT_MARK = re.compile(r"\b(CLAUDECODE|CLAUDE_CODE_ENTRYPOINT|AI_AGENT)\b")
+_UNMARK = re.compile(r"\bunset\b|\benv\s+(-\S+\s+)*(-u|--unset|-i|--ignore-environment)\b|\b(CLAUDECODE|"
+                     r"CLAUDE_CODE_ENTRYPOINT|AI_AGENT)=|environ|\bpop\b|\bdel\b")
+_CLEARED_ENV = re.compile(r"\benv\s+(-\S+\s+)*(-i|--ignore-environment|-)\s")
+_FAKE_TERMINAL = re.compile(r"(^|[\s;&|(])(script\s+-\S*c|unbuffer\s)")
+_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|waivers|spend-yes)/")
+_OWNER_NAME = re.compile(r"(^|/)(accepts|waivers|spend-yes)(/|$)")
+_SEGMENTS = re.compile(r"\|\||&&|[;|\n]")
+_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|waivers|spend-yes)/")
+_WRITER = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
+                     r"truncate|python3?(\.\d+)?|uv)\b|\bsed\s+(-\S+\s+)*-i|\bfind\b.*\s-(delete|exec)\b")
+_FRAMEWORK = re.compile(r"(^|/)score/(checks|contracts|store|graph|review|adapters|stages)/|(^|/)\.claude/hooks/")
 
 _MESSAGE = (
     "Blocked: only the owner accepts a stage's output, waives a gate or says yes to a spend.\n"
@@ -38,28 +60,62 @@ _MESSAGE = (
 )
 
 
-def _bash_offence(command):
-    """Why a shell command is the owner's alone, or None."""
-    if _OWNER_COMMAND.search(command):
-        return "runs the owner's accept or spend command"
-    if _PYTHON.search(command) and _OWNER_CALL.search(command):
-        return "calls the owner's accept or spend from Python"
-    if _OWNER_AREA.search(command) and _WRITES.search(command):
-        return "writes the store's accepts, waivers or spend yeses"
+def _owner_command(command):
+    """Why a shell command runs or calls the owner's accept, spend or waive, or None."""
+    if _PYTHON.search(command) and _REVIEW.search(command) and _OWNER_WORD.search(command):
+        return "runs the owner's accept, spend or waive command"
+    if _OWNER_CALL.search(command) and (_PYTHON.search(command) or _FILE_WRITE.search(command)):
+        return "calls the owner's accept, spend or waive from Python, or writes a script that does"
     return None
 
 
-def _file_offence(path):
-    if _OWNER_AREA.search(path):
+def _unmarking(command):
+    """Why a shell command takes Claude Code's mark off a process or fakes a terminal, or None."""
+    if (_AGENT_MARK.search(command) and _UNMARK.search(command)) or _CLEARED_ENV.search(command):
+        return "takes Claude Code's mark off a process"
+    if _FAKE_TERMINAL.search(command) and "score" in command:
+        return "fakes a terminal for a score command"
+    return None
+
+
+def _owner_area_write(command):
+    """Why a shell command writes the store's accepts, waivers or spend yeses, or None."""
+    for segment in _SEGMENTS.split(command):
+        if _REDIRECT_INTO_OWNER.search(segment):
+            return "redirects into the store's accepts, waivers or spend yeses"
+        if _OWNER_PATH.search(segment) and _WRITER.search(segment):
+            return "writes the store's accepts, waivers or spend yeses"
+    return None
+
+
+def _bash_offence(command):
+    """Why a shell command is the owner's alone, or None."""
+    return _owner_command(command) or _unmarking(command) or _owner_area_write(command)
+
+
+def _file_offence(path, content):
+    """Why a file write is the owner's alone, or None."""
+    if _OWNER_PATH.search(path):
         return f"writes {path}"
+    if _FRAMEWORK.search(path):
+        return None
+    if _OWNER_CALL.search(content):
+        return f"writes a call to the owner's accept, spend or waive into {path}"
+    if _AGENT_MARK.search(content):
+        return f"writes code that touches Claude Code's mark into {path}"
     return None
 
 
 def _artifact_offence(tool_input):
+    """Why an artifact database write is the owner's alone, or None."""
     if tool_input.get("action") != "write_db":
         return None
-    named = json.dumps([tool_input.get(name) for name in ("collection", "doc_id", "data", "writes")])
-    return "writes accepts, waivers or spend yeses into an artifact's database" if _OWNER_WORDS.search(named) else None
+    writes = [tool_input, *(tool_input.get("writes") or [])]
+    names = [str(write.get(part) or "") for write in writes if isinstance(write, dict)
+             for part in ("collection", "doc_id")]
+    if any(_OWNER_NAME.search(name) for name in names):
+        return "writes accepts, waivers or spend yeses into an artifact's database"
+    return None
 
 
 def _offence(payload):
@@ -68,7 +124,9 @@ def _offence(payload):
     if tool == "Bash":
         return _bash_offence(str(tool_input.get("command", "")))
     if tool in ("Write", "Edit", "NotebookEdit"):
-        return _file_offence(str(tool_input.get("file_path") or tool_input.get("notebook_path") or ""))
+        path = str(tool_input.get("file_path") or tool_input.get("notebook_path") or "")
+        content = str(tool_input.get("content") or tool_input.get("new_string") or tool_input.get("new_source") or "")
+        return _file_offence(path, content)
     if tool == "Artifact":
         return _artifact_offence(tool_input)
     return None
