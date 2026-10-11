@@ -17,9 +17,14 @@ from score.stages.terrain import landforms, outside, plan, record
 # large shape: the relief may roughen a crater, never resize it.
 CRATER_DEPTH_SHARE = 0.25
 CRATER_DIAMETER_SHARE = 0.1
+# How far the relief may move a crest or a floor, in multiples of its RMS amplitude (twice each way).
+RELIEF_SWING = 4.0
 # The relief's RMS (off the levelled yards, flats and paths) within these multiples of the plan's amplitude.
 RELIEF_LOW = 0.5
 RELIEF_HIGH = 1.5
+# The chosen picture's registered depth must follow the plan's large shape at least this well (its correlation), or
+# the relief it gives does not lie on the plan.
+FOLLOWS = 0.5
 HILLS_SHARE = 0.15
 LEVEL_HELD = 0.03
 # A held flat no steeper over a metre than the resting check's drop rule takes as stable (8 degrees; SAGE's,
@@ -75,15 +80,25 @@ def scale(made, plan_record, shaped=None):
     planned_grid = plan.Shaped(grid, large, None, None)
     made_grid = plan.Shaped(grid, heights, None, None)
     faults, craters = [], {}
+    amplitude = plan_record["relief"]["amplitude"]
     for crater in plan_record.get("craters", []):
         measured, planned = plan.named_size(made_grid, crater), plan.named_size(planned_grid, crater)
-        craters[crater["name"]] = {"measured": measured, "plan": planned}
-        if abs(measured["depth"] - planned["depth"]) > CRATER_DEPTH_SHARE * planned["depth"] or \
-                abs(measured["diameter"] - planned["diameter"]) > CRATER_DIAMETER_SHARE * planned["diameter"]:
+        # The relief moves a crest and a floor by up to about twice its RMS each: a depth is held to a share of
+        # itself or to that swing, whichever is more, and a rim lower than the swing cannot be found to measure.
+        swing = RELIEF_SWING * amplitude
+        located = crater["rim"] * crater["d"] >= swing
+        craters[crater["name"]] = {"measured": measured, "plan": planned, "rim_located": located}
+        deeper = abs(measured["depth"] - planned["depth"]) > max(CRATER_DEPTH_SHARE * planned["depth"], swing)
+        wider = located and abs(measured["diameter"] - planned["diameter"]) > \
+            CRATER_DIAMETER_SHARE * planned["diameter"]
+        if deeper or wider:
             faults.append(f"crater {crater['name']} measures {measured['depth']} m deep and {measured['diameter']} m "
                           f"across, its plan {planned['depth']} and {planned['diameter']}")
+    follows = (made.get("picture") or {}).get("correlation")
+    if follows is None or abs(follows) < FOLLOWS:
+        faults.append(f"the diorama picture's depth follows the plan's shape at a correlation of {follows} "
+                      f"(at least {FOLLOWS}): its relief cannot be laid on the plan")
     mask = relief_mask(grid, plan_record, shaped)
-    amplitude = plan_record["relief"]["amplitude"]
     rms = float((heights - large)[mask].std()) if mask.any() else 0.0
     relief_found = {"rms_m": round(rms, 3), "planned_m": amplitude}
     if not RELIEF_LOW * amplitude <= rms <= RELIEF_HIGH * amplitude:
@@ -111,7 +126,7 @@ def scale(made, plan_record, shaped=None):
     clipped = int(np.sum((heights <= -made["low"] + 1e-6) | (heights >= made["span"] - made["low"] - 1e-6)))
     if clipped:
         faults.append(f"{clipped} points clipped by the record's range")
-    return {"craters": craters, "relief": relief_found, "hills": hills, "levels": levels, "clipped": clipped,
+    return {"craters": craters, "relief": {**relief_found, "follows": follows}, "hills": hills, "levels": levels, "clipped": clipped,
             "cell": round(made["side"] / (heights.shape[0] - 1), 3), "faults": faults}
 
 

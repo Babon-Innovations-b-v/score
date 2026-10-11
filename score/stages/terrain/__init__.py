@@ -3,10 +3,10 @@ world node for all of them (Earth's harbour, the Moon round the base, Mars round
 
     make     for each plan in data/ground/plan/: the plan's large shape in code (plan.py, landforms.py: flats, paths,
              craters of every kind, ridges, buttes, dunes, canyons, hills, a coastline); a diorama picture drawn
-             straight down over the plan's drawing by Qwen-Image-Edit-2511 (tools/props/cloud/pictures.py, PAID: its
+             straight down over the plan's shading by Qwen-Image-Edit-2511 (tools/props/cloud/pictures.py, PAID: its
              `candidates`, an 80 GB card each); each picture's depth by Depth Anything V2 Small
-             (tools/props/cloud/depth.py, PAID, any card); the candidate whose depth follows the plan best gives the
-             fine relief (relief.py); the plan's levelled yards and dents; every zone one library surface
+             (tools/props/cloud/depth.py, PAID, any card); each registered on the plan and the one whose depth
+             follows the plan best gives the fine relief (relief.py); the plan's levelled yards and dents; every zone one library surface
              (record.py); the rocks by the plan's rule (rocks.py); the ground record, and for every place on it the
              layer that draws the ground and its missing neighbours in the place's frame (outside.py)
     gates    scale      named landforms at their planned size, levels held, nothing clipped
@@ -15,7 +15,8 @@ world node for all of them (Earth's harbour, the Moon round the base, Mars round
              openings   no doorway onto nothing and no view running out below the horizon, doors open
 
 The output (contract `grounds` v1) holds a folder per ground: ground.json (the record tools/usd/ground.py reads),
-heights.png, zones.png, skin.png, rocks.json, plan.png, the candidates' pictures and the chosen depth, measures.json,
+heights.png, zones.png, skin.png, rocks.json, plan.png (for reading) and shading.png (the pictures' input), the
+candidates' pictures and the chosen depth on the plan, measures.json,
 and places/<place>.usdc, the layer a place's stage takes over its old ground.
 """
 import hashlib
@@ -55,9 +56,9 @@ def picture_jobs(shaped_plans, out, seed):
     is drawn again: [{name, wording, seed, refs, width, height, ground, candidate}]."""
     jobs = []
     for ground, (record_plan, _) in shaped_plans.items():
-        drawing = out / "picture-refs" / f"{ground}-plan.png"  # its own name: every job's refs share one folder
+        drawing = out / "picture-refs" / f"{ground}-shading.png"  # its own name: every job's refs share one folder
         drawing.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(out / ground / "plan.png", drawing)
+        shutil.copy2(out / ground / "shading.png", drawing)
         for candidate in range(record_plan["picture"]["candidates"]):
             picked_seed = (seed + 7919 * candidate) % 2 ** 31
             named = hashlib.sha256(drawing.read_bytes() + record_plan["picture"]["wording"].encode()
@@ -113,13 +114,14 @@ def chosen_relief(ground, record_plan, shaped, pictures_of, read, out):
     if not candidates:
         raise RuntimeError(f"{ground}: no diorama picture came back with its depth; nothing to read its relief from")
     settings = record_plan["relief"]
-    best, correlations = relief.chosen([read[path] for path in candidates], shaped.heights, shaped.grid.side,
-                                       settings["fine"])
-    sign = 1.0 if correlations[best] >= 0 else -1.0
-    np.save(out / ground / "diorama" / "chosen-depth.npy", read[candidates[best]].astype(np.float16))
-    choice = {"picture": f"diorama/{candidates[best].name}", "correlations": {
-        path.name: round(value, 4) for path, value in zip(candidates, correlations)}, "sign": sign}
-    return relief.relief(shaped, record_plan, read[candidates[best]], sign), choice
+    best, placed = relief.chosen([read[path] for path in candidates], shaped.heights, shaped.grid.side,
+                                 settings["fine"])
+    sign = 1.0 if placed[best]["correlation"] >= 0 else -1.0
+    depth = relief.on_plan(read[candidates[best]], placed[best])
+    np.save(out / ground / "diorama" / "chosen-depth.npy", depth.astype(np.float16))
+    choice = {"picture": f"diorama/{candidates[best].name}", "correlation": placed[best]["correlation"],
+              "registrations": {path.name: found for path, found in zip(candidates, placed)}, "sign": sign}
+    return relief.relief(shaped, record_plan, depth, sign), choice
 
 
 def place_layers(folder, made, record_plan, inputs):
@@ -141,7 +143,8 @@ def place_layers(folder, made, record_plan, inputs):
         seed_stage = gates.seed_stage(inputs["seeds"], place)
         missing = [entry for entry in scene.get("places", [])
                    if not seed_stage.GetPrimAtPath(f"/{place}/Places/{entry['name']}").IsValid()]
-        written[place] = outside.write(stage, place, made, zoned, laid, missing, lambda name: f"../../{name}/{name}.usda")
+        written[place] = outside.write(stage, place, made, zoned, laid, missing,
+                                       lambda name: f"../../{name}/{name}.usda")
         layer.Save()
     return written
 
@@ -168,6 +171,7 @@ def make(inputs, out, seed, params):
         shaped = plan.shape(record_plan)
         (out / path.stem).mkdir(parents=True, exist_ok=True)
         plan.drawing(shaped, record_plan, PICTURE_SIDE).save(out / path.stem / "plan.png")
+        plan.shading(shaped, PICTURE_SIDE).save(out / path.stem / "shading.png")
         shaped_plans[path.stem] = (record_plan, shaped)
     found = drawn(picture_jobs(shaped_plans, out, seed), out)
     read = depths(found, out)

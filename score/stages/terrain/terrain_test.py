@@ -15,7 +15,7 @@ from scipy import ndimage
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from score.stages.terrain import gates, plan, record, rocks, sight  # noqa: E402
+from score.stages.terrain import gates, plan, record, relief, rocks, sight  # noqa: E402
 
 GROUNDS = REPO / "data/ground"
 
@@ -70,6 +70,17 @@ def test_a_door_onto_nothing_is_found_and_ground_outside_clears_it():
         assert (viewed["void"] > 0) is any_void, (ground, viewed["void"])
     shut = sight.voids(room(False, False), np.array([[0.0, 1.6, 0.0]]), up)
     assert shut["void"] == 0, shut["void"]
+
+
+def test_a_picture_drawn_smaller_than_its_frame_is_found_on_the_plan():
+    made_plan = json.loads((GROUNDS / "plan" / "moon.json").read_text())
+    large = plan.shape(made_plan).heights
+    picture = np.full((1024, 1024), float(large.min()))
+    inner = ndimage.zoom(large, 870 / large.shape[0], order=1)
+    picture[77:77 + 870, 77:77 + 870] = inner  # drawn 0.85 of the frame across, a margin round it
+    placed = relief.registration(picture, large, made_plan["side"], made_plan["relief"]["fine"])
+    assert abs(placed["scale"] - 0.85) <= 0.021 and placed["correlation"] > 0.9, placed
+    assert abs(placed["shift_x"]) < 0.021 and abs(placed["shift_z"]) < 0.021, placed
 
 
 def test_a_small_worlds_horizon_dips():
