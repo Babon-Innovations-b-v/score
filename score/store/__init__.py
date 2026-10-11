@@ -30,13 +30,20 @@ AGENT_MARKERS), and a hook keeps agents from the other routes and from writing c
 round it can, and every accept names who gave it and when. Nothing else moves the accepted output: a new output lands
 beside it. The local cache (checkouts, copies of the stored bytes, and the folder a stage writes into before its
 output is stored) sits beside the objects.
+
+Lines run side by side (score.graph's drive), so every write lands whole: it is written to a .partial file only its
+own process writes, then moved into place; a write-once key is linked into place, so of two processes writing one key
+the second is refused (FileExistsError), and a checkout two processes make at once is made by the first.
 """
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
 import pathlib
 import shutil
 import sys
+import threading
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "tools/cloud/runtime"))
 import store as runtime_store  # noqa: E402
@@ -92,6 +99,29 @@ def running_under_agent():
     return any(name in os.environ for name in AGENT_MARKERS)
 
 
+def partial_of(path):
+    """A sibling of `path` that only this process and thread writes, ending in .partial (store listings skip those):
+    lines run side by side, and each writes whole there before it moves into place."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path.with_name(f"{path.name}.{os.getpid()}-{threading.get_ident()}.partial")
+
+
+@contextlib.contextmanager
+def locked(path):
+    """An exclusive lock on `path` across every process, held while the block runs."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def whole_file(path, data):
+    """`data` written whole beside `path`, ready to move or link into place; the partial file's path."""
+    partial = partial_of(path)
+    partial.write_bytes(data)
+    return partial
+
+
 def stamp_key(stamp):
     """A UTC time as a key part that sorts in time order."""
     return stamp.replace(":", "").replace("-", "")
@@ -121,9 +151,13 @@ class Store:
         key = f"blobs/{sha}"
         if self.objects.exists(key):
             return
-        self.objects.upload(path, key)
-        if isinstance(self.objects, runtime_store.FolderStore):
-            self.objects.path(key).chmod(0o444)
+        if not isinstance(self.objects, runtime_store.FolderStore):
+            self.objects.upload(path, key)
+            return
+        partial = partial_of(self.objects.path(key))
+        shutil.copyfile(path, partial)
+        partial.chmod(0o444)
+        partial.replace(self.objects.path(key))  # whole, and the same bytes whichever process lands last
 
     def put_tree(self, folder):
         """Store a file or folder as an output; its hash. Storing the same content again stores nothing new."""
@@ -132,7 +166,11 @@ class Store:
             self.put_blob(path, listing[name])
         output = listing_hash(listing)
         key = f"outputs/{output}.json"
-        if not self.objects.exists(key):
+        if self.objects.exists(key):
+            return output
+        if isinstance(self.objects, runtime_store.FolderStore):
+            whole_file(self.objects.path(key), json.dumps(listing, indent=1).encode()).replace(self.objects.path(key))
+        else:
             runtime_store.write_json(self.objects, key, listing)
         return output
 
@@ -159,16 +197,15 @@ class Store:
         """A read-only folder holding a stored output, made once per output in the cache and made again when its
         files no longer match the output."""
         folder = self.cache / "checkouts" / output
-        if folder.is_dir() and tree_listing(folder) == self.listing(output):
-            return folder
-        if folder.is_dir():
-            shutil.rmtree(folder)
-        partial = folder.with_name(output + ".partial")
-        if partial.exists():
-            shutil.rmtree(partial)
-        for name, sha in self.listing(output).items():
-            self.place_blob(sha, partial / name)
-        partial.rename(folder)
+        with locked(folder.with_name(f"{output}.lock")):  # one process at a time checks it and makes it again
+            if folder.is_dir() and tree_listing(folder) == self.listing(output):
+                return folder
+            if folder.is_dir():
+                shutil.rmtree(folder)
+            partial = partial_of(folder)
+            for name, sha in self.listing(output).items():
+                self.place_blob(sha, partial / name)
+            partial.rename(folder)
         return folder
 
     def making(self, key):
@@ -199,7 +236,17 @@ class Store:
                                   "own terminal; an agent's process cannot write it")
         if self.objects.exists(key):
             raise FileExistsError(f"{key} is already in the store; nothing is overwritten")
-        runtime_store.write_json(self.objects, key, value)
+        if not isinstance(self.objects, runtime_store.FolderStore):
+            runtime_store.write_json(self.objects, key, value)
+            return
+        target = self.objects.path(key)
+        partial = whole_file(target, json.dumps(value, indent=1).encode())
+        try:
+            os.link(partial, target)  # atomic and exclusive: of two processes writing one key, the second is refused
+        except FileExistsError as taken:
+            raise FileExistsError(f"{key} is already in the store; nothing is overwritten") from taken
+        finally:
+            partial.unlink()
 
     def record(self, node, key):
         return self.read(f"records/{node}/{key}.json")
@@ -240,7 +287,9 @@ class Store:
         sha = self.evidence_hash(check, output)
         path = self.cache / "evidence" / sha
         if not path.exists():
-            self.objects.download(key, path)
+            partial = partial_of(path)
+            self.objects.download(key, partial)
+            partial.replace(path)
         return path
 
     def put_evidence(self, check, output, path):

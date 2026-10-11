@@ -4,6 +4,7 @@ folder, and the ledger's month is set by each test.
 
 Run: .venv/bin/python score/adapters/compute/compute_test.py
 """
+import multiprocessing
 import os
 import pathlib
 import sys
@@ -117,6 +118,44 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
     runner.store.write_spend_yes(compute.OVERRIDE, "repaint-six", {"euros": 3.0, "at": graph.now()})
     with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
         assert compute.require_cleared("a batch", runner.store)["euros"] == 3.0
+
+
+def test_a_clearance_holds_its_estimate_until_its_run_ends():
+    """Fault (the coordinator, 2026-10-11): lines run side by side now, and the ledger records a batch only once it is
+    done, so two lines cleared at once could both spend the month's last euros."""
+    runner = a_runner("a hall")
+    month_spent(BOOKS.MONTH_EUROS - 1.5)
+    first = compute.clearance(runner, "render@hangar", 1.0)
+    assert "EUR 1.00 cleared for runs still going" in refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
+    with compute.spending(first):
+        pass  # the run ended: its cost is the ledger's now
+    assert compute.clearance(runner, "render@hangar", 1.0)["clearance"]["euros"] == 1.0
+
+
+def clear_in_a_process(runner, ready, sending):
+    ready.wait()
+    try:
+        compute.clearance(runner, "render@hangar", 1.0)
+        sending.send("cleared")
+    except compute.Refused:
+        sending.send("refused")
+
+
+def test_lines_clearing_at_once_never_both_spend_the_months_last_euros():
+    runner = a_runner("a hall")
+    month_spent(BOOKS.MONTH_EUROS - 1.5)
+    fork = multiprocessing.get_context("fork")
+    ready, pipes = fork.Event(), [fork.Pipe(duplex=False) for _ in range(6)]
+    processes = [fork.Process(target=clear_in_a_process, args=(runner, ready, sending)) for _, sending in pipes]
+    for process in processes:
+        process.start()
+    for _, sending in pipes:
+        sending.close()  # a process that dies fails the test with EOFError instead of hanging it
+    ready.set()
+    answers = sorted(receiving.recv() for receiving, _ in pipes)
+    for process in processes:
+        process.join()
+    assert answers == ["cleared"] + ["refused"] * 5, answers
 
 
 if __name__ == "__main__":

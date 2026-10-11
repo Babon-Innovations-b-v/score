@@ -28,18 +28,20 @@ accepted before, so its next run makes (or finds) the output that reads that one
 A paid stage runs cleared by the runner (score.adapters.compute: its inputs pass and the month's ceiling has room for
 its estimate, `Stage.euros`), inside that clearance's ticket.
 
-`drive` is the runner with no agent in the loop: it runs each node in table order once the nodes it reads stand
-accepted, gathers a check's missing evidence itself (`Stage.gatherers`, a paid one cleared like a paid stage; only when
-nothing else blocks the node, so nothing is spent on an output that fails anyway), and waits on every cloud step
-itself. A node that does not end accepted (a gate failed or answered unknown, an input is missing, it errored or waits
-for the owner) stops its own line only: the nodes after it are not run, and it leaves a plain fault report
-(`faults/<node>.txt` beside the store: the node, the cause, every blocking check's reason, measures and findings, and
-the tail of its log, `logs/<node>.log`) for an agent or the owner to be pointed at. A node that stands removes its old
-report.
+`drive` is the runner with no agent in the loop: it runs each node, every line side by side and each node in a process
+of its own, once the nodes it reads stand accepted, gathers a check's missing evidence itself (`Stage.gatherers`, a paid
+one cleared like a paid stage; only when nothing else blocks the node, so nothing is spent on an output that fails
+anyway), and waits on every cloud step itself. A node that does not end accepted (a gate failed or answered unknown, an
+input is missing, it errored or waits for the owner) stops its own line only: the nodes after it are not run, and it
+leaves a plain fault report (`faults/<node>.txt` beside the store: the node, the cause, every blocking check's reason,
+measures and findings, and the tail of its log, `logs/<node>.log`) for an agent or the owner to be pointed at. A node
+that stands removes its old report.
 """
 import contextlib
 import datetime
 import json
+import multiprocessing
+import multiprocessing.connection
 import os
 import pathlib
 import platform
@@ -58,6 +60,12 @@ from score.store import file_hash, listing_hash, text_hash, tree_hash
 GRAINS = ("world", "place")
 WORLD_LINE = "world"
 LOG_TAIL = 40
+# Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
+JOBS = 8
+# Each node runs in a forked process: its output (and its children's) goes to its own log, and the toy stages of the
+# tests need no import by name. The drive itself starts no threads, so forking it is safe.
+FORK = multiprocessing.get_context("fork")
+FORK_WAIT = multiprocessing.connection.wait
 
 
 class Blocked(Exception):
@@ -416,27 +424,76 @@ class Runner:
                       *(f"    - {finding}" for finding in verdict["findings"])]
         return lines + [""]
 
-    def drive(self, places, say=print):
-        """Run every line to its end with no one in the loop: each node once the nodes it reads stand accepted. A
-        node that does not end accepted stops its own line and leaves a fault report; {node: what it did}."""
-        done, stopped = {}, {}
-        for stage, place in self.nodes(places):
-            node = node_name(stage, place)
-            waits = [stopped[before] for before in self.earlier(stage, place) if before in stopped]
-            if waits:
-                stopped[node] = waits[0]
-                done[node] = f"not run: its line stopped at {waits[0]}"
-            else:
-                done[node] = self.drive_node(stage, place)
-                cause = self.standing(stage, place)
-                report = self.desk("faults", node, ".txt")
-                if cause:
+    def start(self, stage, place):
+        """Start one node in a process of its own (forked: its output goes to its own log); {its result pipe: (stage,
+        place, process)}."""
+        receiving, sending = FORK.Pipe(duplex=False)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        process = FORK.Process(target=self.node_process, args=(stage, place, sending), name=node_name(stage, place))
+        process.start()
+        sending.close()
+        return {receiving: (stage, place, process)}
+
+    def node_process(self, stage, place, sending):
+        """In the node's own process: drive it and send back what it did."""
+        sending.send(self.drive_node(stage, place))
+        sending.close()
+
+    def outcome(self, receiving, process):
+        """What a node's process did, once it ended; an error when it ended without saying."""
+        try:
+            did = receiving.recv()
+        except EOFError:
+            did = None
+        receiving.close()
+        process.join()
+        return did or f"error: its process ended (exit code {process.exitcode}) without saying what it did"
+
+    def conclude(self, stage, place, did):
+        """A finished node's fault report when it does not stand, else its old report removed; (what it did, whether
+        it stands)."""
+        cause = self.standing(stage, place)
+        if cause:
+            return f"{did}; fault report {self.fault_report(stage, place, did, cause)}", False
+        report = self.desk("faults", node_name(stage, place), ".txt")
+        if report.exists():
+            report.unlink()
+        return did, True
+
+    def drive(self, places, say=print, jobs=JOBS):
+        """Run every line to its end with no one in the loop, the lines side by side: each node starts in a process of
+        its own the moment every node it reads stands accepted, at most `jobs` at once, so a line waiting on a cloud
+        step holds up no other line, and nodes of one line that read nothing of each other run side by side. A world
+        node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
+        own line and leaves a fault report; {node: what it did}, in table order."""
+        waiting = list(self.nodes(places))
+        done, stopped, stood, running = {}, {}, set(), {}
+        while waiting or running:
+            for stage, place in list(waiting):
+                node, earlier = node_name(stage, place), self.earlier(stage, place)
+                waits = [stopped[before] for before in earlier if before in stopped]
+                if waits:
+                    waiting.remove((stage, place))
+                    stopped[node] = waits[0]
+                    done[node] = f"not run: its line stopped at {waits[0]}"
+                    say(f"{node}: {done[node]}")
+                elif stood.issuperset(earlier) and len(running) < jobs:
+                    waiting.remove((stage, place))
+                    running.update(self.start(stage, place))
+            if not running:
+                break
+            for finished in FORK_WAIT(list(running)):
+                stage, place, process = running.pop(finished)
+                node = node_name(stage, place)
+                done[node], stands = self.conclude(stage, place, self.outcome(finished, process))
+                if stands:
+                    stood.add(node)
+                else:
                     stopped[node] = node
-                    done[node] += f"; fault report {self.fault_report(stage, place, done[node], cause)}"
-                elif report.exists():
-                    report.unlink()
-            say(f"{node}: {done[node]}")
-        return done
+                say(f"{node}: {done[node]}")
+        return {node_name(stage, place): done[node_name(stage, place)] for stage, place in self.nodes(places)
+                if node_name(stage, place) in done}
 
     def lines(self, places):
         """{line: (its state, {node: state})}, running nothing: the world's own nodes are one line, each place's

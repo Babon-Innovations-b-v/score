@@ -12,6 +12,7 @@ import os
 import pathlib
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -19,8 +20,6 @@ from score import checks, contracts, graph  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.store import Store  # noqa: E402
 
-GATHERED = []
-TICKETS = []
 PLACES = ("hangar", "station")
 
 
@@ -32,8 +31,8 @@ def make_clean(inputs, out, seed, params):
 
 
 def gather_limit(output, inputs, folder):
-    GATHERED.append(output.name)
-    TICKETS.append(os.environ.get(compute.TICKET))
+    with (data_of(inputs) / "gathered.txt").open("a") as gathered:  # each node runs in a process of its own
+        gathered.write(f"{output.name} {os.environ.get(compute.TICKET)}\n")
     path = folder / "limit.json"
     path.write_text(json.dumps({"limit": 5}))
     return path
@@ -81,6 +80,16 @@ def a_runner(briefs, euros=None):
                         model_record=lambda kind: {"kind": kind})
 
 
+def data_of(inputs):
+    return inputs["brief"].parents[1]
+
+
+def gathered(runner):
+    """Each gather's (output, spend ticket), as the nodes' processes wrote them."""
+    path = runner.world.roots["data"] / "gathered.txt"
+    return [tuple(line.split(" ", 1)) for line in path.read_text().splitlines()] if path.exists() else []
+
+
 def quiet(line):
     pass
 
@@ -90,16 +99,15 @@ def report_of(runner, node):
 
 
 def test_a_line_runs_to_its_end_its_evidence_gathered_by_the_runner():
-    GATHERED.clear()
     runner = a_runner({"hangar": "a ship", "station": "a hub"})
     found = runner.drive(PLACES, say=quiet)
     assert found["clean@hangar"] == ("made: unknown; gathered words: judged again, output kept: pass, accepted "
                                      "automatically"), found
     assert found["count@hangar"] == found["count@station"] == "made: pass, accepted automatically", found
-    assert len(GATHERED) == 2
+    assert len(gathered(runner)) == 2
     assert all(state == "done" for state, _ in runner.lines(PLACES).values()), runner.lines(PLACES)
     assert not (runner.store.cache.parent / "faults").exists()
-    assert set(runner.drive(PLACES, say=quiet).values()) == {"fresh"} and len(GATHERED) == 2
+    assert set(runner.drive(PLACES, say=quiet).values()) == {"fresh"} and len(gathered(runner)) == 2
 
 
 def test_a_failing_gate_stops_its_own_line_only_with_a_fault_report():
@@ -122,11 +130,10 @@ def test_a_failing_gate_stops_its_own_line_only_with_a_fault_report():
 
 
 def test_nothing_is_gathered_for_an_output_another_gate_fails():
-    GATHERED.clear()
     runner = a_runner({"hangar": "a ship!"})
     found = runner.drive(["hangar"], say=quiet)
     assert found["clean@hangar"].startswith("made: fail; fault report"), found
-    assert GATHERED == []
+    assert gathered(runner) == []
     assert "shout: fail: shouts" in report_of(runner, "clean@hangar").read_text()
 
 
@@ -151,11 +158,96 @@ def test_a_missing_input_stops_its_line_with_a_fault_report():
 def test_a_paid_gather_runs_inside_the_runners_clearance():
     books = compute.ledger()
     books.entries = lambda: []
-    TICKETS.clear()
     runner = a_runner({"hangar": "a ship"}, euros=0.2)
     assert runner.drive(["hangar"], say=quiet)["count@hangar"] == "made: pass, accepted automatically"
     key = runner.key(runner.stages["clean"], "hangar")["key"]
-    assert TICKETS == [f"clean@hangar {key}"] and runner.store.clearances("clean@hangar", key)[0]["euros"] == 0.2
+    assert [ticket for _, ticket in gathered(runner)] == [f"clean@hangar {key}"]
+    assert runner.store.clearances("clean@hangar", key)[0]["euros"] == 0.2
+
+
+# --- lines side by side ----------------------------------------------------------------------------------------------
+
+MEETING_SECONDS = 20
+
+
+def meeting(data, me, others):
+    """A make that says it started, then waits until every other named make started too: done one at a time, the
+    first waits alone and fails."""
+    def make(inputs, out, seed, params):
+        (data / f"{me}.started").touch()
+        deadline = time.monotonic() + MEETING_SECONDS
+        while not all((data / f"{other}.started").exists() for other in others):
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"{me} waited alone: {', '.join(others)} never started beside it")
+            time.sleep(0.05)
+        (out / "met.txt").write_text(me)
+    return make
+
+
+def meet_the_other_places(data):
+    """A place's make that meets every other place's (its place is its declared input's folder name)."""
+    def make(inputs, out, seed, params):
+        place = inputs["place"].name
+        meeting(data, place, [other for other in PLACES if other != place])(inputs, out, seed, params)
+    return make
+
+
+def made_once(data):
+    def make(inputs, out, seed, params):
+        with (data / "ground-made.txt").open("a") as made:
+            made.write("made\n")
+        (out / "ground.txt").write_text("ground")
+    return make
+
+
+def judge_met(output, inputs, evidence):
+    return checks.Verdict("met", checks.PASS, "it ran")
+
+
+MET = (checks.Check("met", judge_met),)
+
+
+def a_world_of(places):
+    data = pathlib.Path(tempfile.mkdtemp())
+    for place in places:
+        (data / place).mkdir()
+    return data, graph.World("toy", 7, {"data": data})
+
+
+def test_lines_run_side_by_side_and_one_line_waiting_holds_up_no_other():
+    """Fault (the owner, 2026-10-11: nothing waits for the slowest): the drive ran one node at a time, so while one
+    place waited on the cloud every other place waited too."""
+    data, world = a_world_of(PLACES)
+    meet = graph.Stage("meet", "place", meet_the_other_places(data), TEXT, MET, files={"place": "{data}/{place}"})
+    runner = graph.Runner((meet,), world, Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    started = time.monotonic()
+    found = runner.drive(PLACES, say=quiet)
+    assert set(found.values()) == {"made: pass, accepted automatically"}, found
+    assert time.monotonic() - started < MEETING_SECONDS
+
+
+def test_nodes_of_one_line_that_read_nothing_of_each_other_run_side_by_side():
+    data, world = a_world_of(["hangar"])
+    first = graph.Stage("first", "place", meeting(data, "first", ["second"]), TEXT, MET)
+    second = graph.Stage("second", "place", meeting(data, "second", ["first"]), TEXT, MET)
+    runner = graph.Runner((first, second), world, Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    found = runner.drive(["hangar"], say=quiet)
+    assert set(found.values()) == {"made: pass, accepted automatically"}, found
+
+
+def test_a_world_node_every_line_reads_is_made_once_and_each_line_waits_on_it_alone():
+    data, world = a_world_of(PLACES)
+    ground = graph.Stage("ground", "world", made_once(data), TEXT, MET)
+    build = graph.Stage("build", "place", make_count_of_ground, TEXT, MET, after={"ground": ("toy-text", 1)})
+    runner = graph.Runner((ground, build), world, Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    found = runner.drive(PLACES, say=quiet)
+    assert set(found.values()) == {"made: pass, accepted automatically"}, found
+    assert list(found) == ["ground", "build@hangar", "build@station"], found
+    assert (data / "ground-made.txt").read_text() == "made\n"
+
+
+def make_count_of_ground(inputs, out, seed, params):
+    (out / "built.txt").write_text((inputs["ground"] / "ground.txt").read_text())
 
 
 if __name__ == "__main__":
