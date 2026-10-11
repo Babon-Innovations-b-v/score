@@ -3,13 +3,13 @@
     .venv/bin/python -m score run <world> [--place P ...] [--jobs N] [--detach]  # every line, or those named
     .venv/bin/python -m score status [<world>] [--place P ...]                   # every line's state
 
-`run` drives the lines side by side, each node in a process of its own and at most --jobs at once (default
-score.graph.JOBS; --jobs 1 runs one node at a time). It starts each node the moment the nodes it reads stand accepted,
-gathers a gate's missing evidence itself (a paid step cleared by the runner, waited on by the runner), and stops a line
-whose node fails, errors or is blocked, with a plain fault report (faults/<node>.txt beside the store) to point an agent
-or the owner at; the other lines go on. It exits 1 when any line stopped. --detach (tools/props/cloud/detached.py) sends
-its progress to a log and prints one result line at the end: start it with the Bash tool's run_in_background and never
-poll it.
+`run` drives the lines side by side (with --place, those places' lines and only the world nodes they read), each node in
+a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time). It starts
+each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
+the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
+(faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It exits 1 when any line
+stopped. --detach (tools/props/cloud/detached.py) sends its progress to a log and prints one result line at the end:
+start it with the Bash tool's run_in_background and never poll it.
 """
 import argparse
 import pathlib
@@ -50,10 +50,10 @@ def main(argv=None):
     if getattr(options, "detach", False):
         detach()
     runner = stages.runner(world=stages.WORLDS[options.world]())
-    places = options.place or stages.places(runner.world)
+    places, whole = options.place or stages.places(runner.world), not options.place
     if options.command == "run":
-        runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs)
-    lines = runner.lines(places)
+        runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole)
+    lines = runner.lines(places, whole)
     for line, (state, nodes) in lines.items():
         print(f"{line}: {state}")
         if options.command == "status":
