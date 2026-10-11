@@ -10,7 +10,8 @@ A page shows the node's output, where it came from (an unverified seed says so),
 measures, reason and findings, the record (inputs, code version, commit, seed, machine, time, cost), the judgements
 made before, and whether the owner accepted it. Pages are written in the store's cache, never in the repository.
 
-An accept is refused for an output whose newest judgement is not a pass once the owner's waivers for its key count, and for one with a worse scorecard than the accepted output's unless the owner writes why (`worse_reason`). Only
+An accept is refused for an output whose newest judgement is not a pass once the owner's waivers for its key count,
+and for one with a worse scorecard than the accepted output's unless the owner writes why (`worse_reason`). Only
 `python -m score.review accept` calls it, from the owner's own terminal; a hook blocks agents from running it or
 writing the store's accepts (.claude/hooks/accept_guard.py).
 """
@@ -136,7 +137,8 @@ def checks_table(judgement, waived):
         listed = "".join(f"<li><code>{escaped(item)}</code></li>" for item in findings)
         listed += f"<li class=soft>and {more} more</li>" if more else ""
         rows.append(f"<tr><td>{escaped(name)}</td><td>{answer_cell(verdict['answer'])}</td>"
-                    f"<td>{escaped(verdict['reason'])}{waiver_note(waived.get(name))}<ul>{listed}</ul></td><td>{escaped(measures)}</td></tr>")
+                    f"<td>{escaped(verdict['reason'])}{waiver_note(waived.get(name))}<ul>{listed}</ul></td>"
+                    f"<td>{escaped(measures)}</td></tr>")
     return ('<div class=scroll><table><tr><th>Check</th><th>Answer</th><th>Reason and findings</th><th>Measures</th>'
             f"</tr>{''.join(rows)}</table></div>")
 

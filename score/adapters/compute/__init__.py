@@ -5,9 +5,10 @@
 
 A node gets a key from the runner only when every earlier node it reads passed its gates and the owner accepted that
 output (score.graph); the owner's yes to that very key's run is in the store (score.review spend), at an amount no
-lower than the run's estimate (the spec's `euros`). Without all three, nothing is submitted: a run that skips the runner cannot spend. The job carries its node and key, so the finish
-record and the job can be matched. The machine path (tools/props/cloud) is reached the same way, through the
-engine adapter (score.adapters.engines), which asks for clearance first.
+lower than the run's estimate (the spec's `euros`). Without all three, nothing is submitted: a run that skips the
+runner cannot spend. The job carries its node and key, so the finish record and the job can be matched. The machine
+path (tools/props/cloud) is reached the same way, through the engine adapter (score.adapters.engines), which asks
+for clearance first.
 """
 import pathlib
 import sys
