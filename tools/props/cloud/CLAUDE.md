@@ -124,6 +124,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **Close-up regions** (`segment.py`, `segment_setup.sh`, `segment_worker.py`; job repaint, 2026-10-08): SAM 2.1's
   automatic masks (facebookresearch/sam2 at a pinned commit, code and weights Apache-2.0) of every clean close-up,
   spread over cards (`spread.py`); 73 close-ups took 6 minutes on three L4s, €0.24.
+- **Depth of pictures** (`depth.py`, `depth_setup.sh`, `depth_worker.py`; job terrain, 2026-10-11): Depth Anything V2
+  Small (Apache-2.0, a pinned revision) on any card, each picture's relative inverse depth at its own size; the terrain
+  stage reads a ground's relief from its diorama pictures with it (`score/stages/terrain`).
 - **Likeness** (`similar.py`, `similar_setup.sh`, `similar_worker.py`; job agent-tools, 2026-10-09): DINOv2
   (facebook/dinov2-base, Apache-2.0) cosine likeness of picture pairs on one card, for the render-and-compare
   (`tools/usd/compare.py`).

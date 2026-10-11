@@ -175,10 +175,22 @@ def shaded(heights, cell):
     return np.clip(normal @ (light / np.linalg.norm(light)), 0, 1)
 
 
+def shading(shaped, size=1024):
+    """The plan's large shape seen straight down, north up, as the diorama picture is drawn over it: the heights lit
+    from the north-west, high (grey), the water (where the plan has a coastline) a flat dark blue; no lines or
+    labels, so the picture model keeps every shape and invents none."""
+    scale = size / shaped.grid.points
+    heights = ndimage.zoom(shaped.heights, scale, order=1)
+    cell = shaped.grid.side / (size - 1)
+    picture = np.stack([shaded(heights, cell) * 215 + 25] * 3, -1)
+    if shaped.land is not None:
+        picture[ndimage.zoom(shaped.land, scale, order=1) < 0] = np.array([30, 45, 80])
+    return Image.fromarray(np.clip(picture, 0, 255).astype(np.uint8))
+
+
 def drawing(shaped, record, size=1024):
-    """The plan drawn straight down, north up, for the diorama picture: the shaded heights, contours at the plan's
-    `contour` metres, flats in green, paths in orange, water in blue and every named landform labelled. No grid or
-    scale bar: the picture model is asked to keep every shape where it is."""
+    """The plan drawn straight down, north up, for the creator to read: the shaded heights, contours at the plan's
+    `contour` metres, flats in green, paths in orange, water in blue and every named landform labelled."""
     scale = size / shaped.grid.points
     heights = ndimage.zoom(shaped.heights, scale, order=1)
     cell = shaped.grid.side / (size - 1)

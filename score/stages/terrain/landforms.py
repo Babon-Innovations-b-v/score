@@ -189,7 +189,8 @@ def small_craters(grid, settings, held):
     rng = np.random.default_rng(settings["seed"])
     found = []
     while len(found) < settings["count"]:
-        size = float(min(settings["smallest"] / math.sqrt(1.0 - rng.random() * settings["spread"]), settings["largest"]))
+        size = float(min(settings["smallest"] / math.sqrt(1.0 - rng.random() * settings["spread"]),
+                         settings["largest"]))
         x, z = rng.uniform(-grid.side / 2 + 8, grid.side / 2 - 8, 2)
         north = settings.get("north", 0.0)
         if north and rng.random() > (1.0 - north) + north * (-z / (grid.side / 2)):

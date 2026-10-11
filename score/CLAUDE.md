@@ -39,7 +39,8 @@ stage as each stage is built; nothing moves before.
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
-  `complete`. World 1's record is `data/definitions/world.json`.
+  `complete`. `terrain` (one world node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
+  scale, slope, ground under objects and openings (its overlay). World 1's record is `data/definitions/world.json`.
 
 Rules:
 

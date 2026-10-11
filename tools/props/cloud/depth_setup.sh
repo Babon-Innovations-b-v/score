@@ -10,4 +10,5 @@ curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/de
 /root/uv/uv pip install --quiet --python /root/venv/bin/python torch torchvision transformers pillow numpy \
   huggingface_hub hf_xet
 /root/venv/bin/python -c "import sys; from huggingface_hub import snapshot_download; \
-snapshot_download('depth-anything/Depth-Anything-V2-Small-hf', revision=sys.argv[1], local_dir='/root/dav2')" "$REVISION"
+snapshot_download('depth-anything/Depth-Anything-V2-Small-hf', revision=sys.argv[1], \
+local_dir='/root/dav2')" "$REVISION"
