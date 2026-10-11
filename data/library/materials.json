@@ -2262,6 +2262,45 @@
 					"recipe": "rubber",
 					"token": "regolith",
 					"roughness": 1.0
+				},
+				"moon_regolith_dark": {
+					"recipe": "rubber",
+					"token": "regolith-dark",
+					"roughness": 1.0,
+					"said": "the darker, older regolith of a crater's floor (the terrain stage's crater-floor zone)"
+				},
+				"moon_rock": {
+					"recipe": "cast_metal",
+					"token": "rock",
+					"metal": 0.0,
+					"roughness": 0.95,
+					"bump": 0.0012,
+					"bump_size": 0.006,
+					"said": "bare rock where a crater wall is too steep to hold dust (the terrain stage's steep zone)"
+				}
+			}
+		},
+		"earth_land": {
+			"is": "Earth's open land round the harbour, seen from the waterfront at night: the hills' scrub and woods, and their bare rock where it is too steep to hold soil (the terrain stage's Earth zones)",
+			"surface": "stone",
+			"variants": {
+				"hillside_scrub": {
+					"recipe": "rubber",
+					"token": "foliage",
+					"roughness": 0.95,
+					"bump": 0.0012,
+					"bump_size": 0.02,
+					"dirt_share": 0.1,
+					"said": "the hills' scrub and woods, near black at night"
+				},
+				"hillside_rock": {
+					"recipe": "cast_metal",
+					"token": "rock",
+					"metal": 0.0,
+					"roughness": 0.92,
+					"bump": 0.0012,
+					"bump_size": 0.02,
+					"said": "granite showing on the steepest hillsides"
 				}
 			}
 		}

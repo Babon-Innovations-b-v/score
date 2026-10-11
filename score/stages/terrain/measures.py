@@ -1,0 +1,193 @@
+"""What a made ground measures, read off its record (heights picture, zones) against its plan: the scale of its named
+landforms and levels, the slope of its flats, paths and seats, and how far it lies from the ground copied in before.
+
+    measures.scale(made, plan_record, shaped)  # {"craters", "relief", "hills", "levels", "faults": [...]}
+    measures.slope(made, plan_record, inputs)  # {"flats_max", "paths_p99", "rooms": {place: ...}, "faults": [...]}
+    measures.compared(made, plan_record, inputs)   # the copied ground's numbers beside the made one's
+"""
+import json
+import pathlib
+
+import numpy as np
+from scipy import ndimage
+
+from score.stages.terrain import landforms, outside, plan, record
+
+# A named crater's depth and rim diameter on the made ground within these shares of the same measure on the plan's
+# large shape: the relief may roughen a crater, never resize it.
+CRATER_DEPTH_SHARE = 0.25
+CRATER_DIAMETER_SHARE = 0.1
+# The relief's RMS (off the levelled yards, flats and paths) within these multiples of the plan's amplitude.
+RELIEF_LOW = 0.5
+RELIEF_HIGH = 1.5
+HILLS_SHARE = 0.15
+LEVEL_HELD = 0.03
+# A held flat no steeper over a metre than the resting check's drop rule takes as stable (8 degrees; SAGE's,
+# tools/usd/triage.py).
+FLAT_SLOPE = 8.0
+PATH_SLOPE = 15.0
+SEAT_STEP = 0.5
+# Slopes are read over this many metres (a foot's or a wheel's scale, not one cell's fine relief).
+SLOPE_OVER = 1.0
+# A room's floor may stand this far under the highest ground under it (its deck's own thickness).
+FLOOR_CLEAR = 0.05
+
+
+def made_heights(made):
+    """The made ground's heights in metres, row 0 at the plan's -side/2 along."""
+    return record.decoded(pathlib.Path(made["folder"]) / made["heights"], made["low"], made["span"])
+
+
+def on_grid(made, plan_record):
+    """The made heights, the grid they lie on and the plan's masks brought to it."""
+    heights = made_heights(made)
+    grid = landforms.Grid(made["side"], heights.shape[0])
+    shaped_grid = landforms.Grid(plan_record["side"], plan_record["points"])
+    held = plan.held_flats(shaped_grid, plan_record["flats"])
+    on_path = plan.path_share(shaped_grid, plan_record["paths"]) if plan_record.get("paths") else np.zeros_like(held)
+    zoom = heights.shape[0] / held.shape[0]
+    return heights, grid, ndimage.zoom(held, zoom, order=1), ndimage.zoom(on_path, zoom, order=1)
+
+
+def relief_mask(grid, plan_record, shaped):
+    """Where the made ground should differ from the plan's large shape by its relief alone: off the levelled yards'
+    boxes and their blends, and inside the plan's `only` landform when it names one."""
+    mask = np.ones(grid.x.shape, dtype=bool)
+    for level in plan_record.get("levels", []):
+        box = level["box"]
+        mask &= ~((grid.x > box[0] - level["blend"]) & (grid.x < box[2] + level["blend"]) &
+                  (grid.z > box[1] - level["blend"]) & (grid.z < box[3] + level["blend"]))
+    only = plan_record["relief"].get("only")
+    if only:
+        weight = ndimage.zoom(shaped.masks[only["landform"]], grid.points / shaped.grid.points, order=1)
+        mask &= weight > 2 * only["over"]
+    quiet = ndimage.zoom(np.clip(shaped.held + shaped.on_path, 0, 1), grid.points / shaped.grid.points, order=1)
+    return mask & (quiet < 0.01)
+
+
+def scale(made, plan_record, shaped=None):
+    """The made ground against the plan's large shape (`shaped`, made again when not given): every named crater's
+    depth and rim diameter beside the same measure on the plan's shape, the relief's RMS beside the plan's amplitude,
+    the hill ranges' crests, the held waterfront's level and the record's range; and the faults."""
+    shaped = shaped or plan.shape(plan_record)
+    heights, grid, held, _ = on_grid(made, plan_record)
+    large = ndimage.zoom(shaped.heights, heights.shape[0] / shaped.heights.shape[0], order=1)
+    planned_grid = plan.Shaped(grid, large, None, None)
+    made_grid = plan.Shaped(grid, heights, None, None)
+    faults, craters = [], {}
+    for crater in plan_record.get("craters", []):
+        measured, planned = plan.named_size(made_grid, crater), plan.named_size(planned_grid, crater)
+        craters[crater["name"]] = {"measured": measured, "plan": planned}
+        if abs(measured["depth"] - planned["depth"]) > CRATER_DEPTH_SHARE * planned["depth"] or \
+                abs(measured["diameter"] - planned["diameter"]) > CRATER_DIAMETER_SHARE * planned["diameter"]:
+            faults.append(f"crater {crater['name']} measures {measured['depth']} m deep and {measured['diameter']} m "
+                          f"across, its plan {planned['depth']} and {planned['diameter']}")
+    mask = relief_mask(grid, plan_record, shaped)
+    amplitude = plan_record["relief"]["amplitude"]
+    rms = float((heights - large)[mask].std()) if mask.any() else 0.0
+    relief_found = {"rms_m": round(rms, 3), "planned_m": amplitude}
+    if not RELIEF_LOW * amplitude <= rms <= RELIEF_HIGH * amplitude:
+        faults.append(f"the relief measures {rms:.3f} m RMS, planned {amplitude} m")
+    hills = {}
+    for name, spec in plan_record.get("landforms", {}).items():
+        if "high" not in spec:
+            continue
+        gap, _ = landforms.segment_distance(grid.x, grid.z, spec["points"])
+        top = float(heights[gap < spec["half_wide"]].max())
+        hills[name] = {"highest": round(top, 1), "planned": [spec["low"], spec["high"]]}
+        if not spec["low"] <= top <= spec["high"] * (1 + HILLS_SHARE):
+            faults.append(f"{name} rises to {top:.0f} m, planned {spec['low']} to {spec['high']} m")
+    levels = {}
+    for step in plan_record["shape"]:
+        if step["op"] == "flats" and plan_record.get("water"):
+            inside = ndimage.binary_erosion((held > 0.99) & (heights > plan_record["water"]["level"] - 0.5),
+                                            iterations=3) & \
+                (np.hypot(grid.x - step["middle"][0], grid.z - step["middle"][1]) < step["disc"])
+            if inside.any():
+                spread = [round(float(heights[inside].min()), 3), round(float(heights[inside].max()), 3)]
+                levels["waterfront"] = spread
+                if max(abs(value - step["level"]) for value in spread) > LEVEL_HELD:
+                    faults.append(f"the waterfront lies {spread} m, planned {step['level']} m")
+    clipped = int(np.sum((heights <= -made["low"] + 1e-6) | (heights >= made["span"] - made["low"] - 1e-6)))
+    if clipped:
+        faults.append(f"{clipped} points clipped by the record's range")
+    return {"craters": craters, "relief": relief_found, "hills": hills, "levels": levels, "clipped": clipped,
+            "cell": round(made["side"] / (heights.shape[0] - 1), 3), "faults": faults}
+
+
+def under_floor(made, seat, on_seat, box):
+    """The highest and lowest ground under a room's own box, in its frame (its floor at 0), SEAT_STEP apart."""
+    from score.stages.terrain import gates
+    laid = outside.placed_ground(made, seat, on_seat)
+    across = np.arange(box[0][0], box[1][0] + SEAT_STEP, SEAT_STEP)
+    along = np.arange(box[0][1], box[1][1] + SEAT_STEP, SEAT_STEP)
+    grid_x, grid_z = np.meshgrid(across, along)
+    under = gates.heights_under(laid, np.column_stack([grid_x.ravel(), grid_z.ravel()]))
+    return float(under.max()), float(under.min())
+
+
+def exempt(grid, plan_record):
+    """The spots the plan exempts from the flats' slope (a yard that holds dug dents)."""
+    found = np.zeros(grid.x.shape, dtype=bool)
+    for middle_x, middle_z, radius in plan_record.get("slope_exempt", {}).get("discs", []):
+        found |= np.hypot(grid.x - middle_x, grid.z - middle_z) < radius
+    return found
+
+
+def slope(made, plan_record, inputs):
+    """The held flats' steepest slope over a metre (two cells in from their edge, over land, less the exempt
+    yards), the paths' 99th percentile over a metre, and every room's floor against the ground under it (the ground
+    never above its floor); the faults."""
+    from score.stages.terrain import gates
+    heights, grid, held, on_path = on_grid(made, plan_record)
+    slopes = plan.slopes(ndimage.gaussian_filter(heights, SLOPE_OVER / grid.cell), grid.cell)
+    flats = ndimage.binary_erosion(held > 0.99, iterations=2) & ~exempt(grid, plan_record)
+    if made.get("water"):
+        flats &= ndimage.binary_erosion(heights > made["water"]["level"] - 0.5, iterations=3)
+    found = {"flats_max": round(float(slopes[flats].max()), 2) if flats.any() else 0.0,
+             "paths_p99": round(float(np.percentile(slopes[on_path > 0.99], 99)), 2) if np.any(on_path > 0.99)
+             else None, "rooms": {}}
+    faults = []
+    if found["flats_max"] > FLAT_SLOPE:
+        faults.append(f"a held flat slopes {found['flats_max']} degrees over a metre (at most {FLAT_SLOPE})")
+    if found["paths_p99"] is not None and found["paths_p99"] > PATH_SLOPE:
+        faults.append(f"paths slope {found['paths_p99']} degrees at the 99th percentile (at most {PATH_SLOPE})")
+    for place, seat in plan_record["seats"].items():
+        if seat.get("outdoor"):
+            continue
+        scene, kit, _ = gates.place_files(inputs, place)
+        if not scene:
+            continue
+        highest, lowest = under_floor(made, seat, (kit or {}).get("on_seat", [0.0, 0.0]), gates.footprint(scene, kit))
+        found["rooms"][place] = {"ground_highest": round(highest, 3), "ground_lowest": round(lowest, 3)}
+        if highest > FLOOR_CLEAR:
+            faults.append(f"{place}: the ground rises {highest:.2f} m over its floor")
+    found["faults"] = faults
+    return found
+
+
+def compared(made, plan_record, inputs):
+    """The made ground beside the one copied in before (a ball's: its heights and rocks; the Earth's: the old disc):
+    the height difference over the square (RMS, after a 1 m smoothing, its 99th percentile) and the rocks laid the
+    same."""
+    copied = plan_record.get("copied", {})
+    if "record" not in copied:
+        return {"copied": "the old flat disc", "disc_radius": copied.get("disc", {}).get("radius")}
+    folder = pathlib.Path(inputs["grounds"])
+    old = json.loads((folder / copied["record"]).read_text())
+    before = record.decoded(folder / old["heights"], old["low"], old["span"])
+    after = made_heights(made)
+    if before.shape != after.shape:
+        before = ndimage.zoom(before, after.shape[0] / before.shape[0], order=1)
+    difference = after - before
+    pixels_a_metre = after.shape[0] / made["side"]
+    old_rocks = json.loads((folder / copied["rocks"]).read_text())["rocks"]
+    new_rocks = json.loads((pathlib.Path(made["folder"]) / made["rocks"]).read_text())
+    same = sum(abs(first["x"] - second["x"]) < 0.01 and abs(first["z"] - second["z"]) < 0.01 and
+               abs(first["size"] - second["size"]) < 0.01 for first, second in zip(new_rocks, old_rocks))
+    return {"rms_m": round(float(difference.std()), 3), "mean_m": round(float(difference.mean()), 3),
+            "p99_abs_m": round(float(np.percentile(np.abs(difference), 99)), 3),
+            "smoothed_1m_rms_m": round(float(ndimage.gaussian_filter(difference, pixels_a_metre).std()), 3),
+            "range_before": [round(float(before.min()), 2), round(float(before.max()), 2)],
+            "range_after": [round(float(after.min()), 2), round(float(after.max()), 2)],
+            "rocks": {"before": len(old_rocks), "after": len(new_rocks), "the same": same}}

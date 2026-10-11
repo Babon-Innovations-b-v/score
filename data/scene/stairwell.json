@@ -43,6 +43,17 @@
    ],
    "yaw": 0.0,
    "from": "EarthSite: the stairwell and the street share its frame; the street door at the foot opens onto it, its canopy lamp (street_fittings.gd:226-236) and the street lamps spilling in"
+  },
+  {
+   "name": "flat",
+   "stage": "flat",
+   "at": [
+    0.0,
+    9.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "from": "EarthSite: the stairwell's top doorway (x 3.215, 9 m up, data/kit/stairwell.json) opens into the flat, whose floor is 9 m up in the stairwell's frame (data/scene/flat.json); without it the doorway opened onto nothing (the terrain stage's openings gate)"
   }
  ],
  "lights": [

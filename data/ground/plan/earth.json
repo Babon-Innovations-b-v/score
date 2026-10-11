@@ -1,0 +1,344 @@
+{
+ "about": "The Earth's ground round the prologue's places, Hong Kong's harbour as the concepts draw it (the launch view K01, the square K04, the flat K06): the Kowloon side's waterfront where the street, the square and the flat stand, flat at the street's level and held there out to the quay; the harbour west, north and south of it out to the far city's shore (tools/usd/far_city.py lays the city, its land and its mountains on its own, from 1300 m out); the Kowloon side's land running on east, rising inland to a range of hills. EarthSite's metres: x across (-x toward the harbour, its quay at x = -110 as the places' harbour has it, data/scene/launch.json), z along (north is -z), the street at 0; the harbour's water at -0.01 and the old disc's ground at -0.08. The launch pad stands at the end of a jetty from the quay (the launch concept K01 draws it on one): the jetty is a second piece of land, held at the waterfront's level.",
+ "ground": "earth",
+ "side": 8000.0,
+ "points": 4096,
+ "heights_points": 4096,
+ "radius": 6371000.0,
+ "low": 30.0,
+ "span": 600.0,
+ "plan_out": [
+  0.0,
+  1.0,
+  0.0
+ ],
+ "contour": 25.0,
+ "water": {
+  "level": -0.01,
+  "surface": "harbour_water"
+ },
+ "flats": {
+  "rects": [
+   [
+    -110.0,
+    -280.0,
+    460.0,
+    560.0
+   ],
+   [
+    -302.0,
+    -104.0,
+    202.0,
+    86.0
+   ]
+  ],
+  "margin": 0.0,
+  "ramp": 80.0
+ },
+ "shape": [
+  {
+   "op": "land",
+   "round": 40.0,
+   "land": [
+    [
+     [
+      -112.0,
+      -275.0
+     ],
+     [
+      -112.0,
+      275.0
+     ],
+     [
+      80.0,
+      283.0
+     ],
+     [
+      222.0,
+      186.0
+     ],
+     [
+      4200.0,
+      3530.0
+     ],
+     [
+      4200.0,
+      -3530.0
+     ],
+     [
+      222.0,
+      -186.0
+     ],
+     [
+      80.0,
+      -283.0
+     ]
+    ],
+    [
+     [
+      -302.0,
+      -104.0
+     ],
+     [
+      -302.0,
+      -18.0
+     ],
+     [
+      -150.0,
+      -18.0
+     ],
+     [
+      -100.0,
+      -30.0
+     ],
+     [
+      -100.0,
+      -92.0
+     ],
+     [
+      -150.0,
+      -104.0
+     ]
+    ]
+   ],
+   "inland": [
+    [
+     0.0,
+     -0.08
+    ],
+    [
+     400.0,
+     -0.08
+    ],
+    [
+     900.0,
+     3.0
+    ],
+    [
+     1600.0,
+     14.0
+    ],
+    [
+     2400.0,
+     35.0
+    ],
+    [
+     4000.0,
+     60.0
+    ]
+   ],
+   "seabed": {
+    "quay_foot": -6.0,
+    "deep": -14.0,
+    "shelf": 160.0
+   }
+  },
+  {
+   "op": "add",
+   "kind": "hills",
+   "name": "kowloon_hills",
+   "on_land": 300.0
+  },
+  {
+   "op": "flats",
+   "level": -0.08,
+   "middle": [
+    0.0,
+    0.0
+   ],
+   "disc": 400.0,
+   "blend": 1.0,
+   "smooth": 40.0,
+   "on_land": true
+  }
+ ],
+ "landforms": {
+  "kowloon_hills": {
+   "name": "Kowloon's hills",
+   "points": [
+    [
+     2700.0,
+     -2000.0
+    ],
+    [
+     3000.0,
+     -1000.0
+    ],
+    [
+     3200.0,
+     0.0
+    ],
+    [
+     3050.0,
+     1000.0
+    ],
+    [
+     2750.0,
+     2000.0
+    ]
+   ],
+   "low": 240.0,
+   "high": 495.0,
+   "half_wide": 1100.0,
+   "peaks": 450.0,
+   "spurs": 220.0,
+   "seed": 41
+  }
+ },
+ "levels": [],
+ "dents": {},
+ "relief": {
+  "amplitude": 6.0,
+  "fine": 160.0,
+  "quiet": 0.0,
+  "only": {
+   "landform": "kowloon_hills",
+   "over": 20.0
+  }
+ },
+ "picture": {
+  "candidates": 4,
+  "wording": "Image 1 is the plan of a square of land and sea 8 km by 8 km round Hong Kong's harbour, seen straight down, north up: blue is the harbour's water, green the flat waterfront by the quay on the Kowloon side, the grey shaded heights a range of hills to the east, contour lines every 25 m. Redraw it as one seamless orthographic aerial photograph of that same square taken straight down from high above (nadir, no perspective, no horizon, no tilt), filling the square edge to edge, keeping the coastline, the flat waterfront and every hill, ridge, spur and valley exactly where and as big as the plan draws them. Wooded steep hills with ravines and bare granite crags, the flat land a dense city ground, the water dark. Soft even light from high overhead, no long cast shadows. No grid, contours, labels, text, buildings, roads, boats or people."
+ },
+ "zones": [
+  {
+   "surface": "concrete_dark",
+   "when": "water"
+  },
+  {
+   "surface": "concrete",
+   "when": "held"
+  },
+  {
+   "surface": "hillside_rock",
+   "when": "slope",
+   "over": 35.0
+  },
+  {
+   "surface": "hillside_scrub",
+   "when": "landform",
+   "name": "kowloon_hills",
+   "over": 20.0
+  },
+  {
+   "surface": "concrete_dark",
+   "when": "else"
+  }
+ ],
+ "seats": {
+  "flat": {
+   "out": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "heading": 0.0,
+   "flat": [
+    0.0,
+    0.0
+   ],
+   "lift": 9.08
+  },
+  "stairwell": {
+   "out": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "heading": 0.0,
+   "flat": [
+    0.0,
+    0.0
+   ]
+  },
+  "street": {
+   "out": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "heading": 0.0,
+   "flat": [
+    0.0,
+    0.0
+   ],
+   "outdoor": true
+  },
+  "square": {
+   "out": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "heading": 0.0,
+   "flat": [
+    0.0,
+    0.0
+   ],
+   "outdoor": true
+  },
+  "launch": {
+   "out": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "heading": 0.0,
+   "flat": [
+    0.0,
+    0.0
+   ],
+   "outdoor": true
+  }
+ },
+ "judged": [
+  "flat",
+  "stairwell",
+  "street",
+  "square",
+  "launch"
+ ],
+ "copied": {
+  "disc": {
+   "radius": 320.0,
+   "levels": {
+    "flat": -9.08,
+    "stairwell": -0.08,
+    "street": -0.08,
+    "square": -0.08,
+    "launch": -0.08
+   },
+   "from": "the scene records' far_ground (earth_site.gd:942-949, a disc 320 m round at the street's -0.08) and harbour grids"
+  }
+ },
+ "labels": [
+  {
+   "at": [
+    -60.0,
+    -40.0
+   ],
+   "text": "WATERFRONT"
+  },
+  {
+   "at": [
+    -1500.0,
+    0.0
+   ],
+   "text": "HARBOUR"
+  },
+  {
+   "at": [
+    2600.0,
+    0.0
+   ],
+   "text": "HILLS 240-495 m"
+  },
+  {
+   "at": [
+    -300.0,
+    -60.0
+   ],
+   "text": "JETTY, LAUNCH PAD"
+  }
+ ]
+}
