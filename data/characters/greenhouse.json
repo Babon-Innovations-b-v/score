@@ -1,0 +1,12 @@
+{
+ "place": "greenhouse",
+ "from": "the place's concept as a freshly picked input (owner, 2026-10-11): the people on it counted by SAM 3 and the judge (score.stages.concept_people), each stood at the thing they stand at on the concept (today/records/tools/cast_place.py), the people from the cast list the people stage makes (data/characters/makes/*_prop.json)",
+ "people": [
+  {"name": "nev", "character": "nev", "look": "nev_work", "doing": "lifting", "at": [0.003, 0.0, 4.995], "facing_to": [0.003, 0.0, 5.795],
+   "why": "Nev, lifting at the crop crate, where the concept (K09.png) shows a crew member at it (their feet 48.0 px from the line it stands on), at the nearest spot clear of everything on the stage"},
+  {"name": "bram", "character": "bram", "look": "bram_work", "doing": "checking", "at": [-6.574, 0.0, -5.034], "facing_to": [-7.524, 0.0, -5.034],
+   "why": "Bram, checking the humidifier, where the concept (K09.png) shows a crew member at it (their feet 48.0 px from the line it stands on), at the nearest spot clear of everything on the stage"},
+  {"name": "sefa", "character": "sefa", "look": "sefa_work", "doing": "checking", "at": [0.85, 0.0, 5.5], "facing_to": [0.0, 0.0, 0.0],
+   "why": "Sefa, checking on the open floor, where the concept (K09.png) shows a crew member at no row, at the clear spot nearest the floor's middle"}
+ ]
+}
