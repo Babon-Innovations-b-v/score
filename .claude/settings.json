@@ -115,6 +115,16 @@
         ]
       },
       {
+        "matcher": "Bash|Write|Edit|NotebookEdit|Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/accept_guard.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Grep|Glob|Bash",
         "hooks": [
           {
