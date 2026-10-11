@@ -55,30 +55,31 @@
   }
  },
  "blender": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-19e4286bf273@sha256:607f5c0bdd7c69cfd1fec6b3acc11e0c7d05489bf4c0250b1f56acbd957c7e77",
-  "tag": "1-19e4286bf273",
-  "digest": "sha256:607f5c0bdd7c69cfd1fec6b3acc11e0c7d05489bf4c0250b1f56acbd957c7e77",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-bd31e033ca11@sha256:41645140969a2a98a93d7527fe2a9045650a6d7d3e3450f3b909dc8c310180b1",
+  "tag": "1-bd31e033ca11",
+  "digest": "sha256:41645140969a2a98a93d7527fe2a9045650a6d7d3e3450f3b909dc8c310180b1",
+  "fallback": "rg.fr-par.scw.cloud/score-farm-factory/score-blender:1-19e4286bf273@sha256:607f5c0bdd7c69cfd1fec6b3acc11e0c7d05489bf4c0250b1f56acbd957c7e77",
   "platforms": "linux/amd64",
-  "size_mb": 794.5,
-  "build_minutes": 1.8,
-  "built": "2026-10-10T03:46:19Z",
+  "size_mb": 951.5,
+  "build_minutes": 0.9,
+  "built": "2026-10-11T14:53:49Z",
   "smoke": {
-   "pull_seconds": 13.9,
+   "pull_seconds": 13.4,
    "runs": {
     "first-node": {
-     "container_seconds": 5.9,
+     "container_seconds": 4.7,
      "weights_seconds": 0.8,
-     "job_seconds": 2.0
+     "job_seconds": 1.1
     },
     "second-node": {
-     "container_seconds": 4.6,
-     "weights_seconds": 0.5,
-     "job_seconds": 1.3
+     "container_seconds": 3.7,
+     "weights_seconds": 1.1,
+     "job_seconds": 1.5
     },
     "warm": {
-     "container_seconds": 4.8,
-     "weights_seconds": 1.1,
-     "job_seconds": 2.3
+     "container_seconds": 1.8,
+     "weights_seconds": 0.1,
+     "job_seconds": 0.1
     }
    }
   },

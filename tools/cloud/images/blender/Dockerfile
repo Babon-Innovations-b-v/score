@@ -9,8 +9,12 @@
 # first render waited 218 s for the driver to compile Cycles' PTX; the L4 and L40S (sm_89) start at once. A job naming
 # kernel_cache "blender-5.0.1" keeps the compiled cache per card and driver in the node cache and the store
 # (tools/cloud/runtime/kernels.py, warmed by tools/cloud/images/warm.py): a new H100 node's first render then takes
-# 0.3 s. The provider's GPU machines carry NVIDIA's headless compute driver, which has no OptiX library, so Cycles
-# renders on CUDA there; the graphics capability lets the container toolkit mount OptiX where a driver has it.
+# 0.3 s.
+# OptiX: the provider's GPU machines carry Ubuntu's headless compute driver (580.178.04 on the L4, 2026-10-11), with
+# no libnvoptix, so the container toolkit had none to mount and Cycles' OptiX failed with 7804 (library not found) and
+# rendered on CUDA. The image carries that driver's user-space OptiX files from NVIDIA's installer
+# (install-nvidia.sh). They match one driver version: on another, the graphics capability mounts the host's own where
+# it has them; where it has none, OptiX may fail and Cycles renders on CUDA as before.
 ARG BASE
 FROM ${BASE}
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics PROPS_HOME=/root/props BLENDER=/opt/blender/blender
@@ -27,6 +31,15 @@ RUN curl -fsSL -o /tmp/blender.tar.xz \
  && tar -xJf /tmp/blender.tar.xz -C /opt/blender --strip-components=1 \
  && rm /tmp/blender.tar.xz \
  && ln -s /opt/blender /root/blender
+ARG NVIDIA_DRIVER=580.178.04
+ARG NVIDIA_DRIVER_SHA256=5975a86ee45bffcb626f51ae33d1169b108186a2ea47ad651e72f13fa4b6d6f9
+COPY install-nvidia.sh /opt/score/install-nvidia.sh
+RUN curl -fsSL -o /tmp/nvidia.run \
+    "https://us.download.nvidia.com/tesla/${NVIDIA_DRIVER}/NVIDIA-Linux-x86_64-${NVIDIA_DRIVER}.run" \
+ && echo "${NVIDIA_DRIVER_SHA256}  /tmp/nvidia.run" | sha256sum -c - \
+ && sh /tmp/nvidia.run -x --target /tmp/nvidia >/dev/null \
+ && sh /opt/score/install-nvidia.sh /tmp/nvidia "${NVIDIA_DRIVER}" \
+ && rm -rf /tmp/nvidia.run /tmp/nvidia
 COPY requirements.txt /opt/score/blender-requirements.txt
 RUN /opt/blender/5.0/python/bin/python3.11 -m pip install --quiet --no-cache-dir --require-hashes \
     --target /root/props/blender-mcp/pf-site -r /opt/score/blender-requirements.txt \
