@@ -1,11 +1,12 @@
 """The character maker's prop route for a person (owner, 2026-10-10: "soma is for the rig, not the mesh ... we should
 fit the prop pipeline mesh to the rig, and maybe on top of that do some part segmentations, and for the clothing parts
 some drape shaping"): a spec with "route": "prop" is made here; every other person spec keeps the shipped route.
-Experimental (#5): the player fails tucks and pokes and Nev is not made, so make.py sends a spec here only with
+Experimental (#5): the player fails tucks and pokes and Nev is not made, so it runs, from make.py or by hand, only with
 --experimental (docs/bible.md, architecture/experimental).
 
     .venv/bin/python tools/characters/maker/prop_person.py data/characters/makes/<name>.json --who "<session>"
-        [--outfit work] [--stages closeup,mesh,parts,build,checks] [--held <characters run folder>] [--dry-run]
+        --experimental [--outfit work] [--stages closeup,mesh,parts,build,checks] [--held <characters run folder>]
+        [--dry-run]
 
 Everything lands in ~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/, never in a kept look or a built
 body. The stages, each a cloud job through the repo's runners (only plain CPU geometry runs on this PC):
@@ -522,7 +523,10 @@ def main():
     parser.add_argument("--stages", default=",".join(STAGES))
     parser.add_argument("--held", type=pathlib.Path, help="a characters.py --hold run folder")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--experimental", action="store_true", help="the prop route is experimental: required")
     options = parser.parse_args()
+    if not options.experimental:
+        raise SystemExit(f"{options.spec}: the prop route is experimental, so only with --experimental")
     spec = specs.read(options.spec)
     if spec.get("route") != "prop":
         raise SystemExit(f"{options.spec}: not a prop route spec (\"route\": \"prop\")")
