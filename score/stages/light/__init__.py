@@ -62,12 +62,17 @@ MODELS = {
     "launch": ["package/launch/objects"],
     "old_station": ["package/old_station/objects"],
     "greenhouse": ["package/greenhouse/objects"],
-    "camp": ["package/camp-paint1/objects", "package/camp/objects", "place/camp-late1/made", "remake-retired/made/camp"],
+    "camp": ["package/camp-paint1/objects", "package/camp/objects", "place/camp-late1/made", "remake-retired/made/camp",
+             "{camp late}"],
+    "campgrounds": ["place/campgrounds-paint1/package/objects"],
 }
+# The camp's own airlock and link (main's 9e77a36): the late_bake@camp stage's accepted output, by its hash, a
+# declared input of these stages (PLACE_FILES).
+CAMP_LATE = PROPS_HOME / "store/cache/checkouts/d9d462cefefa3ae1952090928726c4d615be61ccc86c804c44dd9b0814db0432/made"
 # What each node makes again (the place and a place it shows whose record changed) and whose views it renders (the
 # camp grounds' film is drawn on the camp's stage).
 EXPORTS = {"square": ("square", "launch"), "launch": ("launch", "square"), "old_station": ("old_station",),
-           "greenhouse": ("greenhouse",), "camp": ("camp",)}
+           "greenhouse": ("greenhouse",), "camp": ("camp", "campgrounds")}
 VIEWS = {"square": ("square",), "launch": ("launch",), "old_station": ("old_station",),
          "greenhouse": ("greenhouse",), "camp": ("campgrounds",)}
 FRAMES = ("-000", "-128")
@@ -151,7 +156,8 @@ def export_place(place, folder, kit):
     """One place exported again into `folder`: its round-three stage's layers other than the base copied (cast,
     sound, motion, effects, edits), then tools/usd/export.py writing the base and the root over them."""
     shutil.copytree(SEEDS / place, folder, ignore=base_files(SEEDS / place))
-    models = [str(WORK / path) if path != "{kit}" else str(kit) for path in MODELS[place]]
+    named = {"{kit}": str(kit), "{camp late}": str(CAMP_LATE)}
+    models = [named.get(path, str(WORK / path)) for path in MODELS[place]]
     command = ["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=12G", str(PYTHON),
                str(REPO / "tools/usd/export.py"), place, "--models", *models, "--out", str(folder)]
     subprocess.run(command, check=True, cwd=REPO, stdout=subprocess.DEVNULL)
@@ -448,7 +454,8 @@ PLACE_FILES = {"scene": "{data}/scene/{place}.json", "scenes": "{data}/scene", "
                "inventories": "{data}/inventory", "library": "{data}/library", "ground": "{data}/ground",
                "characters": "{data}/characters", "parts": "{data}/parts", "seed set": "{seeds}/usd-r3/inputs.json",
                "seed": "{seeds}/usd-r3/{place}", "demo views": "{seeds}/demo/world1-r4/views",
-               "stage code": "{data}/../tools/usd", "renderer": "{data}/../tools/blender/inside"}
+               "stage code": "{data}/../tools/usd", "renderer": "{data}/../tools/blender/inside",
+               "camp late models": str(CAMP_LATE), "camp grounds seed": "{seeds}/usd-r3/campgrounds"}
 LIGHT = graph.Stage("light", "place", make_place, LIT_PLACE,
                     (checks.Check("heads", judge_heads), checks.Check("earth", judge_earth),
                      checks.Check("sky", judge_sky), checks.Check("stage_no_worse", judge_stage)),
