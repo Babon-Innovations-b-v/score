@@ -38,7 +38,8 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   lightness, how blotchy their surfaces look (surface marks), and DINOv2's likeness within the place against across
   places, with the same pairs as silhouettes subtracted so what an object is does not count as its style. DINOv2
   runs on a rented machine through `../props/cloud/similar.py`, never here. It reports numbers, never a verdict;
-  validating it needs the creator's reviews.
+  validating it needs the creator's reviews. Experimental: it reported nothing wrong on the paint the owner rejects;
+  it is proven when it ranks the models he flagged worse than the ones he accepted.
 - **Luminance per region** (`brightness.py`): the whole picture's mean hides a dark part behind a bright one (the far
   city behind the lit square), so a part is measured on its own: the objects whose prim path holds the `--match` words,
   from the annotate step's ids (`../usd/annotate.py`), and horizontal bands, in linear light against the game's shot
@@ -51,6 +52,9 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   clear spot near it is left out, never filmed from inside something. The views file keeps every shot's move and the
   planner's commit; `--keep` keeps an earlier take's clear shots as they were. `film_checks.py` is the film's measured
   checks (ffmpeg's size, sound, black, frozen and length; the clearance on every frame from meshes and from people at
-  the frame's own moment; the ink pass drawn on every frame, a frame that sees only what lies past the ink's fade
-counted, not failed): a film that fails is not shown. `showcase.py` cuts the showcase and the
+  the frame's own moment; the ink pass drawn on every frame at half strength somewhere, a frame that sees only what
+  lies past the ink's fade counted rather than failed only with the experimental `--ink-past-fade`): a film that
+  fails is not shown. Experimental: the films check only what they measure (a walk through a crowd passed them
+  once), nobody has reviewed the round-three and round-four films, and they are cited nowhere; they come back as the
+  evidence step, on places the owner accepted. `showcase.py` cuts the showcase and the
   figure from the films. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
