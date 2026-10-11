@@ -75,6 +75,53 @@ def test_reading_pages_and_tests_stay_allowed():
     assert _run(edit)[0] == 0
 
 
+def test_the_reviews_ways_round_the_guard_are_blocked():
+    """Fault (review of step 0, 2026-10-11): each of these got through (exit 0)."""
+    for command in (".venv/bin/python -c 'from score.review import accept; accept(store, \"a@b\", \"o\", \"me\")'",
+                    ".venv/bin/python -c 'import score.review as r; r.accept(store, \"a@b\", \"o\", \"me\")'",
+                    ".venv/bin/python -c 'from score.store import Store; "
+                    "Store.default().write_once(\"acc\"+\"epts/a@b/1.json\", {})'",
+                    "python -m score.review \"accept\" a@b o",
+                    "cd score/review && python __main__.py accept a@b o",
+                    "script -qc '.venv/bin/python -m score.review page a@b' /dev/null",
+                    "cat > /tmp/do_it.py <<EOF\nfrom score import review\nreview.accept(store, 'a@b', 'o', 'me')\nEOF"):
+        assert _run(_bash(command))[0] == 2, command
+    script = {"tool_name": "Write", "tool_input": {"file_path": "/tmp/do_it.py",
+                                                   "content": "from score import review\nreview.accept(s, 'a', 'o')\n"}}
+    assert _run(script)[0] == 2
+
+
+def test_taking_the_agent_mark_off_a_process_is_blocked():
+    for command in ("env -u CLAUDECODE .venv/bin/python /tmp/x.py", "unset CLAUDECODE; python3 /tmp/x.py",
+                    "CLAUDECODE= .venv/bin/python /tmp/x.py", "env -i PATH=$PATH .venv/bin/python /tmp/x.py"):
+        assert _run(_bash(command))[0] == 2, command
+    edit = {"tool_name": "Edit", "tool_input": {"file_path": "/tmp/x.py",
+                                                "new_string": "os.environ.pop('CLAUDECODE')"}}
+    assert _run(edit)[0] == 2
+
+
+def test_read_only_commands_and_unrelated_writes_stay_allowed():
+    """Fault (review of step 0): any `>` or the words accept, waive or spend in an artifact write were blocked."""
+    for command in ('grep -rn "accepts/" score 2>/dev/null',
+                    "ls ~/.farm-factory-props/store/objects/accepts/ 2>&1 | head",
+                    "git log > /tmp/x; echo spend-yes/",
+                    "grep -c accept score/review/__init__.py > /tmp/count.txt"):
+        assert _run(_bash(command))[0] == 0, command
+    notes = {"tool_name": "Artifact", "tool_input": {"action": "write_db", "collection": "notes", "doc_id": "n1",
+                                                     "data": {"text": "acceptance criteria, spend and waivers"}}}
+    assert _run(notes)[0] == 0
+    framework = {"tool_name": "Edit", "tool_input": {"file_path": "/repo/score/review/review_test.py",
+                                                     "new_string": "review.accept(store, node, output, 'me')"}}
+    assert _run(framework)[0] == 0
+
+
+def test_a_batch_writing_accepts_into_an_artifact_database_is_blocked():
+    batch = {"tool_name": "Artifact", "tool_input": {"action": "write_db", "db_op": "batch", "writes": [
+        {"op": "set", "collection": "notes", "doc_id": "n1", "data": {}},
+        {"op": "set", "collection": "store/x/accepts", "doc_id": "a@b", "data": {}}]}}
+    assert _run(batch)[0] == 2
+
+
 def test_garbage_fails_open():
     assert _run("not json")[0] == 0
     assert _run({"tool_name": "Bash"})[0] == 0
