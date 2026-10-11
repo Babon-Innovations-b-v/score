@@ -21,7 +21,7 @@ apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libsm6 l
 # libnvoptix, so Cycles' OptiX failed with 7804 (library not found) and rendered on CUDA (2026-10-11). The same
 # version's libnvidia-gl package carries OptiX (libnvoptix, libnvidia-rtcore, nvoptix.bin).
 compute=$(dpkg-query -W -f='${db:Status-Abbrev} ${Package} ${Version}\n' 'libnvidia-compute-*' 2>/dev/null \
-  | awk '$1 == "ii" {print $2 "=" $3; exit}')
+  | awk '$1 == "ii" {print $2 "=" $3; exit}' || true)  # a processor machine has none: dpkg-query fails, pipefail
 if [ -n "$compute" ]; then
   apt-get install -y -qq --no-install-recommends "${compute/compute/gl}" >/dev/null
 fi
