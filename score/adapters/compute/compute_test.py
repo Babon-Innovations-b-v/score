@@ -53,9 +53,9 @@ def refused(call):
     raise AssertionError("taken")
 
 
-def a_job(runner):
+def a_job(runner, euros=0.8):
     job_store = compute.job_contract.stores.FolderStore(tempfile.mkdtemp())
-    spec = {"kind": "blender", "image": "img", "command": ["true"]}
+    spec = {"kind": "blender", "image": "img", "command": ["true"], "euros": euros}
     return job_store, lambda: compute.submit(runner, "render@hangar", job_store, "run1", "job1", spec)
 
 
@@ -78,6 +78,19 @@ def test_a_cleared_node_without_the_owners_yes_is_refused_and_with_it_is_submitt
     job = compute.job_contract.stores.read_json(job_store, written)
     assert job["node"] == "render@hangar" and job["node_key"] == key
 
+
+
+def test_a_yes_clears_only_runs_estimated_within_it():
+    """Fault (review of step 0, 2026-10-11): a yes recorded euros but clearance never compared them with the job's
+    estimate, so a yes given for one estimate cleared a run of any size under the same key."""
+    runner = a_runner("a hall")
+    accept_brief(runner)
+    key = runner.ticket("render@hangar")["key"]
+    runner.store.write_spend_yes("render@hangar", key, {"euros": 1.0, "at": graph.now()})
+    job_store, dearer = a_job(runner, euros=5.0)
+    assert "estimated at EUR 5.0" in refused(dearer) and job_store.keys("") == []
+    assert "needs its estimate" in refused(a_job(runner, euros=None)[1])
+    assert a_job(runner, euros=1.0)[1]()
 
 if __name__ == "__main__":
     for name, test in list(globals().items()):
