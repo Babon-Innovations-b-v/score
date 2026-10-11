@@ -1,0 +1,39 @@
+{
+ "place": "square",
+ "library": "prologue_square",
+ "takes": {
+  "far_flag_pole-s1": {
+   "places": [
+    "square"
+   ],
+   "library_places": [
+    "prologue_square"
+   ],
+   "place": "square",
+   "kind": "square_far_flag_pole",
+   "object": "red flag on its pole"
+  },
+  "far_palm-s1": {
+   "places": [
+    "square"
+   ],
+   "library_places": [
+    "prologue_square"
+   ],
+   "place": "square",
+   "kind": "square_far_palm",
+   "object": "fan palm on the promenade"
+  },
+  "guard_hut-rr1": {
+   "places": [
+    "square"
+   ],
+   "library_places": [
+    "prologue_square"
+   ],
+   "place": "square",
+   "kind": "square_guard_hut",
+   "object": "a small guard hut at the square's left edge"
+  }
+ }
+}

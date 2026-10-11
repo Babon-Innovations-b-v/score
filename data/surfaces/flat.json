@@ -1,0 +1,138 @@
+{
+ "place": "flat",
+ "library": "prologue_flat",
+ "takes": {
+  "ashtray-rr1": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_ashtray",
+   "object": "a round dark grey metal ashtray with two cigarette butts"
+  },
+  "balcony_fern_pot-rr1": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_balcony_fern_pot",
+   "object": "a potted fern with long fronds in a round glazed pot"
+  },
+  "balcony_rubber_plant-rr1": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_balcony_rubber_plant",
+   "object": "a potted rubber plant with broad glossy leaves in a round glazed pot"
+  },
+  "flat_bedside_lamp-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_bedside_lamp",
+   "object": "bedside lamp with a pleated shade"
+  },
+  "flat_bowl_stack-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_bowl_stack",
+   "object": "stack of rice bowls"
+  },
+  "flat_crt_tv-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_crt_tv",
+   "object": "old television set"
+  },
+  "flat_enamel_basin-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_enamel_basin",
+   "object": "enamel wash basin"
+  },
+  "flat_gas_stove-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_gas_stove",
+   "object": "two-ring gas stove"
+  },
+  "flat_kettle-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_kettle",
+   "object": "aluminium kettle"
+  },
+  "flat_quilt-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_quilt",
+   "object": "folded red cotton quilt"
+  },
+  "flat_sauce_bottle-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_sauce_bottle",
+   "object": "soy sauce bottle"
+  },
+  "flat_thermos-pb": {
+   "places": [
+    "flat"
+   ],
+   "library_places": [
+    "prologue_flat"
+   ],
+   "place": "flat",
+   "kind": "flat_thermos",
+   "object": "green thermos flask"
+  }
+ }
+}

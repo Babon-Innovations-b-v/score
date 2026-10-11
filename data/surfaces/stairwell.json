@@ -1,0 +1,17 @@
+{
+ "place": "stairwell",
+ "library": "prologue_stairwell",
+ "takes": {
+  "stairwell_extinguisher-pb": {
+   "places": [
+    "stairwell"
+   ],
+   "library_places": [
+    "prologue_stairwell"
+   ],
+   "place": "stairwell",
+   "kind": "stairwell_extinguisher",
+   "object": "red fire extinguisher"
+  }
+ }
+}

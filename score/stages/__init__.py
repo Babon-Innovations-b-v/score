@@ -7,13 +7,14 @@
 
 Step 0 holds the worked example: assembly (P5) on world 1's round-three stages as unverified seeds, and complete
 (P11). Terrain (the paper's Methods, "Terrain") makes every ground of the world from its plan, one world node, paid
-(pictures and depth in the cloud, cleared by the runner). Each stage joins the table when it is built in its step
-(docs/bible.md, architecture/components).
+(pictures and depth in the cloud, cleared by the runner). The surface stage (step 1, its overlay) is each place's
+own line of rows, split to checked bake, beside the world's seed of the finish registry. Each stage joins the table
+when it is built in its step (docs/bible.md, architecture/components).
 """
 import pathlib
 
 from score import contracts, graph
-from score.stages import assembly, complete, terrain
+from score.stages import assembly, complete, surfaces, terrain
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -25,12 +26,14 @@ ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.O
                        files=assembly.FILES, gatherers=assembly.GATHERERS)
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
                        after={"assembly": ("openusd-stage", 1)})
-STAGES = (TERRAIN, ASSEMBLY, COMPLETE)
+STAGES = (TERRAIN, ASSEMBLY, COMPLETE, *surfaces.ROWS)
 
 
 def world1():
-    """World 1: its record, its data in the repository and its old outputs in the work folder."""
-    return graph.World.from_file(WORLD1, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"))
+    """World 1: its record, its data in the repository, its old outputs in the work folder, the prop tools' home (the
+    raw models, the routes' bake jobs) and the repository (the code a stage hands to a rented machine)."""
+    return graph.World.from_file(WORLD1, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"),
+                                 home=str(PROPS_HOME), repo=str(REPO))
 
 
 def places(world):

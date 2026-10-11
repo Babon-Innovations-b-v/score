@@ -8,7 +8,9 @@ questions of every take go to ../cloud/judge.py (Qwen3.8-27B, open, on a rented 
 labels.py `--answers <folder>` then paints each part with the material the judge named. The picture's colour picks
 only where the judge gave no usable answer. No model runs here: numpy and the picture.
 """
+import collections
 import colorsys
+import glob
 import json
 import pathlib
 import re
@@ -133,14 +135,46 @@ def answer_of(text):
     return found
 
 
+def asks_of(folder, name):
+    """Every reply to one question: <name>.txt and its repeats <name>.r<k>.txt (../cloud/judge.py --repeat)."""
+    folder = pathlib.Path(folder)
+    repeats = sorted(path for path in folder.glob(f"{glob.escape(name)}.r*.txt")
+                     if re.fullmatch(r"r\d+", path.name[len(name) + 1:-len(".txt")]))
+    return [path.read_text() for path in [folder / f"{name}.txt", *repeats] if path.exists()]
+
+
+def vote(replies, codes):
+    """The code (one of `codes`) that more than half of the replies name, with the first such reply's words for the
+    part; None when no code has that majority (the part is unknown) or there are no replies. A reply with no verdict
+    (thinking that ran out) counts as an ask that named nothing. One ask is not enough: asked the same 92 questions
+    twice, the judge named another surface in 12 of 87 answered pairs (2026-10-11)."""
+    named = []
+    for reply in replies:
+        answer = answer_of(reply) or {}
+        named.append((str(answer.get("material", "")).strip().upper(), str(answer.get("part", ""))))
+    tally = collections.Counter(found for found, _ in named if found in codes)
+    if not tally:
+        return None
+    best, count = tally.most_common(1)[0]
+    if 2 * count <= len(replies):
+        return None
+    return best, next(words for found, words in named if found == best)
+
+
 def judged(folder, take, count, names):
     """Each part's material as the judge answered it ({part: (material, what the part is)}), for the parts whose
-    answer gives the code of one of `names` (in the order the question listed them)."""
+    replies give one of `names` (in the order the question listed them) by majority (vote)."""
+    codes = {code(index): name for index, name in enumerate(names)}
     found = {}
     for part in range(count):
-        path = pathlib.Path(folder) / f"{take}-part{part:02d}.txt"
-        answer = answer_of(path.read_text()) if path.exists() else None
-        codes = {code(index): name for index, name in enumerate(names)}
-        if answer and str(answer.get("material", "")).strip().upper() in codes:
-            found[part] = (codes[str(answer["material"]).strip().upper()], str(answer.get("part", "")))
+        decided = vote(asks_of(folder, f"{take}-part{part:02d}"), codes)
+        if decided:
+            found[part] = (codes[decided[0]], decided[1])
     return found
+
+
+def unknown(folder, take, count, names):
+    """The parts asked (a reply on disk) that no material won by majority (vote)."""
+    codes = {code(index): name for index, name in enumerate(names)}
+    return [part for part in range(count) if (replies := asks_of(folder, f"{take}-part{part:02d}"))
+            and vote(replies, codes) is None]

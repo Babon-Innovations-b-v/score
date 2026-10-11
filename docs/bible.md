@@ -95,7 +95,14 @@ the current backend). No model runs on the coordinating machine.
   cleared or the owner's override (`compute.require_cleared`), so the old paid entry points (blender_cloud.py,
   detached.py, the runners, demo.py, the close-up stage, marble.py) cannot spend round the runner. Step 0 still
   lacks the layout stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces
-  bounded by the plan, a plain tag measured plain). The in-progress directions are in `architecture/experimental`.
+  bounded by the plan, a plain tag measured plain). Step 1, the surface stage (`score/stages/surfaces`, its
+  overlay), is each place's own line of rows in world 1's table (`python -m score run world1 --place <place>`), no
+  world-wide barrier: the method's rows (today g-texture: split, asks, judge, parts) end in its interface, each
+  model's parts with a measured finish and the judge's surface each; the framework's rows give every part the
+  surface of its finish group in the finish registry (an append-only store item, `registry/` in the store, seeded by
+  the owner's hub picks, the one world node every line reads), paint it from the library, bake and check it. What
+  each place splits and bakes is world data, `data/surfaces/<place>.json`. The in-progress directions are in
+  `architecture/experimental`.
   The overlay `score/CLAUDE.md` has the rules.
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
@@ -166,6 +173,12 @@ is meant to fix, where it is marked, and what proves it.
   two-way split fit, round five's 3D split, `--face-parts` and `finish_masks.py`, `split_spread.py`; 5c66c2e). For
   black, stripped and one-colour paint. No owner-accepted before and after on a world model. Settled in step 1, the
   surface stage, on the hangar and the six named models, with numbers and his review.
+- **The surface stage's method, g-texture** (`score/stages/surfaces`: split_batch, g_texture, multiview, measure,
+  paint; round 4 of the surface test, 5 of its 6 models passing, the telephone failing every arm). For one finish a
+  part, named by the judge looking at it. On world 1's table, but no place's line has run end to end, and a finish-map
+  method (Gemini's finishes on the concept, a flat-colour finish map painted onto the shape) is tested beside it and
+  may replace it behind the same interface. Proven when a place's line ends accepted at its checks and the owner
+  reviews the baked models.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
