@@ -3,7 +3,8 @@ short or silent; on two rooms with a person standing in one (tools/usd/camera_pa
 through the person fails, as the square's first take walked through its crowd, and so does one that passes 0.1 m from
 a wall, while a shot clear of both passes; a frame with no ink lines fails, and so does a shot whose lines touch
 nothing in any frame, and a frame whose lines are faint or empty (a far view) fails unless the experimental
-past-fade rule counts it; and the summary adds up each cloud batch's own cost line. ffmpeg on the path; no Blender, no cloud.
+past-fade rule counts it; and the summary adds up each cloud batch's own cost line. ffmpeg on the path; no Blender,
+no cloud.
 
 Run: .venv/bin/python tools/review/film_checks_test.py   (make tests runs it with the framework's environment)
 """
