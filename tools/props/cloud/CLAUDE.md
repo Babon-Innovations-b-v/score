@@ -4,6 +4,11 @@ The cloud batch runners: a whole batch of approved pictures through Pixal3D on r
 cards, the raw models brought back and finished here, the machines deleted after (#55), and the other
 model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 
+- **Nothing rents outside a cleared run** (design of 2026-10-11, step 0): `batch.rent`, the one place a machine is
+  ordered, asks `score.adapters.compute.require_cleared` first, so `blender_cloud.py`, `detached.py`, every runner,
+  `tools/review/demo.py` and the coordinator's scripts refuse to spend unless SCORE_SPEND_TICKET names a node the
+  runner cleared (`score.adapters.engines` sets it) or the owner's override (his spend yes under the node
+  `override`). A refusal is `compute.Refused`; never route round it.
 - **SCORE_CLOUD=k8s sends a runner's work to the Kubernetes cluster** (`tools/cloud/k8s/`) instead of renting
   machines; the cluster's provider (registry, store, prices, secrets) is `SCORE_K8S_PROVIDER`, Scaleway by default,
   and `provider.on_cluster()` says which path is on. A runner that supports it describes each job (command, repo

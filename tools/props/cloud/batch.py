@@ -32,7 +32,8 @@ every model, one or a hundred. Under SCORE_CLOUD=k8s the takes go to the Kuberne
 image instead (run_on_cluster, tools/cloud/k8s/cluster_jobs.py), finished here the same way; the machines stay the
 default.
 
-Before anything is rented, the prices are read from the cloud backend (provider.py) and printed, and a batch that would
+Nothing is rented outside a run the runner cleared or the owner's override names (score.adapters.compute,
+`require_cleared`). Before anything is rented, the prices are read from the cloud backend (provider.py) and printed, and a batch that would
 pass four hours, €60, or the month's ceiling (ledger.MONTH_EUROS) is refused (ledger.py). Every machine is deleted whatever
 happens: when its work is done, on an error, on Ctrl-C, by a watchdog process at the time limit if
 this one is gone, and by the next run's sweep.
@@ -67,6 +68,9 @@ import pixal  # noqa: E402
 import place  # noqa: E402
 from provider import cloud  # noqa: E402
 from paths import HOME, REPO, VENV_PYTHON, WORK  # noqa: E402
+
+sys.path.insert(0, str(REPO))
+from score.adapters import compute  # noqa: E402
 
 # Pixal3D runs at once on one card, measured on an L4 (2026-09-29): 3 at once made about 19 models an
 # hour at a 10.6 GB peak; 6 made about 20 at 17 to 20 GB and one run died, so the card is already full at 3.
@@ -641,8 +645,9 @@ def queue(fleet, models):
 
 def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     """Rent one machine from `offer` with its watchdog and a root disk of `disk_gb`; its record, or None when
-    refused."""
+    refused. Nothing is rented outside a cleared run (compute.require_cleared raises Refused)."""
     machine_type, zone = offer.type, offer.zone
+    compute.require_cleared(f"a {machine_type} in {zone}")
     spent = month_spent(account)
     if spent >= ledger.MONTH_EUROS:
         say(f"€{spent:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling: nothing more is rented")

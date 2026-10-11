@@ -36,7 +36,8 @@ def machine_runner():
 
 def blender_on_machines(runner, node, script, arguments, inputs, outputs, classes, minutes, euros):
     """Run one Blender script on a rented machine for a node cleared at its estimate in euros, its outputs back where
-    they belong."""
+    they belong; the run is named in SCORE_SPEND_TICKET, so its machine may be rented."""
     ticket = compute.clearance(runner, node, euros)
-    machine_runner().run_elsewhere(script, arguments, inputs, outputs, classes, f"{node} {ticket['key'][:12]}",
-                                   minutes)
+    with compute.spending(ticket):
+        machine_runner().run_elsewhere(script, arguments, inputs, outputs, classes, f"{node} {ticket['key'][:12]}",
+                                       minutes)

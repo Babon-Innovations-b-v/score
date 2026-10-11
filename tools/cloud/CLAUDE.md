@@ -3,6 +3,9 @@
 The container path for every model step (job cloud-k8s, 2026-10-09): one pinned image per job kind, weights from a
 cache instead of a fresh download on every machine, and a job spec that Kubernetes or a hand with docker runs the
 same way. The machine runners in `tools/props/cloud/` stay the default; this path is chosen by `SCORE_CLOUD=k8s`.
+**Experimental: not used for world 1** (no world was built through it; 06cf411's image pins are read only by this
+path); it proves itself when a stage's paid node runs through it end to end. `k8s/submitter.py` refuses outside a
+cleared run, as the machine path does (`score.adapters.compute.require_cleared`).
 
 - **`runtime/`** is copied into every image: `job.py` (the entrypoint `score-job <run> <job>`), `weights.py` (the
   node's weights cache), `store.py` (S3 object storage, or a local folder for tests and hand runs), `kernels.py` (compiled GPU kernel caches per card and driver, for a job naming `kernel_cache`). Standard library
