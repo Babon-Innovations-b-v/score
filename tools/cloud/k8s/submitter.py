@@ -26,14 +26,14 @@ last and exits at once if it exists, so a Job made again (a lost node, a widened
 redoes only unfinished work. The submitter finds a run's Jobs by label, so running it again on the same run resumes.
 
 Cost. Nothing is submitted outside a run the runner cleared or the owner's override names
-(score.adapters.compute, `require_cleared`), nor when the month's spend (the provider's bill or the ledger, whichever is higher) has
-reached SCORE_MONTH_EUROS. Each pool's max size is what the euros left pay for ledger.BATCH_HOURS a node, and the
-live cost of the run's nodes is checked every poll against the batch cap (ledger.BATCH_EUROS) and the month's
-ceiling: past either, the waiting Jobs are deleted and every pool is capped to zero. Empty nodes go after the
-autoscaler's scale-down time (the cluster module sets it), so an idle cluster costs only its small system pool;
-`down` deletes the whole cluster. At the end the submitter waits for the run's nodes to go, then writes one ledger
-row a node (ledger.machines_record: its class, type, zone, minutes and euros) and the run's jobs with their wait
-until the pod ran.
+(score.adapters.compute, `require_cleared`), nor when the month's spend has reached SCORE_MONTH_EUROS, read as the
+provider's bill or the ledger, whichever is higher. Each pool's max size is what the euros left pay for
+ledger.BATCH_HOURS a node, and the live cost of the run's nodes is checked every poll against the batch cap
+(ledger.BATCH_EUROS) and the month's ceiling: past either, the waiting Jobs are deleted and every pool is capped to
+zero. Empty nodes go after the autoscaler's scale-down time (the cluster module sets it), so an idle cluster costs
+only its small system pool; `down` deletes the whole cluster. At the end the submitter waits for the run's nodes to
+go, then writes one ledger row a node (ledger.machines_record: its class, type, zone, minutes and euros) and the
+run's jobs with their wait until the pod ran.
 """
 import argparse
 import collections

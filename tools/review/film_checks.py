@@ -13,7 +13,9 @@ every person's box where that person stands at the frame's own moment of the sta
 drawn (its <name>-lines.png and <name>-ink.png there, and every frame inked at half strength somewhere). The rule of
 0e68b5e, that a frame whose lines are faint or touch nothing (everything it sees past the ink's fade) is counted, not
 failed, is experimental and on only with --ink-past-fade: it let a whole shot with no line at half strength pass
-(launch shot 1), and no review has shown such a shot is right. It writes every number to <out>/checks/<film>.json and prints one line a film. `video` runs the video checks alone (the showcase: its title card is not skipped). `report` writes the
+(launch shot 1), and no review has shown such a shot is right. It writes every number to <out>/checks/<film>.json
+and prints one line a film. `video` runs the video checks alone (the showcase: its title card is not skipped).
+`report` writes the
 demo's summary: every film's and the showcase's checks, and the cloud cost of each batch from its detached log's
 last summary line.
 """

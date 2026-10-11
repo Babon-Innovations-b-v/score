@@ -33,10 +33,10 @@ image instead (run_on_cluster, tools/cloud/k8s/cluster_jobs.py), finished here t
 default.
 
 Nothing is rented outside a run the runner cleared or the owner's override names (score.adapters.compute,
-`require_cleared`). Before anything is rented, the prices are read from the cloud backend (provider.py) and printed, and a batch that would
-pass four hours, €60, or the month's ceiling (ledger.MONTH_EUROS) is refused (ledger.py). Every machine is deleted whatever
-happens: when its work is done, on an error, on Ctrl-C, by a watchdog process at the time limit if
-this one is gone, and by the next run's sweep.
+`require_cleared`). Before anything is rented, the prices are read from the cloud backend (provider.py) and
+printed, and a batch that would pass four hours, €60, or the month's ceiling (ledger.MONTH_EUROS) is refused
+(ledger.py). Every machine is deleted whatever happens: when its work is done, on an error, on Ctrl-C, by a watchdog
+process at the time limit if this one is gone, and by the next run's sweep.
 """
 import argparse
 import collections

@@ -142,8 +142,9 @@ def a_failing_reach_is_shown_not_counted():
         return problems
 
 
-CHECKS = (a_finished_place_passes, a_failing_reach_is_shown_not_counted, a_row_with_no_object_needs_a_drop_reason, an_edit_after_the_checks_makes_them_stale,
-          a_mesh_from_nowhere_fails_made_only, a_check_that_cannot_run_is_unknown)
+CHECKS = (a_finished_place_passes, a_failing_reach_is_shown_not_counted, a_row_with_no_object_needs_a_drop_reason,
+          an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
+          a_check_that_cannot_run_is_unknown)
 
 
 if __name__ == "__main__":
