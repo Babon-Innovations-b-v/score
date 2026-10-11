@@ -120,11 +120,25 @@ def tree_for(node_place, tree, kit):
     return made
 
 
+def base_files(seed):
+    """What of a round-three stage is the base's own and so not copied (export writes it again; a picture left there,
+    the Earth's, would be kept as it was): the base layer, its models and their pictures, and the old checks."""
+    def ignored(folder, names):
+        folder = pathlib.Path(folder)
+        if folder == seed:
+            return {"checks", "manifest.json", "settle"} & set(names)
+        if folder == seed / "layers":
+            return {"base.usda"} & set(names)
+        if folder == seed / "assets":
+            return {name for name in names if name == "textures" or name.endswith(".usdc")}
+        return set()
+    return ignored
+
+
 def export_place(place, folder, kit):
     """One place exported again into `folder`: its round-three stage's layers other than the base copied (cast,
     sound, motion, effects, edits), then tools/usd/export.py writing the base and the root over them."""
-    shutil.copytree(SEEDS / place, folder, ignore=shutil.ignore_patterns("base.usda", "checks", "manifest.json",
-                                                                         "settle"))
+    shutil.copytree(SEEDS / place, folder, ignore=base_files(SEEDS / place))
     models = [str(WORK / path) if path != "{kit}" else str(kit) for path in MODELS[place]]
     command = ["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=12G", str(PYTHON),
                str(REPO / "tools/usd/export.py"), place, "--models", *models, "--out", str(folder)]
