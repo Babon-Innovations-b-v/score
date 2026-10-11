@@ -18,9 +18,12 @@ takes the same calls), under these keys:
     accepts/<node>/<time>.json              each accept the owner gave; the newest is the node's accepted output
     spend-yes/<node>/<key>.json             the owner's yes to one paid run's estimate
 
-Accepts and spend yeses are written only by the owner's own commands (score/review); a hook keeps agents from writing
-them (.claude/hooks/accept_guard.py). Nothing here moves the accepted output: a new output lands beside it.
-The local cache (checkouts, and the folder a stage writes into before its output is stored) sits beside the objects.
+Accepts, waivers and spend yeses are written only by the owner's own commands (score/review). In the framework's store
+`write_once` refuses them in any process an agent started (Claude Code marks its shells: AGENT_MARKERS), and a hook
+keeps agents from the other routes (.claude/hooks/accept_guard.py). On one machine under YOLO that is a barrier, not a
+lock: an agent set on getting round it can, and every accept names who gave it and when. Nothing here moves the
+accepted output: a new output lands beside it. The local cache (checkouts, copies of the stored bytes, and the folder
+a stage writes into before its output is stored) sits beside the objects.
 """
 import hashlib
 import json
@@ -34,6 +37,8 @@ import store as runtime_store  # noqa: E402
 
 PROPS_HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 CHUNK = 1 << 20
+AGENT_MARKERS = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "AI_AGENT")
+OWNER_AREAS = ("accepts/", "waivers/", "spend-yes/")
 
 
 def file_hash(path):
@@ -73,6 +78,11 @@ def listing_hash(listing):
 def tree_hash(folder):
     """The hash a file or folder would be stored under, without storing it."""
     return listing_hash(tree_listing(folder))
+
+
+def running_under_agent():
+    """True in a process an agent started (Claude Code marks every shell it runs)."""
+    return any(name in os.environ for name in AGENT_MARKERS)
 
 
 def stamp_key(stamp):
@@ -124,18 +134,23 @@ class Store:
         return runtime_store.read_json(self.objects, f"outputs/{output}.json")
 
     def place_blob(self, sha, destination):
-        """One stored file at a path: a hard link to the stored bytes when they are in a folder, else a download."""
+        """One stored file at a path, read-only: a copy of the stored bytes, never a link to them, so nothing done to
+        the copy reaches the store."""
         destination.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(self.objects, runtime_store.FolderStore):
-            os.link(self.objects.path(f"blobs/{sha}"), destination)
+            shutil.copyfile(self.objects.path(f"blobs/{sha}"), destination)
         else:
             self.objects.download(f"blobs/{sha}", destination)
+        destination.chmod(0o444)
 
     def checkout(self, output):
-        """A read-only folder holding a stored output, made once per output in the cache."""
+        """A read-only folder holding a stored output, made once per output in the cache and made again when its
+        files no longer match the output."""
         folder = self.cache / "checkouts" / output
-        if folder.is_dir():
+        if folder.is_dir() and tree_listing(folder) == self.listing(output):
             return folder
+        if folder.is_dir():
+            shutil.rmtree(folder)
         partial = folder.with_name(output + ".partial")
         if partial.exists():
             shutil.rmtree(partial)
@@ -157,8 +172,18 @@ class Store:
     def read(self, key):
         return runtime_store.read_json(self.objects, key) if self.objects.exists(key) else None
 
+    def is_framework_store(self):
+        """True for the framework's own store (any store not in a local folder counts as one)."""
+        if not isinstance(self.objects, runtime_store.FolderStore):
+            return True
+        return self.objects.root.resolve() == (PROPS_HOME / "store" / "objects").resolve()
+
     def write_once(self, key, value):
-        """Write a JSON object that must not exist yet: nothing in the store is overwritten."""
+        """Write a JSON object that must not exist yet: nothing in the store is overwritten, and an agent never writes
+        the framework store's accepts, waivers or spend yeses."""
+        if key.startswith(OWNER_AREAS) and self.is_framework_store() and running_under_agent():
+            raise PermissionError(f"{key}: only the owner accepts, waives or says yes to a spend, from his own "
+                                  "terminal; an agent's process cannot write it")
         if self.objects.exists(key):
             raise FileExistsError(f"{key} is already in the store; nothing is overwritten")
         runtime_store.write_json(self.objects, key, value)

@@ -10,7 +10,8 @@ gives. Today's tools in `tools/` move in here stage by stage as each stage is bu
 - **`store/`** the store over `tools/cloud/runtime/store.py`'s interface (a folder at `$PROPS_HOME/store` by
   default; nothing in the cloud): outputs as content-hashed files and listings, finish records, judgements per
   evidence state, evidence per check and output, the owner's accepts and spend yeses. Written once, never
-  overwritten; checkouts are read-only hard links. Its docstring has the key layout.
+  overwritten; checkouts are read-only copies (never links to the stored bytes), made again when changed; an
+  agent's process cannot write the framework store's accepts, waivers or spend yeses. Its docstring has the key layout.
 - **`graph/`** the runner: `Stage` (the stage table's row), `World`, `Runner.run/status/why/ticket`. A node's key
   hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too), parameters, seed, pinned models and every input.
