@@ -106,10 +106,11 @@ SKY_GAP_MOST = 20.0
 BLUE_TO_RED_WITHIN = 0.15
 # A sweep's strengths, as shares of the record's own number: the camp's sky first swept 0.25 to 4 (4 nearest the
 # concept); the square's shafts, first 48 m long (to the ground they light), fogged the whole square at 0.25 to 4 of
-# 0.02 a metre and veiled it at 0.05 and 0.1, so they are 12 m long round each lamp and swept again at 0.25 to 4.
-SWEEP = {"square": (0.25, 0.5, 1.0, 2.0, 4.0), "launch": (0.25, 0.5, 1.0, 2.0, 4.0),
+# 0.02 a metre and veiled it at 0.05 and 0.1, so they are 12 m long round each lamp and swept again at 0.25 to 4;
+# the launch's pad lamps, seen from 200 m, glowed under the gate at the square's density, so they are swept upward.
+SWEEP = {"square": (0.25, 0.5, 1.0, 2.0, 4.0), "launch": (1.0, 2.0, 4.0, 8.0, 16.0),
          "camp": (0.25, 0.5, 1.0, 2.0, 4.0)}
-SWEEP_VIEWS = {"square": ("shot0-000", "shot1-000"), "launch": ("shot1-000", "shot2-000"),
+SWEEP_VIEWS = {"square": ("shot0-000", "shot1-000"), "launch": ("shot0-000", "shot1-000", "shot2-000"),
                "camp": ("shot0-000", "shot1-000")}
 
 
@@ -526,9 +527,11 @@ def sweep_measure(place, name, looks):
     for view in views:
         rgb = measure.picture(looks[view["name"]])
         veils.append(measure.veil(measure.picture(DEMO / f"frames/{name}/{view['name']}-look.png"), rgb))
-        for middle, half, _, _ in lamp_heads(place):
+        for middle, half, _, front in lamp_heads(place):
             x, y, depth, focal = measure.where(view, size, middle)
-            if x is not None and 0 <= x < size[0] and 0 <= y < size[1]:
+            toward_eye = np.asarray(view["eye"], dtype=np.float64) - middle
+            facing = float(front @ toward_eye / np.linalg.norm(toward_eye))
+            if x is not None and 0 <= x < size[0] and 0 <= y < size[1] and facing >= FACING_LEAST:
                 found = measure.head(rgb, x, y, focal * half / depth)
                 if found:
                     heads.append(found)
