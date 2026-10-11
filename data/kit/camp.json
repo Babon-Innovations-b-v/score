@@ -16,12 +16,12 @@
 		"camp_shell_gore": 7,
 		"camp_ring_lamp": 6,
 		"camp_wall_net": 6,
-		"camp_passage_lining": 1,
-		"camp_passage_hull": 1,
-		"camp_partition": 1,
-		"camp_rod_lamp": 6,
+		"camp_passage_lining": 3,
+		"camp_passage_hull": 3,
+		"camp_partition": 3,
+		"camp_rod_lamp": 8,
 		"camp_floor_cable": 10,
-		"camp_door_strip_lamp": 2,
+		"camp_door_strip_lamp": 3,
 		"camp_waste_bin": 1,
 		"camp_sample_jar": 4,
 		"camp_sample_tray": 2,
@@ -620,6 +620,44 @@
 		"coffee_maker_1": {
 			"glows": false,
 			"route": "model"
+		},
+		"airlock_lining_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"airlock_hull_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"airlock_inner_end_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"airlock_outer_end_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"airlock_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"airlock_lamp_1_glow": {
+			"glows": true
+		},
+		"airlock_cycle_lamp_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"airlock_cycle_lamp_1_glow": {
+			"glows": true
+		},
+		"link_lining_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"link_hull_1": {
+			"glows": false,
+			"route": "code"
 		}
 	},
 	"pieces": [
@@ -9530,6 +9568,423 @@
 			],
 			"layer": 1,
 			"model": "coffee_maker_1"
+		},
+		{
+			"kind": "camp_passage_lining",
+			"at": [
+				9.5435,
+				-0.9194,
+				-13.9854
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				4.16,
+				3.13,
+				5.0
+			],
+			"layer": 1,
+			"model": "airlock_lining_1",
+			"row": "airlock_tube",
+			"arc": {
+				"length": 5.0,
+				"wide": 4.0,
+				"tall": 3.0
+			}
+		},
+		{
+			"kind": "camp_passage_hull",
+			"at": [
+				9.5166,
+				-1.5676,
+				-13.9455
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				4.704,
+				4.052,
+				5.0
+			],
+			"layer": 1,
+			"model": "airlock_hull_1",
+			"row": "airlock_tube",
+			"arc": {
+				"length": 5.0,
+				"half_wide": 2.3,
+				"top": 3.3,
+				"foot": -0.7
+			}
+		},
+		{
+			"kind": "camp_partition",
+			"at": [
+				7.6181,
+				-1.3893,
+				-12.3288
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				4.7,
+				4.12,
+				0.2
+			],
+			"layer": 1,
+			"model": "airlock_inner_end_1",
+			"row": "airlock_end",
+			"arc": {
+				"length": 4.7,
+				"tall": 4.05,
+				"thick": 0.12,
+				"door_at": 2.35,
+				"door": [
+					2.2,
+					3.3
+				]
+			}
+		},
+		{
+			"kind": "camp_partition",
+			"at": [
+				11.4152,
+				-1.7459,
+				-15.5622
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				4.7,
+				4.12,
+				0.2
+			],
+			"layer": 1,
+			"model": "airlock_outer_end_1",
+			"row": "airlock_end",
+			"arc": {
+				"length": 4.7,
+				"tall": 4.05,
+				"thick": 0.12,
+				"door_at": 2.35,
+				"door": [
+					2.2,
+					3.3
+				]
+			}
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				8.4939,
+				1.8118,
+				-13.8182
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				0.36,
+				0.38,
+				0.36
+			],
+			"layer": 1,
+			"model": "airlock_lamp_1",
+			"row": "airlock_lamp"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				8.4931,
+				1.7919,
+				-13.817
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "airlock_lamp_1_glow",
+			"row": "airlock_lamp",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				10.1647,
+				1.6549,
+				-15.2409
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				0.36,
+				0.38,
+				0.36
+			],
+			"layer": 1,
+			"model": "airlock_lamp_1",
+			"row": "airlock_lamp"
+		},
+		{
+			"kind": "camp_rod_lamp",
+			"at": [
+				10.1639,
+				1.635,
+				-15.2397
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				0.3,
+				0.02,
+				0.3
+			],
+			"layer": 1,
+			"model": "airlock_lamp_1_glow",
+			"row": "airlock_lamp",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_door_strip_lamp",
+			"at": [
+				11.4728,
+				1.7026,
+				-15.7017
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				1.2,
+				0.08,
+				0.108
+			],
+			"layer": 1,
+			"model": "airlock_cycle_lamp_1",
+			"row": "airlock_cycle_lamp"
+		},
+		{
+			"kind": "camp_door_strip_lamp",
+			"at": [
+				11.4398,
+				1.7157,
+				-15.6739
+			],
+			"x": [
+				-0.64928,
+				-0.0199,
+				-0.76029
+			],
+			"y": [
+				0.04136,
+				0.99725,
+				-0.06142
+			],
+			"z": [
+				0.75943,
+				-0.07132,
+				-0.64667
+			],
+			"size": [
+				1.06,
+				0.035,
+				0.004
+			],
+			"layer": 1,
+			"model": "airlock_cycle_lamp_1_glow",
+			"row": "airlock_cycle_lamp",
+			"part": "glow"
+		},
+		{
+			"kind": "camp_passage_lining",
+			"at": [
+				6.4347,
+				-0.3956,
+				-11.3402
+			],
+			"x": [
+				-0.64943,
+				-0.00993,
+				-0.76035
+			],
+			"y": [
+				0.15555,
+				0.97704,
+				-0.14562
+			],
+			"z": [
+				0.74434,
+				-0.21285,
+				-0.63297
+			],
+			"size": [
+				2.56,
+				2.73,
+				3.2582
+			],
+			"layer": 1,
+			"model": "link_lining_1",
+			"row": "link_tube",
+			"arc": {
+				"length": 3.2582,
+				"wide": 2.4,
+				"tall": 2.6
+			}
+		},
+		{
+			"kind": "camp_passage_hull",
+			"at": [
+				6.3336,
+				-1.0307,
+				-11.2455
+			],
+			"x": [
+				-0.64943,
+				-0.00993,
+				-0.76035
+			],
+			"y": [
+				0.15555,
+				0.97704,
+				-0.14562
+			],
+			"z": [
+				0.74434,
+				-0.21285,
+				-0.63297
+			],
+			"size": [
+				3.104,
+				3.652,
+				3.2582
+			],
+			"layer": 1,
+			"model": "link_hull_1",
+			"row": "link_tube",
+			"arc": {
+				"length": 3.2582,
+				"half_wide": 1.5,
+				"top": 2.9,
+				"foot": -0.7
+			}
 		}
 	]
 }
