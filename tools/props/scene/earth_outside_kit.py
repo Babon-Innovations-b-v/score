@@ -992,7 +992,9 @@ def launch(numbers):
     for x, z in corners:
         found.append(piece(room, "far_lightning_mast", (x, PAD_TOP, z), frame_facing((1.0, 0.0, 0.0), UP), MAST))
     rocket = numbers["ROCKET_AT"]
-    for x, z in ((pad[0] + pad[2] - 3.0, rocket[2] - 14.0), (pad[0] + pad[2] - 3.0, rocket[2] + 14.0),
+    # Two on the pad's far side and two at its ends, each aimed at the rocket: the far pair face the balcony across
+    # the rocket, as concept K01's lamps glare toward it (2026-10-11; they stood on the near side, seen from behind).
+    for x, z in ((pad[0] + 3.0, rocket[2] - 14.0), (pad[0] + 3.0, rocket[2] + 14.0),
                  (rocket[0], pad[1] + 3.0), (rocket[0], pad[1] + pad[3] - 3.0)):
         toward = np.array([rocket[0] - x, 0.0, rocket[2] - z])
         found.append(piece(room, "far_pad_floodlight", (x, PAD_TOP, z),
