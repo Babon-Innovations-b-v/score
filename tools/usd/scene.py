@@ -1130,7 +1130,7 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
     """Everything the place's scene record holds, into the base layer being written; a kit room's lamps' lights too
     (kit_lights), and with the place's planned ground the ground past its near patch (far_ground)."""
     write_structure(stage, place, scene.get("structure", []), out=out)
-    write_structure(stage, place, scene.get("ground", []), root="Terrain", kind="ground")
+    write_structure(stage, place, scene.get("ground", []), root="Terrain", kind="ground", out=out)
     if ground is not None and scene.get("planned_ground"):
         UsdGeom.Scope.Define(stage, f"/{place}/Terrain")
         far_ground(stage, place, ground, scene["planned_ground"], out, near)
