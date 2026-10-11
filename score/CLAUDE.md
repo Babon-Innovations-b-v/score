@@ -7,6 +7,11 @@ gives. Today's tools in `tools/` move in here stage by stage as each stage is bu
 - **`checks/`** the gate rules every stage shares: `Verdict` (pass, fail or unknown, a reason, measures, findings),
   `Check` (a judge and the evidence it needs), `judge` (missing evidence is unknown without asking), `overall`
   (fail, else unknown, else pass; nothing judged is unknown), `regressions` (what got worse than the accepted one).
+- **`contracts/`** every output's schema, version and units, checked both ways: `Contract` (a schema, its version,
+  the house units it uses, its faults check; other units than metres, seconds, degrees and Y up are refused),
+  `stamp` (the runner checks an output and writes `contract.json` into it before storing; one off its contract is
+  not stored), `expect` (a reader refuses an input of another schema or version, or with no stamp). The schemas in
+  use: `OPENUSD_STAGE` (one root stage, metres, Y up, a default prim) and `PLACE_MANIFEST`.
 - **`store/`** the store over `tools/cloud/runtime/store.py`'s interface (a folder at `$PROPS_HOME/store` by
   default; nothing in the cloud): outputs as content-hashed files and listings, finish records, judgements per
   evidence state, evidence per check and output, the owner's accepts and spend yeses. Written once, never
@@ -28,6 +33,8 @@ Rules:
 
 - **Never write an accept, a waiver or a spend yes**, by any route. Build the page and ask the owner. The runner and
   every stage read the accepted output only; a new output lands beside it and never replaces it by itself.
+- **Every stage names its output's contract** (`Stage.contract`) and, in `after`, the (schema, version) it was
+  written for of each stage it reads. A schema change is a new version, never an edit of the old one.
 - **A gate never passes on missing evidence.** A check that needs evidence names it (`Check.evidence`); a judge that
   cannot tell answers unknown. Unknown blocks like fail.
 - **Method choices live in the stage's code or in accepted world data**; a stage's parameters are its true inputs.

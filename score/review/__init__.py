@@ -122,8 +122,8 @@ def checks_table(judgement):
 
 def record_table(record):
     """The finish record's fields, one row each."""
-    shown = ("key", "output", "stage", "place", "code", "commit", "uncommitted", "seed", "params", "files", "after",
-             "models", "machine", "started", "finished", "minutes", "euros")
+    shown = ("key", "output", "stage", "place", "contract", "expects", "code", "commit", "uncommitted", "seed",
+             "params", "files", "after", "models", "machine", "started", "finished", "minutes", "euros")
     rows = "".join(f"<tr><th>{escaped(name)}</th><td><code>{escaped(json.dumps(record.get(name)))}</code></td></tr>"
                    for name in shown)
     return f"<div class=scroll><table>{rows}</table></div>"

@@ -13,7 +13,7 @@ import tempfile
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from score import checks, graph, review  # noqa: E402
+from score import checks, contracts, graph, review  # noqa: E402
 from score.store import Store  # noqa: E402
 
 
@@ -29,7 +29,8 @@ def judge_tally(output, inputs, evidence):
                           {"faults": faults}, {"faults": "lower"}, tuple(f"fault {number}" for number in range(faults)))
 
 
-TALLY = graph.Stage("tally", "place", make_tally, (checks.Check("faults", judge_tally),),
+TALLY = graph.Stage("tally", "place", make_tally, contracts.Contract("toy-tally", 1, lambda folder: []),
+                    (checks.Check("faults", judge_tally),),
                     files={"tally": "{data}/{place}.txt"})
 
 

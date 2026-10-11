@@ -10,7 +10,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from score import checks, graph  # noqa: E402
+from score import checks, contracts, graph  # noqa: E402
 from score.graph import _code  # noqa: E402
 from score.store import Store, tree_hash  # noqa: E402
 
@@ -38,9 +38,15 @@ def judge_count(output, inputs, evidence):
     return checks.Verdict("counted", checks.PASS, "a count was written")
 
 
-CLEAN = graph.Stage("clean", "place", make_clean, (checks.Check("words", judge_words, evidence="a word limit"),),
+def text_faults(folder):
+    return [] if any(folder.glob("*.txt")) else ["no text file"]
+
+
+TEXT = contracts.Contract("toy-text", 1, text_faults)
+CLEAN = graph.Stage("clean", "place", make_clean, TEXT, (checks.Check("words", judge_words, evidence="a word limit"),),
                     files={"brief": "{data}/{place}/brief.txt"})
-COUNT = graph.Stage("count", "place", make_count, (checks.Check("counted", judge_count),), after=("clean",))
+COUNT = graph.Stage("count", "place", make_count, TEXT, (checks.Check("counted", judge_count),),
+                    after={"clean": ("toy-text", 1)})
 PLACES = ("hangar", "station")
 
 
@@ -147,8 +153,8 @@ def test_why_walks_back_to_the_world_file():
 
 
 def test_a_paid_stage_does_not_run_without_the_owners_yes():
-    paid = graph.Stage("render", "place", make_count, (checks.Check("counted", judge_count),), after=("clean",),
-                       paid=True)
+    paid = graph.Stage("render", "place", make_count, TEXT, (checks.Check("counted", judge_count),),
+                       after={"clean": ("toy-text", 1)}, paid=True)
     world, store, _ = ready_world()
     runner = a_runner(world, store, (CLEAN, COUNT, paid))
     found = runner.run(["hangar"])
@@ -157,6 +163,39 @@ def test_a_paid_stage_does_not_run_without_the_owners_yes():
     store.write_spend_yes("render@hangar", ticket["key"], {"euros": 0, "at": graph.now()})
     assert a_runner(world, store, (CLEAN, COUNT, paid)).run(["hangar"])["render@hangar"] == "made: pass"
 
+
+def make_nothing_written(inputs, out, seed, params):
+    (out / "notes.md").write_text("no text file")
+
+
+def test_every_output_carries_its_stamp_and_one_off_its_contract_is_not_stored():
+    """Fault (review of step 0, 2026-10-11): no output carried a schema or version, and nothing checked one."""
+    world, store, outputs = ready_world()
+    stamp = json.loads((store.checkout(outputs["hangar"]) / contracts.STAMP).read_text())
+    assert stamp == {"schema": "toy-text", "version": 1, "units": {}}
+    assert store.records("clean@hangar")[-1]["contract"] == stamp
+    off = graph.Stage("clean", "place", make_nothing_written, TEXT, files={"brief": "{data}/{place}/brief.txt"})
+    fresh_store = Store.in_folder(tempfile.mkdtemp())
+    found = a_runner(world, fresh_store, (off,)).run(["hangar"])
+    assert found["clean@hangar"] == "broken: off its contract toy-text v1: no text file", found
+    assert fresh_store.records("clean@hangar") == []
+
+
+def test_a_reader_written_for_another_schema_version_is_blocked():
+    world, store, _ = ready_world()
+    newer = graph.Stage("count", "place", make_count, TEXT, (checks.Check("counted", judge_count),),
+                        after={"clean": ("toy-text", 2)})
+    found = a_runner(world, store, (CLEAN, newer)).run(["hangar"])
+    assert found["count@hangar"] == "blocked: clean@hangar's output is toy-text v1; expected toy-text v2", found
+
+
+def test_a_stage_without_a_contract_cannot_be_declared():
+    try:
+        graph.Stage("clean", "place", make_clean, None)
+    except TypeError as refusal:
+        assert "contract" in str(refusal)
+        return
+    raise AssertionError("a stage without a contract was declared")
 
 def test_a_missing_input_blocks():
     world, store = a_world({}), Store.in_folder(tempfile.mkdtemp())

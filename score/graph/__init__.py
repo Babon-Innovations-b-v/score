@@ -13,7 +13,9 @@ its parameters, its seed, its pinned images and models, and the key of every inp
 content hash, or the output an earlier node passed and the owner accepted. A node whose key has a finish record is
 not made again. Its gates are judged again, without remaking it, when a check's evidence changes.
 
-A node runs only when every earlier stage it reads has a finish record for its current key, a judgement on its
+Every output is checked against its stage's contract and stamped with it (score.contracts) before it is stored; one
+off its contract is not stored. A node reads an earlier output only when its stamp is the schema and version the node
+expects, and only when every earlier stage it reads has a finish record for its current key, a judgement on its
 current evidence that passed, and the owner's accept of that very output. A rerun's new output lands beside the
 accepted one and never replaces it by itself. A paid stage also needs the owner's yes to that run (spend-yes).
 """
@@ -26,7 +28,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
-from score import checks
+from score import checks, contracts
 from score.adapters import models
 from score.graph import _code
 from score.store import file_hash, listing_hash, text_hash, tree_hash
@@ -44,16 +46,18 @@ class Stage:
 
     make(inputs, out, seed, params) writes the stage's output into the folder `out`; `inputs` maps each input's
     name to a path (a world file or seed folder in place, an earlier stage's accepted output checked out).
+    contract: the output's schema, version and units (score.contracts.Contract); every stage has one.
     files: {name: path pattern}, formatted with the world's roots and {place}.
-    after: earlier stages whose accepted output this one reads, by name.
+    after: {earlier stage: (schema, version) this one was written for}, the stages whose accepted output it reads.
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
     """
     name: str
     grain: str
     make: Callable
+    contract: contracts.Contract
     checks: tuple = ()
     files: dict = field(default_factory=dict)
-    after: tuple = ()
+    after: dict = field(default_factory=dict)
     params: dict = field(default_factory=dict)
     paid: bool = False
     models: tuple = ()
@@ -61,6 +65,10 @@ class Stage:
     def __post_init__(self):
         if self.grain not in GRAINS:
             raise ValueError(f"stage {self.name}: grain {self.grain!r} is not one of {GRAINS}")
+        if not isinstance(self.contract, contracts.Contract):
+            raise TypeError(f"stage {self.name}: its output needs a contract (score.contracts), not {self.contract!r}")
+        if not isinstance(self.after, dict):
+            raise TypeError(f"stage {self.name}: after maps each earlier stage to the (schema, version) it expects")
 
 
 @dataclass(frozen=True)
@@ -106,7 +114,7 @@ class Runner:
     def code(self, stage):
         """The stage's computed code version: its make's and its checks' source files and their imports (once a run)."""
         if stage.name not in self.code_versions:
-            functions = [stage.make, *(check.judge for check in stage.checks)]
+            functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks)]
             self.code_versions[stage.name] = listing_hash(_code.code_version(functions, file_hash))
         return self.code_versions[stage.name]
 
@@ -123,8 +131,9 @@ class Runner:
             keys[name] = tree_hash(path)
         return keys
 
-    def usable(self, before, place):
-        """The output of an earlier node that passed its gates on its current evidence and the owner accepted."""
+    def usable(self, before, place, wanted):
+        """The output of an earlier node that passed its gates on its current evidence, that the owner accepted, and
+        whose stamp is the (schema, version) wanted."""
         stage = self.stages[before]
         node = node_name(stage, place)
         key = self.key(stage, place)["key"]
@@ -142,15 +151,20 @@ class Runner:
         if accepted != record["output"]:
             raise Blocked(f"{node}'s output {record['output'][:12]} is not accepted by the owner"
                           + (f" (accepted: {accepted[:12]})" if accepted else ""))
+        try:
+            contracts.expect(wanted, self.store.read_file(record["output"], contracts.STAMP), node)
+        except contracts.Mismatch as mismatch:
+            raise Blocked(str(mismatch)) from mismatch
         return record["output"]
 
     def key(self, stage, place):
         """The node's key and everything it hashes; raises Blocked when an input is missing or not usable."""
         parts = {"stage": stage.name, "grain": stage.grain, "place": place if stage.grain == "place" else None,
-                 "code": self.code(stage), "params": stage.params,
+                 "code": self.code(stage), "contract": stage.contract.stamp_of(),
+                 "expects": {before: list(wanted) for before, wanted in stage.after.items()}, "params": stage.params,
                  "seed": node_seed(self.world.seed, stage.name, place if stage.grain == "place" else None),
                  "files": self.file_keys(stage, place),
-                 "after": {before: self.usable(before, place) for before in stage.after},
+                 "after": {before: self.usable(before, place, wanted) for before, wanted in stage.after.items()},
                  "models": {kind: self.model_record(kind) for kind in stage.models}}
         return {**parts, "key": text_hash(json.dumps(parts, sort_keys=True))}
 
@@ -178,11 +192,13 @@ class Runner:
         stage.make(self.input_paths(stage, place, keyed), out, keyed["seed"], stage.params)
         if self.file_keys(stage, place) != keyed["files"]:
             raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
+        contracts.stamp(stage.contract, out)
         output = self.store.put_tree(out)
         shutil.rmtree(out)
         record = {"node": node, "key": keyed["key"], "output": output, "stage": stage.name, "place": keyed["place"],
-                  "code": keyed["code"], "params": keyed["params"], "seed": keyed["seed"], "files": keyed["files"],
-                  "after": keyed["after"], "models": keyed["models"], **_code.git_commit(),
+                  "code": keyed["code"], "contract": keyed["contract"], "expects": keyed["expects"],
+                  "params": keyed["params"], "seed": keyed["seed"], "files": keyed["files"], "after": keyed["after"],
+                  "models": keyed["models"], **_code.git_commit(),
                   "machine": platform.node(), "started": started, "finished": now(),
                   "minutes": round((time.monotonic() - clock) / 60, 3), "euros": 0}
         self.store.write_record(node, keyed["key"], record)
@@ -214,6 +230,8 @@ class Runner:
                 record = self.make(stage, place, keyed)
             except Blocked as block:
                 return f"blocked: {block}"
+            except contracts.Broken as broken:
+                return f"broken: {broken}"
         if self.store.judgement(node, keyed["key"], self.evidence_state(stage, record["output"])) is not None:
             return "fresh"
         judgement = self.judge(stage, place, record)
@@ -237,7 +255,8 @@ class Runner:
         if not records:
             return ["never ran"]
         last = records[-1]
-        changed = [part for part in ("code", "params", "seed", "files", "after", "models") if last[part] != keyed[part]]
+        changed = [part for part in ("code", "contract", "expects", "params", "seed", "files", "after", "models")
+                   if last.get(part) != keyed[part]]
         reasons = [f"{part} changed" for part in changed if part not in ("files", "after")]
         for part in ("files", "after"):
             if part in changed:
