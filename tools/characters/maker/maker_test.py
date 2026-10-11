@@ -19,9 +19,11 @@ PERSON = {"name": "someone", "kind": "person", "approved": "the owner", "descrip
 
 
 def test_the_checked_in_specs_can_be_made():
+    """A prop route spec carries its person's name (its takes go to that person's candidates folder), in a file named
+    <name>_prop.json."""
     for path in sorted((REPO / "data/characters/makes").glob("*.json")):
         found = spec.read(path)
-        assert found["name"] == path.stem
+        assert found["name"] + ("_prop" if found.get("route") == "prop" else "") == path.stem
 
 
 def test_a_spec_without_approval_is_refused():

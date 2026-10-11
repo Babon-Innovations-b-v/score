@@ -202,7 +202,8 @@ Nothing is released yet but the paper. Commands, run locally (there is no CI and
   the files on disk no longer match the stamp, so a draft changed without a rebuild, or a
   generated file edited by hand, is red. Then the ADR index check.
 - `make env` builds the framework's Python environment (`.venv`, `uv sync`); `make tests` runs every framework
-  check (`tools/**/*_test.py` and `score/**/*_test.py`, plain scripts, each under a 16 GB memory cap), or only the
+  check (`tools/**/*_test.py` and `score/**/*_test.py`, plain scripts, or under pytest when a file has `test_`
+  functions and no `__main__` block, each under a 16 GB memory cap), or only the
   ones named with `TESTS="..."`. `make check` runs them when code changed. While working, run only the checks your change touches.
   Render checks run Blender headless on a cloud machine, never here; nothing here runs Godot.
 - `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
