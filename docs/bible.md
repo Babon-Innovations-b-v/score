@@ -179,6 +179,11 @@ is meant to fix, where it is marked, and what proves it.
   method (Gemini's finishes on the concept, a flat-colour finish map painted onto the shape) is tested beside it and
   may replace it behind the same interface. Proven when a place's line ends accepted at its checks and the owner
   reviews the baked models.
+- **The finish-map route** (`score/stages/finishmap/`, its overlay; rows in `trial.py`). For parts guessed from a
+  model's own texture, which is shaded and invented on unseen sides: Gemini lists the close-up's finishes as library
+  surfaces, Nano Banana Pro redraws the close-up as a finish map, and the map is laid onto the raw model (front
+  projection walked over the surface, or SegviGen guided by the map). Runs only through its own rows. Proven when an
+  arm beats round 4's g-texture on the six models by round 4's measures, then the owner's look.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
