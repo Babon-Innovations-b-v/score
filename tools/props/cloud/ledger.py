@@ -1,7 +1,8 @@
 """What cloud batches have cost, and whether the next one fits the owner's limits.
 
 The owner's limits (2026-09-29): a batch runs at most four hours and spends at most €60 (raised
-from €50 for the worldfill batches), and the month at most MONTH_EUROS (€1,500 by default since 2026-10-08). The
+from €50 for the worldfill batches), and the month at most MONTH_EUROS (€3,000 by default since 2026-10-11, the
+owner's monthly cloud credits). The
 provider's own bill lags by hours, so the month's spend is whichever is higher, its bill or this ledger's sum. A batch that would pass any limit is refused before it starts.
 """
 import datetime
@@ -16,8 +17,8 @@ LEDGER = HOME / "cloud" / "ledger.jsonl"
 BATCH_HOURS = 4
 BATCH_EUROS = 60.0
 # The month's ceiling (owner, 2026-10-08: the cloud credits cover about €3,000 a month): SCORE_MONTH_EUROS, else
-# €1,500. Checked before every machine is rented (batch.rent); a run stops rather than pass it.
-MONTH_EUROS = float(os.environ.get("SCORE_MONTH_EUROS", "1500"))
+# €3,000 (owner, 2026-10-11). Checked before every machine is rented (batch.rent); a run stops rather than pass it.
+MONTH_EUROS = float(os.environ.get("SCORE_MONTH_EUROS", "3000"))
 
 
 def record(entry):
