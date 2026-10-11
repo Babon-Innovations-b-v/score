@@ -17,6 +17,14 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libsm6 libxkbcommon0 libx11-6 libegl1 \
   xz-utils >/dev/null
+# OptiX: a card machine's driver is Ubuntu's headless compute set (libnvidia-compute-<branch>-server), which has no
+# libnvoptix, so Cycles' OptiX failed with 7804 (library not found) and rendered on CUDA (2026-10-11). The same
+# version's libnvidia-gl package carries OptiX (libnvoptix, libnvidia-rtcore, nvoptix.bin).
+compute=$(dpkg-query -W -f='${db:Status-Abbrev} ${Package} ${Version}\n' 'libnvidia-compute-*' 2>/dev/null \
+  | awk '$1 == "ii" {print $2 "=" $3; exit}')
+if [ -n "$compute" ]; then
+  apt-get install -y -qq --no-install-recommends "${compute/compute/gl}" >/dev/null
+fi
 
 version=5.0.1
 tarball="blender-$version-linux-x64.tar.xz"
