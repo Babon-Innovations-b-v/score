@@ -94,7 +94,7 @@ def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothi
 
 def test_a_gate_that_cannot_read_its_evidence_answers_unknown():
     folder = pathlib.Path(tempfile.mkdtemp())
-    check = surface_gates.guarded("maps settled", finish_rows.judge_maps)
+    check = surface_gates.guarded("maps checked", finish_rows.judge_maps)
     found = checks.judge(check, folder, {"surfaces-inputs": str(folder)}, None)
     assert found.answer == checks.UNKNOWN and "takes.json" in found.reason
     shutil.rmtree(folder)
@@ -111,7 +111,7 @@ def test_a_model_whose_finish_map_never_settled_is_named_and_blocks():
     attempt = {"seed": 3, "iou": 0.99, "near_label": 0.6, "labels_used": 3, "labels_listed": 3, "passes": False}
     (folder / "power_unit-r3" / "map.json").write_text(json.dumps(
         {"take": "power_unit-r3", "passes": False, "front": {"attempts": [attempt], "passes": False}, "views": {}}))
-    found = checks.judge(surface_gates.guarded("maps settled", finish_rows.judge_maps), folder,
+    found = checks.judge(surface_gates.guarded("maps checked", finish_rows.judge_maps), folder,
                          {"surfaces-inputs": str(folder)}, None)
     assert found.answer == checks.FAIL and checks.blocks(found.answer)
     assert len(found.findings) == 1 and found.findings[0].startswith("power_unit-r3: no finish map settled")

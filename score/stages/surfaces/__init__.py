@@ -66,7 +66,7 @@ METHOD = (
         euros=turntable_row.TURNTABLE_EUROS),
     row("surfaces-lists", finish_rows.make_lists, finish_rows.lists_faults, "listed", finish_rows.judge_lists,
         data.line_files, ("surfaces-inputs",), paid=True, euros=finish_rows.LIST_EUROS),
-    row("surfaces-maps", finish_rows.make_maps, finish_rows.maps_faults, "maps settled", finish_rows.judge_maps,
+    row("surfaces-maps", finish_rows.make_maps, finish_rows.maps_faults, "maps checked", finish_rows.judge_maps,
         data.line_files, ("surfaces-inputs", "surfaces-turntable", "surfaces-lists"), paid=True,
         euros=finish_rows.MAP_EUROS),
     row("surfaces-segvigen", segvigen_row.make_segvigen, segvigen_row.segvigen_faults, "split back",

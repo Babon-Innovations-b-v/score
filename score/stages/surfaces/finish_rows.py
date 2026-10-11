@@ -175,6 +175,6 @@ def judge_maps(output, inputs, evidence):
     failing = [f"{take}: no map.json" for take in takes if take not in records]
     failing += [map_fault(record) for record in records.values() if not record["passes"]]
     views = [view for record in records.values() for view in record["views"].values()]
-    return gates.verdict("maps settled", failing, len(takes), "takes without a finish map",
+    return gates.verdict("maps checked", failing, len(takes), "takes without a finish map",
                          {"views drawn": sum(view["passes"] for view in views), "views asked": len(views),
                           "filled": sum(bool(record["front"].get("filled")) for record in records.values())})

@@ -97,11 +97,14 @@ the current backend). No model runs on the coordinating machine.
   lacks the layout stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces
   bounded by the plan, a plain tag measured plain). Step 1, the surface stage (`score/stages/surfaces`, its
   overlay), is each place's own line of rows in world 1's table (`python -m score run world1 --place <place>`), no
-  world-wide barrier: the method's rows (today g-texture: split, asks, judge, parts) end in its interface, each
-  model's parts with a measured finish and the judge's surface each; the framework's rows give every part the
-  surface of its finish group in the finish registry (an append-only store item, `registry/` in the store, seeded by
-  the owner's hub picks, the one world node every line reads), paint it from the library, bake and check it. What
-  each place splits and bakes is world data, `data/surfaces/<place>.json`. The in-progress directions are in
+  world-wide barrier: the method's rows (the finish-map method, owner 2026-10-12: Gemini's finish list of the
+  close-up, Nano Banana Pro's finish maps of the close-up and of the raw model's sides and back, SegviGen guided by
+  the close-up's map, the maps' votes laid on the raw model) end in its interface, each model's parts with the
+  library surface named for each; the framework's rows paint every part from the library, bake and check it, and put
+  a new library surface the method proposed in the finish registry (an append-only store item, `registry/` in the
+  store) for the owner. Every model is repainted, the owner's picks included (a pick chooses the model, never its
+  paint), each by one place only: a place reads a model another place claims from that place's bake. What each place
+  paints and bakes is world data, `data/surfaces/<place>.json`. The in-progress directions are in
   `architecture/experimental`.
   The overlay `score/CLAUDE.md` has the rules.
 
