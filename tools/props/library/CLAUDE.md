@@ -4,6 +4,15 @@ The theme's material library and the robust route's piece making (job robust-exp
 are kept apart: models and code give shape only; every part names a library variant, a ProcFunc recipe coloured
 from palette tokens, baked to the maps the game draws. Bible: `architecture/components`.
 
+- **Experimental until the surface stage proves it** (docs/bible.md, `architecture/experimental`): everything in the
+  painting after round four (the two-way split fit, round five's 3D split, paint by the model's own parts with
+  `--face-parts` and `finish_masks.py`, the patchy rule), the surface check's dark rule (5c66c2e: a region the
+  close-up shows very dark is read as dark paint, so shadow reads as paint), and `split_spread.py` (a measure: nothing
+  was repainted by it). None of it has an owner-accepted before and after on a world model: 42 world 1 takes are
+  still on the 10-08 paint and the owner sees the same painting faults (2026-10-11). Step 1 of PRD #6 settles them,
+  with numbers, on the hangar and the six named models; a surface-stage trial is running in its own worktree, so this
+  folder's paint code is left as it is meanwhile.
+
 - **An outdoor place and the scene package** (moved from 2099, #129 there): `place_route.py` plans a place with no kit
   layout from its inventory rows (models, bake jobs, the model gate and straightness, `split` for a take too long for
   one piece); `package.py` writes what any engine loads, every object its glTF and `scene.json` with each copy's

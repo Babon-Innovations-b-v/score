@@ -25,6 +25,7 @@ Topic → bible chapter ID. Pick the ones the prompt touches and read them befor
 | Big picture / system diagram | `architecture/system-context` |
 | Component map (what runs where) | `architecture/components` |
 | Request and job lifecycles | `architecture/lifecycles` |
+| In-progress (experimental) directions: what each is for, where it is marked, what proves it | `architecture/experimental` |
 | ~~Trust boundaries / auth / secrets~~ (offline batches, secrets only by name: not used yet) | `architecture/trust-boundaries` |
 | Failure scope + recovery | `architecture/failure` |
 | Build, test and release | `build/release` |
