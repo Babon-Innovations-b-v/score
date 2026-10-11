@@ -92,6 +92,118 @@
    "from": "night.gd:51-55,310-329 rocket floodlight"
   },
   {
+   "type": "spot",
+   "at": [
+    -242.55,
+    11.3,
+    -73.725
+   ],
+   "aim": [
+    -270.0,
+    26.21,
+    -60.0
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "shaft": {
+    "near": 0.6,
+    "length": 39.24,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
+  },
+  {
+   "type": "spot",
+   "at": [
+    -242.55,
+    11.3,
+    -46.275
+   ],
+   "aim": [
+    -270.0,
+    26.21,
+    -60.0
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "shaft": {
+    "near": 0.6,
+    "length": 39.24,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
+  },
+  {
+   "type": "spot",
+   "at": [
+    -270.0,
+    11.3,
+    -99.385
+   ],
+   "aim": [
+    -270.0,
+    26.21,
+    -60.0
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "shaft": {
+    "near": 0.6,
+    "length": 48.43,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
+  },
+  {
+   "type": "spot",
+   "at": [
+    -270.0,
+    11.3,
+    -26.615
+   ],
+   "aim": [
+    -270.0,
+    26.21,
+    -60.0
+   ],
+   "colour": "#f3f1ea",
+   "energy": 3.0,
+   "range": 90.0,
+   "angle": 42.0,
+   "attenuation": 0.5,
+   "shadows": false,
+   "from": "the framework's, 2026-10-11: the pad floodlight's own lamp (data/kit/launch.json's glow part), at the square's tower floodlight's numbers (night.gd:300-326; the same lamp), aimed at the rocket's middle; the game lights the rocket from the rocket floodlight alone",
+   "shaft": {
+    "near": 0.6,
+    "length": 42.05,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
+  },
+  {
    "type": "sun",
    "name": "moonlight",
    "toward": [

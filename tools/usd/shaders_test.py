@@ -1,5 +1,5 @@
-"""Check the framework's own shaders (tools/usd/shaders.py, earth.py) without Blender: the Earth's picture is mostly
-ocean with land, desert, ice and cloud in the palette's own colours and the same every bake; a ball painted earth_face
+"""Check the framework's own shaders (tools/usd/shaders.py, earth.py) without Blender: the Earth's picture is the real
+planet (ocean, land and cloud, no flat palette) and the same every bake; a ball painted earth_face
 is bound to the baked look with its picture in the stage; without a folder it keeps the library's flat surface; the
 sun's disc hangs along the sky's sun as wide as the game draws it and not along a named light; and the game's
 missing materials are library surfaces.
@@ -27,14 +27,18 @@ PLACE = "wreck"
 
 
 def check_the_picture():
-    first = earth.picture(256)
-    assert first.shape == (128, 256, 3) and np.array_equal(first, earth.picture(256))
-    ocean = np.array([int(earth.token_value("earth-ocean")[index:index + 2], 16) for index in (1, 3, 5)])
-    land = np.array([int(earth.token_value("earth-land")[index:index + 2], 16) for index in (1, 3, 5)])
-    near = lambda colour: np.mean(np.abs(first.astype(int) - colour).sum(axis=-1) < 12)  # noqa: E731
-    cloud = np.array([int(earth.token_value("earth-cloud")[index:index + 2], 16) for index in (1, 3, 5)])
-    shares = (near(ocean), near(land), near(cloud))
-    assert shares[0] > 0.25 and shares[1] > 0.03 and shares[2] > 0.1, shares
+    first = earth.picture(512)
+    assert first.shape == (256, 512, 3) and np.array_equal(first, earth.picture(512))
+    red, green, blue = (first[..., index].astype(int) for index in range(3))
+    cloud = np.minimum(np.minimum(red, green), blue) > 170
+    sea = (blue >= red) & (blue >= green) & ~cloud
+    land = (red > blue + 10) & ~cloud
+    codes = (first.astype(np.int64) // 8) @ np.array([1024, 32, 1])
+    flat = np.sort(np.bincount(codes.ravel()))[::-1][:8].sum() / codes.size
+    # The ink_earth cartoon's eight commonest colours covered 0.88 of it (measured 2026-10-11); the planet's 0.41, most
+    # of that its dark open ocean.
+    assert 0.2 < cloud.mean() < 0.7 and sea.mean() > 0.2 and land.mean() > 0.05 and flat < 0.5, \
+        (cloud.mean(), sea.mean(), land.mean(), flat)
 
 
 def stage_with_library():

@@ -449,6 +449,17 @@ def haze_volume(shape, centre, size, surface, segments=48):
     return facing_out(haze_shell(shape, centre, size, surface, segments), np.asarray(centre, dtype=np.float64))
 
 
+def light_cone(near, length, half_angle, surface, segments=48):
+    """A closed shell round a lamp's cone of light, along +y from its apex at the origin: from `near` metres out (the
+    lamp's own face, as wide there as the cone) to `length`, opening `half_angle` degrees either side, its far end
+    closed by a lid and its faces facing out."""
+    spread = math.tan(math.radians(half_angle))
+    side = cone_arc(near, length, near * spread, length * spread, surface, segments=segments)
+    lids = [disc(radius, height, surface, segments) for radius, height in ((near * spread, near),
+                                                                          (length * spread, length))]
+    return facing_out(joined([side, *lids]), np.array([0.0, (near + length) / 2, 0.0]))
+
+
 def haze_shell(shape, centre, size, surface, segments):
     """The shell of a haze body as built, before its faces are turned out (haze_volume)."""
     centre = np.asarray(centre, dtype=np.float64)

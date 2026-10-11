@@ -1,8 +1,8 @@
 """The framework's own shaders: surfaces the library's flat UsdPreviewSurface cannot carry, each written as a
 UsdPreviewSurface over a picture the framework bakes, so every USD reader (Blender's importer included) draws it.
 
-    earth_face   the Earth seen in a place's sky: continents, deserts, ice and cloud from the game 2099's ink_earth
-                 shader, baked by earth.py into a longitude-latitude picture on the ball's own uvs, lit by the place's
+    earth_face   the Earth seen in a place's sky: the real planet, NASA's Blue Marble with NASA's cloud cover over
+                 it, baked by earth.py into a longitude-latitude picture on the ball's own uvs, lit by the place's
                  sun so its night side falls dark (score:shader "earth")
 
 A built mesh painted with one of these surfaces (scene.bind_surface) is bound to /<place>/Looks/<surface> in place of
@@ -25,7 +25,7 @@ SUN_DISC_DISTANCE = 1880.0
 # How wide the sun looks from the ground, in degrees (the game's sky.gd SUN_ACROSS_ON_THE_GROUND_DEGREES).
 SUN_ACROSS_DEGREES = 1.51
 EARTH_PICTURE = "earth_surface.png"
-EARTH_WIDTH = 2048
+EARTH_WIDTH = 4096
 
 
 def earth_look(stage, place, out):
@@ -53,7 +53,8 @@ def earth_look(stage, place, out):
     shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(0.0)
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     for key, value in (("score:shader", "earth"),
-                       ("score:from", "the game 2099's game/art/shaders/ink_earth.gdshader, baked by tools/usd/earth.py")):
+                       ("score:from", "NASA Visible Earth: Blue Marble Next Generation (July 2004) and its cloud cover, "
+                                     "baked by tools/usd/earth.py")):
         material.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
     return material
 

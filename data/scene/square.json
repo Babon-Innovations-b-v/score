@@ -222,8 +222,8 @@
   {
    "type": "spot",
    "at": [
-    -54.0,
-    19.6,
+    -53.235,
+    17.42,
     -42.0
    ],
    "aim": [
@@ -237,13 +237,21 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight"
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "shaft": {
+    "near": 0.6,
+    "length": 48.4,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
   },
   {
    "type": "spot",
    "at": [
-    -54.0,
-    19.6,
+    -53.235,
+    17.42,
     38.0
    ],
    "aim": [
@@ -257,13 +265,21 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight"
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "shaft": {
+    "near": 0.6,
+    "length": 49.56,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
   },
   {
    "type": "spot",
    "at": [
-    -68.0,
-    19.6,
+    -67.235,
+    17.42,
     -30.0
    ],
    "aim": [
@@ -277,13 +293,21 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight"
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "shaft": {
+    "near": 0.6,
+    "length": 57.98,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
   },
   {
    "type": "spot",
    "at": [
-    -68.0,
-    19.6,
+    -67.235,
+    17.42,
     24.0
    ],
    "aim": [
@@ -297,7 +321,15 @@
    "angle": 42.0,
    "attenuation": 0.5,
    "shadows": false,
-   "from": "night.gd:300-326 tower floodlight"
+   "from": "night.gd:300-326 tower floodlight (its numbers); stood on its tower's lens (the kit's glow part, data/kit/square.json) by the framework, 2026-10-11, where the game hung it 1.2 m over the lamp",
+   "shaft": {
+    "near": 0.6,
+    "length": 58.2,
+    "colour": "#ffffff",
+    "density": 0.02,
+    "forward": 0.6,
+    "from": "the framework's (2026-10-11, paper-vs-world-1 item 9: the tower heads read as white grids with no beam): the lamp's own cone filled with night air that only the lamps light, so its beam and the glare round its face show; its density measured against the concepts' floodlights (K04, K01)"
+   }
   },
   {
    "type": "omni",

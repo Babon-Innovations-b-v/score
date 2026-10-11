@@ -35,7 +35,9 @@ the lamps but not by the sky's ambient light, a water surface with score:mirror_
 as the game's harbour mirrors it (more along it than down into it, its ripples breaking what it mirrors into streaks),
 with the lit things standing over it (score:mirror_lit_*) laid on it as the harbour's broken streaks of their light, a
 column of light (score:kind "beam") added over what is behind it and widened for each view as the game's beam shader
-widens it, and over the look the game's glow (score:glow_* on the sky: Blender's bloom of what is brighter than the
+widens it, a lamp's shaft (a haze body filling its cone, /<place>/Shafts) filled like any haze, a day sky's dome
+(score:kind "sky_dome") given off at its score:sky_strength and seen only by the eye and what mirrors it, and over the
+look the game's glow (score:glow_* on the sky: Blender's bloom of what is brighter than the
 threshold, added over the picture; not over the masks).
 A view with `"ink": true` also gets <name>-ink.png: its look with the game's ink lines over it (ink_edges.gdshader's
 rule, worked out on the depth Cycles gives in a second, one-sample render), an option beside the look and never
@@ -621,6 +623,25 @@ def haze_volumes(objects):
         item.visible_shadow = False
 
 
+def sky_domes(objects):
+    """The day sky's ball (score:kind "sky_dome", tools/usd/scene.py write_sky_dome) given off at its
+    score:sky_strength, seen by the eye and in what mirrors or lets light through, never lighting the place (the
+    record's ambient light is the sky's light on it) and never seen from inside the haze, as the game's fog sees
+    black."""
+    for item in objects:
+        strength = score_value(item, "sky_strength") if item.type == "MESH" else None
+        if strength is None:
+            continue
+        for slot in item.material_slots:
+            shader = next((node for node in slot.material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"), None)
+            if shader is not None:
+                shader.inputs["Emission Strength"].default_value = float(strength)
+            slot.material.cycles.emission_sampling = "NONE"
+        item.visible_diffuse = False
+        item.visible_volume_scatter = False
+        item.visible_shadow = False
+
+
 def mirror_material(item, along, down, tip, size):
     """The game's harbour on Blender's nodes: its own colour lit as it is, and over it what stands round it mirrored,
     `along` of it looking along the water and `down` looking straight down (the share eased by the square root of how
@@ -1183,13 +1204,15 @@ def main():
         plain(objects)
     else:
         haze_volumes(objects)
+        sky_domes(objects)
         water_mirrors(stage, objects)
     beams = beam_materials(stage, objects)
     if environment is not None and environment.get("glow") and not views.get("plain"):
         glow_pass(scene, environment["glow"], environment["exposure"])
     lamps(scene, views.get("lights", []))
     layers = {item.name: layer_of(item) for item in objects}
-    sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky", "dust", "beam")]
+    sky = [item for item in objects if score_value(item, "kind") in ("haze", "stars", "sky", "dust", "beam",
+                                                                       "sky_dome")]
     sky += [cloud for cloud, _, _ in effects]  # effects are air, as the dust is, not the place's objects
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))

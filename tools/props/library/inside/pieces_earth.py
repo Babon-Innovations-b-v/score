@@ -614,25 +614,93 @@ def far_stage(size, laid):
     return parts
 
 
+# The rally stage's proscenium as concept K04 shows it (measured on the concept, 2026-10-11, against the leader at his
+# lectern): its header band a quarter of its height over the deck, its opening three quarters of its width, its legs
+# the rest, a row of stage lamps under the header, the lit back curtain set back in the opening, and a free-standing
+# curtain wing on its own frame beside it, set back behind the banners.
+HEADER_SHARE = 0.25
+OPENING_SHARE = 0.77
+RECESS = 1.6
+LAMPS = 8
+WING_BACK = 1.0
+
+
+def pleats(low_x, high_x, bottom, top, front, folds, material, name):
+    """A curtain hung from `top` to `bottom` between two x, its folds as round columns side by side along its face,
+    each touching the next (overlapping folds leave slivers thinner than the model check allows)."""
+    across = (high_x - low_x) / folds
+    return [shapes.cylinder((low_x + across * (step + 0.5), bottom, front), (low_x + across * (step + 0.5), top, front),
+                            across / 2, material, 10, name) for step in range(folds)]
+
+
+def proscenium(left, right, tall, deck, front, back):
+    """The portal over the stage's deck: the dark box behind its opening, red legs and header with gold trim, the
+    opening set back to a lit red back curtain (its third on the balcony's right open to the dark stage behind), its floor at the deck's
+    height, and a lamp batten under the header with its row of lamps facing the stage."""
+    wide = right - left
+    opening = wide * OPENING_SHARE
+    leg = (wide - opening) / 2
+    header_low = tall - (tall - deck) * HEADER_SHARE
+    inner_left, inner_right = left + leg, right - leg
+    parts = [shapes.box((left, 0.0, front + RECESS), (right, tall, back), "post_dark", "box"),
+             shapes.box((inner_left, deck - 0.1, front), (inner_right, deck, front + RECESS), "post_dark", "floor"),
+             shapes.box((left, 0.0, front), (right, deck, front + RECESS), "post_dark", "box"),
+             shapes.box((inner_left, header_low, front + 0.3), (inner_right, tall, front + RECESS), "post_dark", "box")]
+    for low_x, high_x in ((left, inner_left), (inner_right, right)):
+        parts += pleats(low_x, high_x, 0.0, header_low, front + 0.15, max(4, round(leg / 0.35)), "flag_red", "legs")
+        fold = (high_x - low_x) / max(4, round(leg / 0.35)) / 2
+        parts.append(shapes.box((low_x, 0.0, front + 0.15 + fold), (high_x, header_low, front + RECESS), "post_dark",
+                                "box"))
+    parts.append(shapes.box((left, header_low, front), (right, tall, front + 0.3), "flag_red", "header"))
+    for edge_x in (inner_left, inner_right):
+        parts.append(shapes.box((edge_x - 0.06, deck, front - 0.03), (edge_x + 0.06, header_low, front + 0.1),
+                                "anodized_gold", "trim"))
+    for edge_y in (header_low + 0.08, tall - 0.08):
+        parts.append(shapes.box((left, edge_y - 0.05, front - 0.03), (right, edge_y + 0.05, front),
+                                "anodized_gold", "trim"))
+    curtain_left = inner_right - opening * 0.68  # from the balcony's left, its last third (the right) left dark
+    parts += pleats(curtain_left, inner_right, deck, header_low, front + RECESS - 0.25, round(opening * 0.68 / 0.3),
+                    "flag_red", "back_curtain")
+    batten_y = header_low - 0.35
+    parts.append(shapes.cylinder((inner_left + 0.2, batten_y, front + 0.6), (inner_right - 0.2, batten_y, front + 0.6),
+                                 0.05, "galvanized_dull", 8, "batten"))
+    for step in range(LAMPS):
+        x = inner_left + opening * (step + 0.5) / LAMPS
+        parts.append(shapes.cylinder((x, batten_y - 0.05, front + 0.75), (x, batten_y - 0.05, front + 0.35), 0.16,
+                                     "gate_grey", 12, "lamps"))
+        parts.append(shapes.cylinder((x, batten_y - 0.05, front + 0.37), (x, batten_y - 0.05, front + 0.34), 0.13,
+                                     "floodlight_lens", 12, "lens"))
+    return parts
+
+
+def curtain_wing(left, right, tall, front):
+    """The free-standing curtain beside the portal: a red curtain hung to the ground from a steel bar on two posts."""
+    parts = pleats(left + 0.1, right - 0.1, 0.0, tall - 0.3, front + 0.2, max(6, round((right - left) / 0.35)),
+                   "flag_red", "wing_curtain")
+    parts.append(shapes.cylinder((left, tall - 0.25, front + 0.2), (right, tall - 0.25, front + 0.2), 0.06,
+                                 "galvanized_dull", 8, "wing_frame"))
+    for x in (left + 0.05, right - 0.05):
+        parts.append(shapes.box((x - 0.06, 0.0, front + 0.3), (x + 0.06, tall, front + 0.42), "galvanized_dull",
+                                "wing_frame"))
+    return parts
+
+
 def far_backdrop(size, laid):
-    """The backdrop behind the stage, as the close-up shows it: a red wall in a dark frame, red curtains hung down its
-    two ends, and the first sign across its top (`label`)."""
+    """The rally stage's backdrop, as concept K04 shows it: the proscenium over the deck (`deck` high) with its
+    header sign (`label`), legs, lit back curtain in a set-back opening and lamp batten, and at its +x end (the
+    balcony's left) a free-standing curtain wing `wing` wide, set WING_BACK behind the banners standing there; the
+    piece's front on the stage's back edge, its back the dark box's."""
     wide, tall, deep = size
     front, back = -deep / 2, deep / 2
-    parts = [shapes.box((-wide / 2, 0.0, front + 0.1), (wide / 2, tall, back), "flag_red", "wall"),
-             shapes.bevelled(pieces.rounded_ring((-wide / 2 - 0.2, 0.0), (wide / 2 + 0.2, tall + 0.2), 0.02, 0.2,
-                                                 front, back, "post_dark", "frame"), 0.01)]
-    for side in (-1.0, 1.0):
-        x_from, x_to = side * (wide / 2 - 2.6), side * (wide / 2 - 0.2)
-        low, high = min(x_from, x_to), max(x_from, x_to)
-        folds = 10
-        for step in range(folds):
-            x0 = low + (high - low) * step / folds
-            parts.append(shapes.cylinder((x0 + (high - low) / folds / 2, 0.0, front + 0.05),
-                                         (x0 + (high - low) / folds / 2, tall - 0.4, front + 0.05),
-                                         (high - low) / folds / 2 + 0.02, "flag_red", 10, "curtain"))
-    parts.append(pieces.label(0.0, tall - 1.8, wide * 0.7, 2.2, front + 0.1, laid.get("label", "banner_first"), 0.0,
-                              0.02, "label"))
+    wing = float(laid.get("wing", 0.0))
+    portal_right = wide / 2 - wing
+    parts = proscenium(-wide / 2, portal_right, tall, float(laid.get("deck", 0.0)), front, back)
+    portal_wide = portal_right + wide / 2
+    header_low = tall - (tall - float(laid.get("deck", 0.0))) * HEADER_SHARE
+    parts.append(pieces.label(-wide / 2 + portal_wide / 2, (header_low + tall) / 2, portal_wide * 0.7,
+                              (tall - header_low) * 0.7, front, laid.get("label", "banner_first"), 0.0, 0.02, "label"))
+    if wing > 0.0:
+        parts += curtain_wing(portal_right + 0.5, wide / 2, tall * 0.85, front + WING_BACK)
     return parts
 
 
@@ -734,9 +802,14 @@ def lattice_mast(wide, tall, deep, material, spike, top_width_share=1.0):
     return parts
 
 
+# The tower's bank of lamps as concept K04 shows it (2026-10-11): four round lamps across, three rows up.
+TOWER_LAMP_ROWS = 3
+TOWER_LAMP_COLUMNS = 4
+
+
 def far_floodlight_tower(size, laid):
-    """A floodlight tower, as its close-up shows it: a steel lattice mast, a platform with a rail on top, a bank of
-    square floodlights on a frame facing front, and a ladder up its side."""
+    """A floodlight tower, as concept K04 shows it: a steel lattice mast, a platform with a rail on top, a bank of
+    round floodlights (TOWER_LAMP_ROWS x TOWER_LAMP_COLUMNS) on a frame facing front, and a ladder up its side."""
     wide, tall, deep = size
     mast_top = tall - 3.0
     parts = lattice_mast(1.2, mast_top, 1.2, "galvanized_dull", 0.0, 0.8)
@@ -744,15 +817,14 @@ def far_floodlight_tower(size, laid):
                             "platform"))
     parts.append(shapes.box((-wide / 2, mast_top + 0.1, -deep / 2 + 0.6), (wide / 2, mast_top + 2.8, -deep / 2 + 0.7),
                             "galvanized_dull", "frame"))
-    for row in range(2):
-        for column in range(3):
-            x = -wide / 2 + wide * (column + 0.5) / 3
-            y = mast_top + 0.8 + row * 1.1
-            parts.append(shapes.bevelled(shapes.box((x - 0.45, y - 0.45, -deep / 2 + 0.15),
-                                                    (x + 0.45, y + 0.45, -deep / 2 + 0.6), "gate_grey", "floodlight"),
-                                         0.02))
-            parts.append(shapes.box((x - 0.38, y - 0.38, -deep / 2 + 0.12), (x + 0.38, y + 0.38, -deep / 2 + 0.15),
-                                    "floodlight_lens", "lens"))
+    for row in range(TOWER_LAMP_ROWS):
+        for column in range(TOWER_LAMP_COLUMNS):
+            x = -wide / 2 + wide * (column + 0.5) / TOWER_LAMP_COLUMNS
+            y = mast_top + 0.6 + row * 0.8
+            parts.append(shapes.cylinder((x, y, -deep / 2 + 0.6), (x, y, -deep / 2 + 0.15), 0.34, "gate_grey", 20,
+                                         "floodlight"))
+            parts.append(shapes.cylinder((x, y, -deep / 2 + 0.15), (x, y, -deep / 2 + 0.12), 0.29, "floodlight_lens",
+                                         20, "lens"))
     parts.append(shapes.box((0.62, 0.0, -0.25), (0.66, mast_top, -0.22), "galvanized_dull", "ladder"))
     parts.append(shapes.box((0.62, 0.0, 0.22), (0.66, mast_top, 0.25), "galvanized_dull", "ladder"))
     for step in range(int(mast_top / 0.6)):

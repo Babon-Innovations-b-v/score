@@ -751,6 +751,12 @@ def terraces(numbers):
     return found
 
 
+# The backdrop's depth (its opening set back 1.6 m and the dark box behind it) and its curtain wing's width with its gap
+# (measured on concept K04 against the portal: 7 m to its 17.5 m).
+BACKDROP_DEEP = 2.8
+BACKDROP_WING = 7.5
+
+
 def stage(room, numbers):
     """The stage: its deck with the red skirt and the steps, the red backdrop behind it with the first sign across its
     top, the podium and the lectern the leader stands at, the two banners either side down their poles."""
@@ -762,9 +768,11 @@ def stage(room, numbers):
     found.append(piece(room, "far_stage", (ground[0] + ground[2] / 2, 0.0, middle_z),
                        frame_facing(toward_balcony, UP), (ground[3], deck, ground[2])))
     backdrop = numbers["BACKDROP"]
-    found.append(piece(room, "far_backdrop", (ground[0] - backdrop[0] / 2, 0.0, middle_z),
-                       frame_facing(toward_balcony, UP), (ground[3], backdrop[1], backdrop[0]),
-                       label="banner_first"))
+    # The proscenium of concept K04 (pieces_earth.far_backdrop): the game's height over the stage's width, deep enough
+    # for its set-back opening, with its curtain wing beside it toward +z (the balcony's left), behind the banner.
+    found.append(piece(room, "far_backdrop", (ground[0] - BACKDROP_DEEP / 2, 0.0, middle_z + BACKDROP_WING / 2),
+                       frame_facing(toward_balcony, UP), (ground[3] + BACKDROP_WING, backdrop[1], BACKDROP_DEEP),
+                       label="banner_first", shows={"deck": deck, "wing": BACKDROP_WING}))
     podium = numbers["PODIUM_AT"]
     found.append(piece(room, "far_podium", (podium[0], deck, podium[2]), frame_facing(toward_balcony, UP),
                        (PODIUM[0], PODIUM[1], PODIUM[2])))
