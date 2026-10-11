@@ -13,5 +13,12 @@
    "kind": "stairwell_extinguisher",
    "object": "red fire extinguisher"
   }
+ },
+ "bake": {
+  "job": "{home}/work/place/stairwell-score1/run/job-chunky.json",
+  "models": {
+   "extinguisher_1": "stairwell_extinguisher-pb"
+  },
+  "entries": {}
  }
 }

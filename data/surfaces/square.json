@@ -35,5 +35,41 @@
    "kind": "square_guard_hut",
    "object": "a small guard hut at the square's left edge"
   }
+ },
+ "bake": {
+  "job": "{home}/work/place/square-score1/run/job-chunky.json",
+  "models": {
+   "far_flag_pole_1": "far_flag_pole-s1",
+   "far_palm_1": "far_palm-s1",
+   "guard_hut_1": "guard_hut-rr1"
+  },
+  "entries": {
+   "guard_hut_1": {
+    "name": "guard_hut_1",
+    "base": [
+     -0.6122,
+     0.0,
+     0.7907,
+     0.0,
+     1.0,
+     0.0,
+     -0.7907,
+     0.0,
+     -0.6122
+    ],
+    "size": [
+     2.314,
+     2.6,
+     2.393
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000,
+    "wall": 0.0173
+   }
+  }
  }
 }

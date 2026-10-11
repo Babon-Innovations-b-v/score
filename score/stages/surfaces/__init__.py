@@ -55,7 +55,7 @@ def reads(*rows):
 def row(name, make, faults, check, judge, files, after=(), grain="place", **more):
     """One row of the stage: its output's contract is named for the row."""
     return graph.Stage(name, grain, make, contract(name, faults), (guarded(check, judge),), files=files,
-                       after=reads(*after), **more)
+                       after=reads(*after), applies=data.paints if grain == "place" else None, **more)
 
 
 SPLIT = (
@@ -84,7 +84,7 @@ NAMING = (
         ("surfaces-asks",), paid=True, euros=paid.JUDGE_EUROS, params=JUDGE),
     graph.Stage("surfaces-parts", "place", g_texture.make_parts, PARTS,
                 (guarded("parts", g_texture.judge_parts),), files=data.line_files,
-                after=reads("split-inputs", "split-turntable", "split-split", "surfaces-judge")))
+                after=reads("split-inputs", "split-turntable", "split-split", "surfaces-judge"), applies=data.paints))
 SEEDING = (
     row("surfaces-seed-inputs", split_batch.make_inputs, split_batch.inputs_faults, "inputs",
         split_batch.judge_inputs, data.seed_files, grain="world"),
@@ -100,5 +100,5 @@ LINE = (
     graph.Stage("surfaces-check", "place", place_line.make_check, contract("surfaces-check", place_line.check_faults),
                 (guarded("baked matches its surfaces", place_line.judge_lit),
                  guarded("triangles within budget", place_line.judge_triangles)),
-                files=data.line_files, after=reads("surfaces-bake", "surfaces-paint")))
+                files=data.line_files, after=reads("surfaces-bake", "surfaces-paint"), applies=data.paints))
 ROWS = (*SEEDING, *SPLIT, *NAMING, *LINE)

@@ -3,7 +3,8 @@
 data/surfaces/<place>.json: the models a place's line splits and paints, each under its raw take (`takes`: its
 place, kind, object words and the places whose library it may take surfaces from, as the library names them), the
 name the library knows the place by (`library`), and its bake (`bake`: the route's make_chunky job, the model each
-take is baked as, and entries the job lacks: another job's path, or the entry written out). A take is split by one
+take is baked as, and entries the job lacks: another job's path, or the entry written out); a place with nothing to
+paint lists no takes and says why (`nothing`). A take is split by one
 place's line only. data/surfaces/finish-seed.json: the owner's picked models that seed the finish registry.
 
 Kept apart from the rows' code on purpose: a paid row's code version hashes this module, so it stays small.
@@ -34,6 +35,12 @@ def takes(place):
     """{take: entry} a place's data lists; none when it has no data (its rows then block on the missing file)."""
     found = path(place)
     return json.loads(found.read_text())["takes"] if found.exists() else {}
+
+
+def paints(place):
+    """False for a place whose data lists no takes (its file says why: every model is the owner's pick, split by
+    another place, or none is generated): its line has no surface rows. A place with no file paints, and blocks."""
+    return not path(place).exists() or bool(takes(place))
 
 
 def take_files(place):

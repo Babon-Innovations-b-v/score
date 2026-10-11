@@ -1,0 +1,24 @@
+{
+ "place": "wreck",
+ "library": "wreck",
+ "takes": {
+  "probe_lander-rr1": {
+   "places": [
+    "wreck"
+   ],
+   "library_places": [
+    "wreck"
+   ],
+   "place": "wreck",
+   "kind": "wreck_probe_lander",
+   "object": "a small lander with solar panels on four legs, standing whole beside the wreck"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/wreck-rr2/job-chunky1.json",
+  "models": {
+   "probe_lander": "probe_lander-rr1"
+  },
+  "entries": {}
+ }
+}

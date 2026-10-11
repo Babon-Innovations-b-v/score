@@ -87,6 +87,8 @@ class Stage:
     gatherers: {check name: (gather, euros or None)}, how the runner's drive makes a check's missing evidence:
     gather(output, inputs, folder) writes it and returns its file; a paid one names its estimate in euros. Kept out of
     score.checks on purpose: every stage's code version hashes that module, so a change there reruns every stage.
+    applies: for a place stage, applies(place) is False for a place the stage has nothing to do for (its world data
+    says so): that place's line has no such node. None: every place.
     """
     name: str
     grain: str
@@ -100,6 +102,7 @@ class Stage:
     euros: float = None
     models: tuple = ()
     gatherers: dict = field(default_factory=dict)
+    applies: Callable = None
 
     def __post_init__(self):
         if self.grain not in GRAINS:
@@ -322,7 +325,8 @@ class Runner:
         """Every (stage, place) in table order: a world stage once, a place stage once per place."""
         for stage in self.stages.values():
             for place in ([None] if stage.grain == "world" else places):
-                yield stage, place
+                if place is None or stage.applies is None or stage.applies(place):
+                    yield stage, place
 
     def line_nodes(self, places, whole):
         """The nodes a drive runs: every one of `nodes` for the whole world, else the places' own and only the world

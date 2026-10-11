@@ -134,5 +134,102 @@
    "kind": "flat_thermos",
    "object": "green thermos flask"
   }
+ },
+ "bake": {
+  "job": "{home}/work/place/flat-score1/run/job-chunky.json",
+  "models": {
+   "ashtray_1": "ashtray-rr1",
+   "balcony_fern_pot_1": "balcony_fern_pot-rr1",
+   "balcony_rubber_plant_1": "balcony_rubber_plant-rr1",
+   "bedside_lamp_1": "flat_bedside_lamp-pb",
+   "bowl_stack_1": "flat_bowl_stack-pb",
+   "crt_tv_1": "flat_crt_tv-pb",
+   "enamel_basin_1": "flat_enamel_basin-pb",
+   "gas_stove_1": "flat_gas_stove-pb",
+   "kettle_1": "flat_kettle-pb",
+   "quilt_1": "flat_quilt-pb",
+   "sauce_bottle_1": "flat_sauce_bottle-pb",
+   "thermos_1": "flat_thermos-pb"
+  },
+  "entries": {
+   "ashtray_1": {
+    "name": "ashtray_1",
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.12,
+     0.047,
+     0.12
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 5000,
+    "wall": 0.005
+   },
+   "balcony_fern_pot_1": {
+    "name": "balcony_fern_pot_1",
+    "base": [
+     0.0,
+     1.0,
+     0.0,
+     -1.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.542,
+     0.482,
+     0.55
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000,
+    "wall": 0.005
+   },
+   "balcony_rubber_plant_1": {
+    "name": "balcony_rubber_plant_1",
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.368,
+     0.6,
+     0.46
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000,
+    "wall": 0.005
+   }
+  }
  }
 }

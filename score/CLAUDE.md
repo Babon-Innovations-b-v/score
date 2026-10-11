@@ -31,7 +31,8 @@ stage as each stage is built; nothing moves before.
   nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
   own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
   cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`).
-- **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`), `World`,
+- **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
+  leaves out the places its world data says it has nothing to do for), `World`,
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved

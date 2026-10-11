@@ -1,0 +1,6 @@
+{
+ "place": "gdoor",
+ "library": "garage",
+ "takes": {},
+ "nothing": "its kit is code-built pieces only (no generated model), so its line has no surface rows"
+}
