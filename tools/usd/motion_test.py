@@ -25,7 +25,8 @@ RATE = 24.0
 def base_of(place, out):
     """A stage of the place holding the prims its scene record writes where motions can reach them: each structure
     entry as a mesh with no transform, each object as a fixture's translate, turn and scale, each other place shown
-    (a door leaf's own kit) at its translate, each light as the record writes it."""
+    (a door leaf's own kit) at its translate, each light as the record writes it, and each kit piece the game moves
+    (its `node`) as an object stood by a transform where the record's `moved` puts it, as export stands it."""
     record = scene_record.record(place)
     (out / "layers").mkdir(parents=True)
     layer = Sdf.Layer.CreateNew(str(out / "layers/base.usda"))
@@ -41,6 +42,16 @@ def base_of(place, out):
         shown = UsdGeom.Xform.Define(stage, f"/{place}/Places/{entry['name']}")
         shown.AddTranslateOp().Set(Gf.Vec3d(*map(float, entry.get("at", [0.0, 0.0, 0.0]))))
     scene_record.write_lights(stage, place, record.get("lights", []))
+    kit_path = export.KITS / f"{place}.json"
+    if kit_path.exists():
+        kit = json.loads(kit_path.read_text())
+        pieces = [dict(laid, row=export.kind_row(laid["kind"], (kit.get("room", ""), place))) for laid in kit["pieces"]]
+        moved = {entry["node"]: entry["by"] for entry in record.get("moved", [])}
+        for laid, name in zip(pieces, export.object_names(pieces)):
+            if "node" in laid:
+                stood = [float(at) + float(by) for at, by in zip(laid["at"], moved.get(laid["node"], [0.0, 0.0, 0.0]))]
+                piece = UsdGeom.Xform.Define(stage, f"/{place}/Objects/{name}")
+                piece.AddTransformOp().Set(Gf.Matrix4d(1.0).SetTranslate(Gf.Vec3d(*stood)))
     layer.Save()
     Sdf.Layer.CreateNew(str(out / "layers/edit.usda")).Save()
     export.write_root(place, out)
@@ -120,6 +131,30 @@ def check_the_launch_climbs(work):
     print("ok  the launch: 3 s of rumble from 1 s, then the climb")
 
 
+def check_the_robot_turns(work):
+    stage = Usd.Stage.Open(str(work / "workshop/workshop.usda"))
+    turn = UsdGeom.Xformable(stage.GetPrimAtPath("/workshop/Fixtures/robot_p1"))
+    angle = {op.GetOpName(): op for op in turn.GetOrderedXformOps()}["xformOp:rotateY"]
+    close(angle.Get(0.0), 144.0, "the robot turned START_ANGLE as the bench comes up")
+    wanted = 144.0 + math.degrees(0.12 * 10.0)  # rotateY is a float: its last digits are 1e-5 of a degree
+    assert abs(angle.Get(10.0 * RATE) - wanted) < 1e-4, f"ten seconds at the table's 0.12 rad/s: {angle.Get(240.0)}"
+    close(at(stage, "/workshop/Fixtures/robot_p1", 10.0)[0], 0.3, "turning on its stand, not moving off it")
+    print("ok  the workshop: the robot turns on its table at 0.12 rad/s")
+
+
+def check_the_balcony_door(work):
+    stage = Usd.Stage.Open(str(work / "flat/flat.usda"))
+    leaf = "/flat/Objects/sliding_glass_leaf_1"
+    assert UsdGeom.Xformable(stage.GetPrimAtPath(leaf)).GetXformOpOrderAttr().Get()[-1] == "xformOp:transform", \
+        "the kit piece's own transform kept under the slide"
+    close(at(stage, leaf, 0.0)[2], -3.5, "the leaf shut across the doorway (BALCONY_SPOT.z)")
+    close(at(stage, leaf, 0.6)[2], -2.8, "half way at the doorway's width in 1.2 s")
+    close(at(stage, leaf, 1.2)[2], -2.1, "open where the base stands it")
+    close(at(stage, leaf, 30.0)[2], -2.1, "and open from then on")
+    close(at(stage, leaf, 0.6)[0], -2.9363, "sliding along the wall, not across it")
+    print("ok  the flat: the balcony door slides open in the game's 1.2 s and stays open")
+
+
 def check_the_layer_order_and_the_edit(work):
     root = Sdf.Layer.FindOrOpen(str(work / "airlock/airlock.usda"))
     assert list(root.subLayerPaths) == ["./layers/edit.usda", "./layers/motion.usda", "./layers/base.usda"], \
@@ -162,6 +197,8 @@ def main():
         check_the_airlock_cycles_as_the_game_does(work)
         check_the_bay_doors(work)
         check_the_launch_climbs(work)
+        check_the_robot_turns(work)
+        check_the_balcony_door(work)
         check_the_layer_order_and_the_edit(work)
     check_bad_rounds_are_refused()
 

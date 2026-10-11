@@ -1,0 +1,14 @@
+{
+ "place": "workshop",
+ "about": "The robot on the bench's turntable as the game runs it: the table runs on slowly by itself, so the robot shows every side while it is built, from where the bench comes up (the robot's nose turned START_ANGLE, as the base stands it) at the game's idle speed, for as long as the stage runs. The game holds it still only while the player's mouse is on a fitted part with the bench open, which a walk-through never does. The robot's call sign is its child and turns with it. Frame: the room's (data/scene/workshop.json).",
+ "motions": [
+  {
+   "name": "robot_turntable",
+   "prim": "/workshop/Fixtures/robot_p1",
+   "start": 0.0, "length": 60.0, "loop": false,
+   "turn": {"speed": 0.12},
+   "sounds": [],
+   "from": "game/base/bench/bench.gd:26-29 (IDLE_TURN 0.12 radians a second), 190-191 (_process turns the table every frame), 246-251 (_turn: table_angle grows by IDLE_TURN unless the mouse is on the robot, the turntable eased onto it), 108-109 (START_ANGLE at the bench's start); bench.tscn:16-20 (the robot's stand on the turntable's axis)"
+  }
+ ]
+}
