@@ -20,6 +20,9 @@ takes the same calls), under these keys:
     waivers/<node>/<key>/<check>.json       the owner's waiver of one check for one key; it ends when the key changes
     clearances/<node>/<key>/<time>.json     the runner's clearance of one paid run (score.adapters.compute)
     spend-yes/<node>/<key>.json             the owner's override: his yes to one run outside the runner
+    registry/<area>/<id>.json               the world's finish registry, append-only (score/stages/surfaces/registry.py):
+                                            finishes/ each finish group's one library surface, surfaces/ each new
+                                            library surface proposed, the first of a name standing
 
 The node's accepted output is the newest accept that no later reject of the same output undid. The runner writes its
 automatic accepts (score/graph: every gate passed, nothing got worse, the owner never rejected that output); the
@@ -297,6 +300,20 @@ class Store:
         if self.objects.exists(key):
             raise FileExistsError(f"{key} is already in the store; nothing is overwritten")
         self.objects.upload(path, key)
+
+    # --- the finish registry ------------------------------------------------------------------------------------
+
+    def registry(self, area):
+        """Every entry of one registry area (finishes, surfaces), in the order of their ids."""
+        return [runtime_store.read_json(self.objects, key) for key in sorted(self.objects.keys(f"registry/{area}/"))]
+
+    def write_registry(self, area, entry_id, entry):
+        """Append one registry entry; an entry is never changed or removed."""
+        self.write_once(f"registry/{area}/{entry_id}.json", entry)
+
+    def registry_lock(self):
+        """The registry's lock across every process, held for a whole read, decide and append."""
+        return locked(self.cache.parent / "registry.lock")
 
     # --- accepts, rejects, waivers, clearances and spend yeses -------------------------------------------------
 
