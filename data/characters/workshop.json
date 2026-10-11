@@ -1,0 +1,12 @@
+{
+ "place": "workshop",
+ "from": "the place's concept as a freshly picked input (owner, 2026-10-11): the people on it counted by SAM 3 and the judge (score.stages.concept_people), each stood at the thing they stand at on the concept (today/records/tools/cast_place.py), the people from the cast list the people stage makes (data/characters/makes/*_prop.json)",
+ "people": [
+  {"name": "bram", "character": "bram", "look": "bram_work", "doing": "bench", "at": [6.702, 0.0, 2.75], "facing_to": [7.502, 0.0, 3.2],
+   "why": "Bram, working at the elec bench, where the concept (K10.png) shows a crew member at it (their feet 97.0 px from the line it stands on), at the nearest spot clear of everything on the stage"},
+  {"name": "sefa", "character": "sefa", "look": "sefa_work", "doing": "bench", "at": [0.0, 0.0, -0.995], "facing_to": [0.0, 0.0, 0.005],
+   "why": "Sefa, working at the robot bench, where the concept (K10.png) shows a crew member at it (their feet 34.0 px from the line it stands on), at the nearest spot clear of everything on the stage; the concept shows them seated, and no clip sits on a chair (the clips' sitting is on the ground)"},
+  {"name": "nev", "character": "nev", "look": "nev_work", "doing": "bench", "at": [3.501, 0.0, 5.685], "facing_to": [3.501, 0.0, 6.485],
+   "why": "Nev, working at the equipment bench, where the concept (K10.png) shows a crew member at it (their feet 25.0 px from the line it stands on), at the nearest spot clear of everything on the stage"}
+ ]
+}
