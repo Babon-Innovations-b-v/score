@@ -24,8 +24,8 @@ RENDER = graph.Stage("render", "place", make_nothing, paid=True)
 
 
 def test_a_blender_job_runs_the_pinned_image_headless():
-    spec = engines.blender_job("tools/blender/inside/warm_kernels.py", ["/work/out.json"], [], "code/x.tar.gz", 5)
-    assert spec["image"] == compute.job_contract.image("blender") and "@sha256:" in spec["image"]
+    spec = engines.blender_job("tools/blender/inside/warm_kernels.py", ["/work/out.json"], [], "code/x.tar.gz", 5, 0.4)
+    assert spec["euros"] == 0.4 and spec["image"] == compute.job_contract.image("blender") and "@sha256:" in spec["image"]
     assert spec["command"][:3] == [engines.BLENDER, "-b", "-setaudio"] and spec["command"][-2:] == ["--",
                                                                                                     "/work/out.json"]
 
@@ -37,13 +37,13 @@ def test_the_machine_path_starts_only_for_a_cleared_node():
     blender_cloud.run_elsewhere = lambda *arguments: STARTED.append(arguments)
     try:
         try:
-            engines.blender_on_machines(runner, "render@hangar", "s.py", [], [], [], ["cpu-32c-128gb"], 5)
+            engines.blender_on_machines(runner, "render@hangar", "s.py", [], [], [], ["cpu-32c-128gb"], 5, 0.5)
         except compute.Refused as refusal:
             assert "has not said yes" in str(refusal)
         assert STARTED == []
         key = runner.ticket("render@hangar")["key"]
         runner.store.write_spend_yes("render@hangar", key, {"euros": 0.5, "at": graph.now()})
-        engines.blender_on_machines(runner, "render@hangar", "s.py", [], [], [], ["cpu-32c-128gb"], 5)
+        engines.blender_on_machines(runner, "render@hangar", "s.py", [], [], [], ["cpu-32c-128gb"], 5, 0.5)
         assert STARTED == [("s.py", [], [], [], ["cpu-32c-128gb"], f"render@hangar {key[:12]}", 5)]
     finally:
         blender_cloud.run_elsewhere = real
