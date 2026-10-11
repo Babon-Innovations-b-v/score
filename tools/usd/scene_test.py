@@ -7,7 +7,7 @@ a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay 
 game moves shifted by its node, the Moon drawn as the game's sky draws it, a kit light's night glow kept to its
 picture's bright parts, the engine's seeded random numbers, the planned rocks lying as the game lays them, the ground
 shader's detail baked with a decal, the stars turned at the record's minute, a water's lit columns, the night's glow, a
-column of light and a shown place's left-out piece, and every real record in data/scene naming only builders,
+column of light and a shown place's left-out piece, a lamp's shaft of light and a day sky's dome, and every real record in data/scene naming only builders,
 surfaces, plain kinds and fields that exist.
 
 Run: .venv/bin/python tools/usd/scene_test.py   (make tests runs it with the framework's environment)
@@ -30,6 +30,7 @@ import builders  # noqa: E402
 import export  # noqa: E402
 import ground  # noqa: E402
 import ground_detail  # noqa: E402
+import mars_sky  # noqa: E402
 import library  # noqa: E402
 import orbits  # noqa: E402
 import placeholders  # noqa: E402
@@ -580,6 +581,48 @@ def check_rejected():
         scene.record(path.stem)  # every real record keeps out what its owner rejected
 
 
+def check_shafts_and_dome(folder):
+    """A lamp with a shaft fills its own cone with haze only the lamps light, under the place's own Shafts (kept when
+    another place shows it); a day sky's dome hangs between the sun's disc and the stars with its picture, brighter
+    toward the horizon away from the sun and brightest round the sun."""
+    lamp = {"type": "spot", "at": [0.0, 10.0, 0.0], "aim": [10.0, 0.0, 0.0], "colour": "#ffffff", "energy": 3.0,
+            "range": 30.0, "angle": 30.0, "attenuation": 0.5, "shadows": False,
+            "shaft": {"near": 0.6, "length": 16.0, "colour": "#ffffff", "density": 0.02, "forward": 0.6}}
+    sun = {"type": "sun", "toward": [0.0, -0.5, 0.866], "colour": "#ffffff", "energy": 1.0}
+    dome = {"depth": 0.6, "albedo": [0.975, 0.93, 0.86], "forward": 0.67, "diffuse": 0.25, "gain": [1, 1, 1],
+            "width": 128}
+    stage = Usd.Stage.CreateNew(str(folder / "shafts.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}")
+    export.library_materials(stage, PLACE, f"/{PLACE}")
+    scene.write(stage, PLACE, {"lights": [lamp, sun], "environment": {"background": "#000000", "exposure": 1.0,
+                                                                     "sky_dome": dome}}, folder)
+    shaft = stage.GetPrimAtPath(f"/{PLACE}/Shafts/shaft_0")
+    assert shaft.GetAttribute("score:kind").Get() == "haze"
+    assert math.isclose(shaft.GetAttribute("score:haze_density").Get(), 0.02, rel_tol=1e-6)
+    points = np.asarray(UsdGeom.Mesh(shaft).GetPointsAttr().Get())
+    way = np.array([10.0, -10.0, 0.0]) / math.hypot(10.0, 10.0)
+    along = (points - [0.0, 10.0, 0.0]) @ way
+    across = np.linalg.norm(points - [0.0, 10.0, 0.0] - along[:, None] * way, axis=1)
+    assert np.isclose(along.min(), 0.6, atol=1e-3) and np.isclose(along.max(), 16.0, atol=1e-3)
+    assert np.all(across <= along * math.tan(math.radians(30.0)) + 1e-3)
+    sky = stage.GetPrimAtPath(f"/{PLACE}/Sky/Dome")
+    assert sky.GetAttribute("score:kind").Get() == "sky_dome" and sky.GetAttribute("score:sky_strength").Get() > 0
+    radius = np.linalg.norm(np.asarray(UsdGeom.Mesh(sky).GetPointsAttr().Get()), axis=1)
+    assert np.allclose(radius, scene.SKY_DOME_RADIUS, rtol=1e-4) and 1880.0 < scene.SKY_DOME_RADIUS < 1900.0
+    light = mars_sky.picture(dome, sun["toward"], 256)
+    ways = mars_sky.ways(256).reshape(-1, 3)
+    seen = light.reshape(-1, 3).sum(axis=1)
+
+    def at(height, bearing):
+        way = [math.cos(math.radians(height)) * math.sin(math.radians(bearing)), math.sin(math.radians(height)),
+               -math.cos(math.radians(height)) * math.cos(math.radians(bearing))]
+        return seen[np.argmax(ways @ way)]
+
+    sun_bearing = 0.0  # the sun's way back, -toward, is (0, 0.5, -0.866): bearing 0 as mars_sky.ways lays them
+    assert at(5.0, sun_bearing + 180.0) > at(70.0, sun_bearing + 180.0)
+    assert at(30.0, sun_bearing) > at(30.0, sun_bearing + 90.0)
+
+
 def main():
     check_builders()
     check_sky_builders()
@@ -590,6 +633,8 @@ def main():
         check_stretched_fixture(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_sky(pathlib.Path(folder))
+    with tempfile.TemporaryDirectory() as folder:
+        check_shafts_and_dome(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_light_pieces(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:

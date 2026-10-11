@@ -784,7 +784,24 @@
     "glow": 0.6,
     "from": "camp_mast.gd:11-23,26-45,121-145 (the beam: an open CylinderMesh of 8 sides, BEAM_WIDE_M 1.6 across, from the mast's top MAST_HEIGHT_M 12 to BEAM_HEIGHT_M 2,500 m over its foot along the mast's own up, never thinner than LEAST_HALF_ANGLE 0.0035 either side seen from the eye), camp_beam.gdshader (unshaded, added over what is behind it, both sides, Palette.CAMP_BEACON #74b9ea times GLOW 0.6), expedition_camp.gd:17,112,311 (the mast stands straight out from Mars at the camp seat's (10, -10)); its foot here the made mast's own (the foot of the column of campgrounds' mast_1 as this stage stands it through its `grounds` place, its column 12.0 m tall), its up straight out from Mars's middle under this frame (tools/usd/ground.py)"
    }
-  ]
+  ],
+  "sky_dome": {
+   "depth": 0.6,
+   "albedo": [
+    0.975,
+    0.93,
+    0.86
+   ],
+   "forward": 0.67,
+   "diffuse": 0.25,
+   "gain": [
+    2.94,
+    1.89,
+    1.26
+   ],
+   "width": 1024,
+   "from": "the framework's (2026-10-11, paper-vs-world-1 item 17: Mars's sky a flat brown wall with no sun): tools/usd/mars_sky.py's single scattering of a dust layer seen from its floor, lit by this record's sun. Albedo 0.975 in red is Wolff et al. 2009's at 650 nm as Chen-Chen et al. 2019 (MSL Navcam) take it; green and blue lower, as Wolff et al. found the dust takes more blue (0.93 and 0.86 are the framework's, not quoted); forward throw 0.67 is Chen-Chen et al. 2019's Navcam retrieval (0.673 +- 0.081); depth 0.6 the framework's choice for a clear afternoon outside the storm season; diffuse the framework's. The gain is measured: the rendered sky against concept K05's (data/inventory/campgrounds.json's view)"
+  }
  },
  "floor": [
   [

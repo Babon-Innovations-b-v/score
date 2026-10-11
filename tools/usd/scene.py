@@ -65,6 +65,7 @@ from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, Vt
 import builders
 import glb_asset
 import ground_detail
+import mars_sky
 import orbits
 import rocks
 import shaders
@@ -94,6 +95,9 @@ LAMP_COLOUR = "#ffd29a"
 LAMP_ATTENUATION = 2.2
 SHADOW_KINDS = ("hub_roof_light_fixture",)
 TUBE_LIGHT_EVERY = 2
+# The day sky's ball (write_sky_dome): behind the sun's disc (shaders.SUN_DISC_DISTANCE, 1880 m), in front of the
+# stars (1900 m), which the day sky hides.
+SKY_DOME_RADIUS = 1890.0
 # The code builders a scene record may name.
 BUILDERS = ("quad", "box", "annulus", "walls", "wall_strip", "pyramid_roof", "dome", "cylinder_wall", "disc", "stairs",
             "grid", "heightfield", "room_walls", "room_deck", "dome_roof", "lathe", "sphere", "tube_arc", "stars",
@@ -1020,6 +1024,79 @@ def write_beams(stage, place, entries):
             holder.CreateAttribute(f"score:beam_{key}", Sdf.ValueTypeNames.Float).Set(float(entry[key]))
 
 
+def write_sky_dome(stage, place, entry, lights, out):
+    """The air over a place past its own thin haze, as a ball round it SKY_DOME_RADIUS out (behind the sun's disc,
+    which hangs in front of it, and in front of the stars, which the day sky hides): mars_sky.py's picture of the light
+    the dust scatters from every way for the place's sun (its unnamed sun light), given off unlit at
+    score:sky_strength; a renderer shows it to the eye and in what mirrors it, and lights nothing else with it (the
+    record's ambient light is the sky's light on the place), /<place>/Sky/Dome."""
+    if not entry or out is None:
+        return
+    sun = next(light for light in lights if light.get("type") == "sun" and not light.get("name"))
+    target = out / "assets/textures/sky_dome.png"
+    _, strength = mars_sky.write(target, entry, sun["toward"], int(entry.get("width", 1024)))
+    built = builders.sphere([0.0, 0.0, 0.0], SKY_DOME_RADIUS, None, rings=48, segments=96)
+    prim = mesh_prim(stage, f"/{place}/Sky/Dome", built)
+    material = UsdShade.Material.Define(stage, f"/{place}/Sky/dome_look")
+    shader = UsdShade.Shader.Define(stage, f"/{place}/Sky/dome_look/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    reader = UsdShade.Shader.Define(stage, f"/{place}/Sky/dome_look/uv")
+    reader.CreateIdAttr("UsdPrimvarReader_float2")
+    reader.CreateInput("varname", Sdf.ValueTypeNames.String).Set("st")
+    texture = UsdShade.Shader.Define(stage, f"/{place}/Sky/dome_look/picture")
+    texture.CreateIdAttr("UsdUVTexture")
+    texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(f"../assets/textures/{target.name}")
+    texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
+        reader.CreateOutput("result", Sdf.ValueTypeNames.Float2))
+    texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set("sRGB")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.0, 0.0, 0.0))
+    shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+        texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3))
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
+    held = prim.GetPrim()
+    for key, value in (("score:kind", "sky_dome"), ("score:builder", "sky_dome"), ("score:plain", "sky"),
+                       ("score:from", entry.get("from", ""))):
+        held.CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+    held.CreateAttribute("score:sky_strength", Sdf.ValueTypeNames.Float).Set(strength)
+
+
+def write_shafts(stage, place, lights):
+    """The air each lamp with a `shaft` lights, seen as a shaft of light: a body of haze filling the lamp's own cone
+    (builders.light_cone, from its `at` toward its `aim`, as wide as its `angle`, `length` metres long) that only the
+    lamps light, so the lamp's beam and the glare round its face show where the lamp shines and nowhere else; drawn as
+    nothing by its surface and carrying the haze's colour, density and forward throw as score:haze_* for a renderer
+    (tools/blender/inside/usd_views.py), /<place>/Shafts/shaft_<n>: the place's own, kept when another place shows it
+    (its lamps shine there too), where its Sky is left out."""
+    count = 0
+    for entry in lights:
+        shaft = entry.get("shaft")
+        if not shaft:
+            continue
+        at = np.asarray(entry["at"], dtype=np.float64)
+        way = np.asarray(entry["aim"], dtype=np.float64) - at
+        way /= np.linalg.norm(way)
+        built = builders.light_cone(float(shaft["near"]), float(shaft["length"]), float(entry["angle"]), None)
+        built["points"] = built["points"] @ turn_up_onto(way).T + at
+        path = f"/{place}/Shafts/shaft_{count}"
+        prim = mesh_prim(stage, path, built)
+        material = UsdShade.Material.Define(stage, f"{path}_look")
+        shader = UsdShade.Shader.Define(stage, f"{path}_look/surface")
+        shader.CreateIdAttr("UsdPreviewSurface")
+        shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(0.0)
+        material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+        UsdShade.MaterialBindingAPI.Apply(prim.GetPrim()).Bind(material)
+        held = prim.GetPrim()
+        for key, value in (("score:kind", "haze"), ("score:builder", "haze_volume"),
+                           ("score:from", shaft.get("from", ""))):
+            held.CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
+        held.CreateAttribute("score:haze_colour", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*colour(shaft["colour"])))
+        for key in ("density", "forward"):
+            held.CreateAttribute(f"score:haze_{key}", Sdf.ValueTypeNames.Float).Set(float(shaft[key]))
+        count += 1
+    return count
+
+
 def turn_up_onto(way):
     """The least turn taking +y onto a unit `way`, as a 3 x 3 acting on column vectors."""
     up = np.array([0.0, 1.0, 0.0])
@@ -1067,5 +1144,11 @@ def write(stage, place, scene, out, world=None, kit=None, pieces=(), ground=None
     write_lights(stage, place, lights)
     write_environment(stage, place, scene.get("environment"))
     write_sky(stage, place, scene.get("environment"), out, ground)
+    if (scene.get("environment") or {}).get("sky_dome"):
+        UsdGeom.Scope.Define(stage, f"/{place}/Sky")
+        write_sky_dome(stage, place, scene["environment"]["sky_dome"], scene.get("lights", []), out)
+    if any(entry.get("shaft") for entry in lights):
+        UsdGeom.Scope.Define(stage, f"/{place}/Shafts")
+        write_shafts(stage, place, lights)
     shaders.sun_discs(stage, place, scene.get("lights", []), lambda path, centre, radius: sun_ball(stage, place, path,
                                                                                                  centre, radius))
