@@ -194,23 +194,6 @@
    "from": "main.tscn:123-124 Workstation (yaw -21.8 on the seat) and workstation.tscn:18-25 (the side screens turned 12 degrees each way), in the hub's frame",
    "children": [
     {
-     "label": [
-      "OFFLINE"
-     ],
-     "font": "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
-     "font_size": 48,
-     "pixel_size": 0.0018,
-     "outline_size": 0,
-     "colour": "#f2766a",
-     "at": [
-      0.0,
-      0.0,
-      0.004
-     ],
-     "yaw": 0.0,
-     "from": "workstation.gd:85-96 (SCREEN_OFFLINE in Palette.DANGER, art/palette/palette.gd:26) while the desk is off, as it is until the base's first robot"
-    },
-    {
      "model": "models/hub_kit/status_lamp_1.gltf",
      "at": [
       0.0,
@@ -289,25 +272,6 @@
      ],
      "yaw": -20.0,
      "row": "microscope"
-    },
-    {
-     "label": [
-      "Lab desk",
-      "Nothing to research yet"
-     ],
-     "font": "data/fonts/barlow_condensed/BarlowCondensed-Bold.ttf",
-     "font_size": 48,
-     "pixel_size": 0.003,
-     "outline_size": 10,
-     "colour": "#a79c8b",
-     "outline_colour": "#0a0908",
-     "at": [
-      0.0,
-      1.6,
-      0.0
-     ],
-     "yaw": 180.0,
-     "from": "lab_desk.tscn Readout (1.6 over the desk, pixel 0.003, font 48, outline 10) and lab_desk.gd:16-28, 76-79 (NAME and NOTHING_YET in Palette.IDLE with an INK_LINE outline before the first harvest); the game turns it to the camera (billboard), here it faces the hub's middle"
     },
     {
      "model": "models/hub_kit/status_lamp_1.gltf",
@@ -933,7 +897,9 @@
    "fov": 80
   }
  ],
- "game_only": [],
+ "game_only": [
+  "the game's readout labels (Label3D): \"OFFLINE\" over the workstation's middle screen (workstation.gd:85-96) and \"Lab desk / Nothing to research yet\" floating 1.6 m over the lab bench (lab_desk.tscn Readout, lab_desk.gd:16-28,76-79); they are the game's interface, telling the player a desk's state, not part of the room, and the stage leaves them out (2026-10-11, paper-vs-world1 item 15)"
+ ],
  "planned_ground": {
   "reach": 130.0,
   "step": 2.0,
