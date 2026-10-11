@@ -1,25 +1,32 @@
-"""The review page base and the owner's accept: one page per stage output, built from its own finish record, and an
-accept only the owner gives.
+"""The review page base, the runner's automatic accept and the owner's reject: one page per stage output, built from
+its own finish record.
 
     path = review.page(store, "assembly@hangar")            # the node's newest output; or key=... for another
-    review.accept(store, node, output, by, reason, worse_reason=None)   # the owner's command calls this, no one else
-    review.spend(store, node, key, euros, by)                # the owner's yes to one paid run
+    review.accept_automatically(store, node, output)         # the runner's: all gates pass, nothing got worse
+    review.reject(store, node, output, by, reason)           # the owner's: the accepted output moves back
+    review.accept(store, node, output, by, reason, worse_reason=None)   # the owner's own accept, when he wants one
+    review.spend(store, node, key, euros, by)                # the owner's override: his yes to a run outside the runner
     review.waive(store, node, key, check, by, reason)        # the owner lets one check pass for one key
 
 A page shows the node's output, where it came from (an unverified seed says so), every gate's answer with its
 measures, reason and findings, the record (inputs, code version, commit, seed, machine, time, cost), the judgements
-made before, and whether the owner accepted it. Pages are written in the store's cache, never in the repository.
+made before, and who accepted it. Pages are written in the store's cache, never in the repository.
 
-An accept is refused for an output whose newest judgement is not a pass once the owner's waivers for its key count,
-and for one with a worse scorecard than the accepted output's unless the owner writes why (`worse_reason`). Only
-`python -m score.review accept` calls it, from the owner's own terminal; a hook blocks agents from running it or
-writing the store's accepts (.claude/hooks/accept_guard.py).
+The runner accepts an output by itself (the owner's answer of 2026-10-11: from concept and style on everything runs
+automatically) when its newest judgement passes once the owner's waivers for its key count, its scorecard is no worse
+than the accepted output's, and the owner never rejected it; the accept says it is the runner's. The owner may reject
+any accepted output from his terminal: the accepted output moves back to the one accepted before it, and every later
+node that read it goes stale (score/graph). His own accept is refused for an output that did not pass, and for a
+worse one unless he writes why (`worse_reason`). Rejects, his accepts, waivers and spend yeses come only from `python
+-m score.review` in his own terminal; a hook blocks agents from running them or writing those areas of the store
+(.claude/hooks/accept_guard.py).
 """
 import datetime
 import html
 import json
 
 from score import checks
+from score.store import RUNNER
 
 STYLE = """
 :root { --ground: #fbfaf7; --ink: #1d1d1b; --soft: #6b6a66; --line: #dddad2; --pass: #1f7a3a; --fail: #b3261e;
@@ -58,7 +65,31 @@ def newest_judgement(store, record):
     return found[-1] if found else None
 
 
-# --- the owner's accept and spend yes --------------------------------------------------------------------------
+# --- accepts, rejects, waivers and spend yeses -----------------------------------------------------------------
+
+def accept_automatically(store, node, output):
+    """The runner's accept of an output that passed, is no worse than the accepted one and that the owner has not
+    rejected; the accept, or None when one of those does not hold."""
+    if store.rejected(node, output):
+        return None
+    try:
+        return accept(store, node, output, RUNNER, "accepted automatically: every gate passed and nothing got worse "
+                      "than the accepted output")
+    except Refused:
+        return None
+
+
+def reject(store, node, output, by, reason):
+    """The owner's reject of a node's accepted output, with his reason: the accepted output moves back to the one
+    accepted before it, and every later node that read it goes stale. The reject, as written."""
+    if store.accepted(node) != output:
+        raise Refused(f"{output[:12]} is not {node}'s accepted output; only the accepted output can be rejected")
+    if not reason.strip():
+        raise Refused("a reject needs a reason")
+    written = {"node": node, "output": output, "by": by, "at": now(), "reason": reason}
+    store.write_reject(node, written)
+    return written
+
 
 def accept(store, node, output, by, reason="", worse_reason=None):
     """Move the node's accepted output to `output`: refused unless it passed and no score is worse, or the owner
@@ -106,7 +137,7 @@ def waive(store, node, key, check, by, reason):
 
 
 def spend(store, node, key, euros, by):
-    """The owner's yes to one paid run of a node at its estimate."""
+    """The owner's override: his yes to one run at its estimate (node `override` for a run outside the runner)."""
     yes = {"node": node, "key": key, "euros": euros, "by": by, "at": now()}
     store.write_spend_yes(node, key, yes)
     return yes
@@ -162,17 +193,28 @@ def origin_banner(store, record):
             f"<code>{escaped(found.get('from', ''))}</code>.</p>")
 
 
+def reject_line(node, output):
+    """How the owner rejects the accepted output."""
+    return ("<p>The owner may reject it in his own terminal: <code>.venv/bin/python -m score.review reject "
+            f"{escaped(node)} {escaped(output)} --reason &quot;why&quot;</code></p>")
+
+
 def accept_section(store, record, judgement):
-    """Whether the owner accepted this output, what would be worse, and how he accepts it."""
+    """Who accepted this output and how the owner rejects it, or what would be worse and how he accepts it."""
     node, output = record["node"], record["output"]
-    accepted = store.accepted(node)
+    current = store.current_accept(node)
+    accepted = current and current["output"]
     if accepted == output:
-        return "<p class=pass>The owner accepted this output.</p>"
+        by = "The runner accepted this output automatically" if current.get("by") == RUNNER else "The owner accepted it"
+        return f"<p class=pass>{by} ({escaped(current['at'])}).</p>{reject_line(node, output)}"
     lines = [f"<p>Accepted output: <code>{escaped(accepted or 'none yet')}</code>.</p>"]
+    if store.rejected(node, output):
+        lines.append("<p class=fail>The owner rejected this output.</p>")
     worse = worse_than_accepted(store, node, judgement) if judgement else []
     lines += [f"<p class=fail>Worse than the accepted output: {escaped(line)}</p>" for line in worse]
     if judgement and checks.standing(judgement["verdicts"], store.waivers(node, record["key"])) == checks.PASS:
-        lines.append("<p>Only the owner accepts, in his own terminal: <code>.venv/bin/python -m score.review accept "
+        lines.append("<p>The runner did not accept it; the owner may, in his own terminal: <code>.venv/bin/python -m "
+                     "score.review accept "
                      f"{escaped(node)} {escaped(output)}</code>{' --worse &quot;why&quot;' if worse else ''}</p>")
     else:
         lines.append("<p class=soft>It cannot be accepted: its gates did not pass.</p>")

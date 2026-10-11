@@ -1,5 +1,6 @@
-"""Nothing reaches the job store without a runner's key for a node whose prerequisites passed and are accepted, and
-the owner's yes to that run. No cloud: the job store is a folder.
+"""Nothing reaches the job store without the runner's clearance: a key for a node whose prerequisites passed and stand
+accepted, and room under the month's ceiling for its estimate. No typed yes is needed. No cloud: the job store is a
+folder, and the ledger's month is set by each test.
 
 Run: .venv/bin/python score/adapters/compute/compute_test.py
 """
@@ -10,9 +11,11 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
-from score import checks, contracts, graph  # noqa: E402
+from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.store import Store  # noqa: E402
+
+BOOKS = compute.ledger()
 
 
 def make_brief(inputs, out, seed, params):
@@ -36,17 +39,18 @@ BRIEF = graph.Stage("brief", "place", make_brief, TEXT, (checks.Check("said", ju
 RENDER = graph.Stage("render", "place", make_nothing, TEXT, after={"brief": ("toy-text", 1)}, paid=True)
 
 
+def month_spent(euros):
+    """Set the ledger's month to have cost `euros` so far."""
+    BOOKS.entries = lambda: [{"started": BOOKS.this_month(), "euros": euros}]
+
+
 def a_runner(text):
+    """A runner whose brief stage ran once (a passing brief is accepted by the runner then)."""
     data, store = pathlib.Path(tempfile.mkdtemp()), Store.in_folder(tempfile.mkdtemp())
     (data / "hangar.txt").write_text(text)
     runner = graph.Runner([BRIEF, RENDER], graph.World("toy", 1, {"data": data}), store)
     runner.run_node(BRIEF, "hangar")
     return runner
-
-
-def accept_brief(runner):
-    output = runner.store.records("brief@hangar")[-1]["output"]
-    runner.store.write_accept("brief@hangar", {"output": output, "at": graph.now()})
 
 
 def refused(call):
@@ -64,51 +68,50 @@ def a_job(runner, euros=0.8):
 
 
 def test_a_node_whose_prerequisite_failed_or_is_not_accepted_is_refused():
+    month_spent(0)
     failed = a_runner("   ")
     assert "brief@hangar answered fail" in refused(a_job(failed)[1])
-    unaccepted = a_runner("a hall")
-    assert "is not accepted by the owner" in refused(a_job(unaccepted)[1])
+    rejected = a_runner("a hall")
+    output = rejected.store.accepted("brief@hangar")
+    review.reject(rejected.store, "brief@hangar", output, "owner", "the wrong hall")
+    assert "is not accepted" in refused(a_job(rejected)[1])
 
 
-def test_a_cleared_node_without_the_owners_yes_is_refused_and_with_it_is_submitted():
+def test_a_cleared_run_is_submitted_without_a_typed_yes():
+    """Fault (the owner, 2026-10-11, 'why are you asking this?'): step 0 cleared a run only on his typed spend yes, so
+    every paid run stalled asking him. The runner clears it now, and keeps the clearance."""
+    month_spent(0)
     runner = a_runner("a hall")
-    accept_brief(runner)
     job_store, send = a_job(runner)
-    assert "has not said yes" in refused(send)
-    assert job_store.keys("") == []
-    key = runner.ticket("render@hangar")["key"]
-    runner.store.write_spend_yes("render@hangar", key, {"euros": 1.0, "at": graph.now()})
     written = send()
+    key = runner.ticket("render@hangar")["key"]
     job = compute.job_contract.stores.read_json(job_store, written)
     assert job["node"] == "render@hangar" and job["node_key"] == key
+    assert runner.store.spend_yes("render@hangar", key) is None
+    assert [cleared["euros"] for cleared in runner.store.clearances("render@hangar", key)] == [0.8]
 
 
-
-def test_a_yes_clears_only_runs_estimated_within_it():
-    """Fault (review of step 0, 2026-10-11): a yes recorded euros but clearance never compared them with the job's
-    estimate, so a yes given for one estimate cleared a run of any size under the same key."""
+def test_a_run_the_months_ceiling_has_no_room_for_is_refused():
     runner = a_runner("a hall")
-    accept_brief(runner)
-    key = runner.ticket("render@hangar")["key"]
-    runner.store.write_spend_yes("render@hangar", key, {"euros": 1.0, "at": graph.now()})
+    month_spent(BOOKS.MONTH_EUROS - 1)
     job_store, dearer = a_job(runner, euros=5.0)
-    assert "estimated at EUR 5.0" in refused(dearer) and job_store.keys("") == []
+    assert "ceiling" in refused(dearer) and job_store.keys("") == []
     assert "needs its estimate" in refused(a_job(runner, euros=None)[1])
-    assert a_job(runner, euros=1.0)[1]()
+    assert a_job(runner, euros=0.5)[1]()
 
 
 def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
     """Fault (design of 2026-10-11, section 6): blender_cloud.py, detached.py, the runners and demo.py rented with no
     gate, so a run that skipped the runner could spend. Every rent point now asks require_cleared first."""
+    month_spent(0)
     runner = a_runner("a hall")
-    accept_brief(runner)
     os.environ.pop(compute.TICKET, None)
     assert "nothing rents outside a cleared run" in refused(lambda: compute.require_cleared("a batch", runner.store))
     ticket = runner.ticket("render@hangar")
-    with compute.spending(ticket):
+    with compute.spending(ticket):  # a key the runner hands out, but never cleared
         assert os.environ[compute.TICKET] == f"render@hangar {ticket['key']}"
-        assert "has not said yes" in refused(lambda: compute.require_cleared("a batch", runner.store))
-        runner.store.write_spend_yes("render@hangar", ticket["key"], {"euros": 1.0, "at": graph.now()})
+        assert "did not clear" in refused(lambda: compute.require_cleared("a batch", runner.store))
+    with compute.spending(compute.clearance(runner, "render@hangar", 1.0)):
         assert compute.require_cleared("a batch", runner.store)["euros"] == 1.0
     assert compute.TICKET not in os.environ
     runner.store.write_spend_yes(compute.OVERRIDE, "repaint-six", {"euros": 3.0, "at": graph.now()})

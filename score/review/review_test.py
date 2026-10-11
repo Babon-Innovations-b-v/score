@@ -1,5 +1,6 @@
-"""Only a passing output that is no worse than the accepted one can be accepted, only from the owner's terminal, and
-its page shows what its own record says.
+"""The runner accepts a passing output that is no worse than the accepted one; a worse one waits for the owner's
+accept with a reason; his reject moves the accepted output back; his commands run only from his terminal; and a page
+shows what its own record says.
 
 Run: .venv/bin/python score/review/review_test.py
 """
@@ -14,7 +15,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 from score import checks, contracts, graph, review  # noqa: E402
-from score.store import Store  # noqa: E402
+from score.store import RUNNER, Store  # noqa: E402
 
 
 def make_tally(inputs, out, seed, params):
@@ -57,11 +58,10 @@ def test_an_output_that_did_not_pass_cannot_be_accepted():
     assert store.accepted("tally@hangar") is None
 
 
-def test_a_passing_output_is_accepted_and_a_worse_one_only_with_a_reason():
+def test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_owner_with_a_reason():
     store, data, first = made(1)
-    review.accept(store, "tally@hangar", first, "owner")
-    assert store.accepted("tally@hangar") == first
-    _, _, second = made(2, store, data)
+    assert store.accepted("tally@hangar") == first and store.current_accept("tally@hangar")["by"] == RUNNER
+    _, _, second = made(2, store, data)  # passes, but worse: the runner leaves it
     assert "faults 1 became 2" in refusal(lambda: review.accept(store, "tally@hangar", second, "owner"))
     assert store.accepted("tally@hangar") == first
     written = review.accept(store, "tally@hangar", second, "owner", worse_reason="the second fault is a false alarm")
@@ -70,13 +70,42 @@ def test_a_passing_output_is_accepted_and_a_worse_one_only_with_a_reason():
 
 
 def test_the_page_shows_the_record_the_gates_and_the_accept():
-    store, _, output = made(2)
+    store, data, first = made(1)
     text = review.page(store, "tally@hangar").read_text()
     assert "Unverified seed." in text and "an old output brought in" in text
-    assert "2 faults, at most 3 pass" in text and "fault 1" in text
-    assert f"score.review accept tally@hangar {output}" in text
-    review.accept(store, "tally@hangar", output, "owner")
-    assert "The owner accepted this output." in review.page(store, "tally@hangar").read_text()
+    assert "1 faults, at most 3 pass" in text and "fault 0" in text
+    assert "The runner accepted this output automatically" in text
+    assert f"score.review reject tally@hangar {first}" in text
+    _, _, second = made(2, store, data)
+    text = review.page(store, "tally@hangar").read_text()
+    assert f"score.review accept tally@hangar {second}</code> --worse" in text
+    review.accept(store, "tally@hangar", second, "owner", worse_reason="one fault is a false alarm")
+    assert "The owner accepted it" in review.page(store, "tally@hangar").read_text()
+
+
+def test_an_owners_reject_moves_the_accepted_output_back_and_the_runner_never_takes_it_again():
+    store, data, first = made(1)
+    _, _, second = made(0, store, data)
+    assert store.accepted("tally@hangar") == second  # better: accepted by the runner
+    assert "not tally@hangar's accepted output" in refusal(
+        lambda: review.reject(store, "tally@hangar", first, "owner", "why"))
+    assert "needs a reason" in refusal(lambda: review.reject(store, "tally@hangar", second, "owner", " "))
+    review.reject(store, "tally@hangar", second, "owner", "zero faults means the gate saw nothing")
+    assert store.accepted("tally@hangar") == first
+    assert review.accept_automatically(store, "tally@hangar", second) is None
+    graph.Runner([TALLY], graph.World("toy", 1, {"data": data}), store).run(["hangar"])
+    assert store.accepted("tally@hangar") == first
+    assert "The owner rejected this output." in review.page(store, "tally@hangar").read_text()
+    review.accept(store, "tally@hangar", second, "owner", "on a second look it is right")
+    assert store.accepted("tally@hangar") == second
+
+
+def test_the_reject_command_refuses_without_the_owners_terminal():
+    store, _, output = made(1)
+    found = subprocess.run([sys.executable, "-m", "score.review", "reject", "tally@hangar", output, "--reason", "x"],
+                           cwd=REPO, capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                           env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
+    assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
 
 
 def test_a_failed_output_page_offers_no_accept():

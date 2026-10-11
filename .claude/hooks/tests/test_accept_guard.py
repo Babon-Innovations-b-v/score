@@ -1,8 +1,9 @@
 """Pin the accept_guard PreToolUse decisions by driving the real script via stdin.
 
-An agent cannot run the owner's accept or spend, call them from Python, or write the store's accepts, waivers or
-spend yeses by any file or shell route or into an artifact's database; reading them, building a review page and
-running the tests stay allowed; garbage fails open.
+An agent cannot run the owner's accept, reject or spend, call them from Python, or write the store's accepts,
+rejects, waivers, spend yeses or clearances by any file or shell route or into an artifact's database; running the
+stages (the runner's own accepts and clearances), reading them, building a review page and running the tests stay
+allowed; garbage fails open.
 
 Run: python3 -m pytest .claude/hooks/tests/
 """
@@ -28,10 +29,11 @@ def _bash(command):
 def test_the_owners_commands_are_blocked():
     for command in (".venv/bin/python -m score.review accept assembly@hangar abc123",
                     "cd wt && python3 -m score.review spend render@hub k1 4.5",
-                    "python score/review/__main__.py accept a@b c"):
+                    "python score/review/__main__.py accept a@b c",
+                    ".venv/bin/python -m score.review reject assembly@hangar abc123 --reason x"):
         code, err = _run(_bash(command))
         assert code == 2, command
-        assert "only the owner accepts" in err
+        assert "only the owner accepts or rejects" in err
 
 
 def test_calling_accept_from_python_is_blocked():
@@ -44,7 +46,9 @@ def test_writing_the_store_accepts_by_shell_is_blocked():
     for command in ("echo '{}' > ~/.farm-factory-props/store/objects/accepts/a@b/1.json",
                     "cp x.json $HOME/.farm-factory-props/store/objects/spend-yes/a@b/k.json",
                     "rm -r store/objects/accepts/assembly@hangar",
-                    "mkdir -p objects/waivers/x && touch objects/waivers/x/y.json"):
+                    "mkdir -p objects/waivers/x && touch objects/waivers/x/y.json",
+                    "cp c.json store/objects/clearances/render@hub/k1/1.json",
+                    "echo '{}' > store/objects/rejects/a@b/1.json"):
         assert _run(_bash(command))[0] == 2, command
 
 
@@ -69,7 +73,8 @@ def test_reading_pages_and_tests_stay_allowed():
                     "cat ~/.farm-factory-props/store/objects/accepts/a@b/1.json",
                     "grep -n 'review.accept(' score/review/review_test.py",
                     ".venv/bin/python score/review/review_test.py",
-                    "make check"):
+                    "make check",
+                    ".venv/bin/python -m score.stages run hangar hdoor"):
         assert _run(_bash(command))[0] == 0, command
     edit = {"tool_name": "Edit", "tool_input": {"file_path": "score/review/__init__.py"}}
     assert _run(edit)[0] == 0

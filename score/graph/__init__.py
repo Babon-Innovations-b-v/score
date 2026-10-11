@@ -2,24 +2,31 @@
 record for every output, so a changed input reruns only what it reaches.
 
     runner = Runner(stages, world, store)
-    runner.run(places)        # {node: what it did}: made, judged again, fresh, or blocked and why
+    runner.run(places)        # {node: what it did}: made, judged again, fresh, accepted, or blocked and why
     runner.status(places)     # {node: its state and why}, running nothing
     runner.why(node)          # the node's records back through every earlier stage it read
     runner.ticket(node)       # the node's key, only when every prerequisite passed and is accepted (paid runs)
+    runner.stale(node)        # the earlier nodes whose accepted output moved since the node's accepted output read them
 
 A node is one stage for one place (`stage@place`), or for the whole world (`stage`). Its key hashes the stage's name
 and grain, its computed code version (the stage's and its checks' modules and every repository module they import),
 its parameters, its seed, its pinned images and models, and the key of every input: a world file's or seed folder's
-content hash, or the output an earlier node passed and the owner accepted. A node whose key has a finish record is
-not made again. Its gates are judged again, without remaking it, when a check's evidence changes.
+content hash, or an earlier node's accepted output. A node whose key has a finish record is not made again. Its gates
+are judged again, without remaking it, when a check's evidence changes.
 
 Every output is checked against its stage's contract and stamped with it (score.contracts) before it is stored; one
 off its contract is not stored. A node reads an earlier output only when its stamp is the schema and version the node
 expects, and only when every earlier stage it reads has a finish record for its current key, a judgement on its
-current evidence that passed (or whose failed checks the owner waived for that key), and the owner's accept of that
-very output. A rerun's new output lands beside the
-accepted one and never replaces it by itself. A paid stage also needs the owner's yes to that run (spend-yes).
+current evidence that passed (or whose failed checks the owner waived for that key), and an accept of that very
+output. The runner gives that accept by itself (review.accept_automatically) when the output passed, nothing got worse
+than the accepted output and the owner never rejected it; otherwise the new output lands beside the accepted one and
+waits for the owner. When he rejects an accepted output, its node's accepted output moves back, and every later node
+whose accepted output read the rejected one is stale (`stale`, shown in status): its key now names the output
+accepted before, so its next run makes (or finds) the output that reads that one.
+A paid stage runs cleared by the runner (score.adapters.compute: its inputs pass and the month's ceiling has room for
+its estimate, `Stage.euros`), inside that clearance's ticket.
 """
+import contextlib
 import datetime
 import json
 import pathlib
@@ -29,7 +36,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
-from score import checks, contracts
+from score import checks, contracts, review
 from score.adapters import models
 from score.graph import _code
 from score.store import file_hash, listing_hash, text_hash, tree_hash
@@ -51,6 +58,7 @@ class Stage:
     files: {name: path pattern}, formatted with the world's roots and {place}.
     after: {earlier stage: (schema, version) this one was written for}, the stages whose accepted output it reads.
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
+    paid, euros: a stage that rents, and its run's estimate in euros, cleared against the month's ceiling.
     """
     name: str
     grain: str
@@ -61,6 +69,7 @@ class Stage:
     after: dict = field(default_factory=dict)
     params: dict = field(default_factory=dict)
     paid: bool = False
+    euros: float = None
     models: tuple = ()
 
     def __post_init__(self):
@@ -133,7 +142,7 @@ class Runner:
         return keys
 
     def usable(self, before, place, wanted):
-        """The output of an earlier node that passed its gates on its current evidence, that the owner accepted, and
+        """The output of an earlier node that passed its gates on its current evidence, that stands accepted, and
         whose stamp is the (schema, version) wanted."""
         stage = self.stages[before]
         node = node_name(stage, place)
@@ -151,7 +160,7 @@ class Runner:
             raise Blocked(f"{node} answered {judgement['answer']}: {reasons}")
         accepted = self.store.accepted(node)
         if accepted != record["output"]:
-            raise Blocked(f"{node}'s output {record['output'][:12]} is not accepted by the owner"
+            raise Blocked(f"{node}'s output {record['output'][:12]} is not accepted"
                           + (f" (accepted: {accepted[:12]})" if accepted else ""))
         try:
             contracts.expect(wanted, self.store.read_file(record["output"], contracts.STAMP), node)
@@ -184,14 +193,24 @@ class Runner:
         paths.update({before: self.store.checkout(output) for before, output in keyed["after"].items()})
         return paths
 
+    def spending(self, stage, node):
+        """For a paid stage, its clearance's ticket named for the rent points while it makes; else nothing."""
+        if not stage.paid:
+            return contextlib.nullcontext()
+        from score.adapters import compute  # here: compute imports this module for its tickets
+        try:
+            return compute.spending(compute.clearance(self, node, stage.euros))
+        except compute.Refused as refusal:
+            raise Blocked(str(refusal)) from refusal
+
     def make(self, stage, place, keyed):
         """Make the node's output, store it and write its finish record; the record."""
         node = node_name(stage, place)
-        if stage.paid and self.store.spend_yes(node, keyed["key"]) is None:
-            raise Blocked(f"{node} is paid and the owner has not said yes to this run ({keyed['key'][:12]})")
+        cleared = self.spending(stage, node)
         out = self.store.making(keyed["key"])
         started, clock = now(), time.monotonic()
-        stage.make(self.input_paths(stage, place, keyed), out, keyed["seed"], stage.params)
+        with cleared:
+            stage.make(self.input_paths(stage, place, keyed), out, keyed["seed"], stage.params)
         if self.file_keys(stage, place) != keyed["files"]:
             raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
         contracts.stamp(stage.contract, out)
@@ -219,7 +238,8 @@ class Runner:
         return judgement
 
     def run_node(self, stage, place):
-        """Make the node if its key has no record, judge it if its evidence state has no judgement; what it did."""
+        """Make the node if its key has no record, judge it if its evidence state has no judgement, accept it when it
+        passed and got no worse; what it did."""
         try:
             keyed = self.key(stage, place)
         except Blocked as block:
@@ -235,9 +255,13 @@ class Runner:
             except contracts.Broken as broken:
                 return f"broken: {broken}"
         if self.store.judgement(node, keyed["key"], self.evidence_state(stage, record["output"])) is not None:
-            return "fresh"
-        judgement = self.judge(stage, place, record)
-        return f"{'made' if made else 'judged again, output kept'}: {judgement['answer']}"
+            done = "fresh"
+        else:
+            judgement = self.judge(stage, place, record)
+            done = f"{'made' if made else 'judged again, output kept'}: {judgement['answer']}"
+        accepted = self.store.accepted(node) != record["output"] and review.accept_automatically(
+            self.store, node, record["output"])
+        return f"{done}, accepted automatically" if accepted else done
 
     def nodes(self, places):
         """Every (stage, place) in table order: a world stage once, a place stage once per place."""
@@ -285,7 +309,25 @@ class Runner:
                 f"{'accepted' if accepted else 'not accepted'}")
 
     def status(self, places):
-        return {node_name(stage, place): self.node_status(stage, place) for stage, place in self.nodes(places)}
+        """{node: its state, and the earlier nodes its accepted output went stale on}, running nothing."""
+        found = {}
+        for stage, place in self.nodes(places):
+            node, stale = node_name(stage, place), self.stale(node_name(stage, place))
+            found[node] = self.node_status(stage, place) + (
+                f", its accepted output is stale: {', '.join(stale)} moved" if stale else "")
+        return found
+
+    def stale(self, node):
+        """The earlier nodes whose accepted output is no longer the one the node's accepted output read (an owner's
+        reject moved it back), or is itself stale; none when the node has no accepted output."""
+        accepted = self.store.accepted(node)
+        record = review.record_of(self.store, node, accepted) if accepted else None
+        if record is None:
+            return []
+        place = node.partition("@")[2] or None
+        earlier = {node_name(self.stages[before], place): output for before, output in record["after"].items()}
+        return [before for before, output in earlier.items()
+                if self.store.accepted(before) != output or self.stale(before)]
 
     def ticket(self, node):
         """The node's current key, for a paid run's submit: only when every prerequisite passed and is accepted."""

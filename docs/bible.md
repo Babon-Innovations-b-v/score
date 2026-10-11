@@ -74,15 +74,22 @@ the current backend). No model runs on the coordinating machine.
   stored, and a reader blocked on an input of another schema or version; one store (`score/store`, over
   `tools/cloud/runtime/store.py`, a folder at `$PROPS_HOME/store`) keeping outputs by content hash, never
   overwritten; gates (`score/checks`) that answer pass, fail or unknown, unknown on missing evidence, and block on
-  both; a review page per output and the owner's accept, waiver (one check, one key, with his reason) and spend yes
-  (`score/review`). The accept moves the accepted output only when no score got worse. Agents are kept from giving
-  any of the three by a barrier, not a lock: the commands want his terminal, the store refuses those writes in any
-  process Claude Code started, and `.claude/hooks/accept_guard.py` blocks the other routes; an agent set on getting
-  round them can (by editing the framework's code, say), and every accept names who gave it and when. Adapters for
-  models, compute and engines (`score/adapters`) refuse a paid run without the runner's key and the owner's yes at
-  no less than the run's estimate. A node runs only on outputs that passed (or whose failed checks he waived) and he
-  accepted. Step 0's worked example: `python -m score.stages run hangar hdoor` brings the round-three stages in as
-  unverified seeds; the hangar fails on its code-built ship and the door answers unknown with no drop run, so
+  both; a review page per output (`score/review`). The framework decides, not a typed yes (the owner's answers of
+  2026-10-11: his picks are made, from concept and style on everything runs automatically, no spend limit, spend
+  logically). The runner accepts an output by itself when every gate passed and no score got worse than the accepted
+  one, its accept marked as the runner's; it clears a paid run when every gate on its inputs passed (unknown blocks)
+  and the ledger's month ceiling (`tools/props/cloud/ledger.py`) has room for its estimate, and keeps the clearance
+  in the store. The owner keeps a reject, from the page's command in his terminal: the accepted output moves back to
+  the one accepted before, every later node that read it is stale, and the runner never takes it again. He also
+  keeps his own accept, for a worse output with his reason; a waiver (one check, one key, with his reason); and an
+  override, his yes for a run outside the runner. None is needed for a run. Agents are kept from giving those, and
+  from writing accepts or clearances by hand, by a barrier, not a lock: the commands want his terminal, the store
+  refuses those writes in any process Claude Code started (the runner's automatic accept excepted), and
+  `.claude/hooks/accept_guard.py` blocks the other routes; an agent set on getting round them can (by editing the
+  framework's code, say), and every accept names who gave it and when. Adapters for models, compute and engines
+  (`score/adapters`) refuse a paid run without the runner's clearance. A node runs only on outputs that passed (or
+  whose failed checks he waived) and stand accepted. Step 0's worked example: `python -m score.stages run hangar
+  hdoor` brings the round-three stages in as unverified seeds; the hangar fails on its code-built ship and the door answers unknown with no drop run, so
   neither completes. Every place that spends (`batch.rent`, the k8s submitter and the cluster's `up`, Nano Banana
   Pro's `pro.draw`, Marble's `generate` and `paint`) refuses unless SCORE_SPEND_TICKET names a node the runner
   cleared or the owner's override (`compute.require_cleared`), so the old paid entry points (blender_cloud.py,
@@ -265,7 +272,8 @@ unpredictable.
   it is touched. A new code directory gets one without asking; it is the mechanism, not a document.
 - **Hooks** (`.claude/settings.json`) hold automation that must fire on a harness event, not on the
   model remembering. Today: the grill protocol on `SessionStart`, the soul rules on every prompt,
-  `md_guard`, `issue_guard` and `accept_guard` (only the owner accepts, waives or says yes to a spend) on
+  `md_guard`, `issue_guard` and `accept_guard` (only the owner rejects, accepts by hand, waives or overrides; the runner accepts and clears by
+  the gates) on
   `PreToolUse`, and the memory commit-and-push on `Stop`.
 - **GitHub issues** hold the durable backlog. Anything that must survive the chat lives there.
 

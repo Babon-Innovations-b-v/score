@@ -39,13 +39,15 @@ def test_the_machine_path_starts_only_for_a_cleared_node():
     real = blender_cloud.run_elsewhere
     blender_cloud.run_elsewhere = lambda *arguments: STARTED.append(arguments + (os.environ.get(compute.TICKET),))
     try:
+        books = compute.ledger()
+        books.entries = lambda: [{"started": books.this_month(), "euros": books.MONTH_EUROS}]  # the month is full
         try:
             engines.blender_on_machines(runner, "render@hangar", "s.py", [], [], [], ["cpu-32c-128gb"], 5, 0.5)
         except compute.Refused as refusal:
-            assert "has not said yes" in str(refusal)
+            assert "ceiling" in str(refusal)
         assert STARTED == []
         key = runner.ticket("render@hangar")["key"]
-        runner.store.write_spend_yes("render@hangar", key, {"euros": 0.5, "at": graph.now()})
+        books.entries = lambda: []
         engines.blender_on_machines(runner, "render@hangar", "s.py", [], [], [], ["cpu-32c-128gb"], 5, 0.5)
         assert STARTED == [("s.py", [], [], [], ["cpu-32c-128gb"], f"render@hangar {key[:12]}", 5,
                             f"render@hangar {key}")], STARTED

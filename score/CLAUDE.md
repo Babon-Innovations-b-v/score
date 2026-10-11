@@ -1,8 +1,10 @@
 # score/
 
 The layered framework's core (PRD #6, the design of 2026-10-11): stages run by one runner, every output kept in one
-store by its content's hash, gates that block on unknown, a review page per output, and an accept only the owner
-gives. Today's tools in `tools/` move in here stage by stage as each stage is built; nothing moves before.
+store by its content's hash, gates that block on unknown, a review page per output, and accepts and paid runs the
+runner gives by the gates' answers (the owner's answers of 2026-10-11: his picks are made, from concept and style on
+everything runs automatically, no spend limit, spend logically). Today's tools in `tools/` move in here stage by
+stage as each stage is built; nothing moves before.
 
 - **`checks/`** the gate rules every stage shares: `Verdict` (pass, fail or unknown, a reason, measures, findings),
   `Check` (a judge and the evidence it needs), `judge` (missing evidence is unknown without asking), `overall`
@@ -14,28 +16,37 @@ gives. Today's tools in `tools/` move in here stage by stage as each stage is bu
   use: `OPENUSD_STAGE` (one root stage, metres, Y up, a default prim) and `PLACE_MANIFEST`.
 - **`store/`** the store over `tools/cloud/runtime/store.py`'s interface (a folder at `$PROPS_HOME/store` by
   default; nothing in the cloud): outputs as content-hashed files and listings, finish records, judgements per
-  evidence state, evidence per check and output, the owner's accepts and spend yeses. Written once, never
-  overwritten; checkouts are read-only copies (never links to the stored bytes), made again when changed; an
-  agent's process cannot write the framework store's accepts, waivers or spend yeses. Its docstring has the key layout.
-- **`graph/`** the runner: `Stage` (the stage table's row), `World`, `Runner.run/status/why/ticket`. A node's key
+  evidence state, evidence per check and output, accepts (the runner's automatic ones and the owner's), the owner's
+  rejects, waivers and spend yeses, the runner's clearances. Written once, never overwritten; checkouts are read-only
+  copies (never links to the stored bytes), made again when changed; an agent's process cannot write the framework
+  store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
+- **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`), `World`,
+  `Runner.run/status/why/ticket/stale`. `run` accepts an output by itself when every gate passed (waivers counted),
+  nothing got worse than the accepted output and the owner never rejected it, and makes a paid stage inside its
+  clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved since. A node's key
   hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too), parameters, seed, pinned models and every input.
-- **`review/`** the review page of one output from its own record, and the owner's `accept`, `waive` (one check
-  passes for one key, with his reason; it ends when the key changes and shows on the page and in status) and
-  `spend` (a yes at an amount; the compute adapter clears only runs estimated within it). `python -m score.review
-  ...` refuses without a terminal, the store refuses these writes in an agent's process, and
+- **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
+  `accept_automatically` (the runner's); and the owner's `reject` (the accepted output moves back to the one accepted
+  before, later nodes that read it go stale, the runner never takes it again), `accept` (his own, a worse one with his
+  reason), `waive` (one check passes for one key, with his reason; it ends when the key changes and shows on the page
+  and in status) and `spend` (his override, a yes for a run outside the runner, node `override`). `python -m
+  score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock.
-- **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (the refusal, then
-  `tools/cloud/runtime/submit.write_job`), `engines` (Blender: the blender image's job, or
-  `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
+- **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
+  ticket for a node whose inputs passed and stand accepted, when the ledger's month ceiling has room for the estimate,
+  kept in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point), `engines`
+  (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. World 1's record is `data/definitions/world.json`.
 
 Rules:
 
-- **Never write an accept, a waiver or a spend yes**, by any route. Build the page and ask the owner. The runner and
-  every stage read the accepted output only; a new output lands beside it and never replaces it by itself.
+- **Never write a reject, a waiver, a spend yes, a clearance or an accept by hand**, by any route, and never ask the
+  owner to accept or to say yes to a spend: run the stages, and the runner accepts what passed and got no worse and
+  clears what may spend. The runner and every stage read the accepted output only; a new output that failed, is
+  unknown or got worse lands beside it and waits on its page for the owner.
 - **Every stage names its output's contract** (`Stage.contract`) and, in `after`, the (schema, version) it was
   written for of each stage it reads. A schema change is a new version, never an edit of the old one.
 - **A gate never passes on missing evidence.** A check that needs evidence names it (`Check.evidence`); a judge that
