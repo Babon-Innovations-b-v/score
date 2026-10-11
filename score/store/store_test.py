@@ -6,6 +6,7 @@ Run: .venv/bin/python score/store/store_test.py
 import multiprocessing
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -171,6 +172,20 @@ def test_processes_storing_and_checking_out_one_output_at_once_all_find_it_whole
     listing = store.listing(output)
     assert at_once(lambda number: str(tree_listing(store.checkout(output)) == listing), 16) == ["True"] * 16
     assert not list(store.objects.root.rglob("*.partial")) and not list(store.cache.rglob("*.partial"))
+
+
+def test_two_runs_of_one_node_never_share_a_scratch_folder():
+    """Two runs making one key at once each get their own folder: a second run once wiped the first's work and the
+    first's cleanup removed the second's input list (the surface test's arms, 2026-10-11)."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        store = Store.in_folder(root)
+        first = store.making("same-key")
+        (first / "work.txt").write_text("the first run's work")
+        second = store.making("same-key")
+        assert second != first and (first / "work.txt").exists() and not any(second.iterdir())
+    finally:
+        shutil.rmtree(root)
 
 
 if __name__ == "__main__":
