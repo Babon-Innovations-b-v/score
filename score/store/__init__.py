@@ -43,6 +43,7 @@ import os
 import pathlib
 import shutil
 import sys
+import tempfile
 import threading
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "tools/cloud/runtime"))
@@ -209,12 +210,10 @@ class Store:
         return folder
 
     def making(self, key):
-        """An empty folder for a node to write its output into before it is stored."""
-        folder = self.cache / "making" / key
-        if folder.exists():
-            shutil.rmtree(folder)
-        folder.mkdir(parents=True)
-        return folder
+        """A new empty folder of this run's own for a node to write its output into before it is stored: two runs of
+        one key never share one (a second run once wiped the first's work)."""
+        (self.cache / "making").mkdir(parents=True, exist_ok=True)
+        return pathlib.Path(tempfile.mkdtemp(prefix=f"{key}-", dir=self.cache / "making"))
 
     # --- records, judgements, evidence ---------------------------------------------------------------------
 
