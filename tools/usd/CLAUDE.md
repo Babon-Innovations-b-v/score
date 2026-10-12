@@ -14,7 +14,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - **The effects layer** (`effects.py`, `layers/effects.usda`, between the edit layer and the base with the other stage
   layers): a place's particle effects from its record (`data/effects/<place>.json`, every entry with its game `from`),
   each emitter written twice. The schema is an Xform `/<place>/Effects/<emitter>` in the emitter's own frame carrying
-  `score:effect:*` (kind; look `speck` or `puff`; emitter shape and size; count, rate, lifetime, explosiveness and a
+  `score:effect:*` (kind; look `speck` or `puff`; a puff's card, dust or plain for steam, fog and mist; emitter shape and size; count, rate, lifetime, explosiveness and a
   burst's period; direction, spread, flatness, speed; gravity in the emitter's frame; damping, radial push,
   turbulence; size, scale and size over life; linear colour, opacity and opacity over life; a puff's near fade; the
   wind it follows in the place's frame; spin; world or local space; seed; the bake's loop; `from`), which an engine
@@ -26,7 +26,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   entry in that variant of `/<place>/Effects` (the camp's `weather`: calm, storm). Blender's reader leaves
   displayOpacity out, so `../blender/inside/usd_views.py` draws the effects itself, frame by frame. Effects are
   fine and many (the owner's rule: real footage first; big or sparse particles read as dots): never thin a record to
-  make it cheaper to draw. An emitter can ride a prim of the base (`on`: written as its child), follow a motion's
+  make it cheaper to draw. An emitter can ride a prim of the base (`on`: written as its child), fill a room
+  (`room`: a box over the scene record's floor to its ceiling), follow a motion's
   climb (`follows`), play once at its own seconds (`once`, its own `samples` a second) or light at a second
   (`starts`); a record's `lights` ride a prim with keyed intensity (usd_views keys a light on a moving prim where it
   stands). An entry the game never drew names the real footage it was measured on (`footage: <source id>`, listed
