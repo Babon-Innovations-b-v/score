@@ -1637,7 +1637,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "the machine the hangar holds (owner's look, 2026-10-01: flat wedge shuttle, white panels on a dark hull; concept K01 shows it standing on its legs on the pad, not lifting); its box is the four partition proposals that cover its hull (once dropped as the game's ship); size from the plan's keep-out box 12 x 31 m and the cabin deck's 5.5 m with the hull round it; made by the prop route (score/stages/machines/ship_trial.py), no take yet"
+			"why": "the machine the hangar holds (owner's look, 2026-10-01: flat wedge shuttle, white panels on a dark hull; concept K01 shows it standing on its legs on the pad, not lifting); its box is the four partition proposals that cover its hull (once dropped as the game's ship); size from the plan's keep-out box 12 x 31 m and the cabin deck's 5.5 m with the hull round it; made by the prop route (score/stages/machines/ship_trial.py), no take yet",
+			"thing": "prop:hangar_ship"
 		}
 	]
 }
