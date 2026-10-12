@@ -1,9 +1,10 @@
 """The neighbours stage stands each place its scene record shows in the place's assembly, read from its own output,
 and its gate fails a shown place that resolves to nothing. Toy stages named as world 1's launch, square and far city,
-whose record (data/scene/launch.json) shows the square and the far city.
+whose record (the assembly's scene.json beside its stage) shows the square and the far city.
 
 Run: .venv/bin/python score/stages/assembly/neighbours_test.py
 """
+import json
 import pathlib
 import shutil
 import sys
@@ -12,6 +13,7 @@ import tempfile
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks  # noqa: E402
+from score.stages import assembly  # noqa: E402
 from score.stages.assembly import neighbours  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -39,18 +41,21 @@ def a_place(root, place, shows=()):
 
 
 def judge(output):
-    return neighbours.judge_neighbours(output, {"scene record": REPO / "data/scene/launch.json"}, None)
+    return neighbours.judge_neighbours(output, {}, None)
 
 
 def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
     """Fault (2026-10-12): the launch's accepted assembly showed Places/square and Places/far_city with no children,
     its references pointing at round-three seed files the store does not hold."""
-    assert neighbours.shown("launch") == ["far_city", "square"] and neighbours.neighbours("launch") == ["square"]
-    assert set(neighbours.files("launch")) == {"scene record", "seen far_city"}
+    assert neighbours.record_of("hub") == json.loads((REPO / "data/scene/hub.json").read_text())  # no record row
+    assert "far_city" in neighbours.shown("launch") and "far_city" not in neighbours.neighbours("launch")
+    assert "seen far_city" in neighbours.files("launch")
     assert neighbours.applies("square") and not neighbours.applies("habitat")
     root = pathlib.Path(tempfile.mkdtemp())
     try:
         launch = a_place(root / "kept", "launch", ("square", "far_city"))
+        (launch / assembly.RECORD).write_text(json.dumps({"places": [{"name": "square", "stage": "square"},
+                                                                     {"name": "far_city", "stage": "far_city"}]}))
         inputs = {"assembly@square": a_place(root / "kept", "square"),
                   "seen far_city": a_place(root / "kept", "far_city")}
         shutil.move(str(launch), root / "alone")  # away from its neighbours, as the store keeps it

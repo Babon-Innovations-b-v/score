@@ -216,7 +216,8 @@ is meant to fix, where it is marked, and what proves it.
   plan, the inventory, the made ground's seats and the sky record, gated on `game-free`, `plan-matched`, `openings`
   (the record composed over the made ground: every doorway onto a floor, no view into nothing, every door's place
   standing in it) and `seed-matched` (the old record an unverified seed: each entry matched or left out with a
-  written reason). Only places whose plan has `leads` have the rows; no assembly reads the record yet. Two shell
+  written reason). Only places whose plan has `leads` have the rows; the assembly writes the accepted record over its
+  seed's record prims (the final assembly, below). Two shell
   writers: domed rooms, and kit shells (`kit_shell.py`, 2026-10-12: the Earth's flat, stairwell, street, square and
   launch view, whose kits hold their walls; the record adds the block round a room, the lamps of the sky record's
   lamp rows where the kit lays them, the Earth's night, moon, glow and harbour, the plan's released models and the
@@ -230,6 +231,13 @@ is meant to fix, where it is marked, and what proves it.
   The hangar's flat roof still needs its writer. The sky record's numbers are the
   old records' shared ones, unverified. Proven when the garage's record passes its gates and the owner has seen it
   built; then each domed room, and a shell writer for each other kind of place.
+- **The final assembly** (`score/stages/assembly`: `make_from_seed`, `sounds.py`, the `layers` gate; 2026-10-12). For
+  assemblies that copied the round-three seed's own record, sound and layers: each place is assembled once, from every
+  layer stage's accepted output (`assembly.READS`: scene record, sound, effects, motion, light, machines, crops), each
+  joining the assembly's reads the day its row joins the table (`stages.layered`), and the `layers` gate answers
+  unknown while a layer the place needs (`data/checks/contents.json`; sound and light everywhere) has none, never
+  letting the seed's stand in. The neighbours stage reads the record the assembly built from (`scene.json` beside the
+  stage). Proven when every place's assembly passes `layers` and complete passes on it.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
   `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
   terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its

@@ -94,7 +94,7 @@ def test_assembly_takes_it(work):
     root = Sdf.Layer.CreateNew(str(work / "place/garage.usda"))
     root.subLayerPaths = ["./layers/edit.usda", assembly.BASE_LAYER]
     root.Save()
-    assembly.take_machines(work / "laid", work / "place/garage.usda")
+    assembly.take_layer(work / "laid", work / "place/garage.usda", *assembly.LAYERS["machines-layer"][1:])
     layers = list(Sdf.Layer.FindOrOpen(str(work / "place/garage.usda")).subLayerPaths)
     assert layers == ["./layers/edit.usda", "./layers/machines.usda", assembly.BASE_LAYER], layers
     assert (work / "place/assets/rover_1.usdc").exists() and (work / "place" / machines.LAYER).exists()
