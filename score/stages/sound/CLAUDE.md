@@ -16,6 +16,8 @@ gates; `takes.py` the paid part.
   card in the moss image (`takes.py`, through `tools/cloud/images/prove.py`), chosen by the picker's rule.
 - **Takes are kept in `~/.cache/farm-factory/sound-picker/moss/stage/`** named by sound, the hash of prompt, length and
   weights, and seed, with their CLAP scores: the same brief is never paid for twice. Change a prompt to get new takes.
+- **Unit cost** (world 1, 2026-10-12, ledger): one L4 a place, about 4 min from order to first take, about 28 s a
+  take of 10 to 15 s; EUR 0.09 to 0.13 a place for one brief (8 takes), EUR 0.72 for world 1's 7 new sounds (56 takes).
 - **The owner's recordings stay** (2026-10-06: the breathing, the sliding doors and the steel footsteps were better
   than the generated takes). `no freesound` passes them by their `chosen.by` owner with his decision and lists them;
   any other Freesound file fails it. Replacing them is his call, not the stage's.
