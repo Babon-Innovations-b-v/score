@@ -5,11 +5,16 @@
     python3 tools/costs/costs.py tables <ledger.jsonl> <reconciliation.json> <bill.json> <out.txt>
     python3 tools/costs/costs.py types <ledger.jsonl> <rows> <before>         # cost by machine type, an earlier window
     python3 tools/costs/costs.py today          # the provider's own bill: today (UTC) and month to date, by product
+    python3 tools/costs/costs.py today --since 2026-10-12T18:25Z   # and spend since then split by track
 
 `today` reads the provider's consumption (Scaleway's month-to-date bill of the project, lagging by hours), keeps it as
 a snapshot (`~/.farm-factory-props/cloud/bills/<read>.json`) and takes today as the month so far less the last
 snapshot read before 00:00 UTC (or, on a box with none, the day's first snapshot, said so). For the 09:00, 15:00 and
-21:00 reports; the ledger's own day is printed beside it.
+21:00 reports; the ledger's own day is printed beside it. With `--since` it also splits the spend since then by track:
+each cloud ledger row by the worktree that wrote it (ledger.origin, rows since 2026-10-12 ~20:40), an older row by its
+`who` or batch name; each Google call by its tag, else its caller; and the bill's growth since the last snapshot read
+at or before that time, less what the ledgers hold, as "not in the ledgers" (disks, addresses, storage, batches still
+running).
 
 Every runner writes one ledger row per batch (paper/evidence/cloud/ledger.jsonl is a scrubbed copy); the rows are never
 rewritten. `reconcile` tags the rows written before a runner named its kind and sets the month's bill (one
@@ -435,6 +440,70 @@ def day_baseline(folder, now):
     return None, None
 
 
+def moment(text):
+    """A time written as ISO 8601 (Z, an offset, or none for UTC), as epoch seconds."""
+    when = datetime.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return (when if when.tzinfo else when.replace(tzinfo=datetime.timezone.utc)).timestamp()
+
+
+def cloud_track(row):
+    """The track a cloud ledger row is charged to: its worktree, else (rows from before ledger.origin) its `who` or
+    its batch name's first word."""
+    if row.get("worktree"):
+        return row["worktree"]
+    return f"who: {row.get('who') or row.get('batch', '?').split('-')[0]}"
+
+
+def cloud_since(rows, since):
+    """Cloud ledger euros per track for rows started at or after `since` (epoch seconds)."""
+    euros = collections.Counter()
+    for row in rows:
+        if row.get("started") and moment(row["started"]) >= since:
+            euros[cloud_track(row)] += row.get("euros", 0)
+    return euros
+
+
+def google_since(lines, since, price_of):
+    """Google ledger euros per tag (else caller) for calls at or after `since`: finished calls at their price, one
+    started and never finished at its estimate (as google_spend.month_euros counts them). `price_of(model)` is the
+    estimate for an unpriced finished call."""
+    lines = [line for line in lines if moment(line["time"]) >= since]
+    finished = {line.get("call") for line in lines if line.get("state", "finished") == "finished"}
+    euros = collections.Counter()
+    for line in lines:
+        track = f"google: {line.get('tag') or line.get('caller') or '?'}"
+        if line.get("state", "finished") == "finished":
+            euros[track] += price_of(line["model"]) if line.get("euros") is None else line["euros"]
+        elif line.get("state") == "started" and line.get("call") not in finished:
+            euros[track] += line.get("estimate") or 0.0
+    return euros
+
+
+def bill_at(folder, since):
+    """The lines of the last snapshot read at or before `since`, and its read time; (None, None) without one."""
+    reads = [path for path in sorted(folder.glob("*.json"))
+             if moment(json.loads(path.read_text())["read"]) <= since]
+    if not reads:
+        return None, None
+    record = json.loads(reads[-1].read_text())
+    return record["lines"], record["read"]
+
+
+def since_text(lines, folder, since, tracks):
+    """The split since `since`: the bill's growth from the snapshot before it, each track's euros, and the rest."""
+    start, read = bill_at(folder, since)
+    total = sum(tracks.values())
+    parts = ", ".join(f"{name} {euros:.2f}" for name, euros in tracks.most_common() if round(euros, 2))
+    text = f"since {datetime.datetime.fromtimestamp(since, datetime.timezone.utc):%Y-%m-%d %H:%MZ}: ledgers EUR " \
+           f"{total:.2f} ({parts or 'nothing'})"
+    if start is None:
+        return text + "; the bill's growth: no snapshot read before then"
+    grown = sum(line["euros"] for line in lines) - sum(line["euros"] for line in start)
+    cloud = sum(euros for name, euros in tracks.items() if not name.startswith("google: "))
+    return (text + f"; Scaleway's bill grew EUR {grown:.2f} since its read at {read[:16]}, "
+            f"EUR {grown - cloud:.2f} of it not in the ledgers (lags by hours)")
+
+
 def ledger_day(ledger_path, day):
     """What the cloud ledger holds for batches started on `day` (YYYY-MM-DD)."""
     if not pathlib.Path(ledger_path).exists():
@@ -461,16 +530,25 @@ def today_line(lines, baseline, since, ledger_euros, saved):
     return text + f"; the cloud ledger's today EUR {ledger_euros:.2f}; the bill lags by hours; saved {saved}"
 
 
-def today():
-    """Read the bill, keep it, and print today and the month to date."""
+def today(since=None):
+    """Read the bill, keep it, and print today and the month to date; with `since` (ISO time) also the split by track
+    since then."""
     now = datetime.datetime.now(datetime.timezone.utc)
     lines = read_bill()
     folder = bills_folder()
-    baseline, since = day_baseline(folder, now)
+    baseline, started = day_baseline(folder, now)
     saved = save_snapshot(folder, lines, now)
-    import ledger  # on the path read_bill set
+    import google_spend  # on the path read_bill set
+    import ledger
 
-    print(today_line(lines, baseline, since, ledger_day(ledger.LEDGER, now.strftime("%Y-%m-%d")), saved))
+    print(today_line(lines, baseline, started, ledger_day(ledger.LEDGER, now.strftime("%Y-%m-%d")), saved))
+    if since:
+        moment_since = moment(since)
+        google_lines = [json.loads(line) for line in google_spend.LEDGER.read_text().splitlines() if line.strip()] \
+            if google_spend.LEDGER.exists() else []
+        tracks = cloud_since(ledger.entries(), moment_since) + \
+            google_since(google_lines, moment_since, google_spend.estimate)
+        print(since_text(lines, folder, moment_since, tracks))
 
 
 def main():
@@ -495,10 +573,11 @@ def main():
     types_command.add_argument("ledger")
     types_command.add_argument("rows", type=int)
     types_command.add_argument("before")
-    commands.add_parser("today")
+    today_command = commands.add_parser("today")
+    today_command.add_argument("--since", help="also split the spend since this time (ISO 8601, UTC) by track")
     args = parser.parse_args()
     if args.command == "today":
-        today()
+        today(args.since)
         return
     if args.command == "scrub":
         rows = [scrub(row) for row in read_rows(args.ledger, args.rows)]

@@ -189,8 +189,11 @@ def park(machine):
 
 
 def take(kind, places, disk_gb, now):
-    """The parked machine of `kind` in one of `places` ((type, zone)) with a disk of at least `disk_gb` and the most
-    time left, struck off the list; None when there is none. Records past their time are struck off on the way."""
+    """The parked machine in one of `places` ((type, zone)) with a disk of at least `disk_gb`, struck off the list:
+    one of `kind` first, else one another kind parked (the owner, 2026-10-12: no new machine while one is idle), the
+    most time left first; None when there is none. Records past their time are struck off on the way. Another kind's
+    machine fits: a type the claim's offers name runs the same system image whatever the kind, its run's files were
+    removed when it was parked, and the claiming kind's set-up then runs on it as on a fresh one."""
     with locked():
         found = []
         for path in PARKED.glob("*.json"):
@@ -199,9 +202,8 @@ def take(kind, places, disk_gb, now):
                 if now - record["until"] > STALE_MINUTES * 60:  # its --expire process is long gone
                     path.unlink()
                 continue  # left to its --expire process, which deletes the machine with the record
-            if (record["kind"] == kind and (record["type"], record["zone"]) in places
-                    and (record.get("disk_gb") or 0) >= disk_gb):
-                found.append((record["until"], path, record))
+            if (record["type"], record["zone"]) in places and (record.get("disk_gb") or 0) >= disk_gb:
+                found.append(((record["kind"] == kind, record["until"]), path, record))
         if not found:
             return None
         _, path, record = max(found, key=lambda entry: entry[0])
@@ -235,6 +237,7 @@ def adopt(run, offers, number, kind, disk_gb):
         if record is None:
             return None
         machine = taken_machine(run, record, number, now)
+        machine["kind"] = kind  # another kind's machine is this run's kind now: its clean-up and parking are this kind's
         try:
             deadline = run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60
             cloud.retag(machine["id"], machine["zone"], batch.run_tags(os.getpid(), deadline))

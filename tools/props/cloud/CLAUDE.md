@@ -50,17 +50,23 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (EUR 16), and card time the ledger missed (about EUR 44). The backend's `delete` now writes each machine's disk and
   address euros to the ledger (`disk-and-address-<id>`). `python3 tools/costs/costs.py today` prints the bill's day and
   month to date by product, for the 09:00, 15:00 and 21:00 reports.
-- **The cheapest card that fits** (owner, 2026-10-12; `cheapest.py`): the mesh splitting and the judge leave the 80 GB
-  cards while a smaller card is in stock (measured per job: EUR 0.14 on an L4 against 0.73 on an H100, and EUR 0.33 on
-  an L40S against 0.78), and library bakes never take one. Blender's ban waits on a stage key move: `blender_cloud.py`
-  is hashed into every place's assembly key (`score/graph/_code.py`), so its callers' `gpu-80gb` still reaches it.
+- **The cheapest card that fits** (owner, 2026-10-12): `capacity.next_offer` takes the kind's cheapest card per job
+  first (`KIND_ORDER`, measured from the ledger; an offer out of stock last, a scarce one still first): an L4 for
+  Pixal3D and the mesh splitting (EUR 0.14 a job against 0.73 on an H100), an L40S for the judge (0.33 against 0.78),
+  an H100 only for the 20B picture model or when nothing smaller is in stock. Blender and bakes never take one
+  (`capacity.NEVER`). The rule lives in capacity.py, not the runners: `blender_cloud.py`, `library_bake.py` and
+  `meshparts.py` are declared inputs of the surfaces rows (`Stage.files`), so an edit to them re-buys every place's
+  turntables and maps. A parked machine is taken by a claim of another kind that cleans up when its own kind has none
+  (`park.take`): the same system image, its run's files gone, the claiming kind's set-up run on it. The renting code
+  (`batch.py`, `capacity.py`, `park.py`, `blender_cloud.py`) is outside the stages' code keys (`score/graph/_code.py`
+  FRAMEWORK): it changes what a run costs, never what it makes.
 - **The machine is always deleted:** at the end, on an error or a signal, by the watchdog at the
   time limit, and by the next run's sweep. Anything new that rents goes through `rent`, which starts its watchdog.
 - **A processor machine is parked, not deleted, while its paid hour has time left** (`park.py`, job hours,
   2026-10-10): they are billed by the started hour and a Blender run takes 9 to 33 min, so they cost 1.6 to 3.2 times
   their hourly price (about €48 of €88 in October). A healthy machine of a kind that registered a clean-up
   (`park.CLEANUPS`: `blender`, `library`) has its run's files removed and is listed in `~/.farm-factory-props/cloud/parked/`;
-  the next `batch.claim` of that kind on this PC takes it, set-up done, and the ledger charges it only what it adds.
+  the next `batch.claim` of that kind on this PC (else of another kind that cleans up) takes it, set-up done, and the ledger charges it only what it adds.
   It is gone 5 min before its paid hour ends, never idle into the next: its `--expire` process deletes it, its own
   `self_delete.py` is re-armed to that time, and its tags hold that time for any run's sweep. Failed machines and runs
   stopped by a signal are deleted as before.

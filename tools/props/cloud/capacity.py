@@ -7,9 +7,10 @@ cost and took per card type.
 
 All day on 2026-10-08 the batches waited because one zone's cheapest cards were out of stock and machines failed to
 start. The owner's rule the same day: the cloud credits cover about EUR 3,000 a month and a world costs tens of
-euros, so the card's price barely matters; take whatever is in stock, in the order that waits least, and never wait
-minutes for the smallest card when a bigger one is free. So every kind lists every capability class that holds it
-(provider.py), and `batch.claim` walks the backend's offers best stocked first, then in SPEED_ORDER, across every
+euros, so take whatever is in stock rather than wait. Since 2026-10-12 (owner: the credit ran out; L4 before H100
+unless the job needs 80 GB or an H100 is measured faster per euro) the order is the kind's cheapest card per job
+first, measured from the ledger: every kind lists every capability class that holds it (provider.py), and
+`batch.claim` walks the backend's offers in the kind's order (an offer out of stock last), across every
 zone the backend rents in: an offer that is refused, says "out of stock" for a minute, or gives a machine that does
 not answer within `batch.START_MINUTES` is left for the next. A run spreads over the zones (`next_offer`), so one
 zone running dry costs it one machine. The month's spend stays under `ledger.MONTH_EUROS`, checked before every rent.
@@ -41,7 +42,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import ledger  # noqa: E402
 import provider  # noqa: E402
 
-# The order offers are tried in among those as well stocked: the class that waits least first (owner, 2026-10-08).
+# The order offers are tried in: the cheapest card per job first (owner, 2026-10-12); a kind's own in KIND_ORDER.
 SPEED_ORDER = ("gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2", "gpu-24gb-x2")
 # Jobs of a kind one card runs at once for each 24 GB it has, where that was measured: Pixal3D, three on 24 GB.
 RUNS_PER_24GB = {"pixal": 3}
@@ -49,7 +50,9 @@ SINGLE_CARD = ("gpu-24gb", "gpu-48gb", "gpu-80gb")
 # The classes each kind may run on. Order does not matter: offers are taken in the kind's order (order_for).
 KINDS = {
     "pixal": ("gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-24gb-x2", "gpu-80gb-x2"),
-    "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
+    # Bakes never take an H100 (owner, 2026-10-12): no ray-tracing cores, 2.6 times slower than an L4 (138 s
+    # against 360 s).
+    "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2"),
     "parts": SINGLE_CARD,
     # SAM 2.1's automatic mask generator on clean close-ups (segment.py): 0.9 GB of weights, any card.
     "segment": SINGLE_CARD,
@@ -78,21 +81,25 @@ KINDS = {
     # SegviGen and GeoSAM2 on our own models (meshparts.py): SegviGen's README asks for at least 24 GB.
     "meshparts": SINGLE_CARD,
 }
-# Kinds that take their offers in an order of their own. Pixal3D: the 80 GB cards first, which run ten takes at once
-# (18 takes an hour against an L4's 6, measured 2026-10-08). Library bakes (Cycles): the cards with ray-tracing
-# cores first; an H100 has none and baked the same job 2.6 times slower than an L4 (138 s against 360 s).
+# Kinds that take their offers in an order of their own, the cheapest per job first, measured in October 2026
+# (`capacity.py report`, euros a job): Pixal3D L4 0.137, L40S 0.147, H100 0.161, two-H100 0.472 (an H100 is about three
+# times faster, not cheaper); the mesh splitting L4 0.143, L40S 0.484, H100 0.727; the close-up judge (30 GB of weights)
+# L40S 0.332, H100 0.784, two-H100 1.170; the 20B picture model (58 GB, held whole only on 80 GB) H100 0.097, two-H100
+# 0.155, an L40S moving it on and off part by part far slower.
 KIND_ORDER = {
-    "pixal": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb", "gpu-24gb", "gpu-24gb-x2"),
-    "library": ("gpu-24gb", "gpu-48gb", "gpu-24gb-x2", "gpu-80gb"),
-    # A 20B picture model is held whole only on 80 GB; a 48 GB card moves it on and off part by part, far slower.
+    "pixal": ("gpu-24gb", "gpu-24gb-x2", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
     "pictures-20b": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
-    # The judge on an L40S answered at about a third of an H100's pace (102 questions in 45 min, 2026-10-08).
-    "judge": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
-    "meshparts": ("gpu-80gb", "gpu-48gb", "gpu-24gb"),
+    "judge": ("gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
+    "meshparts": ("gpu-24gb", "gpu-48gb", "gpu-80gb"),
 }
-# Classes a kind takes only after LATE_MINUTES with nothing else to be had: the cards without ray-tracing cores, for
-# the bakes.
-LATE = {"library": ("gpu-80gb", "gpu-80gb-x2")}
+# Classes a kind never takes (owner, 2026-10-12: no H100 for bakes or Blender): an H100 has no ray-tracing cores and
+# rendered a Blender job at EUR 0.86 against an L4's 0.23 (October 2026). Its callers' class lists still name them;
+# next_offer leaves them out. The runners themselves are not edited for this: blender_cloud.py, library_bake.py and
+# meshparts.py are declared inputs of the surfaces rows (an edit re-buys every place's turntables and maps).
+NEVER = {"blender": ("gpu-80gb", "gpu-80gb-x2"), "library": ("gpu-80gb", "gpu-80gb-x2")}
+# Classes a kind takes only after LATE_MINUTES with nothing else to be had (none since bakes left the H100s; the
+# cluster submitter shares the rule).
+LATE = {}
 LATE_MINUTES = 5
 # How many machines a run may hold: of a class, the backend's quota (provider QUOTAS) else OTHER_MACHINES; of every
 # class together, RUN_MACHINES. SCORE_MAX_MACHINES overrides any of them, e.g. "gpu-80gb=20,gpu-24gb=50,all=30".
@@ -182,19 +189,20 @@ def speed_rank(machine_class, kind=None):
 
 
 def next_offer(offers, rented, kind=None):
-    """The offer the next machine of a run is rented from: the best stocked first, then the kind's order of classes
-    (order_for) and the backend's own order within a class, then the zone holding fewest of the run's machines, then
+    """The offer the next machine of a run is rented from: the kind's order of classes (order_for, the cheapest per job
+    first) with an offer out of stock last, then the best stocked and the backend's own order within a class, then the zone holding fewest of the run's machines, then
     the cheapest; None when there is none, or the run holds its cap of machines (run_cap, max_machines for a class).
     `offers` are provider.Offer; `rented` the run's machines so far, and those being rented (each its class and
     zone)."""
     live = [machine for machine in rented if not machine.get("deleted")]
     held = collections.Counter(machine.get("class") for machine in live)
-    offers = [offer for offer in offers if held[offer.machine_class] < max_machines(offer.machine_class)]
+    offers = [offer for offer in offers if held[offer.machine_class] < max_machines(offer.machine_class)
+              and offer.machine_class not in NEVER.get(kind, ())]
     if not offers or len(live) >= run_cap():
         return None
     in_zone = collections.Counter(machine["zone"] for machine in live)
-    return min(offers, key=lambda offer: (offer.stock, speed_rank(offer.machine_class, kind), offer.order,
-                                          in_zone[offer.zone], offer.per_card))
+    return min(offers, key=lambda offer: (offer.stock_word == "shortage", speed_rank(offer.machine_class, kind),
+                                          offer.stock, offer.order, in_zone[offer.zone], offer.per_card))
 
 
 # The report.

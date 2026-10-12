@@ -17,9 +17,12 @@ import secret_store  # noqa: E402
 L4, L40S, H100 = 0.013125, 0.024498, 0.047775
 
 
+STOCK_WORDS = ("available", "scarce", "shortage")
+
+
 def offer(per_card, stock, machine_class, zone, order=0):
     return provider.Offer(per_card, stock, f"{machine_class}-type{order}", zone,
-                          per_card * max(1, provider.cards(machine_class)), machine_class, order, "")
+                          per_card * max(1, provider.cards(machine_class)), machine_class, order, STOCK_WORDS[stock])
 
 
 def test_every_kind_names_capability_classes():
@@ -42,7 +45,7 @@ def test_every_kind_names_capability_classes():
         raise AssertionError("an unknown kind was given classes")
 
 
-def test_a_run_takes_the_best_stocked_then_fastest_card_and_spreads_over_zones():
+def test_a_run_takes_the_cheapest_card_not_out_of_stock_and_spreads_over_zones():
     offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(L4, 2, "gpu-24gb", "zone-b"),
               offer(L4, 2, "gpu-24gb", "zone-c"), offer(H100, 2, "gpu-80gb", "zone-b")]
     assert capacity.next_offer(offers, []).machine_class == "gpu-24gb"
@@ -50,8 +53,10 @@ def test_a_run_takes_the_best_stocked_then_fastest_card_and_spreads_over_zones()
     assert capacity.next_offer(offers, rented).zone != "zone-c"
     rented += [{"zone": "zone-a"}, {"zone": "zone-b"}]
     assert capacity.next_offer(offers, rented).machine_class == "gpu-24gb"
-    # A bigger card in stock goes before a 24 GB card that is short.
+    # A bigger card in stock goes before a 24 GB card out of stock, never before a scarce one (owner, 2026-10-12).
     assert capacity.next_offer(offers + [offer(H100, 0, "gpu-80gb", "zone-a")], []).machine_class == "gpu-80gb"
+    assert capacity.next_offer([offer(H100, 0, "gpu-80gb", "zone-a"), offer(L4, 1, "gpu-24gb", "zone-a")],
+                               []).machine_class == "gpu-24gb"
     assert capacity.next_offer([offer(H100, 2, "gpu-80gb", "zone-b"), offer(L40S, 2, "gpu-48gb", "zone-b")],
                                []).machine_class == "gpu-48gb"
     # Within a class, the backend's own order.
@@ -63,14 +68,21 @@ def test_a_run_takes_the_best_stocked_then_fastest_card_and_spreads_over_zones()
 def test_each_kind_takes_cards_in_its_own_order():
     offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a"),
               offer(L40S, 2, "gpu-48gb", "zone-a")]
-    assert capacity.next_offer(offers, [], "pixal").machine_class == "gpu-80gb"
+    # The cheapest card per job first (measured, KIND_ORDER): an L4 for Pixal3D and the mesh splitting, an L40S for
+    # the judge, an H100 only for the 20B picture model; bakes never take an H100.
+    assert capacity.next_offer(offers, [], "pixal").machine_class == "gpu-24gb"
+    assert capacity.next_offer(offers, [], "meshparts").machine_class == "gpu-24gb"
+    assert capacity.next_offer(offers, [], "judge").machine_class == "gpu-48gb"
+    assert capacity.next_offer(offers, [], "pictures-20b").machine_class == "gpu-80gb"
     assert capacity.next_offer(offers, [], "library").machine_class == "gpu-24gb"
-    assert capacity.next_offer(offers[1:], [], "library").machine_class == "gpu-48gb"
     assert capacity.next_offer(offers, [], "parts").machine_class == "gpu-24gb"
-    assert "gpu-80gb" in capacity.late_for("library") and not capacity.late_for("pixal")
+    assert "gpu-80gb" not in capacity.classes_for("library") and not capacity.late_for("library")
+    # Blender never takes an H100, whatever its caller's classes name; nothing else to be had is no machine.
+    assert capacity.next_offer(offers[1:], [], "blender").machine_class == "gpu-48gb"
+    assert capacity.next_offer(offers[1:2], [], "blender") is None
 
 
-def test_a_bake_takes_a_card_without_ray_tracing_cores_only_after_the_wait():
+def test_a_late_class_is_taken_only_after_the_wait():
     taken = []
 
     def claim_from(run, account, offers, number, kind, disk_gb=batch.DISK_GB):
@@ -78,6 +90,7 @@ def test_a_bake_takes_a_card_without_ray_tracing_cores_only_after_the_wait():
         return None if "gpu-80gb" not in taken[-1] else "machine"
     kept_claim, kept_sleep, kept_minutes = batch.claim_from, batch.time.sleep, capacity.LATE_MINUTES
     batch.claim_from, batch.time.sleep, capacity.LATE_MINUTES = claim_from, lambda seconds: None, 0
+    capacity.LATE["library"] = ("gpu-80gb",)  # the rule, on a kind given a late class (none has one today)
     try:
         offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a")]
         assert batch.claim(None, None, offers, 1, "library") == "machine"
@@ -86,6 +99,7 @@ def test_a_bake_takes_a_card_without_ray_tracing_cores_only_after_the_wait():
         assert batch.claim(None, None, offers, 1, "pixal") == "machine" and taken == [["gpu-24gb", "gpu-80gb"]]
     finally:
         batch.claim_from, batch.time.sleep, capacity.LATE_MINUTES = kept_claim, kept_sleep, kept_minutes
+        del capacity.LATE["library"]
 
 
 def test_a_big_card_runs_several_jobs_at_once():

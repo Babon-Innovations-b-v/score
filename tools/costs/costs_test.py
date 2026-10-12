@@ -134,13 +134,32 @@ def today_is_the_bill_less_the_last_read_before_the_day():
     return problems
 
 
+def spend_since_splits_by_track():
+    """`today --since`: cloud rows by their worktree (older rows by who), Google calls by tag, a call started and never
+    finished at its estimate, nothing from before the time."""
+    since = costs.moment("2026-10-12T18:25Z")
+    rows = [{"started": "2026-10-12T18:30:00Z", "worktree": "agent-a1", "euros": 2.0},
+            {"started": "2026-10-12T18:40:00Z", "who": "surfaces", "euros": 1.0},
+            {"started": "2026-10-12T18:00:00Z", "worktree": "agent-a1", "euros": 50.0}]
+    google = [{"time": "2026-10-12T20:30:00+02:00", "call": "a", "state": "started", "model": "m", "estimate": 0.3,
+               "tag": "people"},
+              {"time": "2026-10-12T20:31:00+02:00", "call": "a", "state": "finished", "model": "m", "euros": 0.2,
+               "tag": "people"},
+              {"time": "2026-10-12T20:32:00+02:00", "call": "b", "state": "started", "model": "m", "estimate": 0.05,
+               "caller": "finishmap-name"},
+              {"time": "2026-10-12T20:00:00+02:00", "call": "c", "state": "finished", "model": "m", "euros": 9.0}]
+    tracks = costs.cloud_since(rows, since) + costs.google_since(google, since, lambda model: 0.0)
+    expected = {"agent-a1": 2.0, "who: surfaces": 1.0, "google: people": 0.2, "google: finishmap-name": 0.05}
+    return [] if dict(tracks) == expected else [f"tracks {dict(tracks)}"]
+
+
 def main():
     """Run every check; exit 1 on any problem."""
     checks = [local_roots_leave_the_copy, a_row_without_kind_is_tagged_pixal, the_bill_is_the_ledger_and_what_it_misses,
               an_engine_run_is_typed_by_its_price, an_engine_run_group_names_its_card_type,
               processor_machines_are_priced_again_by_the_started_hour,
               rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split,
-              today_is_the_bill_less_the_last_read_before_the_day]
+              today_is_the_bill_less_the_last_read_before_the_day, spend_since_splits_by_track]
     problems = [f"{check.__name__}: {problem}" for check in checks for problem in check()]
     for problem in problems:
         print(problem)

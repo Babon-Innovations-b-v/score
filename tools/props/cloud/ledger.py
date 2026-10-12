@@ -9,6 +9,7 @@ import datetime
 import json
 import math
 import os
+import pathlib
 import time
 
 from paths import HOME
@@ -21,11 +22,18 @@ BATCH_EUROS = 60.0
 MONTH_EUROS = float(os.environ.get("SCORE_MONTH_EUROS", "3000"))
 
 
+def origin():
+    """Who spent: the checkout this code runs from (an agent's worktree, or the main one) and the runner's spend ticket
+    (its node), so spend splits by track (`tools/costs/costs.py today --since`)."""
+    return {"worktree": pathlib.Path(__file__).resolve().parents[3].name,
+            "ticket": os.environ.get("SCORE_SPEND_TICKET")}
+
+
 def record(entry):
-    """Add one finished batch to the ledger."""
+    """Add one finished batch to the ledger, with its origin."""
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     with LEDGER.open("a") as ledger:
-        ledger.write(json.dumps(entry) + "\n")
+        ledger.write(json.dumps({**origin(), **entry}) + "\n")
 
 
 def entries():
