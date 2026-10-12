@@ -184,11 +184,11 @@ def candidates(name, jobs, scored, weights):
         clap=scored[job["file"]]) for job in jobs]
 
 
-def generated(name, brief, entry, inputs, out, weights):
-    """A sound made here: its brief's MOSS takes, each brought to its category's loudness and judged, the best one's
-    files into the output at the level its brief asks (or its category's)."""
+def generated(name, brief, out, weights, scored):
+    """A sound made here: its brief's MOSS takes (made, with their CLAP scores in `scored`), each brought to its
+    category's loudness and judged, the best one's files into the output at the level its brief asks (or its
+    category's)."""
     jobs = moss_takes.jobs_for(name, brief, weights)
-    scored = moss_takes.made(jobs, out / "cloud" / name)
     need = need_of(name, brief)
     kept = picker_page.made_safe(need, candidates(name, jobs, scored, weights), out / "work")
     judged = picker_page.page_need(need, kept)
@@ -212,14 +212,23 @@ def generated(name, brief, entry, inputs, out, weights):
             "chosen_by": "scoring", "takes": len(jobs), "kept": len(kept)}
 
 
-def sound_of(name, inputs, out, weights):
+def brief_of(name, inputs):
+    return read_json(inputs["sounds"])["sounds"].get(name, {}).get("pick", {})
+
+
+def to_make(names, inputs):
+    """The sounds no world file answers whose brief has prompts: the ones made here."""
+    return [name for name in names if not entry_of(name, inputs).get("file") and brief_of(name, inputs).get("prompts")]
+
+
+def sound_of(name, inputs, out, weights, scored):
     """One sound's record: picked already, made here, or None (no file and no brief)."""
     entry = entry_of(name, inputs)
-    brief = read_json(inputs["sounds"])["sounds"].get(name, {}).get("pick", {})
+    brief = brief_of(name, inputs)
     if entry.get("file"):
         found = picked(name, brief, entry, inputs, out)
     elif brief.get("prompts"):
-        found = generated(name, brief, entry, inputs, out, weights)
+        found = generated(name, brief, out, weights, scored)
     else:
         return None
     if found is None:
@@ -236,9 +245,12 @@ def make(inputs, out, seed, params):
     weights = next(model["revision"] for model in models.record(moss_takes.KIND)["models"]
                    if model["name"] == moss_takes.MODELS[0])
     uses = uses_of(place, inputs)
+    names = list(dict.fromkeys(use["sound"] for use in uses))
+    jobs = [job for name in to_make(names, inputs) for job in moss_takes.jobs_for(name, brief_of(name, inputs), weights)]
+    scored = moss_takes.made(jobs, out / "cloud") if jobs else {}  # every new brief's takes on one card
     sounds = {}
-    for name in dict.fromkeys(use["sound"] for use in uses):
-        found = sound_of(name, inputs, out, weights)
+    for name in names:
+        found = sound_of(name, inputs, out, weights, scored)
         if found is not None:
             sounds[name] = found
     shutil.rmtree(out / "work", ignore_errors=True)
