@@ -10,7 +10,8 @@ was measured on) made into the place's OpenUSD effects layer, which the assembly
                        under the effects layer)
              footage   every check of the record's `footage` block: a measure of the baked particles at a moment after
                        lift-off (how far the cloud reaches out from the pad, how high it stands, how long the flame is,
-                       how fine and how thick the particles are) lies within the range measured on real footage of
+                       how fine and how thick the particles are, how few lie loose at its edge as lone blobs) lies
+                       within the range measured on real footage of
                        launches, in the rocket's heights
              light     the flame's light reaches the pad: from half a second after the engines light to two seconds
                        after lift-off it lights the pad round the rocket at least LIGHT_OVER times as much as the
@@ -46,6 +47,8 @@ LIGHT_FROM_IGNITION = 0.5
 LIGHT_AFTER_LIFT = 2.0
 # Particles of a cloud at least this thick (one behind another) make it read as a cloud, not dots.
 LAYERS = 3
+# A particle thinner than this (its opacity) does not show: one just born or dying between two baked samples.
+SEEN = 0.02
 
 
 def files(place):
@@ -110,6 +113,19 @@ def live(stage, path, seconds):
     scale = float(np.linalg.norm(matrix[0, :3]))
     alive = widths > 0
     return world[alive], widths[alive] * scale
+
+
+def seen(stage, path, seconds):
+    """The particles of an emitter's points that show at a second of the stage (thicker than SEEN; one just born
+    or dying between two samples is nearly nothing): their world spots and widths."""
+    from pxr import UsdGeom
+    grains = UsdGeom.Points(stage.GetPrimAtPath(path))
+    code = seconds * effect_layer.RATE
+    widths = np.asarray(grains.GetWidthsAttr().Get(code), dtype=float)
+    thickness = np.asarray(UsdGeom.PrimvarsAPI(grains).GetPrimvar("displayOpacity").Get(code), dtype=float)
+    spots, sizes = live(stage, path, seconds)
+    shows = thickness[widths > 0] > SEEN
+    return spots[shows], sizes[shows]
 
 
 def points_path(place, entry):
@@ -222,11 +238,11 @@ def lift_second(motion):
 
 
 def gathered(stage, place, record, names, seconds):
-    """Every live particle of the named emitters at a second: world spots and widths."""
+    """Every particle of the named emitters that shows at a second: world spots and widths."""
     entries = {entry["name"]: entry for entry in record["effects"]}
     spots, widths = [np.zeros((0, 3))], [np.zeros(0)]
     for name in names:
-        found = live(stage, points_path(place, entries[name]), seconds)
+        found = seen(stage, points_path(place, entries[name]), seconds)
         spots.append(found[0])
         widths.append(found[1])
     return np.concatenate(spots), np.concatenate(widths)
@@ -266,6 +282,16 @@ def layering(spots, widths, rest):
     return float((cover[outline] >= LAYERS).mean()) if outline.any() else 0.0
 
 
+def loose(spots, widths):
+    """The share of the particles that touch no other (the nearest one's middle farther than their own width): the
+    lone blobs a cloud in the footage never shows at its edge."""
+    from scipy.spatial import cKDTree
+    if len(spots) < 2:
+        return 1.0
+    nearest, _ = cKDTree(spots).query(spots, k=2)
+    return float((nearest[:, 1] > widths).mean())
+
+
 def measured(check, stage, place, record, rocket):
     """One footage check's measure at its moment, in the rocket's heights (fineness and layering as shares)."""
     tall, rest, motion = rocket
@@ -283,6 +309,8 @@ def measured(check, stage, place, record, rocket):
         return float(np.median(widths)) / (2 * reach(spots, widths, rest))
     if check["measure"] == "layering":
         return layering(spots, widths, rest)
+    if check["measure"] == "loose":
+        return loose(spots, widths)
     raise ValueError(f"no footage measure {check['measure']}")
 
 
