@@ -71,7 +71,10 @@ stage as each stage is built; nothing moves before.
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
   (`stages/complete/complete_test.py` holds them equal). `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
-  apply only to a place with `data/props/<place>.json`, which no world 1 place has yet. A stage reads without an earlier place stage that does not apply to its place
+  apply only to a place with `data/props/<place>.json`, which no world 1 place has yet. `cast`
+  (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
+  world node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes); nothing reads
+  it yet. A stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
 
 Rules:

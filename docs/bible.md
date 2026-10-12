@@ -162,6 +162,11 @@ is meant to fix, where it is marked, and what proves it.
   World rows run only when asked for by name (`--stage people-...`). Proven when the player and Nev pass every body
   gate (joins, tucks, cloth and body through cloth, rigid, outline, likeness, triangles) on every clip, the clothing
   passes the surface stage's paint gates on library surfaces, and the owner picks them on the review page.
+- **The cast stage** (`score/stages/cast`, row `cast@<place>`, design 5 of 2026-10-12; its overlay). For places whose
+  concept shows people but whose cast is unmeasured: each cast record dealt into its people, its groups and crowd
+  stood on the seed's geometry, gated on `counted` (against `concept_people`, now in world 1's table), `standing`,
+  `clear`, `made` and `drapes`. Nothing reads it yet. Proven when a place's cast passes all five with the people
+  route's made looks and the owner has seen the characters layer written from it.
 - **The drapes** (`drape_garment.py`, `newton_drape.py`, `cloth_drape.py`, `rebuild.py`; the drapes-fix,
   drapes-perlook and drapes-uipc branches stay off main). For the non-commercial Warp fork and drapes that slid or
   left arms bare. No default simulator: a person is made only when its spec names `drape_simulator`. The shipped
