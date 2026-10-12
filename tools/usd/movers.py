@@ -215,6 +215,44 @@ WRITERS = {"path": write_path, "swing": write_swing, "spin": write_spin, **motio
 
 # --- the layer ----------------------------------------------------------------------------------------------------
 
+def place_only(place, source, moving):
+    """The population mask of the place itself: every scope of its own but the places it shows (`Places`, each
+    another place's whole stage, which may show this one back), and of those only the prims that move (the garage's
+    door leaves, kits of their own)."""
+    root = Sdf.Layer.FindOrOpen(str(pathlib.Path(source) / f"{place}.usda"))
+    names = set()
+    for path in root.subLayerPaths:
+        layer = Sdf.Layer.FindOrOpen(str(pathlib.Path(source) / path))
+        spec = layer.GetPrimAtPath(f"/{place}") if layer else None
+        names |= {child.name for child in spec.nameChildren} if spec else set()
+    mask = Usd.StagePopulationMask()
+    for name in sorted(names - {"Places"}):
+        mask.Add(Sdf.Path(f"/{place}/{name}"))
+    for path in moving:
+        if path.startswith(f"/{place}/Places/"):
+            mask.Add(Sdf.Path(path))
+    return mask
+
+
+def working_stage(place, source, layer, moving):
+    """The place's own stage (place_only) with the motion layer strongest of its root's layers and every write going
+    into it, so what the layer adds is read back composed with the base it stands on."""
+    root = Sdf.Layer.FindOrOpen(str(pathlib.Path(source) / f"{place}.usda"))
+    if root is None:
+        raise ValueError(f"no stage at {source}/{place}.usda")
+    others = [str(pathlib.Path(source) / path) for path in root.subLayerPaths if path != f"./{motion.LAYER}"]
+    stand_in = Sdf.Layer.CreateAnonymous(".usda")
+    stand_in.subLayerPaths[:] = [layer.identifier, *others]
+    stage = Usd.Stage.OpenMasked(stand_in, place_only(place, source, moving))
+    stage.SetEditTarget(Usd.EditTarget(layer))
+    return stage
+
+
+def moving_prims(entries):
+    """Every prim the motions move or copy."""
+    return [path for entry in entries for path in (entry["prim"], entry.get("adds", {}).get("like")) if path]
+
+
 def round_faults(movers, seconds):
     """A looping mover whose round does not fit the layer's seconds a whole number of times breaks the layer's loop."""
     faults = []
@@ -244,9 +282,10 @@ def write_layer(place, motions, movers, source, out):
     layer.framesPerSecond = rate
     layer.startTimeCode = 0.0
     layer.endTimeCode = seconds * rate
-    stage = motion.working_stage(place, source, layer)
+    every = [*(motions or {}).get("motions", []), *(movers or {}).get("movers", [])]
+    stage = working_stage(place, source, layer, moving_prims(every))
     moved = []
-    for entry in [*(motions or {}).get("motions", []), *(movers or {}).get("movers", [])]:
+    for entry in every:
         if "adds" in entry:
             motion.added(stage, entry)
         WRITERS[kind_of(entry)](stage, entry, rate, seconds)
