@@ -1,5 +1,5 @@
 {
- "about": "The Moon's ground round the base as a dimensioned plan the terrain stage (score/stages/terrain) makes into heights, in the base seat's flat numbers (x across, z along, metres, the base's middle at 0, 0). The flats, paths, craters and their settings are the plan the game 2099 laid its Moon with (its moonground jobs, 6 to 7 October 2026: BASE, PAD, SOLAR, DIG, STATION, PATHS and CRATERS); the old station's yard level and the wreck's dents are its ground record's (data/ground/moon.json); the garage's yard is new (the game's landed garage, ModuleRecord.LANDED at -17, 21 on the base seat, its 5 m big door in its south wall, an 8 m apron before it). The hangar's seat and yard are new (the captain's decision, 2026-10-12): north of the greenhouse, its middle 3 m west of the greenhouse's line so it clears the habitat, its south hatch the base's tube run (4.35 m) past the greenhouse's north hatch; it is too long (46 m) to stand on the ball's curve, so its seat is a flat plane touching the ball 8 m in from its south wall and 4 m east of its middle (its south end stands by the base's rooms, under the habitat's floor), and its yard is held 0.1 m under that plane (`on_seat`), rising to 4 m at its north-west corner.",
+ "about": "The Moon's ground round the base as a dimensioned plan the terrain stage (score/stages/terrain) makes into heights, in the base seat's flat numbers (x across, z along, metres, the base's middle at 0, 0). The flats, paths, craters and their settings are the plan the game 2099 laid its Moon with (its moonground jobs, 6 to 7 October 2026: BASE, PAD, SOLAR, DIG, STATION, PATHS and CRATERS); the old station's yard level and the wreck's dents are its ground record's (data/ground/moon.json); the garage's yard is new (the game's landed garage, ModuleRecord.LANDED at -17, 21 on the base seat, its 5 m big door in its south wall, an 8 m apron before it). The hangar's seat and yard are new (the captain's decisions, 2026-10-12): north of the greenhouse on its line, so the walkway tube from the greenhouse's north hatch to the hangar's south hatch runs straight (14.3 m), its south wall 4.3 m north of the habitat's north wall so the two clear; it is too long (46 m) to stand on the ball's curve, so its seat is a flat plane touching the ball 4 m in from its south wall (its south end stands by the base's rooms, under the habitat's floor), and its yard is held 0.1 m under that plane (`on_seat`), rising to 4.4 m at its north-west corner.",
  "ground": "moon",
  "side": 260.0,
  "points": 2048,
@@ -376,10 +376,10 @@
   {
    "for": "hangar",
    "box": [
-    -34.92,
-    -62.3,
-    -6.3,
-    -12.42
+    -32.0,
+    -73.02,
+    -2.58,
+    -22.38
    ],
    "height": -0.1,
    "on_seat": true,
@@ -552,14 +552,14 @@
   },
   "hangar": {
    "out": [
-    0.328201894,
-    0.7059097,
-    -0.627674288
+    0.315742419,
+    0.693001247,
+    -0.648117271
    ],
-   "heading": 0.054891,
+   "heading": 0.060563,
    "flat": [
-    -4.8252,
-    -14.9077
+    -1.1591,
+    -19.1149
    ]
   }
  },
@@ -617,8 +617,8 @@
   },
   {
    "at": [
-    -30,
-    -40
+    -26,
+    -50
    ],
    "text": "HANGAR"
   },
