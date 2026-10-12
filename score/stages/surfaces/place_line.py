@@ -229,16 +229,17 @@ def bake_entries(inputs, labelled):
 
 
 def baking_specs(library_name, specs, labelled):
-    """The bake job's specs with every surface a labelled folder paints that the job lacks (a surface of another
-    library place the take may take from), in the place's palette tokens (library.by_library)."""
+    """The bake job's specs with every surface a labelled folder paints taken from today's library in the place's
+    palette tokens (library.by_library, the place's own names by library.resolved): a job's stored spec can name a
+    picture at a path long gone (the greenhouse's screen, 2026-10-12), and a surface of another library place the
+    take may take from is not in it."""
     import library
     painted = {path.stem for folder in labelled for path in folder.glob("*.ply")}
-    missing = painted - set(specs)
-    every = library.by_library(library_name) if missing else {}
-    unknown = sorted(missing - set(every))
+    every = {**library.by_library(library_name), **library.resolved(library_name)}
+    unknown = sorted(painted - set(every) - set(specs))
     if unknown:
         raise RuntimeError(f"surfaces in no library: {unknown}")
-    return {**specs, **{name: every[name] for name in missing}}
+    return {**specs, **{name: every[name] for name in painted if name in every}}
 
 
 def make_bake(inputs, out, seed, params):
