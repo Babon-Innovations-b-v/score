@@ -33,6 +33,7 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
 `--held` runs the characters stages on a machine characters.py --hold keeps (its run folder), as a step is tried.
 """
 import argparse
+import contextlib
 import json
 import pathlib
 import shutil
@@ -113,6 +114,41 @@ def held_machine(run):
     if not folders:
         raise SystemExit(f"{run}: no machine folder with known_hosts")
     return host, folders[0]
+
+
+HOLD_WAIT_MINUTES = 45
+
+
+@contextlib.contextmanager
+def machine_held(spec, outfit, who, minutes=150):
+    """One characters machine rented and set up once for a look's build and settle (characters.py --hold on a make
+    with no steps), its run folder for `on_held`; let go when done. Two rentals each set up for about 15 minutes
+    before (2026-10-12)."""
+    place = make_place(folder_of(spec, outfit), "hold")
+    make_folder(place, dict(spec, name=f"{spec['name']}-{outfit}-hold"), (), {})
+    log = place / "characters.log"
+    with log.open("w") as written:
+        process = subprocess.Popen([str(PROPS_PYTHON), str(CLOUD / "characters.py"), str(place), "--who", who,
+                                    "--hold", "--minutes", str(minutes)], stdout=written, stderr=subprocess.STDOUT)
+    run = None
+    try:
+        began = time.time()
+        while run is None or not (run / "host").exists() or not (place / "out").exists():
+            if process.poll() is not None:
+                raise SystemExit(f"the held machine's run ended with {process.returncode} ({log})")
+            if time.time() - began > HOLD_WAIT_MINUTES * 60:
+                raise SystemExit(f"no held machine after {HOLD_WAIT_MINUTES} min ({log})")
+            named = [line.split("run folder ", 1)[1].split(" (")[0] for line in log.read_text().splitlines()
+                     if "run folder " in line]
+            run = pathlib.Path(named[0]) if named else None
+            time.sleep(POLL_SECONDS)
+        yield run
+    finally:
+        if run is not None:
+            (run / "release").touch()
+        else:
+            process.terminate()
+        process.wait(timeout=900)
 
 
 def on_held(place, run):
@@ -552,6 +588,47 @@ def checks(spec, outfit, who, held, dry_run):
     return write_table(spec, outfit, folder, take)
 
 
+CHECK_CLASSES = "cpu-16c-64gb,cpu-32c-64gb"  # four checks at once; the cheapest machine first
+CHECK_MINUTES = 90
+
+
+def checks_cloud(spec, outfit, who, held, dry_run):
+    """`checks`' records made side by side on a rented processor machine (inside/body_checks.py through
+    blender_cloud.py): the shipped body's pokes first where they are missing, then pokes, the outline and the two
+    body-through-cloth counts at once; then the table."""
+    folder = folder_of(spec, outfit)
+    take = (folder / "take.txt").read_text().strip()
+    checked = folder / "checks"
+    checked.mkdir(exist_ok=True)
+    body = folder / "settle" / f"{spec['name']}.glb"
+    shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
+    python = lambda script, *arguments: [str(HERE / script), *map(str, arguments)]  # noqa: E731
+    first = {} if (checked / "pokes_shipped.json").exists() else {
+        "pokes shipped": python("pokes.py", shipped, "--out", checked / "pokes_shipped.json", "--outfit",
+                                SHIPPED_OUTFIT.get(outfit, outfit))}
+    listing = {"repo": str(REPO), "props home": str(PIXAL.parents[1]), "first": first, "checks": {
+        "pokes": python("pokes.py", body, "--out", checked / "pokes.json", "--against", checked / "pokes_shipped.json"),
+        "outline": python("outline.py", take, folder / "fit" / "rig.npz", body, "--out", checked / "outline.json"),
+        "bodycloth plain": python("bodycloth.py", body, "--outfit", outfit, "--out", checked / "bodycloth_plain.json"),
+        "bodycloth": python("bodycloth_shaped.py", BODYCLOTH, body, "--outfit", outfit, "--out",
+                            checked / "bodycloth.json")}}
+    place = make_place(folder, "checks")
+    place.mkdir(exist_ok=True)
+    (place / "listing.json").write_text(json.dumps(listing, indent=1))
+    takes = [PIXAL / f"{take}.glb", PIXAL / f"{take}-final.glb", PIXAL / f"{take}.svviews",
+             *PIXAL.glob(f"{take}-[0-9]*.glb")]
+    job = place / "job.json"
+    job.write_text(json.dumps({
+        "script": "tools/characters/maker/inside/body_checks.py", "args": [str(place / "listing.json")],
+        "inputs": [str(path) for path in (place / "listing.json", body, folder / "fit" / "rig.npz", shipped, checked,
+                                          REPO / "tools/characters", REPO / "tools/props", *takes)],
+        "outputs": [str(checked)], "minutes": CHECK_MINUTES}, indent=1))
+    if dry_run:
+        return None
+    cloud("blender_cloud.py", job, "--who", who, "--classes", CHECK_CLASSES)
+    return write_table(spec, outfit, folder, take)
+
+
 def write_table(spec, outfit, folder, take):
     """The checks' table from their records: <candidate>/checks/checks.txt and the coordinator's copy."""
     rows = table_rows(spec, outfit, folder, take)
@@ -604,7 +681,7 @@ def record_stage(folder, stage, began, result):
 
 
 STAGE_WORK = {"closeup": closeup, "rig": rig, "mesh": mesh, "parts": parts, "build": build, "settle": settle,
-              "checks": checks, "shots": shots}
+              "checks": checks, "checks-cloud": checks_cloud, "shots": shots}
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@
 `people-body-<look>`, paid, each a node of its own so the looks run side by side. A look is a take of
 data/surfaces/people.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's skeleton placed
 inside it (only the rig, so Kimodo's clips play), its parts, its garments settled through every clip, and its checks
-(tools/characters/maker/prop_person.py's stages build, settle and checks; its parts first when the take has none).
-The maker works in its candidate folder (~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row
+(tools/characters/maker/prop_person.py's stages build, settle and checks-cloud, the checks side by side on a rented
+processor machine; its parts first when the take has none). The maker works in its candidate folder (~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row
 copies the made body and every record the gates read into its output.
 
 Gates (unknown blocks): joins (wrist, ankle, stance; people/joins.py), tucks (no tuck point over pokes.POKE_MM
@@ -63,16 +63,19 @@ def made(look, entry):
         (folder / "take.txt").write_text(entry["take"])
         if not (folder / "parts" / entry["take"] / "parts.npz").exists():
             prop_person.parts(spec, outfit, who, None, False)
-        for stage in ("build", "settle", "checks"):
-            prop_person.record_stage(folder, stage, *timed(getattr(prop_person, stage), spec, outfit, who))
+        with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once, builds and settles
+            for stage in ("build", "settle"):
+                prop_person.record_stage(folder, stage, *timed(prop_person.STAGE_WORK[stage], spec, outfit, who,
+                                                               held))
+        prop_person.record_stage(folder, "checks-cloud", *timed(prop_person.checks_cloud, spec, outfit, who, None))
         kept(folder, spec["name"], entry, out)
     return make
 
 
-def timed(stage, spec, outfit, who):
+def timed(stage, spec, outfit, who, held):
     import time
     began = time.time()
-    return began, stage(spec, outfit, who, None, False)
+    return began, stage(spec, outfit, who, held, False)
 
 
 def kept(folder, name, entry, out):
