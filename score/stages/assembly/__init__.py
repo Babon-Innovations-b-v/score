@@ -59,8 +59,8 @@ def make_from_seed(inputs, out, seed, params):
         elif source.exists():
             shutil.copy2(source, out / part)
     (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE}, indent=1))
-    if "effects" in inputs:
-        take_effects(inputs["effects"], out / root.name)
+    if "effects-layer" in inputs:
+        take_effects(inputs["effects-layer"], out / root.name)
     take_ground(inputs["terrain"], folder.name, out / root.name)
 
 

@@ -193,6 +193,16 @@ is meant to fix, where it is marked, and what proves it.
   run world1 --place launch --stage terrain-look`. Proven when the owner has seen the launch's before and after;
   then the other Earth places, and the Moon's and Mars's plans (still the game's plans in `data/ground/plan/`, made by
   the game's builders moved here) drawn again from their concepts.
+- **The effects stage and its look** (`score/stages/effects`, its overlay; `data/effects/launch.json`). For the 15 of
+  18 places with no effects, the launch first: its lift-off had no flame, cloud, steam or light. `effects-layer@<place>`
+  makes the place's effects layer from its record (emitters riding a prim, following a motion's climb, or played once;
+  lights on a prim), gated on `attached` (read off the composed stage), `footage` (each measure of the baked particles
+  within the range read off real footage, NASA's photographs of Falcon Heavy lift-offs, in rocket heights) and
+  `light` (the flame lights the pad at least twice the place's lamps); the assembly takes the layer in place of the
+  seed's. `effects-look@launch` (paid) renders the review cameras before and after at four moments round lift-off,
+  gated on `shown` and `lit`. Only the places in `effects.STAGED` and `look.LOOKED` (the launch) have the rows. Run
+  with `python -m score run world1 --place launch --stage effects-look`. Proven when the owner has seen the launch's
+  stills; then each place's record (pump-downs, steam, dust) from footage, and films on his go.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
