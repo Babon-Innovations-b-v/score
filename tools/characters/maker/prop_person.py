@@ -611,6 +611,26 @@ CHECK_CLASSES = "cpu-16c-64gb,cpu-32c-64gb"  # four checks at once; the cheapest
 CHECK_MINUTES = 90
 
 
+COUNT_SHARES = 6
+
+
+def counts_by_clips(body, outfit, checked):
+    """The two body-through-cloth counts (with the settle's shapes and without), each over COUNT_SHARES shares of
+    the body's clips side by side (a whole count took about an hour on one core): {name: command}."""
+    sys.path.insert(0, str(HERE.parent / "people"))
+    import joins
+    document, _ = joins.read_glb(body)
+    clips = [animation["name"] for animation in document.get("animations", [])]
+    found = {}
+    for share in range(COUNT_SHARES):
+        mine = [str(clip) for clip in clips[share::COUNT_SHARES]] or ["none"]
+        found[f"bodycloth plain {share}"] = [str(HERE / "bodycloth.py"), str(body), "--outfit", outfit, "--out",
+                                             str(checked / f"bodycloth_plain.{share}.json"), "--clips", *mine]
+        found[f"bodycloth {share}"] = [str(HERE / "bodycloth_shaped.py"), str(BODYCLOTH), str(body), "--outfit",
+                                       outfit, "--out", str(checked / f"bodycloth.{share}.json"), "--clips", *mine]
+    return found
+
+
 def checks_cloud(spec, outfit, who, held, dry_run):
     """`checks`' records made side by side on a rented processor machine (inside/body_checks.py through
     blender_cloud.py): the shipped body's pokes first where they are missing, then pokes, the outline and the two
@@ -628,9 +648,10 @@ def checks_cloud(spec, outfit, who, held, dry_run):
     listing = {"repo": str(REPO), "props home": str(PIXAL.parents[1]), "first": first, "checks": {
         "pokes": python("pokes.py", body, "--out", checked / "pokes.json", "--against", checked / "pokes_shipped.json"),
         "outline": python("outline.py", take, folder / "fit" / "rig.npz", body, "--out", checked / "outline.json"),
-        "bodycloth plain": python("bodycloth.py", body, "--outfit", outfit, "--out", checked / "bodycloth_plain.json"),
-        "bodycloth": python("bodycloth_shaped.py", BODYCLOTH, body, "--outfit", outfit, "--out",
-                            checked / "bodycloth.json")}}
+        **counts_by_clips(body, outfit, checked)}, "then": {
+        name: python("bodycloth.py", "merge", checked / f"{name}.json",
+                     *(checked / f"{name}.{share}.json" for share in range(COUNT_SHARES)))
+        for name in ("bodycloth", "bodycloth_plain")}}
     place = make_place(folder, "checks")
     place.mkdir(exist_ok=True)
     (place / "listing.json").write_text(json.dumps(listing, indent=1))
