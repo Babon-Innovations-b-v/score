@@ -306,7 +306,7 @@ def main():
     laid = read_place(options.stage)
     if options.object not in laid["objects"]:
         raise SystemExit(f"{options.object}: no such object in {options.stage}")
-    kit_path, inventory_path = settle.KITS / f"{laid['place']}.json", settle.complete.inventory_path(laid["place"])
+    kit_path, inventory_path = settle.KITS / f"{laid['place']}.json", settle.stage_inputs.inventory_path(laid["place"])
     kit = json.loads(kit_path.read_text()) if kit_path.exists() else {}
     ground = grounds.place_ground(laid["place"], kit.get("on_seat", [0.0, 0.0])) if kit else None
     try:

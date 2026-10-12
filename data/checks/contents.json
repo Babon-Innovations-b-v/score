@@ -1,0 +1,24 @@
+{
+ "about": "What the completion gate's contents checks (tools/usd/contents.py) expect each place to hold beyond its inventory rows: the effects and motions the place must show, each need a word that some entry of its effects or motion records (data/effects; data/motion and data/movers) must have in its name and that must stand on the stage, moving for a motion, and the crop density where crops apply (the share of the place's soil tiles, meshes said soil, with a plant of its crops layer over them). A place not listed here is unknown, which blocks. Each place's `from` says where its needs were read.",
+ "from": "the world 1 checklist of 2026-10-12 (every place against every layer of the paper's canonical scene): a need is a thing it marks done, or missing because the game lacked it (G), which the paper says SCORE makes",
+ "places": {
+  "flat": {"effects": ["wisp", "breath"], "motion": ["balcony_door"], "from": "effects D (cigarette wisp, breath); motion D (balcony door slide)"},
+  "stairwell": {"effects": [], "motion": ["door"], "from": "effects: none expected; motion N: doors and gates stand still (G)"},
+  "street": {"effects": ["exhaust"], "motion": ["car"], "from": "effects N: no car exhaust (G); motion N: the car stands still (G)"},
+  "square": {"effects": [], "motion": ["flag", "banner", "lantern"], "from": "effects: none of its own (the launch's are seen through the launch); motion P: flags, banners, lanterns still (G)"},
+  "launch": {"effects": ["flame", "pad_fire", "ground_cloud", "deluge_steam", "plume"], "motion": ["rocket_launch", "ferry"], "from": "effects D (flame, pad fire, ground cloud, deluge steam, plume); motion P: the rocket's launch D, three ferries stand still (G)"},
+  "hub": {"effects": [], "motion": ["hatch"], "from": "effects: none; motion N: hatches never move (G)"},
+  "airlock": {"effects": ["pump_fog", "door_vent", "dust"], "motion": ["inner_door", "outer_door", "cycle_light"], "from": "effects D (pump-down fog, door vent) and N: no dust when the outer door opens; motion D (doors, cycle light)"},
+  "habitat": {"effects": ["kettle_steam", "pot_steam"], "motion": ["door"], "from": "effects D (kettle and pot steam); motion N: doors still (G)"},
+  "tube": {"effects": [], "motion": [], "from": "effects and motion: none expected"},
+  "lab": {"effects": [], "motion": ["door"], "from": "effects: none counted (the glovebox's is minor); motion N: doors still (G)"},
+  "workshop": {"effects": ["spark"], "motion": ["robot_turntable", "robot_arm", "door"], "from": "effects N: no sparks or soldering smoke (G); motion P: the robot's turntable D, its arms and tools and the doors still (G)"},
+  "greenhouse": {"effects": ["humidifier_mist", "spray"], "motion": ["irrigation"], "crops": {"planted_share": 0.9, "why": "concept K09 shows planted beds where the game drew 117 bare soil tiles; 0.9 leaves a tenth of the tiles for paths and bare ends the concept may show"}, "from": "effects P: humidifier mist D, no irrigation spray (G); motion N: the 16 irrigation booms stand still (G); crops N: no crop rows"},
+  "garage": {"effects": ["door_vent", "pump_fog", "wheel_dust"], "motion": ["big_door", "beacon", "rover", "hoist", "lift"], "from": "effects P: door vent and pump fog D, no wheel dust (G); motion P: the big door and beacon D, the rover, chain hoist and lift still (G)"},
+  "hangar": {"effects": ["door_vent", "pump_fog", "ship_exhaust"], "motion": ["roof_leaf", "ship", "crane"], "from": "effects P: venting D, no ship exhaust (G); motion P: the roof leaves D, the ship never lifts and the crane trolley stands still (G)"},
+  "wreck": {"effects": ["boot_dust"], "motion": ["drone"], "from": "effects N: no boot dust (G) (the landing dust the coordinator removed is not counted: the owner never ruled); motion N: the thrower drone never flies (G)"},
+  "old_station": {"effects": ["boot_dust"], "motion": [], "from": "effects N: no boot dust (G); motion: none expected"},
+  "camp": {"effects": ["drift", "devil", "storm"], "motion": [], "from": "effects P: the drift, two dust devils and the storm D; motion: none named"},
+  "campgrounds": {"effects": ["dust", "devil"], "motion": [], "from": "effects N: no dust and no devils seen from here (G); motion: none named"}
+ }
+}

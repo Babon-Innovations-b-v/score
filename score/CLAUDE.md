@@ -66,7 +66,10 @@ stage as each stage is built; nothing moves before.
   before and after (its overlay). `neighbours` (experimental, `stages/assembly/neighbours.py`) stands each place's
   neighbours (its scene record's `places`) in its assembly, each read beside (`Stage.beside`, `Stage.neighbours`:
   another place's accepted output, versioned and waited on like `after`) as its own accepted assembly, gated on
-  `neighbours` (every shown place stands, resolves and has children); `complete` does not read it yet. `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
+  `neighbours` (every shown place stands, resolves and has children). `complete` is the completion gate on what
+  the place holds: `tools/usd/complete.py`'s own checks (all but resting, the assembly's gate) on the place's
+  neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
+  (`stages/complete/complete_test.py` holds them equal). `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
   apply only to a place with `data/props/<place>.json`, which no world 1 place has yet. A stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.

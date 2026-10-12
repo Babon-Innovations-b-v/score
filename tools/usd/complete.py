@@ -26,7 +26,14 @@ agent finishing while validations are stale). The requirements:
     picks         the pick lock (picks.py): no object the owner picked shows another model without a written decision
     reach         the reach check (reach.py): a walker on the place's floor reaches a standing spot in front of every
                   row's object (the automatic playtest; the interact press waits for interactable assets).
-                  Experimental: run and shown, not counted in the verdict (EXPERIMENTAL says why)
+                  Experimental (EXPERIMENTAL says why): its faults are shown, not counted; what counts is that it was
+                  recorded on this stage as it is now
+    people, effects, motion, crops, likeness, painted, light, sound, neighbours, game
+                  the contents checks (contents.py, its docstring has each): what the place holds, against its cast,
+                  its expected effects and motions, its crops, its close-ups, its paint, its light and sound layers,
+                  the places it shows, and no record citing the game. The runner's complete stage
+                  (score/stages/complete) runs these same checks, and every one above but resting (the assembly's
+                  gate judges it on its drop run), on the place's assembled stage: one gate, two ways in
     current       every check result was made on this stage as it is now (the same fingerprint) and none is unknown
     review        the review page (tools/review/page.py) was built, and its scene rendered, from this stage as it is now
 
@@ -48,12 +55,13 @@ sys.path.insert(0, str(HERE))
 from paths import WORK  # noqa: E402
 from stage_inputs import (INPUTS, INVENTORIES, KITS, file_hash, input_name, inventory_path, model_hash,  # noqa: E402,F401
                           now, record_inputs, recorded_inventory)
+import contents  # noqa: E402
 
 STAGES = WORK / "usd"
 REVIEWS = WORK / "review"
-CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes", "reach")
-# Checks run and shown on the manifest but not counted in the verdict, each unproven on its end-result fault
-# (docs/bible.md, architecture/experimental): what would prove it.
+CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes", "reach", *contents.JUDGES)
+# Checks whose faults are shown on the manifest but not counted, each unproven on its end-result fault (docs/bible.md,
+# architecture/experimental): what would prove it. That such a check was recorded on the stage as it is now counts.
 EXPERIMENTAL = {
     "reach": "it fails backdrop rows nobody walks to (far city towers, masts) and has caught no real unreachable row "
              "that was then fixed; counted once the owner's scenery rule is set and it has",
@@ -202,18 +210,47 @@ def reach_check(place, stage):
     return result("reach", overall, stage, [row for row in rows if row["result"] != PASS], note)
 
 
+def stored_outputs(place):
+    """{stage: its accepted output's folder for the place, or None} of the outputs the contents checks read, from
+    the framework's store."""
+    sys.path.insert(0, str(REPO))
+    from score.store import Store
+    store = Store.default()
+    accepted = {name: store.accepted(f"{name}@{place}") for name in contents.OUTPUTS}
+    return {name: store.checkout(output) if output else None for name, output in accepted.items()}
+
+
+def contents_check(check, place, stage, outputs=None):
+    """A contents check (contents.py) on the stage, reading the given stage outputs or else the store's accepted."""
+    from pxr import Usd
+    opened = Usd.Stage.Open(str(stage))
+    inventory = json.loads(recorded_inventory(place, stage).read_text())
+    verdict, faults, note = contents.JUDGES[check](opened, place, inventory,
+                                                   stored_outputs(place) if outputs is None else outputs)
+    return result(check, verdict, stage, faults, note)
+
+
 RUNNERS = {"rows": rows_check, "made_only": made_only_check, "placeholders": placeholders_check,
            "resting": resting_check, "picks": picks_check, "boxes": boxes_check, "reach": reach_check}
 
 
-def run_check(check, place, stage):
-    """One check's result; unknown, with why, when it cannot run (a missing stage, a broken file)."""
+def run_check(check, place, stage, outputs=None):
+    """One check's result; unknown, with why, when it cannot run (a missing stage, a broken file). A contents check
+    reads `outputs` ({stage: accepted output folder or None}) when given, else the store's."""
     if not pathlib.Path(stage).exists():
         return result(check, UNKNOWN, stage, note=f"no stage at {stage}")
     try:
+        if check in contents.JUDGES:
+            return contents_check(check, place, stage, outputs)
         return RUNNERS[check](place, stage)
     except Exception as error:  # the check could not judge: its result is unknown, and unknown blocks
         return result(check, UNKNOWN, stage, note=f"{type(error).__name__}: {error}")
+
+
+def recorded(verdict, why):
+    """An experimental check's requirement: recorded (pass) when it judged this stage, its faults shown not counted;
+    unknown when it did not."""
+    return (PASS, f"recorded, {verdict}: {why}") if verdict in (PASS, FAIL) else (verdict, why)
 
 
 # --- the requirements ---------------------------------------------------------------------------------------------
@@ -266,8 +303,9 @@ def requirements(place, stage, review=None):
     """Every requirement of a complete place: [{name, result, why}], in order."""
     current = fingerprint(stage)
     found = [("stage", *stage_requirement(stage))]
-    found += [(check, *check_requirement(check, stage, current)) for check in CHECKS]
-    stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN and name not in EXPERIMENTAL]
+    found += [(check, *(recorded(*check_requirement(check, stage, current)) if check in EXPERIMENTAL
+                        else check_requirement(check, stage, current))) for check in CHECKS]
+    stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN]
     found.append(("current", UNKNOWN if stale else PASS,
                   f"not current or unknown: {', '.join(stale)}" if stale else "every result is on this stage"))
     found.append(("review", *review_requirement(place, stage, review, current)))
@@ -277,9 +315,9 @@ def requirements(place, stage, review=None):
 
 
 def verdict_of(found):
-    """The place's verdict: pass when every counted requirement passes, fail when any fails, else unknown. An
-    experimental requirement is shown, not counted."""
-    results = {requirement["result"] for requirement in found if "experimental" not in requirement}
+    """The place's verdict: pass when every requirement passes, fail when any fails, else unknown. An experimental
+    requirement passes once recorded on this stage (its faults shown, not counted)."""
+    results = {requirement["result"] for requirement in found}
     return PASS if results == {PASS} else FAIL if FAIL in results else UNKNOWN
 
 
@@ -320,7 +358,7 @@ def main():
         return
     written = manifest(options.place, stage, options.review)
     for requirement in written["requirements"]:
-        counted = " (experimental, not counted)" if "experimental" in requirement else ""
+        counted = " (experimental: its faults not counted)" if "experimental" in requirement else ""
         print(f"{requirement['name']:13} {requirement['result']:8} {requirement['why']}{counted}")
     print(f"{options.place}: {'complete' if written['verdict'] == PASS else 'NOT complete'} ({written['verdict']})")
     sys.exit(0 if written["verdict"] == PASS else 1)

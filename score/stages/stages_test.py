@@ -21,7 +21,7 @@ from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 SEEDS = PROPS_HOME / "work"
 PLACES = ("hangar", "hdoor")
 DATA = ("kit", "inventory", "library", "checks", "effects", "scene", "motion", "ground", "sound/surfaces.json",
-        "surfaces", "definitions/place.json")
+        "sound/places.json", "characters", "surfaces", "definitions/place.json")
 
 
 def world_data_copy(root):
@@ -52,10 +52,11 @@ def made(output, inputs, evidence):
     return checks.Verdict("made", checks.PASS, "no ground made for these places")
 
 
-# The surface rows the assembly reads, applying to neither place here (their own checks are score/stages/surfaces').
+# The surface rows the assembly and complete read, and the likeness complete reads, applying to neither place here
+# (their own checks are score/stages/surfaces' and score/stages/props').
 NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
                                 (checks.Check("made", made),), applies=lambda place: False)
-                    for name in ("surfaces-paint", "surfaces-bake"))
+                    for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
@@ -139,6 +140,17 @@ def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
         assert code_after_editing(table[name], edited[0]) != code_after_editing(table[name], "nothing"), name
     assert code_after_editing(table["surfaces-check"], edited[1]) != code_after_editing(table["surfaces-check"],
                                                                                        "nothing")
+
+
+def test_the_completion_gate_s_code_moves_only_complete():
+    """Editing the completion gate (complete.py, its contents checks, reach and snap, the complete stage) moves the
+    complete row and no other: the assembly, neighbours and likeness read the inputs record's helpers from
+    stage_inputs.py, not complete.py (each re-made by a gate edit before 2026-10-12)."""
+    edited = ("tools/usd/complete.py", "tools/usd/contents.py", "tools/usd/reach.py", "tools/usd/snap.py",
+              "score/stages/complete/__init__.py")
+    moved = {stage.name for stage in stages.STAGES for path in edited
+             if code_after_editing(stage, path) != code_after_editing(stage, "nothing")}
+    assert moved == {"complete"}, moved
 
 
 def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():

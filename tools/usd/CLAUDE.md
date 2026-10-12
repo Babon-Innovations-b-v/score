@@ -69,11 +69,19 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `complete.py` is the completion gate: `check <place>` runs the checks and keeps each result beside the stage
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
   every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, picks, boxes,
-  every result current, the review page built and rendered from this stage). Unknown blocks like fail. Reach runs and
-  shows on the manifest but is experimental, not counted (`EXPERIMENTAL`): it fails backdrop rows nobody walks to. The Stop
+  every result current, the review page built and rendered from this stage, and the contents checks). Unknown blocks
+  like fail. Reach runs and shows on the manifest but is experimental (`EXPERIMENTAL`): its faults are not counted (it
+  fails backdrop rows nobody walks to), only that it was recorded on this stage. The runner's complete stage
+  (`score/stages/complete`) runs these same checks on the place's assembled stage: one gate, two ways in. The Stop
   and SubagentStop hooks (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
   worked on unless the gate passes.
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
+- `contents.py` is the gate's contents checks (its docstring has each): people against the cast (every look a made
+  model of the people prop route, never SOMA's mesh in drapes), effects and motions against the needs in
+  `data/checks/contents.json` (from the world 1 checklist), crop density where crops apply, every generated row held
+  to its close-up (likeness@<place>) and repainted (surfaces-check@<place>), the light and sound layers, the shown
+  places, and no record citing the game. A place `contents.json` does not list is unknown. `contents_test.py` checks
+  each both ways.
 - `triage.py` is the resting triage over `resting.py`: each object judged by its support from data (row `support`,
   `fixed`, kit shell groups and kit kinds `hangs`/`floors`, `on:` held, hanging words, wall, ceiling, floor;
   `data/checks/resting.json`), SceneEval's guards (4 contacts and the weight inside them; one contact for wall, ceiling
@@ -129,7 +137,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   hash and `score:repaint_of` (the seed's, the model its bake repainted: the assembly's `stamp_baked_hash`); the lock
   reads `repaint_of` first, since a pick chooses the model, never its old paint. The rule itself is `pick_lock.py`
   (what export imports) and the inputs record and hashes `stage_inputs.py`, apart from `picks.py`'s stage check and
-  `complete.py`'s checks, so editing a check moves no export's, terrain's or effects' code version (`stages_test.py`). The hash covers a model's .gltf and buffers, not its texture
+  `complete.py`'s checks, so editing a check moves no export's, terrain's or effects' code version (`stages_test.py`);
+  the assembly, triage, settle and compare.py read those helpers from `stage_inputs.py` too, so a gate edit moves
+  only the runner's complete row. The hash covers a model's .gltf and buffers, not its texture
   files, so a repaint that keeps the file names is not caught.
 - `compare.py` is the render-and-compare: each object with a close-up rendered alone from 8 ways round it, the best
   outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../props/cloud/similar.py`).
