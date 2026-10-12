@@ -66,13 +66,13 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools/props"))
 sys.path.insert(0, str(REPO / "tools/usd"))
 sys.path.insert(0, str(REPO / "tools/props/library"))
-import complete  # noqa: E402
+import stage_inputs  # noqa: E402
 import glb_file  # noqa: E402
 import ground as grounds  # noqa: E402
 import ground_detail  # noqa: E402
 import library  # noqa: E402
 import package  # noqa: E402
-import picks  # noqa: E402
+import pick_lock as picks  # noqa: E402
 import scene as scene_record  # noqa: E402
 import stored_parts  # noqa: E402
 
@@ -756,7 +756,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         turn = details.get(piece["kind"], {}).get("turn", [1, 0, 0, 0, 1, 0, 0, 0, 1])
         largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds, glows.get(model))
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
-    hashes = {model: complete.model_hash(model_file(models, model)) for model in assets}
+    hashes = {model: stage_inputs.model_hash(model_file(models, model)) for model in assets}
     lock_picks(place, kit, children, inventory, hashes, scene_shown((scene or {}).get("objects", []), world))
     write_base(place, kit, inventory, assets, out, children, ground, scene, world, hashes)
     ensure_edit(out)
@@ -775,7 +775,7 @@ def scene_shown(objects, world, parent="Fixtures", shown=None):
         path = f"{parent}/{entry['name']}" if parent == "Fixtures" else \
             f"{parent}/{pathlib.Path(entry['model']).stem}_{number}"
         if "row" in entry:
-            shown.setdefault(entry["row"], []).append((path, entry["model"], complete.model_hash(
+            shown.setdefault(entry["row"], []).append((path, entry["model"], stage_inputs.model_hash(
                 scene_record.world_file(world, entry["model"]))))
         scene_shown(entry.get("children", []), world, path, shown)
     return shown
@@ -801,7 +801,7 @@ def record_inputs(place, out, kit_path, inventory_path, models, hashes):
     """What the stage was made from, written beside it for the completion gate (tools/usd/complete.py): the inventory,
     the kit, the scene record and the cast, and every made model by its hash."""
     inputs = [kit_path, scene_record.SCENES / f"{place}.json", REPO / "data/characters" / f"{place}.json"]
-    complete.record_inputs(out, inventory_path, inputs,
+    stage_inputs.record_inputs(out, inventory_path, inputs,
                            {model: model_file(models, model) for model in hashes}, hashes)
 
 

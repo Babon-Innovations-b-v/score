@@ -212,7 +212,8 @@
     "model": "forward_section",
     "sha256": "9a46e0385aa6eb8c6ea214bd676c39e7ab9d74bdb475ccd3e4b2e011969a2c06",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "work_lamp",
@@ -330,7 +331,8 @@
     "model": "hull_panel",
     "sha256": "5831c3c4200799201e5937716382c0c9fa94209dd5ba4e282aec6dc9ed21b05c",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "small_panel",
@@ -389,7 +391,8 @@
     "model": "small_panel",
     "sha256": "ec62364f077922bcd8eaea10502c37ce85817b851b68db3909bef91efeb46c02",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "pressure_sphere",
@@ -445,7 +448,8 @@
     "model": "pressure_sphere",
     "sha256": "3e451988c7273ce4e8992d8d8e5d93d713dae6b34ef3486af5d77ad62e284f1b",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "foil_blanket",
@@ -533,7 +537,8 @@
     "model": "access_cover",
     "sha256": "53e056d202e17d56a8582f9897f2485875738636d7d7fb46b65ffb623f7789bb",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "leg_strut",
@@ -581,7 +586,8 @@
     "model": "leg_strut",
     "sha256": "a3d5c5f800e5b44c2f47b4a5ae9b8c71a52886b858117f3cb96dbb7b84c60254",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "leg_foot",
@@ -625,7 +631,8 @@
     "model": "leg_foot",
     "sha256": "bdf9017c078e648f1f1614f71e88b5217d923f87568cd52ebecfb1e3bba46cc8",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "ring_frame",
@@ -723,7 +730,8 @@
     "model": "tank_dome",
     "sha256": "ca75a33969add4cd205f5bb32d483879e287aa09d7c89fafbfa08a942e430f6b",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "fragment",

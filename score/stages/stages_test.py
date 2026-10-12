@@ -94,12 +94,18 @@ def test_the_worked_example_on_world_1s_seeds():
         shutil.rmtree(root)
 
 
-def terrain_code_after_editing(edited):
-    """Terrain's code version as if the repository file `edited` had changed (its hash moved; nothing written)."""
-    stage = stages.TERRAIN
-    functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks)]
+def code_after_editing(stage, edited):
+    """A stage's code version, as the runner works it out, as if the repository file `edited` had changed (its hash
+    moved; nothing written)."""
+    functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks),
+                 *([stage.files] if callable(stage.files) else []), *([stage.neighbours] if stage.neighbours else [])]
     return graph._code.code_version(functions, lambda path: file_hash(path) + ("+edit" if path == REPO / edited
                                                                                else ""))
+
+
+def terrain_code_after_editing(edited):
+    """Terrain's code version as if the repository file `edited` had changed."""
+    return code_after_editing(stages.TERRAIN, edited)
 
 
 def test_terrain_s_code_version_moves_with_its_own_code_only():
@@ -113,6 +119,26 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
     for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/landforms.py", "tools/usd/ground.py",
                 "tools/props/cloud/depth.py"):
         assert terrain_code_after_editing(own) != before, own
+
+
+def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
+    """Editing the surface line's paint, bake and check code (place_line.py, bake_check.py, feet.py), the resting
+    triage, the settle, the pick check or the completion gate leaves the paid rows that do not run them alone: the
+    turntable, SegviGen, terrain and the effects rows (each re-bought on the water tank's fix, 2026-10-12, through the
+    surfaces __init__ and complete.py); the paint, bake and check rows move."""
+    table = {stage.name: stage for stage in stages.STAGES}
+    edited = ("score/stages/surfaces/place_line.py", "score/stages/surfaces/bake_check.py",
+              "tools/props/library/feet.py", "tools/usd/triage.py", "tools/usd/settle.py", "tools/usd/picks.py",
+              "tools/usd/complete.py")
+    for name in ("surfaces-turntable", "surfaces-segvigen", "surfaces-inputs", "surfaces-maps", "terrain",
+                 "effects-layer", "effects-look"):
+        before = code_after_editing(table[name], "nothing")
+        for path in edited:
+            assert code_after_editing(table[name], path) == before, (name, path)
+    for name in ("surfaces-paint", "surfaces-bake"):
+        assert code_after_editing(table[name], edited[0]) != code_after_editing(table[name], "nothing"), name
+    assert code_after_editing(table["surfaces-check"], edited[1]) != code_after_editing(table["surfaces-check"],
+                                                                                       "nothing")
 
 
 if __name__ == "__main__":

@@ -409,11 +409,11 @@ def shared_paint(stage, prim, path):
 
 
 def row_of(prim, entry, world):
-    """A fixture's inventory row and its model's content hash (complete.model_hash), as the pick lock reads them."""
-    import complete
+    """A fixture's inventory row and its model's content hash (stage_inputs.model_hash), as the pick lock reads them."""
+    import stage_inputs
     prim.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(entry["row"])
     prim.CreateAttribute("score:model_sha256", Sdf.ValueTypeNames.String).Set(
-        complete.model_hash(world_file(world, entry["model"])))
+        stage_inputs.model_hash(world_file(world, entry["model"])))
 
 
 def write_objects(stage, place, entries, out, world):
