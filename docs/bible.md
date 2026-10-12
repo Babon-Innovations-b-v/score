@@ -289,6 +289,21 @@ is meant to fix, where it is marked, and what proves it.
   `speeds`, `loops` (rounds join and fit the layer's seconds whole), `grounded` (on water or ground, on its rail, or
   in the air) and `covered`. The assembly does not take the layer yet; the final assembly of each place does. Proven
   when the owner has seen the launch's ferries and the greenhouse's booms and hatches move.
+- **The light stage** (`score/stages/light`, its overlay; 2026-10-12). For lamps at the game's numbers, the cartoon
+  Earth, the flat Mars sky with no sun, the camp's night windows in the record's afternoon and the floodlight heads
+  read as white grids (paper-vs-world-1 items 9 and 17). `light-layer@<place>` (free) writes `layers/light.usda` over
+  the round-three seed from today's scene record with `tools/usd/scene.py`'s own writers (lamps where the record puts
+  them, the Earth with NASA's surface, the day dome and the sun's disc, the shafts); `light-passes@<place>` (paid,
+  about EUR 2) renders it once on the demo's views with every lamp in a Cycles light group of its own;
+  `light@<place>` (free) mixes the passes at any strengths with no render again, takes the scale that brings the
+  place's brightness to its concept's, turns a blown-out lamp down, writes the strengths into the layer and judges
+  brightness, lamps (unlit, blown), sky elements, floodlight heads, the Earth, the Mars sky and stage_no_worse. The
+  layer holds live lights (the owner, 2026-10-12: no baked per-lamp layers this month); the passes are that idea on
+  the views only. The strengths are measured on the round-three seeds' layouts with the layer, not on the final
+  assembly, which does not take the layer yet; the measurement moves there once it does. The light stage's own
+  additions live in `data/light/<place>.json` (the launch: concept K01's two pad floodlights on the far side with
+  their lamps and the night glow). Measured cost: one L4 render a place, EUR 0.10 to 0.26. Proven when a place's line
+  ends accepted on its gates and the owner has seen its looks.
 - **The neighbours stage** (`score/stages/assembly/neighbours.py`). A place's views looked out onto empty space: the
   seeds' references to the places they show (`../../launch/launch.usda`) resolve to nothing once each place is its own
   node, so the launch's accepted assembly showed the square and the far city with no children. `neighbours@<place>`

@@ -1,0 +1,46 @@
+{
+ "place": "launch",
+ "from": "the light stage's own additions to the launch view (score/stages/light/layer.py), kept out of the scene record, which holds what the game drew",
+ "kit_lamps": [
+  {
+   "kind": "launch_far_pad_floodlight",
+   "ahead": 0.3,
+   "light": {
+    "type": "spot",
+    "aim": [
+     -267.21,
+     30.0,
+     -58.01
+    ],
+    "colour": "#f3f1ea",
+    "energy": 14.0,
+    "range": 100.0,
+    "angle": 50.0,
+    "attenuation": 0.5,
+    "shadows": false,
+    "shaft": {
+     "near": 0.6,
+     "length": 12.0,
+     "colour": "#ffffff",
+     "density": 0.005,
+     "forward": 0.6,
+     "from": "the square's tower floodlights' shaft (data/scene/square.json, the light stage's sweep of 2026-10-11)"
+    },
+    "from": "concept K01's pad floodlights (2026-10-12, the coordinator with the Earth scene-record agent): on the pad's far side facing the balcony across the rocket, each lamp on the middle of its lens, aimed at the rocket's middle, energy 14, range 100 m, cone 50 degrees"
+   }
+  }
+ ],
+ "glow": {
+  "threshold": 0.85,
+  "intensity": 0.8,
+  "hdr_scale": 2.0,
+  "levels": [
+   3,
+   5
+  ],
+  "from": "the game's night glow while the eye is at the Earth site (night.gd:35-37,128-138), as data/scene/square.json's environment holds it: the launch view is the same site and night, and its record left the glow out"
+ },
+ "kit_moves": [
+  "launch_far_pad_floodlight"
+ ]
+}

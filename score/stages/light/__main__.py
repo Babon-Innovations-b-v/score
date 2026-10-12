@@ -1,8 +1,10 @@
-"""The light stages' commands, on world 1 and the framework's store ($PROPS_HOME/store).
+"""The lightkit row's commands (kit.py: the square's proscenium and floodlight towers), on world 1 and the
+framework's store ($PROPS_HOME/store). The place rows (light-layer, light-passes, light) are the stage table's:
+`python -m score run world1 --place <place> --stage light --detach`.
 
-    .venv/bin/python -m score.stages.light status <node> [<node> ...]    (lightkit, sweep@<place>, light@<place>)
-    .venv/bin/python -m score.stages.light run <node> [<node> ...]
-    .venv/bin/python -m score.stages.light why <node>
+    .venv/bin/python -m score.stages.light status lightkit
+    .venv/bin/python -m score.stages.light run lightkit
+    .venv/bin/python -m score.stages.light why lightkit
 """
 import argparse
 import pathlib
@@ -10,7 +12,9 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
-from score.stages import light  # noqa: E402
+from score import graph  # noqa: E402
+from score.stages.light.kit import KIT  # noqa: E402
+from score.store import Store  # noqa: E402
 
 
 def run_nodes(runner, nodes, command):
@@ -29,7 +33,8 @@ def main(argv=None):
         commands.add_parser(name).add_argument("nodes", nargs="+")
     commands.add_parser("why").add_argument("node")
     options = parser.parse_args(argv)
-    runner = light.runner()
+    from score.stages import world1
+    runner = graph.Runner((KIT,), world1(), Store.default())
     if options.command == "why":
         print("\n".join(runner.why(options.node)))
         return

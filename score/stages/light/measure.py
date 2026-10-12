@@ -1,12 +1,13 @@
-"""The light stage's measures on rendered pictures (sRGB PNG, 0 to 255): each fault the stage fixes, measured the same
-way on the frame before, the frame after and the place's concept, never judged by eye.
+"""The light stage's measures on pictures (sRGB PNG, 0 to 255): each fault the stage fixes, measured the same way on
+the place's look, on its look with the judged lamps off where a lamp's light is judged, and on its concept, never
+judged by eye.
 
     where(view, size, point) -> (x, y, depth, focal)   usd_views.py's camera: eye, aim, up, fov across the picture
     head(picture, x, y, radius)    a floodlight's head: its halo and how far the gaps between its lamps fill
     beam(before, after, points)    how much a lamp's beam brightens the air along its axis, after against before
     disc(picture, x, y, radius)    the Earth's disc: how flat its colours are (a cartoon's few) and its cloud
-    smooth(before, after, x, y, radius)   the Earth's disc: how much of it is flat paint, on the pixels it changed
-    sky(before, after, concept)    a day sky's colour and its rise toward the horizon, on the pixels the sky held before
+    smooth_share(picture, mask)    the Earth's disc: how much of it is flat paint
+    sky_of(picture, sky_pixels(picture))   a day sky's colour and its rise toward the horizon
     veil(before, after)            how much lighter the picture's lower part got: lamps' haze laid over the whole place
 """
 import math
@@ -124,18 +125,8 @@ def smooth_share(rgb, mask):
     return round(float((spread[mask] < SMOOTH_LEVELS).mean()), 4) if mask.any() else None
 
 
-def smooth(before, after, x, y, radius):
-    """The Earth's disc before and after, on its lit pixels the change touched (more than 6 levels in a channel:
-    whatever stands in front of the Earth, a roof's truss or a module, is the same in both and left out)."""
-    rows, columns = np.mgrid[0:before.shape[0], 0:before.shape[1]]
-    earth = (np.hypot(columns - x, rows - y) < radius * 0.92) & (np.abs(after - before).max(axis=-1) > 6)
-    return {"pixels": int(earth.sum()), "before": smooth_share(before, earth & (before.mean(axis=-1) > 30)),
-            "after": smooth_share(after, earth & (after.mean(axis=-1) > 30))}
-
-
 def sky_pixels(before):
-    """The sky's pixels in the frame before: the picture's top SKY_ROWS within SKY_NEAR levels of the commonest
-    colour there (the flat wall the fault is)."""
+    """The sky's pixels: the picture's top SKY_ROWS within SKY_NEAR levels of the commonest colour there."""
     top = before[: int(before.shape[0] * SKY_ROWS)]
     codes = (top.astype(np.int64) // 4) @ np.array([4096, 64, 1])
     common = np.bincount(codes.ravel()).argmax()
@@ -164,16 +155,6 @@ def sky_of(rgb, mask):
 def colour_gap(first, second):
     """The mean of the three channels' differences, in levels."""
     return round(float(np.abs(np.subtract(first, second)).mean()), 1)
-
-
-def sky(before, after, concept_sky):
-    """The day sky on the pixels the flat wall held before: before and after, each against the concept's sky."""
-    mask = sky_pixels(before)
-    found = {"pixels": int(mask.sum()), "before": sky_of(before, mask), "after": sky_of(after, mask)}
-    for side in ("before", "after"):
-        if found[side] is not None:
-            found[side]["gap_to_concept"] = colour_gap(found[side]["mean_rgb"], concept_sky["mean_rgb"])
-    return found
 
 
 def concept_sky(rgb, rows):
