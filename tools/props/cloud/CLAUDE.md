@@ -132,11 +132,14 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   first, a 48 GB one at a third of the pace; vLLM's DeepGEMM and FlashInfer sampler are
   off because the GPU image has no CUDA toolkit), and Pro draws only what fails. `--model klein` stays the
   default for other pictures.
-- **Every Gemini API call goes through `google_spend.generate`** (2026-10-11, after a EUR 257 day): it prices the
-  response from its usageMetadata at Google's published prices and appends one line to
-  `~/.farm-factory-props/cloud/google-ledger.jsonl`; with `cache=True` (the judge) the same request is asked once and
-  read back from `google-cache/` by every place line and rerun. No day cap (owner, 2026-10-11). Nothing calls
-  generativelanguage.googleapis.com any other way.
+- **Every Gemini API call goes through `google_spend.generate`** (2026-10-11, after a EUR 257 day): it writes a
+  `started` line to `~/.farm-factory-props/cloud/google-ledger.jsonl` before the call, then a `finished` line priced
+  from the response's usageMetadata at Google's published prices and its service tier, or a `failed` line. With
+  `cache=True` the same request is asked once and read back from `google-cache/` by every place line and rerun. No day
+  cap (owner, 2026-10-11). The runner's month check (`score.adapters.compute.month_refusal`) adds `month_euros`: a call
+  started and never finished counts at its estimate (Oct 11: Google billed EUR 549, this ledger, then written only
+  after a call came back, held EUR 30). Nothing calls generativelanguage.googleapis.com any other way:
+  `google_spend_test.py` fails on any tracked file that does.
 - **The surface judge asks Gemini, not rented cards** (`gemini_judge.py`, 2026-10-11): judge.py's question list and
   answer files, asked of the models adapter's `gemini-judge` (Gemini 3.1 Pro, temperature 0, the answer an enum of
   the question's codes plus `unknown`), through google_spend with `cache=True`; the key is the secret

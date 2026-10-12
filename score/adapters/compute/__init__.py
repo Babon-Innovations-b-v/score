@@ -66,9 +66,11 @@ def ledger():
 
 def month_refusal(euros, reserved=0.0):
     """Why a run estimated at `euros` would pass the month's ceiling, with `reserved` euros cleared for runs not yet
-    in the ledger, or None when the month has room."""
+    in the ledger, or None when the month has room. The month's spend is the cloud ledger's and the Google ledger's
+    (tools/props/cloud/google_spend.py), calls still going or lost included."""
     books = ledger()
-    spent = books.month_total(books.this_month(), books.entries())
+    import google_spend  # beside ledger.py; its month counts a call started and never finished at its estimate
+    spent = books.month_total(books.this_month(), books.entries()) + google_spend.month_euros(books.this_month())
     if spent + reserved + euros > books.MONTH_EUROS:
         return (f"EUR {spent:.2f} spent this month and EUR {reserved:.2f} cleared for runs still going; EUR {euros} "
                 f"more would pass the EUR {books.MONTH_EUROS:.0f} ceiling")
