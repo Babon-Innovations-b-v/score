@@ -13,11 +13,11 @@
     "paper/figures/fig-world1.jpg": "6ce4cca2102938b1c2c3c409911ad9672de3219fd81dae169e3ab3f24876fadb",
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "d20c367d7e9ac9ddd69eb80bf24143519be5a69ca65afa27335e6bf8f3f45d9d",
-    "paper/source/refs.bib": "1b1a67f85d5a53eec3f79969a6693532074867662593b4604b9398f507f17240",
-    "paper/source/score.md": "6b5b3b2cabe144c2090e2a60bca304d9422577919f073bed7b79d9a9f6006183"
+    "paper/source/refs.bib": "ec75e150ba1996320918a0f704317a2e47e62c632c88784a28262aae02c3c98b",
+    "paper/source/score.md": "91a7629cd49f22dfa2d6b0f17a51e0211bfd3d962ac18cd8c146504662856e5d"
   },
   "outputs": {
-    "paper/arxiv/content/abstract.tex": "bc55f9b9a80dd9f3eae9f816107695b7fbf589d271d729dcdf62e1dc55837757",
+    "paper/arxiv/content/abstract.tex": "35d0c653be3c5a81bf2bf012b1b81bd17abd37ba364f8d2805452f02cb5e58c3",
     "paper/arxiv/content/appendix.tex": "eb1dd500c9ffbc3a8fd205a9cfe49b07479506a8870ce4355153f26790afba0b",
     "paper/arxiv/content/check_details.tex": "16e413d2d4aff8f6a8854a0497213c4720eb0c9c470fb5b9a745c455eb456a86",
     "paper/arxiv/content/conclusion.tex": "910e110aa4a0be3189bca39c2ff7cb3786b3458cda2a6c510165c6351866a9aa",
@@ -27,9 +27,9 @@
     "paper/arxiv/content/evaluation.tex": "d14887280ba1d2834d71fec46b80798545315d50e89eb6cedda063fd73fca7f0",
     "paper/arxiv/content/future_work.tex": "1b7914fc66cbd68e2f1929b65181cac558203996cb5e84e8beac92fa75709c3c",
     "paper/arxiv/content/introduction.tex": "a5263578ffa71b9f05e310b49f6a998e1987fd8f678b35d00bd8fe1b637e483c",
-    "paper/arxiv/content/limitations.tex": "3a71f290da81651e4e562880d5d18997c90bb1b65c5ae95d1fe852ba844f9039",
-    "paper/arxiv/content/methods.tex": "4c6daa6f25a4a0c18587f16a3cc9b901d90d3fcbf7589123399b2cbdc54ffa64",
-    "paper/arxiv/content/models_and_licences.tex": "7b2c0a748bda0a2f487c5b8b19600811b01b15543e3db6798c3fdc30a865d691",
+    "paper/arxiv/content/limitations.tex": "24f1cdc0723c73e98e99cae55a1b2439192dbb5c12cadd3fcffaaf38a6fee2a6",
+    "paper/arxiv/content/methods.tex": "0416aa630d95b2e42af3ade59478026ac8f98388aa27a6511f407efe0e58db83",
+    "paper/arxiv/content/models_and_licences.tex": "430c7423c362b728b2f102ec9e89e09033f07d0a0df6fadf805e07a57d006ffa",
     "paper/arxiv/content/per_world_demos.tex": "c55c86ad528314d76b9cb70b19c17256178d009ec53c764fe6be1704a5b619f2",
     "paper/arxiv/content/results_across_worlds.tex": "ecc945e74a85ed5b5b2d725d4a83c04a14be32b12eb32229621574b82076d23a",
     "paper/arxiv/content/surfaces_sound_and_light.tex": "332783274e4aa4388611ec82ae433c373628ea7844de660b3d123acb3cd7038d",
@@ -44,11 +44,11 @@
     "paper/arxiv/figures/fig-terrain.jpg": "6ec7bc91533c2d4ed0eb0c233d348e46a099fb55ffa40f41f9afd88a8f986f86",
     "paper/arxiv/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
     "paper/arxiv/figures/fig-world1.jpg": "6ce4cca2102938b1c2c3c409911ad9672de3219fd81dae169e3ab3f24876fadb",
-    "paper/arxiv/main.bbl": "078608d03d65dcc90954f7cea839560cbd9f5a43f0a84c433469ec05cfc5951c",
-    "paper/arxiv/main.pdf": "5e61fd9f88b87a4fd8ea5d7b3db7cddec3edf235fae3a0313991ecc668caf00b",
+    "paper/arxiv/main.bbl": "5c123178353c0216b199cfc699d96e0fc2bbcd85dedf3a1c4c31bf6adfa68702",
+    "paper/arxiv/main.pdf": "0e29f1631a7c69d405815e33ce4f07b419e6e349cd952a65f511a85be91430d5",
     "paper/arxiv/main.tex": "4fe554431bca729dc7a0ace1ff0e5fc3d28929a03a5467762e7f2a20d004fc2f",
-    "paper/arxiv/refs.bib": "1b1a67f85d5a53eec3f79969a6693532074867662593b4604b9398f507f17240",
-    "paper/out/score.pdf": "a308839ce1de966c15afb42d20d40f0c0a6296eb523d0b2092f71e07552b6734",
-    "paper/out/score.tex": "aa4ac04c31f431326574d83691b4cb2b4c2b549a09de263bdc8f4061afd0d93e"
+    "paper/arxiv/refs.bib": "ec75e150ba1996320918a0f704317a2e47e62c632c88784a28262aae02c3c98b",
+    "paper/out/score.pdf": "8bbb9a6b42de9e3b43abff4f01d566448f65e680a40d1a282d57a4e875599394",
+    "paper/out/score.tex": "20a7bbe2488fe1f98b056f072abbcb05abd1e28714ae3ecc2f642c40761e221e"
   }
 }
