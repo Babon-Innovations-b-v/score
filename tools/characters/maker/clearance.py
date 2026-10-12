@@ -1,12 +1,16 @@
 """Kimodo's clips fitted to a prop-route person's own bulk (#5, captain 2026-10-12: the hands went into the torso in
 waiting, pointing and shouting because the clips were written for SOMA-X's mean body, slimmer than a Pixal3D person
-in clothes). For every frame of a clip, each limb's far end (forearm and hand, shin and foot) is tested against the
-body it must not enter (the torso for an arm, the other leg for a leg), skinned as the engine skins it; where it
-goes in deeper than DEPTH_MOST, the limb is swung outward about its root joint (shoulder, hip), towards the side it
-hangs on, by the least angle that clears it. The angles are spread over the frames around (the most within SPREAD
-frames, then averaged), so the limb eases out and back instead of jumping.
+in clothes). For every frame of a clip, each pass's limb end (forearm and hand, shin and foot) is tested against the
+body it must not enter, skinned as the engine skins it; where it goes in deeper than DEPTH_MOST, the limb is swung
+about its root joint (shoulder, hip) by the least angle that clears it: outward, away from the body's middle line,
+or, for an arm folded over the other, forward, so it lies in front. The angles are spread over the frames around
+(the most within SPREAD frames, then averaged), so the limb eases out and back instead of jumping.
 
     cleared, notes = clearance.cleared(world, fit_rig, names, parents)   # world: (frames, joints, 4, 4)
+
+Measured on the player's clips (2026-10-12, before the passes against the legs and the other arm): his hands went
+into his torso in waiting, the right arm swung out 16.5 degrees there; after it, hands still went 5 to 34 mm into
+the thigh beside them (standing, walking, pointing) and 40 to 53 mm into the other arm folded over them (waiting).
 """
 import numpy as np
 from scipy.spatial import cKDTree
@@ -18,14 +22,19 @@ STEP_DEGREES = 1.5
 MOST_DEGREES = 45.0
 SPREAD = 4
 SHARE = 0.5
-LIMBS = {
-    "LeftArm": {"ends": ("LeftForeArm", "LeftHand"), "body": ("Hips", "Spine1", "Spine2", "Chest")},
-    "RightArm": {"ends": ("RightForeArm", "RightHand"), "body": ("Hips", "Spine1", "Spine2", "Chest")},
-    "LeftLeg": {"ends": ("LeftShin", "LeftFoot", "LeftToeBase", "LeftToeEnd"),
-                "body": ("RightLeg", "RightShin", "RightFoot", "RightToeBase", "RightToeEnd")},
-    "RightLeg": {"ends": ("RightShin", "RightFoot", "RightToeBase", "RightToeEnd"),
-                 "body": ("LeftLeg", "LeftShin", "LeftFoot", "LeftToeBase", "LeftToeEnd")},
-}
+TORSO = ("Hips", "Spine1", "Spine2", "Chest")
+LEGS = ("LeftLeg", "LeftShin", "RightLeg", "RightShin")
+LEFT_LEG = ("LeftLeg", "LeftShin", "LeftFoot", "LeftToeBase", "LeftToeEnd")
+RIGHT_LEG = ("RightLeg", "RightShin", "RightFoot", "RightToeBase", "RightToeEnd")
+# (root joint, its far end's joints, the body it must stay out of, the way it swings), in the order they run.
+PASSES = (
+    ("LeftArm", ("LeftForeArm", "LeftHand"), TORSO + LEGS, "out"),
+    ("RightArm", ("RightForeArm", "RightHand"), TORSO + LEGS, "out"),
+    ("LeftArm", ("LeftForeArm", "LeftHand"), ("RightArm", "RightForeArm", "RightHand"), "forward"),
+    ("RightArm", ("RightForeArm", "RightHand"), ("LeftArm", "LeftForeArm", "LeftHand"), "out"),
+    ("LeftLeg", LEFT_LEG[1:], RIGHT_LEG, "out"),
+    ("RightLeg", RIGHT_LEG[1:], LEFT_LEG, "out"),
+)
 
 
 def below(joint, parents):
@@ -81,43 +90,54 @@ def swing(frame, chain, pivot, axis, angle):
     return moved
 
 
-def outward_axis(frame, root, end, names):
-    """The axis that swings the limb's far end away from the body's middle line (hips to chest)."""
-    hips, chest = frame[names.index("Hips"), :3, 3], frame[names.index("Chest"), :3, 3]
+def swing_axis(frame, root, end, names, way):
+    """The axis that swings the limb's far end towards `way`: "out", away from the body's middle line (hips to
+    chest), or "forward", the way the chest faces (left shoulder to right, crossed with up); the pivot."""
+    at = {name: frame[names.index(name), :3, 3] for name in ("Hips", "Chest", "LeftArm", "RightArm")}
     pivot, far = frame[root, :3, 3], frame[end, :3, 3]
-    line = (chest - hips) / max(np.linalg.norm(chest - hips), 1e-9)
-    side = pivot - (hips + line * np.dot(pivot - hips, line))
-    axis = np.cross(far - pivot, side)
+    up = (at["Chest"] - at["Hips"]) / max(np.linalg.norm(at["Chest"] - at["Hips"]), 1e-9)
+    if way == "out":
+        towards = pivot - (at["Hips"] + up * np.dot(pivot - at["Hips"], up))
+    else:
+        towards = np.cross(at["LeftArm"] - at["RightArm"], up)
+    axis = np.cross(far - pivot, towards)
     size = np.linalg.norm(axis)
     return (axis / size if size > 1e-9 else None), pivot
 
 
-def limb_angles(world, fit_rig, names, parents, root_name, limb):
-    """The least outward angle (radians) per frame that keeps the limb's far end out of its body part."""
+def pass_angles(world, fit_rig, names, parents, step):
+    """The least angle (radians) per frame that keeps a pass's limb end out of its body."""
+    root_name, ends_names, body_names, way = step
     weights, points = fit_rig["weights"], fit_rig["points"]
     inverse = np.linalg.inv(fit_rig["bind"])
     point_normals = normals(points, fit_rig["faces"])
-    ends = [names.index(name) for name in limb["ends"]]
-    body = [names.index(name) for name in limb["body"]]
+    ends = [names.index(name) for name in ends_names]
     moving = weights[:, ends].sum(axis=1) >= SHARE
-    still = weights[:, body].sum(axis=1) >= SHARE
+    # Each body joint's own points (those it weighs most): read one joint at a time, a point's nearest neighbour is
+    # on the same surface, where a mixed set read a hand inside a folded arm as outside the other hand next to it.
+    owner = weights.argmax(axis=1)
+    groups = [owner == names.index(name) for name in body_names]
     root = names.index(root_name)
     chain = below(root, parents)
     angles = np.zeros(len(world))
+
+    def deepest(skin, bodies):
+        moved = skinned(points[moving], weights[moving], skin)
+        return max(depth(moved, body_points, body_normals) for body_points, body_normals in bodies)
+
     for number, frame in enumerate(world):
         skin = frame @ inverse
-        body_points = skinned(points[still], weights[still], skin)
-        body_normals = turned(point_normals[still], weights[still], skin)
-        if depth(skinned(points[moving], weights[moving], skin), body_points, body_normals) <= DEPTH_MOST:
+        bodies = [(skinned(points[group], weights[group], skin), turned(point_normals[group], weights[group], skin))
+                  for group in groups if group.any()]
+        if deepest(skin, bodies) <= DEPTH_MOST:
             continue
-        axis, pivot = outward_axis(frame, root, ends[-1], names)
+        axis, pivot = swing_axis(frame, root, ends[-1], names, way)
         if axis is None:
             continue
         angle = 0.0
         while angle < np.radians(MOST_DEGREES):
             angle += np.radians(STEP_DEGREES)
-            skin = swing(frame, chain, pivot, axis, angle) @ inverse
-            if depth(skinned(points[moving], weights[moving], skin), body_points, body_normals) <= DEPTH_MOST:
+            if deepest(swing(frame, chain, pivot, axis, angle) @ inverse, bodies) <= DEPTH_MOST:
                 break
         angles[number] = angle
     return angles
@@ -133,18 +153,19 @@ def spread(angles):
 
 
 def cleared(world, fit_rig, names, parents):
-    """The clip's world transforms with each limb swung clear of its body part; notes per limb (frames moved, the
+    """The clip's world transforms with each pass's limb swung clear of its body; notes per pass (frames moved, the
     largest angle in degrees)."""
     world = world.copy()
     notes = {}
-    for root_name, limb in LIMBS.items():
-        angles = spread(limb_angles(world, fit_rig, names, parents, root_name, limb))
+    for step in PASSES:
+        root_name, ends_names, _, way = step
+        angles = spread(pass_angles(world, fit_rig, names, parents, step))
         root = names.index(root_name)
         chain = below(root, parents)
-        ends = [names.index(name) for name in limb["ends"]]
         for number in np.nonzero(angles)[0]:
-            axis, pivot = outward_axis(world[number], root, ends[-1], names)
+            axis, pivot = swing_axis(world[number], root, names.index(ends_names[-1]), names, way)
             if axis is not None:
                 world[number] = swing(world[number], chain, pivot, axis, angles[number])
-        notes[root_name] = {"frames": int((angles > 0).sum()), "most_degrees": round(float(np.degrees(angles.max())), 1)}
+        notes[f"{root_name} {way} of {step[2][0]}"] = {"frames": int((angles > 0).sum()),
+                                       "most_degrees": round(float(np.degrees(angles.max())), 1)}
     return world, notes

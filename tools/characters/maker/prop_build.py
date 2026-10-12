@@ -361,6 +361,7 @@ def build(fit_path, mean_path, parts_path, far_path, out, outfit, prints_path=No
     import clips
     import glb
     import stance
+    import clearance
     from scipy.spatial.transform import Rotation
     fit_rig, mean_rig, parts = np.load(fit_path), np.load(mean_path), np.load(parts_path)
     prints = np.load(prints_path) if prints_path else None
@@ -417,7 +418,9 @@ def build(fit_path, mean_path, parts_path, far_path, out, outfit, prints_path=No
         world = clip_world(mean_rig, name, fit_rig["offsets"], parents, scale, lift)
         if name not in clips.OFF_THEIR_FEET:
             world = stance.narrowed(world, names, parents)
+        world, swung = clearance.cleared(world, fit_rig, names, parents)
         local, notes = body.prepare_clip(world, parents, body.LEAST_FRAMES, name in clips.ONCE)
+        notes["clearance"] = swung
         notes["seconds"] = round(body.add_clip(contents, document, clips.in_game(name), local, joint_node), 2)
         notes["frames"] = int(local.shape[0])
         report["clips"][name] = notes
