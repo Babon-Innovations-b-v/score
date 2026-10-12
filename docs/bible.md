@@ -93,7 +93,8 @@ the current backend). No model runs on the coordinating machine.
   neither completes. Every place that spends (`batch.rent`, the k8s submitter and the cluster's `up`, Nano Banana
   Pro's `pro.draw`, Marble's `generate` and `paint`) refuses unless SCORE_SPEND_TICKET names a node the runner
   cleared or the owner's override (`compute.require_cleared`), so the old paid entry points (blender_cloud.py,
-  detached.py, the runners, demo.py, the close-up stage, marble.py) cannot spend round the runner. Step 0 still
+  detached.py, the runners, demo.py, the close-up stage, marble.py) cannot spend round the runner. The job images
+  are rebuilt the same way, as a world of their own (the `images` world, experimental below). Step 0 still
   lacks the layout stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces
   bounded by the plan, a plain tag measured plain). Step 1, the surface stage (`score/stages/surfaces`, its
   overlay), is each place's own line of rows in world 1's table (`python -m score run world1 --place <place>`), no
@@ -239,6 +240,17 @@ is meant to fix, where it is marked, and what proves it.
   them. They come back as the evidence step, on places the owner accepted.
 - **The Kubernetes path and 06cf411's image pins** (`tools/cloud/`). For setup time and stock. Opt-in
   (SCORE_CLOUD=k8s), not used for world 1. Proven when a stage's paid node runs through it end to end.
+- **The images world** (`score/stages/images`, its overlay; `python -m score run images`, `python -m score images
+  publish <kind>`). For maintenance image builds that needed the owner's override: each image kind with a proof plan
+  (`tools/cloud/images/<kind>/prove.json`) is a world of its own stage table, no places, no world 1 node reads it. A
+  free `image-pins-<kind>` (pins exact and hashed, resolved by uv, `build_test.py`, models, licences and Dockerfile
+  instructions as the published build's) gates a paid `image-proof-<kind>` cleared against the month's ceiling
+  (build.py, then prove.py on real jobs, the kind's own output check), and publish writes the accepted record into
+  images.json. Proved so far (2026-10-12): moss and characters-motion built, proved and published through it (two
+  real MOSS takes at the build before's CLAP scores; a 5 s Kimodo walking clip), closing 29 Dependabot alerts with
+  no world 1 key moved. Proven fully when parts, sam and pixal run through it too, after the world 1 run, and the
+  pins gate checks each pin's hashes against the index the build installs from (a triton hash from the wrong index
+  passed it and failed a paid build).
 - **Unreviewed world data**: the far city's towers and lit windows (3 of 5 kinds made, no owner pick), the street
   blocks (about 81 models only in a local package, not in the release), the rows made fixed so the drop leaves them
   (square lamp posts, street lamps and notice board, launch masts and floodlights: a count fell, nothing moved), the
