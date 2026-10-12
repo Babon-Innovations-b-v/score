@@ -272,6 +272,91 @@ def test_a_clean_label_border_passes_and_a_black_smudge_along_it_fails():
     assert {stage.name: stage for stage in stages.STAGES}["surfaces-check"].make is bake_check.make_check
 
 
+WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, -0.3, 1.0],
+                       "tank_water": [53.2, -3.2, -2.3]}  # the finish-map method's measures, greenhouse, 2026-10-12
+
+
+def baked_record(surfaces, close_up):
+    """A checks.json record of a model baked exactly on its surfaces ({surface: (share, L*a*b*)})."""
+    return {"surfaces": {name: {"share": share, "baked_lab": list(colour), "surface_lab": list(colour),
+                                "delta_e": 0.0, "near_black": 0.0} for name, (share, colour) in surfaces.items()},
+            "close_up": close_up}
+
+
+def greenhouse_lab(surface):
+    """A greenhouse surface's colour in today's library, L*a*b*."""
+    import numpy as np
+    import labels
+    import library
+    spec = {**library.by_library("greenhouse"), **library.resolved("greenhouse")}[surface]
+    return [round(float(value), 1) for value in labels.lab(labels.srgb(np.array(spec["colour"]))[None])[0]]
+
+
+def test_the_water_tank_s_three_greys_fail_as_one_look_and_its_cream_paint_passes():
+    from score.stages.surfaces import bake_check
+    before = baked_record({"painted_panel": (0.7253, [61.6, -1.5, -6.5]), "bare_steel": (0.1536, [66.3, -1.1, -4.5]),
+                           "tank_water": (0.1212, [58.7, -1.7, 2.4])}, WATER_TANK_CLOSE_UP)  # its stored check
+    faults = bake_check.surface_faults("water_tank_1", before)
+    assert len(faults) == 2 and "one grey look" in faults[0] and "painted_panel is 13.0 L* lighter than bare_steel" \
+        in faults[1], faults
+    grey_body = baked_record({"painted_panel": (0.7253, [61.6, -1.5, -6.5]),
+                              "bare_steel": (0.1536, greenhouse_lab("bare_steel")),
+                              "tank_water": (0.1212, greenhouse_lab("tank_water"))}, WATER_TANK_CLOSE_UP)
+    faults = bake_check.surface_faults("water_tank_1", grey_body)  # the water fixed, the body still grey
+    assert len(faults) == 1 and "lighter than bare_steel" in faults[0], faults
+    after = baked_record({"cream_paint": (0.7253, greenhouse_lab("cream_paint")),
+                          "bare_steel": (0.1536, greenhouse_lab("bare_steel")),
+                          "tank_water": (0.1212, greenhouse_lab("tank_water"))},
+                         {"cream_paint": WATER_TANK_CLOSE_UP["painted_panel"],
+                          **{name: WATER_TANK_CLOSE_UP[name] for name in ("bare_steel", "tank_water")}})
+    assert bake_check.surface_faults("water_tank_1", after) == [], bake_check.surface_faults("water_tank_1", after)
+    assert greenhouse_lab("tank_water") != greenhouse_lab("deck"), "the tank's water still takes the deck's colour"
+    one = baked_record({"painted_panel": (1.0, [61.6, -1.5, -6.5])}, {"painted_panel": [80.3, -0.2, 6.0]})
+    assert bake_check.surface_faults("panel_1", one) == [], "one surface is one look by design"
+    dark = baked_record({"painted_panel": (0.9, [61.6, -1.5, -6.5]), "rubber": (0.1, [9.3, 0.5, -1.4])},
+                        {"painted_panel": [61.0, 0.0, 0.0], "rubber": [62.0, 0.0, 0.0]})
+    faults = bake_check.surface_faults("cabinet_1", dark)
+    assert len(faults) == 1 and "rubber" in faults[0] and "over 32" in faults[0], faults
+
+
+def tank_mesh(ends, height=1.6):
+    """A tank's (vertices, faces), its own frame (+y up), on four corner legs ending `ends` up (the water tank's
+    measured)."""
+    import numpy as np
+    import trimesh
+    body = trimesh.creation.box(bounds=((-0.7, 0.3, -0.7), (0.7, height, 0.7)))
+    legs = [trimesh.creation.box(bounds=((across - 0.05, end, along - 0.05), (across + 0.05, 0.3, along + 0.05)))
+            for (across, along), end in zip(((-0.6, -0.6), (0.6, -0.6), (-0.6, 0.6), (0.6, 0.6)), ends)]
+    mesh = trimesh.util.concatenate([body, *legs])
+    return np.asarray(mesh.vertices), np.asarray(mesh.faces)
+
+
+def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name():
+    from score.stages.surfaces import place_line
+    import feet
+    vertices, faces = tank_mesh((0.0, 0.022, 0.052, 0.127))
+    points, record = place_line.levelled_feet(vertices, faces)
+    assert record["feet"] == 4 and len(record["levelled"]) == 3 and not record["refused"], record
+    lows = [low for _, low in feet.feet(feet.surface_points(points, faces), 0.15 * 1.6, 0.05)]
+    assert len(lows) == 4 and max(lows) - min(lows) < 1e-9, lows
+    points, refused = place_line.levelled_feet(*tank_mesh((0.0, 0.0, 0.0, 0.22)))
+    assert refused["refused"] == [round(0.22 / max(1.6, 1.4 * 2 ** 0.5), 4)] and not refused["levelled"], refused
+    folder = pathlib.Path(tempfile.mkdtemp())
+    for found, verdict in ((record, checks.PASS), (refused, checks.FAIL)):
+        (folder / "painted.json").write_text(json.dumps({"takes": {"water_tank-r1": {"feet": found}}}))
+        judged = place_line.judge_feet(folder, {}, None)
+        assert judged.answer == verdict and (verdict == checks.PASS or "water_tank-r1" in judged.findings[0]), judged
+    shutil.rmtree(folder)
+    paint = {stage.name: stage for stage in stages.STAGES}["surfaces-paint"]
+    assert "feet in one plane" in [check.name for check in paint.checks]
+    rules = REPO / "data/checks/resting.json"
+    tank = {"place": "greenhouse", "kind": "greenhouse_water_tank"}
+    glove = {"place": "lab", "kind": "lab_hanging_glove"}  # held on its cabinet, but it hangs: no feet to level
+    assert place_line.stands_on_feet(tank, REPO / "data/inventory/greenhouse.json", rules)
+    assert not place_line.stands_on_feet(glove, REPO / "data/inventory/lab.json", rules)
+    assert paint.files("greenhouse")["inventory greenhouse"] == "{data}/inventory/greenhouse.json"
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

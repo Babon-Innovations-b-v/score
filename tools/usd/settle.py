@@ -18,7 +18,9 @@ turn in its own seat's frame as a unit quaternion `rotation` [x, y, z, w] (x acr
 dropped). Settling only corrects a laid pose: an object that would turn more than TURN_MOST or whose middle would drift
 more than DRIFT_MOST to come to rest (small debris: any turn, DEBRIS_DRIFT) keeps its laid pose and is marked `"unrested"` in its spot and piece (what it
 would do), which the resting check fails as "would not rest as laid"; the layout is put right instead (a support piece,
-a laid pose that rests, or a bed in the ground under it). A piece the drop found laid inside a static one was dropped
+a laid pose that rests, or a bed in the ground under it). A tip over the triage's LEAN_MOST onto feet that do not lie in
+one plane in the model's own frame is the model's fault, never written either (marked the same way: level the model's
+feet; the surface stage's paint does so before its bake). A piece the drop found laid inside a static one was dropped
 on the bare ground alone, so its result is no rest pose and is not written: its layout is put right first. What lies
 on a written piece (held on its row, or its own glowing part or screen) is carried with it (carried_with). Export the
 stage again after, and run the resting check (tools/usd/resting.py).
@@ -65,6 +67,9 @@ FOOTPRINT_SLACK = 0.02
 RECORD_GROUPS = ("Fixtures", "Structure")
 SAGE_MOVE = 0.2
 SAGE_TURN = 8.0
+# An object's feet are looked for this share of its height over its lowest point (the paint's FOOT_BAND,
+# score/stages/surfaces/place_line.py), at least the triage's LOW_BAND: the water tank's shortest leg ended 12.7 cm up.
+FOOT_BAND = 0.15
 
 
 def loose_objects(stage, place, inventory):
@@ -152,7 +157,8 @@ def carried_with(stage, place, inventory, settled):
         box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
         boxes[path.removeprefix(f"/{place}/Objects/")] = (np.asarray(box.GetMin()), np.asarray(box.GetMax()))
     queue = [(name, found["after"] @ np.linalg.inv(found["before"])) for name, found in settled.items()
-             if correction(found)[0] <= TURN_MOST and correction(found)[1] <= DRIFT_MOST]  # a holder written back
+             if correction(found)[0] <= TURN_MOST and correction(found)[1] <= DRIFT_MOST
+             and not tips_on_uneven_feet(found)]  # a holder written back
     found = {}
     while queue:
         holder, motion = queue.pop(0)
@@ -247,6 +253,38 @@ def correction(found):
     return turned, float(np.linalg.norm((after @ middle - before @ middle)[:3]))
 
 
+def uneven_feet(stage, place, name):
+    """How far (metres, in its own frame as laid: its scale kept, its turn taken off) an object's highest foot ends
+    over its lowest, when it has three feet or more (triage.feet_gaps' feet; feet.py), else 0."""
+    import feet
+    import triage
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    points, triangles = resting.in_stage(prim.GetChild("geo"))
+    laid = laid_matrix(stage, place, name)
+    turn = laid[:3, :3] / np.cbrt(np.linalg.det(laid[:3, :3]))
+    own = feet.surface_points((points - laid[:3, 3]) @ turn, triangles)
+    height, _ = feet.model_scale(own)
+    found = [low for members, low in feet.feet(own, max(triage.LOW_BAND, FOOT_BAND * height), triage.FOOT_LINK)
+             if len(members) >= triage.FOOT_POINTS]
+    return found[-1] - found[0] if len(found) >= 3 else 0.0
+
+
+def tips_on_uneven_feet(found):
+    """Whether a drop tipped an object over the triage's LEAN_MOST onto feet that do not lie in one plane in its own
+    frame (`uneven`: uneven_feet over the resting tolerance): the tip is the model's fault, not a rest pose, so it is
+    never written (the greenhouse's water tank, 2026-10-12: tipped 7.5 degrees onto three of its legs, written into
+    the kit, one foot left 7 cm up)."""
+    import triage
+    return found.get("uneven", 0.0) > resting.TOLERANCE and correction(found)[0] > triage.LEAN_MOST
+
+
+def uneven_said(found):
+    """The words an unrested mark adds for a tip onto uneven feet, '' for any other settle."""
+    if not tips_on_uneven_feet(found):
+        return ""
+    return f" onto feet ending up to {found['uneven'] * 100:.1f} cm apart in its own frame (level the model's feet)"
+
+
 def unstable(turned, drift):
     """Whether a drop moved an object too far to call it resting as laid (SAGE's rule)."""
     return drift > SAGE_MOVE or turned > SAGE_TURN
@@ -278,7 +316,9 @@ def write_layout(settled, ground, inventory_path, kit_path):
         turned, drift = correction(found)
         said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
         debris = max(pieces[row][index]["size"]) <= DEBRIS_SIZE
-        if (not debris and turned > TURN_MOST) or drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
+        said += uneven_said(found)
+        if tips_on_uneven_feet(found) or (not debris and turned > TURN_MOST) or \
+                drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
             spots[row][index]["unrested"] = pieces[row][index]["unrested"] = said
             moved[name] = f"would not rest as laid: {said}"
             continue
@@ -334,7 +374,9 @@ def write_kit_room(settled, kit, kit_path):
         turned, drift = correction(found)
         said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
         debris = max(piece["size"]) <= DEBRIS_SIZE
-        if (not debris and turned > TURN_MOST) or drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
+        said += uneven_said(found)
+        if tips_on_uneven_feet(found) or (not debris and turned > TURN_MOST) or \
+                drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
             piece["unrested"] = said
             moved[name] = f"would not rest as laid: {said}"
             continue
@@ -391,7 +433,7 @@ def main():
             continue
         before = laid_matrix(stage, place, name)
         settled[name] = {"before": before, "after": np.asarray(found["motion"]) @ before,
-                         "middle": object_middle(stage, place, name)}
+                         "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name)}
     if not arguments.dry_run:
         settled.update(carried_with(stage, place, json.loads(inventory_path.read_text()), settled))
     if arguments.dry_run:

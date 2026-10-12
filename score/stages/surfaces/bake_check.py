@@ -1,9 +1,11 @@
 """The framework's check of a place's baked models (row surfaces-check@<place>, after place_line.py's paint and bake):
-every part's baked base colour lies on its library surface (CIE76 under BAKE_DELTA_E), no near-black blotch, every
-map there, triangles within the bake job's budget. A module of its own, so a change to the check moves the check
+every part's baked base colour lies on its library surface (CIE76 under BAKE_DELTA_E) and near its colour in the
+close-up (under CLOSE_UP_DELTA_E), a model's surfaces do not collapse into one look its close-up does not have, no
+near-black blotch, every map there, triangles within the bake job's budget. A module of its own, so a change to the check moves the check
 row's key alone, never the paint's or the paid bake's.
 """
 import json
+import math
 import pathlib
 import sys
 
@@ -31,6 +33,30 @@ import prop_env  # noqa: E402
 BAKE_DELTA_E = 20.0
 DARK_SURFACE, BLOTCH_L, BLOTCH_SHARE, BLOTCH_DELTA_E = 35.0, 12.0, 0.05, 6.0
 PART_LEAST = 0.01
+# A model's surfaces collapse into one look when every two of them bake within ONE_LOOK_DELTA_E (CIE76) and every one
+# is near neutral (chroma under NEUTRAL_CHROMA), while its close-up shows them over DISTINCT_DELTA_E apart (twice
+# ONE_LOOK) or its main surface's close-up colour is not neutral. The greenhouse's water tank (2026-10-12): cream paint,
+# bare steel and water, 28.5 apart in the close-up, baked as three greys 10.2 apart at most, which the owner saw as one
+# white block. On world 1's 39 split models with two surfaces or more (measured 2026-10-12) the next widest after the
+# tank's and the greenhouse crop crate's (9.3: off-white paint over wood in the grey deck token) is 15.1 (the
+# campgrounds' cargo pallet).
+ONE_LOOK_DELTA_E, NEUTRAL_CHROMA, DISTINCT_DELTA_E = 12.0, 10.0, 24.0
+# A part's baked colour must lie within this of its finish's colour in the close-up (finish_parts.COLOUR_DELTA_E, kept
+# at 32, measured 2026-10-12 on world 1's 145 measured finishes): the close-up's light lifts a right surface's L* by
+# 15 to 30 (stainless 66 seen at 85, black rubber 9 seen at 30 to 40), so right surfaces lie up to dE 31.7 from it
+# while the water tank's grey for cream lies 22.5 off; at 22.5 the check would fail 51 of 145 finishes, most of them
+# right blacks. A wrong light paint among right parts is caught by the one look above, which compares a model's
+# surfaces with each other, so the close-up's light cancels.
+CLOSE_UP_DELTA_E = 32.0
+# The close-up's light moves every surface's L*, but keeps their order: of two opaque surfaces of a model, the one its
+# close-up shows over ORDER_L lighter must not bake over ORDER_BAKED darker. The water tank's cream paint, 13 L* over
+# its bare steel in the close-up, baked 4.7 under it as painted_panel. Measured 2026-10-12 on world 1's split models
+# (library colours): 5 pairs on 4 models reverse so, the tank, the airlock's dust vacuum (its paint 10 L* over its
+# steel, baked 4.7 under), the campgrounds' open cargo case (tan cardboard as carbon_fibre) and the greenhouse's seed
+# tray (its dark plastic as black rubber, under its soil).
+# See-through and glowing surfaces (SEEN_THROUGH families) are left out: their close-up lightness is what they show.
+ORDER_L, ORDER_BAKED = 10.0, 3.0
+SEEN_THROUGH = ("glass", "screen", "light", "water")
 PART_POINTS = 60000  # labelled points kept per model to name each baked triangle (export.PART_POINTS)
 
 
@@ -113,7 +139,7 @@ def check_model(name, entry, labelled, made, materials):
     import labels
     geometry, maps = gltf_model(made / f"{name}.gltf")
     record = {"triangles": int(len(geometry["triangles"])), "budget": int(entry["faces"]),
-              "maps": sorted(maps), "surfaces": {}}
+              "maps": sorted(maps), "surfaces": {}, "close_up": close_up_colours(labelled)}
     record["missing_maps"] = [role for role in ("base_color", "metal_roughness", "normal") if role not in maps]
     if "base_color" in record["missing_maps"]:
         return record
@@ -139,8 +165,20 @@ def check_model(name, entry, labelled, made, materials):
             "baked_lab": [round(float(value), 1) for value in middle],
             "surface_lab": None if token is None else [round(float(value), 1) for value in token],
             "delta_e": None if token is None else round(float(np.linalg.norm(middle - token)), 1),
-            "near_black": round(blotch_share(colour, areas, chosen, reach, tokens), 4)}
+            "near_black": round(blotch_share(colour, areas, chosen, reach, tokens), 4),
+            "family": materials.get(names[index], {}).get("family")}
     return record
+
+
+def close_up_colours(labelled):
+    """Each surface's colour in the close-up (L*a*b*, the mean of its finishes' measured colours) from the paint's
+    report of the take (labels.json `finishes`); {} when the method measured none."""
+    measured = {}
+    for finish in json.loads((labelled / "labels.json").read_text()).get("finishes", []):
+        if finish.get("measured_lab") is not None:
+            measured.setdefault(finish["surface"], []).append(finish["measured_lab"])
+    return {surface: [round(sum(colour[axis] for colour in colours) / len(colours), 1) for axis in range(3)]
+            for surface, colours in measured.items()}
 
 
 def make_check(inputs, out, seed, params):
@@ -176,7 +214,69 @@ def surface_faults(name, record):
                           f"(dE {entry['delta_e']})")
         if entry["surface_lab"] and entry["surface_lab"][0] > DARK_SURFACE and entry["near_black"] > BLOTCH_SHARE:
             faults.append(f"{name}: {surface} {entry['near_black']:.1%} near black")
+    return faults + close_up_faults(name, record) + one_look_faults(name, record) + order_faults(name, record)
+
+
+def order_faults(name, record):
+    """Each pair of a model's judged opaque surfaces whose lightness order the bake reverses from the close-up's: the
+    one seen over ORDER_L lighter baked over ORDER_BAKED darker."""
+    close_up = record.get("close_up", {})
+    judged = {surface: entry for surface, entry in judged_surfaces(record).items()
+              if surface in close_up and entry.get("family") not in SEEN_THROUGH}
+    faults = []
+    for lighter, entry in sorted(judged.items()):
+        for darker, other in sorted(judged.items()):
+            seen = close_up[lighter][0] - close_up[darker][0]
+            baked = entry["baked_lab"][0] - other["baked_lab"][0]
+            if seen > ORDER_L and baked < -ORDER_BAKED:
+                faults.append(f"{name}: {lighter} is {seen:.1f} L* lighter than {darker} in its close-up but bakes "
+                              f"{-baked:.1f} darker")
     return faults
+
+
+def judged_surfaces(record):
+    """A baked model's surfaces the check judges (PART_LEAST of it or more): {surface: its entry}."""
+    return {surface: entry for surface, entry in record["surfaces"].items() if entry["share"] >= PART_LEAST}
+
+
+def close_up_faults(name, record):
+    """Each judged surface whose baked colour lies over CLOSE_UP_DELTA_E from its colour in the close-up."""
+    close_up = record.get("close_up", {})
+    faults = []
+    for surface, entry in judged_surfaces(record).items():
+        apart = math.dist(entry["baked_lab"], close_up[surface]) if surface in close_up else 0.0
+        if apart > CLOSE_UP_DELTA_E:
+            faults.append(f"{name}: {surface} baked {entry['baked_lab']}, its close-up {close_up[surface]} "
+                          f"(dE {apart:.1f}, over {CLOSE_UP_DELTA_E:.0f})")
+    return faults
+
+
+def widest(colours):
+    """The largest CIE76 distance between two of the colours, 0 for fewer than two."""
+    colours = list(colours)
+    return max((math.dist(first, second) for index, first in enumerate(colours) for second in colours[index + 1:]),
+               default=0.0)
+
+
+def chroma(colour):
+    return math.hypot(colour[1], colour[2])
+
+
+def one_look_faults(name, record):
+    """A model whose judged surfaces bake to one near-neutral look (every two within ONE_LOOK_DELTA_E, each under
+    NEUTRAL_CHROMA) while its close-up shows them over DISTINCT_DELTA_E apart, or its main surface not neutral."""
+    judged = judged_surfaces(record)
+    baked = [entry["baked_lab"] for entry in judged.values()]
+    if len(judged) < 2 or widest(baked) >= ONE_LOOK_DELTA_E or max(map(chroma, baked)) >= NEUTRAL_CHROMA:
+        return []
+    close_up = {surface: colour for surface, colour in record.get("close_up", {}).items() if surface in judged}
+    main = max(judged, key=lambda surface: judged[surface]["share"])
+    seen = widest(close_up.values())
+    if seen <= DISTINCT_DELTA_E and (main not in close_up or chroma(close_up[main]) < NEUTRAL_CHROMA):
+        return []
+    return [f"{name}: its {len(judged)} surfaces ({', '.join(sorted(judged))}) bake to one grey look, "
+            f"{widest(baked):.1f} apart at most (under {ONE_LOOK_DELTA_E:.0f}), while its close-up shows them "
+            f"{seen:.1f} apart (its main surface {main} seen at {close_up.get(main)})"]
 
 
 def judge_lit(output, inputs, evidence):

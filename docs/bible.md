@@ -190,7 +190,16 @@ is meant to fix, where it is marked, and what proves it.
   material than its surface's family, or far off its colour, is named once more (`surfaces-names`). First real line,
   greenhouse 2026-10-12: every surface row passed through bake and check on all 8 models, with four library surfaces
   added overnight for the owner to review (grey_painted_steel, translucent_blue_plastic, printed_paper, tank_water).
-  The assembly does not take the bake yet. Proven when a place's line ends accepted at its checks and the owner
+  The owner walked it and found the water tank unpainted and crooked (2026-10-12): its cream paint, steel and water
+  baked as three greys within dE 10 (tank_water on the deck's grey), and its uneven legs tipped it 7.5 degrees in the
+  settle, which the checks passed. Since then the check fails a model whose surfaces bake to one grey look its
+  close-up does not have (`bake_check.one_look_faults`; the tank and the crop crate) or whose lightness order it
+  reverses (`order_faults`), the paint stretches a loose
+  take's short legs onto one level plane before its bake and fails a missing leg by name (`feet.py`), the triage fails
+  a foot off its support and an up axis leaning over 3 degrees, and the settle never writes a tip onto uneven feet;
+  cream_paint is added for the owner to review, tank_water moved to tarp.
+  The assembly takes the bake, each laid object carrying the baked file's hash (`score:model_sha256`) and the
+  seed's as the model it repainted (`score:repaint_of`, which the pick lock reads). Proven when a place's line ends accepted at its checks and the owner
   reviews the baked models.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
   `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the

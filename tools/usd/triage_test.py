@@ -19,6 +19,7 @@ sys.path.insert(0, str(HERE))
 import annotate  # noqa: E402
 import collide  # noqa: E402
 import export  # noqa: E402
+import export_test  # noqa: E402
 import resting_test  # noqa: E402
 import triage  # noqa: E402
 
@@ -97,6 +98,48 @@ def a_long_drop_is_unstable_and_faults_group():
         return problems
 
 
+def legged_tank(ends):
+    """A 1.4 m tank on four legs at its corners, each leg ending `ends` metres up (the greenhouse's water tank,
+    2026-10-12, as it lay after its drop: three feet on the floor, the fourth 7 cm up)."""
+    body = trimesh.creation.box(bounds=((-0.7, 0.3, -0.7), (0.7, 1.6, 0.7)))
+    legs = [trimesh.creation.box(bounds=((across - 0.05, end, along - 0.05), (across + 0.05, 0.3, along + 0.05)))
+            for (across, along), end in zip(((-0.6, -0.6), (0.6, -0.6), (-0.6, 0.6), (0.6, 0.6)), ends)]
+    return trimesh.util.concatenate([body, *legs])
+
+
+def wedge(degrees):
+    """A 1 m block whose base is cut at `degrees` across its depth: laid tilted by as much, its base lies flat."""
+    rise = np.tan(np.radians(degrees))
+    corners = [(across, (along + 0.5) * rise if low else 1.0, along) for across in (-0.5, 0.5)
+               for along in (-0.5, 0.5) for low in (True, False)]
+    return trimesh.convex.convex_hull(np.array(corners))
+
+
+def a_foot_off_the_floor_and_a_lean_fail():
+    """Both ways: a tank on three feet with the fourth 7 cm up fails by its foot (four contacts and its weight inside
+    them passed it before), one on four level feet passes; a block whose own up leans 7.5 degrees from the floor it
+    stands flat on fails unless its row says it leans."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        export_test.box_gltf(folder / "models", "tank", legged_tank((0.0, 0.0, 0.0, 0.07)))
+        export_test.box_gltf(folder / "models", "level_tank", legged_tank((0.0, 0.0, 0.0, 0.0)))
+        export_test.box_gltf(folder / "models", "wedge", wedge(7.5))
+        stage = place_of(folder, [("tank", "tank", (0, 0, 0)), ("level", "level_tank", (4, 0, 0)),
+                                  ("wedge", "wedge", (8, 0, 0)), ("leaning", "wedge", (11, 0, 0))],
+                         [row("tank"), row("level"), row("wedge"), row("leaning", leans="a ramp, cut to lean")])
+        kit = json.loads((folder / "kit.json").read_text())
+        for piece in kit["pieces"][2:]:
+            piece.update(tilt=7.5, at=[piece["at"][0], -0.5 * np.sin(np.radians(7.5)), 0.0])
+        (folder / "kit.json").write_text(json.dumps(kit))
+        stage = export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
+                              inventory_path=folder / "inventory.json")
+        said = verdicts(triage.triage(stage))
+        expected = {"tank_1": [("foot off", True)], "level_1": None, "wedge_1": [("leans", True)], "leaning_1": None}
+        return [f"{name} reads {said.get(name)}, not {want}" for name, want in expected.items()
+                if said.get(name) != want]
+
+
 def the_collision_set():
     box = trimesh.creation.box((1.0, 1.0, 1.0))
     scene = collide.Scene()
@@ -149,8 +192,8 @@ def the_data_read_is_the_data_given():
                 if said.get(name) != want]
 
 
-CHECKS = (supports_and_guards, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group, the_collision_set,
-          occlusion_boundaries, the_data_read_is_the_data_given)
+CHECKS = (supports_and_guards, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
+          a_foot_off_the_floor_and_a_lean_fail, the_collision_set, occlusion_boundaries, the_data_read_is_the_data_given)
 
 
 if __name__ == "__main__":

@@ -48,7 +48,18 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `score/stages/__init__.py` until the 2026-10-12 fan-out ends, since this folder's `__init__.py` is in the
   turntable's and SegviGen's code version). A near-black triangle is a blotch only when its colour lies over
   `BLOTCH_DELTA_E` from every surface within its reach: on a border it may bake its neighbour (the seed tray's paper
-  label on black plastic passes), a black smudge along the border still fails.
+  label on black plastic passes), a black smudge along the border still fails. It also fails a model whose surfaces
+  bake to one grey look its close-up does not have (`one_look_faults`: every two within 12, each near neutral, the
+  close-up's over 24 apart; the greenhouse's water tank and crop crate, 2026-10-12: the check of bake against
+  library alone passed them at dE 0), two opaque surfaces whose lightness order the bake reverses (`order_faults`:
+  seen over 10 L* lighter, baked over 3 darker; the light moves L* but keeps the order), and a part baked over 32
+  from its close-up colour (kept at 32: the close-up's light lifts right surfaces 15 to 30 L*, so a tighter number
+  fails right blacks; compare a model's surfaces with each other instead).
+- **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):
+  a take a row lays loose on the floor or held (`stands_on_feet`, from the inventory and the resting rules, declared
+  in the table) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot
+  over a tenth of its size up is a missing leg and fails the gate "feet in one plane" by name. Never level by
+  tipping the model: its own up is the reference (the water tank's top lay level within 0.25 degrees).
 - **Painting is 3D parts plus the shared library, only.** A picture's colours never reach a model: a map's label
   colours only name finishes, each part is painted from its finish's library surface.
 - **The finish registry is a store item** (`registry.py`; `registry/surfaces/` in the store): append-only, the new

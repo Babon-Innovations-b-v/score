@@ -97,6 +97,9 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   OpenUSD export reads only these. A take relabelled is stored again; keep `models.json` in step when a model's take
   changes. Every sample labels.py draws is seeded (trimesh ignores numpy's global seed), so a take labels the same way
   every run.
+- **A model's feet** (`feet.py`): its low points clustered across and along, each foot's lowest; `level` stretches a
+  take's short legs onto the level plane through its lowest foot (the surface stage's paint, before its bake), the
+  resting triage judges each foot of a laid object, the settle refuses a tip onto uneven feet.
 - **A generated piece's back is baked at full density** (`bake.Atlas(backs_hidden=False)` from make_chunky): shrunk
   face by face its remeshed triangles fell under a texel and baked black (every generated piece's back, 2026-10-08).
 - **One wear for the room, from a cause:** a place's wear level (`place.json`), the bevel test on edges, and kick

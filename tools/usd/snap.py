@@ -192,7 +192,9 @@ def collides(scene, name, offset, mesh):
 def supported(mesh, height, surfaces, statics):
     """Whether a mesh standing on the floor passes the floor support rule (triage.py: no real floating or tipping
     fault)."""
-    entry = {"name": "snapped", "row_id": None, "model": None, "support": "floor", "mesh": mesh}
+    # a snap only moves a mesh, never turns it, so its lean is not the snap's to judge: its up taken as the stage's
+    entry = {"name": "snapped", "row_id": None, "model": None, "support": "floor", "mesh": mesh, "row": {},
+             "bed": (0.0, None), "matrix": np.eye(4)}
     found = triage.standing(entry, height, surfaces, set(), statics)
     return not any(item["real"] for item in triage.held_up_faults(entry, found))
 

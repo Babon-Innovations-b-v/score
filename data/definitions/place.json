@@ -2044,8 +2044,12 @@
 				"library": "printed_paper"
 			},
 			"tank_water": {
-				"token": "deck",
+				"token": "tarp",
 				"library": "tank_water"
+			},
+			"cream_paint": {
+				"token": "flat-wall",
+				"library": "cream_paint"
 			},
 			"red_plastic": {
 				"token": "sign-red",

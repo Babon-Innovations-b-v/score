@@ -80,7 +80,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   and hanging; an overlap counts only if it survives a 5 mm nudge), bedding classes as data, SAGE's drop rule from a
   settle run (`settle.py --dry-run`: over 0.2 m or 8 degrees is unstable), and real faults grouped by cause with a
   close-up each (`--closeups`). False alarms are kept, marked, never deleted. The gate's resting requirement is its real
-  faults.
+  faults. A floor or held object (not of a bedding class) is also judged foot by foot (`../props/library/feet.py`: its
+  low points clustered; a foot over 3 cm off while another touches is real, since four contact points can lie on three
+  feet) and by its lean (its own up over 3 degrees from the plane under what it touches, unless its row says `leans`):
+  the greenhouse's water tank stood 7.5 degrees tipped, a foot 7 cm up, and passed before (2026-10-12).
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
   intersection test with an offset, distance, touches, raycast. ProcFunc's interface; its release has no such code yet.
 - `snap.py` is placement by snapping, for agents laying a place instead of hand coordinates (ProcFunc's idea, not in
@@ -121,7 +124,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   decision). A scene record object that stands for a row names it (`row`) and is locked the same way (the launch's
   rocket). Never write a pick or a replacement the owner did not make; each `decided` names its source (the owner's
   message and date, the page, the log line). An inventory's `concept_pick` records the concept the owner approved
-  (picture, hash, source); the lock does not read it. The hash covers a model's .gltf and buffers, not its texture
+  (picture, hash, source); the lock does not read it. An object the surface stage repainted carries the baked file's
+  hash and `score:repaint_of` (the seed's, the model its bake repainted: the assembly's `stamp_baked_hash`); the lock
+  reads `repaint_of` first, since a pick chooses the model, never its old paint. The hash covers a model's .gltf and buffers, not its texture
   files, so a repaint that keeps the file names is not caught.
 - `compare.py` is the render-and-compare: each object with a close-up rendered alone from 8 ways round it, the best
   outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../props/cloud/similar.py`).
@@ -137,7 +142,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   because the concept's composition is the owner's; put its layout right instead. Loose pieces collide with the
   ground and the static pieces only (convex hulls over hollows rested on debris). `--cloud` runs it on a rented
   machine. `ground.py level <place>` levels a place's yard in the plan; `ground.py dent <place> <piece>` cuts a
-  shallow bowl under a piece (a thrown sphere, a section's impact) so it rests where it was laid.
+  shallow bowl under a piece (a thrown sphere, a section's impact) so it rests where it was laid. A tip over 3 degrees
+  onto feet that do not lie in one plane in the model's own frame (`uneven_feet`) is never written either: it is the
+  model's fault (the surface stage's paint levels a take's feet), marked `unrested` with the feet's spread.
 - `export_test.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
   test itself; `resting_test.py` the resting check and the planned ground; `settle_test.py` the settle's write-back
   (a pose round-trips through the layout and the export) and the levelled yard, without Blender.

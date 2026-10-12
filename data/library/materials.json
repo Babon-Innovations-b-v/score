@@ -378,6 +378,14 @@
 					"bump": 0.0006,
 					"bump_size": 0.01,
 					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the power unit's weathered grey steel cabinet, close-up L*a*b* [63.6, 0.8, 3.2]); owner to review"
+				},
+				"cream_paint": {
+					"recipe": "painted_metal",
+					"token": "flat-wall",
+					"roughness": 0.45,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"said": "added 2026-10-12 from the finish-map method's proposal 'Painted steel, off-white' for the greenhouse's water tank (its close-up L*a*b* [80.3, -0.2, 6.0]; painted_panel's grey lay 22.5 off and the tank baked as one grey block); the palette's flat-wall token lies 2.0 from it; owner to review"
 				}
 			}
 		},
@@ -2318,9 +2326,9 @@
 				},
 				"tank_water": {
 					"recipe": "glass",
-					"token": "deck",
+					"token": "tarp",
 					"roughness": 0.04,
-					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the water tank's water seen from above, close-up L*a*b* [53.2, -3.2, -2.3]; drawn as the glass recipe, no water shader); owner to review"
+					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the water tank's water seen from above, close-up L*a*b* [53.2, -3.2, -2.3]; drawn as the glass recipe, no water shader); first on the deck token, the painted deck's grey, so the water baked as the tank's grey paint; on tarp's blue-grey since 2026-10-12 (dE 12.6 from the close-up, the nearest token leaning blue as the water does; the greenhouse uses it for nothing else); owner to review"
 				}
 			}
 		},

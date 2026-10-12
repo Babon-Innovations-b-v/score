@@ -82,14 +82,17 @@ def locked_count(rows):
 
 def stage_shown(stage_path):
     """{row: [(object path, model, model sha256)]} of a stage's own laid objects (a neighbour shown through a doorway,
-    under /<place>/Places, is held by its own place's picks)."""
+    under /<place>/Places, is held by its own place's picks). An object the surface stage repainted shows the model its
+    bake repainted (`score:repaint_of`, written by the assembly beside the baked file's hash): a pick chooses the
+    model, never its old paint (owner, 2026-10-12)."""
     from pxr import Usd
     stage = Usd.Stage.Open(str(stage_path))
     found = {}
     for prim in stage.Traverse():
         if not prim.HasAttribute("score:row") or str(prim.GetPath()).split("/")[2:3] == ["Places"]:
             continue
-        sha256 = prim.GetAttribute("score:model_sha256").Get() if prim.HasAttribute("score:model_sha256") else None
+        named = next((name for name in ("score:repaint_of", "score:model_sha256") if prim.HasAttribute(name)), None)
+        sha256 = prim.GetAttribute(named).Get() if named else None
         found.setdefault(prim.GetAttribute("score:row").Get(), []).append(
             (str(prim.GetPath()), prim.GetAttribute("score:model").Get(), sha256))
     return found
