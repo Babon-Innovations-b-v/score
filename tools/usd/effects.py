@@ -15,6 +15,8 @@ adapter needs to make the effect again with its own particle system, in the game
     score:effect:look               token    speck (a flat unlit round grain, solid to 0.4 of its radius) or puff
                                              (a soft lit card, thickest in the middle as (1 - r^2)^1.5, faded out
                                              near the eye over score:effect:near_fade metres)
+    score:effect:card               token    a puff's card: dust (the game's dust card, its tint multiplied in) or
+                                             plain (steam, fog, mist: white water, drawn in its own colour)
     score:effect:emitter            token    box, ring, sphere or point
     score:effect:emitter_size       float3   a box's half sides; a ring's radius, inner radius and height (about y);
                                              a sphere's radius (then 0, 0)
@@ -66,7 +68,9 @@ stage's root does.
 An emitter placed `on` a prim of the base (`{"on": "Fixtures/rocket", "offset": [...]}`) is written as that prim's
 child, `/<place>/<prim>/<emitter>`, in the prim's own frame, so it moves with it (the rocket's flame). One that
 `follows` a motion (`{"follows": "rocket_launch", "offset": [...]}`) stands where the motion's prim rests, level, and
-lets each particle out where the prim has climbed to at its birth (the trail a rocket leaves). An event's emitter
+lets each particle out where the prim has climbed to at its birth (the trail a rocket leaves). One that fills a
+`room` (`{"room": 0.15}`, metres in from its walls, floor and ceiling) is a box over the scene record's floor up to
+its ceiling (a pump-down's fog). An event's emitter
 (`once`: [first, last] seconds of the stage) is baked once over its own span at its own `samples` a second and held
 dead before and after; a looped one that `starts` at a second of the stage is dead before it. A record's `lights` are
 UsdLux sphere lights on a prim (`on`, `offset`), their intensity (Blender's units, as scene.py writes lights) keyed
@@ -263,6 +267,17 @@ def structure_emitter(entry, scene):
     return dict(entry, origin=origin, basis=basis)
 
 
+def room_emitter(entry, scene):
+    """An emitter filling a room (`room`: how far in from its walls, floor and ceiling, metres): a box over the scene
+    record's floor up to its ceiling, upright in the room's frame (the pump-down's fog)."""
+    margin = float(entry["placement"]["room"])
+    low, high = np.asarray(scene["floor"][0], dtype=float), np.asarray(scene["floor"][1], dtype=float)
+    ceiling = float(scene["ceiling"])
+    origin = np.array([(low[0] + high[0]) / 2.0, ceiling / 2.0, (low[1] + high[1]) / 2.0])
+    extents = [(high[0] - low[0]) / 2.0 - margin, ceiling / 2.0 - margin, (high[1] - low[1]) / 2.0 - margin]
+    return dict(entry, origin=origin, basis=np.eye(3), emitter={"shape": "box", "extents": extents})
+
+
 def prim_emitter(entry):
     """An emitter riding a prim of the base (`on`): its `origin` the offset in the prim's own frame, written as the
     prim's child so it moves and turns with it."""
@@ -307,6 +322,8 @@ def emitters_of(effects, ground, scene, motions=None):
             emitters.append(eye_emitter(entry, scene))
         elif "structure" in placement:
             emitters.append(structure_emitter(entry, scene))
+        elif "room" in placement:
+            emitters.append(room_emitter(entry, scene))
         else:
             raise ValueError(f"{entry['name']}: no placement this module knows ({sorted(placement)})")
     return emitters
@@ -466,10 +483,12 @@ def births(emitter):
 
 def look_colour(emitter):
     """The colour a reader without the schema draws the particles in (linear): a puff's colour carries its card's
-    tint, as the game's dust material multiplies it in; a speck's is its colour times its brightness."""
+    tint, as the game's dust material multiplies it in, unless its `card` is plain (steam, fog, mist); a speck's is
+    its colour times its brightness."""
     linear = np.asarray(scene_record.colour(emitter["colour"]), dtype=float)
     if emitter["look"] == "puff":
-        return linear * np.asarray(scene_record.colour(list(PUFF_TINT)))
+        tint = PUFF_TINT if emitter.get("card", "dust") == "dust" else (1.0, 1.0, 1.0)
+        return linear * np.asarray(scene_record.colour(list(tint)))
     return linear * float(emitter.get("brightness", 1.0))
 
 
@@ -518,7 +537,7 @@ def bake_once(emitter):
 
 
 def bake(emitter):
-    """The emitter's particles over its loop, SAMPLES a second from 0 to the loop's end (the last sample is the
+    """The emitter's particles over its loop, `samples_of` a second from 0 to the loop's end (the last sample is the
     first again): spots (samples x count x 3, its frame), widths and opacities (samples x count). An event's
     (`once`) are bake_once's."""
     if emitter.get("once"):
@@ -534,7 +553,8 @@ def bake(emitter):
         tracks.append(track)
         scales.append(scale)
     tracks, scales = np.stack(tracks), np.stack(scales)
-    times = np.arange(int(round(loop * SAMPLES)) + 1) / SAMPLES
+    # The clip lays sample n at n / samples_of seconds (write_clip), so the bake samples at the same rate.
+    times = np.arange(int(round(loop * samples_of(emitter))) + 1) / samples_of(emitter)
     born = births(emitter)
     since = (times[:, None] - born[None, :]) % loop if emitter.get("one_shot") else times[:, None] - born[None, :]
     life = (np.floor(since / lifetime).astype(int) % lives) if not emitter.get("one_shot") else np.zeros_like(since,
@@ -638,6 +658,7 @@ def effect_look(stage, root, emitter):
 SCHEMA = {  # attribute: (type, how it is read off the emitter)
     "kind": (Sdf.ValueTypeNames.String, lambda emitter: emitter["kind"]),
     "look": (Sdf.ValueTypeNames.Token, lambda emitter: emitter["look"]),
+    "card": (Sdf.ValueTypeNames.Token, lambda emitter: emitter.get("card", "dust")),
     "emitter": (Sdf.ValueTypeNames.Token, lambda emitter: emitter["emitter"]["shape"]),
     "emitter_size": (Sdf.ValueTypeNames.Float3, lambda emitter: emitter_size(emitter["emitter"])),
     "count": (Sdf.ValueTypeNames.Int, lambda emitter: int(emitter["count"])),
