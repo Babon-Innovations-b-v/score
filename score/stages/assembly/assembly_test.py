@@ -249,6 +249,25 @@ def test_a_tube_s_lamps_hang_on_every_bay_of_its_way():
     assert assembly.laid_pieces({"pieces": kit["pieces"]}, {}) == kit["pieces"]
 
 
+def test_an_entry_waiting_on_its_model_lays_nothing_and_is_named():
+    """Fault (2026-10-12): the campgrounds' record names its cairn, whose model is not released yet, and the
+    assembly errored on it. An entry marked `waiting` lays nothing; the root prim names it for the completion gate."""
+    from pxr import Usd
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        root = a_toy(folder / "out")
+        (folder / "record/record").mkdir(parents=True)
+        record = {"place": TOY, "objects": [{"name": "cairn", "model": "models/none/none.glb", "at": [0, 0, 0],
+                                             "waiting": "its model comes through the next batch"}]}
+        (folder / f"record/record/{TOY}.json").write_text(json.dumps(record))
+        (folder / "kit.json").write_text(json.dumps({"pieces": []}))
+        assembly.take_record({"scene-record": folder / "record", "kit": folder / "kit.json"}, root.parent, TOY)
+        stage = Usd.Stage.Open(str(root))
+        assert not stage.GetPrimAtPath(f"/{TOY}/Fixtures/cairn")
+        assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [
+            "objects cairn: its model comes through the next batch"]
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
