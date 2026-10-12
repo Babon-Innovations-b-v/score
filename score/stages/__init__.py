@@ -11,13 +11,15 @@ Step 0 holds the worked example: assembly (P5) on world 1's round-three stages a
 own line of rows, split to checked bake, beside the world's seed of the finish registry. Effects (experimental) makes
 each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
-own accepted assembly. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+own accepted assembly. The prop route (props: close-up, Pixal3D, then the surface line, then the likeness gate) runs
+only for a place with prop data. Each stage joins the table when it is built in its step (docs/bible.md,
+architecture/components).
 """
 import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import assembly, complete, effects, images, surfaces, terrain
+from score.stages import assembly, complete, effects, images, props, surfaces, terrain
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -92,8 +94,16 @@ def paint_files(place):
             "paint script": "{repo}/score/stages/surfaces/inside/paint_take.py"}  # run by path on the machine
 
 
-STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK,
-          *map(feet_checked, map(bake_checked, surfaces.ROWS)))
+def prop_fed(row):
+    """surfaces-inputs waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
+    with no prop data reads without it (Runner.reads), so its key does not move."""
+    if row.name != "surfaces-inputs":
+        return row
+    return dataclasses.replace(row, after={**row.after, **props.FEEDS})
+
+
+STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, props.INPUTS, props.CLOSEUP, props.PIXAL,
+          *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.LIKENESS)
 
 
 def world1():
