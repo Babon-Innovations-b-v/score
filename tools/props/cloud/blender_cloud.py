@@ -97,11 +97,9 @@ def plan(jobs):
 def price(jobs, account, classes):
     """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the minutes
     allowed."""
-    every = batch.offers(list(classes))
-    if not every:
-        raise SystemExit(f"no machine of {', '.join(classes)} is sold by the {cloud.NAME} backend")
-    # Every offer short (terrain-look@street, 2026-10-12): keep them all; batch.claim asks again until stock comes.
-    found = [offer for offer in every if offer.stock_word != "shortage"] or every
+    found = [offer for offer in batch.offers(list(classes)) if offer.stock_word != "shortage"]
+    if not found:
+        raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend")
     count, minutes = plan(jobs)
     what = f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}"
     return found, count, batch.priced(found, minutes, count, what, account)
