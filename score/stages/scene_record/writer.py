@@ -3,9 +3,11 @@ made ground's seats (the terrain stage) and the world's sky record, never from t
 (which only the `seed-matched` gate reads). Contract `scene-record` v1 is today's record schema, so tools/usd/scene.py
 and builders.py build it unchanged; it lands as record/<place>.json in the output.
 
-    shell        a domed room (a plan with walls and a dome): room_walls, room_deck and dome_roof on the plan's inside
-                 grown by BACKING (the shell stands behind the kit's wall panels, which stand on the plan's line), its
-                 corners, walls' height, the dome's rise and run, and a doorway cut in each door that leads somewhere
+    shell        a domed room (plan shell `domed`): room_walls, room_deck and dome_roof on the plan's inside grown by
+                 BACKING (the shell stands behind the kit's wall panels, which stand on the plan's line), its corners,
+                 walls' height, the dome's rise and run, and a doorway cut in each door that leads somewhere; a place
+                 whose kit holds its walls (plan shell `kit`: the Earth's) gets its block, lamps, night sky, moon,
+                 water and objects from kit_shell.py instead
     places       each door's leaves (the plan's `leaves` kit, the inventory's leaf size, shut in the doorway); a door
                  joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
                  one, stretched along its run); and every other place seated on the same made ground, where its seat
@@ -25,7 +27,7 @@ from typing import NamedTuple
 import numpy as np
 
 from score import contracts
-from score.stages.scene_record import plan as place_plan
+from score.stages.scene_record import kit_shell, plan as place_plan
 from score.stages.terrain import outside, record as ground_records
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -47,7 +49,8 @@ def files(place):
     """The world files the writer reads: the place's inventory and kit, every plan and kit (joined and seated places),
     the sky record, the place definitions (the eye's height), the tube's record (only its length: the stage a tube
     shows); and for the gates the old record (the seed) and the old stages (the neighbours the openings compose)."""
-    return {"inventory": "{data}/inventory/{place}.json", "kits": "{data}/kit", "plans": "{data}/plans",
+    return {"inventory": f"{{data}}/inventory/{place_plan.inventory_name(place)}.json", "kits": "{data}/kit",
+            "plans": "{data}/plans",
             "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
             "places": "{data}/definitions/place.json", "seed record": "{data}/scene/{place}.json",
             "seeds": "{seeds}/usd-r3"}
@@ -148,14 +151,9 @@ def quaternion(axes):
     return [round(value, 6) for value in (*quat.GetImaginary(), quat.GetReal())]
 
 
-def outward(side):
-    across, along = NORMALS[side]
-    return np.array([across, 0.0, along])
-
-
 def door_outside(door):
     """A door's middle on the shell's outer face, in its own place's frame."""
-    return np.asarray(door["middle"], dtype=float) + outward(door["side"]) * BACKING
+    return np.asarray(door["middle"], dtype=float) + np.asarray(door["normal"], dtype=float) * BACKING
 
 
 def neighbours(place, grounds):
@@ -184,9 +182,8 @@ def joined_tube(place, door, plans, grounds, tube_length):
     laid, other = grounds[place].laid, grounds[door["joins"]].laid
     other_plan = read(pathlib.Path(plans) / f"{door['joins']}.json")
     other_door = next(entry for entry in other_plan["doors"] if entry[0] == door["joins_door"])
-    side = place_plan.SIDES[other_door[0]]
-    far_local = np.asarray(place_plan.door_middle(other_door[0], other_door[1], other_plan["w"], other_plan["d"]),
-                           dtype=float) + outward(side) * BACKING
+    far_local = np.asarray(place_plan.door_middle(other_plan, other_door[0], other_door[1]), dtype=float) + \
+        np.asarray(place_plan.outward(other_plan, other_door[0]), dtype=float) * BACKING
     position, axes = pose_in(laid, other)
     far = position + far_local @ axes
     near = door_outside(door)
@@ -203,16 +200,15 @@ def joined_tube(place, door, plans, grounds, tube_length):
                     f"{tube_length} m long stretched to it"}
 
 
-def places_of(place, plan, inputs):
-    """Every place this one shows: door leaves, joined tubes, seated neighbours."""
-    grounds = seats(inputs)
+def places_of(place, plan, inputs, grounds):
+    """Every place this one shows: door leaves, joined tubes, seated neighbours, and what the plan shows."""
     found = []
     for door in plan["doors"]:
         if door["cut"] and door.get("leaves"):
             found += leaves(plan, door)
         if door["cut"] and door["joins"]:
             found.append(joined_tube(place, door, inputs["plans"], grounds, read(inputs["tube length"])["tube_length"]))
-    return found + neighbours(place, grounds)
+    return found + neighbours(place, grounds) + kit_shell.shown(plan, place, grounds, pose_in, quaternion)
 
 
 # --- light, sky, views ------------------------------------------------------------------------------------------
@@ -238,20 +234,38 @@ def environment(plan, indoor, body):
                      "from": f"sky record {body} indoor haze, a box of the plan's inside to its walls' top"}}
 
 
+def middle_of(plan):
+    """The plan's inside's middle on its floor, in the place's frame (x, z)."""
+    (low_x, low_z), (high_x, high_z) = plan["floor"]
+    return np.array([(low_x + high_x) / 2, (low_z + high_z) / 2])
+
+
+def item_middle(plan, name):
+    low_x, low_z, high_x, high_z = next(item["box"] for item in plan["items"] if item["name"] == name)
+    return np.array([(low_x + high_x) / 2, (low_z + high_z) / 2])
+
+
 def views(plan, eye_height):
-    """One view inside each door looking across the room, one from each standing spot to the middle."""
-    found = []
+    """One view inside each door looking across the inside's middle (the door's mirror through it), one from each
+    standing spot to the middle at its own level or to the plan item it looks at on the floor; each eye at standing
+    height over its level."""
+    found, middle = [], middle_of(plan)
     for door in plan["doors"]:
-        middle = np.asarray(door["middle"], dtype=float)
-        eye = middle - outward(door["side"]) * VIEW_IN
-        aim = -middle
-        found.append({"name": f"from-{door['side']}-door", "eye": [round(eye[0], 3), eye_height, round(eye[2], 3)],
-                      "aim": [round(aim[0], 3), AIM_HEIGHT, round(aim[2], 3)], "fov": VIEW_FOV,
-                      "from": f"plan door {door['plan_side']} ({door['what']}), looking across"})
-    for number, (x, z) in enumerate(plan["standing"], 1):
-        found.append({"name": f"spot-{number}", "eye": [round(x, 3), eye_height, round(z, 3)],
-                      "aim": [0.0, AIM_HEIGHT, 0.0], "fov": VIEW_FOV,
-                      "from": f"plan standing spot {number}, looking to the middle"})
+        at = np.asarray(door["middle"], dtype=float)
+        eye = at - np.asarray(door["normal"], dtype=float) * VIEW_IN
+        aim = 2 * middle - at[[0, 2]]
+        found.append({"name": f"from-{door['side']}-door" + (f"-at-{door['level']:g}" if door["level"] else ""),
+                      "eye": [round(eye[0], 3), round(at[1] + eye_height, 3), round(eye[2], 3)],
+                      "aim": [round(aim[0], 3), round(at[1] + AIM_HEIGHT, 3), round(aim[1], 3)], "fov": VIEW_FOV,
+                      "from": f"plan door {door['name']} ({door['what']}), looking across"})
+    for number, spot in enumerate(plan["standing"], 1):
+        aim = item_middle(plan, spot["looks_at"]) if spot["looks_at"] else middle
+        aim_level = plan["floor_height"] if spot["looks_at"] else spot["level"]
+        found.append({"name": f"spot-{number}",
+                      "eye": [round(spot["at"][0], 3), round(spot["level"] + eye_height, 3), round(spot["at"][1], 3)],
+                      "aim": [round(aim[0], 3), round(aim_level + AIM_HEIGHT, 3), round(aim[1], 3)],
+                      "fov": VIEW_FOV, "from": f"plan standing spot {number}, looking to " +
+                                              (f"plan item {spot['looks_at']!r}" if spot["looks_at"] else "the middle")})
     return found
 
 
@@ -259,12 +273,15 @@ def views(plan, eye_height):
 
 def record_of(place, plan, inputs):
     """The place's scene record from its plan and the world's records (module docstring)."""
-    if not plan["inside"] or not plan["walls"].get("rise"):
-        raise NotImplementedError(f"{place}: the writer makes domed rooms only so far; its plan is no domed room")
-    walls = plan["walls"]
-    seated = seats(inputs).get(place)
+    grounds = seats(inputs)
+    seated = grounds.get(place)
     if seated is None:
         raise ValueError(f"{place}: no seat on a made ground and no module of the base: its world body is unknown")
+    if plan["shell"] == "kit":
+        return kit_record(place, plan, inputs, grounds)
+    if not plan["inside"] or not plan["walls"].get("rise"):
+        raise NotImplementedError(f"{place}: its plan's shell is domed but it is no domed room")
+    walls = plan["walls"]
     body = seated.ground
     indoor = read(inputs["sky"])[body]["indoor"]
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
@@ -275,7 +292,31 @@ def record_of(place, plan, inputs):
             "floor": [[-walls["wide"] / 2, -walls["deep"] / 2], [walls["wide"] / 2, walls["deep"] / 2]],
             "ceiling": round(walls["high"] + walls["rise"], 4), "inside": True,
             "structure": shell(plan), "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body),
-            "views": views(plan, eye), "places": places_of(place, plan, inputs)}
+            "views": views(plan, eye), "places": places_of(place, plan, inputs, grounds)}
+
+
+def kit_record(place, plan, inputs, grounds):
+    """The scene record of a place whose kit holds its walls and floors (kit_shell.py's docstring)."""
+    seated = grounds[place]
+    sky = {**read(inputs["sky"])[seated.ground], "body": seated.ground}
+    kit = read(pathlib.Path(inputs["kits"]) / f"{place}.json")
+    pose = kit_shell.shared_pose(place, grounds, sky, pose_in)
+    eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
+    record = {"place": place,
+              "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
+                       f"its kit's lamps, the made ground's seats and the world's sky record. Frame: its kit's, "
+                       f"{sky['frame_of']}'s frame moved to its seat.",
+              "floor": plan["floor"], "inside": plan["inside"], "structure": kit_shell.block(plan),
+              "objects": kit_shell.objects(plan),
+              "lights": kit_shell.lamps(plan, kit, sky) + [kit_shell.moonlight(sky, pose)],
+              "moon": kit_shell.moon(sky, pose), "kit_glow": kit_shell.kit_glow(sky),
+              "environment": kit_shell.environment(plan, sky, pose), "views": views(plan, eye),
+              "places": places_of(place, plan, inputs, grounds)}
+    if seated.made.get("water"):
+        record["water"] = kit_shell.water(sky, seated.made, pose)
+    if plan["inside"]:
+        record["ceiling"] = round(plan["floor_height"] + plan["walls"]["high"], 4)
+    return record
 
 
 def make(inputs, out, seed, params):

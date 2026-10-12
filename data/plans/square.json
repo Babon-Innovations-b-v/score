@@ -1,5 +1,18 @@
 {
  "title": "THE SQUARE (seen from the balcony, never walked)",
+ "shell": "kit",
+ "inside": false,
+ "frame": {
+  "anchor": {
+   "plan": [60.0, 3.0],
+   "place": [-4.3, 0.0, -3.5]
+  },
+  "toward": {
+   "plan": [60.0, 47.05],
+   "place": [-48.03, 0.0, -4.84]
+  },
+  "why": "the square's frame is EarthSite's own (the street's), the square at the street's level: the plan, drawn down the balcony's view, stands its balcony on the flat's balcony (x -4.3, z -3.5) and its stage on the stage the kit lays (x -48.03, z -4.84)"
+ },
  "w": 120.0,
  "d": 110.0,
  "corner": 0.0,
@@ -7,155 +20,132 @@
  "grid": 10.0,
  "doors": [],
  "items": [
-  [
-   "FLAT'S BLOCK + BALCONY (eye 10.6 m)",
-   50.0,
-   0.0,
-   20.0,
-   6.0,
-   null,
-   "building"
-  ],
-  [
-   "SQUARE 120 x 74",
-   0.0,
-   6.0,
-   120.0,
-   74.0,
-   null,
-   "zone"
-  ],
-  [
-   "TERRACE 2.4",
-   10.0,
-   8.0,
-   100.0,
-   7.0,
-   null,
-   "raised"
-  ],
-  [
-   "TERRACE 1.6",
-   10.0,
-   15.0,
-   100.0,
-   7.0,
-   null,
-   "raised"
-  ],
-  [
-   "TERRACE 0.8",
-   10.0,
-   22.0,
-   100.0,
-   7.0,
-   null,
-   "raised"
-  ],
-  [
-   "CROWD (10,000 at most)",
-   6.0,
-   29.0,
-   108.0,
-   12.0,
-   null,
-   "crowd"
-  ],
-  [
-   "STAGE 19.5 x 11.1, deck 3.3",
-   50.25,
-   41.5,
-   19.5,
-   11.1,
-   null,
-   "item"
-  ],
-  [
-   "BACKDROP 14.4 m",
-   50.25,
-   52.0,
-   19.5,
-   0.6,
-   null,
-   "item"
-  ],
-  [
-   "CROWD",
-   6.0,
-   41.0,
-   42.0,
-   30.0,
-   null,
-   "crowd"
-  ],
-  [
-   "CROWD",
-   72.0,
-   41.0,
-   42.0,
-   30.0,
-   null,
-   "crowd"
-  ],
-  [
-   "FLOODLIGHT 18 m",
-   2.0,
-   8.0,
-   2.0,
-   2.0,
-   null,
-   "item"
-  ],
-  [
-   "FLOODLIGHT 18 m",
-   116.0,
-   8.0,
-   2.0,
-   2.0,
-   null,
-   "item"
-  ],
-  [
-   "FLOODLIGHT 18 m",
-   2.0,
-   76.0,
-   2.0,
-   2.0,
-   null,
-   "item"
-  ],
-  [
-   "FLOODLIGHT 18 m",
-   116.0,
-   76.0,
-   2.0,
-   2.0,
-   null,
-   "item"
-  ],
-  [
-   "WATERFRONT PROMENADE",
-   0.0,
-   80.0,
-   120.0,
-   26.0,
-   null,
-   "zone"
-  ],
-  [
-   "HARBOUR (to the launch pad, 272 m)",
-   0.0,
-   106.0,
-   120.0,
-   4.0,
-   null,
-   "water"
-  ]
+  ["THE FLAT'S BLOCK ROW (the near facades, balcony bays)", 20.0, 0.0, 80.0, 3.0, "S", "building"],
+  ["SQUARE PAVING and ROADS", 0.0, 6.0, 120.0, 74.0, null, "floor"],
+  ["TERRACE 2.4", 10.0, 8.0, 100.0, 7.0, null, "raised"],
+  ["TERRACE 1.6", 10.0, 15.0, 100.0, 7.0, null, "raised"],
+  ["TERRACE 0.8", 10.0, 22.0, 100.0, 7.0, null, "raised"],
+  ["CROWD (10,000 at most)", 6.0, 29.0, 108.0, 12.0, null, "zone"],
+  ["STAGE 19.5 x 11.1, deck 3.3", 50.25, 41.5, 19.5, 11.1, null, "item"],
+  ["BACKDROP 14.4 m", 50.25, 52.0, 19.5, 0.6, null, "item"],
+  ["CROWD (west of the stage)", 6.0, 41.0, 42.0, 30.0, null, "zone"],
+  ["CROWD (east of the stage)", 72.0, 41.0, 42.0, 30.0, null, "zone"],
+  ["FLOODLIGHT 18 m", 22.0, 52.9, 2.0, 2.0, null, "item"],
+  ["FLOODLIGHT 18 m", 102.0, 50.4, 2.0, 2.0, null, "item"],
+  ["FLOODLIGHT 18 m", 34.5, 66.5, 2.0, 2.0, null, "item"],
+  ["FLOODLIGHT 18 m", 88.4, 64.8, 2.0, 2.0, null, "item"],
+  ["SQUARE LAMPS and LANTERN STRINGS (6 m)", 3.0, 12.0, 123.0, 63.0, null, "item"],
+  ["FLAG POLES (aisles and stage)", 0.0, 0.0, 120.0, 80.0, null, "item"],
+  ["CROWD BANNERS (terraces)", 12.0, 6.0, 88.0, 22.0, null, "item"],
+  ["GUARD HUT", 74.4, 44.2, 2.0, 2.0, null, "item"],
+  ["NEON COLUMNS (balcony bays)", 44.0, 2.0, 32.0, 2.0, null, "item"],
+  ["THE TOWN ROUND IT (facades on three sides)", -35.0, -5.0, 200.0, 90.0, null, "building"],
+  ["WATERFRONT PROMENADE (rail, palms)", 0.0, 80.0, 120.0, 26.0, null, "floor"],
+  ["HARBOUR (to the launch pad, 272 m)", 0.0, 106.0, 120.0, 4.0, null, "zone"]
  ],
- "people": [],
- "notes": [
-  "Numbers from the game (earth_site.gd: square 74 x 120 m, terraces 0.8/1.6/2.4 m, stage 11.1 x 19.5 m with a 3.3 m deck about 41.5 m out from the balcony, backdrop 14.4 m, floodlight towers 18 m, lamps 6 m, crowd up to 10,000 plus a front row under the balcony, harbour from about 106 m).",
-  "Owner: the crowd needs elevation (terraces added), no TV screen beside the stage, 'a town square with the town round it'; banners 中国第一 / 飞向月球 / 人民的月球基地.",
-  "Drawn on a 10 m grid; the north of this plan is the balcony side."
- ]
+ "rows": {
+  "THE FLAT'S BLOCK ROW (the near facades, balcony bays)": ["bay_balcony_slab", "bay_balcony_rail", "render_upper", "render_shop", "shop_shutter", "shop_sign", "facade_band", "window_dark", "window_lit", "ac_unit", "window_cage", "drainpipe"],
+  "SQUARE PAVING and ROADS": ["far_paving", "far_road"],
+  "TERRACE 2.4": ["far_terrace"],
+  "TERRACE 1.6": ["far_terrace"],
+  "TERRACE 0.8": ["far_terrace"],
+  "CROWD (10,000 at most)": [],
+  "CROWD (west of the stage)": [],
+  "CROWD (east of the stage)": [],
+  "STAGE 19.5 x 11.1, deck 3.3": ["far_stage", "far_podium", "far_lectern"],
+  "BACKDROP 14.4 m": ["far_backdrop", "far_banner"],
+  "FLOODLIGHT 18 m": ["far_floodlight_tower"],
+  "SQUARE LAMPS and LANTERN STRINGS (6 m)": ["far_square_lamp", "far_lantern", "far_cable"],
+  "FLAG POLES (aisles and stage)": ["far_flag_pole"],
+  "CROWD BANNERS (terraces)": ["crowd_banner"],
+  "GUARD HUT": ["guard_hut"],
+  "NEON COLUMNS (balcony bays)": ["far_neon_column"],
+  "THE TOWN ROUND IT (facades on three sides)": ["far_render_upper", "far_render_shop", "far_render_lower", "far_facade_band", "far_drainpipe", "far_window_dark", "far_window_lit", "far_ac_unit", "far_window_cage", "far_shop_shutter", "far_shop_sign"],
+  "WATERFRONT PROMENADE (rail, palms)": ["far_promenade", "far_promenade_rail", "far_palm"],
+  "HARBOUR (to the launch pad, 272 m)": []
+ },
+ "aims": {
+  "far_floodlight_tower": {
+   "at": "TERRACE 0.8",
+   "why": "the towers light the crowd's front rows on the terraces under the balcony"
+  }
+ },
+ "people": [
+  [60.0, 3.3, 9.0, "STAGE 19.5 x 11.1, deck 3.3"],
+  [60.0, 3.3, 9.0, "CROWD (west of the stage)"],
+  [60.0, 3.3, 9.0, "CROWD (east of the stage)"],
+  [60.0, 3.3, 9.0, "TERRACE 2.4"],
+  [60.8, 28.7, 2.4, "STAGE 19.5 x 11.1, deck 3.3"],
+  [39.0, 19.35, 1.4, "CROWD (west of the stage)"],
+  [34.6, 39.5, 4.4, "FLOODLIGHT 18 m"],
+  [66.3, 93.55, 0.4, "HARBOUR (to the launch pad, 272 m)"]
+ ],
+ "concept": {
+  "pick": "K04",
+  "picture": "{seeds}/scene/square/views/K04.png",
+  "read": "the concept K04 read element by element (concepts-world1/square/picks.json, the coordinator's pick; runner-up K06), each element mapped to the inventory's rows or dropped with its reason"
+ },
+ "elements": [
+  {
+   "element": "square paving and three terraces (0.8, 1.6, 2.4 m)",
+   "rows": ["far_paving", "far_terrace", "far_road"]
+  },
+  {
+   "element": "the crowd (up to 10,000)",
+   "drop": "people are the people stage's (its crowd casts), not the scene record's; the plan keeps their ground clear (its crowd zones)"
+  },
+  {
+   "element": "stage deck and lectern",
+   "rows": ["far_stage", "far_podium", "far_lectern"]
+  },
+  {
+   "element": "backdrop with banner (simplified Chinese)",
+   "rows": ["far_backdrop", "far_banner", "crowd_banner"]
+  },
+  {
+   "element": "red flags on poles in rows",
+   "rows": ["far_flag_pole"]
+  },
+  {
+   "element": "lantern strings over the square",
+   "rows": ["far_lantern", "far_cable"]
+  },
+  {
+   "element": "floodlight towers, 18 m, at the corners",
+   "rows": ["far_floodlight_tower"]
+  },
+  {
+   "element": "square lamps, a ring at 6 m",
+   "rows": ["far_square_lamp"]
+  },
+  {
+   "element": "palm trees along the promenade",
+   "rows": ["far_palm"]
+  },
+  {
+   "element": "promenade rail and paving on the waterfront",
+   "rows": ["far_promenade", "far_promenade_rail"]
+  },
+  {
+   "element": "harbour water beyond the promenade",
+   "drop": "the made ground's water (the terrain stage's harbour), which the record's harbour mirrors"
+  },
+  {
+   "element": "far-shore skyline ring",
+   "drop": "not a row of this place: the far city is its own place, which the plan shows (shows: far_city)"
+  },
+  {
+   "element": "balcony rail (the flat's, in the foreground)",
+   "rows": ["bay_balcony_rail", "bay_balcony_slab"]
+  }
+ ],
+ "shows": {
+  "far_city": {
+   "stage": "far_city",
+   "as": "street",
+   "why": "the far city across the harbour (the concept's skyline)"
+  }
+ },
+ "notes": ["Numbers from the game (earth_site.gd: square 74 x 120 m, terraces 0.8/1.6/2.4 m, stage 11.1 x 19.5 m with a 3.3 m deck about 41.5 m out from the balcony, backdrop 14.4 m, floodlight towers 18 m, lamps 6 m, crowd up to 10,000 plus a front row under the balcony, harbour from about 106 m).", "Owner: the crowd needs elevation (terraces added), no TV screen beside the stage, 'a town square with the town round it'; banners 中国第一 / 飞向月球 / 人民的月球基地.", "Drawn on a 10 m grid; the north of this plan is the balcony side.", "2026-10-12, the scene-record stage: the plan stood on the made kit by its balcony and its stage; the floodlights where the kit stands them (the drawing had them at the square's corners), the made pieces' rows added as items; the standing spots are the square's review cameras (the balcony and four on the square)."],
+ "leads": {}
 }

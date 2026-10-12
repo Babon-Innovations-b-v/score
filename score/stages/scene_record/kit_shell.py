@@ -1,0 +1,212 @@
+"""The scene record of a place whose kit holds its own walls and floors (plan shell `kit`): the Earth's rooms (the flat,
+the stairwell) and its open places (the street, the square, the launch view). The record holds what the kit does not:
+
+    structure    the block a room stands in (the plan's `block`): its mass over the room, from the storey line over the
+                 room's ceiling to the block's roof over the block's whole footprint, and its mass under the room, from
+                 the street to just under the room's floor over the room's floor grown by the block's walls; none for
+                 an open place
+    lights       one at each lamp the kit lays of the world body's lamp rows (the sky record's `lamps`): on its glow
+                 part's middle, else just in front of the piece; a spot aimed where the plan's `aims` says; and the
+                 body's moonlight
+    environment  the body's night sky (the sky record), its haze ring standing on the body's shared ground
+    moon, kit_glow, water   the body's (the sky record), in the place's frame; the water at the made ground's level
+    objects      each plan item a released world model makes (the plan's `objects`), on its item's middle
+    places       the seated places (writer.neighbours) and what the plan `shows` (the far city), where its frame stands
+
+The body's shared frame is the frame its sky record's numbers are written in (`frame_of`: the street's, EarthSite's
+own); the made ground's seats stand it in this place's frame.
+"""
+import json
+import math
+import pathlib
+
+import numpy as np
+
+# A light stands this far in front of a lamp piece with no glow part (metres), as a kit lamp's does.
+LAMP_OUT = 0.05
+# Two pieces of one lamp row this close are one lamp (a cage and its lens).
+SAME_LAMP = 0.3
+# The block's mass under a room stops this far under the room's floor (the kit's floorboards lie on it).
+UNDER_FLOOR = 0.02
+
+
+def read(path):
+    return json.loads(pathlib.Path(path).read_text())
+
+
+def shared_pose(place, grounds, sky, pose_in):
+    """The body's shared frame (its sky record's `frame_of` place) in this place's frame: (position, axes)."""
+    if sky["frame_of"] == place:
+        return np.zeros(3), np.eye(3)
+    return pose_in(grounds[place].laid, grounds[sky["frame_of"]].laid)
+
+
+def in_place(point, pose):
+    position, axes = pose
+    return np.asarray(point, dtype=float) @ axes + position
+
+
+# --- the block --------------------------------------------------------------------------------------------------
+
+def over_from(plan):
+    """Where the block's mass over a room starts: the first storey line at or over the room's ceiling."""
+    walls, block = plan["walls"], plan["block"]
+    storeys = (plan["floor_height"] + walls["high"] - block["street"]) / walls["storey"]
+    return block["street"] + math.ceil(storeys - 1e-6) * walls["storey"]
+
+
+def box_entry(name, low, high, surface, said):
+    low, high = np.asarray(low, dtype=float), np.asarray(high, dtype=float)
+    return {"name": name, "builder": "box", "centre": np.round((low + high) / 2, 4).tolist(),
+            "size": np.round(high - low, 4).tolist(), "surface": surface, "plain": "shell", "from": said}
+
+
+def block(plan):
+    """The block's masses over and under the room (module docstring); none without a block."""
+    found = plan.get("block")
+    if not found:
+        return []
+    said = f"plan block ({found['why']})"
+    (low_x, low_z), (high_x, high_z) = found["low"], found["high"]
+    over = over_from(plan)
+    entries = [box_entry("block_over", [low_x, over, low_z], [high_x, found["top"], high_z], found["surface"],
+                         f"{said}: over the room from the storey line {over:g} m (floor to floor "
+                         f"{plan['walls']['storey']} m over the street) to its roof")]
+    floor = plan["floor_height"]
+    if floor - found["street"] > UNDER_FLOOR:
+        (room_low_x, room_low_z), (room_high_x, room_high_z) = plan["floor"]
+        wall = found["wall"]
+        entries.append(box_entry(
+            "block_under", [max(low_x, room_low_x - wall), found["street"], max(low_z, room_low_z - wall)],
+            [min(high_x, room_high_x + wall), floor - UNDER_FLOOR, min(high_z, room_high_z + wall)],
+            found["surface"], f"{said}: under the room's floor (the plan's inside grown by the block's {wall} m "
+                              f"walls) down to the street"))
+    return entries
+
+
+# --- lights -----------------------------------------------------------------------------------------------------
+
+def lamp_spots(kit, row, lamp):
+    """Each lamp of an inventory row the kit lays: its glow parts' middles, else each piece's middle just in front of
+    it (a kit piece's front is against its z); the lamp row's `out` and `rise` (metres in front and up) when it names
+    them. A row's pieces this close together are one lamp (a cage and its lens)."""
+    kind = f"{kit['room']}_{row}"
+    pieces = [piece for piece in kit["pieces"] if piece["kind"] == kind]
+    glows = [piece for piece in pieces if piece.get("part") == "glow"]
+    found = []
+    for piece in glows or [piece for piece in pieces if "part" not in piece]:
+        size = np.asarray(piece["size"], dtype=float)
+        up, front = np.asarray(piece["y"], dtype=float), -np.asarray(piece["z"], dtype=float)
+        out = lamp.get("out", 0.0 if glows else size[2] / 2 + LAMP_OUT)
+        spot = np.asarray(piece["at"], dtype=float) + up * (size[1] / 2 + lamp.get("rise", 0.0)) + front * out
+        if all(np.linalg.norm(spot - other) > SAME_LAMP for other in found):
+            found.append(spot)
+    return found
+
+
+def aim_of(plan, aim):
+    """Where a spot lamp row aims: the middle of the plan item it names, `up` metres over the place's floor."""
+    item = next(item for item in plan["items"] if item["name"] == aim["at"])
+    low_x, low_z, high_x, high_z = item["box"]
+    return [round((low_x + high_x) / 2, 4), round(plan["floor_height"] + aim.get("up", 0.0), 4),
+            round((low_z + high_z) / 2, 4)]
+
+
+def lamps(plan, kit, sky):
+    """A light at each lamp of the body's lamp rows the kit lays here (module docstring)."""
+    found = []
+    for row, lamp in sky["lamps"].items():
+        numbers = {key: value for key, value in lamp.items() if key not in ("from", "out", "rise")}
+        for number, spot in enumerate(lamp_spots(kit, row, lamp), 1):
+            light = {**numbers, "at": np.round(spot, 4).tolist(),
+                     "from": f"inventory row {row}, its lamp {number} as the kit lays it; numbers from the sky record "
+                             f"(data/definitions/sky.json) {sky['body']} lamps ({lamp['from']})"}
+            if lamp["type"] == "spot":
+                aim = plan["aims"][row]
+                light["aim"] = aim_of(plan, aim)
+                light["from"] += f"; aimed at plan item {aim['at']!r}"
+            found.append(light)
+    return found
+
+
+def moonlight(sky, pose):
+    light = sky["moonlight"]
+    return {**{key: value for key, value in light.items() if key != "from"},
+            "toward": np.round(np.asarray(light["toward"], dtype=float) @ pose[1], 6).tolist(),
+            "from": f"sky record (data/definitions/sky.json) {sky['body']} moonlight ({light['from']})"}
+
+
+# --- the body's sky, moon, glow and water -----------------------------------------------------------------------
+
+def environment(plan, sky, pose):
+    """The body's night sky, inside or out as the plan says, its haze ring standing on the shared ground."""
+    night = sky["night"]
+    ground = float(pose[0][1])
+    haze = dict(night["haze"])
+    haze.update({"low": round(ground, 4), "high": round(ground + haze.pop("tall"), 4)})
+    return {**{key: value for key, value in night.items() if key not in ("haze", "from")}, "inside": plan["inside"],
+            "haze": haze,
+            "from": f"sky record (data/definitions/sky.json) {sky['body']} night ({night['from']}); the haze ring on "
+                    f"the shared ground ({sky['frame_of']}'s frame, its seat)"}
+
+
+def moon(sky, pose):
+    found = sky["moon"]
+    return {**{key: value for key, value in found.items() if key != "from"},
+            "way": np.round(np.asarray(found["way"], dtype=float) @ pose[1], 6).tolist(),
+            "eye": np.round(in_place(found["eye"], pose), 4).tolist(),
+            "from": f"sky record (data/definitions/sky.json) {sky['body']} moon ({found['from']})"}
+
+
+def water(sky, made, pose):
+    """The body's water at the made ground's level, its mirror's lit columns on the shared ground."""
+    harbour = sky["harbour"]
+    level = float(pose[0][1]) + float(made["water"]["level"])
+    mirror = {**harbour["mirror"], "lit": [
+        {**column, "at": np.round(in_place([column["at"][0], 0.0, column["at"][1]], pose)[[0, 2]], 4).tolist(),
+         "low": round(float(pose[0][1]) + column["low"], 4), "high": round(float(pose[0][1]) + column["high"], 4)}
+        for column in harbour["mirror"]["lit"]]}
+    low = in_place([harbour["low"][0], 0.0, harbour["low"][1]], pose)
+    high = in_place([harbour["high"][0], 0.0, harbour["high"][1]], pose)
+    return [{"name": "harbour", "builder": "grid", "low": np.round(low[[0, 2]], 4).tolist(),
+             "high": np.round(high[[0, 2]], 4).tolist(), "height": round(level, 4), "surface": made["water"]["surface"],
+             "step": harbour["step"], "mirror": mirror,
+             "from": f"the made ground's water (terrain stage: level {made['water']['level']} m, surface "
+                     f"{made['water']['surface']}); its reach and mirror from the sky record (data/definitions/"
+                     f"sky.json) {sky['body']} harbour ({harbour['from']})"}]
+
+
+def kit_glow(sky):
+    return {**{key: value for key, value in sky["kit_glow"].items() if key != "from"},
+            "from": f"sky record (data/definitions/sky.json) {sky['body']} kit_glow ({sky['kit_glow']['from']})"}
+
+
+# --- objects and shown places -----------------------------------------------------------------------------------
+
+def objects(plan):
+    """Each plan item a released world model makes (the plan's `objects`), on its item's middle at its level."""
+    found = []
+    for item in plan["items"]:
+        made = plan["objects"].get(item["name"])
+        if made is None:
+            continue
+        low_x, low_z, high_x, high_z = item["box"]
+        entry = {"name": made["name"], "model": made["model"],
+                 "at": [round((low_x + high_x) / 2, 4), round(plan["floor_height"] + made.get("level", 0.0), 4),
+                        round((low_z + high_z) / 2, 4)],
+                 **{key: made[key] for key in ("row", "yaw", "height", "stretch", "kind") if key in made},
+                 "from": f"plan item {item['name']!r}: the released model {made['model']} ({made['why']})"}
+        found.append(entry)
+    return found
+
+
+def shown(plan, place, grounds, pose_in, quaternion):
+    """Each place the plan shows that no made ground seats, where the frame it is laid in stands (its `as`)."""
+    found = []
+    for name, show in sorted(plan["shows"].items()):
+        position, axes = (np.zeros(3), np.eye(3)) if show["as"] == place else \
+            pose_in(grounds[place].laid, grounds[show["as"]].laid)
+        found.append({"name": name, "stage": show["stage"], "at": np.round(position, 4).tolist(),
+                      "rotation": quaternion(axes),
+                      "from": f"plan shows {name} ({show['why']}), laid in {show['as']}'s frame, its seat"})
+    return found

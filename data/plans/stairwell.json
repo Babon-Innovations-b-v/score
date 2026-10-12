@@ -1,87 +1,73 @@
 {
- "title": "STAIRWELL (one floor; six flights from 9 m to the street)",
- "w": 3.0,
+ "title": "STAIRWELL (four storeys; six flights from the street to the flat's landing at 9 m)",
+ "inventory": "prologue_stairwell",
+ "shell": "kit",
+ "inside": true,
+ "frame": {"anchor": {"plan": [0.0, 0.0], "place": [3.2, 0.0, -6.0]}, "why": "the kit lays the core in the street's frame (EarthSite's): its walls' inner faces at x 3.2 and 6.0, z -6.0 and -1.0, the street at 0"},
+ "w": 2.8,
  "d": 5.0,
  "corner": 0.0,
- "height": "floor to floor 3.0 m, each flight 1.5 m in 9 risers",
+ "height": "four storeys, floor to floor 3.0 m, ceiling 11.8 m; each flight 1.5 m in 9 risers",
+ "block": {"low": [-3.2, -6.2], "high": [6.2, -0.8], "street": 0.0, "top": 24.0, "wall": 0.2, "surface": "whitewash", "why": "the flat's block, 24 m tall on the west of the street (the street's plan): the flat and its stairwell side by side inside 0.2 m walls"},
  "doors": [
-  [
-   "S",
-   0.8,
-   1.0,
-   "FLAT FRONT DOOR (3rd floor)"
-  ],
-  [
-   "E",
-   4.4,
-   1.0,
-   "NEIGHBOUR'S GATE"
-  ]
+  ["W", 4.4, 1.0, "FLAT FRONT DOOR (3rd floor) 1.0 x 2.2 m", 9.0],
+  ["W", 4.4, 1.0, "NEIGHBOUR'S DOOR behind its gate (1st floor) 1.0 x 2.2 m", 3.0],
+  ["W", 4.4, 1.0, "NEIGHBOUR'S DOOR behind its gate (2nd floor) 1.0 x 2.2 m", 6.0],
+  ["E", 4.4, 1.0, "STREET DOOR (steel gate) 1.0 x 2.2 m", 0.0]
  ],
+ "leads": {
+  "W@9": {"to": "flat", "why": "the flat's front door on the top landing: the flat (seated on the Earth's ground 9 m up) lies past it"},
+  "W@3": {"to": "sealed", "why": "a neighbour's flat behind its door and security gate, which no place of the world holds: the kit lays the door's frame, leaf and gate against an uncut wall"},
+  "W@6": {"to": "sealed", "why": "a neighbour's flat behind its door and security gate, which no place of the world holds: the kit lays the door's frame, leaf and gate against an uncut wall"},
+  "E": {"to": "street", "why": "the street door at the foot of the stairs opens onto the street, where the guard stands"}
+ },
  "items": [
-  [
-   "HALF LANDING 1.2 m",
-   0.0,
-   0.0,
-   3.0,
-   1.2,
-   null,
-   "zone"
-  ],
-  [
-   "FLIGHT DOWN (9 risers)",
-   0.0,
-   1.2,
-   1.35,
-   2.6,
-   null,
-   "stair"
-  ],
-  [
-   "FLIGHT UP (9 risers)",
-   1.65,
-   1.2,
-   1.35,
-   2.6,
-   null,
-   "stair"
-  ],
-  [
-   "FLOOR LANDING 1.2 m",
-   0.0,
-   3.8,
-   3.0,
-   1.2,
-   null,
-   "zone"
-  ],
-  [
-   "METER BOXES",
-   2.6,
-   0.1,
-   0.4,
-   0.8,
-   null,
-   "item"
-  ],
-  [
-   "CAGED LAMP (each landing)",
-   1.35,
-   0.1,
-   0.3,
-   0.3,
-   null,
-   "item"
-  ]
+  ["HALF LANDING 1.2 m (each storey)", 0.0, 0.0, 2.8, 1.2, null, "floor"],
+  ["FLIGHT (9 risers, each storey's first)", 0.0, 1.2, 1.35, 2.6, null, "stair"],
+  ["FLIGHT (9 risers, each storey's second)", 1.45, 1.2, 1.35, 2.6, null, "stair"],
+  ["FLOOR LANDING 1.2 m (each storey)", 0.0, 3.8, 2.8, 1.2, null, "floor"],
+  ["FLAT DOORS with gates and couplets (each landing, west)", 0.0, 3.7, 0.3, 1.4, "E", "item"],
+  ["METER BOXES (each landing, east)", 2.5, 4.1, 0.3, 0.8, "W", "item"],
+  ["CAGED LAMP (each landing)", 1.95, 0.0, 0.3, 0.3, "S", "item"],
+  ["LETTERBOXES (ground)", 0.35, 4.6, 0.8, 0.3, "N", "item"],
+  ["NOTICE BOARD (ground)", 0.0, 1.35, 0.1, 0.9, "E", "item"],
+  ["FIRE EXTINGUISHER and HOSE CABINET (landings)", 2.3, 0.0, 0.5, 5.0, null, "item"],
+  ["CABLE DROP and WIRING (east wall, full height)", 2.6, 3.0, 0.2, 2.0, "W", "item"]
  ],
+ "rows": {
+  "HALF LANDING 1.2 m (each storey)": ["landing"],
+  "FLIGHT (9 risers, each storey's first)": ["stair_flight", "stair_rail"],
+  "FLIGHT (9 risers, each storey's second)": ["stair_flight", "stair_rail"],
+  "FLOOR LANDING 1.2 m (each storey)": ["landing", "balcony_rail"],
+  "FLAT DOORS with gates and couplets (each landing, west)": ["timber_door_frame", "timber_door_leaf", "security_gate", "wall_print"],
+  "METER BOXES (each landing, east)": ["meter_cabinet", "exit_sign"],
+  "CAGED LAMP (each landing)": ["cage_bulkhead"],
+  "LETTERBOXES (ground)": ["letterboxes", "street_gate"],
+  "NOTICE BOARD (ground)": ["lobby_notice"],
+  "FIRE EXTINGUISHER and HOSE CABINET (landings)": ["extinguisher", "fire_hose_cabinet"],
+  "CABLE DROP and WIRING (east wall, full height)": ["cable_drop", "pipe_straight", "wiring_box"]
+ },
  "people": [
-  [
-   0.7,
-   4.4
-  ]
+  [1.4, 0.8, 7.5],
+  [2.1, 4.5, 0.0, "LETTERBOXES (ground)"]
+ ],
+ "concept": {"pick": "K02", "picture": "{seeds}/scene/prologue_stairwell/views/K02.png", "read": "the concept K02's section read element by element (concepts-world1/stairwell/picks.json, the coordinator's pick), each element mapped to the inventory's rows, a plan door, or dropped with its reason"},
+ "elements": [
+  {"element": "stair core shell: concrete walls with green lower band, landings, flights (six flights)", "rows": ["plaster_wall", "plaster_ceiling", "landing", "stair_flight"]},
+  {"element": "steel stair rail on each flight's inner edge", "rows": ["stair_rail", "balcony_rail"]},
+  {"element": "flat door with metal security gate and red couplets, one a floor", "rows": ["timber_door_frame", "timber_door_leaf", "security_gate", "wall_print"]},
+  {"element": "caged bulkhead lamp, one a landing", "rows": ["cage_bulkhead"]},
+  {"element": "meter box cluster, one a floor", "rows": ["meter_cabinet"]},
+  {"element": "letterbox bank in the ground lobby", "rows": ["letterboxes"]},
+  {"element": "notice board with papers in the ground lobby", "rows": ["lobby_notice"]},
+  {"element": "exit sign over the doors", "rows": ["exit_sign"]},
+  {"element": "fire extinguishers on the landings", "rows": ["extinguisher", "fire_hose_cabinet"]},
+  {"element": "Moon-flight poster on the landings", "rows": ["wall_print"]},
+  {"element": "cable bundle and conduit up the wall, full height", "rows": ["cable_drop", "pipe_straight", "wiring_box"]},
+  {"element": "street door (steel gate) at the ground", "door": "E", "rows": ["street_gate"]}
  ],
  "notes": [
   "Numbers from the game (earth_site.gd: stair core 3 x 5 m, six switchback flights each 1.5 m in 9 risers, two lanes 1.35 m, landings 1.2 m; landings at 9, 7.5, 6, 4.5, 3, 1.5, 0 m; street_fittings.gd floor names, couplets, meter boxes, letterboxes, poster, exit signs).",
-  "At the bottom: letterboxes and the street door, where the guard stands."
+  "2026-10-12, the scene-record stage: the plan redrawn on the made kit's frame (its inside 2.8 x 5 m between the walls' inner faces; the old drawing's 3 m was the core to its walls' outside), its doors where the kit cuts them (the flat's door and the neighbours' on the west wall at each storey, the street door on the east at the foot), and the ground lobby's pieces added from the concept."
  ]
 }

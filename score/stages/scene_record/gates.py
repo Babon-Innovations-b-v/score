@@ -4,9 +4,16 @@
                   the game's class names): the record is made from the plan, never transcribed
     plan-matched  the shell is the plan's: inside, corners, walls' height and dome within TOLERANCE once the backing is
                   taken off, the floor box the plan's inside, every door the plan cuts cut at its wide and tall in its
-                  wall's middle (room_walls cuts there only), every shut door uncut
+                  wall's middle (room_walls cuts there only), every shut door uncut. A kit shell (the Earth's): the
+                  floor box the plan's inside, the block's masses on the plan's block (over: its footprint from a
+                  storey line over the room's ceiling to its roof; under: the room's inside grown by its walls, from
+                  the street to the floor), no other structure, and the kit's doorways the plan's doors: each cut door
+                  a kit doorway at its middle (along its wall; out of it, within the piece's thickness), wide and tall,
+                  no doorway at a shut door, no open doorway off the plan (one a kit piece fills, a shopfront, is
+                  none)
     openings      every doorway leads somewhere: the record's shell with its places (each door's leaves left out, as
-                  opened) composed over the made ground in the place's frame (terrain outside.py), every cut doorway
+                  opened; a kit shell's own kit floors with it) composed over the made ground in the place's frame
+                  (terrain outside.py), every cut doorway
                   has a floor on both sides and no view from inside runs out below the horizon into nothing
                   (terrain sight.py); a door that leads to a place has that place's floor past it
     seed-matched  every entry of the old record (the seed, data/scene/<place>.json, never read by the writer) is matched
@@ -31,10 +38,24 @@ GAME = re.compile(r"\.(gd|tscn|tres|gdshader)\b|res://|(^|[\s(])(game|sim)/\w|Mo
 TOLERANCE = 0.05
 # A matched entry stands this close to its seed (metres); a view's eye this close.
 MATCH_REACH = 2.0
-# What the writer leaves out of a record on purpose, by the old record's section.
+# What the writer leaves out of a record on purpose: by the old record's section, or one entry as
+# `<place>:<section>/<name>`.
 SEED_REASONS = {
     "game_only": "the record holds no notes about the game: what the concept shows is an inventory row or a plan item",
+    "owner_rejected": "what the owner took out is in no plan item, concept element or inventory row, so nothing "
+                      "writes it back: the record needs no list of it",
+    "ground": "the made ground (the terrain stage) is the ground round the place: the assembly sublayers it, so the "
+              "record draws no ground of its own",
+    "moved": "the record moves no kit piece: the plan's door stands where the plan and the kit put it",
+    "launch:objects/rocket": "the rocket stands on its pad's middle as the kit lays the pad's tiles (the plan's ROCKET "
+                             "item), 3.6 m from where the old record stood it off that middle",
+    "launch:lights/spot": "the rocket's one floodlight is now the pad's four (inventory row far_pad_floodlight), each "
+                          "lit at its lamp and aimed at the rocket's middle",
 }
+# A kit doorway: an opening in a kit piece (a wall, a facade) from its foot up, at least this tall.
+DOORWAY_TALL = 1.9
+# A doorway with another kit piece standing this close to its middle is filled (a shopfront's shutter or lit front).
+FILLED = 0.3
 
 
 def strings(value, path=""):
@@ -111,11 +132,107 @@ def door_faults(record, plan):
     return found
 
 
+def floor_faults(record, plan):
+    if np.abs(np.asarray(record["floor"], dtype=float) - np.asarray(plan["floor"], dtype=float)).max() > TOLERANCE:
+        return [f"floor {record['floor']} is not the plan's inside {plan['floor']}"]
+    return []
+
+
+def box_span(entry):
+    """A box entry's low and high corners."""
+    centre, size = np.asarray(entry["centre"], dtype=float), np.asarray(entry["size"], dtype=float)
+    return centre - size / 2, centre + size / 2
+
+
+def block_faults(record, plan):
+    """The block's masses against the plan's block (module docstring); no other structure."""
+    block, walls = plan.get("block"), plan["walls"]
+    made = {entry["name"]: entry for entry in record["structure"]}
+    if not block:
+        return [f"structure {name} where the plan has no block" for name in made]
+    found = [f"structure {name} is no mass of the plan's block" for name in made
+             if name not in ("block_over", "block_under")]
+    if "block_over" not in made:
+        return found + ["no block_over: the plan's block has nothing over the room"]
+    low, high = box_span(made["block_over"])
+    lines = (low[1] - block["street"]) / walls["storey"]
+    ceiling = plan["floor_height"] + walls["high"]
+    if abs(lines - round(lines)) * walls["storey"] > TOLERANCE or not ceiling - TOLERANCE <= low[1] < ceiling + walls["storey"]:
+        found.append(f"block_over starts at {low[1]:.2f} m, not the first storey line over the room's ceiling "
+                     f"({ceiling:g} m)")
+    wanted = [block["low"][0], block["top"], block["low"][1]], [block["high"][0], block["top"], block["high"][1]]
+    if np.abs(low[[0, 2]] - np.asarray(wanted[0])[[0, 2]]).max() > TOLERANCE or             np.abs(high - np.asarray(wanted[1])).max() > TOLERANCE:
+        found.append(f"block_over {low.round(2).tolist()} to {high.round(2).tolist()} is not the plan's block "
+                     f"{block['low']} to {block['high']} up to {block['top']} m")
+    under = plan["floor_height"] - block["street"] > TOLERANCE
+    if under != ("block_under" in made):
+        found.append("block_under " + ("missing under a room over the street" if under else "under a room on the street"))
+    elif under:
+        low, high = box_span(made["block_under"])
+        (room_low_x, room_low_z), (room_high_x, room_high_z) = plan["floor"]
+        grown = [room_low_x - block["wall"], room_low_z - block["wall"], room_high_x + block["wall"],
+                 room_high_z + block["wall"]]
+        if abs(low[1] - block["street"]) > TOLERANCE or abs(high[1] - plan["floor_height"]) > TOLERANCE or                 np.abs(np.array([low[0], low[2], high[0], high[2]]) - grown).max() > TOLERANCE:
+            found.append(f"block_under {low.round(2).tolist()} to {high.round(2).tolist()} is not the room's inside "
+                         f"grown by {block['wall']} m from the street to its floor")
+    return found
+
+
+def kit_doorways(kit):
+    """Every doorway the kit's pieces cut: its middle on its sill (in the piece's thickness), wide, tall and the
+    piece's thickness."""
+    found = []
+    for piece in kit.get("pieces", []):
+        for low_u, low_v, high_u, high_v in piece.get("openings") or []:
+            if low_v > TOLERANCE or high_v - low_v < DOORWAY_TALL:
+                continue
+            across, up = (np.asarray(piece[axis], dtype=float) for axis in ("x", "y"))
+            middle = np.asarray(piece["at"], dtype=float) + across * (low_u + high_u) / 2 + up * low_v
+            filled = any(np.linalg.norm(np.asarray(other["at"], dtype=float) - middle) <= FILLED
+                         for other in kit["pieces"] if other["kind"] != piece["kind"])
+            found.append({"middle": middle, "filled": filled,
+                          "wide": high_u - low_u, "tall": high_v - low_v, "deep": float(piece["size"][2]),
+                          "piece": piece.get("model", piece["kind"])})
+    return found
+
+
+def kit_door_faults(plan, kit):
+    """Each cut plan door a kit doorway at its middle, wide and tall; no doorway at a shut door or off the plan."""
+    doorways, found = kit_doorways(kit), []
+    for door in plan["doors"]:
+        name = f"door {door['name']} ({door['what']})"
+        middle = np.asarray(door["middle"], dtype=float)
+        near = [way for way in doorways if np.linalg.norm(way["middle"] - middle) <= max(TOLERANCE, door["wide"] / 2)]
+        if not door["cut"]:
+            found += [f"{name} is shut ({door['why']}) but the kit cuts a doorway at {way['middle'].round(2).tolist()}"
+                      for way in near]
+        elif not near:
+            found.append(f"{name} leads {door['leads']} but no kit doorway stands at {middle.round(2).tolist()}")
+        else:
+            way = min(near, key=lambda way: np.linalg.norm(way["middle"] - middle))
+            off = way["middle"] - middle
+            out = abs(float(off @ np.asarray(door["normal"], dtype=float)))
+            along = float(np.linalg.norm(off - off @ np.asarray(door["normal"], dtype=float) * np.asarray(door["normal"])))
+            if along > TOLERANCE or out > way["deep"] / 2 + TOLERANCE or abs(way["wide"] - door["wide"]) > TOLERANCE \
+                    or abs(way["tall"] - door["tall"]) > TOLERANCE:
+                found.append(f"{name}: the kit's doorway stands {along:.2f} m along and {out:.2f} m out of its wall "
+                             f"line off, {way['wide']:.2f} x {way['tall']:.2f} m against the plan's {door['wide']} x "
+                             f"{door['tall']} m")
+        doorways = [way for way in doorways if not any(way is other for other in near)]
+    found += [f"the kit cuts a doorway at {way['middle'].round(2).tolist()} ({way['piece']}) where the plan has no door"
+              for way in doorways if not way["filled"]]
+    return found
+
+
 def judge_plan_matched(output, inputs, evidence):
     """Fail on a shell number or a door off the plan."""
-    _, record = writer.record_in(output)
+    place, record = writer.record_in(output)
     plan = plan_of(inputs)
-    found = tuple(shell_faults(record, plan["walls"]) + door_faults(record, plan))
+    if plan["shell"] == "kit":
+        kit = json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text())
+        found = tuple(floor_faults(record, plan) + block_faults(record, plan) + kit_door_faults(plan, kit))
+    else:
+        found = tuple(shell_faults(record, plan["walls"]) + door_faults(record, plan))
     reason = "; ".join(found[:3]) if found else \
         f"shell, floor and {len(plan['doors'])} doors on the plan within {TOLERANCE} m"
     return checks.Verdict("plan-matched", checks.FAIL if found else checks.PASS, reason, {"faults": len(found)},
@@ -150,13 +267,34 @@ def bare_stage(place):
     return stage
 
 
+def kit_floors(kit):
+    """The kit's floor pieces (its kinds' group `floors`) as box entries round each piece (x across and z out
+    centred on its `at`, y up from it).
+    shortcut: a box round the piece, exact for a piece square to the axes (every Earth floor), wider for a turned one."""
+    floors = {kind for kind, about in kit.get("kinds", {}).items() if about.get("group") == "floors"}
+    found = []
+    for number, piece in enumerate(piece for piece in kit.get("pieces", []) if piece["kind"] in floors):
+        axes = np.array([piece[axis] for axis in ("x", "y", "z")], dtype=float)
+        size = np.asarray(piece["size"], dtype=float)
+        corners = np.array([[across, up, out] for across in (-0.5, 0.5) for up in (0.0, 1.0) for out in (-0.5, 0.5)])
+        laid = np.asarray(piece["at"], dtype=float) + (corners * size) @ axes
+        low, high = laid.min(axis=0), laid.max(axis=0)
+        found.append({"name": f"kit_floor_{number}", "builder": "box", "centre": ((low + high) / 2).tolist(),
+                      "size": (high - low).tolist(), "surface": "kit_floor"})
+    return found
+
+
 def composed(output, inputs):
-    """The record's shell and places over the made ground, in the place's frame: (stage, laid ground or None)."""
+    """The record's shell and places over the made ground, in the place's frame (a kit shell's own floors with them):
+    (stage, laid ground or None)."""
     place, record = writer.record_in(output)
     stage = bare_stage(place)
-    for surface in {item["surface"] for item in record.get("structure", []) if item.get("surface")}:
+    structure = record.get("structure", [])
+    if plan_of(inputs)["shell"] == "kit":
+        structure = structure + kit_floors(json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text()))
+    for surface in {item["surface"] for item in structure if item.get("surface")}:
         UsdShade.Material.Define(stage, f"/{place}/Library/{surface}")  # bound only: rays see shapes, not paint
-    outside.scene_records.write_structure(stage, place, record.get("structure", []), out=pathlib.Path(output))
+    outside.scene_records.write_structure(stage, place, structure, out=pathlib.Path(output))
     stand_places(stage, place, record.get("places", []), inputs["seeds"])
     seat = writer.seats(inputs).get(place)
     if seat is None:
@@ -180,7 +318,7 @@ def lead_faults(output, inputs, plan):
         stand_places(stage, place, [item for item in record.get("places", []) if item["stage"] == door["leads"]],
                      inputs["seeds"])
         seen = sight.gathered(stage)
-        spot = writer.door_outside(door) + writer.outward(door["side"]) * ground_gates.DOOR_OUT
+        spot = writer.door_outside(door) + np.asarray(door["normal"], dtype=float) * ground_gates.DOOR_OUT
         drop = np.inf if not len(seen.faces) else \
             ground_gates.drops(ground_gates.caster(seen), np.array([spot + [0.0, 1.0, 0.0]]), [0.0, -1.0, 0.0])[0] - 1.0
         if not drop <= ground_gates.DOOR_DROP:
@@ -196,12 +334,17 @@ def measure_openings(output, inputs):
     seen = sight.gathered(stage)
     rays = ground_gates.caster(seen)
     up = (0.0, 1.0, 0.0)
-    doors = ground_gates.door_floors(rays, ground_gates.shell_doors(record), up)
+    plan = plan_of(inputs)
+    ways = ground_gates.shell_doors(record) + [
+        {"door": f"door {door['name']} ({door['what']})", "middle": np.asarray(door["middle"], dtype=float),
+         "normal": np.asarray(door["normal"], dtype=float)} for door in plan["doors"]
+        if door["cut"] and plan["shell"] == "kit"]
+    doors = ground_gates.door_floors(rays, ways, up)
     ball = ground_gates.ball_of(laid) if laid is not None else None
     viewed = sight.voids(seen, ground_gates.probes(rays, record, None, up), up, ball=ball)
     return {"doors": doors, "void_rays": viewed["void"], "rays": viewed["rays"], "probes": len(viewed["probes"]),
             "worst_probe": viewed["worst"], "ground": laid is not None,
-            "leads": lead_faults(output, inputs, plan_of(inputs))}
+            "leads": lead_faults(output, inputs, plan)}
 
 
 def judge_openings(output, inputs, evidence):
@@ -273,7 +416,7 @@ def moved(name, seed, made):
     return found
 
 
-def seed_diff(seed, record):
+def seed_diff(seed, record, place=None):
     """Every seed entry matched or unmatched (with the writer's reason or none), and what moved."""
     matched, unmatched, shown = 0, [], []
     for section, value in seed.items():
@@ -283,7 +426,7 @@ def seed_diff(seed, record):
             for item, partner in matches(section, value, record.get(section, [])):
                 name = f"{section}/{item.get('name', kind_of(section, item))}"
                 if partner is None:
-                    unmatched.append((name, SEED_REASONS.get(section)))
+                    unmatched.append((name, SEED_REASONS.get(f"{place}:{name}", SEED_REASONS.get(section))))
                 else:
                     matched += 1
                     shown += moved(name, item, partner)
@@ -301,12 +444,12 @@ def seed_diff(seed, record):
 
 def judge_seed_matched(output, inputs, evidence):
     """Fail on a seed entry left out with no written reason."""
-    _, record = writer.record_in(output)
+    place, record = writer.record_in(output)
     seed_path = pathlib.Path(inputs["seed record"])
     if not seed_path.exists():
         return checks.Verdict("seed-matched", checks.PASS, "the place had no old record", {"unmatched": 0},
                               {"unmatched": "lower"})
-    matched, unmatched, shown = seed_diff(json.loads(seed_path.read_text()), record)
+    matched, unmatched, shown = seed_diff(json.loads(seed_path.read_text()), record, place)
     faults = [f"{name}: left out with no reason" for name, why in unmatched if not why]
     findings = tuple(faults + [f"left out, {name}: {why}" for name, why in unmatched if why] +
                      [f"shown, not judged: {line}" for line in shown])

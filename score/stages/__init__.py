@@ -75,7 +75,7 @@ PLAN = graph.Stage("plan", "place", scene_record.plan.make, scene_record.plan.PL
                    files=scene_record.plan.files, applies=scene_record.written)
 SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
                            scene_record.gates.CHECKS, files=scene_record.writer.files,
-                           after={"plan": ("place-plan", 1), "terrain": ("grounds", 1)},
+                           after={"plan": ("place-plan", 2), "terrain": ("grounds", 1)},
                            applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: each place's cast placed and measured against its
 # concept's people (concept_people, in this table so the cast reads its accepted count) and its seed's geometry.
