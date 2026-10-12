@@ -242,9 +242,31 @@ def tagging(place, order):
     spec.loader.exec_module(module)
 
 
+def without_closeup_failures(place, order, store):
+    """The order's surface data less the takes of objects every Pro take failed (their prop route failed at the
+    close-up; they go to code): set between the close-ups and Pixal3D, which reads it. The names dropped."""
+    output = store.accepted(f"closeup@{place}")
+    if output is None:
+        return []
+    kept = {path.stem for path in (store.checkout(output) / "closeups").glob("*.png")}
+    path = order_folder(place, order) / "data/surfaces" / f"{place}.json"
+    record = json.loads(path.read_text())
+    dropped = sorted(model for model, take in record["bake"]["models"].items() if model.rsplit("_", 1)[0] not in kept)
+    for model in dropped:
+        record["takes"].pop(record["bake"]["models"].pop(model), None)
+        record["bake"]["entries"].pop(model, None)
+    if dropped:
+        path.write_text(json.dumps(record, indent=1) + "\n")
+    return dropped
+
+
 def run(place, order, jobs):
-    """Drive the place's line up to its likeness row, every ledger line it writes tagged with the order's tag."""
+    """Drive the place's line up to its likeness row, every ledger line it writes tagged with the order's tag: first to
+    its close-ups, then, the takes of objects with none dropped from its surface data, the rest."""
     tagging(place, order)
+    runner = runner_for(place, order)
+    runner.drive([place], jobs=jobs, whole=False, only=["closeup", "likeness-calibration"])
+    print(f"close-ups failed, to code: {without_closeup_failures(place, order, runner.store)}", flush=True)
     runner_for(place, order).drive([place], jobs=jobs, whole=False, only=["likeness"])
 
 

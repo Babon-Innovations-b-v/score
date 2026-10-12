@@ -9,9 +9,11 @@ closeup@<place> draws every missing close-up with Nano Banana Pro through tools/
 prices each call): first from the crop alone, then, for what still fails, with the whole concept beside (the stage's
 PRO_TAKES). A drawn close-up is taken as it is, set on the stage's grey. Its gate, `close-up`, is the shape check's
 measured half (check.measured_faults: plain border, one object filling the frame, the row's proportions), free and
-re-measured on the stored pictures, so Pixal3D is never paid for a close-up that fails it. The judge's half (a model
-on rented cards) is not run here.
+re-measured on the stored pictures, so Pixal3D is never paid for a close-up that fails it. An object every Pro take
+failed keeps none: its prop route failed there, and it goes to code. The judge's half (a model on rented cards) is
+not run here.
 """
+import dataclasses
 import json
 import shutil
 
@@ -134,11 +136,16 @@ def closeups_faults(folder):
 
 
 def judge_closeups(output, inputs, evidence):
-    """Every object has a close-up, and each passes the shape check's measured half, measured again here."""
+    """Every close-up kept passes the shape check's measured half, measured again here. An object every Pro take
+    failed has none kept: its prop route failed at its close-up, it goes to code (the likeness row finds no model for
+    it, compare.py drops its take), and it is named here, never failed: one such object must not stop the others."""
     found = json.loads((output / "closeups.json").read_text())["objects"]
-    failing = []
+    failing, handed = [], []
     for row, entry in sorted(found.items()):
         picture = output / "closeups" / f"{row}.png"
-        faults = measured(picture, entry) if picture.exists() else ["no close-up passed (every Pro take failed)"]
-        failing += [f"{row}: {fault}" for fault in faults]
-    return verdict("close-up", failing, len(found), "close-ups faulted")
+        if not picture.exists():
+            handed.append(f"{row}: no close-up passed, to code")
+            continue
+        failing += [f"{row}: {fault}" for fault in measured(picture, entry)]
+    found_verdict = verdict("close-up", failing, len(found), "close-ups faulted", {"to code": len(handed)})
+    return dataclasses.replace(found_verdict, findings=(*found_verdict.findings, *handed[:40]))
