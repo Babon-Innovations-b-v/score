@@ -27,6 +27,6 @@ from its plan in `data/ground/plan/<ground>.json`. `__init__.py`'s docstring has
   stage reads the terrain output and sublayers it as `layers/ground.usdc` just over the seed's base (experimental).
 - **`terrain-look@<place>` (`look.py`, experimental, paid)** renders the place before (its seed) and after (the
   assembly output) on its round-three review cameras and gates on `horizon`: no view looks out under the horizon onto
-  nothing. Only `look.LOOKED` places have the row (the proof place, launch) until the owner has reviewed it. Run it
+  nothing. Only `look.LOOKED` places have the row (the proof place, launch, and the street, where the ground fills the view) until the owner has reviewed them. Run it
   with `python -m score run world1 --place launch --stage terrain-look --detach`, which drives terrain, assembly
   and the look and leaves the line's surface rows alone.
