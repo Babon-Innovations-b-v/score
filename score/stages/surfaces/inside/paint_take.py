@@ -43,7 +43,7 @@ def main():
     listing = pathlib.Path(sys.argv[sys.argv.index("--") + 1])
     named = json.loads(listing.read_text())
     install()
-    repo = pathlib.Path(named["surfaces"]).parents[2]
+    repo = pathlib.Path(named["paint repo"])  # a trial's data may lie outside the repository
     environment = dict(os.environ, PYTHONPATH=str(SITE), PROPS_HOME=named["props home"], FARM_LOCAL_MODELS="1")
     code, peak = measured([PYTHON, str(repo / "score/stages/surfaces/place_line.py"), "paint-take", str(listing),
                            str(listing.parent)], environment)

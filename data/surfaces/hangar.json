@@ -2,7 +2,7 @@
  "place": "hangar",
  "library": "hangar",
  "takes": {
-  "access_stair-h1": {
+  "access_stair-h2": {
    "places": [
     "hangar"
    ],
@@ -141,7 +141,7 @@
   "job": "{home}/work/place/hangar-score1/run/job-chunky.json",
   "models": {
    "bay_panel_1": "bay_panel-h1",
-   "access_stair_1": "access_stair-h1",
+   "access_stair_1": "access_stair-h2",
    "bracket_beacon_1": "beacon-h1",
    "control_desk_1": "control_desk-h1",
    "crane_trolley_1": "crane_trolley-h2",
