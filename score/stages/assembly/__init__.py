@@ -6,7 +6,9 @@ then judged by the assembly gates that exist today. No spend: nothing is made, r
              A place on a made ground (the terrain stage's places/<place>.usdc) takes it as layers/ground.usdc,
              sublayered over the seed's base, so the made ground stands in for the old one (experimental, PRD #6).
              A place the effects stage made a layer for (experimental) takes it in place of the seed's own:
-             layers/effects.usda and its baked clips, held by the root between the edit layer and the base
+             layers/effects.usda and its baked clips, held by the root between the edit layer and the base. A
+             place's baked models (surfaces-bake) replace the seed's assets, each laid object stamped with the
+             baked file's hash and the seed's as the model it repainted (stamp_baked_hash)
     gates    placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
                            code-built ship fails, 12 meshes)
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
@@ -107,6 +109,33 @@ def take_bake(bake, paint, out, models=None):
         (out / "assets" / f"{model}.usdc").unlink(missing_ok=True)
         export.write_asset(model, bake / "made", {model: paint / "labelled" / entry["parts"]}, None, entry["base"],
                            entry["size"], out, variants, sounds)
+        stamp_baked_hash(out / BASE_LAYER, model, bake / "made" / f"{model}.gltf")
+
+
+def stamp_baked_hash(base, model, gltf):
+    """Every object of the base layer that lays `model` carries the baked file's hash (score:model_sha256,
+    complete.model_hash) in place of the seed's, and the seed's as the model the bake repainted (score:repaint_of,
+    which the pick lock reads: a pick chooses the model, never its old paint)."""
+    from pxr import Sdf
+    import complete
+    layer = Sdf.Layer.FindOrOpen(str(base))
+    sha256 = complete.model_hash(gltf)
+    paths = []
+    layer.Traverse(Sdf.Path.absoluteRootPath, paths.append)
+    for path in paths:
+        spec = layer.GetPrimAtPath(path) if path.IsPrimPath() else None
+        if spec is None or "score:model" not in spec.attributes or spec.attributes["score:model"].default != model:
+            continue
+        before = {name: spec.attributes[name].default for name in ("score:model_sha256", "score:repaint_of")
+                  if name in spec.attributes}
+        for name, value in (("score:repaint_of", before.get("score:repaint_of") or before.get("score:model_sha256")),
+                            ("score:model_sha256", sha256)):
+            if value is None:
+                continue
+            attribute = spec.attributes[name] if name in spec.attributes else \
+                Sdf.AttributeSpec(spec, name, Sdf.ValueTypeNames.String)
+            attribute.default = value
+    layer.Save()
 
 
 def take_effects(made, root):

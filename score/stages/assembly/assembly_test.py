@@ -73,6 +73,36 @@ def test_the_resting_gate_reads_the_declared_world_files():
         shutil.rmtree(root)
 
 
+def test_a_baked_model_s_objects_carry_its_hash_and_keep_the_owner_s_pick():
+    """Both ways: after the assembly takes a bake, the object carries the baked file's hash (not the seed's, the
+    greenhouse's water tank until 2026-10-12) and its pick still holds through `repaint_of`; the same hash written
+    without the seed's beside it breaks the pick."""
+    import complete
+    import picks
+    import resting_test
+    from pxr import Sdf, Usd
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        seed_hash = complete.model_hash(folder / "models/box.gltf")
+        pick = {"model": "box", "sha256": seed_hash, "decided": "owner, 2026-10-09: this take"}
+        stage = triage_test.place_of(folder, [("crate", "box", (0, 0, 0))], [triage_test.row("crate", pick=pick)])
+        inventory = json.loads((folder / "inventory.json").read_text())
+        baked = folder / "models/plank.gltf"  # stands for the bake of the box: another file, another hash
+        assembly.stamp_baked_hash(stage.parent / assembly.BASE_LAYER, "box", baked)
+        opened = Usd.Stage.Open(str(stage))  # held: a prim of a stage nothing holds expires at once
+        prim = opened.GetPrimAtPath(f"/{triage_test.PLACE}/Objects/crate_1")
+        assert prim.GetAttribute("score:model_sha256").Get() == complete.model_hash(baked)
+        assert prim.GetAttribute("score:repaint_of").Get() == seed_hash
+        assert picks.check(stage, inventory) == ([], 1)
+        layer = Sdf.Layer.FindOrOpen(str(stage.parent / assembly.BASE_LAYER))
+        spec = layer.GetPrimAtPath(f"/{triage_test.PLACE}/Objects/crate_1")
+        spec.RemoveProperty(spec.attributes["score:repaint_of"])
+        layer.Save()
+        found, _ = picks.check(stage, inventory)
+        assert len(found) == 1 and "not the owner's pick" in found[0]["why"], found
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

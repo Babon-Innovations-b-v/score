@@ -16,7 +16,10 @@ asks each object the question its support asks:
               (`on:<row>`); `wall` and `ceiling` from its anchor; `floor` otherwise (data/checks/resting.json).
     floor, held  supported by the ground, the deck or the object under it: at least four points of its footing within
               TOLERANCE of a surface straight under them, and its weight inside what they span (SceneEval's support
-              rule); else it floats or tips. Sunk below its contact points past TOLERANCE, unless its class may bed in.
+              rule); else it floats or tips. Each of its feet (feet.py: its low points clustered) touches within
+              TOLERANCE, else a foot is off; its own up axis leans no more than LEAN_MOST from the plane under what it
+              touches unless its row says it leans (`leans`). Sunk below its contact points past TOLERANCE, unless its
+              class may bed in.
     wall, ceiling, hanging  supported by touching anything (SceneEval: one contact): one that touches nothing hangs free.
     kit, fixed  stand as laid; a fixed one is still judged for floating (unless joined to another piece) and sinking, a
               kit piece only for lying inside a loose one.
@@ -47,6 +50,7 @@ from pxr import Usd, UsdGeom
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+sys.path.append(str(REPO / "tools/props/library"))  # feet.py; appended, so it shadows nothing of this folder's
 import collide  # noqa: E402
 import resting  # noqa: E402
 
@@ -65,6 +69,15 @@ OWN_SAMPLES = 4000
 # settle still touches with all its feet.
 LOW_BAND = 0.1
 RAY_START = resting.RAY_START
+# An object's feet (feet.py): its low points clustered across and along, points under FOOT_LINK metres apart one
+# foot, a cluster of fewer than FOOT_POINTS points left out as noise. Each foot of a floor or held object must touch
+# within TOLERANCE: SceneEval's four contact points can all lie on three feet (the greenhouse's water tank, 2026-10-12:
+# tipped 7.5 degrees onto three of its four legs, the fourth 7 cm up, passed).
+FOOT_LINK = 0.05
+FOOT_POINTS = 5
+# A floor or held object's own up axis may lean this far (degrees) from the plane under what it touches, unless its
+# inventory row says it leans (`leans`: why, in words). The water tank stood 7.5 degrees off and passed.
+LEAN_MOST = 3.0
 # The size bands a group of faults is cut by (metres): under 1 cm, 1 to 5, 5 to 20, 20 to 100, over a metre.
 BANDS = (0.01, 0.05, 0.2, 1.0)
 # Only a piece standing loose on the floor is dropped (settle.py's loose pieces); SAGE's rule judges no other.
@@ -218,7 +231,8 @@ def low_points(mesh):
 
 def standing(entry, ground, surfaces, left_out, statics):
     """How a floor or held object stands: its gap (with and without the scene record's decks and fixtures), how many
-    points touch, how far its weight falls outside them, how deep it lies under the ground."""
+    points touch, how far its weight falls outside them, how deep it lies under the ground, each foot's gap
+    (feet_gaps) and how far its up axis leans from what it touches (lean)."""
     points = low_points(entry["mesh"])
     clearance = points[:, 1] - ground(points[:, [0, 2]])
     known = np.isfinite(clearance)
@@ -231,7 +245,33 @@ def standing(entry, ground, surfaces, left_out, statics):
             "contacts": int(touching.sum()),
             "outside": resting.outside_by(resting.weight_at(entry["mesh"]), points[touching][:, [0, 2]]),
             "depth": max(0.0, -float(np.nanmin(clearance[known]))) if known.any() else 0.0,
-            "lowest": points[np.argmin(points[:, 1])]}
+            "lowest": points[np.argmin(points[:, 1])], "feet": feet_gaps(points, best),
+            "lean": lean(entry["matrix"], points[touching], best[touching])}
+
+
+def feet_gaps(points, best):
+    """Each foot of an object (feet.py: its low points clustered across and along, FOOT_LINK apart, a cluster of
+    FOOT_POINTS or more) as (its lowest point, its gap to what is under it)."""
+    import feet
+    found = []
+    for members, _ in feet.feet(points, LOW_BAND, FOOT_LINK):
+        if len(members) >= FOOT_POINTS:
+            nearest = members[np.argmin(best[members])]
+            found.append((points[nearest], float(best[nearest])))
+    return found
+
+
+def lean(matrix, touching, gaps):
+    """How far (degrees) an object's own up axis leans from the plane under what touches (the touching points let
+    down by their gaps; the stage's up when they span no plane)."""
+    up = matrix[:3, 1] / np.linalg.norm(matrix[:3, 1])
+    normal = np.array([0.0, 1.0, 0.0])
+    support = touching - np.outer(gaps, [0.0, 1.0, 0.0])
+    if len(support) >= 3 and np.linalg.matrix_rank(support[:, [0, 2]] - support[:, [0, 2]].mean(axis=0), tol=0.01) == 2:
+        across, along, _ = np.linalg.lstsq(np.c_[support[:, 0], support[:, 2], np.ones(len(support))], support[:, 1],
+                                           rcond=None)[0]
+        normal = np.array([-across, 1.0, -along]) / np.linalg.norm([across, 1.0, along])
+    return float(np.degrees(np.arccos(np.clip(up @ normal, -1.0, 1.0))))
 
 
 def fault(entry, kind, measure, real, why, point, partner=None):
@@ -264,12 +304,29 @@ def held_up_faults(entry, found):
                             "stands on a deck or fixture the scene record built", found["lowest"]))
     if support == "fixed":
         return faults
+    if entry["bed"][1] is None:  # a cable, a cloth or debris may bed in and has no feet or up to keep
+        faults += feet_faults(entry, found)
     if found["contacts"] < CONTACTS_NEEDED:
         faults.append(fault(entry, "tips", found["contacts"], True,
                             f"touches what is under it at {found['contacts']} points (needs {CONTACTS_NEEDED})",
                             found["lowest"]))
     elif found["outside"] > BALANCE:
         faults.append(fault(entry, "tips", found["outside"], True, "its weight falls outside what it touches",
+                            entry["mesh"].bounds.mean(axis=0)))
+    return faults
+
+
+def feet_faults(entry, found):
+    """A floor or held object's foot off what is under it while another touches, and its up axis leaning over
+    LEAN_MOST unless its row says it leans."""
+    faults = []
+    for point, gap in found["feet"]:
+        if gap > TOLERANCE:
+            faults.append(fault(entry, "foot off", gap, True, f"a foot {gap * 100:.1f} cm off what is under it while "
+                                f"another touches (over {TOLERANCE * 100:.0f} cm)", point))
+    if found["lean"] > LEAN_MOST and not entry["row"].get("leans"):
+        faults.append(fault(entry, "leans", found["lean"], True, f"its up axis leans {found['lean']:.1f} degrees from "
+                            f"what it stands on (over {LEAN_MOST:.0f}; its row does not say it leans)",
                             entry["mesh"].bounds.mean(axis=0)))
     return faults
 
@@ -402,7 +459,8 @@ def groups(faults):
     for item in faults:
         if not item["real"]:
             continue
-        measure = item["measure"] if item["kind"] != "tips" or item["why"].startswith("its weight") else None
+        counted = item["kind"] == "leans" or (item["kind"] == "tips" and not item["why"].startswith("its weight"))
+        measure = None if counted else item["measure"]  # a count or degrees, not metres
         key = (item["model"] or item["row"] or "", item["kind"], band(measure))
         found.setdefault(key, []).append(item)
     ordered = sorted(found.items(), key=lambda pair: (-len(pair[1]), pair[0]))

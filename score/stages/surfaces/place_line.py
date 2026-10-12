@@ -45,6 +45,14 @@ BAKE_EUROS = 2.0
 # Two neighbouring parts of one surface join only when their colours lie within this (Lab) (MaPa's merge: same class
 # and same unlit colour, its CIE threshold 2 on albedo is too fine for a picture's).
 MERGE_COLOUR = 12.0
+# A take's feet in its own frame (feet.py), levelled only when a row lays it loose on the floor or held
+# (stands_on_feet): found within FOOT_BAND of its height over its lowest point, points within FOOT_LINK of its
+# footprint's diagonal one foot. In shares of its size (its height or its footprint's diagonal, the larger: a pallet's
+# feet are measured against its width, not its few centimetres of height), a foot may stand FOOT_TOLERANCE over the
+# lowest and count as down (a hundredth: 2.3 cm on the water tank, inside the resting check's 3 cm), and a short leg
+# is stretched down FOOT_MOST at most (a tenth: the water tank's shortest leg ends 6.4% of its size up); a foot further
+# up is a missing leg, a fault of the model, and fails the gate "feet in one plane" by name.
+FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
 
 
 def data_of(inputs):
@@ -128,6 +136,40 @@ def finished_frame(mesh, take):
     return matrix, gap, final.bounds
 
 
+def stands_on_feet(entry, inventory, rules_file):
+    """Whether a row of the take's own place lays its kind loose on the floor or held on another row, as the resting
+    triage reads the same data (data/checks/resting.json): not fixed, not on a wall or ceiling, not hanging by its
+    words, not of a class that may bed in (cable, cloth, debris). Only such a take has feet to level: a glove that
+    hangs, a wall panel or a fragment thrown on the ground is left as made."""
+    rules = json.loads(pathlib.Path(rules_file).read_text())
+    rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory and pathlib.Path(inventory).exists() \
+        else []
+    loose_words = set(rules["hanging"]) | {word for bedding in rules["may_bed"] for word in bedding["words"]}
+    return any(row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed")
+               and row.get("support") in (None, "floor", "held")
+               and (row.get("anchor", "") in ("floor", "ground", "") or row.get("anchor", "").startswith("on:"))
+               and not row_words(row) & loose_words for row in rows)
+
+
+def row_words(row):
+    """A row's id and name as a set of lower-case words (as tools/usd/triage.py words_of reads them)."""
+    text = f"{row.get('id', '')} {row.get('name', '')}".lower().replace("_", " ")
+    return set("".join(letter if letter.isalnum() else " " for letter in text).split())
+
+
+def levelled_feet(vertices, faces):
+    """A take's vertices on its finished model (+y up, its own frame) with its feet brought onto one level plane
+    (feet.level: FOOT_BAND of its height, FOOT_LINK of its footprint, FOOT_TOLERANCE and FOOT_MOST of its size), and
+    what was done, each gap as a share of its size."""
+    import feet
+    height, diagonal = feet.model_scale(vertices)
+    size = max(height, diagonal)
+    points, record = feet.level(vertices, faces, FOOT_BAND * height, FOOT_LINK * diagonal, FOOT_TOLERANCE * size,
+                                FOOT_MOST * size)
+    shares = {key: [round(gap / size, 4) for gap in record[key]] for key in ("gaps", "levelled", "refused")}
+    return points, {"feet": record["feet"], **shares}
+
+
 def paint_take(inputs, out, take, record, registry):
     """One take painted: each part's surface, the labelled folder and faces.npz, its report."""
     import numpy as np
@@ -155,13 +197,16 @@ def paint_take(inputs, out, take, record, registry):
     face_labels = np.array([order.index(name) if name in order else -1 for name in names])[painted]
     moved = mesh.copy()
     moved.apply_transform(matrix)
+    levelled = {"skipped": "no floor or held row of its place lays its kind"}
+    if stands_on_feet(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"]):
+        moved.vertices, levelled = levelled_feet(moved.vertices, moved.faces)
     shares, _ = labels.write_parts(moved, face_labels, order, part_of, painted_parts, bounds, folder)
     kept, kept_labels, _, kept_parts = patchy.labelled_parts(folder)
     report = {"take": take, "method": record["method"], "kind": entry["kind"], "parts": records, "shares": shares,
               "judge_unknown": record["judge_unknown"], "unnamed_parts": unnamed,
               "finishes": record.get("finishes", []),
               "unnamed_share": round(sum(row["share"] for row in records if row["part"] in unnamed), 4),
-              "painted_parts": int(painted_parts.max()) + 1, "upright_gap": round(gap, 4),
+              "painted_parts": int(painted_parts.max()) + 1, "upright_gap": round(gap, 4), "feet": levelled,
               "patchy": patchy.score(kept, kept_labels, kept_parts, patchy.labelled_regions(folder, kept))}
     stored_parts.write(folder, take, target=folder)
     (folder / "labels.json").write_text(json.dumps(report, indent=1))
@@ -193,6 +238,19 @@ def judge_one_surface(output, inputs, evidence):
     failing = [f"{take}: parts {report['unnamed_parts']} unnamed ({report['unnamed_share']:.1%})"
                for take, report in found.items() if report["unnamed_parts"]]
     return gates.verdict("one surface a part", failing, len(found), "models with a part no surface names")
+
+
+def judge_feet(output, inputs, evidence):
+    """Every painted take's feet lie in one plane in its own frame: short legs were stretched down (levelled_feet), a
+    foot over FOOT_MOST of its height above the lowest fails by name."""
+    found = json.loads((output / "painted.json").read_text())["takes"]
+    failing = [f"{take}: {len(report['feet']['refused'])} of {report['feet']['feet']} feet end "
+               f"{', '.join(f'{gap:.1%}' for gap in report['feet']['refused'])} of its size over its lowest "
+               f"(over {FOOT_MOST:.0%}: a missing leg, not a short one)"
+               for take, report in found.items() if report.get("feet", {}).get("refused")]
+    levelled = sum(bool(report.get("feet", {}).get("levelled")) for report in found.values())
+    return gates.verdict("feet in one plane", failing, len(found), "models with a foot off the plane",
+                         {"levelled": levelled})
 
 
 def judge_concept_colour(output, inputs, evidence):

@@ -1,7 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
+marked, while 1 m debris may turn so; a tip onto uneven feet (the water tank's legs) is refused while a crate's is written; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -97,6 +97,42 @@ def a_big_turn_is_marked_not_made():
                 problems.append(f"a 40 degree roll of a 3 m piece was not refused and marked: {piece}")
             if not marked and ("rotation" not in piece or "unrested" in piece):
                 problems.append(f"a 40 degree roll of 1 m debris was not written: {piece}")
+        return problems
+
+
+def a_tip_onto_uneven_feet_is_refused():
+    """Both ways, on the greenhouse's water tank's own legs (ending 0, 2.2, 5.2 and 12.7 cm up, 2026-10-12): its
+    7.5 degree tip onto three of them keeps its laid pose and is marked, while a crate on an even base tipped as much
+    is written."""
+    import export_test
+    import triage_test
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        export_test.box_gltf(folder / "models", "tank", triage_test.legged_tank((0.0, 0.022, 0.052, 0.127)))
+        path = resting_test.laid_place(folder, [("tank", "tank", (4, 0, 2)), ("crate", "box", (8, 0, 2))],
+                                       [("tank", "floor"), ("crate", "floor")])
+        stage = Usd.Stage.Open(str(path))
+        settled = {}
+        for name in ("tank_1", "crate_1"):
+            before = stage_matrix(path, name)
+            tipped = np.eye(4)
+            tipped[:3, :3] = Rotation.from_euler("x", 7.5, degrees=True).as_matrix()
+            tipped[:3, 3] = before[:3, 3] - tipped[:3, :3] @ before[:3, 3]
+            settled[name] = {"before": before, "after": tipped @ before, "middle": [0, 0.5, 0],
+                             "uneven": settle.uneven_feet(stage, PLACE, name)}
+        inventory = {"rows": [{"id": row, "anchor": "floor", "at": [{"x": x, "z": 2, "y": 0, "facing": 0}]}
+                              for row, x in (("tank", 4), ("crate", 8))]}
+        (folder / "inventory.json").write_text(json.dumps(inventory))
+        settle.write_layout(settled, None, folder / "inventory.json", folder / "kit.json")
+        tank, crate = json.loads((folder / "kit.json").read_text())["pieces"]
+        problems = []
+        if abs(settled["tank_1"]["uneven"] - 0.127) > 0.002 or settled["crate_1"]["uneven"] != 0.0:
+            problems.append(f"feet measured {settled['tank_1']['uneven']} (tank) and {settled['crate_1']['uneven']}")
+        if "rotation" in tank or "level the model's feet" not in tank.get("unrested", ""):
+            problems.append(f"the tank's tip onto uneven feet was written: {tank}")
+        if "rotation" not in crate or "unrested" in crate:
+            problems.append(f"the crate's 7.5 degree settle was not written: {crate}")
         return problems
 
 
@@ -234,7 +270,7 @@ def a_kit_room_piece_moves_with_its_object():
 CHECKS = (a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
           a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, what_lies_on_a_settled_piece_moves_with_it, a_big_turn_is_marked_not_made,
-          a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl)
+          a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl, a_tip_onto_uneven_feet_is_refused)
 
 
 if __name__ == "__main__":

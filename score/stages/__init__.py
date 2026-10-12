@@ -72,8 +72,27 @@ def bake_checked(row):
                                        guarded("triangles within budget", bake_check.judge_triangles)))
 
 
+def feet_checked(row):
+    """surfaces-paint with the gate "feet in one plane" beside its own (place_line.judge_feet: a take's short legs are
+    stretched down before its bake, a missing leg fails by name). Set here, as bake_checked is, so the turntable's and
+    SegviGen's code version does not move."""
+    if row.name != "surfaces-paint":
+        return row
+    return dataclasses.replace(row, checks=(*row.checks, guarded("feet in one plane", surfaces.place_line.judge_feet)),
+                               files=paint_files)
+
+
+def paint_files(place):
+    """The paint's world files: the line's, and the inventory of each place a take is made for with the resting rules,
+    which it reads to tell a take laid loose on the floor or held, whose feet it levels (place_line.stands_on_feet)."""
+    import complete  # tools/usd, on the path by the assembly stage's import: a place's inventory, or its kit's place's
+    inventories = {f"inventory {entry['place']}": "{data}/inventory/" + complete.inventory_path(entry["place"]).name
+                   for entry in surfaces.data.takes(place).values()}
+    return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json"}
+
+
 STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK,
-          *map(bake_checked, surfaces.ROWS))
+          *map(feet_checked, map(bake_checked, surfaces.ROWS)))
 
 
 def world1():
