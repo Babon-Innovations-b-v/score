@@ -20,4 +20,8 @@ takes in place of the seed's. `__init__.py`'s docstring has the make and the gat
 - **Stills, not films**: the look renders the place's review cameras at a few moments (`look.MOMENTS`); films wait for
   the owner's go. Run it with `python -m score run world1 --place launch --stage effects-look --detach` in the
   background, which drives terrain, effects, assembly and the look.
+- **The row is `effects-layer`.** The store's `effects@<place>` nodes (accepted 2026-10-11) are the unmerged local
+  `effects` branch's stage (be73bb0: other checks, `timed` and `seen`), which a new output cannot be compared with; that
+  branch also holds records for the airlock, garage, hangar, habitat and greenhouse in its own schema, the starting
+  point for the next places.
 - `effects_test.py` runs the make and the gates on the launch's own record and seed, and breaks each gate once.

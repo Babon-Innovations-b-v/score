@@ -26,11 +26,11 @@ WORLD1 = REPO / "data/definitions/world.json"
 TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain.FILES,
                       paid=True, euros=terrain.EUROS)
 # Experimental (PRD #6) until the owner reviews it: the proof place's effects layer, which its assembly takes.
-EFFECTS = graph.Stage("effects", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
+EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
                       applies=lambda place: place in effects.STAGED)
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
                        files=assembly.FILES, gatherers=assembly.GATHERERS,
-                       after={"terrain": ("grounds", 1), "effects": ("effects-layer", 1)})
+                       after={"terrain": ("grounds", 1), "effects-layer": ("effects-layer", 1)})
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
                        after={"assembly": ("openusd-stage", 1)})
 # Experimental (PRD #6) until the owner reviews it: the proof place's before and after its made ground, rendered.
