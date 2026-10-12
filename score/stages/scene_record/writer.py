@@ -17,7 +17,8 @@ and builders.py build it unchanged; it lands as record/<place>.json in the outpu
     environment  the world body's indoor sky record (data/definitions/sky.json), its haze a box of the room's inside
     views        one from inside each door looking across, one from each of the plan's standing spots to the middle
 
-Every entry's `from` names the plan element, inventory row, seat or world record it was made from.
+Every entry's `from` names the plan element, inventory row, seat or world record it was made from. An outdoor place
+(plan shell `outdoor`) has its own shell writer, outdoor.py.
 """
 import json
 import math
@@ -53,7 +54,7 @@ def files(place):
             "plans": "{data}/plans",
             "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
             "places": "{data}/definitions/place.json", "seed record": "{data}/scene/{place}.json",
-            "seeds": "{seeds}/usd-r3"}
+            "seeds": "{seeds}/usd-r3", "tokens": "{data}/../design/tokens/tokens.json"}
 
 
 def read(path):
@@ -279,6 +280,9 @@ def record_of(place, plan, inputs):
         raise ValueError(f"{place}: no seat on a made ground and no module of the base: its world body is unknown")
     if plan["shell"] == "kit":
         return kit_record(place, plan, inputs, grounds)
+    if plan["shell"] == "outdoor":
+        from score.stages.scene_record import outdoor  # it builds on this module's seats, places and views' numbers
+        return outdoor.record_of(place, plan, inputs, grounds)
     if not plan["inside"] or not plan["walls"].get("rise"):
         raise NotImplementedError(f"{place}: its plan's shell is domed but it is no domed room")
     walls = plan["walls"]

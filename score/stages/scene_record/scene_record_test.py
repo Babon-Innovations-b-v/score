@@ -5,7 +5,9 @@ script fails `game-free`, a shell a metre wide of the plan fails `plan-matched`,
 `openings` (its door's place does not stand in it), and the room fill taken away fails `seed-matched` (the seed's light
 is left out with no reason). The stairwell's record passes all four too; its block a metre off the plan's fails
 `plan-matched`, the flat taken away fails `openings` (the front door's place), and its landing lights taken away fail
-`seed-matched`; a plan door moved off the kit's doorway fails `plan-matched`. Skipped, and says so, on a machine
+`seed-matched`; a plan door moved off the kit's doorway fails `plan-matched`. The wreck (an outdoor place) passes all
+five (its viewers standing on the made ground); its break lamp's light taken away fails `plan-matched` and the Earth
+taken away fails `seed-matched`. Skipped, and says so, on a machine
 without the round-three seeds or an accepted terrain output.
 
 Run: .venv/bin/python score/stages/scene_record/scene_record_test.py
@@ -152,8 +154,34 @@ def test_a_kit_shell_record_passes_and_each_fault_fails():
         assert result == checks.FAIL and "doorway" in found.reason, found.reason
 
 
+def test_an_outdoor_record_passes_and_each_fault_fails():
+    ground = terrain()
+    if not (SEEDS / "usd-r3" / "wreck").exists() or ground is None:
+        print("skipped: no round-three seeds or no accepted terrain output on this machine")
+        return
+    with tempfile.TemporaryDirectory() as folder:
+        out, inputs = written(folder, ground, "wreck")
+        mapped = plan.judge_mapped(inputs["plan"], inputs_of(plan.files("wreck"), "wreck"), None)
+        assert mapped.answer == checks.PASS, (mapped.reason, mapped.findings)
+        for check in gates.CHECKS:
+            result, found = answer(check, out, inputs)
+            assert result == checks.PASS, (check.name, found.reason, found.findings)
+        base = json.loads(next(out.glob("record/*.json")).read_text())
+        faults = (
+            ("plan-matched", lambda record: record.update(lights=[light for light in record["lights"]
+                                                                  if light["type"] != "omni"])),
+            ("seed-matched", lambda record: record.update(structure=[])))
+        for name, change in faults:
+            rewritten(out, lambda record: record.update(copy.deepcopy(base)))
+            rewritten(out, change)
+            check = next(check for check in gates.CHECKS if check.name == name)
+            result, found = answer(check, out, inputs)
+            assert result == checks.FAIL, (name, found.reason)
+
+
 if __name__ == "__main__":
     test_the_garage_plan_maps_and_faults_fail()
     test_the_garage_record_passes_and_each_fault_fails()
     test_a_kit_shell_record_passes_and_each_fault_fails()
+    test_an_outdoor_record_passes_and_each_fault_fails()
     print("scene_record_test: ok")

@@ -1,0 +1,775 @@
+{
+ "title": "CAMP (the first expedition's habitat on Mars: two soft domes, the passage and the airlock)",
+ "shell": "outdoor",
+ "inside": true,
+ "w": 20.0,
+ "d": 26.0,
+ "corner": 0.0,
+ "frame": {
+  "anchor": {
+   "plan": [
+    0.0,
+    0.0
+   ],
+   "place": [
+    -5.0,
+    0.0,
+    -18.0
+   ]
+  },
+  "why": "the habitat's own frame (its deck at nought), the site's north-west corner"
+ },
+ "height": "domes' crown 5.4 m over the deck; ceiling 6.0 m",
+ "doors": [],
+ "leads": {},
+ "items": [
+  [
+   "GALLEY COUNTER with sink and cooker (worktop 1.03 m)",
+   1.762,
+   10.016,
+   1.215,
+   1.348,
+   268.0,
+   "item"
+  ],
+  [
+   "COLD STORE (lid 1.02 m)",
+   2.039,
+   11.873,
+   1.071,
+   0.97,
+   291.0,
+   "item"
+  ],
+  [
+   "MESS TABLE (0.87 m)",
+   4.234,
+   11.361,
+   0.8,
+   1.15,
+   300.0,
+   "item"
+  ],
+  [
+   "COMMS DESK with its three screens (0.74 m)",
+   9.785,
+   12.572,
+   0.736,
+   1.59,
+   55.0,
+   "item"
+  ],
+  [
+   "STORES RACK",
+   3.072,
+   14.321,
+   1.8,
+   0.5,
+   325.5,
+   "item"
+  ],
+  [
+   "HYGIENE CUBICLE",
+   4.151,
+   6.451,
+   1.2,
+   1.1,
+   205.0,
+   "item"
+  ],
+  [
+   "SEFA'S BUNK",
+   3.142,
+   22.68,
+   0.9,
+   2.0,
+   270.0,
+   "item"
+  ],
+  [
+   "OONA'S BUNK",
+   4.322,
+   22.78,
+   0.9,
+   2.0,
+   270.0,
+   "item"
+  ],
+  [
+   "BRAM'S BUNK",
+   5.492,
+   22.88,
+   0.9,
+   2.0,
+   270.0,
+   "item"
+  ],
+  [
+   "LOCKERS x3",
+   2.099,
+   22.955,
+   0.5,
+   1.5,
+   309.0,
+   "item"
+  ],
+  [
+   "GROWTH CHAMBER (lid 1.1 m)",
+   2.778,
+   17.457,
+   1.3,
+   0.8,
+   212.0,
+   "item"
+  ],
+  [
+   "SAMPLE SHELF (4 boards)",
+   8.385,
+   17.895,
+   0.5,
+   1.44,
+   129.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE WINDOW (CRATE)",
+   10.754,
+   10.729,
+   0.55,
+   1.0,
+   85.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE DESK (CRATE SMALL)",
+   8.654,
+   14.475,
+   0.6,
+   0.45,
+   32.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE GALLEY (CRATE)",
+   2.085,
+   8.648,
+   0.55,
+   1.0,
+   248.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE HYGIENE (CRATE SMALL)",
+   2.823,
+   7.607,
+   0.45,
+   0.6,
+   230.0,
+   "item"
+  ],
+  [
+   "TERMINAL DESK by the far dome's window",
+   1.3,
+   19.482,
+   0.736,
+   1.59,
+   257.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE CHAMBER (CRATE)",
+   1.885,
+   18.412,
+   0.55,
+   1.0,
+   236.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE SHELF (CRATE)",
+   9.061,
+   19.485,
+   0.55,
+   1.0,
+   107.0,
+   "item"
+  ],
+  [
+   "CRATE STACK by the rack",
+   2.641,
+   13.017,
+   0.55,
+   1.0,
+   306.5,
+   "item"
+  ],
+  [
+   "SMALL CRATE under the window",
+   7.798,
+   6.329,
+   0.6,
+   0.45,
+   160.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE WAY (CRATE SMALL)",
+   7.227,
+   17.411,
+   0.6,
+   0.45,
+   150.0,
+   "item"
+  ],
+  [
+   "CRATE BY THE BUNKS (CRATE)",
+   8.51,
+   22.966,
+   0.55,
+   1.0,
+   55.0,
+   "item"
+  ],
+  [
+   "SEFA'S BEDSIDE CRATE",
+   6.492,
+   24.335,
+   0.6,
+   0.45,
+   180.0,
+   "item"
+  ],
+  [
+   "OONA'S BEDSIDE CRATE",
+   7.808,
+   24.053,
+   0.6,
+   0.45,
+   40.0,
+   "item"
+  ],
+  [
+   "SUIT LOCKER in the airlock",
+   14.77,
+   4.902,
+   1.5,
+   0.5,
+   40.46,
+   "item"
+  ],
+  [
+   "DOOR DOME (the galley and comms room), 10 m across",
+   1.539,
+   5.836,
+   10.0,
+   10.0,
+   null,
+   "item"
+  ],
+  [
+   "FAR DOME (the bunk room behind its partition, the lab corner in front), 9 m across",
+   0.992,
+   16.66,
+   9.0,
+   9.0,
+   null,
+   "item"
+  ],
+  [
+   "PASSAGE between the domes",
+   4.4,
+   14.5,
+   3.2,
+   3.0,
+   null,
+   "item"
+  ],
+  [
+   "AIRLOCK TUBE to the ramp (the camp's own, white soft goods)",
+   11.75,
+   1.21,
+   5.6,
+   5.6,
+   null,
+   "item"
+  ],
+  [
+   "DOOR DOME'S FLOOR between its furniture: keep clear",
+   5.3,
+   10.6,
+   2.4,
+   2.4,
+   null,
+   "zone"
+  ]
+ ],
+ "rows": {
+  "DOOR DOME (the galley and comms room), 10 m across": [
+   "dome_wall_panel",
+   "dome_window_panel",
+   "dome_rib",
+   "dome_ceiling_gore",
+   "dome_roof_cap",
+   "dome_deck_wedge",
+   "dome_opening_frame",
+   "foot_ring",
+   "shell_gore",
+   "shell_gore_window",
+   "ring_lamp",
+   "wall_net",
+   "floor_cable",
+   "toaster",
+   "coffee_maker",
+   "galley_bin"
+  ],
+  "FAR DOME (the bunk room behind its partition, the lab corner in front), 9 m across": [
+   "dome_wall_panel",
+   "dome_window_panel",
+   "dome_rib",
+   "dome_ceiling_gore",
+   "dome_roof_cap",
+   "dome_deck_wedge",
+   "partition",
+   "foot_ring",
+   "shell_gore",
+   "shell_gore_window",
+   "ring_lamp",
+   "wall_net",
+   "kiosk_terminal",
+   "sample_jar",
+   "sample_tray",
+   "sample_case",
+   "case",
+   "canister"
+  ],
+  "PASSAGE between the domes": [
+   "passage_lining",
+   "passage_hull",
+   "shell_gore_open"
+  ],
+  "AIRLOCK TUBE to the ramp (the camp's own, white soft goods)": [
+   "passage_lining",
+   "passage_hull",
+   "rod_lamp"
+  ],
+  "DOOR DOME'S FLOOR between its furniture: keep clear": []
+ },
+ "objects": {
+  "GALLEY COUNTER with sink and cooker (worktop 1.03 m)": {
+   "name": "GalleyCounter",
+   "model": "models/camp_kit/galley_1.gltf",
+   "row": "galley",
+   "yaw": 268.0,
+   "why": "the door dome's galley where the camp's rooms were first laid"
+  },
+  "COLD STORE (lid 1.02 m)": {
+   "name": "ColdStore",
+   "model": "models/camp_kit/cold_store_1.gltf",
+   "row": "cold_store",
+   "yaw": 291.0,
+   "why": "the door dome's cold store where the camp's rooms were first laid"
+  },
+  "MESS TABLE (0.87 m)": {
+   "name": "MessTable",
+   "model": "models/camp_kit/pedestal_table_1.gltf",
+   "row": "pedestal_table",
+   "yaw": 300.0,
+   "why": "the door dome's pedestal table where the camp's rooms were first laid"
+  },
+  "COMMS DESK with its three screens (0.74 m)": {
+   "name": "CommsDesk",
+   "model": "models/camp_kit/comms_desk_1.gltf",
+   "row": "comms_desk",
+   "yaw": 55.0,
+   "why": "the door dome's comms desk where the camp's rooms were first laid"
+  },
+  "STORES RACK": {
+   "name": "StoresRack",
+   "model": "models/camp_kit/stores_rack_1.gltf",
+   "row": "stores_rack",
+   "yaw": 325.5,
+   "why": "the door dome's stores rack where the camp's rooms were first laid"
+  },
+  "HYGIENE CUBICLE": {
+   "name": "Hygiene",
+   "model": "models/camp_kit/hygiene_1.gltf",
+   "row": "hygiene",
+   "yaw": 205.0,
+   "why": "the door dome's hygiene where the camp's rooms were first laid"
+  },
+  "SEFA'S BUNK": {
+   "name": "Bunk",
+   "model": "models/camp_kit/bunk_1.gltf",
+   "row": "bunk",
+   "yaw": 270.0,
+   "why": "the far dome's bunk where the camp's rooms were first laid"
+  },
+  "OONA'S BUNK": {
+   "name": "OonaBunk",
+   "model": "models/camp_kit/bunk_1.gltf",
+   "row": "bunk",
+   "yaw": 270.0,
+   "why": "the far dome's bunk where the camp's rooms were first laid"
+  },
+  "BRAM'S BUNK": {
+   "name": "BramBunk",
+   "model": "models/camp_kit/bunk_1.gltf",
+   "row": "bunk",
+   "yaw": 270.0,
+   "why": "the far dome's bunk where the camp's rooms were first laid"
+  },
+  "LOCKERS x3": {
+   "name": "Lockers",
+   "model": "models/camp_kit/lockers_1.gltf",
+   "row": "lockers",
+   "yaw": 309.0,
+   "why": "the far dome's lockers where the camp's rooms were first laid"
+  },
+  "GROWTH CHAMBER (lid 1.1 m)": {
+   "name": "GrowthChamber",
+   "model": "models/camp_kit/growth_chamber_1.gltf",
+   "row": "growth_chamber",
+   "yaw": 212.0,
+   "why": "the far dome's growth chamber where the camp's rooms were first laid"
+  },
+  "SAMPLE SHELF (4 boards)": {
+   "name": "SampleShelf",
+   "model": "models/camp_kit/sample_shelf_1.gltf",
+   "row": "sample_shelf",
+   "yaw": 129.0,
+   "why": "the far dome's sample shelf where the camp's rooms were first laid"
+  },
+  "CRATE BY THE WINDOW (CRATE)": {
+   "name": "CrateByTheWindow",
+   "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
+   "yaw": 85.0,
+   "why": "the door dome's crate where the camp's rooms were first laid"
+  },
+  "CRATE BY THE DESK (CRATE SMALL)": {
+   "name": "CrateByTheDesk",
+   "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
+   "yaw": 32.0,
+   "why": "the door dome's crate small where the camp's rooms were first laid"
+  },
+  "CRATE BY THE GALLEY (CRATE)": {
+   "name": "CrateByTheGalley",
+   "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
+   "yaw": 248.0,
+   "why": "the door dome's crate where the camp's rooms were first laid"
+  },
+  "CRATE BY THE HYGIENE (CRATE SMALL)": {
+   "name": "CrateByTheHygiene",
+   "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
+   "yaw": 230.0,
+   "why": "the door dome's crate small where the camp's rooms were first laid"
+  },
+  "TERMINAL DESK by the far dome's window": {
+   "name": "TerminalDesk",
+   "model": "models/camp_kit/comms_desk_1.gltf",
+   "row": "comms_desk",
+   "yaw": 257.0,
+   "why": "the far dome's comms desk where the camp's rooms were first laid"
+  },
+  "CRATE BY THE CHAMBER (CRATE)": {
+   "name": "CrateByTheChamber",
+   "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
+   "yaw": 236.0,
+   "why": "the far dome's crate where the camp's rooms were first laid"
+  },
+  "CRATE BY THE SHELF (CRATE)": {
+   "name": "CrateByTheShelf",
+   "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
+   "yaw": 107.0,
+   "why": "the far dome's crate where the camp's rooms were first laid"
+  },
+  "CRATE STACK by the rack": {
+   "name": "CrateStack",
+   "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
+   "yaw": 306.5,
+   "why": "the door dome's crate where the camp's rooms were first laid"
+  },
+  "SMALL CRATE under the window": {
+   "name": "CrateUnderTheWindow",
+   "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
+   "yaw": 160.0,
+   "why": "the door dome's crate small where the camp's rooms were first laid"
+  },
+  "CRATE BY THE WAY (CRATE SMALL)": {
+   "name": "CrateByTheWay",
+   "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
+   "yaw": 150.0,
+   "why": "the far dome's crate small where the camp's rooms were first laid"
+  },
+  "CRATE BY THE BUNKS (CRATE)": {
+   "name": "CrateByTheBunks",
+   "model": "models/camp_kit/crate_1.gltf",
+   "row": "crate",
+   "yaw": 55.0,
+   "why": "the far dome's crate where the camp's rooms were first laid"
+  },
+  "SEFA'S BEDSIDE CRATE": {
+   "name": "SefasBedside",
+   "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
+   "yaw": 180.0,
+   "why": "the far dome's crate small where the camp's rooms were first laid"
+  },
+  "OONA'S BEDSIDE CRATE": {
+   "name": "OonasBedside",
+   "model": "models/camp_kit/crate_small_1.gltf",
+   "row": "crate_small",
+   "yaw": 40.0,
+   "why": "the far dome's crate small where the camp's rooms were first laid"
+  },
+  "SUIT LOCKER in the airlock": {
+   "name": "AirlockSuitLocker",
+   "model": "models/camp_kit/lockers_1.gltf",
+   "row": "lockers",
+   "yaw": 40.46,
+   "level": -0.8396,
+   "why": "the airlock dome's lockers where the camp's rooms were first laid"
+  }
+ },
+ "people": [
+  [
+   8.139,
+   10.836,
+   0.0,
+   "GALLEY COUNTER with sink and cooker (worktop 1.03 m)"
+  ],
+  [
+   6.092,
+   22.76,
+   0.0,
+   "SEFA'S BUNK"
+  ],
+  [
+   6.25,
+   13.7,
+   0.0,
+   "GROWTH CHAMBER (lid 1.1 m)"
+  ]
+ ],
+ "lamps": [
+  {
+   "name": "dome lamps",
+   "row": "ring_lamp",
+   "high": 0.0,
+   "colour": "#ffd29a",
+   "energy": 5.4,
+   "range": 7.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "why": "K01 and K08: the orange ring lamps under each dome, lit at each lamp the kit hangs; colour and energy unverified seed numbers until the light stage's sweep"
+  }
+ ],
+ "decals": [],
+ "beams": [],
+ "blocks": [
+  {
+   "name": "camp_airlock_footing",
+   "builder": "box",
+   "size": [
+    7.2,
+    1.2,
+    5.6
+   ],
+   "surface": "roof_steel_paint",
+   "at": [
+    9.5188,
+    -1.5177,
+    -13.9486
+   ],
+   "turn": [
+    0.005912,
+    0.907359,
+    -0.036575,
+    0.418721
+   ],
+   "plain": "plate",
+   "why": "the dark footing block under the airlock tube, 1.2 m deep, in the kit's airlock frame"
+  },
+  {
+   "name": "camp_airlock_ramp",
+   "builder": "box",
+   "size": [
+    2.4,
+    0.2,
+    1.1021
+   ],
+   "surface": "deck",
+   "at": [
+    11.7998,
+    -1.364,
+    -15.9006
+   ],
+   "turn": [
+    0.078532,
+    0.887223,
+    -0.19358,
+    0.411333
+   ],
+   "plain": "plate",
+   "why": "K05: the grated ramp from the airlock's outer door's sill down at 20 degrees to the ground"
+  }
+ ],
+ "elements": [
+  {
+   "element": "K01: quilted soft dome shell with ribs, a ring vent at the crown, windows with blue strip lamps",
+   "rows": [
+    "dome_wall_panel",
+    "dome_window_panel",
+    "dome_rib",
+    "dome_ceiling_gore",
+    "dome_roof_cap",
+    "shell_gore_window",
+    "window_strip_lamp"
+   ]
+  },
+  {
+   "element": "K01: orange ring lamps hung under the dome",
+   "rows": [
+    "ring_lamp"
+   ]
+  },
+  {
+   "element": "K01: comms desk with its screens",
+   "object": "COMMS DESK with its three screens (0.74 m)"
+  },
+  {
+   "element": "K01: stores rack with bins and cases on it",
+   "object": "STORES RACK"
+  },
+  {
+   "element": "K01: galley counter with sink, cooker, toaster and coffee maker",
+   "object": "GALLEY COUNTER with sink and cooker (worktop 1.03 m)"
+  },
+  {
+   "element": "K01: small appliances on the galley counter",
+   "rows": [
+    "toaster",
+    "coffee_maker"
+   ]
+  },
+  {
+   "element": "K01: cold store beside the galley",
+   "object": "COLD STORE (lid 1.02 m)"
+  },
+  {
+   "element": "K01: metal mess table in the middle",
+   "object": "MESS TABLE (0.87 m)"
+  },
+  {
+   "element": "K01: hygiene cubicle with its door and panel",
+   "object": "HYGIENE CUBICLE"
+  },
+  {
+   "element": "K01: big stencilled case and crates by the rack",
+   "object": "CRATE STACK by the rack"
+  },
+  {
+   "element": "K01: the round doorway to the airlock tube",
+   "rows": [
+    "dome_opening_frame",
+    "passage_lining"
+   ]
+  },
+  {
+   "element": "K01, K08: cables across the floor",
+   "rows": [
+    "floor_cable"
+   ]
+  },
+  {
+   "element": "K08: three bunks with sleeping bags",
+   "object": "SEFA'S BUNK"
+  },
+  {
+   "element": "K08: second and third bunk",
+   "object": "OONA'S BUNK"
+  },
+  {
+   "element": "K08: the third bunk",
+   "object": "BRAM'S BUNK"
+  },
+  {
+   "element": "K08: partition wall to the dome's lining, with its door",
+   "rows": [
+    "partition"
+   ]
+  },
+  {
+   "element": "K08: a bank of lockers against the partition",
+   "object": "LOCKERS x3"
+  },
+  {
+   "element": "K08: terminal desk by the window",
+   "object": "TERMINAL DESK by the far dome's window"
+  },
+  {
+   "element": "K08: growth chamber with seedlings under glass",
+   "object": "GROWTH CHAMBER (lid 1.1 m)"
+  },
+  {
+   "element": "K08: shelf of samples, jars and cases",
+   "object": "SAMPLE SHELF (4 boards)"
+  },
+  {
+   "element": "K08: jars, trays and cases on the sample shelf",
+   "rows": [
+    "sample_jar",
+    "sample_tray",
+    "sample_case"
+   ]
+  },
+  {
+   "element": "K08: kiosk terminal by the bunks",
+   "rows": [
+    "kiosk_terminal"
+   ]
+  },
+  {
+   "element": "K08: big green cases and small bedside cases",
+   "object": "CRATE BY THE BUNKS (CRATE)"
+  },
+  {
+   "element": "K08: canister on the floor",
+   "rows": [
+    "canister"
+   ]
+  },
+  {
+   "element": "K08: the tube to the passage",
+   "rows": [
+    "passage_hull",
+    "passage_lining"
+   ]
+  },
+  {
+   "element": "K01, K08: the crew standing about",
+   "drop": "the people are the cast stage's (data/characters/camp.json), not rows"
+  },
+  {
+   "element": "K08: red standing marks on the floor",
+   "drop": "a concept's people markers, not a thing in the room"
+  }
+ ],
+ "concept": {
+  "pick": "K01, K08",
+  "picture": "{seeds}/scene/camp/views/K01.png",
+  "read": "concepts K01 (the door dome) and K08 (the far dome) read element by element (2026-10-12), each mapped to the inventory's rows, a plan object or dropped with its reason; the old plans (mars-build door_dome and far_dome) say what stands in each dome, the camp's first laid rooms where"
+ },
+ "notes": [
+  "Frame: the habitat's own (its deck at nought), 0.55 m over the ground under the camp seat, turned with its seat; the domes, passage and airlock are the camp kit's pieces, the furniture the released camp models.",
+  "The boot rock stands in the camp grounds' plan (K05), seen from here through the grounds."
+ ]
+}

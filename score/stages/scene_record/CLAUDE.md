@@ -23,8 +23,15 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   lays, the body's night, moon, glow and harbour, the plan's `objects` and `shows`). A kit shell's plan stands in the
   kit's frame by its `frame` (an anchor, and a `toward` for a plan drawn down a view); its doors are the kit's
   doorways (`plan-matched` holds each to the plan within 0.05 m along its wall), a door's fifth number its sill's
-  level, its lead `<side>@<level>` where a wall has doors at several levels. Another kind of place (the hangar's flat
-  roof, the hub's facets) needs its own shell writer here before it gets the rows; the writer refuses it.
+  level, its lead `<side>@<level>` where a wall has doors at several levels. `outdoor` (`outdoor.py`: the wreck, the
+  old station, the camp grounds, the camp) has no walls of the record's: the plan's w and d are its site, laid by its `frame`; the record
+  holds the body's outdoor sky from `sky.json` (its ways in the body's own frame, turned into each place's by its
+  seat: suns, the Earth over the Moon, Mars's air, dust and sky dome) and the plan's `lamps`, `decals`, `beams`,
+  `blocks` and `objects` stood on their rows' laid spots over the made ground; its views and the `openings` viewers
+  stand on the made ground. The camp is `outdoor` with `inside`: its kit holds its domes, its lamps are lit where the
+  kit hangs them, its furniture is plan `objects` (the released camp models) on its own floor, its views stand on its
+  deck. Another kind of place (the hangar's flat roof, the hub's facets) needs its own shell writer here before it
+  gets the rows; the writer refuses it.
 - **The plan's inventory** is `data/inventory/<place>.json`, or the plan's `inventory` name (the prologue's rooms keep
   `prologue_flat`, `prologue_stairwell`). Never add inventory rows for a record: every place's assembly declares the
   whole inventory folder, so one changed file makes them all again; a concept element still waiting on rows is a

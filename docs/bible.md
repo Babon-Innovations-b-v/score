@@ -220,7 +220,11 @@ is meant to fix, where it is marked, and what proves it.
   writers: domed rooms, and kit shells (`kit_shell.py`, 2026-10-12: the Earth's flat, stairwell, street, square and
   launch view, whose kits hold their walls; the record adds the block round a room, the lamps of the sky record's
   lamp rows where the kit lays them, the Earth's night, moon, glow and harbour, the plan's released models and the
-  far city it shows; `plan-matched` holds the plan's doors to the kit's doorways). The sky record's numbers are the
+  far city it shows; `plan-matched` holds the plan's doors to the kit's doorways), and outdoor places (`outdoor.py`,
+  2026-10-12: the wreck, the old station, the camp grounds and the camp, whose kit holds its domes and whose
+  furniture is the released camp models as plan objects; no walls of the record's; the body's outdoor sky in `sky.json` with
+  its ways in the body's own frame, and the plan's lamps, decals and beams on their rows over the made ground). The
+  wreck's supply rocket, cargo lift and landing dust are out, as its concept C2 shows none. The sky record's numbers are the
   old records' shared ones, unverified. Proven when the garage's record passes its gates and the owner has seen it
   built; then each domed room, and a shell writer for each other kind of place.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
