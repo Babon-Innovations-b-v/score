@@ -13,7 +13,7 @@ from its plan and concept, not transcribed from the game. Two free rows a place:
 A place has the rows when its plan says where every door leads (`leads`, `written`; a place with no door an empty
 one): the garage, then the Earth's flat, stairwell, street, square and launch view, the Moon's wreck and old
 station, Mars's camp grounds and camp, and the Moon base's airlock, workshop, lab, habitat, greenhouse, hub and
-walkway tube. No assembly reads the record yet.
+walkway tube, and its hangar (a flat roof). No assembly reads the record yet.
 """
 import json
 import pathlib

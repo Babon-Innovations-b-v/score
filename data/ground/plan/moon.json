@@ -1,5 +1,5 @@
 {
- "about": "The Moon's ground round the base as a dimensioned plan the terrain stage (score/stages/terrain) makes into heights, in the base seat's flat numbers (x across, z along, metres, the base's middle at 0, 0). The flats, paths, craters and their settings are the plan the game 2099 laid its Moon with (its moonground jobs, 6 to 7 October 2026: BASE, PAD, SOLAR, DIG, STATION, PATHS and CRATERS); the old station's yard level and the wreck's dents are its ground record's (data/ground/moon.json); the garage's yard is new (the game's landed garage, ModuleRecord.LANDED at -17, 21 on the base seat, its 5 m big door in its south wall, an 8 m apron before it).",
+ "about": "The Moon's ground round the base as a dimensioned plan the terrain stage (score/stages/terrain) makes into heights, in the base seat's flat numbers (x across, z along, metres, the base's middle at 0, 0). The flats, paths, craters and their settings are the plan the game 2099 laid its Moon with (its moonground jobs, 6 to 7 October 2026: BASE, PAD, SOLAR, DIG, STATION, PATHS and CRATERS); the old station's yard level and the wreck's dents are its ground record's (data/ground/moon.json); the garage's yard is new (the game's landed garage, ModuleRecord.LANDED at -17, 21 on the base seat, its 5 m big door in its south wall, an 8 m apron before it). The hangar's seat and yard are new (the captain's decision, 2026-10-12): north of the greenhouse, its middle 3 m west of the greenhouse's line so it clears the habitat, its south hatch the base's tube run (4.35 m) past the greenhouse's north hatch; it is too long (46 m) to stand on the ball's curve, so its seat is a flat plane touching the ball 8 m in from its south wall and 4 m east of its middle (its south end stands by the base's rooms, under the habitat's floor), and its yard is held 0.1 m under that plane (`on_seat`), rising to 4 m at its north-west corner.",
  "ground": "moon",
  "side": 260.0,
  "points": 2048,
@@ -372,6 +372,18 @@
    ],
    "height": -0.1,
    "blend": 4.0
+  },
+  {
+   "for": "hangar",
+   "box": [
+    -34.92,
+    -62.3,
+    -6.3,
+    -12.42
+   ],
+   "height": -0.1,
+   "on_seat": true,
+   "blend": 4.0
   }
  ],
  "dents": {
@@ -537,6 +549,18 @@
     -0.467557752
    ],
    "heading": 0.048019356
+  },
+  "hangar": {
+   "out": [
+    0.328201894,
+    0.7059097,
+    -0.627674288
+   ],
+   "heading": 0.054891,
+   "flat": [
+    -4.8252,
+    -14.9077
+   ]
   }
  },
  "judged": [
@@ -590,6 +614,13 @@
     14
    ],
    "text": "GARAGE"
+  },
+  {
+   "at": [
+    -30,
+    -40
+   ],
+   "text": "HANGAR"
   },
   {
    "at": [

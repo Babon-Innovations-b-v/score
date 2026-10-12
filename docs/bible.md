@@ -228,7 +228,11 @@ is meant to fix, where it is marked, and what proves it.
   wreck's supply rocket, cargo lift and landing dust are out, as its concept C2 shows none. A domed plan's `shape` adds the faceted hub and the walkway tube, a
   glass dome, the airlock's ramp and the greenhouse's plot (2026-10-12: the Moon base's airlock, workshop, lab,
   habitat, greenhouse, hub and tube; the lab and the habitat stand beside the hub in `data/definitions/base.json`).
-  The hangar's flat roof still needs its writer. The sky record's numbers are the
+  A domed plan's `shape: flat` is the hangar's flat roof (2026-10-12): four slabs on the walls' top round its door
+  opening, its two roof leaves (the `hdoor` stage) shut over it; the hangar has its own seat on the Moon ground plan,
+  north of the greenhouse, its tube joined to the greenhouse's north hatch, its yard held on its seat's flat plane
+  (a level `on_seat`). An inventory row naming a world release model (`release_model`: the airlock's suit) stands as
+  an object at its spots. The sky record's numbers are the
   old records' shared ones, unverified. Proven when the garage's record passes its gates and the owner has seen it
   built; then each domed room, and a shell writer for each other kind of place.
 - **The final assembly** (`score/stages/assembly`: `make_from_seed`, `sounds.py`, the `layers` gate; 2026-10-12). For

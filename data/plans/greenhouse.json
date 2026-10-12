@@ -201,8 +201,10 @@
    "why": "a walkway tube runs south to the garage's north hatch (the garage's plan joins it here); its leaf (inventory hatch_leaf) swings open"
   },
   "N": {
-   "to": "sealed",
-   "why": "no walkway tube joined there yet; its hatch leaf stays shut (inventory hatch_leaf)"
+   "to": "tube",
+   "joins": "hangar",
+   "door": "S",
+   "why": "a walkway tube runs north to the hangar's south hatch (the hangar's plan joins it here); its leaf (inventory hatch_leaf) swings open"
   },
   "W": {
    "to": "sealed",

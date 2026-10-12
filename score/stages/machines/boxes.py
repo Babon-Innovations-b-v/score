@@ -1,5 +1,6 @@
 """machines-boxes@<place> (paid, experimental): the box gate's SAM 3 grounding for a place's machine rows (inventory
-rows with `"machine": true` and a box), so the prop route may draw their close-ups (the close-up stage draws only a
+rows with `"machine": true` and a box) and the rows added after its partition's own run that name `"ground_box":
+true` (the airlock's suit), so the prop route may draw their close-ups (the close-up stage draws only a
 box the box gate passes, tools/props/scene/box_check.py).
 
     make   box_check.mask_jobs on the machine rows only, SAM 3 on one rented card (box_masks_cloud.mask, as the
@@ -34,7 +35,7 @@ def box_tools():
 
 
 def machine_rows(inventory):
-    return [row for row in inventory["rows"] if row.get("machine") and row.get("box")]
+    return [row for row in inventory["rows"] if (row.get("machine") or row.get("ground_box")) and row.get("box")]
 
 
 def applies(place):

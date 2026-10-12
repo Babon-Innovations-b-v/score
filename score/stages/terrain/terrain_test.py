@@ -166,7 +166,7 @@ def test_a_layout_edit_terrain_never_reads_leaves_its_key_alone():
 
     edit("scene", "camp", lambda scene: scene.update(lights=[{"kind": "lamp", "at": [1, 2, 3]}]))
     edit("kit", "camp", lambda kit: kit.update(materials={"any": "thing"}))
-    edit("kit", "hangar", lambda kit: kit.update(on_seat=[9.0, 9.0]))  # no ground seats the hangar
+    edit("kit", "lab", lambda kit: kit.update(on_seat=[9.0, 9.0]))  # no ground seats the lab (a base module)
     edit("kit", "camp", lambda kit: kit["pieces"].append({"kind": "lamp", "at": [0, 0, 0], "model": "lamp_a"}))
     edit("motion", "launch", lambda motion: motion.setdefault("motions", []).append({"prim": "/launch/Fan", "spin": 1}))
     assert runner.file_keys(stage, None) == before

@@ -2,7 +2,8 @@
 
     game-free     no text of the record names a game file or the game's code (a Godot script or scene, a game path,
                   the game's class names): the record is made from the plan, never transcribed
-    plan-matched  the shell is the plan's: inside, corners, walls' height and dome within TOLERANCE once the backing is
+    plan-matched  the shell is the plan's: inside, corners, walls' height and dome (a flat roof: its slabs on the walls'
+                  top covering the roof round its door opening, none over it) within TOLERANCE once the backing is
                   taken off, the floor box the plan's inside, every door the plan cuts cut at its wide and tall in its
                   wall's middle (room_walls cuts there only), every shut door uncut. A kit shell (the Earth's): the
                   floor box the plan's inside, the block's masses on the plan's block (over: its footprint from a
@@ -79,16 +80,18 @@ SEED_REASONS = {
                              "item), 3.6 m from where the old record stood it off that middle",
     "launch:lights/spot": "the rocket's one floodlight is now the pad's four (inventory row far_pad_floodlight), each "
                           "lit at its lamp and aimed at the rocket's middle",
-    "airlock:objects": "the suit and the door leaves wait on their inventory rows and kit pieces (the captain's "
-                       "decision, 2026-10-12), which a record does not add: one inventory edit makes every place's "
-                       "assembly again",
-    "workshop:objects": "the robot and the parts tray come from the machines track as rows, not from this record",
+    "airlock:objects/outer_door": "the door leaves are kit pieces (inventory door_leaf, one shut in each door frame), "
+                                  "laid with the kit, not objects of the record",
+    **{f"hangar:structure/{name}": "the ship is the inventory's row ship (the machines track's), not a hull the shell "
+                                   "builds in code"
+       for name in ("ship", "ship_legs")},
+    "workshop:objects":"the robot and the parts tray come from the machines track as rows, not from this record",
     "workshop:structure/tray_tile_": "the workshop's parts tray (its tiles and the robot parts on them) comes from "
                                      "the machines track as rows, not as plain plates of the shell",
     "hub:objects/screen_": "the console's screens are its monitors, laid on it by its composite, not loose objects",
     **{f"{place}:views": "the record's views are its plan's: one inside each door and one from each standing spot; "
                          "a seed view with no such spot near it was a camera of the game's"
-       for place in ("airlock", "workshop", "lab", "habitat", "greenhouse", "hub", "tube")},
+       for place in ("airlock", "workshop", "lab", "habitat", "greenhouse", "hub", "tube", "hangar")},
     "planned_ground": "the ground under a place is the terrain stage's made ground at its seat, not the record's",
     "greenhouse:structure/bed_": "the plot is the plan's one bed of soil in its curb (plot_soil, plot_wall); its "
                                  "rows of crops are the crops track's",
@@ -145,8 +148,10 @@ def shell_faults(record, walls):
     found = []
     wanted = {"wide": walls["wide"] + 2 * writer.BACKING, "deep": walls["deep"] + 2 * writer.BACKING,
               "corner": walls["corner"] + writer.BACKING}
-    for builder, extra in (("room_walls", {"high": walls["high"]}), ("room_deck", {}),
-                           ("dome_roof", {"eave": walls["high"], "rise": walls["rise"]})):
+    builders = (("room_walls", {"high": walls["high"]}), ("room_deck", {}))
+    if walls.get("shape") != "flat":
+        builders += (("dome_roof", {"eave": walls["high"], "rise": walls["rise"]}),)
+    for builder, extra in builders:
         made = entry(record, builder)
         if made is None:
             found.append(f"no {builder} in the record's shell")
@@ -180,6 +185,32 @@ def door_faults(record, plan):
         elif not door["cut"] and made is not None:
             found.append(f"{name} is shut ({door['why']}) but cut")
     found += [f"a doorway is cut in the {side} wall, where the plan has no door" for side in cut]
+    return found
+
+
+def roof_faults(record, walls):
+    """A flat roof's slabs against the plan: each on the walls' top, none over the door opening or past the walls, none
+    over another, and together the whole roof round the opening (their areas summed, within TOLERANCE of it)."""
+    half = np.array([walls["wide"] / 2 + writer.BACKING, walls["deep"] / 2 + writer.BACKING])
+    opening = np.asarray(walls["opening"], dtype=float) / 2
+    found, spans = [], []
+    for slab in (item for item in record["structure"] if item["name"].startswith("roof_slab_")):
+        low, high = box_span(slab)
+        spans.append((low[[0, 2]], high[[0, 2]]))
+        if abs(low[1] - walls["high"]) > TOLERANCE:
+            found.append(f"{slab['name']} lies at {low[1]:.2f} m, not on the walls' top ({walls['high']} m)")
+        if (low[[0, 2]] < -half - TOLERANCE).any() or (high[[0, 2]] > half + TOLERANCE).any():
+            found.append(f"{slab['name']} reaches past the walls")
+        if (np.minimum(high[[0, 2]], opening) - np.maximum(low[[0, 2]], -opening) > TOLERANCE).all():
+            found.append(f"{slab['name']} lies over the roof's door opening")
+    for number, (low, high) in enumerate(spans):
+        for other_low, other_high in spans[number + 1:]:
+            if (np.minimum(high, other_high) - np.maximum(low, other_low) > TOLERANCE).all():
+                found.append("two roof slabs lie over each other")
+    covered = sum(float(np.prod(high - low)) for low, high in spans)
+    wanted = float(np.prod(2 * half) - np.prod(2 * opening))
+    if abs(covered - wanted) > TOLERANCE * 2 * half.sum():
+        found.append(f"the roof's slabs cover {covered:.2f} m2, the roof round its opening {wanted:.2f} m2")
     return found
 
 
@@ -355,6 +386,9 @@ def judge_plan_matched(output, inputs, evidence):
         found = tuple(facet_faults(record, plan))
     elif plan["walls"].get("shape") == "tube":
         found = tuple(tube_faults(record, plan))
+    elif plan["walls"].get("shape") == "flat":
+        found = tuple(shell_faults(record, plan["walls"]) + door_faults(record, plan) +
+                      roof_faults(record, plan["walls"]))
     else:
         found = tuple(shell_faults(record, plan["walls"]) + door_faults(record, plan))
     reason = "; ".join(found[:3]) if found else \
@@ -476,7 +510,7 @@ def measure_openings(output, inputs):
     ways = ground_gates.shell_doors(record) + [
         {"door": f"door {door['name']} ({door['what']})", "middle": np.asarray(door["middle"], dtype=float),
          "normal": np.asarray(door["normal"], dtype=float)} for door in plan["doors"]
-        if door["cut"] and (plan["shell"] == "kit" or plan["walls"].get("shape"))]
+        if door["cut"] and (plan["shell"] == "kit" or plan["walls"].get("shape") in ("faceted", "tube"))]
     doors = ground_gates.door_floors(rays, ways, up)
     ball = ground_gates.ball_of(laid) if laid is not None else None
     spots = ground_gates.probes(rays, record, None, up)

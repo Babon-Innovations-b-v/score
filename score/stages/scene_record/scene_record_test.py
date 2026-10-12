@@ -9,7 +9,8 @@ is left out with no reason). The stairwell's record passes all four too; its blo
 five (its viewers standing on the made ground); its break lamp's light taken away fails `plan-matched` and the Earth
 taken away fails `seed-matched`. Skipped, and says so, on a machine
 without the round-three seeds or an accepted terrain output. The hub's facets, the walkway tube and the greenhouse's
-glass dome and plot each match their plan, and a shell number moved a metre fails `plan-matched`.
+glass dome and plot and the hangar's flat roof each match their plan, and a shell number moved a metre fails
+`plan-matched`.
 
 Run: .venv/bin/python score/stages/scene_record/scene_record_test.py
 """
@@ -184,15 +185,17 @@ def shell_faults_of(made, structure):
     """The plan-matched gate's shell faults for a shell written from `made` (the plan record)."""
     record = {"structure": structure, "floor": made["floor"]}
     shape = made["walls"].get("shape")
+    roof = gates.roof_faults(record, made["walls"]) if shape == "flat" else []
     return gates.facet_faults(record, made) if shape == "faceted" else gates.tube_faults(record, made) \
-        if shape == "tube" else gates.shell_faults(record, made["walls"]) + gates.door_faults(record, made)
+        if shape == "tube" else gates.shell_faults(record, made["walls"]) + gates.door_faults(record, made) + roof
 
 
 def test_every_shell_kind_matches_its_plan_and_a_moved_number_fails():
-    """The faceted hub, the walkway tube and the glass-domed greenhouse (with its plot): each plan maps, its shell
-    matches it, and a shell number moved a metre fails plan-matched."""
+    """The faceted hub, the walkway tube, the glass-domed greenhouse (with its plot) and the flat-roofed hangar: each
+    plan maps, its shell matches it, and a shell number moved a metre (the hangar's west roof slab a metre over its
+    door opening) fails plan-matched."""
     for place, name, key in (("hub", "shell_walls", "apothem"), ("tube", "hull_crown", "radius"),
-                             ("greenhouse", "dome_glass", "rise")):
+                             ("greenhouse", "dome_glass", "rise"), ("hangar", "roof_slab_west", "centre")):
         with tempfile.TemporaryDirectory() as folder:
             out, inputs = made_plan(folder, place=place)
             found = plan.judge_mapped(out, inputs, None)
@@ -201,7 +204,11 @@ def test_every_shell_kind_matches_its_plan_and_a_moved_number_fails():
             structure = writer.shell(made) + writer.plots(made)
             assert shell_faults_of(made, structure) == [], (place, shell_faults_of(made, structure))
             moved = copy.deepcopy(structure)
-            next(item for item in moved if item["name"] == name)[key] += 1.0
+            item = next(item for item in moved if item["name"] == name)
+            if isinstance(item[key], list):
+                item[key][0] += 1.0
+            else:
+                item[key] += 1.0
             assert shell_faults_of(made, moved), (place, name, key)
 
 
