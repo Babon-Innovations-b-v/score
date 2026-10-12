@@ -198,7 +198,8 @@ def named_again(inputs, take, entry, record):
     import finish_parts
     every = finish_parts.take_surfaces(entry)
     front = np.load(inputs["maps"] / take / "front.npy").astype(int)
-    measured = finish_parts.measured_colours(take, front, len(record["finishes"]))
+    measured = finish_parts.measured_colours(take, front, [every.get(finish["surface"])
+                                                           for finish in record["finishes"]])
     picture, reference = close_up(inputs, take), Image.open(inputs["maps"] / take / "front.png")
     found = []
     for number, (finish, colour) in enumerate(zip(record["finishes"], measured)):
