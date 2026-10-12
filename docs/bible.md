@@ -185,10 +185,12 @@ is meant to fix, where it is marked, and what proves it.
   on a label colour), agreement with the maps 84 to 99% on the close-up and 89 to 100% on the back (the greenhouse chair's one side map 54%), no part mixing
   two finishes, 6 to 24 parts a model (the aft section had ~9,600). Each finish's surface is checked against its
   colour in the close-up (dE 32, set on the six: right surfaces up to 29.7, wrong from 33.2; a nearer surface of its
-  family is taken, else the paint's gate fails it with a tinted proposal). First real line, greenhouse 2026-10-12:
-  every map settled, the parts gate stopped it on the seed tray (a part 24% another finish); three finishes no
-  surface fits by colour. Proven when a place's line ends accepted at its checks and the owner reviews the baked
-  models.
+  family is taken, else the paint's gate fails it with a tinted proposal); a finish whose words name another
+  material than its surface's family, or far off its colour, is named once more (`surfaces-names`). First real line,
+  greenhouse 2026-10-12: every surface row passed through bake and check on all 8 models, with four library surfaces
+  added overnight for the owner to review (grey_painted_steel, translucent_blue_plastic, printed_paper, tank_water).
+  The assembly does not take the bake yet. Proven when a place's line ends accepted at its checks and the owner
+  reviews the baked models.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
   `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
   terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its

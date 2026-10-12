@@ -29,6 +29,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `COLOUR_DELTA_E` 32 CIE76, set on round 4's six models): the colour only chooses among library surfaces (the
   nearest of the listed one's family); a finish none fits gets a tinted proposal in the registry and fails the paint
   row's gate "colour against the close-up" by name.
+- **A finish is named again when its words or colour contradict its surface** (`surfaces-names`, paid, cached): its
+  words name a material its surface's family is not (`finish_parts.contradicts`: black rubber as bare_steel), or its
+  surface lies over `COLOUR_DELTA_E` from its close-up colour; Gemini is asked once with the close-up, the finish map
+  and every surface the take's library places allow. New library surfaces are made the library's own way (a variant
+  in `data/library/materials.json` on a palette token, the place taking it in `place.json`), never a picture's colour.
+- **The bake takes today's library and the method's paint only**: every painted surface's spec from the library, an
+  old job's `regions` boxes dropped.
 - **Painting is 3D parts plus the shared library, only.** A picture's colours never reach a model: a map's label
   colours only name finishes, each part is painted from its finish's library surface.
 - **The finish registry is a store item** (`registry.py`; `registry/surfaces/` in the store): append-only, the new
