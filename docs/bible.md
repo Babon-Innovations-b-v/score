@@ -342,8 +342,8 @@ is meant to fix, where it is marked, and what proves it.
   `resting` (resting.py on the composed stage). Its motion and effects are the motion and effects stages'. Only the
   garage's rover has a record. Proven when the garage's rover ends accepted and the owner sees it; the ship and the
   ship is the hangar's `ship` inventory row, grounded by `machines-boxes@hangar` (paid, SAM 3) and made by the prop
-  route in a world of its own (`ship_trial.py`); the robot's eight parts are rows with no box (concept K10 shows no
-  robot) and no take yet.
+  route in a world of its own (`ship_trial.py`); the workshop has no robot row: its concept K10 shows none, and
+  the concept decides (captain, 2026-10-12).
 
 ## architecture/trust-boundaries
 
