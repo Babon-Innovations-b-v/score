@@ -377,6 +377,7 @@ def build(spec, outfit, who, held, dry_run):
     parts_file = folder / "parts" / take / "parts.npz"
     local("prop_rig.py", PIXAL / f"{take}-final.glb", rig_file, folder / "fit", "--size",
           spec.get("look", {}).get("scale", 1.0), "--parts", parts_file, "--faces", NEAR_FACES)
+    shelled(spec, outfit, who, held, dry_run)
     local("prop_far.py", folder / "fit" / "rig.npz", parts_file, folder / "fit" / "far.npz")
     local("prop_prints.py", take, folder / "fit" / "rig.npz", parts_file, folder / "fit" / "prints.npz")
     make = make_place(folder, "build")
@@ -391,6 +392,23 @@ def build(spec, outfit, who, held, dry_run):
             shutil.rmtree(folder / "out")
         shutil.copytree(make / "out", folder / "out")
     return json.loads((folder / "fit" / "rig.json").read_text())["matched_share"]
+
+
+def shelled(spec, outfit, who, held, dry_run):
+    """The look bound to SOMA-X's body fitted to its outside (prop_shell.py, owner 2026-10-12): the fit on a characters
+    machine, the binding here; <candidate>/fit/rig.npz takes the body's weights (the RSWT ones kept in it),
+    fit/shell.npz and fit/shell.json the body and its offsets."""
+    folder = folder_of(spec, outfit)
+    make = make_place(folder, "shell")
+    make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-shell", person=spec["name"]), ("shell",),
+                {"fit": folder / "fit" / "rig.npz"})
+    on_characters(make, who, held, dry_run)
+    if dry_run:
+        return None
+    shutil.copy2(make / "out" / "shell.npz", folder / "fit" / "shell.npz")
+    local("prop_shell.py", "bind", folder / "fit" / "rig.npz", folder / "fit" / "shell.npz", folder / "fit" / "rig.npz",
+          folder / "fit" / "shell.json")
+    return json.loads((folder / "fit" / "shell.json").read_text())
 
 
 def settle(spec, outfit, who, held, dry_run):

@@ -62,6 +62,12 @@ def rig(chain):
     chain.run([MOTION, MAKER / "prop_skeleton.py", chain.out / "rig.npz", *chain.spec.get("clips", [])])
 
 
+def shell(chain):
+    """SOMA-X's body, its shape fitted to the outside of the look, laid on the fitted skeleton (prop_shell.py fit):
+    out/shell.npz, the moving base the look is bound to."""
+    chain.run([MOTION, MAKER / "prop_shell.py", "fit", chain.file(chain.spec["files"]["fit"]), chain.out / "shell.npz"])
+
+
 def build(chain):
     """The person built: out/<name>.glb, its report, out/usd/ and out/checks/."""
     files = {name: chain.file(path) for name, path in chain.spec["files"].items()}
@@ -102,8 +108,8 @@ def review(chain):
     return f"turntables and {len(shown)} clips"
 
 
-STEPS = {"pose": pose, "closeup": closeup, "rig": rig, "build": build, "settle": settle, "shots": shots,
-         "review": review}
+STEPS = {"pose": pose, "closeup": closeup, "rig": rig, "shell": shell, "build": build, "settle": settle,
+         "shots": shots, "review": review}
 
 
 def main():
