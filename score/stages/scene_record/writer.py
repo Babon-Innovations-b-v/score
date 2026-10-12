@@ -226,13 +226,30 @@ def shell(plan):
                  + ("; glazed (inventory room layout glass_dome)" if plan.get("glass") else "")}]
 
 
-def row_model(place, row):
-    """The model an inventory row the kit does not lay stands as, and what made it: the route's pick (from the
-    place's kit models) or a world release model the row names (`release_model`, the airlock's suit); else None."""
+def picked(row, spot):
+    """The model the route's pick lays at a spot: the spot's own `model`, else the pick's one `model`, else the one
+    model of a pick that lists `models` (its glows left out); a pick of several models whose spot names none cannot
+    be read: an error naming the row."""
+    pick = row["pick"]
+    if spot.get("model"):
+        return spot["model"]
+    if pick.get("model"):
+        return pick["model"]
+    models = [name for name in pick.get("models", {}) if not name.endswith("_glow")]
+    if len(models) != 1:
+        raise ValueError(f"inventory row {row['id']}: its pick lists {len(models)} models and its spot names none")
+    return models[0]
+
+
+def row_model(place, row, spot):
+    """The model an inventory row the kit does not lay stands as at a spot, and what made it: a world release model
+    the row names (`release_model`, the airlock's suit) or the route's pick (picked, from the place's kit models);
+    else None."""
     if row.get("release_model"):
         return row["release_model"], f"the world release's {row['release_model']}"
     if str(row.get("made", "")).startswith("made by the route") and row.get("pick"):
-        return f"models/{place}_kit/{row['pick']['model']}.gltf", f"made by the route, its pick {row['pick']['model']}"
+        model = picked(row, spot)
+        return f"models/{place}_kit/{model}.gltf", f"made by the route, its pick {model}"
     return None
 
 
@@ -241,10 +258,10 @@ def objects(place, inventory):
     its facing."""
     found = []
     for row in inventory["rows"]:
-        made = row_model(place, row)
-        if made is None:
-            continue
         for number, spot in enumerate((spot for spot in row.get("at", []) if "x" in spot), 1):
+            made = row_model(place, row, spot)
+            if made is None:
+                break
             found.append({"name": f"{row['id']}_{number}", "row": row["id"], "model": made[0],
                           "at": [spot["x"], spot["y"], spot["z"]], "yaw": -float(spot.get("facing", 0.0)),
                           "from": f"inventory row {row['id']} ({made[1]}): its spot {number}, facing "
