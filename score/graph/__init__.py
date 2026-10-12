@@ -533,7 +533,7 @@ class Runner:
                     self.gather(stage, place, wanted)
                     did = f"{did}; gathered {', '.join(wanted)}: {self.run_retrying(stage, place)}"
                 return did
-            except Exception as error:  # noqa: BLE001 - one node's error stops its line, not the run; kept in its log
+            except (Exception, SystemExit) as error:  # noqa: BLE001 - a SystemExit too
                 traceback.print_exc()
                 return f"error: {type(error).__name__}: {error}"
 

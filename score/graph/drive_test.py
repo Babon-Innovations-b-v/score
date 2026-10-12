@@ -32,6 +32,8 @@ def make_clean(inputs, out, seed, params):
     print("cleaning", inputs["brief"])
     if "explode" in inputs["brief"].read_text():
         raise RuntimeError("the cleaner fell over")
+    if "quit" in inputs["brief"].read_text():
+        raise SystemExit("the cleaner quit: no such material")
     (out / "clean.txt").write_text(inputs["brief"].read_text().upper())
 
 
@@ -150,6 +152,15 @@ def test_an_error_stops_its_line_with_its_traceback_in_the_report():
     assert found["count@station"] == "made: pass, accepted automatically", found
     report = report_of(runner, "clean@hangar").read_text()
     assert "Traceback" in report and "the cleaner fell over" in report, report
+
+
+def test_a_system_exit_is_an_error_with_its_message_in_the_report():
+    """surfaces-lists@lab, 2026-10-12: a SystemExit in a make ended the node's process with exit code 1 and nothing said."""
+    runner = a_runner({"hangar": "quit", "station": "a hub"})
+    found = runner.drive(PLACES, say=quiet)
+    assert found["clean@hangar"].startswith("error: SystemExit: the cleaner quit: no such material; fault report"), found
+    assert "the cleaner quit" in report_of(runner, "clean@hangar").read_text()
+    assert found["count@station"] == "made: pass, accepted automatically", found
 
 
 def test_a_missing_input_stops_its_line_with_a_fault_report():
