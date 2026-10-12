@@ -9,8 +9,8 @@ Step 0 holds the worked example: assembly (P5) on world 1's round-three stages a
 (P11). Terrain (the paper's Methods, "Terrain") makes every ground of the world from its plan, one world node, paid
 (pictures and depth in the cloud, cleared by the runner). The surface stage (step 1, its overlay) is each place's
 own line of rows, split to checked bake, beside the world's seed of the finish registry. Effects (experimental) makes
-the proof place's effects layer from its record, which its assembly takes; effects-look renders it before and after. Each stage joins the table
-when it is built in its step (docs/bible.md, architecture/components).
+each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
+after. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import pathlib
 
@@ -25,7 +25,8 @@ WORLD1 = REPO / "data/definitions/world.json"
 
 TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain.FILES,
                       paid=True, euros=terrain.EUROS)
-# Experimental (PRD #6) until the owner reviews it: the proof place's effects layer, which its assembly takes.
+# Experimental (PRD #6) until the owner reviews it: each staged place's effects layer (effects.STAGED), which its
+# assembly takes.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
                       applies=lambda place: place in effects.STAGED)
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
