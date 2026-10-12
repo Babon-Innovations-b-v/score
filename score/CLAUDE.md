@@ -39,8 +39,8 @@ stage as each stage is built; nothing moves before.
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
   since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
-  import, inside functions and through `sys.path` folders too; never the framework's own runner, review, clearance
-  and stage table, `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes), parameters, seed,
+  import, inside functions and through `sys.path` folders too; never the framework's own runner, review, clearance,
+  stage table and renting code (`batch`, `capacity`, `park`, `blender_cloud`), `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes), parameters, seed,
   pinned models and every input. Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.

@@ -117,7 +117,7 @@ def test_the_next_run_of_the_kind_takes_it_and_pays_only_what_it_adds():
     assert expirer_tags[0] == f"pid={os.getpid()}" and expirer_tags[2].startswith("deadline=")
 
     other = run_of("other-kind")
-    assert batch.park_taken(other, OFFERS, 1, "blender-other", 60) is None  # another kind never takes it
+    assert batch.park_taken(other, OFFERS, 1, "blender-other", 60) is None  # a kind without a clean-up never takes it
     assert batch.park_taken(other, OFFERS, 1, KIND, 200) is None  # nor a run wanting a bigger disk
     assert batch.park_taken(other, [OFFERS[0]._replace(zone="zone-b")], 1, KIND, 60) is None  # nor one elsewhere
 
@@ -130,6 +130,23 @@ def test_the_next_run_of_the_kind_takes_it_and_pays_only_what_it_adds():
     assert ledger.machine_row(taken)["euros"] == 0.0
     taken["deleted"] = taken["created"] + 70 * 60  # into a second hour: that hour is this run's
     assert abs(ledger.machine_row(taken)["euros"] - 60 * HOUR_PRICE) < 1e-9
+
+
+def test_another_cleaned_kind_takes_a_parked_machine_when_its_own_kind_has_none():
+    """The owner, 2026-10-12: no new machine while one is idle. A machine another kind parked is taken by a claim of a
+    kind that cleans up, its own kind's first, and becomes that kind's."""
+    calls = fresh()
+    park.CLEANUPS["park-other"] = lambda _machine: "rm -rf /root/other/out"
+    try:
+        for server_id, kind in (("m-other", "park-other"), ("m-own", KIND)):
+            batch.delete_machine(machine(20, kind=kind, server_id=server_id))
+        own = batch.park_taken(run_of("own"), OFFERS, 1, KIND, 60)
+        assert own["id"] == "m-own" and own["kind"] == KIND  # its own kind's machine first
+        taken = batch.park_taken(run_of("cross"), OFFERS, 1, KIND, 60)
+        assert taken["id"] == "m-other" and taken["kind"] == KIND  # then the other kind's, now this kind's
+        assert not calls.deleted
+    finally:
+        del park.CLEANUPS["park-other"]
 
 
 def test_a_machine_not_worth_parking_is_deleted():

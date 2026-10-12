@@ -24,7 +24,6 @@ sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
 import capacity  # noqa: E402
-import cheapest  # noqa: E402
 import ledger  # noqa: E402
 import pictures  # noqa: E402
 import provider  # noqa: E402
@@ -51,7 +50,7 @@ def to_ask(path, answers):
 def price(jobs, account, cards=None):
     """Print the estimate and refuse what passes the owner's limits; the offers, the machines (at most `cards` when
     given) and the minutes allowed."""
-    found = cheapest.big_last(batch.offers(list(capacity.classes_for(KIND))))
+    found = batch.offers(list(capacity.classes_for(KIND)))
     if not found:
         raise SystemExit("no card that holds the judge is sold in the zones used")
     count = capacity.machines_for(len(jobs), SECONDS_A_QUESTION / 60, SETUP_MINUTES, capacity.slots_for(KIND))

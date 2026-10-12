@@ -12,11 +12,15 @@ OUTSIDE = (REPO / ".venv", REPO / ".git")
 # What runs a stage, not what a stage runs: the runner, the review pages, the clearance and the stage table. A stage
 # reaches them through imports (batch -> compute -> graph), and every builder edits them, so hashing them moved every
 # stage's key on each other's edits (terrain re-made under the effects line, 2026-10-12). Their imports are not
-# followed either. The store stays in: stages call it (PROPS_HOME, Store).
+# followed either. The store stays in: stages call it (PROPS_HOME, Store). The renting code is left out too (the
+# coordinator, 2026-10-12): which card, zone and machine a job gets, parking and the ledger change what a run costs,
+# never what it makes, and the cost fixes of that day would otherwise have re-made terrain and every assembly.
 FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__.py", "score/graph/_code.py",
                                       "score/review/__init__.py", "score/review/__main__.py",
                                       "score/adapters/compute/__init__.py", "score/stages/__init__.py",
-                                      "score/stages/__main__.py")}
+                                      "score/stages/__main__.py", "tools/props/cloud/batch.py",
+                                      "tools/props/cloud/capacity.py", "tools/props/cloud/park.py",
+                                      "tools/props/cloud/blender_cloud.py", "tools/props/cloud/ledger.py")}
 
 
 def in_repo(path):
