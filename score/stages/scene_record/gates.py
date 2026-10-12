@@ -314,15 +314,18 @@ def lead_faults(output, inputs, plan):
     for door in plan["doors"]:
         if not door["cut"] or door["leads"] == "outside":
             continue
-        stage = bare_stage(place)
-        stand_places(stage, place, [item for item in record.get("places", []) if item["stage"] == door["leads"]],
-                     inputs["seeds"])
-        seen = sight.gathered(stage)
-        spot = writer.door_outside(door) + np.asarray(door["normal"], dtype=float) * ground_gates.DOOR_OUT
-        drop = np.inf if not len(seen.faces) else \
-            ground_gates.drops(ground_gates.caster(seen), np.array([spot + [0.0, 1.0, 0.0]]), [0.0, -1.0, 0.0])[0] - 1.0
+        shown = [item for item in record.get("places", []) if item["stage"] == door["leads"]]
+        drop = np.inf
+        if shown:  # with none, nothing to gather: its place is missing outright
+            stage = bare_stage(place)
+            stand_places(stage, place, shown, inputs["seeds"])
+            seen = sight.gathered(stage)
+            spot = writer.door_outside(door) + np.asarray(door["normal"], dtype=float) * ground_gates.DOOR_OUT
+            if len(seen.faces):
+                drop = ground_gates.drops(ground_gates.caster(seen), np.array([spot + [0.0, 1.0, 0.0]]),
+                                          [0.0, -1.0, 0.0])[0] - 1.0
         if not drop <= ground_gates.DOOR_DROP:
-            found.append(f"door {door['plan_side']} ({door['what']}) leads to {door['leads']}, but no floor of "
+            found.append(f"door {door['name']} ({door['what']}) leads to {door['leads']}, but no floor of "
                          f"{door['leads']} lies under the way out of it")
     return found
 
