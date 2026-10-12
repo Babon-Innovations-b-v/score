@@ -1,0 +1,13 @@
+{
+ "place": "people",
+ "library": "people",
+ "why": "The people stage's line (score/stages/people, #5, owner 2026-10-11: people are made like every prop): each look's Pixal3D take, painted through the surface stage's own method and paint as a place's takes are; its body rows read `spec` and `outfit` beside each take.",
+ "takes": {
+  "pp-player-work-s1": {"places": ["people"], "library_places": ["people"], "place": "people", "kind": "person",
+                        "object": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a black belt and black boots",
+                        "spec": "data/characters/makes/player_prop.json", "outfit": "work"},
+  "pp-nev-space-s3": {"places": ["people"], "library_places": ["people"], "place": "people", "kind": "person",
+                      "object": "an astronaut in a white space suit with a raised helmet visor, grey mittens, grey moon boots and green straps",
+                      "spec": "data/characters/makes/nev_prop.json", "outfit": "space"}
+ }
+}

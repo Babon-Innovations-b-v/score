@@ -1,0 +1,74 @@
+{
+ "name": "oona",
+ "kind": "person",
+ "route": "prop",
+ "experimental": "people stage (#5): the prop route, experimental until its gates pass on every look",
+ "approved": "owner, 2026-10-11 (#5, #6): people are made like every prop (Pixal3D shape, split into parts, SOMA-X only for the skeleton so Kimodo's clips play); world 1 finished today",
+ "why": "Oona sitting still in her suit beside Bram at the camp",
+ "references": [
+  "~/.farm-factory-motion/rnd/people/nev_mars/refs/oona_suit.png"
+ ],
+ "pose_picture": "~/.farm-factory-motion/candidates/prop-people/player/work/closeup/pp-player-work-s1.png",
+ "closeup_seeds": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "closeups": [],
+ "description": "an Irish woman in her thirties, an astronaut of the first expedition, a medium build, shoulder-length curly red hair, freckles",
+ "outfit_words": {
+  "space": "a white one-piece space suit: a round white helmet open at the front so the face shows, its gold visor pushed up over the top, a light grey neck ring, a slim grey control box on the chest with a small screen and dark knobs and two grey hoses down to the hips, a big boxy white backpack, light grey harness straps and belt, pairs of blue stripes round the upper arms and the lower legs, a US flag patch on the left upper arm, white thigh pockets, white gloves, chunky white moon boots"
+ },
+ "hair": "shoulder-length curly red hair",
+ "face": "oona's face",
+ "outfits": [
+  "space"
+ ],
+ "garment_body": "mean_female",
+ "look": {
+  "scale": 0.986,
+  "work": "american",
+  "space": "american",
+  "name": "OONA",
+  "skin": [
+   238,
+   196,
+   168
+  ],
+  "hair": [
+   176,
+   72,
+   34
+  ],
+  "hair_shine": [
+   214,
+   116,
+   60
+  ],
+  "brow": [
+   150,
+   72,
+   40
+  ],
+  "iris": [
+   72,
+   104,
+   104
+  ],
+  "brow_weight": 0.62,
+  "line": [
+   120,
+   60,
+   44
+  ],
+  "freckles": [
+   206,
+   140,
+   104
+  ],
+  "brow_lift": 0.003
+ },
+ "shipped_body": "oona",
+ "shipped_outfit": "suit"
+}

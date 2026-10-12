@@ -1,0 +1,37 @@
+{
+ "name": "leader",
+ "kind": "person",
+ "route": "prop",
+ "experimental": "people stage (#5): the prop route, experimental until its gates pass on every look",
+ "approved": "owner, 2026-10-11 (#5, #6): people are made like every prop (Pixal3D shape, split into parts, SOMA-X only for the skeleton so Kimodo's clips play); world 1 finished today",
+ "why": "the leader pointing from the podium on the square",
+ "references": [
+  "~/.farm-factory-motion/work/style/people/takes/leader_b_19.png"
+ ],
+ "pose_picture": "~/.farm-factory-motion/candidates/prop-people/player/work/closeup/pp-player-work-s1.png",
+ "closeup_seeds": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "closeups": [],
+ "description": "an old Chinese man in his seventies, the state's leader, a heavy build, silver hair combed straight back, dark rectangular glasses",
+ "outfit_words": {
+  "state-suit": "a mid grey state suit: a buttoned tunic jacket with a stand collar, four patch pockets with flaps, a small red pin on the left chest, matching grey trousers, black leather shoes"
+ },
+ "hair": "silver hair combed straight back",
+ "face": "leader's face",
+ "outfits": [
+  "state-suit"
+ ],
+ "garment_body": "mean_male",
+ "look": {
+  "scale": 1.0019088375050844,
+  "prologue": "leader",
+  "face": "leader",
+  "hair_style": "back"
+ },
+ "shipped_body": "leader",
+ "shipped_outfit": "person"
+}

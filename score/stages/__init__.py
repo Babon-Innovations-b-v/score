@@ -19,7 +19,7 @@ import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import assembly, complete, effects, images, props, surfaces, terrain
+from score.stages import assembly, complete, effects, images, people, props, surfaces, terrain
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -103,7 +103,8 @@ def prop_fed(row):
 
 
 STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, props.INPUTS, props.CLOSEUP, props.PIXAL,
-          *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS)
+          *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
+          *people.ROWS)
 
 
 def world1():

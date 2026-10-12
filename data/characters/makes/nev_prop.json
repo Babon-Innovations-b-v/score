@@ -9,15 +9,22 @@
   "~/.farm-factory-motion/rnd/people/nev_mars/refs/nev_suit.png"
  ],
  "pose_picture": "~/.farm-factory-motion/candidates/prop-people/player/work/closeup/pp-player-work-s1.png",
- "closeup_seeds": [3, 4, 5, 6],
+ "closeup_seeds": [
+  3,
+  4,
+  5,
+  6
+ ],
  "description": "a Chinese woman in her thirties, a botanist of a Moon base, a small slim build, a short black pixie cut, thin round glasses",
  "outfit_words": {
-  "space": "a white one-piece space suit: a round white helmet with a gold rim and its clear visor raised so her face shows, a light grey neck ring, a light grey chest box with a red flag with a yellow star and two dark knobs, green straps over the shoulders and down the front, a light grey waist box on a grey belt, a white backpack, a gold band and a red band round each upper arm, grey mittens, dark grey knee pads, red bands below the knees, chunky grey moon boots"
+  "space": "a white one-piece space suit: a round white helmet with a gold rim and its clear visor raised so her face shows, a light grey neck ring, a light grey chest box with a red flag with a yellow star and two dark knobs, green straps over the shoulders and down the front, a light grey waist box on a grey belt, a white backpack, a gold band and a red band round each upper arm, grey mittens, dark grey knee pads, red bands below the knees, chunky grey moon boots",
+  "work": "a dark navy one-piece work suit: a stand collar, a front zip, light grey shoulder panels, thin red piping down the arms and the outer legs, a red flag patch with a yellow star on the left chest, a black belt with a steel buckle at the waist, cuffed sleeves ending at the wrists, trouser legs gathered over black lace-up boots"
  },
  "hair": "short black pixie cut: short cropped sides and back close to the head, a short soft fringe swept to one side over the forehead, a little volume on top, ears uncovered",
  "face": "her face, short black hair and thin round glasses",
  "outfits": [
-  "space"
+  "space",
+  "work"
  ],
  "garment_body": "mean_female",
  "look": {
