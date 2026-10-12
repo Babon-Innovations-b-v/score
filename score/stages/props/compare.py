@@ -132,12 +132,14 @@ def prop_first_objects(place, inventory):
     return found, left
 
 
-def code_build_objects(objects, code_builds, closeups):
+def code_build_objects(place, objects, code_builds, closeups):
     """Every one of prop-first's objects that has a code build and a close-up, by its code build, with prop-first's
     accepted close-up: the code results both orders are derived from."""
     found = {}
     for row in objects:
-        build, picture = code_build(row, code_builds), closeups / f"{row}.png"
+        # the round's folder holds every model of the place; only a row the parts check builds in code has a code build
+        build = code_build(row, code_builds) if parts_check_route(place, row) == "code" else None
+        picture = closeups / f"{row}.png"
         if build and picture.exists():
             found[row] = {"route": "code", "code_model": build,
                           "closeup": "{home}/" + picture.relative_to(PROPS_HOME).as_posix()}
@@ -195,7 +197,7 @@ def prepare(place, order, code_builds, sample=None):
         left.update({row: "outside the sample" for row in objects if row not in sample})
         objects = {row: entry for row, entry in objects.items() if row in sample}
     if order == "code-builds":
-        objects = code_build_objects(objects, code_builds, prop_first_closeups(place))
+        objects = code_build_objects(place, objects, code_builds, prop_first_closeups(place))
     for row in inventory["rows"]:
         if objects.get(row["id"], {}).get("route") == "prop" and row["kind"] == "code":
             row["was"], row["kind"] = row["kind"], "generate"  # prop-first: the batch builds only generated rows
