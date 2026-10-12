@@ -60,8 +60,10 @@ def batch_list(objects, closeups, out):
 
 def make_pixal(inputs, out, seed, params):
     """Every prop object's take, made by the batch where missing; takes.json with each take's file hashes."""
-    objects = prop_data.prop_objects(prop_data.record_at(inputs["props"]))
-    listing = batch_list(objects, inputs["closeup"] / "closeups", out)
+    closeups = inputs["closeup"] / "closeups"
+    objects = {row: entry for row, entry in prop_data.prop_objects(prop_data.record_at(inputs["props"])).items()
+               if (closeups / f"{row}.png").exists()}  # one with no close-up failed the prop route there
+    listing = batch_list(objects, closeups, out)
     if listing:
         done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/batch.py"), str(listing), "--who",
                                f"score pixal {prop_data.record_at(inputs['props'])['place']}", "--inventory",
@@ -80,10 +82,13 @@ def pixal_faults(folder):
 
 
 def judge_takes(output, inputs, evidence):
-    """Every prop object's take has its three files, unchanged since made, and the surface data lists it."""
+    """Every prop object with a close-up has its take's three files, unchanged since made, and the surface data lists
+    exactly those takes (one listed with no take would block the surface line)."""
     takes = json.loads((output / "takes.json").read_text())
     listed = json.loads(inputs["surfaces"].read_text()).get("takes", {})
-    failing = []
+    made_takes = {entry["take"] for entry in takes.values()}
+    failing = [f"take {take} is in the place's surface data but was not made (its object has no close-up)"
+               for take in sorted(listed) if take not in made_takes]
     for row, entry in sorted(takes.items()):
         for path in take_files(entry["take"]):
             if path.name not in entry or not path.exists():
