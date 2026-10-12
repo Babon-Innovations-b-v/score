@@ -8,7 +8,8 @@ then judged by the assembly gates that exist today. No spend: nothing is made, r
              A place the effects stage made a layer for (experimental) takes it in place of the seed's own:
              layers/effects.usda and its baked clips, held by the root between the edit layer and the base. A
              place's baked models (surfaces-bake) replace the seed's assets, each laid object stamped with the
-             baked file's hash and the seed's as the model it repainted (stamp_baked_hash)
+             baked file's hash and the seed's as the model it repainted (stamp_baked_hash). A place the machines
+             stage laid machines in (experimental) takes its layer, layers/machines.usda, and the machines' assets
     gates    placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
                            code-built ship fails, 12 meshes)
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
@@ -42,6 +43,7 @@ SEED_PARTS = ("layers", "assets", "inputs.json")
 GROUND_LAYER = "layers/ground.usdc"
 EFFECTS_LAYER = "layers/effects.usda"
 EFFECTS_CLIPS = "assets/effects"
+MACHINES_LAYER = "layers/machines.usda"
 BASE_LAYER = "./layers/base.usda"
 INVENTORY_PREFIX = "data/inventory/"
 # One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
@@ -67,6 +69,8 @@ def make_from_seed(inputs, out, seed, params):
         take_effects(inputs["effects-layer"], out / root.name)
     if "surfaces-bake" in inputs:
         take_bake(pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]), out)
+    if "machines-layer" in inputs:
+        take_machines(pathlib.Path(inputs["machines-layer"]), out / root.name)
     for claimed in claimed_bakes(inputs, out):
         take_bake(*claimed)
     take_ground(inputs["terrain"], folder.name, out / root.name)
@@ -150,6 +154,18 @@ def take_effects(made, root):
         layers.insert(layers.index(BASE_LAYER), f"./{EFFECTS_LAYER}")
         layer.subLayerPaths = layers
         layer.Save()
+
+
+def take_machines(made, root):
+    """The machines stage's layer (experimental) and its models' assets, held by the root just over the base."""
+    from pxr import Sdf
+    shutil.copytree(made / "assets", root.parent / "assets", dirs_exist_ok=True)
+    shutil.copy2(made / MACHINES_LAYER, root.parent / MACHINES_LAYER)
+    layer = Sdf.Layer.FindOrOpen(str(root))
+    layers = list(layer.subLayerPaths)
+    layers.insert(layers.index(BASE_LAYER), f"./{MACHINES_LAYER}")
+    layer.subLayerPaths = layers
+    layer.Save()
 
 
 def take_ground(grounds, place, root):

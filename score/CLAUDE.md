@@ -74,7 +74,9 @@ stage as each stage is built; nothing moves before.
   apply only to a place with `data/props/<place>.json`, which no world 1 place has yet. `cast`
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
   world node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes); nothing reads
-  it yet. A stage reads without an earlier place stage that does not apply to its place
+  it yet. `machines-layer` (experimental, `stages/machines`, its overlay) lays each place's machines
+  (`data/machines/<place>.json`: the garage's rover) on what holds them up, gated on outline, parts present and
+  resting, and the assembly takes its layer. A stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
 
 Rules:

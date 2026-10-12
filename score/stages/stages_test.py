@@ -39,7 +39,7 @@ def scenario(root):
     store = Store.in_folder(root / "store")
     # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
     # terrain that made no ground for these places stands in for it.
-    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, *NO_SURFACES, stages.ASSEMBLY,
+    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, stages.MACHINES, *NO_SURFACES, stages.ASSEMBLY,
                                                stages.NEIGHBOURS,
                                                stages.COMPLETE), world, store)
 
@@ -56,7 +56,7 @@ def made(output, inputs, evidence):
 # (their own checks are score/stages/surfaces' and score/stages/props').
 NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
                                 (checks.Check("made", made),), applies=lambda place: False)
-                    for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness"))
+                    for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))

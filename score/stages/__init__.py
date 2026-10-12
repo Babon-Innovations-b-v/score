@@ -20,8 +20,8 @@ import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, effects, images, people, props, scene_record,
-                          surfaces, terrain)
+from score.stages import (assembly, cast, complete, concept_people, effects, images, machines, people, props,
+                          scene_record, surfaces, terrain)
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -41,9 +41,14 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
                        files=assembly.FILES, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 1), "effects-layer": ("effects-layer", 1),
+                              "machines-layer": ("machines-layer", 1),
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places)
+# Experimental (PRD #6) until the owner reviews it: each place's machines (data/machines/<place>.json), made models laid
+# on what holds them up, as a layer the assembly takes.
+MACHINES = graph.Stage("machines-layer", "place", machines.make, machines.LAYER_CONTRACT, machines.CHECKS,
+                       files=machines.files, after=machines.AFTER, applies=machines.applies)
 # Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
 # each read beside as its own accepted assembly. Complete reads it: a place whose shown places do not stand is not
 # complete, so a neighbour whose assembly fails (the hub's) stops every place that shows it.
@@ -123,7 +128,7 @@ def prop_fed(row):
 
 STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST)
+          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES)
 
 
 def world1():

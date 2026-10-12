@@ -302,6 +302,15 @@ is meant to fix, where it is marked, and what proves it.
   his yes or no on the removals.
 - **The motion, sound and effects layers.** Built, not reviewed: nobody has heard the sound. Proven by the owner's
   review of one place per layer, render and audio.
+- **The machines stage** (`score/stages/machines`, its overlay; `data/machines/<place>.json`). For the machines that
+  were absent or stood in: no rover in the garage, a code cylinder for the hangar's ship, primitive shapes for the
+  workshop's robot. `machines-layer@<place>` (free) lays each machine's made model (the prop route's take, painted and
+  baked by the place's surface line) on what holds it up, as a layer the assembly takes, gated on `outline` (the
+  likeness gate's free half against its close-up), `parts present` (its close-up's finishes in its split) and
+  `resting` (resting.py on the composed stage). Its motion and effects are the motion and effects stages'. Only the
+  garage's rover has a record. Proven when the garage's rover ends accepted and the owner sees it; the ship and the
+  robot need inventory rows with boxes the box gate passes before the prop route can draw them
+  (`ship_trial.py` runs the ship by the prop route in a world of its own once it has one).
 
 ## architecture/trust-boundaries
 
