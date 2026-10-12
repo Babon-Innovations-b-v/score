@@ -140,6 +140,38 @@ def finish_list(picture, object_words, surfaces):
     return parsed_list(reply_text(response), surfaces)
 
 
+NAME_QUESTION = """You help paint a 3D model of an object made from the first picture. The object: {object}.
+The second picture is its finish map: each finish painted one flat colour. Look at the finish painted {label}: {finish},
+on {parts}. Which one of these library surfaces is it?
+{surfaces}
+Choose by what the part is made of and how such a part is made, then by its colour in the first picture."""
+
+
+def name_body(picture, front_map, object_words, number, finish, surfaces):
+    """The second naming of one finish: the close-up, its finish map and the take's surfaces, the answer one code."""
+    import part_judge
+    text = NAME_QUESTION.format(object=object_words, label=LABEL_WORDS[number], finish=finish["finish"],
+                                parts=finish["parts"], surfaces=part_judge.material_lines(surfaces))
+    schema = {"type": "OBJECT", "properties": {"surface": {"type": "STRING", "enum": surface_codes(surfaces)}},
+              "required": ["surface"]}
+    return {"contents": [{"role": "user", "parts": [picture_part(picture, 1600), picture_part(front_map, 1600),
+                                                    {"text": text}]}],
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
+                                 "responseSchema": schema}}
+
+
+def name_finish(picture, front_map, object_words, number, finish, surfaces):
+    """The library surface Gemini 3.1 Pro names for one finish when asked again with its finish map."""
+    from score.adapters import compute
+    import google_spend
+    compute.require_cleared("a Gemini finish naming")
+    response = google_spend.generate(LIST_MODEL, name_body(picture, front_map, object_words, number, finish,
+                                                           surfaces), secret_key(), TIMEOUT,
+                                     caller="finishmap-name", cache=True)
+    code = json.loads(reply_text(response))["surface"]
+    return list(surfaces)[surface_codes(surfaces).index(code)]
+
+
 def finish_lines(finishes):
     """Each finish's label colour in words and its parts, one line each."""
     return "\n".join(f"- {LABEL_WORDS[number]} (RGB {LABELS[number][0]}, {LABELS[number][1]}, {LABELS[number][2]}): "

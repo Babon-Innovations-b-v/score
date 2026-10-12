@@ -370,6 +370,14 @@
 					"recipe": "painted_metal",
 					"token": "bay-three",
 					"roughness": 0.4
+				},
+				"grey_painted_steel": {
+					"recipe": "painted_metal",
+					"token": "deck",
+					"roughness": 0.34,
+					"bump": 0.0006,
+					"bump_size": 0.01,
+					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the power unit's weathered grey steel cabinet, close-up L*a*b* [63.6, 0.8, 3.2]); owner to review"
 				}
 			}
 		},
@@ -612,6 +620,13 @@
 					"roughness": 1.0,
 					"bump": 0.0,
 					"said": "the workshop parts tray's tiles (game/base/parts_tray/parts_tray.gd: Palette.SURFACE_RAISED on a plain StandardMaterial3D)"
+				},
+				"translucent_blue_plastic": {
+					"recipe": "rubber",
+					"token": "clear-glass",
+					"roughness": 0.3,
+					"bump": 0.0001,
+					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the control cabinet's translucent blue buttons and covers, close-up L*a*b* [82.9, -10.5, -16.6]); owner to review"
 				}
 			}
 		},
@@ -2251,6 +2266,12 @@
 					"recipe": "glass",
 					"token": "harbour",
 					"roughness": 0.04
+				},
+				"tank_water": {
+					"recipe": "glass",
+					"token": "deck",
+					"roughness": 0.04,
+					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the water tank's water seen from above, close-up L*a*b* [53.2, -3.2, -2.3]; drawn as the glass recipe, no water shader); owner to review"
 				}
 			}
 		},
@@ -2301,6 +2322,19 @@
 					"bump": 0.0012,
 					"bump_size": 0.02,
 					"said": "granite showing on the steepest hillsides"
+				}
+			}
+		},
+		"paper": {
+			"is": "Paper and card: seed packets, sheets and printed labels as plain matte card",
+			"surface": "rubber",
+			"variants": {
+				"printed_paper": {
+					"recipe": "rubber",
+					"token": "flat-wall",
+					"roughness": 0.9,
+					"bump": 0.0001,
+					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the seed tray's printed paper, close-up L*a*b* [78.0, -0.4, 10.7]); owner to review"
 				}
 			}
 		}

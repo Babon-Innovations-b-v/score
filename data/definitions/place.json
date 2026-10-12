@@ -1340,6 +1340,10 @@
 			"lamp_lens": {
 				"token": "window-lit",
 				"library": "lamp_lens"
+			},
+			"grey_painted_steel": {
+				"token": "deck",
+				"library": "grey_painted_steel"
 			}
 		},
 		"light": {
@@ -1966,6 +1970,22 @@
 			"crate_wood": {
 				"token": "deck",
 				"library": "wood_board"
+			},
+			"grey_painted_steel": {
+				"token": "deck",
+				"library": "grey_painted_steel"
+			},
+			"translucent_blue_plastic": {
+				"token": "clear-glass",
+				"library": "translucent_blue_plastic"
+			},
+			"printed_paper": {
+				"token": "flat-wall",
+				"library": "printed_paper"
+			},
+			"tank_water": {
+				"token": "deck",
+				"library": "tank_water"
 			}
 		},
 		"light": {

@@ -157,6 +157,61 @@ def maps_faults(folder):
     return [] if list(folder.glob("*/map.json")) else ["no map.json"]
 
 
+# --- names ---------------------------------------------------------------------------------------------------------
+
+def named_again(inputs, take, entry, record):
+    """One take's finishes, each asked once more of Gemini (close-up, its finish map, every surface the take may
+    take) when its words name a material its surface's family is not, or its surface lies over
+    finish_parts.COLOUR_DELTA_E from its colour in the close-up."""
+    import numpy as np
+    from PIL import Image
+    import finish_ask
+    import finish_parts
+    every = finish_parts.take_surfaces(entry)
+    front = np.load(inputs["maps"] / take / "front.npy").astype(int)
+    measured = finish_parts.measured_colours(take, front, len(record["finishes"]))
+    picture, reference = close_up(inputs, take), Image.open(inputs["maps"] / take / "front.png")
+    found = []
+    for number, (finish, colour) in enumerate(zip(record["finishes"], measured)):
+        spec = every.get(finish["surface"], {})
+        wrong_kind = finish_parts.contradicts(f"{finish['finish']} {finish['parts']}", spec.get("family"))
+        off = (colour is not None and "colour" in spec
+               and np.linalg.norm(finish_parts.library_lab(spec) - colour) > finish_parts.COLOUR_DELTA_E)
+        finish = dict(finish, listed_surface=finish["surface"], by="the list")
+        if wrong_kind or off:
+            named = finish_ask.name_finish(picture, reference, entry["object"], number, finish, every)
+            reason = "its material" if wrong_kind else "its colour"
+            finish.update(surface=named, fits=True, by=f"named again ({reason})")
+        found.append(finish)
+    return found
+
+
+def make_names(inputs, out, seed, params):
+    """Each take whose close-up map settled, its finishes named again where needed, as <out>/<take>.json."""
+    inputs = prop_env.short(inputs)
+    for take, entry in takes_of(inputs).items():
+        path = inputs["maps"] / take / "map.json"
+        record = json.loads(path.read_text())
+        if record["passes"]:
+            finishes = named_again(inputs, take, entry, record)
+            (out / f"{take}.json").write_text(json.dumps({"take": take, "finishes": finishes}, indent=1))
+
+
+def names_faults(folder):
+    return [] if list(folder.glob("*.json")) else ["no names"]
+
+
+def judge_names(output, inputs, evidence):
+    """Every take whose close-up map settled has its finishes named; the ones named again as a measure."""
+    short = prop_env.short(inputs)
+    takes = [take for take in takes_of(short)
+             if json.loads((short["maps"] / take / "map.json").read_text())["passes"]]
+    failing = [f"{take}: not named" for take in takes if not (output / f"{take}.json").exists()]
+    again = sum(finish["by"].startswith("named again") for take in takes if (output / f"{take}.json").exists()
+                for finish in json.loads((output / f"{take}.json").read_text())["finishes"])
+    return gates.verdict("named", failing, len(takes), "takes", {"named again": again})
+
+
 def map_fault(record):
     """Why a take's close-up map failed, its draws' measures in short."""
     tried = ", ".join(f"seed {entry['seed']}: " + (entry.get("why") or f"iou {entry['iou']}, near a label "

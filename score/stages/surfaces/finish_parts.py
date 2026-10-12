@@ -225,6 +225,11 @@ def laid(mesh, take, inputs, count):
     walked_label = walked(mesh, own)
     face_label = np.where(own >= 0, own, np.where(from_parts >= 0, from_parts, walked_label))
     part_of, face_label = merged_islands(mesh, cleaned(mesh, face_label, count))
+    mixed = [part for part, _ in mixing_parts(mesh, part_of, face_label, per_map, count)]
+    if mixed:  # the smoothing ran a part across the votes (the seed tray, 2026-10-12): cut it along them
+        inside = np.isin(part_of, mixed)
+        face_label = np.where(inside, np.where(own >= 0, own, walked_label), face_label)
+        part_of, face_label = merged_islands(mesh, face_label)
     return part_of, face_label, per_map
 
 
@@ -315,21 +320,53 @@ def library_lab(spec):
     return labels.lab(labels.srgb(np.array(spec["colour"], dtype=float))[None])[0]
 
 
-def checked_finishes(entry, finishes, measured):
-    """Each finish with its surface checked against the close-up's colour: the listed surface when it lies within
-    COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) the take's
-    library places allow, when within it; else the listed one kept, a new surface tinted to the measured colour
-    proposed, and the finish marked off its colour (the paint's gate fails it)."""
-    import numpy as np
+def take_surfaces(entry):
+    """Every library surface a take may take: each of its library places' (no surface an object never is), its
+    kind's own list on top."""
     import labels
     every = {}
     for place in entry["library_places"]:
         every.update({name: spec for name, spec in labels.allowed_materials(place, None, []).items()
                       if name not in every})
     every.update(labels.allowed_materials(entry["library_places"][0], entry["kind"], []))
+    return every
+
+
+# The material words a finish list uses, by class, and the classes each library family is: a finish whose words name
+# a class its surface's family is not (black rubber named bare_steel) is named again.
+CLASS_WORDS = {"rubber": ("rubber",), "plastic": ("plastic", "vinyl", "bakelite", "leather"),
+               "paper": ("paper", "card", "label"), "glass": ("glass", "lens", "screen"), "water": ("water",),
+               "wood": ("wood", "timber", "plank"), "fabric": ("fabric", "canvas", "cloth", "textile"),
+               "foil": ("foil",), "soil": ("soil", "seed", "potting"), "plant": ("plant", "leaf", "seedling"),
+               "metal": ("steel", "metal", "aluminium", "aluminum", "iron", "chrome", "tin"),
+               "paint": ("paint",)}
+FAMILY_CLASSES = {"painted": ("paint", "metal"), "steel": ("metal",), "aluminium": ("metal",), "rusted": ("metal",),
+                  "rubber": ("rubber",), "plastic": ("plastic", "rubber"), "cable": ("rubber", "plastic"),
+                  "fabric": ("fabric",), "composite": ("plastic",), "glass": ("glass", "water"),
+                  "screen": ("glass",), "light": ("glass",), "print": ("paper",), "paper": ("paper",),
+                  "wood": ("wood",), "foil": ("foil", "metal"), "growing": ("soil", "plant"), "ground": ("soil",),
+                  "water": ("water",)}
+
+
+def contradicts(words, family):
+    """Whether a finish's words name a material class and none of them is one its surface's family is."""
+    import re
+    named = {name for name, keys in CLASS_WORDS.items()
+             if any(re.search(rf"\b{key}", words.lower()) for key in keys)}
+    return bool(named) and family in FAMILY_CLASSES and not named & set(FAMILY_CLASSES[family])
+
+
+def checked_finishes(entry, finishes, measured):
+    """Each finish with its surface checked against the close-up's colour: the listed surface when it lies within
+    COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) the take's
+    library places allow, when within it; else the listed one kept, a new surface tinted to the measured colour
+    proposed, and the finish marked off its colour (the paint's gate fails it)."""
+    import numpy as np
+    every = take_surfaces(entry)
     found = []
     for finish, colour in zip(finishes, measured):
-        record = dict(finish, listed_surface=finish["surface"], measured_lab=None, delta_e=None, by="the list")
+        record = dict(finish, listed_surface=finish.get("listed_surface", finish["surface"]), measured_lab=None,
+                      delta_e=None, by=finish.get("by", "the list"))
         if colour is None or finish["surface"] not in every:
             found.append(record)
             continue
@@ -379,7 +416,7 @@ def parts_take(inputs, take, entry, out):
     import numpy as np
     import split_compare
     import turntable_views as views
-    listed = json.loads((inputs["maps"] / take / "map.json").read_text())["finishes"]
+    listed = json.loads((inputs["names"] / f"{take}.json").read_text())["finishes"]
     front = np.load(inputs["maps"] / take / "front.npy").astype(int)
     finishes = checked_finishes(entry, listed, measured_colours(take, front, len(listed)))
     mesh = split_compare.raw_model(take)

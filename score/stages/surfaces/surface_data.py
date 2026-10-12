@@ -55,7 +55,8 @@ def take_files(place):
 
 def line_files(place):
     """A free row's world files: the place's data, its takes' files and the library."""
-    return {"surfaces": pattern(place), **take_files(place), "library": "{data}/library"}
+    return {"surfaces": pattern(place), **take_files(place), "library": "{data}/library",
+            "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}
 
 
 def bake_files(place):
