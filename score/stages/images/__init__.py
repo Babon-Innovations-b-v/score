@@ -60,7 +60,7 @@ LENGTH_SLACK = 0.02
 
 def image_world():
     """The images world: the image folders, keyed on their own content; no world data, no places."""
-    return graph.World("images", 0, {"images": str(IMAGES)})
+    return graph.World("images", 0, {"images": str(IMAGES), "repo": str(REPO)})
 
 
 def proved_kinds():
@@ -405,6 +405,13 @@ def plan_euros(kind):
     return float(json.loads((IMAGES / kind / PLAN).read_text())["euros"])
 
 
+def plan_code(kind):
+    """{input name: path pattern} of the repository files the kind's proof jobs run (the plan's `code`), so a change
+    to one proves the image again."""
+    plan = json.loads((IMAGES / kind / PLAN).read_text())
+    return {f"code {path}": f"{{repo}}/{path}" for kind_run in plan["runs"] for path in kind_run.get("code", [])}
+
+
 # --- the table and publishing --------------------------------------------------------------------------------
 
 def tag_part(kind):
@@ -418,7 +425,7 @@ def kind_stages(kind):
     pins = graph.Stage(f"image-pins-{kind}", "world", make_pins, PINS, pins_checks(kind),
                        files={"folder": folder, "published": ("{images}/images.json", tag_part(kind))})
     proof = graph.Stage(f"image-proof-{kind}", "world", make_proof(kind), PROVED, proof_checks(kind),
-                        files={"folder": folder}, after={pins.name: (PINS.schema, PINS.version)},
+                        files={"folder": folder, **plan_code(kind)}, after={pins.name: (PINS.schema, PINS.version)},
                         paid=True, euros=plan_euros(kind))
     return pins, proof
 
