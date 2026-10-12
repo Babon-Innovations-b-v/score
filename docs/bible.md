@@ -192,9 +192,9 @@ is meant to fix, where it is marked, and what proves it.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
   `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
   terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its
-  seed, and `terrain-look@launch` (paid, only the places in `look.LOOKED`) renders the place before and after on its
+  seed, and `terrain-look@launch` and `@street` (paid, only the places in `look.LOOKED`) render the place before and after on its
   review cameras, gated on `horizon` (no view looks out under the horizon onto nothing). Run with `python -m score
-  run world1 --place launch --stage terrain-look`. Proven when the owner has seen the launch's before and after;
+  run world1 --place launch --stage terrain-look`. Proven when the owner has seen the launch's and the street's before and after;
   then the other Earth places, and the Moon's and Mars's plans (still the game's plans in `data/ground/plan/`, made by
   the game's builders moved here) drawn again from their concepts.
 - **The effects stage and its look** (`score/stages/effects`, its overlay; `data/effects/launch.json`). For the 15 of

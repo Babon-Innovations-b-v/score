@@ -10,7 +10,8 @@ from the place's own review cameras (the round-three demo's views, frame 000 of 
                        share of the mask's rows under the horizon (less a margin for the dip and the far ground's
                        curve) where nothing is drawn stays under HOLE_MOST
 
-Only the places in LOOKED have the row: the proof place, until the owner has seen it.
+Only the places in LOOKED have the row: the proof place and the street (where the ground fills the view), until the
+owner has seen them.
 """
 import json
 import math
@@ -26,7 +27,7 @@ from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = PROPS_HOME / "env/bin/python"
-LOOKED = ("launch",)
+LOOKED = ("launch", "street")
 VIEWS = "demo/world1-r4/views"
 FRAME = "-000"
 VIEWS_A_JOB = 2
