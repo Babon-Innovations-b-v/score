@@ -30,6 +30,8 @@ PIXAL = "{home}/work/pixal"
 # A look's estimate: its parts when missing (about EUR 1), the build and the settle each on an L4 for about an hour
 # with its setup (EUR 0.79 an hour), measured on the player 2026-10-10.
 EUROS = 3.0
+# A far-crowd look: its build alone on an L4 with its setup, about 20 minutes.
+FAR_EUROS = 0.5
 SHIPPED_TRIANGLES = 29849
 
 
@@ -63,6 +65,10 @@ def made(look, entry):
         (folder / "take.txt").write_text(entry["take"])
         if not (folder / "parts" / entry["take"] / "parts.npz").exists():
             prop_person.parts(spec, outfit, who, None, False)
+        if entry.get("far_only"):
+            prop_person.record_stage(folder, "build", *timed(prop_person.build, spec, outfit, who, None))
+            kept_far(folder, spec["name"], entry, out)
+            return
         with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once, builds and settles
             for stage in ("build", "settle"):
                 prop_person.record_stage(folder, stage, *timed(prop_person.STAGE_WORK[stage], spec, outfit, who,
@@ -92,10 +98,30 @@ def kept(folder, name, entry, out):
     shutil.copy2(folder / "settle" / f"{name}.bake.json", checks / "bake.json")
     shutil.copy2(folder / "fit" / "rig.json", checks / "rig.json")
     shutil.copy2(folder / "fit" / "rig.npz", out / "rig.npz")  # the stand (turn, scale, shift) the dress row reads
+    likened(entry, out)
+    (out / "look.json").write_text(json.dumps({"name": name, **entry}, indent=1))
+
+
+def kept_far(folder, name, entry, out):
+    """A far-crowd look's built body (no settle: the crowd draws its far body), its UsdSkel asset and the records its
+    gates read."""
+    shutil.copy2(folder / "out" / f"{name}.glb", out / "body.glb")
+    shutil.copytree(folder / "out" / "usd", out / "usd")
+    checks = out / "checks"
+    checks.mkdir()
+    shutil.copy2(folder / "out" / "checks" / f"{name}.json", checks / "joins.json")
+    shutil.copy2(folder / "out" / f"{name}.json", checks / "build.json")
+    shutil.copy2(folder / "fit" / "rig.json", checks / "rig.json")
+    shutil.copy2(folder / "fit" / "rig.npz", out / "rig.npz")
+    likened(entry, out)
+    (out / "look.json").write_text(json.dumps({"name": name, **entry}, indent=1))
+
+
+def likened(entry, out):
+    """The props' likeness gate's record of the body against its close-up."""
     import score.stages.props.likeness as likeness
     closeup = pathlib.Path(PIXAL.format(home=str(prop_home()))) / f"{entry['take']}.svviews" / "input.png"
-    (checks / "likeness.json").write_text(json.dumps(likeness.best_way(out / "body.glb", closeup), indent=1))
-    (out / "look.json").write_text(json.dumps({"name": name, **entry}, indent=1))
+    (out / "checks" / "likeness.json").write_text(json.dumps(likeness.best_way(out / "body.glb", closeup), indent=1))
 
 
 def prop_home():
@@ -104,9 +130,10 @@ def prop_home():
 
 
 def body_faults(folder):
-    missing = [name for name in ("body.glb", "look.json", "checks/joins.json", "checks/pokes.json",
-                                 "checks/bodycloth.json", "checks/outline.json", "checks/likeness.json")
-               if not (folder / name).exists()]
+    far = (folder / "look.json").exists() and json.loads((folder / "look.json").read_text()).get("far_only")
+    wanted = ("body.glb", "look.json", "checks/joins.json", "checks/likeness.json") + (() if far else (
+        "checks/pokes.json", "checks/bodycloth.json", "checks/outline.json"))
+    missing = [name for name in wanted if not (folder / name).exists()]
     return [f"missing {', '.join(missing)}"] if missing else []
 
 
@@ -209,8 +236,14 @@ def checks():
 BODY = "people-body"
 
 
+def far_checks():
+    """A far-crowd look's gates: its joins, its likeness and its triangles (no settle, so no cloth gates)."""
+    return tuple(check for check in checks() if check.name in ("joins", "likeness", "triangles"))
+
+
 def rows():
-    """One paid world row a look."""
+    """One paid world row a look; a far-crowd look (`far_only`) is built only and gated on what a far body shows."""
     return tuple(graph.Stage(f"{BODY}-{look}", "world", made(look, entry), contracts.Contract(BODY, 1, body_faults),
-                             checks(), files=files(look, entry), paid=True, euros=EUROS)
+                             far_checks() if entry.get("far_only") else checks(), files=files(look, entry), paid=True,
+                             euros=FAR_EUROS if entry.get("far_only") else EUROS)
                  for look, entry in looks().items())
