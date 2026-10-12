@@ -13,6 +13,7 @@ import pathlib
 import sys
 import tempfile
 import time
+import urllib.error
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -270,6 +271,45 @@ def test_a_line_run_for_one_stage_runs_it_and_what_it_reads_alone():
     found = runner.drive(["hangar"], say=quiet, whole=False, only=["build"])
     assert set(found) == {"ground", "build@hangar"}, found
     assert set(runner.lines(["hangar"], whole=False, only=["build"])["hangar"][1]) == {"build@hangar"}
+
+
+def failing_with(code, times):
+    """A make that raises an HTTP `code` error on its first `times` tries in its process, then writes."""
+    tries = []
+
+    def make(inputs, out, seed, params):
+        tries.append(1)
+        if len(tries) <= times:
+            raise urllib.error.HTTPError("https://images.example", code, "server", {}, None)
+        (out / "made.txt").write_text(f"made on try {len(tries)}")
+    return make
+
+
+def a_failing_runner(code, times):
+    world = a_world_of(["hangar"])[1]
+    return graph.Runner((graph.Stage("maps", "place", failing_with(code, times), TEXT, MET),), world,
+                        Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+
+
+def test_a_transient_error_runs_the_node_again_with_growing_waits():
+    graph.RETRY_WAIT = 0
+    runner = a_failing_runner(500, 2)
+    found = runner.drive(["hangar"], say=quiet)
+    assert found == {"maps@hangar": "made: pass, accepted automatically"}, found
+    log = runner.desk("logs", "maps@hangar", ".log").read_text()
+    assert "try 2 of 5 in 0 s" in log and "try 3 of 5" in log and "try 4 of 5" not in log, log
+
+
+def test_a_lasting_or_not_transient_error_stops_its_line():
+    graph.RETRY_WAIT = 0
+    for code, times in ((503, graph.RETRIES + 1), (404, 1)):
+        runner = a_failing_runner(code, times)
+        found = runner.drive(["hangar"], say=quiet)
+        assert found["maps@hangar"].startswith(f"error: HTTPError: HTTP Error {code}"), found
+        log = runner.desk("logs", "maps@hangar", ".log").read_text()
+        assert log.count("transient error") == times - 1, log
+    assert graph.transient(TimeoutError()) and graph.transient(ConnectionResetError())
+    assert graph.transient(urllib.error.URLError(ConnectionRefusedError())) and not graph.transient(ValueError())
 
 
 def make_count_of_ground(inputs, out, seed, params):
