@@ -141,6 +141,16 @@ def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
                                                                                        "nothing")
 
 
+def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
+    """Editing turntable_row.py (its PNGs written without text, 2026-10-12) moves the turntable row, and SegviGen's
+    through row_files.py (both rows' world files), and no other paid row: the maps read its pictures, never its code."""
+    table = {stage.name: stage for stage in stages.STAGES}
+    edited = "score/stages/surfaces/turntable_row.py"
+    moved = {name for name, stage in table.items() if stage.paid
+             and code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
+    assert moved == {"surfaces-turntable", "surfaces-segvigen"}, moved
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
