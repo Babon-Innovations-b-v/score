@@ -126,8 +126,10 @@ def job_kind(spec):
 
 def class_order(kind, spec, pool_classes):
     """The classes a job may take, in the order to take them, and which of them only after LATE_MINUTES: the spec's
-    own `classes`, else capacity's for its kind in the kind's order; only classes the cluster has pools for."""
-    wanted = list(spec["classes"]) if spec.get("classes") else kind_classes(kind)
+    own `classes`, else capacity's for its kind in the kind's order; only classes the cluster has pools for, never one
+    the kind may not take (capacity.NEVER: no H100 for Blender or bakes)."""
+    wanted = [name for name in (spec["classes"] if spec.get("classes") else kind_classes(kind))
+              if name not in capacity.NEVER.get(kind, ())]
     order = [name for name in wanted if name in pool_classes]
     if not order:
         raise SystemExit(f"the cluster has no pool for any class of the job kind '{kind}' ({', '.join(wanted)})")

@@ -12,9 +12,9 @@ POOLS = {"gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2", "cpu-32c-128gb"}
 
 def test_class_order_comes_from_capacity():
     order, late = submit.class_order("pixal", {}, POOLS)
-    assert order[0] == "gpu-80gb" and "gpu-24gb-x2" not in order
-    order, late = submit.class_order("library", {}, POOLS)
-    assert order == ["gpu-24gb", "gpu-48gb", "gpu-80gb"] and late == {"gpu-80gb"}
+    assert order[0] == "gpu-24gb" and "gpu-24gb-x2" not in order  # the cheapest card per job first (2026-10-12)
+    order, late = submit.class_order("library", {"classes": ["gpu-24gb", "gpu-48gb", "gpu-80gb"]}, POOLS)
+    assert order == ["gpu-24gb", "gpu-48gb"] and late == set()  # bakes never take an H100
     order, _late = submit.class_order("blender", {"classes": ["cpu-32c-128gb"]}, POOLS)
     assert order == ["cpu-32c-128gb"]
 
@@ -186,7 +186,7 @@ def test_a_run_never_settles_and_takes_stock_that_comes_back(monkeypatch):
     spec = {"kind": "meshparts", "image": "image", "minutes": 10}
     run = submit.Run("r1", {"part": spec}, kubectl, PoolCluster(0))
     order, _late = submit.class_order("meshparts", spec, POOLS)
-    assert order == ["gpu-80gb", "gpu-48gb", "gpu-24gb"]
+    assert order == ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
     run.make("part")
 
     def poll_with_no_stock(minutes):
@@ -200,7 +200,7 @@ def test_a_run_never_settles_and_takes_stock_that_comes_back(monkeypatch):
         run.widen(pods, no_grow)
 
     poll_with_no_stock(2)
-    assert run.allowed("part") == ["gpu-80gb", "gpu-48gb"] and run.jobs["part"]["generation"] == 1
+    assert run.allowed("part") == ["gpu-24gb", "gpu-48gb"] and run.jobs["part"]["generation"] == 1
     poll_with_no_stock(2)
     assert run.allowed("part") == order and run.jobs["part"]["generation"] == 2
     poll_with_no_stock(2)
@@ -309,4 +309,4 @@ def test_a_bake_in_the_blender_image_keeps_the_library_order():
             "classes": ["gpu-24gb", "gpu-48gb", "gpu-80gb"]}
     run = submit.Run("r1", {"bake": spec}, FakeKubectl([]), PoolCluster(0))
     assert list(run.kinds) == ["library"]
-    assert run.orders["bake"][1] == {"gpu-80gb"}
+    assert run.orders["bake"] == (["gpu-24gb", "gpu-48gb"], set())  # a bake never takes an H100
