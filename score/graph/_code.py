@@ -9,6 +9,14 @@ import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 OUTSIDE = (REPO / ".venv", REPO / ".git")
+# What runs a stage, not what a stage runs: the runner, the review pages, the clearance and the stage table. A stage
+# reaches them through imports (batch -> compute -> graph), and every builder edits them, so hashing them moved every
+# stage's key on each other's edits (terrain re-made under the effects line, 2026-10-12). Their imports are not
+# followed either. The store stays in: stages call it (PROPS_HOME, Store).
+FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__.py", "score/graph/_code.py",
+                                      "score/review/__init__.py", "score/review/__main__.py",
+                                      "score/adapters/compute/__init__.py", "score/stages/__init__.py",
+                                      "score/stages/__main__.py")}
 
 
 def in_repo(path):
@@ -61,13 +69,14 @@ def package_of(path):
 
 
 def source_files(functions):
-    """Every repository file the functions' modules are or import, followed through each import."""
+    """Every repository file the functions' modules are or import, followed through each import, the framework's
+    own files (FRAMEWORK) left out."""
     pending = [pathlib.Path(inspect.getsourcefile(each)).resolve() for function in functions
                for each in (function, inspect.unwrap(function))]  # a wrapped judge: the wrapper's and its own
     found = set()
     while pending:
         path = pending.pop()
-        if path in found or not in_repo(path):
+        if path in found or path in FRAMEWORK or not in_repo(path):
             continue
         found.add(path)
         for name in imported_names(path, package_of(path)):
