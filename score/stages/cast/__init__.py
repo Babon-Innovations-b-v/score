@@ -83,7 +83,7 @@ def files(place):
     return {"record": "{data}/characters/{place}.json", "kit": "{data}/kit/{place}.json",
             "seed": "{seeds}/usd-r3/{place}", "takes": (str(PROP_PEOPLE), takes_text),
             "bodies": (str(BODIES), reports_text), "cast rules": "{repo}/tools/characters/cast.py",
-            "cast check": "{repo}/tools/characters/cast_check.py"}
+            "cast check": "{repo}/tools/characters/cast_check.py", "scene": "{data}/scene/{place}.json"}
 
 
 def read_json(path):
@@ -129,14 +129,15 @@ def dealt(record, takes):
     return found
 
 
-def crowd_of(record, singles, takes):
-    """The crowd's far body's look and its candidate copies (spread.lattice), or None for a cast with no crowd."""
+def crowd_of(record, singles, takes, views):
+    """The crowd's far body's look and its candidate copies (spread.lattice, kept off each of the place's views:
+    spread.far_enough), or None for a cast with no crowd."""
     crowd = record.get("crowd")
     if not crowd:
         return None
     keep_clear = [single["at"] for single in singles if single["name"].startswith(crowd.get("keep_clear_of", "\0"))]
     look = (crowd["character"], crowd.get("body", "far"))
-    candidates = spread.lattice(crowd, keep_clear)
+    candidates = spread.far_enough(spread.lattice(crowd, keep_clear), views)
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
             "made": made_take(look, takes), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
 
@@ -164,7 +165,7 @@ def make(inputs, out, seed, params):
     base = pathlib.Path(inputs["seed"]) / "layers/base.usda"
     record = read_json(inputs["record"])
     singles = dealt(record, inputs["takes"])
-    crowd = crowd_of(record, singles, inputs["takes"])
+    crowd = crowd_of(record, singles, inputs["takes"], read_json(inputs["scene"]).get("views", []))
     found = measure.solids(base, place) if singles or crowd else {}
     if found:
         members = members_of(record)

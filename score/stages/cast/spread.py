@@ -21,6 +21,11 @@ from score.stages.cast import measure
 # moved up to JITTER either way, so no two lattice spots come nearer than two body widths.
 LATTICE = 0.56
 JITTER = 0.025
+# A crowd copy is the far body (far only, the captain's cut of 2026-10-13): it may fill at most this share of any of
+# the place's views' frame height (a person HEIGHT tall, the frame ASPECT wide); nearer, it would need a full body.
+FAR_SHARE = 0.10
+HEIGHT = 1.7
+ASPECT = 16 / 9
 # A group member's other spots, nearest first: rings every 0.15 m out to 1.2 m, twelve spots a ring.
 NUDGES = [(0.0, 0.0)] + [(ring * 0.15 * math.cos(turn * math.pi / 6), ring * 0.15 * math.sin(turn * math.pi / 6))
                          for ring in range(1, 9) for turn in range(12)]
@@ -112,6 +117,29 @@ def thinned(candidates, count, found, kept):
             kept.add(spot)
             placed.append(dict(candidate, at=spot))
     return placed
+
+
+def frame_share(view, at):
+    """How much of a view's frame height a person standing at `at` fills (HEIGHT over the frame's height at their
+    depth; the view's fov taken as vertical, the frame 16:9), or 0 when they are behind it or out of its frame."""
+    eye, aim = np.asarray(view["eye"], float), np.asarray(view["aim"], float)
+    forward = (aim - eye) / np.linalg.norm(aim - eye)
+    right = np.cross(forward, [0.0, 1.0, 0.0])
+    right /= np.linalg.norm(right)
+    up = np.cross(right, forward)
+    towards = np.asarray(at, float) + [0.0, HEIGHT / 2, 0.0] - eye
+    depth = float(towards @ forward)
+    half = math.tan(math.radians(view.get("fov", 70)) / 2)
+    if depth <= 0.0 or abs(towards @ up) > half * depth or abs(towards @ right) > half * ASPECT * depth:
+        return 0.0
+    return HEIGHT / (2 * depth * half)
+
+
+def far_enough(candidates, views):
+    """The crowd's candidates that fill under FAR_SHARE of every view's frame: a clear zone round each camera, as
+    deep as its own lens makes it, inside which the far body would need a full one."""
+    return [candidate for candidate in candidates
+            if all(frame_share(view, candidate["at"]) < FAR_SHARE for view in views)]
 
 
 def stand_every(singles, groups, crowd_candidates, crowd_count, found):
