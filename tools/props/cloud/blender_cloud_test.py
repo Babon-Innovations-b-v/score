@@ -131,8 +131,24 @@ def the_runner_python_follows_props_home():
     return problems
 
 
+def every_offer_short_still_waits_for_stock():
+    """terrain-look@street, 2026-10-12: every class short at the start refused the call; the claim waits instead."""
+    import types
+    short = [types.SimpleNamespace(stock_word="shortage", per_card=1.0, machine_class="gpu-24gb")]
+    saved = blender_cloud.batch.offers, blender_cloud.batch.priced
+    blender_cloud.batch.offers = lambda classes: short
+    blender_cloud.batch.priced = lambda found, minutes, count, what, account: minutes
+    try:
+        found, count, _ = blender_cloud.price([{"minutes": 5}], None, ["gpu-24gb"])
+    except SystemExit as refused:
+        return [f"all offers short refused the call: {refused}"]
+    finally:
+        blender_cloud.batch.offers, blender_cloud.batch.priced = saved
+    return [] if found == short and count == 1 else [f"offers {found}, machines {count}"]
+
+
 CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain,
-          a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home)
+          a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home, every_offer_short_still_waits_for_stock)
 
 
 if __name__ == "__main__":
