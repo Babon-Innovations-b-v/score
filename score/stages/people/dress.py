@@ -83,9 +83,13 @@ def make_dress(inputs, out, seed, params):
         points = positions(document, rest, primitive["attributes"]["POSITION"])
         finished = ((points - shift) / scale) @ turn
         name, apart = surface_of_points(finished, painted, painted_names)
+        role = material.get("extras", {}).get("role")
+        if role == "hair":  # hair stays on its own route (owner, 2026-10-11): the build's colour, no library paint
+            record["surfaces"][material["name"]] = {"library": None, "route": "hair", "role": role, "known": True,
+                                                    "median_m": round(apart * scale, 4)}
+            continue
         spec = surfaces.get(name)
-        record["surfaces"][material["name"]] = {"library": name, "median_m": round(apart * scale, 4),
-                                                "role": material.get("extras", {}).get("role"),
+        record["surfaces"][material["name"]] = {"library": name, "median_m": round(apart * scale, 4), "role": role,
                                                 "known": spec is not None}
         if spec is None:
             continue

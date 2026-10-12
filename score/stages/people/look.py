@@ -65,7 +65,7 @@ def page(inputs, out):
         body = pathlib.Path(inputs[f"people-body-{look}"])
         table = (body / "checks" / "checks.txt").read_text() if (body / "checks" / "checks.txt").exists() else ""
         dress = json.loads((folder / "dress.json").read_text())["surfaces"]
-        worn = sorted({entry["library"] for entry in dress.values()})
+        worn = sorted({entry["library"] for entry in dress.values() if entry.get("library")})
         views = "".join(f'<figure><img src="{picture(out / "shots" / look / f"{view}.png")}" alt="{look} {view}">'
                         f"<figcaption>{view.replace('_', ' ')}</figcaption></figure>"
                         for view in VIEWS if (out / "shots" / look / f"{view}.png").exists())
