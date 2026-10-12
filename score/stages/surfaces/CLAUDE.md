@@ -46,8 +46,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   surface lies over `COLOUR_DELTA_E` from its close-up colour; Gemini is asked once with the close-up, the finish map
   and every surface the take's library places allow. New library surfaces are made the library's own way (a variant
   in `data/library/materials.json` on a palette token, the place taking it in `place.json`), never a picture's colour.
-- **The bake takes today's library and the method's paint only**: every painted surface's spec from the library, an
-  old job's `regions` boxes dropped.
+- **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
+  decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
+  stops the bake before anything is rented. The job files still give each model's entry (size, decals, cuts).
+- **The paint runs each take in a process of its own** (`paint-take`): a take holds about 2 GB for 9 s on the PC;
+  twelve in one process passed the 14 GB cap (campgrounds and garage, 2026-10-12). A step the cap kills says its
+  signal and peak memory (`prop_env.checked`).
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
   `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their world
   files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code
