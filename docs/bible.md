@@ -281,6 +281,14 @@ is meant to fix, where it is marked, and what proves it.
   record. Proven when its trial passes the four gates on the habitat's accepted assembly and the owner has seen the
   strip; until then the paper states responsiveness as this trial, not as a property of every place. Mass by sheet
   thickness and one material for models without labelled parts are assumptions, said so in the data.
+- **The sound stage** (`score/stages/sound`, its overlay). For a sound layer no one had reviewed, carried from the
+  game's table, with the camp silent, the launch with no loop, the square with no PA or speech, and no car, rover or
+  ship heard. `sound@<place>` answers every source the place names (room tones, the suit, objects, inventory rows,
+  motions, the surface bank) with a sound: the world's picked file, or MOSS takes of its brief made in the moss image on
+  one rented card (paid), chosen by the picker's rule; gated on `sources`, `level` (loudness and length, measured),
+  `likeness` (CLAP to its prompt at least 0.30, the tenth percentile of the world's MOSS picks) and `no freesound`
+  (the owner's 2026-10-06 recordings excepted, listed). The layer is data (`sound.json` and its files); the assembly
+  does not read it yet. Proven when every place passes and the owner has heard the new sounds.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner

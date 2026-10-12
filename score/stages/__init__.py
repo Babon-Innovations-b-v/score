@@ -21,7 +21,7 @@ import pathlib
 
 from score import contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, effects, images, machines, people, physics,
-                          props, scene_record, surfaces, terrain)
+                          props, scene_record, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -82,6 +82,10 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
 # Nothing reads it yet: the characters layer waits on the people route's made looks.
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
                    after={"concept_people": ("concept-people", 1)}, applies=lambda place: place in cast.PLACES)
+# Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
+# MOSS takes for briefs no world file answers, paid), for the place's assembly to write into its stage.
+SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
+                    euros=sound.EUROS, models=(sound.moss_takes.KIND,), applies=sound.applies)
 
 # Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its
 # objects react (the places with a trial record, physics.applies).
@@ -134,7 +138,7 @@ def prop_fed(row):
     return dataclasses.replace(row, after={**row.after, **props.FEEDS})
 
 
-STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER, PHYSICS_TRIAL,
+STAGES = (TERRAIN, EFFECTS, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER, PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
           *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES)
