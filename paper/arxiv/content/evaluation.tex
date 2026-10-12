@@ -8,9 +8,9 @@
 
 \subsection{With and without the agent tools}\label{with-and-without-the-agent-tools}
 
-The tools that check an agent's work (the completion gate, the resting triage with its drop test, the pick lock and the render-and-compare, Section 2) were tested on three places of world 1: a room (the workshop, 814 objects), an outdoor place (the street, 1,198 objects) and a dense room (the hangar, 1,657 objects). Each arm started from the same exported stage and the same inventory, and the same agent (Claude Opus 5.5 in Claude Code, headless) got the same prompt: make the place as complete as it can in about 50 minutes, through the place's layout data only. One arm had the framework as it was before these tools; the other had them. Both arms were measured afterwards with the same instruments (Table 2). Each arm ran once, so the table shows what happened, not an average.
+The tools that check an agent's work (the completion gate, the resting triage with its drop test, the pick lock and the render-and-compare, Section 2) were tested on three places of world 1: a room (the workshop, 814 objects), an outdoor place (the street, 1,198 objects) and a dense room (the hangar, 1,657 objects). In both arms, the same agent (Claude Opus 5.5 in Claude Code, headless) started from the same exported stage and inventory and was asked to make the place as complete as it could in about 50 minutes, through its layout data only; one arm had the framework from before these tools. Each arm ran once, so Table 2 shows what happened, not an average.
 
-\textbf{Table 2.} One session per arm and place. Faults are the resting triage's real faults left on the final stage, measured against the arm's own data; placeholders by the first placeholder check, which judged only plain primitives and so could not see a thing a code builder assembled from parts, such as the hangar's ship (Section 2); rows are inventory rows with no object and no written reason. Agent cost is the session's model cost in dollars; cloud is what its rented machines cost.
+\textbf{Table 2.} One session per arm and place. Faults are the resting triage's real faults left on the final stage, measured against the arm's own data; placeholders by the first placeholder check; rows are inventory rows with no object and no written reason. Agent cost is the session's model cost; cloud is its rented machines' cost.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -59,11 +59,11 @@ Hangar, with & 14 → 9 & 5 → 0 & 0 → 0 & 32 & \$2.34 & 29.1k & €0.64 & 5 
 \end{longtable}
 }
 
-The tools made building cheaper more often than they made the scene better. On the workshop and the street, the arm with the tools used about half the agent's output and cost, and exported the stage once or twice instead of seven to nine times, because the triage named the few real faults among hundreds of alarms. On the workshop it left no real fault, but 13 of its 18 were cleared by writing what holds a piece up into the inventory (the tools on the tool board hang from it; the arm monitors are clamped to their bench), which the creator still has to confirm; the other five were moved off the wall they stood in. On the hangar the arm without the tools left fewer faults: the arm with them spent its time replacing five placeholder slabs with the kit's own wall panels and ribs and trying the drop test, which failed on a room with no ground mesh (fixed after the run), and the nine faults it left are models with stray parts below their feet that no pose can fix. In no arm did the completion gate's hook have to refuse a claim, because no agent claimed a place was complete; both arms reported what was left. Every unknown answer of the gate was a check not yet run on the stage as it then was, which is what unknown means; the agents ran the checks and went on. Concept fit and the per-part surface check are not in the table, because their tools are not built yet, and no row carries an owner's pick, so the pick lock was never tested by an agent.
+The tools made building cheaper more often than they made the scene better. On the workshop and the street, the arm with the tools used about half the agent's output and cost, and exported the stage once or twice instead of seven to nine times, because the triage named the few real faults among hundreds of alarms. On the workshop, 13 of its 18 faults were cleared by writing into the inventory what holds a piece up, which the creator still has to confirm. On the hangar the arm without the tools left fewer faults: the arm with them spent its time replacing five placeholder slabs and trying the drop test, which failed on a room with no ground mesh (fixed after the run), and the nine faults it left are models with stray parts below their feet. No agent claimed a place was complete, so the gate's hook never had to refuse a claim. No row carries an owner's pick, so the pick lock was not tested.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: ablations.} This section will compare the framework with and without the optional world step, and with the checks before spending switched off, on the same places (the agent tools are compared above). It will measure how much of the concept is covered, how dense the built place is, the cost, the faults found after spending, and the creator's review. It waits until every stage runs from the framework repository.
+\textbf{Gap: ablations.} The framework with and without the optional world step, and with the checks before spending switched off, on the same places: concept coverage, density, cost, faults found after spending and the creator's review. It waits until every stage runs from the framework repository.
 
 \end{minipage}}\end{center}
 
@@ -71,12 +71,12 @@ The tools made building cheaper more often than they made the scene better. On t
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: style coherence.} This section will measure whether a place keeps one style. A measure is built: from the review pages' renders of each place's generated models, the fit of their coloured pixels to the place's palette, the spread of their lightness, how blotchy their surfaces are, and DINOv2's likeness \citep{oquab2023dinov2} within a place against across places with the shape subtracted. Its readings on world 1 are kept in Appendix B as a record. It is not yet a result, because it has not been checked against the creator's reviews; it waits on the surface stage's reviewed before and after, and it holds once it ranks the models the creator faulted below those he accepted.
+\textbf{Gap: style coherence.} Whether a place keeps one style. A measure is built (palette fit, lightness spread, blotchiness, and DINOv2 likeness \citep{oquab2023dinov2} within a place against across places, shape subtracted), and its readings on world 1 are in Appendix B. It becomes a result once it ranks the models the creator faulted below those he accepted, which waits on the surface stage's reviewed before and after.
 
 \end{minipage}}\end{center}
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: robots in the simulation world.} This section will show a rigged robot loaded together with the simulation world in a robotics simulator, with masses, friction and joints written into the scene, and with motion from the framework's motion models. It waits on world 3.
+\textbf{Gap: robots in the simulation world.} A rigged robot loaded with the simulation world in a robotics simulator, with masses, friction and joints written into the scene. It waits on world 3.
 
 \end{minipage}}\end{center}
