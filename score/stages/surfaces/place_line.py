@@ -59,7 +59,7 @@ FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
 # repository folders its code and data come from.
 PAINT_CLASSES = "cpu-32c-128gb,cpu-32c-64gb,cpu-32c-256gb,cpu-16c-64gb"
 PAINT_MINUTES, PAINT_EUROS = 2, 0.5
-TAKE, RECORDS, HOME = "paint take", "paint records", "props home"
+TAKE, RECORDS, HOME, CODE = "paint take", "paint records", "props home", "paint repo"
 PAINT_REPO = ("score", "tools/props", "data/library", "data/definitions", "design/tokens", "data/checks",
               "data/inventory")
 
@@ -255,7 +255,7 @@ def paint_job(inputs, short, out, take, records):
     listing, kept = out / f".paint-{take}.json", out / f".paint-{take}-records.json"
     kept.write_text(json.dumps(records))
     listing.write_text(json.dumps({**{name: str(path) for name, path in inputs.items()}, TAKE: take,
-                                   RECORDS: str(kept), HOME: str(prop_env.PROPS_HOME)}))
+                                   RECORDS: str(kept), HOME: str(prop_env.PROPS_HOME), CODE: str(REPO)}))
     pixal = prop_env.PROPS_HOME / "work/pixal"
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     inventories = [path for name, path in short.items() if name.startswith("inventory ")]

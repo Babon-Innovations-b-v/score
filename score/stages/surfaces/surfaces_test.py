@@ -403,7 +403,7 @@ def test_a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back():
                 str(REPO / "data/library")} <= sent, sent
         assert any(path.endswith("work/pixal/crane-r1-final.glb") for path in sent), sent
         listing = json.loads(pathlib.Path(job["args"][0]).read_text())
-        assert listing["paint take"] == "crane-r1"
+        assert listing["paint take"] == "crane-r1" and listing["paint repo"] == str(REPO)  # data may lie elsewhere
         assert json.loads(pathlib.Path(listing["paint records"]).read_text()) == [{"part": 0}]
 
 
