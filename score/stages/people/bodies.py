@@ -1,6 +1,6 @@
 """The people's body rows (#5, the owner's plan of 2026-10-11: people are made like every prop): one world row a look,
 `people-body-<look>`, paid, each a node of its own so the looks run side by side. A look is a take of
-data/surfaces/people.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's skeleton placed
+data/people/surfaces.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's skeleton placed
 inside it (only the rig, so Kimodo's clips play), its parts, its garments settled through every clip, and its checks
 (tools/characters/maker/prop_person.py's stages build, settle and checks-cloud, the checks side by side on a rented
 processor machine; its parts first when the take has none). The maker works in its candidate folder (~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row
@@ -24,7 +24,7 @@ from score.checks import FAIL, PASS, Check, Verdict
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MAKER = REPO / "tools/characters/maker"
-DATA = REPO / "data/surfaces/people.json"
+DATA = REPO / "data/people/surfaces.json"
 MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
 PIXAL = "{home}/work/pixal"
 # A look's estimate: its parts when missing (about EUR 1), the build and the settle each on an L4 for about an hour

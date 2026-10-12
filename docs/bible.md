@@ -156,7 +156,7 @@ a flag or a spec asks for it. Nothing here is a result; the paper's gaps name th
 is meant to fix, where it is marked, and what proves it.
 
 - **The people stage** (#5; `score/stages/people`, its overlay; `tools/characters/maker/prop_person.py`'s steps,
-  specs `data/characters/makes/<name>_prop.json`, takes in `data/surfaces/people.json`). For bloated clothes on
+  specs `data/characters/makes/<name>_prop.json`, takes in `data/people/surfaces.json`). For bloated clothes on
   SOMA-made people: people made like every prop (owner, 2026-10-11), the clothing painted through the surface
   stage's own rows, SOMA-X only for the rig, Kimodo's clips swung clear of the body's own bulk (`clearance.py`).
   World rows run only when asked for by name (`--stage people-...`). Proven when the player and Nev pass every body

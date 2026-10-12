@@ -2996,6 +2996,50 @@
 		"name": "the people",
 		"scenes": [],
 		"why": "The people stage's library (score/stages/people, #5): the surfaces a person's clothing, skin and hair take. Not a place one visits.",
+		"style": {
+			"version": 1,
+			"text": "People as the close-ups draw them: plain work and space suits, uniforms and coats in flat library surfaces, no picture's colours.",
+			"from": "the people stage (#5)",
+			"picked": "2026-10-12, the people stage's agent; owner to review"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": ""
+		},
+		"palette": {
+			"tokens": [
+				"earth-sunset",
+				"flat-wall",
+				"glass",
+				"hair",
+				"hair-black",
+				"hull",
+				"idle",
+				"jacket-blue",
+				"night-horizon",
+				"olive-drab",
+				"rubber",
+				"sign-gold",
+				"sign-red",
+				"sign-white",
+				"skin",
+				"skin-dark",
+				"skin-light",
+				"steel",
+				"steel-dark",
+				"strap-green",
+				"suit-gold",
+				"suit-light-blue",
+				"suit-navy",
+				"suit-pad",
+				"suit-panel-grey",
+				"wool-charcoal",
+				"wool-grey"
+			],
+			"accents": [],
+			"accents_are": "none: a person's few small finishes (flag, bands, buckle) take their own tokens"
+		},
 		"materials": {
 			"suit_navy": {
 				"token": "suit-navy",
@@ -3137,6 +3181,13 @@
 				"token": "jacket-blue",
 				"library": "jacket_blue"
 			}
+		},
+		"light": {
+			"recorded": "none: a person is lit by the place it stands in"
+		},
+		"pictures": {
+			"do": [],
+			"dont": []
 		},
 		"wear": {
 			"level": "clean",
