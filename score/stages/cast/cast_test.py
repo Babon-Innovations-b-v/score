@@ -96,6 +96,13 @@ def test_a_crowd_lattice_keeps_bodies_apart():
     assert len(spots) > 100 and nearest >= 2 * measure.BODY_RADIUS, (len(spots), nearest)
 
 
+def test_a_crowd_keeps_clear_of_each_view():
+    view = {"eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -10.0], "fov": 70}
+    near, far, behind = {"at": [0.0, 0.0, -4.0]}, {"at": [0.0, 0.0, -20.0]}, {"at": [0.0, 0.0, 4.0]}
+    assert spread.frame_share(view, near["at"]) > spread.FAR_SHARE > spread.frame_share(view, far["at"])
+    assert spread.far_enough([near, far, behind], [view]) == [far, behind]
+
+
 def test_copied_constants_agree():
     cast_rules, cast_check = measure.characters()
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,
