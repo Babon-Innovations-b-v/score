@@ -385,8 +385,8 @@ RENDERS = CHECKS_TABLE / "renders-r3"
 TODAY = CHECKS_TABLE / "renders" / "raw"
 VIEWS = (("apose_front", "A-pose, front"), ("apose_side", "A-pose, side"), ("walk_a", "walking, 1/4"),
          ("walk_b", "walking, 3/4"), ("sit", "sitting, 2/3"))
-# The reviewer's independent count of skin and hard parts through cloth (2026-10-10), kept beside the checks.
-BODYCLOTH = CHECKS_TABLE / "check" / "bodycloth.py"
+# The reviewer's count of skin and hard parts through cloth (2026-10-10), in the repo with its depth beyond the margin.
+BODYCLOTH = HERE / "bodycloth.py"
 RIGID_MOST = 1.2
 SHIPPED_TRIANGLES = 29849
 LEAN_MOST_CM = 1.5
@@ -509,7 +509,7 @@ def feet_row(rig):
 
 
 def bodycloth_rows(folder):
-    """The reviewer's skin-and-hard-through-cloth count (BODYCLOTH, outside the repo): as the engine draws the body
+    """The reviewer's skin-and-hard-through-cloth count (BODYCLOTH): as the engine draws the body
     (bodycloth_shaped.py, the corrective shapes in) and as the reviewer's reader takes it (without them)."""
     rows = []
     for name, how in (("bodycloth.json", "with the settle's shapes"), ("bodycloth_plain.json", "garments unsettled")):
