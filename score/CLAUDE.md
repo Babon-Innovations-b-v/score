@@ -69,9 +69,11 @@ stage as each stage is built; nothing moves before.
 
 Rules:
 
-- **Agents never walk a line by hand.** Start it with `python -m score run <world> [--place P] --detach` under the
-  Bash tool's `run_in_background`, then end the turn or do other work: its one result line wakes you. Never start
-  its steps one by one, never poll a cloud step. Step in only on a fault report (the result line exits 1 and
+- **Agents never walk a line by hand.** Start it with `python -m score run <world> [--place P] --detach`: it
+  returns at once with its log's path, and the run goes on in a session of its own until every line is done or
+  stopped, then writes one result line (`detached: ok|failed exit=N ...`) as the log's last line. Wait for that line
+  with the Monitor tool (or end the turn and read the log's last line later), never a poll loop. Never start its
+  steps one by one, never poll a cloud step. Step in only on a fault report (the result line says `exit=1` and
   `python -m score status` names it): read that file, put the cause right, run the line again.
 - **Never write a reject, a waiver, a spend yes, a clearance or an accept by hand**, by any route, and never ask the
   owner to accept or to say yes to a spend: run the stages, and the runner accepts what passed and got no worse and

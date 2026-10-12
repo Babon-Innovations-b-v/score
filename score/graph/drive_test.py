@@ -7,11 +7,15 @@ it with sleep loops and starting the next, each holding hundreds of thousands of
 
 Run: .venv/bin/python score/graph/drive_test.py
 """
+import contextlib
+import io
 import json
 import os
 import pathlib
+import signal
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 
@@ -314,6 +318,64 @@ def test_a_lasting_or_not_transient_error_stops_its_line():
 
 def make_count_of_ground(inputs, out, seed, params):
     (out / "built.txt").write_text((inputs["ground"] / "ground.txt").read_text())
+
+
+def make_leaving_a_thread(inputs, out, seed, params):
+    threading.Thread(target=threading.Event().wait).start()  # never ends, and not a daemon
+    (out / "made.txt").write_text("made")
+
+
+def hung(signal_number, frame):
+    raise RuntimeError("the drive did not end")  # not an OSError: a wait swallows those
+
+
+def test_a_node_that_leaves_a_thread_running_does_not_hold_up_the_drive():
+    """Fault (2026-10-12): two `score run`s did all their work and never exited."""
+    world = a_world_of(["hangar"])[1]
+    runner = graph.Runner((graph.Stage("maps", "place", make_leaving_a_thread, TEXT, MET),), world,
+                          Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    signal.signal(signal.SIGALRM, hung)
+    signal.alarm(60)
+    try:
+        assert runner.drive(["hangar"], say=quiet) == {"maps@hangar": "made: pass, accepted automatically"}
+    finally:
+        signal.alarm(0)
+
+
+def test_status_walks_the_store_once_and_works_out_each_key_once():
+    """Fault (2026-10-12): a run's closing status walked the whole store for every lookup and worked out each key once
+    a path through the nodes reading it; `score status` on world 1 took over five minutes."""
+    runner = a_runner({"hangar": "a ship", "station": "a hub"})
+    runner.drive(PLACES, say=quiet)
+    walks, keys = [], []
+    store_class, walk, work_out = type(runner.store.objects), type(runner.store.objects).keys, graph.Runner.worked_out_key
+    store_class.keys = lambda self, prefix: walks.append(prefix) or walk(self, prefix)
+    graph.Runner.worked_out_key = lambda self, stage, place: keys.append((stage.name, place)) or work_out(self, stage,
+                                                                                                         place)
+    try:
+        assert all(state == "done" for state, _ in runner.lines(PLACES).values())
+        assert "accepted" in runner.status(PLACES)["count@hangar"]
+    finally:
+        store_class.keys, graph.Runner.worked_out_key = walk, work_out
+    assert walks == ["", ""], walks  # one walk a pass
+    assert sorted(keys) == sorted(2 * [(stage, place) for stage in ("clean", "count") for place in PLACES]), keys
+    assert runner.remembered is None and "keys" not in vars(runner.store.objects)
+
+
+def test_detach_returns_at_once_with_the_log_its_result_line_last():
+    from score import __main__ as command
+    printed = io.StringIO()
+    started = time.time()
+    with contextlib.redirect_stdout(printed):
+        command.detach(["-c", "import time; time.sleep(3); print('the run went on')", command.DETACH])
+    assert time.time() - started < 2.5, time.time() - started
+    log = pathlib.Path(printed.getvalue().strip().rpartition("log=")[2])
+    assert printed.getvalue().startswith("detached: started pid=") and log.exists(), printed.getvalue()
+    deadline = time.time() + 60
+    while "detached:" not in log.read_text() and time.time() < deadline:
+        time.sleep(0.5)
+    lines = log.read_text().splitlines()
+    assert lines[0] == "the run went on" and lines[-1].startswith("detached: ok exit=0 "), lines
 
 
 if __name__ == "__main__":

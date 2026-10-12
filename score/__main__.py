@@ -9,11 +9,14 @@ a process of its own and at most --jobs at once (default score.graph.JOBS; --job
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
 the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
 (faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It exits 1 when any line
-stopped. --detach (tools/props/cloud/detached.py) sends its progress to a log and prints one result line at the end:
-start it with the Bash tool's run_in_background and never poll it.
+stopped. --detach returns at once with the log's path: the run goes on in a session of its own
+(tools/props/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
+(`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line. Wait for that line with
+the Monitor tool, never a poll loop.
 """
 import argparse
 import pathlib
+import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -40,17 +43,26 @@ def parse(argv):
     return parser.parse_args(argv)
 
 
-def detach():
-    """Run this command again detached: its progress in a log, one result line at the end."""
+def detach(argv):
+    """Start this command (argv, less --detach) again in a session of its own under detached.py, its output and then
+    its result line into a fresh log; print the log's path and return at once."""
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import detached
-    detached.relaunch(sys.argv, "score-run", [Store.default().cache.parent / "faults"])
+    log = detached.log_path_for("score-run")
+    command = [sys.executable, detached.__file__, "--log", str(log), "--outputs",
+               str(Store.default().cache.parent / "faults"), "--", sys.executable,
+               *[word for word in argv if word != DETACH]]
+    with open(log, "a") as result:  # detached.py prints its result line here, after the run's own output
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=result, stderr=subprocess.STDOUT,
+                                   start_new_session=True)
+    print(f"detached: started pid={process.pid} log={log}", flush=True)
 
 
 def main(argv=None):
     options = parse(argv)
     if getattr(options, "detach", False):
-        detach()
+        detach(sys.argv)
+        return
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places, whole = options.place or stages.places(runner.world), not options.place
     if options.command == "run":
