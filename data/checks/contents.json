@@ -19,6 +19,8 @@
   "wreck": {"effects": ["boot_dust"], "motion": ["drone"], "from": "effects N: no boot dust (G) (the landing dust the coordinator removed is not counted: the owner never ruled); motion N: the thrower drone never flies (G)"},
   "old_station": {"effects": ["boot_dust"], "motion": [], "from": "effects N: no boot dust (G); motion: none expected"},
   "camp": {"effects": ["drift", "devil", "storm"], "motion": [], "from": "effects P: the drift, two dust devils and the storm D; motion: none named"},
-  "campgrounds": {"effects": ["dust", "devil"], "motion": [], "from": "effects N: no dust and no devils seen from here (G); motion: none named"}
+  "campgrounds": {"effects": ["dust", "devil"], "motion": [], "from": "effects N: no dust and no devils seen from here (G); motion: none named"},
+  "gdoor": {"part_of": "garage", "effects": [], "motion": [], "from": "not in the checklist: the garage's big door leaves (data/scene/garage.json places, stage gdoor), plates and ribs of their own kit; their slide, beacon, vent and fog are the garage's motion and effects records (on /garage/Places/big_door_*), its light and sound the garage's, so those are judged on the garage's stage"},
+  "hdoor": {"part_of": "hangar", "effects": [], "motion": [], "from": "not in the checklist: the hangar's roof leaves (data/scene/hangar.json places, stage hdoor), plates and ribs of their own kit; their slide and venting are the hangar's motion and effects records (on /hangar/Places/roof_leaf_*), its light and sound the hangar's, so those are judged on the hangar's stage"}
  }
 }

@@ -80,8 +80,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   model of the people prop route, never SOMA's mesh in drapes), effects and motions against the needs in
   `data/checks/contents.json` (from the world 1 checklist), crop density where crops apply, every generated row held
   to its close-up (likeness@<place>) and repainted (surfaces-check@<place>), the light and sound layers, the shown
-  places, and no record citing the game. A place `contents.json` does not list is unknown. `contents_test.py` checks
-  each both ways.
+  places, and no record citing the game. A place `contents.json` does not list is unknown; one listed `part_of`
+  another (the garage's and hangar's door leaves, gdoor and hdoor) is judged on people, light, sound and neighbours
+  on its host's stage, which shows it. `contents_test.py` checks each both ways.
 - `triage.py` is the resting triage over `resting.py`: each object judged by its support from data (row `support`,
   `fixed`, kit shell groups and kit kinds `hangs`/`floors`, `on:` held, hanging words, wall, ceiling, floor;
   `data/checks/resting.json`), SceneEval's guards (4 contacts and the weight inside them; one contact for wall, ceiling
