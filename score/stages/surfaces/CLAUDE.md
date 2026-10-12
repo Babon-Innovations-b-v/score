@@ -50,8 +50,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
   stops the bake before anything is rented. The job files still give each model's entry (size, decals, cuts).
 - **The paint runs on rented processor machines, a job a take** (`make_paint`, `inside/paint_take.py` through
-  `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12), and twelve takes
-  in one process on the PC passed its 14 GB cap (campgrounds, garage; one take: 2.1 GB for 9 s). Up there Blender's own
+  `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12); measured up there,
+  campgrounds' takes peak at 1.5 to 3.4 GB and crane-r1 at 34.8 GB (the PC's cap is 14 GB). Up there Blender's own
   Python runs `place_line.py paint-take` with the prop environment's pinned packages and says its peak memory and any
   signal; the registry proposals are written here first. `tools/props/heavy.py` refuses the step anywhere the
   cloud runner's mark (FARM_LOCAL_MODELS=1) is not set. prop_env.py is left alone: the method's rows import it, and an
