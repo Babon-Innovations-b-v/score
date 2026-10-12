@@ -35,10 +35,15 @@ anyway), and waits on every cloud step itself. A node that does not end accepted
 input is missing, it errored or waits for the owner) stops its own line only: the nodes after it are not run, and it
 leaves a plain fault report (`faults/<node>.txt` beside the store: the node, the cause, every blocking check's reason,
 measures and findings, and the tail of its log, `logs/<node>.log`) for an agent or the owner to be pointed at. A node
-that stands removes its old report.
+that stands removes its old report. Once a node stops its line, nothing later on that line starts.
+
+Runs side by side on one store make a node's key one at a time (`held`, a file lock in `locks/` beside the store): a
+second run waits, then finds the first's record and makes nothing. A record or judgement another run stored first is
+taken as made.
 """
 import contextlib
 import datetime
+import fcntl
 import json
 import multiprocessing
 import multiprocessing.connection
@@ -56,7 +61,7 @@ from typing import Callable
 from score import checks, contracts, review
 from score.adapters import models
 from score.graph import _code
-from score.store import file_hash, listing_hash, text_hash, tree_hash
+from score.store import file_hash, listing_hash, text_hash, tree_hash, tree_listing
 
 GRAINS = ("world", "place")
 WORLD_LINE = "world"
@@ -70,6 +75,10 @@ FORK_WAIT = multiprocessing.connection.wait
 # A node that errors on a transient fault (a server's 5xx, a timeout, a dropped connection: eight places' maps on the
 # image model's HTTP 500s, 2026-10-12) runs again up to RETRIES times, waiting RETRY_WAIT seconds, doubled each try.
 RETRIES, RETRY_WAIT = 4, 30
+# Runs side by side on one store (17 agents' runs, 2026-10-12: people-segvigen bought twice) make a node's key one at a
+# time: a second run waits on the first's lock, then finds its record. One held longer than LOCK_WAIT seconds blocks
+# the waiter rather than be broken, so nothing is paid twice; a holder's death lets go of its lock at once.
+LOCK_WAIT, LOCK_POLL = 6 * 3600, 2
 
 
 def transient(error):
@@ -367,16 +376,43 @@ class Runner:
         except compute.Refused as refusal:
             raise Blocked(str(refusal)) from refusal
 
+    @contextlib.contextmanager
+    def held(self, node, key):
+        """The lock of one node's key (or of one piece of its evidence) across every run on this store, held while
+        the block runs: a file lock the system lets go of when its process dies. A run that finds it held waits;
+        held past LOCK_WAIT, Blocked, naming the holder."""
+        path = self.desk("locks", f"{node}/{key}", ".lock")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a+") as lock:
+            deadline = time.monotonic() + LOCK_WAIT
+            while True:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() > deadline:
+                        lock.seek(0)
+                        raise Blocked(f"{node}: another run has held its lock over {LOCK_WAIT} s "
+                                      f"({lock.read().strip() or 'holder unknown'}); not made again here") from None
+                    time.sleep(LOCK_POLL)
+            lock.truncate(0)
+            lock.write(f"pid {os.getpid()} on {platform.node()} since {now()}\n")
+            lock.flush()
+            yield
+
     def make(self, stage, place, keyed):
-        """Make the node's output, store it and write its finish record; the record."""
+        """Make the node's output, store it and write its finish record; the record (another run's, when one stored
+        this key first: it is taken as made)."""
         node = node_name(stage, place)
         cleared = self.spending(stage, node)
         out = self.store.making(keyed["key"])
         started, clock = now(), time.monotonic()
+        inputs = self.input_paths(stage, place, keyed)
         with cleared:
-            stage.make(self.input_paths(stage, place, keyed), out, keyed["seed"], stage.params)
+            stage.make(inputs, out, keyed["seed"], stage.params)
         if self.file_keys(stage, place) != keyed["files"]:
             raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
+        self.unchanged_checkouts(node, inputs, keyed)
         contracts.stamp(stage.contract, out)
         output = self.store.put_tree(out)
         shutil.rmtree(out)
@@ -387,8 +423,21 @@ class Runner:
                   **_code.git_commit(),
                   "machine": platform.node(), "started": started, "finished": now(),
                   "minutes": round((time.monotonic() - clock) / 60, 3), "euros": 0}
-        self.store.write_record(node, keyed["key"], record)
+        try:
+            self.store.write_record(node, keyed["key"], record)
+        except FileExistsError:  # another run (one not taking the lock) stored this key first: its record stands
+            return self.store.record(node, keyed["key"])
         return record
+
+    def unchanged_checkouts(self, node, inputs, keyed):
+        """Raise when the make wrote into an earlier output's read-only checkout (light@camp saved over its input,
+        2026-10-12): every other node reading that checkout would read the changed copy."""
+        outputs = {**keyed["after"], **keyed.get("beside", {})}
+        changed = sorted(name for name, output in outputs.items()
+                         if tree_listing(inputs[name]) != self.store.listing(output))
+        if changed:
+            raise RuntimeError(f"{node}: its make wrote into its read-only input {', '.join(changed)} (write only "
+                               "into the output folder); nothing is stored")
 
     def judge(self, stage, place, record):
         """Judge a stored output with the stage's gates on their current evidence and keep the judgement."""
@@ -399,24 +448,31 @@ class Runner:
         judgement = {"node": record["node"], "key": record["key"], "output": record["output"],
                      "evidence": self.evidence_state(stage, record["output"]), "at": now(),
                      "answer": checks.overall(verdicts), "verdicts": checks.scorecard(verdicts)}
-        self.store.write_judgement(record["node"], record["key"], judgement["evidence"], judgement)
+        try:
+            self.store.write_judgement(record["node"], record["key"], judgement["evidence"], judgement)
+        except FileExistsError:  # another run judged it first: its judgement stands
+            return self.store.judgement(record["node"], record["key"], judgement["evidence"])
         return judgement
 
     def run_node(self, stage, place):
         """Make the node if its key has no record, judge it if its evidence state has no judgement, accept it when it
-        passed and got no worse; what it did."""
+        passed and got no worse; what it did. It holds the node's key's lock throughout, so of two runs wanting one
+        key the second waits and finds the first's record."""
         try:
             keyed = self.key(stage, place)
+            with self.held(node_name(stage, place), keyed["key"]):
+                return self.run_held(stage, place, keyed)
         except Blocked as block:
             return f"blocked: {block}"
+
+    def run_held(self, stage, place, keyed):
+        """`run_node` under the node's key's lock."""
         node = node_name(stage, place)
         record = self.store.record(node, keyed["key"])
         made = record is None
         if made:
             try:
                 record = self.make(stage, place, keyed)
-            except Blocked as block:
-                return f"blocked: {block}"
             except contracts.Broken as broken:
                 return f"broken: {broken}"
         if self.store.judgement(node, keyed["key"], self.evidence_state(stage, record["output"])) is not None:
@@ -513,12 +569,19 @@ class Runner:
         keyed = self.key(stage, place)
         output = self.store.record(node, keyed["key"])["output"]
         for name in wanted:
-            gather, euros = stage.gatherers[name]
-            folder = self.store.making(f"evidence-{name}-{output}")
-            with self.cleared(node, euros) if euros else contextlib.nullcontext():
-                found = gather(self.store.checkout(output), self.input_paths(stage, place, keyed), folder)
+            with self.held(node, f"evidence-{name}-{output}"):
+                if self.store.evidence_hash(name, output) is None:  # else another run gathered it while this waited
+                    self.gather_one(stage, place, keyed, name, output)
+
+    def gather_one(self, stage, place, keyed, name, output):
+        """Make one check's evidence on the node's output and store it (another run's, stored first, stands)."""
+        gather, euros = stage.gatherers[name]
+        folder = self.store.making(f"evidence-{name}-{output}")
+        with self.cleared(node_name(stage, place), euros) if euros else contextlib.nullcontext():
+            found = gather(self.store.checkout(output), self.input_paths(stage, place, keyed), folder)
+        with contextlib.suppress(FileExistsError):  # another run stored it first: its evidence stands
             self.store.put_evidence(name, output, found)
-            shutil.rmtree(folder)
+        shutil.rmtree(folder)
 
     def drive_node(self, stage, place):
         """Run one node, gathering the evidence it lacks and judging it again; what it did. Its output, a raised
@@ -648,12 +711,17 @@ class Runner:
         own line and leaves a fault report; {node: what it did}, in table order. `whole` False drives the places'
         lines alone, with only the world nodes they read; `only` (stage names) those stages and the ones they read."""
         chosen = self.line_nodes(places, whole, only)
+        order = {node_name(*node): index for index, node in enumerate(chosen)}
         waiting = list(chosen)
         done, stopped, stood, running = {}, {}, set(), {}
+        halted = {}  # {line: (table index, node)} of its earliest stopped node: nothing later on the line starts
         while waiting or running:
             for stage, place in list(waiting):
                 node, earlier = node_name(stage, place), self.earlier(stage, place)
                 waits = [stopped[before] for before in earlier if before in stopped]
+                stop = halted.get(place or WORLD_LINE)
+                if not waits and stop and stop[0] < order[node]:
+                    waits = [stop[1]]
                 if waits:
                     waiting.remove((stage, place))
                     stopped[node] = waits[0]
@@ -672,6 +740,8 @@ class Runner:
                     stood.add(node)
                 else:
                     stopped[node] = node
+                    line = place or WORLD_LINE
+                    halted[line] = min(halted.get(line, (order[node], node)), (order[node], node))
                 say(f"{node}: {done[node]}")
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}

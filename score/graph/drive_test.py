@@ -390,6 +390,113 @@ def test_detach_returns_at_once_with_the_log_its_result_line_last():
     assert lines[0] == "the run went on" and lines[-1].startswith("detached: ok exit=0 "), lines
 
 
+# --- runs side by side on one store ----------------------------------------------------------------------------------
+
+def made_slowly(data):
+    """A make that counts its makes in a file and takes a second: two runs of it at once would overlap."""
+    def make(inputs, out, seed, params):
+        with (data / "made.txt").open("a") as made:
+            made.write("made\n")
+        time.sleep(1)
+        (out / "made.txt").write_text("made")
+    return make
+
+
+def two_runners_on_one_store(stages_of):
+    """Two runners (two `score run`s from two checkouts) over one store, their stages from stages_of(data)."""
+    data, world = a_world_of(["hangar"])
+    store = tempfile.mkdtemp()
+    return data, [graph.Runner(stages_of(data), world, Store.in_folder(store), model_record=lambda kind: {})
+                  for _ in range(2)]
+
+
+def drive_in_a_process(runner, places):
+    """Drive the runner in a forked process; (process, the pipe its result comes back on)."""
+    receiving, sending = graph.FORK.Pipe(duplex=False)
+    process = graph.FORK.Process(target=lambda: sending.send(runner.drive(places, say=quiet)))
+    process.start()
+    return process, receiving
+
+
+def test_two_runs_of_one_node_at_once_make_it_once_and_both_stand():
+    """Fault (2026-10-12): two runs made people-segvigen at once; the second paid again, then failed on the first's
+    record (FileExistsError)."""
+    data, runners = two_runners_on_one_store(lambda data: (graph.Stage("slow", "place", made_slowly(data), TEXT, MET),))
+    started = [drive_in_a_process(runner, ["hangar"]) for runner in runners]
+    found = [receiving.recv() for _, receiving in started]
+    for process, _ in started:
+        process.join()
+    assert (data / "made.txt").read_text() == "made\n", found
+    assert sorted(result["slow@hangar"] for result in found) == ["fresh", "made: pass, accepted automatically"], found
+
+
+def test_a_record_another_run_stored_first_is_taken_as_made():
+    """A run that does not take the lock (an older checkout's) stored the key first: this run's record is refused by
+    the store and the stored one stands, never an error."""
+    data, runners = two_runners_on_one_store(lambda data: (graph.Stage("slow", "place", made_slowly(data), TEXT, MET),))
+    stage = runners[0].stages["slow"]
+    keyed = runners[0].key(stage, "hangar")
+    first = runners[0].make(stage, "hangar", keyed)
+    assert runners[1].make(stage, "hangar", keyed) == first
+    judged = runners[0].judge(stage, "hangar", first)
+    assert runners[1].judge(stage, "hangar", first) == judged
+
+
+def test_a_lock_held_past_its_wait_blocks_and_makes_nothing():
+    data, runners = two_runners_on_one_store(lambda data: (graph.Stage("slow", "place", made_slowly(data), TEXT, MET),))
+    runner, saved = runners[0], (graph.LOCK_WAIT, graph.LOCK_POLL)
+    graph.LOCK_WAIT, graph.LOCK_POLL = 0.2, 0.05
+    try:
+        key = runner.key(runner.stages["slow"], "hangar")["key"]
+        with runner.held("slow@hangar", key):  # another open of the lock file: another run holding it
+            did = runner.run_node(runner.stages["slow"], "hangar")
+    finally:
+        graph.LOCK_WAIT, graph.LOCK_POLL = saved
+    assert did.startswith("blocked: slow@hangar: another run has held its lock") and "pid" in did, did
+    assert not (data / "made.txt").exists()
+    assert runner.run_node(runner.stages["slow"], "hangar") == "made: pass, accepted automatically"
+
+
+def make_failing(inputs, out, seed, params):
+    raise RuntimeError("names failed")
+
+
+def test_once_a_line_stops_nothing_later_on_it_starts():
+    """Fault (2026-10-12): the people line stopped at people-names, then still started people-segvigen, which reads
+    people-maps, not people-names. A node already running when the line stops may finish."""
+    data, world = a_world_of(["hangar"])
+    slow = graph.Stage("slow", "place", made_slowly(data), TEXT, MET)
+    names = graph.Stage("names", "place", make_failing, TEXT, MET)
+    after_slow = graph.Stage("after-slow", "place", make_count_of_slow, TEXT, MET, after={"slow": ("toy-text", 1)})
+    runner = graph.Runner((slow, names, after_slow), world, Store.in_folder(tempfile.mkdtemp()),
+                          model_record=lambda kind: {})
+    found = runner.drive(["hangar"], say=quiet)
+    assert found["names@hangar"].startswith("error: RuntimeError: names failed"), found
+    assert found["slow@hangar"] == "made: pass, accepted automatically", found
+    assert found["after-slow@hangar"] == "not run: its line stopped at names@hangar", found
+
+
+def make_count_of_slow(inputs, out, seed, params):
+    (out / "count.txt").write_text((inputs["slow"] / "made.txt").read_text())
+
+
+def make_writing_into_its_input(inputs, out, seed, params):
+    (inputs["slow"] / "saved-over.txt").write_text("a save into the input")
+    (out / "count.txt").write_text("counted")
+
+
+def test_a_make_that_writes_into_its_input_fails_and_stores_nothing():
+    """Fault (2026-10-12): light@camp's make saved over its read-only input."""
+    data, world = a_world_of(["hangar"])
+    slow = graph.Stage("slow", "place", made_slowly(data), TEXT, MET)
+    writer = graph.Stage("writer", "place", make_writing_into_its_input, TEXT, MET, after={"slow": ("toy-text", 1)})
+    runner = graph.Runner((slow, writer), world, Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    found = runner.drive(["hangar"], say=quiet)
+    assert found["writer@hangar"].startswith("error: RuntimeError: writer@hangar: its make wrote into its read-only "
+                                             "input slow"), found
+    assert runner.store.records("writer@hangar") == []
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

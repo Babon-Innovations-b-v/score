@@ -32,7 +32,12 @@ stage as each stage is built; nothing moves before.
   own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
   cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`). A node that
   errors on a transient fault (HTTP 5xx, a timeout, a dropped connection: `graph.transient`) runs again up to
-  `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line.
+  `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line. Once a node stops its line,
+  nothing later on that line starts (a node already running may finish). Runs side by side on one store (every
+  agent's `score run`) make a node's key one at a time: a file lock per node and key (`locks/` beside the store; a
+  dead holder lets go at once) makes a second run wait and then reuse the first's record, so nothing is paid twice;
+  held past `LOCK_WAIT` the waiter is blocked, never made again. A record or judgement another run stored first is
+  taken as made, never an error; a make that writes into its read-only input's checkout fails and stores nothing.
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
   leaves out the places its world data says it has nothing to do for), `World`,
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
