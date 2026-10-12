@@ -26,6 +26,7 @@ from score.checks import FAIL, PASS, Check, Verdict
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MAKER = REPO / "tools/characters/maker"
 DATA = REPO / "data/people/surfaces.json"
+CUT = REPO / "data/people/bodies.json"
 MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
 PIXAL = "{home}/work/pixal"
 # A look's estimate: its parts when missing (about EUR 1), the build and the settle each on an L4 for about an hour
@@ -42,10 +43,18 @@ RIGID_ROLES = ("hard", "hair")
 
 
 def looks():
-    """{look: take entry} of every take in the people's data with a spec: the look is <name>-<outfit>."""
+    """{look: take entry} of every take in the people's data with a spec: the look is <name>-<outfit>; `far_only`
+    unless data/people/bodies.json makes it in full (the take's own flag is not read: the people's data is the
+    surface line's input, so a cut there would paint every look again)."""
     takes = json.loads(DATA.read_text())["takes"]
-    return {f"{json.loads((REPO / entry['spec']).read_text())['name']}-{entry['outfit']}": dict(entry, take=take)
-            for take, entry in takes.items() if entry.get("spec")}
+    full = set(json.loads(CUT.read_text())["full"])
+    found = {}
+    for take, entry in takes.items():
+        if entry.get("spec"):
+            look = f"{json.loads((REPO / entry['spec']).read_text())['name']}-{entry['outfit']}"
+            found[look] = {**{key: value for key, value in entry.items() if key != "far_only"}, "take": take,
+                           **({} if look in full else {"far_only": True})}
+    return found
 
 
 def files(look, entry):

@@ -4,7 +4,7 @@ the weights RSWT moved over from the mean body (prop_rig.py), whose inpainted we
 
     fit   (the card's motion environment, prop_chain.py `shell`):
           /root/envs/motion/bin/python prop_shell.py fit <fit rig.npz> <shell.npz>
-          SOMA-X's identity (its first FITTED shape numbers and a global scale) chosen by Powell's method so the body,
+          SOMA-X's identity (its first FITTED shape numbers and a global scale) chosen by least squares so the body,
           laid on the fitted skeleton's bind (each kept joint's SOMA bind moved onto the fitted one, the surface by
           SOMA's own weights), lies inside the look and close under it: the mean squared distance from each look point
           to the body plus INSIDE_WEIGHT times the mean squared depth of body points outside the look (by the look's
@@ -23,11 +23,14 @@ import sys
 import numpy as np
 
 MAKER = pathlib.Path(__file__).resolve().parent
-FITTED = 10
+FITTED = 24
 INSIDE_WEIGHT = 10.0
 INSIDE_MARGIN = 0.003
 SCALE_RANGE = (0.85, 1.25)
-COEFF_RANGE = 3.0
+COEFF_RANGE = 5.0
+# Least squares' finite-difference step and its budget of body evaluations (each about a third of a second).
+DIFF_STEP = 0.02
+EVALUATIONS = 1200
 SAMPLES = 6000
 
 
@@ -82,7 +85,7 @@ def vertex_normals(points, faces):
 
 def fit(fit_path, out):
     """The identity whose body lies closest inside the look; shell.npz."""
-    from scipy.optimize import minimize
+    from scipy.optimize import least_squares
     from scipy.spatial import cKDTree
     rig = np.load(fit_path)
     layer, body, kept, carries = soma_layer()
@@ -97,21 +100,29 @@ def fit(fit_path, out):
         world, vertices = soma_bind(layer, variables[:-1], variables[-1])
         return laid(vertices, weights, world[kept], rig["bind"])
 
-    def loss(variables):
+    def residuals(variables):
+        """Each sampled look point's distance to the body, and each body point's depth outside the look (less the
+        margin), weighted: least squares of them is the fit's loss."""
         points = shell(variables)
         near, _ = cKDTree(points).query(sampled)
         _, nearest = look_tree.query(points)
         outside = np.einsum("ij,ij->i", points - look[nearest], look_normals[nearest]) + INSIDE_MARGIN
-        return float(np.mean(near ** 2) + INSIDE_WEIGHT * np.mean(np.maximum(outside, 0.0) ** 2))
+        return np.r_[near / np.sqrt(len(near)), np.sqrt(INSIDE_WEIGHT / len(outside)) * np.maximum(outside, 0.0)]
 
-    start = np.r_[np.zeros(FITTED), 1.0]
-    bounds = [(-COEFF_RANGE, COEFF_RANGE)] * FITTED + [SCALE_RANGE]
-    found = minimize(loss, start, method="Powell", bounds=bounds, options={"maxfev": 1500, "xtol": 1e-3})
+    def loss(variables):
+        return float(np.sum(residuals(variables) ** 2))
+
+    fitted = min(FITTED, layer.identity_model.num_identity_coeffs)
+    start = np.r_[np.zeros(fitted), 1.0]
+    low = np.r_[np.full(fitted, -COEFF_RANGE), SCALE_RANGE[0]]
+    high = np.r_[np.full(fitted, COEFF_RANGE), SCALE_RANGE[1]]
+    found = least_squares(residuals, start, bounds=(low, high), method="trf", diff_step=DIFF_STEP,
+                          max_nfev=EVALUATIONS)
     points = shell(found.x)
     near, _ = cKDTree(points).query(look)
     np.savez_compressed(out, points=points, faces=faces, weights=weights, coefficients=found.x[:-1],
-                        scale=found.x[-1], loss_start=loss(start), loss=found.fun)
-    return {"loss_start": round(loss(start), 6), "loss": round(float(found.fun), 6), "evaluations": int(found.nfev),
+                        scale=found.x[-1], loss_start=loss(start), loss=loss(found.x))
+    return {"loss_start": round(loss(start), 6), "loss": round(loss(found.x), 6), "evaluations": int(found.nfev),
             "scale": round(float(found.x[-1]), 4), "look_to_body_mean_m": round(float(near.mean()), 4),
             "look_to_body_most_m": round(float(near.max()), 4)}
 
