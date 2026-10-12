@@ -48,10 +48,26 @@ def file_hash(path):
     return digest.hexdigest()
 
 
+def raw_made(take):
+    """Whether the cloud brought the take's raw model and camera folder back (its finish may still be missing)."""
+    raw, _, cameras = take_files(take)
+    return raw.exists() and cameras.exists()
+
+
+def finish_here(take, closeup, out):
+    """A take the cloud brought back but whose finish never ran (its batch was stopped), finished here as the batch
+    finishes every take: pixal.py --finish-only (Blender and the processor, no model), its default faces and seed."""
+    with (out / "finish.log").open("a") as log:
+        done = subprocess.run([str(REPO / ".venv/bin/python"), str(REPO / "tools/props/pixal.py"), str(closeup), take,
+                               "--who", "score pixal", "--finish-only"], cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
+    if done.returncode:
+        raise RuntimeError(f"the finish of {take} failed (exit {done.returncode}); its log is finish.log")
+
+
 def batch_list(objects, closeups, out):
-    """The batch's list, one missing take a line with its close-up; its path, or None when every take is made."""
+    """The batch's list, one take with no raw model a line with its close-up; its path, or None when there is none."""
     lines = [f"{entry['take']} {closeups / f'{row}.png'}" for row, entry in sorted(objects.items())
-             if not made(entry["take"])]
+             if not raw_made(entry["take"])]
     if not lines:
         return None
     (out / "list.txt").write_text("\n".join(lines) + "\n")
@@ -71,6 +87,9 @@ def make_pixal(inputs, out, seed, params):
         (out / "batch.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
         if done.returncode:
             raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
+    for row, entry in sorted(objects.items()):
+        if raw_made(entry["take"]) and not made(entry["take"]):
+            finish_here(entry["take"], closeups / f"{row}.png", out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in objects.items()}
