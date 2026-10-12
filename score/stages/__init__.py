@@ -43,14 +43,18 @@ ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.O
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places)
 # Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
-# each read beside as its own accepted assembly. Complete does not read it yet: a neighbour whose assembly fails (the
-# hub's) would stop every place that shows it.
+# each read beside as its own accepted assembly. Complete reads it: a place whose shown places do not stand is not
+# complete, so a neighbour whose assembly fails (the hub's) stops every place that shows it.
 NEIGHBOURS = graph.Stage("neighbours", "place", neighbours.make, contracts.OPENUSD_STAGE, neighbours.CHECKS,
                          files=neighbours.files, after={"assembly": ("openusd-stage", 1)},
                          beside={"assembly": ("openusd-stage", 1)}, neighbours=neighbours.neighbours,
                          applies=neighbours.applies)
+# The completion gate on what the place holds (tools/usd/complete.py's checks, contents.py's among them), on its
+# neighbours output where it shows other places, with its paint's check and its models' likeness to their close-ups.
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
-                       after={"assembly": ("openusd-stage", 1)})
+                       files=complete.files,
+                       after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1),
+                              "surfaces-check": ("surfaces-check", 1), "likeness": ("props-likeness", 1)})
 # Experimental (PRD #6) until the owner reviews it: the proof place's before and after its made ground, rendered.
 TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.CHECKS, files=look.files,
                            after={"assembly": ("openusd-stage", 1)}, paid=True, euros=look.EUROS,

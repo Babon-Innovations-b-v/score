@@ -220,9 +220,9 @@ def main():
     parser.add_argument("--who", default="compare")
     parser.add_argument("--reuse", action="store_true", help="score the renders already in <out>/renders")
     options = parser.parse_args()
-    import complete
+    import stage_inputs
     place = options.stage.stem
-    rows = json.loads(complete.recorded_inventory(place, options.stage).read_text())["rows"]
+    rows = json.loads(stage_inputs.recorded_inventory(place, options.stage).read_text())["rows"]
     for entry in compare(options.stage, rows, options.out, options.closeups, options.cloud, options.who,
                                      options.reuse):
         likeness = "no likeness" if entry["likeness"] is None else f"likeness {entry['likeness']:.2f}"

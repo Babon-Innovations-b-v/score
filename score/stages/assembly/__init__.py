@@ -114,12 +114,12 @@ def take_bake(bake, paint, out, models=None):
 
 def stamp_baked_hash(base, model, gltf):
     """Every object of the base layer that lays `model` carries the baked file's hash (score:model_sha256,
-    complete.model_hash) in place of the seed's, and the seed's as the model the bake repainted (score:repaint_of,
-    which the pick lock reads: a pick chooses the model, never its old paint)."""
+    stage_inputs.model_hash, which the completion gate reads) in place of the seed's, and the seed's as the model the
+    bake repainted (score:repaint_of, which the pick lock reads: a pick chooses the model, never its old paint)."""
     from pxr import Sdf
-    import complete
+    import stage_inputs  # not complete.py: an edit to the gate re-makes no assembly
     layer = Sdf.Layer.FindOrOpen(str(base))
-    sha256 = complete.model_hash(gltf)
+    sha256 = stage_inputs.model_hash(gltf)
     paths = []
     layer.Traverse(Sdf.Path.absoluteRootPath, paths.append)
     for path in paths:

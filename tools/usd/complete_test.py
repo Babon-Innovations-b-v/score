@@ -1,7 +1,9 @@
 """Check the completion gate on places made here: a laid place with every check run and its review page built passes;
 a row with no object fails until it has a written drop reason; a stage edited after its checks makes them stale
 (unknown, which blocks); an inventory changed after the export fails the stage; a mesh nothing says the framework made
-fails the made-only check; a check that cannot run is unknown; and the review page's stamp goes stale with the stage.
+fails the made-only check; a check that cannot run is unknown; the review page's stamp goes stale with the stage; a
+place missing what its cast says fails on its contents; and a failing reach is shown, the gate counting only that it
+was recorded.
 
 Run: .venv/bin/python tools/usd/complete_test.py   (make tests runs it with the framework's environment)
 """
@@ -16,19 +18,27 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "tools/review"))
 import complete  # noqa: E402
+import contents  # noqa: E402
+import contents_test  # noqa: E402
 import made_only  # noqa: E402
 import page  # noqa: E402
 import resting_test  # noqa: E402
 import triage_test  # noqa: E402
+
+# The test's places have no stage outputs in the framework's store: the contents checks read none.
+complete.stored_outputs = lambda place: dict(contents_test.NONE)
 
 
 def laid(folder, rows=(("crate", "floor"), ("lamp", "floor"))):
     """A place of two boxes, one a row, exported; its stage. The test's rows are drawn from no concept, so each says
     so (`unseen`), as the box gate asks of a row with no box."""
     resting_test.made_models(folder)
-    return triage_test.place_of(folder, [("crate", "box", (0, 0, 0)), ("lamp", "box", (3, 0, 0))],
-                                [triage_test.row(name, anchor, box=None, unseen="a test row, drawn from no concept")
-                                 for name, anchor in rows])
+    stage = triage_test.place_of(folder, [("crate", "box", (0, 0, 0)), ("lamp", "box", (3, 0, 0))],
+                                 [triage_test.row(name, anchor, box=None, unseen="a test row, drawn from no concept")
+                                  for name, anchor in rows])
+    contents_test.world_data(folder, resting_test.PLACE)
+    contents_test.held_layers(stage, resting_test.PLACE)
+    return stage
 
 
 def verdicts(stage, review):
@@ -125,9 +135,24 @@ def a_check_that_cannot_run_is_unknown():
         return problems
 
 
+def a_place_without_its_cast_fails_on_its_contents():
+    """Fault (world 1 checklist, 2026-10-12): the gate passed places whose people, effects and motion it never looked
+    at; a cast person not on the stage now fails the place."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = laid(folder)
+        cast = {"place": resting_test.PLACE, "people": [{"name": "bram", "character": "bram", "doing": "idle",
+                                                         "at": [0, 0, 0], "facing_to": [0, 0, 1], "why": "a test"}]}
+        (contents.DATA / "characters" / f"{resting_test.PLACE}.json").write_text(json.dumps(cast))
+        checked_and_reviewed(stage, folder / "review")
+        found, verdict = verdicts(stage, folder / "review")
+        return [] if found["people"] == complete.FAIL and verdict == complete.FAIL else \
+            [f"a place missing its cast's person reads people {found['people']}, {verdict}"]
+
+
 def a_failing_reach_is_shown_not_counted():
     """Fault (audit of 2026-10-11, item 5): the reach check failed places on backdrop rows nobody walks to, and its
-    fail counted in the verdict before it had caught one real unreachable row."""
+    fail counted in the verdict before it had caught one real unreachable row. What counts is that it was recorded."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         stage = laid(folder)
@@ -135,14 +160,15 @@ def a_failing_reach_is_shown_not_counted():
         complete.save(complete.result("reach", complete.FAIL, stage, [{"row": "far_city_tower"}]), stage)
         written = complete.manifest(resting_test.PLACE, stage, folder / "review")
         reach = next(requirement for requirement in written["requirements"] if requirement["name"] == "reach")
-        problems = [] if reach["result"] == complete.FAIL and "experimental" in reach else \
-            [f"the reach requirement does not show its fail as experimental: {reach}"]
+        problems = [] if reach["result"] == complete.PASS and reach["why"].startswith("recorded, fail") and \
+            "experimental" in reach else [f"the reach requirement does not show its fail as recorded: {reach}"]
         if written["verdict"] != complete.PASS:
             problems.append(f"an experimental check's fail decided the verdict: {written['verdict']}")
         return problems
 
 
-CHECKS = (a_finished_place_passes, a_failing_reach_is_shown_not_counted, a_row_with_no_object_needs_a_drop_reason,
+CHECKS = (a_finished_place_passes, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
+          a_row_with_no_object_needs_a_drop_reason,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
           a_check_that_cannot_run_is_unknown)
 

@@ -39,7 +39,7 @@ from scipy.spatial.transform import Rotation
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
-import complete  # noqa: E402
+import stage_inputs  # noqa: E402
 import ground as grounds  # noqa: E402
 import resting  # noqa: E402
 
@@ -393,7 +393,7 @@ def detach(stage_path):
     import detached
     stage = Usd.Stage.Open(str(stage_path))  # held: a prim of a stage nothing holds expires at once
     place = stage.GetDefaultPrim().GetName()
-    detached.relaunch(sys.argv, "settle", [stage_path.parent / "settle", complete.inventory_path(place),
+    detached.relaunch(sys.argv, "settle", [stage_path.parent / "settle", stage_inputs.inventory_path(place),
                                            KITS / f"{place}.json"])
 
 
@@ -411,7 +411,7 @@ def main():
         detach(stage_path)
     stage = Usd.Stage.Open(str(stage_path))
     place = stage.GetDefaultPrim().GetName()
-    inventory_path, kit_path = complete.inventory_path(place), KITS / f"{place}.json"
+    inventory_path, kit_path = stage_inputs.inventory_path(place), KITS / f"{place}.json"
     loose = loose_objects(stage, place, json.loads(inventory_path.read_text()))
     last = stage_path.parent / "settle" / "settled.json"
     inventory = json.loads(inventory_path.read_text())

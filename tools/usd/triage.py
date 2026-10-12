@@ -177,10 +177,10 @@ def kit_groups(place, path=None):
 
 
 def inventory_rows(place, stage_path, path=None):
-    """The place's inventory rows by id: the file given, else the one the stage was exported from (complete.py), else
-    none."""
-    import complete
-    path = pathlib.Path(path) if path else complete.recorded_inventory(place, stage_path)
+    """The place's inventory rows by id: the file given, else the one the stage was exported from (its inputs
+    record), else none."""
+    import stage_inputs
+    path = pathlib.Path(path) if path else stage_inputs.recorded_inventory(place, stage_path)
     return {row["id"]: row for row in json.loads(path.read_text())["rows"]} if path.exists() else {}
 
 

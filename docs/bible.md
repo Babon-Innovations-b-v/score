@@ -248,8 +248,9 @@ is meant to fix, where it is marked, and what proves it.
   copies the place's accepted assembly and each neighbour's (read beside, `Stage.beside`: versioned and waited on like
   `after`; a neighbour is its assembly alone, so places that show each other make no cycle) and points the references
   there; the far city, which no stage makes yet, comes from its seed folder. Gated on `neighbours` (every shown place
-  of the scene record stands, resolves and has children); `complete` does not read it yet (the hub's failing assembly
-  would stop every place that shows the hub). Proven when the square's and the
+  of the scene record stands, resolves and has children); `complete` reads it (2026-10-12: a place whose shown places
+  do not stand is not complete, so the hub's failing assembly stops every place that shows the hub). Proven when the
+  square's and the
   flat's views show the launch with its effects.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
