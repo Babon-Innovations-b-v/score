@@ -31,7 +31,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **A map that does not settle blocks its model, never passes**: measured (`finish_maps.check`: overlap, share near
   a label colour, every finish used), filled from labelled neighbours only when its sole fault is a labelled share
   between `FILL_LEAST` and `NEAR_LEAST`; a one-finish model is not drawn (its map is the close-up's object mask:
-  asked to paint one colour, the picture model tinted the photo); a model with no settled close-up map is named in `surfaces-maps`' fail and
+  asked to paint one colour, the picture model tinted the photo); a close-up whose draws all fail is split by its own
+  colours and each region named by the draws' labelled pixels (`finish_maps.colour_split`, owner-approved fallback
+  2026-10-12, old_station's lab module: colours only split, the paint stays the library's); one that still loses a
+  finish counts as not settled. A model with no settled close-up map is named in `surfaces-maps`' fail and
   stops its place's line (once the owner waives it, later rows leave it out). A part whose voted faces mix two
   finishes fails `surfaces-parts` the same way.
 - **Each finish's surface is checked against the close-up's colour** (`finish_parts.checked_finishes`,
