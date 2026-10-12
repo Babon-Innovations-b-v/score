@@ -1,0 +1,110 @@
+{
+ "about": "What the motion stage (score/stages/motion) reads as data: the moving kinds, which prims of a place's stage are of each kind (their names, a row's objects `<row>_<n>` or a scene record's fixture), and the speed range a mover of that kind keeps, each read off a cited source. `linear` is metres a second of the mover's middle, `angular` degrees a second of its turn; the `speeds` gate takes the peak against the top and the median moving speed against the bottom. A kind with no range (`game`) moves only at the game's own timing (data/motion), whose `from` is its source. Every prim of a moving kind moves in the place's motion layer, or its place's movers record says in `still` why it does not.",
+ "kinds": {
+  "ferry": {
+   "prims": ["far_ferry"],
+   "linear": [0.5, 6.0],
+   "sources": [
+    "Wang Tak Engineering and Shipbuilding, the Star Ferry's Golden Star and World Star: 'speed of 11.3 knots' (5.8 m/s), http://www.wangtak.com.hk/html_en/shipbuilding_starferry.html",
+    "Japan P&I Club Loss Prevention Bulletin vol. 32: 'reducing speed to 2 knots (1.0 m/sec) to approach the pier', https://www.piclub.or.jp/wp-content/uploads/2018/04/Loss-Prevention-Bulletine-Vol.32-Light-2.pdf"
+   ]
+  },
+  "car": {
+   "prims": ["car"],
+   "linear": [1.0, 8.3],
+   "sources": [
+    "WHO, Streets for Life (2021): 'limit speeds to 30 km/h (20 mph) on streets where pedestrians, cyclists...' (8.3 m/s), https://www.who.int/news/item/17-05-2021-streets-for-life-campaign-calls-for-30-km-h-urban-streets-to-ensure-safe-healthy-green-and-liveable-cities",
+    "Cruising for a parking spot averaged 13.53 km/h (3.8 m/s), https://pmc.ncbi.nlm.nih.gov/articles/PMC9368554/"
+   ]
+  },
+  "rover": {
+   "prims": ["rover"],
+   "linear": [0.5, 3.8],
+   "sources": [
+    "NASA NTRS 20250011301, the Lunar Roving Vehicle: 'speeds of 9-13 km/hr (2.5-3.6 m/s)'; Apollo 16 'up to 14 km/hr (3.8 m/s)', https://ntrs.nasa.gov/citations/20250011301",
+    "NASA NTRS 19720015165, Apollo 15: 'average speed of 9.6 km/hr' (2.7 m/s), https://ntrs.nasa.gov/citations/19720015165"
+   ]
+  },
+  "crane_trolley": {
+   "prims": ["crane_trolley"],
+   "linear": [0.08, 0.4],
+   "sources": [
+    "ABUS crane systems: 'Trolley travel speed ELV/ELK/EDL/ZLK: 5/20 m/min' (0.083 to 0.33 m/s), http://www.abusvinc.com/Documents/96e5c8ef-16cd-411e-8a80-1acbbbb9a01c.pdf",
+    "Konecranes CXT UNO trolley '20/5 or 24/6 m/min' (up to 0.4 m/s), https://www.konecranes.com/sites/default/files/download/cxt_uno_tech_specs_a4_en_konecranes_2017.pdf"
+   ]
+  },
+  "chain_hoist": {
+   "prims": ["chain_hoist"],
+   "linear": [0.017, 0.4],
+   "sources": [
+    "Demag DC-Pro chain hoists: '4/1, 6/1.5, 8/2, 12/3, 16/4, 24/6 m/min' main/creep lifting speeds (0.017 to 0.4 m/s), https://www.demagcranes.com/sites/default/files/media/documents/20357144_131219_0.pdf"
+   ]
+  },
+  "irrigation_boom": {
+   "prims": ["irrigation_boom"],
+   "linear": [0.025, 0.76],
+   "sources": [
+    "Cherry Creek Systems boom controller manual: 'valid speeds are 5 to 150 feet per minute' (0.025 to 0.76 m/s), default 20 feet per minute, https://cherrycreeksystems.com/wp-content/uploads/PDFs/ControllerManualsBoomsALL.pdf"
+   ]
+  },
+  "crane": {
+   "prims": ["crane"],
+   "angular": [2.0, 22.0],
+   "sources": [
+    "PALFINGER MARINE product brochure, foldable knuckle-boom cranes: 'Slewing speed ~ 1 rpm' (6 degrees a second), https://www.serimatik.com/wp-content/uploads/2019/06/PALFINGER-MARINE_Product-Brochure.pdf",
+    "An older loader crane (HIAB 650A) quoted at 22 degrees a second, taken only as the top (a forum figure, not a specification)"
+   ]
+  },
+  "hatch": {
+   "prims": ["hatch_leaf", "hatch_wheel", "hatch_window", "timber_door_leaf"],
+   "angular": [15.0, 53.0],
+   "sources": [
+    "ANSI/BHMA A156.19 (low-energy swing door operators): open to 80 degrees in 3 s or longer, about 4 to 5 s for 90 degrees (18 to 27 degrees a second), https://www.automateddoorsolutions.com/wp-content/uploads/2018/08/ANSI-A156-19-2007.pdf",
+    "ANSI/BHMA A156.10 (power operated doors): opening to 80 degrees not less than 1.5 s (at most 53 degrees a second), https://www.automateddoorsolutions.com/wp-content/uploads/2018/08/ANSI-A156-10-2005.pdf"
+   ]
+  },
+  "sliding_door": {
+   "prims": ["sliding_glass_leaf", "big_door_west", "big_door_east", "roof_leaf_west", "roof_leaf_east", "inner_door", "outer_door", "door_leaf"],
+   "game": true,
+   "sources": ["the game's own door speeds (data/motion, each motion's `from`)"]
+  },
+  "ceiling_fan": {
+   "prims": ["ceiling_fan"],
+   "angular": [400.0, 1080.0],
+   "sources": [
+    "Lowe's 52 in. ceiling fan LP8242SLCH: 'High 170 / Med 120 / Low 69' rpm (414 to 1020 degrees a second), https://pdf.lowes.com/productdocuments/f3f8808a-5ea2-4dc7-9c25-8450730607c7/62905162.pdf",
+    "Fanimation Kwad 52: 'high-speed RPM 170', https://fanimation.com/products/fans/bedroom/kwad-52/"
+   ]
+  },
+  "cargo_lift": {
+   "prims": ["cargo_lift"],
+   "linear": [0.3, 1.67],
+   "sources": [
+    "Alimak Scando 650 manual: 'Lifting speed is 38 m/min ... maximum 65 m/min', high-speed version 80 to 100 m/min (0.63 to 1.67 m/s), https://www.mastclimbers.com/wp-content/uploads/Alimak-Scando-650-Manual.pdf",
+    "Alimak Mammoth: '30 m/min' (0.5 m/s), https://alimak.com/wp-content/uploads/2025/10/Alimak-Mammoth-1692-EN-Oct-2020.pdf"
+   ]
+  },
+  "drone": {
+   "prims": ["thruster_drone", "drone"],
+   "linear": [1.0, 15.0],
+   "sources": [
+    "DJI Mavic 3 Enterprise specifications: 'Max flight speed: 15 m/s (Normal Mode)', https://enterprise.dji.com/mavic-3-enterprise/specs"
+   ]
+  },
+  "ship": {
+   "prims": ["ship_hull", "ship_legs", "ship"],
+   "game": true,
+   "sources": ["the game's hangar cycle (data/motion/hangar.json): the roof opens for the ship lifting straight out"]
+  },
+  "rocket": {
+   "prims": ["rocket", "far_rocket"],
+   "game": true,
+   "sources": ["the game's launch climb (data/motion/launch.json, its `from`)"]
+  },
+  "robot": {
+   "prims": ["robot_p1"],
+   "game": true,
+   "sources": ["the game's turntable speed (data/motion/workshop.json, its `from`)"]
+  }
+ }
+}

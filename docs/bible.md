@@ -264,6 +264,16 @@ is meant to fix, where it is marked, and what proves it.
   on regolith in any cast); none is staged until its motion exists, since a record that cannot pass would stop the
   place's assembly. The wreck's landing dust was measured on the Apollo landing papers and brought back, then taken
   out again: its concept shows no landing, and the concept decides (the captain, 2026-10-12; the veil is in e9e8cc8).
+- **The motion stage** (`score/stages/motion`, its overlay; `tools/usd/movers.py`; `data/movers/`,
+  `data/checks/motion.json`). For the things that stood still only because the game never moved them (2026-10-12:
+  motion on 4 of 18 places). `motion@<place>` writes one motion layer over the place's seed from the game's timed
+  motions (`data/motion`, unchanged) and its movers record: each mover a closed path (a ferry's harbour lane), a
+  swing on a hinge (a hatch), a spin (a fan) or a slide on a rail (a boom, a crane trolley), its kind's speed range
+  cited in `data/checks/motion.json`, and every prim of a moving kind that stays still says why (`still`). Gated on
+  `clear` (no mover reaches into a still thing or another mover over the layer, read off the composed stage),
+  `speeds`, `loops` (rounds join and fit the layer's seconds whole), `grounded` (on water or ground, on its rail, or
+  in the air) and `covered`. The assembly does not take the layer yet; the final assembly of each place does. Proven
+  when the owner has seen the launch's ferries and the greenhouse's booms and hatches move.
 - **The neighbours stage** (`score/stages/assembly/neighbours.py`). A place's views looked out onto empty space: the
   seeds' references to the places they show (`../../launch/launch.usda`) resolve to nothing once each place is its own
   node, so the launch's accepted assembly showed the square and the far city with no children. `neighbours@<place>`
