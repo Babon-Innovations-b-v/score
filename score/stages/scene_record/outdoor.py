@@ -10,7 +10,8 @@ stands round those and over them, every entry from the plan, the inventory, the 
                  straight out from the body's middle there
     ground_decals  each plan decal (what is painted on the near ground: the wreck's burn), coloured by its design token
     objects      each plan item a released world model makes (the plan's `objects`: the camp grounds' boot rock, the
-                 camp's furniture), on the made ground (on the place's own floor inside its kit's walls)
+                 camp's furniture), on the made ground (on the place's own floor inside its kit's walls); one whose
+                 model is not made yet carries the plan's `waiting` (the camp grounds' cairn)
     blocks       each plan block (structure: a plain box outside the kit, the camp airlock's footing and ramp)
     views        one from each of the plan's standing spots, at eye height over the made ground, to the site's middle
     places       every other place seated on the same made ground (writer.neighbours)
@@ -173,7 +174,7 @@ def objects(plan, laid):
         at, own = laid.standing((low_x + high_x) / 2, (low_z + high_z) / 2, made.get("level", 0.0))
         found.append({"name": made["name"], "model": made["model"], "at": np.round(at, 4).tolist(),
                       "rotation": writer.quaternion(yawed(made.get("yaw", 0.0)) @ own),
-                      **{key: made[key] for key in ("row", "height", "kind") if key in made},
+                      **{key: made[key] for key in ("row", "height", "kind", "waiting") if key in made},
                       "from": f"plan item {item['name']!r}: the released model {made['model']} ({made['why']}), on "
                               "the made ground"})
     return found
