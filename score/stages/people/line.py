@@ -1,9 +1,10 @@
 """The people's surface line: the surface stage's finish-map method and its paint, unchanged, on the takes of
-data/surfaces/people.json (each look's Pixal3D take), as world rows people-inputs ... people-paint. The owner's plan
+data/people/surfaces.json (each look's Pixal3D take), as world rows people-inputs ... people-paint. The owner's plan
 of 2026-10-11 (#5): a person's clothing is painted through the same surface stage as the props. No bake or check
 rows: a person is not baked into a place; the dress rows (bodies.py) lay the paint's library surfaces on the built
 body.
 """
+import json
 import pathlib
 import sys
 
@@ -18,13 +19,25 @@ import finish_parts  # noqa: E402
 import finish_rows  # noqa: E402
 import place_line  # noqa: E402
 import segvigen_row  # noqa: E402
-import surface_data  # noqa: E402
 import turntable_row  # noqa: E402
 from surface_gates import guarded  # noqa: E402
 
-LINE = "people"
-SHAPE = surface_data.shape_files(LINE)
-NAMING = surface_data.line_files(LINE)
+DATA = pathlib.Path(__file__).resolve().parents[3] / "data/people/surfaces.json"
+PIXAL = "{home}/work/pixal"
+
+
+def shape_files():
+    """surface_data.shape_files' world files for the people's data (not a place's: data/surfaces holds places only)."""
+    found = {"surfaces": "{data}/people/surfaces.json"}
+    for take in json.loads(DATA.read_text())["takes"]:
+        found.update({f"model {take}": f"{PIXAL}/{take}.glb", f"close-up {take}": f"{PIXAL}/{take}.svviews",
+                      f"finished {take}": f"{PIXAL}/{take}-final.glb"})
+    return found
+
+
+SHAPE = shape_files()
+NAMING = {**SHAPE, "library": "{data}/library", "places": "{data}/definitions/place.json",
+          "tokens": "{repo}/design/tokens/tokens.json"}
 PAINT = {**NAMING, "resting rules": "{data}/checks/resting.json",
          "paint script": "{repo}/score/stages/surfaces/inside/paint_take.py"}
 

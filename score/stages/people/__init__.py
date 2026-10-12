@@ -1,7 +1,7 @@
 """The people stage (#5; experimental, docs/bible.md architecture/experimental): people made like every prop (owner,
 2026-10-11): Pixal3D's shape, split into parts, the clothing painted through the surface stage, the face by its own
 step (prop_prints.py's print), the hair as the mesh carries it, SOMA-X only for the skeleton so Kimodo's clips play.
-World rows, each look's data a take of data/surfaces/people.json:
+World rows, each look's data a take of data/people/surfaces.json:
 
     people-inputs ... people-paint   the surface stage's method and paint on the looks' takes (line.py)
     people-body-<look>               a look's body: rig, build, settle and every body gate (bodies.py)
