@@ -1,9 +1,9 @@
-"""Runs inside Blender (on a rented card, tools/props/cloud/blender_cloud.py): a turntable of a raw Pixal3D model drawn
+"""Runs inside Blender (on a rented machine, tools/props/cloud/blender_cloud.py; rendered on its processor): a turntable of a raw Pixal3D model drawn
 with its own texture and no light, for the finish-map method's view maps (../turntable_views.py, ../finish_parts.py).
 
     blender -b -P turntable.py -- <job.json>
 
-job.json: {"out", "takes": [{"take", "model" (the raw .glb), "views": [{"name", "position", "target", "up", "fov_x",
+job.json: {"out" (the turntable row adds it), "takes": [{"take", "model" (the raw .glb), "views": [{"name", "position", "target", "up", "fov_x",
 "width", "height"}]}]}, the cameras in the glTF frame (y up) the raw model is written in. Per take and view it writes
 <out>/<take>/<view>.png (the base colour as the model's texture holds it, unlit, on a clear ground),
 <view>-mr.png (red: metalness, green: roughness, from the texture) and <view>-id.npy (each pixel's face, Blender's
@@ -34,27 +34,21 @@ def to_gltf(points):
     return np.stack([points[:, 0], points[:, 2], -points[:, 1]], axis=1)
 
 
-def cycles_on_card(scene):
+def cycles_fixed(scene):
+    """Cycles on the processor with a fixed seed, so a render gives the same picture whichever card the batch landed
+    on: the view maps are Google asks cached by their pictures' bytes, and the card-rendered turntables of 2026-10-12
+    differed in every picture from the run before, so every view map was drawn and paid again. Unlit and at 16
+    samples, a view takes seconds on the processor."""
     scene.render.engine = "CYCLES"
-    preferences = bpy.context.preferences.addons["cycles"].preferences
-    for kind in ("OPTIX", "CUDA"):
-        try:
-            preferences.compute_device_type = kind
-        except TypeError:
-            continue
-        preferences.get_devices()
-        if any(device.type == kind for device in preferences.devices):
-            for device in preferences.devices:
-                device.use = device.type == kind
-            scene.cycles.device = "GPU"
-            return
     scene.cycles.device = "CPU"
+    scene.cycles.seed = 0
+    scene.cycles.use_animated_seed = False
 
 
 def empty_scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
-    cycles_on_card(scene)
+    cycles_fixed(scene)
     scene.cycles.use_denoising = False
     scene.cycles.max_bounces = 0
     scene.render.film_transparent = True

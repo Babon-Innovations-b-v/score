@@ -60,14 +60,14 @@ def segvigen_files(place):
 
 METHOD = (
     row("surfaces-inputs", finish_parts.make_inputs, finish_parts.inputs_faults, "inputs", finish_parts.judge_inputs,
-        data.line_files),
+        data.shape_files),
     row("surfaces-turntable", turntable_row.make_turntable, turntable_row.turntable_faults, "turntable",
         turntable_row.judge_turntable, turntable_files, ("surfaces-inputs",), paid=True,
         euros=turntable_row.TURNTABLE_EUROS),
     row("surfaces-lists", finish_rows.make_lists, finish_rows.lists_faults, "listed", finish_rows.judge_lists,
         data.line_files, ("surfaces-inputs",), paid=True, euros=finish_rows.LIST_EUROS),
     row("surfaces-maps", finish_rows.make_maps, finish_rows.maps_faults, "maps checked", finish_rows.judge_maps,
-        data.line_files, ("surfaces-inputs", "surfaces-turntable", "surfaces-lists"), paid=True,
+        data.shape_files, ("surfaces-inputs", "surfaces-turntable", "surfaces-lists"), paid=True,
         euros=finish_rows.MAP_EUROS),
     row("surfaces-names", finish_rows.make_names, finish_rows.names_faults, "named", finish_rows.judge_names,
         data.line_files, ("surfaces-inputs", "surfaces-maps"), paid=True, euros=finish_rows.LIST_EUROS),

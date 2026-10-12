@@ -20,6 +20,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   of each turntable view against it; `finish_ask.py`, `finish_maps.py`), `segvigen_row.py` (SegviGen guided by the
   close-up's map). Each paid row has a module of its own, so a free change never pays again; every Google ask is
   cached by its input's hash. The six-model re-test rows are `../finishmap/trial.py`.
+- **A library change re-keys only the rows that read the library** (lists, names, parts, paint, bake, check:
+  `surface_data.line_files`); inputs, turntable, maps and SegviGen declare none (`shape_files`), the inputs'
+  output names no folder of its run, and the turntable renders on the processor with a fixed seed
+  (`inside/turntable.py` `cycles_fixed`). On 2026-10-12 the making folder in `job.json` and card renders that
+  differed run to run made one library change re-render every place and re-draw every view map (about EUR 50).
+  Before pushing a change that moves a paid row's key, list what it re-buys (`_code.source_files` and the
+  row's files).
 - **A map that does not settle blocks its model, never passes**: measured (`finish_maps.check`: overlap, share near
   a label colour, every finish used), filled from labelled neighbours only when its sole fault is a labelled share
   between `FILL_LEAST` and `NEAR_LEAST`; a one-finish model is not drawn (its map is the close-up's object mask:

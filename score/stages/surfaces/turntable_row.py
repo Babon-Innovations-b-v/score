@@ -25,7 +25,8 @@ from surface_gates import verdict  # noqa: E402
 
 PROPS_HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 PROPS_PYTHON = pathlib.Path(os.environ.get("PROPS_PYTHON", PROPS_HOME / "env/bin/python"))
-CLASSES = "gpu-24gb,gpu-48gb,gpu-80gb"
+# One processor class, the runner's default: inside/turntable.py renders on the processor (cycles_fixed).
+CLASSES = "cpu-32c-128gb"
 TAKES_A_JOB = 2  # turntable takes per Blender job, so a batch's jobs run side by side on cards of their own
 MINUTES_A_TAKE = 5
 # From the ledger's measured runs of the same kind (rounds 1 to 4): a turntable of six takes cost well under a euro;

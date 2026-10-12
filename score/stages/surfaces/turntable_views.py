@@ -46,11 +46,14 @@ def views_of(take, mesh):
 
 
 def cameras(folder, takes):
-    """<folder>/multiview/job.json for inside/turntable.py."""
+    """<folder>/multiview/job.json: each take's model and views, for the turntable row (which names its own renders'
+    folder). Nothing in it depends on <folder>: the inputs row's output, and so the turntable's key, moves only when a
+    take's model or camera does (with the making folder in it, every library change re-rendered every place and
+    re-drew every view's finish map, 2026-10-12)."""
     import labels
     import split_compare
     (folder / "multiview").mkdir(parents=True, exist_ok=True)
-    job = {"out": str(folder / "multiview" / "renders"), "takes": [
+    job = {"takes": [
         {"take": take, "model": str(labels.PIXAL / f"{take}.glb"),
          "views": views_of(take, split_compare.raw_model(take))}
         for take in takes]}
