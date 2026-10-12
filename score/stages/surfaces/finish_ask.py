@@ -29,6 +29,7 @@ LIST_MODEL = "gemini-3.1-pro-preview"
 MAP_MODEL = "gemini-3-pro-image"
 KEY_SECRET = "gemini-api-key"
 TIMEOUT = 300
+ASKS = 3
 # The label colours a finish map paints with, in order (finish 1 the first): saturated, far apart, none near the
 # white background or black.
 LABELS = ((230, 25, 25), (20, 170, 40), (30, 70, 235), (245, 215, 0), (215, 0, 215), (0, 200, 215), (255, 125, 0),
@@ -64,6 +65,19 @@ same way: keep its outline, pose, size and position in the frame; paint every vi
 its finish, the same colour that finish has in the second picture. Use only these colours, fully saturated and flat:
 no shading, no light, no texture, no gradients, no outlines, no lines, no text. Every pixel of the object takes one of
 these colours; not one pixel of the photograph may remain. The background is plain pure white."""
+
+
+def generated(model, body, key, timeout, caller, cache):
+    """google_spend.generate, asked again up to ASKS times when the connection times out or drops (a request the API
+    lost answered nothing and cost nothing; the greenhouse's naming lost one, 2026-10-12)."""
+    import urllib.error
+    import google_spend
+    for attempt in range(ASKS):
+        try:
+            return google_spend.generate(model, body, key, timeout, caller=caller, cache=cache)
+        except (TimeoutError, urllib.error.URLError, ConnectionError):
+            if attempt == ASKS - 1:
+                raise
 
 
 def secret_key():
@@ -133,10 +147,9 @@ def parsed_list(text, surfaces):
 def finish_list(picture, object_words, surfaces):
     """The take's finish list (parsed_list); the call is priced on the Google ledger, a cached ask is free."""
     from score.adapters import compute
-    import google_spend
     compute.require_cleared("a Gemini finish list")
-    response = google_spend.generate(LIST_MODEL, list_body(picture, object_words, surfaces), secret_key(), TIMEOUT,
-                                     caller="finishmap-list", cache=True)
+    response = generated(LIST_MODEL, list_body(picture, object_words, surfaces), secret_key(), TIMEOUT,
+                         caller="finishmap-list", cache=True)
     return parsed_list(reply_text(response), surfaces)
 
 
@@ -163,11 +176,10 @@ def name_body(picture, front_map, object_words, number, finish, surfaces):
 def name_finish(picture, front_map, object_words, number, finish, surfaces):
     """The library surface Gemini 3.1 Pro names for one finish when asked again with its finish map."""
     from score.adapters import compute
-    import google_spend
     compute.require_cleared("a Gemini finish naming")
-    response = google_spend.generate(LIST_MODEL, name_body(picture, front_map, object_words, number, finish,
-                                                           surfaces), secret_key(), TIMEOUT,
-                                     caller="finishmap-name", cache=True)
+    response = generated(LIST_MODEL, name_body(picture, front_map, object_words, number, finish,
+                                    surfaces), secret_key(), TIMEOUT,
+                         caller="finishmap-name", cache=True)
     code = json.loads(reply_text(response))["surface"]
     return list(surfaces)[surface_codes(surfaces).index(code)]
 
@@ -200,9 +212,8 @@ def view_body(picture, front_map, view, finishes, seed):
 def drawn(body, what):
     """One finish map (RGB) from Nano Banana Pro, or None when the answer held no picture."""
     from score.adapters import compute
-    import google_spend
     compute.require_cleared(what)
-    response = google_spend.generate(MAP_MODEL, body, secret_key(), TIMEOUT, caller="finishmap-map", cache=True)
+    response = generated(MAP_MODEL, body, secret_key(), TIMEOUT, caller="finishmap-map", cache=True)
     found = [piece["inlineData"]["data"] for candidate in response.get("candidates", [])
              for piece in candidate.get("content", {}).get("parts", []) if "inlineData" in piece]
     return Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB") if found else None
