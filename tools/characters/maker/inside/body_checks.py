@@ -36,9 +36,9 @@ def main():
     listing = json.loads(pathlib.Path(sys.argv[sys.argv.index("--") + 1]).read_text())
     install()
     environment = dict(os.environ, PYTHONPATH=str(SITE), PROPS_HOME=listing["props home"], FARM_LOCAL_MODELS="1")
-    for group in ("first", "checks"):
+    for group in ("first", "checks", "then"):
         running = [(name, subprocess.Popen([PYTHON, *command], env=environment, cwd=listing["repo"]))
-                   for name, command in listing[group].items()]
+                   for name, command in listing.get(group, {}).items()]
         failed = [name for name, process in running if process.wait()]
         print(f"body checks ({group}): {len(running) - len(failed)} of {len(running)} ended well", flush=True)
         if failed:

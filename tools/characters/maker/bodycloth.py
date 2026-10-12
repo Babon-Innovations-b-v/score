@@ -156,7 +156,19 @@ def frame_counts(parts, posed):
     return found
 
 
+def merged_records(out, parts):
+    """Counts made side by side over shares of the clips, as one record: the first's bind, every clip."""
+    found = [json.loads(pathlib.Path(part).read_text()) for part in parts]
+    record = dict(found[0], clips={name: clip for part in found for name, clip in part["clips"].items()},
+                  seconds=max(part["seconds"] for part in found))
+    pathlib.Path(out).write_text(json.dumps(record, indent=1))
+    return record
+
+
 def main():
+    if sys.argv[1:2] == ["merge"]:  # bodycloth.py merge <out> <part> ...
+        merged_records(sys.argv[2], sys.argv[3:])
+        return
     parser = argparse.ArgumentParser()
     parser.add_argument("glb")
     parser.add_argument("--outfit", required=True)
