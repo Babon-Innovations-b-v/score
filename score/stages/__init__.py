@@ -20,8 +20,8 @@ import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, effects, images, machines, people, props,
-                          scene_record, surfaces, terrain)
+from score.stages import (assembly, cast, complete, concept_people, effects, images, machines, people, physics,
+                          props, scene_record, surfaces, terrain)
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -83,6 +83,14 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
                    after={"concept_people": ("concept-people", 1)}, applies=lambda place: place in cast.PLACES)
 
+# Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its
+# objects react (the places with a trial record, physics.applies).
+PHYSICS_LAYER = graph.Stage("physics-layer", "place", physics.make_layer, physics.LAYER, physics.LAYER_CHECKS,
+                            files=physics.LAYER_FILES, after={"assembly": ("openusd-stage", 1)},
+                            applies=physics.applies)
+PHYSICS_TRIAL = graph.Stage("physics-trial", "place", physics.make_trial, physics.TRIAL, physics.TRIAL_CHECKS,
+                            files=physics.trial_files, after={"physics-layer": ("physics-layer", 1)}, paid=True,
+                            euros=physics.EUROS, applies=physics.applies)
 
 
 def bake_checked(row):
@@ -126,7 +134,8 @@ def prop_fed(row):
     return dataclasses.replace(row, after={**row.after, **props.FEEDS})
 
 
-STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, props.INPUTS, props.CLOSEUP, props.PIXAL,
+STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER, PHYSICS_TRIAL,
+          props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
           *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES)
 

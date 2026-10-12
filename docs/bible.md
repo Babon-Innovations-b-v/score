@@ -270,6 +270,17 @@ is meant to fix, where it is marked, and what proves it.
   do not stand is not complete, so the hub's failing assembly stops every place that shows the hub). Proven when the
   square's and the
   flat's views show the launch with its effects.
+- **The physics stage** (F11, the paper's "responsive"; `score/stages/physics`, `tools/usd/physics.py`). The stage
+  carried a convex hull per object and no mass or material, so nothing in it could react. `physics-layer@<place>`
+  (free) writes the place's physics in OpenUSD's own schema (UsdPhysics: collision by each mesh's triangles, mass from
+  each model's surface area, a sheet thickness and its material's density, friction and restitution per material in
+  `data/physics/materials.json`, the pull of the place's body) and a trial from `data/physics/<place>.json` (drops,
+  a hinge with limits and a motor, kinematic pushes), gated on `laid`; `physics-trial@<place>` (paid) runs the trial
+  on Blender's Bullet from that schema on a rented machine, writes its motion back as time samples, renders the
+  record's views at its moments, and gates on `reacted`, `at rest`, `hinge` and `energy`. Only the habitat has a
+  record. Proven when its trial passes the four gates on the habitat's accepted assembly and the owner has seen the
+  strip; until then the paper states responsiveness as this trial, not as a property of every place. Mass by sheet
+  thickness and one material for models without labelled parts are assumptions, said so in the data.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner

@@ -76,7 +76,9 @@ stage as each stage is built; nothing moves before.
   world node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes); nothing reads
   it yet. `machines-layer` (experimental, `stages/machines`, its overlay) lays each place's machines
   (`data/machines/<place>.json`: the garage's rover) on what holds them up, gated on outline, parts present and
-  resting, and the assembly takes its layer. A stage reads without an earlier place stage that does not apply to its place
+  resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
+  overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place with `data/physics/<place>.json`
+  (the habitat). A stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
 
 Rules:
