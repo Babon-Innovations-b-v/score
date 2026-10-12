@@ -2,6 +2,7 @@
 
     .venv/bin/python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]  # every line, or named
     .venv/bin/python -m score status [<world>] [--place P ...] [--stage S ...]                   # every line's state
+    .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
 
 `run` drives the lines side by side (with --place, those places' lines and only the world nodes they read), each node in
 a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time); with
@@ -37,6 +38,8 @@ def parse(argv):
     run.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once (default %(default)s)")
     status = commands.add_parser("status")
     status.add_argument("world", nargs="?", default="world1", choices=sorted(stages.WORLDS))
+    images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
+    images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
     for command in (run, status):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
@@ -58,8 +61,20 @@ def detach(argv):
     print(f"detached: started pid={process.pid} log={log}", flush=True)
 
 
+def publish(kind):
+    """Write the kind's accepted image proof into images.json; refused unless it passed and stands accepted."""
+    try:
+        record = stages.images.publish(stages.runner(world=stages.images.image_world()), kind)
+    except graph.Blocked as block:
+        sys.exit(f"not published: {block}")
+    print(f"{kind}: {record['image']} into {stages.images.IMAGES_JSON}")
+
+
 def main(argv=None):
     options = parse(argv)
+    if options.command == "images":
+        publish(options.kind)
+        return
     if getattr(options, "detach", False):
         detach(sys.argv)
         return
