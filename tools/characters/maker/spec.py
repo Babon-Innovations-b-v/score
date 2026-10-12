@@ -61,8 +61,9 @@ def problems_of(spec):
 
 def person_problems(spec):
     """What is wrong with a person's own part of the spec."""
+    # A prop-route outfit is a close-up drawn from its words (driver-suit, coat-grey), not a GarmentCode design.
     problems = [f"outfit {outfit!r} is not one of {', '.join(OUTFITS)}"
-                for outfit in spec.get("outfits", ["work"]) if outfit not in OUTFITS]
+                for outfit in spec.get("outfits", ["work"]) if outfit not in OUTFITS and spec.get("route") != "prop"]
     if not spec.get("hair"):
         problems.append("no hair in words")
     if not spec.get("face"):
