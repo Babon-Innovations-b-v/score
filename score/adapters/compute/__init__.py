@@ -48,6 +48,8 @@ sys.path.insert(0, str(REPO / "tools/cloud/runtime"))
 import submit as job_contract  # noqa: E402
 
 TICKET = "SCORE_SPEND_TICKET"
+# The folder of the store the ticket's clearance is in, set beside the ticket (a trial store's, compare.py's).
+STORE = "SCORE_SPEND_STORE"
 OVERRIDE = "override"
 
 
@@ -138,17 +140,20 @@ def submit(runner, node, job_store, run, job, spec):
 def spending(ticket):
     """Name a cleared ticket's run in this process and the processes it starts, for the rent points to find; its
     reservation ends with the block."""
-    before = os.environ.get(TICKET)
+    before = {name: os.environ.get(name) for name in (TICKET, STORE)}
     os.environ[TICKET] = f"{ticket['node']} {ticket['key']}"
+    if "reservations" in ticket:  # the store the clearance is in: a trial's own store (Store.in_folder) too
+        os.environ[STORE] = str(pathlib.Path(ticket["reservations"]).parent)
     try:
         yield
     finally:
         if "reservations" in ticket:
             release(ticket)
-        if before is None:
-            os.environ.pop(TICKET, None)
-        else:
-            os.environ[TICKET] = before
+        for name, value in before.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def require_cleared(what, store=None):
@@ -160,7 +165,7 @@ def require_cleared(what, store=None):
                       f"compute or engines), or the owner's override (his yes under the node {OVERRIDE}, named "
                       f"here as {TICKET}=\"{OVERRIDE} <name>\")")
     node, key = named
-    store = store or Store.default()
+    store = store or (Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default())
     found = store.clearances(node, key) or [store.spend_yes(node, key)]
     if found[-1] is None:
         raise Refused(f"{what}: {TICKET} names {node} {key[:12]}, which the runner did not clear")

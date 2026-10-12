@@ -131,7 +131,9 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
         assert "did not clear" in refused(lambda: compute.require_cleared("a batch", runner.store))
     with compute.spending(compute.clearance(runner, "render@hangar", 1.0)):
         assert compute.require_cleared("a batch", runner.store)["euros"] == 1.0
-    assert compute.TICKET not in os.environ
+        # a rent point told no store (a batch's own process) finds the clearance in the runner's store, a trial's too
+        assert compute.require_cleared("a batch")["euros"] == 1.0
+    assert compute.TICKET not in os.environ and compute.STORE not in os.environ
     runner.store.write_spend_yes(compute.OVERRIDE, "repaint-six", {"euros": 3.0, "at": graph.now()})
     with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
         assert compute.require_cleared("a batch", runner.store)["euros"] == 3.0
