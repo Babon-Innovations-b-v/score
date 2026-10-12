@@ -233,9 +233,11 @@ def the_assembled_record_and_a_waiting_entry_both_ways():
     entry the assembly laid nothing for, waiting on its model, fails `waiting` by name."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        world_data(folder, scene={"place": PLACE, "lights": [], "places": []})
+        world_data(folder, scene={"place": PLACE, "lights": [{"type": "omni", "from": "the game 2099's lamp.gd"}],
+                                  "places": []})
         path = bare_stage(folder)
         cases = [("data/scene's record, none beside", judged("neighbours", path), contents.PASS),
+                 ("data/scene's record citing the game, none beside", judged("game", path), contents.FAIL),
                  ("nothing waiting", judged("waiting", path), contents.PASS)]
         (path.parent / contents.ASSEMBLED_SCENE).write_text(json.dumps(
             {"lights": [], "places": [{"name": "next_door", "stage": "other"}]}))
@@ -244,6 +246,7 @@ def the_assembled_record_and_a_waiting_entry_both_ways():
             ["objects cairn: its model comes through the next batch"])
         stage.GetRootLayer().Save()
         cases += [("the assembled record's shown place missing", judged("neighbours", path), contents.FAIL),
+                  ("the assembled record free of the game", judged("game", path), contents.PASS),
                   ("the cairn waiting on its model", judged("waiting", path), contents.FAIL)]
         return problems_of(cases)
 
