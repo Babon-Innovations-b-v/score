@@ -1,0 +1,13 @@
+{
+ "about": "Each world body's sky and indoor air, as the scene-record stage writes them into a place's record (score/stages/scene_record): what a room's air holds and how the camera is exposed. Unverified seed numbers: these are the values every Moon room's old record held (the game's sky and fill), kept here once instead of in each record until the light stage's sweep against each place's concept sets them.",
+ "moon": {
+  "indoor": {
+   "background": "#030409",
+   "ambient": {"colour": "#9fb8e6", "energy": 0.1},
+   "exposure": 0.85,
+   "haze": {"colour": "#ece8e0", "density": 0.025, "forward": 0.3, "reach": 24.0, "lamp_share": 0.5},
+   "fill": {"colour": "#a8bcd8", "energy": 0.08, "attenuation": 0.4, "height_share": 0.8},
+   "from": "seed: the indoor environment, haze and room fill every Moon room's old scene record held alike (airlock, garage, greenhouse, habitat, lab, workshop, hangar, hub), not yet measured against a concept"
+  }
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "about": "The Moon base's modules that no made ground seats yet, each laid flat on the seat of the module it names (`seat_of`) as the ground's own base modules are: its middle at `flat` (across, along, metres) on the unturned seat's plane, turned `heading` radians. The scene-record stage stands them as neighbours. Unverified seed: the places the hub's old scene record stood them at, turned into the base seat's flat numbers (the greenhouse and the west tube come back to the centimetre this way). They move into the Moon ground plan's places after the world 1 run; the lab and the habitat stand nowhere in any record yet.",
+ "ground": "moon",
+ "seat_of": "hub",
+ "modules": {
+  "airlock": {"stage": "airlock", "flat": [3.575, 6.192], "heading": 0.523599},
+  "workshop": {"stage": "workshop", "flat": [17.0, 0.0], "heading": 0.0},
+  "east_tube": {"stage": "tube", "flat": [4.65, 0.0], "heading": 1.570796}
+ }
+}

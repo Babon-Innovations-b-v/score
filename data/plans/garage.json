@@ -172,5 +172,258 @@
   "Owner, 2026-10-07: the old garage split in two; this one is for customising the rovers; three normal sealing doors into the base and one big outside door; the room can be pumped empty of air (seal the inner doors, pump down, open the big door, and back).",
   "Rover measured in the game: 1.73 m wide, 3.10 m long, 1.66 m tall (rover.glb bounds); wheelbase 1.69 m, gauge 1.42 m, steering up to 40 degrees (rover.gd), so it turns in about a 2.0 m radius. Big door 5 x 4 m: 1.6 m clear each side of the rover, 2.3 m over it with a suited driver (about 2.4 m tall seated).",
   "Size 14 x 12 m, corners 3.0 m: coordinator's pick (owner may change): the old 12 x 10 garage with a door spot in each side wall needs 2 m more each way to keep wall room beside the doors. Flat floor (no ledges or dais): the rover drives on it."
+ ],
+ "concept": {
+  "pick": "K04",
+  "picture": "{seeds}/scene/garage/views/K04.png",
+  "read": "the concept K04 read tile by tile (place-gh/garage/elements.json, 2026-10-07), each element mapped to the inventory's rows, a plan door, or dropped with its reason"
+ },
+ "leads": {
+  "N": {
+   "to": "tube",
+   "joins": "greenhouse",
+   "door": "S",
+   "why": "the concept's north hatch is the joined one (its leaf the sealing door, none in the kit): a walkway tube runs north to the greenhouse's south hatch, the nearest base module on the Moon ground's seats"
+  },
+  "W": {
+   "to": "sealed",
+   "why": "no tube joined there; its hatch leaf stays shut (inventory hatch_leaf; the room layout's open list names the north only)"
+  },
+  "E": {
+   "to": "sealed",
+   "why": "no tube joined there; its hatch leaf stays shut (inventory hatch_leaf; the room layout's open list names the north only)"
+  },
+  "S": {
+   "to": "outside",
+   "leaves": "gdoor",
+   "why": "the big outer door onto the Moon's yard (the Moon ground plan's garage level and apron), shut by two leaves of the gdoor kit"
+  }
+ },
+ "rows": {
+  "ROVER LIFT (customising bay)": [
+   "rover_lift",
+   "machine_bay_plate"
+  ],
+  "ROVER 1.75 x 3.1 (the game's)": [
+   "rover"
+  ],
+  "DRIVE LANE: keep clear": [],
+  "WORKBENCH + TOOL WALL": [
+   "workbench",
+   "task_lamp",
+   "breaker_panel"
+  ],
+  "ROVER PARTS RACK (wheels, battery packs, hold boxes)": [
+   "tyre_shelving",
+   "junction_box"
+  ],
+  "WHEEL RACK": [
+   "spares_shelf"
+  ],
+  "CHARGE POST": [
+   "rover_charger"
+  ],
+  "PARTS TROLLEY": [
+   "parts_trolley"
+  ],
+  "SPARE WHEEL ON STAND": [
+   "wheel_stand"
+  ],
+  "BAY CONTROL PANEL": [
+   "bay_panel"
+  ],
+  "SHELVES (fluids, spares)": [
+   "fluid_shelves"
+  ],
+  "HOIST RAIL over the lift (overhead)": [
+   "chain_hoist"
+  ],
+  "WARNING BEACON over each door (overhead)": [
+   "bracket_beacon"
+  ]
+ },
+ "elements": [
+  {
+   "element": "tube hatches with heavy frames and hand wheels (3 seen)",
+   "rows": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_window",
+    "hatch_hinge"
+   ]
+  },
+  {
+   "element": "hazard stripes round the tube hatches and floor stripes before them",
+   "drop": "the place's rule: no hazard stripes on tube hatches or floors (place.json don'ts); tread_mat before each hatch instead"
+  },
+  {
+   "element": "red warning lamp boxes over each hatch",
+   "rows": [
+    "bracket_beacon"
+   ]
+  },
+  {
+   "element": "rotating red beacons by the big door",
+   "rows": [
+    "bracket_beacon"
+   ]
+  },
+  {
+   "element": "red and green status lights beside each hatch",
+   "rows": [
+    "door_control_box"
+   ]
+  },
+  {
+   "element": "round pressure gauge on a pipe beside the hatches",
+   "rows": [
+    "pressure_gauge"
+   ]
+  },
+  {
+   "element": "two upright control consoles with blue screens and keypads (west corner)",
+   "rows": [
+    "control_cabinet"
+   ]
+  },
+  {
+   "element": "small wall screen boxes with cables down to them",
+   "rows": [
+    "small_readout",
+    "cable_drop"
+   ]
+  },
+  {
+   "element": "cables and conduits along the top of every wall",
+   "rows": [
+    "cable_bundle"
+   ]
+  },
+  {
+   "element": "pipes along the walls",
+   "rows": [
+    "pipe_straight",
+    "pipe_valve",
+    "pipe_bracket"
+   ]
+  },
+  {
+   "element": "workbench with drawers and a pegboard back full of hand tools, a shelf on top",
+   "rows": [
+    "workbench"
+   ]
+  },
+  {
+   "element": "vise and red toolbox on the bench",
+   "rows": [
+    "bench_vise",
+    "toolbox"
+   ]
+  },
+  {
+   "element": "gooseneck lamp over the bench",
+   "rows": [
+    "task_lamp"
+   ]
+  },
+  {
+   "element": "junction box with green light and breaker panel with three switches on the back wall",
+   "rows": [
+    "junction_box",
+    "breaker_panel"
+   ]
+  },
+  {
+   "element": "tall shelving with knobbly tyres and cardboard boxes",
+   "rows": [
+    "tyre_shelving"
+   ]
+  },
+  {
+   "element": "shelf with fluid canisters, jerrycans, boxes (east)",
+   "rows": [
+    "fluid_shelves"
+   ]
+  },
+  {
+   "element": "shelf with a toolbox and odd spares (west corner)",
+   "rows": [
+    "spares_shelf"
+   ]
+  },
+  {
+   "element": "two-post lift with overhead beam, the rover on it",
+   "rows": [
+    "rover_lift",
+    "rover"
+   ]
+  },
+  {
+   "element": "yellow chain hoist hanging from the beam",
+   "rows": [
+    "chain_hoist"
+   ]
+  },
+  {
+   "element": "tread plates under the lift",
+   "rows": [
+    "machine_bay_plate"
+   ]
+  },
+  {
+   "element": "tool trolley with a red tray",
+   "rows": [
+    "parts_trolley"
+   ]
+  },
+  {
+   "element": "spare tyre on a low stand",
+   "rows": [
+    "wheel_stand"
+   ]
+  },
+  {
+   "element": "blue charge post with screen and cable",
+   "rows": [
+    "rover_charger"
+   ]
+  },
+  {
+   "element": "big two-leaf door with striped edges and a label plate",
+   "door": "S"
+  },
+  {
+   "element": "keypad box by the big door",
+   "rows": [
+    "bay_panel"
+   ]
+  },
+  {
+   "element": "floor deck plates, oil stains",
+   "rows": [
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "wall panels, posts and the curved rim",
+   "rows": [
+    "wall_lower_plain",
+    "wall_upper_plain",
+    "wall_skirting",
+    "wall_cornice",
+    "wall_corner_post",
+    "roof_face_panel",
+    "lattice_ring_rib"
+   ]
+  },
+  {
+   "element": "boxes and pipes on the outside of the wall, sandbags",
+   "drop": "outside the room: the shell's outside is not this room's concept"
+  },
+  {
+   "element": "people",
+   "drop": "the crew are the characters stage's (#100), not rows"
+  }
  ]
 }
