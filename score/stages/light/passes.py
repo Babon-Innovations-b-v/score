@@ -77,7 +77,7 @@ def record_of(place, inputs):
 def source(place, inputs, folder):
     """The place's stage as the assembly lays it before its layers: the seed (hard links, but for its root, its base
     and its pictures, which the record's writer rewrites, written anew) with the accepted scene record written over
-    the seed's record prims (assembly.take_record), or the seed alone for a place with no scene-record row."""
+    the seed's record prims (assembly/record.take_record), or the seed alone for a place with no scene-record row."""
     seed = pathlib.Path(inputs["seed"])
     subprocess.run(["cp", "-al", str(seed), str(folder)], check=True)
     for part in (f"{place}.usda", "layers/base.usda"):
@@ -87,8 +87,8 @@ def source(place, inputs, folder):
         shutil.rmtree(folder / "assets/textures")
         shutil.copytree(seed / "assets/textures", folder / "assets/textures", copy_function=shutil.copyfile)
     if "scene-record" in inputs:
-        from score.stages import assembly
-        assembly.take_record(inputs, folder, place)
+        import score.stages.assembly.record as record  # this form: the code version hashes record.py alone
+        record.take_record(inputs, folder, place)
     return folder
 
 

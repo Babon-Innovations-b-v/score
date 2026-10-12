@@ -76,7 +76,7 @@ def place_of(inputs):
 def grounded_seed(inputs, folder):
     """The seed's stage in `folder` on the place's made ground (the assembly's take_ground): its root and layers
     copied, its assets linked (read, never written). The root's path."""
-    from score.stages import assembly
+    import score.stages.assembly.record as record  # this form: the code version hashes record.py alone
     seed = pathlib.Path(inputs["seed"])
     folder.mkdir(parents=True, exist_ok=True)
     root = folder / f"{seed.name}.usda"
@@ -88,7 +88,7 @@ def grounded_seed(inputs, folder):
         elif source.exists():
             shutil.copy2(source, folder / part)
     shutil.copytree(seed / "assets", folder / "assets", copy_function=linked)
-    assembly.take_ground(inputs["terrain"], seed.name, root)
+    record.take_ground(inputs["terrain"], seed.name, root)
     return root
 
 

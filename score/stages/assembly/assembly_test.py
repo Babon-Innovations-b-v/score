@@ -5,10 +5,15 @@ No spend: a one-piece place made here, a drop run in which nothing moved.
 Run: .venv/bin/python score/stages/assembly/assembly_test.py
 """
 import json
+import os
 import pathlib
 import shutil
 import sys
 import tempfile
+
+# Scratch on disk under $PROPS_HOME/tmp, never /tmp (a RAM-backed tmpfs on the PC).
+tempfile.tempdir = str(pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "tmp")
+pathlib.Path(tempfile.tempdir).mkdir(parents=True, exist_ok=True)
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
@@ -16,7 +21,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
 from score.stages import assembly  # noqa: E402
-from score.stages.assembly import sounds  # noqa: E402
+from score.stages.assembly import record, sounds  # noqa: E402
 import triage_test  # noqa: E402
 
 STILL = {"objects": {}}
@@ -170,7 +175,8 @@ def test_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_i
         assert not stage.GetPrimAtPath(f"/{TOY}/Structure/old_wall") and not stage.GetPrimAtPath(f"/{TOY}/Lights/old_lamp")
         assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and stage.GetPrimAtPath(f"/{TOY}/Objects/fan_1")
         other = a_toy(folder / "other")
-        said = assembly.take_record({"scene": folder / f"record/record/{TOY}.json"}, other.parent, TOY)
+        said = assembly.take_record({"scene": folder / f"record/record/{TOY}.json", "kit": folder / "kit.json"},
+                                    other.parent, TOY)
         kept = Usd.Stage.Open(str(other))  # held: a prim of a stage nothing holds expires at once
         assert "unverified" in said and kept.GetPrimAtPath(f"/{TOY}/Structure/old_wall")
 
@@ -266,6 +272,30 @@ def test_an_entry_waiting_on_its_model_lays_nothing_and_is_named():
         assert not stage.GetPrimAtPath(f"/{TOY}/Fixtures/cairn")
         assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [
             "objects cairn: its model comes through the next batch"]
+
+
+def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot():
+    """Fault (2026-10-12): the garage's fourth pressure gauge moved off the big door's leaf track in its kit, yet the
+    assembly and the motion stage kept the seed's object where the old kit put it. relay_kit lays every piece at its
+    kit spot now; a piece that did not move keeps its transform, and so does a second run."""
+    import ground
+    from pxr import Usd, UsdGeom
+    laid_on = ground.place_ground
+    ground.place_ground = lambda place, seat: None  # the toy is exported flat, as export.py --flat lays it
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = triage_test.place_of(folder, [("crate", "box", (0, 0, 0)), ("crate", "box", (3, 0, 0))],
+                                     [triage_test.row("crate")])
+        kit = json.loads((folder / "kit.json").read_text())
+        kit["pieces"][1]["at"] = [5.0, 0.0, 2.0]
+        (folder / "kit.json").write_text(json.dumps(kit))
+        said = record.relay_kit({"kit": folder / "kit.json"}, stage.parent, triage_test.PLACE)
+        assert said == "; kit: 1 pieces laid at their kit spot (crate_2)", said
+        opened = Usd.Stage.Open(str(stage))  # held: a prim of a stage nothing holds expires at once
+        moved = UsdGeom.Xformable(opened.GetPrimAtPath(f"/{triage_test.PLACE}/Objects/crate_2"))
+        assert tuple(moved.ComputeLocalToWorldTransform(0).ExtractTranslation()) == (5.0, 0.0, 2.0)
+        assert record.relay_kit({"kit": folder / "kit.json"}, stage.parent, triage_test.PLACE) == ""
+    ground.place_ground = laid_on
 
 
 if __name__ == "__main__":

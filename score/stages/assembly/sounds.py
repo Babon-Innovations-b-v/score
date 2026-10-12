@@ -53,7 +53,7 @@ def prims_by_name(stage, place):
 def take(made, root, inputs):
     """The place's sound layer written from its accepted sound output over the seed's; the uses placed nowhere."""
     from pxr import Sdf, Usd
-    from score.stages.assembly import hold
+    from score.stages.assembly.record import hold
     record = json.loads((made / "sound.json").read_text())
     copy_files(made, record, root.parent)
     path = root.parent / LAYER

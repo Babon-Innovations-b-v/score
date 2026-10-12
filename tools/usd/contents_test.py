@@ -4,9 +4,14 @@ each passes on a place that holds what it should and fails (or is unknown, which
 Run: .venv/bin/python tools/usd/contents_test.py   (make tests runs it with the framework's environment)
 """
 import json
+import os
 import pathlib
 import sys
 import tempfile
+
+# Scratch on disk under $PROPS_HOME/tmp, never /tmp (a RAM-backed tmpfs on the PC).
+tempfile.tempdir = str(pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "tmp")
+pathlib.Path(tempfile.tempdir).mkdir(parents=True, exist_ok=True)
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux
 
