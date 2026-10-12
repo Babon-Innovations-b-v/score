@@ -17,7 +17,7 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
 - **Neighbours come from the made ground's seats** (the terrain stage's ground records), the ball's curve turning each
   (`rotation`); a door joined to another place's door stands the tube's stage between the two doorways, stretched
   to the run. A place with no seat on a made ground cannot be judged outside: `openings` fails it by name.
-- **Two shell writers so far**, by the plan's `shell`: `domed` (walls with a dome: room_walls, room_deck, dome_roof,
+- **Three shell writers so far**, by the plan's `shell`: `domed` (walls with a dome: room_walls, room_deck, dome_roof,
   doors in each wall's middle) and `kit` (`kit_shell.py`: the Earth's rooms and open places, whose kit holds their
   walls and floors; the record adds the block round a room, a light at each lamp of the sky record's lamp rows the kit
   lays, the body's night, moon, glow and harbour, the plan's `objects` and `shows`). A kit shell's plan stands in the
@@ -30,8 +30,17 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   `blocks` and `objects` stood on their rows' laid spots over the made ground; its views and the `openings` viewers
   stand on the made ground. The camp is `outdoor` with `inside`: its kit holds its domes, its lamps are lit where the
   kit hangs them, its furniture is plan `objects` (the released camp models) on its own floor, its views stand on its
-  deck. Another kind of place (the hangar's flat roof, the hub's facets) needs its own shell writer here before it
-  gets the rows; the writer refuses it.
+  deck. A domed plan's `shape` picks its writer:
+  none, a capsule (glazed when the room layout says `glass_dome`: the greenhouse); `faceted` (the hub: facets,
+  apothem, `turn`, `pit`; walls, pyramid_roof, the deck round its sunken pit, the pit's walls and floor; doors
+  `[bearing, wide, what]`, leads by bearing); `tube` (a walkway tube: radius, axis, length, `glass` bands; hull arcs,
+  glass, deck; its two open ends `near` and `far`, its frame anchored at the near end). A sloped item outside (`2.5 m
+  at 20 deg`, the airlock's ramp) is a plain plate, a `plot` item soil in a curb (it names no rows; an element may
+  name it as `item`), and an inventory row made by the route at its own spots (the hub's console) an object. Another
+  kind of place (the hangar's flat roof) needs its own shell writer here before it gets the rows; the writer refuses
+  it.
+- **Seed reasons can name a family** (`<section>/<start>_`, kept to one place with `<place>:`), so the greenhouse's
+  old bed boxes need one reason and it never excuses another room's.
 - **The plan's inventory** is `data/inventory/<place>.json`, or the plan's `inventory` name (the prologue's rooms keep
   `prologue_flat`, `prologue_stairwell`). Never add inventory rows for a record: every place's assembly declares the
   whole inventory folder, so one changed file makes them all again; a concept element still waiting on rows is a

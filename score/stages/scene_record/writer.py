@@ -7,7 +7,10 @@ and builders.py build it unchanged; it lands as record/<place>.json in the outpu
                  BACKING (the shell stands behind the kit's wall panels, which stand on the plan's line), its corners,
                  walls' height, the dome's rise and run, and a doorway cut in each door that leads somewhere; a place
                  whose kit holds its walls (plan shell `kit`: the Earth's) gets its block, lamps, night sky, moon,
-                 water and objects from kit_shell.py instead
+                 water and objects from kit_shell.py instead; a domed plan's `shape` makes a faceted room's shell
+                 (facet_shell) or a walkway tube's (tube_shell), its layout's glass_dome a glass dome; a sloped item
+                 outside is a plate (ramps), a plot soil in a curb (plots)
+    objects      each inventory row the route made and laid at its own spots, not the kit's (the hub's furniture)
     places       each door's leaves (the plan's `leaves` kit, the inventory's leaf size, shut in the doorway); a door
                  joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
                  one, stretched along its run); and every other place seated on the same made ground, where its seat
@@ -23,6 +26,7 @@ Every entry's `from` names the plan element, inventory row, seat or world record
 import json
 import math
 import pathlib
+import re
 from typing import NamedTuple
 
 import numpy as np
@@ -37,6 +41,21 @@ BACKING = 0.15
 # The deck lies just under the kit's floor plates (0.04 thick, their tops at the floor).
 DECK_BELOW = 0.042
 SHELL_SURFACE = "roof_steel_paint"
+# A faceted room's roof and deck reach this far past its walls, over and under them.
+ROOF_OVER = 0.1
+# A walkway tube's hull stands this far outside its plan radius (the kit's hoops), its deck plate this thick.
+TUBE_BACKING = 0.02
+TUBE_DECK = 0.08
+# A sloped plan item outside the room (`2.5 m at 20 deg`): a plain deck plate this thick.
+SLOPE = re.compile(r"(\d+(?:\.\d+)?) m at (\d+(?:\.\d+)?) deg")
+RAMP_THICK = 0.2
+RAMP_SURFACE = "deck"
+GLASS_SURFACE = "clear_glass"
+# A growing plot: its soil this deep, its curb (thick, high) round it.
+SOIL = 0.06
+SOIL_SURFACE = "potting_soil"
+CURB = (0.06, 0.16)
+CURB_SURFACE = "painted_panel"
 # A view stands this far inside its doorway, and every view sees this wide (degrees).
 VIEW_IN = 1.0
 VIEW_FOV = 80
@@ -63,8 +82,70 @@ def read(path):
 
 # --- the shell --------------------------------------------------------------------------------------------------
 
+def facet_shell(plan):
+    """A faceted room's shell entries: its facets' walls with the cut doorways, a pyramid roof over them, the deck
+    round its sunken pit, and the pit's walls and floor; the walls BACKING behind the plan's apothem."""
+    walls = plan["walls"]
+    sides, turn, apothem = walls["facets"], walls["turn"], round(walls["apothem"] + BACKING, 4)
+    over = round(apothem + ROOF_OVER, 4)
+    cut = [door for door in plan["doors"] if door["cut"]]
+    said = (f"plan: {sides} facets, apothem {walls['apothem']} m turned {turn} degrees, backed {BACKING} m behind "
+            "the kit's wall line")
+    pit = f"the plan's pit, {walls['pit_radius']} m across its apothem, its floor {walls['pit_floor']} m"
+    return [
+        {"name": "shell_walls", "builder": "walls", "sides": sides, "apothem": apothem, "low": -DECK_BELOW,
+         "high": walls["high"], "surface": SHELL_SURFACE, "rotation": turn,
+         "openings": [[door["bearing"], door["wide"], door["tall"]] for door in cut],
+         "from": f"{said}; walls {walls['high']} m; doorways cut in " +
+                 (", ".join(f"door {door['plan_side']} ({door['what']}, leads {door['leads']})" for door in cut)
+                  or "no door")},
+        {"name": "shell_roof", "builder": "pyramid_roof", "sides": sides, "apothem": over, "eave": walls["high"],
+         "rise": walls["rise"], "surface": SHELL_SURFACE, "rotation": turn, "layer": 2,
+         "from": f"{said}; roof rising {walls['rise']} m to its apex (plan words), {ROOF_OVER} m over the walls"},
+        {"name": "shell_deck", "builder": "annulus", "sides": sides, "inner": walls["pit_radius"], "outer": over,
+         "height": -DECK_BELOW, "surface": SHELL_SURFACE, "rotation": turn, "plain": "shell",
+         "from": f"{said}; just under the kit's floor plates, cut round {pit}"},
+        {"name": "shell_pit_walls", "builder": "walls", "sides": sides, "apothem": walls["pit_radius"],
+         "low": walls["pit_floor"] - DECK_BELOW, "high": 0.0, "surface": SHELL_SURFACE, "rotation": turn,
+         "from": f"{pit}: its walls down from the deck"},
+        {"name": "shell_pit_floor", "builder": "annulus", "sides": sides, "inner": 0.0,
+         "outer": walls["pit_radius"], "height": walls["pit_floor"] - DECK_BELOW, "surface": SHELL_SURFACE,
+         "rotation": turn, "plain": "shell", "from": f"{pit}: its floor, just under the kit's pit plates"}]
+
+
+def tube_shell(plan):
+    """A walkway tube's shell entries along its run: the hull's crown and two feet (steel), a glass band each side
+    between them, and the deck where the hull meets the floor; the hull TUBE_BACKING outside the plan's radius."""
+    walls = plan["walls"]
+    radius, length = round(walls["radius"] + TUBE_BACKING, 4), walls["length"]
+    low, high = walls["glass"]
+    foot = round(math.degrees(math.acos(-walls["axis"] / walls["radius"])), 2)
+    said = (f"plan: a tube of radius {walls['radius']} m round an axis {walls['axis']} m over the deck, "
+            f"{length} m long; the hull {TUBE_BACKING} m outside the kit's hoops")
+    arc = {"builder": "tube_arc", "radius": radius, "axis_high": walls["axis"], "length": length}
+    return [
+        {"name": "hull_crown", **arc, "start": -low, "end": low, "surface": SHELL_SURFACE,
+         "from": f"{said}; its crown between the glass bands"},
+        {"name": "hull_foot_east", **arc, "start": high, "end": foot, "surface": SHELL_SURFACE,
+         "from": f"{said}; its foot under the east glass, down to the deck"},
+        {"name": "hull_foot_west", **arc, "start": -foot, "end": -high, "surface": SHELL_SURFACE,
+         "from": f"{said}; its foot under the west glass, down to the deck"},
+        {"name": "glass_east", **arc, "start": low, "end": high, "surface": GLASS_SURFACE, "segments": 5,
+         "from": f"{said}; the east glass band from {low} to {high} degrees off the crown (plan)"},
+        {"name": "glass_west", **arc, "start": -high, "end": -low, "surface": GLASS_SURFACE, "segments": 5,
+         "from": f"{said}; the west glass band from {low} to {high} degrees off the crown (plan)"},
+        {"name": "deck", "builder": "box", "centre": [0.0, -TUBE_DECK / 2 - DECK_BELOW, length / 2],
+         "size": [walls["deck"], TUBE_DECK, length], "surface": SHELL_SURFACE, "plain": "plate",
+         "from": f"{said}; the deck {walls['deck']} m wide where the hull meets the floor, under the kit's plates"}]
+
+
 def shell(plan):
-    """The domed room's shell entries: walls with the cut doorways, deck and dome."""
+    """The room's shell entries: a faceted room's (facet_shell), or a domed room's walls with the cut doorways, deck
+    and dome."""
+    if plan["walls"].get("shape") == "faceted":
+        return facet_shell(plan)
+    if plan["walls"].get("shape") == "tube":
+        return tube_shell(plan)
     walls = plan["walls"]
     grown = {"wide": round(walls["wide"] + 2 * BACKING, 4), "deep": round(walls["deep"] + 2 * BACKING, 4),
              "corner": round(walls["corner"] + BACKING, 4)}
@@ -79,9 +160,84 @@ def shell(plan):
                   or "no door")},
         {"name": "shell_deck", "builder": "room_deck", **grown, "height": -DECK_BELOW, "surface": SHELL_SURFACE,
          "from": f"{said}; just under the kit's floor plates"},
-        {"name": "shell_roof", "builder": "dome_roof", **grown, "eave": walls["high"], "rise": walls["rise"],
-         "run": walls["run"], "surface": SHELL_SURFACE, "layer": 2,
-         "from": f"{said}; dome rising {walls['rise']} m over {walls['run']} m (plan words; inventory room layout run)"}]
+        {"name": "dome_glass" if plan.get("glass") else "shell_roof", "builder": "dome_roof", **grown,
+         "eave": walls["high"], "rise": walls["rise"], "run": walls["run"],
+         "surface": GLASS_SURFACE if plan.get("glass") else SHELL_SURFACE, "layer": 2,
+         "from": f"{said}; dome rising {walls['rise']} m over {walls['run']} m (plan words; inventory room layout run)"
+                 + ("; glazed (inventory room layout glass_dome)" if plan.get("glass") else "")}]
+
+
+def objects(place, inventory):
+    """Each inventory row the route made and the kit does not lay (`made` by the route, laid at its own spots, its
+    picked model): one object at each spot, turned to its facing, from the place's kit models."""
+    found = []
+    for row in inventory["rows"]:
+        if not str(row.get("made", "")).startswith("made by the route") or not row.get("pick"):
+            continue
+        for number, spot in enumerate((spot for spot in row.get("at", []) if "x" in spot), 1):
+            found.append({"name": f"{row['id']}_{number}", "row": row["id"],
+                          "model": f"models/{place}_kit/{row['pick']['model']}.gltf",
+                          "at": [spot["x"], spot["y"], spot["z"]], "yaw": -float(spot.get("facing", 0.0)),
+                          "from": f"inventory row {row['id']} (made by the route, its pick {row['pick']['model']}): "
+                                  f"its spot {number}, facing {spot.get('facing', 0.0)} degrees"})
+    return found
+
+
+def plots(plan):
+    """Each growing plot of the plan (kind `plot`) as plain plates: its soil a slab over the plot's box, a low curb
+    round it."""
+    found = []
+    for item in plan["items"]:
+        if item["kind"] != "plot":
+            continue
+        low_x, low_z, high_x, high_z = item["box"]
+        middle, wide, deep = ((low_x + high_x) / 2, (low_z + high_z) / 2), high_x - low_x, high_z - low_z
+        said = f"plan item {item['name']!r}"
+        found.append({"name": "plot_soil", "builder": "box", "centre": [middle[0], SOIL / 2, middle[1]],
+                      "size": [wide, SOIL, deep], "surface": SOIL_SURFACE, "plain": "soil",
+                      "from": f"{said}: its soil over the plot's box"})
+        for number, (centre, size) in enumerate((
+                ((middle[0], low_z), (wide + CURB[0], CURB[1], CURB[0])),
+                ((middle[0], high_z), (wide + CURB[0], CURB[1], CURB[0])),
+                ((low_x, middle[1]), (CURB[0], CURB[1], deep + CURB[0])),
+                ((high_x, middle[1]), (CURB[0], CURB[1], deep + CURB[0])))):
+            found.append({"name": f"plot_wall_{number}", "builder": "box",
+                          "centre": [round(centre[0], 4), CURB[1] / 2, round(centre[1], 4)],
+                          "size": [round(value, 4) for value in size], "surface": CURB_SURFACE, "plain": "plate",
+                          "from": f"{said}: the curb along its edge"})
+    return found
+
+
+def ramps(plan, inventory):
+    """Each plan item outside the room that slopes (`<long> m at <angle> deg`) as a plain plate of its inventory row,
+    its top edge on the sill of the door it lies before (on the plan's wall line), falling away from the room."""
+    sizes = {row["id"]: row["size"] for row in inventory["rows"]}
+    found = []
+    for item in plan["items"]:
+        sloped = SLOPE.search(item["name"])
+        if item["kind"] != "outside" or sloped is None:
+            continue
+        long, angle = float(sloped.group(1)), math.radians(float(sloped.group(2)))
+        row = item["rows"][0]
+        door = min(plan["doors"], key=lambda entry: np.linalg.norm(
+            np.asarray(entry["middle"])[[0, 2]] - np.mean(np.reshape(item["box"], (2, 2)), axis=0)))
+        out = np.asarray(door["normal"], dtype=float)
+        along = out * math.cos(angle) + np.array([0.0, -math.sin(angle), 0.0])
+        top = np.array([0.0, math.cos(angle), 0.0]) + out * math.sin(angle)
+        wide = float(sizes[row][0])
+        centre = np.asarray(door["middle"], dtype=float) + along * long / 2 - top * RAMP_THICK / 2
+        # The plate is built long along the way out and tipped about the axis across the door, its far end down.
+        half = math.sin(angle / 2)
+        if door["side"] in ("south", "north"):
+            turn, size = [math.copysign(half, out[2]), 0.0, 0.0, math.cos(angle / 2)], [wide, RAMP_THICK, long]
+        else:
+            turn, size = [0.0, 0.0, -math.copysign(half, out[0]), math.cos(angle / 2)], [long, RAMP_THICK, wide]
+        found.append({"name": row, "builder": "box", "centre": [0.0, 0.0, 0.0], "size": size,
+                      "surface": RAMP_SURFACE, "placed_at": np.round(centre, 4).tolist(),
+                      "placed_turn": [round(value, 6) for value in turn], "plain": "plate", "row": row,
+                      "from": f"plan item {item['name']!r} (inventory row {row}, {wide} m wide, {RAMP_THICK} m "
+                              f"thick): its top edge on door {door['plan_side']}'s sill, falling away from the room"})
+    return found
 
 
 # --- places -----------------------------------------------------------------------------------------------------
@@ -219,7 +375,8 @@ def fill(plan, indoor):
     walls, light = plan["walls"], indoor["fill"]
     height = round(walls["high"] * light["height_share"], 4)
     reach = round(math.sqrt((walls["wide"] / 2) ** 2 + (walls["deep"] / 2) ** 2 + height ** 2), 3)
-    return {"type": "omni", "at": [0.0, height, 0.0], "colour": light["colour"], "energy": light["energy"],
+    middle = middle_of(plan)
+    return {"type": "omni", "at": [middle[0], height, middle[1]], "colour": light["colour"], "energy": light["energy"],
             "range": reach, "attenuation": light["attenuation"], "shadows": False,
             "from": "sky record (data/definitions/sky.json) indoor fill, at its height share of the plan's walls, "
                     "reaching the plan's farthest floor corner"}
@@ -230,7 +387,7 @@ def environment(plan, indoor, body):
     walls = plan["walls"]
     return {"background": indoor["background"], "ambient": dict(indoor["ambient"]), "exposure": indoor["exposure"],
             "inside": True, "from": f"sky record (data/definitions/sky.json) {body} indoor",
-            "haze": {"shape": "box", "centre": [0.0, walls["high"] / 2, 0.0],
+            "haze": {"shape": "box", "centre": [middle_of(plan)[0], walls["high"] / 2, middle_of(plan)[1]],
                      "size": [walls["wide"], walls["high"], walls["deep"]], **indoor["haze"],
                      "from": f"sky record {body} indoor haze, a box of the plan's inside to its walls' top"}}
 
@@ -283,20 +440,24 @@ def record_of(place, plan, inputs):
     if plan["shell"] == "outdoor":
         from score.stages.scene_record import outdoor  # it builds on this module's seats, places and views' numbers
         return outdoor.record_of(place, plan, inputs, grounds)
-    if not plan["inside"] or not plan["walls"].get("rise"):
-        raise NotImplementedError(f"{place}: its plan's shell is domed but it is no domed room")
+    if not plan["inside"] or not (plan["walls"].get("rise") or plan["walls"].get("shape") in ("faceted", "tube")):
+        raise NotImplementedError(f"{place}: its plan's shell is domed but it is no domed room, faceted room or "
+                                  "walkway tube")
     walls = plan["walls"]
     body = seated.ground
     indoor = read(inputs["sky"])[body]["indoor"]
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
+    inventory = read(inputs["inventory"])
     return {"place": place,
             "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
                      "its inventory, the made ground's seats and the world's sky record. Frame: the room's middle on "
                      "its floor, x east, z south.",
-            "floor": [[-walls["wide"] / 2, -walls["deep"] / 2], [walls["wide"] / 2, walls["deep"] / 2]],
-            "ceiling": round(walls["high"] + walls["rise"], 4), "inside": True,
-            "structure": shell(plan), "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body),
-            "views": views(plan, eye), "places": places_of(place, plan, inputs, grounds)}
+            "floor": plan["floor"], "ceiling": round(walls["high"] + walls["rise"], 4), "inside": True,
+            "structure": shell(plan) + ramps(plan, inventory) + plots(plan), "objects": objects(place, inventory),
+            "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body),
+            "views": views(plan, eye), "places": places_of(place, plan, inputs, grounds),
+            # A walkway tube's run, which its kit's bays are laid along (the assembly reads it).
+            **({"tube_length": walls["length"]} if walls.get("shape") == "tube" else {})}
 
 
 def kit_record(place, plan, inputs, grounds):

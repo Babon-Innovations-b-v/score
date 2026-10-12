@@ -1,0 +1,276 @@
+{
+ "title": "WALKWAY TUBE (the base's tubes: 4.35 m between two door spot collars)",
+ "shape": "tube",
+ "radius": 1.6,
+ "axis": 1.1,
+ "length": 4.35,
+ "glass": [
+  38.0,
+  104.0
+ ],
+ "w": 3.2,
+ "d": 4.35,
+ "corner": 0.0,
+ "height": "tube radius 1.6 m, axis 1.1 m above the deck: deck 2.3 m wide, glass band each side from 38 to 104 degrees off the crown, up to 2.7 m",
+ "doors": [
+  [
+   "near",
+   2.2,
+   "COLLAR at the near end (2.2 x 2.6 m)"
+  ],
+  [
+   "far",
+   2.2,
+   "COLLAR at the far end (2.2 x 2.6 m)"
+  ]
+ ],
+ "items": [
+  [
+   "DECK 2.3 m",
+   0.45,
+   0.0,
+   2.3,
+   4.35,
+   null,
+   "item"
+  ],
+  [
+   "STRIP LIGHT ALONG THE CROWN",
+   1.55,
+   0.0,
+   0.1,
+   4.35,
+   null,
+   "overhead"
+  ],
+  [
+   "HANDRAILS under the glass",
+   0.2,
+   0.0,
+   2.8,
+   4.35,
+   null,
+   "item"
+  ],
+  [
+   "PIPES AND CABLES low and high",
+   0.0,
+   0.0,
+   3.2,
+   4.35,
+   null,
+   "item"
+  ]
+ ],
+ "hoops": 1.3,
+ "people": [
+  [
+   1.6,
+   1.4
+  ],
+  [
+   1.6,
+   3.0
+  ]
+ ],
+ "notes": [
+  "Section from the old plan (the base's tubes: radius 1.6 m, axis 1.1 m over the deck, a hoop every 1.3 m); its length the base's tubes' 4.35 m (the east and west tubes between the hub and its neighbours, data/scene/tube.json's tube_length, which the joined tubes stretch). Frame: x across, z along from the near end, as the walkway tube's kit lays it.",
+  "The place is the west tube, seated on the Moon ground between the greenhouse's east hatch (its near end) and the hub's tube door at bearing 90 (its far end); every other tube is this stage stood and stretched in its rooms' records.",
+  "Glossary: a deck, a hull roof against the Sun and the dust, a band of glass down each side, a strip light along its crown; carries power and air."
+ ],
+ "concept": {
+  "pick": "K12",
+  "picture": "{seeds}/scene/tube/views/K12.png",
+  "read": "the concept K12 read element by element in the inventory's concept_elements (data/inventory/tube.json), each element mapped to its rows or dropped with its reason"
+ },
+ "leads": {
+  "near": {
+   "to": "greenhouse",
+   "why": "the near end's collar meets the greenhouse's open east hatch (the Moon ground's seats)"
+  },
+  "far": {
+   "to": "hub",
+   "why": "the far end's collar meets the hub's tube door at bearing 90 (the Moon ground's seats)"
+  }
+ },
+ "rows": {
+  "DECK 2.3 m": [
+   "ring_floor_plate",
+   "end_mat"
+  ],
+  "STRIP LIGHT ALONG THE CROWN": [
+   "crown_strip_lamp"
+  ],
+  "HANDRAILS under the glass": [
+   "pipe_straight",
+   "rail_bracket"
+  ],
+  "PIPES AND CABLES low and high": [
+   "pipe_straight",
+   "pipe_bracket",
+   "cable_bundle",
+   "conduit_box",
+   "small_readout",
+   "sign_plate"
+  ]
+ },
+ "elements": [
+  {
+   "element": "curved hull plates, crown and feet, with seams and bolts",
+   "rows": [
+    "hull_plate"
+   ]
+  },
+  {
+   "element": "ring frames (hoops) every bay, carrying the glass mullions",
+   "rows": [
+    "hoop"
+   ]
+  },
+  {
+   "element": "glass bands both sides with their top and bottom frames",
+   "drop": "the glass is the tube's own (LinkTube); its frames are the hull plates' edge strips"
+  },
+  {
+   "element": "strip light along the crown",
+   "rows": [
+    "crown_strip_lamp"
+   ]
+  },
+  {
+   "element": "deck plates",
+   "rows": [
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "darker, scuffed squares on the deck",
+   "drop": "wear on the deck plates' own surface (the library's room wear), not objects: a laid plate there would stand proud of the walking deck"
+  },
+  {
+   "element": "handrail each side just under the glass",
+   "rows": [
+    "pipe_straight"
+   ]
+  },
+  {
+   "element": "handrail brackets (bent hooks) near each hoop",
+   "rows": [
+    "rail_bracket"
+   ]
+  },
+  {
+   "element": "pipe run low on the left, several pipes",
+   "rows": [
+    "pipe_straight"
+   ]
+  },
+  {
+   "element": "clamp brackets on the low pipes",
+   "rows": [
+    "pipe_bracket"
+   ]
+  },
+  {
+   "element": "pipe bundle high on the right above the glass, several sizes",
+   "rows": [
+    "pipe_straight"
+   ]
+  },
+  {
+   "element": "clamp brackets on the high right pipes",
+   "rows": [
+    "pipe_bracket"
+   ]
+  },
+  {
+   "element": "blue tape bands on the high pipes",
+   "drop": "colour bands painted on a plain pipe; a PLAIN kind carries no print, so the pipes stay their library steel"
+  },
+  {
+   "element": "cable run high on the right with clips",
+   "rows": [
+    "cable_bundle"
+   ]
+  },
+  {
+   "element": "cable run high on the left above the glass with clips",
+   "rows": [
+    "cable_bundle"
+   ]
+  },
+  {
+   "element": "welded and taped patch on the crown",
+   "rows": [
+    "hull_patch"
+   ]
+  },
+  {
+   "element": "welded and taped patch low on the right",
+   "rows": [
+    "hull_patch"
+   ]
+  },
+  {
+   "element": "small wall screen on a bracket high on the left",
+   "rows": [
+    "small_readout"
+   ]
+  },
+  {
+   "element": "small junction box with a sticker high on the left",
+   "rows": [
+    "conduit_box"
+   ]
+  },
+  {
+   "element": "small placards by the screen and the glass frames",
+   "rows": [
+    "sign_plate"
+   ]
+  },
+  {
+   "element": "small display behind the right glass frame",
+   "drop": "it stands outside the glass band (the far side of the glass, outside the tube's hull)"
+  },
+  {
+   "element": "two yellow danger plates on the collar either side of the crown",
+   "rows": [
+    "sign_plate"
+   ]
+  },
+  {
+   "element": "collar ring round the far hatch",
+   "rows": [
+    "hoop"
+   ]
+  },
+  {
+   "element": "the far hatch with its window and wheel",
+   "drop": "the joined module's own door spot: its hatch is that room's"
+  },
+  {
+   "element": "dust strip inside the collar",
+   "rows": [
+    "end_mat"
+   ]
+  },
+  {
+   "element": "two crew members",
+   "drop": "people, not part of the room"
+  }
+ ],
+ "frame": {
+  "anchor": {
+   "plan": [
+    1.6,
+    0.0
+   ],
+   "place": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ }
+}

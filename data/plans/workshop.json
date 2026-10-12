@@ -159,6 +159,221 @@
   "Owner, 2026-10-07: a bigger room, all four doors kept, so the player's 3 x 3 and 4 x 3 machines fit on the open floor with walkways and standing spots. 16 x 14 m is the coordinator's pick (owner may change).",
   "A 4 m cross of aisles runs door to door; one 4 x 3 m machine bay in each quarter against the aisles, filled in build order (farm_kinds.gd: ice mine 3x3 level 1, smelter 3x3 level 2, electronics shop 2x2 level 3, propellant farm 4x3 level 4), 2 m strips along the walls for the benches.",
   "The robot bench stays in the room's middle, where the aisles cross (bench.tscn on the workshop's middle). The equipment bench's 0.42 m platform is dropped (owner, playtest 3: too many floor levels); it stands on the floor in the south strip.",
-  "Printers stand outside, not in the workshop (bible, printers overlay)."
+  "Printers stand outside, not in the workshop (bible, printers overlay).",
+  "The robot on its bench and the parts tray of robot parts are not in the concept K10; they come from the machines track as rows (captain's decision, 2026-10-12), not from this plan."
+ ],
+ "concept": {
+  "pick": "K10",
+  "picture": "{seeds}/scene/workshop/views/K10.png",
+  "read": "the concept K10 read element by element (scene-record stage, 2026-10-12), each element mapped to the inventory's rows (data/inventory/workshop.json), a plan door, or dropped with its reason"
+ },
+ "leads": {
+  "W": {
+   "to": "tube",
+   "why": "the open hatch onto the base's east walkway tube (data/definitions/base.json east_tube), which runs west to the hub"
+  },
+  "N": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf stays shut (inventory hatch_leaf; the room layout's open list names the west only)"
+  },
+  "S": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf stays shut (inventory hatch_leaf; the room layout's open list names the west only)"
+  },
+  "E": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf stays shut (inventory hatch_leaf; the room layout's open list names the west only)"
+  }
+ },
+ "rows": {
+  "MACHINE BAY 1 (4 x 3): ice mine 3 x 3": [
+   "bay_mark",
+   "floor_socket"
+  ],
+  "MACHINE BAY 2 (4 x 3): smelter 3 x 3": [
+   "bay_mark",
+   "floor_socket"
+  ],
+  "MACHINE BAY 3 (4 x 3): electronics shop 2 x 2": [
+   "bay_mark",
+   "floor_socket"
+  ],
+  "MACHINE BAY 4 (4 x 3): propellant farm 4 x 3": [
+   "bay_mark",
+   "floor_socket"
+  ],
+  "ROBOT BENCH + turntable + parts tray, screens on arms": [
+   "robot_bench",
+   "arm_monitor",
+   "keyboard",
+   "work_stool"
+  ],
+  "EQUIPMENT BENCH": [
+   "equipment_bench",
+   "desklamp"
+  ],
+  "HAND-TOOL BENCH + vise, tool board over": [
+   "tool_bench",
+   "vise",
+   "toolboard",
+   "wrench",
+   "hammer",
+   "pump_pliers",
+   "bench_lamp"
+  ],
+  "ELECTRONICS BENCH": [
+   "elec_bench",
+   "soldering_station"
+  ],
+  "PARTS BIN RACK": [
+   "parts_drawers"
+  ],
+  "SPARES SHELVES": [
+   "spares_shelves",
+   "spares_crate",
+   "spares_box"
+  ],
+  "WALL SCREEN BANK": [
+   "status_display",
+   "low_cabinet"
+  ]
+ },
+ "elements": [
+  {
+   "element": "four pressure hatches with hand wheels and portholes, one in each wall",
+   "rows": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_window",
+    "hatch_hinge"
+   ]
+  },
+  {
+   "element": "tread mats before the hatches",
+   "rows": [
+    "tread_mat"
+   ]
+  },
+  {
+   "element": "the hopper machine with its pipe loops in the north-middle bay",
+   "drop": "the player's machine, built in play into a machine bay (the plan's zones), not a row of the room"
+  },
+  {
+   "element": "the robot console in the middle: a curved desk of screens on arms, keyboards",
+   "rows": [
+    "robot_bench",
+    "arm_monitor",
+    "keyboard"
+   ]
+  },
+  {
+   "element": "the swivel chair at the console",
+   "rows": [
+    "work_stool"
+   ]
+  },
+  {
+   "element": "blue box and small steel case beside the console",
+   "rows": [
+    "spares_crate",
+    "spares_box"
+   ]
+  },
+  {
+   "element": "tool board of hand tools lit by its lamp over a timber bench with a vise (north-west)",
+   "rows": [
+    "toolboard",
+    "tool_bench",
+    "vise",
+    "wrench",
+    "hammer",
+    "pump_pliers",
+    "bench_lamp"
+   ]
+  },
+  {
+   "element": "steel shelving of spares crates and boxes (north wall)",
+   "rows": [
+    "spares_shelves"
+   ]
+  },
+  {
+   "element": "parts cabinet of small bin drawers on a cupboard (north wall)",
+   "rows": [
+    "parts_drawers"
+   ]
+  },
+  {
+   "element": "big wall display over a low cabinet run (north-east)",
+   "rows": [
+    "status_display",
+    "low_cabinet"
+   ]
+  },
+  {
+   "element": "small control box with a screen beside the display",
+   "rows": [
+    "door_control_box",
+    "small_readout"
+   ]
+  },
+  {
+   "element": "two benches against the south wall with desk lamps, monitors and keyboards",
+   "rows": [
+    "elec_bench",
+    "equipment_bench",
+    "desklamp",
+    "soldering_station"
+   ]
+  },
+  {
+   "element": "painted machine bay outlines on the deck with flush floor sockets",
+   "rows": [
+    "bay_mark",
+    "floor_socket"
+   ]
+  },
+  {
+   "element": "pipes with red hand-wheel valves along the walls",
+   "rows": [
+    "pipe_straight",
+    "pipe_valve",
+    "pipe_bracket"
+   ]
+  },
+  {
+   "element": "wall panels, patched panels, cable and pipe runs high on the walls",
+   "rows": [
+    "wall_lower_plain",
+    "wall_upper_plain",
+    "wall_lower_patched",
+    "wall_upper_cables",
+    "wall_upper_pipes",
+    "wall_skirting",
+    "wall_cornice"
+   ]
+  },
+  {
+   "element": "deck plates on the floor",
+   "rows": [
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "the rounded rim of the walls",
+   "rows": [
+    "wall_cornice",
+    "roof_face_panel"
+   ]
+  },
+  {
+   "element": "three people at the console and the benches",
+   "drop": "the crew are the characters stage's (#100), not rows"
+  },
+  {
+   "element": "the outside of the shell and the Moon ground round it",
+   "drop": "outside the room: the shell's outside is not this room's concept; the ground is the terrain stage's"
+  }
  ]
 }

@@ -150,5 +150,353 @@
   "Four door spots: 'a module a person lives or works in has one in every wall' (module_doors.gd). Unused ones are sealed hatches and stay clear.",
   "Four berths for a starting crew of two plus arrivals (crew_record.gd STARTING_CREW = player, botanist).",
   "Hygiene cubicle and medbay corner lean clean institutional (place.json shared.theme mix)."
+ ],
+ "concept": {
+  "pick": "K03",
+  "picture": "{seeds}/scene/habitat/views/K03.png",
+  "read": "the concept K03 read element by element in the inventory's concept_elements (data/inventory/habitat.json), each element mapped to its rows or dropped with its reason"
+ },
+ "leads": {
+  "S": {
+   "to": "tube",
+   "why": "the hatch onto the base's north walkway tube (data/definitions/base.json habitat_tube), which runs south to the hub's north tube door; its leaf (inventory hatch_leaf) swings open"
+  },
+  "N": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf stays shut (inventory hatch_leaf)"
+  },
+  "E": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf stays shut (inventory hatch_leaf)"
+  },
+  "W": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf stays shut (inventory hatch_leaf)"
+  }
+ },
+ "rows": {
+  "SLEEP POD x2 high": [
+   "sleep_pod",
+   "pillow",
+   "floor_marking",
+   "slippers",
+   "storage_case"
+  ],
+  "PERSONAL LOCKERS": [
+   "locker_bank",
+   "tool_case"
+  ],
+  "FOOD STORES": [
+   "food_shelf",
+   "food_jug",
+   "food_tin",
+   "ration_box"
+  ],
+  "GALLEY COUNTER": [
+   "galley_counter",
+   "kettle",
+   "pot",
+   "tea_towel",
+   "gas_cylinder"
+  ],
+  "MESS TABLE": [
+   "mess_table",
+   "stool"
+  ],
+  "HYGIENE CUBICLE": [
+   "hygiene_cubicle"
+  ],
+  "EXAM COUCH": [
+   "exam_couch",
+   "couch_pillow",
+   "blanket"
+  ],
+  "MED CABINET": [
+   "med_cabinet",
+   "med_box",
+   "med_bottle"
+  ]
+ },
+ "elements": [
+  {
+   "element": "dome shell: ribbed, bolted grey dome panels",
+   "rows": [
+    "roof_face_panel"
+   ]
+  },
+  {
+   "element": "walls: worn grey bolted panels, lower and upper bands, skirting and cornice",
+   "rows": [
+    "wall_lower_plain"
+   ]
+  },
+  {
+   "element": "patched lower panels",
+   "rows": [
+    "wall_lower_patched"
+   ]
+  },
+  {
+   "element": "deck plates with seams and bolt heads",
+   "rows": [
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "four tube hatches with frames, leaves, wheels, windows and hinges",
+   "rows": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_window",
+    "hatch_hinge"
+   ]
+  },
+  {
+   "element": "strip lamps over the hatches",
+   "rows": [
+    "door_strip_lamp"
+   ]
+  },
+  {
+   "element": "grated dust mats at the hatches",
+   "rows": [
+    "tread_mat"
+   ]
+  },
+  {
+   "element": "round light ring with globe lamps on hanging rods",
+   "rows": [
+    "light_ring"
+   ]
+  },
+  {
+   "element": "sleep pods stacked two high, each berth with mattress, pillow, screen, reading lamp, strip lamp, vent",
+   "rows": [
+    "sleep_pod"
+   ]
+  },
+  {
+   "element": "the pods' central control column with screens, keypad, switches",
+   "rows": [
+    "sleep_pod"
+   ]
+  },
+  {
+   "element": "pillows on the berths",
+   "rows": [
+    "pillow"
+   ]
+  },
+  {
+   "element": "grey storage case on the right pod's top",
+   "rows": [
+    "storage_case"
+   ]
+  },
+  {
+   "element": "cable runs dropping down the pods' sides",
+   "rows": [
+    "cable_drop"
+   ]
+  },
+  {
+   "element": "coiled cable hung on the wall by the left pod",
+   "rows": [
+    "cable_coil"
+   ]
+  },
+  {
+   "element": "painted outline on the deck before each pod",
+   "rows": [
+    "floor_marking"
+   ]
+  },
+  {
+   "element": "slippers before the pods",
+   "rows": [
+    "slippers"
+   ]
+  },
+  {
+   "element": "wall screen cluster, six screens (north-west)",
+   "rows": [
+    "wall_screen_cluster"
+   ]
+  },
+  {
+   "element": "small breaker panels on the west wall",
+   "rows": [
+    "small_readout"
+   ]
+  },
+  {
+   "element": "three high pipe runs with hand-wheel valves (west)",
+   "rows": [
+    "pipe_straight"
+   ]
+  },
+  {
+   "element": "hand-wheel valves",
+   "rows": [
+    "pipe_valve"
+   ]
+  },
+  {
+   "element": "pipe brackets",
+   "rows": [
+    "pipe_bracket"
+   ]
+  },
+  {
+   "element": "crew locker bank, louvred doors, labels",
+   "rows": [
+    "locker_bank"
+   ]
+  },
+  {
+   "element": "blue tool case and tins on the locker bank",
+   "rows": [
+    "tool_case"
+   ]
+  },
+  {
+   "element": "food store shelf with jugs, tins and ration boxes",
+   "rows": [
+    "food_shelf"
+   ]
+  },
+  {
+   "element": "green and grey cases on the food shelf's top",
+   "rows": [
+    "storage_case"
+   ]
+  },
+  {
+   "element": "supply cart with a crate, jars and a case",
+   "rows": [
+    "supply_cart"
+   ]
+  },
+  {
+   "element": "mess table",
+   "rows": [
+    "mess_table"
+   ]
+  },
+  {
+   "element": "round stools",
+   "rows": [
+    "stool"
+   ]
+  },
+  {
+   "element": "galley counter with hob, sink and tap, drawers and doors",
+   "rows": [
+    "galley_counter"
+   ]
+  },
+  {
+   "element": "induction plate and two-ring hob",
+   "rows": [
+    "galley_counter"
+   ]
+  },
+  {
+   "element": "kettle and pot",
+   "rows": [
+    "kettle"
+   ]
+  },
+  {
+   "element": "tea towels hung on the counter",
+   "rows": [
+    "tea_towel"
+   ]
+  },
+  {
+   "element": "gas cylinders with hoses by the counter",
+   "rows": [
+    "gas_cylinder"
+   ]
+  },
+  {
+   "element": "hygiene cubicle: pale panels, sliding door, sink, mirror, grab rail, keypad, stripe",
+   "rows": [
+    "hygiene_cubicle"
+   ]
+  },
+  {
+   "element": "exam couch with pillow and folded blanket",
+   "rows": [
+    "exam_couch"
+   ]
+  },
+  {
+   "element": "wall-hung medical cabinet with glass doors",
+   "rows": [
+    "med_cabinet"
+   ]
+  },
+  {
+   "element": "medicine boxes and bottles in it",
+   "rows": [
+    "med_box"
+   ]
+  },
+  {
+   "element": "wall lamp over the couch",
+   "rows": [
+    "wall_cage_lamp"
+   ]
+  },
+  {
+   "element": "outlet panel by the couch",
+   "rows": [
+    "small_readout"
+   ]
+  },
+  {
+   "element": "cable runs and a junction block high on the east wall",
+   "rows": [
+    "wall_upper_cables"
+   ]
+  },
+  {
+   "element": "two high pipe runs with brackets (east)",
+   "rows": [
+    "pipe_straight"
+   ]
+  },
+  {
+   "element": "junction box low on the north-east wall",
+   "rows": [
+    "conduit_box"
+   ]
+  },
+  {
+   "element": "blue bin by the couch",
+   "rows": [
+    "waste_bin"
+   ]
+  },
+  {
+   "element": "keypad boxes by the hatches",
+   "rows": [
+    "door_control_box"
+   ]
+  },
+  {
+   "element": "the hygiene cubicle's hanging blue garment bag",
+   "drop": "a soft garment bag hanging inside the cubicle: not built this round (a question for the owner)"
+  },
+  {
+   "element": "the crew members",
+   "drop": "people are not in the room's kit"
+  },
+  {
+   "element": "regolith bags, the cut-away shell and its insulation, the Moon outside",
+   "drop": "outside the shell: the cutaway view's own, not the room's inside"
+  }
  ]
 }

@@ -9,7 +9,9 @@ place's own frame (contract `place-plan` v2: v1 had no shell, frame, block, leve
               of light up from a row and a plain box standing outside the kit, its footing or ramp)
     walls     the room's inside wide and deep, its corners' radius, its walls' height and its dome's rise (read off the
               plan's words) and run (the inventory's room layout, which the plan does not draw); a kit shell's ceiling
-              and floor to floor (its storey) from the plan's words
+              and floor to floor (its storey) from the plan's words; a faceted room's facets, apothem, turn and pit
+              (`shape: faceted`, its doors by bearing), a walkway tube's radius, axis, length and glass bands
+              (`shape: tube`, its doors its `near` and `far` ends)
     floor     the plan's inside as the place frame's box round it, and its floor's height
     block     the building a kit room stands in (the plan's `block`, in the place's frame), else None
     doors     each plan door: its side, its middle in the place's frame (on its sill: a door's fifth number is the
@@ -26,9 +28,9 @@ room's middle on its floor (x east, z south); a plan with a `frame` stands where
 the place point it is), turned so its `toward` plan point falls the way of its place point (the Earth's places share
 one frame, the street's; the square's and the launch's plans are drawn down the balcony's view).
 
-Gate `mapped`: every plan item names inventory rows that exist (a zone names none, nor an item a released model
-makes: its model must be in the world's release, data/assets/world1.json), every concept element names rows that
-exist, a plan door, a plan object, a plan decal or its drop, every door says where it leads and why, a sealed door is
+Gate `mapped`: every plan item names inventory rows that exist (a zone names none, nor a plot the writer lays, nor an
+item a released model makes: its model must be in the world's release, data/assets/world1.json), every concept element names rows that
+exist, a plan door, a plan object, a plan decal, a plan item (a plot) or its drop, every door says where it leads and why, a sealed door is
 one the inventory's room layout shuts with a leaf, and every outdoor lamp and beam stands on a row that exists. How far a row's laid spot (the inventory's, else the kit's pieces of it)
 lies from its item's box is measured and shown, never judged here: the layout is the inventory's.
 """
@@ -45,6 +47,8 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 SIDES = {"N": "north", "S": "south", "E": "east", "W": "west"}
 LEADS = ("outside", "sealed")
 SHELLS = ("domed", "kit", "outdoor")
+# Plan items that name no rows: a keep-clear zone, and a growing plot the writer lays as plain plates (writer.plots).
+UNROWED = ("zone", "plot")
 # A row's laid spot this far outside its item's box is shown as off the plan (metres).
 SPOT_MARGIN = 0.6
 WALLS = re.compile(r"walls (\d+(?:\.\d+)?) m")
@@ -163,6 +167,68 @@ def doors_of(plan, inventory):
     return found
 
 
+def bearing_normal(bearing):
+    """The way out of a wall facing `bearing` degrees (0 north, -z; 90 east, +x), on the floor."""
+    turn = math.radians(bearing)
+    return [round(math.sin(turn), 6), 0.0, round(-math.cos(turn), 6)]
+
+
+def facet_doors_of(plan):
+    """Each door of a faceted room (`[bearing, wide, what]`) in the place's frame: in the middle of the facet facing
+    its bearing, on the plan's apothem, with where it leads; its height from its words."""
+    found = []
+    for bearing, wide, what in plan["doors"]:
+        side = str(bearing)
+        lead = plan.get("leads", {}).get(side, {})
+        sized = SIZE.search(what)
+        normal = bearing_normal(bearing)
+        found.append({"side": f"bearing {bearing}", "plan_side": side, "name": side, "level": 0.0, "bearing": float(bearing), "normal": normal,
+                      "middle": [round(value * plan["apothem"], 4) for value in normal], "wide": float(wide),
+                      "tall": float(sized.group(2)) if sized else None, "what": what, "leads": lead.get("to"),
+                      "joins": None, "joins_door": None, "leaves": None, "why": lead.get("why"),
+                      "cut": lead.get("to") not in (None, "sealed")})
+    return found
+
+
+def walls_of(plan, layout):
+    """The room's walls: a capsule's inside wide and deep with its corners, or a faceted room's facets, apothem,
+    turn and sunken pit; with the walls' height, the roof's rise and run."""
+    if plan.get("shape") == "faceted":
+        return {"shape": "faceted", "facets": int(plan["facets"]), "apothem": float(plan["apothem"]),
+                "turn": float(plan["turn"]), "pit_radius": float(plan["pit"]["radius"]),
+                "pit_floor": float(plan["pit"]["floor"]), "wide": 2 * float(plan["apothem"]),
+                "deep": 2 * float(plan["apothem"]), **heights(plan, layout)}
+    return {"wide": float(plan["w"]), "deep": float(plan["d"]), "corner": float(plan["corner"]),
+            **heights(plan, layout)}
+
+
+def tube_doors_of(plan):
+    """A walkway tube's two open ends (`near`, its frame's z 0, and `far`, its length along), each with where it
+    leads; their height from their words."""
+    found = []
+    for end, wide, what in plan["doors"]:
+        lead = plan.get("leads", {}).get(end, {})
+        sized = SIZE.search(what)
+        far = end == "far"
+        found.append({"side": f"{end} end", "plan_side": end, "name": end, "level": 0.0, "normal": [0.0, 0.0, 1.0 if far else -1.0],
+                      "middle": [0.0, 0.0, float(plan["length"]) if far else 0.0], "wide": float(wide),
+                      "tall": float(sized.group(2)) if sized else None, "what": what, "leads": lead.get("to"),
+                      "joins": None, "joins_door": None, "leaves": None, "why": lead.get("why"),
+                      "cut": lead.get("to") not in (None, "sealed")})
+    return found
+
+
+def tube_walls_of(plan):
+    """A walkway tube's section and run: its hull's radius, its axis over the deck, its length, its glass bands'
+    bearings round the axis (0 the crown) and its deck's width where the hull meets it."""
+    radius, axis = float(plan["radius"]), float(plan["axis"])
+    deck = round(2 * math.sqrt(radius ** 2 - axis ** 2), 4)
+    return {"shape": "tube", "radius": radius, "axis": axis, "length": float(plan["length"]),
+            "glass": [float(value) for value in plan["glass"]], "deck": deck, "wide": deck,
+            "deep": float(plan["length"]),
+            "high": round(axis + radius, 4), "rise": 0.0, "run": 0.0}
+
+
 def box_of(plan, x, y, wide, deep):
     """A plan box (x, y, wide, deep) as the place frame's box round it: x0, z0, x1, z1."""
     corners = np.array([placed(plan, x + across, y + along) for across in (0.0, wide) for along in (0.0, deep)])
@@ -193,6 +259,15 @@ def floor_of(plan):
     return [box[:2], box[2:]], float(frame_of(plan)[0][1])
 
 
+def shaped(plan, inventory, layout):
+    """The plan's walls and doors by its shape: a walkway tube's, a faceted room's or a capsule's."""
+    if plan.get("shape") == "tube":
+        return tube_walls_of(plan), tube_doors_of(plan)
+    if plan.get("shape") == "faceted":
+        return walls_of(plan, layout), facet_doors_of(plan)
+    return walls_of(plan, layout), doors_of(plan, inventory)
+
+
 def make(inputs, out, seed, params):
     """plan.json: the plan in the place's frame, with its doors' leads, its items' rows and the concept's elements."""
     plan, inventory = read(inputs["plan"]), read(inputs["inventory"])
@@ -201,12 +276,13 @@ def make(inputs, out, seed, params):
     if shell not in SHELLS:
         raise ValueError(f"{plan['title']}: shell {shell!r} is none of {SHELLS}")
     floor, floor_height = floor_of(plan)
+    walls, doors = shaped(plan, inventory, layout)
     record = {"place": pathlib.Path(inputs["kit"]).stem, "title": plan["title"], "shell": shell,
-              "inside": bool(layout.get("wall")) if shell == "domed" else bool(plan.get("inside")),
-              "walls": {"wide": float(plan["w"]), "deep": float(plan["d"]), "corner": float(plan["corner"]),
-                        **heights(plan, layout)},
+              "inside": (bool(layout.get("wall")) or plan.get("shape") == "tube") if shell == "domed"
+              else bool(plan.get("inside")),
+              "walls": walls, "glass": bool(layout.get("glass_dome")),
               "floor": floor, "floor_height": floor_height, "block": plan.get("block"),
-              "doors": doors_of(plan, inventory), "items": items_of(plan), "standing": standing_of(plan),
+              "doors": doors, "items": items_of(plan), "standing": standing_of(plan),
               "elements": plan.get("elements", []), "shows": plan.get("shows", {}), "objects": plan.get("objects", {}),
               "aims": plan.get("aims", {}),
               **({key: plan.get(key, []) for key in ("lamps", "decals", "beams", "blocks")}
@@ -249,22 +325,25 @@ def item_faults(item, ids, made, released):
         found.append(f"plan item {item['name']!r}: model {made['model']} is not in the world's release")
     if item["rows"] is None and made is None:
         return found + [f"plan item {item['name']!r} names no inventory rows and no drop"]
-    if not item["rows"] and item["kind"] != "zone" and made is None:
-        return found + [f"plan item {item['name']!r} names no rows (only a zone, or an item a released model makes, "
-                        "may)"]
+    if not item["rows"] and item["kind"] not in UNROWED and made is None:
+        return found + [f"plan item {item['name']!r} names no rows (only a zone, a plot the writer lays, or an item a "
+                        "released model makes, may)"]
     return found + [f"plan item {item['name']!r}: row {row} is not in the inventory"
                     for row in item["rows"] or [] if row not in ids]
 
 
-def element_faults(element, ids, doors, made, decals=()):
-    """Why a concept element is not mapped: no rows, door, object, decal or drop; a row the inventory lacks; a door
-    the plan lacks; an object (a plan item a released model makes) or a decal the plan lacks."""
-    if not any(element.get(key) for key in ("rows", "door", "object", "decal", "drop")):
-        return [f"concept element {element['element']!r} names no rows, door, object, decal or drop"]
+def element_faults(element, ids, doors, made, decals=(), items=()):
+    """Why a concept element is not mapped: no rows, door, object, decal, plan item (one the writer lays: a plot) or
+    drop; a row the inventory lacks; a door the plan lacks; an object (a plan item a released model makes), a decal
+    or an item the plan lacks."""
+    if not any(element.get(key) for key in ("rows", "door", "object", "decal", "item", "drop")):
+        return [f"concept element {element['element']!r} names no rows, door, object, decal, plan item or drop"]
     if element.get("object") and element["object"] not in made:
         return [f"concept element {element['element']!r}: object {element['object']!r} is no plan object"]
     if element.get("decal") and element["decal"] not in decals:
         return [f"concept element {element['element']!r}: decal {element['decal']} is not on the plan"]
+    if element.get("item") and element["item"] not in items:
+        return [f"concept element {element['element']!r}: plan item {element['item']!r} is not on the plan"]
     found = [f"concept element {element['element']!r}: row {row} is not in the inventory"
              for row in element.get("rows", []) if row not in ids]
     if element.get("door") and element["door"] not in doors:
@@ -328,7 +407,8 @@ def judge_mapped(output, inputs, evidence):
         faults.append("the plan holds no concept elements")
     decals = {decal["name"] for decal in record.get("decals", [])}
     faults += [fault for element in record["elements"]
-               for fault in element_faults(element, ids, doors, record["objects"], decals)]
+               for fault in element_faults(element, ids, doors, record["objects"], decals,
+                                           {item["name"] for item in record["items"]})]
     faults += [fault for door in record["doors"] for fault in door_faults(door, places, record)]
     faults += lit_faults(record, ids)
     shown = off_plan(record, inventory, read(inputs["kit"]))

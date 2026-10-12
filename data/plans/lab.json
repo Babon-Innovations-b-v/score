@@ -20,24 +20,6 @@
  ],
  "items": [
   [
-   "LEDGE 0.42",
-   0.0,
-   1.6,
-   1.0,
-   2.8,
-   null,
-   "raised"
-  ],
-  [
-   "LEDGE 0.42",
-   5.0,
-   1.6,
-   1.0,
-   2.8,
-   null,
-   "raised"
-  ],
-  [
    "LAB DESK",
    0.8,
    1.15,
@@ -87,6 +69,209 @@
  "notes": [
   "Size, two doors north and south only, ledges east and west, two desk spots at (+-1.5, -1.5) from the middle (module_floors.gd, module_doors.gd, stepped_floor.gd, module_record.gd).",
   "Research still keeps one desk, the hub's (#108); these desks take nobody yet.",
-  "Wall gear: signs, cabinets, a keypad, two task lamps (lab_room overlay)."
+  "Wall gear: signs, cabinets, a keypad, two task lamps (lab_room overlay).",
+  "The two 0.42 m ledges east and west (the game's stepped floor) are dropped: the concept K06 shows one flat deck (scene-record stage, 2026-10-12)."
+ ],
+ "concept": {
+  "pick": "K06",
+  "picture": "{seeds}/scene/lab/views/K06.png",
+  "read": "the concept K06 read element by element (scene-record stage, 2026-10-12), each element mapped to the inventory's rows (data/inventory/lab.json), a plan door, or dropped with its reason"
+ },
+ "leads": {
+  "N": {
+   "to": "tube",
+   "why": "the hatch onto the base's south walkway tube (data/definitions/base.json lab_tube), which runs north to the hub's south tube door; its leaf (inventory hatch_leaf) swings open"
+  },
+  "S": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf stays shut (inventory hatch_leaf)"
+  }
+ },
+ "rows": {
+  "LAB DESK": [
+   "desk",
+   "desk_chair",
+   "desk_monitor",
+   "desk_keyboard",
+   "desk_mouse",
+   "desk_keypad",
+   "microscope",
+   "instrument_unit"
+  ],
+  "GLOVEBOX CABINET": [
+   "glovebox_cabinet",
+   "hanging_glove"
+  ],
+  "SAMPLE STORE": [
+   "sample_store",
+   "sample_tray",
+   "sample_jar",
+   "sample_scanner"
+  ]
+ },
+ "elements": [
+  {
+   "element": "two tube hatches, north and south, with heavy frames, hand wheels and portholes",
+   "rows": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_window",
+    "hatch_hinge"
+   ]
+  },
+  {
+   "element": "grating mat in the north hatch's way",
+   "rows": [
+    "tread_mat"
+   ]
+  },
+  {
+   "element": "two lab desks with drawer pedestals",
+   "rows": [
+    "desk"
+   ]
+  },
+  {
+   "element": "swivel chair at the west desk",
+   "rows": [
+    "desk_chair"
+   ]
+  },
+  {
+   "element": "two big white research microscopes",
+   "rows": [
+    "microscope"
+   ]
+  },
+  {
+   "element": "beige monitors, analysers with screens and knobs, keyboards, a keypad and a mouse on the desks",
+   "rows": [
+    "desk_monitor",
+    "instrument_unit",
+    "desk_keyboard",
+    "desk_keypad",
+    "desk_mouse"
+   ]
+  },
+  {
+   "element": "sample drawer cabinet with meters and a tray of rock samples on top (west)",
+   "rows": [
+    "sample_store",
+    "sample_tray"
+   ]
+  },
+  {
+   "element": "sample jar and a handheld scanner on the east bench",
+   "rows": [
+    "sample_jar",
+    "sample_scanner"
+   ]
+  },
+  {
+   "element": "glovebox cabinet with sloped windows and gloves hanging on its front (east)",
+   "rows": [
+    "glovebox_cabinet",
+    "hanging_glove"
+   ]
+  },
+  {
+   "element": "monitors on wall brackets with green readouts",
+   "rows": [
+    "wall_monitor"
+   ]
+  },
+  {
+   "element": "task lamps on jointed arms over the desks",
+   "rows": [
+    "task_lamp"
+   ]
+  },
+  {
+   "element": "gas control panels with gauges, junction boxes and switch boxes on the walls",
+   "rows": [
+    "gauge_panel",
+    "junction_box",
+    "switch_panel"
+   ]
+  },
+  {
+   "element": "pipes, red hand-wheel valves and looping hoses on the walls",
+   "rows": [
+    "pipe_straight",
+    "pipe_valve",
+    "pipe_bracket",
+    "hose_loop"
+   ]
+  },
+  {
+   "element": "cable runs and conduit boxes along the walls",
+   "rows": [
+    "cable_bundle",
+    "cable_drop",
+    "conduit_box"
+   ]
+  },
+  {
+   "element": "small readouts and door control boxes beside the hatches",
+   "rows": [
+    "small_readout",
+    "door_control_box",
+    "intercom_panel"
+   ]
+  },
+  {
+   "element": "red fire extinguisher on the west wall",
+   "rows": [
+    "fire_extinguisher"
+   ]
+  },
+  {
+   "element": "grab rail by the south hatch",
+   "rows": [
+    "grab_bar"
+   ]
+  },
+  {
+   "element": "lamps under the roof",
+   "rows": [
+    "ceiling_lamp",
+    "door_strip_lamp"
+   ]
+  },
+  {
+   "element": "bolted wall panels with pipe and cable runs, the curved rim",
+   "rows": [
+    "wall_lower_plain",
+    "wall_upper_plain",
+    "wall_upper_pipes",
+    "wall_upper_cables",
+    "wall_skirting",
+    "wall_cornice",
+    "roof_face_panel"
+   ]
+  },
+  {
+   "element": "bolted deck plates",
+   "rows": [
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "'TUBE HATCH N' and 'TUBE HATCH S' lettered on the walls",
+   "drop": "painted lettering on a wall panel, the concept's labels: no thing of its own"
+  },
+  {
+   "element": "instrument mast on the roof",
+   "drop": "on the roof, outside the room: the shell's outside is not this room's concept"
+  },
+  {
+   "element": "sandbags piled round the outside of the walls",
+   "drop": "outside the shell: the outdoor ground's, not the room's"
+  },
+  {
+   "element": "two scientists at the benches",
+   "drop": "the crew are the characters stage's (#100), not rows"
+  }
  ]
 }

@@ -8,7 +8,8 @@ is left out with no reason). The stairwell's record passes all four too; its blo
 `seed-matched`; a plan door moved off the kit's doorway fails `plan-matched`. The wreck (an outdoor place) passes all
 five (its viewers standing on the made ground); its break lamp's light taken away fails `plan-matched` and the Earth
 taken away fails `seed-matched`. Skipped, and says so, on a machine
-without the round-three seeds or an accepted terrain output.
+without the round-three seeds or an accepted terrain output. The hub's facets, the walkway tube and the greenhouse's
+glass dome and plot each match their plan, and a shell number moved a metre fails `plan-matched`.
 
 Run: .venv/bin/python score/stages/scene_record/scene_record_test.py
 """
@@ -179,7 +180,33 @@ def test_an_outdoor_record_passes_and_each_fault_fails():
             assert result == checks.FAIL, (name, found.reason)
 
 
+def shell_faults_of(made, structure):
+    """The plan-matched gate's shell faults for a shell written from `made` (the plan record)."""
+    record = {"structure": structure, "floor": made["floor"]}
+    shape = made["walls"].get("shape")
+    return gates.facet_faults(record, made) if shape == "faceted" else gates.tube_faults(record, made) \
+        if shape == "tube" else gates.shell_faults(record, made["walls"]) + gates.door_faults(record, made)
+
+
+def test_every_shell_kind_matches_its_plan_and_a_moved_number_fails():
+    """The faceted hub, the walkway tube and the glass-domed greenhouse (with its plot): each plan maps, its shell
+    matches it, and a shell number moved a metre fails plan-matched."""
+    for place, name, key in (("hub", "shell_walls", "apothem"), ("tube", "hull_crown", "radius"),
+                             ("greenhouse", "dome_glass", "rise")):
+        with tempfile.TemporaryDirectory() as folder:
+            out, inputs = made_plan(folder, place=place)
+            found = plan.judge_mapped(out, inputs, None)
+            assert found.answer == checks.PASS, (place, found.reason)
+            made = json.loads((out / "plan.json").read_text())
+            structure = writer.shell(made) + writer.plots(made)
+            assert shell_faults_of(made, structure) == [], (place, shell_faults_of(made, structure))
+            moved = copy.deepcopy(structure)
+            next(item for item in moved if item["name"] == name)[key] += 1.0
+            assert shell_faults_of(made, moved), (place, name, key)
+
+
 if __name__ == "__main__":
+    test_every_shell_kind_matches_its_plan_and_a_moved_number_fails()
     test_the_garage_plan_maps_and_faults_fail()
     test_the_garage_record_passes_and_each_fault_fails()
     test_a_kit_shell_record_passes_and_each_fault_fails()

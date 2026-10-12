@@ -11,8 +11,9 @@ from its plan and concept, not transcribed from the game. Two free rows a place:
                           unverified seed only the last gate reads
 
 A place has the rows when its plan says where every door leads (`leads`, `written`; a place with no door an empty
-one): the garage, then the Earth's flat, stairwell, street, square and launch view, then the Moon's wreck and old
-station and Mars's camp grounds and camp. No assembly reads the record yet.
+one): the garage, then the Earth's flat, stairwell, street, square and launch view, the Moon's wreck and old
+station, Mars's camp grounds and camp, and the Moon base's airlock, workshop, lab, habitat, greenhouse, hub and
+walkway tube. No assembly reads the record yet.
 """
 import json
 import pathlib
