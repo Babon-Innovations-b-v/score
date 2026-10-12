@@ -17,6 +17,8 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 CHARACTERS = REPO / "tools/characters"
 # tools/characters/cast_check.py's body sizes (cast_test.py checks they agree), metres.
 BODY_RADIUS, KNEE, HEAD = 0.25, 0.3, 1.7
+# A body's top by its clip where it is not a head's height (top_of).
+TOPS = {"sitting": 1.0, "lying": None}
 # Scopes that hold nothing a person stands on or walks into.
 NOT_SOLID = ("Sky", "Lights", "Characters", "Sound", "Environment", "Library")
 WATER = "Water"
@@ -108,20 +110,32 @@ def ground_under(spots, found):
     return [dict(stand or {"gap": None, "on": None}, water=ray in wet) for ray, stand in enumerate(under)]
 
 
-def body():
-    """One person's body: a cylinder from knee to head over feet at the origin."""
-    return trimesh.creation.cylinder(radius=BODY_RADIUS, segment=[[0.0, KNEE, 0.0], [0.0, HEAD, 0.0]], sections=16)
+def body(top):
+    """One person's body: a cylinder from knee to `top` over feet at the origin."""
+    return trimesh.creation.cylinder(radius=BODY_RADIUS, segment=[[0.0, KNEE, 0.0], [0.0, top, 0.0]], sections=16)
 
 
-def run_into(spots, found):
-    """For each spot (x, feet, z): the solids its body runs into, by name."""
+def top_of(doing):
+    """How high a body reaches doing a clip, metres: a head's height, a seated one's on the ground (the clips'
+    sitting has the knees drawn up), or None for one lying, whose body lies along the ground in a way this
+    upright body does not stand for."""
+    return TOPS.get(doing, HEAD)
+
+
+def run_into(spots, found, tops=None):
+    """For each spot (x, feet, z): the solids its body (to its top, HEAD by default) runs into, by name; None for a
+    body whose top is None (not measured)."""
     manager = trimesh.collision.CollisionManager()
     for name, tris in found.items():
         manager.add_object(name, mesh_of(tris))
-    person = body()
+    shapes = {}
     clashes = []
-    for x, feet, z in spots:
+    for (x, feet, z), top in zip(spots, tops or [HEAD] * len(spots)):
+        if top is None:
+            clashes.append(None)
+            continue
         matrix = trimesh.transformations.translation_matrix([x, feet, z])
+        person = shapes.setdefault(top, body(top))
         hit, names = manager.in_collision_single(person, transform=matrix, return_names=True)
         clashes.append(sorted(names) if hit else [])
     return clashes
