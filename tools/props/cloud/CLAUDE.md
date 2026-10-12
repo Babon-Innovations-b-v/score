@@ -43,6 +43,17 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   key and ledger live under `~/.farm-factory-props/cloud/`.
 - **The limits are the owner's:** 4 h and €60 a batch, and the month's ceiling `SCORE_MONTH_EUROS` (€1,500 by default, 2026-10-08), checked before every rent (`ledger.py`, `batch.rent`). A batch that
   would pass one is refused before anything is rented; raising one is the owner's call.
+- **The month's spend is the provider's own bill when that is higher** (2026-10-12: Scaleway billed EUR 1,554 for
+  October, the ledger held EUR 1,387): `score.adapters.compute.month_refusal` and `batch.month_spent` take the higher of
+  the bill (`provider.cloud.consumption`, lagging by hours) and the ledger. The gap was disks (EUR 71) and addresses
+  (EUR 37), each billed by the started hour from a machine's creation whether it ran or not, storage and registry
+  (EUR 16), and card time the ledger missed (about EUR 44). The backend's `delete` now writes each machine's disk and
+  address euros to the ledger (`disk-and-address-<id>`). `python3 tools/costs/costs.py today` prints the bill's day and
+  month to date by product, for the 09:00, 15:00 and 21:00 reports.
+- **The cheapest card that fits** (owner, 2026-10-12; `cheapest.py`): the mesh splitting and the judge leave the 80 GB
+  cards while a smaller card is in stock (measured per job: EUR 0.14 on an L4 against 0.73 on an H100, and EUR 0.33 on
+  an L40S against 0.78), and library bakes never take one. Blender's ban waits on a stage key move: `blender_cloud.py`
+  is hashed into every place's assembly key (`score/graph/_code.py`), so its callers' `gpu-80gb` still reaches it.
 - **The machine is always deleted:** at the end, on an error or a signal, by the watchdog at the
   time limit, and by the next run's sweep. Anything new that rents goes through `rent`, which starts its watchdog.
 - **A processor machine is parked, not deleted, while its paid hour has time left** (`park.py`, job hours,

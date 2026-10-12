@@ -4,6 +4,12 @@
     python3 tools/costs/costs.py reconcile <ledger.jsonl> <bill.json> <read> <out.json>
     python3 tools/costs/costs.py tables <ledger.jsonl> <reconciliation.json> <bill.json> <out.txt>
     python3 tools/costs/costs.py types <ledger.jsonl> <rows> <before>         # cost by machine type, an earlier window
+    python3 tools/costs/costs.py today          # the provider's own bill: today (UTC) and month to date, by product
+
+`today` reads the provider's consumption (Scaleway's month-to-date bill of the project, lagging by hours), keeps it as
+a snapshot (`~/.farm-factory-props/cloud/bills/<read>.json`) and takes today as the month so far less the last
+snapshot read before 00:00 UTC (or, on a box with none, the day's first snapshot, said so). For the 09:00, 15:00 and
+21:00 reports; the ledger's own day is printed beside it.
 
 Every runner writes one ledger row per batch (paper/evidence/cloud/ledger.jsonl is a scrubbed copy); the rows are never
 rewritten. `reconcile` tags the rows written before a runner named its kind and sets the month's bill (one
@@ -13,11 +19,13 @@ against the ledger's. Each command prints one line; the tables go to the file.
 """
 import argparse
 import collections
+import datetime
 import json
 import math
 import pathlib
 import re
 import statistics
+import sys
 
 HOME = str(pathlib.Path.home())
 # Local roots in the ledger's folders and jobs, and what the public copy writes instead.
@@ -60,6 +68,11 @@ RND_WHO = re.compile(r"^(agent-tools|bench|fleet|fw-|k8s-|rw |bl-blocks)|proof|v
 # The provider bills these types by the started hour and the cards by the minute (tools/props/cloud/backends/
 # scaleway.py, price()).
 HOURLY_PREFIXES = ("POP2-", "RENDER-")
+CLOUD_TOOLS = pathlib.Path(__file__).resolve().parents[1] / "props"
+# Which products of the bill `today` names apart, by the start of their sku; the rest are "other".
+PRODUCTS = (("/instance/server/l40s", "L40S"), ("/instance/server/l4", "L4"), ("/instance/server/h100", "H100"),
+            ("/instance/server/pop2", "POP2"), ("/instance/server/", "machines"), ("/storage/block", "disks"),
+            ("/instance/volume", "disks"), ("/network/ipam", "addresses"))
 
 
 def read_rows(path, rows=None):
@@ -367,6 +380,99 @@ def types_before(rows, before):
     return dict(euros)
 
 
+def product_of(sku):
+    """The name `today` gives a bill line's product."""
+    return next((name for start, name in PRODUCTS if sku.startswith(start)), "other")
+
+
+def by_product(lines):
+    """A bill's euros per product name (product_of)."""
+    euros = collections.Counter()
+    for line in lines:
+        euros[product_of(line["sku"] or "")] += line["euros"]
+    return euros
+
+
+def read_bill():
+    """The provider's month-to-date bill of the project, its lines (provider.cloud.consumption)."""
+    for folder in (CLOUD_TOOLS, CLOUD_TOOLS / "cloud"):
+        if str(folder) not in sys.path:
+            sys.path.append(str(folder))
+    import provider
+
+    return provider.cloud.consumption(provider.cloud.account())
+
+
+def bills_folder():
+    """Where `today` keeps its snapshots of the bill."""
+    from paths import HOME as props_home  # on the path read_bill set
+
+    return props_home / "cloud" / "bills"
+
+
+def save_snapshot(folder, lines, now):
+    """Keep one read of the bill, named for its time; its path."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{now.strftime('%Y-%m-%dT%H%MZ')}.json"
+    path.write_text(json.dumps({"read": now.isoformat(), "lines": lines}))
+    return path
+
+
+def day_baseline(folder, now):
+    """The bill as it stood when today began: (the lines of the last read before 00:00 UTC this month, None),
+    ([], None) on the month's first day, else (the day's first read's lines, its HHMM) as the next best, else
+    (None, None)."""
+    if now.day == 1:
+        return [], None
+    day = now.strftime("%Y-%m-%d")
+    reads = sorted(folder.glob(f"{now.strftime('%Y-%m')}-*.json"))
+    before = [path for path in reads if path.stem[:10] < day]
+    if before:
+        return json.loads(before[-1].read_text())["lines"], None
+    first = [path for path in reads if path.stem[:10] == day]
+    if first:
+        return json.loads(first[0].read_text())["lines"], first[0].stem[11:15]
+    return None, None
+
+
+def ledger_day(ledger_path, day):
+    """What the cloud ledger holds for batches started on `day` (YYYY-MM-DD)."""
+    if not pathlib.Path(ledger_path).exists():
+        return 0.0
+    return sum(row.get("euros", 0) for row in read_rows(ledger_path) if row.get("started", "").startswith(day))
+
+
+def products_text(euros):
+    """Products and euros, largest first, as one phrase."""
+    return ", ".join(f"{name} {value:.2f}" for name, value in euros.most_common() if round(value, 2))
+
+
+def today_line(lines, baseline, since, ledger_euros, saved):
+    """The `today` report in one line."""
+    month = by_product(lines)
+    text = f"Scaleway, month to date EUR {sum(month.values()):.2f} ({products_text(month)})"
+    if baseline is None:
+        text += "; today: no earlier read yet, the next `today` gives it"
+    else:
+        day = by_product(lines)
+        day.subtract(by_product(baseline))
+        start = f"since {since[:2]}:{since[2:]} UTC" if since else "since 00:00 UTC"
+        text += f"; today {start} EUR {sum(day.values()):.2f} ({products_text(day)})"
+    return text + f"; the cloud ledger's today EUR {ledger_euros:.2f}; the bill lags by hours; saved {saved}"
+
+
+def today():
+    """Read the bill, keep it, and print today and the month to date."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    lines = read_bill()
+    folder = bills_folder()
+    baseline, since = day_baseline(folder, now)
+    saved = save_snapshot(folder, lines, now)
+    import ledger  # on the path read_bill set
+
+    print(today_line(lines, baseline, since, ledger_day(ledger.LEDGER, now.strftime("%Y-%m-%d")), saved))
+
+
 def main():
     """Run one command; print one line."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -389,7 +495,11 @@ def main():
     types_command.add_argument("ledger")
     types_command.add_argument("rows", type=int)
     types_command.add_argument("before")
+    commands.add_parser("today")
     args = parser.parse_args()
+    if args.command == "today":
+        today()
+        return
     if args.command == "scrub":
         rows = [scrub(row) for row in read_rows(args.ledger, args.rows)]
         pathlib.Path(args.out).write_text("".join(json.dumps(row) + "\n" for row in rows))

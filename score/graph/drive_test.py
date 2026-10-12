@@ -23,6 +23,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from score import checks, contracts, graph  # noqa: E402
 from score.adapters import compute  # noqa: E402
+compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
 from score.store import Store  # noqa: E402
 
 PLACES = ("hangar", "station")

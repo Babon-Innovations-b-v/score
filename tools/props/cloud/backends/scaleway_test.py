@@ -118,6 +118,45 @@ def test_a_missing_key_is_made_scoped_to_the_project_and_kept_only_in_the_secret
     with_fake(answers, check)
 
 
+def test_a_machines_disk_and_address_are_billed_by_the_started_hour():
+    """Fault (2026-10-12): the bill held EUR 71 of disks and EUR 37 of addresses the ledger never counted; Scaleway
+    bills each by the started hour from the machine's creation."""
+    server = {"creation_date": "2026-10-12T10:00:00Z", "public_ips": [{"id": "ip"}]}
+    created = 1791799200.0  # 2026-10-12T10:00:00Z
+    one_hour = 60 * scaleway.DISK_EUROS_A_GB_HOUR + scaleway.ADDRESS_EUROS_AN_HOUR
+    assert abs(scaleway.disk_and_address_euros(server, 60, created + 61 * 60) - 2 * one_hour) < 1e-9
+    assert abs(scaleway.disk_and_address_euros(server, 60, created + 2 * 60) - one_hour) < 1e-9
+
+
+def test_a_deleted_machine_writes_its_disk_and_address_to_the_ledger():
+    import ledger
+
+    server = {"id": "s1", "name": "blender-1", "commercial_type": "L4-1-24G", "creation_date": "2026-10-12T10:00:00Z",
+              "public_ips": [{"id": "ip"}]}
+    written = []
+    kept = scaleway.server_record, scaleway.disk_gb, scaleway.terminate, ledger.record
+    scaleway.server_record, scaleway.disk_gb = (lambda *_: server), (lambda *_: 60.0)
+    scaleway.terminate, ledger.record = (lambda *_: True), written.append
+    try:
+        assert scaleway.delete("s1", "fr-par-2")
+        scaleway.server_record = lambda *_: None  # gone already: nothing deleted, nothing written
+        assert not scaleway.delete("s1", "fr-par-2")
+    finally:
+        scaleway.server_record, scaleway.disk_gb, scaleway.terminate, ledger.record = kept
+    assert len(written) == 1 and written[0]["kind"] == "disk-and-address" and written[0]["euros"] > 0
+
+
+def test_the_bill_keeps_only_the_projects_own_lines():
+    answers = {("billing", "consumption", "list"): [
+        {"project_id": OURS, "product_name": "L4", "sku": "/instance/server/l4_1_24g/fr-par-2", "unit": "minute",
+         "billed_quantity": "10", "value": {"units": 1, "nanos": 500000000}},
+        {"project_id": OTHER, "product_name": "L4", "sku": "x", "value": {"units": 99}}]}
+
+    def check(fake):
+        assert scaleway.month_spend(OURS) == 1.5
+    with_fake(answers, check)
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

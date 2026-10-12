@@ -20,6 +20,8 @@ BOOKS = compute.ledger()
 import google_spend  # noqa: E402  (on the path compute.ledger() set)
 
 google_spend.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"  # each test's Google month: empty
+BILL = {"euros": 0.0}
+compute.cloud_bill = lambda: BILL["euros"]  # no cloud: the provider's bill is set by each test
 
 
 def make_brief(inputs, out, seed, params):
@@ -46,6 +48,18 @@ RENDER = graph.Stage("render", "place", make_nothing, TEXT, after={"brief": ("to
 def month_spent(euros):
     """Set the ledger's month to have cost `euros` so far."""
     BOOKS.entries = lambda: [{"started": BOOKS.this_month(), "euros": euros}]
+
+
+def test_the_month_counts_the_providers_bill_when_it_is_higher():
+    """Fault (2026-10-12): Scaleway billed EUR 1,554 for October while the ledger held EUR 1,387 (disks, addresses and
+    storage were never in it); the month's check read only the ledger."""
+    month_spent(100.0)
+    BILL["euros"] = BOOKS.MONTH_EUROS - 50.0
+    try:
+        assert compute.month_refusal(60.0) is not None
+        assert compute.month_refusal(40.0) is None
+    finally:
+        BILL["euros"] = 0.0
 
 
 def a_runner(text):

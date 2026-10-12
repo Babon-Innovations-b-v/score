@@ -6,8 +6,10 @@ never changed from here, so leaving either out could rent a machine on the wrong
 provider interface is a Scaleway project here.
 """
 import base64
+import datetime
 import functools
 import json
+import math
 import os
 import pathlib
 import subprocess
@@ -16,6 +18,7 @@ import tempfile
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[2]))  # tools/props, for the ledger's paths
 
 from provider import Offer, cards  # noqa: E402
 
@@ -53,6 +56,11 @@ STOCK_ORDER = {"available": 0, "scarce": 1, "shortage": 2}
 TAG = "farm-factory-batch"
 # The zones that rent graphics cards (2026-09-29).
 ZONES = ("pl-waw-2", "fr-par-2", "fr-par-1")
+# What a machine's root disk (block storage, 5k IOPS) and public address cost, in euros a GB-hour and an
+# address-hour, each billed by the started hour from the machine's creation (the October 2026 bill: EUR 31.87 for
+# 245,140 GB-hours, EUR 15.80 for 3,160 address-hours).
+DISK_EUROS_A_GB_HOUR = 0.00013
+ADDRESS_EUROS_AN_HOUR = 0.005
 # How many times, 10 s apart, a delete waits out a machine that is still shutting down.
 STOPPING_TRIES = 12
 
@@ -117,13 +125,67 @@ def offers(classes):
     return found
 
 
+def consumption(project):
+    """Scaleway's own month-to-date bill of the project, a line per product and zone: {"product", "sku", "unit",
+    "quantity", "euros"}. Each line is checked to be the project's. It lags by hours."""
+    lines = []
+    for line in scw("billing", "consumption", "list", f"project-id={project}") or []:
+        if line.get("project_id") != project:
+            continue
+        value = line.get("value") or {}
+        lines.append({"product": line.get("product_name"), "sku": line.get("sku"), "unit": line.get("unit"),
+                      "quantity": float(line.get("billed_quantity") or 0),
+                      "euros": value.get("units", 0) + value.get("nanos", 0) / 1e9})
+    return lines
+
+
 def month_spend(project):
     """What Scaleway has billed the project so far this month, in euros. It lags by hours."""
-    total = 0.0
-    for line in scw("billing", "consumption", "list", f"project-id={project}") or []:
-        value = line.get("value") or {}
-        total += value.get("units", 0) + value.get("nanos", 0) / 1e9
-    return total
+    return sum(line["euros"] for line in consumption(project))
+
+
+def server_record(server_id, zone):
+    """The machine's record as Scaleway holds it, or None when it is gone."""
+    done = subprocess.run(["scw", "instance", "server", "get", server_id, f"zone={zone}", "-o", "json"],
+                          capture_output=True, text=True)
+    if done.returncode == 0:
+        return json.loads(done.stdout)
+    if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
+        return None
+    raise RuntimeError(f"reading {server_id} failed: {done.stderr.strip()}")
+
+
+def disk_gb(server, zone):
+    """The size of all a machine's disks in GB; a block volume's size is read from the block API, since the
+    machine's own record leaves it empty."""
+    total = 0
+    for volume in (server.get("volumes") or {}).values():
+        size = volume.get("size")
+        if size is None and volume.get("volume_type") == "sbs_volume":
+            size = (scw("block", "volume", "get", volume["id"], f"zone={zone}") or {}).get("size")
+        total += size or 0
+    return total / 1e9
+
+
+def disk_and_address_euros(server, gb, now):
+    """What a machine's `gb` of disks and its addresses cost from its creation to `now`: Scaleway bills each by the
+    started hour, whether the machine ran or not (the October 2026 bill against the audit trail's lifetimes)."""
+    created = datetime.datetime.fromisoformat(server["creation_date"].replace("Z", "+00:00")).timestamp()
+    hours = math.ceil(max(now - created, 1.0) / 3600)
+    addresses = len(server.get("public_ips") or []) or (1 if server.get("public_ip") else 0)
+    return hours * (gb * DISK_EUROS_A_GB_HOUR + addresses * ADDRESS_EUROS_AN_HOUR)
+
+
+def record_disk_and_address(server, gb, now):
+    """Write a deleted machine's disks and addresses to the cloud ledger, which counts only its machine time: the
+    bill's second and third largest lines after the cards (block storage EUR 71, addresses EUR 37 in October)."""
+    import ledger
+
+    euros = disk_and_address_euros(server, gb, now)
+    started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+    ledger.record({"started": started, "batch": f"disk-and-address-{server['id']}", "kind": "disk-and-address",
+                   "who": "scaleway.delete", "name": server.get("name"), "type": server.get("commercial_type"),
+                   "machines": [], "attempts": [], "machine_minutes": 0.0, "euros": euros})
 
 
 def allow_key(project, name, public_key):
@@ -232,10 +294,23 @@ def delete_disk(disk_id, zone):
 
 
 def delete(server_id, zone):
-    """Stop and delete one machine with its disk and address; True if it was there to delete.
+    """Stop and delete one machine with its disk and address; True if it was there to delete. What its disk and
+    address cost is written to the ledger (record_disk_and_address).
 
     A machine already shutting down refuses both; wait for it to finish, then delete what is left.
     """
+    server = server_record(server_id, zone)
+    if server is None:
+        return False
+    gb = disk_gb(server, zone)
+    deleted = terminate(server_id, zone)
+    if deleted:
+        record_disk_and_address(server, gb, time.time())
+    return deleted
+
+
+def terminate(server_id, zone):
+    """Stop and delete one machine with its disk and address; True if it was there to delete."""
     for _ in range(STOPPING_TRIES):
         done = subprocess.run(["scw", "instance", "server", "terminate", server_id, f"zone={zone}",
                                "with-ip=true", "with-block=true"], capture_output=True, text=True)
