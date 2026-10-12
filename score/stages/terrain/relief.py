@@ -24,6 +24,8 @@ REGISTER_SHIFTS = (-0.04, -0.02, 0.0, 0.02, 0.04)
 # The plan's outer band left out of the comparison, a share of its side each way: a picture's margin, smoothed, bleeds
 # into its square's edge.
 INNER_EDGE = 0.1
+# The relief never moves a spot further than this many times its amplitude (its clip).
+CLIP = 4.0
 
 
 def detrended(field):
@@ -106,4 +108,4 @@ def relief(shaped, record, depth, sign):
     part = part / (rms + 1e-9) * settings["amplitude"]
     quiet = np.clip(shaped.held + shaped.on_path, 0.0, 1.0)
     part = part * (1.0 - quiet * (1.0 - settings["quiet"])) * where
-    return np.clip(part, -4 * settings["amplitude"], 4 * settings["amplitude"])
+    return np.clip(part, -CLIP * settings["amplitude"], CLIP * settings["amplitude"])
