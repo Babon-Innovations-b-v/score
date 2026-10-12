@@ -28,6 +28,7 @@ sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
 import capacity  # noqa: E402
+import cheapest  # noqa: E402
 import ledger  # noqa: E402
 import park  # noqa: E402
 import provider  # noqa: E402
@@ -61,7 +62,7 @@ def machine_offers(processor, classes):
         import infinigen
 
         return [offer for machine in PROCESSORS for offer in infinigen.offers(machine)]
-    return batch.offers(classes or list(capacity.classes_for("library")))
+    return batch.offers(cheapest.never_big(classes or capacity.classes_for("library")))
 
 
 def price(jobs, account, processor, classes):

@@ -110,12 +110,37 @@ def euros_beyond_the_machines_are_not_split():
     return []
 
 
+def today_is_the_bill_less_the_last_read_before_the_day():
+    """`today` takes the last snapshot read before 00:00 UTC as the day's start, and names L40S apart from L4."""
+    import datetime
+    import json
+    import tempfile
+
+    folder = pathlib.Path(tempfile.mkdtemp())
+    line = lambda sku, euros: {"sku": sku, "euros": euros}  # noqa: E731
+    (folder / "2026-10-11T2100Z.json").write_text(json.dumps({"lines": [line("/instance/server/l4_1_24g/x", 10.0)]}))
+    (folder / "2026-10-12T0600Z.json").write_text(json.dumps({"lines": [line("/instance/server/l4_1_24g/x", 99.0)]}))
+    now = datetime.datetime(2026, 10, 12, 18, 0, tzinfo=datetime.timezone.utc)
+    baseline, since = costs.day_baseline(folder, now)
+    lines = [line("/instance/server/l4_1_24g/x", 25.0), line("/instance/server/l40s_1_48g/x", 2.0),
+             line("/network/ipam/ipv4/x", 1.0)]
+    text = costs.today_line(lines, baseline, since, 7.0, "saved")
+    problems = []
+    if "today since 00:00 UTC EUR 18.00 (L4 15.00, L40S 2.00, addresses 1.00)" not in text:
+        problems.append(text)
+    first, since = costs.day_baseline(folder, datetime.datetime(2026, 10, 11, 23, 0, tzinfo=datetime.timezone.utc))
+    if since != "2100" or first[0]["euros"] != 10.0:
+        problems.append(f"the day's first read: {since} {first}")
+    return problems
+
+
 def main():
     """Run every check; exit 1 on any problem."""
     checks = [local_roots_leave_the_copy, a_row_without_kind_is_tagged_pixal, the_bill_is_the_ledger_and_what_it_misses,
               an_engine_run_is_typed_by_its_price, an_engine_run_group_names_its_card_type,
               processor_machines_are_priced_again_by_the_started_hour,
-              rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split]
+              rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split,
+              today_is_the_bill_less_the_last_read_before_the_day]
     problems = [f"{check.__name__}: {problem}" for check in checks for problem in check()]
     for problem in problems:
         print(problem)

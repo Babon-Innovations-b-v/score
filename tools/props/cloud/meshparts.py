@@ -34,6 +34,7 @@ sys.path.insert(0, str(HERE.parent))
 
 import batch  # noqa: E402
 import capacity  # noqa: E402
+import cheapest  # noqa: E402
 import ledger  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
@@ -77,7 +78,7 @@ def to_split(run, takes=None, methods=tuple(RESULTS)):
 
 def price(shares, account, hold):
     """Print the estimate and refuse what passes the owner's limits; the offers, the machines, the minutes allowed."""
-    found = batch.offers(list(capacity.classes_for(KIND)))
+    found = cheapest.big_last(batch.offers(list(capacity.classes_for(KIND))))
     if not found:
         raise SystemExit("no card that holds SegviGen is sold by the backend")
     each = SHARE_SIZE * MINUTES_A_TAKE

@@ -17,6 +17,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
+compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
 from score.graph import _code  # noqa: E402
 from score.store import Store, tree_hash  # noqa: E402
 

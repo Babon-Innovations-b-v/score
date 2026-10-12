@@ -66,13 +66,24 @@ def ledger():
     return cloud_ledger
 
 
+def cloud_bill():
+    """What the cloud provider has billed this month so far (its own consumption, every product), in euros."""
+    ledger()  # puts tools/props/cloud on the path
+    import provider
+
+    return provider.cloud.month_spend(provider.cloud.account())
+
+
 def month_refusal(euros, reserved=0.0):
     """Why a run estimated at `euros` would pass the month's ceiling, with `reserved` euros cleared for runs not yet
-    in the ledger, or None when the month has room. The month's spend is the cloud ledger's and the Google ledger's
-    (tools/props/cloud/google_spend.py), calls still going or lost included."""
+    in the ledger, or None when the month has room. The month's spend is the cloud's, the higher of its own bill
+    (which lags by hours) and the cloud ledger (which counts a batch once it ends), plus the Google ledger's
+    (tools/props/cloud/google_spend.py), calls still going or lost included. Fault (2026-10-12): the bill held EUR
+    1,554 for October and the ledger EUR 1,387; disks, addresses and storage were never in the ledger."""
     books = ledger()
     import google_spend  # beside ledger.py; its month counts a call started and never finished at its estimate
-    spent = books.month_total(books.this_month(), books.entries()) + google_spend.month_euros(books.this_month())
+    cloud = max(cloud_bill(), books.month_total(books.this_month(), books.entries()))
+    spent = cloud + google_spend.month_euros(books.this_month())
     if spent + reserved + euros > books.MONTH_EUROS:
         return (f"EUR {spent:.2f} spent this month and EUR {reserved:.2f} cleared for runs still going; EUR {euros} "
                 f"more would pass the EUR {books.MONTH_EUROS:.0f} ceiling")
