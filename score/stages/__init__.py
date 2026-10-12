@@ -12,14 +12,14 @@ own line of rows, split to checked bake, beside the world's seed of the finish r
 each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
 own accepted assembly. The prop route (props: close-up, Pixal3D, then the surface line, then the likeness gate) runs
-only for a place with prop data. Each stage joins the table when it is built in its step (docs/bible.md,
-architecture/components).
+only for a place with prop data. Plan and scene-record (experimental) write a place's scene record from its plan and
+concept. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import assembly, complete, effects, images, people, props, surfaces, terrain
+from score.stages import assembly, complete, effects, images, people, props, scene_record, surfaces, terrain
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -58,6 +58,14 @@ TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.C
 EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
                            euros=effects_look.EUROS, applies=lambda place: place in effects_look.LOOKED)
+# Experimental (PRD #6) until the owner reviews it: the place's plan in the store, and its scene record written from
+# it (score/stages/scene_record), for the places whose plan says where each door leads. No assembly reads it yet.
+PLAN = graph.Stage("plan", "place", scene_record.plan.make, scene_record.plan.PLACE_PLAN, scene_record.plan.CHECKS,
+                   files=scene_record.plan.files, applies=scene_record.written)
+SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
+                           scene_record.gates.CHECKS, files=scene_record.writer.files,
+                           after={"plan": ("place-plan", 1), "terrain": ("grounds", 1)},
+                           applies=scene_record.written)
 
 
 
@@ -104,7 +112,7 @@ def prop_fed(row):
 
 STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *people.ROWS)
+          *people.ROWS, PLAN, SCENE_RECORD)
 
 
 def world1():

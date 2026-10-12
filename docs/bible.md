@@ -203,6 +203,17 @@ is meant to fix, where it is marked, and what proves it.
   The assembly takes the bake, each laid object carrying the baked file's hash (`score:model_sha256`) and the
   seed's as the model it repainted (`score:repaint_of`, which the pick lock reads). Proven when a place's line ends accepted at its checks and the owner
   reviews the baked models.
+- **The scene-record stage** (`score/stages/scene_record`, its overlay; `data/plans/<place>.json`,
+  `data/definitions/sky.json`). For the 18 scene records that are the game transcribed (every `from` a game line)
+  and for doors that lead nowhere. `plan@<place>` brings the dimensioned plan into the store (`place-plan` v1),
+  gated on `mapped` (every plan item names inventory rows, every concept element rows, a door or a drop, every door
+  says where it leads and why); `scene-record@<place>` writes the record (`scene-record` v1, today's schema) from the
+  plan, the inventory, the made ground's seats and the sky record, gated on `game-free`, `plan-matched`, `openings`
+  (the record composed over the made ground: every doorway onto a floor, no view into nothing, every door's place
+  standing in it) and `seed-matched` (the old record an unverified seed: each entry matched or left out with a
+  written reason). Only places whose plan has `leads` have the rows; domed rooms only; no assembly reads the record
+  yet. The sky record's numbers are the old records' shared ones, unverified. Proven when the garage's record passes
+  its gates and the owner has seen it built; then each domed room, and a shell writer for each other kind of place.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
   `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
   terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its
