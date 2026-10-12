@@ -2,7 +2,11 @@
 place's own frame (contract `place-plan` v2: v1 had no shell, frame, block, levels or shows), beside what its concept was read into.
 
     shell     what holds the place's walls (the plan's `shell`): `domed` (the record's room_walls, deck and dome; the
-              default) or `kit` (the kit's own pieces are the walls and floors: the Earth's rooms and open places)
+              default), `kit` (the kit's own pieces are the walls and floors: the Earth's rooms and open places) or
+              `outdoor` (a place on a body's open ground with no walls of the record's: the wreck, the old station,
+              the camp grounds, and the camp, whose kit holds its domes; the plan's w and d are its site, and its
+              `lamps`, `decals`, `beams` and `blocks` are a lamp row's light, what is painted on the ground, a column
+              of light up from a row and a plain box standing outside the kit, its footing or ramp)
     walls     the room's inside wide and deep, its corners' radius, its walls' height and its dome's rise (read off the
               plan's words) and run (the inventory's room layout, which the plan does not draw); a kit shell's ceiling
               and floor to floor (its storey) from the plan's words
@@ -24,8 +28,8 @@ one frame, the street's; the square's and the launch's plans are drawn down the 
 
 Gate `mapped`: every plan item names inventory rows that exist (a zone names none, nor an item a released model
 makes: its model must be in the world's release, data/assets/world1.json), every concept element names rows that
-exist, a plan door, a plan object or its drop, every door says where it leads and why, and a sealed door is one the
-inventory's room layout shuts with a leaf. How far a row's laid spot (the inventory's, else the kit's pieces of it)
+exist, a plan door, a plan object, a plan decal or its drop, every door says where it leads and why, a sealed door is
+one the inventory's room layout shuts with a leaf, and every outdoor lamp and beam stands on a row that exists. How far a row's laid spot (the inventory's, else the kit's pieces of it)
 lies from its item's box is measured and shown, never judged here: the layout is the inventory's.
 """
 import json
@@ -40,7 +44,7 @@ from score import checks, contracts
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SIDES = {"N": "north", "S": "south", "E": "east", "W": "west"}
 LEADS = ("outside", "sealed")
-SHELLS = ("domed", "kit")
+SHELLS = ("domed", "kit", "outdoor")
 # A row's laid spot this far outside its item's box is shown as off the plan (metres).
 SPOT_MARGIN = 0.6
 WALLS = re.compile(r"walls (\d+(?:\.\d+)?) m")
@@ -74,7 +78,10 @@ def read(path):
 
 def heights(plan, layout):
     """The walls' height and the dome's rise from the plan's words, its run from the inventory's room layout; a kit
-    shell's ceiling and floor to floor from its words (none named: 0, an open place)."""
+    shell's ceiling and floor to floor from its words (none named: 0, an open place); an outdoor place has none."""
+    if plan.get("shell") == "outdoor":
+        ceiling = CEILING.search(plan["height"])
+        return {"high": float(ceiling.group(1)) if ceiling else 0.0, "rise": 0.0, "run": 0.0}
     if plan.get("shell") == "kit":
         ceiling, storey = CEILING.search(plan["height"]), STOREY.search(plan["height"])
         return {"high": float(ceiling.group(1)) if ceiling else 0.0, "storey": float(storey.group(1)) if storey else 0.0,
@@ -202,6 +209,8 @@ def make(inputs, out, seed, params):
               "doors": doors_of(plan, inventory), "items": items_of(plan), "standing": standing_of(plan),
               "elements": plan.get("elements", []), "shows": plan.get("shows", {}), "objects": plan.get("objects", {}),
               "aims": plan.get("aims", {}),
+              **({key: plan.get(key, []) for key in ("lamps", "decals", "beams", "blocks")}
+                 if shell == "outdoor" else {}),
               "concept": plan.get("concept", {}), "notes": plan.get("notes", []),
               "open": layout.get("open", []), "big_door": layout.get("big_door"), "leaf": layout.get("leaf")}
     (out / "plan.json").write_text(json.dumps(record, indent=1))
@@ -246,13 +255,15 @@ def item_faults(item, ids, made, released):
                     for row in item["rows"] or [] if row not in ids]
 
 
-def element_faults(element, ids, doors, made):
-    """Why a concept element is not mapped: no rows, door, object or drop; a row the inventory lacks; a door the plan
-    lacks; an object (a plan item a released model makes) the plan lacks."""
-    if not any(element.get(key) for key in ("rows", "door", "object", "drop")):
-        return [f"concept element {element['element']!r} names no rows, door, object or drop"]
+def element_faults(element, ids, doors, made, decals=()):
+    """Why a concept element is not mapped: no rows, door, object, decal or drop; a row the inventory lacks; a door
+    the plan lacks; an object (a plan item a released model makes) or a decal the plan lacks."""
+    if not any(element.get(key) for key in ("rows", "door", "object", "decal", "drop")):
+        return [f"concept element {element['element']!r} names no rows, door, object, decal or drop"]
     if element.get("object") and element["object"] not in made:
         return [f"concept element {element['element']!r}: object {element['object']!r} is no plan object"]
+    if element.get("decal") and element["decal"] not in decals:
+        return [f"concept element {element['element']!r}: decal {element['decal']} is not on the plan"]
     found = [f"concept element {element['element']!r}: row {row} is not in the inventory"
              for row in element.get("rows", []) if row not in ids]
     if element.get("door") and element["door"] not in doors:
@@ -277,6 +288,12 @@ def door_faults(door, places, record):
     if door["cut"] and door["tall"] is None:
         found.append(f"{name} has no height: neither its words nor a leaf row give one")
     return found
+
+
+def lit_faults(record, ids):
+    """Why an outdoor plan's lamp or beam is not mapped: the row it stands on is not in the inventory."""
+    return [f"{kind[:-1]} {entry['name']!r}: row {entry['row']} is not in the inventory"
+            for kind in ("lamps", "beams") for entry in record.get(kind, []) if entry["row"] not in ids]
 
 
 def off_plan(record, inventory, kit):
@@ -308,9 +325,11 @@ def judge_mapped(output, inputs, evidence):
               for fault in item_faults(item, ids, record["objects"].get(item["name"]), released)]
     if not record["elements"]:
         faults.append("the plan holds no concept elements")
+    decals = {decal["name"] for decal in record.get("decals", [])}
     faults += [fault for element in record["elements"]
-               for fault in element_faults(element, ids, doors, record["objects"])]
+               for fault in element_faults(element, ids, doors, record["objects"], decals)]
     faults += [fault for door in record["doors"] for fault in door_faults(door, places, record)]
+    faults += lit_faults(record, ids)
     shown = off_plan(record, inventory, read(inputs["kit"]))
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
         (f"every plan item, concept element and door is mapped ({len(record['items'])} items, "

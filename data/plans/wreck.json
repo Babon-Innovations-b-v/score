@@ -1,0 +1,434 @@
+{
+ "title": "WRECK (the player's rocket, crashed and broken in two)",
+ "shell": "outdoor",
+ "w": 28.0,
+ "d": 29.0,
+ "corner": 0.0,
+ "height": "outdoor: no walls; the aft section's raised leg stands 6.3 m up, the work lamp 0.35 m",
+ "doors": [],
+ "leads": {},
+ "items": [
+  [
+   "AFT SECTION on its side (engine bell, tanks, legs; 10.3 m long, 4.0 m across)",
+   8.69,
+   3.37,
+   4.0,
+   10.3,
+   null,
+   "item"
+  ],
+  [
+   "FORWARD SECTION (crew capsule and nose, 25 degrees off line, hatch open to the sky)",
+   12.82,
+   14.95,
+   4.0,
+   5.5,
+   null,
+   "item"
+  ],
+  [
+   "THE BREAK (torn skin, cables across the 1.2 m gap, the work lamp burning)",
+   12.0,
+   13.7,
+   4.0,
+   1.4,
+   null,
+   "item"
+  ],
+  [
+   "LANDING LEG torn off: strut and footpad (2.4 m)",
+   6.3,
+   5.8,
+   2.7,
+   2.8,
+   null,
+   "item"
+  ],
+  [
+   "HULL PANEL (P2)",
+   7.3,
+   17.5,
+   1.4,
+   1.0,
+   null,
+   "item"
+  ],
+  [
+   "HULL PANEL (P3)",
+   18.9,
+   21.6,
+   1.2,
+   0.8,
+   null,
+   "item"
+  ],
+  [
+   "HULL PANEL (P11)",
+   20.0,
+   15.15,
+   1.0,
+   0.7,
+   null,
+   "item"
+  ],
+  [
+   "SMALL HULL PANEL (P7)",
+   17.6,
+   6.2,
+   0.8,
+   0.6,
+   null,
+   "item"
+  ],
+  [
+   "SMALL HULL PANEL (P10)",
+   5.7,
+   13.75,
+   0.6,
+   0.5,
+   null,
+   "item"
+  ],
+  [
+   "PRESSURE SPHERE (P4)",
+   4.55,
+   21.05,
+   0.9,
+   0.9,
+   null,
+   "item"
+  ],
+  [
+   "PRESSURE SPHERE (P5)",
+   21.55,
+   22.55,
+   0.9,
+   0.9,
+   null,
+   "item"
+  ],
+  [
+   "GOLD FOIL BLANKET, torn (P6)",
+   8.3,
+   11.0,
+   1.4,
+   1.0,
+   null,
+   "item"
+  ],
+  [
+   "CAPSULE HATCH COVER (P8)",
+   9.05,
+   24.05,
+   0.9,
+   0.9,
+   null,
+   "item"
+  ],
+  [
+   "RING FRAME SEGMENT (P9)",
+   15.35,
+   24.85,
+   1.3,
+   0.3,
+   null,
+   "item"
+  ],
+  [
+   "CABLE BUNDLE lying loose (P12)",
+   8.9,
+   6.05,
+   1.4,
+   0.3,
+   null,
+   "item"
+  ],
+  [
+   "TANK DOME (P13)",
+   19.3,
+   24.1,
+   1.4,
+   1.4,
+   null,
+   "item"
+  ],
+  [
+   "SMALL FRAGMENT (P14)",
+   18.8,
+   18.85,
+   0.4,
+   0.3,
+   null,
+   "item"
+  ],
+  [
+   "SMALL FRAGMENT (P15)",
+   7.75,
+   24.6,
+   0.5,
+   0.4,
+   null,
+   "item"
+  ],
+  [
+   "SMALL FRAGMENT (P16)",
+   22.8,
+   12.3,
+   0.4,
+   0.4,
+   null,
+   "item"
+  ],
+  [
+   "PROBE LANDER standing where it was thrown (2.1 x 2.1 m)",
+   22.95,
+   15.95,
+   2.1,
+   2.1,
+   null,
+   "item"
+  ],
+  [
+   "ROOM TO STAND round the wake spot: keep clear",
+   18.5,
+   8.5,
+   3.0,
+   3.0,
+   null,
+   "zone"
+  ]
+ ],
+ "rows": {
+  "AFT SECTION on its side (engine bell, tanks, legs; 10.3 m long, 4.0 m across)": [
+   "aft_section"
+  ],
+  "FORWARD SECTION (crew capsule and nose, 25 degrees off line, hatch open to the sky)": [
+   "forward_section"
+  ],
+  "THE BREAK (torn skin, cables across the 1.2 m gap, the work lamp burning)": [
+   "work_lamp",
+   "cable_run"
+  ],
+  "LANDING LEG torn off: strut and footpad (2.4 m)": [
+   "leg_strut",
+   "leg_foot"
+  ],
+  "HULL PANEL (P2)": [
+   "hull_panel"
+  ],
+  "HULL PANEL (P3)": [
+   "hull_panel"
+  ],
+  "HULL PANEL (P11)": [
+   "hull_panel"
+  ],
+  "SMALL HULL PANEL (P7)": [
+   "small_panel"
+  ],
+  "SMALL HULL PANEL (P10)": [
+   "small_panel"
+  ],
+  "PRESSURE SPHERE (P4)": [
+   "pressure_sphere"
+  ],
+  "PRESSURE SPHERE (P5)": [
+   "pressure_sphere"
+  ],
+  "GOLD FOIL BLANKET, torn (P6)": [
+   "foil_blanket"
+  ],
+  "CAPSULE HATCH COVER (P8)": [
+   "access_cover"
+  ],
+  "RING FRAME SEGMENT (P9)": [
+   "ring_frame"
+  ],
+  "CABLE BUNDLE lying loose (P12)": [
+   "cable_run"
+  ],
+  "TANK DOME (P13)": [
+   "tank_dome"
+  ],
+  "SMALL FRAGMENT (P14)": [
+   "fragment"
+  ],
+  "SMALL FRAGMENT (P15)": [
+   "fragment"
+  ],
+  "SMALL FRAGMENT (P16)": [
+   "fragment"
+  ],
+  "PROBE LANDER standing where it was thrown (2.1 x 2.1 m)": [
+   "probe_lander"
+  ],
+  "ROOM TO STAND round the wake spot: keep clear": []
+ },
+ "people": [
+  [
+   20.0,
+   10.0
+  ],
+  [
+   22.0,
+   18.5
+  ],
+  [
+   12.0,
+   26.0
+  ]
+ ],
+ "lamps": [
+  {
+   "name": "break lamp",
+   "row": "work_lamp",
+   "high": 0.8,
+   "colour": "#ffd29a",
+   "energy": 12.0,
+   "range": 9.0,
+   "attenuation": 2.2,
+   "shadows": true,
+   "why": "concept C2: the work lamp still burning in the break; its 9 m reach the old plan's, its colour and energy unverified seed numbers until the light stage's sweep"
+  }
+ ],
+ "decals": [
+  {
+   "name": "scorch",
+   "element": "burn in the ground round the break",
+   "centre": [
+    0.0,
+    -3.0
+   ],
+   "radius": 11.0,
+   "solid": 0.35,
+   "rays": 13,
+   "ray_reach": 0.55,
+   "seed": 23,
+   "token": "regolith-dark",
+   "why": "the old plan's burn (E5): 11 m reach round the break, solid to 3.9 m; its 13 rays and seed unverified seed numbers"
+  }
+ ],
+ "beams": [],
+ "concept": {
+  "pick": "C2",
+  "picture": "{seeds}/scene/wreck/views/C2.png",
+  "read": "concept C2 read element by element (2026-10-12), each mapped to the inventory's rows, a decal or dropped with its reason; the old plan's locked elements (moonground2/wreck/plan.json E1-E17) and pieces P1-P16 give the metres"
+ },
+ "notes": [
+  "Frame: the wreck's seat (x across, z along, +z towards the base 55 m off); the site is the old plan's, x -14 to 14 and z -16 to 13.",
+  "Layout: the coordinator's decision of 2026-10-08 (owner may change), following C2: the rocket broken in two on the ground, the aft section re-laid on its side, the forward section resting in a 2.5 m dent 30 cm deep where it struck, the two pressure spheres in shallow dents (the Moon ground plan's dents).",
+  "The supply rocket, the cargo lift and the landing dust are not in C2 and stand nowhere here (decision 2026-10-12: follow the concept); the owner's rejection of the landing pad and the old ship stands."
+ ],
+ "elements": [
+  {
+   "element": "aft section on its side: steel engine bell, tank barrel, torn round end with ring frames, one leg standing up in the air",
+   "rows": [
+    "aft_section"
+   ]
+  },
+  {
+   "element": "forward section: the crew capsule and nose turned off line, its hatch open to the sky",
+   "rows": [
+    "forward_section"
+   ]
+  },
+  {
+   "element": "cables hanging across the gap between the two sections",
+   "rows": [
+    "cable_run"
+   ]
+  },
+  {
+   "element": "work lamp still burning on the ground in the break, lighting the aft section's torn end",
+   "rows": [
+    "work_lamp"
+   ]
+  },
+  {
+   "element": "burn in the ground round the break, a dark middle fading out in rays",
+   "decal": "scorch"
+  },
+  {
+   "element": "large curved torn hull panels lying round the wreck (3)",
+   "rows": [
+    "hull_panel"
+   ]
+  },
+  {
+   "element": "small torn hull panels (2)",
+   "rows": [
+    "small_panel"
+   ]
+  },
+  {
+   "element": "pressure spheres, whole and dented (2)",
+   "rows": [
+    "pressure_sphere"
+   ]
+  },
+  {
+   "element": "torn gold foil blanket lying flat",
+   "rows": [
+    "foil_blanket"
+   ]
+  },
+  {
+   "element": "round hatch cover lying flat",
+   "rows": [
+    "access_cover"
+   ]
+  },
+  {
+   "element": "landing leg torn off, strut and footpad",
+   "rows": [
+    "leg_strut",
+    "leg_foot"
+   ]
+  },
+  {
+   "element": "bent ring frame segment",
+   "rows": [
+    "ring_frame"
+   ]
+  },
+  {
+   "element": "tank dome",
+   "rows": [
+    "tank_dome"
+   ]
+  },
+  {
+   "element": "small fragments scattered over the burn",
+   "rows": [
+    "fragment"
+   ]
+  },
+  {
+   "element": "probe lander with solar panels standing on its four legs",
+   "rows": [
+    "probe_lander"
+   ]
+  },
+  {
+   "element": "the base small on the horizon",
+   "drop": "not a row of this place: the base's modules are its neighbours, stood from the Moon ground's seats"
+  },
+  {
+   "element": "craters, rough regolith and scattered stones",
+   "drop": "not a row: the terrain stage's made ground and its rocks"
+  }
+ ],
+ "frame": {
+  "anchor": {
+   "plan": [
+    0.0,
+    0.0
+   ],
+   "place": [
+    -14.0,
+    0.0,
+    -16.0
+   ]
+  },
+  "why": "the site's north-west corner in the place's frame (its seat's; the plan unturned)"
+ }
+}

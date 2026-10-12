@@ -1,0 +1,420 @@
+{
+ "title": "CAMP GROUNDS (the first expedition's camp on Mars, outside)",
+ "shell": "outdoor",
+ "w": 47.0,
+ "d": 41.0,
+ "corner": 0.0,
+ "height": "outdoor: no walls; the radio mast stands 12 m, the lander 19 m",
+ "doors": [],
+ "leads": {},
+ "items": [
+  [
+   "LANDER (they came in it): stainless, fins, four legs, cargo door and ramp",
+   3.7,
+   6.7,
+   8.6,
+   10.6,
+   null,
+   "item"
+  ],
+  [
+   "POWER UNIT on the ground between the lander's legs",
+   9.9,
+   13.7,
+   1.4,
+   1.4,
+   null,
+   "item"
+  ],
+  [
+   "CARGO CRANE on outrigger feet beside the ramp",
+   12.2,
+   9.5,
+   2.4,
+   2.0,
+   null,
+   "item"
+  ],
+  [
+   "PALLETS before the ramp with open and closed cases",
+   5.9,
+   18.5,
+   6.0,
+   1.8,
+   null,
+   "item"
+  ],
+  [
+   "ICE DRILL RIG (water ice at four metres)",
+   3.5,
+   23.5,
+   3.0,
+   3.0,
+   null,
+   "item"
+  ],
+  [
+   "CLOSED CASE beside the drill",
+   5.9,
+   26.9,
+   1.6,
+   1.4,
+   null,
+   "item"
+  ],
+  [
+   "TWO CASES beside the door dome",
+   21.0,
+   33.55,
+   2.2,
+   2.4,
+   null,
+   "item"
+  ],
+  [
+   "CLOSED CASE on the ground by the cable",
+   33.8,
+   37.0,
+   1.6,
+   1.4,
+   null,
+   "item"
+  ],
+  [
+   "COILED CABLE right of the door dome",
+   40.2,
+   28.2,
+   1.6,
+   1.6,
+   null,
+   "item"
+  ],
+  [
+   "RADIO MAST 12 m with its guys and the cabinet at its foot",
+   32.8,
+   10.8,
+   6.4,
+   6.4,
+   null,
+   "item"
+  ],
+  [
+   "REACTOR UNIT on its skid",
+   39.6,
+   3.5,
+   3.0,
+   3.0,
+   null,
+   "item"
+  ],
+  [
+   "CABLES from the reactor and the mast to the domes",
+   35.45,
+   5.0,
+   5.5,
+   14.0,
+   null,
+   "item"
+  ],
+  [
+   "CABLES from the drill and the lander towards the domes",
+   4.3,
+   11.5,
+   9.0,
+   12.0,
+   null,
+   "item"
+  ],
+  [
+   "OUT IN THE DUST: the drift and the sample case where Bram lies",
+   12.0,
+   32.7,
+   2.0,
+   2.2,
+   null,
+   "item"
+  ],
+  [
+   "THE HABITAT'S DOMES AND AIRLOCK (the camp, its own place): keep clear",
+   18.0,
+   16.0,
+   16.0,
+   16.0,
+   null,
+   "zone"
+  ],
+  [
+   "BOOT ROCK (the tall boulder by the cairn's spot)",
+   36.0,
+   37.2,
+   2.0,
+   1.6,
+   null,
+   "item"
+  ]
+ ],
+ "rows": {
+  "LANDER (they came in it): stainless, fins, four legs, cargo door and ramp": [
+   "lander"
+  ],
+  "POWER UNIT on the ground between the lander's legs": [
+   "power_unit"
+  ],
+  "CARGO CRANE on outrigger feet beside the ramp": [
+   "crane"
+  ],
+  "PALLETS before the ramp with open and closed cases": [
+   "cargo_pallet",
+   "cargo_case_open",
+   "cargo_case"
+  ],
+  "ICE DRILL RIG (water ice at four metres)": [
+   "ice_drill"
+  ],
+  "CLOSED CASE beside the drill": [
+   "cargo_case"
+  ],
+  "TWO CASES beside the door dome": [
+   "cargo_case"
+  ],
+  "CLOSED CASE on the ground by the cable": [
+   "cargo_case"
+  ],
+  "COILED CABLE right of the door dome": [
+   "coiled_cable"
+  ],
+  "RADIO MAST 12 m with its guys and the cabinet at its foot": [
+   "mast",
+   "mast_cabinet"
+  ],
+  "REACTOR UNIT on its skid": [
+   "reactor"
+  ],
+  "CABLES from the reactor and the mast to the domes": [
+   "ground_cable"
+  ],
+  "CABLES from the drill and the lander towards the domes": [
+   "ground_cable"
+  ],
+  "OUT IN THE DUST: the drift and the sample case where Bram lies": [
+   "drift",
+   "sample_case"
+  ],
+  "THE HABITAT'S DOMES AND AIRLOCK (the camp, its own place): keep clear": []
+ },
+ "people": [
+  [
+   28.0,
+   42.0
+  ],
+  [
+   14.0,
+   20.0
+  ],
+  [
+   38.0,
+   19.0
+  ]
+ ],
+ "lamps": [],
+ "decals": [],
+ "beams": [
+  {
+   "name": "mast_beam",
+   "row": "mast",
+   "low": 12.0,
+   "high": 2500.0,
+   "radius": 0.8,
+   "sides": 8,
+   "least_half_angle": 0.0035,
+   "colour": "#74b9ea",
+   "glow": 0.6,
+   "why": "the camp's beacon: a column of light 1.6 m across from the radio mast's 12 m top up into the sky, where the lost can find the camp; unverified seed numbers until the light stage's sweep"
+  }
+ ],
+ "objects": {
+  "BOOT ROCK (the tall boulder by the cairn's spot)": {
+   "name": "boot_rock",
+   "model": "models/camp_boot_rock/camp_boot_rock.glb",
+   "yaw": 0.0,
+   "why": "K05's tall boulder: the camp's own made boot rock, its along kept along the seat, where the old outside plan stands it (11, 14)"
+  }
+ },
+ "elements": [
+  {
+   "element": "ice drill rig: mast frame, drill head, base frame, power box (A-left, 1)",
+   "rows": [
+    "ice_drill"
+   ]
+  },
+  {
+   "element": "cable reel on the drill's side (A-left, 1)",
+   "rows": [
+    "ice_drill"
+   ]
+  },
+  {
+   "element": "closed white case beside the drill (A-left, 1)",
+   "rows": [
+    "cargo_case"
+   ]
+  },
+  {
+   "element": "cable from the drill across the ground towards the lander (A-left, 3)",
+   "rows": [
+    "ground_cable"
+   ]
+  },
+  {
+   "element": "cargo crane on outrigger feet (A-left, 1)",
+   "rows": [
+    "crane"
+   ]
+  },
+  {
+   "element": "pallets in front of the lander's ramp (A-left, 4)",
+   "rows": [
+    "cargo_pallet"
+   ]
+  },
+  {
+   "element": "open cases of supplies on the pallets (A-left, 3)",
+   "rows": [
+    "cargo_case_open"
+   ]
+  },
+  {
+   "element": "closed case on a pallet (A-left, 1)",
+   "rows": [
+    "cargo_case"
+   ]
+  },
+  {
+   "element": "closed case on the ground by the cable (A-left, 1)",
+   "rows": [
+    "cargo_case"
+   ]
+  },
+  {
+   "element": "tall boulder (A-left, 1)",
+   "object": "BOOT ROCK (the tall boulder by the cairn's spot)"
+  },
+  {
+   "element": "stacked stone tower (A-left, 1)",
+   "drop": "the cairn (Bram's grave) beside the tall boulder: K05 shows the cairn ending; its row is held back in the inventory and has no kit piece yet, so it waits on the prop route and the captain's call on the ending (the cast shows the other one)"
+  },
+  {
+   "element": "scattered small rocks (A-left, 1)",
+   "drop": "the planned ground's scattered rocks (the ground step), not objects of their own"
+  },
+  {
+   "element": "stainless lander, fins, legs, foot pads (B-lander, 1)",
+   "rows": [
+    "lander"
+   ]
+  },
+  {
+   "element": "cargo door and ramp down (B-lander, 1)",
+   "rows": [
+    "lander"
+   ]
+  },
+  {
+   "element": "national flag and mission patch on the hull (B-lander, 1)",
+   "drop": "decals with no clear flat spot on the curved hull"
+  },
+  {
+   "element": "small equipment unit on the ground between the legs (B-lander, 1)",
+   "rows": [
+    "power_unit"
+   ]
+  },
+  {
+   "element": "cables from the lander towards the domes (B-lander, 2)",
+   "rows": [
+    "ground_cable"
+   ]
+  },
+  {
+   "element": "dome shells, straps, windows, foot rings, way-through tube, airlock tube and ramp (C-domes, 1)",
+   "drop": "the camp place's own kit (the habitat's domes, tubes and airlock), a stage of its own"
+  },
+  {
+   "element": "tie-down lines from the dome straps to ground anchors (C-domes, 1)",
+   "drop": "the camp place's own kit (the habitat's domes, tubes and airlock), a stage of its own"
+  },
+  {
+   "element": "two cases beside the door dome (C-domes, 2)",
+   "rows": [
+    "cargo_case"
+   ]
+  },
+  {
+   "element": "coiled cable on the ground right of the door dome (C-domes, 1)",
+   "rows": [
+    "coiled_cable"
+   ]
+  },
+  {
+   "element": "cables from the domes to the reactor and the mast (C-domes, 7)",
+   "rows": [
+    "ground_cable"
+   ]
+  },
+  {
+   "element": "guyed lattice mast, aerial, base plate (D-right, 1)",
+   "rows": [
+    "mast"
+   ]
+  },
+  {
+   "element": "guy wires to ground anchors (D-right, 1)",
+   "rows": [
+    "mast"
+   ]
+  },
+  {
+   "element": "equipment cabinet at the mast's foot (D-right, 1)",
+   "rows": [
+    "mast_cabinet"
+   ]
+  },
+  {
+   "element": "reactor housing on its skid, heat pipes, pipework (D-right, 1)",
+   "rows": [
+    "reactor"
+   ]
+  },
+  {
+   "element": "boulder in front (D-right, 1)",
+   "drop": "the planned ground's scattered rocks (the ground step), not objects of their own"
+  },
+  {
+   "element": "ring of stones (D-right, 1)",
+   "drop": "the camp's stone heap is the cairn (not on this ending); a second ring has no story"
+  }
+ ],
+ "concept": {
+  "pick": "K05",
+  "picture": "{seeds}/scene/campgrounds/views/K05.png",
+  "read": "concept K05 read element by element (the inventory's concept_elements, 2026-10-07), each mapped to its row or dropped with its reason; the old plan (mars-build/outside) and the grounds' laid layout give the metres"
+ },
+ "notes": [
+  "Frame: the camp seat's own (x across, z along, y up), as the kit's; the habitat stands in the middle, its own place, turned and lifted by its seat.",
+  "The ending: K05 shows the cairn beside the tall boulder (Bram under the cairn); the grounds today lay the other ending's drift and sample case (Bram out in the dust). The cairn row is held back and the boot rock has no row: both wait on the captain's call and the prop route."
+ ],
+ "frame": {
+  "anchor": {
+   "plan": [
+    0.0,
+    0.0
+   ],
+   "place": [
+    -26.0,
+    0.0,
+    -24.0
+   ]
+  },
+  "why": "the site's north-west corner in the place's frame (its seat's; the plan unturned)"
+ }
+}

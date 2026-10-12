@@ -10,7 +10,8 @@
                   the street to the floor), no other structure, and the kit's doorways the plan's doors: each cut door
                   a kit doorway at its middle (along its wall; out of it, within the piece's thickness), wide and tall,
                   no doorway at a shut door, no open doorway off the plan (one a kit piece fills, a shopfront, is
-                  none)
+                  none). An outdoor place: the floor box the plan's site, no room shell, a light for each plan lamp,
+                  each plan decal painted and each plan beam stood; its openings' viewers stand on the made ground
     openings      every doorway leads somewhere: the record's shell with its places (each door's leaves left out, as
                   opened; a kit shell's own kit floors with it) composed over the made ground in the place's frame
                   (terrain outside.py), every cut doorway
@@ -47,6 +48,32 @@ SEED_REASONS = {
     "ground": "the made ground (the terrain stage) is the ground round the place: the assembly sublayers it, so the "
               "record draws no ground of its own",
     "moved": "the record moves no kit piece: the plan's door stands where the plan and the kit put it",
+    "planned_ground": "the ground past the place and the ball under it are the terrain stage's place layer, which "
+                      "the assembly sublayers; the record holds no ground",
+    "planned_rocks": "the ground's rocks are the terrain stage's, laid by its plan's rule with the ground",
+    **{f"{place}:objects/{name}": "the solar rows and the inverter round the base are no element of this place's "
+                                  "concept (the base shows far off or not at all) and no row of this place; they come "
+                                  "back with the base's outside rows"
+       for place in ("wreck", "old_station") for name in ("SolarRow1", "SolarRow2", "SolarRow3", "Inverter")},
+    "wreck:coordinator_removed/coordinator_removed": "settled by the concept (decision of 2026-10-12): C2 shows no "
+                                                     "supply rocket, cargo lift or landing dust, so the place stands "
+                                                     "none; no kit piece lays their inventory rows",
+    "old_station:coordinator_removed/coordinator_removed": "settled by the concept (decision of 2026-10-12): C4 shows "
+                                                           "no supply rocket or cargo lift, so the place stands none; "
+                                                           "no kit piece lays their inventory rows",
+    **{f"{place}:views/{name}": "the old record's views were the game's shot cameras; the record's are the plan's "
+                                "standing spots (an outside one of the camp's is the camp grounds')"
+       for place, names in (("wreck", ("wreck-wake", "wreck-side", "wreck-home")),
+                            ("old_station", ("station-approach", "station-ladder", "station-south", "station-above")),
+                            ("campgrounds", ("from_the_ramp", "above")),
+                            ("camp", ("door_from_doorway", "door_galley", "far_bunks", "passage", "outside_front",
+                                      "outside_far")))
+       for name in names},
+    "camp:objects/BootRock": "the boot rock stands outside, in the camp grounds' record (a plan object of K05's tall "
+                             "boulder), seen from here through the grounds",
+    "camp:lights/omni": "the dome lamps are lit where the kit hangs its ring lamps under each dome's crown (2.3 m over "
+                        "the old lamps, as K01 and K08 hang them high); the mast's beacon is the camp grounds' (its "
+                        "beam), not this place's",
     "launch:objects/rocket": "the rocket stands on its pad's middle as the kit lays the pad's tiles (the plan's ROCKET "
                              "item), 3.6 m from where the old record stood it off that middle",
     "launch:lights/spot": "the rocket's one floodlight is now the pad's four (inventory row far_pad_floodlight), each "
@@ -224,13 +251,32 @@ def kit_door_faults(plan, kit):
     return found
 
 
+def site_faults(record, plan):
+    """An outdoor record against its plan: no room shell, a light for each plan lamp, each plan decal and beam
+    stood."""
+    found = [f"a {item['builder']} stands in an outdoor place's record" for item in record.get("structure", [])
+             if item["builder"] in ("room_walls", "room_deck", "dome_roof")]
+    lit = " ".join(light.get("from", "") for light in record.get("lights", []))
+    found += [f"plan lamp {lamp['name']} has no light" for lamp in plan["lamps"]
+              if f"plan lamp {lamp['name']} " not in lit]
+    decals = {decal["name"] for decal in record.get("ground_decals", [])}
+    found += [f"plan decal {decal['name']} is not painted" for decal in plan["decals"] if decal["name"] not in decals]
+    beams = {beam["name"] for beam in record.get("environment", {}).get("beams", [])}
+    found += [f"plan beam {beam['name']} is not stood" for beam in plan["beams"] if beam["name"] not in beams]
+    stood = {item["name"] for item in record.get("structure", [])}
+    found += [f"plan block {block['name']} is not stood" for block in plan["blocks"] if block["name"] not in stood]
+    return found
+
+
 def judge_plan_matched(output, inputs, evidence):
-    """Fail on a shell number or a door off the plan."""
+    """Fail on a shell number or a door off the plan (an outdoor place: its site, lamps, decals and beams)."""
     place, record = writer.record_in(output)
     plan = plan_of(inputs)
     if plan["shell"] == "kit":
         kit = json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text())
         found = tuple(floor_faults(record, plan) + block_faults(record, plan) + kit_door_faults(plan, kit))
+    elif plan["shell"] == "outdoor":
+        found = tuple(floor_faults(record, plan) + site_faults(record, plan))
     else:
         found = tuple(shell_faults(record, plan["walls"]) + door_faults(record, plan))
     reason = "; ".join(found[:3]) if found else \
@@ -330,6 +376,17 @@ def lead_faults(output, inputs, plan):
     return found
 
 
+def ground_probes(rays, record, laid, up):
+    """An outdoor place's viewers: a grid over its site at eye height over the made ground (the ball curves away
+    under a level grid), each kept only over a floor within PROBE_FLOOR."""
+    low, high = np.asarray(record["floor"], dtype=float)
+    spots = np.array([laid.standing(across, along, ground_gates.PROBE_HEIGHT)[0]
+                      for across in np.linspace(low[0] + 0.4, high[0] - 0.4, ground_gates.PROBE_GRID)
+                      for along in np.linspace(low[1] + 0.4, high[1] - 0.4, ground_gates.PROBE_GRID)], dtype=float)
+    floor = ground_gates.drops(rays, spots, -np.asarray(up, dtype=float))
+    return spots[floor <= ground_gates.PROBE_FLOOR]
+
+
 def measure_openings(output, inputs):
     """The composed record's doorways' floors and its void rays from inside, with the doors' leads."""
     place, record = writer.record_in(output)
@@ -344,7 +401,10 @@ def measure_openings(output, inputs):
         if door["cut"] and plan["shell"] == "kit"]
     doors = ground_gates.door_floors(rays, ways, up)
     ball = ground_gates.ball_of(laid) if laid is not None else None
-    viewed = sight.voids(seen, ground_gates.probes(rays, record, None, up), up, ball=ball)
+    spots = ground_gates.probes(rays, record, None, up)
+    if plan["shell"] == "outdoor" and laid is not None:
+        spots = np.concatenate([spots, ground_probes(rays, record, laid, up)])
+    viewed = sight.voids(seen, spots, up, ball=ball)
     return {"doors": doors, "void_rays": viewed["void"], "rays": viewed["rays"], "probes": len(viewed["probes"]),
             "worst_probe": viewed["worst"], "ground": laid is not None,
             "leads": lead_faults(output, inputs, plan)}
@@ -375,8 +435,8 @@ def judge_openings(output, inputs, evidence):
 # --- seed-matched -----------------------------------------------------------------------------------------------
 
 def spot(item):
-    """Where an entry stands: a view's eye, a light's or place's `at`, else None."""
-    for key in ("eye", "at", "centre"):
+    """Where an entry stands: a view's eye, a light's or place's `at`, a placed shape's `placed_at`, else None."""
+    for key in ("eye", "at", "placed_at", "centre"):
         if isinstance(item.get(key), list) and len(item[key]) == 3:
             return np.asarray(item[key], dtype=float)
     return None

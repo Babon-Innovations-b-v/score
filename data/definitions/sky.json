@@ -8,6 +8,176 @@
    "haze": {"colour": "#ece8e0", "density": 0.025, "forward": 0.3, "reach": 24.0, "lamp_share": 0.5},
    "fill": {"colour": "#a8bcd8", "energy": 0.08, "attenuation": 0.4, "height_share": 0.8},
    "from": "seed: the indoor environment, haze and room fill every Moon room's old scene record held alike (airlock, garage, greenhouse, habitat, lab, workshop, hangar, hub), not yet measured against a concept"
+  },
+  "outdoor": {
+   "about": "Ways (`toward`, `way`, a body's turned `axes` as rows) are in the body's own frame (the ball's middle, as the terrain stage's grounds are laid), so one sky stands over every place on the body; the writer turns it into each place's frame through its seat.",
+   "suns": [
+    {
+     "name": "sun",
+     "toward": [
+      -0.87681,
+      0.14956,
+      0.45699
+     ],
+     "colour": "#fff5e6",
+     "energy": 1.25,
+     "shadows": true,
+     "from": "seed: the Sun's way the wreck's and the old station's old records set by eye to their shots' shadows (8.1 degrees apart), their middle, in the Moon's own frame; energy in full sun"
+    },
+    {
+     "name": "earthshine",
+     "toward": [
+      0.34657,
+      -0.12184,
+      0.93008
+     ],
+     "colour": "#9fb8e6",
+     "energy": 0.1,
+     "shadows": false,
+     "from": "seed: the earthshine both old outdoor Moon records held, from the Earth's way"
+    }
+   ],
+   "bodies": [
+    {
+     "name": "earth",
+     "way": [
+      -0.34657,
+      0.12184,
+      -0.93008
+     ],
+     "distance": 1100.0,
+     "radius": 220.0,
+     "surface": "earth_face",
+     "axes": [
+      [
+       0.909612,
+       -0.407843,
+       0.079184
+      ],
+      [
+       0.411359,
+       0.910836,
+       -0.034085
+      ],
+      [
+       -0.058222,
+       0.063577,
+       0.996277
+      ]
+     ],
+     "from": "seed: the Earth both old outdoor Moon records hung 1100 m out (radius 220 m, about 23 degrees across; their ways 0.03 degrees apart), turned as photographs of the Earth from the Moon show it: its equator square to the way from the place, north up"
+    }
+   ],
+   "environment": {
+    "background": "#030409",
+    "ambient": {
+     "colour": "#9fb8e6",
+     "energy": 0.22
+    },
+    "exposure": 1.05,
+    "from": "seed: the old outdoor records' numbers, not yet measured against a concept",
+    "stars": {
+     "count": 1800,
+     "seed": 9,
+     "sky_distance": 700.0,
+     "distance": 1900.0,
+     "radius": 0.7,
+     "size": [
+      0.4,
+      1.3
+     ],
+     "colour": "#eef2ff",
+     "turn": {
+      "minute": 700.75,
+      "axes": "seat",
+      "from": "seed: the base minute the wreck's old record measured its stars at (one moment for the whole Moon)"
+     },
+     "from": "seed: the star field the old outdoor Moon records hung at 1900 m"
+    }
+   }
+  }
+ },
+ "mars": {
+  "outdoor": {
+   "about": "Ways (`toward`, `way`, a body's turned `axes` as rows) are in the body's own frame (the ball's middle, as the terrain stage's grounds are laid), so one sky stands over every place on the body; the writer turns it into each place's frame through its seat.",
+   "suns": [
+    {
+     "name": "sun",
+     "toward": [
+      -0.97649,
+      0.0,
+      0.21559
+     ],
+     "colour": "#fff5e6",
+     "energy": 1.25,
+     "shadows": true,
+     "from": "seed: the Sun's way the camp's and the camp grounds' old records held (the afternoon Sun about 50 degrees up over the camp and going down), in Mars's own frame"
+    }
+   ],
+   "bodies": [],
+   "environment": {
+    "background": "#030409",
+    "ambient": {
+     "colour": "#9fb8e6",
+     "energy": 0.22
+    },
+    "exposure": 1.05,
+    "from": "seed: the old outdoor records' numbers, not yet measured against a concept",
+    "haze": {
+     "shape": "ellipsoid",
+     "centre": "ball",
+     "size": [
+      580.0,
+      580.0,
+      580.0
+     ],
+     "colour": "#d9a066",
+     "density": 0.012,
+     "forward": 0.5,
+     "reach": 160.0,
+     "from": "seed: Mars's air the old Mars records held, a body of fog round the ball 70 m deep"
+    },
+    "stars": {
+     "count": 1800,
+     "seed": 9,
+     "sky_distance": 700.0,
+     "distance": 1900.0,
+     "radius": 0.7,
+     "size": [
+      0.4,
+      1.3
+     ],
+     "colour": "#eef2ff",
+     "from": "seed: the star field the old Mars records hung at 1900 m, turned with the place's own axes"
+    },
+    "dust": {
+     "count": 30000,
+     "side": 70.0,
+     "high": 0.4,
+     "across": 0.03,
+     "thickness": 0.53,
+     "colour": "#e16e48",
+     "seed": 116,
+     "from": "seed: one still moment of the calm day's drift over the 70 m square round the place's middle, as the old Mars records held it"
+    },
+    "sky_dome": {
+     "depth": 0.6,
+     "albedo": [
+      0.975,
+      0.93,
+      0.86
+     ],
+     "forward": 0.67,
+     "diffuse": 0.25,
+     "gain": [
+      11.76,
+      7.56,
+      5.04
+     ],
+     "width": 1024,
+     "from": "the framework's (2026-10-11): tools/usd/mars_sky.py's single scattering of a dust layer seen from its floor, lit by the record's sun; albedo in red after Wolff et al. 2009 at 650 nm, forward throw 0.67 after Chen-Chen et al. 2019 (MSL Navcam), depth 0.6 and diffuse the framework's; the gain measured by the light stage's sweep of the rendered sky against concept K05"
+    }
+   }
   }
  },
  "earth": {
