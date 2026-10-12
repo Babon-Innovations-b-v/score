@@ -1,6 +1,6 @@
 \section{Models and licences}\label{models-and-licences}
 
-Every model in the framework must allow commercial use of its output (Table E1). Candidate models were dropped under this rule; among them were NVIDIA's Lyra 2.0, whose weights are licensed for internal research only, and Hunyuan3D 2.1, whose licence does not apply in the European Union. We read each licence for its clauses on commercial use. Four of the models read pictures through Meta's DINO family of models, each through its own copy. What passes from one model to the next is always pictures, masks, depth maps or meshes, never one model's internal features. The characters' licence check found that GarmentCode's fork of NVIDIA Warp, which drapes its patterns, allows non-commercial research only, so Newton's cloth solver on upstream Warp, both Apache-2.0, replaced it; Blender's cloth simulation \citep{blender} is kept as a second route. The one open doubt among the characters' models is the face LoRA, whose training data is not disclosed.
+Every model in the framework must allow commercial use of its output (Table E1); we read each licence for its clauses on commercial use. Candidates were dropped under this rule, among them NVIDIA's Lyra 2.0 (weights for internal research only), Hunyuan3D 2.1 (licence does not apply in the European Union) and GarmentCode's fork of NVIDIA Warp (non-commercial research only), which Newton's cloth solver on upstream Warp replaced; Blender's cloth simulation \citep{blender} is kept as a second route. The one open doubt is the face LoRA, whose training data is not disclosed.
 
 \textbf{Table E1.} Models in the framework.
 
@@ -31,7 +31,7 @@ GeoSAM2 \citep{deng2025geosam2} & parts of our own model, seeded by the close-up
 Depth Anything V2 Small \citep{yang2024dav2} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
-World Labs Marble \citep{marble_terms} & optional world step & paid; outputs owned by paid users \\
+World Labs \citep{marble_terms} & optional world step & paid; outputs owned by paid users \\
 FLUX.2 klein 4B \citep{flux2klein} & earlier prop pictures; the characters' A-pose pictures from words and their hair's clay pictures & Apache-2.0 \\
 MoGe-2 \citep{wang2025moge2}, SAM 3 \citep{carion2025sam3} & measuring and finding objects in pictures & MIT; SAM Licence \\
 Kimodo \citep{rempe2026kimodo} & the characters' motion from sentences & Apache-2.0 code; NVIDIA Open Model License for the Kimodo-SOMA-RP-v1.1 weights, commercial use allowed \\
@@ -42,34 +42,16 @@ GarmentCode \citep{korosteleva2023garmentcode}, Newton \citep{newton} on Warp \c
 Hi3DGen \citep{ye2025hi3dgen} & the characters' hair & MIT code; MIT and Apache-2.0 weights \\
 FLUX.2 klein base 4B \citep{flux2kleinbase} with the refcontrol reference-depth LoRA \citep{refcontrol} & the characters' faces & Apache-2.0, both; the LoRA's training data is not disclosed \\
 UniRig \citep{zhang2025unirig} & the skeleton and skin of a quadruped & MIT code and weights \\
-Robust Skin Weights Transfer \citep{abdrashitov2023rswt} & the SOMA-X skeleton's skin weights moved onto a Pixal3D person (the prop route of the character maker, a trial that fails its checks and has made no person of world 1) & MIT reference code, ported with trimesh and SciPy; libigl, whose bindings carry GPL-3.0, not used \\
+Robust Skin Weights Transfer \citep{abdrashitov2023rswt} & the SOMA-X skeleton's skin weights moved onto a Pixal3D person (a trial) & MIT reference code, ported with trimesh and SciPy; libigl, whose bindings carry GPL-3.0, not used \\
 MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
 }
 
-On our tier, Nano Banana Pro allows 250 pictures a day and 20 a minute; the cheaper Nano Banana (gemini-2.5-flash-image) allows 2,000 a day and 500 a minute. We tested whether the cheaper model could draw the close-ups instead, on the same 10 lab objects with the same prompts and inputs (Table E2). It refused the standard prompt for 6 of the 10 objects and drew those only from the crop alone, and its pictures were about one megapixel with the object small in the frame. Close-ups therefore stay on Nano Banana Pro.
+On our tier, Nano Banana Pro allows 250 pictures a day and 20 a minute; the cheaper Nano Banana (gemini-2.5-flash-image) allows 2,000 a day and 500 a minute. Given the same 10 lab objects, prompts and inputs, the cheaper model refused the standard prompt for 6 and drew those only from the crop alone; of its pictures, 2 were good, 3 usable, 1 marginal and 3 the wrong shape, 1 object was refused, and the objects came out small in frames of about one megapixel. Close-ups therefore stay on Nano Banana Pro.
 
-\textbf{Table E2.} Ten lab close-ups drawn by Nano Banana instead of Nano Banana Pro.
+The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none scored wrong or failed, and failed nine that were good or usable. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it changed its verdict on 7. On the lab, 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. Table E2 gives the stage's runs on world 1.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}ll@{}}
-\toprule\noalign{}
-Result & Objects \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-good & 2 \\
-usable & 3 \\
-marginal & 1 \\
-wrong shape (microscope, chair, sample tray) & 3 \\
-refused (glovebox) & 1 \\
-\end{longtable}
-}
-
-The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand as good, usable, marginal, wrong or failed, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none of the pictures scored wrong or failed, and failed nine that were good or usable, each of which then cost a picture from the closed model. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it gave a different verdict on 7 of them. On the lab's 22 generated rows, an earlier version of the check accepted 8 of the open model's close-ups and sent 14 to the closed model; 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. On the 17 rows that world 1 still needed afterwards, from three places, none of the open model's pictures passed; the closed model's pictures were accepted for 10 rows, and 7 rows were left for the creator to look at.
-
-\textbf{Table E3.} The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
+\textbf{Table E2.} The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}

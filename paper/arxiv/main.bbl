@@ -254,13 +254,6 @@ Hongchi Xia, Xuan Li, Zhaoshuo Li, Qianli Ma, Jiashu Xu, Ming-Yu Liu, Yin Cui,
 \newblock {SAGE}: Scalable agentic {3D} scene generation for embodied {AI}.
 \newblock \emph{arXiv preprint arXiv:2602.10116}, 2026.
 
-\bibitem[{Black Forest Labs}(2026{\natexlab{a}})]{flux2klein}
-{Black Forest Labs}.
-\newblock {FLUX.2 [klein] 4B} model card.
-\newblock Hugging Face, 2026{\natexlab{a}}.
-\newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
-\newblock Apache-2.0. Vendor material.
-
 \bibitem[Qammaz(2026)]{sam3dbodycpp}
 Ammar Qammaz.
 \newblock {SAM3DBody-cpp}: a standalone {C++} inference engine for {SAM 3D
@@ -281,45 +274,6 @@ Maria Korosteleva and Olga Sorkine-Hornung.
 \newblock {Newton}: a {GPU}-accelerated physics simulation engine, 2026.
 \newblock URL \url{https://github.com/newton-physics/newton}.
 \newblock Version 1.6.1 used here (SolverVBD). Apache-2.0.
-
-\bibitem[Macklin(2022)]{warp}
-Miles Macklin.
-\newblock {Warp}: A high-performance {Python} framework for {GPU} simulation
-  and graphics, 2022.
-\newblock URL \url{https://github.com/NVIDIA/warp}.
-\newblock Version 1.18.0 used here. Apache-2.0 since 1.6.2.
-
-\bibitem[Ye et~al.(2025)Ye, Wu, Lu, Chang, Guo, Zhou, Zhao, and
-  Han]{ye2025hi3dgen}
-Chongjie Ye, Yushuang Wu, Ziteng Lu, Jiahao Chang, Xiaoyang Guo, Jiaqing Zhou,
-  Hao Zhao, and Xiaoguang Han.
-\newblock {Hi3DGen}: High-fidelity {3D} geometry generation from images via
-  normal bridging.
-\newblock In \emph{Proceedings of the IEEE/CVF International Conference on
-  Computer Vision (ICCV)}, 2025.
-\newblock arXiv:2503.22236.
-
-\bibitem[{Black Forest Labs}(2026{\natexlab{b}})]{flux2kleinbase}
-{Black Forest Labs}.
-\newblock {FLUX.2 [klein] Base 4B} model card.
-\newblock Hugging Face, 2026{\natexlab{b}}.
-\newblock URL
-  \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B}.
-\newblock Apache-2.0. Vendor material.
-
-\bibitem[{thedeoxen}(2026)]{refcontrol}
-{thedeoxen}.
-\newblock {refcontrol}: reference-depth {LoRA} for {FLUX.2 [klein] 4B}.
-\newblock Hugging Face, 2026.
-\newblock URL
-  \url{https://huggingface.co/thedeoxen/refcontrol-FLUX.2-klein-4B-reference-depth-lora}.
-\newblock Apache-2.0; training data not disclosed.
-
-\bibitem[Zhang et~al.(2025)Zhang, Pu, Guo, Cao, and Hu]{zhang2025unirig}
-Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, and Shi-Min Hu.
-\newblock One model to rig them all: Diverse skeleton rigging with {UniRig}.
-\newblock \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.
-\newblock arXiv:2504.12451.
 
 \bibitem[Deng et~al.(2025)Deng, Yang, Sun, Liu, Liu, Liang, and
   Cao]{deng2025geosam2}
@@ -360,6 +314,13 @@ Lin Li, Haoran Feng, Zehuan Huang, Haohua Chen, Wenbo Nie, Shaohua Hou, Keqing
 \newblock URL \url{https://docs.worldlabs.ai/terms-of-service}.
 \newblock Last updated 21 January 2026; accessed 2026-10-08. Vendor material.
 
+\bibitem[{Black Forest Labs}(2026{\natexlab{a}})]{flux2klein}
+{Black Forest Labs}.
+\newblock {FLUX.2 [klein] 4B} model card.
+\newblock Hugging Face, 2026{\natexlab{a}}.
+\newblock URL \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-4B}.
+\newblock Apache-2.0. Vendor material.
+
 \bibitem[BehnamGhader et~al.(2024)BehnamGhader, Adlakha, Mosbach, Bahdanau,
   Chapados, and Reddy]{behnamghader2024llm2vec}
 Parishad BehnamGhader, Vaibhav Adlakha, Marius Mosbach, Dzmitry Bahdanau,
@@ -373,6 +334,45 @@ Parishad BehnamGhader, Vaibhav Adlakha, Marius Mosbach, Dzmitry Bahdanau,
 Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, et~al.
 \newblock The {Llama 3} herd of models.
 \newblock \emph{arXiv preprint arXiv:2407.21783}, 2024.
+
+\bibitem[Macklin(2022)]{warp}
+Miles Macklin.
+\newblock {Warp}: A high-performance {Python} framework for {GPU} simulation
+  and graphics, 2022.
+\newblock URL \url{https://github.com/NVIDIA/warp}.
+\newblock Version 1.18.0 used here. Apache-2.0 since 1.6.2.
+
+\bibitem[Ye et~al.(2025)Ye, Wu, Lu, Chang, Guo, Zhou, Zhao, and
+  Han]{ye2025hi3dgen}
+Chongjie Ye, Yushuang Wu, Ziteng Lu, Jiahao Chang, Xiaoyang Guo, Jiaqing Zhou,
+  Hao Zhao, and Xiaoguang Han.
+\newblock {Hi3DGen}: High-fidelity {3D} geometry generation from images via
+  normal bridging.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on
+  Computer Vision (ICCV)}, 2025.
+\newblock arXiv:2503.22236.
+
+\bibitem[{Black Forest Labs}(2026{\natexlab{b}})]{flux2kleinbase}
+{Black Forest Labs}.
+\newblock {FLUX.2 [klein] Base 4B} model card.
+\newblock Hugging Face, 2026{\natexlab{b}}.
+\newblock URL
+  \url{https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B}.
+\newblock Apache-2.0. Vendor material.
+
+\bibitem[{thedeoxen}(2026)]{refcontrol}
+{thedeoxen}.
+\newblock {refcontrol}: reference-depth {LoRA} for {FLUX.2 [klein] 4B}.
+\newblock Hugging Face, 2026.
+\newblock URL
+  \url{https://huggingface.co/thedeoxen/refcontrol-FLUX.2-klein-4B-reference-depth-lora}.
+\newblock Apache-2.0; training data not disclosed.
+
+\bibitem[Zhang et~al.(2025)Zhang, Pu, Guo, Cao, and Hu]{zhang2025unirig}
+Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, and Shi-Min Hu.
+\newblock One model to rig them all: Diverse skeleton rigging with {UniRig}.
+\newblock \emph{ACM Transactions on Graphics (SIGGRAPH)}, 2025.
+\newblock arXiv:2504.12451.
 
 \bibitem[Abdrashitov et~al.(2023)Abdrashitov, Raichstat, Monsen, and
   Hill]{abdrashitov2023rswt}

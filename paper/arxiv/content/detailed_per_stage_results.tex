@@ -1,6 +1,6 @@
 \section{Detailed per-stage results}\label{detailed-per-stage-results}
 
-Table B1 gives the records of world 1's 17 places as the build logs and the cloud ledger hold them. They are records, not yet results: the creator has accepted only the hub, the old station and the wreck have changed since he reviewed them, no other place has been reviewed, and worlds 2 to 4 have not been started. The cloud costs are lower bounds. The ledger attributes a batch to a place by the work folders and take names in it; review renders (€24.24), the shape-check judge (€22.81), the game's shared test machines (€32.63), settling (€4.43), the open picture models (€10.27) and the repainting and spreading work (€8.44) could not be attributed to one place. No time or cost is recorded for each stage of a place separately, only for each batch, so the table gives none. The resting check is the one on each place's review page of 8 October, before the night's complete stages were exported; it counts every piece it fails, including many deck plates that it finds sunk by 4 cm, which have not been judged as real faults or not.
+Table B1 gives the records of world 1's 17 places as the build logs and the cloud ledger hold them. They are records, not yet results: the creator has accepted only the hub, the old station and the wreck have changed since he reviewed them, and no other place has been reviewed. The cloud costs are lower bounds, because batches such as review renders and the shape-check judge could not be attributed to one place, and no cost is recorded per stage of a place, only per batch. The resting check is the one on each place's review page of 8 October; it counts every piece it fails, including many deck plates that it finds sunk by 4 cm, not yet judged as real faults or not.
 
 \textbf{Table B1.} World 1, per place. Models are those built in code and those generated. Cloud is the ledger's rented machine time attributed to the place, in euros; pictures are the picture model's calls in dollars, from the build logs. Faults are those the checks caught before money was spent and those found after.
 
@@ -57,9 +57,27 @@ World 1 & 611 & 12,066 & 981 / 127 & €54.71 & & & 10,082 of 12,066 \\
 \end{longtable}
 }
 
+\subsection{World 1's checks, as last measured}\label{world-1s-checks-as-last-measured}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Settling.} On the wreck's stage of 8 October, 11 of 22 pieces rested as first laid; once the coordinating agent laid the wreck out again after its concept and cut shallow dents where pieces had struck the ground, all 22 rested. On the old station's stage, the check found a pile of sandbags lying inside the lander's legs, and once the pile was moved, all 29 pieces rested. Both places have changed since the creator reviewed them, and on 10 October both failed the completion gate.
+\item
+  \textbf{Completion gate.} On 10 October, with the gate of that day, which still counted the reach check and used the first placeholder check, 3 of the 18 places passed, 14 failed and one was unknown; the gate as Section 2 describes it has not yet been measured over the whole world. The first placeholder check judged only plain primitives, so the hangar's ship, which a code builder assembled from a hull and legs, passed it until the creator saw it as a placeholder in a demo of the world.
+\item
+  \textbf{Resting triage.} Over world 1's 17 places, the plain check flagged 4,078 of 12,032 objects; the triage kept 104 objects with real faults in 85 groups and marked the other 3,974 as false alarms, most of them kit pieces that stand where the kit lays them. The drop test did not finish on the square in three hours. These counts measure detection, not repair, and were taken with the drop test of 8 and 9 October, whose two faults were corrected on 10 October; they have not been measured again.
+\item
+  \textbf{Render-and-compare.} In the lab, the four least similar objects were a mouse drawn black, a ceiling lamp without its lens, a scanner without its screen and a wall monitor with a blank screen.
+\item
+  \textbf{Painting.} 41 of world 1's 129 stored takes still carry an early colour pick per PartCrafter part and one more was painted per part by the judge without regions; later takes are split along SAM 2.1 regions of the close-up before the judge names each surface, and that method still fails four of six named models, because one part can hold two finishes and the judge reads shadow as dark paint.
+\item
+  \textbf{Characters.} Rebuilt from her own picture, Nev, a crew member of the Moon base, took 11.2 minutes of an H100, and a new person made from one sentence took 21 minutes.
+\end{itemize}
+
 \subsection{Style readings}\label{style-readings}
 
-Table B2 gives the style readings for every place of world 1 with more than two generated models, as a record of the measure: they are not checked against the creator's reviews, so they are not a result (Section 4). The lightness spread is the standard deviation of the models' median lightness (L*); over all 140 models it is 15.0. Marks is the median over the models of the 75th percentile of the L* spread within tiles of 8 by 8 pixels on the model. Likeness is the mean DINOv2 class-token cosine of pairs within the place and across places, for the renders and for their silhouettes, and the gap is the renders' difference less the silhouettes'. The airlock, the launch view and the stairwell have one generated model each and the tube none; the habitat, the square and the street have two, too few to read.
+Table B2 gives the style readings for every place of world 1 with more than two generated models, as a record, not a result (Section 4). The lightness spread is the standard deviation of the models' median lightness (L*); over all 140 models it is 15.0. Marks is the median over the models of the 75th percentile of the L* spread within tiles of 8 by 8 pixels. Likeness is the mean DINOv2 class-token cosine of pairs within the place and across places, for the renders and for their silhouettes, and the gap is the renders' difference less the silhouettes', with any two renders of one model left out.
 
 \textbf{Table B2.} Style readings of world 1's generated models, per place.
 
@@ -104,5 +122,3 @@ Workshop & 8 & 3.8 & 7.28 & 0.402 / 0.158 & 0.400 / 0.178 & 0.022 \\
 Wreck & 16 & 12.8 & 3.98 & 0.241 / 0.161 & 0.257 / 0.175 & −0.002 \\
 \end{longtable}
 }
-
-For the comparison with the pictures' own colours, each generated model of the garage, the hangar and the lab was rendered a second time as the take it came from, with the colours the picture model gave it. Painted from the library, the median marks fell from 2.99 to 2.80 in the garage, from 3.53 to 2.99 in the hangar and from 2.79 to 1.96 in the lab. The lightness spread rose, from 7.9, 6.4 and 8.7 to 12.6, 9.5 and 14.4, because the library gives a place dark and light panels on purpose while the generator's colours stay in the middle tones. The DINOv2 gap read 0.007 painted against 0.000 with the picture's colours, a difference for which no interval was computed. The take is the generator's own mesh, at its own pose and density, while the made model is rebuilt from its parts, so the difference in marks mixes the paint with the geometry. The workshop's models are the hub's tools, reused under the rule against duplicates; any two renders of one model, in two places or within one, are left out of the likeness, which would otherwise count one model as two that agree.
