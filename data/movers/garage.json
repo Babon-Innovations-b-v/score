@@ -4,6 +4,7 @@
  "seconds": 68.0,
  "movers": [],
  "still": {
+  "rover_1": "Kept in the lift's bay to be customised (data/machines/garage.json, the machines stage lays it). The room cycles for the rover going out, but the garage's stage holds no ground past its door to drive onto: its drive out waits on a stage that shows the ground outside.",
   "chain_hoist_1": "One mesh, its hook and chain fixed to its body: it cannot lift without lifting itself. It hangs on the rover lift's top beam ready for work on the rover, which the garage does not show.",
   "hatch_leaf_1": "The room is an airlock pumped down for all but about 1 s of its 17 s round (data/motion/garage.json); its pressure hatches to the tubes stay shut while it cycles.",
   "hatch_leaf_2": "The room is an airlock pumped down for all but about 1 s of its 17 s round (data/motion/garage.json); its pressure hatches to the tubes stay shut while it cycles.",
