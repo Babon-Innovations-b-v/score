@@ -1,5 +1,5 @@
 {
- "why": "Which looks are made in full (built, settled and checked over every clip) and which are far only (built and gated on joins, likeness, triangles and shell): the captain's call of 2026-10-13, the people's share EUR 50. In full: the player, Nev in both suits, Bram's and Sefa's work suits, and the street's driver and guard, whom the casts measured standing close (0.30 and 0.56 of the frame); Oona, the leader and the crowd kits far only for world 1.",
+ "why": "Which looks are made in full (built, settled and checked over every clip) and which are far only (built and gated on joins, likeness, triangles and shell): the captain's call of 2026-10-13, the people's share EUR 50. In full: the player, Nev in both suits, Bram's and Sefa's work suits, and the street's driver and guard, whom the casts measured standing close (0.30 and 0.56 of the frame), and the kit looks the square's front row wears (uniform-olive: the front row fills 10 to 15 % of the balcony-down view); Oona, the leader, Bram's space suit and the crowd's coats and jackets far only for world 1.",
  "full": [
   "player-work",
   "nev-space",
@@ -7,6 +7,10 @@
   "bram-work",
   "sefa-work",
   "driver-driver-suit",
-  "guard-guard-uniform"
+  "guard-guard-uniform",
+  "kit_m_avg-uniform-olive",
+  "kit_m_broad-uniform-olive",
+  "kit_w_broad-uniform-olive",
+  "kit_w_slim-uniform-olive"
  ]
 }
