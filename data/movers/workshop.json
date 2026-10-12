@@ -1,6 +1,6 @@
 {
  "place": "workshop",
- "about": "The workshop: the robot on its turntable as the game runs it (data/motion/workshop.json) and the three hatches each in turn.",
+ "about": "The workshop: its three hatches each in turn. The game's robot turntable (data/motion/workshop.json) has no robot to turn: the concept took it out.",
  "seconds": 60.0,
  "movers": [
   {
@@ -238,5 +238,8 @@
    "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_5, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
   }
  ],
- "still": {}
+ "still": {},
+ "removed": {
+  "robot_turntable": "The robot P1 on the bench (Fixtures/robot_p1) is not in the workshop's scene record: concept K10 shows no robot, so the place follows the concept (the captain's call, 2026-10-12)."
+ }
 }
