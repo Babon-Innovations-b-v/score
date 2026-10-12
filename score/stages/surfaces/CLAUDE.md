@@ -25,6 +25,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   between `FILL_LEAST` and `NEAR_LEAST`; a model with no settled close-up map is named in `surfaces-maps`' fail and
   stops its place's line (once the owner waives it, later rows leave it out). A part whose voted faces mix two
   finishes fails `surfaces-parts` the same way.
+- **Each finish's surface is checked against the close-up's colour** (`finish_parts.checked_finishes`,
+  `COLOUR_DELTA_E` 32 CIE76, set on round 4's six models): the colour only chooses among library surfaces (the
+  nearest of the listed one's family); a finish none fits gets a tinted proposal in the registry and fails the paint
+  row's gate "colour against the close-up" by name.
 - **Painting is 3D parts plus the shared library, only.** A picture's colours never reach a model: a map's label
   colours only name finishes, each part is painted from its finish's library surface.
 - **The finish registry is a store item** (`registry.py`; `registry/surfaces/` in the store): append-only, the new
