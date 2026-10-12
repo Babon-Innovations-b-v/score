@@ -210,7 +210,25 @@ def light_sound_neighbours_and_game_both_ways():
         return problems_of(cases)
 
 
-TESTS = (people_both_ways, effects_and_motion_both_ways, crops_both_ways, likeness_and_paint_both_ways,
+def a_part_is_judged_on_its_host():
+    """A door's leaves (gdoor, hdoor) have no cast, lamps, room tones or shown places of their own: listed as a part,
+    those pass as judged on the host's stage; unlisted, they stay unknown."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        data = world_data(folder, needs={"part_of": "host", "effects": [], "motion": []})
+        for kind in ("characters", "scene"):
+            (data / kind / f"{PLACE}.json").unlink()
+        (data / "sound/places.json").write_text(json.dumps({"places": {}}))
+        path = bare_stage(folder)
+        cases = [(f"{name} of a part", judged(name, path), contents.PASS)
+                 for name in ("people", "light", "sound", "neighbours", "effects", "motion")]
+        (data / "checks/contents.json").write_text(json.dumps({"places": {PLACE: {"effects": [], "motion": []}}}))
+        cases += [(f"{name} of a place with no records", judged(name, path), contents.UNKNOWN)
+                  for name in ("people", "light", "sound", "neighbours")]
+        return problems_of(cases)
+
+
+TESTS = (people_both_ways, a_part_is_judged_on_its_host, effects_and_motion_both_ways, crops_both_ways, likeness_and_paint_both_ways,
          light_sound_neighbours_and_game_both_ways)
 
 if __name__ == "__main__":
