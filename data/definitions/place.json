@@ -644,6 +644,14 @@
 			"bakelite": {
 				"token": "surface-raised",
 				"library": "bakelite"
+			},
+			"clear_glass": {
+				"token": "clear-glass",
+				"library": "clear_glass"
+			},
+			"screen_glow_green": {
+				"token": "ok",
+				"library": "screen_glow_green"
 			}
 		},
 		"light": {
@@ -943,6 +951,42 @@
 			"layered_rock": {
 				"token": "mars-dust",
 				"library": "mars_layered_rock"
+			},
+			"bakelite": {
+				"token": "surface-raised",
+				"library": "bakelite"
+			},
+			"clear_glass": {
+				"token": "clear-glass",
+				"library": "clear_glass"
+			},
+			"composite_grey": {
+				"token": "cabin-seam",
+				"library": "composite_grey"
+			},
+			"glass_frosted": {
+				"token": "cabin-light",
+				"library": "glass_frosted"
+			},
+			"rubber_grey": {
+				"token": "idle",
+				"library": "rubber_grey"
+			},
+			"regolith_bag": {
+				"token": "regolith",
+				"library": "regolith_bag"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"led_green": {
+				"token": "beacon-ok",
+				"library": "led_green"
+			},
+			"mars_dust_fine": {
+				"token": "earth-desert",
+				"library": "mars_dust_fine"
 			}
 		},
 		"light": {
@@ -1076,6 +1120,18 @@
 			"vinyl_seat": {
 				"token": "cabin-seat",
 				"library": "vinyl_seat"
+			},
+			"rubber_grey": {
+				"token": "idle",
+				"library": "rubber_grey"
+			},
+			"screen_glow_blue": {
+				"token": "earth-ocean",
+				"library": "screen_glow_blue"
+			},
+			"suit_fabric_orange": {
+				"token": "earth-sunset",
+				"library": "suit_fabric_orange"
 			}
 		},
 		"light": {
@@ -2190,6 +2246,10 @@
 			"meter_grey": {
 				"token": "hull-trim",
 				"library": "meter_grey"
+			},
+			"red_plastic_light": {
+				"token": "danger",
+				"library": "red_plastic_light"
 			}
 		},
 		"wear": {
@@ -2497,6 +2557,10 @@
 			"sign_lit": {
 				"token": "sign-lit",
 				"library": "sign_lit"
+			},
+			"warning_paint": {
+				"token": "alarm",
+				"library": "warning_paint"
 			}
 		},
 		"wear": {
