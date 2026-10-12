@@ -20,6 +20,7 @@ import time
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[2]))  # tools/props, for the ledger's paths
 
+from paths import HOME  # noqa: E402
 from provider import Offer, cards  # noqa: E402
 
 NAME = "scaleway"
@@ -51,7 +52,10 @@ QUOTAS = {"gpu-80gb": 20, "gpu-24gb": 50, "gpu-48gb": 10}
 # processor machines (POP2) by the hour (2026-10-05).
 PER_UNIT_MINUTES = {"minute": 1, "hour": 60}
 # Scaleway's words for a type's stock, best first.
-STOCK_ORDER = {"available": 0, "scarce": 1, "shortage": 2}
+STOCK_ORDER = {"available": 0, "parked": 1, "scarce": 1, "shortage": 2}
+# Where park.py keeps its records of parked machines (batch.CLOUD / "parked"); read here, not imported (park imports
+# batch, which imports this backend through provider).
+PARKED = HOME / "cloud" / "parked"
 # Every machine the runner rents carries this tag, so a sweep can find what a crashed run left.
 TAG = "farm-factory-batch"
 # The zones that rent graphics cards (2026-09-29).
@@ -109,9 +113,25 @@ def price(machine_type, zone):
     raise SystemExit(f"no price for {machine_type} in {zone}")
 
 
+def parked_places(now):
+    """(type, zone) of every machine a run parked with time left (tools/props/cloud/park.py's records)."""
+    found = set()
+    for path in PARKED.glob("*.json"):
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError):  # struck off, or being written, while read: not one to count on
+            continue
+        if record.get("until", 0) > now:
+            found.add((record["type"], record["zone"]))
+    return found
+
+
 def offers(classes):
-    """Every place a machine of one of `classes` can be rented: an Offer for each type and zone that sells it."""
+    """Every place a machine of one of `classes` can be rented: an Offer for each type and zone that sells it. Where
+    Scaleway says shortage but one of our runs parked a machine of that type, the offer says `parked`: the claim takes
+    that machine first (2026-10-12: every POP2-32C-128G was ours, parked, and blender_cloud refused for no stock)."""
     found = []
+    parked = parked_places(time.time())
     for zone in ZONES:
         listed = {server["name"]: server.get("availability") for server in scw("instance", "server-type", "list",
                                                                                  f"zone={zone}")}
@@ -120,8 +140,10 @@ def offers(classes):
                 if machine_type not in listed:
                     continue
                 euros = price(machine_type, zone)[0]
-                found.append(Offer(euros / max(1, cards(machine_class)), STOCK_ORDER.get(listed[machine_type], 3),
-                                   machine_type, zone, euros, machine_class, order, listed[machine_type]))
+                stock = listed[machine_type]
+                stock = "parked" if stock == "shortage" and (machine_type, zone) in parked else stock
+                found.append(Offer(euros / max(1, cards(machine_class)), STOCK_ORDER.get(stock, 3),
+                                   machine_type, zone, euros, machine_class, order, stock))
     return found
 
 

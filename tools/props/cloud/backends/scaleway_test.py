@@ -157,6 +157,26 @@ def test_the_bill_keeps_only_the_projects_own_lines():
     with_fake(answers, check)
 
 
+def test_a_type_short_in_a_zone_where_we_parked_one_is_offered_as_parked():
+    """Fault (2026-10-12, people-turntable and others): every POP2-32C-128G was short because our runs held them
+    parked, and blender_cloud refused the call for no stock instead of taking one."""
+    import tempfile
+    import time
+    kept = scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "a.json").write_text(json.dumps({"type": "POP2-32C-128G", "zone": "fr-par-2", "until": time.time() + 600}))
+    (folder / "b.json").write_text(json.dumps({"type": "POP2-32C-128G", "zone": "pl-waw-2", "until": time.time() - 60}))
+    (folder / "c.json").write_text("{\"type\": ")  # one being written as it is read
+    scaleway.scw = lambda *arguments: [{"name": "POP2-32C-128G", "availability": "shortage"}]
+    scaleway.price, scaleway.PARKED = (lambda machine_type, zone: (0.02, 60)), folder
+    scaleway.ZONES = ("fr-par-2", "pl-waw-2")
+    try:
+        found = {offer.zone: offer.stock_word for offer in scaleway.offers(["cpu-32c-128gb"])}
+    finally:
+        scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES = kept
+    assert found == {"fr-par-2": "parked", "pl-waw-2": "shortage"}, found
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
