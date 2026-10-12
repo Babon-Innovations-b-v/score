@@ -1,6 +1,6 @@
 """SCORE's one command: the runner drives a world's lines to their end, with no agent in the loop.
 
-    .venv/bin/python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]  # every line, or named
+    .venv/bin/python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
     .venv/bin/python -m score status [<world>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
 
@@ -14,6 +14,10 @@ stopped. --detach returns at once with the log's path: the run goes on in a sess
 (tools/props/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
 (`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line. Wait for that line with
 the Monitor tool, never a poll loop.
+
+Before it starts, `run` lists every paid row it would buy with its estimate (score/graph/rebuy.py; a Google ask its
+cache answers at EUR 0) and refuses, before detaching, when buying again rows that already have an accepted output
+would cost over EUR 5, unless given --rebuy-reason, which goes into the run's log and the cloud ledger.
 """
 import argparse
 import pathlib
@@ -24,6 +28,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
+from score.graph import rebuy  # noqa: E402
 from score.store import Store  # noqa: E402
 
 DETACH = "--detach"
@@ -36,6 +41,7 @@ def parse(argv):
     run.add_argument("world", choices=sorted(stages.WORLDS))
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
     run.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once (default %(default)s)")
+    run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     status = commands.add_parser("status")
     status.add_argument("world", nargs="?", default="world1", choices=sorted(stages.WORLDS))
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
@@ -70,16 +76,33 @@ def publish(kind):
     print(f"{kind}: {record['image']} into {stages.images.IMAGES_JSON}")
 
 
+def checked_buys(runner, places, whole, options):
+    """Print the paid rows the run would buy; exit when its re-buys pass the limit with no reason. The run itself (not
+    the call that detaches it) writes a given reason to the cloud ledger."""
+    bought = rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))
+    print(rebuy.listing(bought), flush=True)
+    refused = rebuy.refusal(bought, options.rebuy_reason)
+    if refused:
+        sys.exit(refused)
+    if options.rebuy_reason and any(buy.again for buy in bought):
+        print(f"re-buy reason: {options.rebuy_reason}", flush=True)
+        if not options.detach:
+            from score.adapters import compute
+            compute.ledger().record(rebuy.ledger_entry(bought, options.rebuy_reason))
+
+
 def main(argv=None):
     options = parse(argv)
     if options.command == "images":
         publish(options.kind)
         return
+    runner = stages.runner(world=stages.WORLDS[options.world]())
+    places, whole = options.place or stages.places(runner.world), not options.place
+    if options.command == "run":
+        checked_buys(runner, places, whole, options)
     if getattr(options, "detach", False):
         detach(sys.argv)
         return
-    runner = stages.runner(world=stages.WORLDS[options.world]())
-    places, whole = options.place or stages.places(runner.world), not options.place
     if options.command == "run":
         runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
                      only=options.stage)

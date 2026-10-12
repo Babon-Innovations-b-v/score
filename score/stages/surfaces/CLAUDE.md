@@ -27,7 +27,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`turntable_row.without_text`: the same pixels are the same file). On 2026-10-12 the making folder in `job.json` and card renders that
   differed run to run made one library change re-render every place and re-draw every view map (about EUR 50).
   Before pushing a change that moves a paid row's key, list what it re-buys (`_code.source_files` and the
-  row's files).
+  row's files); `score run` lists it again before it starts and refuses over EUR 5 without `--rebuy-reason`.
 - **A map that does not settle blocks its model, never passes**: measured (`finish_maps.check`: overlap, share near
   a label colour, every finish used), filled from labelled neighbours only when its sole fault is a labelled share
   between `FILL_LEAST` and `NEAR_LEAST`; a one-finish model is not drawn (its map is the close-up's object mask:

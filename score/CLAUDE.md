@@ -41,7 +41,9 @@ stage as each stage is built; nothing moves before.
   since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too; never the framework's own runner, review, clearance
   and stage table, `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes), parameters, seed,
-  pinned models and every input.
+  pinned models and every input. Before `run` starts, `rebuy.py` lists every paid row it would buy with its
+  estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
+  accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
   `accept_automatically` (the runner's); and the owner's `reject` (the accepted output moves back to the one accepted
   before, later nodes that read it go stale, the runner never takes it again), `accept` (his own, a worse one with his

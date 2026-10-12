@@ -159,6 +159,12 @@ def node_name(stage, place):
     return stage.name if stage.grain == "world" else f"{stage.name}@{place}"
 
 
+def code_functions(stage):
+    """The functions whose source files and imports are a stage's code version: its make's, checks' and file map's."""
+    return [stage.make, stage.contract.faults, *(check.judge for check in stage.checks),
+            *([stage.files] if callable(stage.files) else []), *([stage.neighbours] if stage.neighbours else [])]
+
+
 @contextlib.contextmanager
 def logged(path):
     """This process's and its children's output (file descriptors 1 and 2) into the log file while the block runs."""
@@ -244,10 +250,7 @@ class Runner:
     def code(self, stage):
         """The stage's computed code version: its make's and its checks' source files and their imports (once a run)."""
         if stage.name not in self.code_versions:
-            functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks),
-                         *([stage.files] if callable(stage.files) else []),
-                         *([stage.neighbours] if stage.neighbours else [])]
-            self.code_versions[stage.name] = listing_hash(_code.code_version(functions, file_hash))
+            self.code_versions[stage.name] = listing_hash(_code.code_version(code_functions(stage), file_hash))
         return self.code_versions[stage.name]
 
     def files_of(self, stage, place):
@@ -302,17 +305,21 @@ class Runner:
         """The node's key and everything it hashes; raises Blocked when an input is missing or not usable."""
         return self.remember("key", node_name(stage, place), lambda: self.worked_out_key(stage, place))
 
+    def own_parts(self, stage, place):
+        """The node's key parts that are not earlier nodes' outputs (its after and beside)."""
+        return {"stage": stage.name, "grain": stage.grain, "place": place if stage.grain == "place" else None,
+                "code": self.code(stage), "contract": stage.contract.stamp_of(),
+                "expects": {before: list(wanted) for before, wanted in self.reads(stage, place).items()},
+                "params": stage.params,
+                "seed": node_seed(self.world.seed, stage.name, place if stage.grain == "place" else None),
+                "files": self.file_keys(stage, place),
+                "models": {kind: self.model_record(kind) for kind in stage.models}}
+
     def worked_out_key(self, stage, place):
         """The node's key worked out from its inputs (`key`)."""
-        parts = {"stage": stage.name, "grain": stage.grain, "place": place if stage.grain == "place" else None,
-                 "code": self.code(stage), "contract": stage.contract.stamp_of(),
-                 "expects": {before: list(wanted) for before, wanted in self.reads(stage, place).items()},
-                 "params": stage.params,
-                 "seed": node_seed(self.world.seed, stage.name, place if stage.grain == "place" else None),
-                 "files": self.file_keys(stage, place),
+        parts = {**self.own_parts(stage, place),
                  "after": {before: self.usable(before, place, wanted)
-                           for before, wanted in self.reads(stage, place).items()},
-                 "models": {kind: self.model_record(kind) for kind in stage.models}}
+                           for before, wanted in self.reads(stage, place).items()}}
         beside = self.besides(stage, place)
         if beside:  # only a stage that reads beside has this part, so no other node's key moves
             parts["beside"] = {node: self.usable(before, other, wanted)
