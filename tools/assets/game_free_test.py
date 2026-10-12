@@ -5,7 +5,8 @@
 What fails:
 
 - anywhere in the code, the data and the overlays: a Godot path (`res://`), the game's checkout on this machine
-  (`projects/2099`, `2099/game`), or the old `--world <the game's checkout>` option;
+  (`projects/2099`, `2099/game`), or the old `--world <the game's checkout>` option (a `--world` that takes a path;
+  `--world world1`, a SCORE world's name, is fine);
 - in Python and shell code (comments and docstrings aside, which may cite where a number came from): a string that is a
   path into the game's tree (`game/...`, `sim/...`);
 - in the data: a value that is such a path, unless it sits under a key that only notes where something came from
@@ -26,7 +27,7 @@ sys.path.insert(0, str(HERE))
 import world  # noqa: E402
 
 # Anywhere, in any text file of the code and the data.
-FORBIDDEN = re.compile(r"res://|projects/2099|2099/game|--world\b")
+FORBIDDEN = re.compile(r"res://|projects/2099|2099/game|--world(?:[\s=]+[\"']?[~/.<$]|[\"'],\s*type=pathlib\.Path)")
 # A path into the game's tree: its top folders, then at least one more part.
 GAME_PATH = re.compile(r"^(game|sim)/[\w.-]+/")
 # Keys whose values only say where something came from or what a record is.
@@ -161,7 +162,16 @@ def check_a_repository_file_resolves_without_the_release():
     assert world.resolve("data/ground/moon.json") == REPO / "data/ground/moon.json"
 
 
+def check_only_the_old_world_option_is_forbidden():
+    for line in ("export.py <record> --world ~/projects/game", "`--world <the game's checkout>`",
+                 'parser.add_argument("--world", type=pathlib.Path, help="the game\'s checkout")', "--world=/srv/game"):
+        assert FORBIDDEN.search(line), line
+    for line in ("store_page.py <place> [--world world1]", 'parser.add_argument("--world", default="world1")'):
+        assert not FORBIDDEN.search(line), line
+
+
 def main():
+    check_only_the_old_world_option_is_forbidden()
     check_nothing_names_the_game()
     check_every_named_file_is_in_the_release()
     check_every_file_in_the_release_has_its_terms()
