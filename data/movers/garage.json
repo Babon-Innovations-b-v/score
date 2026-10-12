@@ -1,11 +1,48 @@
 {
  "place": "garage",
- "about": "The garage moves by the game's own cycle (data/motion/garage.json): its round of 17 s written four times, so the layer loops whole.",
+ "about": "The garage moves by the game's own cycle (data/motion/garage.json): its round of 17 s written four times, so the layer loops whole; in its first round the rover drives out through the big door onto the yard.",
  "seconds": 68.0,
  "ground": "the made ground (the terrain stage's garage layer) stands in the stage, so the yard past the big door is real ground for the rover to drive out onto (demo F7)",
- "movers": [],
+ "movers": [
+  {
+   "name": "rover_drive_out",
+   "prim": "/garage/Objects/rover_1",
+   "kind": "rover",
+   "on": "ground",
+   "start": 1.0,
+   "length": 6.5,
+   "loop": false,
+   "path": {
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      8
+     ],
+     [
+      1.5,
+      12
+     ],
+     [
+      4,
+      15
+     ]
+    ],
+    "closed": false,
+    "relative": true,
+    "forward": [
+     0,
+     0,
+     1
+    ]
+   },
+   "from": "The rover drives out of the airlock room, SCORE's own (the game drives it only when the player does): from where the machines stage lays it in the lift's bay straight south through the big door and onto the yard, bearing a little east, 16.2 m in 6.5 s (2.5 m/s, data/checks/motion.json rover: the Lunar Roving Vehicle's 2.5 to 3.6). It sets off as the door starts opening (1 s into the room's 17 s round, data/motion/garage.json); its front reaches the door plane after the door stands open (2.04 s) and its back clears it at 4.3 s, before the leaves start shutting (5 s); then it stands on the yard. Its forward is taken as the model's own +z; its wheels on what is under them the whole way."
+  }
+ ],
  "still": {
-  "rover_1": "Kept in the lift's bay to be customised (data/machines/garage.json, the machines stage lays it) until its drive out is written: the stage now holds the made ground past the big door, and the drive must pass the door in its 3 s open window of the 17 s cycle (data/motion/garage.json).",
   "chain_hoist_1": "One mesh, its hook and chain fixed to its body: it cannot lift without lifting itself. It hangs on the rover lift's top beam ready for work on the rover, which the garage does not show.",
   "hatch_leaf_1": "The room is an airlock pumped down for all but about 1 s of its 17 s round (data/motion/garage.json); its pressure hatches to the tubes stay shut while it cycles.",
   "hatch_leaf_2": "The room is an airlock pumped down for all but about 1 s of its 17 s round (data/motion/garage.json); its pressure hatches to the tubes stay shut while it cycles.",

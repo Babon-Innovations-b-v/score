@@ -69,6 +69,9 @@ HEIGHT_MOST = 0.05
 # How near a mover on a rail keeps to what it is mounted on, metres, past the spacing of the points it is read at.
 TOUCH = 0.02
 AIR_LEAST = 0.5
+# What a mover on the ground drives on is every still thing under it no higher than this over its underside, metres:
+# a floor, a sill, the yard past a door; the lift's beam over the rover is not.
+CLIMB_MOST = 0.3
 ON = ("water", "ground", "rail", "air")
 MOVING_SCOPES = ("Objects", "Fixtures", "Structure")
 
@@ -111,7 +114,7 @@ def built(inputs):
     (beside links to the seed's sibling places it references) and, when the movers record asks (`ground`: a mover
     drives out onto the yard), the made ground sublayered as the assembly sublayers it (assembly.take_ground). The
     copy is removed when the `with` ends, failed or not."""
-    if "scene-record" not in inputs:
+    if "scene-record" not in inputs and "machines-layer" not in inputs:
         yield pathlib.Path(inputs["seed"])
         return
     from score.stages import assembly
@@ -130,7 +133,11 @@ def built(inputs):
                 shutil.copytree(seed / part, folder / part)
             elif (seed / part).exists():
                 shutil.copy2(seed / part, folder / part)
-        assembly.take_record(inputs, folder, seed.name)
+        if "scene-record" in inputs:
+            assembly.take_record(inputs, folder, seed.name)
+        if "machines-layer" in inputs:  # the machines the movers drive (the garage's rover), as the assembly takes them
+            layer, assets = assembly.LAYERS["machines-layer"][1:]
+            assembly.take_layer(pathlib.Path(inputs["machines-layer"]), folder / f"{seed.name}.usda", layer, assets)
         if read_json(inputs["movers"]).get("ground") and "terrain" in inputs:
             assembly.take_ground(inputs["terrain"], seed.name, folder / f"{seed.name}.usda")
         yield folder
@@ -192,10 +199,40 @@ def write_motion(inputs, out, source):
     stage = mover_layer.working_stage(place, source, Sdf.Layer.CreateAnonymous(".usda"),
                                       mover_layer.moving_prims(every))
     present, gone = game_motions(inputs, stage)
-    written = mover_layer.write_layer(place, {"motions": present}, read_json(inputs["movers"]), source, out)
+    moving = mover_layer.moving_prims(every)
+    written = mover_layer.write_layer(place, {"motions": present}, read_json(inputs["movers"]), source, out,
+                                      lambda working, entry: ground_under(working, place, entry["prim"], moving))
     (out / "movers.json").write_text(json.dumps({"place": place, "moved": written["moved"],
                                                  "gone": [f"{entry['name']}: {entry['prim']}" for entry in gone],
                                                  "seconds": written["seconds"]}, indent=1))
+
+
+def ground_under(stage, place, path, moving):
+    """What a mover on the ground drives on, as the gate reads it (surface_faults): the height of the highest still
+    thing under the corners of its footprint, no higher than CLIMB_MOST over its underside where it rests, with its
+    rest spot carried to each [x, z] spot and turned by each turn (degrees from its rest heading)."""
+    shape, boxes = shaped(stage, path), space.box_cache(0.0)
+    corners = shape.in_world(footprint(shape), 0.0)
+    rest = shape.placed(0.0)[3, :3]
+    offsets = corners[:, [0, 2]] - rest[[0, 2]]
+    below = float(corners[:, 1].min()) + CLIMB_MOST
+    corners_under = space.surface_corners([mesh for mesh in space.still_meshes(stage, place, moving)
+                                           if space.mesh_box(mesh, boxes)[0][1] <= below], 0.0)
+    known = {}
+
+    def under(spots, turns):
+        found = []
+        for spot, turn in zip(spots, turns):
+            key = (round(float(spot[0]), 4), round(float(spot[1]), 4), round(float(turn), 3))
+            if key not in known:  # a mover standing still asks the same spot again and again
+                sine, cosine = np.sin(np.radians(turn)), np.cos(np.radians(turn))  # rotateY's [x, z]
+                turned = np.stack([offsets[:, 0] * cosine + offsets[:, 1] * sine,
+                                   -offsets[:, 0] * sine + offsets[:, 1] * cosine], axis=1)
+                heights = space.heights_over(corners_under, turned + spot, below)
+                known[key] = np.nan if np.isnan(heights).any() else float(heights.max())
+            found.append(known[key])
+        return np.asarray(found)
+    return under
 
 
 # --- what moves ---------------------------------------------------------------------------------------------------
@@ -470,11 +507,14 @@ def footprint(shape):
 
 
 def surface_faults(entry, shape, meshes, rate, seconds):
-    """A mover on water or ground: where its footprint leaves that surface, or it leaves its rest height over it."""
+    """A mover on water or ground: where its footprint leaves that surface, or it leaves its rest height over it. On
+    the ground the surface is what is under it no higher than CLIMB_MOST over its underside then."""
     faults, drift, rest = [], 0.0, None
-    for moment in np.arange(0.0, seconds + 1e-9, 1.0):
+    under = space.surface_corners(meshes, 0.0)  # still surfaces: read once
+    for moment in np.arange(0.0, seconds + 1e-9, 0.5 if entry["on"] == "ground" else 1.0):
         corners = shape.in_world(footprint(shape), moment * rate)
-        heights = space.heights_under(meshes, corners[:, [0, 2]], moment * rate)
+        below = corners[:, 1].min() + CLIMB_MOST if entry["on"] == "ground" else np.inf
+        heights = space.heights_over(under, corners[:, [0, 2]], below)
         if np.isnan(heights).any():
             faults.append(f"{entry['name']}: off the {entry['on']} at {moment:.0f} s")
             break
@@ -525,8 +565,9 @@ def judge_grounded(output, inputs, evidence):
     if not movers:
         return checks.Verdict("grounded", checks.PASS, "the place has only the game's timed motions")
     moving = sorted({entry["prim"] for entry in bodies(inputs, output)})
-    surfaces = {surface: space.surface_meshes(stage, place, surface) for surface in ("water", "ground")}
     stills = space.still_meshes(stage, place, moving)
+    surfaces = {"water": space.surface_meshes(stage, place, "water"),
+                "ground": [*space.surface_meshes(stage, place, "ground"), *stills]}
     faults, measures = [], {}
     for entry in movers:
         if entry.get("on") not in ON:
