@@ -126,6 +126,7 @@ def machine_held(spec, outfit, who, minutes=150):
     before (2026-10-12)."""
     place = make_place(folder_of(spec, outfit), "hold")
     make_folder(place, dict(spec, name=f"{spec['name']}-{outfit}-hold"), (), {})
+    shutil.rmtree(place / "out", ignore_errors=True)  # a last run's out would read as this machine set up
     log = place / "characters.log"
     with log.open("w") as written:
         process = subprocess.Popen([str(PROPS_PYTHON), str(CLOUD / "characters.py"), str(place), "--who", who,
