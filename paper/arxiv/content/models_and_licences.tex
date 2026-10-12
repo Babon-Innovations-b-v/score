@@ -1,8 +1,8 @@
 \section{Models and licences}\label{models-and-licences}
 
-Every model in the framework must allow commercial use of its output (Table E1); we read each licence for its clauses on commercial use. Candidates were dropped under this rule, among them NVIDIA's Lyra 2.0 (weights for internal research only), Hunyuan3D 2.1 (licence does not apply in the European Union) and GarmentCode's fork of NVIDIA Warp (non-commercial research only), which Newton's cloth solver on upstream Warp replaced; Blender's cloth simulation \citep{blender} is kept as a second route. The one open doubt is the face LoRA, whose training data is not disclosed.
+Every model in the framework must allow commercial use of its output (Table C1); we read each licence for its clauses on commercial use. Candidates were dropped under this rule, among them NVIDIA's Lyra 2.0 (weights for internal research only), Hunyuan3D 2.1 (licence does not apply in the European Union) and GarmentCode's fork of NVIDIA Warp (non-commercial research only), which Newton's cloth solver on upstream Warp replaced; Blender's cloth simulation \citep{blender} is kept as a second route. The one open doubt is the face LoRA, whose training data is not disclosed.
 
-\textbf{Table E1.} Models in the framework.
+\textbf{Table C1.} Models in the framework.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -49,11 +49,9 @@ MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
 }
 
-On our tier, Nano Banana Pro allows 250 pictures a day and 20 a minute; the cheaper Nano Banana (gemini-2.5-flash-image) allows 2,000 a day and 500 a minute. Given the same 10 lab objects, prompts and inputs, the cheaper model refused the standard prompt for 6 and drew those only from the crop alone; of its pictures, 2 were good, 3 usable, 1 marginal and 3 the wrong shape, 1 object was refused, and the objects came out small in frames of about one megapixel. Close-ups therefore stay on Nano Banana Pro.
+The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none scored wrong or failed, and failed nine that were good or usable. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it changed its verdict on 7. On the lab, 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. Table C2 gives the stage's runs on world 1.
 
-The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none scored wrong or failed, and failed nine that were good or usable. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it changed its verdict on 7. On the lab, 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. Table E2 gives the stage's runs on world 1.
-
-\textbf{Table E2.} The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
+\textbf{Table C2.} The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}

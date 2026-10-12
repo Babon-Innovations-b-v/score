@@ -3,7 +3,7 @@
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Room checks} take about two seconds per room on the laid-out meshes. They cast rays to find light leaking out through walls and roof, find pieces in front of a real opening and roof and wall fittings more than 3 cm off their surface or turned more than 5 degrees from it, and count pieces, triangles and lamps against the room's budget.
+  \textbf{Room checks} cast rays to find light leaking out through walls and roof, find pieces in front of a real opening and roof and wall fittings more than 3 cm off their surface or turned more than 5 degrees from it, and count pieces, triangles and lamps against the room's budget.
 \item
   \textbf{Door check:} every door must stand in a wall or partition that fully separates its two sides, tested by walking a grid from one side to the other.
 \item
@@ -11,19 +11,13 @@
 \item
   \textbf{Model check:} every model must be a closed solid with walls at least 3 mm thick. A generated box fails if one of its sides tilts more than 2 degrees or is warped. Making a generated model solid stops if its bounding box grows more than 3 percent.
 \item
-  \textbf{Palette sweep and storage budget:} every model's colours are compared with the place's library palette, and each room may use at most 250 MB on disk and 640 MB of textures on the graphics card.
+  \textbf{Palette sweep:} every model's colours are compared with the place's library palette.
 \item
-  \textbf{Scene check and made-only check:} in the engine, these find anything that floats, sinks or overlaps, and any visible mesh that the framework did not make. A made-only finding can never be waived.
+  \textbf{Made-only check:} in the engine, any visible mesh that the framework did not make fails. A made-only finding can never be waived.
 \item
   \textbf{Close-up shape check:} the picture needs a plain border all round, one object filling a sensible share of the frame, and an outline within a set proportion of the inventory row's box. The judge's seven questions (among them one object, a clean background, the whole object, the same object, no parts missing or added, the right proportions) each pass by a majority of three answers sampled with different seeds. A close-up passes only when both halves pass.
 \item
   \textbf{Settling and resting check:} an object that would turn more than 15 degrees or drift more than 30 cm when dropped keeps its laid pose and is marked as not resting; small debris, with no side over 1.4 m, may turn freely and drift up to 1 m. Hung objects are exempt by their inventory anchor, and fixed objects are not judged for tipping.
 \item
-  \textbf{Resting triage:} a glowing part or screen is judged with its host; a fixed row stands as laid but may not float unless joined to another piece; a kit's shell pieces stand in the kit's frame; a hanging, wall or ceiling row needs one contact with anything; a floor row and a row standing on another need four points of their footing (the points within 10 cm of their lowest) within 3 cm of a surface under them, with their weight within 5 cm of the area those points span. An overlap deeper than 3 cm counts only if the two still meet after the loose one moves 5 mm away. Cables may sink 6 cm, cloths 8 cm and ground debris 30 cm. From a drop run, a loose object that moves more than 0.2 m or turns more than 8 degrees does not rest as laid, after SAGE's stability rule, and is a real fault.
-\item
-  \textbf{Completion gate:} the requirements given in Section 2 under the canonical scene, each with its result tied to a fingerprint of the stage's files and inputs; a result made on another stage counts as unknown. The placeholder check judges every mesh a code builder draws, and only the shell builders pass unnamed. A reach check, in which a walker on the place's floor must reach every row, runs beside the gate but is not counted, because it fails backdrop rows that nobody walks to.
-\item
-  \textbf{Render-and-compare:} each object with a close-up is rendered from eight directions 20 degrees up, and the direction with the highest DINOv2 likeness stands for the close-up's camera; the outline score is the overlap of the two silhouettes, each cut to its box.
-\item
-  \textbf{Brightness check:} a review view whose mean brightness is under half that of the game's shot from the same spot fails.
+  \textbf{Completion gate:} the requirements given in Section 3.1, each with its result tied to a fingerprint of the stage's files and inputs; a result made on another stage counts as unknown. The placeholder check judges every mesh a code builder draws, and only the shell builders pass unnamed.
 \end{itemize}
