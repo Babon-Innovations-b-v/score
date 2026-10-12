@@ -8,12 +8,12 @@
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
     "paper/source/refs.bib": "ec75e150ba1996320918a0f704317a2e47e62c632c88784a28262aae02c3c98b",
-    "paper/source/score.md": "a2343813be5cb746e79a7707bbfa1f749b01b81a2fb8eebcc3b2ce1779e1d85c"
+    "paper/source/score.md": "99c3314aef86a9bfe520b8db035cc3ae26351903de4b96758cfb10c307cb604d"
   },
   "outputs": {
     "paper/arxiv/content/abstract.tex": "35d0c653be3c5a81bf2bf012b1b81bd17abd37ba364f8d2805452f02cb5e58c3",
     "paper/arxiv/content/appendix.tex": "eb1dd500c9ffbc3a8fd205a9cfe49b07479506a8870ce4355153f26790afba0b",
-    "paper/arxiv/content/check_details.tex": "a86e63368036f818912c55bd3a5d2a10c6639e71fd53ed4380a985c35095fd37",
+    "paper/arxiv/content/check_details.tex": "23365bdec50a242654749515ee4f7ca300e93f67f47213287b4077ddcb0292bb",
     "paper/arxiv/content/conclusion.tex": "f468298940df3cb4566fef90efeff2a00d9243f6590cc76e4a03e9b534c87796",
     "paper/arxiv/content/evidence.tex": "ec31ea98a25e8b0d881c1f8a51a46c3a151da7b14d30602921662bef13f37b88",
     "paper/arxiv/content/future_work.tex": "ee4e163fb85f1b42ab367ae13312a2d5f9f22bbe920fcf141d93cb5356efc027",
@@ -31,10 +31,10 @@
     "paper/arxiv/figures/fig-surfaces.jpg": "b990b29caf2c7272d0eb7c3f30d4a10dc665ce23a2efbb6f76ccf8152f88ca07",
     "paper/arxiv/figures/fig-usd.jpg": "3f0b46fc8982415c9e92104f0d070b7655c17bd46ec566a066721913689a424e",
     "paper/arxiv/main.bbl": "0954eb43bc2cb474821b137fc3af01be8de7201afc4c4d9115a96f36753837f4",
-    "paper/arxiv/main.pdf": "dbfaee0799891abfec2b17bb17a5e15142e1de40c1382a768777051651718bf5",
+    "paper/arxiv/main.pdf": "0ac44bca06d02fc20097d96e98df89be9613cd09c972fbaf04c6c9ce750ba651",
     "paper/arxiv/main.tex": "882a466bd92cb63807f12d7d78b51c3a217419cfb7bf4bbf47866fbc4e4826e8",
     "paper/arxiv/refs.bib": "ec75e150ba1996320918a0f704317a2e47e62c632c88784a28262aae02c3c98b",
-    "paper/out/score.pdf": "4657f2fc0fd96faec9b36094d9093a377cf17489525dfad8aafcbcb7a8e541cb",
-    "paper/out/score.tex": "c0e15062389349bb94f0852d1a2a98c6917061868be601030d91d96ccc69ea0a"
+    "paper/out/score.pdf": "a39a8bf28a4567959cf1e747a585d45eb713a4cdca678da02528e2689a6bc78c",
+    "paper/out/score.tex": "dcd2ea5a2e5bd0475cc1a3e97680f36de531dbc946ac6a0fdd637539ec8cd6f5"
   }
 }
