@@ -48,19 +48,25 @@ DROP = "drop"
 EUROS = 1.0
 # Drops already paid for, by their job, drop script and stage (settle.drop_key): the same drop is never bought twice.
 DROPS = PROPS_HOME / "store/cache/drops"
+# Where the gates put a seed together to judge it (on disk, beside the store's cache).
+SCRATCH = PROPS_HOME / "store/cache"
 SEED_PARTS = ("layers", "inputs.json")
 # A rest the paint finishes: the faults the triage raises of an object stood upright on uneven feet.
 FOR_THE_PAINT = ("foot off", "leans", "tips")
 
 
 def files(place):
-    """What the stage reads: the place's seed stage, kit (its seat), inventory (what holds each object up), the
-    resting rules and the drop script its machine runs."""
+    """What the stage reads: the place's seed stage, kit (its seat and its pieces' spots), scene record (when it has
+    one: what the kit relay reads), inventory (what holds each object up), the resting rules and the drop script its
+    machine runs."""
     import stage_inputs
-    return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
-            "inventory": "{data}/inventory/" + stage_inputs.inventory_path(place).name,
-            "resting rules": "{data}/checks/resting.json",
-            "drop script": "{repo}/tools/blender/inside/settle_stage.py"}  # run by path on the machine
+    found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
+             "inventory": "{data}/inventory/" + stage_inputs.inventory_path(place).name,
+             "resting rules": "{data}/checks/resting.json",
+             "drop script": "{repo}/tools/blender/inside/settle_stage.py"}  # run by path on the machine
+    if (REPO / "data/scene" / f"{place}.json").exists():
+        found["scene"] = "{data}/scene/{place}.json"
+    return found
 
 
 def read_json(path):
@@ -74,8 +80,9 @@ def place_of(inputs):
 # --- the stage dropped -------------------------------------------------------------------------------------------
 
 def grounded_seed(inputs, folder):
-    """The seed's stage in `folder` on the place's made ground (the assembly's take_ground): its root and layers
-    copied, its assets linked (read, never written). The root's path."""
+    """The seed's stage in `folder` on the place's made ground, each kit piece at its kit spot (the assembly's
+    take_ground and relay_kit, so the settle starts from what the assembly lays): its root and layers copied, its
+    assets linked (read, never written). The root's path."""
     import score.stages.assembly.record as record  # this form: the code version hashes record.py alone
     seed = pathlib.Path(inputs["seed"])
     folder.mkdir(parents=True, exist_ok=True)
@@ -89,6 +96,7 @@ def grounded_seed(inputs, folder):
             shutil.copy2(source, folder / part)
     shutil.copytree(seed / "assets", folder / "assets", copy_function=linked)
     record.take_ground(inputs["terrain"], seed.name, root)
+    record.relay_kit({key: inputs[key] for key in ("kit", "scene") if key in inputs}, folder, seed.name)
     return root
 
 
@@ -280,7 +288,7 @@ def judge_resting(output, inputs, evidence):
     for_paint = {name for name, entry in record["objects"].items() if for_the_paint(entry)}
     found = {}
     for state, layered in (("before", False), ("after", True)):
-        with tempfile.TemporaryDirectory() as scratch:
+        with tempfile.TemporaryDirectory(dir=SCRATCH) as scratch:  # on disk: a seed copy is too big for /tmp
             found[state] = triage.triage(rested_root(output, inputs, pathlib.Path(scratch), layered),
                                          rules_file=inputs["resting rules"], kit_file=inputs["kit"],
                                          inventory_file=inputs["inventory"])
@@ -300,20 +308,14 @@ def judge_resting(output, inputs, evidence):
 
 
 def rested_root(output, inputs, folder, layered=True):
-    """A root stage in `folder`: the settle layer (unless not `layered`) over the place's made ground over the seed's
-    own root."""
+    """The seed on its made ground, its kit pieces at their kit spots (grounded_seed), in `folder`, with the settle
+    layer over it unless not `layered`: the stage the assembly lays, but for the bakes and the other layers."""
     from pxr import Sdf
-    place = place_of(inputs)
-    made = sorted(pathlib.Path(inputs["terrain"]).glob(f"*/places/{place}.usdc"))
-    root = folder / f"{place}.usda"
-    layer = Sdf.Layer.CreateNew(str(root))
-    seed = pathlib.Path(inputs["seed"]) / f"{place}.usda"
-    layer.subLayerPaths = [*([str(pathlib.Path(output) / LAYER)] if layered else []), *map(str, made[:1]), str(seed)]
-    seed_layer = Sdf.Layer.FindOrOpen(str(seed))
-    layer.defaultPrim = seed_layer.defaultPrim
-    for key in ("upAxis", "metersPerUnit"):
-        layer.pseudoRoot.SetInfo(key, seed_layer.pseudoRoot.GetInfo(key))
-    layer.Save()
+    root = grounded_seed(inputs, folder)
+    if layered:
+        layer = Sdf.Layer.FindOrOpen(str(root))
+        layer.subLayerPaths = [str(pathlib.Path(output) / LAYER), *layer.subLayerPaths]
+        layer.Save()
     return root
 
 
