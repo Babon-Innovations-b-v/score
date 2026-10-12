@@ -5,10 +5,15 @@ whose record (the assembly's scene.json beside its stage) shows the square and t
 Run: .venv/bin/python score/stages/assembly/neighbours_test.py
 """
 import json
+import os
 import pathlib
 import shutil
 import sys
 import tempfile
+
+# Scratch on disk under $PROPS_HOME/tmp, never /tmp (a RAM-backed tmpfs on the PC).
+tempfile.tempdir = str(pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "tmp")
+pathlib.Path(tempfile.tempdir).mkdir(parents=True, exist_ok=True)
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 

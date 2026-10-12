@@ -40,6 +40,9 @@ import sys
 
 from score import checks
 from score.stages.assembly import sounds
+from score.stages.assembly.record import (  # noqa: F401  (motion and light call take_record)
+    BASE_LAYER, GROUND_LAYER, ORDER, RECORD, RECORD_ROOTS, WAITING, hold, laid_pieces, take_ground, take_record,
+    without_waiting)
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
@@ -61,7 +64,6 @@ def files(place):
 
 
 SEED_PARTS = ("layers", "assets", "inputs.json")
-GROUND_LAYER = "layers/ground.usdc"
 # The layer stages the assembly takes, each a sublayer of the root of its own: {stage: ((schema, version) read, its
 # layer file, its assets folder or None)}. A stage joins the assembly's reads the day it joins the stage table
 # (score/stages.layered): the motion, light and crops rows land after this table.
@@ -78,15 +80,6 @@ READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1),
 # part of another) needs whatever its needs: contents.py's light and sound checks judge every such place.
 NEEDS = {"effects": "effects-layer", "motion": "motion", "crops": "crops-layer"}
 EVERY_PLACE = ("sound", "light")
-# The root's sublayers, strongest first, by file name.
-ORDER = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "machines", "settle", "ground", "base")
-# The base's prims tools/usd/scene.py writes from the scene record, removed before the accepted record is written.
-RECORD_ROOTS = ("Structure", "Terrain", "Water", "Fixtures", "Rocks", "Places", "Sky", "Lights", "Environment",
-                "Shafts")
-RECORD = "scene.json"
-# The root prim's list of the record's entries that wait on a model (contents.py's `waiting` check reads it).
-WAITING = "score:waiting"
-BASE_LAYER = "./layers/base.usda"
 INVENTORY_PREFIX = "data/inventory/"
 # One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
 # runs of 2026-10-10 cost EUR 0 to 0.85).
@@ -122,41 +115,6 @@ def make_from_seed(inputs, out, seed, params):
     (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE,
                                                  "record": record, "layers": taken, "unplaced sounds": unplaced},
                                                 indent=1))
-
-
-def take_record(inputs, out, place):
-    """The place's scene record, written beside the stage (RECORD): its accepted scene-record output's, written over
-    the seed base's record prims (RECORD_ROOTS removed, tools/usd/scene.py's writer run again on the base with the
-    place's kit and ground record, as export.py runs it); for a place with none, the seed's own record, unverified.
-    An entry the record marks `waiting` (its model not made yet) lays nothing: the place's root prim names it in
-    WAITING, which the completion gate reports as a gap. Where the record came from, for origin.json."""
-    if "scene-record" not in inputs and "scene" not in inputs:
-        return "none: the place has no scene record"
-    if "scene-record" not in inputs:
-        shutil.copy2(inputs["scene"], out / RECORD)
-        return f"the seed's record ({pathlib.Path(inputs['scene']).name}), unverified: no scene-record row"
-    import ground as grounds
-    import scene
-    from pxr import Sdf, Usd
-    made = pathlib.Path(inputs["scene-record"]) / "record" / f"{place}.json"
-    shutil.copy2(made, out / RECORD)
-    record = json.loads(made.read_text())
-    kit = json.loads(pathlib.Path(inputs["kit"]).read_text())
-    base = Sdf.Layer.FindOrOpen(str(out / BASE_LAYER))
-    edit = Sdf.BatchNamespaceEdit()
-    for name in RECORD_ROOTS:
-        if base.GetPrimAtPath(f"/{place}/{name}"):
-            edit.Add(f"/{place}/{name}", Sdf.Path.emptyPath)
-    if not base.Apply(edit):
-        raise RuntimeError(f"{place}: the seed's record prims could not be removed from its base")
-    ground = grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))  # as export.py's main: None for a room
-    stage = Usd.Stage.Open(base)
-    laid, waiting = without_waiting(record)
-    scene.write(stage, place, laid, out, kit=kit, pieces=laid_pieces(kit, record), ground=ground)
-    if waiting:
-        stage.GetPrimAtPath(f"/{place}").CreateAttribute(WAITING, Sdf.ValueTypeNames.StringArray).Set(waiting)
-    base.Save()
-    return f"scene-record@{place}"
 
 
 def claiming_places(place):
@@ -225,28 +183,6 @@ def stamp_baked_hash(base, model, gltf):
     layer.Save()
 
 
-def without_waiting(record):
-    """The record less every entry it marks `waiting`, and those entries in words (`<part> <name>: <why>`)."""
-    laid, waiting = {}, []
-    for key, value in record.items():
-        if isinstance(value, list):
-            waiting += [f"{key} {entry.get('name', '?')}: {entry['waiting']}" for entry in value
-                        if isinstance(entry, dict) and entry.get("waiting")]
-            value = [entry for entry in value if not (isinstance(entry, dict) and entry.get("waiting"))]
-        laid[key] = value
-    return laid, waiting
-
-
-def laid_pieces(kit, record):
-    """A kit's pieces as the record's writer reads them for its lamps (scene.kit_lights): a walkway tube's on every
-    bay of its way, each with its spot (export.tube_spots, as export.kit_room_pieces lays them); another's as laid."""
-    if "bay" not in kit or not record.get("tube_length"):
-        return kit["pieces"]
-    import export
-    return [dict(laid, spot=spot.tolist()) for laid in kit["pieces"]
-            for spot in export.tube_spots(laid, record["tube_length"], float(kit["bay"]))]
-
-
 def take_layer(made, root, layer, assets):
     """A layer stage's layer in place of the seed's (or beside it), with its assets: a folder of its own replaced
     whole, the shared assets/ merged. The root holds it in its place (hold) and plays as long as it does."""
@@ -266,30 +202,6 @@ def take_layer(made, root, layer, assets):
         stage_root.timeCodesPerSecond = taken.timeCodesPerSecond
         stage_root.framesPerSecond = taken.framesPerSecond
         stage_root.Save()
-
-
-def hold(root, layer):
-    """The root holding `layer` among its sublayers, all in ORDER (strongest first, by file name); one ORDER does
-    not name goes just over the base."""
-    from pxr import Sdf
-    found = Sdf.Layer.FindOrOpen(str(root))
-    layers = [path for path in found.subLayerPaths if path != layer] + [layer]
-
-    def rank(path):
-        stem = pathlib.PurePosixPath(path).stem
-        return ORDER.index(stem) if stem in ORDER else ORDER.index("base") - 0.5
-
-    found.subLayerPaths = sorted(layers, key=rank)
-    found.Save()
-
-
-def take_ground(grounds, place, root):
-    """The place's made ground, when the terrain stage made one for it, sublayered just over the seed's base."""
-    made = sorted(pathlib.Path(grounds).glob(f"*/places/{place}.usdc"))
-    if not made:
-        return
-    shutil.copy2(made[0], root.parent / GROUND_LAYER)
-    hold(root, f"./{GROUND_LAYER}")
 
 
 def stage_file(output):
