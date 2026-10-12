@@ -13,10 +13,13 @@ each staged place's effects layer from its record, which its assembly takes; eff
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
 own accepted assembly. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
+import dataclasses
 import pathlib
 
 from score import contracts, graph
 from score.stages import assembly, complete, effects, surfaces, terrain
+from score.stages.surfaces import bake_check
+from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 from score.stages.effects import look as effects_look
 from score.stages.terrain import look
@@ -53,7 +56,24 @@ TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.C
 EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
                            euros=effects_look.EUROS, applies=lambda place: place in effects_look.LOOKED)
-STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, *surfaces.ROWS)
+
+
+
+def bake_checked(row):
+    """surfaces-check on bake_check.py, the check's own module (a border triangle a blotch only when off every surface
+    within its reach). Set here, in the table, not in surfaces/__init__.py, which is in the turntable's and SegviGen's
+    code version: an edit there re-buys them. Moves into surfaces/__init__.py, and the old check leaves place_line.py,
+    once their fan-out of 2026-10-12 is done."""
+    if row.name != "surfaces-check":
+        return row
+    return dataclasses.replace(row, make=bake_check.make_check,
+                               contract=contracts.Contract("surfaces-check", 1, bake_check.check_faults),
+                               checks=(guarded("baked matches its surfaces", bake_check.judge_lit),
+                                       guarded("triangles within budget", bake_check.judge_triangles)))
+
+
+STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK,
+          *map(bake_checked, surfaces.ROWS))
 
 
 def world1():

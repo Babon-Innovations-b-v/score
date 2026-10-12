@@ -49,6 +49,7 @@ import shutil
 import sys
 import time
 import traceback
+import urllib.error
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -66,6 +67,18 @@ JOBS = 8
 # tests need no import by name. The drive itself starts no threads, so forking it is safe.
 FORK = multiprocessing.get_context("fork")
 FORK_WAIT = multiprocessing.connection.wait
+# A node that errors on a transient fault (a server's 5xx, a timeout, a dropped connection: eight places' maps on the
+# image model's HTTP 500s, 2026-10-12) runs again up to RETRIES times, waiting RETRY_WAIT seconds, doubled each try.
+RETRIES, RETRY_WAIT = 4, 30
+
+
+def transient(error):
+    """True for an error a later try may not meet: an HTTP 5xx, a timeout or a dropped or refused connection."""
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code >= 500
+    if isinstance(error, urllib.error.URLError) and isinstance(error.reason, BaseException):
+        return transient(error.reason)
+    return isinstance(error, (TimeoutError, ConnectionError))
 
 
 class Blocked(Exception):
@@ -470,15 +483,28 @@ class Runner:
         log.parent.mkdir(parents=True, exist_ok=True)
         with logged(log):
             try:
-                did = self.run_node(stage, place)
+                did = self.run_retrying(stage, place)
                 wanted = [] if did.startswith(("blocked", "broken")) else self.gatherable(stage, place)
                 if wanted:
                     self.gather(stage, place, wanted)
-                    did = f"{did}; gathered {', '.join(wanted)}: {self.run_node(stage, place)}"
+                    did = f"{did}; gathered {', '.join(wanted)}: {self.run_retrying(stage, place)}"
                 return did
             except Exception as error:  # noqa: BLE001 - one node's error stops its line, not the run; kept in its log
                 traceback.print_exc()
                 return f"error: {type(error).__name__}: {error}"
+
+    def run_retrying(self, stage, place):
+        """run_node, run again after a transient error (`transient`) up to RETRIES times with growing waits."""
+        for attempt in range(RETRIES + 1):
+            try:
+                return self.run_node(stage, place)
+            except Exception as error:  # noqa: BLE001 - one not transient, or the last try's, goes up as it was
+                if attempt == RETRIES or not transient(error):
+                    raise
+                wait = RETRY_WAIT * 2 ** attempt
+                traceback.print_exc()
+                print(f"transient error, try {attempt + 2} of {RETRIES + 1} in {wait} s", flush=True)
+                time.sleep(wait)
 
     def standing(self, stage, place):
         """None when the node's current output passed and stands accepted; else why not."""

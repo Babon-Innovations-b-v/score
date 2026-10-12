@@ -30,7 +30,9 @@ stage as each stage is built; nothing moves before.
   gathers a gate's missing evidence itself (`Stage.gatherers`; a paid one cleared like a paid stage, and only when
   nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
   own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
-  cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`).
+  cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`). A node that
+  errors on a transient fault (HTTP 5xx, a timeout, a dropped connection: `graph.transient`) runs again up to
+  `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line.
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
   leaves out the places its world data says it has nothing to do for), `World`,
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
