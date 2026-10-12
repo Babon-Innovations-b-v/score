@@ -2,10 +2,13 @@
 its OpenUSD motion layer. The game's own timed motions (`data/motion/<place>.json`: doors, lights, the launch's
 climb, the turntable) and the movers SCORE gives the things the game left standing (`data/movers/<place>.json`: a
 ferry's round of the harbour, a boom's travel on its rail, a hatch swung open on its hinge, each with its kind and the
-source of its numbers) are written into one layer over the place's seed stage.
+source of its numbers) are written into one layer over the place's stage: its seed with its accepted scene record
+written over the seed's record prims, as the assembly writes it (assembly.take_record), or the seed alone for a place
+with no scene-record row. A game motion's prim the new record names otherwise is the movers record's `renamed`
+({old prim: new prim}); a game motion whose prim the place no longer has is not written, and `covered` fails on it.
 
     make     tools/usd/movers.py's write_layer: layers/motion.usda (taking the place of the seed's) and movers.json
-             (what it moved and the layer's seconds)
+             (what it moved, the game motions whose prim is gone, and the layer's seconds)
     gates    clear     no mover reaches into a still thing or another mover over its whole motion: sampled every
                        STEP seconds over the layer's seconds, the points over each still surface near its sweep and
                        over every other mover's surface lie no deeper than REACH_MOST in its hull. A thing it already
@@ -22,16 +25,20 @@ source of its numbers) are written into one layer over the place's seed stage.
                        that surface under it and it keeps its rest height over it (within HEIGHT_MOST); on a rail it
                        keeps touching what it is mounted on (within TOUCH); in the air it stays AIR_LEAST over all
              covered   every prim of a moving kind in the place (its objects, fixtures and structure) moves in the
-                       layer, or the movers record says why it stands still (`still`)
+                       layer, or the movers record says why it stands still (`still`); and every game motion's prim is
+                       in the place
 
 Only places with a movers record have the row. The assembly does not take the layer yet: the final assembly of each
 place picks it up in place of the seed's motion layer.
 """
+import atexit
 import fnmatch
 import json
 import pathlib
 import re
+import shutil
 import sys
+import tempfile
 
 import numpy as np
 
@@ -65,7 +72,7 @@ def files(place):
     """What the stage reads: the place's movers record, the moving kinds and their speeds, its seed stage, and its
     game motion record where it has one."""
     found = {"movers": "{data}/movers/{place}.json", "kinds": "{data}/checks/motion.json",
-             "seed": "{seeds}/usd-r3/{place}"}
+             "seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json"}
     if (REPO / f"data/motion/{place}.json").exists():
         found["motion"] = "{data}/motion/{place}.json"
     return found
@@ -87,32 +94,92 @@ def game_record(inputs):
     return read_json(inputs["motion"]) if "motion" in inputs else None
 
 
+BUILT = {}
+
+
+def source_of(inputs):
+    """The stage folder the layer is written over: the seed, or for a place with an accepted scene record a copy of
+    the seed with that record written over its record prims as the assembly writes it (built once a process, in a
+    folder of its own that goes when the process ends, beside links to the seed's sibling places it references)."""
+    if "scene-record" not in inputs:
+        return pathlib.Path(inputs["seed"])
+    key = str(inputs["scene-record"])
+    if key not in BUILT:
+        from score.stages import assembly
+        seed = pathlib.Path(inputs["seed"])
+        holder = pathlib.Path(tempfile.mkdtemp(prefix=f"motion-{seed.name}-"))
+        atexit.register(shutil.rmtree, holder, True)
+        for other in seed.parent.iterdir():  # the places it shows, referenced as its seed's siblings
+            if other.is_dir() and other.name != seed.name:
+                (holder / other.name).symlink_to(other)
+        folder = holder / seed.name
+        folder.mkdir()
+        shutil.copy2(seed / f"{seed.name}.usda", folder / f"{seed.name}.usda")
+        for part in assembly.SEED_PARTS:
+            if (seed / part).is_dir():
+                shutil.copytree(seed / part, folder / part)
+            elif (seed / part).exists():
+                shutil.copy2(seed / part, folder / part)
+        assembly.take_record(inputs, folder, seed.name)
+        BUILT[key] = folder
+    return BUILT[key]
+
+
+def renamed(entry, names):
+    """A game motion with its prims as the place's scene record names them (the movers record's `renamed`)."""
+    entry = dict(entry, prim=names.get(entry["prim"], entry["prim"]))
+    if "adds" in entry and "like" in entry["adds"]:
+        entry["adds"] = dict(entry["adds"], like=names.get(entry["adds"]["like"], entry["adds"]["like"]))
+    return entry
+
+
+def game_motions(inputs, stage):
+    """(the game's motions whose prim the place has, renamed as its record names them; those whose prim is gone)."""
+    names = read_json(inputs["movers"]).get("renamed", {})
+    motions = [renamed(entry, names) for entry in (game_record(inputs) or {}).get("motions", [])]
+    present = [entry for entry in motions
+               if stage.GetPrimAtPath(entry["prim"]) or ("adds" in entry and stage.GetPrimAtPath(
+                   entry["adds"].get("like", "/")))
+               or ("adds" in entry and "light" in entry["adds"])]
+    return present, [entry for entry in motions if entry not in present]
+
+
 def make(inputs, out, seed, params):
-    """The place's motion layer from its game motions and its movers."""
-    place = place_of(inputs)
-    written = mover_layer.write_layer(place, game_record(inputs), read_json(inputs["movers"]), inputs["seed"], out)
+    """The place's motion layer from its game motions and its movers, over its stage."""
+    from pxr import Usd
+    place, source = place_of(inputs), source_of(inputs)
+    present, gone = game_motions(inputs, Usd.Stage.Open(str(source / f"{place}.usda")))
+    written = mover_layer.write_layer(place, {"motions": present}, read_json(inputs["movers"]), source, out)
     (out / "movers.json").write_text(json.dumps({"place": place, "moved": written["moved"],
+                                                 "gone": [f"{entry['name']}: {entry['prim']}" for entry in gone],
                                                  "seconds": written["seconds"]}, indent=1))
 
 
 # --- what moves ---------------------------------------------------------------------------------------------------
 
 def composed(output, inputs):
-    """The motion layer over the place's seed stage (its edit, its other layers and base), opened as one stage."""
+    """The motion layer over the place's stage (its edit, its other layers and base), opened as one stage."""
     from pxr import Sdf
     layer = Sdf.Layer.FindOrOpen(str(pathlib.Path(output) / game_motion.LAYER))
-    return game_motion.working_stage(place_of(inputs), inputs["seed"], layer)
+    return game_motion.working_stage(place_of(inputs), source_of(inputs), layer)
 
 
 def entries(inputs):
-    """Every motion the layer holds, the game's and the movers', each marked with whose it is."""
-    game = [dict(entry, game=True) for entry in (game_record(inputs) or {}).get("motions", [])]
+    """Every motion the layer holds, the game's (as the place's record names their prims) and the movers', each marked
+    with whose it is."""
+    names = read_json(inputs["movers"]).get("renamed", {})
+    game = [dict(renamed(entry, names), game=True) for entry in (game_record(inputs) or {}).get("motions", [])]
     return game + [dict(entry, game=False) for entry in read_json(inputs["movers"]).get("movers", [])]
 
 
-def bodies(inputs):
-    """The motions that move a body (a light's switching moves none)."""
-    return [entry for entry in entries(inputs) if "light" not in entry]
+def gone_of(output):
+    return read_json(pathlib.Path(output) / "movers.json").get("gone", [])
+
+
+def bodies(inputs, output):
+    """The motions that move a body (a light's switching moves none), less the game's whose prim is gone."""
+    gone = {line.split(":", 1)[0] for line in gone_of(output)}
+    return [entry for entry in entries(inputs) if "light" not in entry and entry["name"] not in gone]
 
 
 def seconds_of(output):
@@ -203,10 +270,10 @@ def judge_clear(output, inputs, evidence):
     """Pass when no mover reaches into a still thing or another mover over the layer's seconds."""
     stage, place = composed(output, inputs), place_of(inputs)
     through = read_json(inputs["movers"]).get("through", {})
-    named = {entry["prim"]: entry for entry in bodies(inputs)}
+    named = {entry["prim"]: entry for entry in bodies(inputs, output)}
     rate, seconds = rate_of(stage), seconds_of(output)
     codes = [moment * rate for moment in moments(seconds)]
-    moving = sorted({entry["prim"] for entry in bodies(inputs)})
+    moving = sorted({entry["prim"] for entry in bodies(inputs, output)})
     if not moving:
         return checks.Verdict("clear", checks.PASS, "nothing moves in the place")
     found = shapes(stage, moving)
@@ -271,7 +338,7 @@ def judge_speeds(output, inputs, evidence):
     stage, kinds = composed(output, inputs), kinds_of(inputs)
     rate, seconds = rate_of(stage), seconds_of(output)
     faults, measures, game, judged = [], {}, [], 0
-    for entry in bodies(inputs):
+    for entry in bodies(inputs, output):
         kind = named_kind(entry, kinds)
         if kind is None:
             faults.append(f"{entry['name']}: its kind is none of data/checks/motion.json's")
@@ -298,7 +365,7 @@ def judge_speeds(output, inputs, evidence):
     reason = (f"{len(faults)} movers off their kind's speeds" if faults else
               f"{judged} movers within their kind's cited speeds"
               + (f"; {len(game)} at the game's own timing" if game else ""))
-    if not bodies(inputs):
+    if not bodies(inputs, output):
         return checks.Verdict("speeds", checks.PASS, "nothing moves in the place")
     answer = checks.FAIL if faults else (checks.PASS if judged or game else checks.UNKNOWN)
     return checks.Verdict("speeds", answer, reason, measures, {}, tuple(faults))
@@ -334,7 +401,7 @@ def judge_loops(output, inputs, evidence):
     """Pass when every looping motion joins its rounds cleanly and fits the layer's seconds whole."""
     stage = composed(output, inputs)
     rate, seconds = rate_of(stage), seconds_of(output)
-    looping = [entry for entry in bodies(inputs) if entry.get("loop")]
+    looping = [entry for entry in bodies(inputs, output) if entry.get("loop")]
     faults = mover_layer.round_faults(looping, seconds)
     worst = 0.0
     for entry in looping:
@@ -410,10 +477,10 @@ def judge_grounded(output, inputs, evidence):
     """Pass when every mover stays on what it moves on."""
     stage, place = composed(output, inputs), place_of(inputs)
     rate, seconds = rate_of(stage), seconds_of(output)
-    movers = [entry for entry in bodies(inputs) if not entry["game"]]
+    movers = [entry for entry in bodies(inputs, output) if not entry["game"]]
     if not movers:
         return checks.Verdict("grounded", checks.PASS, "the place has only the game's timed motions")
-    moving = sorted({entry["prim"] for entry in bodies(inputs)})
+    moving = sorted({entry["prim"] for entry in bodies(inputs, output)})
     surfaces = {surface: space.surface_meshes(stage, place, surface) for surface in ("water", "ground")}
     stills = space.still_meshes(stage, place, moving)
     faults, measures = [], {}
@@ -457,14 +524,15 @@ def moving_kind_prims(stage, place, kinds):
 def judge_covered(output, inputs, evidence):
     """Pass when every prim of a moving kind moves in the layer or its standing still is written down."""
     stage, place = composed(output, inputs), place_of(inputs)
-    moved = {entry["prim"] for entry in bodies(inputs)}
+    moved = {entry["prim"] for entry in bodies(inputs, output)}
     still = read_json(inputs["movers"]).get("still", {})
     wanted = moving_kind_prims(stage, place, kinds_of(inputs))
     missing = [f"{path} ({kind})" for path, kind in sorted(wanted.items())
                if path not in moved and path not in still and path.rsplit("/", 1)[-1] not in still]
+    missing += [f"{line}: the game's motion has no prim in the place's stage" for line in gone_of(output)]
     measures = {"moving kinds": len(wanted), "moved": len([path for path in wanted if path in moved]),
                 "still with a reason": len(wanted) - len(missing) - len([path for path in wanted if path in moved])}
-    reason = (f"{len(missing)} of {len(wanted)} prims of a moving kind neither move nor say why" if missing else
+    reason = (f"{len(missing)} prims of a moving kind or game motions neither move nor say why" if missing else
               f"all {len(wanted)} prims of a moving kind move ({measures['moved']}) or say why not")
     return checks.Verdict("covered", checks.FAIL if missing else checks.PASS, reason, measures, {},
                           tuple(missing) or tuple(f"{name}: {why}" for name, why in still.items()))
