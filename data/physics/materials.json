@@ -1,0 +1,6 @@
+{
+ "about": "Physical materials for a place's physics layer (tools/usd/physics.py, experimental, F11): each a density (kg/m^3), the sheet a made thing of it is formed from (metres: mass is the model's surface area times the sheet times the density, since props are hollow shells, not solids), static and dynamic friction against the same material, and restitution. Textbook values: steel's density 7850 kg/m^3; mild steel on mild steel, dry, static 0.74 and kinetic 0.57 (Engineering ToolBox's friction table). The sheet is an assumption, not measured. A model with no labelled parts takes its place record's material.",
+ "materials": {
+  "steel": {"density": 7850.0, "sheet": 0.0015, "static": 0.74, "dynamic": 0.57, "restitution": 0.2}
+ }
+}
