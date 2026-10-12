@@ -10,12 +10,14 @@ Step 0 holds the worked example: assembly (P5) on world 1's round-three stages a
 (pictures and depth in the cloud, cleared by the runner). The surface stage (step 1, its overlay) is each place's
 own line of rows, split to checked bake, beside the world's seed of the finish registry. Effects (experimental) makes
 each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
-after. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
+own accepted assembly. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import pathlib
 
 from score import contracts, graph
 from score.stages import assembly, complete, effects, surfaces, terrain
+from score.stages.assembly import neighbours
 from score.stages.effects import look as effects_look
 from score.stages.terrain import look
 from score.store import PROPS_HOME, Store
@@ -32,6 +34,13 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
                        files=assembly.FILES, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 1), "effects-layer": ("effects-layer", 1)})
+# Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
+# each read beside as its own accepted assembly. Complete does not read it yet: a neighbour whose assembly fails (the
+# hub's) would stop every place that shows it.
+NEIGHBOURS = graph.Stage("neighbours", "place", neighbours.make, contracts.OPENUSD_STAGE, neighbours.CHECKS,
+                         files=neighbours.files, after={"assembly": ("openusd-stage", 1)},
+                         beside={"assembly": ("openusd-stage", 1)}, neighbours=neighbours.neighbours,
+                         applies=neighbours.applies)
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
                        after={"assembly": ("openusd-stage", 1)})
 # Experimental (PRD #6) until the owner reviews it: the proof place's before and after its made ground, rendered.
@@ -41,7 +50,7 @@ TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.C
 EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_look.LOOK, effects_look.CHECKS,
                            files=effects_look.files, after={"assembly": ("openusd-stage", 1)}, paid=True,
                            euros=effects_look.EUROS, applies=lambda place: place in effects_look.LOOKED)
-STAGES = (TERRAIN, EFFECTS, ASSEMBLY, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, *surfaces.ROWS)
+STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, *surfaces.ROWS)
 
 
 def world1():

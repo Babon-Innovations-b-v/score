@@ -59,7 +59,10 @@ stage as each stage is built; nothing moves before.
   rows, the finish-map method to checked bake (its overlay; per-place data in
   `data/surfaces/`). `effects-layer` (experimental: the launch, airlock, garage, hangar, greenhouse and habitat) makes a place's effects layer from its record in
   `data/effects/`, gated on attached, footage and light, and the assembly takes it; `effects-look` (paid) renders it
-  before and after (its overlay). A stage reads without an earlier place stage that does not apply to its place
+  before and after (its overlay). `neighbours` (experimental, `stages/assembly/neighbours.py`) stands each place's
+  neighbours (its scene record's `places`) in its assembly, each read beside (`Stage.beside`, `Stage.neighbours`:
+  another place's accepted output, versioned and waited on like `after`) as its own accepted assembly, gated on
+  `neighbours` (every shown place stands, resolves and has children); `complete` does not read it yet. A stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`.
 
 Rules:
@@ -81,7 +84,8 @@ Rules:
   changes. Over-declare rather than miss one (assembly declares the whole inventory folder for this reason).
 - **Old outputs come in as unverified seeds** (`origin.json` in the output, a banner on the page), judged by the
   stage's own gates before anyone may accept them. A seed's references to other places (`/<place>/Places`) do not
-  resolve in the store, where each place is its own node; OpenUSD warns about them and no gate reads them.
+  resolve in the assembly's output, where each place is its own node; the neighbours stage points them at copies of
+  the neighbours' accepted assemblies, and its gate fails one that still resolves to nothing.
 - **No `/tmp`, no hand-named folders** for outputs: a stage writes into the folder the runner gives it, and the
   store keeps the result. Tests use their own store (`Store.in_folder`); the worked example's test keeps it under
   `$PROPS_HOME/store-tests` and removes it.
