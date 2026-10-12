@@ -49,9 +49,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
   stops the bake before anything is rented. The job files still give each model's entry (size, decals, cuts).
-- **The paint runs each take in a process of its own** (`paint-take`): a take holds about 2 GB for 9 s on the PC;
-  twelve in one process passed the 14 GB cap (campgrounds and garage, 2026-10-12). A step the cap kills says its
-  signal and peak memory (`prop_env.checked`).
+- **The paint runs on rented processor machines, a job a take** (`make_paint`, `inside/paint_take.py` through
+  `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12), and twelve takes
+  in one process on the PC passed its 14 GB cap (campgrounds, garage; one take: 2.1 GB for 9 s). Up there Blender's own
+  Python runs `place_line.py paint-take` with the prop environment's pinned packages and says its peak memory and any
+  signal; the registry proposals are written here first. `tools/props/heavy.py` refuses the step anywhere the
+  cloud runner's mark (FARM_LOCAL_MODELS=1) is not set. prop_env.py is left alone: the method's rows import it, and an
+  edit there re-keys every place's inputs.
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
   `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their world
   files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code

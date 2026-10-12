@@ -7,6 +7,7 @@ that model instead of crashing or passing. No cloud, no paid step.
 Run: .venv/bin/python score/stages/surfaces/surfaces_test.py
 """
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -377,14 +378,34 @@ def test_the_bake_takes_every_spec_today_s_library_knows_and_stops_on_a_missing_
             raise AssertionError("a spec naming a missing picture was baked")
 
 
-def test_a_step_killed_at_the_memory_cap_says_its_signal_and_peak():
-    from score.stages.surfaces import prop_env
-    try:
-        prop_env.checked([sys.executable, "-c", "import os, signal; os.kill(os.getpid(), signal.SIGKILL)"], "paint")
-    except RuntimeError as failed:
-        assert "paint failed with exit code -9, killed by SIGKILL at a peak of" in str(failed), failed
-    else:
-        raise AssertionError("a killed step passed")
+def test_a_killed_paint_on_the_machine_says_its_signal_and_peak():
+    sys.path.insert(0, str(REPO / "score/stages/surfaces/inside"))
+    import paint_take
+    code, peak = paint_take.measured([sys.executable, "-c", "import os, signal; os.kill(os.getpid(), signal.SIGKILL)"],
+                                     dict(os.environ))
+    assert code == -9 and peak > 0, (code, peak)
+
+
+def test_a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back():
+    from score.stages.surfaces import place_line
+    with tempfile.TemporaryDirectory() as temporary:
+        out, parts = pathlib.Path(temporary) / "out", pathlib.Path(temporary) / "parts"
+        out.mkdir()
+        inputs = {"surfaces": REPO / "data/surfaces/campgrounds.json", "surfaces-parts": parts,
+                  "inventory campgrounds": REPO / "data/inventory/campgrounds.json",
+                  "resting rules": REPO / "data/checks/resting.json"}
+        job = json.loads(place_line.paint_job(inputs, place_line.prop_env.short(inputs), out, "crane-r1",
+                                              [{"part": 0}]).read_text())
+        assert job["script"] == "score/stages/surfaces/inside/paint_take.py" and job["outputs"] == [
+            str(out / "labelled" / "crane-r1")]
+        sent = set(job["inputs"])
+        assert {str(parts / "crane-r1"), str(parts / "parts.json"), str(REPO / "score"), str(REPO / "tools/props"),
+                str(REPO / "data/library")} <= sent, sent
+        assert any(path.endswith("work/pixal/crane-r1-final.glb") for path in sent), sent
+        listing = json.loads(pathlib.Path(job["args"][0]).read_text())
+        assert listing["paint take"] == "crane-r1"
+        assert json.loads(pathlib.Path(listing["paint records"]).read_text()) == [{"part": 0}]
+
 
 if __name__ == "__main__":
     for name, test in list(globals().items()):
