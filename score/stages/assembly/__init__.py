@@ -34,7 +34,8 @@ import triage  # noqa: E402
 FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "fittings": "{data}/library/fittings.json", "resting rules": "{data}/checks/resting.json",
          "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
-         "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}
+         "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
+         "surfaces": "{data}/surfaces/{place}.json"}
 SEED_PARTS = ("layers", "assets", "inputs.json")
 GROUND_LAYER = "layers/ground.usdc"
 EFFECTS_LAYER = "layers/effects.usda"
@@ -64,18 +65,45 @@ def make_from_seed(inputs, out, seed, params):
         take_effects(inputs["effects-layer"], out / root.name)
     if "surfaces-bake" in inputs:
         take_bake(pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]), out)
+    for claimed in claimed_bakes(inputs, out):
+        take_bake(*claimed)
     take_ground(inputs["terrain"], folder.name, out / root.name)
 
 
-def take_bake(bake, paint, out):
-    """The surface stage's baked models in place of the seed's: each model the place's bake made, written as the
-    exporter writes an asset (tools/usd/export.write_asset: drawn mesh, collision, a subset per library surface from
-    the paint's labelled parts) over the seed's assets/<model>.usdc and its maps."""
+def claiming_places(place):
+    """The places whose surface line paints models this place lays (its surface data's `elsewhere`), read beside."""
+    path = REPO / "data/surfaces" / f"{place}.json"
+    elsewhere = json.loads(path.read_text()).get("elsewhere", {}) if path.exists() else {}
+    return sorted({claim["place"] for claim in elsewhere.values()})
+
+
+def claimed_bakes(inputs, out):
+    """(bake, paint, out, models) of each place whose bake holds models this place lays (its surface data's
+    `elsewhere`, read beside: surfaces-bake@<place>), each model under the name both places give it."""
+    found = []
+    elsewhere = json.loads(pathlib.Path(inputs["surfaces"]).read_text()).get("elsewhere", {})
+    for name, path in inputs.items():
+        if name.startswith("surfaces-bake@"):
+            other = name.split("@", 1)[1]
+            models = [model for model, claim in elsewhere.items() if claim["place"] == other]
+            found.append((pathlib.Path(path), pathlib.Path(inputs[f"surfaces-paint@{other}"]), out, models))
+    return found
+
+
+def take_bake(bake, paint, out, models=None):
+    """The surface stage's baked models in place of the seed's: each model a place's bake made (or only `models` of
+    it), written as the exporter writes an asset (tools/usd/export.write_asset: drawn mesh, collision, a subset per
+    library surface from the paint's labelled parts) over the seed's assets/<model>.usdc and its maps."""
     import export
     import library
     variants = library.variants(library.theme_library())
     sounds = json.loads(export.SOUNDS.read_text())
-    for model, entry in json.loads((bake / "baked.json").read_text()).items():
+    baked = json.loads((bake / "baked.json").read_text())
+    missing = [model for model in models or () if model not in baked]
+    if missing:
+        raise FileNotFoundError(f"{bake}: its bake made none of {missing}, which this place lays by its claim")
+    for model in models if models is not None else baked:
+        entry = baked[model]
         (out / "assets" / f"{model}.usdc").unlink(missing_ok=True)
         export.write_asset(model, bake / "made", {model: paint / "labelled" / entry["parts"]}, None, entry["base"],
                            entry["size"], out, variants, sounds)

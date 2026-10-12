@@ -115,6 +115,29 @@ def test_a_small_worlds_horizon_dips():
     assert sight.horizon([0.0, 1.7, 0.0], (0.0, 1.0, 0.0), None)[1] == 0.0
 
 
+def test_a_library_surface_added_for_a_model_leaves_terrains_key_alone():
+    import shutil
+    import tempfile
+    from score import graph
+    from score.stages import terrain
+    from score.store import Store
+    root = pathlib.Path(tempfile.mkdtemp())
+    shutil.copytree(REPO / "data/ground/plan", root / "ground/plan")
+    (root / "library").mkdir()
+    shutil.copy2(REPO / "data/library/materials.json", root / "library/materials.json")
+    stage = graph.Stage("terrain", "world", None, terrain.GROUNDS, files={"library": terrain.FILES["library"]})
+    runner = graph.Runner((stage,), graph.World("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
+    before = runner.file_keys(stage, None)["library"]
+    library = json.loads((root / "library/materials.json").read_text())
+    library["families"]["plastic"]["variants"]["test_plastic"] = {"recipe": "rubber", "token": "sign-red"}
+    (root / "library/materials.json").write_text(json.dumps(library))
+    assert runner.file_keys(stage, None)["library"] == before  # a model's surface: no ground reads it
+    library["families"]["mars_surface"]["variants"]["mars_regolith"]["token"] = "sign-red"
+    (root / "library/materials.json").write_text(json.dumps(library))
+    assert runner.file_keys(stage, None)["library"] != before  # a ground's own surface: its key moves
+    shutil.rmtree(root)
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

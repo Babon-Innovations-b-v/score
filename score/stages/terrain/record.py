@@ -112,6 +112,27 @@ def zones(shaped, record, heights):
     return found, surfaces
 
 
+def named_surfaces(value):
+    """Every library surface a plan names (each `surface` value, at any depth)."""
+    if isinstance(value, dict):
+        return {found for key, item in value.items()
+                for found in ([item] if key == "surface" and isinstance(item, str) else named_surfaces(item))}
+    if isinstance(value, list):
+        return {found for item in value for found in named_surfaces(item)}
+    return set()
+
+
+def ground_surfaces(library):
+    """The part of the library the grounds read, as text: each surface the plans (data/ground/plan, beside the
+    library's folder) name, with its variant. Terrain's key hashes this, not the whole library, so a surface added
+    for a model moves no ground."""
+    plans = pathlib.Path(library).parents[1] / "ground" / "plan"
+    named = set().union(*(named_surfaces(json.loads(path.read_text())) for path in sorted(plans.glob("*.json"))))
+    variants = {name: variant for family in json.loads(pathlib.Path(library).read_text())["families"].values()
+                for name, variant in family["variants"].items()}
+    return json.dumps({name: variants.get(name) for name in sorted(named)}, sort_keys=True)
+
+
 def surface_colours(surfaces, library, tokens):
     """Each library surface's colour, '#rrggbb', from its design token."""
     variants = {name: variant for family in json.loads(pathlib.Path(library).read_text())["families"].values()

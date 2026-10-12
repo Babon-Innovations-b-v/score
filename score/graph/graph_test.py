@@ -404,6 +404,10 @@ def test_a_stage_reads_other_places_beside_without_a_cycle():
         assert "cycle" in str(refused)
     else:
         raise AssertionError("a stage reading itself beside was declared")
+    # A chain read beside with no loop (neighbours reads the assembly, which reads the claiming place's bake) stands.
+    shown_again = dataclasses.replace(SHOW, name="show again", after={"show": ("toy-text", 1)},
+                                      beside={"show": ("toy-text", 1)})
+    a_runner(world, store, (CLEAN, COUNT, SHOW, shown_again))
 
 
 if __name__ == "__main__":

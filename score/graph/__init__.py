@@ -91,7 +91,8 @@ class Stage:
     says so): that place's line has no such node. None: every place.
     beside, neighbours: for a place stage that reads other places' outputs, {earlier stage: (schema, version)} read
     for each place neighbours(place) names (its input `<stage>@<other place>`), versioned and waited on like `after`.
-    A stage read beside reads nothing beside itself, so two places that show each other make no cycle.
+    The table refuses a stage that reads itself through what it reads, after or beside (Runner.reached); two places
+    that show each other read a stage that reads nothing back, so they make no cycle.
     """
     name: str
     grain: str
@@ -174,10 +175,23 @@ class Runner:
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
         if unknown:
             raise ValueError(f"stages read stages the table lacks: {sorted(unknown)}")
-        looping = {stage.name for stage in stages for before in stage.beside if self.stages[before].beside}
+        looping = sorted(name for name in self.stages if name in self.reached(name))
         if looping:
-            raise ValueError(f"stages read beside a stage that reads beside itself (a cycle between places): "
-                             f"{sorted(looping)}")
+            raise ValueError(f"stages read themselves through what they read, after or beside (a cycle between "
+                             f"places): {looping}")
+
+    def reached(self, name):
+        """Every stage a stage reads, after or beside, directly or through what those read. A stage graph without a
+        loop has no node cycle: after is in one place, and a beside read is another place's node of a stage that
+        never reads back to this one (the assembly reads the claiming place's bake beside it; neighbours reads the
+        assembly beside it)."""
+        found, todo = set(), list((*self.stages[name].after, *self.stages[name].beside))
+        while todo:
+            before = todo.pop()
+            if before not in found:
+                found.add(before)
+                todo += [*self.stages[before].after, *self.stages[before].beside]
+        return found
 
     # --- keys --------------------------------------------------------------------------------------------------
 
@@ -195,16 +209,20 @@ class Runner:
         return stage.files(place) if callable(stage.files) else stage.files
 
     def file_path(self, stage, name, place):
-        return pathlib.Path(self.files_of(stage, place)[name].format(place=place, **self.world.roots))
+        pattern = self.files_of(stage, place)[name]
+        pattern = pattern[0] if isinstance(pattern, tuple) else pattern
+        return pathlib.Path(pattern.format(place=place, **self.world.roots))
 
     def file_keys(self, stage, place):
-        """{name: content hash} of each world file or seed folder the node reads; a missing one blocks."""
+        """{name: content hash} of each world file or seed folder the node reads; a missing one blocks. A file
+        declared as (pattern, part) is keyed by part(path), the text of the part of it the stage reads (terrain
+        reads only its ground's surfaces of the library), so a change elsewhere in the file moves no key."""
         keys = {}
-        for name in self.files_of(stage, place):
+        for name, pattern in self.files_of(stage, place).items():
             path = self.file_path(stage, name, place)
             if not path.exists():
                 raise Blocked(f"{node_name(stage, place)}: its input {name} is missing ({path})")
-            keys[name] = tree_hash(path)
+            keys[name] = text_hash(pattern[1](path)) if isinstance(pattern, tuple) else tree_hash(path)
         return keys
 
     def usable(self, before, place, wanted):
