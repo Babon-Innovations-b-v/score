@@ -34,8 +34,9 @@ so two places that show each other never load each other round.
 Only places with a movers record have the row. The assembly does not take the layer yet: the final assembly of each
 place picks it up in place of the seed's motion layer.
 """
-import atexit
+import contextlib
 import fnmatch
+import functools
 import json
 import pathlib
 import re
@@ -47,6 +48,7 @@ import numpy as np
 
 from score import checks, contracts
 from score.stages.motion import space
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
@@ -97,23 +99,26 @@ def game_record(inputs):
     return read_json(inputs["motion"]) if "motion" in inputs else None
 
 
-BUILT = {}
+# Where a place's stage is built for the make and each gate: on disk beside the work folder's stages (/tmp on this
+# machine is a tmpfs in memory, filled to its 22 GB by leftover builds on 2026-10-12), removed when the call ends.
+SCRATCH = PROPS_HOME / "work/motion-scratch"
 
 
-def source_of(inputs):
-    """The stage folder the layer is written over: the seed, or for a place with an accepted scene record a copy of
-    the seed with that record written over its record prims as the assembly writes it (built once a process, in a
-    folder of its own that goes when the process ends, beside links to the seed's sibling places it references), and,
-    when the movers record asks (`ground`: a mover drives out onto the yard), the made ground sublayered as the
-    assembly sublayers it (assembly.take_ground)."""
+@contextlib.contextmanager
+def built(inputs):
+    """The stage folder the layer is written over, for the length of a `with`: the seed, or for a place with an
+    accepted scene record a copy of the seed with that record written over its record prims as the assembly writes it
+    (beside links to the seed's sibling places it references) and, when the movers record asks (`ground`: a mover
+    drives out onto the yard), the made ground sublayered as the assembly sublayers it (assembly.take_ground). The
+    copy is removed when the `with` ends, failed or not."""
     if "scene-record" not in inputs:
-        return pathlib.Path(inputs["seed"])
-    key = str(inputs["scene-record"])
-    if key not in BUILT:
-        from score.stages import assembly
-        seed = pathlib.Path(inputs["seed"])
-        holder = pathlib.Path(tempfile.mkdtemp(prefix=f"motion-{seed.name}-"))
-        atexit.register(shutil.rmtree, holder, True)
+        yield pathlib.Path(inputs["seed"])
+        return
+    from score.stages import assembly
+    seed = pathlib.Path(inputs["seed"])
+    SCRATCH.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f"motion-{seed.name}-", dir=SCRATCH) as holder:
+        holder = pathlib.Path(holder)
         for other in seed.parent.iterdir():  # the places it shows, referenced as its seed's siblings
             if other.is_dir() and other.name != seed.name:
                 (holder / other.name).symlink_to(other)
@@ -128,8 +133,21 @@ def source_of(inputs):
         assembly.take_record(inputs, folder, seed.name)
         if read_json(inputs["movers"]).get("ground") and "terrain" in inputs:
             assembly.take_ground(inputs["terrain"], seed.name, folder / f"{seed.name}.usda")
-        BUILT[key] = folder
-    return BUILT[key]
+        yield folder
+
+
+def on_built(judge):
+    """A gate judged over the place's stage built for it (`built`), the build removed when it is judged."""
+    @functools.wraps(judge)
+    def judged(output, inputs, evidence):
+        with built(inputs) as source:
+            return judge(output, dict(inputs, built=source), evidence)
+    return judged
+
+
+def source_of(inputs):
+    """The stage folder a gate reads: the one built for it (on_built), else the seed."""
+    return pathlib.Path(inputs.get("built", inputs["seed"]))
 
 
 def renamed(entry, names):
@@ -160,8 +178,14 @@ def stands(stage, entry):
 
 def make(inputs, out, seed, params):
     """The place's motion layer from its game motions and its movers, over its stage."""
+    with built(inputs) as source:
+        write_motion(inputs, out, source)
+
+
+def write_motion(inputs, out, source):
+    """The layer written over a built stage folder, and movers.json."""
     from pxr import Sdf
-    place, source = place_of(inputs), source_of(inputs)
+    place = place_of(inputs)
     names = read_json(inputs["movers"]).get("renamed", {})
     every = [renamed(entry, names) for entry in (game_record(inputs) or {}).get("motions", [])]
     every += read_json(inputs["movers"]).get("movers", [])
@@ -570,6 +594,6 @@ def layer_faults(folder):
 
 
 LAYER = contracts.Contract("motion-layer", 1, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
-CHECKS = (checks.Check("clear", judge_clear), checks.Check("speeds", judge_speeds),
-          checks.Check("loops", judge_loops), checks.Check("grounded", judge_grounded),
-          checks.Check("covered", judge_covered))
+CHECKS = (checks.Check("clear", on_built(judge_clear)), checks.Check("speeds", on_built(judge_speeds)),
+          checks.Check("loops", on_built(judge_loops)), checks.Check("grounded", on_built(judge_grounded)),
+          checks.Check("covered", on_built(judge_covered)))
