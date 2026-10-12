@@ -206,7 +206,10 @@ is meant to fix, where it is marked, and what proves it.
   seed's. `effects-look@launch` (paid) renders the review cameras before and after at four moments round lift-off,
   gated on `shown` and `lit`. Only the places in `effects.STAGED` and `look.LOOKED` (the launch) have the rows. Run
   with `python -m score run world1 --place launch --stage effects-look`. Proven when the owner has seen the launch's
-  stills; then each place's record (pump-downs, steam, dust) from footage, and films on his go.
+  stills; then each place's record (pump-downs, steam, dust) from footage, and films on his go. 2026-10-12: all five
+  gates pass on the launch (the `loose` footage check added after the first stills showed lone flakes: 10 % of the
+  cloud's particles then, 0.2 % now); the unmerged local `effects` branch (be73bb0, 694a579) holds the other places'
+  records in an older schema.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
