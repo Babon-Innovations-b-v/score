@@ -59,6 +59,11 @@ FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
 # repository folders its code and data come from.
 PAINT_CLASSES = "cpu-32c-128gb,cpu-32c-64gb,cpu-32c-256gb,cpu-16c-64gb"
 PAINT_MINUTES, PAINT_EUROS = 2, 0.5
+# Not paint (owner, #8, 2026-10-12): glass, screen glow, lamp light and print stay allowed and are judged by their
+# own colour, not the close-up's lit one. A surface the close-up shows over ORDER_L lighter than another must not lie
+# over ORDER_LIBRARY darker in the library (bake_check's ORDER_L and ORDER_BAKED, before the bake).
+OWN_COLOUR = ("glass", "screen", "light", "print")
+ORDER_L, ORDER_LIBRARY = 10.0, 3.0
 TAKE, RECORDS, HOME, CODE = "paint take", "paint records", "props home", "paint repo"
 PAINT_REPO = ("score", "tools/props", "data/library", "data/definitions", "design/tokens", "data/checks",
               "data/inventory")
@@ -306,17 +311,67 @@ def judge_feet(output, inputs, evidence):
 def judge_concept_colour(output, inputs, evidence):
     """Every finish's library surface lies near its colour in the close-up (the method's `finishes`, each with the
     measured colour and its surface's distance from it): a finish no library surface fits by colour is named, its
-    proposed tinted surface in the registry for the owner."""
+    proposed tinted surface in the registry for the owner. Glass, screen glow, lamp light and print are not paint
+    (owner, #8, 2026-10-12): judged by the material's own colour, never the close-up's lit one, so they pass here."""
     found = json.loads((output / "painted.json").read_text())["takes"]
-    failing = [f"{take}: {finish['finish']} measured L*a*b* {finish['measured_lab']}, {finish['surface']} dE "
-               f"{finish['delta_e']} (proposed: {finish['new_surface']['name']})"
-               for take, report in found.items() for finish in report.get("finishes", [])
-               if finish.get("by") == "off its colour"]
+    data = data_of(prop_env.short(inputs))
+    failing, own = [], 0
+    for take, report in found.items():
+        families = surface_families(data["takes"][take])
+        for finish in report.get("finishes", []):
+            if finish.get("by") != "off its colour":
+                continue
+            if families.get(finish["surface"]) in OWN_COLOUR:
+                own += 1
+                continue
+            failing.append(f"{take}: {finish['finish']} measured L*a*b* {finish['measured_lab']}, {finish['surface']} "
+                           f"dE {finish['delta_e']} (proposed: {finish['new_surface']['name']})")
     swapped = sum(finish.get("by") == "nearest of its family by colour" for report in found.values()
                   for finish in report.get("finishes", []))
     finishes = sum(len(report.get("finishes", [])) for report in found.values())
     return gates.verdict("colour against the close-up", failing, finishes, "finishes no surface fits by colour",
-                         {"swapped": swapped})
+                         {"swapped": swapped, "own colour": own})
+
+
+def judge_concept_order(output, inputs, evidence):
+    """Each take's opaque surfaces keep the close-up's lightness order: a surface whose finish the close-up shows over
+    ORDER_L lighter than another's must not be over ORDER_LIBRARY darker in the library (the greenhouse's water tank
+    and the airlock's dust vacuum: painted_panel L* 61.6 under bare_steel 66.3, their close-ups the other way round;
+    the bake keeps the library's order, so it is caught before the bake). Glass, glow, lamp light and print are left
+    out (OWN_COLOUR)."""
+    found = json.loads((output / "painted.json").read_text())["takes"]
+    data = data_of(prop_env.short(inputs))
+    failing = []
+    for take, report in found.items():
+        failing += order_faults(take, report.get("finishes", []), surface_lightness(data["takes"][take]))
+    return gates.verdict("lightness order against the close-up", failing, len(found),
+                         "models whose surfaces the close-up shows in another lightness order")
+
+
+def order_faults(take, finishes, lightness):
+    """Each pair of a take's opaque surfaces whose library lightness (`lightness`: {surface: L*}) reverses the
+    close-up's: seen over ORDER_L lighter, over ORDER_LIBRARY darker in the library."""
+    seen = {}
+    for finish in finishes:
+        if finish.get("measured_lab") and finish["surface"] in lightness:
+            seen.setdefault(finish["surface"], finish["measured_lab"][0])
+    return [f"{take}: {lighter} is {seen[lighter] - seen[darker]:.1f} L* lighter than {darker} in its close-up but "
+            f"{lightness[darker] - lightness[lighter]:.1f} darker in the library"
+            for lighter in sorted(seen) for darker in sorted(seen)
+            if seen[lighter] - seen[darker] > ORDER_L and lightness[lighter] - lightness[darker] < -ORDER_LIBRARY]
+
+
+def surface_families(entry):
+    """{surface: its library family} of every surface the take may take (finish_parts.take_surfaces)."""
+    import finish_parts
+    return {name: spec.get("family") for name, spec in finish_parts.take_surfaces(entry).items()}
+
+
+def surface_lightness(entry):
+    """{surface: its library L*} of every opaque, painted surface the take may take (not OWN_COLOUR)."""
+    import finish_parts
+    return {name: float(finish_parts.library_lab(spec)[0]) for name, spec in finish_parts.take_surfaces(entry).items()
+            if "colour" in spec and spec.get("family") not in OWN_COLOUR}
 
 
 # --- bake ----------------------------------------------------------------------------------------------------------

@@ -2448,6 +2448,14 @@
 					"bump": 0.0002,
 					"bump_size": 0.01,
 					"said": "the plot's young crop green (PlotField's crop ink)"
+				},
+				"lettuce_leaf": {
+					"recipe": "rubber",
+					"token": "earth-land",
+					"roughness": 0.6,
+					"bump": 0.0002,
+					"bump_size": 0.01,
+					"said": "added 2026-10-13 from the finish-map method's measure (the greenhouse crops' lettuce, green and yellow mottled leaves, close-up L*a*b* [66.9, -14.3, 43.4], seedling_leaf dE 32.3; the nearest green palette token, dE 17.7). Own colour: yes, a lettuce's yellow-green; owner to review"
 				}
 			}
 		},
