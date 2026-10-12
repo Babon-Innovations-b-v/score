@@ -1,0 +1,87 @@
+{
+ "title": "STAIRWELL (one floor; six flights from 9 m to the street)",
+ "w": 3.0,
+ "d": 5.0,
+ "corner": 0.0,
+ "height": "floor to floor 3.0 m, each flight 1.5 m in 9 risers",
+ "doors": [
+  [
+   "S",
+   0.8,
+   1.0,
+   "FLAT FRONT DOOR (3rd floor)"
+  ],
+  [
+   "E",
+   4.4,
+   1.0,
+   "NEIGHBOUR'S GATE"
+  ]
+ ],
+ "items": [
+  [
+   "HALF LANDING 1.2 m",
+   0.0,
+   0.0,
+   3.0,
+   1.2,
+   null,
+   "zone"
+  ],
+  [
+   "FLIGHT DOWN (9 risers)",
+   0.0,
+   1.2,
+   1.35,
+   2.6,
+   null,
+   "stair"
+  ],
+  [
+   "FLIGHT UP (9 risers)",
+   1.65,
+   1.2,
+   1.35,
+   2.6,
+   null,
+   "stair"
+  ],
+  [
+   "FLOOR LANDING 1.2 m",
+   0.0,
+   3.8,
+   3.0,
+   1.2,
+   null,
+   "zone"
+  ],
+  [
+   "METER BOXES",
+   2.6,
+   0.1,
+   0.4,
+   0.8,
+   null,
+   "item"
+  ],
+  [
+   "CAGED LAMP (each landing)",
+   1.35,
+   0.1,
+   0.3,
+   0.3,
+   null,
+   "item"
+  ]
+ ],
+ "people": [
+  [
+   0.7,
+   4.4
+  ]
+ ],
+ "notes": [
+  "Numbers from the game (earth_site.gd: stair core 3 x 5 m, six switchback flights each 1.5 m in 9 risers, two lanes 1.35 m, landings 1.2 m; landings at 9, 7.5, 6, 4.5, 3, 1.5, 0 m; street_fittings.gd floor names, couplets, meter boxes, letterboxes, poster, exit signs).",
+  "At the bottom: letterboxes and the street door, where the guard stands."
+ ]
+}

@@ -1,0 +1,71 @@
+{
+ "title": "THE LAUNCH VIEW (from the balcony across the harbour)",
+ "w": 340.0,
+ "d": 340.0,
+ "corner": 0.0,
+ "height": "rocket 60 m tall; far-shore skyline ring 300 m out, 84 m tall; sky dome 320 m",
+ "grid": 20.0,
+ "doors": [],
+ "items": [
+  [
+   "SQUARE",
+   120.0,
+   6.0,
+   120.0,
+   74.0,
+   null,
+   "zone"
+  ],
+  [
+   "HARBOUR",
+   0.0,
+   106.0,
+   340.0,
+   170.0,
+   null,
+   "water"
+  ],
+  [
+   "LAUNCH PAD 58 x 80",
+   151.0,
+   262.0,
+   58.0,
+   30.0,
+   null,
+   "item"
+  ],
+  [
+   "ROCKET 60 m",
+   176.0,
+   270.0,
+   8.0,
+   8.0,
+   null,
+   "item"
+  ],
+  [
+   "FAR-SHORE SKYLINE RING r 300 m",
+   0.0,
+   296.0,
+   340.0,
+   12.0,
+   null,
+   "building"
+  ],
+  [
+   "BALCONY",
+   176.0,
+   0.0,
+   8.0,
+   4.0,
+   null,
+   "building"
+  ]
+ ],
+ "people": [],
+ "notes": [
+  "Numbers from the game (earth_site.gd: harbour from about 106 m along the view, launch pad 58 x 80 m, rocket at about 272 m from the balcony; launch_rocket.gd 60 m tall; skyline picture ring 300 m out and 84 m tall; sky dome 320 m).",
+  "Owner: Victoria Harbour at night, the Moon over the rocket; the rocket stands alone on its pad (a box tower beside it read as a block on the skyline).",
+  "Drawn on a 20 m grid, the view axis pointing down the page."
+ ]
+}

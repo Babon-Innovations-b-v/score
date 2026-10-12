@@ -1,0 +1,154 @@
+{
+ "title": "HABITAT (crew living module)",
+ "w": 12.0,
+ "d": 10.0,
+ "corner": 2.0,
+ "height": "walls 2.8 m, dome rising about 1.8 m",
+ "doors": [
+  [
+   "N",
+   6.0,
+   2.2,
+   "TUBE HATCH N"
+  ],
+  [
+   "S",
+   6.0,
+   2.2,
+   "TUBE HATCH S"
+  ],
+  [
+   "E",
+   5.0,
+   2.2,
+   "TUBE HATCH E (sealed)"
+  ],
+  [
+   "W",
+   5.0,
+   2.2,
+   "TUBE HATCH W (sealed)"
+  ]
+ ],
+ "items": [
+  [
+   "SLEEP POD x2 high",
+   2.4,
+   0.0,
+   2.1,
+   1.0,
+   "S",
+   "item"
+  ],
+  [
+   "SLEEP POD x2 high",
+   7.5,
+   0.0,
+   2.1,
+   1.0,
+   "S",
+   "item"
+  ],
+  [
+   "PERSONAL LOCKERS",
+   0.0,
+   2.1,
+   0.6,
+   1.7,
+   "E",
+   "item"
+  ],
+  [
+   "FOOD STORES",
+   0.0,
+   6.2,
+   0.6,
+   1.7,
+   "E",
+   "item"
+  ],
+  [
+   "GALLEY COUNTER",
+   2.2,
+   9.35,
+   2.6,
+   0.65,
+   "N",
+   "item"
+  ],
+  [
+   "MESS TABLE",
+   2.6,
+   6.6,
+   2.0,
+   0.9,
+   null,
+   "item"
+  ],
+  [
+   "HYGIENE CUBICLE",
+   10.6,
+   2.0,
+   1.4,
+   1.8,
+   "W",
+   "item"
+  ],
+  [
+   "EXAM COUCH",
+   11.25,
+   6.1,
+   0.75,
+   1.9,
+   "W",
+   "item"
+  ],
+  [
+   "MED CABINET",
+   8.6,
+   9.5,
+   1.2,
+   0.5,
+   "N",
+   "item"
+  ]
+ ],
+ "stools": [
+  [
+   3.0,
+   6.25
+  ],
+  [
+   4.2,
+   6.25
+  ],
+  [
+   3.0,
+   7.85
+  ],
+  [
+   4.2,
+   7.85
+  ]
+ ],
+ "people": [
+  [
+   3.6,
+   8.3
+  ],
+  [
+   3.5,
+   8.95
+  ],
+  [
+   10.3,
+   7.0
+  ]
+ ],
+ "notes": [
+  "The habitat has no size in the game yet (CONTEXT.md: bunks, galley, mess; nothing places one): 12 x 10 m is the coordinator's pick, the kit's rounded capsule with corners 2.0 m.",
+  "Four door spots: 'a module a person lives or works in has one in every wall' (module_doors.gd). Unused ones are sealed hatches and stay clear.",
+  "Four berths for a starting crew of two plus arrivals (crew_record.gd STARTING_CREW = player, botanist).",
+  "Hygiene cubicle and medbay corner lean clean institutional (place.json shared.theme mix)."
+ ]
+}

@@ -1,0 +1,79 @@
+{
+ "title": "AIRLOCK",
+ "w": 4.0,
+ "d": 5.0,
+ "corner": 0.6,
+ "height": "walls 2.8 m, low dome rising 0.6 m, beacon on top, porch over the outer door",
+ "doors": [
+  [
+   "N",
+   2.0,
+   2.2,
+   "INNER DOOR (to the hub, sinks into the floor)"
+  ],
+  [
+   "S",
+   2.0,
+   2.2,
+   "OUTER DOOR (to the regolith, sinks into the floor)"
+  ]
+ ],
+ "items": [
+  [
+   "SUIT LOCKER: suit + hose reel",
+   3.3,
+   1.7,
+   0.7,
+   1.6,
+   "W",
+   "item"
+  ],
+  [
+   "SUIT-UP BENCH",
+   0.0,
+   1.8,
+   0.45,
+   1.4,
+   "E",
+   "item"
+  ],
+  [
+   "DUST BRUSH + VACUUM",
+   0.0,
+   3.5,
+   0.35,
+   0.8,
+   "E",
+   "item"
+  ],
+  [
+   "FAN UNIT",
+   3.55,
+   3.5,
+   0.45,
+   0.8,
+   null,
+   "item"
+  ],
+  [
+   "RAMP 2.5 m at 20 deg",
+   0.9,
+   5.3,
+   2.2,
+   2.5,
+   null,
+   "outside"
+  ]
+ ],
+ "people": [
+  [
+   2.5,
+   2.5
+  ]
+ ],
+ "notes": [
+  "Size and doors from the game (module_floors.gd 4 x 5, corners 0.6; module_doors.gd north and south; airlock.gd doors sink 2.8 m, ramp 2.5 m at 20 degrees).",
+  "Pieces in the game: SuitLocker with a suit and hose reel, InnerDoor, OuterDoor, the chamber, fan units, gauges, keypads (airlock.tscn). The suit-up bench and the dust brush come from the 2026-10-03 fit-out brief.",
+  "One airlock look everywhere (CONTEXT.md); the hub side of the inner door is the hub's striped airlock hatch."
+ ]
+}

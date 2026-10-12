@@ -1,0 +1,158 @@
+{
+ "title": "HANGAR (holds the ship)",
+ "w": 26.0,
+ "d": 46.0,
+ "corner": 4.0,
+ "grid": 2.0,
+ "height": "walls 13 m to a flat roof; the big door is in the roof: two leaves slide apart east and west, a 22 x 40 m opening; the whole room is pumped empty of air before it opens",
+ "doors": [
+  [
+   "S",
+   13.0,
+   2.2,
+   "TUBE HATCH S"
+  ],
+  [
+   "W",
+   23.0,
+   2.2,
+   "TUBE HATCH W"
+  ],
+  [
+   "E",
+   23.0,
+   2.2,
+   "TUBE HATCH E"
+  ]
+ ],
+ "items": [
+  [
+   "ROOF DOOR OPENING 22 x 40 (overhead)",
+   2.0,
+   3.0,
+   22.0,
+   40.0,
+   null,
+   "overhead"
+  ],
+  [
+   "SHIP KEEP-OUT 12 x 31 (the ship, nose south)",
+   7.0,
+   7.5,
+   12.0,
+   31.0,
+   null,
+   "zone"
+  ],
+  [
+   "SHIP PAD 7.2 across",
+   9.4,
+   28.3,
+   7.2,
+   7.2,
+   null,
+   "item"
+  ],
+  [
+   "SHIP BENCH",
+   23.6,
+   25.0,
+   1.2,
+   3.0,
+   "W",
+   "item"
+  ],
+  [
+   "FUEL POINT + HOSE REEL",
+   1.0,
+   28.0,
+   1.4,
+   1.4,
+   "E",
+   "item"
+  ],
+  [
+   "SHIP PARTS RACKS",
+   24.6,
+   6.0,
+   1.4,
+   10.0,
+   "W",
+   "item"
+  ],
+  [
+   "CRATES OF SHIP PARTS",
+   20.0,
+   8.0,
+   3.0,
+   4.0,
+   null,
+   "item"
+  ],
+  [
+   "MOBILE ACCESS STAIR",
+   20.0,
+   18.0,
+   2.0,
+   4.4,
+   null,
+   "item"
+  ],
+  [
+   "CONTROL DESK (bay cycle, roof door)",
+   16.0,
+   45.0,
+   4.0,
+   1.0,
+   "N",
+   "item"
+  ],
+  [
+   "BAY CONTROL PANEL",
+   0.0,
+   19.0,
+   0.3,
+   1.0,
+   "E",
+   "item"
+  ],
+  [
+   "BAY CONTROL PANEL",
+   25.7,
+   19.0,
+   0.3,
+   1.0,
+   "W",
+   "item"
+  ],
+  [
+   "BRIDGE CRANE on rails along both long walls (overhead, 10 m up)",
+   0.6,
+   4.0,
+   24.8,
+   1.2,
+   null,
+   "overhead"
+  ]
+ ],
+ "people": [
+  [
+   18.0,
+   43.6
+  ],
+  [
+   21.0,
+   26.5
+  ],
+  [
+   4.0,
+   30.0
+  ]
+ ],
+ "notes": [
+  "Owner, 2026-10-07: a hangar that holds the Mars ship (so it must be large); three normal sealing doors into the base and one big outside door the craft goes out through; the room can be pumped empty of air.",
+  "Ship measured in the game: the drawn hull today is the old upright one (3.2 m across, 8.3 m tall, legs 4.4 m apart); the cabin deck inside it is 6.7 m wide over its shell, 26.3 m long (3.6 m ahead of the legs to 22.35 m behind them) and 5.5 m high over the feet (ship_cabin.gd). The locked shuttle style wraps a flat wedge round that deck: the keep-out box 12 x 31 x 8 m is the coordinator's estimate of it (deck plus hull, nose spike and engines).",
+  "The ship takes off and lands straight up and down on its belly engine (CONTEXT.md virtual stick), so the big door is in the roof: 5 m clear each side of the keep-out box, 4.5 m at the ends. Coordinator's pick, owner may change: a wall door would make the pilot fly out level through it.",
+  "Size 26 x 46 m, walls 13 m: coordinator's pick. It stands north of the greenhouse, joined to its north door; the garage joins its east door. The ship stands on the pad nose south, as it does in the game today."
+ ]
+}

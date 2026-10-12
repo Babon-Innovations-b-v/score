@@ -1,0 +1,140 @@
+{
+ "title": "THE STREET (closed for launch night)",
+ "w": 8.0,
+ "d": 20.0,
+ "corner": 0.0,
+ "height": "the flat's block 24 m tall (west), the block across 20 m (east)",
+ "doors": [
+  [
+   "W",
+   4.0,
+   1.4,
+   "STREET DOOR (stairwell)"
+  ]
+ ],
+ "items": [
+  [
+   "PAVEMENT",
+   0.0,
+   0.0,
+   1.6,
+   20.0,
+   null,
+   "zone"
+  ],
+  [
+   "PAVEMENT",
+   6.4,
+   0.0,
+   1.6,
+   20.0,
+   null,
+   "zone"
+  ],
+  [
+   "STATE CAR (door open)",
+   3.6,
+   9.0,
+   1.9,
+   5.0,
+   null,
+   "item"
+  ],
+  [
+   "BARRIER 2.4",
+   1.6,
+   0.3,
+   2.4,
+   0.8,
+   null,
+   "item"
+  ],
+  [
+   "BARRIER 2.4",
+   4.0,
+   0.3,
+   2.4,
+   0.8,
+   null,
+   "item"
+  ],
+  [
+   "BARRIER 2.4",
+   1.6,
+   18.9,
+   2.4,
+   0.8,
+   null,
+   "item"
+  ],
+  [
+   "BARRIER 2.4",
+   4.0,
+   18.9,
+   2.4,
+   0.8,
+   null,
+   "item"
+  ],
+  [
+   "NOTICE BOARD",
+   0.1,
+   6.0,
+   0.3,
+   1.4,
+   null,
+   "item"
+  ],
+  [
+   "POSTER STAND",
+   1.0,
+   2.0,
+   0.5,
+   0.6,
+   null,
+   "item"
+  ],
+  [
+   "SHOPFRONTS: grain & oil, barber, hardware, tea restaurant",
+   7.6,
+   2.0,
+   0.4,
+   16.0,
+   null,
+   "building"
+  ],
+  [
+   "STREET LAMP",
+   1.3,
+   12.0,
+   0.25,
+   0.25,
+   null,
+   "item"
+  ],
+  [
+   "STREET LAMP",
+   6.45,
+   5.0,
+   0.25,
+   0.25,
+   null,
+   "item"
+  ]
+ ],
+ "people": [
+  [
+   0.9,
+   4.0
+  ],
+  [
+   5.9,
+   11.2
+  ]
+ ],
+ "notes": [
+  "Numbers from the game (earth_site.gd: street 8 x 20 m, the flat's block 24 m, the block across 20 m, barriers 2.4 x 0.8 m, a 4 m fence; car at (10, 0, 4), driver beside it, guard at the street door).",
+  "Signs: notice 'street closed on launch night', poster stand celebrating the first crewed Moon flight, block name, shop signs (street_fittings.gd); signs in simplified Chinese on Earth.",
+  "Pavement widths 1.6 m are the coordinator's."
+ ]
+}

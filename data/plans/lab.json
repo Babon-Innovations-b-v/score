@@ -1,0 +1,92 @@
+{
+ "title": "LAB",
+ "w": 6.0,
+ "d": 6.0,
+ "corner": 1.6,
+ "height": "walls 2.8 m, dome rising 1.0 m, instrument mast on the roof",
+ "doors": [
+  [
+   "N",
+   3.0,
+   2.2,
+   "TUBE HATCH N"
+  ],
+  [
+   "S",
+   3.0,
+   2.2,
+   "TUBE HATCH S"
+  ]
+ ],
+ "items": [
+  [
+   "LEDGE 0.42",
+   0.0,
+   1.6,
+   1.0,
+   2.8,
+   null,
+   "raised"
+  ],
+  [
+   "LEDGE 0.42",
+   5.0,
+   1.6,
+   1.0,
+   2.8,
+   null,
+   "raised"
+  ],
+  [
+   "LAB DESK",
+   0.8,
+   1.15,
+   1.4,
+   0.7,
+   "S",
+   "item"
+  ],
+  [
+   "LAB DESK",
+   3.8,
+   1.15,
+   1.4,
+   0.7,
+   "S",
+   "item"
+  ],
+  [
+   "GLOVEBOX CABINET",
+   5.3,
+   2.4,
+   0.7,
+   1.2,
+   "W",
+   "item"
+  ],
+  [
+   "SAMPLE STORE",
+   0.0,
+   2.4,
+   0.7,
+   1.2,
+   "E",
+   "item"
+  ]
+ ],
+ "people": [
+  [
+   1.5,
+   2.25
+  ],
+  [
+   4.5,
+   2.25
+  ]
+ ],
+ "notes": [
+  "Size, two doors north and south only, ledges east and west, two desk spots at (+-1.5, -1.5) from the middle (module_floors.gd, module_doors.gd, stepped_floor.gd, module_record.gd).",
+  "Research still keeps one desk, the hub's (#108); these desks take nobody yet.",
+  "Wall gear: signs, cabinets, a keypad, two task lamps (lab_room overlay)."
+ ]
+}

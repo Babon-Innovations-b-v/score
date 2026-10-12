@@ -1,0 +1,161 @@
+{
+ "title": "THE SQUARE (seen from the balcony, never walked)",
+ "w": 120.0,
+ "d": 110.0,
+ "corner": 0.0,
+ "height": "balcony eye 10.6 m; stage deck 3.3 m; backdrop 14.4 m; floodlight towers 18 m; lamps 6 m",
+ "grid": 10.0,
+ "doors": [],
+ "items": [
+  [
+   "FLAT'S BLOCK + BALCONY (eye 10.6 m)",
+   50.0,
+   0.0,
+   20.0,
+   6.0,
+   null,
+   "building"
+  ],
+  [
+   "SQUARE 120 x 74",
+   0.0,
+   6.0,
+   120.0,
+   74.0,
+   null,
+   "zone"
+  ],
+  [
+   "TERRACE 2.4",
+   10.0,
+   8.0,
+   100.0,
+   7.0,
+   null,
+   "raised"
+  ],
+  [
+   "TERRACE 1.6",
+   10.0,
+   15.0,
+   100.0,
+   7.0,
+   null,
+   "raised"
+  ],
+  [
+   "TERRACE 0.8",
+   10.0,
+   22.0,
+   100.0,
+   7.0,
+   null,
+   "raised"
+  ],
+  [
+   "CROWD (10,000 at most)",
+   6.0,
+   29.0,
+   108.0,
+   12.0,
+   null,
+   "crowd"
+  ],
+  [
+   "STAGE 19.5 x 11.1, deck 3.3",
+   50.25,
+   41.5,
+   19.5,
+   11.1,
+   null,
+   "item"
+  ],
+  [
+   "BACKDROP 14.4 m",
+   50.25,
+   52.0,
+   19.5,
+   0.6,
+   null,
+   "item"
+  ],
+  [
+   "CROWD",
+   6.0,
+   41.0,
+   42.0,
+   30.0,
+   null,
+   "crowd"
+  ],
+  [
+   "CROWD",
+   72.0,
+   41.0,
+   42.0,
+   30.0,
+   null,
+   "crowd"
+  ],
+  [
+   "FLOODLIGHT 18 m",
+   2.0,
+   8.0,
+   2.0,
+   2.0,
+   null,
+   "item"
+  ],
+  [
+   "FLOODLIGHT 18 m",
+   116.0,
+   8.0,
+   2.0,
+   2.0,
+   null,
+   "item"
+  ],
+  [
+   "FLOODLIGHT 18 m",
+   2.0,
+   76.0,
+   2.0,
+   2.0,
+   null,
+   "item"
+  ],
+  [
+   "FLOODLIGHT 18 m",
+   116.0,
+   76.0,
+   2.0,
+   2.0,
+   null,
+   "item"
+  ],
+  [
+   "WATERFRONT PROMENADE",
+   0.0,
+   80.0,
+   120.0,
+   26.0,
+   null,
+   "zone"
+  ],
+  [
+   "HARBOUR (to the launch pad, 272 m)",
+   0.0,
+   106.0,
+   120.0,
+   4.0,
+   null,
+   "water"
+  ]
+ ],
+ "people": [],
+ "notes": [
+  "Numbers from the game (earth_site.gd: square 74 x 120 m, terraces 0.8/1.6/2.4 m, stage 11.1 x 19.5 m with a 3.3 m deck about 41.5 m out from the balcony, backdrop 14.4 m, floodlight towers 18 m, lamps 6 m, crowd up to 10,000 plus a front row under the balcony, harbour from about 106 m).",
+  "Owner: the crowd needs elevation (terraces added), no TV screen beside the stage, 'a town square with the town round it'; banners 中国第一 / 飞向月球 / 人民的月球基地.",
+  "Drawn on a 10 m grid; the north of this plan is the balcony side."
+ ]
+}

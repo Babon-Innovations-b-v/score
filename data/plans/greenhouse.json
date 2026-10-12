@@ -1,0 +1,204 @@
+{
+ "title": "GREENHOUSE",
+ "w": 16.0,
+ "d": 18.0,
+ "corner": 1.2,
+ "height": "walls 2.8 m under a glass dome rising 3.4 m",
+ "doors": [
+  [
+   "N",
+   8.0,
+   2.2,
+   "TUBE HATCH N"
+  ],
+  [
+   "S",
+   8.0,
+   2.2,
+   "TUBE HATCH S"
+  ],
+  [
+   "E",
+   9.0,
+   2.2,
+   "TUBE HATCH E"
+  ],
+  [
+   "W",
+   9.0,
+   2.2,
+   "TUBE HATCH W"
+  ]
+ ],
+ "items": [
+  [
+   "DAIS 0.9 m (3 steps)",
+   1.2,
+   0.0,
+   5.6,
+   2.0,
+   null,
+   "raised"
+  ],
+  [
+   "DAIS 0.9 m (3 steps)",
+   9.2,
+   0.0,
+   5.6,
+   2.0,
+   null,
+   "raised"
+  ],
+  [
+   "LEDGE 0.42",
+   15.0,
+   1.2,
+   1.0,
+   6.6,
+   null,
+   "raised"
+  ],
+  [
+   "LEDGE 0.42",
+   15.0,
+   10.2,
+   1.0,
+   6.6,
+   null,
+   "raised"
+  ],
+  [
+   "LEDGE 0.42",
+   0.0,
+   1.2,
+   1.0,
+   6.6,
+   null,
+   "raised"
+  ],
+  [
+   "LEDGE 0.42",
+   0.0,
+   10.2,
+   1.0,
+   6.6,
+   null,
+   "raised"
+  ],
+  [
+   "LEDGE 0.42",
+   1.2,
+   17.0,
+   5.6,
+   1.0,
+   null,
+   "raised"
+  ],
+  [
+   "LEDGE 0.42",
+   9.2,
+   17.0,
+   5.6,
+   1.0,
+   null,
+   "raised"
+  ],
+  [
+   "HOME PLOT 12 x 12 m (beds 0.6 m)",
+   2.0,
+   2.0,
+   12.0,
+   12.0,
+   null,
+   "plot"
+  ],
+  [
+   "WATER TANK",
+   2.2,
+   0.2,
+   1.6,
+   1.6,
+   "E",
+   "item"
+  ],
+  [
+   "DOSING UNIT",
+   4.6,
+   0.2,
+   1.4,
+   0.6,
+   "S",
+   "item"
+  ],
+  [
+   "SEEDLING SHELVES",
+   10.0,
+   0.2,
+   1.8,
+   0.5,
+   "S",
+   "item"
+  ],
+  [
+   "SEEDLING SHELVES",
+   12.3,
+   0.2,
+   1.8,
+   0.5,
+   "S",
+   "item"
+  ],
+  [
+   "ROBOT BAYS x3 (charging)",
+   2.0,
+   15.0,
+   3.9,
+   1.2,
+   "N",
+   "item"
+  ],
+  [
+   "MEALWORM BIN 3x1",
+   10.5,
+   15.1,
+   3.0,
+   1.0,
+   "N",
+   "item"
+  ],
+  [
+   "GROW-LIGHT BARS + IRRIGATION BOOMS (overhead)",
+   2.0,
+   2.0,
+   12.0,
+   12.0,
+   null,
+   "overhead"
+  ]
+ ],
+ "people": [
+  [
+   8.0,
+   14.6
+  ],
+  [
+   5.0,
+   2.6
+  ],
+  [
+   12.0,
+   14.6
+  ]
+ ],
+ "notes": [
+  "Size, dais, ledges from the game (module_floors.gd 16 x 18, corners 1.2; stepped_floor.gd dais north 0.9 m high 2 m deep, ledges east/west/south 0.42 m high 1 m deep, cut by a 2.4 m aisle at each door).",
+  "Home plot grows from 5 x 5 beds (3 m, shaded) to 20 x 20 (12 m) from cell (2, 2) (home_plot.gd).",
+  "Robot station: 3 bays with charging (robot_hub.gd); mealworm bin 3 x 1 (farm_kinds.gd); water tank and dosing unit on the dais (greenhouse_rig.gd)."
+ ],
+ "start_plot": [
+  2.0,
+  2.0,
+  3.0,
+  3.0
+ ]
+}

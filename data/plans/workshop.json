@@ -1,0 +1,164 @@
+{
+ "title": "WORKSHOP",
+ "w": 16.0,
+ "d": 14.0,
+ "corner": 2.6,
+ "height": "walls 2.8 m, low dome rising 1.4 m, small windows",
+ "doors": [
+  [
+   "N",
+   8.0,
+   2.2,
+   "TUBE HATCH N (sealed)"
+  ],
+  [
+   "S",
+   8.0,
+   2.2,
+   "TUBE HATCH S (sealed)"
+  ],
+  [
+   "E",
+   7.0,
+   2.2,
+   "TUBE HATCH E (sealed)"
+  ],
+  [
+   "W",
+   7.0,
+   2.2,
+   "TUBE HATCH W (open, corridor to the hub)"
+  ]
+ ],
+ "items": [
+  [
+   "MACHINE BAY 1 (4 x 3): ice mine 3 x 3",
+   2.0,
+   2.0,
+   4.0,
+   3.0,
+   null,
+   "zone"
+  ],
+  [
+   "MACHINE BAY 2 (4 x 3): smelter 3 x 3",
+   10.0,
+   2.0,
+   4.0,
+   3.0,
+   null,
+   "zone"
+  ],
+  [
+   "MACHINE BAY 3 (4 x 3): electronics shop 2 x 2",
+   2.0,
+   9.0,
+   4.0,
+   3.0,
+   null,
+   "zone"
+  ],
+  [
+   "MACHINE BAY 4 (4 x 3): propellant farm 4 x 3",
+   10.0,
+   9.0,
+   4.0,
+   3.0,
+   null,
+   "zone"
+  ],
+  [
+   "ROBOT BENCH + turntable + parts tray, screens on arms",
+   7.1,
+   6.55,
+   1.8,
+   0.9,
+   "S",
+   "item"
+  ],
+  [
+   "EQUIPMENT BENCH",
+   10.6,
+   13.2,
+   1.8,
+   0.7,
+   "N",
+   "item"
+  ],
+  [
+   "HAND-TOOL BENCH + vise, tool board over",
+   3.6,
+   13.25,
+   1.6,
+   0.7,
+   "N",
+   "item"
+  ],
+  [
+   "ELECTRONICS BENCH",
+   15.25,
+   9.4,
+   0.7,
+   1.6,
+   "W",
+   "item"
+  ],
+  [
+   "PARTS BIN RACK",
+   15.45,
+   2.9,
+   0.5,
+   1.4,
+   "W",
+   "item"
+  ],
+  [
+   "SPARES SHELVES",
+   0.0,
+   2.9,
+   0.6,
+   1.6,
+   "E",
+   "item"
+  ],
+  [
+   "WALL SCREEN BANK",
+   10.2,
+   0.0,
+   2.0,
+   0.3,
+   "S",
+   "item"
+  ]
+ ],
+ "stools": [
+  [
+   4.4,
+   12.6
+  ],
+  [
+   14.7,
+   9.75
+  ]
+ ],
+ "people": [
+  [
+   8.0,
+   7.95
+  ],
+  [
+   11.5,
+   12.5
+  ],
+  [
+   14.75,
+   10.65
+  ]
+ ],
+ "notes": [
+  "Owner, 2026-10-07: a bigger room, all four doors kept, so the player's 3 x 3 and 4 x 3 machines fit on the open floor with walkways and standing spots. 16 x 14 m is the coordinator's pick (owner may change).",
+  "A 4 m cross of aisles runs door to door; one 4 x 3 m machine bay in each quarter against the aisles, filled in build order (farm_kinds.gd: ice mine 3x3 level 1, smelter 3x3 level 2, electronics shop 2x2 level 3, propellant farm 4x3 level 4), 2 m strips along the walls for the benches.",
+  "The robot bench stays in the room's middle, where the aisles cross (bench.tscn on the workshop's middle). The equipment bench's 0.42 m platform is dropped (owner, playtest 3: too many floor levels); it stands on the floor in the south strip.",
+  "Printers stand outside, not in the workshop (bible, printers overlay)."
+ ]
+}
