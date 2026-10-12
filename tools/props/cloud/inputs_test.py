@@ -194,6 +194,19 @@ def a_failed_staging_falls_back():
         return problems
 
 
+def an_input_named_through_a_link_is_linked_up_there():
+    with tempfile.TemporaryDirectory() as temporary:
+        root = pathlib.Path(temporary)
+        (root / "pixal5").mkdir()
+        (root / "pixal").mkdir()
+        (root / "pixal5" / "rover.glb").write_bytes(b"model")
+        (root / "pixal" / "rover.glb").symlink_to("../pixal5/rover.glb")
+        (root / "pixal" / "plain.glb").write_bytes(b"model")
+        found = inputs.named_links([root / "pixal" / "rover.glb", root / "pixal" / "plain.glb"])
+        wanted = {str(root / "pixal" / "rover.glb"): str((root / "pixal5" / "rover.glb").resolve())}
+        return [] if found == wanted else [f"links {found}"]
+
+
 def a_changed_input_is_not_stored_under_its_old_key():
     with tempfile.TemporaryDirectory() as temporary:
         root = pathlib.Path(temporary)
@@ -210,7 +223,8 @@ def a_changed_input_is_not_stored_under_its_old_key():
 
 CHECKS = (the_key_follows_the_content, an_input_goes_up_once, the_machine_pulls_ranges_and_unpacks,
           a_corrupt_object_is_refused, small_or_switched_off_inputs_go_directly, the_runner_sends_the_rest_directly,
-          a_failed_staging_falls_back, a_changed_input_is_not_stored_under_its_old_key)
+          a_failed_staging_falls_back, a_changed_input_is_not_stored_under_its_old_key,
+          an_input_named_through_a_link_is_linked_up_there)
 
 
 if __name__ == "__main__":
