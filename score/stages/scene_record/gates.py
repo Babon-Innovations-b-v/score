@@ -13,7 +13,7 @@
                   no doorway at a shut door, no open doorway off the plan (one a kit piece fills, a shopfront, is
                   none). An outdoor place: the floor box the plan's site, no room shell, a light for each plan lamp,
                   each plan decal painted and each plan beam stood; its openings' viewers stand on the made ground
-    openings      every doorway leads somewhere: the record's shell with its places (each door's leaves left out, as
+    openings      every doorway leads somewhere: the record's shell with the places its doorways open onto (door_places; each door's leaves left out, as
                   opened; a kit shell's own kit floors with it) composed over the made ground in the place's frame
                   (terrain outside.py), every cut doorway
                   has a floor on both sides and no view from inside runs out below the horizon into nothing
@@ -440,6 +440,15 @@ def kit_floors(kit):
     return found
 
 
+def door_places(record, plan):
+    """The record's places a doorway opens onto: each place of a stage a cut door leads to (a joined tube among them).
+    The other places it shows are left out of the openings gate's stage: one only stands in a ray's way, so leaving it
+    out can find more rays into nothing, never fewer, and loading every seated neighbour's whole stage took the
+    workshop's record past the 8 GB a process may hold (2026-10-13)."""
+    leads = {door["leads"] for door in plan["doors"] if door["cut"]}
+    return [item for item in record.get("places", []) if item["stage"] in leads]
+
+
 def composed(output, inputs):
     """The record's shell and places over the made ground, in the place's frame (a kit shell's own floors with them):
     (stage, laid ground or None)."""
@@ -451,7 +460,7 @@ def composed(output, inputs):
     for surface in {item["surface"] for item in structure if item.get("surface")}:
         UsdShade.Material.Define(stage, f"/{place}/Library/{surface}")  # bound only: rays see shapes, not paint
     outside.scene_records.write_structure(stage, place, structure, out=pathlib.Path(output))
-    stand_places(stage, place, record.get("places", []), inputs["seeds"])
+    stand_places(stage, place, door_places(record, plan_of(inputs)), inputs["seeds"])
     seat = writer.seats(inputs).get(place)
     if seat is None:
         return stage, None
