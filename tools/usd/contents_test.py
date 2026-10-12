@@ -228,8 +228,28 @@ def a_part_is_judged_on_its_host():
         return problems_of(cases)
 
 
+def the_assembled_record_and_a_waiting_entry_both_ways():
+    """Light and neighbours judge the record beside the stage (the assembly's scene.json) over data/scene's; an
+    entry the assembly laid nothing for, waiting on its model, fails `waiting` by name."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        world_data(folder, scene={"place": PLACE, "lights": [], "places": []})
+        path = bare_stage(folder)
+        cases = [("data/scene's record, none beside", judged("neighbours", path), contents.PASS),
+                 ("nothing waiting", judged("waiting", path), contents.PASS)]
+        (path.parent / contents.ASSEMBLED_SCENE).write_text(json.dumps(
+            {"lights": [], "places": [{"name": "next_door", "stage": "other"}]}))
+        stage = Usd.Stage.Open(str(path))
+        stage.GetPrimAtPath(f"/{PLACE}").CreateAttribute(contents.WAITING, Sdf.ValueTypeNames.StringArray).Set(
+            ["objects cairn: its model comes through the next batch"])
+        stage.GetRootLayer().Save()
+        cases += [("the assembled record's shown place missing", judged("neighbours", path), contents.FAIL),
+                  ("the cairn waiting on its model", judged("waiting", path), contents.FAIL)]
+        return problems_of(cases)
+
+
 TESTS = (people_both_ways, a_part_is_judged_on_its_host, effects_and_motion_both_ways, crops_both_ways, likeness_and_paint_both_ways,
-         light_sound_neighbours_and_game_both_ways)
+         light_sound_neighbours_and_game_both_ways, the_assembled_record_and_a_waiting_entry_both_ways)
 
 if __name__ == "__main__":
     data, bodies = contents.DATA, contents.BODIES

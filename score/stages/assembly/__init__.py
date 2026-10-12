@@ -6,7 +6,8 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
              and manifests beside it are agent verdicts and stay out. Then, each from its accepted output:
              record   the scene-record row's record (experimental) written over the base's old record prims
                       (RECORD_ROOTS) with tools/usd/scene.py's writer; a place without the row keeps the seed's
-                      record, said unverified. The record built from is written beside the stage (scene.json), the
+                      record, said unverified; an entry marked `waiting` lays nothing and is named on the root prim
+                      (score:waiting) for complete. The record built from is written beside the stage (scene.json), the
                       one the neighbours stage reads
              layers   each layer stage of LAYERS the table holds (effects, motion, light, machines, crops; all
                       experimental) as a sublayer of its own with its assets, in place of the seed's of that name,
@@ -82,6 +83,8 @@ ORDER = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "
 RECORD_ROOTS = ("Structure", "Terrain", "Water", "Fixtures", "Rocks", "Places", "Sky", "Lights", "Environment",
                 "Shafts")
 RECORD = "scene.json"
+# The root prim's list of the record's entries that wait on a model (contents.py's `waiting` check reads it).
+WAITING = "score:waiting"
 BASE_LAYER = "./layers/base.usda"
 INVENTORY_PREFIX = "data/inventory/"
 # One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
@@ -123,8 +126,9 @@ def make_from_seed(inputs, out, seed, params):
 def take_record(inputs, out, place):
     """The place's scene record, written beside the stage (RECORD): its accepted scene-record output's, written over
     the seed base's record prims (RECORD_ROOTS removed, tools/usd/scene.py's writer run again on the base with the
-    place's kit and ground record, as export.py runs it); for a place with none, the seed's own record, unverified. Where it came from,
-    for origin.json."""
+    place's kit and ground record, as export.py runs it); for a place with none, the seed's own record, unverified.
+    An entry the record marks `waiting` (its model not made yet) lays nothing: the place's root prim names it in
+    WAITING, which the completion gate reports as a gap. Where the record came from, for origin.json."""
     if "scene-record" not in inputs and "scene" not in inputs:
         return "none: the place has no scene record"
     if "scene-record" not in inputs:
@@ -145,7 +149,11 @@ def take_record(inputs, out, place):
     if not base.Apply(edit):
         raise RuntimeError(f"{place}: the seed's record prims could not be removed from its base")
     ground = grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))  # as export.py's main: None for a room
-    scene.write(Usd.Stage.Open(base), place, record, out, kit=kit, pieces=laid_pieces(kit, record), ground=ground)
+    stage = Usd.Stage.Open(base)
+    laid, waiting = without_waiting(record)
+    scene.write(stage, place, laid, out, kit=kit, pieces=laid_pieces(kit, record), ground=ground)
+    if waiting:
+        stage.GetPrimAtPath(f"/{place}").CreateAttribute(WAITING, Sdf.ValueTypeNames.StringArray).Set(waiting)
     base.Save()
     return f"scene-record@{place}"
 
@@ -214,6 +222,18 @@ def stamp_baked_hash(base, model, gltf):
                 Sdf.AttributeSpec(spec, name, Sdf.ValueTypeNames.String)
             attribute.default = value
     layer.Save()
+
+
+def without_waiting(record):
+    """The record less every entry it marks `waiting`, and those entries in words (`<part> <name>: <why>`)."""
+    laid, waiting = {}, []
+    for key, value in record.items():
+        if isinstance(value, list):
+            waiting += [f"{key} {entry.get('name', '?')}: {entry['waiting']}" for entry in value
+                        if isinstance(entry, dict) and entry.get("waiting")]
+            value = [entry for entry in value if not (isinstance(entry, dict) and entry.get("waiting"))]
+        laid[key] = value
+    return laid, waiting
 
 
 def laid_pieces(kit, record):

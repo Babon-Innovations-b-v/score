@@ -13,7 +13,7 @@ import tempfile
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks  # noqa: E402
-from score.stages import assembly  # noqa: E402
+from score.stages import assembly, scene_record  # noqa: E402
 from score.stages.assembly import neighbours  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -47,10 +47,13 @@ def judge(output):
 def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
     """Fault (2026-10-12): the launch's accepted assembly showed Places/square and Places/far_city with no children,
     its references pointing at round-three seed files the store does not hold."""
-    assert neighbours.record_of("hub") == json.loads((REPO / "data/scene/hub.json").read_text())  # no record row
+    assert neighbours.record_of("gdoor") == {}  # a door's kit: no record row, no seed record
+    for place in ("hangar", "hub", "garage"):  # a place without a record row reads its seed record
+        if not scene_record.written(place):
+            assert neighbours.record_of(place) == json.loads((REPO / f"data/scene/{place}.json").read_text())
     assert "far_city" in neighbours.shown("launch") and "far_city" not in neighbours.neighbours("launch")
     assert "seen far_city" in neighbours.files("launch")
-    assert neighbours.applies("square") and not neighbours.applies("habitat")
+    assert neighbours.applies("square") and not neighbours.applies("gdoor")
     root = pathlib.Path(tempfile.mkdtemp())
     try:
         launch = a_place(root / "kept", "launch", ("square", "far_city"))

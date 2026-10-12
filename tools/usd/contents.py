@@ -29,6 +29,12 @@ blocks like fail.
                 and it has children
     game        no record the place is made from (its scene record, cast, effects, motions, movers, room tones)
                 cites the game 2099 as where its numbers come from (`from`: the game, 2099, a .gd or .tscn file)
+    waiting     no entry of the scene record waits on its model (the assembly lays nothing for one and names it on
+                the root prim, score:waiting): each such entry fails as a gap
+
+Light and neighbours read the scene record the stage was assembled from (scene.json beside its root, which the
+assembly stage writes: the accepted scene-record output, else the seed's), and data/scene/<place>.json for a stage
+with none beside it.
 
 A place that is a part of another (contents.json `part_of`: the garage's and the hangar's door leaves) is judged
 on people, light, sound and neighbours on its host's stage, which shows it; its own stage on the rest.
@@ -49,6 +55,8 @@ BODIES = pathlib.Path(os.environ.get("MOTION_WORK", pathlib.Path.home() / ".farm
 EXPECTED = "checks/contents.json"
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 LIGHT_LAYER = "./layers/light.usda"
+ASSEMBLED_SCENE = "scene.json"  # the record the assembly stage built the stage from, beside its root
+WAITING = "score:waiting"  # the root prim's entries of that record laid nothing, waiting on their model
 SOUND_LAYER = "./layers/sound.usda"
 MADE_ROUTE = "prop"
 GAME = re.compile(r"\b2099\b|\bthe game\b|\.gd\b|\.tscn\b", re.IGNORECASE)
@@ -292,10 +300,17 @@ def judge_painted(stage, place, inventory, outputs):
 
 # --- light, sound and neighbours ------------------------------------------------------------------------------------
 
+def assembled_scene(stage, place):
+    """The scene record the stage was assembled from (scene.json beside it, written by the assembly stage), else the
+    place's record in data/scene; None with neither."""
+    beside = pathlib.Path(stage.GetRootLayer().realPath).parent / ASSEMBLED_SCENE
+    return json.loads(beside.read_text()) if beside.exists() else record("scene", place)
+
+
 def judge_light(stage, place, inventory, outputs):
     """The light layer held by the root, and every lamp of the scene record standing as a light."""
     from pxr import UsdLux
-    scene = record("scene", place)
+    scene = assembled_scene(stage, place)
     if scene is None:
         return UNKNOWN, [], f"no scene record (data/scene/{place}.json)"
     faults = [] if LIGHT_LAYER in root_layers(stage) else [
@@ -332,7 +347,7 @@ def reference_faults(prim):
 
 def judge_neighbours(stage, place, inventory, outputs):
     """Every shown place standing, resolving and not empty."""
-    scene = record("scene", place)
+    scene = assembled_scene(stage, place)
     if scene is None:
         return UNKNOWN, [], f"no scene record (data/scene/{place}.json)"
     scope = stage.GetPrimAtPath(f"/{place}/Places")
@@ -384,6 +399,15 @@ def of_a_part(judge):
     return judged
 
 
+def judge_waiting(stage, place, inventory, outputs):
+    """Fail on every entry of the scene record the assembly laid nothing for because it waits on its model (the
+    root prim's score:waiting): a gap, named."""
+    root = stage.GetPrimAtPath(f"/{place}")
+    waiting = list(root.GetAttribute(WAITING).Get() or []) if root and root.HasAttribute(WAITING) else []
+    return outcome([f"a gap: {entry}" for entry in waiting], "no entry of the scene record waits on its model")
+
+
 JUDGES = {"people": of_a_part(judge_people), "effects": judge_effects, "motion": judge_motion, "crops": judge_crops,
           "likeness": judge_likeness, "painted": judge_painted, "light": of_a_part(judge_light),
-          "sound": of_a_part(judge_sound), "neighbours": of_a_part(judge_neighbours), "game": judge_game}
+          "sound": of_a_part(judge_sound), "neighbours": of_a_part(judge_neighbours), "game": judge_game,
+          "waiting": judge_waiting}
