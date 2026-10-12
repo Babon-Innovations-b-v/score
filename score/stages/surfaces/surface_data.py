@@ -69,4 +69,5 @@ def bake_files(place):
     claimed = {f"claimed {claim['place']}": pattern(claim["place"])
                for claim in record(place).get("elsewhere", {}).values()}
     return {"surfaces": pattern(place), **jobs, **claimed, "library bake": "{repo}/tools/props/cloud/library_bake.py",
-            "bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library"}
+            "bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library",
+            "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}
