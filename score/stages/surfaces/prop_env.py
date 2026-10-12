@@ -8,27 +8,43 @@ each through its own module's command line: `<module>.py <step> <inputs listing>
 import json
 import os
 import pathlib
+import signal
 import subprocess
 import sys
+import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 PROPS_PYTHON = pathlib.Path(os.environ.get("PROPS_PYTHON", PROPS_HOME / "env/bin/python"))
 MEMORY = "MemoryMax=14G"
+LISTING = ".inputs.json"  # the make's inputs listing, beside its output while the step runs
 
 
-def run(module, step, listing, out):
-    """One module's step in the prop environment; its output in the error when it fails."""
-    command = ["systemd-run", "--user", "--scope", "-q", "-p", MEMORY, "nice", str(PROPS_PYTHON), str(module), step,
-               str(listing), str(out)]
-    done = subprocess.run(command, cwd=REPO, capture_output=True, text=True)
-    if done.returncode:
-        raise RuntimeError(f"{pathlib.Path(module).name} {step} failed: {done.stdout[-1500:]} {done.stderr[-3000:]}")
+def run(module, step, listing, out, *more):
+    """One module's step in the prop environment under the memory cap (`more`: the step's own arguments)."""
+    checked(["systemd-run", "--user", "--scope", "-q", "-p", MEMORY, "nice", str(PROPS_PYTHON), str(module), step,
+             str(listing), str(out), *more], f"{pathlib.Path(module).name} {step}")
+
+
+def checked(command, what):
+    """Run a command to its end; when it fails, an error with its output's tail, and for a killed process its signal
+    and peak memory (campgrounds' and garage's paint, killed at the memory cap on 2026-10-12, said nothing)."""
+    with tempfile.TemporaryFile("w+") as output:
+        process = subprocess.Popen(command, cwd=REPO, stdout=output, stderr=subprocess.STDOUT, text=True)
+        _, status, usage = os.wait4(process.pid, 0)
+        process.returncode = code = os.waitstatus_to_exitcode(status)
+        output.seek(0)
+        text = output.read()
+    if code == 0:
+        return
+    killed = (f", killed by {signal.Signals(-code).name} at a peak of {usage.ru_maxrss / 1e6:.1f} GB "
+              f"(the cap: {MEMORY})" if code < 0 else "")
+    raise RuntimeError(f"{what} failed with exit code {code}{killed}: {text[-4000:]}")
 
 
 def handover(module, step, inputs, out):
     """Write the make's inputs' paths beside its output and run `step` of `module` on them."""
-    listing = out / ".inputs.json"
+    listing = out / LISTING
     listing.write_text(json.dumps({name: str(path) for name, path in inputs.items()}))
     try:
         run(module, step, listing, out)
@@ -48,4 +64,4 @@ def main(steps):
     if str(REPO) not in sys.path:
         sys.path.insert(0, str(REPO))
     step, listing, out = sys.argv[1], pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
-    steps[step](short(json.loads(listing.read_text())), out)
+    steps[step](short(json.loads(listing.read_text())), out, *sys.argv[4:])

@@ -357,6 +357,35 @@ def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fail
     assert paint.files("greenhouse")["inventory greenhouse"] == "{data}/inventory/greenhouse.json"
 
 
+def test_the_bake_takes_every_spec_today_s_library_knows_and_stops_on_a_missing_picture():
+    """camp's bake, 2026-10-12: a locker label's spec in the job named a picture in another checkout."""
+    from score.stages.surfaces import place_line
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary) / "take"
+        folder.mkdir()
+        (folder / "dark_panel.ply").write_text("")
+        stale = {"label_crew_lockers": {"recipe": "printed", "image": "/gone/label_crew_lockers.png"},
+                 "dark_panel": {"recipe": "painted_metal", "colour": [0, 0, 0]}}
+        found = place_line.baking_specs("hangar", stale, [folder])
+        assert pathlib.Path(found["label_crew_lockers"]["image"]).exists(), found["label_crew_lockers"]
+        assert found["dark_panel"]["library"] == "dark_panel", found["dark_panel"]
+        try:
+            place_line.baking_specs("hangar", {**stale, "own_decal": {"image": "/gone/own.png"}}, [folder])
+        except RuntimeError as refused:
+            assert "own_decal" in str(refused), refused
+        else:
+            raise AssertionError("a spec naming a missing picture was baked")
+
+
+def test_a_step_killed_at_the_memory_cap_says_its_signal_and_peak():
+    from score.stages.surfaces import prop_env
+    try:
+        prop_env.checked([sys.executable, "-c", "import os, signal; os.kill(os.getpid(), signal.SIGKILL)"], "paint")
+    except RuntimeError as failed:
+        assert "paint failed with exit code -9, killed by SIGKILL at a peak of" in str(failed), failed
+    else:
+        raise AssertionError("a killed step passed")
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

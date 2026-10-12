@@ -218,14 +218,23 @@ def make_paint(inputs, out, seed, params):
 
 
 def paint_step(inputs, out):
-    """The prop environment's side: every take the method gave parts for painted; painted.json (with the takes the
-    method left out)."""
+    """The prop environment's side: every take the method gave parts for painted, each in a process of its own (a
+    take holds about 2 GB for 9 s; campgrounds' and garage's twelve and sixteen in one process passed the 14 GB cap,
+    2026-10-12); painted.json (with the takes the method left out)."""
+    method = json.loads((inputs["parts"] / "parts.json").read_text())
+    for take in method["takes"]:
+        prop_env.checked([sys.executable, __file__, "paint-take", str(out / prop_env.LISTING), str(out), take],
+                         f"paint {take}")
+    found = {take: json.loads((out / "labelled" / take / "labels.json").read_text()) for take in method["takes"]}
+    (out / "painted.json").write_text(json.dumps({"takes": found, "left_out": method["left_out"]}, indent=1))
+
+
+def paint_take_step(inputs, out, take):
+    """One take painted (paint_take), its proposals into the finish registry."""
     from registry import Registry
     from score.store import Store
-    registry = Registry(Store.default())
     method = json.loads((inputs["parts"] / "parts.json").read_text())
-    found = {take: paint_take(inputs, out, take, record, registry) for take, record in method["takes"].items()}
-    (out / "painted.json").write_text(json.dumps({"takes": found, "left_out": method["left_out"]}, indent=1))
+    paint_take(inputs, out, take, method["takes"][take], Registry(Store.default()))
 
 
 def paint_faults(folder):
@@ -289,17 +298,23 @@ def bake_entries(inputs, labelled):
 
 
 def baking_specs(library_name, specs, labelled):
-    """The bake job's specs with every surface a labelled folder paints taken from today's library in the place's
-    palette tokens (library.by_library, the place's own names by library.resolved): a job's stored spec can name a
-    picture at a path long gone (the greenhouse's screen, 2026-10-12), and a surface of another library place the
-    take may take from is not in it."""
+    """The bake job's specs with every surface today's library knows, painted or the job's own (its decals, screens),
+    taken from today's library in the place's palette tokens (library.by_library, the place's own names by
+    library.resolved): a job's stored spec can name a picture at a path long gone (the greenhouse's screen and camp's
+    locker label, from another checkout, 2026-10-12), and a surface of another library place the take may take from
+    is not in it. A spec left naming a picture that is not there stops the bake before anything is rented."""
     import library
     painted = {path.stem for folder in labelled for path in folder.glob("*.ply")}
     every = {**library.by_library(library_name), **library.resolved(library_name)}
     unknown = sorted(painted - set(every) - set(specs))
     if unknown:
         raise RuntimeError(f"surfaces in no library: {unknown}")
-    return {**specs, **{name: every[name] for name in painted if name in every}}
+    found = {**specs, **{name: every[name] for name in painted | set(specs) if name in every}}
+    missing = sorted(name for name, spec in found.items()
+                     if "image" in spec and not pathlib.Path(spec["image"]).exists())
+    if missing:
+        raise RuntimeError(f"specs whose picture is not there: {missing}")
+    return found
 
 
 def make_bake(inputs, out, seed, params):
@@ -505,7 +520,7 @@ def judge_triangles(output, inputs, evidence):
                          {"triangles": sum(record["triangles"] for record in found.values())})
 
 
-STEPS = {"paint": paint_step, "check": check_step}
+STEPS = {"paint": paint_step, "paint-take": paint_take_step, "check": check_step}
 
 if __name__ == "__main__":
     prop_env.main(STEPS)
