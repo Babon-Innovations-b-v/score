@@ -12,7 +12,8 @@ body's), rigid (hard parts unstretched), body through cloth (no clip frame puts 
 bodycloth.MARGIN_MM through the cloth more often than the bind pose does: the bind's crossings are the parts' own
 joins, held by tucks and joins), outline (outline.py: the built A-pose against the close-up's cut-out) and likeness
 (the props' likeness gate, score/stages/props/likeness.py: the body's best outline of eight ways round against its
-close-up, at least its OUTLINE_LEAST), triangles (within the shipped player's budget).
+close-up, at least its OUTLINE_LEAST), triangles (within the shipped player's budget) and shell (every part but the
+rigid ones within OFFSET_MOST of SOMA-X's body fitted to the look's outside, prop_shell.py).
 """
 import json
 import pathlib
@@ -33,6 +34,11 @@ EUROS = 3.0
 # A far-crowd look: its build alone on an L4 with its setup, about 20 minutes.
 FAR_EUROS = 0.5
 SHIPPED_TRIANGLES = 29849
+# The shell's reach: a part other than a rigid one more than this off SOMA-X's fitted body is not carried as a thin
+# shell. First set at 5 cm, about a coat's and a padded suit's thickness over the body, before any fit was measured;
+# the player's fit is the first measure (#5).
+OFFSET_MOST = 0.05
+RIGID_ROLES = ("hard", "hair")
 
 
 def looks():
@@ -98,6 +104,8 @@ def kept(folder, name, entry, out):
     shutil.copy2(folder / "out" / f"{name}.json", checks / "build.json")
     shutil.copy2(folder / "settle" / f"{name}.bake.json", checks / "bake.json")
     shutil.copy2(folder / "fit" / "rig.json", checks / "rig.json")
+    shutil.copy2(folder / "fit" / "shell.json", checks / "shell.json")
+    shutil.copy2(folder / "parts" / entry["take"] / "parts.json", checks / "parts.json")
     shutil.copy2(folder / "fit" / "rig.npz", out / "rig.npz")  # the stand (turn, scale, shift) the dress row reads
     likened(entry, out)
     (out / "look.json").write_text(json.dumps({"name": name, **entry}, indent=1))
@@ -113,6 +121,8 @@ def kept_far(folder, name, entry, out):
     shutil.copy2(folder / "out" / "checks" / f"{name}.json", checks / "joins.json")
     shutil.copy2(folder / "out" / f"{name}.json", checks / "build.json")
     shutil.copy2(folder / "fit" / "rig.json", checks / "rig.json")
+    shutil.copy2(folder / "fit" / "shell.json", checks / "shell.json")
+    shutil.copy2(folder / "parts" / entry["take"] / "parts.json", checks / "parts.json")
     shutil.copy2(folder / "fit" / "rig.npz", out / "rig.npz")
     likened(entry, out)
     (out / "look.json").write_text(json.dumps({"name": name, **entry}, indent=1))
@@ -223,6 +233,19 @@ def guarded(name, judge):
     return Check(name, judged)
 
 
+def judge_shell(output, inputs, evidence):
+    """The look a thin shell over SOMA-X's fitted body (owner, 2026-10-12): every part but the rigid ones (hard parts
+    and hair, which ride one joint) within OFFSET_MOST of the body."""
+    found = record(output, "shell.json")
+    roles = {str(part["part"]): part["role"] for part in record(output, "parts.json")["parts"]}
+    failing = [f"part {part} ({roles.get(part, 'no role')}): {entry['most_m']} m off the body"
+               for part, entry in found["parts"].items()
+               if roles.get(part) not in RIGID_ROLES and entry["most_m"] > OFFSET_MOST]
+    shelled = [entry["most_m"] for part, entry in found["parts"].items() if roles.get(part) not in RIGID_ROLES]
+    return verdict("shell", failing, f"every part within {OFFSET_MOST} m of the body",
+                   {"offset_most_m": max(shelled, default=0.0), "scale": found["scale"]})
+
+
 def checks():
     tucks = pokes_gate("tucks", "tucks", tucks_fault)
     cloth = pokes_gate("cloth through cloth", "cloth_through_cloth",
@@ -231,15 +254,15 @@ def checks():
     return (guarded("joins", judge_joins), guarded("tucks", tucks.judge), guarded("cloth through cloth", cloth.judge),
             guarded("rigid", rigid.judge), guarded("body through cloth", judge_body_through_cloth),
             guarded("outline", judge_outline), guarded("likeness", judge_likeness),
-            guarded("triangles", judge_triangles))
+            guarded("triangles", judge_triangles), guarded("shell", judge_shell))
 
 
 BODY = "people-body"
 
 
 def far_checks():
-    """A far-crowd look's gates: its joins, its likeness and its triangles (no settle, so no cloth gates)."""
-    return tuple(check for check in checks() if check.name in ("joins", "likeness", "triangles"))
+    """A far-crowd look's gates: its joins, likeness, triangles and shell (no settle, so no cloth gates)."""
+    return tuple(check for check in checks() if check.name in ("joins", "likeness", "triangles", "shell"))
 
 
 def rows():

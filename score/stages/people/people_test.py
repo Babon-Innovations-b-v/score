@@ -45,6 +45,19 @@ def test_body_through_cloth_holds_the_bind():
         assert tucks.judge(folder, {}, {}).answer == "fail"
 
 
+def test_the_shell_leaves_rigid_parts_out():
+    with tempfile.TemporaryDirectory() as held:
+        checks = pathlib.Path(held) / "checks"
+        checks.mkdir()
+        (checks / "shell.json").write_text(json.dumps({"scale": 1.0, "parts": {
+            "1": {"most_m": 0.02}, "2": {"most_m": 0.09}, "3": {"most_m": 0.08}}}))
+        (checks / "parts.json").write_text(json.dumps({"parts": [{"part": 1, "role": "garment"},
+                                                                 {"part": 2, "role": "hard"},
+                                                                 {"part": 3, "role": "skin"}]}))
+        found = bodies.judge_shell(pathlib.Path(held), {}, {})
+        assert found.answer == "fail" and len(found.findings) == 1 and "part 3" in found.findings[0], found
+
+
 def test_missing_record_is_unknown():
     with tempfile.TemporaryDirectory() as held:
         joins = dict((check.name, check) for check in bodies.checks())["joins"]
