@@ -1,0 +1,381 @@
+{
+ "title": "HUB (the base's middle: twelve facets round a sunken operations pit)",
+ "shape": "faceted",
+ "facets": 12,
+ "apothem": 4.5,
+ "turn": 15.0,
+ "w": 9.0,
+ "d": 9.0,
+ "corner": 0.0,
+ "height": "walls 3.1 m, roof rising 1.85 m to its apex hub",
+ "pit": {
+  "radius": 2.33,
+  "floor": -0.9
+ },
+ "doors": [
+  [
+   0,
+   2.2,
+   "TUBE HATCH 0 (2.2 x 2.6 m)"
+  ],
+  [
+   90,
+   2.2,
+   "TUBE HATCH 90 (2.2 x 2.6 m)"
+  ],
+  [
+   180,
+   2.2,
+   "TUBE HATCH 180 (2.2 x 2.6 m)"
+  ],
+  [
+   270,
+   2.2,
+   "TUBE HATCH 270 (2.2 x 2.6 m)"
+  ],
+  [
+   330,
+   2.2,
+   "AIRLOCK HATCH 330 (2.2 x 2.6 m)"
+  ]
+ ],
+ "items": [
+  [
+   "OPERATIONS CONSOLE in the pit",
+   2.594,
+   5.717,
+   2.6,
+   0.6,
+   null,
+   "item"
+  ],
+  [
+   "CONSOLE CHAIR",
+   3.909,
+   4.928,
+   0.6,
+   0.6,
+   null,
+   "item"
+  ],
+  [
+   "LAB BENCH",
+   7.029,
+   6.178,
+   2.0,
+   0.7,
+   null,
+   "item"
+  ],
+  [
+   "COMMS DESK",
+   0.244,
+   2.043,
+   1.5,
+   0.7,
+   null,
+   "item"
+  ],
+  [
+   "TOOL BOARD",
+   6.271,
+   0.795,
+   1.2,
+   0.08,
+   null,
+   "item"
+  ],
+  [
+   "TALL LOCKER",
+   6.225,
+   7.645,
+   1.2,
+   0.55,
+   null,
+   "item"
+  ],
+  [
+   "LOCKERS",
+   1.034,
+   6.877,
+   0.6,
+   0.6,
+   null,
+   "item"
+  ],
+  [
+   "STAIR into the pit",
+   3.9,
+   1.97,
+   1.2,
+   1.4,
+   null,
+   "item"
+  ]
+ ],
+ "people": [
+  [
+   4.5,
+   1.0
+  ],
+  [
+   8.0,
+   4.5
+  ]
+ ],
+ "notes": [
+  "Facets, apothem, walls' height, the pit's size and floor and the doors' bearings are the inventory's room layout (data/inventory/hub.json); the facets turned 15 degrees so a facet's middle faces each door's bearing. The roof's rise (1.85 m) and the doors' 2.2 x 2.6 m are the old record's (an unverified seed), not yet measured against the M3 views.",
+  "Bearings in the hub's own frame (0 north, -z; 90 east, +x). The hub's seat is turned half round on the Moon ground, so its bearing 0 faces the base's south (the lab), 90 its west (the greenhouse), 180 its north (the habitat), 270 its east (the workshop), 330 the airlock.",
+  "The concept is the M3 world's six views (the inventory's plan views v1 to v6); no single picture."
+ ],
+ "concept": {
+  "pick": "M3",
+  "picture": "{seeds}/scene/hub/views/M3-north.png",
+  "read": "the M3 world's six views (north, north-east, east, south, west, north-west) read element by element (scene-record stage, 2026-10-12), each element mapped to the inventory's rows (data/inventory/hub.json), or dropped with its reason"
+ },
+ "leads": {
+  "0": {
+   "to": "tube",
+   "why": "the tube hatch onto the lab tube (data/definitions/base.json lab_tube), which runs to the lab's north hatch"
+  },
+  "90": {
+   "to": "tube",
+   "why": "the tube hatch onto the west walkway tube seated on the Moon ground, which runs to the greenhouse's east hatch"
+  },
+  "180": {
+   "to": "tube",
+   "why": "the tube hatch onto the habitat tube (data/definitions/base.json habitat_tube), which runs to the habitat's south hatch"
+  },
+  "270": {
+   "to": "tube",
+   "why": "the tube hatch onto the east walkway tube (data/definitions/base.json east_tube), which runs to the workshop's west hatch"
+  },
+  "330": {
+   "to": "airlock",
+   "why": "the hatch straight into the airlock's inner door (data/definitions/base.json airlock, its north wall against this facet)"
+  }
+ },
+ "rows": {
+  "OPERATIONS CONSOLE in the pit": [
+   "console",
+   "monitor",
+   "keyboard"
+  ],
+  "CONSOLE CHAIR": [
+   "chair"
+  ],
+  "LAB BENCH": [
+   "labbench",
+   "glovebox",
+   "microscope"
+  ],
+  "COMMS DESK": [
+   "comms",
+   "radio",
+   "telephone",
+   "desklamp",
+   "headset"
+  ],
+  "TOOL BOARD": [
+   "toolboard",
+   "wrench",
+   "hammer",
+   "pump_pliers",
+   "pliers",
+   "screwdriver"
+  ],
+  "TALL LOCKER": [
+   "talllocker"
+  ],
+  "LOCKERS": [
+   "rack"
+  ],
+  "STAIR into the pit": [
+   "stair_stringer"
+  ]
+ },
+ "elements": [
+  {
+   "element": "pressure hatches with hand wheels in the facets, one striped yellow and black (the airlock's)",
+   "rows": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_window",
+    "hatch_hinge",
+    "hatch_wall_surround"
+   ]
+  },
+  {
+   "element": "tread mats and gratings before the hatches",
+   "rows": [
+    "tread_mat",
+    "floor_grating"
+   ]
+  },
+  {
+   "element": "the roof's lattice of ribs, diamond struts and node plates over ribbed panels to an apex hub",
+   "rows": [
+    "lattice_hip_rib",
+    "lattice_ring_rib",
+    "lattice_diamond_strut",
+    "lattice_node_plate",
+    "roof_face_panel",
+    "roof_apex_hub"
+   ]
+  },
+  {
+   "element": "cable trays and a duct hung under the roof",
+   "rows": [
+    "ceiling_cable_tray",
+    "ceiling_duct"
+   ]
+  },
+  {
+   "element": "strip lamps over the hatches, flood lamps under the roof, caged wall lamps",
+   "rows": [
+    "door_strip_lamp",
+    "roof_light_fixture",
+    "wall_cage_lamp"
+   ]
+  },
+  {
+   "element": "the sunken pit with its curved wall panels, floor plates, a stair down",
+   "rows": [
+    "pit_wall_panel",
+    "pit_floor_plate",
+    "stair_stringer",
+    "pit_junction_box"
+   ]
+  },
+  {
+   "element": "the operations console of screens and keyboards round the pit, its chair",
+   "rows": [
+    "console",
+    "monitor",
+    "keyboard",
+    "chair"
+   ]
+  },
+  {
+   "element": "the railing round the pit's rim and down the stair",
+   "drop": "no row holds it: the inventory has no pit railing (a gap reported to the captain for the inventory and kit owners), not a reason to leave it out of the room"
+  },
+  {
+   "element": "a porthole in a wall panel",
+   "rows": [
+    "porthole_panel"
+   ]
+  },
+  {
+   "element": "pipes with elbows and red hand-wheel valves on the walls",
+   "rows": [
+    "pipe_straight",
+    "pipe_elbow",
+    "pipe_valve",
+    "pipe_bracket"
+   ]
+  },
+  {
+   "element": "cable bundles along the walls' tops and drops down them, conduit boxes",
+   "rows": [
+    "cable_bundle",
+    "cable_drop",
+    "conduit_box"
+   ]
+  },
+  {
+   "element": "tool board of hand tools",
+   "rows": [
+    "toolboard",
+    "wrench",
+    "hammer",
+    "pump_pliers",
+    "pliers",
+    "screwdriver"
+   ]
+  },
+  {
+   "element": "the big wall display and a cluster of small screens",
+   "rows": [
+    "status_display",
+    "wall_screen_cluster",
+    "wall_upper_screen_recess"
+   ]
+  },
+  {
+   "element": "notice board of pinned papers",
+   "rows": [
+    "notice_board"
+   ]
+  },
+  {
+   "element": "comms desk with a radio, telephone, desk lamp and a headset on a hook",
+   "rows": [
+    "comms",
+    "radio",
+    "telephone",
+    "desklamp",
+    "headset"
+   ]
+  },
+  {
+   "element": "lab bench with a glovebox and a microscope",
+   "rows": [
+    "labbench",
+    "glovebox",
+    "microscope"
+   ]
+  },
+  {
+   "element": "tall double locker and single steel lockers",
+   "rows": [
+    "talllocker",
+    "rack"
+   ]
+  },
+  {
+   "element": "low steel cupboards under the notice board and beside the display",
+   "drop": "no row holds them: the inventory has no low cupboard (a gap reported to the captain for the inventory and kit owners)"
+  },
+  {
+   "element": "door control boxes, readouts, an intercom and grab bars by the hatches",
+   "rows": [
+    "door_control_box",
+    "small_readout",
+    "intercom_panel",
+    "grab_bar"
+   ]
+  },
+  {
+   "element": "waste bin",
+   "rows": [
+    "waste_bin"
+   ]
+  },
+  {
+   "element": "worn, patched and vented wall panels with pipe and cable runs, posts, cornice and skirting",
+   "rows": [
+    "wall_lower_plain",
+    "wall_lower_vent",
+    "wall_lower_patched",
+    "wall_upper_plain",
+    "wall_upper_pipes",
+    "wall_upper_cables",
+    "wall_upper_patched",
+    "wall_corner_post",
+    "wall_cornice",
+    "wall_skirting"
+   ]
+  },
+  {
+   "element": "cracked deck plates round the pit, an access cover, a machine bay plate",
+   "rows": [
+    "ring_floor_plate",
+    "floor_access_hatch",
+    "machine_bay_plate",
+    "under_floor_box"
+   ]
+  }
+ ]
+}

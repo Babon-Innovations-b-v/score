@@ -39,8 +39,9 @@ GAME = re.compile(r"\.(gd|tscn|tres|gdshader)\b|res://|(^|[\s(])(game|sim)/\w|Mo
 TOLERANCE = 0.05
 # A matched entry stands this close to its seed (metres); a view's eye this close.
 MATCH_REACH = 2.0
-# What the writer leaves out of a record on purpose: by the old record's section, or one entry as
-# `<place>:<section>/<name>`.
+# What the writer leaves out of a record on purpose: by the old record's section, one entry as
+# `<place>:<section>/<name>`, or a family of entries by its name's start (`<section>/<start>_`, kept to one place
+# with `<place>:`).
 SEED_REASONS = {
     "game_only": "the record holds no notes about the game: what the concept shows is an inventory row or a plan item",
     "owner_rejected": "what the owner took out is in no plan item, concept element or inventory row, so nothing "
@@ -78,6 +79,29 @@ SEED_REASONS = {
                              "item), 3.6 m from where the old record stood it off that middle",
     "launch:lights/spot": "the rocket's one floodlight is now the pad's four (inventory row far_pad_floodlight), each "
                           "lit at its lamp and aimed at the rocket's middle",
+    "airlock:objects": "the suit and the door leaves wait on their inventory rows and kit pieces (the captain's "
+                       "decision, 2026-10-12), which a record does not add: one inventory edit makes every place's "
+                       "assembly again",
+    "workshop:objects": "the robot and the parts tray come from the machines track as rows, not from this record",
+    "workshop:structure/tray_tile_": "the workshop's parts tray (its tiles and the robot parts on them) comes from "
+                                     "the machines track as rows, not as plain plates of the shell",
+    "hub:objects/screen_": "the console's screens are its monitors, laid on it by its composite, not loose objects",
+    **{f"{place}:views": "the record's views are its plan's: one inside each door and one from each standing spot; "
+                         "a seed view with no such spot near it was a camera of the game's"
+       for place in ("airlock", "workshop", "lab", "habitat", "greenhouse", "hub", "tube")},
+    "planned_ground": "the ground under a place is the terrain stage's made ground at its seat, not the record's",
+    "greenhouse:structure/bed_": "the plot is the plan's one bed of soil in its curb (plot_soil, plot_wall); its "
+                                 "rows of crops are the crops track's",
+    "greenhouse:structure/ridge_": "the plot is the plan's one bed of soil in its curb (plot_soil, plot_wall); its "
+                                   "rows of crops are the crops track's",
+    "greenhouse:structure/plot_wall_": "the seed's curb ringed a 3 m starting plot; the plan's plot is the 12 m bed "
+                                       "the concept K09 shows, its curb laid along that bed's edge",
+    "greenhouse:structure/tarp_": "the concept K09 shows no tarps on the deck",
+    "greenhouse:lights/omni": "the grow lights are the grow-light bars' lamps (inventory grow_light_glow), which the "
+                              "kit lights",
+    "greenhouse:lights/sun": "the sun through the glass is the world's sky, the light stage's, not one room's record",
+    "hub:lights/sun": "the sun is the world's sky, the light stage's, not one room's record",
+    "tube:lights/sun": "the sun through the glass bands is the world's sky, the light stage's, not one room's record",
 }
 # A kit doorway: an opening in a kit piece (a wall, a facade) from its foot up, at least this tall.
 DOORWAY_TALL = 1.9
@@ -268,6 +292,56 @@ def site_faults(record, plan):
     return found
 
 
+def facet_faults(record, plan):
+    """A faceted room's shell against its plan, the backing taken off: walls, roof, deck and pit, and every cut door
+    an opening at its bearing, wide and tall (every shut one none)."""
+    walls, found = plan["walls"], []
+    wanted = {"walls": {"sides": walls["facets"], "apothem": walls["apothem"] + writer.BACKING,
+                        "high": walls["high"], "rotation": walls["turn"]},
+              "pyramid_roof": {"sides": walls["facets"], "eave": walls["high"], "rise": walls["rise"],
+                               "rotation": walls["turn"]},
+              "annulus": {"sides": walls["facets"], "inner": walls["pit_radius"], "rotation": walls["turn"]}}
+    for builder, numbers in wanted.items():
+        made = entry(record, builder)
+        if made is None:
+            found.append(f"no {builder} in the record's shell")
+            continue
+        found += [f"{builder} {key} {made[key]} against the plan's {value:.3f}"
+                  for key, value in numbers.items() if abs(float(made[key]) - value) > TOLERANCE]
+    openings = {round(float(bearing)) % 360: (wide, tall) for bearing, wide, tall in
+                (entry(record, "walls") or {}).get("openings", [])}
+    for door in plan["doors"]:
+        name = f"door {door['plan_side']} ({door['what']})"
+        made = openings.pop(round(door["bearing"]) % 360, None)
+        if door["cut"] and made is None:
+            found.append(f"{name} leads {door['leads']} but is not cut")
+        elif door["cut"] and max(abs(made[0] - door["wide"]), abs(made[1] - door["tall"])) > TOLERANCE:
+            found.append(f"{name} cut {made[0]} x {made[1]} m against the plan's {door['wide']} x {door['tall']} m")
+        elif not door["cut"] and made is not None:
+            found.append(f"{name} is shut ({door['why']}) but cut")
+    return found + [f"a doorway is cut at bearing {bearing}, where the plan has no door" for bearing in openings]
+
+
+def tube_faults(record, plan):
+    """A walkway tube's hull, glass and deck against its plan: every arc round the plan's axis at its radius (the
+    backing taken off) and length, the glass bands at the plan's bearings, the deck its width and length."""
+    walls, found = plan["walls"], []
+    arcs = [made for made in record["structure"] if made["builder"] == "tube_arc"]
+    for made in arcs:
+        found += [f"{made['name']} {key} {made[key]} against the plan's {value:.3f}" for key, value in
+                  {"radius": walls["radius"] + writer.TUBE_BACKING, "axis_high": walls["axis"],
+                   "length": walls["length"]}.items() if abs(float(made[key]) - value) > TOLERANCE]
+    glass = sorted(sorted(map(abs, (made["start"], made["end"]))) for made in arcs
+                   if made["surface"] == writer.GLASS_SURFACE)
+    if glass != [walls["glass"], walls["glass"]]:
+        found.append(f"glass bands {glass} against the plan's {walls['glass']} degrees each side")
+    deck = entry(record, "box")
+    if deck is None or abs(deck["size"][0] - walls["deck"]) > TOLERANCE or \
+            abs(deck["size"][2] - walls["length"]) > TOLERANCE:
+        found.append(f"the deck is not the plan's {walls['deck']} x {walls['length']} m")
+    return found
+
+
 def judge_plan_matched(output, inputs, evidence):
     """Fail on a shell number or a door off the plan (an outdoor place: its site, lamps, decals and beams)."""
     place, record = writer.record_in(output)
@@ -277,6 +351,10 @@ def judge_plan_matched(output, inputs, evidence):
         found = tuple(floor_faults(record, plan) + block_faults(record, plan) + kit_door_faults(plan, kit))
     elif plan["shell"] == "outdoor":
         found = tuple(floor_faults(record, plan) + site_faults(record, plan))
+    elif plan["walls"].get("shape") == "faceted":
+        found = tuple(facet_faults(record, plan))
+    elif plan["walls"].get("shape") == "tube":
+        found = tuple(tube_faults(record, plan))
     else:
         found = tuple(shell_faults(record, plan["walls"]) + door_faults(record, plan))
     reason = "; ".join(found[:3]) if found else \
@@ -398,7 +476,7 @@ def measure_openings(output, inputs):
     ways = ground_gates.shell_doors(record) + [
         {"door": f"door {door['name']} ({door['what']})", "middle": np.asarray(door["middle"], dtype=float),
          "normal": np.asarray(door["normal"], dtype=float)} for door in plan["doors"]
-        if door["cut"] and plan["shell"] == "kit"]
+        if door["cut"] and (plan["shell"] == "kit" or plan["walls"].get("shape"))]
     doors = ground_gates.door_floors(rays, ways, up)
     ball = ground_gates.ball_of(laid) if laid is not None else None
     spots = ground_gates.probes(rays, record, None, up)
@@ -479,6 +557,17 @@ def moved(name, seed, made):
     return found
 
 
+def reason_for(name, place):
+    """The writer's reason for leaving a seed entry out: the most specific SEED_REASONS key naming it (a section,
+    `<section>/<name start>` for a family of entries, either kept to one place as `<place>:<key>`), or None."""
+    def names(key):
+        own, _, key = key.rpartition(":")
+        return own in ("", place) and (name == key or name.startswith(key + "/") or
+                                       (key.endswith("_") and name.startswith(key)))
+    named = [key for key in SEED_REASONS if names(key)]
+    return SEED_REASONS[max(named, key=len)] if named else None
+
+
 def seed_diff(seed, record, place=None):
     """Every seed entry matched or unmatched (with the writer's reason or none), and what moved."""
     matched, unmatched, shown = 0, [], []
@@ -489,7 +578,7 @@ def seed_diff(seed, record, place=None):
             for item, partner in matches(section, value, record.get(section, [])):
                 name = f"{section}/{item.get('name', kind_of(section, item))}"
                 if partner is None:
-                    unmatched.append((name, SEED_REASONS.get(f"{place}:{name}", SEED_REASONS.get(section))))
+                    unmatched.append((name, reason_for(name, place)))
                 else:
                     matched += 1
                     shown += moved(name, item, partner)
@@ -501,7 +590,7 @@ def seed_diff(seed, record, place=None):
             elif value != record[section]:
                 shown.append(f"{section}: seed {json.dumps(value)[:80]}, now {json.dumps(record[section])[:80]}")
         else:
-            unmatched.append((section, SEED_REASONS.get(section)))
+            unmatched.append((section, reason_for(section, place)))
     return matched, unmatched, shown
 
 

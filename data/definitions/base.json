@@ -1,10 +1,14 @@
 {
- "about": "The Moon base's modules that no made ground seats yet, each laid flat on the seat of the module it names (`seat_of`) as the ground's own base modules are: its middle at `flat` (across, along, metres) on the unturned seat's plane, turned `heading` radians. The scene-record stage stands them as neighbours. Unverified seed: the places the hub's old scene record stood them at, turned into the base seat's flat numbers (the greenhouse and the west tube come back to the centimetre this way). They move into the Moon ground plan's places after the world 1 run; the lab and the habitat stand nowhere in any record yet.",
+ "about": "The Moon base's modules that no made ground seats yet, each laid flat on the seat of the module it names (`seat_of`) as the ground's own base modules are: its middle at `flat` (across, along, metres) on the unturned seat's plane, turned `heading` radians. The scene-record stage stands them as neighbours. Unverified seed: the places the hub's old scene record stood them at, turned into the base seat's flat numbers (the greenhouse and the west tube come back to the centimetre this way). They move into the Moon ground plan's places after the world 1 run. The lab and the habitat stood in no record: the scene-record stage stands them beside the hub (the captain's decision, 2026-10-12), each on one of the hub's two free tube doors with a walkway tube of the east tube's run (4.35 m) between, its own hatch facing the hub: the lab south (its north hatch, the lab tube; the airlock's ramp and the path to the wreck pass 0.8 m east of its wall), the habitat north (its south hatch, the habitat tube).",
  "ground": "moon",
  "seat_of": "hub",
  "modules": {
   "airlock": {"stage": "airlock", "flat": [3.575, 6.192], "heading": 0.523599},
   "workshop": {"stage": "workshop", "flat": [17.0, 0.0], "heading": 0.0},
-  "east_tube": {"stage": "tube", "flat": [4.65, 0.0], "heading": 1.570796}
+  "east_tube": {"stage": "tube", "flat": [4.65, 0.0], "heading": 1.570796},
+  "lab_tube": {"stage": "tube", "flat": [0.0, 4.65], "heading": 0.0},
+  "lab": {"stage": "lab", "flat": [0.0, 12.0], "heading": 0.0},
+  "habitat_tube": {"stage": "tube", "flat": [0.0, -4.65], "heading": 3.141593},
+  "habitat": {"stage": "habitat", "flat": [0.0, -14.0], "heading": 0.0}
  }
 }
