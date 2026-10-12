@@ -398,8 +398,25 @@ def page(place, rows, routes, prop_objects, euros):
             f"surface line, DINOv2), {euros['code checks']} code checks; generation is shared over the objects "
             "each order generates.</p><h2>Each object</h2><table><tr><th>object</th><th>parts check</th>"
             "<th>prop-first</th><th>code-first</th><th>prop model's outline</th></tr>" + detail + "</table>"
+            + SAMPLE_NOTE +
             "<h2>Your pick</h2><p>Name the order you pick (prop-first or code-first) on the PRD's issue; the session "
             "that ran this records it there.</p>")
+
+
+# What the hub's sample shows and does not (owner and captain, 2026-10-12: a sample for figure F3 and the paper, a
+# EUR 12 + 5 budget, no remake of the 92 code-built objects this month).
+SAMPLE_NOTE = (
+    "<h2>What this sample shows, and what it does not</h2><ul>"
+    "<li>It is a sample of the hub chosen to cover the kinds (thin, flat, round, boxy), cut by the budget: five "
+    "objects went the whole prop route (close-up, Pixal3D, the surface line, the likeness gate) and eight more are "
+    "the objects whose every Pro close-up failed the shape check, so their prop route failed at the close-up. It is "
+    "not the hub's 54 objects and says nothing about the 20 objects with no close-up or box.</li>"
+    "<li>Code builds are the hub's existing round-six builds; their checks (outline, DINOv2, parts, thin, lean) cost "
+    "nothing new. Agent hours to write them were not recorded then, so none are shown.</li>"
+    "<li>Both orders are derived from the same two result sets; neither was run separately.</li>"
+    "<li>Moving world 1's 92 code-built objects to the prop route is not happening this month (owner): the prop route "
+    "costs about EUR 2.2 an object (Pro close-up about 0.15, Pixal3D about 0.10 to 0.15, the surface line about 1.9 "
+    "a take, DINOv2 about 0.001 a pair), about EUR 200 for 92.</li></ul>")
 
 
 def table(place):
