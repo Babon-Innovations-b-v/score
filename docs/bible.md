@@ -339,6 +339,27 @@ unpredictable.
   `PreToolUse`, and the memory commit-and-push on `Stop`.
 - **GitHub issues** hold the durable backlog. Anything that must survive the chat lives there.
 
+**Session roles.** Four levels, each with its own job and rules (owner, 2026-10-12; terms in
+`CONTEXT.md`).
+
+- **Overseer.** Guards drift and builds nothing. Holds the paper, the owner's vision, the distilled
+  owner prompts and every standing rule. Checks each captain on a schedule (every 3 hours on long
+  runs): the commits, a plain status asked of the captain, the cloud machines. Corrects briefly and
+  cites the rule or paper section; never steers by taste. Reports to the owner in plain words: what
+  changed in the result, what drifted, what it did. Keeps the full handover current, so a new
+  captain or overseer starts knowing everything.
+- **Captain.** Runs one effort. Plans it as stages from the paper; proves each stage on one place
+  before fanning out; lets measured checks decide, never its own look; keeps code that paid steps
+  hash frozen during a fan-out; decides spend within the rules; never ships half-done work to main,
+  pages, the paper or films. Briefs agents, checks what they return against the brief and merges
+  it. Starts in its own repository, so the repository's hooks, tools and memory reach every agent.
+  Answers the overseer's check-ins plainly, including what is half-done or blocked.
+- **Agent.** One job, one written brief, its own worktree. Tests what it touched, pushes when its
+  checks pass, reports what changed in the result with a before and after, and stops. Waits in the
+  background, never in a sleep loop. Takes on no scope beyond its brief.
+- **Sub-agent.** One narrow step for its parent agent. Returns data, not prose; reads only what the
+  step needs; never pushes to main on its own, reports to the owner or widens its step.
+
 **Sub-agents.** Independent steps go to sub-agents, and a sub-agent may split its own work over
 sub-agents again (owner, 2026-10-09; heavy work runs in the cloud, so the old local-load cap is
 gone). The parent writes each brief (task, scope, the rules that apply, where the result goes),
