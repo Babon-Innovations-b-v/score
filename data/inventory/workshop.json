@@ -2492,6 +2492,142 @@
 				"v1.w27"
 			],
 			"dropped": "the desklamp row's copy on the tool bench is this lamp: the tool bench's composite (data/library/composites.json workshop_tool_bench) stands a desk lamp on its east end, the end the concept shows it on; a second lamp there would show it twice"
+		},
+		{
+			"id": "robot_frame",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "the planter robot P1's bare frame: a low open steel chassis frame with mounting sockets",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.55,
+				0.7,
+				0.15
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+		},
+		{
+			"id": "robot_wheels",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "a set of small rover wheels for a robot: chunky treaded tyres on hubs",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.022,
+				0.064,
+				0.064
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+		},
+		{
+			"id": "robot_battery_pack",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "a robot battery pack: a squat box with a handle and contacts",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.162,
+				0.122,
+				0.099
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+		},
+		{
+			"id": "robot_link_basic",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "a robot's basic arm link: a straight jointed metal arm segment",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.08,
+				0.082,
+				0.346
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+		},
+		{
+			"id": "robot_seed_drill",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "a robot's seed drill tool: a hopper over a drill tube",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.178,
+				0.2,
+				0.335
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+		},
+		{
+			"id": "robot_picker",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "a robot's picker head: a small gripper with two fingers",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.1,
+				0.21,
+				0.082
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+		},
+		{
+			"id": "robot_soil_feeder",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "a robot's soil feeder tool: a funnel over a feed chute",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.186,
+				0.21,
+				0.269
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+		},
+		{
+			"id": "robot_row_guide",
+			"view": "v1",
+			"box": null,
+			"unseen": "the workshop's concept K10 shows no robot (its bench is a console of screens); the robot P1 and its parts tray are the run's start state the scene record stands (data/scene/workshop.json)",
+			"name": "a robot's row guide: a small sensor head on a bracket",
+			"kind": "generate",
+			"anchor": "on:robot_bench",
+			"size": [
+				0.064,
+				0.071,
+				0.068
+			],
+			"count": 1,
+			"machine": true,
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
 		}
 	]
 }
