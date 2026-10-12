@@ -58,6 +58,12 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   once), nobody has reviewed the round-three and round-four films, and they are cited nowhere; they come back as the
   evidence step, on places the owner accepted. `showcase.py` cuts the showcase and the
   figure from the films. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
+- **A place's review from the store** (`store_page.py`, no Blender, no cloud): one command per place copies the
+  accepted `assembly@<place>` stage out of the framework's store, runs `../usd/complete.py check` and `done` on the
+  copy, exports it for the viewer, and writes one self-contained page (every gate of the place's line, each painted
+  take's close-up and parts front and back, the library surfaces waiting for the owner's review, the completion
+  gate, `--audit`'s open items for the place). Use it for any place whose assembly the runner accepted;
+  `store_page_test.py` checks the audit reader.
 - **The viewer** (`viewer/`, its own overlay): a place's stage as a compressed web copy to walk through in the
   browser before any film is made, and the owner's picked viewpoints, which `demo.py` takes as a film's cameras before
   its own spread of the record's.
